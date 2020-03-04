@@ -484,8 +484,8 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#resource-exclusion" title="Resource Exclusion" class="md-nav__link">
-    Resource Exclusion
+  <a href="#resource-exclusioninclusion" title="Resource Exclusion/Inclusion" class="md-nav__link">
+    Resource Exclusion/Inclusion
   </a>
   
 </li>
@@ -1375,8 +1375,8 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#resource-exclusion" title="Resource Exclusion" class="md-nav__link">
-    Resource Exclusion
+  <a href="#resource-exclusioninclusion" title="Resource Exclusion/Inclusion" class="md-nav__link">
+    Resource Exclusion/Inclusion
   </a>
   
 </li>
@@ -1931,7 +1931,7 @@ may need to configure access credentials and HTTPS settings using <code>username
 </code></pre></div>
 
 
-<h2 id="resource-exclusion">Resource Exclusion<a class="headerlink" href="#resource-exclusion" title="Permanent link">&para;</a></h2>
+<h2 id="resource-exclusioninclusion">Resource Exclusion/Inclusion<a class="headerlink" href="#resource-exclusioninclusion" title="Permanent link">&para;</a></h2>
 <p>Resources can be excluded from discovery and sync so that ArgoCD is unaware of them. For example, <code>events.k8s.io</code> and <code>metrics.k8s.io</code> are always excluded. Use cases:</p>
 <ul>
 <li>You have temporal issues and you want to exclude problematic resources.</li>
@@ -1964,6 +1964,23 @@ may need to configure access credentials and HTTPS settings using <code>username
 <li><code>cluster</code> A list of globs to match the cluster.</li>
 </ul>
 <p>If all three match, then the resource is ignored.</p>
+<p>In addition to exclusions, you might configure the list of included resources using the <code>resource.inclusions</code> setting.
+By default, all resource group/kinds are included. The <code>resource.inclusions</code> setting allows customizing the list of included group/kinds: </p>
+<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">data</span><span class="p">:</span>
+  <span class="nt">resource.inclusions</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+    <span class="no">- apiGroups:</span>
+      <span class="no">- &quot;*&quot;</span>
+      <span class="no">kinds:</span>
+      <span class="no">- Deployment</span>
+      <span class="no">clusters:</span>
+      <span class="no">- https://192.168.0.20</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
+</code></pre></div>
+
+
+<p>The <code>resource.inclusions</code> and <code>resource.exclusions</code> might be used together. The final list of resources includes group/kinds specified in <code>resource.inclusions</code> minus group/kinds
+specified in <code>resource.exclusions</code> setting.</p>
 <p>Notes:</p>
 <ul>
 <li>Quote globs in your YAML to avoid parsing errors.</li>
