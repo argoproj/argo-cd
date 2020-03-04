@@ -171,12 +171,12 @@ func initializeDefaultProject(opts ArgoCDServerOpts) error {
 
 // NewServer returns a new instance of the Argo CD API server
 func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
-	settingsMgr := settings_util.NewSettingsManager(ctx, opts.KubeClientset, opts.Namespace, opts.DisableAdmin)
-	settings, err := settingsMgr.InitializeSettings(opts.Insecure)
+	settingsMgr := settings_util.NewSettingsManager(ctx, opts.KubeClientset, opts.Namespace)
+	settings, err := settingsMgr.InitializeSettings(opts.Insecure, opts.DisableAdmin)
 	errors.CheckError(err)
 	err = initializeDefaultProject(opts)
 	errors.CheckError(err)
-	sessionMgr := util_session.NewSessionManager(settingsMgr, opts.DexServerAddr)
+	sessionMgr := util_session.NewSessionManager(settingsMgr, opts.DexServerAddr, opts.DisableAdmin)
 
 	factory := appinformer.NewFilteredSharedInformerFactory(opts.AppClientset, 0, opts.Namespace, func(options *metav1.ListOptions) {})
 	projInformer := factory.Argoproj().V1alpha1().AppProjects().Informer()

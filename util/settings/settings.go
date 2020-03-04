@@ -816,14 +816,13 @@ func (mgr *SettingsManager) SaveTLSCertificateData(ctx context.Context, tlsCerti
 }
 
 // NewSettingsManager generates a new SettingsManager pointer and returns it
-func NewSettingsManager(ctx context.Context, clientset kubernetes.Interface, namespace string, disableAdmin bool) *SettingsManager {
+func NewSettingsManager(ctx context.Context, clientset kubernetes.Interface, namespace string) *SettingsManager {
 
 	mgr := &SettingsManager{
-		ctx:          ctx,
-		clientset:    clientset,
-		namespace:    namespace,
-		mutex:        &sync.Mutex{},
-		disableAdmin: disableAdmin,
+		ctx:       ctx,
+		clientset: clientset,
+		namespace: namespace,
+		mutex:     &sync.Mutex{},
 	}
 
 	return mgr
@@ -986,7 +985,7 @@ func isIncompleteSettingsError(err error) bool {
 }
 
 // InitializeSettings is used to initialize empty admin password, signature, certificate etc if missing
-func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoCDSettings, error) {
+func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool, disableAdmin bool) (*ArgoCDSettings, error) {
 	cdSettings, err := mgr.GetSettings()
 	if err != nil && !isIncompleteSettingsError(err) {
 		return nil, err
@@ -1003,7 +1002,7 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 		cdSettings.ServerSignature = signature
 		log.Info("Initialized server signature")
 	}
-	if !cdSettings.DisableAdmin {
+	if !disableAdmin {
 		if cdSettings.AdminPasswordHash == "" {
 			defaultPassword, err := os.Hostname()
 			if err != nil {
@@ -1022,6 +1021,7 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 			log.Info("Initialized admin mtime")
 		}
 	} else {
+		mgr.disableAdmin = disableAdmin
 		log.Info("admin disabled")
 	}
 	if cdSettings.Certificate == nil && !insecureModeEnabled {

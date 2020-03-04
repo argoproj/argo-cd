@@ -46,7 +46,7 @@ var (
 )
 
 func TestHandlerFeatureIsEnabled(t *testing.T) {
-	settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(&argoCDCm, &argoCDSecret), "default", false)
+	settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(&argoCDCm, &argoCDSecret), "default")
 	handler := NewHandler(appclientset.NewSimpleClientset(&testApp), settingsMgr, "default")
 	req, err := http.NewRequest("GET", "/api/badge?name=testApp", nil)
 	assert.NoError(t, err)
@@ -68,7 +68,7 @@ func TestHandlerFeatureIsDisabled(t *testing.T) {
 	argoCDCmDisabled := argoCDCm.DeepCopy()
 	delete(argoCDCmDisabled.Data, "statusbadge.enabled")
 
-	settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(argoCDCmDisabled, &argoCDSecret), "default", false)
+	settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(argoCDCmDisabled, &argoCDSecret), "default")
 	handler := NewHandler(appclientset.NewSimpleClientset(&testApp), settingsMgr, "default")
 	req, err := http.NewRequest("GET", "/api/badge?name=testApp", nil)
 	assert.NoError(t, err)

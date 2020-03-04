@@ -283,7 +283,7 @@ func getCertClientset() *fake.Clientset {
 
 func Test_ListCertificate(t *testing.T) {
 	clientset := getCertClientset()
-	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace, false), clientset)
+	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
 	assert.NotNil(t, db)
 
 	// List all SSH known host entries from configuration.
@@ -354,7 +354,7 @@ func Test_ListCertificate(t *testing.T) {
 
 func Test_CreateSSHKnownHostEntries(t *testing.T) {
 	clientset := getCertClientset()
-	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace, false), clientset)
+	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
 	assert.NotNil(t, db)
 
 	// Valid known hosts entry
@@ -483,7 +483,7 @@ func Test_CreateSSHKnownHostEntries(t *testing.T) {
 
 func Test_CreateTLSCertificates(t *testing.T) {
 	clientset := getCertClientset()
-	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace, false), clientset)
+	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
 	assert.NotNil(t, db)
 
 	// Valid TLS certificate
@@ -668,7 +668,7 @@ func Test_CreateTLSCertificates(t *testing.T) {
 
 func Test_RemoveSSHKnownHosts(t *testing.T) {
 	clientset := getCertClientset()
-	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace, false), clientset)
+	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
 	assert.NotNil(t, db)
 
 	// Remove single SSH known hosts entry by hostname
@@ -732,7 +732,7 @@ func Test_RemoveSSHKnownHosts(t *testing.T) {
 
 func Test_RemoveTLSCertificates(t *testing.T) {
 	clientset := getCertClientset()
-	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace, false), clientset)
+	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
 	assert.NotNil(t, db)
 
 	// Remove single TLS certificate entry by hostname

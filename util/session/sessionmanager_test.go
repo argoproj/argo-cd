@@ -52,8 +52,8 @@ func TestSessionManager(t *testing.T) {
 	const (
 		defaultSubject = "argo"
 	)
-	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient(), "argocd", false)
-	mgr := NewSessionManager(settingsMgr, "")
+	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient(), "argocd")
+	mgr := NewSessionManager(settingsMgr, "", false)
 
 	token, err := mgr.Create(defaultSubject, 0)
 	if err != nil {
@@ -144,8 +144,9 @@ func TestVerifyUsernamePassword(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient(), "argocd", tc.disableAdmin)
-			mgr := NewSessionManager(settingsMgr, "")
+			settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient(), "argocd")
+
+			mgr := NewSessionManager(settingsMgr, "", tc.disableAdmin)
 
 			err := mgr.VerifyUsernamePassword(tc.userName, tc.password)
 

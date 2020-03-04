@@ -81,7 +81,7 @@ func newFakeController(data *fakeData) *ApplicationController {
 		Data: data.configMapData,
 	}
 	kubeClient := fake.NewSimpleClientset(&clust, &cm, &secret)
-	settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace, false)
+	settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace)
 	kubectl := &kubetest.MockKubectlCmd{}
 	ctrl, err := NewApplicationController(
 		test.FakeArgoCDNamespace,

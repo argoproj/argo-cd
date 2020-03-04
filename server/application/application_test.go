@@ -92,7 +92,7 @@ func newTestAppServer(objects ...runtime.Object) *Server {
 			"server.secretkey": []byte("test"),
 		},
 	})
-	db := db.NewDB(testNamespace, settings.NewSettingsManager(context.Background(), kubeclientset, testNamespace, false), kubeclientset)
+	db := db.NewDB(testNamespace, settings.NewSettingsManager(context.Background(), kubeclientset, testNamespace), kubeclientset)
 	ctx := context.Background()
 	_, err := db.CreateRepository(ctx, fakeRepo())
 	errors.CheckError(err)
@@ -148,7 +148,7 @@ func newTestAppServer(objects ...runtime.Object) *Server {
 	enforcer.SetDefaultRole("role:admin")
 	enforcer.SetClaimsEnforcerFunc(rbacpolicy.NewRBACPolicyEnforcer(enforcer, fakeProjLister).EnforceClaims)
 
-	settingsMgr := settings.NewSettingsManager(context.Background(), kubeclientset, testNamespace, false)
+	settingsMgr := settings.NewSettingsManager(context.Background(), kubeclientset, testNamespace)
 
 	server := NewServer(
 		testNamespace,
