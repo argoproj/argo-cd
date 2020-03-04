@@ -24,9 +24,10 @@ import (
 
 // SessionManager generates and validates JWT tokens for login sessions.
 type SessionManager struct {
-	settingsMgr *settings.SettingsManager
-	client      *http.Client
-	prov        oidcutil.Provider
+	settingsMgr  *settings.SettingsManager
+	client       *http.Client
+	prov         oidcutil.Provider
+	disableAdmin bool
 }
 
 const (
@@ -37,10 +38,11 @@ const (
 	invalidLoginError  = "Invalid username or password"
 	blankPasswordError = "Blank passwords are not allowed"
 	badUserError       = "Bad local superuser username"
+	adminDisable       = "Admin login is disabled"
 )
 
 // NewSessionManager creates a new session manager from Argo CD settings
-func NewSessionManager(settingsMgr *settings.SettingsManager, dexServerAddr string) *SessionManager {
+func NewSessionManager(settingsMgr *settings.SettingsManager, dexServerAddr string, disableAdmin bool) *SessionManager {
 	s := SessionManager{
 		settingsMgr: settingsMgr,
 	}
@@ -70,6 +72,9 @@ func NewSessionManager(settingsMgr *settings.SettingsManager, dexServerAddr stri
 	if os.Getenv(common.EnvVarSSODebug) == "1" {
 		s.client.Transport = httputil.DebugTransport{T: s.client.Transport}
 	}
+
+	s.disableAdmin = disableAdmin
+
 	return &s
 }
 
@@ -134,16 +139,20 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, error) {
 
 // VerifyUsernamePassword verifies if a username/password combo is correct
 func (mgr *SessionManager) VerifyUsernamePassword(username, password string) error {
+	if mgr.disableAdmin {
+		return status.Errorf(codes.Unauthenticated, adminDisable)
+	}
+	settings, err := mgr.settingsMgr.GetSettings()
+	if err != nil {
+		return err
+	}
 	if username != common.ArgoCDAdminUsername {
 		return status.Errorf(codes.Unauthenticated, badUserError)
 	}
 	if password == "" {
 		return status.Errorf(codes.Unauthenticated, blankPasswordError)
 	}
-	settings, err := mgr.settingsMgr.GetSettings()
-	if err != nil {
-		return err
-	}
+
 	valid, _ := passwordutil.VerifyPassword(password, settings.AdminPasswordHash)
 	if !valid {
 		return status.Errorf(codes.Unauthenticated, invalidLoginError)

@@ -522,6 +522,7 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 	if len(errs) > 0 {
 		return &settings, errs[0]
 	}
+
 	return &settings, nil
 }
 
@@ -981,7 +982,7 @@ func isIncompleteSettingsError(err error) bool {
 }
 
 // InitializeSettings is used to initialize empty admin password, signature, certificate etc if missing
-func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoCDSettings, error) {
+func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool, disableAdmin bool) (*ArgoCDSettings, error) {
 	cdSettings, err := mgr.GetSettings()
 	if err != nil && !isIncompleteSettingsError(err) {
 		return nil, err
@@ -998,24 +999,27 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 		cdSettings.ServerSignature = signature
 		log.Info("Initialized server signature")
 	}
-	if cdSettings.AdminPasswordHash == "" {
-		defaultPassword, err := os.Hostname()
-		if err != nil {
-			return nil, err
+	if !disableAdmin {
+		if cdSettings.AdminPasswordHash == "" {
+			defaultPassword, err := os.Hostname()
+			if err != nil {
+				return nil, err
+			}
+			hashedPassword, err := password.HashPassword(defaultPassword)
+			if err != nil {
+				return nil, err
+			}
+			cdSettings.AdminPasswordHash = hashedPassword
+			cdSettings.AdminPasswordMtime = time.Now().UTC()
+			log.Info("Initialized admin password")
 		}
-		hashedPassword, err := password.HashPassword(defaultPassword)
-		if err != nil {
-			return nil, err
+		if cdSettings.AdminPasswordMtime.IsZero() {
+			cdSettings.AdminPasswordMtime = time.Now().UTC()
+			log.Info("Initialized admin mtime")
 		}
-		cdSettings.AdminPasswordHash = hashedPassword
-		cdSettings.AdminPasswordMtime = time.Now().UTC()
-		log.Info("Initialized admin password")
+	} else {
+		log.Info("admin disabled")
 	}
-	if cdSettings.AdminPasswordMtime.IsZero() {
-		cdSettings.AdminPasswordMtime = time.Now().UTC()
-		log.Info("Initialized admin mtime")
-	}
-
 	if cdSettings.Certificate == nil && !insecureModeEnabled {
 		// generate TLS cert
 		hosts := []string{

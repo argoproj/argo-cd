@@ -73,29 +73,31 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
                             </div>
                         </div>
                     )}
-                    <Form
-                        onSubmit={(params: LoginForm) => this.login(params.username, params.password, this.state.returnUrl)}
-                        validateError={(params: LoginForm) => ({
-                            username: !params.username && 'Username is required',
-                            password: !params.password && 'Password is required'
-                        })}>
-                        {formApi => (
-                            <form role='form' className='width-control' onSubmit={formApi.submitForm}>
-                                <div className='argo-form-row'>
-                                    <FormField formApi={formApi} label='Username' field='username' component={Text} />
-                                </div>
-                                <div className='argo-form-row'>
-                                    <FormField formApi={formApi} label='Password' field='password' component={Text} componentProps={{type: 'password'}} />
-                                    {this.state.loginError && <div className='argo-form-row__error-msg'>{this.state.loginError}</div>}
-                                </div>
-                                <div className='login__form-row'>
-                                    <button className='argo-button argo-button--full-width argo-button--xlg' type='submit'>
-                                        Sign In
-                                    </button>
-                                </div>
-                            </form>
-                        )}
-                    </Form>
+                    {authSettings && !authSettings.disableAdmin && (
+                        <Form
+                            onSubmit={(params: LoginForm) => this.login(params.username, params.password, this.state.returnUrl)}
+                            validateError={(params: LoginForm) => ({
+                                username: !params.username && 'Username is required',
+                                password: !params.password && 'Password is required'
+                            })}>
+                            {formApi => (
+                                <form role='form' className='width-control' onSubmit={formApi.submitForm}>
+                                    <div className='argo-form-row'>
+                                        <FormField formApi={formApi} label='Username' field='username' component={Text} />
+                                    </div>
+                                    <div className='argo-form-row'>
+                                        <FormField formApi={formApi} label='Password' field='password' component={Text} componentProps={{type: 'password'}} />
+                                        {this.state.loginError && <div className='argo-form-row__error-msg'>{this.state.loginError}</div>}
+                                    </div>
+                                    <div className='login__form-row'>
+                                        <button className='argo-button argo-button--full-width argo-button--xlg' type='submit'>
+                                            Sign In
+                                        </button>
+                                    </div>
+                                </form>
+                            )}
+                        </Form>
+                    )}
                     <div className='login__footer'>
                         <a href='https://argoproj.io' target='_blank'>
                             <img className='logo-image' src='assets/images/argologo.svg' alt='argo' />
