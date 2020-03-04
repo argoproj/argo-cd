@@ -559,6 +559,9 @@ data:
 kind: ConfigMap
 ```
 
+The `resource.inclusions` and `resource.exclusions` might be used together. The final list of resources includes group/kinds specified in `resource.inclusions` minus group/kinds
+specified in `resource.exclusions` setting.
+
 Notes:
 
 * Quote globs in your YAML to avoid parsing errors.

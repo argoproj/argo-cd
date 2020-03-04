@@ -193,7 +193,6 @@ data:
       clusters:
       - "*.local"
 
-
   # Configuration to add a config management plugin.
   configManagementPlugins: |
     - name: kasane
