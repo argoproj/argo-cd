@@ -183,6 +183,16 @@ data:
       clusters:
       - "*.local"
 
+  # By default all resource group/kinds are included. The resource.inclusions setting allows customizing
+  # list of included group/kinds.
+  resource.inclusions: |
+    - apiGroups:
+      - repositories.stash.appscode.com
+      kinds:
+      - Snapshot
+      clusters:
+      - "*.local"
+
   # Configuration to add a config management plugin.
   configManagementPlugins: |
     - name: kasane
