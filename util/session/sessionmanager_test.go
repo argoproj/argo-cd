@@ -16,16 +16,14 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/errors"
-	p "github.com/argoproj/argo-cd/util/password"
+	"github.com/argoproj/argo-cd/util/password"
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
-const password = "password"
-
-func getKubeClient() *fake.Clientset {
+func getKubeClient(pass string) *fake.Clientset {
 	const defaultSecretKey = "Hello, world!"
 
-	bcrypt, err := p.HashPassword(password)
+	bcrypt, err := password.HashPassword(pass)
 	errors.CheckError(err)
 
 	return fake.NewSimpleClientset(&corev1.ConfigMap{
@@ -52,7 +50,7 @@ func TestSessionManager(t *testing.T) {
 	const (
 		defaultSubject = "argo"
 	)
-	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient(), "argocd")
+	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("pass"), "argocd")
 	mgr := NewSessionManager(settingsMgr, "", false)
 
 	token, err := mgr.Create(defaultSubject, 0)
@@ -100,6 +98,8 @@ func TestGroups(t *testing.T) {
 }
 
 func TestVerifyUsernamePassword(t *testing.T) {
+	const password = "password"
+
 	for _, tc := range []struct {
 		name         string
 		disableAdmin bool
@@ -144,7 +144,7 @@ func TestVerifyUsernamePassword(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient(), "argocd")
+			settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient(password), "argocd")
 
 			mgr := NewSessionManager(settingsMgr, "", tc.disableAdmin)
 
