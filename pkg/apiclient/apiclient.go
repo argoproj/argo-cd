@@ -400,7 +400,7 @@ func (c *client) newConn() (*grpc.ClientConn, io.Closer, error) {
 	}
 	var dialOpts []grpc.DialOption
 	dialOpts = append(dialOpts, grpc.WithPerRPCCredentials(endpointCredentials))
-	dialOpts = append(dialOpts, grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(MaxGRPCMessageSize)))
+	dialOpts = append(dialOpts, grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(MaxGRPCMessageSize), grpc.MaxCallSendMsgSize(MaxGRPCMessageSize)))
 
 	ctx := context.Background()
 
