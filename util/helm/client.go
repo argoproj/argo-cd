@@ -1,6 +1,7 @@
 package helm
 
 import (
+	"bytes"
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
@@ -16,7 +17,6 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver"
-	"github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 
@@ -73,7 +73,7 @@ func fileExist(filePath string) (bool, error) {
 	return true, nil
 }
 
-func (c *nativeHelmChart) helmChartRepoPath() error {
+func (c *nativeHelmChart) ensureHelmChartRepoPath() error {
 	c.repoLock.Lock(c.repoPath)
 	defer c.repoLock.Unlock(c.repoPath)
 
@@ -89,7 +89,7 @@ func (c *nativeHelmChart) CleanChartCache(chart string, version *semver.Version)
 }
 
 func (c *nativeHelmChart) ExtractChart(chart string, version *semver.Version) (string, util.Closer, error) {
-	err := c.helmChartRepoPath()
+	err := c.ensureHelmChartRepoPath()
 	if err != nil {
 		return "", nil, err
 	}
@@ -157,14 +157,25 @@ func (c *nativeHelmChart) ExtractChart(chart string, version *semver.Version) (s
 }
 
 func (c *nativeHelmChart) GetIndex() (*Index, error) {
-	cachedIndex, found := indexCache.Get(c.repoURL)
-	if found {
-		log.WithFields(log.Fields{"url": c.repoURL}).Debug("index cache hit")
-		i := cachedIndex.(Index)
-		return &i, nil
+	start := time.Now()
+
+	data, err := c.loadRepoIndex()
+	if err != nil {
+		return nil, err
 	}
 
-	start := time.Now()
+	index := &Index{}
+	err = yaml.NewDecoder(bytes.NewBuffer(data)).Decode(index)
+	if err != nil {
+		return nil, err
+	}
+
+	log.WithFields(log.Fields{"seconds": time.Since(start).Seconds()}).Info("took to get index")
+
+	return index, nil
+}
+
+func (c *nativeHelmChart) loadRepoIndex() ([]byte, error) {
 	repoURL, err := url.Parse(c.repoURL)
 	if err != nil {
 		return nil, err
@@ -198,15 +209,7 @@ func (c *nativeHelmChart) GetIndex() (*Index, error) {
 	if resp.StatusCode != 200 {
 		return nil, errors.New("failed to get index: " + resp.Status)
 	}
-
-	index := &Index{}
-	err = yaml.NewDecoder(resp.Body).Decode(index)
-
-	log.WithFields(log.Fields{"seconds": time.Since(start).Seconds()}).Info("took to get index")
-
-	indexCache.Set(c.repoURL, *index, cache.DefaultExpiration)
-
-	return index, err
+	return ioutil.ReadAll(resp.Body)
 }
 
 func newTLSConfig(creds Creds) (*tls.Config, error) {

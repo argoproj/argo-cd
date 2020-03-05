@@ -44,7 +44,11 @@ func (c Cmd) run(args ...string) (string, error) {
 	cmd := exec.Command(c.binaryName, args...)
 	cmd.Dir = c.WorkDir
 	cmd.Env = os.Environ()
-	cmd.Env = append(cmd.Env, fmt.Sprintf("HELM_HOME=%s", c.helmHome))
+	cmd.Env = append(cmd.Env,
+		fmt.Sprintf("XDG_CACHE_HOME=%s/cache", c.helmHome),
+		fmt.Sprintf("XDG_CONFIG_HOME=%s/config", c.helmHome),
+		fmt.Sprintf("XDG_DATA_HOME=%s/data", c.helmHome),
+		fmt.Sprintf("HELM_HOME=%s", c.helmHome))
 	return executil.RunWithRedactor(cmd, redactor)
 }
 
