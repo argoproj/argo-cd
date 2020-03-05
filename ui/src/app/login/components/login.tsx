@@ -47,6 +47,7 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
 
     public render() {
         const authSettings = this.state.authSettings;
+        const ssoConfigured = authSettings && ((authSettings.dexConfig && (authSettings.dexConfig.connectors || []).length > 0) || authSettings.oidcConfig);
         return (
             <div className='login'>
                 <div className='login__content'>
@@ -57,7 +58,7 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
                     <div className='login__logo width-control'>
                         <img className='logo-image' src='assets/images/argo_o.svg' alt='argo' />
                     </div>
-                    {authSettings && ((authSettings.dexConfig && (authSettings.dexConfig.connectors || []).length > 0) || authSettings.oidcConfig) && (
+                    {ssoConfigured && (
                         <div className='login__box_saml width-control'>
                             <a href={`auth/login?return_url=${encodeURIComponent(this.state.returnUrl)}`}>
                                 <button className='argo-button argo-button--base argo-button--full-width argo-button--xlg'>
@@ -68,9 +69,11 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
                                 </button>
                             </a>
                             {this.state.ssoLoginError && <div className='argo-form-row__error-msg'>{this.state.ssoLoginError}</div>}
-                            <div className='login__saml-separator'>
-                                <span>or</span>
-                            </div>
+                            {authSettings && !authSettings.disableAdmin && (
+                                <div className='login__saml-separator'>
+                                    <span>or</span>
+                                </div>
+                            )}
                         </div>
                     )}
                     {authSettings && !authSettings.disableAdmin && (
@@ -97,6 +100,9 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
                                 </form>
                             )}
                         </Form>
+                    )}
+                    {authSettings && authSettings.disableAdmin && !ssoConfigured && (
+                        <div className='argo-form-row__error-msg'>Login is disabled. Please contact your system administrator.</div>
                     )}
                     <div className='login__footer'>
                         <a href='https://argoproj.io' target='_blank'>
