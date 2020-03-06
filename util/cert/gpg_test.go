@@ -157,7 +157,7 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 		assert.Equal(t, "Good", res.Result)
 	}
 
-	// Bad case: Premature end-of-file 1
+	// Bad case: Incomplete signature data #1
 	{
 		c, err := ioutil.ReadFile("testdata/bad_signature_preeof1.txt")
 		if err != nil {
@@ -168,7 +168,7 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 		assert.Contains(t, err.Error(), "end-of-file")
 	}
 
-	// Bad case: Premature end-of-file 2
+	// Bad case: Incomplete signature data #2
 	{
 		c, err := ioutil.ReadFile("testdata/bad_signature_preeof2.txt")
 		if err != nil {
@@ -179,6 +179,7 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 		assert.Contains(t, err.Error(), "end-of-file")
 	}
 
+	// Bad case: No signature data #1
 	{
 		c, err := ioutil.ReadFile("testdata/bad_signature_nodata.txt")
 		if err != nil {
@@ -189,6 +190,7 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 		assert.Contains(t, err.Error(), "no verification data found")
 	}
 
+	// Bad case: Malformed signature data #1
 	{
 		c, err := ioutil.ReadFile("testdata/bad_signature_malformed1.txt")
 		if err != nil {
@@ -199,6 +201,7 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 		assert.Contains(t, err.Error(), "no verification data found")
 	}
 
+	// Bad case: Malformed signature data #2
 	{
 		c, err := ioutil.ReadFile("testdata/bad_signature_malformed2.txt")
 		if err != nil {
@@ -209,6 +212,7 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 		assert.Contains(t, err.Error(), "Could not parse key ID")
 	}
 
+	// Bad case: Malformed signature data #3
 	{
 		c, err := ioutil.ReadFile("testdata/bad_signature_malformed3.txt")
 		if err != nil {
@@ -218,5 +222,17 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "Could not parse result of verify")
 	}
+}
 
+func Test_GetGnuPGHomePath(t *testing.T) {
+	{
+		os.Setenv("GNUPGHOME", "")
+		p := GetGnuPGHomePath()
+		assert.Equal(t, DefaultGnuPgHomePath, p)
+	}
+	{
+		os.Setenv("GNUPGHOME", "/tmp/gpghome")
+		p := GetGnuPGHomePath()
+		assert.Equal(t, "/tmp/gpghome", p)
+	}
 }
