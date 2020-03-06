@@ -9,7 +9,7 @@ RUN ./install.sh codegen-tools
 RUN ./install.sh codegen-go-tools
 
 RUN mkdir -p /home/user && chmod 777 /home/user
-RUN HELM_HOME=/home/user/.helm helm init --client-only
+RUN HELM_HOME=/home/user/.helm helm2 init --client-only
 
 RUN mkdir -p /go/pkg && chmod 777 /go/pkg
 
