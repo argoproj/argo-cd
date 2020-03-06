@@ -62,7 +62,7 @@ jobs:
       - save_cache:
           key: codegen-v1-{{ checksum "Gopkg.lock" }}-{{ checksum "hack/installers/install-codegen-go-tools.sh" }}
           paths: [vendor, /tmp/dl, /go/pkg]
-      - run: helm init --client-only
+      - run: helm2 init --client-only
       - run: make codegen-local
       - run:
           name: Check nothing has changed

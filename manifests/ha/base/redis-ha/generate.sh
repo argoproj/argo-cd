@@ -1,6 +1,6 @@
 #!/bin/sh -xe
 
-helm dependency update ./chart --skip-refresh
+helm2 dependency update ./chart --skip-refresh
 
 # This step is necessary because we do not want the helm tests to be included
 templates=$(tar -tf ./chart/charts/redis-ha-*.tgz | grep 'redis-ha/templates/redis-.*.yaml')
@@ -12,7 +12,7 @@ done
 AUTOGENMSG="# This is an auto-generated file. DO NOT EDIT"
 echo "${AUTOGENMSG}" > ./chart/upstream.yaml
 
-helm template ./chart \
+helm2 template ./chart \
   --name argocd \
   --values ./chart/values.yaml \
   ${helm_execute} \
