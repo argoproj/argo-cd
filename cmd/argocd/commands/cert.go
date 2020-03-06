@@ -174,18 +174,20 @@ func NewCertAddSSHCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			}
 
 			for _, knownHostsEntry := range sshKnownHostsLists {
-				hostname, certSubType, certData, err := certutil.TokenizeSSHKnownHostsEntry(knownHostsEntry)
+				_, certSubType, certData, err := certutil.TokenizeSSHKnownHostsEntry(knownHostsEntry)
 				errors.CheckError(err)
-				_, _, err = certutil.KnownHostsLineToPublicKey(knownHostsEntry)
+				hostnameList, _, err := certutil.KnownHostsLineToPublicKey(knownHostsEntry)
 				errors.CheckError(err)
-				certificate := appsv1.RepositoryCertificate{
-					ServerName:  hostname,
-					CertType:    "ssh",
-					CertSubType: certSubType,
-					CertData:    certData,
+				// Each key could be valid for multiple hostnames
+				for _, hostname := range hostnameList {
+					certificate := appsv1.RepositoryCertificate{
+						ServerName:  hostname,
+						CertType:    "ssh",
+						CertSubType: certSubType,
+						CertData:    certData,
+					}
+					certificates = append(certificates, certificate)
 				}
-
-				certificates = append(certificates, certificate)
 			}
 
 			certList := &appsv1.RepositoryCertificateList{Items: certificates}

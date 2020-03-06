@@ -1072,7 +1072,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": "$Source",
-      "fill": 1,
+      "fill": 0,
       "gridPos": {
         "h": 5,
         "w": 24,
@@ -1164,7 +1164,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": "$Source",
-      "fill": 1,
+      "fill": 0,
       "gridPos": {
         "h": 5,
         "w": 24,
@@ -1253,7 +1253,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": "$Source",
-      "fill": 1,
+      "fill": 0,
       "gridPos": {
         "h": 8,
         "w": 24,
@@ -1288,7 +1288,7 @@
           "expr": "sum(increase(argocd_app_reconcile_count{namespace=~\"$namespace\", project=~\"$project\"}[10m])) by (namespace, project)",
           "format": "time_series",
           "intervalFactor": 1,
-          "legendFormat": "{{namespace}}",
+          "legendFormat": "{{namespace}},{{project}}",
           "refId": "A"
         }
       ],
@@ -1339,7 +1339,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": "$Source",
-      "fill": 1,
+      "fill": 0,
       "gridPos": {
         "h": 8,
         "w": 24,
@@ -1374,7 +1374,7 @@
           "expr": "sum(increase(argocd_app_k8s_request_total{namespace=~\"$namespace\",project=~\"$project\"}[5m])) by (namespace, project)",
           "format": "time_series",
           "intervalFactor": 1,
-          "legendFormat": "{{namespace}}",
+          "legendFormat": "{{namespace}},{{project}}",
           "refId": "A"
         }
       ],
@@ -1489,7 +1489,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": "$Source",
-      "fill": 1,
+      "fill": 0,
       "gridPos": {
         "h": 8,
         "w": 24,
@@ -1575,7 +1575,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": "$Source",
-      "fill": 1,
+      "fill": 0,
       "gridPos": {
         "h": 8,
         "w": 24,
@@ -1673,7 +1673,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "$Source",
-          "fill": 1,
+          "fill": 0,
           "gridPos": {
             "h": 8,
             "w": 24,
@@ -1759,7 +1759,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "$Source",
-          "fill": 1,
+          "fill": 0,
           "gridPos": {
             "h": 9,
             "w": 24,
@@ -1845,7 +1845,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "$Source",
-          "fill": 1,
+          "fill": 0,
           "gridPos": {
             "h": 9,
             "w": 24,
@@ -1946,7 +1946,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "$Source",
-          "fill": 1,
+          "fill": 0,
           "gridPos": {
             "h": 9,
             "w": 12,
@@ -1978,10 +1978,10 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"application.ApplicationService\",namespace=~\"$namespace\"} > 0",
+              "expr": "increase(grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"application.ApplicationService\",namespace=~\"$namespace\"}[10m]) > 0 or on() vector (0)",
               "format": "time_series",
               "intervalFactor": 1,
-              "legendFormat": "{{grpc_code}},{{grpc_method}}",
+              "legendFormat": "{{grpc_code}},{{grpc_method}},{{pod}}",
               "refId": "A"
             }
           ],
@@ -2040,7 +2040,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "$Source",
-          "fill": 1,
+          "fill": 0,
           "gridPos": {
             "h": 9,
             "w": 12,
@@ -2072,10 +2072,10 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"cluster.ClusterService\",namespace=~\"$namespace\"} > 0",
+              "expr": "increase(grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"cluster.ClusterService\",namespace=~\"$namespace\"}[10m]) > 0 or on() vector (0)",
               "format": "time_series",
               "intervalFactor": 1,
-              "legendFormat": "{{grpc_code}},{{grpc_method}}",
+              "legendFormat": "{{grpc_code}},{{grpc_method}},{{pod}}",
               "refId": "A"
             }
           ],
@@ -2134,7 +2134,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "$Source",
-          "fill": 1,
+          "fill": 0,
           "gridPos": {
             "h": 9,
             "w": 12,
@@ -2166,10 +2166,10 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"project.ProjectService\",namespace=~\"$namespace\"} > 0",
+              "expr": "increase(grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"project.ProjectService\",namespace=~\"$namespace\"}[10m]) > 0 or on() vector (0)",
               "format": "time_series",
               "intervalFactor": 1,
-              "legendFormat": "{{grpc_code}},{{grpc_method}}",
+              "legendFormat": "{{grpc_code}},{{grpc_method}},{{pod}}",
               "refId": "A"
             }
           ],
@@ -2228,7 +2228,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "$Source",
-          "fill": 1,
+          "fill": 0,
           "gridPos": {
             "h": 9,
             "w": 12,
@@ -2260,10 +2260,10 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"repository.RepositoryService\",namespace=~\"$namespace\"} > 0",
+              "expr": "increase(grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"repository.RepositoryService\",namespace=~\"$namespace\"}[10m]) > 0 or on() vector (0)",
               "format": "time_series",
               "intervalFactor": 1,
-              "legendFormat": "{{grpc_code}},{{grpc_method}}",
+              "legendFormat": "{{grpc_code}},{{grpc_method}},{{pod}}",
               "refId": "A"
             }
           ],
@@ -2322,7 +2322,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "$Source",
-          "fill": 1,
+          "fill": 0,
           "gridPos": {
             "h": 9,
             "w": 12,
@@ -2354,10 +2354,10 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"session.SessionService\",namespace=~\"$namespace\"} > 0",
+              "expr": "increase(grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"session.SessionService\",namespace=~\"$namespace\"}[10m]) > 0 or on() vector (0)",
               "format": "time_series",
               "intervalFactor": 1,
-              "legendFormat": "{{grpc_code}},{{grpc_method}}",
+              "legendFormat": "{{grpc_code}},{{grpc_method}},{{pod}}",
               "refId": "A"
             }
           ],
@@ -2416,7 +2416,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "$Source",
-          "fill": 1,
+          "fill": 0,
           "gridPos": {
             "h": 9,
             "w": 12,
@@ -2448,10 +2448,10 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"version.VersionService\",namespace=~\"$namespace\"} > 0",
+              "expr": "increase(grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"version.VersionService\",namespace=~\"$namespace\"}[10m]) > 0 or on() vector (0)",
               "format": "time_series",
               "intervalFactor": 1,
-              "legendFormat": "{{grpc_code}},{{grpc_method}}",
+              "legendFormat": "{{grpc_code}},{{grpc_method}},{{pod}}",
               "refId": "A"
             }
           ],
@@ -2510,7 +2510,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "$Source",
-          "fill": 1,
+          "fill": 0,
           "gridPos": {
             "h": 9,
             "w": 12,
@@ -2542,10 +2542,10 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"account.AccountService\",namespace=~\"$namespace\"} >1",
+              "expr": "increase(grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"account.AccountService\",namespace=~\"$namespace\"}[10m]) > 1 or on() vector (0)",
               "format": "time_series",
               "intervalFactor": 1,
-              "legendFormat": "{{grpc_code}},{{grpc_method}}",
+              "legendFormat": "{{grpc_code}},{{grpc_method}},{{pod}}",
               "refId": "A"
             }
           ],
@@ -2621,7 +2621,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": "$Source",
-      "fill": 1,
+      "fill": 0,
       "gridPos": {
         "h": 8,
         "w": 24,
@@ -2707,7 +2707,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": "$Source",
-      "fill": 1,
+      "fill": 0,
       "gridPos": {
         "h": 9,
         "w": 24,
@@ -2793,7 +2793,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": "$Source",
-      "fill": 1,
+      "fill": 0,
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -2827,6 +2827,7 @@
           "expr": "sum(increase(argocd_git_request_total{request_type=\"ls-remote\", namespace=~\"$namespace\"}[10m])) by (namespace)",
           "format": "time_series",
           "intervalFactor": 1,
+          "legendFormat": "{{namespace}}",
           "refId": "A"
         }
       ],
@@ -2877,7 +2878,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": "$Source",
-      "fill": 1,
+      "fill": 0,
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -2911,6 +2912,7 @@
           "expr": "sum(increase(argocd_git_request_total{request_type=\"fetch\", namespace=~\"$namespace\"}[10m])) by (namespace)",
           "format": "time_series",
           "intervalFactor": 1,
+          "legendFormat": "{{namespace}}",
           "refId": "A"
         }
       ],
@@ -3060,5 +3062,5 @@
   "timezone": "",
   "title": "ArgoCD",
   "uid": "BjWwX3jik",
-  "version": 5
+  "version": 7
 }

@@ -62,7 +62,8 @@ func (l *AuditLogger) logEvent(objMeta ObjectRef, gvk schema.GroupVersionKind, i
 	t := metav1.Time{Time: time.Now()}
 	event := v1.Event{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("%v.%x", objMeta.Name, t.UnixNano()),
+			Name:        fmt.Sprintf("%v.%x", objMeta.Name, t.UnixNano()),
+			Annotations: logFields,
 		},
 		Source: v1.EventSource{
 			Component: l.component,

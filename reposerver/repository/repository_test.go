@@ -176,7 +176,7 @@ func TestGenerateHelmChartWithDependencies(t *testing.T) {
 	q := apiclient.ManifestRequest{
 		Repo: &argoappv1.Repository{},
 		ApplicationSource: &argoappv1.ApplicationSource{
-			Path: "./util/helm/testdata/wordpress",
+			Path: "./util/helm/testdata/helm2-dependency",
 		},
 	}
 	res1, err := service.GenerateManifest(context.Background(), &q)
@@ -510,7 +510,7 @@ func TestGetAppDetailsHelm(t *testing.T) {
 	res, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
 		Repo: &argoappv1.Repository{},
 		Source: &argoappv1.ApplicationSource{
-			Path: "./util/helm/testdata/wordpress",
+			Path: "./util/helm/testdata/helm2-dependency",
 		},
 	})
 

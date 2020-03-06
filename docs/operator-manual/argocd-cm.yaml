@@ -100,7 +100,7 @@ data:
       # List of json pointers in the object to ignore differences
       ignoreDifferences: |
         jsonPointers:
-        - webhooks/0/clientConfig/caBundle
+        - /webhooks/0/clientConfig/caBundle
     certmanager.k8s.io/Certificate:
       # Lua script for customizing the health status assessment
       health.lua: |
@@ -176,6 +176,16 @@ data:
   # If you omit groups/kinds/clusters then they will match all groups/kind/clusters.
   # NOTE: events.k8s.io and metrics.k8s.io are excluded by default
   resource.exclusions: |
+    - apiGroups:
+      - repositories.stash.appscode.com
+      kinds:
+      - Snapshot
+      clusters:
+      - "*.local"
+
+  # By default all resource group/kinds are included. The resource.inclusions setting allows customizing
+  # list of included group/kinds.
+  resource.inclusions: |
     - apiGroups:
       - repositories.stash.appscode.com
       kinds:

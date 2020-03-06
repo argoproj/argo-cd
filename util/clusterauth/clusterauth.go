@@ -211,18 +211,18 @@ func InstallClusterManagerRBAC(clientset kubernetes.Interface, ns string, namesp
 		}
 	}
 
-	return getServiceAccountBearerToken(clientset, ns)
+	return GetServiceAccountBearerToken(clientset, ns, ArgoCDManagerServiceAccount)
 }
 
-// getServiceAccountBearerToken will attempt to get the Argo manager service account until it
+// GetServiceAccountBearerToken will attempt to get the provided service account until it
 // exists, iterate the secrets associated with it looking for one of type
 // kubernetes.io/service-account-token, and return it's token if found.
-func getServiceAccountBearerToken(clientset kubernetes.Interface, ns string) (string, error) {
+func GetServiceAccountBearerToken(clientset kubernetes.Interface, ns string, sa string) (string, error) {
 	var serviceAccount *corev1.ServiceAccount
 	var secret *corev1.Secret
 	var err error
 	err = wait.Poll(500*time.Millisecond, 30*time.Second, func() (bool, error) {
-		serviceAccount, err = clientset.CoreV1().ServiceAccounts(ns).Get(ArgoCDManagerServiceAccount, metav1.GetOptions{})
+		serviceAccount, err = clientset.CoreV1().ServiceAccounts(ns).Get(sa, metav1.GetOptions{})
 		if err != nil {
 			return false, err
 		}

@@ -323,6 +323,10 @@ There may be instances when you want to control the times during which an Argo C
 - Application controller `kubectl-parallelism-limit` flag is broken (#2673)
 - Annoying toolbar flickering (#2691)
 
+## v1.2.5 (2019-10-29)
+
+- Issue #2339 - Don't update `status.reconciledAt` unless compared with latest git version (#2581)
+
 ## v1.2.4 (2019-10-23)
 
 - Issue #2185 - Manual sync don't trigger hooks (#2477)

@@ -27,9 +27,11 @@ spec:
       # Release name override (defaults to application name)
       releaseName: guestbook
 
+      # Helm values files for overriding values in the helm chart
+      # The path is relative to the spec.source.path directory defined above
       valueFiles:
       - values-prod.yaml
-      
+
       # Values file as block file
       values: |
         ingress:
@@ -90,6 +92,7 @@ spec:
     automated:
       prune: true # Specifies if resources should be pruned during auto-syncing ( false by default ).
       selfHeal: true # Specifies if partial app sync should be executed when resources are changed only in target Kubernetes cluster and no git change detected ( false by default ).
+    validate: true # Validate resources before applying to k8s, defaults to true.
 
   # Ignore differences at the specified json pointers
   ignoreDifferences:
