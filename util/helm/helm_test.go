@@ -1,8 +1,8 @@
 package helm
 
 import (
+	"fmt"
 	"os"
-	"regexp"
 	"testing"
 
 	"github.com/argoproj/argo-cd/util/kube"
@@ -93,21 +93,28 @@ func TestHelmGetParamsValueFiles(t *testing.T) {
 }
 
 func TestHelmDependencyBuild(t *testing.T) {
-	clean := func() {
-		_ = os.RemoveAll("./testdata/wordpress/charts")
+	testCases := map[string]string{"Helm": "dependency", "Helm2": "helm2-dependency"}
+	for name := range testCases {
+		t.Run(name, func(t *testing.T) {
+			chart := testCases[name]
+			clean := func() {
+				_ = os.RemoveAll(fmt.Sprintf("./testdata/%s/charts", chart))
+				_ = os.RemoveAll(fmt.Sprintf("./testdata/%s/Chart.lock", chart))
+			}
+			clean()
+			defer clean()
+			h, err := NewHelmApp(fmt.Sprintf("./testdata/%s", chart), nil)
+			assert.NoError(t, err)
+			err = h.Init()
+			assert.NoError(t, err)
+			_, err = h.Template(&TemplateOpts{Name: "wordpress"})
+			assert.Error(t, err)
+			err = h.DependencyBuild()
+			assert.NoError(t, err)
+			_, err = h.Template(&TemplateOpts{Name: "wordpress"})
+			assert.NoError(t, err)
+		})
 	}
-	clean()
-	defer clean()
-	h, err := NewHelmApp("./testdata/wordpress", nil)
-	assert.NoError(t, err)
-	err = h.Init()
-	assert.NoError(t, err)
-	_, err = h.Template(&TemplateOpts{Name: "wordpress"})
-	assert.Error(t, err)
-	err = h.DependencyBuild()
-	assert.NoError(t, err)
-	_, err = h.Template(&TemplateOpts{Name: "wordpress"})
-	assert.NoError(t, err)
 }
 
 func TestHelmTemplateReleaseNameOverwrite(t *testing.T) {
@@ -160,9 +167,7 @@ func TestHelmArgCleaner(t *testing.T) {
 func TestVersion(t *testing.T) {
 	ver, err := Version()
 	assert.NoError(t, err)
-	SemverRegexValidation := `^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*)?(\+[0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*)?$`
-	re := regexp.MustCompile(SemverRegexValidation)
-	assert.True(t, re.MatchString(ver))
+	assert.NotEmpty(t, ver)
 }
 
 func Test_flatVals(t *testing.T) {

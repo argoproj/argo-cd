@@ -1653,6 +1653,33 @@ func assertConditions(t *testing.T, expected []ApplicationCondition, actual []Ap
 	}
 }
 
+func TestSyncPolicy_IsZero(t *testing.T) {
+	var nilPolicy *SyncPolicy
+	assert.True(t, nilPolicy.IsZero())
+	assert.True(t, (&SyncPolicy{}).IsZero())
+	assert.False(t, (&SyncPolicy{Automated: &SyncPolicyAutomated{}}).IsZero())
+	assert.False(t, (&SyncPolicy{SyncOptions: SyncOptions{""}}).IsZero())
+}
+
+func TestSyncOptions_HasOption(t *testing.T) {
+	var nilOptions SyncOptions
+	assert.False(t, nilOptions.HasOption("a=1"))
+	assert.False(t, (&SyncOptions{}).HasOption("a=1"))
+	assert.True(t, (&SyncOptions{"a=1"}).HasOption("a=1"))
+}
+
+func TestSyncOptions_AddOption(t *testing.T) {
+	options := SyncOptions{}
+	assert.Len(t, options.AddOption("a=1"), 1)
+	assert.Len(t, options.AddOption("a=1").AddOption("a=1"), 1)
+}
+
+func TestSyncOptions_RemoveOption(t *testing.T) {
+	options := SyncOptions{"a=1"}
+	assert.Len(t, options.RemoveOption("a=1"), 0)
+	assert.Len(t, options.RemoveOption("a=1").RemoveOption("a=1"), 0)
+}
+
 func TestRevisionHistories_Trunc(t *testing.T) {
 	assert.Len(t, RevisionHistories{}.Trunc(1), 0)
 	assert.Len(t, RevisionHistories{{}}.Trunc(1), 1)

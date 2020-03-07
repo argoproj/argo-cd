@@ -256,6 +256,11 @@ spec:
                   required:
                   - repoURL
                   type: object
+                syncOptions:
+                  description: SyncOptions provide per-sync sync-options, e.g. Validate=false
+                  items:
+                    type: string
+                  type: array
                 syncStrategy:
                   description: SyncStrategy describes how to perform the sync
                   properties:
@@ -548,6 +553,11 @@ spec:
                       description: 'SelfHeal enables auto-syncing if  (default: false)'
                       type: boolean
                   type: object
+                syncOptions:
+                  description: Options allow youe to specify whole app sync-options
+                  items:
+                    type: string
+                  type: array
               type: object
           required:
           - destination
@@ -1051,6 +1061,12 @@ spec:
                           required:
                           - repoURL
                           type: object
+                        syncOptions:
+                          description: SyncOptions provide per-sync sync-options,
+                            e.g. Validate=false
+                          items:
+                            type: string
+                          type: array
                         syncStrategy:
                           description: SyncStrategy describes how to perform the sync
                           properties:

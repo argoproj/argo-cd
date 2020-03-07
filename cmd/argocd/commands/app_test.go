@@ -3,6 +3,7 @@ package commands
 import (
 	"testing"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -55,5 +56,49 @@ func Test_setJsonnetOpt(t *testing.T) {
 		assert.Equal(t, []v1alpha1.JsonnetVar{{Name: "foo", Value: "bar"}}, src.Directory.Jsonnet.ExtVars)
 		setJsonnetOptExtVar(&src, []string{"bar=baz"}, false)
 		assert.Equal(t, []v1alpha1.JsonnetVar{{Name: "foo", Value: "bar"}, {Name: "bar", Value: "baz"}}, src.Directory.Jsonnet.ExtVars)
+	})
+}
+
+type appOptionsFixture struct {
+	spec    *v1alpha1.ApplicationSpec
+	command *cobra.Command
+	options *appOptions
+}
+
+func (f *appOptionsFixture) SetFlag(key, value string) error {
+	err := f.command.Flags().Set(key, value)
+	if err != nil {
+		return err
+	}
+	_ = setAppSpecOptions(f.command.Flags(), f.spec, f.options)
+	return err
+}
+
+func newAppOptionsFixture() *appOptionsFixture {
+	fixture := &appOptionsFixture{
+		spec:    &v1alpha1.ApplicationSpec{},
+		command: &cobra.Command{},
+		options: &appOptions{},
+	}
+	addAppFlags(fixture.command, fixture.options)
+	return fixture
+}
+
+func Test_setAppSpecOptions(t *testing.T) {
+	f := newAppOptionsFixture()
+	t.Run("SyncPolicy", func(t *testing.T) {
+		assert.NoError(t, f.SetFlag("sync-policy", "automated"))
+		assert.NotNil(t, f.spec.SyncPolicy.Automated)
+
+		assert.NoError(t, f.SetFlag("sync-policy", "none"))
+		assert.Nil(t, f.spec.SyncPolicy)
+	})
+	t.Run("SyncOptions", func(t *testing.T) {
+		assert.NoError(t, f.SetFlag("sync-option", "a=1"))
+		assert.True(t, f.spec.SyncPolicy.SyncOptions.HasOption("a=1"))
+
+		// remove the options using !
+		assert.NoError(t, f.SetFlag("sync-option", "!a=1"))
+		assert.Nil(t, f.spec.SyncPolicy)
 	})
 }

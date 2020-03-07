@@ -7,13 +7,19 @@ Apps can be deleted with or without a cascade option. A **cascade delete**, dele
 To perform a non-cascade delete:
 
 ```bash
-argocd app delete APPNAME
+argocd app delete APPNAME --cascade=false
 ```
 
 To perform a cascade delete:
 
 ```bash
 argocd app delete APPNAME --cascade
+```
+
+or
+
+```bash
+argocd app delete APPNAME
 ```
 
 # Deletion Using `kubectl`

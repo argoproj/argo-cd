@@ -1006,11 +1006,16 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 	if err != nil {
 		return nil, status.Errorf(codes.FailedPrecondition, err.Error())
 	}
+	var syncOptions appv1.SyncOptions
+	if a.Spec.SyncPolicy != nil {
+		syncOptions = a.Spec.SyncPolicy.SyncOptions
+	}
 	op := appv1.Operation{
 		Sync: &appv1.SyncOperation{
 			Revision:     revision,
 			Prune:        syncReq.Prune,
 			DryRun:       syncReq.DryRun,
+			SyncOptions:  syncOptions,
 			SyncStrategy: syncReq.Strategy,
 			Resources:    syncReq.Resources,
 			Manifests:    syncReq.Manifests,
@@ -1059,12 +1064,18 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 		return nil, status.Errorf(codes.FailedPrecondition, "cannot rollback to revision deployed with Argo CD v0.11 or lower. sync to revision instead.")
 	}
 
+	var syncOptions appv1.SyncOptions
+	if a.Spec.SyncPolicy != nil {
+		syncOptions = a.Spec.SyncPolicy.SyncOptions
+	}
+
 	// Rollback is just a convenience around Sync
 	op := appv1.Operation{
 		Sync: &appv1.SyncOperation{
 			Revision:     deploymentInfo.Revision,
 			DryRun:       rollbackReq.DryRun,
 			Prune:        rollbackReq.Prune,
+			SyncOptions:  syncOptions,
 			SyncStrategy: &appv1.SyncStrategy{Apply: &appv1.SyncStrategyApply{}},
 			Source:       &deploymentInfo.Source,
 		},

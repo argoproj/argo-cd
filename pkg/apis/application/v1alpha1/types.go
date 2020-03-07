@@ -461,6 +461,8 @@ type SyncOperation struct {
 	Source *ApplicationSource `json:"source,omitempty" protobuf:"bytes,7,opt,name=source"`
 	// Manifests is an optional field that overrides sync source with a local directory for development
 	Manifests []string `json:"manifests,omitempty" protobuf:"bytes,8,opt,name=manifests"`
+	// SyncOptions provide per-sync sync-options, e.g. Validate=false
+	SyncOptions SyncOptions `json:"syncOptions,omitempty" protobuf:"bytes,9,opt,name=syncOptions"`
 }
 
 func (o *SyncOperation) IsApplyStrategy() bool {
@@ -518,10 +520,45 @@ type Info struct {
 	Value string `json:"value" protobuf:"bytes,2,name=value"`
 }
 
+type SyncOptions []string
+
+func (o SyncOptions) AddOption(option string) SyncOptions {
+	for _, j := range o {
+		if j == option {
+			return o
+		}
+	}
+	return append(o, option)
+}
+
+func (o SyncOptions) RemoveOption(option string) SyncOptions {
+	for i, j := range o {
+		if j == option {
+			return append(o[:i], o[i+1:]...)
+		}
+	}
+	return o
+}
+
+func (o SyncOptions) HasOption(option string) bool {
+	for _, i := range o {
+		if option == i {
+			return true
+		}
+	}
+	return false
+}
+
 // SyncPolicy controls when a sync will be performed in response to updates in git
 type SyncPolicy struct {
 	// Automated will keep an application synced to the target revision
 	Automated *SyncPolicyAutomated `json:"automated,omitempty" protobuf:"bytes,1,opt,name=automated"`
+	// Options allow youe to specify whole app sync-options
+	SyncOptions SyncOptions `json:"syncOptions,omitempty" protobuf:"bytes,2,opt,name=syncOptions"`
+}
+
+func (p *SyncPolicy) IsZero() bool {
+	return p == nil || (p.Automated == nil && len(p.SyncOptions) == 0)
 }
 
 // SyncPolicyAutomated controls the behavior of an automated sync

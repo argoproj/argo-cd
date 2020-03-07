@@ -13,11 +13,6 @@ patchesJson6902:
   path: overlays/modify-labels.yaml
 - target:
     version: v1
-    kind: ConfigMap
-    name: argocd-redis-ha-probes
-  path: overlays/modify-labels.yaml
-- target:
-    version: v1
     kind: Service
     name: argocd-redis-ha-announce-0
   path: overlays/modify-labels.yaml
@@ -59,6 +54,22 @@ patchesJson6902:
     kind: RoleBinding
     name: argocd-redis-ha
   path: overlays/modify-labels.yaml
+- target:
+    version: v1
+    kind: ServiceAccount
+    name: argocd-redis-ha-haproxy
+  path: overlays/haproxy-modify-labels.yaml
+- target:
+    version: v1
+    kind: Service
+    name: argocd-redis-ha-haproxy
+  path: overlays/haproxy-modify-labels.yaml
+- target:
+    group: apps
+    version: v1
+    kind: Deployment
+    name: argocd-redis-ha-haproxy
+  path: overlays/haproxy-modify-labels.yaml
 
 # add pod template labels
 - target:
@@ -67,6 +78,12 @@ patchesJson6902:
     kind: StatefulSet
     name: argocd-redis-ha-server
   path: overlays/statefulset-labels.yaml
+- target:
+    group: apps
+    version: v1
+    kind: Deployment
+    name: argocd-redis-ha-haproxy
+  path: overlays/deployment-labels.yaml
 
 # update service selectors to match
 - target:
@@ -89,27 +106,73 @@ patchesJson6902:
     kind: Service
     name: argocd-redis-ha
   path: overlays/service-selector.yaml
+- target:
+    version: v1
+    kind: Service
+    name: argocd-redis-ha-haproxy
+  path: overlays/haproxy-service-selector.yaml
 
-
-vars:
-- name: ARGOCD_REDIS_HA_ANNOUNCE_0_SERVICE
-  objref:
+- target:
+    version: v1
+    kind: ConfigMap
+    name: argocd-redis-ha-configmap
+  path: overlays/remove-namespace.yaml
+- target:
+    version: v1
+    kind: ServiceAccount
+    name: argocd-redis-ha
+  path: overlays/remove-namespace.yaml
+- target:
+    version: v1
+    kind: ServiceAccount
+    name: argocd-redis-ha-haproxy
+  path: overlays/remove-namespace.yaml
+- target:
+    group: rbac.authorization.k8s.io
+    version: v1
+    kind: Role
+    name: argocd-redis-ha
+  path: overlays/remove-namespace.yaml
+- target:
+    group: rbac.authorization.k8s.io
+    version: v1
+    kind: RoleBinding
+    name: argocd-redis-ha
+  path: overlays/remove-namespace.yaml
+- target:
+    version: v1
     kind: Service
     name: argocd-redis-ha-announce-0
-    apiVersion: v1
-  fieldref:
-    fieldpath: metadata.name
-- name: ARGOCD_REDIS_HA_ANNOUNCE_1_SERVICE
-  objref:
+  path: overlays/remove-namespace.yaml
+- target:
+    version: v1
     kind: Service
     name: argocd-redis-ha-announce-1
-    apiVersion: v1
-  fieldref:
-    fieldpath: metadata.name
-- name: ARGOCD_REDIS_HA_ANNOUNCE_2_SERVICE
-  objref:
+  path: overlays/remove-namespace.yaml
+- target:
+    version: v1
     kind: Service
     name: argocd-redis-ha-announce-2
-    apiVersion: v1
-  fieldref:
-    fieldpath: metadata.name
+  path: overlays/remove-namespace.yaml
+- target:
+    version: v1
+    kind: Service
+    name: argocd-redis-ha
+  path: overlays/remove-namespace.yaml
+- target:
+    version: v1
+    kind: Service
+    name: argocd-redis-ha-haproxy
+  path: overlays/remove-namespace.yaml
+- target:
+    group: apps
+    version: v1
+    kind: Deployment
+    name: argocd-redis-ha-haproxy
+  path: overlays/remove-namespace.yaml
+- target:
+    group: apps
+    version: v1
+    kind: StatefulSet
+    name: argocd-redis-ha-server
+  path: overlays/remove-namespace.yaml

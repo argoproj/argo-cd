@@ -14,7 +14,7 @@ can be customized to use alternative toolchain required by your environment.
 
 ## Adding Tools Via Volume Mounts
 
-The first technique is to use an `init` container and a `volumeMount` to copy a different verison of
+The first technique is to use an `init` container and a `volumeMount` to copy a different version of
 a tool into the repo-server container. In the following example, an init container is overwriting
 the helm binary with a different version than what is bundled in Argo CD:
 
