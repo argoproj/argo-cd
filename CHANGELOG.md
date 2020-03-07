@@ -1,10 +1,5 @@
 # Changelog
 
-## v1.4.3 (2020-03-07)
-
-- feat(ui): add help docs to prune resources and self heal options in create application panel (PR #3203)
-- docs: add self-heal doc section in user guide (PR #3203)
-
 ## v1.4.2 (2020-01-24)
 
 - fix: correctly replace cache in namespace isolation mode (#3023)
