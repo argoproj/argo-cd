@@ -1,4 +1,4 @@
-package cert
+package gpg
 
 import (
 	"bufio"
@@ -91,6 +91,9 @@ var pgpTrustLevels = map[string]int{
 // Default value for GNUPGHOME
 const DefaultGnuPgHomePath = "/app/config/gpg"
 
+// Maximum number of lines to parse for a gpg verify-commit output
+const MaxVerificationLinesToParse = 40
+
 func GetGnuPGHomePath() string {
 	if gnuPgHome := os.Getenv("GNUPGHOME"); gnuPgHome == "" {
 		return DefaultGnuPgHomePath
@@ -127,6 +130,11 @@ func InitializeGnuPG() error {
 		return fmt.Errorf("GNUPGHOME does not point to a directory")
 	}
 
+	// Check for sane permissions as well (GPG will issue a warning otherwise)
+	if st.Mode().Perm() != 0700 {
+		return fmt.Errorf("GNUPGHOME at '%s' has too wide permissions, must be 0700", gnuPgHome)
+	}
+
 	_, err = os.Stat(path.Join(gnuPgHome, "pubring.kbx"))
 	if err != nil {
 		if !os.IsNotExist(err) {
@@ -156,6 +164,10 @@ func InitializeGnuPG() error {
 
 	_, err = executil.Run(cmd)
 	return err
+}
+
+func ParsePGPKeyBlock(keyFile string) ([]string, error) {
+	return nil, nil
 }
 
 // ImportPGPKey imports one or more keys from a file into the local keyring and optionally
@@ -349,9 +361,12 @@ func GetInstalledPGPKeys(kids []string) ([]*GnuPGPublicKey, error) {
 func ParseGitCommitVerification(signature string) (PGPVerifyResult, error) {
 	result := PGPVerifyResult{Result: "unknown"}
 	parseOk := false
+	linesParsed := 0
 
 	scanner := bufio.NewScanner(strings.NewReader(signature))
-	for scanner.Scan() {
+	for scanner.Scan() && linesParsed < MaxVerificationLinesToParse {
+		linesParsed += 1
+
 		// Indicating the beginning of a signature
 		start := verificationStartMatch.FindStringSubmatch(scanner.Text())
 		if len(start) == 2 {
@@ -359,6 +374,9 @@ func ParseGitCommitVerification(signature string) (PGPVerifyResult, error) {
 			if !scanner.Scan() {
 				return PGPVerifyResult{}, fmt.Errorf("Unexpected end-of-file while parsing commit verification output.")
 			}
+
+			linesParsed += 1
+
 			// What key has made the signature?
 			keyID := verificationKeyIDMatch.FindStringSubmatch(scanner.Text())
 			if len(keyID) != 3 {
@@ -373,6 +391,8 @@ func ParseGitCommitVerification(signature string) (PGPVerifyResult, error) {
 				return PGPVerifyResult{}, fmt.Errorf("Unexpected end-of-file while parsing commit verification output.")
 			}
 
+			linesParsed += 1
+
 			if strings.HasPrefix(scanner.Text(), "gpg: Can't check signature: ") {
 				return PGPVerifyResult{}, fmt.Errorf(strings.SplitN(scanner.Text(), ":", 2)[1])
 			} else {
@@ -384,13 +404,17 @@ func ParseGitCommitVerification(signature string) (PGPVerifyResult, error) {
 				result.Identity = sigState[2]
 				result.Trust = sigState[3]
 			}
+
+			// No more data to parse here
 			parseOk = true
 			break
 		}
 	}
 
-	if parseOk {
+	if parseOk && linesParsed < MaxVerificationLinesToParse {
 		return result, nil
+	} else if linesParsed >= MaxVerificationLinesToParse {
+		return PGPVerifyResult{}, fmt.Errorf("Too many lines of gpg verify-commit output, abort.")
 	} else {
 		return PGPVerifyResult{}, fmt.Errorf("Could not parse output of verify-commit, no verification data found.")
 	}

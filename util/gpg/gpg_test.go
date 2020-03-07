@@ -1,4 +1,4 @@
-package cert
+package gpg
 
 import (
 	"fmt"
@@ -49,6 +49,35 @@ func Test_GPG_InitializeGnuPG(t *testing.T) {
 	err = InitializeGnuPG()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "does not point to a directory")
+
+	// Unaccessible GNUPGHOME
+	p = initTempDir()
+	defer os.RemoveAll(p)
+	fp := fmt.Sprintf("%s/gpg", p)
+	err = os.Mkdir(fp, 0000)
+	if err != nil {
+		panic(err.Error())
+	}
+	if err != nil {
+		panic(err.Error())
+	}
+	os.Setenv("GNUPGHOME", fp)
+	err = InitializeGnuPG()
+	assert.Error(t, err)
+	// Restore permissions so path can be deleted
+	os.Chmod(fp, 0700)
+
+	// GNUPGHOME with too wide permissions
+	p = initTempDir()
+	defer os.RemoveAll(p)
+	err = os.Chmod(p, 0777)
+	if err != nil {
+		panic(err.Error())
+	}
+	os.Setenv("GNUPGHOME", p)
+	err = InitializeGnuPG()
+	assert.Error(t, err)
+
 }
 
 func Test_GPG_KeyManagement(t *testing.T) {
@@ -127,6 +156,22 @@ func Test_GPG_KeyManagement(t *testing.T) {
 	{
 		err := DeletePGPKey(importedKeyId)
 		assert.Error(t, err)
+	}
+
+	// Import multiple keys
+	{
+		keys, err := ImportPGPKeys("testdata/multi.asc")
+		assert.NoError(t, err)
+		assert.Len(t, keys, 2)
+		assert.Contains(t, keys[0].Owner, "john.doe@example.com")
+		assert.Contains(t, keys[1].Owner, "jane.doe@example.com")
+	}
+
+	// Check if they were really imported
+	{
+		keys, err := GetInstalledPGPKeys(nil)
+		assert.NoError(t, err)
+		assert.Len(t, keys, 3)
 	}
 
 }
