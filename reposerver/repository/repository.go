@@ -116,6 +116,7 @@ func (s *Service) runRepoOperation(
 	revision string,
 	repo *v1alpha1.Repository,
 	source *v1alpha1.ApplicationSource,
+	verifyCommit bool,
 	getCached func(revision string) bool,
 	operation func(appPath, repoRoot, revision, verifyResult string) error,
 	settings operationSettings) error {
@@ -123,6 +124,7 @@ func (s *Service) runRepoOperation(
 	var gitClient git.Client
 	var helmClient helm.Client
 	var err error
+	var signature string
 	revision = util.FirstNonEmpty(revision, source.TargetRevision)
 	if source.IsHelm() {
 		helmClient, revision, err = s.newHelmClientResolveRevision(repo, revision, source.Chart)
@@ -179,9 +181,11 @@ func (s *Service) runRepoOperation(
 		if err != nil {
 			return err
 		}
-		signature, err := gitClient.VerifyCommitSignature(revision)
-		if err != nil {
-			return err
+		if verifyCommit {
+			signature, err = gitClient.VerifyCommitSignature(revision)
+			if err != nil {
+				return err
+			}
 		}
 		appPath, err := argopath.Path(gitClient.Root(), source.Path)
 		if err != nil {
@@ -207,7 +211,7 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 		}
 		return false
 	}
-	err := s.runRepoOperation(ctx, q.Revision, q.Repo, q.ApplicationSource, getCached, func(appPath, repoRoot, revision, verifyResult string) error {
+	err := s.runRepoOperation(ctx, q.Revision, q.Repo, q.ApplicationSource, q.VerifySignature, getCached, func(appPath, repoRoot, revision, verifyResult string) error {
 		var err error
 		res, err = GenerateManifests(appPath, repoRoot, revision, q)
 		if err != nil {
@@ -667,7 +671,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 		return false
 	}
 
-	err := s.runRepoOperation(ctx, q.Source.TargetRevision, q.Repo, q.Source, getCached, func(appPath, repoRoot, revision, verifyResult string) error {
+	err := s.runRepoOperation(ctx, q.Source.TargetRevision, q.Repo, q.Source, false, getCached, func(appPath, repoRoot, revision, verifyResult string) error {
 		appSourceType, err := GetAppSourceType(q.Source, appPath)
 		if err != nil {
 			return err

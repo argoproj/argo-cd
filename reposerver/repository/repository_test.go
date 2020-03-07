@@ -607,6 +607,18 @@ func TestGetRevisionMetadata(t *testing.T) {
 }
 
 func TestGetSignatureVerificationResult(t *testing.T) {
+	// Commit with signature and verification requested
+	{
+		service := newServiceWithSignature("../..")
+
+		src := argoappv1.ApplicationSource{Path: "manifests/base"}
+		q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src, VerifySignature: true}
+
+		res, err := service.GenerateManifest(context.Background(), &q)
+		assert.NoError(t, err)
+		assert.Equal(t, testSignature, res.VerifyResult)
+	}
+	// Commit with signature and verification not requested
 	{
 		service := newServiceWithSignature("../..")
 
@@ -615,13 +627,25 @@ func TestGetSignatureVerificationResult(t *testing.T) {
 
 		res, err := service.GenerateManifest(context.Background(), &q)
 		assert.NoError(t, err)
-		assert.Equal(t, testSignature, res.VerifyResult)
+		assert.Empty(t, res.VerifyResult)
 	}
+	// Commit without signature and verification requested
 	{
 		service := newService("../..")
 
 		src := argoappv1.ApplicationSource{Path: "manifests/base"}
-		q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src}
+		q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src, VerifySignature: true}
+
+		res, err := service.GenerateManifest(context.Background(), &q)
+		assert.NoError(t, err)
+		assert.Empty(t, res.VerifyResult)
+	}
+	// Commit without signature and verification not requested
+	{
+		service := newService("../..")
+
+		src := argoappv1.ApplicationSource{Path: "manifests/base"}
+		q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src, VerifySignature: true}
 
 		res, err := service.GenerateManifest(context.Background(), &q)
 		assert.NoError(t, err)
