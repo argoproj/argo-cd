@@ -293,10 +293,12 @@ func TestVerifyCommitSignature(t *testing.T) {
 	assert.NoError(t, err)
 
 	// 28027897aad1262662096745f2ce2d4c74d02b7f is a commit that is signed in the repo
+	// It doesn't matter whether we know the key or not at this stage
 	{
 		out, err := client.VerifyCommitSignature("28027897aad1262662096745f2ce2d4c74d02b7f")
 		assert.NoError(t, err)
 		assert.NotEmpty(t, out)
+		assert.Contains(t, out, "gpg: Signature made")
 	}
 
 	// 85d660f0b967960becce3d49bd51c678ba2a5d24 is a commit that is not signed
