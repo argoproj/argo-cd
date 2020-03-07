@@ -1,13 +1,11 @@
 package helm
 
 import (
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/url"
 	"os/exec"
 	"path"
-	"regexp"
 	"strings"
 
 	"github.com/ghodss/yaml"
@@ -52,7 +50,8 @@ type helm struct {
 
 // IsMissingDependencyErr tests if the error is related to a missing chart dependency
 func IsMissingDependencyErr(err error) bool {
-	return strings.Contains(err.Error(), "found in requirements.yaml, but missing in charts")
+	return strings.Contains(err.Error(), "found in requirements.yaml, but missing in charts") ||
+		strings.Contains(err.Error(), "found in Chart.yaml, but missing in charts/ directory")
 }
 
 func (h *helm) Template(templateOpts *TemplateOpts) (string, error) {
@@ -87,18 +86,9 @@ func (h *helm) Dispose() {
 
 func Version() (string, error) {
 	cmd := exec.Command("helm", "version", "--client")
-	out, err := executil.RunWithRedactor(cmd, redactor)
+	version, err := executil.RunWithRedactor(cmd, redactor)
 	if err != nil {
 		return "", fmt.Errorf("could not get helm version: %s", err)
-	}
-	re := regexp.MustCompile(`SemVer:"([a-zA-Z0-9\.]+)"`)
-	matches := re.FindStringSubmatch(out)
-	if len(matches) != 2 {
-		return "", errors.New("could not get helm version")
-	}
-	version := matches[1]
-	if version[0] != 'v' {
-		version = "v" + version
 	}
 	return strings.TrimSpace(version), nil
 }

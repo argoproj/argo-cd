@@ -5,11 +5,6 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver"
-	"github.com/patrickmn/go-cache"
-)
-
-var (
-	indexCache = cache.New(5*time.Minute, 5*time.Minute)
 )
 
 type Entry struct {

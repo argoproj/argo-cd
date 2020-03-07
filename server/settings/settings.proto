@@ -27,6 +27,7 @@ message Settings {
     // Help settings
     Help help = 9;
     repeated Plugin plugins = 10;
+    bool disableAdmin = 11;
 }
 
 message GoogleAnalyticsConfig {

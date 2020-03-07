@@ -2162,6 +2162,10 @@
         "dexConfig": {
           "$ref": "#/definitions/clusterDexConfig"
         },
+        "disableAdmin": {
+          "type": "boolean",
+          "format": "boolean"
+        },
         "googleAnalytics": {
           "$ref": "#/definitions/clusterGoogleAnalyticsConfig"
         },

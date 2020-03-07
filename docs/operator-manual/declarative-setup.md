@@ -506,7 +506,7 @@ data:
         key: key
 ```
 
-## Resource Exclusion
+## Resource Exclusion/Inclusion
 
 Resources can be excluded from discovery and sync so that ArgoCD is unaware of them. For example, `events.k8s.io` and `metrics.k8s.io` are always excluded. Use cases:
 
@@ -542,6 +542,25 @@ The `resource.exclusions` node is a list of objects. Each object can have:
 * `cluster` A list of globs to match the cluster.
 
 If all three match, then the resource is ignored.
+
+In addition to exclusions, you might configure the list of included resources using the `resource.inclusions` setting.
+By default, all resource group/kinds are included. The `resource.inclusions` setting allows customizing the list of included group/kinds: 
+
+```yaml
+apiVersion: v1
+data:
+  resource.inclusions: |
+    - apiGroups:
+      - "*"
+      kinds:
+      - Deployment
+      clusters:
+      - https://192.168.0.20
+kind: ConfigMap
+```
+
+The `resource.inclusions` and `resource.exclusions` might be used together. The final list of resources includes group/kinds specified in `resource.inclusions` minus group/kinds
+specified in `resource.exclusions` setting.
 
 Notes:
 

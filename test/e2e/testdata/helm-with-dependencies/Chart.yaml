@@ -1,1 +1,7 @@
+apiVersion: v2
 name: helm-with-dependencies
+version: v1.0.0
+dependencies:
+  - name: helm
+    repository: "@custom-repo"
+    version: v1.0.0

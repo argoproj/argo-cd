@@ -148,6 +148,7 @@ type ArgoCDServerOpts struct {
 	Cache               *servercache.Cache
 	TLSConfigCustomizer tlsutil.ConfigCustomizer
 	XFrameOptions       string
+	DisableAdmin        bool
 }
 
 // initializeDefaultProject creates the default project if it does not already exist
@@ -171,11 +172,11 @@ func initializeDefaultProject(opts ArgoCDServerOpts) error {
 // NewServer returns a new instance of the Argo CD API server
 func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 	settingsMgr := settings_util.NewSettingsManager(ctx, opts.KubeClientset, opts.Namespace)
-	settings, err := settingsMgr.InitializeSettings(opts.Insecure)
+	settings, err := settingsMgr.InitializeSettings(opts.Insecure, opts.DisableAdmin)
 	errors.CheckError(err)
 	err = initializeDefaultProject(opts)
 	errors.CheckError(err)
-	sessionMgr := util_session.NewSessionManager(settingsMgr, opts.DexServerAddr)
+	sessionMgr := util_session.NewSessionManager(settingsMgr, opts.DexServerAddr, opts.DisableAdmin)
 
 	factory := appinformer.NewFilteredSharedInformerFactory(opts.AppClientset, 0, opts.Namespace, func(options *metav1.ListOptions) {})
 	projInformer := factory.Argoproj().V1alpha1().AppProjects().Informer()
@@ -465,7 +466,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	projectLock := util.NewKeyLock()
 	applicationService := application.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.RepoClientset, a.Cache, kubectl, db, a.enf, projectLock, a.settingsMgr)
 	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr)
-	settingsService := settings.NewServer(a.settingsMgr)
+	settingsService := settings.NewServer(a.settingsMgr, a.DisableAdmin)
 	accountService := account.NewServer(a.sessionMgr, a.settingsMgr, a.enf)
 	certificateService := certificate.NewServer(a.RepoClientset, db, a.enf)
 	versionpkg.RegisterVersionServiceServer(grpcS, &version.Server{})
