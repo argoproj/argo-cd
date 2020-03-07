@@ -37,6 +37,22 @@ spec:
   syncPolicy:
     automated:
       prune: true
+```
+
+## Automatic Self-Healing
+By default, changes that are made to the live cluster will not trigger automated sync. To enable automatic sync 
+when the live cluster's state deviates from the state defined in Git, run:
+
+```bash
+argocd app set <APPNAME> --self-heal
+```
+
+Or by setting the self heal option to true in the automated sync policy:
+
+```yaml
+spec:
+  syncPolicy:
+    automated:
       selfHeal: true
 ```
 
@@ -48,7 +64,7 @@ spec:
   application parameters. If the most recent successful sync in the history was already performed
   against the same commit-SHA and parameters, a second sync will not be attempted, unless `selfHeal` flag is set to true.
 * If `selfHeal` flag is set to true then sync will be attempted again after self heal timeout (5 seconds by default)
-which is controller by `--self-heal-timeout-seconds` flag of `argocd-application-controller` deployment.
+which is controlled by `--self-heal-timeout-seconds` flag of `argocd-application-controller` deployment.
 * Automatic sync will not reattempt a sync if the previous sync attempt against the same commit-SHA
   and parameters had failed.
 
