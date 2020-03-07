@@ -94,6 +94,7 @@ const DefaultGnuPgHomePath = "/app/config/gpg"
 // Maximum number of lines to parse for a gpg verify-commit output
 const MaxVerificationLinesToParse = 40
 
+// GetGnuPGHomePath retrieves the path to use for GnuPG home directory, which is either taken from GNUPGHOME environment or a default value
 func GetGnuPGHomePath() string {
 	if gnuPgHome := os.Getenv("GNUPGHOME"); gnuPgHome == "" {
 		return DefaultGnuPgHomePath
@@ -102,6 +103,7 @@ func GetGnuPGHomePath() string {
 	}
 }
 
+// Helper function to append GNUPGHOME for a command execution environment
 func getGPGEnviron() []string {
 	if h := os.Getenv("GNUPGHOME"); h != "" {
 		return append(os.Environ(), GetGnuPGHomePath())
