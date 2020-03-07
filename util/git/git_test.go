@@ -304,8 +304,7 @@ func TestVerifyCommitSignature(t *testing.T) {
 	// 85d660f0b967960becce3d49bd51c678ba2a5d24 is a commit that is not signed
 	{
 		out, err := client.VerifyCommitSignature("85d660f0b967960becce3d49bd51c678ba2a5d24")
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "failed exit status 1")
+		assert.NoError(t, err)
 		assert.Empty(t, out)
 	}
 }

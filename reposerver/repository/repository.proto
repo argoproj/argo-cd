@@ -31,6 +31,8 @@ message ManifestResponse {
     // resolved revision
     string revision = 4;
     string sourceType = 6;
+    // Raw response of git verify-commit operation (always the empty string for Helm)
+    string verifyResult = 7;
 }
 
 // ListAppsRequest requests a repository directory structure

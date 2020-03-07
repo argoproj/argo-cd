@@ -117,7 +117,7 @@ func (s *Service) runRepoOperation(
 	repo *v1alpha1.Repository,
 	source *v1alpha1.ApplicationSource,
 	getCached func(revision string) bool,
-	operation func(appPath, repoRoot, revision string) error,
+	operation func(appPath, repoRoot, revision, verifyResult string) error,
 	settings operationSettings) error {
 
 	var gitClient git.Client
@@ -167,7 +167,7 @@ func (s *Service) runRepoOperation(
 			return err
 		}
 		defer util.Close(closer)
-		return operation(chartPath, chartPath, revision)
+		return operation(chartPath, chartPath, revision, "")
 	} else {
 		s.repoLock.Lock(gitClient.Root())
 		defer s.repoLock.Unlock(gitClient.Root())
@@ -179,11 +179,15 @@ func (s *Service) runRepoOperation(
 		if err != nil {
 			return err
 		}
+		signature, err := gitClient.VerifyCommitSignature(revision)
+		if err != nil {
+			return err
+		}
 		appPath, err := argopath.Path(gitClient.Root(), source.Path)
 		if err != nil {
 			return err
 		}
-		return operation(appPath, gitClient.Root(), revision)
+		return operation(appPath, gitClient.Root(), revision, signature)
 	}
 }
 
@@ -203,13 +207,14 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 		}
 		return false
 	}
-	err := s.runRepoOperation(ctx, q.Revision, q.Repo, q.ApplicationSource, getCached, func(appPath, repoRoot, revision string) error {
+	err := s.runRepoOperation(ctx, q.Revision, q.Repo, q.ApplicationSource, getCached, func(appPath, repoRoot, revision, verifyResult string) error {
 		var err error
 		res, err = GenerateManifests(appPath, repoRoot, revision, q)
 		if err != nil {
 			return err
 		}
 		res.Revision = revision
+		res.VerifyResult = verifyResult
 		err = s.cache.SetManifests(revision, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, &res)
 		if err != nil {
 			log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), revision, err)
@@ -662,7 +667,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 		return false
 	}
 
-	err := s.runRepoOperation(ctx, q.Source.TargetRevision, q.Repo, q.Source, getCached, func(appPath, repoRoot, revision string) error {
+	err := s.runRepoOperation(ctx, q.Source.TargetRevision, q.Repo, q.Source, getCached, func(appPath, repoRoot, revision, verifyResult string) error {
 		appSourceType, err := GetAppSourceType(q.Source, appPath)
 		if err != nil {
 			return err
