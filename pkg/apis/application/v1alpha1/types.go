@@ -109,7 +109,12 @@ func (e Env) Environ() []string {
 // see https://linux.die.net/man/1/envsubst
 func (e Env) Envsubst(s string) string {
 	for _, v := range e {
-		s = strings.ReplaceAll(s, fmt.Sprintf("$%s", v.Name), v.Value)
+		if fmt.Sprintf("$%s", v.Name) == s {
+			s = strings.ReplaceAll(s, fmt.Sprintf("$%s", v.Name), v.Value)
+		}
+		if fmt.Sprintf("'$%s'", v.Name) == s {
+			s = strings.ReplaceAll(s, fmt.Sprintf("'$%s'", v.Name), v.Value)
+		}
 		s = strings.ReplaceAll(s, fmt.Sprintf("${%s}", v.Name), v.Value)
 	}
 	return s

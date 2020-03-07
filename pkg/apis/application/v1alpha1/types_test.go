@@ -1019,10 +1019,15 @@ func TestEnv_IsZero(t *testing.T) {
 }
 
 func TestEnv_Envsubst(t *testing.T) {
-	env := Env{&EnvEntry{"FOO", "bar"}}
+	env := Env{&EnvEntry{"FOO", "bar"}, &EnvEntry{"ARGOCD_APP_NAMESPACE", "argocd"}, &EnvEntry{"ARGOCD_APP_NAME", "baz"}}
 	assert.Equal(t, "", env.Envsubst(""))
 	assert.Equal(t, "bar", env.Envsubst("$FOO"))
 	assert.Equal(t, "bar", env.Envsubst("${FOO}"))
+	assert.Equal(t, "argocd", env.Envsubst("$ARGOCD_APP_NAMESPACE"))
+	assert.Equal(t, "argocd", env.Envsubst("${ARGOCD_APP_NAMESPACE}"))
+	assert.Equal(t, "baz", env.Envsubst("$ARGOCD_APP_NAME"))
+	assert.Equal(t, "baz", env.Envsubst("${ARGOCD_APP_NAME}"))
+	assert.Equal(t, "baz", env.Envsubst("'$ARGOCD_APP_NAME'"))
 }
 
 func TestEnv_Environ(t *testing.T) {
