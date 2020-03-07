@@ -53,3 +53,7 @@ func (w *gitClientWrapper) Init() error {
 func (w *gitClientWrapper) RevisionMetadata(revision string) (*git.RevisionMetadata, error) {
 	return w.client.RevisionMetadata(revision)
 }
+
+func (w *gitClientWrapper) VerifyCommitSignature(revision string) (string, error) {
+	return w.client.VerifyCommitSignature(revision)
+}
