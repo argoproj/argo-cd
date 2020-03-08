@@ -1793,6 +1793,12 @@ spec:
                 - name
                 type: object
               type: array
+            signatureKeys:
+              description: List of PGP key IDs that commits to be synced to must be
+                signed with
+              items:
+                type: string
+              type: array
             sourceRepos:
               description: SourceRepos contains list of repository URLs which can
                 be used for deployment

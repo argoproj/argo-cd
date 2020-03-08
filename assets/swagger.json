@@ -3000,6 +3000,13 @@
             "$ref": "#/definitions/v1alpha1ProjectRole"
           }
         },
+        "signatureKeys": {
+          "type": "array",
+          "title": "List of PGP key IDs that commits to be synced to must be signed with",
+          "items": {
+            "type": "string"
+          }
+        },
         "sourceRepos": {
           "type": "array",
           "title": "SourceRepos contains list of repository URLs which can be used for deployment",

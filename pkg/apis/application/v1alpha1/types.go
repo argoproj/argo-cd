@@ -1591,6 +1591,8 @@ type AppProjectSpec struct {
 	OrphanedResources *OrphanedResourcesMonitorSettings `json:"orphanedResources,omitempty" protobuf:"bytes,7,opt,name=orphanedResources"`
 	// SyncWindows controls when syncs can be run for apps in this project
 	SyncWindows SyncWindows `json:"syncWindows,omitempty" protobuf:"bytes,8,opt,name=syncWindows"`
+	// List of PGP key IDs that commits to be synced to must be signed with
+	SignatureKeys []string `json:"signatureKeys,omitempty" protobuf:"bytes,9,opt,name=signatureKeys"`
 }
 
 // SyncWindows is a collection of sync windows in this project

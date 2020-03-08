@@ -71,6 +71,9 @@ message AppProjectSpec {
 
   // SyncWindows controls when syncs can be run for apps in this project
   repeated SyncWindow syncWindows = 8;
+
+  // List of PGP key IDs that commits to be synced to must be signed with
+  repeated string signatureKeys = 9;
 }
 
 // Application is a definition of Application resource.

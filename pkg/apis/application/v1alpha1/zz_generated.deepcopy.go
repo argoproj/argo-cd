@@ -132,6 +132,11 @@ func (in *AppProjectSpec) DeepCopyInto(out *AppProjectSpec) {
 			}
 		}
 	}
+	if in.SignatureKeys != nil {
+		in, out := &in.SignatureKeys, &out.SignatureKeys
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 
