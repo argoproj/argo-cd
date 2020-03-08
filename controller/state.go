@@ -19,11 +19,13 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
+	listersv1alpha1 "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/diff"
+	"github.com/argoproj/argo-cd/util/gpg"
 	"github.com/argoproj/argo-cd/util/health"
 	hookutil "github.com/argoproj/argo-cd/util/hook"
 	kubeutil "github.com/argoproj/argo-cd/util/kube"
@@ -132,6 +134,18 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 	if err != nil {
 		return nil, nil, nil, err
 	}
+
+	proj, err := argo.GetAppProject(&app.Spec, listersv1alpha1.NewAppProjectLister(m.projInformer.GetIndexer()), m.namespace)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	// When signature keys are defined in the project spec, we need to verify the signature on the Git revision
+	verifySignature := false
+	if len(proj.Spec.SignatureKeys) > 0 {
+		verifySignature = true
+	}
+
 	manifestInfo, err := repoClient.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
 		Repo:              repo,
 		Repos:             helmRepos,
@@ -145,11 +159,30 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		KustomizeOptions: &appv1.KustomizeOptions{
 			BuildOptions: buildOptions,
 		},
-		KubeVersion: serverVersion,
+		KubeVersion:     serverVersion,
+		VerifySignature: verifySignature,
 	})
 	if err != nil {
 		return nil, nil, nil, err
 	}
+
+	if verifySignature {
+		if manifestInfo.VerifyResult != "" {
+			verifyResult, err := gpg.ParseGitCommitVerification(manifestInfo.VerifyResult)
+			if err != nil {
+				log.Errorf("Error while verifying git commit signature in repo '%s' for revision %s: %s", repo, revision, err.Error())
+				return nil, nil, nil, fmt.Errorf("Git commit signature verification failed.")
+			}
+			switch verifyResult.Result {
+			case "Good":
+			default:
+				return nil, nil, nil, fmt.Errorf("Commit '%s' is signed, but verification result was '%s', needs to be 'Good'", revision, verifyResult.Result)
+			}
+		} else {
+			return nil, nil, nil, fmt.Errorf("Commit '%s' is not signed, but signature is required", revision)
+		}
+	}
+
 	targetObjs, hooks, err := unmarshalManifests(manifestInfo.Manifests)
 	if err != nil {
 		return nil, nil, nil, err
