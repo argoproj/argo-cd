@@ -19,7 +19,6 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
-	listersv1alpha1 "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
@@ -97,7 +96,7 @@ type appStateManager struct {
 	namespace      string
 }
 
-func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1.ApplicationSource, appLabelKey, revision string, noCache bool) ([]*unstructured.Unstructured, []*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
+func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1.ApplicationSource, appLabelKey, revision string, noCache, verifySignature bool) ([]*unstructured.Unstructured, []*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
 	helmRepos, err := m.db.ListHelmRepositories(context.Background())
 	if err != nil {
 		return nil, nil, nil, err
@@ -135,17 +134,6 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		return nil, nil, nil, err
 	}
 
-	proj, err := argo.GetAppProject(&app.Spec, listersv1alpha1.NewAppProjectLister(m.projInformer.GetIndexer()), m.namespace)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	// When signature keys are defined in the project spec, we need to verify the signature on the Git revision
-	verifySignature := false
-	if len(proj.Spec.SignatureKeys) > 0 {
-		verifySignature = true
-	}
-
 	manifestInfo, err := repoClient.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
 		Repo:              repo,
 		Repos:             helmRepos,
@@ -164,23 +152,6 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 	})
 	if err != nil {
 		return nil, nil, nil, err
-	}
-
-	if verifySignature {
-		if manifestInfo.VerifyResult != "" {
-			verifyResult, err := gpg.ParseGitCommitVerification(manifestInfo.VerifyResult)
-			if err != nil {
-				log.Errorf("Error while verifying git commit signature in repo '%s' for revision %s: %s", repo, revision, err.Error())
-				return nil, nil, nil, fmt.Errorf("Git commit signature verification failed.")
-			}
-			switch verifyResult.Result {
-			case "Good":
-			default:
-				return nil, nil, nil, fmt.Errorf("Commit '%s' is signed, but verification result was '%s', needs to be 'Good'", revision, verifyResult.Result)
-			}
-		} else {
-			return nil, nil, nil, fmt.Errorf("Commit '%s' is not signed, but signature is required", revision)
-		}
 	}
 
 	targetObjs, hooks, err := unmarshalManifests(manifestInfo.Manifests)
@@ -318,6 +289,12 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		}
 	}
 
+	// When signature keys are defined in the project spec, we need to verify the signature on the Git revision
+	verifySignature := false
+	if project.Spec.SignatureKeys != nil && len(project.Spec.SignatureKeys) > 0 {
+		verifySignature = true
+	}
+
 	// do best effort loading live and target state to present as much information about app state as possible
 	failedToLoadObjs := false
 	conditions := make([]v1alpha1.ApplicationCondition, 0)
@@ -331,18 +308,27 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	now := metav1.Now()
 
 	if len(localManifests) == 0 {
-		targetObjs, hooks, manifestInfo, err = m.getRepoObjs(app, source, appLabelKey, revision, noCache)
+		targetObjs, hooks, manifestInfo, err = m.getRepoObjs(app, source, appLabelKey, revision, noCache, verifySignature)
 		if err != nil {
 			targetObjs = make([]*unstructured.Unstructured, 0)
 			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
 			failedToLoadObjs = true
 		}
 	} else {
-		targetObjs, hooks, err = unmarshalManifests(localManifests)
-		if err != nil {
+		// Prevent applying local manifests for now when signature verification is enabled
+		// This is also enforced on API level, but as a last resort, we also enforce it here
+		if verifySignature {
+			msg := "Cannot use local manifests when signature verification is required"
 			targetObjs = make([]*unstructured.Unstructured, 0)
-			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
+			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
 			failedToLoadObjs = true
+		} else {
+			targetObjs, hooks, err = unmarshalManifests(localManifests)
+			if err != nil {
+				targetObjs = make([]*unstructured.Unstructured, 0)
+				conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
+				failedToLoadObjs = true
+			}
 		}
 		manifestInfo = nil
 	}
@@ -517,6 +503,47 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 
 	if err != nil {
 		conditions = append(conditions, appv1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
+	}
+
+	// Git has already performed the signature verification via its GPG interface, and the result is available
+	// in the manifest info received from the repository server. We now need to form our oppinion about the result
+	// and stop processing if we do not agree about the outcome.
+	if verifySignature && manifestInfo != nil {
+		// We need to have some data in the verificatin result to parse, otherwise there was no signature
+		if manifestInfo.VerifyResult != "" {
+			verifyResult, err := gpg.ParseGitCommitVerification(manifestInfo.VerifyResult)
+			if err != nil {
+				conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
+				log.Errorf("Error while verifying git commit for revision %s: %s", revision, err.Error())
+			} else {
+				switch verifyResult.Result {
+				case gpg.VerifyResultGood:
+					// This is the only case we allow to sync to, but we need to make sure signing key is allowed
+					validKey := false
+					for _, k := range project.Spec.SignatureKeys {
+						if gpg.KeyID(k) == gpg.KeyID(verifyResult.KeyID) && gpg.KeyID(k) != "" {
+							validKey = true
+							break
+						}
+					}
+					if !validKey {
+						msg := fmt.Sprintf("Found good signature made with %s key %s, but this key is not allowed in AppProject",
+							verifyResult.Cipher, verifyResult.KeyID)
+						conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
+					}
+				case gpg.VerifyResultInvalid:
+					msg := fmt.Sprintf("Found signature made with %s key %s, but verification result was invalid: '%s'",
+						verifyResult.Cipher, verifyResult.KeyID, verifyResult.Message)
+					conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
+				default:
+					msg := fmt.Sprintf("Could not verify commit signature on revision '%s', check logs for more information.", revision)
+					conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
+				}
+			}
+		} else {
+			msg := fmt.Sprintf("Target revision %s in Git is not signed, but a signature is required", revision)
+			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
+		}
 	}
 
 	compRes := comparisonResult{
