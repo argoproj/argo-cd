@@ -11,11 +11,11 @@ import (
 func TestGetServerVersion(t *testing.T) {
 	now := time.Now()
 	cache := &liveStateCache{
-		lock: &sync.Mutex{},
+		lock: &sync.RWMutex{},
 		clusters: map[string]*clusterInfo{
 			"http://localhost": {
 				syncTime:      &now,
-				lock:          &sync.Mutex{},
+				lock:          &sync.RWMutex{},
 				serverVersion: "123",
 			},
 		}}

@@ -30,6 +30,7 @@ import (
 	"github.com/argoproj/argo-cd/util/resource"
 	"github.com/argoproj/argo-cd/util/resource/ignore"
 	"github.com/argoproj/argo-cd/util/settings"
+	"github.com/argoproj/argo-cd/util/stats"
 )
 
 type managedResource struct {
@@ -70,6 +71,8 @@ type comparisonResult struct {
 	hooks            []*unstructured.Unstructured
 	diffNormalizer   diff.Normalizer
 	appSourceType    v1alpha1.ApplicationSourceType
+	// timings maps phases of comparison to the duration it took to complete (for statistical purposes)
+	timings map[string]time.Duration
 }
 
 func (cr *comparisonResult) targetObjs() []*unstructured.Unstructured {
@@ -291,6 +294,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 
 	logCtx := log.WithField("application", app.Name)
 	logCtx.Infof("Comparing app state (cluster: %s, namespace: %s)", app.Spec.Destination.Server, app.Spec.Destination.Namespace)
+	ts := stats.NewTimingStats()
 
 	var targetObjs []*unstructured.Unstructured
 	var hooks []*unstructured.Unstructured
@@ -313,6 +317,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		}
 		manifestInfo = nil
 	}
+	ts.AddCheckpoint("git_ms")
 
 	targetObjs, dedupConditions, err := DeduplicateTargetObjects(app.Spec.Destination.Server, app.Spec.Destination.Namespace, targetObjs, m.liveStateCache)
 	if err != nil {
@@ -337,8 +342,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 			}
 		}
 	}
+	ts.AddCheckpoint("dedup_ms")
 
-	logCtx.Debugf("Generated config manifests")
 	liveObjByKey, err := m.liveStateCache.GetManagedLiveObjs(app, targetObjs)
 	if err != nil {
 		liveObjByKey = make(map[kubeutil.ResourceKey]*unstructured.Unstructured)
@@ -353,7 +358,6 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		}
 	}
 
-	logCtx.Debugf("Retrieved lived manifests")
 	for _, liveObj := range liveObjByKey {
 		if liveObj != nil {
 			appInstanceName := kubeutil.GetAppInstanceLabel(liveObj, appLabelKey)
@@ -382,7 +386,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 			managedLiveObj[i] = nil
 		}
 	}
-	logCtx.Debugf("built managed objects list")
+	ts.AddCheckpoint("live_ms")
+
 	// Everything remaining in liveObjByKey are "extra" resources that aren't tracked in git.
 	// The following adds all the extras to the managedLiveObj list and backfills the targetObj
 	// list with nils, so that the lists are of equal lengths for comparison purposes.
@@ -398,6 +403,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		failedToLoadObjs = true
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
 	}
+	ts.AddCheckpoint("diff_ms")
 
 	syncCode := v1alpha1.SyncStatusCodeSynced
 	managedResources := make([]managedResource, len(targetObjs))
@@ -477,6 +483,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	if manifestInfo != nil {
 		syncStatus.Revision = manifestInfo.Revision
 	}
+	ts.AddCheckpoint("sync_ms")
 
 	healthStatus, err := health.SetApplicationHealth(resourceSummaries, GetLiveObjs(managedResources), resourceOverrides, func(obj *unstructured.Unstructured) bool {
 		return !isSelfReferencedApp(app, kubeutil.GetObjectRef(obj))
@@ -503,6 +510,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		appv1.ApplicationConditionRepeatedResourceWarning: true,
 		appv1.ApplicationConditionExcludedResourceWarning: true,
 	})
+	ts.AddCheckpoint("health_ms")
+	compRes.timings = ts.Timings()
 	return &compRes
 }
 

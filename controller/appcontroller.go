@@ -821,22 +821,20 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		return
 	}
 
+	app := origApp.DeepCopy()
+	logCtx := log.WithFields(log.Fields{"application": app.Name})
 	startTime := time.Now()
 	defer func() {
 		reconcileDuration := time.Since(startTime)
 		ctrl.metricsServer.IncReconcile(origApp, reconcileDuration)
-		logCtx := log.WithFields(log.Fields{
-			"application":    origApp.Name,
-			"time_ms":        reconcileDuration.Seconds() * 1e3,
+		logCtx.WithFields(log.Fields{
+			"time_ms":        reconcileDuration.Milliseconds(),
 			"level":          comparisonLevel,
 			"dest-server":    origApp.Spec.Destination.Server,
 			"dest-namespace": origApp.Spec.Destination.Namespace,
-		})
-		logCtx.Info("Reconciliation completed")
+		}).Info("Reconciliation completed")
 	}()
 
-	app := origApp.DeepCopy()
-	logCtx := log.WithFields(log.Fields{"application": app.Name})
 	if comparisonLevel == ComparisonWithNothing {
 		managedResources := make([]*appv1.ResourceDiff, 0)
 		if err := ctrl.cache.GetAppManagedResources(app.Name, &managedResources); err != nil {
@@ -888,6 +886,9 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 
 	observedAt := metav1.Now()
 	compareResult := ctrl.appStateManager.CompareAppState(app, project, revision, app.Spec.Source, refreshType == appv1.RefreshTypeHard, localManifests)
+	for k, v := range compareResult.timings {
+		logCtx = logCtx.WithField(k, v.Milliseconds())
+	}
 
 	ctrl.normalizeApplication(origApp, app)
 
@@ -912,7 +913,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 			)
 		}
 	} else {
-		logCtx.Infof("Sync prevented by sync window")
+		logCtx.Info("Sync prevented by sync window")
 	}
 
 	if app.Status.ReconciledAt == nil || comparisonLevel == CompareWithLatest {

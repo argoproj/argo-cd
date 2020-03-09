@@ -72,6 +72,7 @@
     "errors",
     "exec",
     "rand",
+    "stats",
     "time",
   ]
   pruneopts = ""
@@ -1930,6 +1931,7 @@
     "github.com/TomOnTime/utfutil",
     "github.com/argoproj/pkg/errors",
     "github.com/argoproj/pkg/exec",
+    "github.com/argoproj/pkg/stats",
     "github.com/argoproj/pkg/time",
     "github.com/casbin/casbin",
     "github.com/casbin/casbin/model",

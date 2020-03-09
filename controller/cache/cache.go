@@ -70,7 +70,7 @@ func NewLiveStateCache(
 		appInformer:       appInformer,
 		db:                db,
 		clusters:          make(map[string]*clusterInfo),
-		lock:              &sync.Mutex{},
+		lock:              &sync.RWMutex{},
 		onObjectUpdated:   onObjectUpdated,
 		kubectl:           kubectl,
 		settingsMgr:       settingsMgr,
@@ -82,7 +82,7 @@ func NewLiveStateCache(
 type liveStateCache struct {
 	db                db.ArgoDB
 	clusters          map[string]*clusterInfo
-	lock              *sync.Mutex
+	lock              *sync.RWMutex
 	appInformer       cache.SharedIndexInformer
 	onObjectUpdated   ObjectUpdatedHandler
 	kubectl           kube.Kubectl
@@ -109,9 +109,9 @@ func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
 }
 
 func (c *liveStateCache) getCluster(server string) (*clusterInfo, error) {
-	c.lock.Lock()
-	defer c.lock.Unlock()
+	c.lock.RLock()
 	info, ok := c.clusters[server]
+	c.lock.RUnlock()
 	if !ok {
 		cluster, err := c.db.GetCluster(context.Background(), server)
 		if err != nil {
@@ -119,7 +119,7 @@ func (c *liveStateCache) getCluster(server string) (*clusterInfo, error) {
 		}
 		info = &clusterInfo{
 			apisMeta:         make(map[schema.GroupKind]*apiMeta),
-			lock:             &sync.Mutex{},
+			lock:             &sync.RWMutex{},
 			nodes:            make(map[kube.ResourceKey]*node),
 			nsIndex:          make(map[string]map[kube.ResourceKey]*node),
 			onObjectUpdated:  c.onObjectUpdated,
@@ -132,8 +132,9 @@ func (c *liveStateCache) getCluster(server string) (*clusterInfo, error) {
 				c.metricsServer.IncClusterEventsCount(cluster.Server)
 			},
 		}
-
+		c.lock.Lock()
 		c.clusters[cluster.Server] = info
+		c.lock.Unlock()
 	}
 	return info, nil
 }
@@ -152,8 +153,8 @@ func (c *liveStateCache) getSyncedCluster(server string) (*clusterInfo, error) {
 
 func (c *liveStateCache) Invalidate() {
 	log.Info("invalidating live state cache")
-	c.lock.Lock()
-	defer c.lock.Unlock()
+	c.lock.RLock()
+	defer c.lock.RLock()
 	for _, clust := range c.clusters {
 		clust.invalidate()
 	}

@@ -45,8 +45,11 @@ type clusterInfo struct {
 	syncError     error
 	apisMeta      map[schema.GroupKind]*apiMeta
 	serverVersion string
+	// namespacedResources is a simple map which indicates a groupKind is namespaced
+	namespacedResources map[schema.GroupKind]bool
 
-	lock    *sync.Mutex
+	// lock is a rw lock which protects the fields of clusterInfo
+	lock    *sync.RWMutex
 	nodes   map[kube.ResourceKey]*node
 	nsIndex map[string]map[kube.ResourceKey]*node
 
@@ -176,6 +179,7 @@ func (c *clusterInfo) invalidate() {
 		c.apisMeta[i].watchCancel()
 	}
 	c.apisMeta = nil
+	c.namespacedResources = nil
 }
 
 func (c *clusterInfo) synced() bool {
@@ -211,9 +215,10 @@ func (c *clusterInfo) startMissingWatches() error {
 	if err != nil {
 		return err
 	}
-
+	c.namespacedResources = make(map[schema.GroupKind]bool)
 	for i := range apis {
 		api := apis[i]
+		c.namespacedResources[api.GroupKind] = api.Meta.Namespaced
 		if _, ok := c.apisMeta[api.GroupKind]; !ok {
 			ctx, cancel := context.WithCancel(context.Background())
 			info := &apiMeta{namespaced: api.Meta.Namespaced, watchCancel: cancel}
@@ -231,7 +236,7 @@ func (c *clusterInfo) startMissingWatches() error {
 	return nil
 }
 
-func runSynced(lock *sync.Mutex, action func() error) error {
+func runSynced(lock sync.Locker, action func() error) error {
 	lock.Lock()
 	defer lock.Unlock()
 	return action()
@@ -388,12 +393,14 @@ func (c *clusterInfo) sync() (err error) {
 }
 
 func (c *clusterInfo) ensureSynced() error {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-	if c.synced() {
+	c.lock.RLock()
+	isSynced := c.synced()
+	c.lock.RUnlock()
+	if isSynced {
 		return c.syncError
 	}
-
+	c.lock.Lock()
+	defer c.lock.Unlock()
 	err := c.sync()
 	syncTime := time.Now()
 	c.syncTime = &syncTime
@@ -402,8 +409,8 @@ func (c *clusterInfo) ensureSynced() error {
 }
 
 func (c *clusterInfo) getNamespaceTopLevelResources(namespace string) map[kube.ResourceKey]appv1.ResourceNode {
-	c.lock.Lock()
-	defer c.lock.Unlock()
+	c.lock.RLock()
+	defer c.lock.RUnlock()
 	nodes := make(map[kube.ResourceKey]appv1.ResourceNode)
 	for _, node := range c.nsIndex[namespace] {
 		if len(node.ownerRefs) == 0 {
@@ -444,15 +451,12 @@ func (c *clusterInfo) iterateHierarchy(key kube.ResourceKey, action func(child a
 }
 
 func (c *clusterInfo) isNamespaced(gk schema.GroupKind) bool {
-	if api, ok := c.apisMeta[gk]; ok && !api.namespaced {
-		return false
-	}
-	return true
+	return c.namespacedResources[gk]
 }
 
 func (c *clusterInfo) getManagedLiveObjs(a *appv1.Application, targetObjs []*unstructured.Unstructured, metricsServer *metrics.MetricsServer) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
-	c.lock.Lock()
-	defer c.lock.Unlock()
+	c.lock.RLock()
+	defer c.lock.RUnlock()
 
 	managedObjs := make(map[kube.ResourceKey]*unstructured.Unstructured)
 	// iterate all objects in live state cache to find ones associated with app
