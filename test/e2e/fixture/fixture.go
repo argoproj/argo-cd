@@ -219,6 +219,15 @@ func SetResourceOverrides(overrides map[string]v1alpha1.ResourceOverride) {
 	})
 }
 
+func SetAccounts(accounts map[string][]string) {
+	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		for k, v := range accounts {
+			cm.Data[fmt.Sprintf("accounts.%s", k)] = strings.Join(v, ",")
+		}
+		return nil
+	})
+}
+
 func SetConfigManagementPlugins(plugin ...v1alpha1.ConfigManagementPlugin) {
 	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		yamlBytes, err := yaml.Marshal(plugin)

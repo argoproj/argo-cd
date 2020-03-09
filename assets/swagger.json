@@ -16,6 +16,22 @@
     "version": "version not set"
   },
   "paths": {
+    "/api/v1/account": {
+      "get": {
+        "tags": [
+          "AccountService"
+        ],
+        "operationId": "ListAccounts",
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/accountAccountsList"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/account/can-i/{resource}/{action}/{subresource}": {
       "get": {
         "tags": [
@@ -74,6 +90,92 @@
             "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/accountUpdatePasswordResponse"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/account/{name}": {
+      "get": {
+        "tags": [
+          "AccountService"
+        ],
+        "operationId": "GetAccount",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/accountAccount"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/account/{name}/token": {
+      "post": {
+        "tags": [
+          "AccountService"
+        ],
+        "operationId": "CreateTokenMixin9",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/accountCreateTokenRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/accountCreateTokenResponse"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/account/{name}/token/{id}": {
+      "delete": {
+        "tags": [
+          "AccountService"
+        ],
+        "operationId": "DeleteTokenMixin9",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/accountEmptyResponse"
             }
           }
         }
@@ -1885,6 +1987,41 @@
     }
   },
   "definitions": {
+    "accountAccount": {
+      "type": "object",
+      "properties": {
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "enabled": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "tokens": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/accountToken"
+          }
+        }
+      }
+    },
+    "accountAccountsList": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/accountAccount"
+          }
+        }
+      }
+    },
     "accountCanIResponse": {
       "type": "object",
       "properties": {
@@ -1893,10 +2030,53 @@
         }
       }
     },
+    "accountCreateTokenRequest": {
+      "type": "object",
+      "properties": {
+        "expiresIn": {
+          "type": "string",
+          "format": "int64",
+          "title": "expiresIn represents a duration in seconds"
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    },
+    "accountCreateTokenResponse": {
+      "type": "object",
+      "properties": {
+        "token": {
+          "type": "string"
+        }
+      }
+    },
+    "accountEmptyResponse": {
+      "type": "object"
+    },
+    "accountToken": {
+      "type": "object",
+      "properties": {
+        "expiresAt": {
+          "type": "string",
+          "format": "int64"
+        },
+        "id": {
+          "type": "string"
+        },
+        "issuedAt": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
+    },
     "accountUpdatePasswordRequest": {
       "type": "object",
       "properties": {
         "currentPassword": {
+          "type": "string"
+        },
+        "name": {
           "type": "string"
         },
         "newPassword": {
@@ -2162,10 +2342,6 @@
         "dexConfig": {
           "$ref": "#/definitions/clusterDexConfig"
         },
-        "disableAdmin": {
-          "type": "boolean",
-          "format": "boolean"
-        },
         "googleAnalytics": {
           "$ref": "#/definitions/clusterGoogleAnalyticsConfig"
         },
@@ -2196,6 +2372,10 @@
         },
         "url": {
           "type": "string"
+        },
+        "userLoginsDisabled": {
+          "type": "boolean",
+          "format": "boolean"
         }
       }
     },

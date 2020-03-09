@@ -115,3 +115,7 @@ required = [
 [[override]]
   name = "github.com/evanphx/json-patch"
   version = "v4.1.0"
+
+[[constraint]]
+  name = "github.com/google/uuid"
+  version = "1.1.1"

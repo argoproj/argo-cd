@@ -38,8 +38,6 @@ const (
 
 // Default paths on the pod's file system
 const (
-	// The default base path where application config is located
-	DefaultPathAppConfig = "/app/config"
 	// The default path where TLS certificates for repositories are located
 	DefaultPathTLSConfig = "/app/config/tls"
 	// The default path where SSH known hosts are stored

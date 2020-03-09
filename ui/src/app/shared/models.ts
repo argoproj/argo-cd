@@ -388,7 +388,7 @@ export interface AuthSettings {
         chatText: string;
     };
     plugins: Plugin[];
-    disableAdmin: boolean;
+    userLoginsDisabled: boolean;
 }
 
 export interface UserInfo {
