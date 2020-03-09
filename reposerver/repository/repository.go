@@ -36,6 +36,7 @@ import (
 	"github.com/argoproj/argo-cd/util/app/discovery"
 	argopath "github.com/argoproj/argo-cd/util/app/path"
 	"github.com/argoproj/argo-cd/util/git"
+	"github.com/argoproj/argo-cd/util/gpg"
 	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/ksonnet"
 	"github.com/argoproj/argo-cd/util/kube"
@@ -805,9 +806,29 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 	if err != nil {
 		return nil, err
 	}
+
+	// Run gpg verify-commit on the revision
+	signatureInfo := ""
+	cs, err := gitClient.VerifyCommitSignature(q.Revision)
+	if err != nil {
+		log.Debugf("Could not verify commit signature: %v", err)
+		return nil, err
+	}
+
+	if cs != "" {
+		vr, err := gpg.ParseGitCommitVerification(cs)
+		if err != nil {
+			log.Debugf("Could not parse commit verification: %v", err)
+			return nil, err
+		}
+		signatureInfo = fmt.Sprintf("%s signature from %s key %s", vr.Result, vr.Cipher, gpg.KeyID(vr.KeyID))
+	} else {
+		signatureInfo = "Revision is not signed."
+	}
+
 	// discard anything after the first new line and then truncate to 64 chars
 	message := text.Trunc(strings.SplitN(m.Message, "\n", 2)[0], 64)
-	metadata = &v1alpha1.RevisionMetadata{Author: m.Author, Date: metav1.Time{Time: m.Date}, Tags: m.Tags, Message: message}
+	metadata = &v1alpha1.RevisionMetadata{Author: m.Author, Date: metav1.Time{Time: m.Date}, Tags: m.Tags, Message: message, SignatureInfo: signatureInfo}
 	_ = s.cache.SetRevisionMetadata(q.Repo.Repo, q.Revision, metadata)
 	return metadata, nil
 }

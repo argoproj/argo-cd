@@ -75,6 +75,7 @@ export interface RevisionMetadata {
     date: models.Time;
     tags?: string[];
     message?: string;
+    signatureInfo?: string;
 }
 
 export interface SyncOperationResult {

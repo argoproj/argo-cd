@@ -4186,6 +4186,10 @@
           "type": "string",
           "title": "the message associated with the revision,\nprobably the commit message,\nthis is truncated to the first newline or 64 characters (which ever comes first)"
         },
+        "signatureInfo": {
+          "type": "string",
+          "title": "If revision was signed with GPG, and signature verification is enabled,\nthis contains a hint on the signer"
+        },
         "tags": {
           "type": "array",
           "title": "tags on the revision,\nnote - tags can move from one revision to another",

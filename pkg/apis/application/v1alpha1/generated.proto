@@ -828,6 +828,10 @@ message RevisionMetadata {
   // probably the commit message,
   // this is truncated to the first newline or 64 characters (which ever comes first)
   optional string message = 4;
+
+  // If revision was signed with GPG, and signature verification is enabled,
+  // this contains a hint on the signer
+  optional string signatureInfo = 5;
 }
 
 // SyncOperation contains sync operation details.

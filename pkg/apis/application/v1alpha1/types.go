@@ -655,6 +655,9 @@ type RevisionMetadata struct {
 	// probably the commit message,
 	// this is truncated to the first newline or 64 characters (which ever comes first)
 	Message string `json:"message,omitempty" protobuf:"bytes,4,opt,name=message"`
+	// If revision was signed with GPG, and signature verification is enabled,
+	// this contains a hint on the signer
+	SignatureInfo string `json:"signatureInfo,omitempty" protobuf:"bytes,5,opt,name=signatureInfo"`
 }
 
 // SyncOperationResult represent result of sync operation

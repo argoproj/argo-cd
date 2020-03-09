@@ -2898,6 +2898,13 @@ func schema_pkg_apis_application_v1alpha1_RevisionMetadata(ref common.ReferenceC
 							Format:      "",
 						},
 					},
+					"signatureInfo": {
+						SchemaProps: spec.SchemaProps{
+							Description: "If revision was signed with GPG, and signature verification is enabled, this contains a hint on the signer",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"date"},
 			},
