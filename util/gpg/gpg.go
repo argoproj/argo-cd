@@ -2,6 +2,7 @@ package gpg
 
 import (
 	"bufio"
+	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -50,6 +51,46 @@ Expire-Date: 6m
 %commit
 `
 
+type PGPKeyID string
+
+func isHexString(s string) bool {
+	_, err := hex.DecodeString(s)
+	if err != nil {
+		return false
+	} else {
+		return true
+	}
+}
+
+// KeyID get the actual correct (short) key ID from either a fingerprint or the key ID. Returns the empty string if k seems not to be a PGP key ID.
+func KeyID(k string) string {
+	if IsLongKeyID(k) {
+		return k[24:]
+	} else if IsShortKeyID(k) {
+		return k
+	}
+	// Invalid key
+	return ""
+}
+
+// IsLongKeyID returns true if the string represents a long key ID (aka fingerprint)
+func IsLongKeyID(k string) bool {
+	if len(k) == 40 && isHexString(k) {
+		return true
+	} else {
+		return false
+	}
+}
+
+// IsShortKeyID returns true if the string represents a short key ID
+func IsShortKeyID(k string) bool {
+	if len(k) == 16 && isHexString(k) {
+		return true
+	} else {
+		return false
+	}
+}
+
 // A representation of a GnuPG public key
 type GnuPGPublicKey struct {
 	// KeyID in hexadecimal string format
@@ -78,14 +119,34 @@ type PGPVerifyResult struct {
 	Cipher string
 	// Result of verification - "unknown", "good" or "bad"
 	Result string
+	// Additional informational message
+	Message string
 }
 
+// Signature verification results
+const (
+	VerifyResultGood    = "Good"
+	VerifyResultBad     = "Bad"
+	VerifyResultInvalid = "Invalid"
+	VerifyResultUnknown = "Unknown"
+)
+
+// Key trust values
+const (
+	TrustUnknown  = "unknown"
+	TrustNone     = "never"
+	TrustMarginal = "marginal"
+	TrustFull     = "full"
+	TrustUltimate = "ultimate"
+)
+
+// Key trust mappings
 var pgpTrustLevels = map[string]int{
-	"unknown":    2,
-	"never":      3,
-	"marginally": 4,
-	"full":       5,
-	"ultimate":   6,
+	TrustUnknown:  2,
+	TrustNone:     3,
+	TrustMarginal: 4,
+	TrustFull:     5,
+	TrustUltimate: 6,
 }
 
 // Default value for GNUPGHOME
@@ -200,7 +261,7 @@ func ImportPGPKeys(keyFile string) ([]*GnuPGPublicKey, error) {
 			KeyID: token[1],
 			Owner: token[2],
 			// By default, trust level is unknown
-			Trust: "unknown",
+			Trust: TrustUnknown,
 			// Subtype is unknown at this point
 			SubType:     "unknown",
 			Fingerprint: "",
@@ -361,7 +422,7 @@ func GetInstalledPGPKeys(kids []string) ([]*GnuPGPublicKey, error) {
 
 // ParsePGPCommitSignature parses the output of "git verify-commit" and returns the result
 func ParseGitCommitVerification(signature string) (PGPVerifyResult, error) {
-	result := PGPVerifyResult{Result: "unknown"}
+	result := PGPVerifyResult{Result: VerifyResultUnknown}
 	parseOk := false
 	linesParsed := 0
 
@@ -386,7 +447,10 @@ func ParseGitCommitVerification(signature string) (PGPVerifyResult, error) {
 			}
 
 			result.Cipher = keyID[1]
-			result.KeyID = keyID[2]
+			result.KeyID = KeyID(keyID[2])
+			if result.KeyID == "" {
+				return PGPVerifyResult{}, fmt.Errorf("Invalid PGP key ID found in verification result: %s", result.KeyID)
+			}
 
 			// What was the result of signature verification?
 			if !scanner.Scan() {
@@ -396,15 +460,33 @@ func ParseGitCommitVerification(signature string) (PGPVerifyResult, error) {
 			linesParsed += 1
 
 			if strings.HasPrefix(scanner.Text(), "gpg: Can't check signature: ") {
-				return PGPVerifyResult{}, fmt.Errorf(strings.SplitN(scanner.Text(), ":", 2)[1])
+				result.Result = VerifyResultInvalid
+				result.Identity = "unknown"
+				result.Trust = TrustUnknown
+				result.Message = scanner.Text()
 			} else {
 				sigState := verificationStatusMatch.FindStringSubmatch(scanner.Text())
 				if len(sigState) != 4 {
-					return PGPVerifyResult{}, fmt.Errorf("Could not parse result of verify operation.")
+					return PGPVerifyResult{}, fmt.Errorf("Could not parse result of verify operation, check logs for more information.")
 				}
-				result.Result = sigState[1]
+
+				switch strings.ToLower(sigState[1]) {
+				case "good":
+					result.Result = VerifyResultGood
+				case "bad":
+					result.Result = VerifyResultBad
+				default:
+					result.Result = VerifyResultInvalid
+				}
 				result.Identity = sigState[2]
-				result.Trust = sigState[3]
+
+				// Did we catch a valid trust?
+				if _, ok := pgpTrustLevels[sigState[3]]; ok {
+					result.Trust = sigState[3]
+				} else {
+					result.Trust = TrustUnknown
+				}
+				result.Message = "Success verifying the commit signature."
 			}
 
 			// No more data to parse here
@@ -414,10 +496,13 @@ func ParseGitCommitVerification(signature string) (PGPVerifyResult, error) {
 	}
 
 	if parseOk && linesParsed < MaxVerificationLinesToParse {
+		// Operation successfull - return result
 		return result, nil
 	} else if linesParsed >= MaxVerificationLinesToParse {
+		// Too many output lines, return error
 		return PGPVerifyResult{}, fmt.Errorf("Too many lines of gpg verify-commit output, abort.")
 	} else {
+		// No data found, return error
 		return PGPVerifyResult{}, fmt.Errorf("Could not parse output of verify-commit, no verification data found.")
 	}
 }

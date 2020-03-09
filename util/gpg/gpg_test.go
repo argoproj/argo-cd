@@ -9,6 +9,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const (
+	longKeyID  = "5DE3E0509C47EA3CF04A42D34AEE18F83AFDEB23"
+	shortKeyID = "4AEE18F83AFDEB23"
+)
+
 // Helper function to create temporary GNUPGHOME
 func initTempDir() string {
 	p, err := ioutil.TempDir("", "gpg-test")
@@ -199,7 +204,48 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 		assert.Equal(t, "RSA", res.Cipher)
 		assert.Equal(t, "ultimate", res.Trust)
 		assert.Equal(t, "Wed Feb 26 23:22:34 2020 CET", res.Date)
-		assert.Equal(t, "Good", res.Result)
+		assert.Equal(t, VerifyResultGood, res.Result)
+	}
+
+	// Signature with unknown key - considered invalid
+	{
+		c, err := ioutil.ReadFile("testdata/unknown_signature.txt")
+		if err != nil {
+			panic(err.Error())
+		}
+		res, err := ParseGitCommitVerification(string(c))
+		assert.NoError(t, err)
+		assert.Equal(t, "4AEE18F83AFDEB23", res.KeyID)
+		assert.Equal(t, "RSA", res.Cipher)
+		assert.Equal(t, TrustUnknown, res.Trust)
+		assert.Equal(t, "Mon Aug 26 20:59:48 2019 CEST", res.Date)
+		assert.Equal(t, VerifyResultInvalid, res.Result)
+	}
+
+	// Bad signature with known key
+	{
+		c, err := ioutil.ReadFile("testdata/bad_signature_bad.txt")
+		if err != nil {
+			panic(err.Error())
+		}
+		res, err := ParseGitCommitVerification(string(c))
+		assert.NoError(t, err)
+		assert.Equal(t, "4AEE18F83AFDEB23", res.KeyID)
+		assert.Equal(t, "RSA", res.Cipher)
+		assert.Equal(t, "ultimate", res.Trust)
+		assert.Equal(t, "Wed Feb 26 23:22:34 2020 CET", res.Date)
+		assert.Equal(t, VerifyResultBad, res.Result)
+	}
+
+	// Bad case: Manipulated/invalid clear text signature
+	{
+		c, err := ioutil.ReadFile("testdata/bad_signature_manipulated.txt")
+		if err != nil {
+			panic(err.Error())
+		}
+		_, err = ParseGitCommitVerification(string(c))
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Could not parse output")
 	}
 
 	// Bad case: Incomplete signature data #1
@@ -267,6 +313,17 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "Could not parse result of verify")
 	}
+
+	// Bad case: Invalid key ID in signature
+	{
+		c, err := ioutil.ReadFile("testdata/bad_signature_badkeyid.txt")
+		if err != nil {
+			panic(err.Error())
+		}
+		_, err = ParseGitCommitVerification(string(c))
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Invalid PGP key ID")
+	}
 }
 
 func Test_GetGnuPGHomePath(t *testing.T) {
@@ -280,4 +337,52 @@ func Test_GetGnuPGHomePath(t *testing.T) {
 		p := GetGnuPGHomePath()
 		assert.Equal(t, "/tmp/gpghome", p)
 	}
+}
+
+func Test_KeyID(t *testing.T) {
+	// Good case - long key ID (aka fingerprint) to short key ID
+	{
+		res := KeyID(longKeyID)
+		assert.Equal(t, shortKeyID, res)
+	}
+	// Good case - short key ID remains same
+	{
+		res := KeyID(shortKeyID)
+		assert.Equal(t, shortKeyID, res)
+	}
+	// Bad case - key ID too short
+	{
+		keyID := "AEE18F83AFDEB23"
+		res := KeyID(keyID)
+		assert.Empty(t, res)
+	}
+	// Bad case - key ID too long
+	{
+		keyID := "5DE3E0509C47EA3CF04A42D34AEE18F83AFDEB2323"
+		res := KeyID(keyID)
+		assert.Empty(t, res)
+	}
+	// Bad case - right length, but not hex string
+	{
+		keyID := "abcdefghijklmn"
+		res := KeyID(keyID)
+		assert.Empty(t, res)
+	}
+}
+
+func Test_IsShortKeyID(t *testing.T) {
+	assert.True(t, IsShortKeyID(shortKeyID))
+	assert.False(t, IsShortKeyID(longKeyID))
+	assert.False(t, IsShortKeyID("ab"))
+}
+func Test_IsLongKeyID(t *testing.T) {
+	assert.True(t, IsLongKeyID(longKeyID))
+	assert.False(t, IsLongKeyID(shortKeyID))
+	assert.False(t, IsLongKeyID(longKeyID+"a"))
+}
+
+func Test_isHexString(t *testing.T) {
+	assert.True(t, isHexString("ab0099"))
+	assert.True(t, isHexString("AB0099"))
+	assert.False(t, isHexString("foobar"))
 }
