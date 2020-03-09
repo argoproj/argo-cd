@@ -2,7 +2,7 @@
 
 As the Argo Community grows, we'd like to keep track of our users. Please send a PR with your organization name if you are using Argo CD.
 
-Currently, the following organizations are **officially** using Argo:
+Currently, the following organizations are **officially** using Argo CD:
 
 1. [127Labs](https://127labs.com/)
 1. [Adevinta](https://www.adevinta.com/)
