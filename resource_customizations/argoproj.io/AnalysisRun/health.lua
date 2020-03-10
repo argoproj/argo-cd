@@ -14,15 +14,27 @@ if obj.status ~= nil then
     end
     if obj.status.phase == "Failed" then
         hs.status = "Degraded"
-        hs.message = "Analysis run failed"
+        if obj.status.message ~= nil then
+            hs.message = obj.status.message
+        else
+            hs.message = "Analysis run failed"
+        end
     end
     if obj.status.phase == "Error" then
         hs.status = "Degraded"
-        hs.message = "Analysis run had an error"
+        if obj.status.message ~= nil then
+            hs.message = obj.status.message
+        else
+            hs.message = "Analysis run had an error"
+        end
     end
     if obj.status.phase == "Inconclusive" then
         hs.status = "Unknown"
-        hs.message = "Analysis run was inconclusive"
+        if obj.status.message ~= nil then
+            hs.message = obj.status.message
+        else
+            hs.message = "Analysis run was inconclusive"
+        end
     end
     return hs
 end
