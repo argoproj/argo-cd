@@ -1,13 +1,31 @@
 import * as React from 'react';
 import {resources} from './resources';
 
-export const ResourceIcon = ({kind}: {kind: string}) => {
+export const ResourceIcon = ({kind, icon}: {kind: string; icon?: string}) => {
     const i = resources.get(kind);
     if (i !== undefined) {
         return <img src={'assets/images/resources/' + i + '.svg'} alt={kind} style={{padding: '2px', width: '40px', height: '32px'}} />;
     }
     if (kind === 'Application') {
-        return <i title={kind} className={`icon argo-icon-application`} />;
+        if (!!icon) {
+            return (
+                <img
+                    src={icon}
+                    alt={kind}
+                    style={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        width: '40px',
+                        height: '40px',
+                        marginTop: '-20px',
+                        marginLeft: '-20px'
+                    }}
+                />
+            );
+        } else {
+            return <i title={kind} className={`icon argo-icon-application`} />;
+        }
     }
     const initials = kind.replace(/[a-z]/g, '');
     const n = initials.length;

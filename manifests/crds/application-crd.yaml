@@ -307,6 +307,9 @@ spec:
                     ksonnet app.yaml
                   type: string
               type: object
+            icon:
+              description: Use custom icon on your app deployment tree view
+              type: string
             ignoreDifferences:
               description: IgnoreDifferences controls resources fields which should
                 be ignored during comparison

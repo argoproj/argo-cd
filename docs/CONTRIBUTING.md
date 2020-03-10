@@ -30,9 +30,9 @@ brew install go git-lfs kubectl kubectx dep ksonnet/tap/ks helm@2 kustomize
 Check the versions:
 
 ```bash
-go version ;# must be v1.12.x
-helm version ;# must be v2.13.x
-kustomize version ;# must be v3.1.x
+go version ;# must be v1.14.x
+helm version ;# must be v3.1.x
+kustomize version ;# must be v3.2.x
 ```
 
 Set up environment variables (e.g. is `~/.bashrc`):

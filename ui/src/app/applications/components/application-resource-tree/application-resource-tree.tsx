@@ -214,7 +214,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                 className={classNames('application-resource-tree__node-kind-icon', {
                     'application-resource-tree__node-kind-icon--big': rootNode
                 })}>
-                <ResourceIcon kind={node.kind} />
+                <ResourceIcon kind={node.kind} icon={props.app.spec.icon} />
                 <br />
                 {!rootNode && <div className='application-resource-tree__node-kind'>{ResourceLabel({kind: node.kind})}</div>}
             </div>

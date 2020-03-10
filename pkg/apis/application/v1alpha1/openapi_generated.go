@@ -869,6 +869,13 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSpec(ref common.ReferenceCa
 							Format:      "int64",
 						},
 					},
+					"icon": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Use custom icon on your app deployment tree view",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"source", "destination", "project"},
 			},

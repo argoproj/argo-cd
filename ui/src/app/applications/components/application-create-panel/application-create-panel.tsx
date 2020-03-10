@@ -36,7 +36,8 @@ const DEFAULT_APP: Partial<models.Application> = {
             repoURL: '',
             targetRevision: 'HEAD'
         },
-        project: ''
+        project: '',
+        icon: ''
     }
 };
 
@@ -175,6 +176,9 @@ export const ApplicationCreatePanel = (props: {
                                                 )}
                                                 <div className='argo-form-row'>
                                                     <FormField formApi={api} label='Application Name' field='metadata.name' component={Text} />
+                                                </div>
+                                                <div className='argo-form-row'>
+                                                    <FormField formApi={api} label='Application Icon' field='spec.icon' component={Text} />
                                                 </div>
                                                 <div className='argo-form-row'>
                                                     <FormField
