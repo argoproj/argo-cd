@@ -7,7 +7,7 @@ export const ResourceIcon = ({kind, icon}: {kind: string; icon?: string}) => {
         return <img src={'assets/images/resources/' + i + '.svg'} alt={kind} style={{padding: '2px', width: '40px', height: '32px'}} />;
     }
     if (kind === 'Application') {
-        if (!!icon) {
+        if (icon !== null || icon !== undefined || icon !== '') {
             return (
                 <img
                     src={icon}
