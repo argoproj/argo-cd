@@ -1265,6 +1265,14 @@
 
 
 </li>
+<li>
+<p>Mapping role from jwt token to argo</p>
+<p>If you want to map the roles from the jwt token to match the default roles (readonly and admin) then you must change the scope variable in the rbac-configmap.</p>
+<div class="codehilite"><pre><span></span><code><span class="c">scopes: &#39;[roles, email]&#39;</span>
+</code></pre></div>
+
+
+</li>
 </ol>
 <h2 id="with-dex">With Dex<a class="headerlink" href="#with-dex" title="Permanent link">&para;</a></h2>
 <div class="codehilite"><pre><span></span><code><span class="l l-Scalar l-Scalar-Plain">ConfigMap -&gt; argocd-cm</span>
