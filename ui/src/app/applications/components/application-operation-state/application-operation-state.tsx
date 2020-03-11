@@ -3,9 +3,7 @@ import * as moment from 'moment';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 
-import {ErrorNotification} from '../../../shared/components';
-import {Revision} from '../../../shared/components/revision';
-import {Timestamp} from '../../../shared/components/timestamp';
+import {ErrorNotification, Revision, Timestamp} from '../../../shared/components';
 import {AppContext} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';

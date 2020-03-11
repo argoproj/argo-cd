@@ -5,6 +5,7 @@ import {Form, FormApi, Text} from 'react-form';
 import {Consumer} from '../../../shared/context';
 import {JwtToken} from '../../../shared/models';
 import {CreateJWTTokenParams, DeleteJWTTokenParams} from '../../../shared/services';
+import {convertExpiresInToSeconds, validExpiresIn} from '../utils';
 
 interface ProjectRoleJWTTokensProps {
     projName: string;
@@ -100,23 +101,6 @@ export const ProjectRoleJWTTokens = (props: ProjectRoleJWTTokensProps) => {
     );
 };
 
-function convertExpiresInToSeconds(expiresIn: string): number {
-    if (!expiresIn) {
-        return 0;
-    }
-    const time = expiresIn.match('^([0-9]+)([smhd])$');
-    const duration = parseInt(time[1], 10);
-    let interval = 1;
-    if (time[2] === 'm') {
-        interval = 60;
-    } else if (time[2] === 'h') {
-        interval = 60 * 60;
-    } else if (time[2] === 'd') {
-        interval = 60 * 60 * 24;
-    }
-    return duration * interval;
-}
-
 async function createJWTToken(props: ProjectRoleJWTTokensProps, api: FormApi, ctx: any) {
     if (api.errors.expiresIn) {
         return;
@@ -143,11 +127,4 @@ async function deleteJWTToken(props: ProjectRoleJWTTokensProps, iat: number, ctx
     if (confirmed) {
         props.deleteJWTToken({project: props.projName, role: props.roleName, iat} as DeleteJWTTokenParams);
     }
-}
-
-function validExpiresIn(expiresIn: string): boolean {
-    if (!expiresIn) {
-        return true;
-    }
-    return expiresIn.match('^([0-9]+)([smhd])$') !== null;
 }
