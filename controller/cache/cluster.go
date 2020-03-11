@@ -530,9 +530,12 @@ func (c *clusterInfo) processEvent(event watch.EventType, un *unstructured.Unstr
 	if c.onEventReceived != nil {
 		c.onEventReceived(event, un)
 	}
+	key := kube.GetResourceKey(un)
+	if event == watch.Modified && skipAppRequeing(key) {
+		return
+	}
 	c.lock.Lock()
 	defer c.lock.Unlock()
-	key := kube.GetResourceKey(un)
 	existingNode, exists := c.nodes[key]
 	if event == watch.Deleted {
 		if exists {
@@ -556,7 +559,7 @@ func (c *clusterInfo) onNodeUpdated(exists bool, existingNode *node, un *unstruc
 		n := nodes[i]
 		if ns, ok := c.nsIndex[n.ref.Namespace]; ok {
 			app := n.getApp(ns)
-			if app == "" || skipAppRequeing(key) {
+			if app == "" {
 				continue
 			}
 			toNotify[app] = n.isRootAppNode() || toNotify[app]
