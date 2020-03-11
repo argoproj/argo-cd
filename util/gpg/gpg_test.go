@@ -7,6 +7,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/test"
 )
 
 const (
@@ -181,6 +184,54 @@ func Test_GPG_KeyManagement(t *testing.T) {
 
 }
 
+func Test_ImportPGPKeysFromString(t *testing.T) {
+	p := initTempDir()
+	defer os.RemoveAll(p)
+
+	err := InitializeGnuPG()
+	assert.NoError(t, err)
+
+	// Import a single good key
+	keys, err := ImportPGPKeysFromString(test.MustLoadFileToString("testdata/github.asc"))
+	assert.NoError(t, err)
+	assert.Len(t, keys, 1)
+	assert.Equal(t, "4AEE18F83AFDEB23", keys[0].KeyID)
+	assert.Contains(t, keys[0].Owner, "noreply@github.com")
+	assert.Equal(t, "unknown", keys[0].Trust)
+	assert.Equal(t, "unknown", keys[0].SubType)
+
+}
+
+func Test_ValidateGPGKeys(t *testing.T) {
+	p := initTempDir()
+	defer os.RemoveAll(p)
+
+	err := InitializeGnuPG()
+	assert.NoError(t, err)
+
+	// Validation good case - 1 key
+	{
+		keys, err := ValidatePGPKeys("testdata/github.asc")
+		assert.NoError(t, err)
+		assert.Len(t, keys, 1)
+		assert.Equal(t, "4AEE18F83AFDEB23", keys[0])
+	}
+
+	// Validation bad case
+	{
+		keys, err := ValidatePGPKeys("testdata/garbage.asc")
+		assert.Error(t, err)
+		assert.Len(t, keys, 0)
+	}
+
+	// We should still have a total of 1 keys in the keyring now
+	{
+		keys, err := GetInstalledPGPKeys(nil)
+		assert.NoError(t, err)
+		assert.Len(t, keys, 1)
+	}
+}
+
 func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 	p := initTempDir()
 	defer os.RemoveAll(p)
@@ -329,12 +380,12 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 func Test_GetGnuPGHomePath(t *testing.T) {
 	{
 		os.Setenv("GNUPGHOME", "")
-		p := GetGnuPGHomePath()
-		assert.Equal(t, DefaultGnuPgHomePath, p)
+		p := common.GetGnuPGHomePath()
+		assert.Equal(t, common.DefaultGnuPgHomePath, p)
 	}
 	{
 		os.Setenv("GNUPGHOME", "/tmp/gpghome")
-		p := GetGnuPGHomePath()
+		p := common.GetGnuPGHomePath()
 		assert.Equal(t, "/tmp/gpghome", p)
 	}
 }
@@ -385,4 +436,32 @@ func Test_isHexString(t *testing.T) {
 	assert.True(t, isHexString("ab0099"))
 	assert.True(t, isHexString("AB0099"))
 	assert.False(t, isHexString("foobar"))
+}
+
+func Test_IsSecretKey(t *testing.T) {
+	p := initTempDir()
+	defer os.RemoveAll(p)
+
+	// First run should initialize fine
+	err := InitializeGnuPG()
+	assert.NoError(t, err)
+
+	// We should have exactly one public key with ultimate trust (our own) in the keyring
+	keys, err := GetInstalledPGPKeys(nil)
+	assert.NoError(t, err)
+	assert.Len(t, keys, 1)
+	assert.Equal(t, keys[0].Trust, "ultimate")
+
+	{
+		secret, err := IsSecretKey(keys[0].KeyID)
+		assert.NoError(t, err)
+		assert.True(t, secret)
+	}
+
+	{
+		secret, err := IsSecretKey("invalid")
+		assert.NoError(t, err)
+		assert.False(t, secret)
+	}
+
 }

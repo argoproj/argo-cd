@@ -1,5 +1,9 @@
 package common
 
+import (
+	"os"
+)
+
 // Default service addresses and URLS of Argo CD internal services
 const (
 	// DefaultRepoServerAddr is the gRPC address of the Argo CD repo server
@@ -46,6 +50,8 @@ const (
 	DefaultPathSSHConfig = "/app/config/ssh"
 	// Default name for the SSH known hosts file
 	DefaultSSHKnownHostsName = "ssh_known_hosts"
+	// Default path to GnuPG home directory
+	DefaultGnuPgHomePath = "/app/config/gpg"
 )
 
 // Argo CD application related constants
@@ -149,3 +155,12 @@ const (
 	// Number should be bumped in case of backward incompatible change to make sure cache is invalidated after upgrade.
 	CacheVersion = "1.0.0"
 )
+
+// GetGnuPGHomePath retrieves the path to use for GnuPG home directory, which is either taken from GNUPGHOME environment or a default value
+func GetGnuPGHomePath() string {
+	if gnuPgHome := os.Getenv("GNUPGHOME"); gnuPgHome == "" {
+		return DefaultGnuPgHomePath
+	} else {
+		return gnuPgHome
+	}
+}

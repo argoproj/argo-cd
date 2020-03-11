@@ -27,7 +27,6 @@ import (
 	"github.com/argoproj/argo-cd/common"
 	certutil "github.com/argoproj/argo-cd/util/cert"
 	executil "github.com/argoproj/argo-cd/util/exec"
-	"github.com/argoproj/argo-cd/util/gpg"
 )
 
 type RevisionMetadata struct {
@@ -453,7 +452,7 @@ func (m *nativeGitClient) VerifyCommitSignature(revision string) (string, error)
 // runWrapper runs a custom command with all the semantics of running the Git client
 func (m *nativeGitClient) runGnuPGWrapper(wrapper string, args ...string) (string, error) {
 	cmd := exec.Command(wrapper, args...)
-	cmd.Env = append(cmd.Env, fmt.Sprintf("GNUPGHOME=%s", gpg.GetGnuPGHomePath()))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("GNUPGHOME=%s", common.GetGnuPGHomePath()))
 	return m.runCmdOutput(cmd)
 }
 

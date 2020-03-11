@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/argoproj/argo-cd/common"
 	executil "github.com/argoproj/argo-cd/util/exec"
 )
 
@@ -149,25 +150,13 @@ var pgpTrustLevels = map[string]int{
 	TrustUltimate: 6,
 }
 
-// Default value for GNUPGHOME
-const DefaultGnuPgHomePath = "/app/config/gpg"
-
 // Maximum number of lines to parse for a gpg verify-commit output
 const MaxVerificationLinesToParse = 40
-
-// GetGnuPGHomePath retrieves the path to use for GnuPG home directory, which is either taken from GNUPGHOME environment or a default value
-func GetGnuPGHomePath() string {
-	if gnuPgHome := os.Getenv("GNUPGHOME"); gnuPgHome == "" {
-		return DefaultGnuPgHomePath
-	} else {
-		return gnuPgHome
-	}
-}
 
 // Helper function to append GNUPGHOME for a command execution environment
 func getGPGEnviron() []string {
 	if h := os.Getenv("GNUPGHOME"); h != "" {
-		return append(os.Environ(), GetGnuPGHomePath())
+		return append(os.Environ(), common.GetGnuPGHomePath())
 	}
 	return os.Environ()
 }
@@ -176,7 +165,7 @@ func getGPGEnviron() []string {
 // transient private key so that the trust DB will work correctly.
 func InitializeGnuPG() error {
 
-	gnuPgHome := GetGnuPGHomePath()
+	gnuPgHome := common.GetGnuPGHomePath()
 
 	// We only operate if GNUPGHOME is set
 	if gnuPgHome == "" {
@@ -233,6 +222,20 @@ func ParsePGPKeyBlock(keyFile string) ([]string, error) {
 	return nil, nil
 }
 
+func ImportPGPKeysFromString(keyData string) ([]*GnuPGPublicKey, error) {
+	f, err := ioutil.TempFile("", "gpg-key-import")
+	if err != nil {
+		return nil, err
+	}
+	defer os.Remove(f.Name())
+	_, err = f.WriteString(keyData)
+	if err != nil {
+		return nil, err
+	}
+	f.Close()
+	return ImportPGPKeys(f.Name())
+}
+
 // ImportPGPKey imports one or more keys from a file into the local keyring and optionally
 // signs them with the transient private key for leveraging the trust DB.
 func ImportPGPKeys(keyFile string) ([]*GnuPGPublicKey, error) {
@@ -268,6 +271,34 @@ func ImportPGPKeys(keyFile string) ([]*GnuPGPublicKey, error) {
 		}
 
 		keys = append(keys, &key)
+	}
+
+	return keys, nil
+}
+
+func ValidatePGPKeys(keyFile string) ([]string, error) {
+	keys := make([]string, 0)
+	cmd := exec.Command("gpg", "--logger-fd", "1", "-v", "--dry-run", "--import", keyFile)
+	cmd.Env = getGPGEnviron()
+
+	out, err := executil.Run(cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	scanner := bufio.NewScanner(strings.NewReader(out))
+	for scanner.Scan() {
+		if strings.HasPrefix(scanner.Text(), "gpg: pub") {
+			line := strings.Fields(scanner.Text())
+			if len(line) < 5 {
+				return nil, fmt.Errorf("Invalid output: %s", scanner.Text())
+			}
+			keyID := strings.Split(line[2], "/")
+			if len(keyID) != 2 {
+				return nil, fmt.Errorf("Invalid key ID in output: %s", line[2])
+			}
+			keys = append(keys, keyID[1])
+		}
 	}
 
 	return keys, nil
@@ -330,6 +361,21 @@ func DeletePGPKey(keyID string) error {
 	}
 
 	return nil
+}
+
+// IsSecretKey returns true if the keyID also has a private key in the keyring
+func IsSecretKey(keyID string) (bool, error) {
+	args := append([]string{}, "--list-secret-keys", keyID)
+	cmd := exec.Command("gpg-wrapper.sh", args...)
+	cmd.Env = getGPGEnviron()
+	out, err := executil.Run(cmd)
+	if err != nil {
+		return false, err
+	}
+	if strings.HasPrefix(out, "gpg: error reading key: No secret key") {
+		return false, nil
+	}
+	return true, nil
 }
 
 // GetInstalledPGPKeys() runs gpg to retrieve public keys from our keyring. If kids is non-empty, limit result to those key IDs

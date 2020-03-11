@@ -3,6 +3,7 @@ package test
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net"
 	"time"
@@ -58,4 +59,13 @@ func portIsOpen(addr string) bool {
 	}
 	_ = conn.Close()
 	return true
+}
+
+// Read the contents of a file and returns it as string. Panics on error.
+func MustLoadFileToString(path string) string {
+	o, err := ioutil.ReadFile(path)
+	if err != nil {
+		panic(err.Error())
+	}
+	return string(o)
 }
