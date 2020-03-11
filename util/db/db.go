@@ -7,7 +7,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/gpg"
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
@@ -59,9 +58,9 @@ type ArgoDB interface {
 	ListHelmRepositories(ctx context.Context) ([]*appv1.Repository, error)
 
 	// InitializeGPGKeyRing initializes the GPG key ring from ConfigMap
-	InitializeGPGKeyRing(ctx context.Context) (map[string]*gpg.GnuPGPublicKey, error)
+	InitializeGPGKeyRing(ctx context.Context) (map[string]*appv1.GnuPGPublicKey, error)
 	// ListInstalledGPGPublicKeys returns all GPG public keys actually installed in the keyring
-	ListInstalledGPGPublicKeys(ctx context.Context) (map[string]*gpg.GnuPGPublicKey, error)
+	ListInstalledGPGPublicKeys(ctx context.Context) (map[string]*appv1.GnuPGPublicKey, error)
 	// ListConfiguredGPGPublicKeys returns all GPG public key IDs stored in the ConfigMap
 	ListConfiguredGPGPublicKeys(ctx context.Context) (map[string]string, error)
 	// SynchronizePGPPublicKeys syncs configured keys to keyring

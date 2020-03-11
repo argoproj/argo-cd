@@ -394,6 +394,27 @@ message EnvEntry {
   optional string value = 2;
 }
 
+// A representation of a GnuPG public key
+message GnuPGPublicKey {
+  // KeyID in hexadecimal string format
+  optional string keyID = 1;
+
+  // Fingerprint of the key
+  optional string fingerprint = 2;
+
+  // Owner identification
+  optional string owner = 3;
+
+  // Trust level
+  optional string trust = 4;
+
+  // Key sub type (e.g. rsa4096)
+  optional string subType = 5;
+
+  // Key data
+  optional string keyData = 6;
+}
+
 message HealthStatus {
   optional string status = 1;
 

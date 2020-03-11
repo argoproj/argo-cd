@@ -1311,6 +1311,22 @@ type RepositoryCertificateList struct {
 	Items []RepositoryCertificate `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
 
+// A representation of a GnuPG public key
+type GnuPGPublicKey struct {
+	// KeyID in hexadecimal string format
+	KeyID string `json:"keyID" protobuf:"bytes,1,opt,name=keyID"`
+	// Fingerprint of the key
+	Fingerprint string `json:"fingerprint,omitempty" protobuf:"bytes,2,opt,name=fingerprint"`
+	// Owner identification
+	Owner string `json:"owner,omitempty" protobuf:"bytes,3,opt,name=owner"`
+	// Trust level
+	Trust string `json:"trust,omitempty" protobuf:"bytes,4,opt,name=trust"`
+	// Key sub type (e.g. rsa4096)
+	SubType string `json:"subType,omitempty" protobuf:"bytes,5,opt,name=subType"`
+	// Key data
+	KeyData string `json:"keyData,omitempty" protobuf:"bytes,6,opt,name=keyData"`
+}
+
 // AppProjectList is list of AppProject resources
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type AppProjectList struct {

@@ -9,6 +9,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
 
+	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/gpg"
 )
 
@@ -74,8 +75,8 @@ func (db *db) ListConfiguredGPGPublicKeys(ctx context.Context) (map[string]strin
 }
 
 // List all GPG public keys actually installed in the keyring
-func (db *db) ListInstalledGPGPublicKeys(ctx context.Context) (map[string]*gpg.GnuPGPublicKey, error) {
-	result := make(map[string]*gpg.GnuPGPublicKey, 0)
+func (db *db) ListInstalledGPGPublicKeys(ctx context.Context) (map[string]*appsv1.GnuPGPublicKey, error) {
+	result := make(map[string]*appsv1.GnuPGPublicKey, 0)
 
 	keys, err := gpg.GetInstalledPGPKeys(nil)
 	if err != nil {
@@ -148,8 +149,8 @@ func (db *db) SynchronizeGPGPublicKeys(ctx context.Context) error {
 }
 
 // InitializeGPGKeyRing initializes a GnuPG keyring and imports all public keys configured in the ConfigMap
-func (db *db) InitializeGPGKeyRing(ctx context.Context) (map[string]*gpg.GnuPGPublicKey, error) {
-	importedKeys := make(map[string]*gpg.GnuPGPublicKey, 0)
+func (db *db) InitializeGPGKeyRing(ctx context.Context) (map[string]*appsv1.GnuPGPublicKey, error) {
+	importedKeys := make(map[string]*appsv1.GnuPGPublicKey, 0)
 
 	err := gpg.InitializeGnuPG()
 	if err != nil {

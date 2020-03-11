@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/argoproj/argo-cd/common"
+	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	executil "github.com/argoproj/argo-cd/util/exec"
 )
 
@@ -90,20 +91,6 @@ func IsShortKeyID(k string) bool {
 	} else {
 		return false
 	}
-}
-
-// A representation of a GnuPG public key
-type GnuPGPublicKey struct {
-	// KeyID in hexadecimal string format
-	KeyID string
-	// Fingerprint of the key
-	Fingerprint string
-	// Owner identification
-	Owner string
-	// Trust level
-	Trust string
-	// Key sub type (e.g. rsa4096)
-	SubType string
 }
 
 // Result of a git commit verification
@@ -222,7 +209,7 @@ func ParsePGPKeyBlock(keyFile string) ([]string, error) {
 	return nil, nil
 }
 
-func ImportPGPKeysFromString(keyData string) ([]*GnuPGPublicKey, error) {
+func ImportPGPKeysFromString(keyData string) ([]*appsv1.GnuPGPublicKey, error) {
 	f, err := ioutil.TempFile("", "gpg-key-import")
 	if err != nil {
 		return nil, err
@@ -238,8 +225,8 @@ func ImportPGPKeysFromString(keyData string) ([]*GnuPGPublicKey, error) {
 
 // ImportPGPKey imports one or more keys from a file into the local keyring and optionally
 // signs them with the transient private key for leveraging the trust DB.
-func ImportPGPKeys(keyFile string) ([]*GnuPGPublicKey, error) {
-	keys := make([]*GnuPGPublicKey, 0)
+func ImportPGPKeys(keyFile string) ([]*appsv1.GnuPGPublicKey, error) {
+	keys := make([]*appsv1.GnuPGPublicKey, 0)
 
 	cmd := exec.Command("gpg", "--logger-fd", "1", "--import", keyFile)
 	cmd.Env = getGPGEnviron()
@@ -260,7 +247,7 @@ func ImportPGPKeys(keyFile string) ([]*GnuPGPublicKey, error) {
 			continue
 		}
 
-		key := GnuPGPublicKey{
+		key := appsv1.GnuPGPublicKey{
 			KeyID: token[1],
 			Owner: token[2],
 			// By default, trust level is unknown
@@ -306,15 +293,15 @@ func ValidatePGPKeys(keyFile string) ([]string, error) {
 
 // SetPGPTrustLevel sets the given trust level on keys with specified key IDs
 func SetPGPTrustLevelById(kids []string, trustLevel string) error {
-	keys := make([]*GnuPGPublicKey, 0)
+	keys := make([]*appsv1.GnuPGPublicKey, 0)
 	for _, kid := range kids {
-		keys = append(keys, &GnuPGPublicKey{KeyID: kid})
+		keys = append(keys, &appsv1.GnuPGPublicKey{KeyID: kid})
 	}
 	return SetPGPTrustLevel(keys, trustLevel)
 }
 
 // SetPGPTrustLevel sets the given trust level on specified keys
-func SetPGPTrustLevel(pgpKeys []*GnuPGPublicKey, trustLevel string) error {
+func SetPGPTrustLevel(pgpKeys []*appsv1.GnuPGPublicKey, trustLevel string) error {
 	trust, ok := pgpTrustLevels[trustLevel]
 	if !ok {
 		return fmt.Errorf("Unknown trust level: %s", trustLevel)
@@ -379,8 +366,8 @@ func IsSecretKey(keyID string) (bool, error) {
 }
 
 // GetInstalledPGPKeys() runs gpg to retrieve public keys from our keyring. If kids is non-empty, limit result to those key IDs
-func GetInstalledPGPKeys(kids []string) ([]*GnuPGPublicKey, error) {
-	keys := make([]*GnuPGPublicKey, 0)
+func GetInstalledPGPKeys(kids []string) ([]*appsv1.GnuPGPublicKey, error) {
+	keys := make([]*appsv1.GnuPGPublicKey, 0)
 
 	args := append([]string{}, "--list-public-keys")
 	// kids can contain an arbitrary list of key IDs we want to list. If empty, we list all keys.
@@ -396,7 +383,7 @@ func GetInstalledPGPKeys(kids []string) ([]*GnuPGPublicKey, error) {
 	}
 
 	scanner := bufio.NewScanner(strings.NewReader(out))
-	var curKey *GnuPGPublicKey = nil
+	var curKey *appsv1.GnuPGPublicKey = nil
 	for scanner.Scan() {
 		if strings.HasPrefix(scanner.Text(), "pub ") {
 			// This is the beginning of a new key, time to store the previously parsed one in our list and start fresh.
@@ -405,7 +392,7 @@ func GetInstalledPGPKeys(kids []string) ([]*GnuPGPublicKey, error) {
 				curKey = nil
 			}
 
-			key := GnuPGPublicKey{}
+			key := appsv1.GnuPGPublicKey{}
 
 			// Second field in pub output denotes key sub type (cipher and length)
 			token := subTypeMatch.FindStringSubmatch(scanner.Text())

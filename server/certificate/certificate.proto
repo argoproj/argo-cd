@@ -21,6 +21,8 @@ message RepositoryCertificateQuery {
   string certSubType = 3;
 }
 
+message GPGPublicKeyQuery {}
+
 // Request to create a set of certificates
 message RepositoryCertificateCreateRequest {
   // List of certificates to be created
