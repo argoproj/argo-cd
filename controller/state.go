@@ -255,27 +255,33 @@ func dedupLiveResources(targetObjs []*unstructured.Unstructured, liveObjsByKey m
 	}
 }
 
-func (m *appStateManager) getComparisonSettings(app *appv1.Application) (string, map[string]v1alpha1.ResourceOverride, diff.Normalizer, error) {
+func (m *appStateManager) getComparisonSettings(app *appv1.Application) (string, map[string]v1alpha1.ResourceOverride, diff.Normalizer, *settings.ResourcesFilter, error) {
 	resourceOverrides, err := m.settingsMgr.GetResourceOverrides()
 	if err != nil {
-		return "", nil, nil, err
+		return "", nil, nil, nil, err
 	}
 	appLabelKey, err := m.settingsMgr.GetAppInstanceLabelKey()
 	if err != nil {
-		return "", nil, nil, err
+		return "", nil, nil, nil, err
 	}
 	diffNormalizer, err := argo.NewDiffNormalizer(app.Spec.IgnoreDifferences, resourceOverrides)
 	if err != nil {
-		return "", nil, nil, err
+		return "", nil, nil, nil, err
 	}
-	return appLabelKey, resourceOverrides, diffNormalizer, nil
+	resFilter, err := m.settingsMgr.GetResourcesFilter()
+	if err != nil {
+		return "", nil, nil, nil, err
+	}
+	return appLabelKey, resourceOverrides, diffNormalizer, resFilter, nil
 }
 
 // CompareAppState compares application git state to the live app state, using the specified
 // revision and supplied source. If revision or overrides are empty, then compares against
 // revision and overrides in the app spec.
 func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *appv1.AppProject, revision string, source v1alpha1.ApplicationSource, noCache bool, localManifests []string) *comparisonResult {
-	appLabelKey, resourceOverrides, diffNormalizer, err := m.getComparisonSettings(app)
+	ts := stats.NewTimingStats()
+	appLabelKey, resourceOverrides, diffNormalizer, resFilter, err := m.getComparisonSettings(app)
+	ts.AddCheckpoint("settings_ms")
 
 	// return unknown comparison result if basic comparison settings cannot be loaded
 	if err != nil {
@@ -294,7 +300,6 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 
 	logCtx := log.WithField("application", app.Name)
 	logCtx.Infof("Comparing app state (cluster: %s, namespace: %s)", app.Spec.Destination.Server, app.Spec.Destination.Namespace)
-	ts := stats.NewTimingStats()
 
 	var targetObjs []*unstructured.Unstructured
 	var hooks []*unstructured.Unstructured
@@ -324,22 +329,16 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
 	}
 	conditions = append(conditions, dedupConditions...)
-
-	resFilter, err := m.settingsMgr.GetResourcesFilter()
-	if err != nil {
-		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
-	} else {
-		for i := len(targetObjs) - 1; i >= 0; i-- {
-			targetObj := targetObjs[i]
-			gvk := targetObj.GroupVersionKind()
-			if resFilter.IsExcludedResource(gvk.Group, gvk.Kind, app.Spec.Destination.Server) {
-				targetObjs = append(targetObjs[:i], targetObjs[i+1:]...)
-				conditions = append(conditions, v1alpha1.ApplicationCondition{
-					Type:               v1alpha1.ApplicationConditionExcludedResourceWarning,
-					Message:            fmt.Sprintf("Resource %s/%s %s is excluded in the settings", gvk.Group, gvk.Kind, targetObj.GetName()),
-					LastTransitionTime: &now,
-				})
-			}
+	for i := len(targetObjs) - 1; i >= 0; i-- {
+		targetObj := targetObjs[i]
+		gvk := targetObj.GroupVersionKind()
+		if resFilter.IsExcludedResource(gvk.Group, gvk.Kind, app.Spec.Destination.Server) {
+			targetObjs = append(targetObjs[:i], targetObjs[i+1:]...)
+			conditions = append(conditions, v1alpha1.ApplicationCondition{
+				Type:               v1alpha1.ApplicationConditionExcludedResourceWarning,
+				Message:            fmt.Sprintf("Resource %s/%s %s is excluded in the settings", gvk.Group, gvk.Kind, targetObj.GetName()),
+				LastTransitionTime: &now,
+			})
 		}
 	}
 	ts.AddCheckpoint("dedup_ms")
