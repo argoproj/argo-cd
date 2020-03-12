@@ -285,17 +285,6 @@ func ValidatePGPKeys(keyFile string) (map[string]*appsv1.GnuPGPublicKey, error) 
 			key.Owner = result[5]
 			keys[key.KeyID] = &key
 		}
-		// if strings.HasPrefix(scanner.Text(), "gpg: pub") {
-		// 	line := strings.Fields(scanner.Text())
-		// 	if len(line) < 5 {
-		// 		return nil, fmt.Errorf("Invalid output: %s", scanner.Text())
-		// 	}
-		// 	keyID := strings.Split(line[2], "/")
-		// 	if len(keyID) != 2 {
-		// 		return nil, fmt.Errorf("Invalid key ID in output: %s", line[2])
-		// 	}
-		// 	keys = append(keys, keyID[1])
-		// }
 	}
 
 	return keys, nil
