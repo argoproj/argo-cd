@@ -23,6 +23,7 @@ const (
 	ArgoCDKnownHostsConfigMapName = "argocd-ssh-known-hosts-cm"
 	// Contains TLS certificate data for connecting repositories. Will get mounted as volume to pods
 	ArgoCDTLSCertsConfigMapName = "argocd-tls-certs-cm"
+	ArgoCDGPGKeysConfigMapName  = "argocd-gpg-keys-cm"
 )
 
 // Some default configurables
