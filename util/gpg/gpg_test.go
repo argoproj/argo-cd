@@ -214,7 +214,7 @@ func Test_ValidateGPGKeys(t *testing.T) {
 		keys, err := ValidatePGPKeys("testdata/github.asc")
 		assert.NoError(t, err)
 		assert.Len(t, keys, 1)
-		assert.Equal(t, "4AEE18F83AFDEB23", keys[0])
+		assert.Contains(t, keys, "4AEE18F83AFDEB23")
 	}
 
 	// Validation bad case

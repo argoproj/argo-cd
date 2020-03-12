@@ -28,6 +28,8 @@ var uidMatch = regexp.MustCompile(`^uid\s*\[\s*([a-z]+)\s*\]\s+(.*)$`)
 // Regular expression to match import status
 var importMatch = regexp.MustCompile(`^gpg: key ([A-Z0-9]+): public key "([^"]+)" imported$`)
 
+var verifyMatch = regexp.MustCompile(`^gpg:\s+([a-z]+)\s+([a-z0-9]+)/([a-zA-Z0-9]+)\s+([0-9\-]+)\s+(.+)$`)
+
 // Regular expression to match the start of a commit signature verification
 var verificationStartMatch = regexp.MustCompile(`^gpg: Signature made ([a-zA-Z0-9\ :]+)$`)
 
@@ -263,8 +265,8 @@ func ImportPGPKeys(keyFile string) ([]*appsv1.GnuPGPublicKey, error) {
 	return keys, nil
 }
 
-func ValidatePGPKeys(keyFile string) ([]string, error) {
-	keys := make([]string, 0)
+func ValidatePGPKeys(keyFile string) (map[string]*appsv1.GnuPGPublicKey, error) {
+	keys := make(map[string]*appsv1.GnuPGPublicKey, 0)
 	cmd := exec.Command("gpg", "--logger-fd", "1", "-v", "--dry-run", "--import", keyFile)
 	cmd.Env = getGPGEnviron()
 
@@ -275,17 +277,25 @@ func ValidatePGPKeys(keyFile string) ([]string, error) {
 
 	scanner := bufio.NewScanner(strings.NewReader(out))
 	for scanner.Scan() {
-		if strings.HasPrefix(scanner.Text(), "gpg: pub") {
-			line := strings.Fields(scanner.Text())
-			if len(line) < 5 {
-				return nil, fmt.Errorf("Invalid output: %s", scanner.Text())
-			}
-			keyID := strings.Split(line[2], "/")
-			if len(keyID) != 2 {
-				return nil, fmt.Errorf("Invalid key ID in output: %s", line[2])
-			}
-			keys = append(keys, keyID[1])
+		result := verifyMatch.FindStringSubmatch(scanner.Text())
+		key := appsv1.GnuPGPublicKey{}
+		if len(result) == 6 && result[1] == "pub" {
+			key.KeyID = result[3]
+			key.SubType = result[2]
+			key.Owner = result[5]
+			keys[key.KeyID] = &key
 		}
+		// if strings.HasPrefix(scanner.Text(), "gpg: pub") {
+		// 	line := strings.Fields(scanner.Text())
+		// 	if len(line) < 5 {
+		// 		return nil, fmt.Errorf("Invalid output: %s", scanner.Text())
+		// 	}
+		// 	keyID := strings.Split(line[2], "/")
+		// 	if len(keyID) != 2 {
+		// 		return nil, fmt.Errorf("Invalid key ID in output: %s", line[2])
+		// 	}
+		// 	keys = append(keys, keyID[1])
+		// }
 	}
 
 	return keys, nil

@@ -17,36 +17,47 @@ import (
 var syncSemaphore = semaphore.NewWeighted(1)
 
 // Validates a single GnuPG key and returns the key's ID
-func validatePGPKey(keyData string) (string, error) {
+func validatePGPKey(keyData string) (*appsv1.GnuPGPublicKey, error) {
 	f, err := ioutil.TempFile("", "gpg-public-key")
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer os.Remove(f.Name())
 
 	err = ioutil.WriteFile(f.Name(), []byte(keyData), 0600)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	f.Close()
 
 	parsed, err := gpg.ValidatePGPKeys(f.Name())
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	// Each key/value pair in the config map must exactly contain one public key, with the (short) GPG key ID as key
 	if len(parsed) != 1 {
-		return "", fmt.Errorf("More than one key found in input data")
+		return nil, fmt.Errorf("More than one key found in input data")
 	}
 
-	return parsed[0], nil
+	var retKey *appsv1.GnuPGPublicKey = nil
+	// Is there a better way to get the first element from a map without knowing its key?
+	for _, k := range parsed {
+		retKey = k
+		break
+	}
+	if retKey != nil {
+		retKey.KeyData = keyData
+		return retKey, nil
+	} else {
+		return nil, fmt.Errorf("Could not find the GPG key")
+	}
 }
 
 // Reads all configured GPG public keys from the ConfigMap and returns information about them
-func (db *db) ListConfiguredGPGPublicKeys(ctx context.Context) (map[string]string, error) {
+func (db *db) ListConfiguredGPGPublicKeys(ctx context.Context) (map[string]*appsv1.GnuPGPublicKey, error) {
 	log.Debugf("Loading PGP public keys from config map")
-	result := make(map[string]string, 0)
+	result := make(map[string]*appsv1.GnuPGPublicKey, 0)
 	keysCM, err := db.settingsMgr.GetConfigMapByName("argocd-gpg-cm")
 	if err != nil {
 		return nil, err
@@ -58,14 +69,14 @@ func (db *db) ListConfiguredGPGPublicKeys(ctx context.Context) (map[string]strin
 	// stdin of the forked process. So for now, we must live with that.
 	for k, p := range keysCM.Data {
 		if expectedKeyID := gpg.KeyID(k); expectedKeyID != "" {
-			parsedKeyID, err := validatePGPKey(p)
+			parsedKey, err := validatePGPKey(p)
 			if err != nil {
 				return nil, fmt.Errorf("Could not parse GPG key for entry '%s': %s", expectedKeyID, err.Error())
 			}
-			if expectedKeyID != parsedKeyID {
-				return nil, fmt.Errorf("Key parsed for entry with key ID '%s' had different key ID '%s'", expectedKeyID, parsedKeyID)
+			if expectedKeyID != parsedKey.KeyID {
+				return nil, fmt.Errorf("Key parsed for entry with key ID '%s' had different key ID '%s'", expectedKeyID, parsedKey.KeyID)
 			}
-			result[parsedKeyID] = p
+			result[parsedKey.KeyID] = parsedKey
 		} else {
 			return nil, fmt.Errorf("Found entry with key '%s' in ConfigMap, but this is not a valid PGP key ID", k)
 		}
@@ -116,7 +127,7 @@ func (db *db) SynchronizeGPGPublicKeys(ctx context.Context) error {
 	for keyID, keyData := range configuredKeys {
 		if _, ok := installedKeys[keyID]; !ok {
 			log.Infof("Importing key ID '%s' from configuration", keyID)
-			importedKeys, err := gpg.ImportPGPKeysFromString(keyData)
+			importedKeys, err := gpg.ImportPGPKeysFromString(keyData.KeyData)
 			if err != nil {
 				log.Warnf("Could not import GPG key %s: %s", keyID, err.Error())
 			} else {
@@ -169,7 +180,7 @@ func (db *db) InitializeGPGKeyRing(ctx context.Context) (map[string]*appsv1.GnuP
 		}
 		defer os.Remove(f.Name())
 		defer f.Close()
-		_, err = f.WriteString(key)
+		_, err = f.WriteString(key.KeyData)
 		if err != nil {
 			return nil, err
 		}

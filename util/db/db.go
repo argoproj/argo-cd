@@ -62,7 +62,7 @@ type ArgoDB interface {
 	// ListInstalledGPGPublicKeys returns all GPG public keys actually installed in the keyring
 	ListInstalledGPGPublicKeys(ctx context.Context) (map[string]*appv1.GnuPGPublicKey, error)
 	// ListConfiguredGPGPublicKeys returns all GPG public key IDs stored in the ConfigMap
-	ListConfiguredGPGPublicKeys(ctx context.Context) (map[string]string, error)
+	ListConfiguredGPGPublicKeys(ctx context.Context) (map[string]*appv1.GnuPGPublicKey, error)
 	// SynchronizePGPPublicKeys syncs configured keys to keyring
 	SynchronizeGPGPublicKeys(ctx context.Context) error
 }

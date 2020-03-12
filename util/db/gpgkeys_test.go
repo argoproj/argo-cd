@@ -120,19 +120,23 @@ func Test_ValidatePGPKey(t *testing.T) {
 	{
 		key, err := validatePGPKey(test.MustLoadFileToString("../gpg/testdata/github.asc"))
 		assert.NoError(t, err)
-		assert.Equal(t, "4AEE18F83AFDEB23", key)
+		assert.NotNil(t, key)
+		assert.Equal(t, "4AEE18F83AFDEB23", key.KeyID)
+		assert.NotEmpty(t, key.Owner)
+		assert.NotEmpty(t, key.KeyData)
+		assert.NotEmpty(t, key.SubType)
 	}
 	// Bad case - Garbage
 	{
 		key, err := validatePGPKey(test.MustLoadFileToString("../gpg/testdata/garbage.asc"))
 		assert.Error(t, err)
-		assert.Equal(t, "", key)
+		assert.Nil(t, key)
 	}
 	// Bad case - more than one key
 	{
 		key, err := validatePGPKey(test.MustLoadFileToString("../gpg/testdata/multi.asc"))
 		assert.Error(t, err)
-		assert.Equal(t, "", key)
+		assert.Nil(t, key)
 	}
 }
 
