@@ -202,6 +202,29 @@ func Test_ImportPGPKeysFromString(t *testing.T) {
 
 }
 
+func Test_ValidateGPGKeysFromString(t *testing.T) {
+	p := initTempDir()
+	defer os.RemoveAll(p)
+
+	err := InitializeGnuPG()
+	assert.NoError(t, err)
+
+	{
+		keyData := test.MustLoadFileToString("testdata/github.asc")
+		keys, err := ValidatePGPKeysFromString(keyData)
+		assert.NoError(t, err)
+		assert.Len(t, keys, 1)
+	}
+
+	{
+		keyData := test.MustLoadFileToString("testdata/multi.asc")
+		keys, err := ValidatePGPKeysFromString(keyData)
+		assert.NoError(t, err)
+		assert.Len(t, keys, 2)
+	}
+
+}
+
 func Test_ValidateGPGKeys(t *testing.T) {
 	p := initTempDir()
 	defer os.RemoveAll(p)

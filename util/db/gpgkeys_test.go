@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 
+	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/test"
 	"github.com/argoproj/argo-cd/util/settings"
 )
@@ -20,7 +21,7 @@ import (
 // GPG config map with a single key and good mapping
 var gpgCMEmpty = v1.ConfigMap{
 	ObjectMeta: metav1.ObjectMeta{
-		Name:      "argocd-gpg-cm",
+		Name:      common.ArgoCDGPGKeysConfigMapName,
 		Namespace: testNamespace,
 		Labels: map[string]string{
 			"app.kubernetes.io/part-of": "argocd",
@@ -31,7 +32,7 @@ var gpgCMEmpty = v1.ConfigMap{
 // GPG config map with a single key and good mapping
 var gpgCMSingleGoodPubkey = v1.ConfigMap{
 	ObjectMeta: metav1.ObjectMeta{
-		Name:      "argocd-gpg-cm",
+		Name:      common.ArgoCDGPGKeysConfigMapName,
 		Namespace: testNamespace,
 		Labels: map[string]string{
 			"app.kubernetes.io/part-of": "argocd",
@@ -45,7 +46,7 @@ var gpgCMSingleGoodPubkey = v1.ConfigMap{
 // GPG config map with two keys and good mapping
 var gpgCMMultiGoodPubkey = v1.ConfigMap{
 	ObjectMeta: metav1.ObjectMeta{
-		Name:      "argocd-gpg-cm",
+		Name:      common.ArgoCDGPGKeysConfigMapName,
 		Namespace: testNamespace,
 		Labels: map[string]string{
 			"app.kubernetes.io/part-of": "argocd",
@@ -60,7 +61,7 @@ var gpgCMMultiGoodPubkey = v1.ConfigMap{
 // GPG config map with a single key and bad mapping
 var gpgCMSingleKeyWrongId = v1.ConfigMap{
 	ObjectMeta: metav1.ObjectMeta{
-		Name:      "argocd-gpg-cm",
+		Name:      common.ArgoCDGPGKeysConfigMapName,
 		Namespace: testNamespace,
 		Labels: map[string]string{
 			"app.kubernetes.io/part-of": "argocd",
@@ -74,7 +75,7 @@ var gpgCMSingleKeyWrongId = v1.ConfigMap{
 // GPG config map with a garbage pub key
 var gpgCMGarbagePubkey = v1.ConfigMap{
 	ObjectMeta: metav1.ObjectMeta{
-		Name:      "argocd-gpg-cm",
+		Name:      common.ArgoCDGPGKeysConfigMapName,
 		Namespace: testNamespace,
 		Labels: map[string]string{
 			"app.kubernetes.io/part-of": "argocd",
@@ -88,7 +89,7 @@ var gpgCMGarbagePubkey = v1.ConfigMap{
 // GPG config map with a wrong key
 var gpgCMGarbageCMKey = v1.ConfigMap{
 	ObjectMeta: metav1.ObjectMeta{
-		Name:      "argocd-gpg-cm",
+		Name:      common.ArgoCDGPGKeysConfigMapName,
 		Namespace: testNamespace,
 		Labels: map[string]string{
 			"app.kubernetes.io/part-of": "argocd",
@@ -313,6 +314,65 @@ func Test_ListInstalledGPGPublicKeys(t *testing.T) {
 		n, err := db.ListInstalledGPGPublicKeys(context.Background())
 		assert.Error(t, err)
 		assert.Len(t, n, 0)
+	}
+}
+
+func Test_AddGPGPublicKey(t *testing.T) {
+	defer os.Setenv("GNUPGHOME", "")
+	// Good case
+	{
+		clientset := getGPGKeysClientset(gpgCMEmpty)
+		settings := settings.NewSettingsManager(context.Background(), clientset, testNamespace)
+		db := NewDB(testNamespace, settings, clientset)
+
+		path, err := ioutil.TempDir("", "gpg-unittest")
+		if err != nil {
+			panic(err.Error())
+		}
+		defer os.RemoveAll(path)
+		os.Setenv("GNUPGHOME", path)
+		_, err = db.InitializeGPGKeyRing(context.Background())
+		assert.NoError(t, err)
+
+		// Key should be added
+		new, skipped, err := db.AddGPGPublicKey(context.Background(), test.MustLoadFileToString("../gpg/testdata/github.asc"))
+		assert.NoError(t, err)
+		assert.Len(t, new, 1)
+		assert.Len(t, skipped, 0)
+		cm, err := settings.GetConfigMapByName(common.ArgoCDGPGKeysConfigMapName)
+		assert.Len(t, cm.Data, 1)
+
+		// Same key should not be added, but skipped
+		new, skipped, err = db.AddGPGPublicKey(context.Background(), test.MustLoadFileToString("../gpg/testdata/github.asc"))
+		assert.NoError(t, err)
+		assert.Len(t, new, 0)
+		assert.Len(t, skipped, 1)
+		cm, err = settings.GetConfigMapByName(common.ArgoCDGPGKeysConfigMapName)
+		assert.Len(t, cm.Data, 1)
+
+		// New keys should be added
+		new, skipped, err = db.AddGPGPublicKey(context.Background(), test.MustLoadFileToString("../gpg/testdata/multi.asc"))
+		assert.NoError(t, err)
+		assert.Len(t, new, 2)
+		assert.Len(t, skipped, 0)
+		cm, err = settings.GetConfigMapByName(common.ArgoCDGPGKeysConfigMapName)
+		assert.Len(t, cm.Data, 3)
+
+		// Same new keys should be skipped
+		new, skipped, err = db.AddGPGPublicKey(context.Background(), test.MustLoadFileToString("../gpg/testdata/multi.asc"))
+		assert.NoError(t, err)
+		assert.Len(t, new, 0)
+		assert.Len(t, skipped, 2)
+		cm, err = settings.GetConfigMapByName(common.ArgoCDGPGKeysConfigMapName)
+		assert.Len(t, cm.Data, 3)
+
+		// Garbage input should result in error
+		new, skipped, err = db.AddGPGPublicKey(context.Background(), test.MustLoadFileToString("../gpg/testdata/garbage.asc"))
+		assert.Error(t, err)
+		assert.Nil(t, new)
+		assert.Nil(t, skipped)
+		cm, err = settings.GetConfigMapByName(common.ArgoCDGPGKeysConfigMapName)
+		assert.Len(t, cm.Data, 3)
 	}
 }
 

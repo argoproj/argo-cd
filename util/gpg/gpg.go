@@ -150,6 +150,21 @@ func getGPGEnviron() []string {
 	return os.Environ()
 }
 
+func writeKeyToFile(keyData string) (string, error) {
+	f, err := ioutil.TempFile("", "gpg-public-key")
+	if err != nil {
+		return "", err
+	}
+
+	err = ioutil.WriteFile(f.Name(), []byte(keyData), 0600)
+	if err != nil {
+		os.Remove(f.Name())
+		return "", err
+	}
+	f.Close()
+	return f.Name(), nil
+}
+
 // InitializePGP will initialize a GnuPG working directory and also create a
 // transient private key so that the trust DB will work correctly.
 func InitializeGnuPG() error {
@@ -263,6 +278,16 @@ func ImportPGPKeys(keyFile string) ([]*appsv1.GnuPGPublicKey, error) {
 	}
 
 	return keys, nil
+}
+
+func ValidatePGPKeysFromString(keyData string) (map[string]*appsv1.GnuPGPublicKey, error) {
+	f, err := writeKeyToFile(keyData)
+	if err != nil {
+		return nil, err
+	}
+	defer os.Remove(f)
+
+	return ValidatePGPKeys(f)
 }
 
 func ValidatePGPKeys(keyFile string) (map[string]*appsv1.GnuPGPublicKey, error) {

@@ -9,6 +9,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
 
+	"github.com/argoproj/argo-cd/common"
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/gpg"
 )
@@ -54,11 +55,11 @@ func validatePGPKey(keyData string) (*appsv1.GnuPGPublicKey, error) {
 	}
 }
 
-// Reads all configured GPG public keys from the ConfigMap and returns information about them
+// ListConfiguredGPGPublicKeys returns a list of all configured GPG public keys from the ConfigMap
 func (db *db) ListConfiguredGPGPublicKeys(ctx context.Context) (map[string]*appsv1.GnuPGPublicKey, error) {
 	log.Debugf("Loading PGP public keys from config map")
 	result := make(map[string]*appsv1.GnuPGPublicKey, 0)
-	keysCM, err := db.settingsMgr.GetConfigMapByName("argocd-gpg-cm")
+	keysCM, err := db.settingsMgr.GetConfigMapByName(common.ArgoCDGPGKeysConfigMapName)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +86,7 @@ func (db *db) ListConfiguredGPGPublicKeys(ctx context.Context) (map[string]*apps
 	return result, nil
 }
 
-// List all GPG public keys actually installed in the keyring
+// ListInstalledGPGPublicKeys returns a list of all GPG public keys actually installed in the keyring
 func (db *db) ListInstalledGPGPublicKeys(ctx context.Context) (map[string]*appsv1.GnuPGPublicKey, error) {
 	result := make(map[string]*appsv1.GnuPGPublicKey, 0)
 
@@ -103,6 +104,44 @@ func (db *db) ListInstalledGPGPublicKeys(ctx context.Context) (map[string]*appsv
 	}
 
 	return result, nil
+}
+
+// AddGPGPublicKey adds one or more public keys to the configuration
+func (db *db) AddGPGPublicKey(ctx context.Context, keyData string) (map[string]*appsv1.GnuPGPublicKey, []string, error) {
+	result := make(map[string]*appsv1.GnuPGPublicKey, 0)
+	skipped := make([]string, 0)
+
+	keys, err := gpg.ValidatePGPKeysFromString(keyData)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	keysCM, err := db.settingsMgr.GetConfigMapByName(common.ArgoCDGPGKeysConfigMapName)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if keysCM.Data == nil {
+		keysCM.Data = make(map[string]string, 0)
+	}
+
+	for kid, key := range keys {
+		if _, ok := keysCM.Data[kid]; ok {
+			skipped = append(skipped, kid)
+			log.Debugf("Not adding incoming key with kid=%s because it is configured already", kid)
+		} else {
+			result[kid] = key
+			keysCM.Data[kid] = key.KeyData
+			log.Debugf("Adding incoming key with kid=%s to database", kid)
+		}
+	}
+
+	err = db.settingsMgr.SaveGPGPublicKeyData(ctx, keysCM.Data)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return result, skipped, nil
 }
 
 // SynchronizeGPGPublicKeys synchronizes the installed keys with the configured keys

@@ -812,7 +812,7 @@ func (mgr *SettingsManager) SaveTLSCertificateData(ctx context.Context, tlsCerti
 	return mgr.ResyncInformers()
 }
 
-func (mgr *SettingsManager) SaveGPGPublicKeysData(ctx context.Context, gpgPublicKeys map[string]string) error {
+func (mgr *SettingsManager) SaveGPGPublicKeyData(ctx context.Context, gpgPublicKeys map[string]string) error {
 	err := mgr.ensureSynced(false)
 	if err != nil {
 		return err
