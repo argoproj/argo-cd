@@ -1,0 +1,45 @@
+syntax = "proto3";
+option go_package = "github.com/argoproj/argo-cd/pkg/apiclient/gpgkey";
+
+// Certificate Service
+//
+// Certificate Service API performs CRUD actions against repository certificate
+// resources.
+package gpgkey;
+
+import "gogoproto/gogo.proto";
+import "google/api/annotations.proto";
+import "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1/generated.proto";
+
+// Message to query the server for configured repository certificates
+message GnuPGPublicKeyQuery {
+  string keyID = 1;
+}
+
+// Request to create a set of certificates
+message GnuPGPublicKeyCreateRequest {
+  // Raw key data of the GPG key to create
+  string publickey = 1;
+  // Whether to upsert already existing certificates
+  bool upsert = 2;
+}
+
+message GnuPGPublicKeyResponse {}
+
+service GPGKeyService {
+  // List all available repository certificates
+  rpc ListGnuPGPublicKeys(GnuPGPublicKeyQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.GnuPGPublicKeyList) {
+    option (google.api.http).get = "/api/v1/gpgkeys";
+  }
+
+  rpc GetGnuPGPublicKey(GnuPGPublicKeyQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.GnuPGPublicKey) {
+    option (google.api.http).get = "/api/v1/gpgkeys/{keyID}";
+  }
+
+  rpc AddGnuPGPublic(GnuPGPublicKeyCreateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.GnuPGPublicKey) {
+    option (google.api.http) = {
+      post: "/api/v1/gpgkeys"
+      body: "publickey"
+    };
+  }
+}

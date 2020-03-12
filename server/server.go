@@ -49,6 +49,7 @@ import (
 	applicationpkg "github.com/argoproj/argo-cd/pkg/apiclient/application"
 	certificatepkg "github.com/argoproj/argo-cd/pkg/apiclient/certificate"
 	clusterpkg "github.com/argoproj/argo-cd/pkg/apiclient/cluster"
+	gpgkeypkg "github.com/argoproj/argo-cd/pkg/apiclient/gpgkey"
 	projectpkg "github.com/argoproj/argo-cd/pkg/apiclient/project"
 	repocredspkg "github.com/argoproj/argo-cd/pkg/apiclient/repocreds"
 	repositorypkg "github.com/argoproj/argo-cd/pkg/apiclient/repository"
@@ -65,6 +66,7 @@ import (
 	servercache "github.com/argoproj/argo-cd/server/cache"
 	"github.com/argoproj/argo-cd/server/certificate"
 	"github.com/argoproj/argo-cd/server/cluster"
+	"github.com/argoproj/argo-cd/server/gpgkey"
 	"github.com/argoproj/argo-cd/server/project"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/server/repocreds"
@@ -469,6 +471,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	settingsService := settings.NewServer(a.settingsMgr, a.DisableAdmin)
 	accountService := account.NewServer(a.sessionMgr, a.settingsMgr, a.enf)
 	certificateService := certificate.NewServer(a.RepoClientset, db, a.enf)
+	gpgkeyService := gpgkey.NewServer(a.RepoClientset, db, a.enf)
 	versionpkg.RegisterVersionServiceServer(grpcS, &version.Server{})
 	clusterpkg.RegisterClusterServiceServer(grpcS, clusterService)
 	applicationpkg.RegisterApplicationServiceServer(grpcS, applicationService)
@@ -479,6 +482,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	projectpkg.RegisterProjectServiceServer(grpcS, projectService)
 	accountpkg.RegisterAccountServiceServer(grpcS, accountService)
 	certificatepkg.RegisterCertificateServiceServer(grpcS, certificateService)
+	gpgkeypkg.RegisterGPGKeyServiceServer(grpcS, gpgkeyService)
 	// Register reflection service on gRPC server.
 	reflection.Register(grpcS)
 	grpc_prometheus.Register(grpcS)

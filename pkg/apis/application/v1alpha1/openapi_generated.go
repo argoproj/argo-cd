@@ -43,6 +43,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ConnectionState":                  schema_pkg_apis_application_v1alpha1_ConnectionState(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.EnvEntry":                         schema_pkg_apis_application_v1alpha1_EnvEntry(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.GnuPGPublicKey":                   schema_pkg_apis_application_v1alpha1_GnuPGPublicKey(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.GnuPGPublicKeyList":               schema_pkg_apis_application_v1alpha1_GnuPGPublicKeyList(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HealthStatus":                     schema_pkg_apis_application_v1alpha1_HealthStatus(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HelmFileParameter":                schema_pkg_apis_application_v1alpha1_HelmFileParameter(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HelmParameter":                    schema_pkg_apis_application_v1alpha1_HelmParameter(ref),
@@ -1428,7 +1429,7 @@ func schema_pkg_apis_application_v1alpha1_GnuPGPublicKey(ref common.ReferenceCal
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "A representation of a GnuPG public key",
+				Description: "GnuPGPublicKey is a representation of a GnuPG public key",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"keyID": {
@@ -1477,6 +1478,39 @@ func schema_pkg_apis_application_v1alpha1_GnuPGPublicKey(ref common.ReferenceCal
 				Required: []string{"keyID"},
 			},
 		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_GnuPGPublicKeyList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "GnuPGPublicKeyList is a collection of GnuPGPublicKey objects",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.GnuPGPublicKey"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.GnuPGPublicKey", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 	}
 }
 

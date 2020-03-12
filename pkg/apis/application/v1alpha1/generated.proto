@@ -394,7 +394,7 @@ message EnvEntry {
   optional string value = 2;
 }
 
-// A representation of a GnuPG public key
+// GnuPGPublicKey is a representation of a GnuPG public key
 message GnuPGPublicKey {
   // KeyID in hexadecimal string format
   optional string keyID = 1;
@@ -413,6 +413,13 @@ message GnuPGPublicKey {
 
   // Key data
   optional string keyData = 6;
+}
+
+// GnuPGPublicKeyList is a collection of GnuPGPublicKey objects
+message GnuPGPublicKeyList {
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+
+  repeated GnuPGPublicKey items = 2;
 }
 
 message HealthStatus {

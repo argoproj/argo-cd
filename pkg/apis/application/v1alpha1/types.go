@@ -1311,7 +1311,7 @@ type RepositoryCertificateList struct {
 	Items []RepositoryCertificate `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
 
-// A representation of a GnuPG public key
+// GnuPGPublicKey is a representation of a GnuPG public key
 type GnuPGPublicKey struct {
 	// KeyID in hexadecimal string format
 	KeyID string `json:"keyID" protobuf:"bytes,1,opt,name=keyID"`
@@ -1325,6 +1325,12 @@ type GnuPGPublicKey struct {
 	SubType string `json:"subType,omitempty" protobuf:"bytes,5,opt,name=subType"`
 	// Key data
 	KeyData string `json:"keyData,omitempty" protobuf:"bytes,6,opt,name=keyData"`
+}
+
+// GnuPGPublicKeyList is a collection of GnuPGPublicKey objects
+type GnuPGPublicKeyList struct {
+	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
+	Items           []GnuPGPublicKey `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
 
 // AppProjectList is list of AppProject resources
