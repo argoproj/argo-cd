@@ -99,14 +99,17 @@ type appStateManager struct {
 }
 
 func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1.ApplicationSource, appLabelKey, revision string, noCache bool) ([]*unstructured.Unstructured, []*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
+	ts := stats.NewTimingStats()
 	helmRepos, err := m.db.ListHelmRepositories(context.Background())
 	if err != nil {
 		return nil, nil, nil, err
 	}
+	ts.AddCheckpoint("helm_ms")
 	repo, err := m.db.GetRepository(context.Background(), source.RepoURL)
 	if err != nil {
 		return nil, nil, nil, err
 	}
+	ts.AddCheckpoint("repo_ms")
 	conn, repoClient, err := m.repoClientset.NewRepoServerClient()
 	if err != nil {
 		return nil, nil, nil, err
@@ -121,7 +124,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 	if err != nil {
 		return nil, nil, nil, err
 	}
-
+	ts.AddCheckpoint("plugins_ms")
 	tools := make([]*appv1.ConfigManagementPlugin, len(plugins))
 	for i := range plugins {
 		tools[i] = &plugins[i]
@@ -131,10 +134,12 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 	if err != nil {
 		return nil, nil, nil, err
 	}
+	ts.AddCheckpoint("build_options_ms")
 	serverVersion, err := m.liveStateCache.GetServerVersion(app.Spec.Destination.Server)
 	if err != nil {
 		return nil, nil, nil, err
 	}
+	ts.AddCheckpoint("version_ms")
 	manifestInfo, err := repoClient.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
 		Repo:              repo,
 		Repos:             helmRepos,
@@ -153,10 +158,18 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 	if err != nil {
 		return nil, nil, nil, err
 	}
+	ts.AddCheckpoint("manifests_ms")
 	targetObjs, hooks, err := unmarshalManifests(manifestInfo.Manifests)
 	if err != nil {
 		return nil, nil, nil, err
 	}
+	ts.AddCheckpoint("unmarshal_ms")
+	logCtx := log.WithField("application", app.Name)
+	for k, v := range ts.Timings() {
+		logCtx = logCtx.WithField(k, v.Milliseconds())
+	}
+	logCtx = logCtx.WithField("time_ms", time.Since(ts.StartTime).Milliseconds())
+	logCtx.Info("getRepoObjs stats")
 	return targetObjs, hooks, manifestInfo, nil
 }
 

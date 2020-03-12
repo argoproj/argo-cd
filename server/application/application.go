@@ -158,7 +158,7 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 		reflect.DeepEqual(existing.Annotations, a.Annotations) &&
 		reflect.DeepEqual(existing.Finalizers, a.Finalizers)
 
-	if !equalSpecs {
+	if equalSpecs {
 		return existing, nil
 	}
 	if q.Upsert == nil || !*q.Upsert {
@@ -367,6 +367,8 @@ func mergeStringMaps(items ...map[string]string) map[string]string {
 	return res
 }
 
+var informerSyncTimeout = 2 * time.Second
+
 // waitSync is a helper to wait until the application informer cache is synced after create/update.
 // It waits until the app in the informer, has a resource version greater than the version in the
 // supplied app, or after 2 seconds, whichever comes first. Returns true if synced.
@@ -376,7 +378,7 @@ func mergeStringMaps(items ...map[string]string) map[string]string {
 // update to give a probable (but not guaranteed) chance of being up-to-date after the create/update.
 func (s *Server) waitSync(app *appv1.Application) {
 	logCtx := log.WithField("application", app.Name)
-	deadline := time.Now().Add(2 * time.Second)
+	deadline := time.Now().Add(informerSyncTimeout)
 	minVersion, err := strconv.Atoi(app.ResourceVersion)
 	if err != nil {
 		logCtx.Warnf("waitSync failed: could not parse resource version %s", app.ResourceVersion)
@@ -393,7 +395,7 @@ func (s *Server) waitSync(app *appv1.Application) {
 		if time.Now().After(deadline) {
 			break
 		}
-		time.Sleep(50 * time.Millisecond)
+		time.Sleep(20 * time.Millisecond)
 	}
 	logCtx.Warnf("waitSync failed: timed out")
 }
@@ -549,7 +551,6 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 	if err != nil && !apierr.IsNotFound(err) {
 		return nil, err
 	}
-
 	s.logAppEvent(a, ctx, argo.EventReasonResourceDeleted, "deleted application")
 	return &application.ApplicationResponse{}, nil
 }
@@ -1204,6 +1205,7 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *application.
 		updated, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(a)
 		if err == nil {
 			s.waitSync(updated)
+			s.logAppEvent(a, ctx, argo.EventReasonResourceUpdated, "terminated running operation")
 			return &application.OperationTerminateResponse{}, nil
 		}
 		if !apierr.IsConflict(err) {
@@ -1215,7 +1217,6 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *application.
 		if err != nil {
 			return nil, err
 		}
-		s.logAppEvent(a, ctx, argo.EventReasonResourceUpdated, "terminated running operation")
 	}
 	return nil, status.Errorf(codes.Internal, "Failed to terminate app. Too many conflicts")
 }

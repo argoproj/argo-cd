@@ -9,19 +9,16 @@ import (
 	"sync"
 	"time"
 
-	"k8s.io/client-go/dynamic"
-
-	"k8s.io/apimachinery/pkg/types"
-
-	"github.com/argoproj/argo-cd/controller/metrics"
-
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/dynamic"
 
+	"github.com/argoproj/argo-cd/controller/metrics"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/health"
@@ -270,15 +267,10 @@ func (c *clusterInfo) watchEvents(ctx context.Context, api kube.APIResourceInfo,
 			c.stopWatching(api.GroupKind, ns)
 			return nil
 		}
-
-		err = runSynced(c.lock, func() error {
-			if errors.IsGone(err) {
-				info.resourceVersion = ""
-				log.Warnf("Resource version of %s on %s is too old.", api.GroupKind, c.cluster.Server)
-			}
-			return err
-		})
-
+		if errors.IsGone(err) {
+			info.resourceVersion = ""
+			log.Warnf("Resource version of %s on %s is too old.", api.GroupKind, c.cluster.Server)
+		}
 		if err != nil {
 			return err
 		}
@@ -393,14 +385,17 @@ func (c *clusterInfo) sync() (err error) {
 }
 
 func (c *clusterInfo) ensureSynced() error {
-	c.lock.RLock()
-	isSynced := c.synced()
-	c.lock.RUnlock()
-	if isSynced {
+	// first check if cluster is synced *without lock*
+	if c.synced() {
 		return c.syncError
 	}
 	c.lock.Lock()
 	defer c.lock.Unlock()
+	// before doing any work, check once again now that we have the lock, to see if it got
+	// synced between the first check and now
+	if c.synced() {
+		return c.syncError
+	}
 	err := c.sync()
 	syncTime := time.Now()
 	c.syncTime = &syncTime
@@ -590,8 +585,8 @@ var (
 )
 
 func (c *clusterInfo) getClusterInfo() metrics.ClusterInfo {
-	c.lock.Lock()
-	defer c.lock.Unlock()
+	c.lock.RLock()
+	defer c.lock.RUnlock()
 	return metrics.ClusterInfo{
 		APIsCount:         len(c.apisMeta),
 		K8SVersion:        c.serverVersion,
