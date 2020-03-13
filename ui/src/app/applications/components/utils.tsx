@@ -101,11 +101,11 @@ export const ComparisonStatusIcon = ({status, resource, label}: {status: appMode
         case appModels.SyncStatuses.OutOfSync:
             const requiresPruning = resource && resource.requiresPruning;
             className = requiresPruning ? 'fa fa-times-circle' : 'fa fa-arrow-alt-circle-up';
+            title = 'OutOfSync';
             if (requiresPruning) {
                 title = `${title} (requires pruning)`;
             }
             color = COLORS.sync.out_of_sync;
-            title = 'OutOfSync';
             break;
         case appModels.SyncStatuses.Unknown:
             className = 'fa fa-circle-notch fa-spin';
