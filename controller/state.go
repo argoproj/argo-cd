@@ -7,6 +7,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/yudai/gojsondiff"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -423,7 +424,17 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 			RequiresPruning: targetObj == nil && liveObj != nil,
 		}
 
-		diffResult := diffResults.Diffs[i]
+		var diffResult diff.DiffResult
+		if i < len(diffResults.Diffs) {
+			diffResult = diffResults.Diffs[i]
+		} else {
+			diffResult = diff.DiffResult{
+				Diff:           gojsondiff.New().CompareObjects(map[string]interface{}{}, map[string]interface{}{}),
+				Modified:       false,
+				NormalizedLive: []byte("{}"),
+				PredictedLive:  []byte("{}"),
+			}
+		}
 		if resState.Hook || ignore.Ignore(obj) {
 			// For resource hooks, don't store sync status, and do not affect overall sync status
 		} else if diffResult.Modified || targetObj == nil || liveObj == nil {
