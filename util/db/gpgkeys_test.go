@@ -380,6 +380,7 @@ func Test_AddGPGPublicKey(t *testing.T) {
 		assert.Nil(t, new)
 		assert.Nil(t, skipped)
 		cm, err = settings.GetConfigMapByName(common.ArgoCDGPGKeysConfigMapName)
+		assert.NoError(t, err)
 		assert.Len(t, cm.Data, 3)
 	}
 }

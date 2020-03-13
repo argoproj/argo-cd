@@ -200,7 +200,7 @@ func (db *db) SynchronizeGPGPublicKeys(ctx context.Context) error {
 
 // InitializeGPGKeyRing initializes a GnuPG keyring and imports all public keys configured in the ConfigMap
 func (db *db) InitializeGPGKeyRing(ctx context.Context) (map[string]*appsv1.GnuPGPublicKey, error) {
-	importedKeys := make(map[string]*appsv1.GnuPGPublicKey, 0)
+	importedKeys := make(map[string]*appsv1.GnuPGPublicKey)
 
 	err := gpg.InitializeGnuPG()
 	if err != nil {

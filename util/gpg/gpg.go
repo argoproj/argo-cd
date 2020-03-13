@@ -292,7 +292,7 @@ func ValidatePGPKeysFromString(keyData string) (map[string]*appsv1.GnuPGPublicKe
 // It does so by importing them into a temporary keyring. The returned keys are complete, that
 // is, they contain all relevant information
 func ValidatePGPKeys(keyFile string) (map[string]*appsv1.GnuPGPublicKey, error) {
-	keys := make(map[string]*appsv1.GnuPGPublicKey, 0)
+	keys := make(map[string]*appsv1.GnuPGPublicKey)
 	tempHome, err := ioutil.TempDir("", "gpg-verify-key")
 	if err != nil {
 		return nil, err
@@ -477,10 +477,6 @@ func GetInstalledPGPKeys(kids []string) ([]*appsv1.GnuPGPublicKey, error) {
 	// Also store the last processed key into our list to be returned
 	if curKey != nil {
 		keys = append(keys, curKey)
-	} else {
-		// This probably means invalid/incomplete output. Not a single key was found.
-		// FIXME: do we have to handle this, or just ignore it like we do now?
-		log.Debugf("No key has been found in input.")
 	}
 
 	// We need to get the final key for each imported key, so we run --export on each key
