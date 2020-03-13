@@ -299,7 +299,7 @@ func Test_ListInstalledGPGPublicKeys(t *testing.T) {
 		os.Setenv("GNUPGHOME", path)
 		n, err := db.InitializeGPGKeyRing(context.Background())
 		assert.NoError(t, err)
-		assert.Empty(t, n)
+		assert.Len(t, n, 2)
 
 		n, err = db.ListInstalledGPGPublicKeys(context.Background())
 		assert.NoError(t, err)
