@@ -79,16 +79,27 @@ func (s *Server) GetGnuPGPublicKey(ctx context.Context, q *gpgkeypkg.GnuPGPublic
 }
 
 // CreateGnuPGPublicKey imports one or more public keys to the server's keyring
-func (s *Server) CreateGnuPGPublicKey(ctx context.Context, q *gpgkeypkg.GnuPGPublicKeyCreateRequest) (*appsv1.GnuPGPublicKeyList, error) {
+func (s *Server) CreateGnuPGPublicKey(ctx context.Context, q *gpgkeypkg.GnuPGPublicKeyCreateRequest) (*gpgkeypkg.GnuPGPublicKeyCreateResponse, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceCertificates, rbacpolicy.ActionCreate, ""); err != nil {
 		return nil, err
 	}
-	key, err := s.db.Cre
+
+	added, skipped, err := s.db.AddGPGPublicKey(ctx, q.Publickey)
 	if err != nil {
 		return nil, err
 	}
 
-	return certs, nil
+	items := make([]appsv1.GnuPGPublicKey, 0)
+	for _, k := range added {
+		items = append(items, *k)
+	}
+
+	response := &gpgkeypkg.GnuPGPublicKeyCreateResponse{
+		Created: &appsv1.GnuPGPublicKeyList{Items: items},
+		Skipped: skipped,
+	}
+
+	return response, nil
 }
 
 // // Batch deletes a list of certificates that match the query

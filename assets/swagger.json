@@ -1153,6 +1153,30 @@
             }
           }
         }
+      },
+      "post": {
+        "tags": [
+          "GPGKeyService"
+        ],
+        "operationId": "CreateGnuPGPublicKey",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/gpgkeyGnuPGPublicKeyCreateResponse"
+            }
+          }
+        }
       }
     },
     "/api/v1/gpgkeys/{keyID}": {
@@ -2244,6 +2268,20 @@
         },
         "url": {
           "type": "string"
+        }
+      }
+    },
+    "gpgkeyGnuPGPublicKeyCreateResponse": {
+      "type": "object",
+      "properties": {
+        "created": {
+          "$ref": "#/definitions/v1alpha1GnuPGPublicKeyList"
+        },
+        "skipped": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },

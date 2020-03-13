@@ -84,8 +84,8 @@ func (m *GnuPGPublicKeyQuery) GetKeyID() string {
 
 // Request to create a set of certificates
 type GnuPGPublicKeyCreateRequest struct {
-	// List of certificates to be created
-	Publickey *v1alpha1.GnuPGPublicKey `protobuf:"bytes,1,opt,name=publickey,proto3" json:"publickey,omitempty"`
+	// Raw key data of the GPG key to create
+	Publickey string `protobuf:"bytes,1,opt,name=publickey,proto3" json:"publickey,omitempty"`
 	// Whether to upsert already existing certificates
 	Upsert               bool     `protobuf:"varint,2,opt,name=upsert,proto3" json:"upsert,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
@@ -126,11 +126,11 @@ func (m *GnuPGPublicKeyCreateRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_GnuPGPublicKeyCreateRequest proto.InternalMessageInfo
 
-func (m *GnuPGPublicKeyCreateRequest) GetPublickey() *v1alpha1.GnuPGPublicKey {
+func (m *GnuPGPublicKeyCreateRequest) GetPublickey() string {
 	if m != nil {
 		return m.Publickey
 	}
-	return nil
+	return ""
 }
 
 func (m *GnuPGPublicKeyCreateRequest) GetUpsert() bool {
@@ -138,6 +138,61 @@ func (m *GnuPGPublicKeyCreateRequest) GetUpsert() bool {
 		return m.Upsert
 	}
 	return false
+}
+
+type GnuPGPublicKeyCreateResponse struct {
+	Created              *v1alpha1.GnuPGPublicKeyList `protobuf:"bytes,1,opt,name=created,proto3" json:"created,omitempty"`
+	Skipped              []string                     `protobuf:"bytes,2,rep,name=skipped,proto3" json:"skipped,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                     `json:"-"`
+	XXX_unrecognized     []byte                       `json:"-"`
+	XXX_sizecache        int32                        `json:"-"`
+}
+
+func (m *GnuPGPublicKeyCreateResponse) Reset()         { *m = GnuPGPublicKeyCreateResponse{} }
+func (m *GnuPGPublicKeyCreateResponse) String() string { return proto.CompactTextString(m) }
+func (*GnuPGPublicKeyCreateResponse) ProtoMessage()    {}
+func (*GnuPGPublicKeyCreateResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_8ba55a5eb76dc6fd, []int{2}
+}
+func (m *GnuPGPublicKeyCreateResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *GnuPGPublicKeyCreateResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_GnuPGPublicKeyCreateResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *GnuPGPublicKeyCreateResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GnuPGPublicKeyCreateResponse.Merge(m, src)
+}
+func (m *GnuPGPublicKeyCreateResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *GnuPGPublicKeyCreateResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_GnuPGPublicKeyCreateResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GnuPGPublicKeyCreateResponse proto.InternalMessageInfo
+
+func (m *GnuPGPublicKeyCreateResponse) GetCreated() *v1alpha1.GnuPGPublicKeyList {
+	if m != nil {
+		return m.Created
+	}
+	return nil
+}
+
+func (m *GnuPGPublicKeyCreateResponse) GetSkipped() []string {
+	if m != nil {
+		return m.Skipped
+	}
+	return nil
 }
 
 type GnuPGPublicKeyResponse struct {
@@ -150,7 +205,7 @@ func (m *GnuPGPublicKeyResponse) Reset()         { *m = GnuPGPublicKeyResponse{}
 func (m *GnuPGPublicKeyResponse) String() string { return proto.CompactTextString(m) }
 func (*GnuPGPublicKeyResponse) ProtoMessage()    {}
 func (*GnuPGPublicKeyResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_8ba55a5eb76dc6fd, []int{2}
+	return fileDescriptor_8ba55a5eb76dc6fd, []int{3}
 }
 func (m *GnuPGPublicKeyResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -182,39 +237,44 @@ var xxx_messageInfo_GnuPGPublicKeyResponse proto.InternalMessageInfo
 func init() {
 	proto.RegisterType((*GnuPGPublicKeyQuery)(nil), "gpgkey.GnuPGPublicKeyQuery")
 	proto.RegisterType((*GnuPGPublicKeyCreateRequest)(nil), "gpgkey.GnuPGPublicKeyCreateRequest")
+	proto.RegisterType((*GnuPGPublicKeyCreateResponse)(nil), "gpgkey.GnuPGPublicKeyCreateResponse")
 	proto.RegisterType((*GnuPGPublicKeyResponse)(nil), "gpgkey.GnuPGPublicKeyResponse")
 }
 
 func init() { proto.RegisterFile("server/gpgkey/gpgkey.proto", fileDescriptor_8ba55a5eb76dc6fd) }
 
 var fileDescriptor_8ba55a5eb76dc6fd = []byte{
-	// 402 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x92, 0x41, 0xab, 0xd3, 0x40,
-	0x10, 0xc7, 0xd9, 0x82, 0xc5, 0xb7, 0x22, 0xf2, 0xf6, 0x3d, 0xda, 0x9a, 0x4a, 0x2d, 0x39, 0x15,
-	0xc4, 0x5d, 0x5b, 0xef, 0x1e, 0x54, 0x08, 0xa5, 0x0a, 0x35, 0xde, 0xbc, 0xc8, 0x36, 0x1d, 0xb6,
-	0x6b, 0x62, 0x76, 0xdd, 0xdd, 0x04, 0x82, 0x78, 0xf1, 0x2b, 0x78, 0x13, 0xf1, 0xf3, 0x08, 0x5e,
-	0x04, 0xbf, 0x80, 0x14, 0x3f, 0x88, 0x64, 0x93, 0x52, 0x5b, 0x44, 0xde, 0xa1, 0xa7, 0xcc, 0x64,
-	0xf2, 0x9f, 0xf9, 0x65, 0xe6, 0x8f, 0x03, 0x0b, 0xa6, 0x04, 0xc3, 0x84, 0x16, 0x29, 0x54, 0xed,
-	0x83, 0x6a, 0xa3, 0x9c, 0x22, 0xdd, 0x26, 0x0b, 0x2e, 0x85, 0x12, 0xca, 0xbf, 0x62, 0x75, 0xd4,
-	0x54, 0x83, 0x3b, 0x42, 0x29, 0x91, 0x01, 0xe3, 0x5a, 0x32, 0x9e, 0xe7, 0xca, 0x71, 0x27, 0x55,
-	0x6e, 0xdb, 0xea, 0x5c, 0x48, 0xb7, 0x29, 0x56, 0x34, 0x51, 0x6f, 0x19, 0x37, 0x5e, 0xfe, 0xc6,
-	0x07, 0xf7, 0x93, 0x35, 0xd3, 0xa9, 0xa8, 0x65, 0x96, 0x71, 0xad, 0x33, 0x99, 0x78, 0x21, 0x2b,
-	0xa7, 0x3c, 0xd3, 0x1b, 0x3e, 0x65, 0x02, 0x72, 0x30, 0xdc, 0xc1, 0xba, 0x69, 0x15, 0xde, 0xc3,
-	0x17, 0x51, 0x5e, 0x2c, 0xa3, 0x65, 0xb1, 0xca, 0x64, 0xb2, 0x80, 0xea, 0x45, 0x01, 0xa6, 0x22,
-	0x97, 0xf8, 0x5a, 0x0a, 0xd5, 0xfc, 0xe9, 0x00, 0x8d, 0xd1, 0xe4, 0x2c, 0x6e, 0x92, 0xf0, 0x2b,
-	0xc2, 0xc3, 0xc3, 0xaf, 0x9f, 0x18, 0xe0, 0x0e, 0x62, 0x78, 0x57, 0x80, 0x75, 0x44, 0xe0, 0x33,
-	0xed, 0x2b, 0x29, 0x54, 0x5e, 0x79, 0x63, 0x36, 0xa7, 0x7b, 0x56, 0xba, 0x63, 0xf5, 0xc1, 0xeb,
-	0x64, 0x4d, 0x75, 0x2a, 0x68, 0xcd, 0x4a, 0xff, 0x62, 0xa5, 0x3b, 0x56, 0x7a, 0x38, 0x2a, 0xde,
-	0xf7, 0x26, 0x3d, 0xdc, 0x2d, 0xb4, 0x05, 0xe3, 0x06, 0x9d, 0x31, 0x9a, 0x5c, 0x8f, 0xdb, 0x2c,
-	0x1c, 0xe0, 0xde, 0x91, 0x08, 0xac, 0x56, 0xb9, 0x85, 0xd9, 0xf7, 0x0e, 0xbe, 0x19, 0x2d, 0xa3,
-	0x05, 0x54, 0x2f, 0xc1, 0x94, 0x32, 0x01, 0xf2, 0x19, 0xe1, 0x8b, 0x67, 0xd2, 0xba, 0x43, 0x81,
-	0x25, 0x43, 0xda, 0xde, 0xe9, 0x1f, 0x7b, 0x09, 0x9e, 0x9f, 0xec, 0x77, 0xea, 0xd1, 0x61, 0xff,
-	0xe3, 0xcf, 0xdf, 0x9f, 0x3a, 0xe7, 0xe4, 0x96, 0x3f, 0x74, 0x39, 0x6d, 0x2d, 0x62, 0xc9, 0x17,
-	0x84, 0xcf, 0x23, 0x38, 0x62, 0xfb, 0x3f, 0xda, 0xe9, 0x36, 0x1d, 0xde, 0xf5, 0x58, 0xb7, 0x49,
-	0xff, 0x08, 0x8b, 0xbd, 0xf7, 0x3e, 0xf8, 0xf0, 0xf8, 0xd1, 0xb7, 0xed, 0x08, 0xfd, 0xd8, 0x8e,
-	0xd0, 0xaf, 0xed, 0x08, 0xbd, 0x7a, 0x70, 0x05, 0x3b, 0x26, 0x99, 0x84, 0xdc, 0xb5, 0x8d, 0x56,
-	0x5d, 0x6f, 0xbe, 0x87, 0x7f, 0x02, 0x00, 0x00, 0xff, 0xff, 0x5f, 0x59, 0x4d, 0x17, 0x21, 0x03,
-	0x00, 0x00,
+	// 471 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x53, 0x4d, 0x8b, 0xd3, 0x40,
+	0x18, 0x66, 0xba, 0xd8, 0xb5, 0x23, 0x22, 0x3b, 0x5b, 0x76, 0x63, 0xb6, 0xd4, 0x12, 0x3d, 0x14,
+	0xc4, 0x19, 0xbb, 0xde, 0x3c, 0x78, 0x50, 0x21, 0x94, 0x55, 0xa8, 0xd9, 0x9b, 0x17, 0x49, 0x93,
+	0x97, 0xd9, 0x98, 0x98, 0x19, 0x67, 0x26, 0x85, 0x20, 0x5e, 0x04, 0x7f, 0x81, 0x37, 0xf1, 0xe2,
+	0xbf, 0xf1, 0x28, 0xec, 0x1f, 0x90, 0xe2, 0x0f, 0x91, 0x4e, 0x12, 0x6a, 0x4a, 0x59, 0xf6, 0xd0,
+	0x53, 0xde, 0x8f, 0x79, 0x9e, 0x3c, 0xcf, 0xbc, 0xef, 0x60, 0x57, 0x83, 0x5a, 0x80, 0x62, 0x5c,
+	0xf2, 0x14, 0xca, 0xfa, 0x43, 0xa5, 0x12, 0x46, 0x90, 0x6e, 0x95, 0xb9, 0x7d, 0x2e, 0xb8, 0xb0,
+	0x25, 0xb6, 0x8a, 0xaa, 0xae, 0x3b, 0xe0, 0x42, 0xf0, 0x0c, 0x58, 0x28, 0x13, 0x16, 0xe6, 0xb9,
+	0x30, 0xa1, 0x49, 0x44, 0xae, 0xeb, 0xee, 0x94, 0x27, 0xe6, 0xa2, 0x98, 0xd3, 0x48, 0x7c, 0x60,
+	0xa1, 0xb2, 0xf0, 0xf7, 0x36, 0x78, 0x14, 0xc5, 0x4c, 0xa6, 0x7c, 0x05, 0xd3, 0x2c, 0x94, 0x32,
+	0x4b, 0x22, 0x0b, 0x64, 0x8b, 0x49, 0x98, 0xc9, 0x8b, 0x70, 0xc2, 0x38, 0xe4, 0xa0, 0x42, 0x03,
+	0x71, 0x45, 0xe5, 0x3d, 0xc4, 0x87, 0x7e, 0x5e, 0xcc, 0xfc, 0x59, 0x31, 0xcf, 0x92, 0xe8, 0x0c,
+	0xca, 0x37, 0x05, 0xa8, 0x92, 0xf4, 0xf1, 0x8d, 0x14, 0xca, 0xe9, 0x4b, 0x07, 0x8d, 0xd0, 0xb8,
+	0x17, 0x54, 0x89, 0x77, 0x8e, 0x4f, 0xda, 0x87, 0x5f, 0x28, 0x08, 0x0d, 0x04, 0xf0, 0xb1, 0x00,
+	0x6d, 0xc8, 0x00, 0xf7, 0xa4, 0xed, 0xa4, 0x50, 0xd6, 0xc0, 0x75, 0x81, 0x1c, 0xe1, 0x6e, 0x21,
+	0x35, 0x28, 0xe3, 0x74, 0x46, 0x68, 0x7c, 0x33, 0xa8, 0x33, 0xef, 0x27, 0xc2, 0x83, 0xed, 0xac,
+	0x5a, 0x8a, 0x5c, 0x03, 0xe1, 0x78, 0x3f, 0xb2, 0x95, 0xd8, 0x92, 0xde, 0x3a, 0x7d, 0x4d, 0xd7,
+	0xfe, 0x69, 0xe3, 0xdf, 0x06, 0xef, 0xa2, 0x98, 0xca, 0x94, 0xd3, 0x95, 0x7f, 0xfa, 0x9f, 0x7f,
+	0xda, 0xf8, 0xa7, 0xed, 0x3f, 0xbd, 0x4a, 0xb4, 0x09, 0x1a, 0x76, 0xe2, 0xe0, 0x7d, 0x9d, 0x26,
+	0x52, 0x42, 0xec, 0x74, 0x46, 0x7b, 0xe3, 0x5e, 0xd0, 0xa4, 0x9e, 0x83, 0x8f, 0xda, 0xc0, 0x46,
+	0xdc, 0xe9, 0xe5, 0x1e, 0xbe, 0xed, 0xcf, 0xfc, 0x33, 0x28, 0xcf, 0x41, 0x2d, 0x92, 0x08, 0xc8,
+	0x77, 0x84, 0x0f, 0x57, 0xbc, 0x6d, 0x80, 0x26, 0x27, 0xb4, 0x9e, 0xff, 0x96, 0xfb, 0x76, 0x77,
+	0x6b, 0xc9, 0x3b, 0xfe, 0x72, 0xf9, 0xf7, 0x5b, 0xe7, 0x80, 0xdc, 0xb1, 0x0b, 0xb4, 0x98, 0xd4,
+	0xab, 0xa7, 0xc9, 0x0f, 0x84, 0x0f, 0x7c, 0xd8, 0xd0, 0x76, 0xb5, 0xb4, 0xe9, 0xce, 0xa4, 0x79,
+	0xf7, 0xac, 0xac, 0xbb, 0xe4, 0x78, 0x43, 0x16, 0xfb, 0x64, 0xf7, 0xeb, 0x33, 0xf9, 0x8a, 0x70,
+	0xbf, 0x9a, 0xfe, 0x86, 0xc2, 0xfb, 0xdb, 0x15, 0xb6, 0xf6, 0xcf, 0x7d, 0x70, 0xf5, 0xa1, 0x6a,
+	0x62, 0x9e, 0x67, 0x45, 0x0c, 0xbc, 0xcd, 0xbb, 0x79, 0xba, 0xde, 0xd5, 0xe7, 0xcf, 0x7e, 0x2d,
+	0x87, 0xe8, 0xf7, 0x72, 0x88, 0xfe, 0x2c, 0x87, 0xe8, 0xed, 0xe3, 0x6b, 0x3c, 0xb7, 0x28, 0x4b,
+	0x20, 0x37, 0x35, 0xd7, 0xbc, 0x6b, 0x1f, 0xd7, 0x93, 0x7f, 0x01, 0x00, 0x00, 0xff, 0xff, 0xbe,
+	0x06, 0xff, 0x6f, 0x01, 0x04, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -232,6 +292,7 @@ type GPGKeyServiceClient interface {
 	// List all available repository certificates
 	ListGnuPGPublicKeys(ctx context.Context, in *GnuPGPublicKeyQuery, opts ...grpc.CallOption) (*v1alpha1.GnuPGPublicKeyList, error)
 	GetGnuPGPublicKey(ctx context.Context, in *GnuPGPublicKeyQuery, opts ...grpc.CallOption) (*v1alpha1.GnuPGPublicKey, error)
+	CreateGnuPGPublicKey(ctx context.Context, in *GnuPGPublicKeyCreateRequest, opts ...grpc.CallOption) (*GnuPGPublicKeyCreateResponse, error)
 }
 
 type gPGKeyServiceClient struct {
@@ -260,11 +321,21 @@ func (c *gPGKeyServiceClient) GetGnuPGPublicKey(ctx context.Context, in *GnuPGPu
 	return out, nil
 }
 
+func (c *gPGKeyServiceClient) CreateGnuPGPublicKey(ctx context.Context, in *GnuPGPublicKeyCreateRequest, opts ...grpc.CallOption) (*GnuPGPublicKeyCreateResponse, error) {
+	out := new(GnuPGPublicKeyCreateResponse)
+	err := c.cc.Invoke(ctx, "/gpgkey.GPGKeyService/CreateGnuPGPublicKey", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // GPGKeyServiceServer is the server API for GPGKeyService service.
 type GPGKeyServiceServer interface {
 	// List all available repository certificates
 	ListGnuPGPublicKeys(context.Context, *GnuPGPublicKeyQuery) (*v1alpha1.GnuPGPublicKeyList, error)
 	GetGnuPGPublicKey(context.Context, *GnuPGPublicKeyQuery) (*v1alpha1.GnuPGPublicKey, error)
+	CreateGnuPGPublicKey(context.Context, *GnuPGPublicKeyCreateRequest) (*GnuPGPublicKeyCreateResponse, error)
 }
 
 // UnimplementedGPGKeyServiceServer can be embedded to have forward compatible implementations.
@@ -276,6 +347,9 @@ func (*UnimplementedGPGKeyServiceServer) ListGnuPGPublicKeys(ctx context.Context
 }
 func (*UnimplementedGPGKeyServiceServer) GetGnuPGPublicKey(ctx context.Context, req *GnuPGPublicKeyQuery) (*v1alpha1.GnuPGPublicKey, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetGnuPGPublicKey not implemented")
+}
+func (*UnimplementedGPGKeyServiceServer) CreateGnuPGPublicKey(ctx context.Context, req *GnuPGPublicKeyCreateRequest) (*GnuPGPublicKeyCreateResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateGnuPGPublicKey not implemented")
 }
 
 func RegisterGPGKeyServiceServer(s *grpc.Server, srv GPGKeyServiceServer) {
@@ -318,6 +392,24 @@ func _GPGKeyService_GetGnuPGPublicKey_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _GPGKeyService_CreateGnuPGPublicKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GnuPGPublicKeyCreateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GPGKeyServiceServer).CreateGnuPGPublicKey(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gpgkey.GPGKeyService/CreateGnuPGPublicKey",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GPGKeyServiceServer).CreateGnuPGPublicKey(ctx, req.(*GnuPGPublicKeyCreateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _GPGKeyService_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "gpgkey.GPGKeyService",
 	HandlerType: (*GPGKeyServiceServer)(nil),
@@ -329,6 +421,10 @@ var _GPGKeyService_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetGnuPGPublicKey",
 			Handler:    _GPGKeyService_GetGnuPGPublicKey_Handler,
+		},
+		{
+			MethodName: "CreateGnuPGPublicKey",
+			Handler:    _GPGKeyService_CreateGnuPGPublicKey_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
@@ -403,9 +499,52 @@ func (m *GnuPGPublicKeyCreateRequest) MarshalToSizedBuffer(dAtA []byte) (int, er
 		i--
 		dAtA[i] = 0x10
 	}
-	if m.Publickey != nil {
+	if len(m.Publickey) > 0 {
+		i -= len(m.Publickey)
+		copy(dAtA[i:], m.Publickey)
+		i = encodeVarintGpgkey(dAtA, i, uint64(len(m.Publickey)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *GnuPGPublicKeyCreateResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *GnuPGPublicKeyCreateResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *GnuPGPublicKeyCreateResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	if len(m.Skipped) > 0 {
+		for iNdEx := len(m.Skipped) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.Skipped[iNdEx])
+			copy(dAtA[i:], m.Skipped[iNdEx])
+			i = encodeVarintGpgkey(dAtA, i, uint64(len(m.Skipped[iNdEx])))
+			i--
+			dAtA[i] = 0x12
+		}
+	}
+	if m.Created != nil {
 		{
-			size, err := m.Publickey.MarshalToSizedBuffer(dAtA[:i])
+			size, err := m.Created.MarshalToSizedBuffer(dAtA[:i])
 			if err != nil {
 				return 0, err
 			}
@@ -478,12 +617,34 @@ func (m *GnuPGPublicKeyCreateRequest) Size() (n int) {
 	}
 	var l int
 	_ = l
-	if m.Publickey != nil {
-		l = m.Publickey.Size()
+	l = len(m.Publickey)
+	if l > 0 {
 		n += 1 + l + sovGpgkey(uint64(l))
 	}
 	if m.Upsert {
 		n += 2
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *GnuPGPublicKeyCreateResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Created != nil {
+		l = m.Created.Size()
+		n += 1 + l + sovGpgkey(uint64(l))
+	}
+	if len(m.Skipped) > 0 {
+		for _, s := range m.Skipped {
+			l = len(s)
+			n += 1 + l + sovGpgkey(uint64(l))
+		}
 	}
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
@@ -628,6 +789,112 @@ func (m *GnuPGPublicKeyCreateRequest) Unmarshal(dAtA []byte) error {
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Publickey", wireType)
 			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGpgkey
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGpgkey
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGpgkey
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Publickey = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Upsert", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGpgkey
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.Upsert = bool(v != 0)
+		default:
+			iNdEx = preIndex
+			skippy, err := skipGpgkey(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthGpgkey
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthGpgkey
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *GnuPGPublicKeyCreateResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowGpgkey
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: GnuPGPublicKeyCreateResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: GnuPGPublicKeyCreateResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Created", wireType)
+			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
@@ -653,18 +920,18 @@ func (m *GnuPGPublicKeyCreateRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if m.Publickey == nil {
-				m.Publickey = &v1alpha1.GnuPGPublicKey{}
+			if m.Created == nil {
+				m.Created = &v1alpha1.GnuPGPublicKeyList{}
 			}
-			if err := m.Publickey.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+			if err := m.Created.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
 		case 2:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Upsert", wireType)
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Skipped", wireType)
 			}
-			var v int
+			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowGpgkey
@@ -674,12 +941,24 @@ func (m *GnuPGPublicKeyCreateRequest) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				v |= int(b&0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			m.Upsert = bool(v != 0)
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGpgkey
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGpgkey
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Skipped = append(m.Skipped, string(dAtA[iNdEx:postIndex]))
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipGpgkey(dAtA[iNdEx:])

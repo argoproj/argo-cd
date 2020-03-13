@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strings"
 	"text/tabwriter"
@@ -29,6 +30,7 @@ func NewGPGCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	}
 	command.AddCommand(NewGPGListCommand(clientOpts))
 	command.AddCommand(NewGPGGetCommand(clientOpts))
+	command.AddCommand(NewGPGAddCommand(clientOpts))
 	return command
 }
 
@@ -81,9 +83,10 @@ func NewGPGGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				err := PrintResourceList(key, output, false)
 				errors.CheckError(err)
 			case "wide", "":
-				fmt.Printf("Key ID:      %s\n", key.KeyID)
-				fmt.Printf("Key subtype: %s\n", key.SubType)
-				fmt.Printf("Key owner:   %s\n", key.Owner)
+				fmt.Printf("Key ID:          %s\n", key.KeyID)
+				fmt.Printf("Key fingerprint: %s\n", key.Fingerprint)
+				fmt.Printf("Key subtype:     %s\n", strings.ToUpper(key.SubType))
+				fmt.Printf("Key owner:       %s\n", key.Owner)
 				fmt.Printf("Key data follows until EOF:\n%s\n", key.KeyData)
 			default:
 				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
@@ -97,28 +100,27 @@ func NewGPGGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 func NewGPGAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		fromFile string
-		upsert   bool
 	)
 	var command = &cobra.Command{
 		Use:   "add",
 		Short: "Adds a GPG public key to the server's keyring",
 		Run: func(c *cobra.Command, args []string) {
+			if fromFile == "" {
+				errors.CheckError(fmt.Errorf("--from is mandatory"))
+			}
+			keyData, err := ioutil.ReadFile(fromFile)
+			if err != nil {
+				errors.CheckError(err)
+			}
 			conn, gpgIf := argocdclient.NewClientOrDie(clientOpts).NewGPGKeyClientOrDie()
 			defer util.Close(conn)
-			key, err := gpgIf.GetGnuPGPublicKey(context.Background(), &gpgkeypkg.GnuPGPublicKeyQuery{KeyID: args[0]})
+			resp, err := gpgIf.CreateGnuPGPublicKey(context.Background(), &gpgkeypkg.GnuPGPublicKeyCreateRequest{Publickey: string(keyData)})
 			errors.CheckError(err)
-			switch output {
-			case "yaml", "json":
-				err := PrintResourceList(key, output, false)
-				errors.CheckError(err)
-			case "wide", "":
-				fmt.Printf("Key ID:      %s\n", key.KeyID)
-				fmt.Printf("Key subtype: %s\n", key.SubType)
-				fmt.Printf("Key owner:   %s\n", key.Owner)
-				fmt.Printf("Key data follows until EOF:\n%s\n", key.KeyData)
-			default:
-				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
+			fmt.Printf("Created %d key(s) from input file", len(resp.Created.Items))
+			if len(resp.Skipped) > 0 {
+				fmt.Printf(", and %d key(s) were skipped because they exist already", len(resp.Skipped))
 			}
+			fmt.Printf(".\n")
 		},
 	}
 	command.Flags().StringVarP(&fromFile, "from", "f", "", "Path to the file that contains the GPG public key to import")

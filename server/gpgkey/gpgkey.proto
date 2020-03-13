@@ -24,6 +24,11 @@ message GnuPGPublicKeyCreateRequest {
   bool upsert = 2;
 }
 
+message GnuPGPublicKeyCreateResponse {
+  github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.GnuPGPublicKeyList created = 1;
+  repeated string skipped = 2;
+}
+
 message GnuPGPublicKeyResponse {}
 
 service GPGKeyService {
@@ -36,7 +41,7 @@ service GPGKeyService {
     option (google.api.http).get = "/api/v1/gpgkeys/{keyID}";
   }
 
-  rpc AddGnuPGPublic(GnuPGPublicKeyCreateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.GnuPGPublicKey) {
+  rpc CreateGnuPGPublicKey(GnuPGPublicKeyCreateRequest) returns (GnuPGPublicKeyCreateResponse) {
     option (google.api.http) = {
       post: "/api/v1/gpgkeys"
       body: "publickey"
