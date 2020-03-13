@@ -12,9 +12,11 @@ import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage} from '../util
 require('./application-summary.scss');
 
 const urlPattern = new RegExp(
-    `^(https?://(?:www\.|(?!www))[a-z0-9][a-z0-9-]+[a-z0-9]\.[^\s]{2,}|www\.[a-z0-9][a-z0-9-]+[a-z0-9]\.` +
-        `[^\s]{2,}|https?://(?:www\.|(?!www))[a-z0-9]+\.[^\s]{2,}|www\.[a-z0-9]+\.[^\s]{2,})$`,
-    'gi'
+    new RegExp(
+        // tslint:disable-next-line:max-line-length
+        /^(https?:\/\/(?:www\.|(?!www))[a-z0-9][a-z0-9-]+[a-z0-9]\.[^\s]{2,}|www\.[a-z0-9][a-z0-9-]+[a-z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-z0-9]+\.[^\s]{2,}|www\.[a-z0-9]+\.[^\s]{2,})$/,
+        'gi'
+    )
 );
 
 function swap(array: any[], a: number, b: number) {
