@@ -65,6 +65,7 @@ type ArgoDB interface {
 	ListConfiguredGPGPublicKeys(ctx context.Context) (map[string]*appv1.GnuPGPublicKey, error)
 
 	AddGPGPublicKey(ctx context.Context, keyData string) (map[string]*appv1.GnuPGPublicKey, []string, error)
+	DeleteGPGPublicKey(ctx context.Context, keyID string) error
 	// SynchronizePGPPublicKeys syncs configured keys to keyring
 	SynchronizeGPGPublicKeys(ctx context.Context) error
 }

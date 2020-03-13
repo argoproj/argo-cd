@@ -144,6 +144,26 @@ func (db *db) AddGPGPublicKey(ctx context.Context, keyData string) (map[string]*
 	return result, skipped, nil
 }
 
+func (db *db) DeleteGPGPublicKey(ctx context.Context, keyID string) error {
+	keysCM, err := db.settingsMgr.GetConfigMapByName(common.ArgoCDGPGKeysConfigMapName)
+	if err != nil {
+		return err
+	}
+
+	if keysCM.Data == nil {
+		return fmt.Errorf("No such key configured: %s", keyID)
+	}
+
+	if _, ok := keysCM.Data[keyID]; !ok {
+		return fmt.Errorf("No such key configured: %s", keyID)
+	}
+
+	delete(keysCM.Data, keyID)
+
+	err = db.settingsMgr.SaveGPGPublicKeyData(ctx, keysCM.Data)
+	return err
+}
+
 // SynchronizeGPGPublicKeys synchronizes the installed keys with the configured keys
 func (db *db) SynchronizeGPGPublicKeys(ctx context.Context) error {
 

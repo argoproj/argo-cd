@@ -385,6 +385,71 @@ func Test_AddGPGPublicKey(t *testing.T) {
 	}
 }
 
+func Test_DeleteGPGPublicKey(t *testing.T) {
+	defer os.Setenv("GNUPGHOME", "")
+	// Good case
+	{
+		clientset := getGPGKeysClientset(gpgCMMultiGoodPubkey)
+		settings := settings.NewSettingsManager(context.Background(), clientset, testNamespace)
+		db := NewDB(testNamespace, settings, clientset)
+
+		path, err := ioutil.TempDir("", "gpg-unittest")
+		if err != nil {
+			panic(err.Error())
+		}
+		defer os.RemoveAll(path)
+		os.Setenv("GNUPGHOME", path)
+		_, err = db.InitializeGPGKeyRing(context.Background())
+		assert.NoError(t, err)
+
+		// Key should be removed
+		err = db.DeleteGPGPublicKey(context.Background(), "FDC79815400D88A9")
+		assert.NoError(t, err)
+
+		// Key should not exist anymore, therefore can't be deleted again
+		err = db.DeleteGPGPublicKey(context.Background(), "FDC79815400D88A9")
+		assert.Error(t, err)
+
+		// One key left in configuration
+		n, err := db.ListConfiguredGPGPublicKeys(context.Background())
+		assert.NoError(t, err)
+		assert.Len(t, n, 1)
+
+		// Key should be removed
+		err = db.DeleteGPGPublicKey(context.Background(), "F7842A5CEAA9C0B1")
+		assert.NoError(t, err)
+
+		// Key should not exist anymore, therefore can't be deleted again
+		err = db.DeleteGPGPublicKey(context.Background(), "F7842A5CEAA9C0B1")
+		assert.Error(t, err)
+
+		// No key left in configuration
+		n, err = db.ListConfiguredGPGPublicKeys(context.Background())
+		assert.NoError(t, err)
+		assert.Len(t, n, 0)
+
+	}
+	// Bad case - empty ConfigMap
+	{
+		clientset := getGPGKeysClientset(gpgCMEmpty)
+		settings := settings.NewSettingsManager(context.Background(), clientset, testNamespace)
+		db := NewDB(testNamespace, settings, clientset)
+
+		path, err := ioutil.TempDir("", "gpg-unittest")
+		if err != nil {
+			panic(err.Error())
+		}
+		defer os.RemoveAll(path)
+		os.Setenv("GNUPGHOME", path)
+		_, err = db.InitializeGPGKeyRing(context.Background())
+		assert.NoError(t, err)
+
+		// Key should be removed
+		err = db.DeleteGPGPublicKey(context.Background(), "F7842A5CEAA9C0B1")
+		assert.Error(t, err)
+	}
+}
+
 func Test_SynchronizeGPGPublicKeys(t *testing.T) {
 	// Good case
 	{
