@@ -113,6 +113,8 @@ func (c *liveStateCache) getCluster(server string) (*clusterInfo, error) {
 	info, ok := c.clusters[server]
 	c.lock.RUnlock()
 	if !ok {
+		logCtx := log.WithField("server", server)
+		logCtx.Info("initializing cluster")
 		cluster, err := c.db.GetCluster(context.Background(), server)
 		if err != nil {
 			return nil, err
@@ -126,7 +128,7 @@ func (c *liveStateCache) getCluster(server string) (*clusterInfo, error) {
 			kubectl:          c.kubectl,
 			cluster:          cluster,
 			syncTime:         nil,
-			log:              log.WithField("server", cluster.Server),
+			log:              logCtx,
 			cacheSettingsSrc: c.getCacheSettings,
 			onEventReceived: func(event watch.EventType, un *unstructured.Unstructured) {
 				c.metricsServer.IncClusterEventsCount(cluster.Server)
@@ -211,8 +213,6 @@ func isClusterHasApps(apps []interface{}, cluster *appv1.Cluster) bool {
 }
 
 func (c *liveStateCache) getCacheSettings() *cacheSettings {
-	c.cacheSettingsLock.Lock()
-	defer c.cacheSettingsLock.Unlock()
 	return c.cacheSettings
 }
 
@@ -262,8 +262,8 @@ func (c *liveStateCache) Run(ctx context.Context) error {
 	util.RetryUntilSucceed(func() error {
 		clusterEventCallback := func(event *db.ClusterEvent) {
 			c.lock.Lock()
-			defer c.lock.Unlock()
-			if cluster, ok := c.clusters[event.Cluster.Server]; ok {
+			cluster, ok := c.clusters[event.Cluster.Server]
+			if ok {
 				if event.Type == watch.Deleted {
 					cluster.invalidate()
 					delete(c.clusters, event.Cluster.Server)
@@ -271,11 +271,15 @@ func (c *liveStateCache) Run(ctx context.Context) error {
 					cluster.cluster = event.Cluster
 					cluster.invalidate()
 				}
-			} else if event.Type == watch.Added && isClusterHasApps(c.appInformer.GetStore().List(), event.Cluster) {
-				go func() {
-					// warm up cache for cluster with apps
-					_, _ = c.getSyncedCluster(event.Cluster.Server)
-				}()
+				c.lock.Unlock()
+			} else {
+				c.lock.Unlock()
+				if event.Type == watch.Added && isClusterHasApps(c.appInformer.GetStore().List(), event.Cluster) {
+					go func() {
+						// warm up cache for cluster with apps
+						_, _ = c.getSyncedCluster(event.Cluster.Server)
+					}()
+				}
 			}
 		}
 
@@ -288,8 +292,8 @@ func (c *liveStateCache) Run(ctx context.Context) error {
 }
 
 func (c *liveStateCache) GetClustersInfo() []metrics.ClusterInfo {
-	c.lock.Lock()
-	defer c.lock.Unlock()
+	c.lock.RLock()
+	defer c.lock.RUnlock()
 	res := make([]metrics.ClusterInfo, 0)
 	for _, info := range c.clusters {
 		res = append(res, info.getClusterInfo())

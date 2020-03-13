@@ -177,16 +177,18 @@ func (c *clusterInfo) invalidate() {
 	}
 	c.apisMeta = nil
 	c.namespacedResources = nil
+	c.log.Warnf("invalidated cluster")
 }
 
 func (c *clusterInfo) synced() bool {
-	if c.syncTime == nil {
+	syncTime := c.syncTime
+	if syncTime == nil {
 		return false
 	}
 	if c.syncError != nil {
-		return time.Now().Before(c.syncTime.Add(clusterRetryTimeout))
+		return time.Now().Before(syncTime.Add(clusterRetryTimeout))
 	}
-	return time.Now().Before(c.syncTime.Add(clusterSyncTimeout))
+	return time.Now().Before(syncTime.Add(clusterSyncTimeout))
 }
 
 func (c *clusterInfo) stopWatching(gk schema.GroupKind, ns string) {
@@ -196,7 +198,7 @@ func (c *clusterInfo) stopWatching(gk schema.GroupKind, ns string) {
 		info.watchCancel()
 		delete(c.apisMeta, gk)
 		c.replaceResourceCache(gk, "", []unstructured.Unstructured{}, ns)
-		log.Warnf("Stop watching %s not found on %s.", gk, c.cluster.Server)
+		c.log.Warnf("Stop watching: %s not found", gk)
 	}
 }
 
@@ -212,10 +214,10 @@ func (c *clusterInfo) startMissingWatches() error {
 	if err != nil {
 		return err
 	}
-	c.namespacedResources = make(map[schema.GroupKind]bool)
+	namespacedResources := make(map[schema.GroupKind]bool)
 	for i := range apis {
 		api := apis[i]
-		c.namespacedResources[api.GroupKind] = api.Meta.Namespaced
+		namespacedResources[api.GroupKind] = api.Meta.Namespaced
 		if _, ok := c.apisMeta[api.GroupKind]; !ok {
 			ctx, cancel := context.WithCancel(context.Background())
 			info := &apiMeta{namespaced: api.Meta.Namespaced, watchCancel: cancel}
@@ -230,6 +232,7 @@ func (c *clusterInfo) startMissingWatches() error {
 			}
 		}
 	}
+	c.namespacedResources = namespacedResources
 	return nil
 }
 
@@ -269,7 +272,7 @@ func (c *clusterInfo) watchEvents(ctx context.Context, api kube.APIResourceInfo,
 		}
 		if errors.IsGone(err) {
 			info.resourceVersion = ""
-			log.Warnf("Resource version of %s on %s is too old.", api.GroupKind, c.cluster.Server)
+			c.log.Warnf("Resource version of %s is too old", api.GroupKind)
 		}
 		if err != nil {
 			return err
@@ -301,7 +304,7 @@ func (c *clusterInfo) watchEvents(ctx context.Context, api kube.APIResourceInfo,
 						}
 					}
 					if err != nil {
-						log.Warnf("Failed to start missing watch: %v", err)
+						c.log.Warnf("Failed to start missing watch: %v", err)
 					}
 				} else {
 					return fmt.Errorf("Watch %s on %s has closed", api.GroupKind, c.cluster.Server)
@@ -446,7 +449,12 @@ func (c *clusterInfo) iterateHierarchy(key kube.ResourceKey, action func(child a
 }
 
 func (c *clusterInfo) isNamespaced(gk schema.GroupKind) bool {
-	return c.namespacedResources[gk]
+	// this is safe to access without a lock since we always replace the entire map instead of mutating keys
+	if isNamespaced, ok := c.namespacedResources[gk]; ok {
+		return isNamespaced
+	}
+	log.Warnf("group/kind %s scope is unknown (known objects: %d). assuming namespaced object", gk, len(c.namespacedResources))
+	return true
 }
 
 func (c *clusterInfo) getManagedLiveObjs(a *appv1.Application, targetObjs []*unstructured.Unstructured, metricsServer *metrics.MetricsServer) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
@@ -461,7 +469,7 @@ func (c *clusterInfo) getManagedLiveObjs(a *appv1.Application, targetObjs []*uns
 		}
 	}
 	config := metrics.AddMetricsTransportWrapper(metricsServer, a, c.cluster.RESTConfig())
-	// iterate target objects and identify ones that already exist in the cluster,\
+	// iterate target objects and identify ones that already exist in the cluster,
 	// but are simply missing our label
 	lock := &sync.Mutex{}
 	err := util.RunAllAsync(len(targetObjs), func(i int) error {

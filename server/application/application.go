@@ -264,7 +264,10 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 
 // Get returns an application by name
 func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*appv1.Application, error) {
-	a, err := s.appLister.Get(*q.Name)
+	// We must use a client Get instead of an informer Get, because it's common to call Get immediately
+	// following a Watch (which is not yet powered by an informer), and the Get must reflect what was
+	// previously seen by the client.
+	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
