@@ -290,26 +290,36 @@ func ValidatePGPKeysFromString(keyData string) (map[string]*appsv1.GnuPGPublicKe
 	return ValidatePGPKeys(f)
 }
 
+// ValidatePGPKeys validates whether the keys in keyFile are valid PGP keys and can be imported
+// It does so by importing them into a temporary keyring. The returned keys are complete, that
+// is, they contain all relevant information
 func ValidatePGPKeys(keyFile string) (map[string]*appsv1.GnuPGPublicKey, error) {
 	keys := make(map[string]*appsv1.GnuPGPublicKey, 0)
-	cmd := exec.Command("gpg", "--logger-fd", "1", "-v", "--dry-run", "--import", keyFile)
-	cmd.Env = getGPGEnviron()
+	tempHome, err := ioutil.TempDir("", "gpg-verify-key")
+	if err != nil {
+		return nil, err
+	}
+	defer os.RemoveAll(tempHome)
 
-	out, err := executil.Run(cmd)
+	// Remember original GNUPGHOME, then set it to temp directory
+	oldGPGHome := os.Getenv("GNUPGHOME")
+	defer os.Setenv("GNUPGHOME", oldGPGHome)
+	os.Setenv("GNUPGHOME", tempHome)
+
+	// Import they keys to our temporary keyring...
+	_, err = ImportPGPKeys(keyFile)
 	if err != nil {
 		return nil, err
 	}
 
-	scanner := bufio.NewScanner(strings.NewReader(out))
-	for scanner.Scan() {
-		result := verifyMatch.FindStringSubmatch(scanner.Text())
-		key := appsv1.GnuPGPublicKey{}
-		if len(result) == 6 && result[1] == "pub" {
-			key.KeyID = result[3]
-			key.SubType = result[2]
-			key.Owner = result[5]
-			keys[key.KeyID] = &key
-		}
+	// ... and export them again, to get key data and fingerprint
+	imported, err := GetInstalledPGPKeys(nil)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, key := range imported {
+		keys[key.KeyID] = key
 	}
 
 	return keys, nil
@@ -472,6 +482,18 @@ func GetInstalledPGPKeys(kids []string) ([]*appsv1.GnuPGPublicKey, error) {
 	} else {
 		// This probably means invalid/incomplete output. Not a single key was found.
 		// FIXME: do we have to handle this, or just ignore it like we do now?
+	}
+
+	// We need to get the final key for each imported key, so we run --export on each key
+	for _, key := range keys {
+		cmd := exec.Command("gpg", "-a", "--export", key.KeyID)
+		cmd.Env = getGPGEnviron()
+
+		out, err := executil.Run(cmd)
+		if err != nil {
+			return nil, err
+		}
+		key.KeyData = out
 	}
 
 	return keys, nil
