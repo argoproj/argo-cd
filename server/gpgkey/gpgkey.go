@@ -102,6 +102,19 @@ func (s *Server) CreateGnuPGPublicKey(ctx context.Context, q *gpgkeypkg.GnuPGPub
 	return response, nil
 }
 
+func (s *Server) DeleteGnuPGPublicKey(ctx context.Context, q *gpgkeypkg.GnuPGPublicKeyQuery) (*gpgkeypkg.GnuPGPublicKeyResponse, error) {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceCertificates, rbacpolicy.ActionCreate, ""); err != nil {
+		return nil, err
+	}
+
+	err := s.db.DeleteGPGPublicKey(ctx, q.KeyID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &gpgkeypkg.GnuPGPublicKeyResponse{}, nil
+}
+
 // // Batch deletes a list of certificates that match the query
 // func (s *Server) DeleteCertificate(ctx context.Context, q *certificatepkg.RepositoryCertificateQuery) (*appsv1.RepositoryCertificateList, error) {
 // 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceCertificates, rbacpolicy.ActionDelete, ""); err != nil {

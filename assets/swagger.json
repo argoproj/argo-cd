@@ -1201,6 +1201,28 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "GPGKeyService"
+        ],
+        "operationId": "DeleteGnuPGPublicKey",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "keyID",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/gpgkeyGnuPGPublicKeyResponse"
+            }
+          }
+        }
       }
     },
     "/api/v1/projects": {
@@ -2284,6 +2306,9 @@
           }
         }
       }
+    },
+    "gpgkeyGnuPGPublicKeyResponse": {
+      "type": "object"
     },
     "oidcClaim": {
       "type": "object",

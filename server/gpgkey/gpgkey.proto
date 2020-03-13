@@ -47,4 +47,8 @@ service GPGKeyService {
       body: "publickey"
     };
   }
+
+  rpc DeleteGnuPGPublicKey(GnuPGPublicKeyQuery) returns (GnuPGPublicKeyResponse) {
+    option (google.api.http).delete = "/api/v1/gpgkeys/{keyID}";
+  }
 }
