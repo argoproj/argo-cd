@@ -28,8 +28,6 @@ var uidMatch = regexp.MustCompile(`^uid\s*\[\s*([a-z]+)\s*\]\s+(.*)$`)
 // Regular expression to match import status
 var importMatch = regexp.MustCompile(`^gpg: key ([A-Z0-9]+): public key "([^"]+)" imported$`)
 
-var verifyMatch = regexp.MustCompile(`^gpg:\s+([a-z]+)\s+([a-z0-9]+)/([a-zA-Z0-9]+)\s+([0-9\-]+)\s+(.+)$`)
-
 // Regular expression to match the start of a commit signature verification
 var verificationStartMatch = regexp.MustCompile(`^gpg: Signature made ([a-zA-Z0-9\ :]+)$`)
 
@@ -482,6 +480,7 @@ func GetInstalledPGPKeys(kids []string) ([]*appsv1.GnuPGPublicKey, error) {
 	} else {
 		// This probably means invalid/incomplete output. Not a single key was found.
 		// FIXME: do we have to handle this, or just ignore it like we do now?
+		log.Debugf("No key has been found in input.")
 	}
 
 	// We need to get the final key for each imported key, so we run --export on each key

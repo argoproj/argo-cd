@@ -73,7 +73,10 @@ func Test_GPG_InitializeGnuPG(t *testing.T) {
 	err = InitializeGnuPG()
 	assert.Error(t, err)
 	// Restore permissions so path can be deleted
-	os.Chmod(fp, 0700)
+	err = os.Chmod(fp, 0700)
+	if err != nil {
+		panic(err.Error())
+	}
 
 	// GNUPGHOME with too wide permissions
 	p = initTempDir()

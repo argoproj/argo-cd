@@ -251,7 +251,10 @@ func Test_InitializeGPGKeyRing(t *testing.T) {
 		}
 		defer os.RemoveAll(path)
 		os.Setenv("GNUPGHOME", path)
-		os.Chmod(path, 0100)
+		err = os.Chmod(path, 0100)
+		if err != nil {
+			panic(err.Error())
+		}
 		n, err := db.InitializeGPGKeyRing(context.Background())
 		assert.Error(t, err)
 		assert.Len(t, n, 0)
@@ -296,6 +299,7 @@ func Test_ListInstalledGPGPublicKeys(t *testing.T) {
 		os.Setenv("GNUPGHOME", path)
 		n, err := db.InitializeGPGKeyRing(context.Background())
 		assert.NoError(t, err)
+		assert.Empty(t, n)
 
 		n, err = db.ListInstalledGPGPublicKeys(context.Background())
 		assert.NoError(t, err)
@@ -340,6 +344,7 @@ func Test_AddGPGPublicKey(t *testing.T) {
 		assert.Len(t, new, 1)
 		assert.Len(t, skipped, 0)
 		cm, err := settings.GetConfigMapByName(common.ArgoCDGPGKeysConfigMapName)
+		assert.NoError(t, err)
 		assert.Len(t, cm.Data, 1)
 
 		// Same key should not be added, but skipped
@@ -348,6 +353,7 @@ func Test_AddGPGPublicKey(t *testing.T) {
 		assert.Len(t, new, 0)
 		assert.Len(t, skipped, 1)
 		cm, err = settings.GetConfigMapByName(common.ArgoCDGPGKeysConfigMapName)
+		assert.NoError(t, err)
 		assert.Len(t, cm.Data, 1)
 
 		// New keys should be added
@@ -356,6 +362,7 @@ func Test_AddGPGPublicKey(t *testing.T) {
 		assert.Len(t, new, 2)
 		assert.Len(t, skipped, 0)
 		cm, err = settings.GetConfigMapByName(common.ArgoCDGPGKeysConfigMapName)
+		assert.NoError(t, err)
 		assert.Len(t, cm.Data, 3)
 
 		// Same new keys should be skipped
@@ -364,6 +371,7 @@ func Test_AddGPGPublicKey(t *testing.T) {
 		assert.Len(t, new, 0)
 		assert.Len(t, skipped, 2)
 		cm, err = settings.GetConfigMapByName(common.ArgoCDGPGKeysConfigMapName)
+		assert.NoError(t, err)
 		assert.Len(t, cm.Data, 3)
 
 		// Garbage input should result in error

@@ -58,7 +58,7 @@ func validatePGPKey(keyData string) (*appsv1.GnuPGPublicKey, error) {
 // ListConfiguredGPGPublicKeys returns a list of all configured GPG public keys from the ConfigMap
 func (db *db) ListConfiguredGPGPublicKeys(ctx context.Context) (map[string]*appsv1.GnuPGPublicKey, error) {
 	log.Debugf("Loading PGP public keys from config map")
-	result := make(map[string]*appsv1.GnuPGPublicKey, 0)
+	result := make(map[string]*appsv1.GnuPGPublicKey)
 	keysCM, err := db.settingsMgr.GetConfigMapByName(common.ArgoCDGPGKeysConfigMapName)
 	if err != nil {
 		return nil, err
@@ -88,7 +88,7 @@ func (db *db) ListConfiguredGPGPublicKeys(ctx context.Context) (map[string]*apps
 
 // ListInstalledGPGPublicKeys returns a list of all GPG public keys actually installed in the keyring
 func (db *db) ListInstalledGPGPublicKeys(ctx context.Context) (map[string]*appsv1.GnuPGPublicKey, error) {
-	result := make(map[string]*appsv1.GnuPGPublicKey, 0)
+	result := make(map[string]*appsv1.GnuPGPublicKey)
 
 	keys, err := gpg.GetInstalledPGPKeys(nil)
 	if err != nil {
@@ -108,7 +108,7 @@ func (db *db) ListInstalledGPGPublicKeys(ctx context.Context) (map[string]*appsv
 
 // AddGPGPublicKey adds one or more public keys to the configuration
 func (db *db) AddGPGPublicKey(ctx context.Context, keyData string) (map[string]*appsv1.GnuPGPublicKey, []string, error) {
-	result := make(map[string]*appsv1.GnuPGPublicKey, 0)
+	result := make(map[string]*appsv1.GnuPGPublicKey)
 	skipped := make([]string, 0)
 
 	keys, err := gpg.ValidatePGPKeysFromString(keyData)
@@ -122,7 +122,7 @@ func (db *db) AddGPGPublicKey(ctx context.Context, keyData string) (map[string]*
 	}
 
 	if keysCM.Data == nil {
-		keysCM.Data = make(map[string]string, 0)
+		keysCM.Data = make(map[string]string)
 	}
 
 	for kid, key := range keys {
@@ -181,7 +181,7 @@ func (db *db) SynchronizeGPGPublicKeys(ctx context.Context) error {
 	// We have a transient private key in the keyring whose ID we do not know, so we have
 	// to check each key whether it's a private key, and skip it's removal. It won't be
 	// in the configuration.
-	for keyID, _ := range installedKeys {
+	for keyID := range installedKeys {
 		if _, ok := configuredKeys[keyID]; !ok {
 			if isSecret, err := gpg.IsSecretKey(keyID); err == nil && !isSecret {
 				log.Infof("Removing key ID '%s' from GnuPG's keyring", keyID)
