@@ -130,6 +130,7 @@ func NewGPGAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 
 }
 
+// NewGPGDeleteCommand removes a key from the server's keyring
 func NewGPGDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "rm KEYID",
@@ -148,7 +149,6 @@ func NewGPGDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 	return command
 
 }
-
 
 // Print table of certificate info
 func printKeyTable(keys []appsv1.GnuPGPublicKey) {
