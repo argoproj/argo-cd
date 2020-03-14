@@ -37,6 +37,15 @@ func initTempDir() string {
 	return p
 }
 
+func Test_IsGPGEnabled(t *testing.T) {
+	os.Setenv("ARGOCD_GPG_ENABLED", "true")
+	assert.True(t, IsGPGEnabled())
+	os.Setenv("ARGOCD_GPG_ENABLED", "false")
+	assert.False(t, IsGPGEnabled())
+	os.Setenv("ARGOCD_GPG_ENABLED", "")
+	assert.False(t, IsGPGEnabled())
+}
+
 func Test_GPG_InitializeGnuPG(t *testing.T) {
 	p := initTempDir()
 	defer os.RemoveAll(p)

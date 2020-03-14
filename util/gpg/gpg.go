@@ -164,6 +164,14 @@ func writeKeyToFile(keyData string) (string, error) {
 	return f.Name(), nil
 }
 
+// IsGPGEnabled returns true if GPG feature is enabled
+func IsGPGEnabled() bool {
+	if en := os.Getenv("ARGOCD_GPG_ENABLED"); en != "" && en != "false" {
+		return true
+	}
+	return false
+}
+
 // InitializePGP will initialize a GnuPG working directory and also create a
 // transient private key so that the trust DB will work correctly.
 func InitializeGnuPG() error {
@@ -361,6 +369,14 @@ func SetPGPTrustLevel(pgpKeys []*appsv1.GnuPGPublicKey, trustLevel string) error
 	cmd := exec.Command("gpg", "--import-ownertrust", f.Name())
 	cmd.Env = getGPGEnviron()
 
+	_, err = executil.Run(cmd)
+	if err != nil {
+		return err
+	}
+
+	// Update the trustdb once we updated the ownertrust, to prevent gpg to do it once we validate a signature
+	cmd = exec.Command("gpg", "--update-trustdb")
+	cmd.Env = getGPGEnviron()
 	_, err = executil.Run(cmd)
 	if err != nil {
 		return err
@@ -649,6 +665,7 @@ func SyncKeyRingFromDirectory(basePath string) ([]string, []string, error) {
 	if len(fingerprints) > 0 {
 		fmt.Printf("==> %v\n", fingerprints)
 		SetPGPTrustLevelById(fingerprints, TrustUltimate)
+
 	}
 
 	return newKeys, removedKeys, err
