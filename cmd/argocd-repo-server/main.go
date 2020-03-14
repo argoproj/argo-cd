@@ -27,6 +27,14 @@ const (
 	gnuPGSourcePath = "/app/config/gpg/source"
 )
 
+func getGnuPGSourcePath() string {
+	if path := os.Getenv("ARGOCD_GPG_DATA_PATH"); path != "" {
+		return path
+	} else {
+		return gnuPGSourcePath
+	}
+}
+
 func newCommand() *cobra.Command {
 	var (
 		logLevel               string
@@ -64,8 +72,8 @@ func newCommand() *cobra.Command {
 				err = gpg.InitializeGnuPG()
 				errors.CheckError(err)
 
-				log.Infof("Populating GnuPG keyring with keys from %s", gnuPGSourcePath)
-				added, removed, err := gpg.SyncKeyRingFromDirectory(gnuPGSourcePath)
+				log.Infof("Populating GnuPG keyring with keys from %s", getGnuPGSourcePath())
+				added, removed, err := gpg.SyncKeyRingFromDirectory(getGnuPGSourcePath())
 				errors.CheckError(err)
 				log.Infof("Loaded %d (and removed %d) keys from keyring", len(added), len(removed))
 
