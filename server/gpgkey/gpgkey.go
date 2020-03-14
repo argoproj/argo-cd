@@ -14,14 +14,14 @@ import (
 	"github.com/argoproj/argo-cd/util/rbac"
 )
 
-// Server provides a Certificate service
+// Server provides a service of type GPGKeyService
 type Server struct {
 	db            db.ArgoDB
 	repoClientset apiclient.Clientset
 	enf           *rbac.Enforcer
 }
 
-// NewServer returns a new instance of the Certificate service
+// NewServer returns a new instance of the service with type GPGKeyService
 func NewServer(
 	repoClientset apiclient.Clientset,
 	db db.ArgoDB,
@@ -34,11 +34,7 @@ func NewServer(
 	}
 }
 
-// TODO: RBAC policies are currently an all-or-nothing approach, so there is no
-// fine grained control for certificate manipulation. Either a user has access
-// to a given certificate operation (get/create/delete), or it doesn't.
-
-// Returns a list of configured GnuPG public keys
+// ListGnuPGPublicKeys returns a list of GnuPG public keys in the configuration
 func (s *Server) ListGnuPGPublicKeys(ctx context.Context, q *gpgkeypkg.GnuPGPublicKeyQuery) (*appsv1.GnuPGPublicKeyList, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceCertificates, rbacpolicy.ActionGet, ""); err != nil {
 		return nil, err
@@ -56,6 +52,7 @@ func (s *Server) ListGnuPGPublicKeys(ctx context.Context, q *gpgkeypkg.GnuPGPubl
 	return keyList, nil
 }
 
+// GetGnuPGPublicKey retrieves a single GPG public key from the configuration
 func (s *Server) GetGnuPGPublicKey(ctx context.Context, q *gpgkeypkg.GnuPGPublicKeyQuery) (*appsv1.GnuPGPublicKey, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceCertificates, rbacpolicy.ActionGet, ""); err != nil {
 		return nil, err
@@ -78,7 +75,7 @@ func (s *Server) GetGnuPGPublicKey(ctx context.Context, q *gpgkeypkg.GnuPGPublic
 	return nil, fmt.Errorf("No such key: %s", keyID)
 }
 
-// CreateGnuPGPublicKey imports one or more public keys to the server's keyring
+// CreateGnuPGPublicKey adds one or more GPG public keys to the server's configuration
 func (s *Server) CreateGnuPGPublicKey(ctx context.Context, q *gpgkeypkg.GnuPGPublicKeyCreateRequest) (*gpgkeypkg.GnuPGPublicKeyCreateResponse, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceCertificates, rbacpolicy.ActionCreate, ""); err != nil {
 		return nil, err
@@ -102,6 +99,7 @@ func (s *Server) CreateGnuPGPublicKey(ctx context.Context, q *gpgkeypkg.GnuPGPub
 	return response, nil
 }
 
+// DeleteGnuPGPublicKey removes a single GPG public key from the server's configuration
 func (s *Server) DeleteGnuPGPublicKey(ctx context.Context, q *gpgkeypkg.GnuPGPublicKeyQuery) (*gpgkeypkg.GnuPGPublicKeyResponse, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceCertificates, rbacpolicy.ActionCreate, ""); err != nil {
 		return nil, err
@@ -114,19 +112,3 @@ func (s *Server) DeleteGnuPGPublicKey(ctx context.Context, q *gpgkeypkg.GnuPGPub
 
 	return &gpgkeypkg.GnuPGPublicKeyResponse{}, nil
 }
-
-// // Batch deletes a list of certificates that match the query
-// func (s *Server) DeleteCertificate(ctx context.Context, q *certificatepkg.RepositoryCertificateQuery) (*appsv1.RepositoryCertificateList, error) {
-// 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceCertificates, rbacpolicy.ActionDelete, ""); err != nil {
-// 		return nil, err
-// 	}
-// 	certs, err := s.db.RemoveRepoCertificates(ctx, &db.CertificateListSelector{
-// 		HostNamePattern: q.GetHostNamePattern(),
-// 		CertType:        q.GetCertType(),
-// 		CertSubType:     q.GetCertSubType(),
-// 	})
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	return certs, nil
-// }
