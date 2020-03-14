@@ -166,7 +166,7 @@ func writeKeyToFile(keyData string) (string, error) {
 
 // IsGPGEnabled returns true if GPG feature is enabled
 func IsGPGEnabled() bool {
-	if en := os.Getenv("ARGOCD_GPG_ENABLED"); en != "" && en != "false" {
+	if en := os.Getenv("ARGOCD_GPG_ENABLED"); en != "" && strings.ToLower(en) != "false" && strings.ToLower(en) != "no" {
 		return true
 	}
 	return false
