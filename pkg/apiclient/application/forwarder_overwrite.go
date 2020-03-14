@@ -1,7 +1,7 @@
 package application
 
 import (
-	"github.com/argoproj/argo-cd/util/http"
+	"github.com/argoproj/pkg/grpc/http"
 )
 
 func init() {
