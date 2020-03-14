@@ -57,17 +57,12 @@ type ArgoDB interface {
 	// ListHelmRepositories lists repositories
 	ListHelmRepositories(ctx context.Context) ([]*appv1.Repository, error)
 
-	// InitializeGPGKeyRing initializes the GPG key ring from ConfigMap
-	InitializeGPGKeyRing(ctx context.Context) (map[string]*appv1.GnuPGPublicKey, error)
-	// ListInstalledGPGPublicKeys returns all GPG public keys actually installed in the keyring
-	ListInstalledGPGPublicKeys(ctx context.Context) (map[string]*appv1.GnuPGPublicKey, error)
-	// ListConfiguredGPGPublicKeys returns all GPG public key IDs stored in the ConfigMap
+	// ListConfiguredGPGPublicKeys returns all GPG public key IDs that are configured
 	ListConfiguredGPGPublicKeys(ctx context.Context) (map[string]*appv1.GnuPGPublicKey, error)
-
+	// AddGPGPublicKey adds one ore more GPG public keys to the configuration
 	AddGPGPublicKey(ctx context.Context, keyData string) (map[string]*appv1.GnuPGPublicKey, []string, error)
+	// DeleteGPGPublicKey removes a GPG public key from the configuration
 	DeleteGPGPublicKey(ctx context.Context, keyID string) error
-	// SynchronizePGPPublicKeys syncs configured keys to keyring
-	SynchronizeGPGPublicKeys(ctx context.Context) error
 }
 
 type db struct {
