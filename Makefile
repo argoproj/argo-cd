@@ -186,14 +186,21 @@ test-e2e:
 .PHONY: start-e2e
 start-e2e: cli
 	killall goreman || true
+	killall gpg-agent || true
 	# check we can connect to Docker to start Redis
 	docker version
 	kubectl create ns argocd-e2e || true
 	kubectl config set-context --current --namespace=argocd-e2e
 	kustomize build test/manifests/base | kubectl apply -f -
+	# Create GPG keys and source directories
+	if test -d /tmp/argo-e2e/app/config/gpg; then rm -rf /tmp/argo-e2e/app/config/gpg/*; fi
+	mkdir -p /tmp/argo-e2e/app/config/gpg/{keys,source} && chmod 0700 /tmp/argo-e2e/app/config/gpg/{keys,source}
 	# set paths for locally managed ssh known hosts and tls certs data
 	ARGOCD_SSH_DATA_PATH=/tmp/argo-e2e/app/config/ssh \
 	ARGOCD_TLS_DATA_PATH=/tmp/argo-e2e/app/config/tls \
+	ARGOCD_GPG_DATA_PATH=/tmp/argo-e2e/app/config/gpg/source \
+	GNUPGHOME=/tmp/argo-e2e/app/config/gpg/keys \
+	ARGOCD_GPG_ENABLED=true \
 	ARGOCD_E2E_DISABLE_AUTH=false \
 	ARGOCD_ZJWT_FEATURE_FLAG=always \
 		goreman start
@@ -210,11 +217,16 @@ clean: clean-debug
 .PHONY: start
 start:
 	killall goreman || true
+	killall gpg-agent || true
 	# check we can connect to Docker to start Redis
 	docker version
 	kubectl create ns argocd || true
 	kubens argocd
+	if test -d /app/config/gpg; then rm -rf /app/config/gpg/*; fi
+	mkdir -p /app/config/gpg/{keys,source} && chmod 0700 /app/config/gpg/*
 	ARGOCD_ZJWT_FEATURE_FLAG=always \
+	GNUPGHOME=/app/config/gpg/keys \
+	ARGOCD_GPG_ENABLED=true \
 		goreman start
 
 .PHONY: pre-commit
