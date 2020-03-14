@@ -124,6 +124,7 @@ func (db *db) AddGPGPublicKey(ctx context.Context, keyData string) (map[string]*
 	return result, skipped, nil
 }
 
+// DeleteGPGPublicKey deletes a GPG public key from the configuration
 func (db *db) DeleteGPGPublicKey(ctx context.Context, keyID string) error {
 	keysCM, err := db.settingsMgr.GetConfigMapByName(common.ArgoCDGPGKeysConfigMapName)
 	if err != nil {

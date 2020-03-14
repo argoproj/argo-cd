@@ -598,18 +598,26 @@ func ParseGitCommitVerification(signature string) (PGPVerifyResult, error) {
 	}
 }
 
+// SyncKeyRingFromDirectory will sync the GPG keyring with files in a directory. This is a one-way sync,
+// with the configuration being the leading information.
+// Files must have a file name matching their Key ID. Keys that are found in the directory but are not
+// in the keyring will be installed to the keyring, files that exist in the keyring but do not exist in
+// the directory will be deleted.
 func SyncKeyRingFromDirectory(basePath string) ([]string, []string, error) {
 	configured := make(map[string]interface{}, 0)
 	newKeys := make([]string, 0)
 	fingerprints := make([]string, 0)
 	removedKeys := make([]string, 0)
 	st, err := os.Stat(basePath)
+
 	if err != nil {
 		return nil, nil, err
 	}
 	if !st.IsDir() {
 		return nil, nil, fmt.Errorf("%s is not a directory", basePath)
 	}
+
+	// Collect configuration, i.e. files in basePath
 	err = filepath.Walk(basePath, func(path string, fi os.FileInfo, err error) error {
 		if IsShortKeyID(fi.Name()) {
 			configured[fi.Name()] = true
@@ -617,16 +625,17 @@ func SyncKeyRingFromDirectory(basePath string) ([]string, []string, error) {
 		return nil
 	})
 
+	// Collect GPG keys installed in the key ring
 	installed := make(map[string]*appsv1.GnuPGPublicKey)
 	keys, err := GetInstalledPGPKeys(nil)
 	if err != nil {
 		return nil, nil, err
 	}
-
 	for _, v := range keys {
 		installed[v.KeyID] = v
 	}
 
+	// First, add all keys that are found in the configuration but are not yet in the keyring
 	for key, _ := range configured {
 		if _, ok := installed[key]; !ok {
 			addedKey, err := ImportPGPKeys(path.Join(basePath, key))
@@ -648,6 +657,7 @@ func SyncKeyRingFromDirectory(basePath string) ([]string, []string, error) {
 		}
 	}
 
+	// Delete all keys from the keyring that are not found in the configuration anymore.
 	for key, _ := range installed {
 		secret, err := IsSecretKey(key)
 		if err != nil {
@@ -662,10 +672,10 @@ func SyncKeyRingFromDirectory(basePath string) ([]string, []string, error) {
 		}
 	}
 
+	// Update owner trust for new keys
 	if len(fingerprints) > 0 {
 		fmt.Printf("==> %v\n", fingerprints)
 		SetPGPTrustLevelById(fingerprints, TrustUltimate)
-
 	}
 
 	return newKeys, removedKeys, err
