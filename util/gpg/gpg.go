@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -189,7 +190,7 @@ func InitializeGnuPG() error {
 		return fmt.Errorf("GNUPGHOME at '%s' has too wide permissions, must be 0700", gnuPgHome)
 	}
 
-	_, err = os.Stat(path.Join(gnuPgHome, "pubring.kbx"))
+	_, err = os.Stat(path.Join(gnuPgHome, "trustdb.gpg"))
 	if err != nil {
 		if !os.IsNotExist(err) {
 			return err
@@ -579,4 +580,76 @@ func ParseGitCommitVerification(signature string) (PGPVerifyResult, error) {
 		// No data found, return error
 		return PGPVerifyResult{}, fmt.Errorf("Could not parse output of verify-commit, no verification data found.")
 	}
+}
+
+func SyncKeyRingFromDirectory(basePath string) ([]string, []string, error) {
+	configured := make(map[string]interface{}, 0)
+	newKeys := make([]string, 0)
+	fingerprints := make([]string, 0)
+	removedKeys := make([]string, 0)
+	st, err := os.Stat(basePath)
+	if err != nil {
+		return nil, nil, err
+	}
+	if !st.IsDir() {
+		return nil, nil, fmt.Errorf("%s is not a directory", basePath)
+	}
+	err = filepath.Walk(basePath, func(path string, fi os.FileInfo, err error) error {
+		if IsShortKeyID(fi.Name()) {
+			configured[fi.Name()] = true
+		}
+		return nil
+	})
+
+	installed := make(map[string]*appsv1.GnuPGPublicKey)
+	keys, err := GetInstalledPGPKeys(nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	for _, v := range keys {
+		installed[v.KeyID] = v
+	}
+
+	for key, _ := range configured {
+		if _, ok := installed[key]; !ok {
+			addedKey, err := ImportPGPKeys(path.Join(basePath, key))
+			if err != nil {
+				return nil, nil, err
+			}
+			if len(addedKey) != 1 {
+				return nil, nil, fmt.Errorf("Invalid key found in %s", path.Join(basePath, key))
+			}
+			importedKey, err := GetInstalledPGPKeys([]string{addedKey[0].KeyID})
+			if err != nil {
+				return nil, nil, err
+			} else if len(importedKey) != 1 {
+				return nil, nil, fmt.Errorf("Could not get details of imported key ID %s", importedKey)
+			}
+			newKeys = append(newKeys, key)
+			fmt.Printf("==> FP: %v\n", importedKey[0].Fingerprint)
+			fingerprints = append(fingerprints, importedKey[0].Fingerprint)
+		}
+	}
+
+	for key, _ := range installed {
+		secret, err := IsSecretKey(key)
+		if err != nil {
+			return nil, nil, err
+		}
+		if _, ok := configured[key]; !ok && !secret {
+			err := DeletePGPKey(key)
+			if err != nil {
+				return nil, nil, err
+			}
+			removedKeys = append(removedKeys, key)
+		}
+	}
+
+	if len(fingerprints) > 0 {
+		fmt.Printf("==> %v\n", fingerprints)
+		SetPGPTrustLevelById(fingerprints, TrustUltimate)
+	}
+
+	return newKeys, removedKeys, err
 }

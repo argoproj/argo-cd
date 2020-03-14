@@ -16,13 +16,15 @@ import (
 	reposervercache "github.com/argoproj/argo-cd/reposerver/cache"
 	"github.com/argoproj/argo-cd/reposerver/metrics"
 	"github.com/argoproj/argo-cd/util/cli"
+	"github.com/argoproj/argo-cd/util/gpg"
 	"github.com/argoproj/argo-cd/util/stats"
 	"github.com/argoproj/argo-cd/util/tls"
 )
 
 const (
 	// CLIName is the name of the CLI
-	cliName = "argocd-repo-server"
+	cliName         = "argocd-repo-server"
+	gnuPGSourcePath = "/app/config/gpg/source"
 )
 
 func newCommand() *cobra.Command {
@@ -56,6 +58,19 @@ func newCommand() *cobra.Command {
 
 			http.Handle("/metrics", metricsServer.GetHandler())
 			go func() { errors.CheckError(http.ListenAndServe(fmt.Sprintf(":%d", metricsPort), nil)) }()
+
+			if gpgEnabled := os.Getenv("ARGOCD_GPG_ENABLED"); gpgEnabled != "" && gpgEnabled != "false" {
+				log.Infof("Initializing GnuPG keyring at %s", common.GetGnuPGHomePath())
+				err = gpg.InitializeGnuPG()
+				errors.CheckError(err)
+
+				log.Infof("Populating GnuPG keyring with keys from %s", gnuPGSourcePath)
+				added, removed, err := gpg.SyncKeyRingFromDirectory(gnuPGSourcePath)
+				errors.CheckError(err)
+				log.Infof("Loaded %d (and removed %d) keys from keyring", len(added), len(removed))
+
+				go func() { errors.CheckError(reposerver.StartGPGWatcher(gnuPGSourcePath)) }()
+			}
 
 			log.Infof("argocd-repo-server %s serving on %s", common.GetVersion(), listener.Addr())
 			stats.RegisterStackDumper()

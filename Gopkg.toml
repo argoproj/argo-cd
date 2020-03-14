@@ -115,3 +115,7 @@ required = [
 [[override]]
   name = "github.com/evanphx/json-patch"
   version = "v4.1.0"
+
+[[override]]
+  name = "github.com/fsnotify/fsnotify"
+  version = "v1.4.9"

@@ -222,6 +222,8 @@ func (db *db) SynchronizeGPGPublicKeys(ctx context.Context) error {
 func (db *db) InitializeGPGKeyRing(ctx context.Context) (map[string]*appsv1.GnuPGPublicKey, error) {
 	importedKeys := make(map[string]*appsv1.GnuPGPublicKey)
 
+	log.Infof("Initializing GnuPG keyring at %s", common.GetGnuPGHomePath())
+
 	err := gpg.InitializeGnuPG()
 	if err != nil {
 		return nil, err
@@ -252,7 +254,7 @@ func (db *db) InitializeGPGKeyRing(ctx context.Context) (map[string]*appsv1.GnuP
 		// This should not happen, because we already ensured singularity.
 		// Anyhow, there could be a race and someone else wrote to our temp file (very unlikely)
 		if len(keys) != 1 {
-			return nil, fmt.Errorf("Unexpected key data.")
+			return nil, fmt.Errorf("Unexpected key data: %d", len(keys))
 		}
 
 		log.Infof("Imported GnuPG key with keyID '%s' to local keyring", keys[0].KeyID)

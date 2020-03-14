@@ -2,8 +2,10 @@ package gpg
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
+	"path"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -16,6 +18,12 @@ const (
 	longKeyID  = "5DE3E0509C47EA3CF04A42D34AEE18F83AFDEB23"
 	shortKeyID = "4AEE18F83AFDEB23"
 )
+
+var syncTestSources = map[string]string{
+	"F7842A5CEAA9C0B1": "testdata/janedoe.asc",
+	"FDC79815400D88A9": "testdata/johndoe.asc",
+	"4AEE18F83AFDEB23": "testdata/github.asc",
+}
 
 // Helper function to create temporary GNUPGHOME
 func initTempDir() string {
@@ -490,4 +498,74 @@ func Test_IsSecretKey(t *testing.T) {
 		assert.False(t, secret)
 	}
 
+}
+
+func Test_SyncKeyRingFromDirectory(t *testing.T) {
+	p := initTempDir()
+	defer os.RemoveAll(p)
+
+	// First run should initialize fine
+	err := InitializeGnuPG()
+	assert.NoError(t, err)
+
+	tempDir, err := ioutil.TempDir("", "gpg-sync-test")
+	if err != nil {
+		panic(err.Error())
+	}
+	defer os.RemoveAll(tempDir)
+
+	{
+		new, removed, err := SyncKeyRingFromDirectory(tempDir)
+		assert.NoError(t, err)
+		assert.Len(t, new, 0)
+		assert.Len(t, removed, 0)
+	}
+
+	{
+		for k, v := range syncTestSources {
+			src, err := os.Open(v)
+			if err != nil {
+				panic(err.Error())
+			}
+			defer src.Close()
+			dst, err := os.Create(path.Join(tempDir, k))
+			if err != nil {
+				panic(err.Error())
+			}
+			defer dst.Close()
+			_, err = io.Copy(dst, src)
+			if err != nil {
+				panic(err.Error())
+			}
+			dst.Close()
+		}
+
+		new, removed, err := SyncKeyRingFromDirectory(tempDir)
+		assert.NoError(t, err)
+		assert.Len(t, new, 3)
+		assert.Len(t, removed, 0)
+
+		installed, err := GetInstalledPGPKeys(new)
+		assert.NoError(t, err)
+		for _, k := range installed {
+			assert.Contains(t, new, k.KeyID)
+		}
+	}
+
+	{
+		err := os.Remove(path.Join(tempDir, "4AEE18F83AFDEB23"))
+		if err != nil {
+			panic(err.Error())
+		}
+		new, removed, err := SyncKeyRingFromDirectory(tempDir)
+		assert.NoError(t, err)
+		assert.Len(t, new, 0)
+		assert.Len(t, removed, 1)
+
+		installed, err := GetInstalledPGPKeys(new)
+		assert.NoError(t, err)
+		for _, k := range installed {
+			assert.NotEqual(t, k.KeyID, removed[0])
+		}
+	}
 }

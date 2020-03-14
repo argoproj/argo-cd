@@ -242,6 +242,14 @@
   version = "v1.0.0"
 
 [[projects]]
+  digest = "1:e47ef65c4d3a37884ab29fb4b5c31e826c8fba04caf81da45607d3fba022f7d7"
+  name = "github.com/fsnotify/fsnotify"
+  packages = ["."]
+  pruneopts = ""
+  revision = "45d7d09e39ef4ac08d493309fa031790c15bfe8a"
+  version = "v1.4.9"
+
+[[projects]]
   digest = "1:b13707423743d41665fd23f0c36b2f37bb49c30e94adb813319c44188a51ba22"
   name = "github.com/ghodss/yaml"
   packages = ["."]
@@ -1937,6 +1945,7 @@
     "github.com/dgrijalva/jwt-go",
     "github.com/dustin/go-humanize",
     "github.com/evanphx/json-patch",
+    "github.com/fsnotify/fsnotify",
     "github.com/ghodss/yaml",
     "github.com/go-openapi/loads",
     "github.com/go-openapi/runtime/middleware",
