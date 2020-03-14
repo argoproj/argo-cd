@@ -1141,6 +1141,7 @@
         "parameters": [
           {
             "type": "string",
+            "description": "The GPG key ID to query for.",
             "name": "keyID",
             "in": "query"
           }
@@ -1158,6 +1159,7 @@
         "tags": [
           "GPGKeyService"
         ],
+        "summary": "Create one or more GPG public keys in the server's configuration",
         "operationId": "CreateGnuPGPublicKey",
         "parameters": [
           {
@@ -1184,6 +1186,7 @@
         "tags": [
           "GPGKeyService"
         ],
+        "summary": "Get information about specified GPG public key from the server",
         "operationId": "GetGnuPGPublicKey",
         "parameters": [
           {
@@ -1206,6 +1209,7 @@
         "tags": [
           "GPGKeyService"
         ],
+        "summary": "Delete specified GPG public key from the server's configuration",
         "operationId": "DeleteGnuPGPublicKey",
         "parameters": [
           {
@@ -2295,12 +2299,14 @@
     },
     "gpgkeyGnuPGPublicKeyCreateResponse": {
       "type": "object",
+      "title": "Response to a public key creation request",
       "properties": {
         "created": {
           "$ref": "#/definitions/v1alpha1GnuPGPublicKeyList"
         },
         "skipped": {
           "type": "array",
+          "title": "List of key IDs that haven been skipped because they already exist on the server",
           "items": {
             "type": "string"
           }
@@ -2308,7 +2314,8 @@
       }
     },
     "gpgkeyGnuPGPublicKeyResponse": {
-      "type": "object"
+      "type": "object",
+      "title": "Generic (empty) response for GPG public key CRUD requests"
     },
     "oidcClaim": {
       "type": "object",
