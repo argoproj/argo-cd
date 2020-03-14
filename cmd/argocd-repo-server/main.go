@@ -59,7 +59,7 @@ func newCommand() *cobra.Command {
 			http.Handle("/metrics", metricsServer.GetHandler())
 			go func() { errors.CheckError(http.ListenAndServe(fmt.Sprintf(":%d", metricsPort), nil)) }()
 
-			if gpgEnabled := os.Getenv("ARGOCD_GPG_ENABLED"); gpgEnabled != "" && gpgEnabled != "false" {
+			if gpg.IsGPGEnabled() {
 				log.Infof("Initializing GnuPG keyring at %s", common.GetGnuPGHomePath())
 				err = gpg.InitializeGnuPG()
 				errors.CheckError(err)
