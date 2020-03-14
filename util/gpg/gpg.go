@@ -149,6 +149,7 @@ func getGPGEnviron() []string {
 	return os.Environ()
 }
 
+// Helper function to write some data to a temp file and return its path
 func writeKeyToFile(keyData string) (string, error) {
 	f, err := ioutil.TempFile("", "gpg-public-key")
 	if err != nil {
