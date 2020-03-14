@@ -24,6 +24,7 @@ IMAGE_NAMESPACE?=
 STATIC_BUILD?=true
 # build development images
 DEV_IMAGE?=false
+ARGOCD_GPG_ENABLED?=true
 
 override LDFLAGS += \
   -X ${PACKAGE}.version=${VERSION} \
@@ -226,7 +227,7 @@ start:
 	mkdir -p /app/config/gpg/{keys,source} && chmod 0700 /app/config/gpg/*
 	ARGOCD_ZJWT_FEATURE_FLAG=always \
 	GNUPGHOME=/app/config/gpg/keys \
-	ARGOCD_GPG_ENABLED=true \
+	ARGOCD_GPG_ENABLED=$(ARGOCD_GPG_ENABLED) \
 		goreman start
 
 .PHONY: pre-commit
