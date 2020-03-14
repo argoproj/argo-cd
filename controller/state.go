@@ -318,7 +318,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	} else {
 		// Prevent applying local manifests for now when signature verification is enabled
 		// This is also enforced on API level, but as a last resort, we also enforce it here
-		if verifySignature {
+		if gpg.IsGPGEnabled() && verifySignature {
 			msg := "Cannot use local manifests when signature verification is required"
 			targetObjs = make([]*unstructured.Unstructured, 0)
 			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
@@ -519,7 +519,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	// Git has already performed the signature verification via its GPG interface, and the result is available
 	// in the manifest info received from the repository server. We now need to form our oppinion about the result
 	// and stop processing if we do not agree about the outcome.
-	if verifySignature && manifestInfo != nil {
+	if gpg.IsGPGEnabled() && verifySignature && manifestInfo != nil {
 		// We need to have some data in the verificatin result to parse, otherwise there was no signature
 		if manifestInfo.VerifyResult != "" {
 			verifyResult, err := gpg.ParseGitCommitVerification(manifestInfo.VerifyResult)
