@@ -41,7 +41,7 @@ var verificationStatusMatch = regexp.MustCompile(`^gpg: ([a-zA-Z]+) signature fr
 // This is the recipe for automatic key generation, passed to gpg --batch --generate-key
 // for initializing our keyring with a trustdb. A new private key will be generated each
 // time argocd-server starts, so it's transient and is not used for anything except for
-// creating the trustdb in a specific argocd-server and argocd-repo-server pod.
+// creating the trustdb in a specific argocd-repo-server pod.
 var batchKeyCreateRecipe = `%no-protection
 %transient-key
 Key-Type: default
