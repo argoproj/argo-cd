@@ -166,7 +166,7 @@ func unmarshalManifests(manifests []string) ([]*unstructured.Unstructured, []*un
 		if err != nil {
 			return nil, nil, err
 		}
-		if ignore.Ignore(obj) {
+		if obj == nil || ignore.Ignore(obj) {
 			continue
 		}
 		if hookutil.IsHook(obj) {
