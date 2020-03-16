@@ -1,7 +1,9 @@
 package reposerver
 
 import (
+	"fmt"
 	"path"
+	"time"
 
 	"github.com/fsnotify/fsnotify"
 	log "github.com/sirupsen/logrus"
@@ -12,6 +14,7 @@ import (
 // StartGPGWatcher watches a given directory for creation and deletion of files and syncs the GPG keyring
 func StartGPGWatcher(sourcePath string) error {
 	log.Infof("Starting GPG sync watcher on directory '%s'", sourcePath)
+	forceSync := false
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return err
@@ -27,7 +30,19 @@ func StartGPGWatcher(sourcePath string) error {
 					return
 				}
 				if event.Op&fsnotify.Create == fsnotify.Create || event.Op&fsnotify.Remove == fsnotify.Remove {
-					if gpg.IsShortKeyID(path.Base(event.Name)) {
+					// In case our watched path is re-created (i.e. during e2e tests), we need to watch again
+					if event.Name == sourcePath && event.Op&fsnotify.Remove == fsnotify.Remove {
+						log.Warnf("Re-creating watcher on %s", sourcePath)
+						time.Sleep(1 * time.Second)
+						err = watcher.Add(sourcePath)
+						if err != nil {
+							log.Errorf("Error re-creating watcher on %s: %v", sourcePath, err)
+							return
+						}
+						// Force sync because we probably missed an event
+						forceSync = true
+					}
+					if gpg.IsShortKeyID(path.Base(event.Name)) || forceSync {
 						log.Infof("Updating GPG keyring on filesystem event")
 						added, removed, err := gpg.SyncKeyRingFromDirectory(sourcePath)
 						if err != nil {
@@ -35,6 +50,7 @@ func StartGPGWatcher(sourcePath string) error {
 						} else {
 							log.Infof("Result of sync operation: keys added: %d, keys removed: %d", len(added), len(removed))
 						}
+						forceSync = false
 					}
 				}
 			case err, ok := <-watcher.Errors:
@@ -51,5 +67,5 @@ func StartGPGWatcher(sourcePath string) error {
 		return err
 	}
 	<-done
-	return nil
+	return fmt.Errorf("Abnormal termination of GPG watcher, refusing to continue.")
 }
