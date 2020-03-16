@@ -7,15 +7,11 @@ import (
 	"os"
 
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/sync/semaphore"
 
 	"github.com/argoproj/argo-cd/common"
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/gpg"
 )
-
-// We allow only only one process at a single time to modify GPG keys sync state
-var syncSemaphore = semaphore.NewWeighted(1)
 
 // Validates a single GnuPG key and returns the key's ID
 func validatePGPKey(keyData string) (*appsv1.GnuPGPublicKey, error) {

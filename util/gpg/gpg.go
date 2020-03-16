@@ -605,7 +605,7 @@ func ParseGitCommitVerification(signature string) (PGPVerifyResult, error) {
 // in the keyring will be installed to the keyring, files that exist in the keyring but do not exist in
 // the directory will be deleted.
 func SyncKeyRingFromDirectory(basePath string) ([]string, []string, error) {
-	configured := make(map[string]interface{}, 0)
+	configured := make(map[string]interface{})
 	newKeys := make([]string, 0)
 	fingerprints := make([]string, 0)
 	removedKeys := make([]string, 0)
@@ -625,6 +625,9 @@ func SyncKeyRingFromDirectory(basePath string) ([]string, []string, error) {
 		}
 		return nil
 	})
+	if err != nil {
+		return nil, nil, err
+	}
 
 	// Collect GPG keys installed in the key ring
 	installed := make(map[string]*appsv1.GnuPGPublicKey)
@@ -637,7 +640,7 @@ func SyncKeyRingFromDirectory(basePath string) ([]string, []string, error) {
 	}
 
 	// First, add all keys that are found in the configuration but are not yet in the keyring
-	for key, _ := range configured {
+	for key := range configured {
 		if _, ok := installed[key]; !ok {
 			addedKey, err := ImportPGPKeys(path.Join(basePath, key))
 			if err != nil {
@@ -653,13 +656,12 @@ func SyncKeyRingFromDirectory(basePath string) ([]string, []string, error) {
 				return nil, nil, fmt.Errorf("Could not get details of imported key ID %s", importedKey)
 			}
 			newKeys = append(newKeys, key)
-			fmt.Printf("==> FP: %v\n", importedKey[0].Fingerprint)
 			fingerprints = append(fingerprints, importedKey[0].Fingerprint)
 		}
 	}
 
 	// Delete all keys from the keyring that are not found in the configuration anymore.
-	for key, _ := range installed {
+	for key := range installed {
 		secret, err := IsSecretKey(key)
 		if err != nil {
 			return nil, nil, err
@@ -675,8 +677,7 @@ func SyncKeyRingFromDirectory(basePath string) ([]string, []string, error) {
 
 	// Update owner trust for new keys
 	if len(fingerprints) > 0 {
-		fmt.Printf("==> %v\n", fingerprints)
-		SetPGPTrustLevelById(fingerprints, TrustUltimate)
+		_ = SetPGPTrustLevelById(fingerprints, TrustUltimate)
 	}
 
 	return newKeys, removedKeys, err
