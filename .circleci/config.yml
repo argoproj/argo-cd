@@ -93,6 +93,7 @@ jobs:
       - configure_git
       - run: go get github.com/jstemmer/go-junit-report
       - restore_vendor
+      - run: gpg --version
       - run: dep ensure -v
       - run: sudo cp hack/git-verify-wrapper.sh hack/gpg-wrapper.sh /usr/local/bin
       - run: make test
