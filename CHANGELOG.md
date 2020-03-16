@@ -1,5 +1,92 @@
 # Changelog
 
+## v1.5.0 (Not released)
+
+#### Helm Integration Enhancements - Helm 3 Support And More
+
+Introduced native support Helm3 charts. For backward compatibility Helm 2 charts are still rendered using Helm 2 CLI. Argo CD inspects the
+Charts.yaml file and choose the right binary based on `apiVersion` value.
+
+Following enhancement were implemented in addition to Helm 3:
+* The `--api-version` flag is passed to the `helm template` command during manifest generation.
+* The `--set-file` flag can be specified in the application specification.
+* Fixed bug that prevents automatically update Helm chart when new version is published (#3193)
+
+#### Local accounts
+
+The local accounts had been introduced additional to `admin` user and SSO integration. The feature is useful for creating authentication
+tokens with limited permissions to automate Argo CD management. Local accounts also could be used small by teams when SSO integration is overkill.
+This enhancement also allows to disable admin user and enforce only SSO logins.
+
+#### Enhancements
+* feat: support helm3 (#2383) (#3178)
+* feat: Argo CD Service Account / Local Users #3185
+* feat: Disable Admin Login (fixes #3019) (#3179)
+* feat(ui): add docs to sync policy options present in create application panel (Close #3098) (#3203)
+* feat: add "service-account" flag to "cluster add" command (#3183) (#3184)
+* feat: Supports the validate-false option at an app level. Closes #1063 (#2542)
+* feat: add dest cluster and namespace in the Events (#3093)
+* feat: Rollback disables auto sync issue #2441 (#2591)
+* feat: allow ssh and http repository references in bitbucketserver webhook #2773 (#3036)
+* feat: Add helm --set-file support (#2751)
+* feat: Include resource group for Event's InvolvedObject.APIVersion
+* feat: Add argocd cmd for Windows #2121 (#3015)
+
+#### Bug Fixes
+
+- fix: app reconciliation fails with panic: index out of (#3233)
+- fix: upgrade argoproj/pkg version to fix leaked sensitive information in logs (#3230)
+- fix: set MaxCallSendMsgSize to MaxGRPCMessageSize for the GRPC caller (#3117)
+- fix: stop caching helm index (#3193)
+- fix: dex proxy should forward request to dex preserving the basehref (#3165)
+- fix: set default login redirect to baseHRef (#3164)
+- fix: don't double-prepend basehref to redirect URLs (fixes #3137)
+- fix: ui referring to /api/version using absolute path (#3092)
+- fix: Unhang UI on long app info items by using more sane URL match pattern (#3159)
+- fix: Allow multiple hostnames per SSH known hosts entry and also allow IPv6 (#2814) (#3074)
+- fix: argocd-util backup produced truncated backups. import app status (#3096)
+- fix: upgrade redis-ha chart and enable haproxy (#3147)
+- fix: make dex server deployment init container resilient to restarts (#3136)
+- fix: reduct secret values of manifests stored in git (#3088)
+- fix: labels not being deleted via UI (#3081)
+- fix: HTTP|HTTPS|NO_PROXY env variable reading #3055 (#3063)
+- fix: Correct usage text for repo add command regarding insecure repos (#3068)
+- fix: Ensure SSH private key is written out with a final newline character (#2890) (#3064)
+- fix: Handle SSH URLs in 'git@server:org/repo' notation correctly (#3062)
+- fix sso condition when several sso connectors has been configured (#3057)
+- fix: Fix bug where the same pointer is used. (#3059)
+- fix: Opening in new tab bad key binding on Linux (#3020)
+- fix: K8s secrets for repository credential templates are not deleted when credential template is deleted (#3028)
+- fix: SSH credential template not working #3016
+- fix: Unable to parse kubectl pre-release version strings (#3034)
+- fix: Jsonnet TLA parameters of same type are overwritten (#3022)
+- fix: Replace aws-iam-authenticator to support IRSA (#3010)
+- fix: Hide bindPW in dex config (#3025)
+- fix: SSH repo URL with a user different from `git` is not matched correctly when resolving a webhook (#2988)
+- fix: JWT invalid => Password for superuser has changed since token issued (#2108)
+
+#### Contributors
+* alexandrfox
+* alexec
+* alexmt
+* bergur88
+* CBytelabs
+* dbeal-wiser 
+* dnascimento
+* Elgarni
+* eSamS
+* gpaul
+* jannfis
+* jdmulloy
+* machgo
+* masa213f
+* matthyx
+* rayanebel
+* shelby-moore
+* tomcruise81
+* wecger
+* zeph
+
 ## v1.4.2 (2020-01-24)
 
 - fix: correctly replace cache in namespace isolation mode (#3023)
