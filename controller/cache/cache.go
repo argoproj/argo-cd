@@ -70,7 +70,7 @@ func NewLiveStateCache(
 		appInformer:       appInformer,
 		db:                db,
 		clusters:          make(map[string]*clusterInfo),
-		lock:              &sync.Mutex{},
+		lock:              &sync.RWMutex{},
 		onObjectUpdated:   onObjectUpdated,
 		kubectl:           kubectl,
 		settingsMgr:       settingsMgr,
@@ -82,7 +82,7 @@ func NewLiveStateCache(
 type liveStateCache struct {
 	db                db.ArgoDB
 	clusters          map[string]*clusterInfo
-	lock              *sync.Mutex
+	lock              *sync.RWMutex
 	appInformer       cache.SharedIndexInformer
 	onObjectUpdated   ObjectUpdatedHandler
 	kubectl           kube.Kubectl
@@ -109,31 +109,35 @@ func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
 }
 
 func (c *liveStateCache) getCluster(server string) (*clusterInfo, error) {
-	c.lock.Lock()
-	defer c.lock.Unlock()
+	c.lock.RLock()
 	info, ok := c.clusters[server]
+	c.lock.RUnlock()
 	if !ok {
+		logCtx := log.WithField("server", server)
+		logCtx.Info("initializing cluster")
 		cluster, err := c.db.GetCluster(context.Background(), server)
 		if err != nil {
 			return nil, err
 		}
 		info = &clusterInfo{
 			apisMeta:         make(map[schema.GroupKind]*apiMeta),
-			lock:             &sync.Mutex{},
+			lock:             &sync.RWMutex{},
 			nodes:            make(map[kube.ResourceKey]*node),
 			nsIndex:          make(map[string]map[kube.ResourceKey]*node),
 			onObjectUpdated:  c.onObjectUpdated,
 			kubectl:          c.kubectl,
 			cluster:          cluster,
 			syncTime:         nil,
-			log:              log.WithField("server", cluster.Server),
+			log:              logCtx,
 			cacheSettingsSrc: c.getCacheSettings,
 			onEventReceived: func(event watch.EventType, un *unstructured.Unstructured) {
-				c.metricsServer.IncClusterEventsCount(cluster.Server)
+				gvk := un.GroupVersionKind()
+				c.metricsServer.IncClusterEventsCount(cluster.Server, gvk.Group, gvk.Kind)
 			},
 		}
-
+		c.lock.Lock()
 		c.clusters[cluster.Server] = info
+		c.lock.Unlock()
 	}
 	return info, nil
 }
@@ -152,8 +156,8 @@ func (c *liveStateCache) getSyncedCluster(server string) (*clusterInfo, error) {
 
 func (c *liveStateCache) Invalidate() {
 	log.Info("invalidating live state cache")
-	c.lock.Lock()
-	defer c.lock.Unlock()
+	c.lock.RLock()
+	defer c.lock.RLock()
 	for _, clust := range c.clusters {
 		clust.invalidate()
 	}
@@ -210,8 +214,6 @@ func isClusterHasApps(apps []interface{}, cluster *appv1.Cluster) bool {
 }
 
 func (c *liveStateCache) getCacheSettings() *cacheSettings {
-	c.cacheSettingsLock.Lock()
-	defer c.cacheSettingsLock.Unlock()
 	return c.cacheSettings
 }
 
@@ -261,8 +263,9 @@ func (c *liveStateCache) Run(ctx context.Context) error {
 	util.RetryUntilSucceed(func() error {
 		clusterEventCallback := func(event *db.ClusterEvent) {
 			c.lock.Lock()
-			defer c.lock.Unlock()
-			if cluster, ok := c.clusters[event.Cluster.Server]; ok {
+			cluster, ok := c.clusters[event.Cluster.Server]
+			if ok {
+				defer c.lock.Unlock()
 				if event.Type == watch.Deleted {
 					cluster.invalidate()
 					delete(c.clusters, event.Cluster.Server)
@@ -270,11 +273,14 @@ func (c *liveStateCache) Run(ctx context.Context) error {
 					cluster.cluster = event.Cluster
 					cluster.invalidate()
 				}
-			} else if event.Type == watch.Added && isClusterHasApps(c.appInformer.GetStore().List(), event.Cluster) {
-				go func() {
-					// warm up cache for cluster with apps
-					_, _ = c.getSyncedCluster(event.Cluster.Server)
-				}()
+			} else {
+				c.lock.Unlock()
+				if event.Type == watch.Added && isClusterHasApps(c.appInformer.GetStore().List(), event.Cluster) {
+					go func() {
+						// warm up cache for cluster with apps
+						_, _ = c.getSyncedCluster(event.Cluster.Server)
+					}()
+				}
 			}
 		}
 
@@ -287,8 +293,8 @@ func (c *liveStateCache) Run(ctx context.Context) error {
 }
 
 func (c *liveStateCache) GetClustersInfo() []metrics.ClusterInfo {
-	c.lock.Lock()
-	defer c.lock.Unlock()
+	c.lock.RLock()
+	defer c.lock.RUnlock()
 	res := make([]metrics.ClusterInfo, 0)
 	for _, info := range c.clusters {
 		res = append(res, info.getClusterInfo())

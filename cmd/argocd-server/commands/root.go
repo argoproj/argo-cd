@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/argoproj/pkg/stats"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -15,7 +16,6 @@ import (
 	"github.com/argoproj/argo-cd/server"
 	servercache "github.com/argoproj/argo-cd/server/cache"
 	"github.com/argoproj/argo-cd/util/cli"
-	"github.com/argoproj/argo-cd/util/stats"
 	"github.com/argoproj/argo-cd/util/tls"
 )
 

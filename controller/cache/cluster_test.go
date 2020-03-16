@@ -153,7 +153,7 @@ func newCluster(objs ...*unstructured.Unstructured) *clusterInfo {
 
 func newClusterExt(kubectl kube.Kubectl) *clusterInfo {
 	return &clusterInfo{
-		lock:            &sync.Mutex{},
+		lock:            &sync.RWMutex{},
 		nodes:           make(map[kube.ResourceKey]*node),
 		onObjectUpdated: func(managedByApp map[string]bool, reference corev1.ObjectReference) {},
 		kubectl:         kubectl,
