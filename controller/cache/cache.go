@@ -131,7 +131,8 @@ func (c *liveStateCache) getCluster(server string) (*clusterInfo, error) {
 			log:              logCtx,
 			cacheSettingsSrc: c.getCacheSettings,
 			onEventReceived: func(event watch.EventType, un *unstructured.Unstructured) {
-				c.metricsServer.IncClusterEventsCount(cluster.Server)
+				gvk := un.GroupVersionKind()
+				c.metricsServer.IncClusterEventsCount(cluster.Server, gvk.Group, gvk.Kind)
 			},
 		}
 		c.lock.Lock()
@@ -264,6 +265,7 @@ func (c *liveStateCache) Run(ctx context.Context) error {
 			c.lock.Lock()
 			cluster, ok := c.clusters[event.Cluster.Server]
 			if ok {
+				defer c.lock.Unlock()
 				if event.Type == watch.Deleted {
 					cluster.invalidate()
 					delete(c.clusters, event.Cluster.Server)
@@ -271,7 +273,6 @@ func (c *liveStateCache) Run(ctx context.Context) error {
 					cluster.cluster = event.Cluster
 					cluster.invalidate()
 				}
-				c.lock.Unlock()
 			} else {
 				c.lock.Unlock()
 				if event.Type == watch.Added && isClusterHasApps(c.appInformer.GetStore().List(), event.Cluster) {

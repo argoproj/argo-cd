@@ -7,6 +7,7 @@ package settings
 var coreExcludedResources = []FilteredResource{
 	{APIGroups: []string{"events.k8s.io", "metrics.k8s.io"}},
 	{APIGroups: []string{""}, Kinds: []string{"Event", "Node"}},
+	{APIGroups: []string{"coordination.k8s.io"}, Kinds: []string{"Lease"}},
 }
 
 type ResourcesFilter struct {

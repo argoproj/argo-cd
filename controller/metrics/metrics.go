@@ -119,7 +119,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, health
 	clusterEventsCounter := prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "argocd_cluster_events_total",
 		Help: "Number of processes k8s resource events.",
-	}, descClusterDefaultLabels)
+	}, append(descClusterDefaultLabels, "group", "kind"))
 	registry.MustRegister(clusterEventsCounter)
 
 	return &MetricsServer{
@@ -164,8 +164,8 @@ func (m *MetricsServer) DecKubectlExecPending(command string) {
 }
 
 // IncClusterEventsCount increments the number of cluster events
-func (m *MetricsServer) IncClusterEventsCount(server string) {
-	m.clusterEventsCounter.WithLabelValues(server).Inc()
+func (m *MetricsServer) IncClusterEventsCount(server, group, kind string) {
+	m.clusterEventsCounter.WithLabelValues(server, group, kind).Inc()
 }
 
 // IncKubernetesRequest increments the kubernetes requests counter for an application
