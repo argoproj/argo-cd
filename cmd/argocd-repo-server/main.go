@@ -77,7 +77,7 @@ func newCommand() *cobra.Command {
 				errors.CheckError(err)
 				log.Infof("Loaded %d (and removed %d) keys from keyring", len(added), len(removed))
 
-				go func() { errors.CheckError(reposerver.StartGPGWatcher(gnuPGSourcePath)) }()
+				go func() { errors.CheckError(reposerver.StartGPGWatcher(getGnuPGSourcePath())) }()
 			}
 
 			log.Infof("argocd-repo-server %s serving on %s", common.GetVersion(), listener.Addr())
