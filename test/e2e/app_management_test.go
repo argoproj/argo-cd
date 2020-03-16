@@ -43,6 +43,52 @@ const (
 	guestbookPathLocal = "./testdata/guestbook_local"
 )
 
+func TestSyncToUnsignedCommit(t *testing.T) {
+	Given(t).
+		Project("gpg").
+		Path(guestbookPath).
+		When().
+		IgnoreErrors().
+		Create().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationError)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(HealthIs(HealthStatusMissing))
+}
+
+func TestSyncToSignedCommitWithoutKnownKey(t *testing.T) {
+	Given(t).
+		Project("gpg").
+		Path(guestbookPath).
+		When().
+		AddSignedFile("test.yaml", "null").
+		IgnoreErrors().
+		Create().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationError)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(HealthIs(HealthStatusMissing))
+}
+
+func TestSyncToSignedCommitKeyWithKnownKey(t *testing.T) {
+	Given(t).
+		Project("gpg").
+		Path(guestbookPath).
+		GPGPublicKeyAdded().
+		Sleep(2).
+		When().
+		AddSignedFile("test.yaml", "null").
+		IgnoreErrors().
+		Create().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(HealthStatusHealthy))
+}
+
 func TestAppCreation(t *testing.T) {
 	ctx := Given(t)
 

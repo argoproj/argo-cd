@@ -8,6 +8,7 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/test/e2e/fixture"
 	"github.com/argoproj/argo-cd/test/e2e/fixture/certs"
+	"github.com/argoproj/argo-cd/test/e2e/fixture/gpgkeys"
 	"github.com/argoproj/argo-cd/test/e2e/fixture/repos"
 	"github.com/argoproj/argo-cd/util/settings"
 )
@@ -40,6 +41,16 @@ type Context struct {
 func Given(t *testing.T) *Context {
 	fixture.EnsureCleanState(t)
 	return &Context{t: t, destServer: KubernetesInternalAPIServerAddr, repoURLType: fixture.RepoURLTypeFile, name: fixture.Name(), timeout: 10, project: "default", prune: true}
+}
+
+func (c *Context) GPGPublicKeyAdded() *Context {
+	gpgkeys.AddGPGPublicKey()
+	return c
+}
+
+func (c *Context) GPGPublicKeyRemoved() *Context {
+	gpgkeys.DeleteGPGPublicKey()
+	return c
 }
 
 func (c *Context) CustomCACertAdded() *Context {
@@ -215,6 +226,11 @@ func (c *Context) When() *Actions {
 	// in case any settings have changed, pause for 1s, not great, but fine
 	time.Sleep(1 * time.Second)
 	return &Actions{context: c}
+}
+
+func (c *Context) Sleep(seconds time.Duration) *Context {
+	time.Sleep(seconds * time.Second)
+	return c
 }
 
 func (c *Context) Prune(prune bool) *Context {

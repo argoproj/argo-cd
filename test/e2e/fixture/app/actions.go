@@ -52,6 +52,12 @@ func (a *Actions) AddFile(fileName, fileContents string) *Actions {
 	return a
 }
 
+func (a *Actions) AddSignedFile(fileName, fileContents string) *Actions {
+	a.context.t.Helper()
+	fixture.AddSignedFile(a.context.path+"/"+fileName, fileContents)
+	return a
+}
+
 func (a *Actions) CreateFromFile(handler func(app *Application)) *Actions {
 	a.context.t.Helper()
 	app := &Application{
