@@ -94,6 +94,8 @@ jobs:
       - run: go get github.com/jstemmer/go-junit-report
       - restore_vendor
       - run: dep ensure -v
+      - run: cp hack/git-verify-wrapper.sh /usr/local/bin
+      - run: cp hack/gpg-wrapper /usr/local/bin
       - run: make test
       - save_vendor
       - save_go_cache
@@ -113,6 +115,9 @@ jobs:
       ARGOCD_FAKE_IN_CLUSTER: "true"
       ARGOCD_SSH_DATA_PATH: "/tmp/argo-e2e/app/config/ssh"
       ARGOCD_TLS_DATA_PATH: "/tmp/argo-e2e/app/config/tls"
+      ARGOCD_GPG_DATA_PATH: "/tmp/argo-e2e/app/config/gpg"
+      GNUPGHOME: "/tmp/argo-e2e/app/config/gpg/keys"
+      ARGOCD_GPG_ENABLED: "yes"
     steps:
       - run:
           name: Install and start K3S v0.5.0
@@ -153,6 +158,8 @@ jobs:
       - run:
           name: Apply manifests
           command: kustomize build test/manifests/base | kubectl apply -f -
+      - run: cp hack/git-verify-wrapper.sh /usr/local/bin
+      - run: cp hack/gpg-wrapper /usr/local/bin
       - run:
           name: Start Redis
           command: docker run --rm --name argocd-redis -i -p 6379:6379 redis:5.0.3-alpine --save "" --appendonly no
