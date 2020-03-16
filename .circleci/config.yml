@@ -93,6 +93,14 @@ jobs:
       - configure_git
       - run: go get github.com/jstemmer/go-junit-report
       - restore_vendor
+      - run: sudo apt-get install gnupg2 -y
+      - run: gpg2 --version
+      - run:
+          name: Link gpg2 to gpg
+          command: |
+            set -xo pipefail
+            sudo rm /usr/bin/gpg
+            sudo ln -s /usr/bin/gpg2 /usr/bin/gpg
       - run: gpg --version
       - run: dep ensure -v
       - run: sudo cp hack/git-verify-wrapper.sh hack/gpg-wrapper.sh /usr/local/bin
