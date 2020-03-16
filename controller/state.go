@@ -31,6 +31,7 @@ import (
 	"github.com/argoproj/argo-cd/util/resource"
 	"github.com/argoproj/argo-cd/util/resource/ignore"
 	"github.com/argoproj/argo-cd/util/settings"
+	"github.com/argoproj/argo-cd/util/stats"
 )
 
 type managedResource struct {
@@ -71,6 +72,8 @@ type comparisonResult struct {
 	hooks            []*unstructured.Unstructured
 	diffNormalizer   diff.Normalizer
 	appSourceType    v1alpha1.ApplicationSourceType
+	// timings maps phases of comparison to the duration it took to complete (for statistical purposes)
+	timings map[string]time.Duration
 }
 
 func (cr *comparisonResult) targetObjs() []*unstructured.Unstructured {
@@ -97,14 +100,17 @@ type appStateManager struct {
 }
 
 func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1.ApplicationSource, appLabelKey, revision string, noCache bool) ([]*unstructured.Unstructured, []*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
+	ts := stats.NewTimingStats()
 	helmRepos, err := m.db.ListHelmRepositories(context.Background())
 	if err != nil {
 		return nil, nil, nil, err
 	}
+	ts.AddCheckpoint("helm_ms")
 	repo, err := m.db.GetRepository(context.Background(), source.RepoURL)
 	if err != nil {
 		return nil, nil, nil, err
 	}
+	ts.AddCheckpoint("repo_ms")
 	conn, repoClient, err := m.repoClientset.NewRepoServerClient()
 	if err != nil {
 		return nil, nil, nil, err
@@ -119,7 +125,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 	if err != nil {
 		return nil, nil, nil, err
 	}
-
+	ts.AddCheckpoint("plugins_ms")
 	tools := make([]*appv1.ConfigManagementPlugin, len(plugins))
 	for i := range plugins {
 		tools[i] = &plugins[i]
@@ -129,10 +135,12 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 	if err != nil {
 		return nil, nil, nil, err
 	}
+	ts.AddCheckpoint("build_options_ms")
 	serverVersion, err := m.liveStateCache.GetServerVersion(app.Spec.Destination.Server)
 	if err != nil {
 		return nil, nil, nil, err
 	}
+	ts.AddCheckpoint("version_ms")
 	manifestInfo, err := repoClient.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
 		Repo:              repo,
 		Repos:             helmRepos,
@@ -151,10 +159,18 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 	if err != nil {
 		return nil, nil, nil, err
 	}
+	ts.AddCheckpoint("manifests_ms")
 	targetObjs, hooks, err := unmarshalManifests(manifestInfo.Manifests)
 	if err != nil {
 		return nil, nil, nil, err
 	}
+	ts.AddCheckpoint("unmarshal_ms")
+	logCtx := log.WithField("application", app.Name)
+	for k, v := range ts.Timings() {
+		logCtx = logCtx.WithField(k, v.Milliseconds())
+	}
+	logCtx = logCtx.WithField("time_ms", time.Since(ts.StartTime).Milliseconds())
+	logCtx.Info("getRepoObjs stats")
 	return targetObjs, hooks, manifestInfo, nil
 }
 
@@ -253,27 +269,33 @@ func dedupLiveResources(targetObjs []*unstructured.Unstructured, liveObjsByKey m
 	}
 }
 
-func (m *appStateManager) getComparisonSettings(app *appv1.Application) (string, map[string]v1alpha1.ResourceOverride, diff.Normalizer, error) {
+func (m *appStateManager) getComparisonSettings(app *appv1.Application) (string, map[string]v1alpha1.ResourceOverride, diff.Normalizer, *settings.ResourcesFilter, error) {
 	resourceOverrides, err := m.settingsMgr.GetResourceOverrides()
 	if err != nil {
-		return "", nil, nil, err
+		return "", nil, nil, nil, err
 	}
 	appLabelKey, err := m.settingsMgr.GetAppInstanceLabelKey()
 	if err != nil {
-		return "", nil, nil, err
+		return "", nil, nil, nil, err
 	}
 	diffNormalizer, err := argo.NewDiffNormalizer(app.Spec.IgnoreDifferences, resourceOverrides)
 	if err != nil {
-		return "", nil, nil, err
+		return "", nil, nil, nil, err
 	}
-	return appLabelKey, resourceOverrides, diffNormalizer, nil
+	resFilter, err := m.settingsMgr.GetResourcesFilter()
+	if err != nil {
+		return "", nil, nil, nil, err
+	}
+	return appLabelKey, resourceOverrides, diffNormalizer, resFilter, nil
 }
 
 // CompareAppState compares application git state to the live app state, using the specified
 // revision and supplied source. If revision or overrides are empty, then compares against
 // revision and overrides in the app spec.
 func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *appv1.AppProject, revision string, source v1alpha1.ApplicationSource, noCache bool, localManifests []string) *comparisonResult {
-	appLabelKey, resourceOverrides, diffNormalizer, err := m.getComparisonSettings(app)
+	ts := stats.NewTimingStats()
+	appLabelKey, resourceOverrides, diffNormalizer, resFilter, err := m.getComparisonSettings(app)
+	ts.AddCheckpoint("settings_ms")
 
 	// return unknown comparison result if basic comparison settings cannot be loaded
 	if err != nil {
@@ -314,32 +336,27 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		}
 		manifestInfo = nil
 	}
+	ts.AddCheckpoint("git_ms")
 
 	targetObjs, dedupConditions, err := DeduplicateTargetObjects(app.Spec.Destination.Server, app.Spec.Destination.Namespace, targetObjs, m.liveStateCache)
 	if err != nil {
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
 	}
 	conditions = append(conditions, dedupConditions...)
-
-	resFilter, err := m.settingsMgr.GetResourcesFilter()
-	if err != nil {
-		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
-	} else {
-		for i := len(targetObjs) - 1; i >= 0; i-- {
-			targetObj := targetObjs[i]
-			gvk := targetObj.GroupVersionKind()
-			if resFilter.IsExcludedResource(gvk.Group, gvk.Kind, app.Spec.Destination.Server) {
-				targetObjs = append(targetObjs[:i], targetObjs[i+1:]...)
-				conditions = append(conditions, v1alpha1.ApplicationCondition{
-					Type:               v1alpha1.ApplicationConditionExcludedResourceWarning,
-					Message:            fmt.Sprintf("Resource %s/%s %s is excluded in the settings", gvk.Group, gvk.Kind, targetObj.GetName()),
-					LastTransitionTime: &now,
-				})
-			}
+	for i := len(targetObjs) - 1; i >= 0; i-- {
+		targetObj := targetObjs[i]
+		gvk := targetObj.GroupVersionKind()
+		if resFilter.IsExcludedResource(gvk.Group, gvk.Kind, app.Spec.Destination.Server) {
+			targetObjs = append(targetObjs[:i], targetObjs[i+1:]...)
+			conditions = append(conditions, v1alpha1.ApplicationCondition{
+				Type:               v1alpha1.ApplicationConditionExcludedResourceWarning,
+				Message:            fmt.Sprintf("Resource %s/%s %s is excluded in the settings", gvk.Group, gvk.Kind, targetObj.GetName()),
+				LastTransitionTime: &now,
+			})
 		}
 	}
+	ts.AddCheckpoint("dedup_ms")
 
-	logCtx.Debugf("Generated config manifests")
 	liveObjByKey, err := m.liveStateCache.GetManagedLiveObjs(app, targetObjs)
 	if err != nil {
 		liveObjByKey = make(map[kubeutil.ResourceKey]*unstructured.Unstructured)
@@ -354,7 +371,6 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		}
 	}
 
-	logCtx.Debugf("Retrieved lived manifests")
 	for _, liveObj := range liveObjByKey {
 		if liveObj != nil {
 			appInstanceName := kubeutil.GetAppInstanceLabel(liveObj, appLabelKey)
@@ -383,7 +399,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 			managedLiveObj[i] = nil
 		}
 	}
-	logCtx.Debugf("built managed objects list")
+	ts.AddCheckpoint("live_ms")
+
 	// Everything remaining in liveObjByKey are "extra" resources that aren't tracked in git.
 	// The following adds all the extras to the managedLiveObj list and backfills the targetObj
 	// list with nils, so that the lists are of equal lengths for comparison purposes.
@@ -399,6 +416,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		failedToLoadObjs = true
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
 	}
+	ts.AddCheckpoint("diff_ms")
 
 	syncCode := v1alpha1.SyncStatusCodeSynced
 	managedResources := make([]managedResource, len(targetObjs))
@@ -488,6 +506,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	if manifestInfo != nil {
 		syncStatus.Revision = manifestInfo.Revision
 	}
+	ts.AddCheckpoint("sync_ms")
 
 	healthStatus, err := health.SetApplicationHealth(resourceSummaries, GetLiveObjs(managedResources), resourceOverrides, func(obj *unstructured.Unstructured) bool {
 		return !isSelfReferencedApp(app, kubeutil.GetObjectRef(obj))
@@ -514,6 +533,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		appv1.ApplicationConditionRepeatedResourceWarning: true,
 		appv1.ApplicationConditionExcludedResourceWarning: true,
 	})
+	ts.AddCheckpoint("health_ms")
+	compRes.timings = ts.Timings()
 	return &compRes
 }
 

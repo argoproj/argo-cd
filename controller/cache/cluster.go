@@ -9,19 +9,16 @@ import (
 	"sync"
 	"time"
 
-	"k8s.io/client-go/dynamic"
-
-	"k8s.io/apimachinery/pkg/types"
-
-	"github.com/argoproj/argo-cd/controller/metrics"
-
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/dynamic"
 
+	"github.com/argoproj/argo-cd/controller/metrics"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/health"
@@ -45,8 +42,11 @@ type clusterInfo struct {
 	syncError     error
 	apisMeta      map[schema.GroupKind]*apiMeta
 	serverVersion string
+	// namespacedResources is a simple map which indicates a groupKind is namespaced
+	namespacedResources map[schema.GroupKind]bool
 
-	lock    *sync.Mutex
+	// lock is a rw lock which protects the fields of clusterInfo
+	lock    *sync.RWMutex
 	nodes   map[kube.ResourceKey]*node
 	nsIndex map[string]map[kube.ResourceKey]*node
 
@@ -176,16 +176,19 @@ func (c *clusterInfo) invalidate() {
 		c.apisMeta[i].watchCancel()
 	}
 	c.apisMeta = nil
+	c.namespacedResources = nil
+	c.log.Warnf("invalidated cluster")
 }
 
 func (c *clusterInfo) synced() bool {
-	if c.syncTime == nil {
+	syncTime := c.syncTime
+	if syncTime == nil {
 		return false
 	}
 	if c.syncError != nil {
-		return time.Now().Before(c.syncTime.Add(clusterRetryTimeout))
+		return time.Now().Before(syncTime.Add(clusterRetryTimeout))
 	}
-	return time.Now().Before(c.syncTime.Add(clusterSyncTimeout))
+	return time.Now().Before(syncTime.Add(clusterSyncTimeout))
 }
 
 func (c *clusterInfo) stopWatching(gk schema.GroupKind, ns string) {
@@ -195,7 +198,7 @@ func (c *clusterInfo) stopWatching(gk schema.GroupKind, ns string) {
 		info.watchCancel()
 		delete(c.apisMeta, gk)
 		c.replaceResourceCache(gk, "", []unstructured.Unstructured{}, ns)
-		log.Warnf("Stop watching %s not found on %s.", gk, c.cluster.Server)
+		c.log.Warnf("Stop watching: %s not found", gk)
 	}
 }
 
@@ -211,9 +214,10 @@ func (c *clusterInfo) startMissingWatches() error {
 	if err != nil {
 		return err
 	}
-
+	namespacedResources := make(map[schema.GroupKind]bool)
 	for i := range apis {
 		api := apis[i]
+		namespacedResources[api.GroupKind] = api.Meta.Namespaced
 		if _, ok := c.apisMeta[api.GroupKind]; !ok {
 			ctx, cancel := context.WithCancel(context.Background())
 			info := &apiMeta{namespaced: api.Meta.Namespaced, watchCancel: cancel}
@@ -228,10 +232,11 @@ func (c *clusterInfo) startMissingWatches() error {
 			}
 		}
 	}
+	c.namespacedResources = namespacedResources
 	return nil
 }
 
-func runSynced(lock *sync.Mutex, action func() error) error {
+func runSynced(lock sync.Locker, action func() error) error {
 	lock.Lock()
 	defer lock.Unlock()
 	return action()
@@ -265,15 +270,10 @@ func (c *clusterInfo) watchEvents(ctx context.Context, api kube.APIResourceInfo,
 			c.stopWatching(api.GroupKind, ns)
 			return nil
 		}
-
-		err = runSynced(c.lock, func() error {
-			if errors.IsGone(err) {
-				info.resourceVersion = ""
-				log.Warnf("Resource version of %s on %s is too old.", api.GroupKind, c.cluster.Server)
-			}
-			return err
-		})
-
+		if errors.IsGone(err) {
+			info.resourceVersion = ""
+			c.log.Warnf("Resource version of %s is too old", api.GroupKind)
+		}
 		if err != nil {
 			return err
 		}
@@ -304,7 +304,7 @@ func (c *clusterInfo) watchEvents(ctx context.Context, api kube.APIResourceInfo,
 						}
 					}
 					if err != nil {
-						log.Warnf("Failed to start missing watch: %v", err)
+						c.log.Warnf("Failed to start missing watch: %v", err)
 					}
 				} else {
 					return fmt.Errorf("Watch %s on %s has closed", api.GroupKind, c.cluster.Server)
@@ -388,12 +388,17 @@ func (c *clusterInfo) sync() (err error) {
 }
 
 func (c *clusterInfo) ensureSynced() error {
-	c.lock.Lock()
-	defer c.lock.Unlock()
+	// first check if cluster is synced *without lock*
 	if c.synced() {
 		return c.syncError
 	}
-
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	// before doing any work, check once again now that we have the lock, to see if it got
+	// synced between the first check and now
+	if c.synced() {
+		return c.syncError
+	}
 	err := c.sync()
 	syncTime := time.Now()
 	c.syncTime = &syncTime
@@ -402,8 +407,8 @@ func (c *clusterInfo) ensureSynced() error {
 }
 
 func (c *clusterInfo) getNamespaceTopLevelResources(namespace string) map[kube.ResourceKey]appv1.ResourceNode {
-	c.lock.Lock()
-	defer c.lock.Unlock()
+	c.lock.RLock()
+	defer c.lock.RUnlock()
 	nodes := make(map[kube.ResourceKey]appv1.ResourceNode)
 	for _, node := range c.nsIndex[namespace] {
 		if len(node.ownerRefs) == 0 {
@@ -444,15 +449,17 @@ func (c *clusterInfo) iterateHierarchy(key kube.ResourceKey, action func(child a
 }
 
 func (c *clusterInfo) isNamespaced(gk schema.GroupKind) bool {
-	if api, ok := c.apisMeta[gk]; ok && !api.namespaced {
-		return false
+	// this is safe to access without a lock since we always replace the entire map instead of mutating keys
+	if isNamespaced, ok := c.namespacedResources[gk]; ok {
+		return isNamespaced
 	}
+	log.Warnf("group/kind %s scope is unknown (known objects: %d). assuming namespaced object", gk, len(c.namespacedResources))
 	return true
 }
 
 func (c *clusterInfo) getManagedLiveObjs(a *appv1.Application, targetObjs []*unstructured.Unstructured, metricsServer *metrics.MetricsServer) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
-	c.lock.Lock()
-	defer c.lock.Unlock()
+	c.lock.RLock()
+	defer c.lock.RUnlock()
 
 	managedObjs := make(map[kube.ResourceKey]*unstructured.Unstructured)
 	// iterate all objects in live state cache to find ones associated with app
@@ -462,7 +469,7 @@ func (c *clusterInfo) getManagedLiveObjs(a *appv1.Application, targetObjs []*uns
 		}
 	}
 	config := metrics.AddMetricsTransportWrapper(metricsServer, a, c.cluster.RESTConfig())
-	// iterate target objects and identify ones that already exist in the cluster,\
+	// iterate target objects and identify ones that already exist in the cluster,
 	// but are simply missing our label
 	lock := &sync.Mutex{}
 	err := util.RunAllAsync(len(targetObjs), func(i int) error {
@@ -586,8 +593,8 @@ var (
 )
 
 func (c *clusterInfo) getClusterInfo() metrics.ClusterInfo {
-	c.lock.Lock()
-	defer c.lock.Unlock()
+	c.lock.RLock()
+	defer c.lock.RUnlock()
 	return metrics.ClusterInfo{
 		APIsCount:         len(c.apisMeta),
 		K8SVersion:        c.serverVersion,

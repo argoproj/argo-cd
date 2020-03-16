@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/argoproj/pkg/stats"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
@@ -25,7 +26,6 @@ import (
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/settings"
-	"github.com/argoproj/argo-cd/util/stats"
 )
 
 const (

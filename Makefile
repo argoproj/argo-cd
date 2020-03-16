@@ -181,7 +181,7 @@ test:
 .PHONY: test-e2e
 test-e2e:
 	# NO_PROXY ensures all tests don't go out through a proxy if one is configured on the test system
-	NO_PROXY=* ./hack/test.sh -timeout 15m ./test/e2e
+	NO_PROXY=* ./hack/test.sh -timeout 15m -v ./test/e2e
 
 .PHONY: start-e2e
 start-e2e: cli
