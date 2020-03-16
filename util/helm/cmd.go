@@ -172,6 +172,7 @@ type TemplateOpts struct {
 	Name        string
 	Namespace   string
 	KubeVersion string
+	APIVersions []string
 	Set         map[string]string
 	SetString   map[string]string
 	SetFile     map[string]string
@@ -206,6 +207,9 @@ func (c *Cmd) template(chartPath string, opts *TemplateOpts) (string, error) {
 	}
 	for _, val := range opts.Values {
 		args = append(args, "--values", val)
+	}
+	for _, v := range opts.APIVersions {
+		args = append(args, "--api-versions", v)
 	}
 
 	return c.run(args...)

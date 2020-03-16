@@ -7,6 +7,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
@@ -28,7 +29,7 @@ type cacheSettings struct {
 
 type LiveStateCache interface {
 	// Returns k8s server version
-	GetServerVersion(serverURL string) (string, error)
+	GetVersionsInfo(serverURL string) (string, []metav1.APIGroup, error)
 	// Returns true of given group kind is a namespaced resource
 	IsNamespaced(server string, gk schema.GroupKind) (bool, error)
 	// Executes give callback against resource specified by the key and all its children
@@ -196,12 +197,13 @@ func (c *liveStateCache) GetManagedLiveObjs(a *appv1.Application, targetObjs []*
 	}
 	return clusterInfo.getManagedLiveObjs(a, targetObjs, c.metricsServer)
 }
-func (c *liveStateCache) GetServerVersion(serverURL string) (string, error) {
+
+func (c *liveStateCache) GetVersionsInfo(serverURL string) (string, []metav1.APIGroup, error) {
 	clusterInfo, err := c.getSyncedCluster(serverURL)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
-	return clusterInfo.serverVersion, nil
+	return clusterInfo.serverVersion, clusterInfo.apiGroups, nil
 }
 
 func isClusterHasApps(apps []interface{}, cluster *appv1.Cluster) bool {
