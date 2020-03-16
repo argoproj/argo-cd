@@ -315,7 +315,7 @@ func EnsureCleanState(t *testing.T) {
 		SourceRepos:              []string{"*"},
 		Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
 		ClusterResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
-		SignatureKeys:            []string{GpgGoodKeyID},
+		SignatureKeys:            []v1alpha1.SignatureKey{{KeyID: GpgGoodKeyID}},
 	})
 
 	// remove tmp dir

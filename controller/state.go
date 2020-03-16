@@ -170,7 +170,7 @@ func unmarshalManifests(manifests []string) ([]*unstructured.Unstructured, []*un
 		if err != nil {
 			return nil, nil, err
 		}
-		if ignore.Ignore(obj) {
+		if obj == nil || ignore.Ignore(obj) {
 			continue
 		}
 		if hookutil.IsHook(obj) {
@@ -532,7 +532,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 					// This is the only case we allow to sync to, but we need to make sure signing key is allowed
 					validKey := false
 					for _, k := range project.Spec.SignatureKeys {
-						if gpg.KeyID(k) == gpg.KeyID(verifyResult.KeyID) && gpg.KeyID(k) != "" {
+						if gpg.KeyID(k.KeyID) == gpg.KeyID(verifyResult.KeyID) && gpg.KeyID(k.KeyID) != "" {
 							validKey = true
 							break
 						}

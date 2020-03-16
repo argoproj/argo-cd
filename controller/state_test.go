@@ -464,7 +464,11 @@ var signedProj = argoappv1.AppProject{
 				Namespace: "*",
 			},
 		},
-		SignatureKeys: []string{"4AEE18F83AFDEB23"},
+		SignatureKeys: []argoappv1.SignatureKey{
+			{
+				KeyID: "4AEE18F83AFDEB23",
+			},
+		},
 	},
 }
 
@@ -627,7 +631,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		}
 		ctrl := newFakeController(&data)
 		testProj := signedProj
-		testProj.Spec.SignatureKeys[0] = "4AEE18F83AFDEB24"
+		testProj.Spec.SignatureKeys[0].KeyID = "4AEE18F83AFDEB24"
 		compRes := ctrl.appStateManager.CompareAppState(app, &testProj, "abc123", app.Spec.Source, false, nil)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)

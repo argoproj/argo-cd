@@ -1598,6 +1598,12 @@ func (s *OrphanedResourcesMonitorSettings) IsWarn() bool {
 	return s.Warn == nil || *s.Warn
 }
 
+// SignatureKey is the specification of a key required to verify commit signatures with
+type SignatureKey struct {
+	// The ID of the key in hexadecimal notation
+	KeyID string `json:"keyID" protobuf:"bytes,1,name=keyID"`
+}
+
 // AppProjectSpec is the specification of an AppProject
 type AppProjectSpec struct {
 	// SourceRepos contains list of repository URLs which can be used for deployment
@@ -1617,7 +1623,7 @@ type AppProjectSpec struct {
 	// SyncWindows controls when syncs can be run for apps in this project
 	SyncWindows SyncWindows `json:"syncWindows,omitempty" protobuf:"bytes,8,opt,name=syncWindows"`
 	// List of PGP key IDs that commits to be synced to must be signed with
-	SignatureKeys []string `json:"signatureKeys,omitempty" protobuf:"bytes,9,opt,name=signatureKeys"`
+	SignatureKeys []SignatureKey `json:"signatureKeys,omitempty" protobuf:"bytes,9,opt,name=signatureKeys"`
 }
 
 // SyncWindows is a collection of sync windows in this project

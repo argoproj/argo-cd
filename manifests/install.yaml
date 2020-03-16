@@ -1797,7 +1797,15 @@ spec:
               description: List of PGP key IDs that commits to be synced to must be
                 signed with
               items:
-                type: string
+                description: SignatureKey is the specification of a key required to
+                  verify commit signatures with
+                properties:
+                  keyID:
+                    description: The ID of the key in hexadecimal notation
+                    type: string
+                required:
+                - keyID
+                type: object
               type: array
             sourceRepos:
               description: SourceRepos contains list of repository URLs which can
@@ -2126,6 +2134,15 @@ metadata:
     app.kubernetes.io/name: argocd-cm
     app.kubernetes.io/part-of: argocd
   name: argocd-cm
+---
+apiVersion: v1
+data: null
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/name: argocd-gpg-keys-cm
+    app.kubernetes.io/part-of: argocd
+  name: argocd-gpg-keys-cm
 ---
 apiVersion: v1
 kind: ConfigMap

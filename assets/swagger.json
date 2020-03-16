@@ -3122,7 +3122,7 @@
           "type": "array",
           "title": "List of PGP key IDs that commits to be synced to must be signed with",
           "items": {
-            "type": "string"
+            "$ref": "#/definitions/v1alpha1SignatureKey"
           }
         },
         "sourceRepos": {
@@ -4359,6 +4359,16 @@
           "items": {
             "type": "string"
           }
+        }
+      }
+    },
+    "v1alpha1SignatureKey": {
+      "type": "object",
+      "title": "SignatureKey is the specification of a key required to verify commit signatures with",
+      "properties": {
+        "keyID": {
+          "type": "string",
+          "title": "The ID of the key in hexadecimal notation"
         }
       }
     },
