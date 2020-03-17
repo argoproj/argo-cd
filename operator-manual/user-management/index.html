@@ -36,7 +36,7 @@
     
     
       
-        <title>Security - Argo CD - Declarative GitOps CD for Kubernetes</title>
+        <title>Overview - Argo CD - Declarative GitOps CD for Kubernetes</title>
       
     
     
@@ -127,7 +127,7 @@
     <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
     <label class="md-overlay" data-md-component="overlay" for="__drawer"></label>
     
-      <a href="#security" tabindex="1" class="md-skip">
+      <a href="#overview" tabindex="1" class="md-skip">
         Skip to content
       </a>
     
@@ -152,7 +152,7 @@
               Argo CD - Declarative GitOps CD for Kubernetes
             </span>
             <span class="md-header-nav__topic">
-              Security
+              Overview
             </span>
           
         </div>
@@ -377,10 +377,12 @@
           
           
 
+  
 
-  <li class="md-nav__item md-nav__item--nested">
+
+  <li class="md-nav__item md-nav__item--active md-nav__item--nested">
     
-      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-5-5" type="checkbox" id="nav-5-5">
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-5-5" type="checkbox" id="nav-5-5" checked>
     
     <label class="md-nav__link" for="nav-5-5">
       User Management
@@ -396,11 +398,130 @@
           
           
 
+  
 
-  <li class="md-nav__item">
-    <a href="../user-management/" title="Overview" class="md-nav__link">
+
+  <li class="md-nav__item md-nav__item--active">
+    
+    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
+    
+      
+    
+    
+      <label class="md-nav__link md-nav__link--active" for="__toc">
+        Overview
+      </label>
+    
+    <a href="./" title="Overview" class="md-nav__link md-nav__link--active">
       Overview
     </a>
+    
+      
+<nav class="md-nav md-nav--secondary">
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">Table of contents</label>
+    <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#local-usersaccounts-v15" title="Local users/accounts (v1.5)" class="md-nav__link">
+    Local users/accounts (v1.5)
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#create-new-user" title="Create new user" class="md-nav__link">
+    Create new user
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#disable-admin-user" title="Disable admin user" class="md-nav__link">
+    Disable admin user
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#manage-users" title="Manage users" class="md-nav__link">
+    Manage users
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sso" title="SSO" class="md-nav__link">
+    SSO
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dex" title="Dex" class="md-nav__link">
+    Dex
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-register-the-application-in-the-identity-provider" title="1. Register the application in the identity provider" class="md-nav__link">
+    1. Register the application in the identity provider
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-configure-argo-cd-for-sso" title="2. Configure Argo CD for SSO" class="md-nav__link">
+    2. Configure Argo CD for SSO
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#existing-oidc-provider" title="Existing OIDC Provider" class="md-nav__link">
+    Existing OIDC Provider
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#requesting-additional-id-token-claims" title="Requesting additional ID token claims" class="md-nav__link">
+    Requesting additional ID token claims
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+      
+      
+      
+      
+    </ul>
+  
+</nav>
+    
   </li>
 
         
@@ -410,7 +531,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../user-management/auth0/" title="Auth0" class="md-nav__link">
+    <a href="auth0/" title="Auth0" class="md-nav__link">
       Auth0
     </a>
   </li>
@@ -422,7 +543,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../user-management/microsoft/" title="Microsoft" class="md-nav__link">
+    <a href="microsoft/" title="Microsoft" class="md-nav__link">
       Microsoft
     </a>
   </li>
@@ -434,7 +555,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../user-management/okta/" title="Okta" class="md-nav__link">
+    <a href="okta/" title="Okta" class="md-nav__link">
       Okta
     </a>
   </li>
@@ -446,7 +567,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../user-management/onelogin/" title="OneLogin" class="md-nav__link">
+    <a href="onelogin/" title="OneLogin" class="md-nav__link">
       OneLogin
     </a>
   </li>
@@ -473,118 +594,11 @@
           
           
 
-  
 
-
-  <li class="md-nav__item md-nav__item--active">
-    
-    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
-    
-      
-    
-    
-      <label class="md-nav__link md-nav__link--active" for="__toc">
-        Security
-      </label>
-    
-    <a href="./" title="Security" class="md-nav__link md-nav__link--active">
+  <li class="md-nav__item">
+    <a href="../security/" title="Security" class="md-nav__link">
       Security
     </a>
-    
-      
-<nav class="md-nav md-nav--secondary">
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">Table of contents</label>
-    <ul class="md-nav__list" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#authentication" title="Authentication" class="md-nav__link">
-    Authentication
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#authorization" title="Authorization" class="md-nav__link">
-    Authorization
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#tls" title="TLS" class="md-nav__link">
-    TLS
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#sensitive-information" title="Sensitive Information" class="md-nav__link">
-    Sensitive Information
-  </a>
-  
-    <nav class="md-nav">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#secrets" title="Secrets" class="md-nav__link">
-    Secrets
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#external-cluster-credentials" title="External Cluster Credentials" class="md-nav__link">
-    External Cluster Credentials
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#cluster-rbac" title="Cluster RBAC" class="md-nav__link">
-    Cluster RBAC
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#auditing" title="Auditing" class="md-nav__link">
-    Auditing
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#webhook-payloads" title="WebHook Payloads" class="md-nav__link">
-    WebHook Payloads
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#reporting-vulnerabilities" title="Reporting Vulnerabilities" class="md-nav__link">
-    Reporting Vulnerabilities
-  </a>
-  
-</li>
-      
-      
-      
-      
-      
-    </ul>
-  
-</nav>
-    
   </li>
 
         
@@ -1226,44 +1240,30 @@
     <ul class="md-nav__list" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#authentication" title="Authentication" class="md-nav__link">
-    Authentication
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#authorization" title="Authorization" class="md-nav__link">
-    Authorization
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#tls" title="TLS" class="md-nav__link">
-    TLS
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#sensitive-information" title="Sensitive Information" class="md-nav__link">
-    Sensitive Information
+  <a href="#local-usersaccounts-v15" title="Local users/accounts (v1.5)" class="md-nav__link">
+    Local users/accounts (v1.5)
   </a>
   
     <nav class="md-nav">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#secrets" title="Secrets" class="md-nav__link">
-    Secrets
+  <a href="#create-new-user" title="Create new user" class="md-nav__link">
+    Create new user
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#external-cluster-credentials" title="External Cluster Credentials" class="md-nav__link">
-    External Cluster Credentials
+  <a href="#disable-admin-user" title="Disable admin user" class="md-nav__link">
+    Disable admin user
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#manage-users" title="Manage users" class="md-nav__link">
+    Manage users
   </a>
   
 </li>
@@ -1274,30 +1274,56 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#cluster-rbac" title="Cluster RBAC" class="md-nav__link">
-    Cluster RBAC
+  <a href="#sso" title="SSO" class="md-nav__link">
+    SSO
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#auditing" title="Auditing" class="md-nav__link">
-    Auditing
+  <a href="#dex" title="Dex" class="md-nav__link">
+    Dex
   </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-register-the-application-in-the-identity-provider" title="1. Register the application in the identity provider" class="md-nav__link">
+    1. Register the application in the identity provider
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-configure-argo-cd-for-sso" title="2. Configure Argo CD for SSO" class="md-nav__link">
+    2. Configure Argo CD for SSO
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#webhook-payloads" title="WebHook Payloads" class="md-nav__link">
-    WebHook Payloads
+  <a href="#existing-oidc-provider" title="Existing OIDC Provider" class="md-nav__link">
+    Existing OIDC Provider
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#requesting-additional-id-token-claims" title="Requesting additional ID token claims" class="md-nav__link">
+    Requesting additional ID token claims
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#reporting-vulnerabilities" title="Reporting Vulnerabilities" class="md-nav__link">
-    Reporting Vulnerabilities
-  </a>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1317,157 +1343,230 @@
             <article class="md-content__inner md-typeset">
               
                 
-                  <a href="https://github.com/argoproj/argo-cd/edit/master/docs/operator-manual/security.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
+                  <a href="https://github.com/argoproj/argo-cd/edit/master/docs/operator-manual/user-management/index.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
                 
                 
-                <h1 id="security">Security<a class="headerlink" href="#security" title="Permanent link">&para;</a></h1>
-<p>Argo CD has undergone rigourous internal security reviews and penetration testing to satisfy <a href="https://www.pcisecuritystandards.org">PCI
-compliance</a> requirements. The following are some security
-topics and implementation details of Argo CD.</p>
-<h2 id="authentication">Authentication<a class="headerlink" href="#authentication" title="Permanent link">&para;</a></h2>
-<p>Authentication to Argo CD API server is performed exclusively using <a href="https://jwt.io">JSON Web Tokens</a>
-(JWTs). Username/password bearer tokens are not used for authentication. The JWT is obtained/managed
-in one of the following ways:</p>
-<ol>
-<li>
-<p>For the local <code>admin</code> user, a username/password is exchanged for a JWT using the <code>/api/v1/session</code>
-   endpoint. This token is signed &amp; issued by the Argo CD API server itself, and has no expiration.
-   When the admin password is updated, all existing admin JWT tokens are immediately revoked.
-   The password is stored as a bcrypt hash in the <a href="https://github.com/argoproj/argo-cd/blob/master/manifests/base/config/argocd-secret.yaml"><code>argocd-secret</code></a> Secret.</p>
-</li>
-<li>
-<p>For Single Sign-On users, the user completes an OAuth2 login flow to the configured OIDC identity
-   provider (either delegated through the bundled Dex provider, or directly to a self-managed OIDC
-   provider). This JWT is signed &amp; issued by the IDP, and expiration and revokation is handled by
-   the provider. Dex tokens expire after 24 hours.</p>
-</li>
-<li>
-<p>Automation tokens are generated for a project using the <code>/api/v1/projects/{project}/roles/{role}/token</code>
-   endpoint, and are signed &amp; issued by Argo CD. These tokens are limited in scope and privilege,
-   and can only be used to manage application resources in the project which it belongs to. Project
-   JWTs have a configurable expiration and can be immediately revoked by deleting the JWT reference
-   ID from the project role.</p>
-</li>
-</ol>
-<h2 id="authorization">Authorization<a class="headerlink" href="#authorization" title="Permanent link">&para;</a></h2>
-<p>Authorization is performed by iterating the list of group membership in a user's JWT groups claims,
-and comparing each group against the roles/rules in the <a href="../rbac">RBAC</a> policy. Any matched rule
-permits access to the API request.</p>
-<h2 id="tls">TLS<a class="headerlink" href="#tls" title="Permanent link">&para;</a></h2>
-<p>All network communication is performed over TLS including service-to-service communication between
-the three components (argocd-server, argocd-repo-server, argocd-application-controller). The Argo CD
-API server can enforce the use of TLS 1.2 using the flag: <code>--tlsminversion 1.2</code>.</p>
-<h2 id="sensitive-information">Sensitive Information<a class="headerlink" href="#sensitive-information" title="Permanent link">&para;</a></h2>
-<h3 id="secrets">Secrets<a class="headerlink" href="#secrets" title="Permanent link">&para;</a></h3>
-<p>Argo CD never returns sensitive data from its API, and redacts all sensitive data in API payloads
-and logs. This includes:</p>
+                <h1 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h1>
+<p>Once installed Argo CD has one built-in <code>admin</code> user that has full access to the system. It is recommended to use <code>admin</code> user only
+for initial configuration and then switch to local users or configure SSO integration.</p>
+<h2 id="local-usersaccounts-v15">Local users/accounts (v1.5)<a class="headerlink" href="#local-usersaccounts-v15" title="Permanent link">&para;</a></h2>
+<p>The local users/accounts feature serving to main use-cases:</p>
 <ul>
-<li>cluster credentials</li>
-<li>Git credentials</li>
-<li>OAuth2 client secrets</li>
-<li>Kubernetes Secret values</li>
+<li>Auth tokens for Argo CD management automation. It is possible to configure an API account with limited permissions and generate an authentication token.
+Such token can be used to automatically create applications, projects etc.</li>
+<li>Additional users for a very small team when SSO integration is overkill. The local users don't provide advanced features such as groups,
+login history etc. So if you need such features it is strongly recommended to use SSO.</li>
 </ul>
-<h3 id="external-cluster-credentials">External Cluster Credentials<a class="headerlink" href="#external-cluster-credentials" title="Permanent link">&para;</a></h3>
-<p>To manage external clusters, Argo CD stores the credentials of the external cluster as a Kubernetes
-Secret in the argocd namespace. This secret contains the K8s API bearer token associated with the
-<code>argocd-manager</code> ServiceAccount created during <code>argocd cluster add</code>, along with connection options
-to that API server (TLS configuration/certs, aws-iam-authenticator RoleARN, etc...).
-The information is used to reconstruct a REST config and kubeconfig to the cluster used by Argo CD
-services.</p>
-<p>To rotate the bearer token used by Argo CD, the token can be deleted (e.g. using kubectl) which
-causes kuberentes to generate a new secret with a new bearer token. The new token can be re-inputted
-to Argo CD by re-running <code>argocd cluster add</code>. Run the following commands against the <em><em>managed</em></em>
-cluster:</p>
-<div class="codehilite"><pre><span></span><code><span class="c1"># run using a kubeconfig for the externally managed cluster</span>
-kubectl delete secret argocd-manager-token-XXXXXX -n kube-system
-argocd cluster add CONTEXTNAME
+<h3 id="create-new-user">Create new user<a class="headerlink" href="#create-new-user" title="Permanent link">&para;</a></h3>
+<p>New users should be defined in <code>argocd-cm</code> ConfigMap:</p>
+<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
+  <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
+  <span class="nt">labels</span><span class="p">:</span>
+    <span class="nt">app.kubernetes.io/name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
+    <span class="nt">app.kubernetes.io/part-of</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
+<span class="nt">data</span><span class="p">:</span>
+  <span class="c1"># add an additional local user with apiKey and login capabilities</span>
+  <span class="c1">#   apiKey - allows generating API keys</span>
+  <span class="c1">#   login - allows to login using UI</span>
+  <span class="nt">accounts.alice</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">apiKey, login</span>
+  <span class="c1"># disables user. User is enabled by default</span>
+  <span class="nt">accounts.alice.enabled</span><span class="p">:</span> <span class="s">&quot;false&quot;</span>
 </code></pre></div>
 
 
-<p>To revoke Argo CD's access to a managed cluster, delete the RBAC artifacts against the <em><em>managed</em></em>
-cluster, and remove the cluster entry from Argo CD:</p>
-<div class="codehilite"><pre><span></span><code><span class="c1"># run using a kubeconfig for the externally managed cluster</span>
-kubectl delete sa argocd-manager -n kube-system
-kubectl delete clusterrole argocd-manager-role
-kubectl delete clusterrolebinding argocd-manager-role-binding
-argocd cluster rm https://your-kubernetes-cluster-addr
+<p>Each user might have two capabilities:
+* apiKey - allows generating authentication tokens for API access
+* login - allows to login using UI</p>
+<h3 id="disable-admin-user">Disable admin user<a class="headerlink" href="#disable-admin-user" title="Permanent link">&para;</a></h3>
+<p>As soon as additional users are created it is recommended to disable <code>admin</code> user:</p>
+<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
+  <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
+  <span class="nt">labels</span><span class="p">:</span>
+    <span class="nt">app.kubernetes.io/name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
+    <span class="nt">app.kubernetes.io/part-of</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
+<span class="nt">data</span><span class="p">:</span>
+  <span class="nt">admin.enabled</span><span class="p">:</span> <span class="s">&quot;false&quot;</span>
 </code></pre></div>
 
 
-<!-- markdownlint-disable MD027 -->
-
-<blockquote>
-<p>NOTE: for AWS EKS clusters, <a href="https://github.com/kubernetes-sigs/aws-iam-authenticator">aws-iam-authenticator</a>
-  is used to authenticate to the external cluster, which uses IAM roles in lieu of locally stored
-  tokens, so token rotation is not needed, and revokation is handled through IAM.
-<!-- markdownlint-enable MD027 --></p>
-</blockquote>
-<h2 id="cluster-rbac">Cluster RBAC<a class="headerlink" href="#cluster-rbac" title="Permanent link">&para;</a></h2>
-<p>By default, Argo CD uses a <a href="https://github.com/argoproj/argo-cd/blob/master/manifests/base/application-controller/argocd-application-controller-role.yaml">clusteradmin level role</a>
-in order to:</p>
-<ol>
-<li>watch &amp; operate on cluster state</li>
-<li>deploy resources to the cluster</li>
-</ol>
-<p>Although Argo CD requires cluster-wide <strong><em>read</em></strong> privileges to resources in the managed cluster to
-function properly, it does not necessarily need full <strong><em>write</em></strong> privileges to the cluster. The
-ClusterRole used by argocd-server and argocd-application-controller can be modified such
-that write privileges are limited to only the namespaces and resources that you wish Argo CD to
-manage.</p>
-<p>To fine-tune privileges of externally managed clusters, edit the ClusterRole of the <code>argocd-manager-role</code></p>
-<div class="codehilite"><pre><span></span><code><span class="c1"># run using a kubeconfig for the externally managed cluster</span>
-kubectl edit clusterrole argocd-manager-role
+<h3 id="manage-users">Manage users<a class="headerlink" href="#manage-users" title="Permanent link">&para;</a></h3>
+<p>The Argo CD CLI provides set of commands to set user password and generate tokens.</p>
+<ul>
+<li>Get full users list</li>
+</ul>
+<div class="codehilite"><pre><span></span><code>argocd account list
 </code></pre></div>
 
 
-<p>To fine-tune privileges which Argo CD has against its own cluster (i.e. <code>https://kubernetes.default.svc</code>),
-edit the following cluster roles where Argo CD is running in:</p>
-<div class="codehilite"><pre><span></span><code><span class="c1"># run using a kubeconfig to the cluster Argo CD is running in</span>
-kubectl edit clusterrole argocd-server
-kubectl edit clusterrole argocd-application-controller
+<ul>
+<li>Get specific user details</li>
+</ul>
+<div class="codehilite"><pre><span></span><code>argocd account get &lt;username&gt;
 </code></pre></div>
 
 
-<div class="admonition tip">
-<p class="admonition-title">Tip</p>
-<p>If you want to deny ArgoCD access to a kind of resource then add it as an <a href="../declarative-setup/#resource-exclusion">excluded resource</a>.</p>
+<ul>
+<li>Set user password</li>
+</ul>
+<div class="codehilite"><pre><span></span><code>argocd account update-password <span class="se">\</span>
+  --account &lt;name&gt; <span class="se">\</span>
+  --current-password &lt;current-admin&gt; <span class="se">\</span>
+  --new-password &lt;new-user-password&gt;
+</code></pre></div>
+
+
+<ul>
+<li>Generate auth token</li>
+</ul>
+<div class="codehilite"><pre><span></span><code><span class="c1"># if flag --account is omitted then Argo CD generates token for current user</span>
+argocd account generate-token --account &lt;username&gt; 
+</code></pre></div>
+
+
+<h2 id="sso">SSO<a class="headerlink" href="#sso" title="Permanent link">&para;</a></h2>
+<p>There are two ways that SSO can be configured:</p>
+<ul>
+<li>
+<p><a href="#dex">Bundled Dex OIDC provider</a> - use this option if your current provider does not support OIDC (e.g. SAML,
+  LDAP) or if you wish to leverage any of Dex's connector features (e.g. the ability to map GitHub
+  organizations and teams to OIDC groups claims).</p>
+</li>
+<li>
+<p><a href="#existing-oidc-provider">Existing OIDC provider</a> - use this if you already have an OIDC provider which you are using (e.g.
+  <a href="okta/">Okta</a>, <a href="onelogin/">OneLogin</a>, <a href="auth0/">Auth0</a>, <a href="microsoft/">Microsoft</a>), where you manage your users, groups, and memberships.</p>
+</li>
+</ul>
+<h2 id="dex">Dex<a class="headerlink" href="#dex" title="Permanent link">&para;</a></h2>
+<p>Argo CD embeds and bundles <a href="https://github.com/coreos/dex">Dex</a> as part of its installation, for the
+purpose of delegating authentication to an external identity provider. Multiple types of identity
+providers are supported (OIDC, SAML, LDAP, GitHub, etc...). SSO configuration of Argo CD requires
+editing the <code>argocd-cm</code> ConfigMap with
+<a href="https://github.com/coreos/dex/tree/master/Documentation/connectors">Dex connector</a> settings.</p>
+<p>This document describes how to configure Argo CD SSO using GitHub (OAuth2) as an example, but the
+steps should be similar for other identity providers.</p>
+<h3 id="1-register-the-application-in-the-identity-provider">1. Register the application in the identity provider<a class="headerlink" href="#1-register-the-application-in-the-identity-provider" title="Permanent link">&para;</a></h3>
+<p>In GitHub, register a new application. The callback address should be the <code>/api/dex/callback</code>
+endpoint of your Argo CD URL (e.g. <code>https://argocd.example.com/api/dex/callback</code>).</p>
+<p><img alt="Register OAuth App" src="../../assets/register-app.png" title="Register OAuth App" /></p>
+<p>After registering the app, you will receive an OAuth2 client ID and secret. These values will be
+inputted into the Argo CD configmap.</p>
+<p><img alt="OAuth2 Client Config" src="../../assets/oauth2-config.png" title="OAuth2 Client Config" /></p>
+<h3 id="2-configure-argo-cd-for-sso">2. Configure Argo CD for SSO<a class="headerlink" href="#2-configure-argo-cd-for-sso" title="Permanent link">&para;</a></h3>
+<p>Edit the argocd-cm configmap:</p>
+<div class="codehilite"><pre><span></span><code>kubectl edit configmap argocd-cm -n argocd
+</code></pre></div>
+
+
+<ul>
+<li>In the <code>url</code> key, input the base URL of Argo CD. In this example, it is <code>https://argocd.example.com</code></li>
+<li>In the <code>dex.config</code> key, add the <code>github</code> connector to the <code>connectors</code> sub field. See Dex's
+  <a href="https://github.com/coreos/dex/blob/master/Documentation/connectors/github.md">GitHub connector</a>
+  documentation for explanation of the fields. A minimal config should populate the clientID,
+  clientSecret generated in Step 1.</li>
+<li>You will very likely want to restrict logins to one or more GitHub organization. In the
+  <code>connectors.config.orgs</code> list, add one or more GitHub organizations. Any member of the org will
+  then be able to login to Argo CD to perform management tasks.</li>
+</ul>
+<div class="codehilite"><pre><span></span><code><span class="nt">data</span><span class="p">:</span>
+  <span class="nt">url</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">https://argocd.example.com</span>
+
+  <span class="nt">dex.config</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+    <span class="no">connectors:</span>
+      <span class="no"># GitHub example</span>
+      <span class="no">- type: github</span>
+        <span class="no">id: github</span>
+        <span class="no">name: GitHub</span>
+        <span class="no">config:</span>
+          <span class="no">clientID: aabbccddeeff00112233</span>
+          <span class="no">clientSecret: $dex.github.clientSecret</span>
+          <span class="no">orgs:</span>
+          <span class="no">- name: your-github-org</span>
+
+      <span class="no"># GitHub enterprise example</span>
+      <span class="no">- type: github</span>
+        <span class="no">id: acme-github</span>
+        <span class="no">name: Acme GitHub</span>
+        <span class="no">config:</span>
+          <span class="no">hostName: github.acme.com</span>
+          <span class="no">clientID: abcdefghijklmnopqrst</span>
+          <span class="no">clientSecret: $dex.acme.clientSecret</span>
+          <span class="no">orgs:</span>
+          <span class="no">- name: your-github-org</span>
+</code></pre></div>
+
+
+<p>After saving, the changes should take affect automatically.</p>
+<p>NOTES:</p>
+<ul>
+<li>Any values which start with '$' will look to a key in argocd-secret of the same name (minus the $),
+  to obtain the actual value. This allows you to store the <code>clientSecret</code> as a kubernetes secret.</li>
+<li>There is no need to set <code>redirectURI</code> in the <code>connectors.config</code> as shown in the dex documentation.
+  Argo CD will automatically use the correct <code>redirectURI</code> for any OAuth2 connectors, to match the
+  correct external callback URL (e.g. <code>https://argocd.example.com/api/dex/callback</code>)</li>
+</ul>
+<h2 id="existing-oidc-provider">Existing OIDC Provider<a class="headerlink" href="#existing-oidc-provider" title="Permanent link">&para;</a></h2>
+<p>To configure Argo CD to delegate authenticate to your existing OIDC provider, add the OAuth2
+configuration to the <code>argocd-cm</code> ConfigMap under the <code>oidc.config</code> key:</p>
+<div class="codehilite"><pre><span></span><code><span class="nt">data</span><span class="p">:</span>
+  <span class="nt">url</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">https://argocd.example.com</span>
+
+  <span class="nt">oidc.config</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+    <span class="no">name: Okta</span>
+    <span class="no">issuer: https://dev-123456.oktapreview.com</span>
+    <span class="no">clientID: aaaabbbbccccddddeee</span>
+    <span class="no">clientSecret: $oidc.okta.clientSecret</span>
+
+    <span class="no"># Optional set of OIDC scopes to request. If omitted, defaults to: [&quot;openid&quot;, &quot;profile&quot;, &quot;email&quot;, &quot;groups&quot;]</span>
+    <span class="no">requestedScopes: [&quot;openid&quot;, &quot;profile&quot;, &quot;email&quot;, &quot;groups&quot;]</span>
+
+    <span class="no"># Optional set of OIDC claims to request on the ID token.</span>
+    <span class="no">requestedIDTokenClaims: {&quot;groups&quot;: {&quot;essential&quot;: true}}</span>
+
+    <span class="no"># Some OIDC providers require a separate clientID for different callback URLs.</span>
+    <span class="no"># For example, if configuring Argo CD with self-hosted Dex, you will need a separate client ID</span>
+    <span class="no"># for the &#39;localhost&#39; (CLI) client to Dex. This field is optional. If omitted, the CLI will</span>
+    <span class="no"># use the same clientID as the Argo CD server</span>
+    <span class="no">cliClientID: vvvvwwwwxxxxyyyyzzzz</span>
+</code></pre></div>
+
+
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The callback address should be the /auth/callback endpoint of your Argo CD URL 
+(e.g. https://argocd.example.com/auth/callback).</p>
 </div>
-<h2 id="auditing">Auditing<a class="headerlink" href="#auditing" title="Permanent link">&para;</a></h2>
-<p>As a GitOps deployment tool, the Git commit history provides a natural audit log of what changes
-were made to application configuration, when they were made, and by whom. However, this audit log
-only applies to what happened in Git and does not necessarily correlate one-to-one with events
-that happen in a cluster. For example, User A could have made multiple commits to application
-manifests, but User B could have just only synced those changes to the cluster sometime later.</p>
-<p>To complement the Git revision history, Argo CD emits Kubernetes Events of application activity,
-indicating the responsible actor when applicable. For example:</p>
-<div class="codehilite"><pre><span></span><code>$ kubectl get events
-LAST SEEN   FIRST SEEN   COUNT   NAME                         KIND          SUBOBJECT   TYPE      REASON               SOURCE                          MESSAGE
-1m          1m           <span class="m">1</span>       guestbook.157f7c5edd33aeac   Application               Normal    ResourceCreated      argocd-server                   admin created application
-1m          1m           <span class="m">1</span>       guestbook.157f7c5f0f747acf   Application               Normal    ResourceUpdated      argocd-application-controller   Updated sync status:  -&gt; OutOfSync
-1m          1m           <span class="m">1</span>       guestbook.157f7c5f0fbebbff   Application               Normal    ResourceUpdated      argocd-application-controller   Updated health status:  -&gt; Missing
-1m          1m           <span class="m">1</span>       guestbook.157f7c6069e14f4d   Application               Normal    OperationStarted     argocd-server                   admin initiated sync to HEAD <span class="o">(</span>8a1cb4a02d3538e54907c827352f66f20c3d7b0d<span class="o">)</span>
-1m          1m           <span class="m">1</span>       guestbook.157f7c60a55a81a8   Application               Normal    OperationCompleted   argocd-application-controller   Sync operation to 8a1cb4a02d3538e54907c827352f66f20c3d7b0d succeeded
-1m          1m           <span class="m">1</span>       guestbook.157f7c60af1ccae2   Application               Normal    ResourceUpdated      argocd-application-controller   Updated sync status: OutOfSync -&gt; Synced
-1m          1m           <span class="m">1</span>       guestbook.157f7c60af5bc4f0   Application               Normal    ResourceUpdated      argocd-application-controller   Updated health status: Missing -&gt; Progressing
-1m          1m           <span class="m">1</span>       guestbook.157f7c651990e848   Application               Normal    ResourceUpdated      argocd-application-controller   Updated health status: Progressing -&gt; Healthy
+<h3 id="requesting-additional-id-token-claims">Requesting additional ID token claims<a class="headerlink" href="#requesting-additional-id-token-claims" title="Permanent link">&para;</a></h3>
+<p>Not all OIDC providers support a special <code>groups</code> scope. E.g. Okta, OneLogin and Microsoft do support a special
+<code>groups</code> scope and will return group membership with the default <code>requestedScopes</code>.</p>
+<p>Other OIDC providers might be able to return a claim with group membership if explicitly requested to do so.
+Individual claims can be requested with <code>requestedIDTokenClaims</code>, see
+<a href="https://connect2id.com/products/server/docs/guides/requesting-openid-claims#claims-parameter">OpenID Connect Claims Parameter</a>
+for details. The Argo CD configuration for claims is as follows:</p>
+<div class="codehilite"><pre><span></span><code>  <span class="nt">oidc.config</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+    <span class="no">requestedIDTokenClaims:</span>
+      <span class="no">email:</span>
+        <span class="no">essential: true</span>
+      <span class="no">groups:</span>
+        <span class="no">essential: true</span>
+        <span class="no">value: org:myorg</span>
+      <span class="no">acr:</span>
+        <span class="no">essential: true</span>
+        <span class="no">values:</span>
+        <span class="no">- urn:mace:incommon:iap:silver</span>
+        <span class="no">- urn:mace:incommon:iap:bronze</span>
 </code></pre></div>
 
 
-<p>These events can be then be persisted for longer periods of time using other tools as
-<a href="https://github.com/GoogleCloudPlatform/k8s-stackdriver/tree/master/event-exporter">Event Exporter</a> or
-<a href="https://github.com/heptiolabs/eventrouter">Event Router</a>.</p>
-<h2 id="webhook-payloads">WebHook Payloads<a class="headerlink" href="#webhook-payloads" title="Permanent link">&para;</a></h2>
-<p>Payloads from webhook events are considered untrusted. Argo CD only examines the payload to infer
-the involved applications of the webhook event (e.g. which repo was modified), then refreshes
-the related application for reconciliation. This refresh is the same refresh which occurs regularly
-at three minute intervals, just fast-tracked by the webhook event.</p>
-<h2 id="reporting-vulnerabilities">Reporting Vulnerabilities<a class="headerlink" href="#reporting-vulnerabilities" title="Permanent link">&para;</a></h2>
-<p>Please report security vulnerabilities by e-mailing:</p>
-<ul>
-<li><a href="mailto:Jesse_Suen@intuit.com">Jesse_Suen@intuit.com</a></li>
-<li><a href="mailto:Alexander_Matyushentsev@intuit.com">Alexander_Matyushentsev@intuit.com</a></li>
-<li><a href="mailto:Edward_Lee@intuit.com">Edward_Lee@intuit.com</a></li>
-</ul>
+<p>For a simple case this can be:</p>
+<div class="codehilite"><pre><span></span><code>  <span class="nt">oidc.config</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+    <span class="no">requestedIDTokenClaims: {&quot;groups&quot;: {&quot;essential&quot;: true}}</span>
+</code></pre></div>
                 
                   
                 
@@ -1488,7 +1587,7 @@ at three minute intervals, just fast-tracked by the webhook event.</p>
     <div class="md-footer-nav">
       <nav class="md-footer-nav__inner md-grid">
         
-          <a href="../rbac/" title="RBAC Configuration" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
+          <a href="../ingress/" title="Ingress Configuration" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
             <div class="md-flex__cell md-flex__cell--shrink">
               <i class="md-icon md-icon--arrow-back md-footer-nav__button"></i>
             </div>
@@ -1497,19 +1596,19 @@ at three minute intervals, just fast-tracked by the webhook event.</p>
                 <span class="md-footer-nav__direction">
                   Previous
                 </span>
-                RBAC Configuration
+                Ingress Configuration
               </span>
             </div>
           </a>
         
         
-          <a href="../cluster-bootstrapping/" title="Cluster Bootstrapping" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
+          <a href="auth0/" title="Auth0" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
             <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
               <span class="md-flex__ellipsis">
                 <span class="md-footer-nav__direction">
                   Next
                 </span>
-                Cluster Bootstrapping
+                Auth0
               </span>
             </div>
             <div class="md-flex__cell md-flex__cell--shrink">

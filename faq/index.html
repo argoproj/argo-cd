@@ -381,11 +381,11 @@
       <input class="md-toggle md-nav__toggle" data-md-toggle="nav-5-5" type="checkbox" id="nav-5-5">
     
     <label class="md-nav__link" for="nav-5-5">
-      Single Sign On (SSO) & Role-Based Access Control (RBAC)
+      User Management
     </label>
     <nav class="md-nav" data-md-component="collapsible" data-md-level="2">
       <label class="md-nav__title" for="nav-5-5">
-        Single Sign On (SSO) & Role-Based Access Control (RBAC)
+        User Management
       </label>
       <ul class="md-nav__list" data-md-scrollfix>
         
@@ -396,8 +396,8 @@
 
 
   <li class="md-nav__item">
-    <a href="../operator-manual/sso/" title="SSO Overview" class="md-nav__link">
-      SSO Overview
+    <a href="../operator-manual/user-management/" title="Overview" class="md-nav__link">
+      Overview
     </a>
   </li>
 
@@ -408,7 +408,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../operator-manual/sso/auth0/" title="Auth0" class="md-nav__link">
+    <a href="../operator-manual/user-management/auth0/" title="Auth0" class="md-nav__link">
       Auth0
     </a>
   </li>
@@ -420,7 +420,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../operator-manual/sso/microsoft/" title="Microsoft" class="md-nav__link">
+    <a href="../operator-manual/user-management/microsoft/" title="Microsoft" class="md-nav__link">
       Microsoft
     </a>
   </li>
@@ -432,7 +432,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../operator-manual/sso/okta/" title="Okta" class="md-nav__link">
+    <a href="../operator-manual/user-management/okta/" title="Okta" class="md-nav__link">
       Okta
     </a>
   </li>
@@ -444,7 +444,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../operator-manual/sso/onelogin/" title="OneLogin" class="md-nav__link">
+    <a href="../operator-manual/user-management/onelogin/" title="OneLogin" class="md-nav__link">
       OneLogin
     </a>
   </li>
@@ -1097,6 +1097,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#how-to-disable-admin-user" title="How to disable admin user?" class="md-nav__link">
+    How to disable admin user?
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#argo-cd-cannot-deploy-helm-chart-based-applications-without-internet-access-how-can-i-solve-it" title="Argo CD cannot deploy Helm Chart based applications without internet access, how can I solve it?" class="md-nav__link">
     Argo CD cannot deploy Helm Chart based applications without internet access, how can I solve it?
   </a>
@@ -1246,6 +1253,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#how-to-disable-admin-user" title="How to disable admin user?" class="md-nav__link">
+    How to disable admin user?
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#argo-cd-cannot-deploy-helm-chart-based-applications-without-internet-access-how-can-i-solve-it" title="Argo CD cannot deploy Helm Chart based applications without internet access, how can I solve it?" class="md-nav__link">
     Argo CD cannot deploy Helm Chart based applications without internet access, how can I solve it?
   </a>
@@ -1347,6 +1361,8 @@ kubectl -n argocd patch secret argocd-secret <span class="se">\</span>
 
 
 <p>Another option is to delete both the <code>admin.password</code> and <code>admin.passwordMtime</code> keys and restart argocd-server. This will set the password back to the pod name as per <a href="../getting_started/">the getting started guide</a>.</p>
+<h2 id="how-to-disable-admin-user">How to disable admin user?<a class="headerlink" href="#how-to-disable-admin-user" title="Permanent link">&para;</a></h2>
+<p>Add <code>admin.enabled: "false"</code> to the <code>argocd-cm</code> ConfigMap (see <a href="../operator-manual/user-management/">user management</a>).</p>
 <h2 id="argo-cd-cannot-deploy-helm-chart-based-applications-without-internet-access-how-can-i-solve-it">Argo CD cannot deploy Helm Chart based applications without internet access, how can I solve it?<a class="headerlink" href="#argo-cd-cannot-deploy-helm-chart-based-applications-without-internet-access-how-can-i-solve-it" title="Permanent link">&para;</a></h2>
 <p>Argo CD might fail to generate Helm chart manifests if the chart has dependencies located in external repositories. To solve the problem you need to make sure that <code>requirements.yaml</code>
 uses only internally available Helm repositories. Even if the chart uses only dependencies from internal repos Helm might decide to refresh <code>stable</code> repo. As workaround override

@@ -36,7 +36,7 @@
     
     
       
-        <title>Auth0 - Argo CD - Declarative GitOps CD for Kubernetes</title>
+        <title>OneLogin - Argo CD - Declarative GitOps CD for Kubernetes</title>
       
     
     
@@ -127,7 +127,7 @@
     <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
     <label class="md-overlay" data-md-component="overlay" for="__drawer"></label>
     
-      <a href="#auth0" tabindex="1" class="md-skip">
+      <a href="#onelogin" tabindex="1" class="md-skip">
         Skip to content
       </a>
     
@@ -152,7 +152,7 @@
               Argo CD - Declarative GitOps CD for Kubernetes
             </span>
             <span class="md-header-nav__topic">
-              Auth0
+              OneLogin
             </span>
           
         </div>
@@ -385,11 +385,11 @@
       <input class="md-toggle md-nav__toggle" data-md-toggle="nav-5-5" type="checkbox" id="nav-5-5" checked>
     
     <label class="md-nav__link" for="nav-5-5">
-      Single Sign On (SSO) & Role-Based Access Control (RBAC)
+      User Management
     </label>
     <nav class="md-nav" data-md-component="collapsible" data-md-level="2">
       <label class="md-nav__title" for="nav-5-5">
-        Single Sign On (SSO) & Role-Based Access Control (RBAC)
+        User Management
       </label>
       <ul class="md-nav__list" data-md-scrollfix>
         
@@ -400,8 +400,8 @@
 
 
   <li class="md-nav__item">
-    <a href="../" title="SSO Overview" class="md-nav__link">
-      SSO Overview
+    <a href="../" title="Overview" class="md-nav__link">
+      Overview
     </a>
   </li>
 
@@ -410,90 +410,11 @@
           
           
 
-  
 
-
-  <li class="md-nav__item md-nav__item--active">
-    
-    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
-    
-      
-    
-    
-      <label class="md-nav__link md-nav__link--active" for="__toc">
-        Auth0
-      </label>
-    
-    <a href="./" title="Auth0" class="md-nav__link md-nav__link--active">
+  <li class="md-nav__item">
+    <a href="../auth0/" title="Auth0" class="md-nav__link">
       Auth0
     </a>
-    
-      
-<nav class="md-nav md-nav--secondary">
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">Table of contents</label>
-    <ul class="md-nav__list" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#user-definitions" title="User-definitions" class="md-nav__link">
-    User-definitions
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#registering-the-app-with-auth0" title="Registering the app with Auth0" class="md-nav__link">
-    Registering the app with Auth0
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#adding-authorization-rules-to-auth0" title="Adding authorization rules to Auth0" class="md-nav__link">
-    Adding authorization rules to Auth0
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#configuring-argo" title="Configuring argo" class="md-nav__link">
-    Configuring argo
-  </a>
-  
-    <nav class="md-nav">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#configure-oidc-for-argocd" title="Configure OIDC for ArgoCD" class="md-nav__link">
-    Configure OIDC for ArgoCD
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#configure-rbac-for-argocd" title="Configure RBAC for ArgoCD" class="md-nav__link">
-    Configure RBAC for ArgoCD
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-      
-      
-      
-      
-    </ul>
-  
-</nav>
-    
   </li>
 
         
@@ -525,11 +446,20 @@
           
           
 
+  
 
-  <li class="md-nav__item">
-    <a href="../onelogin/" title="OneLogin" class="md-nav__link">
+
+  <li class="md-nav__item md-nav__item--active">
+    
+    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
+    
+      
+    
+    
+    <a href="./" title="OneLogin" class="md-nav__link md-nav__link--active">
       OneLogin
     </a>
+    
   </li>
 
         
@@ -1196,63 +1126,6 @@
     
   
   
-    <label class="md-nav__title" for="__toc">Table of contents</label>
-    <ul class="md-nav__list" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#user-definitions" title="User-definitions" class="md-nav__link">
-    User-definitions
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#registering-the-app-with-auth0" title="Registering the app with Auth0" class="md-nav__link">
-    Registering the app with Auth0
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#adding-authorization-rules-to-auth0" title="Adding authorization rules to Auth0" class="md-nav__link">
-    Adding authorization rules to Auth0
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#configuring-argo" title="Configuring argo" class="md-nav__link">
-    Configuring argo
-  </a>
-  
-    <nav class="md-nav">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#configure-oidc-for-argocd" title="Configure OIDC for ArgoCD" class="md-nav__link">
-    Configure OIDC for ArgoCD
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#configure-rbac-for-argocd" title="Configure RBAC for ArgoCD" class="md-nav__link">
-    Configure RBAC for ArgoCD
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-      
-      
-      
-      
-    </ul>
-  
 </nav>
                   </div>
                 </div>
@@ -1263,59 +1136,19 @@
             <article class="md-content__inner md-typeset">
               
                 
-                  <a href="https://github.com/argoproj/argo-cd/edit/master/docs/operator-manual/sso/auth0.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
+                  <a href="https://github.com/argoproj/argo-cd/edit/master/docs/operator-manual/user-management/onelogin.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
                 
                 
-                <h1 id="auth0">Auth0<a class="headerlink" href="#auth0" title="Permanent link">&para;</a></h1>
-<h2 id="user-definitions">User-definitions<a class="headerlink" href="#user-definitions" title="Permanent link">&para;</a></h2>
-<p>User-definitions in Auth0 is out of scope for this guide. Add them directly in Auth0 database, use an enterprise registry, or "social login".
-<em>Note</em>: all users have access to all Auth0 defined apps unless you restrict access via configuration - keep this in mind if argo is exposed on the internet or else anyone can login.</p>
-<h2 id="registering-the-app-with-auth0">Registering the app with Auth0<a class="headerlink" href="#registering-the-app-with-auth0" title="Permanent link">&para;</a></h2>
-<p>Follow the <a href="https://auth0.com/docs/dashboard/guides/applications/register-app-spa">register app</a> instructions to create the argocd app in Auth0. In the app definition:
-* Take note of the <em>clientId</em> and <em>clientSecret</em> values.
-* Register login url as https://your.argoingress.address/login
-* Set allowed callback url to https://your.argoingress.address/auth/callback
-* Under connections, select the user-registries you want to use with argo</p>
-<p>Any other settings are non-essential for the authentication to work.</p>
-<h2 id="adding-authorization-rules-to-auth0">Adding authorization rules to Auth0<a class="headerlink" href="#adding-authorization-rules-to-auth0" title="Permanent link">&para;</a></h2>
-<p>Follow Auth0 <a href="https://auth0.com/docs/authorization">authorization guide</a> to setup authorization.
-The important part to note here is that group-membership is a non-standard claim, and hence is required to be put under a FQDN claim name, for instance <code>http://your.domain/groups</code>.</p>
-<h2 id="configuring-argo">Configuring argo<a class="headerlink" href="#configuring-argo" title="Permanent link">&para;</a></h2>
-<h3 id="configure-oidc-for-argocd">Configure OIDC for ArgoCD<a class="headerlink" href="#configure-oidc-for-argocd" title="Permanent link">&para;</a></h3>
-<p><code>kubectl edit configmap argocd-cm</code></p>
-<div class="codehilite"><pre><span></span><code><span class="err">...</span>
-<span class="c">data:</span>
-<span class="c">  application.instanceLabelKey: argocd.argoproj.io/instance</span>
-<span class="c">  oidc.config: |</span>
-<span class="c">    name: Auth0</span>
-<span class="c">    issuer: https://&lt;yourtenant&gt;.&lt;eu|us&gt;.auth0.com/</span>
-<span class="c">    clientID: &lt;theClientId&gt;</span>
-<span class="c">    clientSecret: &lt;theClientSecret&gt;</span>
-<span class="c">    requestedScopes:</span>
-<span class="c">    - openid</span>
-<span class="c">    - profile</span>
-<span class="c">    - email</span>
-<span class="c">    # not strictly nesscessary - but good practice:</span>
-<span class="c">    - &#39;http://your.domain/groups&#39;</span>
-<span class="err">...</span>
-</code></pre></div>
+                <h1 id="onelogin">OneLogin<a class="headerlink" href="#onelogin" title="Permanent link">&para;</a></h1>
+<div class="admonition note">
+<p class="admonition-title">Are you using this? Please contribute!</p>
+<p>If you're using this IdP please consider <a href="../../../developer-guide/site/">contributing</a> to this document.</p>
+</div>
+<!-- markdownlint-disable MD033 -->
 
+<div style="text-align:center"><img src="../../../assets/argo.png" /></div>
 
-<h3 id="configure-rbac-for-argocd">Configure RBAC for ArgoCD<a class="headerlink" href="#configure-rbac-for-argocd" title="Permanent link">&para;</a></h3>
-<p><code>kubectl edit configmap argocd-rbac-cm</code> (or use helm values).</p>
-<div class="codehilite"><pre><span></span><code><span class="err">...</span>
-<span class="c">data:</span>
-<span class="c">  policy.csv: |</span>
-<span class="c">    # let members with group someProjectGroup handle apps in someProject</span>
-<span class="c">    # this can also be defined in the UI in the group-definition to avoid doing it there in the configmap</span>
-<span class="c">    p, someProjectGroup, applications, *, someProject/*, allow</span>
-<span class="c">    # let the group membership argocd-admins from OIDC become role:admin - needs to go into the configmap</span>
-<span class="c">    g, argocd-global-admins, role:admin</span>
-<span class="c">  policy.default: role:readonly</span>
-<span class="c">  # essential to get argo to use groups for RBAC:</span>
-<span class="c">  scopes: &#39;[http://your.domain/groups, email]&#39; </span>
-<span class="err">...</span>
-</code></pre></div>
+<!-- markdownlint-enable MD033 -->
                 
                   
                 
@@ -1336,7 +1169,7 @@ The important part to note here is that group-membership is a non-standard claim
     <div class="md-footer-nav">
       <nav class="md-footer-nav__inner md-grid">
         
-          <a href="../" title="SSO Overview" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
+          <a href="../okta/" title="Okta" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
             <div class="md-flex__cell md-flex__cell--shrink">
               <i class="md-icon md-icon--arrow-back md-footer-nav__button"></i>
             </div>
@@ -1345,19 +1178,19 @@ The important part to note here is that group-membership is a non-standard claim
                 <span class="md-footer-nav__direction">
                   Previous
                 </span>
-                SSO Overview
+                Okta
               </span>
             </div>
           </a>
         
         
-          <a href="../microsoft/" title="Microsoft" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
+          <a href="../../rbac/" title="RBAC Configuration" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
             <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
               <span class="md-flex__ellipsis">
                 <span class="md-footer-nav__direction">
                   Next
                 </span>
-                Microsoft
+                RBAC Configuration
               </span>
             </div>
             <div class="md-flex__cell md-flex__cell--shrink">

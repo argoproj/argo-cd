@@ -36,7 +36,7 @@
     
     
       
-        <title>OneLogin - Argo CD - Declarative GitOps CD for Kubernetes</title>
+        <title>Okta - Argo CD - Declarative GitOps CD for Kubernetes</title>
       
     
     
@@ -127,7 +127,7 @@
     <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
     <label class="md-overlay" data-md-component="overlay" for="__drawer"></label>
     
-      <a href="#onelogin" tabindex="1" class="md-skip">
+      <a href="#okta" tabindex="1" class="md-skip">
         Skip to content
       </a>
     
@@ -152,7 +152,7 @@
               Argo CD - Declarative GitOps CD for Kubernetes
             </span>
             <span class="md-header-nav__topic">
-              OneLogin
+              Okta
             </span>
           
         </div>
@@ -385,11 +385,11 @@
       <input class="md-toggle md-nav__toggle" data-md-toggle="nav-5-5" type="checkbox" id="nav-5-5" checked>
     
     <label class="md-nav__link" for="nav-5-5">
-      Single Sign On (SSO) & Role-Based Access Control (RBAC)
+      User Management
     </label>
     <nav class="md-nav" data-md-component="collapsible" data-md-level="2">
       <label class="md-nav__title" for="nav-5-5">
-        Single Sign On (SSO) & Role-Based Access Control (RBAC)
+        User Management
       </label>
       <ul class="md-nav__list" data-md-scrollfix>
         
@@ -400,8 +400,8 @@
 
 
   <li class="md-nav__item">
-    <a href="../" title="SSO Overview" class="md-nav__link">
-      SSO Overview
+    <a href="../" title="Overview" class="md-nav__link">
+      Overview
     </a>
   </li>
 
@@ -434,18 +434,6 @@
           
           
 
-
-  <li class="md-nav__item">
-    <a href="../okta/" title="Okta" class="md-nav__link">
-      Okta
-    </a>
-  </li>
-
-        
-          
-          
-          
-
   
 
 
@@ -456,10 +444,58 @@
       
     
     
-    <a href="./" title="OneLogin" class="md-nav__link md-nav__link--active">
-      OneLogin
+      <label class="md-nav__link md-nav__link--active" for="__toc">
+        Okta
+      </label>
+    
+    <a href="./" title="Okta" class="md-nav__link md-nav__link--active">
+      Okta
     </a>
     
+      
+<nav class="md-nav md-nav--secondary">
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">Table of contents</label>
+    <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#saml-with-dex" title="SAML (with Dex)" class="md-nav__link">
+    SAML (with Dex)
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#oidc-without-dex" title="OIDC (without Dex)" class="md-nav__link">
+    OIDC (without Dex)
+  </a>
+  
+</li>
+      
+      
+      
+      
+      
+    </ul>
+  
+</nav>
+    
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../onelogin/" title="OneLogin" class="md-nav__link">
+      OneLogin
+    </a>
   </li>
 
         
@@ -1126,6 +1162,29 @@
     
   
   
+    <label class="md-nav__title" for="__toc">Table of contents</label>
+    <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#saml-with-dex" title="SAML (with Dex)" class="md-nav__link">
+    SAML (with Dex)
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#oidc-without-dex" title="OIDC (without Dex)" class="md-nav__link">
+    OIDC (without Dex)
+  </a>
+  
+</li>
+      
+      
+      
+      
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -1136,19 +1195,104 @@
             <article class="md-content__inner md-typeset">
               
                 
-                  <a href="https://github.com/argoproj/argo-cd/edit/master/docs/operator-manual/sso/onelogin.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
+                  <a href="https://github.com/argoproj/argo-cd/edit/master/docs/operator-manual/user-management/okta.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
                 
                 
-                <h1 id="onelogin">OneLogin<a class="headerlink" href="#onelogin" title="Permanent link">&para;</a></h1>
+                <h1 id="okta">Okta<a class="headerlink" href="#okta" title="Permanent link">&para;</a></h1>
 <div class="admonition note">
 <p class="admonition-title">Are you using this? Please contribute!</p>
 <p>If you're using this IdP please consider <a href="../../../developer-guide/site/">contributing</a> to this document.</p>
 </div>
-<!-- markdownlint-disable MD033 -->
+<p>A working Single Sign-On configuration using Okta via at least two methods was achieved using:</p>
+<ul>
+<li><a href="#saml-with-dex">SAML (with Dex)</a></li>
+<li><a href="#oidc-without-dex">OIDC (without Dex)</a></li>
+</ul>
+<h2 id="saml-with-dex">SAML (with Dex)<a class="headerlink" href="#saml-with-dex" title="Permanent link">&para;</a></h2>
+<ol>
+<li>Create a new SAML application in Okta UI.<ul>
+<li><img alt="Okta SAML App 1" src="../../../assets/saml-1.png" />
+    I've disabled <code>App Visibility</code> because Dex doesn't support Provider-initated login flows.</li>
+<li><img alt="Okta SAML App 2" src="../../../assets/saml-2.png" /></li>
+</ul>
+</li>
+<li>Click <code>View setup instructions</code> after creating the application in Okta.<ul>
+<li><img alt="Okta SAML App 3" src="../../../assets/saml-3.png" /></li>
+</ul>
+</li>
+<li>Copy the SSO URL to the <code>argocd-cm</code> in the data.oicd</li>
+<li>Download the CA certificate to use in the <code>argocd-cm</code> configuration.<ul>
+<li><img alt="Okta SAML App 4" src="../../../assets/saml-4.png" /></li>
+</ul>
+</li>
+<li>Edit the <code>argocd-cm</code> and configure the <code>data.dex.config</code> section:</li>
+</ol>
+<!-- markdownlint-disable MD046 -->
 
-<div style="text-align:center"><img src="../../../assets/argo.png" /></div>
+<div class="codehilite"><pre><span></span><code><span class="nt">dex.config</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+  <span class="no">logger:</span>
+    <span class="no">level: debug</span>
+    <span class="no">format: json</span>
+  <span class="no">connectors:</span>
+  <span class="no">- type: saml</span>
+    <span class="no">id: okta</span>
+    <span class="no">name: Okta</span>
+    <span class="no">config:</span>
+      <span class="no">ssoURL: https://yourorganization.oktapreview.com/app/yourorganizationsandbox_appnamesaml_2/rghdr9s6hg98s9dse/sso/saml</span>
+      <span class="no"># You need `caData` _OR_ `ca`, but not both.</span>
+      <span class="no">caData: |</span>
+        <span class="no">&lt;base64 encoded CA cert&gt;</span>
+      <span class="no"># You need `caData` _OR_ `ca`, but not both.</span>
+      <span class="no">ca: /path/to/ca.pem</span>
+      <span class="no">redirectURI: https://ui.argocd.yourorganization.net/api/dex/callback</span>
+      <span class="no">usernameAttr: email</span>
+      <span class="no">emailAttr: email</span>
+      <span class="no">groupsAttr: group</span>
+</code></pre></div>
 
-<!-- markdownlint-enable MD033 -->
+
+<!-- markdownlint-enable MD046 -->
+
+<hr />
+<h2 id="oidc-without-dex">OIDC (without Dex)<a class="headerlink" href="#oidc-without-dex" title="Permanent link">&para;</a></h2>
+<div class="admonition warning">
+<p class="admonition-title">Do you want groups for RBAC later?</p>
+<p>If you want <code>groups</code> scope returned from Okta you need to unforunately contact support to enable <a href="https://developer.okta.com/docs/concepts/api-access-management/">API Access Management with Okta</a> or <a href="#saml-with-dex"><em>just use SAML above!</em></a></p>
+<p>Next you may need the API Access Management feature, which the support team can enable for your OktaPreview domain for testing, to enable "custom scopes" and a separate endpoint to use instead of the "public" <code>/oauth2/v1/authorize</code> API Access Management endpoint. This might be a paid feature if you want OIDC unfortunately. The free alternative I found was SAML.</p>
+</div>
+<ol>
+<li>On the <code>Okta Admin</code> page, navigate to the Okta API Management at <code>Security &gt; API</code>.
+    <img alt="Okta API Management" src="../../../assets/api-management.png" /></li>
+<li>Choose your <code>default</code> authorization server.</li>
+<li>Click <code>Scopes &gt; Add Scope</code><ol>
+<li>Add a scope called <code>groups</code>.
+<img alt="Groups Scope" src="../../../assets/groups-scope.png" /></li>
+</ol>
+</li>
+<li>Click <code>Claims &gt; Add Claim.</code><ol>
+<li>Add a claim called <code>groups</code></li>
+<li>Choose the matching options you need, one example is:<ul>
+<li>e.g. to match groups starting with <code>argocd-</code> you'd return an <code>ID Token</code> using your scope name from step 3 (e.g. <code>groups</code>) where the groups name <code>matches</code> the <code>regex</code> <code>argocd-.*</code>
+<img alt="Groups Claim" src="../../../assets/groups-claim.png" /></li>
+</ul>
+</li>
+</ol>
+</li>
+<li>Edit the <code>argocd-cm</code> and configure the <code>data.oidc.config</code> section:</li>
+</ol>
+<!-- markdownlint-disable MD046 -->
+
+<div class="codehilite"><pre><span></span><code><span class="nt">oidc.config</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+  <span class="no">name: Okta</span>
+  <span class="no">issuer: https://yourorganization.oktapreview.com</span>
+  <span class="no">clientID: 0oaltaqg3oAIf2NOa0h3</span>
+  <span class="no">clientSecret: ZXF_CfUc-rtwNfzFecGquzdeJ_MxM4sGc8pDT2Tg6t</span>
+  <span class="no">requestedScopes: [&quot;openid&quot;, &quot;profile&quot;, &quot;email&quot;, &quot;groups&quot;]</span>
+  <span class="no">requestedIDTokenClaims: {&quot;groups&quot;: {&quot;essential&quot;: true}}</span>
+</code></pre></div>
+
+
+<!-- markdownlint-enable MD046 -->
                 
                   
                 
@@ -1169,7 +1313,7 @@
     <div class="md-footer-nav">
       <nav class="md-footer-nav__inner md-grid">
         
-          <a href="../okta/" title="Okta" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
+          <a href="../microsoft/" title="Microsoft" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
             <div class="md-flex__cell md-flex__cell--shrink">
               <i class="md-icon md-icon--arrow-back md-footer-nav__button"></i>
             </div>
@@ -1178,19 +1322,19 @@
                 <span class="md-footer-nav__direction">
                   Previous
                 </span>
-                Okta
+                Microsoft
               </span>
             </div>
           </a>
         
         
-          <a href="../../rbac/" title="RBAC Configuration" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
+          <a href="../onelogin/" title="OneLogin" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
             <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
               <span class="md-flex__ellipsis">
                 <span class="md-footer-nav__direction">
                   Next
                 </span>
-                RBAC Configuration
+                OneLogin
               </span>
             </div>
             <div class="md-flex__cell md-flex__cell--shrink">
