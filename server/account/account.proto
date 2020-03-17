@@ -79,7 +79,7 @@ service AccountService {
 		option (google.api.http).get = "/api/v1/account/can-i/{resource}/{action}/{subresource}";
 	}
 
-   	// UpdatePassword updates an account's password to a new value
+	// UpdatePassword updates an account's password to a new value
 	rpc UpdatePassword(UpdatePasswordRequest) returns (UpdatePasswordResponse) {
 		option (google.api.http) = {
 			put: "/api/v1/account/password"
@@ -92,8 +92,8 @@ service AccountService {
 	}
 
 	rpc GetAccount(GetAccountRequest) returns (Account) {
-    	option (google.api.http).get = "/api/v1/account/{name}";
-    }
+		option (google.api.http).get = "/api/v1/account/{name}";
+	}
 
 	rpc CreateToken(CreateTokenRequest) returns (CreateTokenResponse) {
 		option (google.api.http) = {

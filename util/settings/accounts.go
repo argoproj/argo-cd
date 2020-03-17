@@ -34,10 +34,13 @@ const (
 type AccountCapability string
 
 const (
-	AccountCapabilityLogin  AccountCapability = "login"
+	// AccountCapabilityLogin represents capability to create UI session tokens.
+	AccountCapabilityLogin AccountCapability = "login"
+	// AccountCapabilityLogin represents capability to generate API auth tokens.
 	AccountCapabilityApiKey AccountCapability = "apiKey"
 )
 
+// Token holds the information about the generated auth token.
 type Token struct {
 	ID        string `json:"id"`
 	IssuedAt  int64  `json:"iat"`
@@ -53,6 +56,7 @@ type Account struct {
 	Tokens        []Token
 }
 
+// FormatPasswordMtime return the formatted password modify time or empty string of password modify time is nil.
 func (a *Account) FormatPasswordMtime() string {
 	if a.PasswordMtime == nil {
 		return ""
@@ -60,6 +64,7 @@ func (a *Account) FormatPasswordMtime() string {
 	return a.PasswordMtime.Format(time.RFC3339)
 }
 
+// FormatCapabilities returns comma separate list of user capabilities.
 func (a *Account) FormatCapabilities() string {
 	var items []string
 	for i := range a.Capabilities {
@@ -68,6 +73,7 @@ func (a *Account) FormatCapabilities() string {
 	return strings.Join(items, ",")
 }
 
+// TokenIndex return an index of a token with the given identifier or -1 if token not found.
 func (a *Account) TokenIndex(id string) int {
 	for i := range a.Tokens {
 		if a.Tokens[i].ID == id {
@@ -77,6 +83,7 @@ func (a *Account) TokenIndex(id string) int {
 	return -1
 }
 
+// HasCapability return true if the account has the specified capability.
 func (a *Account) HasCapability(capability AccountCapability) bool {
 	for _, c := range a.Capabilities {
 		if c == capability {
@@ -94,6 +101,7 @@ func (mgr *SettingsManager) saveAccount(name string, account Account) error {
 	})
 }
 
+// AddAccount save an account with the given name and properties.
 func (mgr *SettingsManager) AddAccount(name string, account Account) error {
 	accounts, err := mgr.GetAccounts()
 	if err != nil {
@@ -105,6 +113,7 @@ func (mgr *SettingsManager) AddAccount(name string, account Account) error {
 	return mgr.saveAccount(name, account)
 }
 
+// GetAccount return an account info by the specified name.
 func (mgr *SettingsManager) GetAccount(name string) (*Account, error) {
 	accounts, err := mgr.GetAccounts()
 	if err != nil {
@@ -117,6 +126,8 @@ func (mgr *SettingsManager) GetAccount(name string) (*Account, error) {
 	return &account, nil
 }
 
+// UpdateAccount runs the callback function against an account that matches to the specified name
+//and persist changes applied by the callback.
 func (mgr *SettingsManager) UpdateAccount(name string, callback func(account *Account) error) error {
 	account, err := mgr.GetAccount(name)
 	if err != nil {
@@ -189,7 +200,7 @@ func saveAccount(secret *v1.Secret, cm *v1.ConfigMap, name string, account Accou
 }
 
 func parseAdminAccount(secret *v1.Secret, cm *v1.ConfigMap) (*Account, error) {
-	adminAccount := &Account{Enabled: true, Capabilities: []AccountCapability{AccountCapabilityApiKey, AccountCapabilityLogin}}
+	adminAccount := &Account{Enabled: true, Capabilities: []AccountCapability{AccountCapabilityLogin}}
 	if adminPasswordHash, ok := secret.Data[settingAdminPasswordHashKey]; ok {
 		adminAccount.PasswordHash = string(adminPasswordHash)
 	}

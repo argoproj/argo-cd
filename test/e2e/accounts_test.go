@@ -22,7 +22,7 @@ func TestCreateAndUseAccount(t *testing.T) {
 	errors.CheckError(err)
 
 	assert.Equal(t, `NAME   ENABLED  CAPABILITIES
-admin  true     apiKey, login`, output)
+admin  true     login`, output)
 
 	SetAccounts(map[string][]string{
 		"test": {"login", "apiKey"},
@@ -32,7 +32,7 @@ admin  true     apiKey, login`, output)
 	errors.CheckError(err)
 
 	assert.Equal(t, `NAME   ENABLED  CAPABILITIES
-admin  true     apiKey, login
+admin  true     login
 test   true     login, apiKey`, output)
 
 	token, err := RunCli("account", "generate-token", "--account", "test")

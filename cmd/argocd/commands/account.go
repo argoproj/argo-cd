@@ -260,9 +260,13 @@ func NewAccountGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 		account string
 	)
 	cmd := &cobra.Command{
-		Use:     "get",
-		Short:   "Get account details",
-		Example: "argocd account get",
+		Use:   "get",
+		Short: "Get account details",
+		Example: `# Get the currently logged in account details
+argocd account get
+
+# Get details for an account by name
+argocd account get --account <account-name>`,
 		Run: func(c *cobra.Command, args []string) {
 			clientset := argocdclient.NewClientOrDie(clientOpts)
 
@@ -290,7 +294,7 @@ func NewAccountGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 		},
 	}
 	cmd.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|name")
-	cmd.Flags().StringVarP(&account, "account", "a", "", "Account name. Default to the current account.")
+	cmd.Flags().StringVarP(&account, "account", "a", "", "Account name. Defaults to the current account.")
 	return cmd
 }
 
@@ -326,9 +330,13 @@ func NewAccountGenerateTokenCommand(clientOpts *argocdclient.ClientOptions) *cob
 		expiresIn string
 	)
 	cmd := &cobra.Command{
-		Use:     "generate-token",
-		Short:   "Generate account token",
-		Example: "argocd account generate-token",
+		Use:   "generate-token",
+		Short: "Generate account token",
+		Example: `# Generate token for the currently logged in account
+argocd account generate-token
+
+# Generate token for the account with the specified name
+argocd account generate-token --account <account-name>`,
 		Run: func(c *cobra.Command, args []string) {
 
 			clientset := argocdclient.NewClientOrDie(clientOpts)
@@ -347,7 +355,7 @@ func NewAccountGenerateTokenCommand(clientOpts *argocdclient.ClientOptions) *cob
 			fmt.Println(response.Token)
 		},
 	}
-	cmd.Flags().StringVarP(&account, "account", "a", "", "Account name. Default to the current account.")
+	cmd.Flags().StringVarP(&account, "account", "a", "", "Account name. Defaults to the current account.")
 	cmd.Flags().StringVarP(&expiresIn, "expires-in", "e", "0s", "Duration before the token will expire. (Default: No expiration)")
 	return cmd
 }
@@ -357,9 +365,13 @@ func NewAccountDeleteTokenCommand(clientOpts *argocdclient.ClientOptions) *cobra
 		account string
 	)
 	cmd := &cobra.Command{
-		Use:     "delete-token",
-		Short:   "Deletes account token",
-		Example: "argocd account delete-token ID",
+		Use:   "delete-token",
+		Short: "Deletes account token",
+		Example: `# Delete token of the currently logged in account
+argocd account delete-token ID
+
+# Delete token of the account with the specified name
+argocd account generate-token --account <account-name>`,
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
@@ -377,6 +389,6 @@ func NewAccountDeleteTokenCommand(clientOpts *argocdclient.ClientOptions) *cobra
 			errors.CheckError(err)
 		},
 	}
-	cmd.Flags().StringVarP(&account, "account", "a", "", "Account name. Default to the current account.")
+	cmd.Flags().StringVarP(&account, "account", "a", "", "Account name. Defaults to the current account.")
 	return cmd
 }

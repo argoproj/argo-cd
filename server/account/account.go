@@ -5,11 +5,11 @@ import (
 	"sort"
 	"time"
 
+	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/kubernetes/pkg/util/slice"
 
 	"github.com/argoproj/argo-cd/pkg/apiclient/account"
@@ -32,7 +32,7 @@ func NewServer(sessionMgr *session.SessionManager, settingsMgr *settings.Setting
 	return &Server{sessionMgr, settingsMgr, enf}
 }
 
-// UpdatePassword updates the password of the local admin superuser.
+// UpdatePassword updates the password of the currently authenticated account or the account specified in the request.
 func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRequest) (*account.UpdatePasswordResponse, error) {
 	username := session.Sub(ctx)
 	if rbacpolicy.IsProjectSubject(username) || session.Iss(ctx) != session.SessionManagerClaimsIssuer {
@@ -163,9 +163,13 @@ func (s *Server) CreateToken(ctx context.Context, r *account.CreateTokenRequest)
 		}
 
 		var err error
-		id := uuid.NewUUID()
+		uniqueId, err := uuid.NewRandom()
+		if err != nil {
+			return err
+		}
+		id := uniqueId.String()
 		now := time.Now()
-		tokenString, err = s.sessionMgr.Create(r.Name, r.ExpiresIn, string(id))
+		tokenString, err = s.sessionMgr.Create(r.Name, r.ExpiresIn, id)
 		if err != nil {
 			return err
 		}
@@ -175,7 +179,7 @@ func (s *Server) CreateToken(ctx context.Context, r *account.CreateTokenRequest)
 			expiresAt = now.Add(time.Duration(r.ExpiresIn) * time.Second).Unix()
 		}
 		account.Tokens = append(account.Tokens, settings.Token{
-			ID:        string(id),
+			ID:        id,
 			IssuedAt:  now.Unix(),
 			ExpiresAt: expiresAt,
 		})

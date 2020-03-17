@@ -135,7 +135,7 @@ func TestListAccounts_AccountsAreConfigured(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, resp.Items, 3)
 	assert.ElementsMatch(t, []*account.Account{
-		{Name: "admin", Capabilities: []string{"apiKey", "login"}, Enabled: true},
+		{Name: "admin", Capabilities: []string{"login"}, Enabled: true},
 		{Name: "account1", Capabilities: []string{"apiKey"}, Enabled: true},
 		{Name: "account2", Capabilities: []string{"login", "apiKey"}, Enabled: false},
 	}, resp.Items)
