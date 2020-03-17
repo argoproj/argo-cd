@@ -97,7 +97,7 @@ jobs:
           name: Link gpg2 to gpg
           command: |
             set -xo pipefail
-            sudo killall -9 apt-get
+            sudo killall -9 apt-get || true
             sleep 2
             sudo apt-get install gnupg2 -y
             gpg2 --version
