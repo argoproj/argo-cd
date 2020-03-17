@@ -118,8 +118,9 @@ func isServiceAccountTokenSecret(un *unstructured.Unstructured) (bool, metav1.Ow
 
 func (c *clusterInfo) createObjInfo(un *unstructured.Unstructured, appInstanceLabel string) *node {
 	ownerRefs := un.GetOwnerReferences()
+	gvk := un.GroupVersionKind()
 	// Special case for endpoint. Remove after https://github.com/kubernetes/kubernetes/issues/28483 is fixed
-	if un.GroupVersionKind().Group == "" && un.GetKind() == kube.EndpointsKind && len(un.GetOwnerReferences()) == 0 {
+	if gvk.Group == "" && gvk.Kind == kube.EndpointsKind && len(un.GetOwnerReferences()) == 0 {
 		ownerRefs = append(ownerRefs, metav1.OwnerReference{
 			Name:       un.GetName(),
 			Kind:       kube.ServiceKind,
@@ -143,7 +144,15 @@ func (c *clusterInfo) createObjInfo(un *unstructured.Unstructured, appInstanceLa
 	if len(ownerRefs) == 0 && appName != "" {
 		nodeInfo.appName = appName
 		nodeInfo.resource = un
+	} else {
+		// edge case. we do not label CRDs, so they miss the tracking label we inject. But we still
+		// want the full resource to be available in our cache, so we store all CRDs
+		switch gvk.Kind {
+		case kube.CustomResourceDefinitionKind:
+			nodeInfo.resource = un
+		}
 	}
+
 	nodeInfo.health, _ = health.GetResourceHealth(un, c.cacheSettingsSrc().ResourceOverrides)
 	return nodeInfo
 }
@@ -475,7 +484,7 @@ func (c *clusterInfo) getManagedLiveObjs(a *appv1.Application, targetObjs []*uns
 			managedObjs[key] = o.resource
 		}
 	}
-	config := metrics.AddMetricsTransportWrapper(metricsServer, a, c.cluster.RESTConfig())
+	config := metrics.AddAppMetricsTransportWrapper(metricsServer, a, c.cluster.RESTConfig())
 	// iterate target objects and identify ones that already exist in the cluster,
 	// but are simply missing our label
 	lock := &sync.Mutex{}
