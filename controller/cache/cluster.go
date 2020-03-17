@@ -42,6 +42,7 @@ type clusterInfo struct {
 	syncError     error
 	apisMeta      map[schema.GroupKind]*apiMeta
 	serverVersion string
+	apiGroups     []metav1.APIGroup
 	// namespacedResources is a simple map which indicates a groupKind is namespaced
 	namespacedResources map[schema.GroupKind]bool
 
@@ -349,6 +350,12 @@ func (c *clusterInfo) sync() (err error) {
 		return err
 	}
 	c.serverVersion = version
+	groups, err := c.kubectl.GetAPIGroups(config)
+	if err != nil {
+		return err
+	}
+	c.apiGroups = groups
+
 	apis, err := c.kubectl.GetAPIResources(config, c.cacheSettingsSrc().ResourcesFilter)
 	if err != nil {
 		return err

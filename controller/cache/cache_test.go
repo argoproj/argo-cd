@@ -20,7 +20,7 @@ func TestGetServerVersion(t *testing.T) {
 			},
 		}}
 
-	version, err := cache.GetServerVersion("http://localhost")
+	version, _, err := cache.GetVersionsInfo("http://localhost")
 	assert.NoError(t, err)
 	assert.Equal(t, "123", version)
 }

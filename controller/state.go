@@ -136,9 +136,15 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		return nil, nil, nil, err
 	}
 	ts.AddCheckpoint("build_options_ms")
-	serverVersion, err := m.liveStateCache.GetServerVersion(app.Spec.Destination.Server)
+	serverVersion, apiGroups, err := m.liveStateCache.GetVersionsInfo(app.Spec.Destination.Server)
 	if err != nil {
 		return nil, nil, nil, err
+	}
+	var apiVersions []string
+	for _, g := range apiGroups {
+		for _, v := range g.Versions {
+			apiVersions = append(apiVersions, v.GroupVersion)
+		}
 	}
 	ts.AddCheckpoint("version_ms")
 	manifestInfo, err := repoClient.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
@@ -155,6 +161,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 			BuildOptions: buildOptions,
 		},
 		KubeVersion: serverVersion,
+		ApiVersions: apiVersions,
 	})
 	if err != nil {
 		return nil, nil, nil, err

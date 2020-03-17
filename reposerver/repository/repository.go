@@ -232,6 +232,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		Name:        q.AppLabelValue,
 		Namespace:   q.Namespace,
 		KubeVersion: text.SemVer(q.KubeVersion),
+		APIVersions: q.ApiVersions,
 		Set:         map[string]string{},
 		SetString:   map[string]string{},
 		SetFile:     map[string]string{},
