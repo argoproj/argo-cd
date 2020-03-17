@@ -452,7 +452,7 @@ func TestAuthenticate(t *testing.T) {
 			argocd := NewServer(context.Background(), argoCDOpts)
 			ctx := context.Background()
 			if testData.user != "" {
-				token, err := argocd.sessionMgr.Create("admin", 0)
+				token, err := argocd.sessionMgr.Create("admin", 0, "")
 				assert.NoError(t, err)
 				ctx = metadata.NewIncomingContext(context.Background(), metadata.Pairs(apiclient.MetaDataTokenKey, token))
 			}

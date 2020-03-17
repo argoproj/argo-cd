@@ -11,16 +11,12 @@ import (
 
 // Server provides a Settings service
 type Server struct {
-	mgr          *settings.SettingsManager
-	disableAdmin bool
+	mgr *settings.SettingsManager
 }
 
 // NewServer returns a new instance of the Settings service
-func NewServer(mgr *settings.SettingsManager, disableAdmin bool) *Server {
-	return &Server{
-		mgr:          mgr,
-		disableAdmin: disableAdmin,
-	}
+func NewServer(mgr *settings.SettingsManager) *Server {
+	return &Server{mgr: mgr}
 }
 
 // Get returns Argo CD settings
@@ -54,6 +50,17 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 	if err != nil {
 		return nil, err
 	}
+	userLoginsDisabled := true
+	accounts, err := s.mgr.GetAccounts()
+	if err != nil {
+		return nil, err
+	}
+	for _, account := range accounts {
+		if account.Enabled && account.HasCapability(settings.AccountCapabilityLogin) {
+			userLoginsDisabled = false
+			break
+		}
+	}
 
 	set := settingspkg.Settings{
 		URL:                argoCDSettings.URL,
@@ -71,8 +78,8 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 			ChatUrl:  help.ChatURL,
 			ChatText: help.ChatText,
 		},
-		Plugins:      plugins,
-		DisableAdmin: s.disableAdmin,
+		Plugins:            plugins,
+		UserLoginsDisabled: userLoginsDisabled,
 	}
 	if argoCDSettings.DexConfig != "" {
 		var cfg settingspkg.DexConfig

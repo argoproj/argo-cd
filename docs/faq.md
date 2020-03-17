@@ -47,6 +47,10 @@ kubectl -n argocd patch secret argocd-secret \
 
 Another option is to delete both the `admin.password` and `admin.passwordMtime` keys and restart argocd-server. This will set the password back to the pod name as per [the getting started guide](getting_started.md).
 
+## How to disable admin user?
+
+Add `admin.enabled: "false"` to the `argocd-cm` ConfigMap (see [user management](operator-manual/user-management/index.md)).
+
 ## Argo CD cannot deploy Helm Chart based applications without internet access, how can I solve it?
 
 Argo CD might fail to generate Helm chart manifests if the chart has dependencies located in external repositories. To solve the problem you need to make sure that `requirements.yaml`

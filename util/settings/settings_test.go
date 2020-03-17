@@ -13,8 +13,8 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 )
 
-func fixtures(data map[string]string) (*fake.Clientset, *SettingsManager) {
-	kubeClient := fake.NewSimpleClientset(&v1.ConfigMap{
+func fixtures(data map[string]string, opts ...func(secret *v1.Secret)) (*fake.Clientset, *SettingsManager) {
+	cm := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDConfigMapName,
 			Namespace: "default",
@@ -23,7 +23,21 @@ func fixtures(data map[string]string) (*fake.Clientset, *SettingsManager) {
 			},
 		},
 		Data: data,
-	})
+	}
+	secret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDSecretName,
+			Namespace: "default",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+		Data: map[string][]byte{},
+	}
+	for i := range opts {
+		opts[i](secret)
+	}
+	kubeClient := fake.NewSimpleClientset(cm, secret)
 	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
 
 	return kubeClient, settingsManager

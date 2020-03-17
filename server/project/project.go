@@ -85,7 +85,7 @@ func (s *Server) CreateToken(ctx context.Context, q *project.ProjectTokenCreateR
 		}
 	}
 	tokenName := fmt.Sprintf(JWTTokenSubFormat, q.Project, q.Role)
-	jwtToken, err := s.sessionMgr.Create(tokenName, q.ExpiresIn)
+	jwtToken, err := s.sessionMgr.Create(tokenName, q.ExpiresIn, "")
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}

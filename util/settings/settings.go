@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -41,9 +42,6 @@ type ArgoCDSettings struct {
 	URL string `json:"url,omitempty"`
 	// Indicates if status badge is enabled or not.
 	StatusBadgeEnabled bool `json:"statusBadgeEnable"`
-	// Admin superuser password storage
-	AdminPasswordHash  string    `json:"adminPasswordHash,omitempty"`
-	AdminPasswordMtime time.Time `json:"adminPasswordMtime,omitempty"`
 	// DexConfig contains portions of a dex config yaml
 	DexConfig string `json:"dexConfig,omitempty"`
 	// OIDCConfigRAW holds OIDC configuration as a raw string
@@ -147,10 +145,6 @@ type RepositoryCredentials struct {
 }
 
 const (
-	// settingAdminPasswordHashKey designates the key for a root password hash inside a Kubernetes secret.
-	settingAdminPasswordHashKey = "admin.password"
-	// settingAdminPasswordMtimeKey designates the key for a root password mtime inside a Kubernetes secret.
-	settingAdminPasswordMtimeKey = "admin.passwordMtime"
 	// settingServerSignatureKey designates the key for a server secret key inside a Kubernetes secret.
 	settingServerSignatureKey = "server.secretkey"
 	// gaTrackingID holds Google Analytics tracking id
@@ -235,6 +229,51 @@ func (mgr *SettingsManager) GetSecretsLister() (v1listers.SecretLister, error) {
 		return nil, err
 	}
 	return mgr.secrets, nil
+}
+
+func (mgr *SettingsManager) updateSecret(callback func(*apiv1.Secret) error) error {
+	err := mgr.ensureSynced(false)
+	if err != nil {
+		return err
+	}
+	argoCDSecret, err := mgr.secrets.Secrets(mgr.namespace).Get(common.ArgoCDSecretName)
+	createSecret := false
+	if err != nil {
+		if !apierr.IsNotFound(err) {
+			return err
+		}
+		argoCDSecret = &apiv1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: common.ArgoCDSecretName,
+			},
+			Data: make(map[string][]byte),
+		}
+		createSecret = true
+	}
+	if argoCDSecret.Data == nil {
+		argoCDSecret.Data = make(map[string][]byte)
+	}
+
+	updatedSecret := argoCDSecret.DeepCopy()
+	err = callback(updatedSecret)
+	if err != nil {
+		return err
+	}
+
+	if !createSecret && reflect.DeepEqual(argoCDSecret, updatedSecret) {
+		return nil
+	}
+
+	if createSecret {
+		_, err = mgr.clientset.CoreV1().Secrets(mgr.namespace).Create(updatedSecret)
+	} else {
+		_, err = mgr.clientset.CoreV1().Secrets(mgr.namespace).Update(updatedSecret)
+	}
+	if err != nil {
+		return err
+	}
+
+	return mgr.ResyncInformers()
 }
 
 func (mgr *SettingsManager) updateConfigMap(callback func(*apiv1.ConfigMap) error) error {
@@ -630,18 +669,6 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 // updateSettingsFromSecret transfers settings from a Kubernetes secret into an ArgoCDSettings struct.
 func updateSettingsFromSecret(settings *ArgoCDSettings, argoCDSecret *apiv1.Secret) error {
 	var errs []error
-	adminPasswordHash, ok := argoCDSecret.Data[settingAdminPasswordHashKey]
-	if ok {
-		settings.AdminPasswordHash = string(adminPasswordHash)
-	} else {
-		errs = append(errs, &incompleteSettingsError{message: "admin.password is missing"})
-	}
-	adminPasswordMtimeBytes, ok := argoCDSecret.Data[settingAdminPasswordMtimeKey]
-	if ok {
-		if adminPasswordMtime, err := time.Parse(time.RFC3339, string(adminPasswordMtimeBytes)); err == nil {
-			settings.AdminPasswordMtime = adminPasswordMtime
-		}
-	}
 	secretKey, ok := argoCDSecret.Data[settingServerSignatureKey]
 	if ok {
 		settings.ServerSignature = secretKey
@@ -710,59 +737,38 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 		return err
 	}
 
-	// Upsert the secret data. Ensure we do not delete any extra keys which user may have added
-	argoCDSecret, err := mgr.secrets.Secrets(mgr.namespace).Get(common.ArgoCDSecretName)
-	createSecret := false
-	if err != nil {
-		if !apierr.IsNotFound(err) {
-			return err
+	err = mgr.updateSecret(func(argoCDSecret *apiv1.Secret) error {
+		argoCDSecret.Data[settingServerSignatureKey] = settings.ServerSignature
+		if settings.WebhookGitHubSecret != "" {
+			argoCDSecret.Data[settingsWebhookGitHubSecretKey] = []byte(settings.WebhookGitHubSecret)
 		}
-		argoCDSecret = &apiv1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: common.ArgoCDSecretName,
-			},
-			Data: make(map[string][]byte),
+		if settings.WebhookGitLabSecret != "" {
+			argoCDSecret.Data[settingsWebhookGitLabSecretKey] = []byte(settings.WebhookGitLabSecret)
 		}
-		createSecret = true
-	}
-	if argoCDSecret.Data == nil {
-		argoCDSecret.Data = make(map[string][]byte)
-	}
+		if settings.WebhookBitbucketUUID != "" {
+			argoCDSecret.Data[settingsWebhookBitbucketUUIDKey] = []byte(settings.WebhookBitbucketUUID)
+		}
+		if settings.WebhookBitbucketServerSecret != "" {
+			argoCDSecret.Data[settingsWebhookBitbucketServerSecretKey] = []byte(settings.WebhookBitbucketServerSecret)
+		}
+		if settings.WebhookGogsSecret != "" {
+			argoCDSecret.Data[settingsWebhookGogsSecretKey] = []byte(settings.WebhookGogsSecret)
+		}
+		if settings.Certificate != nil {
+			cert, key := tlsutil.EncodeX509KeyPair(*settings.Certificate)
+			argoCDSecret.Data[settingServerCertificate] = cert
+			argoCDSecret.Data[settingServerPrivateKey] = key
+		} else {
+			delete(argoCDSecret.Data, settingServerCertificate)
+			delete(argoCDSecret.Data, settingServerPrivateKey)
+		}
+		return nil
+	})
 
-	argoCDSecret.Data[settingServerSignatureKey] = settings.ServerSignature
-	argoCDSecret.Data[settingAdminPasswordHashKey] = []byte(settings.AdminPasswordHash)
-	argoCDSecret.Data[settingAdminPasswordMtimeKey] = []byte(settings.AdminPasswordMtime.Format(time.RFC3339))
-	if settings.WebhookGitHubSecret != "" {
-		argoCDSecret.Data[settingsWebhookGitHubSecretKey] = []byte(settings.WebhookGitHubSecret)
-	}
-	if settings.WebhookGitLabSecret != "" {
-		argoCDSecret.Data[settingsWebhookGitLabSecretKey] = []byte(settings.WebhookGitLabSecret)
-	}
-	if settings.WebhookBitbucketUUID != "" {
-		argoCDSecret.Data[settingsWebhookBitbucketUUIDKey] = []byte(settings.WebhookBitbucketUUID)
-	}
-	if settings.WebhookBitbucketServerSecret != "" {
-		argoCDSecret.Data[settingsWebhookBitbucketServerSecretKey] = []byte(settings.WebhookBitbucketServerSecret)
-	}
-	if settings.WebhookGogsSecret != "" {
-		argoCDSecret.Data[settingsWebhookGogsSecretKey] = []byte(settings.WebhookGogsSecret)
-	}
-	if settings.Certificate != nil {
-		cert, key := tlsutil.EncodeX509KeyPair(*settings.Certificate)
-		argoCDSecret.Data[settingServerCertificate] = cert
-		argoCDSecret.Data[settingServerPrivateKey] = key
-	} else {
-		delete(argoCDSecret.Data, settingServerCertificate)
-		delete(argoCDSecret.Data, settingServerPrivateKey)
-	}
-	if createSecret {
-		_, err = mgr.clientset.CoreV1().Secrets(mgr.namespace).Create(argoCDSecret)
-	} else {
-		_, err = mgr.clientset.CoreV1().Secrets(mgr.namespace).Update(argoCDSecret)
-	}
 	if err != nil {
 		return err
 	}
+
 	return mgr.ResyncInformers()
 }
 
@@ -982,7 +988,7 @@ func isIncompleteSettingsError(err error) bool {
 }
 
 // InitializeSettings is used to initialize empty admin password, signature, certificate etc if missing
-func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool, disableAdmin bool) (*ArgoCDSettings, error) {
+func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoCDSettings, error) {
 	cdSettings, err := mgr.GetSettings()
 	if err != nil && !isIncompleteSettingsError(err) {
 		return nil, err
@@ -999,27 +1005,35 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool, disable
 		cdSettings.ServerSignature = signature
 		log.Info("Initialized server signature")
 	}
-	if !disableAdmin {
-		if cdSettings.AdminPasswordHash == "" {
-			defaultPassword, err := os.Hostname()
-			if err != nil {
-				return nil, err
+	err = mgr.UpdateAccount(common.ArgoCDAdminUsername, func(adminAccount *Account) error {
+		if adminAccount.Enabled {
+			now := time.Now().UTC()
+			if adminAccount.PasswordHash == "" {
+				defaultPassword, err := os.Hostname()
+				if err != nil {
+					return err
+				}
+				hashedPassword, err := password.HashPassword(defaultPassword)
+				if err != nil {
+					return err
+				}
+				adminAccount.PasswordHash = hashedPassword
+				adminAccount.PasswordMtime = &now
+				log.Info("Initialized admin password")
 			}
-			hashedPassword, err := password.HashPassword(defaultPassword)
-			if err != nil {
-				return nil, err
+			if adminAccount.PasswordMtime == nil || adminAccount.PasswordMtime.IsZero() {
+				adminAccount.PasswordMtime = &now
+				log.Info("Initialized admin mtime")
 			}
-			cdSettings.AdminPasswordHash = hashedPassword
-			cdSettings.AdminPasswordMtime = time.Now().UTC()
-			log.Info("Initialized admin password")
+		} else {
+			log.Info("admin disabled")
 		}
-		if cdSettings.AdminPasswordMtime.IsZero() {
-			cdSettings.AdminPasswordMtime = time.Now().UTC()
-			log.Info("Initialized admin mtime")
-		}
-	} else {
-		log.Info("admin disabled")
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
+
 	if cdSettings.Certificate == nil && !insecureModeEnabled {
 		// generate TLS cert
 		hosts := []string{
