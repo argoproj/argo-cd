@@ -77,24 +77,18 @@ jobs:
           path: codegen.patch
           destination: .
   test:
-    working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
-    machine:
-      image: circleci/classic:201808-01
+    working_directory: /go/src/github.com/argoproj/argo-cd
+    docker:
+      - image: jannfis/argocd-test-utils:0.0.3
     steps:
       - restore_go_cache
-      - install_golang
       - checkout
       - restore_cache:
           key: test-dl-v2
-      - run: sudo ./hack/install.sh kubectl-linux kubectx-linux dep-linux ksonnet-linux helm-linux helm2-linux kustomize-linux
-      - save_cache:
-          key: test-dl-v2
-          paths: [/tmp/dl]
       - configure_git
-      - run: go get github.com/jstemmer/go-junit-report
       - restore_vendor
       - run: dep ensure -v
-      - run: make test
+      - run: make test-local
       - save_vendor
       - save_go_cache
       - run:

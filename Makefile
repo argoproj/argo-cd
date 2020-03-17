@@ -12,7 +12,7 @@ PACKR_CMD=$(shell if [ "`which packr`" ]; then echo "packr"; else echo "go run v
 VOLUME_MOUNT=$(shell if [[ selinuxenabled -eq 0 ]]; then echo ":Z"; elif [[ $(go env GOOS)=="darwin" ]]; then echo ":delegated"; else echo ""; fi)
 
 define run-in-dev-tool
-    docker run --rm -it -u $(shell id -u) -e HOME=/home/user -v ${CURRENT_DIR}:/go/src/github.com/argoproj/argo-cd${VOLUME_MOUNT} -w /go/src/github.com/argoproj/argo-cd argocd-dev-tools bash -c "GOPATH=/go $(1)"
+    docker run --rm -it -u $(shell id -u) -e HOME=/home/user -v ${HOME}/go/src:/go/src${VOLUME_MOUNT} -w /go/src/github.com/argoproj/argo-cd argocd-dev-tools bash -c "GOPATH=/go $(1)"
 endef
 
 PATH:=$(PATH):$(PWD)/hack
@@ -175,7 +175,11 @@ build:
 	go build -v `go list ./... | grep -v 'resource_customizations\|test/e2e'`
 
 .PHONY: test
-test:
+test: dev-tools-image
+	$(call run-in-dev-tool,make test-local)
+
+.PHONY: test-local
+test-local:
 	./hack/test.sh -coverprofile=coverage.out `go list ./... | grep -v 'test/e2e'`
 
 .PHONY: test-e2e
