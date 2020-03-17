@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -119,6 +120,9 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*ap
 		}
 	}
 	newItems = argoutil.FilterByProjects(newItems, q.Projects)
+	sort.Slice(newItems, func(i, j int) bool {
+		return newItems[i].Name < newItems[j].Name
+	})
 	appList := appv1.ApplicationList{
 		Items: newItems,
 	}
