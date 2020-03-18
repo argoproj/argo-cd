@@ -590,7 +590,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	if err != nil {
 		return nil, err
 	}
-	config := metrics.AddAppMetricsTransportWrapper(ctrl.metricsServer, app, cluster.RESTConfig())
+	config := metrics.AddMetricsTransportWrapper(ctrl.metricsServer, app, cluster.RESTConfig())
 
 	err = util.RunAllAsync(len(objs), func(i int) error {
 		obj := objs[i]

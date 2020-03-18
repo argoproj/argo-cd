@@ -137,7 +137,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 
-	restConfig := metrics.AddAppMetricsTransportWrapper(m.metricsServer, app, clst.RESTConfig())
+	restConfig := metrics.AddMetricsTransportWrapper(m.metricsServer, app, clst.RESTConfig())
 	dynamicIf, err := dynamic.NewForConfig(restConfig)
 	if err != nil {
 		state.Phase = v1alpha1.OperationError

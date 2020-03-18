@@ -66,18 +66,19 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:9f22b6b3ee272491fc07a95fdaeeab35577458a4d9cb42649d983a0390985cd7"
+  digest = "1:2aa13539a5ef79645b492ea7b8c326b365cc39c96e8e2a499cc8e526c7181495"
   name = "github.com/argoproj/pkg"
   packages = [
     "errors",
     "exec",
     "grpc/http",
+    "kubeclientmetrics",
     "rand",
     "stats",
     "time",
   ]
   pruneopts = ""
-  revision = "883dd1b17283e77f99d847afbc3b868118d0dc65"
+  revision = "887bdab25dbcf74bead40c259533c0ad7bc5ab21"
 
 [[projects]]
   digest = "1:d8a2bb36a048d1571bcc1aee208b61f39dc16c6c53823feffd37449dde162507"
@@ -1941,6 +1942,7 @@
     "github.com/argoproj/pkg/errors",
     "github.com/argoproj/pkg/exec",
     "github.com/argoproj/pkg/grpc/http",
+    "github.com/argoproj/pkg/kubeclientmetrics",
     "github.com/argoproj/pkg/stats",
     "github.com/argoproj/pkg/time",
     "github.com/casbin/casbin",

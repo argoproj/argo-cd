@@ -89,7 +89,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, health
 			Name: "argocd_app_k8s_request_total",
 			Help: "Number of kubernetes requests executed during application reconciliation.",
 		},
-		append(descAppDefaultLabels, "response_code", "verb", "resource_kind", "resource_namespace"),
+		append(descAppDefaultLabels, "server", "response_code", "verb", "resource_kind", "resource_namespace"),
 	)
 	registry.MustRegister(k8sRequestCounter)
 
@@ -168,9 +168,15 @@ func (m *MetricsServer) IncClusterEventsCount(server, group, kind string) {
 }
 
 // IncKubernetesRequest increments the kubernetes requests counter for an application
-func (m *MetricsServer) IncKubernetesRequest(app *argoappv1.Application, statusCode, verb, resourceKind, resourceNamespace string) {
+func (m *MetricsServer) IncKubernetesRequest(app *argoappv1.Application, server, statusCode, verb, resourceKind, resourceNamespace string) {
+	var namespace, name, project string
+	if app != nil {
+		namespace = app.Namespace
+		name = app.Name
+		project = app.Spec.GetProject()
+	}
 	m.k8sRequestCounter.WithLabelValues(
-		app.Namespace, app.Name, app.Spec.GetProject(), statusCode,
+		namespace, name, project, server, statusCode,
 		verb, resourceKind, resourceNamespace,
 	).Inc()
 }

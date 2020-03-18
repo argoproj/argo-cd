@@ -57,6 +57,7 @@ type clusterInfo struct {
 	cluster          *appv1.Cluster
 	log              *log.Entry
 	cacheSettingsSrc func() *cacheSettings
+	metricsServer    *metrics.MetricsServer
 }
 
 func (c *clusterInfo) replaceResourceCache(gk schema.GroupKind, resourceVersion string, objs []unstructured.Unstructured, ns string) {
@@ -146,7 +147,7 @@ func (c *clusterInfo) createObjInfo(un *unstructured.Unstructured, appInstanceLa
 		nodeInfo.resource = un
 	} else {
 		// edge case. we do not label CRDs, so they miss the tracking label we inject. But we still
-		// want the full resource to be available in our cache, so we store all CRDs
+		// want the full resource to be available in our cache (to diff), so we store all CRDs
 		switch gvk.Kind {
 		case kube.CustomResourceDefinitionKind:
 			nodeInfo.resource = un
@@ -473,7 +474,7 @@ func (c *clusterInfo) isNamespaced(gk schema.GroupKind) bool {
 	return true
 }
 
-func (c *clusterInfo) getManagedLiveObjs(a *appv1.Application, targetObjs []*unstructured.Unstructured, metricsServer *metrics.MetricsServer) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
+func (c *clusterInfo) getManagedLiveObjs(a *appv1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
@@ -484,7 +485,7 @@ func (c *clusterInfo) getManagedLiveObjs(a *appv1.Application, targetObjs []*uns
 			managedObjs[key] = o.resource
 		}
 	}
-	config := metrics.AddAppMetricsTransportWrapper(metricsServer, a, c.cluster.RESTConfig())
+	config := metrics.AddMetricsTransportWrapper(c.metricsServer, a, c.cluster.RESTConfig())
 	// iterate target objects and identify ones that already exist in the cluster,
 	// but are simply missing our label
 	lock := &sync.Mutex{}
