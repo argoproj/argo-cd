@@ -42,6 +42,54 @@ status:
     status: Healthy
 `
 
+const fakeApp2 = `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-app-2
+  namespace: argocd
+spec:
+  destination:
+    namespace: dummy-namespace
+    server: https://localhost:6443
+  project: important-project
+  source:
+    path: some/path
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+status:
+  sync:
+    status: Synced
+  health:
+    status: Healthy
+operation:
+  sync:
+    revision: 041eab7439ece92c99b043f0e171788185b8fc1d
+    syncStrategy:
+      hook: {}
+`
+
+const fakeApp3 = `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-app-3
+  namespace: argocd
+  deletionTimestamp: "2020-03-16T09:17:45Z"
+spec:
+  destination:
+    namespace: dummy-namespace
+    server: https://localhost:6443
+  project: important-project
+  source:
+    path: some/path
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+status:
+  sync:
+    status: OutOfSync
+  health:
+    status: Degraded
+`
+
 const expectedResponse = `# HELP argocd_app_created_time Creation time in unix timestamp for an application.
 # TYPE argocd_app_created_time gauge
 argocd_app_created_time{name="my-app",namespace="argocd",project="important-project"} -6.21355968e+10
@@ -55,7 +103,9 @@ argocd_app_health_status{health_status="Suspended",name="my-app",namespace="argo
 argocd_app_health_status{health_status="Unknown",name="my-app",namespace="argocd",project="important-project"} 0
 # HELP argocd_app_info Information about application.
 # TYPE argocd_app_info gauge
-argocd_app_info{dest_namespace="dummy-namespace",dest_server="https://localhost:6443",name="my-app",namespace="argocd",project="important-project",repo="https://github.com/argoproj/argocd-example-apps"} 1
+argocd_app_info{dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Degraded",name="my-app-3",namespace="argocd",operation="delete",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="OutOfSync"} 1
+argocd_app_info{dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",name="my-app",namespace="argocd",operation="",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
+argocd_app_info{dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",name="my-app-2",namespace="argocd",operation="sync",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
 # HELP argocd_app_sync_status The application current sync status.
 # TYPE argocd_app_sync_status gauge
 argocd_app_sync_status{name="my-app",namespace="argocd",project="important-project",sync_status="OutOfSync"} 0
@@ -96,7 +146,7 @@ argocd_app_health_status{health_status="Suspended",name="my-app",namespace="argo
 argocd_app_health_status{health_status="Unknown",name="my-app",namespace="argocd",project="default"} 0
 # HELP argocd_app_info Information about application.
 # TYPE argocd_app_info gauge
-argocd_app_info{dest_namespace="dummy-namespace",dest_server="https://localhost:6443",name="my-app",namespace="argocd",project="default",repo="https://github.com/argoproj/argocd-example-apps"} 1
+argocd_app_info{dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",name="my-app",namespace="argocd",operation="",project="default",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
 # HELP argocd_app_sync_status The application current sync status.
 # TYPE argocd_app_sync_status gauge
 argocd_app_sync_status{name="my-app",namespace="argocd",project="default",sync_status="OutOfSync"} 0
@@ -108,21 +158,22 @@ var noOpHealthCheck = func() error {
 	return nil
 }
 
-func newFakeApp(fakeApp string) *argoappv1.Application {
+func newFakeApp(fakeAppYAML string) *argoappv1.Application {
 	var app argoappv1.Application
-	err := yaml.Unmarshal([]byte(fakeApp), &app)
+	err := yaml.Unmarshal([]byte(fakeAppYAML), &app)
 	if err != nil {
 		panic(err)
 	}
 	return &app
 }
 
-func newFakeLister(fakeApp ...string) (context.CancelFunc, applister.ApplicationLister) {
+func newFakeLister(fakeAppYAMLs ...string) (context.CancelFunc, applister.ApplicationLister) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	var fakeApps []runtime.Object
-	for _, name := range fakeApp {
-		fakeApps = append(fakeApps, newFakeApp(name))
+	for _, appYAML := range fakeAppYAMLs {
+		a := newFakeApp(appYAML)
+		fakeApps = append(fakeApps, a)
 	}
 	appClientset := appclientset.NewSimpleClientset(fakeApps...)
 	factory := appinformer.NewFilteredSharedInformerFactory(appClientset, 0, "argocd", func(options *metav1.ListOptions) {})
@@ -134,8 +185,8 @@ func newFakeLister(fakeApp ...string) (context.CancelFunc, applister.Application
 	return cancel, factory.Argoproj().V1alpha1().Applications().Lister()
 }
 
-func testApp(t *testing.T, fakeApp string, expectedResponse string) {
-	cancel, appLister := newFakeLister(fakeApp)
+func testApp(t *testing.T, fakeAppYAMLs []string, expectedResponse string) {
+	cancel, appLister := newFakeLister(fakeAppYAMLs...)
 	defer cancel()
 	metricsServ := NewMetricsServer("localhost:8082", appLister, noOpHealthCheck)
 	req, err := http.NewRequest("GET", "/metrics", nil)
@@ -149,24 +200,24 @@ func testApp(t *testing.T, fakeApp string, expectedResponse string) {
 }
 
 type testCombination struct {
-	application      string
+	applications     []string
 	expectedResponse string
 }
 
 func TestMetrics(t *testing.T) {
 	combinations := []testCombination{
 		{
-			application:      fakeApp,
+			applications:     []string{fakeApp, fakeApp2, fakeApp3},
 			expectedResponse: expectedResponse,
 		},
 		{
-			application:      fakeDefaultApp,
+			applications:     []string{fakeDefaultApp},
 			expectedResponse: expectedDefaultResponse,
 		},
 	}
 
 	for _, combination := range combinations {
-		testApp(t, combination.application, combination.expectedResponse)
+		testApp(t, combination.applications, combination.expectedResponse)
 	}
 }
 

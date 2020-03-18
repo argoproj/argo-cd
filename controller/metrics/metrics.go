@@ -40,7 +40,7 @@ var (
 	descAppInfo = prometheus.NewDesc(
 		"argocd_app_info",
 		"Information about application.",
-		append(descAppDefaultLabels, "repo", "dest_server", "dest_namespace"),
+		append(descAppDefaultLabels, "repo", "dest_server", "dest_namespace", "sync_status", "health_status", "operation"),
 		nil,
 	)
 	descAppCreated = prometheus.NewDesc(
@@ -241,16 +241,31 @@ func collectApps(ch chan<- prometheus.Metric, app *argoappv1.Application) {
 		addConstMetric(desc, prometheus.GaugeValue, v, lv...)
 	}
 
-	addGauge(descAppInfo, 1, git.NormalizeGitURL(app.Spec.Source.RepoURL), app.Spec.Destination.Server, app.Spec.Destination.Namespace)
+	var operation string
+	if app.DeletionTimestamp != nil {
+		operation = "delete"
+	} else if app.Operation != nil && app.Operation.Sync != nil {
+		operation = "sync"
+	}
+	syncStatus := app.Status.Sync.Status
+	if syncStatus == "" {
+		syncStatus = argoappv1.SyncStatusCodeUnknown
+	}
+	healthStatus := app.Status.Health.Status
+	if healthStatus == "" {
+		healthStatus = argoappv1.HealthStatusUnknown
+	}
+
+	addGauge(descAppInfo, 1, git.NormalizeGitURL(app.Spec.Source.RepoURL), app.Spec.Destination.Server, app.Spec.Destination.Namespace, string(syncStatus), healthStatus, operation)
 
 	addGauge(descAppCreated, float64(app.CreationTimestamp.Unix()))
 
-	syncStatus := app.Status.Sync.Status
+	// DEPRECATED: superceded by sync_status label in argocd_app_info
 	addGauge(descAppSyncStatusCode, boolFloat64(syncStatus == argoappv1.SyncStatusCodeSynced), string(argoappv1.SyncStatusCodeSynced))
 	addGauge(descAppSyncStatusCode, boolFloat64(syncStatus == argoappv1.SyncStatusCodeOutOfSync), string(argoappv1.SyncStatusCodeOutOfSync))
 	addGauge(descAppSyncStatusCode, boolFloat64(syncStatus == argoappv1.SyncStatusCodeUnknown || syncStatus == ""), string(argoappv1.SyncStatusCodeUnknown))
 
-	healthStatus := app.Status.Health.Status
+	// DEPRECATED: superceded by health_status label in argocd_app_info
 	addGauge(descAppHealthStatus, boolFloat64(healthStatus == argoappv1.HealthStatusUnknown || healthStatus == ""), argoappv1.HealthStatusUnknown)
 	addGauge(descAppHealthStatus, boolFloat64(healthStatus == argoappv1.HealthStatusProgressing), argoappv1.HealthStatusProgressing)
 	addGauge(descAppHealthStatus, boolFloat64(healthStatus == argoappv1.HealthStatusSuspended), argoappv1.HealthStatusSuspended)
