@@ -92,7 +92,8 @@ func newCommand() *cobra.Command {
 				kubectlParallelismLimit)
 			errors.CheckError(err)
 
-			log.Infof("Application Controller (version: %s) starting (namespace: %s)", common.GetVersion(), namespace)
+			vers := common.GetVersion()
+			log.Infof("Application Controller (version: %s, built: %s) starting (namespace: %s)", vers.Version, vers.BuildDate, namespace)
 			stats.RegisterStackDumper()
 			stats.StartStatsTicker(10 * time.Minute)
 			stats.RegisterHeapDumper("memprofile")

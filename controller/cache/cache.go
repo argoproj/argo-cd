@@ -135,6 +135,7 @@ func (c *liveStateCache) getCluster(server string) (*clusterInfo, error) {
 				gvk := un.GroupVersionKind()
 				c.metricsServer.IncClusterEventsCount(cluster.Server, gvk.Group, gvk.Kind)
 			},
+			metricsServer: c.metricsServer,
 		}
 		c.lock.Lock()
 		c.clusters[cluster.Server] = info
@@ -195,7 +196,7 @@ func (c *liveStateCache) GetManagedLiveObjs(a *appv1.Application, targetObjs []*
 	if err != nil {
 		return nil, err
 	}
-	return clusterInfo.getManagedLiveObjs(a, targetObjs, c.metricsServer)
+	return clusterInfo.getManagedLiveObjs(a, targetObjs)
 }
 
 func (c *liveStateCache) GetVersionsInfo(serverURL string) (string, []metav1.APIGroup, error) {
