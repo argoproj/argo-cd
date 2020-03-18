@@ -2651,6 +2651,10 @@ spec:
     port: 5557
     protocol: TCP
     targetPort: 5557
+  - name: metrics
+    port: 5558
+    protocol: TCP
+    targetPort: 5558
   selector:
     app.kubernetes.io/name: argocd-dex-server
 ---
@@ -2892,6 +2896,7 @@ spec:
         ports:
         - containerPort: 5556
         - containerPort: 5557
+        - containerPort: 5558
         volumeMounts:
         - mountPath: /shared
           name: static-files
