@@ -1081,6 +1081,20 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		return nil
 	}
 
+	if !app.Spec.SyncPolicy.Automated.Prune {
+		requirePruneOnly := true
+		for _, r := range resources {
+			if r.Status != appv1.SyncStatusCodeSynced && !r.RequiresPruning {
+				requirePruneOnly = false
+				break
+			}
+		}
+		if requirePruneOnly {
+			logCtx.Infof("Skipping auto-sync: need to prune extra resources only but automated prune is disabled")
+			return nil
+		}
+	}
+
 	desiredCommitSHA := syncStatus.Revision
 	alreadyAttempted, attemptPhase := alreadyAttemptedSync(app, desiredCommitSHA)
 	selfHeal := app.Spec.SyncPolicy.Automated.SelfHeal

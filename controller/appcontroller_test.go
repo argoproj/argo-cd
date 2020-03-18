@@ -228,7 +228,7 @@ func TestAutoSync(t *testing.T) {
 		Status:   argoappv1.SyncStatusCodeOutOfSync,
 		Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 	}
-	cond := ctrl.autoSync(app, &syncStatus, []argoappv1.ResourceStatus{})
+	cond := ctrl.autoSync(app, &syncStatus, []argoappv1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: argoappv1.SyncStatusCodeOutOfSync}})
 	assert.Nil(t, cond)
 	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
 	assert.NoError(t, err)
@@ -240,7 +240,7 @@ func TestAutoSync(t *testing.T) {
 func TestSkipAutoSync(t *testing.T) {
 	// Verify we skip when we previously synced to it in our most recent history
 	// Set current to 'aaaaa', desired to 'aaaa' and mark system OutOfSync
-	{
+	t.Run("PreviouslySyncedToRevision", func(t *testing.T) {
 		app := newFakeApp()
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
 		syncStatus := argoappv1.SyncStatus{
@@ -252,10 +252,10 @@ func TestSkipAutoSync(t *testing.T) {
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
 		assert.NoError(t, err)
 		assert.Nil(t, app.Operation)
-	}
+	})
 
 	// Verify we skip when we are already Synced (even if revision is different)
-	{
+	t.Run("AlreadyInSyncedState", func(t *testing.T) {
 		app := newFakeApp()
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
 		syncStatus := argoappv1.SyncStatus{
@@ -267,10 +267,10 @@ func TestSkipAutoSync(t *testing.T) {
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
 		assert.NoError(t, err)
 		assert.Nil(t, app.Operation)
-	}
+	})
 
 	// Verify we skip when auto-sync is disabled
-	{
+	t.Run("AutoSyncIsDisabled", func(t *testing.T) {
 		app := newFakeApp()
 		app.Spec.SyncPolicy = nil
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
@@ -283,10 +283,10 @@ func TestSkipAutoSync(t *testing.T) {
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
 		assert.NoError(t, err)
 		assert.Nil(t, app.Operation)
-	}
+	})
 
 	// Verify we skip when application is marked for deletion
-	{
+	t.Run("ApplicationIsMarkedForDeletion", func(t *testing.T) {
 		app := newFakeApp()
 		now := metav1.Now()
 		app.DeletionTimestamp = &now
@@ -300,11 +300,11 @@ func TestSkipAutoSync(t *testing.T) {
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
 		assert.NoError(t, err)
 		assert.Nil(t, app.Operation)
-	}
+	})
 
 	// Verify we skip when previous sync attempt failed and return error condition
 	// Set current to 'aaaaa', desired to 'bbbbb' and add 'bbbbb' to failure history
-	{
+	t.Run("PreviousSyncAttemptFailed", func(t *testing.T) {
 		app := newFakeApp()
 		app.Status.OperationState = &argoappv1.OperationState{
 			Operation: argoappv1.Operation{
@@ -321,12 +321,28 @@ func TestSkipAutoSync(t *testing.T) {
 			Status:   argoappv1.SyncStatusCodeOutOfSync,
 			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 		}
-		cond := ctrl.autoSync(app, &syncStatus, []argoappv1.ResourceStatus{})
+		cond := ctrl.autoSync(app, &syncStatus, []argoappv1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: argoappv1.SyncStatusCodeOutOfSync}})
 		assert.NotNil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
 		assert.NoError(t, err)
 		assert.Nil(t, app.Operation)
-	}
+	})
+
+	t.Run("NeedsToPruneResourcesOnlyButAutomatedPruneDisabled", func(t *testing.T) {
+		app := newFakeApp()
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
+		syncStatus := argoappv1.SyncStatus{
+			Status:   argoappv1.SyncStatusCodeOutOfSync,
+			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+		}
+		cond := ctrl.autoSync(app, &syncStatus, []argoappv1.ResourceStatus{
+			{Name: "guestbook", Kind: kube.DeploymentKind, Status: argoappv1.SyncStatusCodeOutOfSync, RequiresPruning: true},
+		})
+		assert.Nil(t, cond)
+		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.Nil(t, app.Operation)
+	})
 }
 
 // TestAutoSyncIndicateError verifies we skip auto-sync and return error condition if previous sync failed
@@ -357,7 +373,7 @@ func TestAutoSyncIndicateError(t *testing.T) {
 			Source:   *app.Spec.Source.DeepCopy(),
 		},
 	}
-	cond := ctrl.autoSync(app, &syncStatus, []argoappv1.ResourceStatus{})
+	cond := ctrl.autoSync(app, &syncStatus, []argoappv1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: argoappv1.SyncStatusCodeOutOfSync}})
 	assert.NotNil(t, cond)
 	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
 	assert.NoError(t, err)
@@ -400,7 +416,7 @@ func TestAutoSyncParameterOverrides(t *testing.T) {
 			Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 		},
 	}
-	cond := ctrl.autoSync(app, &syncStatus, []argoappv1.ResourceStatus{})
+	cond := ctrl.autoSync(app, &syncStatus, []argoappv1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: argoappv1.SyncStatusCodeOutOfSync}})
 	assert.Nil(t, cond)
 	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
 	assert.NoError(t, err)
