@@ -36,6 +36,18 @@ spec:
         operation:
           description: Operation contains requested operation parameters.
           properties:
+            initiatedBy:
+              description: OperationInitiator holds information about the operation
+                initiator
+              properties:
+                automated:
+                  description: Automated is set to true if operation was initiated
+                    automatically by the application controller.
+                  type: boolean
+                username:
+                  description: Name of a user who started operation.
+                  type: string
+              type: object
             sync:
               description: SyncOperation contains sync operation details.
               properties:
@@ -826,6 +838,18 @@ spec:
                 operation:
                   description: Operation is the original requested operation
                   properties:
+                    initiatedBy:
+                      description: OperationInitiator holds information about the
+                        operation initiator
+                      properties:
+                        automated:
+                          description: Automated is set to true if operation was initiated
+                            automatically by the application controller.
+                          type: boolean
+                        username:
+                          description: Name of a user who started operation.
+                          type: string
+                      type: object
                     sync:
                       description: SyncOperation contains sync operation details.
                       properties:

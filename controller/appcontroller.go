@@ -1090,6 +1090,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 			Prune:       app.Spec.SyncPolicy.Automated.Prune,
 			SyncOptions: app.Spec.SyncPolicy.SyncOptions,
 		},
+		InitiatedBy: appv1.OperationInitiator{Automated: true},
 	}
 	// It is possible for manifests to remain OutOfSync even after a sync/kubectl apply (e.g.
 	// auto-sync with pruning disabled). We need to ensure that we do not keep Syncing an

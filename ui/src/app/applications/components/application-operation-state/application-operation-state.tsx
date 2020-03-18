@@ -61,6 +61,15 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
     if (operationState.syncResult) {
         operationAttributes.push({title: 'REVISION', value: <Revision repoUrl={application.spec.source.repoURL} revision={operationState.syncResult.revision} />});
     }
+    let initiator = '';
+    if (operationState.operation.initiatedBy) {
+        if (operationState.operation.initiatedBy.automated) {
+            initiator = 'automated sync policy';
+        } else {
+            initiator = operationState.operation.initiatedBy.username;
+        }
+    }
+    operationAttributes.push({title: 'INITIATED BY', value: initiator || 'Unknown'});
 
     const resultAttributes: {title: string; value: string}[] = [];
     const syncResult = operationState.syncResult;
