@@ -194,13 +194,34 @@ spec:
     server: https://cluster-api.com
 `
 
-func newTestApp() *appsv1.Application {
+func newTestApp(opts ...func(app *appsv1.Application)) *appsv1.Application {
 	var app appsv1.Application
 	err := yaml.Unmarshal([]byte(fakeApp), &app)
 	if err != nil {
 		panic(err)
 	}
+	for i := range opts {
+		opts[i](&app)
+	}
 	return &app
+}
+
+func TestListApps(t *testing.T) {
+	appServer := newTestAppServer(newTestApp(func(app *appsv1.Application) {
+		app.Name = "bcd"
+	}), newTestApp(func(app *appsv1.Application) {
+		app.Name = "abc"
+	}), newTestApp(func(app *appsv1.Application) {
+		app.Name = "def"
+	}))
+
+	res, err := appServer.List(context.Background(), &application.ApplicationQuery{})
+	assert.NoError(t, err)
+	var names []string
+	for i := range res.Items {
+		names = append(names, res.Items[i].Name)
+	}
+	assert.Equal(t, []string{"abc", "bcd", "def"}, names)
 }
 
 func TestCreateApp(t *testing.T) {
