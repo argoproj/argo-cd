@@ -229,6 +229,9 @@ Default is 10.
         const confirmed = await ctx.popup.confirm(confirmationTitle, confirmationText);
         if (confirmed) {
             const updatedApp = JSON.parse(JSON.stringify(props.app)) as models.Application;
+            if (!updatedApp.spec.syncPolicy) {
+                updatedApp.spec.syncPolicy = {};
+            }
             updatedApp.spec.syncPolicy.automated = {prune, selfHeal};
             props.updateApp(updatedApp);
         }
