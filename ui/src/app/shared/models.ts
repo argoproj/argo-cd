@@ -41,9 +41,14 @@ export interface RollbackOperation {
     dryRun: boolean;
 }
 
+export interface OperationInitiator {
+    username: string;
+    automated: boolean;
+}
+
 export interface Operation {
     sync: SyncOperation;
-    rollback: RollbackOperation;
+    initiatedBy: OperationInitiator;
 }
 
 export type OperationPhase = 'Running' | 'Error' | 'Failed' | 'Succeeded' | 'Terminating';

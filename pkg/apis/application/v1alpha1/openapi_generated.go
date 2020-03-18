@@ -52,6 +52,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.KsonnetParameter":                 schema_pkg_apis_application_v1alpha1_KsonnetParameter(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.KustomizeOptions":                 schema_pkg_apis_application_v1alpha1_KustomizeOptions(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Operation":                        schema_pkg_apis_application_v1alpha1_Operation(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.OperationInitiator":               schema_pkg_apis_application_v1alpha1_OperationInitiator(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.OperationState":                   schema_pkg_apis_application_v1alpha1_OperationState(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.OrphanedResourcesMonitorSettings": schema_pkg_apis_application_v1alpha1_OrphanedResourcesMonitorSettings(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ProjectRole":                      schema_pkg_apis_application_v1alpha1_ProjectRole(ref),
@@ -1669,11 +1670,43 @@ func schema_pkg_apis_application_v1alpha1_Operation(ref common.ReferenceCallback
 							Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncOperation"),
 						},
 					},
+					"initiatedBy": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.OperationInitiator"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncOperation"},
+			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.OperationInitiator", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncOperation"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_OperationInitiator(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "OperationInitiator holds information about the operation initiator",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"username": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name of a user who started operation.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"automated": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Automated is set to true if operation was initiated automatically by the application controller.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
 	}
 }
 

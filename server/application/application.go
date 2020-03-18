@@ -1073,6 +1073,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 			Resources:    syncReq.Resources,
 			Manifests:    syncReq.Manifests,
 		},
+		InitiatedBy: appv1.OperationInitiator{Username: session.Username(ctx)},
 	}
 	a, err = argo.SetAppOperation(appIf, *syncReq.Name, &op)
 	if err == nil {

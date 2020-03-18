@@ -412,9 +412,18 @@ type ApplicationStatus struct {
 	Summary    ApplicationSummary    `json:"summary,omitempty" protobuf:"bytes,10,opt,name=summary"`
 }
 
+// OperationInitiator holds information about the operation initiator
+type OperationInitiator struct {
+	// Name of a user who started operation.
+	Username string `json:"username,omitempty" protobuf:"bytes,1,opt,name=username"`
+	// Automated is set to true if operation was initiated automatically by the application controller.
+	Automated bool `json:"automated,omitempty" protobuf:"bytes,2,opt,name=automated"`
+}
+
 // Operation contains requested operation parameters.
 type Operation struct {
-	Sync *SyncOperation `json:"sync,omitempty" protobuf:"bytes,1,opt,name=sync"`
+	Sync        *SyncOperation     `json:"sync,omitempty" protobuf:"bytes,1,opt,name=sync"`
+	InitiatedBy OperationInitiator `json:"initiatedBy,omitempty" protobuf:"bytes,2,opt,name=initiatedBy"`
 }
 
 // SyncOperationResource contains resources to sync.

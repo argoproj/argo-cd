@@ -467,6 +467,17 @@ message KustomizeOptions {
 // Operation contains requested operation parameters.
 message Operation {
   optional SyncOperation sync = 1;
+
+  optional OperationInitiator initiatedBy = 2;
+}
+
+// OperationInitiator holds information about the operation initiator
+message OperationInitiator {
+  // Name of a user who started operation.
+  optional string username = 1;
+
+  // Automated is set to true if operation was initiated automatically by the application controller.
+  optional bool automated = 2;
 }
 
 // OperationState contains information about state of currently performing operation on application.

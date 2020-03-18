@@ -3791,8 +3791,26 @@
       "description": "Operation contains requested operation parameters.",
       "type": "object",
       "properties": {
+        "initiatedBy": {
+          "$ref": "#/definitions/v1alpha1OperationInitiator"
+        },
         "sync": {
           "$ref": "#/definitions/v1alpha1SyncOperation"
+        }
+      }
+    },
+    "v1alpha1OperationInitiator": {
+      "type": "object",
+      "title": "OperationInitiator holds information about the operation initiator",
+      "properties": {
+        "automated": {
+          "description": "Automated is set to true if operation was initiated automatically by the application controller.",
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "username": {
+          "description": "Name of a user who started operation.",
+          "type": "string"
         }
       }
     },
