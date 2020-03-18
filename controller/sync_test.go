@@ -466,9 +466,9 @@ func TestSyncCustomResources(t *testing.T) {
 	}
 
 	tests := []struct {
-		name       string
-		fields     fields
-		wantDryRun bool
+		name        string
+		fields      fields
+		wantDryRun  bool
 		wantSuccess bool
 	}{
 
