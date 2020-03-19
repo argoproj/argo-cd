@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -90,29 +91,6 @@ status:
     status: Degraded
 `
 
-const expectedResponse = `# HELP argocd_app_created_time Creation time in unix timestamp for an application.
-# TYPE argocd_app_created_time gauge
-argocd_app_created_time{name="my-app",namespace="argocd",project="important-project"} -6.21355968e+10
-# HELP argocd_app_health_status The application current health status.
-# TYPE argocd_app_health_status gauge
-argocd_app_health_status{health_status="Degraded",name="my-app",namespace="argocd",project="important-project"} 0
-argocd_app_health_status{health_status="Healthy",name="my-app",namespace="argocd",project="important-project"} 1
-argocd_app_health_status{health_status="Missing",name="my-app",namespace="argocd",project="important-project"} 0
-argocd_app_health_status{health_status="Progressing",name="my-app",namespace="argocd",project="important-project"} 0
-argocd_app_health_status{health_status="Suspended",name="my-app",namespace="argocd",project="important-project"} 0
-argocd_app_health_status{health_status="Unknown",name="my-app",namespace="argocd",project="important-project"} 0
-# HELP argocd_app_info Information about application.
-# TYPE argocd_app_info gauge
-argocd_app_info{dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Degraded",name="my-app-3",namespace="argocd",operation="delete",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="OutOfSync"} 1
-argocd_app_info{dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",name="my-app",namespace="argocd",operation="",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
-argocd_app_info{dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",name="my-app-2",namespace="argocd",operation="sync",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
-# HELP argocd_app_sync_status The application current sync status.
-# TYPE argocd_app_sync_status gauge
-argocd_app_sync_status{name="my-app",namespace="argocd",project="important-project",sync_status="OutOfSync"} 0
-argocd_app_sync_status{name="my-app",namespace="argocd",project="important-project",sync_status="Synced"} 1
-argocd_app_sync_status{name="my-app",namespace="argocd",project="important-project",sync_status="Unknown"} 0
-`
-
 const fakeDefaultApp = `
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -131,27 +109,6 @@ status:
     status: Synced
   health:
     status: Healthy
-`
-
-const expectedDefaultResponse = `# HELP argocd_app_created_time Creation time in unix timestamp for an application.
-# TYPE argocd_app_created_time gauge
-argocd_app_created_time{name="my-app",namespace="argocd",project="default"} -6.21355968e+10
-# HELP argocd_app_health_status The application current health status.
-# TYPE argocd_app_health_status gauge
-argocd_app_health_status{health_status="Degraded",name="my-app",namespace="argocd",project="default"} 0
-argocd_app_health_status{health_status="Healthy",name="my-app",namespace="argocd",project="default"} 1
-argocd_app_health_status{health_status="Missing",name="my-app",namespace="argocd",project="default"} 0
-argocd_app_health_status{health_status="Progressing",name="my-app",namespace="argocd",project="default"} 0
-argocd_app_health_status{health_status="Suspended",name="my-app",namespace="argocd",project="default"} 0
-argocd_app_health_status{health_status="Unknown",name="my-app",namespace="argocd",project="default"} 0
-# HELP argocd_app_info Information about application.
-# TYPE argocd_app_info gauge
-argocd_app_info{dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",name="my-app",namespace="argocd",operation="",project="default",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
-# HELP argocd_app_sync_status The application current sync status.
-# TYPE argocd_app_sync_status gauge
-argocd_app_sync_status{name="my-app",namespace="argocd",project="default",sync_status="OutOfSync"} 0
-argocd_app_sync_status{name="my-app",namespace="argocd",project="default",sync_status="Synced"} 1
-argocd_app_sync_status{name="my-app",namespace="argocd",project="default",sync_status="Unknown"} 0
 `
 
 var noOpHealthCheck = func() error {
@@ -207,12 +164,22 @@ type testCombination struct {
 func TestMetrics(t *testing.T) {
 	combinations := []testCombination{
 		{
-			applications:     []string{fakeApp, fakeApp2, fakeApp3},
-			expectedResponse: expectedResponse,
+			applications: []string{fakeApp, fakeApp2, fakeApp3},
+			expectedResponse: `
+# HELP argocd_app_info Information about application.
+# TYPE argocd_app_info gauge
+argocd_app_info{dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Degraded",name="my-app-3",namespace="argocd",operation="delete",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="OutOfSync"} 1
+argocd_app_info{dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",name="my-app",namespace="argocd",operation="",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
+argocd_app_info{dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",name="my-app-2",namespace="argocd",operation="sync",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
+`,
 		},
 		{
-			applications:     []string{fakeDefaultApp},
-			expectedResponse: expectedDefaultResponse,
+			applications: []string{fakeDefaultApp},
+			expectedResponse: `
+# HELP argocd_app_info Information about application.
+# TYPE argocd_app_info gauge
+argocd_app_info{dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",name="my-app",namespace="argocd",operation="",project="default",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
+`,
 		},
 	}
 
@@ -221,17 +188,43 @@ func TestMetrics(t *testing.T) {
 	}
 }
 
-const appSyncTotal = `# HELP argocd_app_sync_total Number of application syncs.
-# TYPE argocd_app_sync_total counter
-argocd_app_sync_total{name="my-app",namespace="argocd",phase="Error",project="important-project"} 1
-argocd_app_sync_total{name="my-app",namespace="argocd",phase="Failed",project="important-project"} 1
-argocd_app_sync_total{name="my-app",namespace="argocd",phase="Succeeded",project="important-project"} 2
+func TestLegacyMetrics(t *testing.T) {
+	os.Setenv(EnvVarLegacyControllerMetrics, "true")
+	defer os.Unsetenv(EnvVarLegacyControllerMetrics)
+
+	expectedResponse := `
+# HELP argocd_app_created_time Creation time in unix timestamp for an application.
+# TYPE argocd_app_created_time gauge
+argocd_app_created_time{name="my-app",namespace="argocd",project="important-project"} -6.21355968e+10
+# HELP argocd_app_health_status The application current health status.
+# TYPE argocd_app_health_status gauge
+argocd_app_health_status{health_status="Degraded",name="my-app",namespace="argocd",project="important-project"} 0
+argocd_app_health_status{health_status="Healthy",name="my-app",namespace="argocd",project="important-project"} 1
+argocd_app_health_status{health_status="Missing",name="my-app",namespace="argocd",project="important-project"} 0
+argocd_app_health_status{health_status="Progressing",name="my-app",namespace="argocd",project="important-project"} 0
+argocd_app_health_status{health_status="Suspended",name="my-app",namespace="argocd",project="important-project"} 0
+argocd_app_health_status{health_status="Unknown",name="my-app",namespace="argocd",project="important-project"} 0
+# HELP argocd_app_sync_status The application current sync status.
+# TYPE argocd_app_sync_status gauge
+argocd_app_sync_status{name="my-app",namespace="argocd",project="important-project",sync_status="OutOfSync"} 0
+argocd_app_sync_status{name="my-app",namespace="argocd",project="important-project",sync_status="Synced"} 1
+argocd_app_sync_status{name="my-app",namespace="argocd",project="important-project",sync_status="Unknown"} 0
 `
+	testApp(t, []string{fakeApp}, expectedResponse)
+}
 
 func TestMetricsSyncCounter(t *testing.T) {
 	cancel, appLister := newFakeLister()
 	defer cancel()
 	metricsServ := NewMetricsServer("localhost:8082", appLister, noOpHealthCheck)
+
+	appSyncTotal := `
+# HELP argocd_app_sync_total Number of application syncs.
+# TYPE argocd_app_sync_total counter
+argocd_app_sync_total{dest_server="https://localhost:6443",name="my-app",namespace="argocd",phase="Error",project="important-project"} 1
+argocd_app_sync_total{dest_server="https://localhost:6443",name="my-app",namespace="argocd",phase="Failed",project="important-project"} 1
+argocd_app_sync_total{dest_server="https://localhost:6443",name="my-app",namespace="argocd",phase="Succeeded",project="important-project"} 2
+`
 
 	fakeApp := newFakeApp(fakeApp)
 	metricsServ.IncSync(fakeApp, &argoappv1.OperationState{Phase: argoappv1.OperationRunning})
@@ -253,27 +246,31 @@ func TestMetricsSyncCounter(t *testing.T) {
 // assertMetricsPrinted asserts every line in the expected lines appears in the body
 func assertMetricsPrinted(t *testing.T, expectedLines, body string) {
 	for _, line := range strings.Split(expectedLines, "\n") {
+		if line == "" {
+			continue
+		}
 		assert.Contains(t, body, line)
 	}
 }
-
-const appReconcileMetrics = `argocd_app_reconcile_bucket{name="my-app",namespace="argocd",project="important-project",le="0.25"} 0
-argocd_app_reconcile_bucket{name="my-app",namespace="argocd",project="important-project",le="0.5"} 0
-argocd_app_reconcile_bucket{name="my-app",namespace="argocd",project="important-project",le="1"} 0
-argocd_app_reconcile_bucket{name="my-app",namespace="argocd",project="important-project",le="2"} 0
-argocd_app_reconcile_bucket{name="my-app",namespace="argocd",project="important-project",le="4"} 0
-argocd_app_reconcile_bucket{name="my-app",namespace="argocd",project="important-project",le="8"} 1
-argocd_app_reconcile_bucket{name="my-app",namespace="argocd",project="important-project",le="16"} 1
-argocd_app_reconcile_bucket{name="my-app",namespace="argocd",project="important-project",le="+Inf"} 1
-argocd_app_reconcile_sum{name="my-app",namespace="argocd",project="important-project"} 5
-argocd_app_reconcile_count{name="my-app",namespace="argocd",project="important-project"} 1
-`
 
 func TestReconcileMetrics(t *testing.T) {
 	cancel, appLister := newFakeLister()
 	defer cancel()
 	metricsServ := NewMetricsServer("localhost:8082", appLister, noOpHealthCheck)
-
+	appReconcileMetrics := `
+# HELP argocd_app_reconcile Application reconciliation performance.
+# TYPE argocd_app_reconcile histogram
+argocd_app_reconcile_bucket{dest_server="https://localhost:6443",name="my-app",namespace="argocd",project="important-project",le="0.25"} 0
+argocd_app_reconcile_bucket{dest_server="https://localhost:6443",name="my-app",namespace="argocd",project="important-project",le="0.5"} 0
+argocd_app_reconcile_bucket{dest_server="https://localhost:6443",name="my-app",namespace="argocd",project="important-project",le="1"} 0
+argocd_app_reconcile_bucket{dest_server="https://localhost:6443",name="my-app",namespace="argocd",project="important-project",le="2"} 0
+argocd_app_reconcile_bucket{dest_server="https://localhost:6443",name="my-app",namespace="argocd",project="important-project",le="4"} 0
+argocd_app_reconcile_bucket{dest_server="https://localhost:6443",name="my-app",namespace="argocd",project="important-project",le="8"} 1
+argocd_app_reconcile_bucket{dest_server="https://localhost:6443",name="my-app",namespace="argocd",project="important-project",le="16"} 1
+argocd_app_reconcile_bucket{dest_server="https://localhost:6443",name="my-app",namespace="argocd",project="important-project",le="+Inf"} 1
+argocd_app_reconcile_sum{dest_server="https://localhost:6443",name="my-app",namespace="argocd",project="important-project"} 5
+argocd_app_reconcile_count{dest_server="https://localhost:6443",name="my-app",namespace="argocd",project="important-project"} 1
+`
 	fakeApp := newFakeApp(fakeApp)
 	metricsServ.IncReconcile(fakeApp, 5*time.Second)
 
