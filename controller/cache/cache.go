@@ -113,34 +113,44 @@ func (c *liveStateCache) getCluster(server string) (*clusterInfo, error) {
 	c.lock.RLock()
 	info, ok := c.clusters[server]
 	c.lock.RUnlock()
-	if !ok {
-		logCtx := log.WithField("server", server)
-		logCtx.Info("initializing cluster")
-		cluster, err := c.db.GetCluster(context.Background(), server)
-		if err != nil {
-			return nil, err
-		}
-		info = &clusterInfo{
-			apisMeta:         make(map[schema.GroupKind]*apiMeta),
-			lock:             &sync.RWMutex{},
-			nodes:            make(map[kube.ResourceKey]*node),
-			nsIndex:          make(map[string]map[kube.ResourceKey]*node),
-			onObjectUpdated:  c.onObjectUpdated,
-			kubectl:          c.kubectl,
-			cluster:          cluster,
-			syncTime:         nil,
-			log:              logCtx,
-			cacheSettingsSrc: c.getCacheSettings,
-			onEventReceived: func(event watch.EventType, un *unstructured.Unstructured) {
-				gvk := un.GroupVersionKind()
-				c.metricsServer.IncClusterEventsCount(cluster.Server, gvk.Group, gvk.Kind)
-			},
-			metricsServer: c.metricsServer,
-		}
-		c.lock.Lock()
-		c.clusters[cluster.Server] = info
-		c.lock.Unlock()
+
+	if ok {
+		return info, nil
 	}
+
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	info, ok = c.clusters[server]
+	if ok {
+		return info, nil
+	}
+
+	logCtx := log.WithField("server", server)
+	logCtx.Info("initializing cluster")
+	cluster, err := c.db.GetCluster(context.Background(), server)
+	if err != nil {
+		return nil, err
+	}
+	info = &clusterInfo{
+		apisMeta:         make(map[schema.GroupKind]*apiMeta),
+		lock:             &sync.RWMutex{},
+		nodes:            make(map[kube.ResourceKey]*node),
+		nsIndex:          make(map[string]map[kube.ResourceKey]*node),
+		onObjectUpdated:  c.onObjectUpdated,
+		kubectl:          c.kubectl,
+		cluster:          cluster,
+		syncTime:         nil,
+		log:              logCtx,
+		cacheSettingsSrc: c.getCacheSettings,
+		onEventReceived: func(event watch.EventType, un *unstructured.Unstructured) {
+			gvk := un.GroupVersionKind()
+			c.metricsServer.IncClusterEventsCount(cluster.Server, gvk.Group, gvk.Kind)
+		},
+		metricsServer: c.metricsServer,
+	}
+	c.clusters[cluster.Server] = info
+
 	return info, nil
 }
 
