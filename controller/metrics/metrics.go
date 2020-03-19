@@ -3,6 +3,7 @@ package metrics
 import (
 	"context"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -30,6 +31,8 @@ type MetricsServer struct {
 const (
 	// MetricsPath is the endpoint to collect application metrics
 	MetricsPath = "/metrics"
+	// EnvVarLegacyControllerMetrics is a env var to re-enable deprecated prometheus metrics
+	EnvVarLegacyControllerMetrics = "ARGOCD_LEGACY_CONTROLLER_METRICS"
 )
 
 // Follow Prometheus naming practices
@@ -40,27 +43,71 @@ var (
 	descAppInfo = prometheus.NewDesc(
 		"argocd_app_info",
 		"Information about application.",
-		append(descAppDefaultLabels, "repo", "dest_server", "dest_namespace"),
+		append(descAppDefaultLabels, "repo", "dest_server", "dest_namespace", "sync_status", "health_status", "operation"),
 		nil,
 	)
+	// DEPRECATED
 	descAppCreated = prometheus.NewDesc(
 		"argocd_app_created_time",
 		"Creation time in unix timestamp for an application.",
 		descAppDefaultLabels,
 		nil,
 	)
+	// DEPRECATED: superceded by sync_status label in argocd_app_info
 	descAppSyncStatusCode = prometheus.NewDesc(
 		"argocd_app_sync_status",
 		"The application current sync status.",
 		append(descAppDefaultLabels, "sync_status"),
 		nil,
 	)
+	// DEPRECATED: superceded by health_status label in argocd_app_info
 	descAppHealthStatus = prometheus.NewDesc(
 		"argocd_app_health_status",
 		"The application current health status.",
 		append(descAppDefaultLabels, "health_status"),
 		nil,
 	)
+
+	syncCounter = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "argocd_app_sync_total",
+			Help: "Number of application syncs.",
+		},
+		append(descAppDefaultLabels, "dest_server", "phase"),
+	)
+
+	k8sRequestCounter = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "argocd_app_k8s_request_total",
+			Help: "Number of kubernetes requests executed during application reconciliation.",
+		},
+		append(descAppDefaultLabels, "server", "response_code", "verb", "resource_kind", "resource_namespace"),
+	)
+
+	kubectlExecCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "argocd_kubectl_exec_total",
+		Help: "Number of kubectl executions",
+	}, []string{"command"})
+
+	kubectlExecPendingGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "argocd_kubectl_exec_pending",
+		Help: "Number of pending kubectl executions",
+	}, []string{"command"})
+
+	reconcileHistogram = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name: "argocd_app_reconcile",
+			Help: "Application reconciliation performance.",
+			// Buckets chosen after observing a ~2100ms mean reconcile time
+			Buckets: []float64{0.25, .5, 1, 2, 4, 8, 16},
+		},
+		append(descAppDefaultLabels, "dest_server"),
+	)
+
+	clusterEventsCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "argocd_cluster_events_total",
+		Help: "Number of processes k8s resource events.",
+	}, append(descClusterDefaultLabels, "group", "kind"))
 )
 
 // NewMetricsServer returns a new prometheus server which collects application metrics
@@ -75,50 +122,11 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, health
 	}, promhttp.HandlerOpts{}))
 	healthz.ServeHealthCheck(mux, healthCheck)
 
-	syncCounter := prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "argocd_app_sync_total",
-			Help: "Number of application syncs.",
-		},
-		append(descAppDefaultLabels, "phase"),
-	)
 	registry.MustRegister(syncCounter)
-
-	k8sRequestCounter := prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "argocd_app_k8s_request_total",
-			Help: "Number of kubernetes requests executed during application reconciliation.",
-		},
-		append(descAppDefaultLabels, "server", "response_code", "verb", "resource_kind", "resource_namespace"),
-	)
 	registry.MustRegister(k8sRequestCounter)
-
-	kubectlExecCounter := prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "argocd_kubectl_exec_total",
-		Help: "Number of kubectl executions",
-	}, []string{"command"})
 	registry.MustRegister(kubectlExecCounter)
-	kubectlExecPendingGauge := prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "argocd_kubectl_exec_pending",
-		Help: "Number of pending kubectl executions",
-	}, []string{"command"})
 	registry.MustRegister(kubectlExecPendingGauge)
-
-	reconcileHistogram := prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Name: "argocd_app_reconcile",
-			Help: "Application reconciliation performance.",
-			// Buckets chosen after observing a ~2100ms mean reconcile time
-			Buckets: []float64{0.25, .5, 1, 2, 4, 8, 16},
-		},
-		descAppDefaultLabels,
-	)
-
 	registry.MustRegister(reconcileHistogram)
-	clusterEventsCounter := prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "argocd_cluster_events_total",
-		Help: "Number of processes k8s resource events.",
-	}, append(descClusterDefaultLabels, "group", "kind"))
 	registry.MustRegister(clusterEventsCounter)
 
 	return &MetricsServer{
@@ -147,7 +155,7 @@ func (m *MetricsServer) IncSync(app *argoappv1.Application, state *argoappv1.Ope
 	if !state.Phase.Completed() {
 		return
 	}
-	m.syncCounter.WithLabelValues(app.Namespace, app.Name, app.Spec.GetProject(), string(state.Phase)).Inc()
+	m.syncCounter.WithLabelValues(app.Namespace, app.Name, app.Spec.GetProject(), app.Spec.Destination.Server, string(state.Phase)).Inc()
 }
 
 func (m *MetricsServer) IncKubectlExec(command string) {
@@ -183,7 +191,7 @@ func (m *MetricsServer) IncKubernetesRequest(app *argoappv1.Application, server,
 
 // IncReconcile increments the reconcile counter for an application
 func (m *MetricsServer) IncReconcile(app *argoappv1.Application, duration time.Duration) {
-	m.reconcileHistogram.WithLabelValues(app.Namespace, app.Name, app.Spec.GetProject()).Observe(duration.Seconds())
+	m.reconcileHistogram.WithLabelValues(app.Namespace, app.Name, app.Spec.GetProject(), app.Spec.Destination.Server).Observe(duration.Seconds())
 }
 
 type appCollector struct {
@@ -207,7 +215,6 @@ func NewAppRegistry(appLister applister.ApplicationLister) *prometheus.Registry 
 // Describe implements the prometheus.Collector interface
 func (c *appCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- descAppInfo
-	ch <- descAppCreated
 	ch <- descAppSyncStatusCode
 	ch <- descAppHealthStatus
 }
@@ -241,20 +248,36 @@ func collectApps(ch chan<- prometheus.Metric, app *argoappv1.Application) {
 		addConstMetric(desc, prometheus.GaugeValue, v, lv...)
 	}
 
-	addGauge(descAppInfo, 1, git.NormalizeGitURL(app.Spec.Source.RepoURL), app.Spec.Destination.Server, app.Spec.Destination.Namespace)
-
-	addGauge(descAppCreated, float64(app.CreationTimestamp.Unix()))
-
+	var operation string
+	if app.DeletionTimestamp != nil {
+		operation = "delete"
+	} else if app.Operation != nil && app.Operation.Sync != nil {
+		operation = "sync"
+	}
 	syncStatus := app.Status.Sync.Status
-	addGauge(descAppSyncStatusCode, boolFloat64(syncStatus == argoappv1.SyncStatusCodeSynced), string(argoappv1.SyncStatusCodeSynced))
-	addGauge(descAppSyncStatusCode, boolFloat64(syncStatus == argoappv1.SyncStatusCodeOutOfSync), string(argoappv1.SyncStatusCodeOutOfSync))
-	addGauge(descAppSyncStatusCode, boolFloat64(syncStatus == argoappv1.SyncStatusCodeUnknown || syncStatus == ""), string(argoappv1.SyncStatusCodeUnknown))
-
+	if syncStatus == "" {
+		syncStatus = argoappv1.SyncStatusCodeUnknown
+	}
 	healthStatus := app.Status.Health.Status
-	addGauge(descAppHealthStatus, boolFloat64(healthStatus == argoappv1.HealthStatusUnknown || healthStatus == ""), argoappv1.HealthStatusUnknown)
-	addGauge(descAppHealthStatus, boolFloat64(healthStatus == argoappv1.HealthStatusProgressing), argoappv1.HealthStatusProgressing)
-	addGauge(descAppHealthStatus, boolFloat64(healthStatus == argoappv1.HealthStatusSuspended), argoappv1.HealthStatusSuspended)
-	addGauge(descAppHealthStatus, boolFloat64(healthStatus == argoappv1.HealthStatusHealthy), argoappv1.HealthStatusHealthy)
-	addGauge(descAppHealthStatus, boolFloat64(healthStatus == argoappv1.HealthStatusDegraded), argoappv1.HealthStatusDegraded)
-	addGauge(descAppHealthStatus, boolFloat64(healthStatus == argoappv1.HealthStatusMissing), argoappv1.HealthStatusMissing)
+	if healthStatus == "" {
+		healthStatus = argoappv1.HealthStatusUnknown
+	}
+
+	addGauge(descAppInfo, 1, git.NormalizeGitURL(app.Spec.Source.RepoURL), app.Spec.Destination.Server, app.Spec.Destination.Namespace, string(syncStatus), healthStatus, operation)
+
+	// Deprecated controller metrics
+	if os.Getenv(EnvVarLegacyControllerMetrics) == "true" {
+		addGauge(descAppCreated, float64(app.CreationTimestamp.Unix()))
+
+		addGauge(descAppSyncStatusCode, boolFloat64(syncStatus == argoappv1.SyncStatusCodeSynced), string(argoappv1.SyncStatusCodeSynced))
+		addGauge(descAppSyncStatusCode, boolFloat64(syncStatus == argoappv1.SyncStatusCodeOutOfSync), string(argoappv1.SyncStatusCodeOutOfSync))
+		addGauge(descAppSyncStatusCode, boolFloat64(syncStatus == argoappv1.SyncStatusCodeUnknown || syncStatus == ""), string(argoappv1.SyncStatusCodeUnknown))
+
+		addGauge(descAppHealthStatus, boolFloat64(healthStatus == argoappv1.HealthStatusUnknown || healthStatus == ""), argoappv1.HealthStatusUnknown)
+		addGauge(descAppHealthStatus, boolFloat64(healthStatus == argoappv1.HealthStatusProgressing), argoappv1.HealthStatusProgressing)
+		addGauge(descAppHealthStatus, boolFloat64(healthStatus == argoappv1.HealthStatusSuspended), argoappv1.HealthStatusSuspended)
+		addGauge(descAppHealthStatus, boolFloat64(healthStatus == argoappv1.HealthStatusHealthy), argoappv1.HealthStatusHealthy)
+		addGauge(descAppHealthStatus, boolFloat64(healthStatus == argoappv1.HealthStatusDegraded), argoappv1.HealthStatusDegraded)
+		addGauge(descAppHealthStatus, boolFloat64(healthStatus == argoappv1.HealthStatusMissing), argoappv1.HealthStatusMissing)
+	}
 }
