@@ -224,7 +224,7 @@ spec:
                             type: string
                           type: array
                         namePrefix:
-                          description: NamePrefix is a prefix appended to resources
+                          description: NamePrefix is a prefix prepended to resources
                             for kustomize apps
                           type: string
                         nameSuffix:
