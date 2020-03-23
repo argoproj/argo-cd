@@ -124,7 +124,7 @@
         "tags": [
           "AccountService"
         ],
-        "operationId": "CreateTokenMixin9",
+        "operationId": "CreateTokenMixin10",
         "parameters": [
           {
             "type": "string",
@@ -156,7 +156,7 @@
         "tags": [
           "AccountService"
         ],
-        "operationId": "DeleteTokenMixin9",
+        "operationId": "DeleteTokenMixin10",
         "parameters": [
           {
             "type": "string",
