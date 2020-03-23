@@ -1185,6 +1185,24 @@
                 <h1 id="tool-detection">Tool Detection<a class="headerlink" href="#tool-detection" title="Permanent link">&para;</a></h1>
 <p>The tool used to build an application is detected as follows:</p>
 <p>If a specific tool is explicitly configured, then that tool is selected to create your application's manifests.</p>
+<p>The tool can be explicitly specified in the Application custom resource like this:</p>
+<div class="codehilite"><pre><span></span><code><span class="n">apiVersion</span><span class="o">:</span> <span class="n">argoproj</span><span class="o">.</span><span class="na">io</span><span class="o">/</span><span class="n">v1alpha1</span>
+<span class="n">kind</span><span class="o">:</span> <span class="n">Application</span>
+<span class="n">metadata</span><span class="o">:</span>
+  <span class="o">...</span>
+<span class="n">spec</span><span class="o">:</span>
+  <span class="o">...</span>
+  <span class="n">source</span><span class="o">:</span>
+    <span class="o">...</span>
+
+    <span class="err">#</span> <span class="n">Tool</span> <span class="o">-&gt;</span> <span class="n">plain</span> <span class="n">directory</span>
+    <span class="n">directory</span><span class="o">:</span>
+      <span class="n">recurse</span><span class="o">:</span> <span class="kc">true</span>
+<span class="o">...</span>
+</code></pre></div>
+
+
+<p>You also can select the tool in the Application creation wizard in the web user interface. The default is 'Directory'. Press the dropdown button beneath the tool name if you want to choose a different one.</p>
 <p>If not, then the tool is detected implicitly as follows:</p>
 <ul>
 <li><strong>Ksonnet</strong> if there are two files, one named <code>app.yaml</code> and one named <code>components/params.libsonnet</code>.</li>
