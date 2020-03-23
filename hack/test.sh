@@ -3,6 +3,7 @@ set -eux -o pipefail
 
 # make sure apiclient does not depend on packr
 which godepgraph || go get github.com/kisielk/godepgraph
+which go-junit-report || go get github.com/jstemmer/go-junit-report
 if godepgraph -s github.com/argoproj/argo-cd/pkg/apiclient | grep packr; then
   echo apiclient package should not depend on packr
   exit 1
@@ -20,4 +21,4 @@ report() {
 
 trap 'report' EXIT
 
-go test -failfast $* 2>&1 | tee $TEST_RESULTS/test.out
+go test -p 8 -failfast $* 2>&1 | tee $TEST_RESULTS/test.out
