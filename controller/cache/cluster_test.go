@@ -322,7 +322,7 @@ metadata:
 				Namespace: "default",
 			},
 		},
-	}, []*unstructured.Unstructured{targetDeploy}, nil)
+	}, []*unstructured.Unstructured{targetDeploy})
 	assert.Nil(t, err)
 	assert.Equal(t, managedObjs, map[kube.ResourceKey]*unstructured.Unstructured{
 		kube.NewResourceKey("apps", "Deployment", "default", "helm-guestbook"): testDeploy,

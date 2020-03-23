@@ -69,14 +69,14 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
                                 </button>
                             </a>
                             {this.state.ssoLoginError && <div className='argo-form-row__error-msg'>{this.state.ssoLoginError}</div>}
-                            {authSettings && !authSettings.disableAdmin && (
+                            {authSettings && !authSettings.userLoginsDisabled && (
                                 <div className='login__saml-separator'>
                                     <span>or</span>
                                 </div>
                             )}
                         </div>
                     )}
-                    {authSettings && !authSettings.disableAdmin && (
+                    {authSettings && !authSettings.userLoginsDisabled && (
                         <Form
                             onSubmit={(params: LoginForm) => this.login(params.username, params.password, this.state.returnUrl)}
                             validateError={(params: LoginForm) => ({
@@ -101,7 +101,7 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
                             )}
                         </Form>
                     )}
-                    {authSettings && authSettings.disableAdmin && !ssoConfigured && (
+                    {authSettings && authSettings.userLoginsDisabled && !ssoConfigured && (
                         <div className='argo-form-row__error-msg'>Login is disabled. Please contact your system administrator.</div>
                     )}
                     <div className='login__footer'>

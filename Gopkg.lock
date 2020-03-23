@@ -66,18 +66,19 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:9f22b6b3ee272491fc07a95fdaeeab35577458a4d9cb42649d983a0390985cd7"
+  digest = "1:fbe4779f247babd0b21e2283d419f848a8dab42c0f6bbdeb88d83f190f52c159"
   name = "github.com/argoproj/pkg"
   packages = [
     "errors",
     "exec",
     "grpc/http",
+    "kubeclientmetrics",
     "rand",
     "stats",
     "time",
   ]
   pruneopts = ""
-  revision = "883dd1b17283e77f99d847afbc3b868118d0dc65"
+  revision = "f46beff7cd548bafc0264b95a4efed645fb1862c"
 
 [[projects]]
   digest = "1:d8a2bb36a048d1571bcc1aee208b61f39dc16c6c53823feffd37449dde162507"
@@ -524,6 +525,14 @@
   packages = ["."]
   pruneopts = ""
   revision = "c34317bd91bf98fab745d77b03933cf8769299fe"
+
+[[projects]]
+  digest = "1:ad92aa49f34cbc3546063c7eb2cabb55ee2278b72842eda80e2a20a8a06a8d73"
+  name = "github.com/google/uuid"
+  packages = ["."]
+  pruneopts = ""
+  revision = "0cd6bf5da1e1c83f8b45653022c74f71af0538a4"
+  version = "v1.1.1"
 
 [[projects]]
   digest = "1:2a131706ff80636629ab6373f2944569b8252ecc018cda8040931b05d32e3c16"
@@ -1940,6 +1949,8 @@
     "github.com/TomOnTime/utfutil",
     "github.com/argoproj/pkg/errors",
     "github.com/argoproj/pkg/exec",
+    "github.com/argoproj/pkg/grpc/http",
+    "github.com/argoproj/pkg/kubeclientmetrics",
     "github.com/argoproj/pkg/stats",
     "github.com/argoproj/pkg/time",
     "github.com/casbin/casbin",
@@ -1968,6 +1979,7 @@
     "github.com/golang/protobuf/ptypes/empty",
     "github.com/google/go-jsonnet",
     "github.com/google/shlex",
+    "github.com/google/uuid",
     "github.com/grpc-ecosystem/go-grpc-middleware",
     "github.com/grpc-ecosystem/go-grpc-middleware/auth",
     "github.com/grpc-ecosystem/go-grpc-middleware/logging",

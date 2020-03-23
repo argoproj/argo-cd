@@ -229,6 +229,9 @@ Default is 10.
         const confirmed = await ctx.popup.confirm(confirmationTitle, confirmationText);
         if (confirmed) {
             const updatedApp = JSON.parse(JSON.stringify(props.app)) as models.Application;
+            if (!updatedApp.spec.syncPolicy) {
+                updatedApp.spec.syncPolicy = {};
+            }
             updatedApp.spec.syncPolicy.automated = {prune, selfHeal};
             props.updateApp(updatedApp);
         }
@@ -316,7 +319,7 @@ Default is 10.
             edit: null
         });
     const [badgeType, setBadgeType] = React.useState('URL');
-    const badgeURL = `${location.protocol}//${location.host}/api/badge?name=${props.app.metadata.name}`;
+    const badgeURL = `${location.protocol}//${location.host}/api/badge?name=${props.app.metadata.name}&revision=true`;
     const appURL = `${location.protocol}//${location.host}/applications/${props.app.metadata.name}`;
 
     return (
@@ -438,7 +441,7 @@ Default is 10.
                         <div className='white-box'>
                             <div className='white-box__details'>
                                 <p>
-                                    Status Badge <img src={`/api/badge?name=${props.app.metadata.name}`} />{' '}
+                                    Status Badge <img src={badgeURL} />{' '}
                                 </p>
                                 <div className='white-box__details-row'>
                                     <DropDownMenu

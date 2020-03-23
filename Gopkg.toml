@@ -119,3 +119,7 @@ required = [
 [[override]]
   name = "github.com/fsnotify/fsnotify"
   version = "v1.4.9"
+  
+[[constraint]]
+  name = "github.com/google/uuid"
+  version = "1.1.1"

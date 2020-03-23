@@ -37,7 +37,6 @@ func NewCommand() *cobra.Command {
 		tlsConfigCustomizerSrc   func() (tls.ConfigCustomizer, error)
 		cacheSrc                 func() (*servercache.Cache, error)
 		frameOptions             string
-		disableAdmin             bool
 	)
 	var command = &cobra.Command{
 		Use:   cliName,
@@ -79,7 +78,6 @@ func NewCommand() *cobra.Command {
 				TLSConfigCustomizer: tlsConfigCustomizer,
 				Cache:               cache,
 				XFrameOptions:       frameOptions,
-				DisableAdmin:        disableAdmin,
 			}
 
 			stats.RegisterStackDumper()
@@ -110,7 +108,6 @@ func NewCommand() *cobra.Command {
 	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortArgoCDAPIServerMetrics, "Start metrics on given port")
 	command.Flags().IntVar(&repoServerTimeoutSeconds, "repo-server-timeout-seconds", 60, "Repo server RPC call timeout seconds.")
 	command.Flags().StringVar(&frameOptions, "x-frame-options", "sameorigin", "Set X-Frame-Options header in HTTP responses to `value`. To disable, set to \"\".")
-	command.Flags().BoolVar(&disableAdmin, "disable-admin", false, "Disable Admin User")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(command)
 	cacheSrc = servercache.AddCacheFlagsToCmd(command)
 	return command

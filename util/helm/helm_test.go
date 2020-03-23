@@ -193,3 +193,22 @@ func Test_flatVals(t *testing.T) {
 		assert.Equal(t, map[string]string{"foo": "1"}, output)
 	})
 }
+
+func TestAPIVersions(t *testing.T) {
+	h, err := NewHelmApp("./testdata/api-versions", nil)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	objs, err := template(h, &TemplateOpts{})
+	if !assert.NoError(t, err) || !assert.Len(t, objs, 1) {
+		return
+	}
+	assert.Equal(t, objs[0].GetAPIVersion(), "sample/v1")
+
+	objs, err = template(h, &TemplateOpts{APIVersions: []string{"sample/v2"}})
+	if !assert.NoError(t, err) || !assert.Len(t, objs, 1) {
+		return
+	}
+	assert.Equal(t, objs[0].GetAPIVersion(), "sample/v2")
+}

@@ -42,6 +42,7 @@ type clusterInfo struct {
 	syncError     error
 	apisMeta      map[schema.GroupKind]*apiMeta
 	serverVersion string
+	apiGroups     []metav1.APIGroup
 	// namespacedResources is a simple map which indicates a groupKind is namespaced
 	namespacedResources map[schema.GroupKind]bool
 
@@ -56,6 +57,7 @@ type clusterInfo struct {
 	cluster          *appv1.Cluster
 	log              *log.Entry
 	cacheSettingsSrc func() *cacheSettings
+	metricsServer    *metrics.MetricsServer
 }
 
 func (c *clusterInfo) replaceResourceCache(gk schema.GroupKind, resourceVersion string, objs []unstructured.Unstructured, ns string) {
@@ -117,8 +119,9 @@ func isServiceAccountTokenSecret(un *unstructured.Unstructured) (bool, metav1.Ow
 
 func (c *clusterInfo) createObjInfo(un *unstructured.Unstructured, appInstanceLabel string) *node {
 	ownerRefs := un.GetOwnerReferences()
+	gvk := un.GroupVersionKind()
 	// Special case for endpoint. Remove after https://github.com/kubernetes/kubernetes/issues/28483 is fixed
-	if un.GroupVersionKind().Group == "" && un.GetKind() == kube.EndpointsKind && len(un.GetOwnerReferences()) == 0 {
+	if gvk.Group == "" && gvk.Kind == kube.EndpointsKind && len(un.GetOwnerReferences()) == 0 {
 		ownerRefs = append(ownerRefs, metav1.OwnerReference{
 			Name:       un.GetName(),
 			Kind:       kube.ServiceKind,
@@ -142,7 +145,15 @@ func (c *clusterInfo) createObjInfo(un *unstructured.Unstructured, appInstanceLa
 	if len(ownerRefs) == 0 && appName != "" {
 		nodeInfo.appName = appName
 		nodeInfo.resource = un
+	} else {
+		// edge case. we do not label CRDs, so they miss the tracking label we inject. But we still
+		// want the full resource to be available in our cache (to diff), so we store all CRDs
+		switch gvk.Kind {
+		case kube.CustomResourceDefinitionKind:
+			nodeInfo.resource = un
+		}
 	}
+
 	nodeInfo.health, _ = health.GetResourceHealth(un, c.cacheSettingsSrc().ResourceOverrides)
 	return nodeInfo
 }
@@ -349,6 +360,12 @@ func (c *clusterInfo) sync() (err error) {
 		return err
 	}
 	c.serverVersion = version
+	groups, err := c.kubectl.GetAPIGroups(config)
+	if err != nil {
+		return err
+	}
+	c.apiGroups = groups
+
 	apis, err := c.kubectl.GetAPIResources(config, c.cacheSettingsSrc().ResourcesFilter)
 	if err != nil {
 		return err
@@ -457,7 +474,7 @@ func (c *clusterInfo) isNamespaced(gk schema.GroupKind) bool {
 	return true
 }
 
-func (c *clusterInfo) getManagedLiveObjs(a *appv1.Application, targetObjs []*unstructured.Unstructured, metricsServer *metrics.MetricsServer) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
+func (c *clusterInfo) getManagedLiveObjs(a *appv1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
@@ -468,7 +485,7 @@ func (c *clusterInfo) getManagedLiveObjs(a *appv1.Application, targetObjs []*uns
 			managedObjs[key] = o.resource
 		}
 	}
-	config := metrics.AddMetricsTransportWrapper(metricsServer, a, c.cluster.RESTConfig())
+	config := metrics.AddMetricsTransportWrapper(c.metricsServer, a, c.cluster.RESTConfig())
 	// iterate target objects and identify ones that already exist in the cluster,
 	// but are simply missing our label
 	lock := &sync.Mutex{}
@@ -537,9 +554,12 @@ func (c *clusterInfo) processEvent(event watch.EventType, un *unstructured.Unstr
 	if c.onEventReceived != nil {
 		c.onEventReceived(event, un)
 	}
+	key := kube.GetResourceKey(un)
+	if event == watch.Modified && skipAppRequeing(key) {
+		return
+	}
 	c.lock.Lock()
 	defer c.lock.Unlock()
-	key := kube.GetResourceKey(un)
 	existingNode, exists := c.nodes[key]
 	if event == watch.Deleted {
 		if exists {
@@ -563,7 +583,7 @@ func (c *clusterInfo) onNodeUpdated(exists bool, existingNode *node, un *unstruc
 		n := nodes[i]
 		if ns, ok := c.nsIndex[n.ref.Namespace]; ok {
 			app := n.getApp(ns)
-			if app == "" || skipAppRequeing(key) {
+			if app == "" {
 				continue
 			}
 			toNotify[app] = n.isRootAppNode() || toNotify[app]

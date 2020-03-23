@@ -8,6 +8,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/argoproj/argo-cd/server/rbacpolicy"
+
 	"github.com/dgrijalva/jwt-go"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -24,10 +26,9 @@ import (
 
 // SessionManager generates and validates JWT tokens for login sessions.
 type SessionManager struct {
-	settingsMgr  *settings.SettingsManager
-	client       *http.Client
-	prov         oidcutil.Provider
-	disableAdmin bool
+	settingsMgr *settings.SettingsManager
+	client      *http.Client
+	prov        oidcutil.Provider
 }
 
 const (
@@ -37,12 +38,11 @@ const (
 	// invalidLoginError, for security purposes, doesn't say whether the username or password was invalid.  This does not mitigate the potential for timing attacks to determine which is which.
 	invalidLoginError  = "Invalid username or password"
 	blankPasswordError = "Blank passwords are not allowed"
-	badUserError       = "Bad local superuser username"
-	adminDisable       = "Admin login is disabled"
+	accountDisabled    = "Account %s is disabled"
 )
 
 // NewSessionManager creates a new session manager from Argo CD settings
-func NewSessionManager(settingsMgr *settings.SettingsManager, dexServerAddr string, disableAdmin bool) *SessionManager {
+func NewSessionManager(settingsMgr *settings.SettingsManager, dexServerAddr string) *SessionManager {
 	s := SessionManager{
 		settingsMgr: settingsMgr,
 	}
@@ -73,14 +73,13 @@ func NewSessionManager(settingsMgr *settings.SettingsManager, dexServerAddr stri
 		s.client.Transport = httputil.DebugTransport{T: s.client.Transport}
 	}
 
-	s.disableAdmin = disableAdmin
-
 	return &s
 }
 
 // Create creates a new token for a given subject (user) and returns it as a string.
 // Passing a value of `0` for secondsBeforeExpiry creates a token that never expires.
-func (mgr *SessionManager) Create(subject string, secondsBeforeExpiry int64) (string, error) {
+// The id parameter holds an optional unique JWT token identifier and stored as a standard claim "jti" in the JWT token.
+func (mgr *SessionManager) Create(subject string, secondsBeforeExpiry int64, id string) (string, error) {
 	// Create a new token object, specifying signing method and the claims
 	// you would like it to contain.
 	now := time.Now().UTC()
@@ -89,6 +88,7 @@ func (mgr *SessionManager) Create(subject string, secondsBeforeExpiry int64) (st
 		Issuer:    SessionManagerClaimsIssuer,
 		NotBefore: now.Unix(),
 		Subject:   subject,
+		Id:        id,
 	}
 	if secondsBeforeExpiry > 0 {
 		expires := now.Add(time.Duration(secondsBeforeExpiry) * time.Second)
@@ -108,7 +108,7 @@ func (mgr *SessionManager) signClaims(claims jwt.Claims) (string, error) {
 	return token.SignedString(settings.ServerSignature)
 }
 
-// Parse tries to parse the provided string and returns the token claims for local superuser login.
+// Parse tries to parse the provided string and returns the token claims for local login.
 func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, error) {
 	// Parse takes the token string and a function for looking up the key. The latter is especially
 	// useful if you use multiple keys for your application.  The standard is to use 'kid' in the
@@ -130,30 +130,41 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, error) {
 		return nil, err
 	}
 
+	subject := jwtutil.GetField(claims, "sub")
+	if rbacpolicy.IsProjectSubject(subject) {
+		return token.Claims, nil
+	}
+
+	account, err := mgr.settingsMgr.GetAccount(subject)
+	if err != nil {
+		return nil, err
+	}
+
+	if id := jwtutil.GetField(claims, "jti"); id != "" && account.TokenIndex(id) == -1 {
+		return nil, fmt.Errorf("account %s does not have token with id %s", subject, id)
+	}
+
 	issuedAt := time.Unix(int64(claims["iat"].(float64)), 0)
-	if issuedAt.Before(settings.AdminPasswordMtime) {
-		return nil, fmt.Errorf("Password for superuser has changed since token issued")
+	if account.PasswordMtime != nil && issuedAt.Before(*account.PasswordMtime) {
+		return nil, fmt.Errorf("Account password has changed since token issued")
 	}
 	return token.Claims, nil
 }
 
 // VerifyUsernamePassword verifies if a username/password combo is correct
-func (mgr *SessionManager) VerifyUsernamePassword(username, password string) error {
-	if mgr.disableAdmin {
-		return status.Errorf(codes.Unauthenticated, adminDisable)
-	}
-	settings, err := mgr.settingsMgr.GetSettings()
+func (mgr *SessionManager) VerifyUsernamePassword(username string, password string) error {
+	account, err := mgr.settingsMgr.GetAccount(username)
 	if err != nil {
 		return err
 	}
-	if username != common.ArgoCDAdminUsername {
-		return status.Errorf(codes.Unauthenticated, badUserError)
+	if !account.Enabled {
+		return status.Errorf(codes.Unauthenticated, accountDisabled, username)
 	}
 	if password == "" {
 		return status.Errorf(codes.Unauthenticated, blankPasswordError)
 	}
 
-	valid, _ := passwordutil.VerifyPassword(password, settings.AdminPasswordHash)
+	valid, _ := passwordutil.VerifyPassword(password, account.PasswordHash)
 	if !valid {
 		return status.Errorf(codes.Unauthenticated, invalidLoginError)
 	}

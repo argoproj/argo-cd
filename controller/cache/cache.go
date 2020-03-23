@@ -7,6 +7,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
@@ -28,7 +29,7 @@ type cacheSettings struct {
 
 type LiveStateCache interface {
 	// Returns k8s server version
-	GetServerVersion(serverURL string) (string, error)
+	GetVersionsInfo(serverURL string) (string, []metav1.APIGroup, error)
 	// Returns true of given group kind is a namespaced resource
 	IsNamespaced(server string, gk schema.GroupKind) (bool, error)
 	// Executes give callback against resource specified by the key and all its children
@@ -112,33 +113,44 @@ func (c *liveStateCache) getCluster(server string) (*clusterInfo, error) {
 	c.lock.RLock()
 	info, ok := c.clusters[server]
 	c.lock.RUnlock()
-	if !ok {
-		logCtx := log.WithField("server", server)
-		logCtx.Info("initializing cluster")
-		cluster, err := c.db.GetCluster(context.Background(), server)
-		if err != nil {
-			return nil, err
-		}
-		info = &clusterInfo{
-			apisMeta:         make(map[schema.GroupKind]*apiMeta),
-			lock:             &sync.RWMutex{},
-			nodes:            make(map[kube.ResourceKey]*node),
-			nsIndex:          make(map[string]map[kube.ResourceKey]*node),
-			onObjectUpdated:  c.onObjectUpdated,
-			kubectl:          c.kubectl,
-			cluster:          cluster,
-			syncTime:         nil,
-			log:              logCtx,
-			cacheSettingsSrc: c.getCacheSettings,
-			onEventReceived: func(event watch.EventType, un *unstructured.Unstructured) {
-				gvk := un.GroupVersionKind()
-				c.metricsServer.IncClusterEventsCount(cluster.Server, gvk.Group, gvk.Kind)
-			},
-		}
-		c.lock.Lock()
-		c.clusters[cluster.Server] = info
-		c.lock.Unlock()
+
+	if ok {
+		return info, nil
 	}
+
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	info, ok = c.clusters[server]
+	if ok {
+		return info, nil
+	}
+
+	logCtx := log.WithField("server", server)
+	logCtx.Info("initializing cluster")
+	cluster, err := c.db.GetCluster(context.Background(), server)
+	if err != nil {
+		return nil, err
+	}
+	info = &clusterInfo{
+		apisMeta:         make(map[schema.GroupKind]*apiMeta),
+		lock:             &sync.RWMutex{},
+		nodes:            make(map[kube.ResourceKey]*node),
+		nsIndex:          make(map[string]map[kube.ResourceKey]*node),
+		onObjectUpdated:  c.onObjectUpdated,
+		kubectl:          c.kubectl,
+		cluster:          cluster,
+		syncTime:         nil,
+		log:              logCtx,
+		cacheSettingsSrc: c.getCacheSettings,
+		onEventReceived: func(event watch.EventType, un *unstructured.Unstructured) {
+			gvk := un.GroupVersionKind()
+			c.metricsServer.IncClusterEventsCount(cluster.Server, gvk.Group, gvk.Kind)
+		},
+		metricsServer: c.metricsServer,
+	}
+	c.clusters[cluster.Server] = info
+
 	return info, nil
 }
 
@@ -194,14 +206,15 @@ func (c *liveStateCache) GetManagedLiveObjs(a *appv1.Application, targetObjs []*
 	if err != nil {
 		return nil, err
 	}
-	return clusterInfo.getManagedLiveObjs(a, targetObjs, c.metricsServer)
+	return clusterInfo.getManagedLiveObjs(a, targetObjs)
 }
-func (c *liveStateCache) GetServerVersion(serverURL string) (string, error) {
+
+func (c *liveStateCache) GetVersionsInfo(serverURL string) (string, []metav1.APIGroup, error) {
 	clusterInfo, err := c.getSyncedCluster(serverURL)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
-	return clusterInfo.serverVersion, nil
+	return clusterInfo.serverVersion, clusterInfo.apiGroups, nil
 }
 
 func isClusterHasApps(apps []interface{}, cluster *appv1.Cluster) bool {

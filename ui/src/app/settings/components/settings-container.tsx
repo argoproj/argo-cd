@@ -1,6 +1,8 @@
 import * as React from 'react';
 import {Redirect, Route, RouteComponentProps, Switch} from 'react-router';
 
+import {AccountDetails} from './account-details/account-details';
+import {AccountsList} from './accounts-list/accounts-list';
 import {CertsList} from './certs-list/certs-list';
 import {ClustersList} from './clusters-list/clusters-list';
 import {ProjectDetails} from './project-details/project-details';
@@ -16,6 +18,8 @@ export const SettingsContainer = (props: RouteComponentProps<any>) => (
         <Route exact={true} path={`${props.match.path}/clusters`} component={ClustersList} />
         <Route exact={true} path={`${props.match.path}/projects`} component={ProjectsList} />
         <Route exact={true} path={`${props.match.path}/projects/:name`} component={ProjectDetails} />
+        <Route exact={true} path={`${props.match.path}/accounts`} component={AccountsList} />
+        <Route exact={true} path={`${props.match.path}/accounts/:name`} component={AccountDetails} />
         <Redirect path='*' to={`${props.match.path}`} />
     </Switch>
 );

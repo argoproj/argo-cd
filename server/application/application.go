@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -119,6 +120,9 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*ap
 		}
 	}
 	newItems = argoutil.FilterByProjects(newItems, q.Projects)
+	sort.Slice(newItems, func(i, j int) bool {
+		return newItems[i].Name < newItems[j].Name
+	})
 	appList := appv1.ApplicationList{
 		Items: newItems,
 	}
@@ -1075,6 +1079,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 			Resources:    syncReq.Resources,
 			Manifests:    syncReq.Manifests,
 		},
+		InitiatedBy: appv1.OperationInitiator{Username: session.Username(ctx)},
 	}
 	a, err = argo.SetAppOperation(appIf, *syncReq.Name, &op)
 	if err == nil {

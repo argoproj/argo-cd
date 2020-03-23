@@ -41,9 +41,14 @@ export interface RollbackOperation {
     dryRun: boolean;
 }
 
+export interface OperationInitiator {
+    username: string;
+    automated: boolean;
+}
+
 export interface Operation {
     sync: SyncOperation;
-    rollback: RollbackOperation;
+    initiatedBy: OperationInitiator;
 }
 
 export type OperationPhase = 'Running' | 'Error' | 'Failed' | 'Succeeded' | 'Terminating';
@@ -389,7 +394,7 @@ export interface AuthSettings {
         chatText: string;
     };
     plugins: Plugin[];
-    disableAdmin: boolean;
+    userLoginsDisabled: boolean;
 }
 
 export interface UserInfo {
@@ -645,4 +650,17 @@ export interface ApplicationSyncWindowState {
 
 export interface VersionMessage {
     Version: string;
+}
+
+export interface Token {
+    id: string;
+    issuedAt: number;
+    expiresAt: number;
+}
+
+export interface Account {
+    name: string;
+    enabled: boolean;
+    capabilities: string[];
+    tokens: Token[];
 }

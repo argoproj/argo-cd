@@ -204,7 +204,7 @@ start-e2e: cli
 	ARGOCD_GPG_ENABLED=true \
 	ARGOCD_E2E_DISABLE_AUTH=false \
 	ARGOCD_ZJWT_FEATURE_FLAG=always \
-		goreman start
+		goreman start ${ARGOCD_START}
 
 # Cleans VSCode debug.test files from sub-dirs to prevent them from being included in packr boxes
 .PHONY: clean-debug
