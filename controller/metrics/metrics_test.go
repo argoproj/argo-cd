@@ -260,16 +260,16 @@ func TestReconcileMetrics(t *testing.T) {
 	appReconcileMetrics := `
 # HELP argocd_app_reconcile Application reconciliation performance.
 # TYPE argocd_app_reconcile histogram
-argocd_app_reconcile_bucket{dest_server="https://localhost:6443",name="my-app",namespace="argocd",project="important-project",le="0.25"} 0
-argocd_app_reconcile_bucket{dest_server="https://localhost:6443",name="my-app",namespace="argocd",project="important-project",le="0.5"} 0
-argocd_app_reconcile_bucket{dest_server="https://localhost:6443",name="my-app",namespace="argocd",project="important-project",le="1"} 0
-argocd_app_reconcile_bucket{dest_server="https://localhost:6443",name="my-app",namespace="argocd",project="important-project",le="2"} 0
-argocd_app_reconcile_bucket{dest_server="https://localhost:6443",name="my-app",namespace="argocd",project="important-project",le="4"} 0
-argocd_app_reconcile_bucket{dest_server="https://localhost:6443",name="my-app",namespace="argocd",project="important-project",le="8"} 1
-argocd_app_reconcile_bucket{dest_server="https://localhost:6443",name="my-app",namespace="argocd",project="important-project",le="16"} 1
-argocd_app_reconcile_bucket{dest_server="https://localhost:6443",name="my-app",namespace="argocd",project="important-project",le="+Inf"} 1
-argocd_app_reconcile_sum{dest_server="https://localhost:6443",name="my-app",namespace="argocd",project="important-project"} 5
-argocd_app_reconcile_count{dest_server="https://localhost:6443",name="my-app",namespace="argocd",project="important-project"} 1
+argocd_app_reconcile_bucket{dest_server="https://localhost:6443",namespace="argocd",le="0.25"} 0
+argocd_app_reconcile_bucket{dest_server="https://localhost:6443",namespace="argocd",le="0.5"} 0
+argocd_app_reconcile_bucket{dest_server="https://localhost:6443",namespace="argocd",le="1"} 0
+argocd_app_reconcile_bucket{dest_server="https://localhost:6443",namespace="argocd",le="2"} 0
+argocd_app_reconcile_bucket{dest_server="https://localhost:6443",namespace="argocd",le="4"} 0
+argocd_app_reconcile_bucket{dest_server="https://localhost:6443",namespace="argocd",le="8"} 1
+argocd_app_reconcile_bucket{dest_server="https://localhost:6443",namespace="argocd",le="16"} 1
+argocd_app_reconcile_bucket{dest_server="https://localhost:6443",namespace="argocd",le="+Inf"} 1
+argocd_app_reconcile_sum{dest_server="https://localhost:6443",namespace="argocd"} 5
+argocd_app_reconcile_count{dest_server="https://localhost:6443",namespace="argocd"} 1
 `
 	fakeApp := newFakeApp(fakeApp)
 	metricsServ.IncReconcile(fakeApp, 5*time.Second)
