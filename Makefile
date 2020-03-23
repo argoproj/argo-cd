@@ -66,7 +66,7 @@ endef
 
 # Runs any command in the argocd-test-utils container in client mode
 define run-in-test-client
-	docker run --rm -it \
+	@docker run --rm -it \
 	  --name argocd-test-client \
 		-u $(shell id -u) \
 		-e HOME=/home/user \
@@ -357,3 +357,22 @@ lint-docs:
 .PHONY: publish-docs
 publish-docs: lint-docs
 	mkdocs gh-deploy
+
+.PHONY: show-go-version
+show-go-version:
+	@echo -n "Local Go version: "
+	@go version
+	@echo -n "Docker Go version: "
+	$(call run-in-test-client,go version)
+
+.PHONY: install-tools-local
+install-tools-local:
+	./hack/install.sh dep-linux
+	./hack/install.sh packr-linux
+	./hack/install.sh kubectl-linux
+	./hack/install.sh ksonnet-linux
+	./hack/install.sh helm2-linux
+	./hack/install.sh helm-linux
+	./hack/install.sh codegen-tools
+	./hack/install.sh codegen-go-tools
+	./hack/install.sh lint-tools
