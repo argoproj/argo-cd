@@ -45,9 +45,7 @@ export const RevisionMetadataRows = (props: {applicationName: string; source: Ap
                     )}
                     <div className='row'>
                         <div className='columns small-3'>GPG signature</div>
-                        <div className='columns small-9'>
-                            {m.signatureInfo || '-'}
-                        </div>
+                        <div className='columns small-9'>{m.signatureInfo || '-'}</div>
                     </div>
                 </div>
             )}
