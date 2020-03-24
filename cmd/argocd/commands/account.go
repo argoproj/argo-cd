@@ -147,6 +147,7 @@ func NewAccountGetUserInfoCommand(clientOpts *argocdclient.ClientOptions) *cobra
 				fmt.Printf("Logged In: %v\n", response.LoggedIn)
 				if response.LoggedIn {
 					fmt.Printf("Username: %s\n", response.Username)
+					fmt.Printf("Subject: %s\n", response.Subject)
 					fmt.Printf("Issuer: %s\n", response.Iss)
 					fmt.Printf("Groups: %v\n", strings.Join(response.Groups, ","))
 				}
