@@ -3,6 +3,8 @@ package v1alpha1
 import (
 	"encoding/json"
 	"fmt"
+	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -22,6 +24,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	utilnet "k8s.io/apimachinery/pkg/util/net"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -2172,8 +2175,40 @@ func (proj AppProject) IsDestinationPermitted(dst ApplicationDestination) bool {
 	return false
 }
 
-// RESTConfig returns a go-client REST config from cluster
-func (c *Cluster) RESTConfig() *rest.Config {
+// SetK8SConfigDefaults sets Kubernetes REST config default settings
+func SetK8SConfigDefaults(config *rest.Config) error {
+	config.QPS = common.K8sClientConfigQPS
+	config.Burst = common.K8sClientConfigBurst
+	tlsConfig, err := rest.TLSConfigFor(config)
+	if err != nil {
+		return err
+	}
+	// set default tls config since we use it in a custom transport
+	config.TLSClientConfig = rest.TLSClientConfig{}
+	dial := (&net.Dialer{
+		Timeout:   30 * time.Second,
+		KeepAlive: 30 * time.Second,
+	}).DialContext
+	transport := utilnet.SetTransportDefaults(&http.Transport{
+		Proxy:               http.ProxyFromEnvironment,
+		TLSHandshakeTimeout: 10 * time.Second,
+		TLSClientConfig:     tlsConfig,
+		MaxIdleConns:        common.K8sMaxIdleConnections,
+		MaxIdleConnsPerHost: common.K8sMaxIdleConnections,
+		MaxConnsPerHost:     common.K8sMaxIdleConnections,
+		DialContext:         dial,
+		DisableCompression:  config.DisableCompression,
+	})
+	tr, err := rest.HTTPWrappersForConfig(config, transport)
+	if err != nil {
+		return err
+	}
+	config.Transport = tr
+	return nil
+}
+
+// RawRestConfig returns a go-client REST config from cluster that might be serialized into the file using kube.WriteKubeConfig method.
+func (c *Cluster) RawRestConfig() *rest.Config {
 	var config *rest.Config
 	var err error
 	if c.Server == common.KubernetesInternalAPIServerAddr && os.Getenv(common.EnvVarFakeInClusterConfig) == "true" {
@@ -2220,8 +2255,16 @@ func (c *Cluster) RESTConfig() *rest.Config {
 	if err != nil {
 		panic(fmt.Sprintf("Unable to create K8s REST config: %v", err))
 	}
-	config.QPS = common.K8sClientConfigQPS
-	config.Burst = common.K8sClientConfigBurst
+	return config
+}
+
+// RESTConfig returns a go-client REST config from cluster with tuned throttling and HTTP client settings.
+func (c *Cluster) RESTConfig() *rest.Config {
+	config := c.RawRestConfig()
+	err := SetK8SConfigDefaults(config)
+	if err != nil {
+		panic(fmt.Sprintf("Unable to apply K8s REST config defaults: %v", err))
+	}
 	return config
 }
 

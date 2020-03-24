@@ -141,6 +141,8 @@ const (
 	EnvK8sClientQPS = "ARGOCD_K8S_CLIENT_QPS"
 	// EnvK8sClientBurst is the burst value used for the kubernetes client (default: twice the client QPS)
 	EnvK8sClientBurst = "ARGOCD_K8S_CLIENT_BURST"
+	// EnvK8sClientMaxIdleConnections is the number of max idle connections in K8s REST client HTTP transport (default: 500)
+	EnvK8sClientMaxIdleConnections = "ARGOCD_K8S_CLIENT_MAX_IDLE_CONNECTIONS"
 )
 
 const (
@@ -158,6 +160,8 @@ var (
 	K8sClientConfigQPS float32 = 50
 	// K8sClientConfigBurst controls the burst to be used in K8s REST client configs
 	K8sClientConfigBurst int = 100
+	// K8sMaxIdleConnections controls the number of max idle connections in K8s REST client HTTP transport
+	K8sMaxIdleConnections = 500
 )
 
 func init() {
@@ -172,5 +176,11 @@ func init() {
 		}
 	} else {
 		K8sClientConfigBurst = 2 * int(K8sClientConfigQPS)
+	}
+
+	if envMaxConn := os.Getenv(EnvK8sClientMaxIdleConnections); envMaxConn != "" {
+		if maxConn, err := strconv.Atoi(envMaxConn); err != nil {
+			K8sMaxIdleConnections = maxConn
+		}
 	}
 }

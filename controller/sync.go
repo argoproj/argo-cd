@@ -47,6 +47,7 @@ type syncContext struct {
 	proj                *v1alpha1.AppProject
 	compareResult       *comparisonResult
 	config              *rest.Config
+	rawConfig           *rest.Config
 	dynamicIf           dynamic.Interface
 	disco               discovery.DiscoveryInterface
 	extensionsclientset *clientset.Clientset
@@ -173,6 +174,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		proj:                proj,
 		compareResult:       compareResult,
 		config:              restConfig,
+		rawConfig:           clst.RawRestConfig(),
 		dynamicIf:           dynamicIf,
 		disco:               disco,
 		extensionsclientset: extensionsclientset,
@@ -549,7 +551,7 @@ func (sc *syncContext) ensureCRDReady(name string) {
 
 // applyObject performs a `kubectl apply` of a single resource
 func (sc *syncContext) applyObject(targetObj *unstructured.Unstructured, dryRun, force, validate bool) (v1alpha1.ResultCode, string) {
-	message, err := sc.kubectl.ApplyResource(sc.config, targetObj, targetObj.GetNamespace(), dryRun, force, validate)
+	message, err := sc.kubectl.ApplyResource(sc.rawConfig, targetObj, targetObj.GetNamespace(), dryRun, force, validate)
 	if err != nil {
 		return v1alpha1.ResultCodeSyncFailed, err.Error()
 	}
