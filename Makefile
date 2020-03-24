@@ -14,8 +14,10 @@ VOLUME_MOUNT=$(shell if test selinuxenabled; then echo ":Z"; elif test "$(go env
 GOCACHE?=$(HOME)/.cache/go-build
 DOCKER_SRCDIR?=${HOME}/go/src
 DOCKER_WORKDIR?=/go/src/github.com/argoproj/argo-cd
+
 ARGOCD_E2E_PROCFILE?=Procfile
 ARGOCD_SERVER?=127.0.0.1:8080
+ARGOCD_GPG_ENABLED?=true
 
 DEV_TOOLS_NAMESPACE?=jannfis
 DEV_TOOLS_IMAGE?=argocd-dev-tools
@@ -73,6 +75,7 @@ define run-in-test-client
 		-e GOPATH=/go \
 		-e ARGOCD_SERVER=$(ARGOCD_SERVER) \
 		-e ARGOCD_E2E_K3S=$(ARGOCD_E2E_K3S) \
+		-e ARGOCD_GPG_ENABLED=$(ARGOCD_GPG_ENABLED) \
 		-v ${DOCKER_SRCDIR}:/go/src${VOLUME_MOUNT} \
 		-e GOCACHE=/tmp/go-build-cache \
 		-v ${GOCACHE}:/tmp/go-build-cache${VOLUME_MOUNT} \
@@ -283,7 +286,7 @@ test-e2e:
 .PHONY: test-e2e-local
 test-e2e-local: cli
 	# NO_PROXY ensures all tests don't go out through a proxy if one is configured on the test system
-	NO_PROXY=* ./hack/test.sh -timeout 15m -v ./test/e2e
+	ARGOCD_GPG_ENABLED=true NO_PROXY=* ./hack/test.sh -timeout 15m -v ./test/e2e
 
 debug-test-server:
 	$(call run-in-test-server,/bin/bash)
@@ -306,7 +309,9 @@ start-e2e-local:
 	kustomize build test/manifests/base | kubectl apply -f -
 	# Create GPG keys and source directories
 	if test -d /tmp/argo-e2e/app/config/gpg; then rm -rf /tmp/argo-e2e/app/config/gpg/*; fi
-	mkdir -p /tmp/argo-e2e/app/config/gpg/{keys,source} && chmod 0700 /tmp/argo-e2e/app/config/gpg/{keys,source}
+	mkdir -p /tmp/argo-e2e/app/config/gpg/keys && chmod 0700 /tmp/argo-e2e/app/config/gpg/keys
+	mkdir -p /tmp/argo-e2e/app/config/gpg/source && chmod 0700 /tmp/argo-e2e/app/config/gpg/source
+	if test "$(USER_ID)" != ""; then chown -R "$(USER_ID)" /tmp/argo-e2e; fi
 	# set paths for locally managed ssh known hosts and tls certs data
 	ARGOCD_SSH_DATA_PATH=/tmp/argo-e2e/app/config/ssh \
 	ARGOCD_TLS_DATA_PATH=/tmp/argo-e2e/app/config/tls \
