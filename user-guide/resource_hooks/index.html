@@ -1396,29 +1396,29 @@ field in the spec, which let their respective controllers delete the Job/Workflo
 </code></pre></div>
 
 
-<p><code>yaml
-apiVersion: batch/v1
-kind: Job
-metadata:
-  generateName: app-slack-notification-fail-
-  annotations:
-    argocd.argoproj.io/hook: SyncFail
-    argocd.argoproj.io/hook-delete-policy: HookSucceeded
-spec:
-  template:
-    spec:
-      containers:
-      - name: slack-notification
-        image: appropriate/curl
-        command: 
-          - "curl"
-          - "-X"
-          - "POST"
-          - "--data-urlencode"
-          - "payload={\"channel\": \"#somechannel\", \"username\": \"hello\", \"text\": \"App Sync failed\", \"icon_emoji\": \":ghost:\"}"
-          - "https://hooks.slack.com/services/..."
-      restartPolicy: Never
-  backoffLimit: 2</code></p>
+<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">batch/v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Job</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">generateName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">app-slack-notification-fail-</span>
+  <span class="nt">annotations</span><span class="p">:</span>
+    <span class="nt">argocd.argoproj.io/hook</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">SyncFail</span>
+    <span class="nt">argocd.argoproj.io/hook-delete-policy</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">HookSucceeded</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">template</span><span class="p">:</span>
+    <span class="nt">spec</span><span class="p">:</span>
+      <span class="nt">containers</span><span class="p">:</span>
+      <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">slack-notification</span>
+        <span class="nt">image</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">appropriate/curl</span>
+        <span class="nt">command</span><span class="p">:</span> 
+          <span class="p p-Indicator">-</span> <span class="s">&quot;curl&quot;</span>
+          <span class="p p-Indicator">-</span> <span class="s">&quot;-X&quot;</span>
+          <span class="p p-Indicator">-</span> <span class="s">&quot;POST&quot;</span>
+          <span class="p p-Indicator">-</span> <span class="s">&quot;--data-urlencode&quot;</span>
+          <span class="p p-Indicator">-</span> <span class="s">&quot;payload={\&quot;channel\&quot;:</span><span class="nv"> </span><span class="s">\&quot;#somechannel\&quot;,</span><span class="nv"> </span><span class="s">\&quot;username\&quot;:</span><span class="nv"> </span><span class="s">\&quot;hello\&quot;,</span><span class="nv"> </span><span class="s">\&quot;text\&quot;:</span><span class="nv"> </span><span class="s">\&quot;App</span><span class="nv"> </span><span class="s">Sync</span><span class="nv"> </span><span class="s">failed\&quot;,</span><span class="nv"> </span><span class="s">\&quot;icon_emoji\&quot;:</span><span class="nv"> </span><span class="s">\&quot;:ghost:\&quot;}&quot;</span>
+          <span class="p p-Indicator">-</span> <span class="s">&quot;https://hooks.slack.com/services/...&quot;</span>
+      <span class="nt">restartPolicy</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Never</span>
+  <span class="nt">backoffLimit</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">2</span>
+</code></pre></div>
                 
                   
                 
