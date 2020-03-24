@@ -32,6 +32,10 @@ RUN ./install.sh helm2-linux
 RUN ./install.sh helm-linux
 RUN ./install.sh kustomize-linux
 
+RUN ./install.sh codegen-tools
+RUN ./install.sh codegen-go-tools
+RUN ./install.sh lint-tools
+
 # Create test user's home directory and initialize Helm v2
 RUN mkdir -p /home/user && chmod 777 /home/user
 RUN HELM_HOME=/home/user/.helm helm2 init --client-only
@@ -77,5 +81,6 @@ COPY --from=docker /usr/local/bin/docker /usr/local/bin/docker
 RUN chmod -R 777 /usr/local/go
 
 RUN mkdir -p /tmp/go-build-cache && chmod -R 777 /tmp/go-build-cache
+RUN mkdir -p /home/user/.cache && chmod 777 /home/user/.cache
 
 ENTRYPOINT ["/usr/local/bin/uid_entrypoint.sh"]

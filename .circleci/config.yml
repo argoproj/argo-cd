@@ -95,7 +95,7 @@ jobs:
 
   codegen:
     docker:
-      - image: jannfis/argocd-dev-tools
+      - image: jannfis/argocd-test-tools
     working_directory: /go/src/github.com/argoproj/argo-cd
     steps:
       - prepare_environment

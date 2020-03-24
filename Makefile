@@ -17,33 +17,12 @@ DOCKER_WORKDIR?=/go/src/github.com/argoproj/argo-cd
 ARGOCD_E2E_PROCFILE?=Procfile
 ARGOCD_SERVER?=127.0.0.1:8080
 
-DEV_TOOLS_NAMESPACE?=jannfis
-DEV_TOOLS_IMAGE?=argocd-dev-tools
-DEV_TOOLS_VERSION?=latest
-ifdef DEV_TOOLS_NAMESPACE
-DEV_TOOLS_PREFIX=${DEV_TOOLS_NAMESPACE}/
-endif
-
-
 TEST_TOOLS_NAMESPACE?=jannfis
 TEST_TOOLS_IMAGE?=argocd-test-tools
 TEST_TOOLS_VERSION?=latest
 ifdef TEST_TOOLS_NAMESPACE
 TEST_TOOLS_PREFIX=${TEST_TOOLS_NAMESPACE}/
 endif
-
-# Runs any command in the argocd-dev-tools container
-define run-in-dev-tool
-	docker run --rm -it \
-		-u $(shell id -u) \
-		-e HOME=/home/user \
-		-e GOCACHE=/tmp/go-build-cache \
-		-v ${GOCACHE}:/tmp/go-build-cache${VOLUME_MOUNT} \
-		-v ${HOME}/go/src:/go/src${VOLUME_MOUNT} \
-		-w /go/src/github.com/argoproj/argo-cd \
-		$(DEV_TOOLS_PREFIX)$(DEV_TOOLS_IMAGE):$(DEV_TOOLS_VERSION) \
-		bash -c "GOPATH=/go $(1)"
-endef
 
 # Runs any command in the argocd-test-utils container in server mode
 # Server mode container will start with uid 0 and drop privileges during runtime
@@ -66,7 +45,7 @@ endef
 
 # Runs any command in the argocd-test-utils container in client mode
 define run-in-test-client
-	@docker run --rm -it \
+	docker run --rm -it \
 	  --name argocd-test-client \
 		-u $(shell id -u) \
 		-e HOME=/home/user \
@@ -145,8 +124,8 @@ clientgen:
 codegen-local: protogen clientgen openapigen manifests-local
 
 .PHONY: codegen
-codegen: dev-tools-image
-	$(call run-in-dev-tool,make codegen-local)
+codegen: test-tools-image
+	$(call run-in-test-client,make codegen-local)
 
 .PHONY: cli
 cli: clean-debug
@@ -168,10 +147,10 @@ argocd-util: clean-debug
 	# Build argocd-util as a statically linked binary, so it could run within the alpine-based dex container (argoproj/argo-cd#844)
 	CGO_ENABLED=0 ${PACKR_CMD} build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-util ./cmd/argocd-util
 
-.PHONY: dev-tools-image
-dev-tools-image:
-	docker build -t $(DEV_TOOLS_PREFIX)$(DEV_TOOLS_IMAGE) . -f hack/Dockerfile.dev-tools
-	docker tag $(DEV_TOOLS_PREFIX)$(DEV_TOOLS_IMAGE) $(DEV_TOOLS_PREFIX)$(DEV_TOOLS_IMAGE):$(DEV_TOOLS_VERSION)
+# .PHONY: dev-tools-image
+# dev-tools-image:
+# 	docker build -t $(DEV_TOOLS_PREFIX)$(DEV_TOOLS_IMAGE) . -f hack/Dockerfile.dev-tools
+# 	docker tag $(DEV_TOOLS_PREFIX)$(DEV_TOOLS_IMAGE) $(DEV_TOOLS_PREFIX)$(DEV_TOOLS_IMAGE):$(DEV_TOOLS_VERSION)
 
 .PHONY: test-tools-image
 test-tools-image:
@@ -183,8 +162,8 @@ manifests-local:
 	./hack/update-manifests.sh
 
 .PHONY: manifests
-manifests: dev-tools-image
-	$(call run-in-dev-tool,make manifests-local IMAGE_TAG='${IMAGE_TAG}')
+manifests: test-tools-image
+	$(call run-in-test-client,make manifests-local IMAGE_TAG='${IMAGE_TAG}')
 
 
 # NOTE: we use packr to do the build instead of go, since we embed swagger files and policy.csv
@@ -248,7 +227,7 @@ install-lint-tools:
 
 .PHONY: lint
 lint:
-	$(call run-in-dev-tool,make lint-local)
+	$(call run-in-test-client,make lint-local)
 
 .PHONY: lint-local
 lint-local:
