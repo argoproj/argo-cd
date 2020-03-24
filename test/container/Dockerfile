@@ -64,22 +64,22 @@ RUN mkdir -p /var/run/sshd
 # Create root's .ssh directory for storing authorized_keys
 RUN mkdir -p /root/.ssh
 
+# These are required for running end-to-end tests
 COPY ./test/fixture/testrepos/id_rsa.pub /root/.ssh/authorized_keys
-
 COPY ./test/fixture/testrepos/nginx.conf /etc/nginx/nginx.conf
-
 COPY ./test/fixture/testrepos/sudoers.conf /etc/sudoers
-
 COPY ./test/fixture/testrepos/ssh_host_*_key* /etc/ssh/
 RUN chown root /etc/ssh/ssh_host_*_key*
 RUN chmod 0600 /etc/ssh/ssh_host_*_key
 
+# Entrypoint is required for container's user management
 COPY ./test/container/uid_entrypoint.sh /usr/local/bin
+RUN chmod +x /usr/local/bin/uid_entrypoint.sh
 
-COPY --from=docker /usr/local/bin/docker /usr/local/bin/docker
-
+# We need write access to Go libraries (ENABLE_CGO=0)
 RUN chmod -R 777 /usr/local/go
 
+# For mounting build cache into our container
 RUN mkdir -p /tmp/go-build-cache && chmod -R 777 /tmp/go-build-cache
 RUN mkdir -p /home/user/.cache && chmod 777 /home/user/.cache
 
