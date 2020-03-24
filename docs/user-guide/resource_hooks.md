@@ -130,4 +130,4 @@ spec:
           - "https://hooks.slack.com/services/..."
       restartPolicy: Never
   backoffLimit: 2
-  ```
+```

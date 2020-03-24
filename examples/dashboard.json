@@ -15,12 +15,13 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": 14,
-  "iteration": 1563840219282,
+  "id": 1,
+  "iteration": 1584852352597,
   "links": [],
   "panels": [
     {
       "collapsed": false,
+      "datasource": null,
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -34,6 +35,7 @@
     },
     {
       "content": "![argoimage](https://avatars1.githubusercontent.com/u/30269780?s=120&v=4)",
+      "datasource": null,
       "gridPos": {
         "h": 4,
         "w": 3,
@@ -43,6 +45,7 @@
       "id": 26,
       "links": [],
       "mode": "markdown",
+      "options": {},
       "title": "",
       "transparent": true,
       "type": "text"
@@ -88,6 +91,7 @@
       "maxDataPoints": 100,
       "nullPointMode": "connected",
       "nullText": null,
+      "options": {},
       "postfix": "",
       "postfixFontSize": "50%",
       "prefix": "",
@@ -170,6 +174,7 @@
       "maxDataPoints": 100,
       "nullPointMode": "connected",
       "nullText": null,
+      "options": {},
       "postfix": "",
       "postfixFontSize": "50%",
       "prefix": "",
@@ -218,15 +223,17 @@
       "bars": false,
       "cacheTimeout": null,
       "dashLength": 10,
-      "datasource": "$Source",
       "dashes": false,
+      "datasource": "$Source",
       "fill": 0,
+      "fillGradient": 0,
       "gridPos": {
         "h": 4,
         "w": 15,
         "x": 9,
         "y": 1
       },
+      "hiddenSeries": false,
       "id": 28,
       "legend": {
         "alignAsTable": false,
@@ -245,6 +252,9 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "connected",
+      "options": {
+        "dataLinks": []
+      },
       "paceLength": 10,
       "percentage": false,
       "pointradius": 2,
@@ -306,6 +316,7 @@
     },
     {
       "collapsed": false,
+      "datasource": null,
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -360,6 +371,7 @@
       "maxDataPoints": 100,
       "nullPointMode": "connected",
       "nullText": null,
+      "options": {},
       "postfix": "",
       "postfixFontSize": "50%",
       "prefix": "",
@@ -380,7 +392,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum(argocd_app_health_status{health_status=\"Healthy\",namespace=~\"$namespace\",project=~\"$project\"} == 1)",
+          "expr": "sum(argocd_app_info{health_status=\"Healthy\",namespace=~\"$namespace\",project=~\"$project\"} == 1)",
           "format": "time_series",
           "intervalFactor": 1,
           "refId": "A"
@@ -441,6 +453,7 @@
       "maxDataPoints": 100,
       "nullPointMode": "connected",
       "nullText": null,
+      "options": {},
       "postfix": "",
       "postfixFontSize": "50%",
       "prefix": "",
@@ -461,7 +474,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum(argocd_app_health_status{health_status=\"Progressing\",namespace=~\"$namespace\"})",
+          "expr": "sum(argocd_app_info{health_status=\"Progressing\",namespace=~\"$namespace\"})",
           "format": "time_series",
           "intervalFactor": 1,
           "refId": "A"
@@ -521,6 +534,7 @@
       "maxDataPoints": 100,
       "nullPointMode": "connected",
       "nullText": null,
+      "options": {},
       "postfix": "",
       "postfixFontSize": "50%",
       "prefix": "",
@@ -541,7 +555,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum(argocd_app_health_status{health_status=\"Suspended\",namespace=~\"$namespace\",project=~\"$project\"})",
+          "expr": "sum(argocd_app_info{health_status=\"Suspended\",namespace=~\"$namespace\",project=~\"$project\"})",
           "format": "time_series",
           "intervalFactor": 1,
           "refId": "A"
@@ -601,6 +615,7 @@
       "maxDataPoints": 100,
       "nullPointMode": "connected",
       "nullText": null,
+      "options": {},
       "postfix": "",
       "postfixFontSize": "50%",
       "prefix": "",
@@ -621,7 +636,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum(argocd_app_health_status{health_status=\"Degraded\",namespace=~\"$namespace\",project=~\"$project\"})",
+          "expr": "sum(argocd_app_info{health_status=\"Degraded\",namespace=~\"$namespace\",project=~\"$project\"})",
           "format": "time_series",
           "intervalFactor": 1,
           "refId": "A"
@@ -681,6 +696,7 @@
       "maxDataPoints": 100,
       "nullPointMode": "connected",
       "nullText": null,
+      "options": {},
       "postfix": "",
       "postfixFontSize": "50%",
       "prefix": "",
@@ -701,7 +717,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum(argocd_app_health_status{health_status=\"Missing\",namespace=~\"$namespace\",project=~\"$project\"})",
+          "expr": "sum(argocd_app_info{health_status=\"Missing\",namespace=~\"$namespace\",project=~\"$project\"})",
           "format": "time_series",
           "intervalFactor": 1,
           "refId": "A"
@@ -761,6 +777,7 @@
       "maxDataPoints": 100,
       "nullPointMode": "connected",
       "nullText": null,
+      "options": {},
       "postfix": "",
       "postfixFontSize": "50%",
       "prefix": "",
@@ -781,7 +798,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum(argocd_app_health_status{health_status=\"Unknown\",namespace=~\"$namespace\",project=~\"$project\"})",
+          "expr": "sum(argocd_app_info{health_status=\"Unknown\",namespace=~\"$namespace\",project=~\"$project\"})",
           "format": "time_series",
           "intervalFactor": 1,
           "refId": "A"
@@ -802,6 +819,7 @@
     },
     {
       "collapsed": false,
+      "datasource": null,
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -854,6 +872,7 @@
       "maxDataPoints": 100,
       "nullPointMode": "connected",
       "nullText": null,
+      "options": {},
       "postfix": "",
       "postfixFontSize": "50%",
       "prefix": "",
@@ -874,7 +893,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum(argocd_app_sync_status{sync_status=\"Synced\",namespace=~\"$namespace\",project=~\"$project\"})",
+          "expr": "sum(argocd_app_info{sync_status=\"Synced\",namespace=~\"$namespace\",project=~\"$project\"})",
           "format": "time_series",
           "intervalFactor": 1,
           "refId": "A"
@@ -934,6 +953,7 @@
       "maxDataPoints": 100,
       "nullPointMode": "connected",
       "nullText": null,
+      "options": {},
       "postfix": "",
       "postfixFontSize": "50%",
       "prefix": "",
@@ -954,7 +974,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum(argocd_app_sync_status{sync_status=\"OutOfSync\",namespace=~\"$namespace\",project=~\"$project\"})",
+          "expr": "sum(argocd_app_info{sync_status=\"OutOfSync\",namespace=~\"$namespace\",project=~\"$project\"})",
           "format": "time_series",
           "intervalFactor": 1,
           "refId": "A"
@@ -1014,6 +1034,7 @@
       "maxDataPoints": 100,
       "nullPointMode": "connected",
       "nullText": null,
+      "options": {},
       "postfix": "",
       "postfixFontSize": "50%",
       "prefix": "",
@@ -1034,7 +1055,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum(argocd_app_sync_status{sync_status=\"Unknown\",namespace=~\"$namespace\",project=~\"$project\"})",
+          "expr": "sum(argocd_app_info{sync_status=\"Unknown\",namespace=~\"$namespace\",project=~\"$project\"})",
           "format": "time_series",
           "intervalFactor": 1,
           "refId": "A"
@@ -1055,6 +1076,7 @@
     },
     {
       "collapsed": false,
+      "datasource": null,
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -1073,12 +1095,14 @@
       "dashes": false,
       "datasource": "$Source",
       "fill": 0,
+      "fillGradient": 0,
       "gridPos": {
         "h": 5,
         "w": 24,
         "x": 0,
         "y": 14
       },
+      "hiddenSeries": false,
       "id": 56,
       "interval": "",
       "legend": {
@@ -1098,6 +1122,9 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
+      "options": {
+        "dataLinks": []
+      },
       "paceLength": 10,
       "percentage": false,
       "pointradius": 1,
@@ -1165,12 +1192,14 @@
       "dashes": false,
       "datasource": "$Source",
       "fill": 0,
+      "fillGradient": 0,
       "gridPos": {
         "h": 5,
         "w": 24,
         "x": 0,
         "y": 19
       },
+      "hiddenSeries": false,
       "id": 73,
       "legend": {
         "alignAsTable": false,
@@ -1187,6 +1216,9 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
+      "options": {
+        "dataLinks": []
+      },
       "paceLength": 10,
       "percentage": false,
       "pointradius": 2,
@@ -1254,12 +1286,14 @@
       "dashes": false,
       "datasource": "$Source",
       "fill": 0,
+      "fillGradient": 0,
       "gridPos": {
         "h": 8,
         "w": 24,
         "x": 0,
         "y": 24
       },
+      "hiddenSeries": false,
       "id": 58,
       "legend": {
         "avg": false,
@@ -1274,6 +1308,9 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
+      "options": {
+        "dataLinks": []
+      },
       "paceLength": 10,
       "percentage": false,
       "pointradius": 2,
@@ -1340,12 +1377,14 @@
       "dashes": false,
       "datasource": "$Source",
       "fill": 0,
+      "fillGradient": 0,
       "gridPos": {
         "h": 8,
         "w": 24,
         "x": 0,
         "y": 32
       },
+      "hiddenSeries": false,
       "id": 80,
       "legend": {
         "avg": false,
@@ -1360,6 +1399,9 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
+      "options": {
+        "dataLinks": []
+      },
       "paceLength": 10,
       "percentage": false,
       "pointradius": 2,
@@ -1447,6 +1489,7 @@
         "show": true
       },
       "links": [],
+      "options": {},
       "reverseYBuckets": false,
       "targets": [
         {
@@ -1490,12 +1533,14 @@
       "dashes": false,
       "datasource": "$Source",
       "fill": 0,
+      "fillGradient": 0,
       "gridPos": {
         "h": 8,
         "w": 24,
         "x": 0,
         "y": 49
       },
+      "hiddenSeries": false,
       "id": 34,
       "legend": {
         "avg": false,
@@ -1510,6 +1555,9 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "connected",
+      "options": {
+        "dataLinks": []
+      },
       "paceLength": 10,
       "percentage": false,
       "pointradius": 5,
@@ -1576,12 +1624,14 @@
       "dashes": false,
       "datasource": "$Source",
       "fill": 0,
+      "fillGradient": 0,
       "gridPos": {
         "h": 8,
         "w": 24,
         "x": 0,
         "y": 57
       },
+      "hiddenSeries": false,
       "id": 62,
       "legend": {
         "avg": false,
@@ -1598,6 +1648,9 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
+      "options": {
+        "dataLinks": []
+      },
       "paceLength": 10,
       "percentage": false,
       "pointradius": 5,
@@ -1659,6 +1712,7 @@
     },
     {
       "collapsed": true,
+      "datasource": null,
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -2604,6 +2658,7 @@
     },
     {
       "collapsed": false,
+      "datasource": null,
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -2622,12 +2677,14 @@
       "dashes": false,
       "datasource": "$Source",
       "fill": 0,
+      "fillGradient": 0,
       "gridPos": {
         "h": 8,
         "w": 24,
         "x": 0,
         "y": 67
       },
+      "hiddenSeries": false,
       "id": 71,
       "legend": {
         "avg": false,
@@ -2642,6 +2699,9 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "connected",
+      "options": {
+        "dataLinks": []
+      },
       "paceLength": 10,
       "percentage": false,
       "pointradius": 5,
@@ -2708,12 +2768,14 @@
       "dashes": false,
       "datasource": "$Source",
       "fill": 0,
+      "fillGradient": 0,
       "gridPos": {
         "h": 9,
         "w": 24,
         "x": 0,
         "y": 75
       },
+      "hiddenSeries": false,
       "id": 72,
       "legend": {
         "avg": false,
@@ -2728,6 +2790,9 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
+      "options": {
+        "dataLinks": []
+      },
       "paceLength": 10,
       "percentage": false,
       "pointradius": 5,
@@ -2794,12 +2859,14 @@
       "dashes": false,
       "datasource": "$Source",
       "fill": 0,
+      "fillGradient": 0,
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
         "y": 84
       },
+      "hiddenSeries": false,
       "id": 82,
       "legend": {
         "avg": false,
@@ -2814,6 +2881,9 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
+      "options": {
+        "dataLinks": []
+      },
       "percentage": false,
       "pointradius": 2,
       "points": false,
@@ -2879,12 +2949,14 @@
       "dashes": false,
       "datasource": "$Source",
       "fill": 0,
+      "fillGradient": 0,
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 12,
         "y": 84
       },
+      "hiddenSeries": false,
       "id": 84,
       "legend": {
         "avg": false,
@@ -2899,6 +2971,9 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
+      "options": {
+        "dataLinks": []
+      },
       "percentage": false,
       "pointradius": 2,
       "points": false,
@@ -2959,12 +3034,16 @@
     }
   ],
   "refresh": false,
-  "schemaVersion": 18,
+  "schemaVersion": 21,
   "style": "dark",
   "tags": [],
   "templating": {
     "list": [
       {
+        "current": {
+          "text": "Prometheus",
+          "value": "Prometheus"
+        },
         "hide": 0,
         "includeAll": false,
         "label": "Prometheus",
@@ -2973,12 +3052,14 @@
         "options": [],
         "query": "prometheus",
         "refresh": 1,
+        "regex": "",
         "skipUrlSync": false,
         "type": "datasource"
       },
       {
         "allValue": ".*",
         "current": {
+          "selected": false,
           "text": "All",
           "value": "$__all"
         },
@@ -3062,5 +3143,5 @@
   "timezone": "",
   "title": "ArgoCD",
   "uid": "BjWwX3jik",
-  "version": 7
+  "version": 1
 }
