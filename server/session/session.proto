@@ -37,6 +37,7 @@ message GetUserInfoResponse {
   string username = 2;
   string iss = 3;
   repeated string groups = 4;
+  string subject = 5;
 }
 
 // SessionService 

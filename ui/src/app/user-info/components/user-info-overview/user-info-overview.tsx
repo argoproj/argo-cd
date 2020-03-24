@@ -15,6 +15,7 @@ export const UserInfoOverview = () => (
                             userInfo.loggedIn ? (
                                 <React.Fragment key='userInfoInner'>
                                     <p key='username'>Username: {userInfo.username}</p>
+                                    <p key='subject'>Subject: {userInfo.subject}</p>
                                     <p key='iss'>Issuer: {userInfo.iss}</p>
                                     {userInfo.groups && (
                                         <React.Fragment key='userInfo4'>
