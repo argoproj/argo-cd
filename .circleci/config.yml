@@ -189,6 +189,8 @@ jobs:
           background: true
           environment:
             DOCKER_SRCDIR: /home/circleci/.go_workspace/src
+            ARGOCD_E2E_TEST: "true"
+            ARGOCD_IN_CI: "true"
       - run:
           name: Wait for API server to become available
           command: |
