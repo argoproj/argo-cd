@@ -84,8 +84,8 @@ We use [CodeCov](https://codecov.io) in our CI pipeline to check for test covera
 Whenever you develop a new feature or submit a bug fix, please also write appropriate unit tests for it. If you write a completely new module, please aim for at least 80% of coverage.
 If you want to see how much coverage just a specific module (i.e. your new one) has, you can set the `TEST_MODULE` to the (fully qualified) name of that module with `make test`, i.e.
 
-```shell
-make test TEST_MODULE=github.com/argoproj/argo-cd/server/cache
+```bash
+ make test TEST_MODULE=github.com/argoproj/argo-cd/server/cache
 ...
 ok      github.com/argoproj/argo-cd/server/cache        0.029s  coverage: 89.3% of statements
 ```
@@ -162,6 +162,7 @@ As build dependencies change over time, you have to synchronize your development
 
 * `make dep`
 * `make dep-ensure`
+* `make dep-ui`
 
 ### Generate API glue code and other assets
 
