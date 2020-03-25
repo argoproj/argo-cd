@@ -17,7 +17,7 @@ DOCKER_WORKDIR?=/go/src/github.com/argoproj/argo-cd
 ARGOCD_E2E_PROCFILE?=Procfile
 
 # Configuration for building argocd-test-tools image
-TEST_TOOLS_NAMESPACE?=argoproj
+TEST_TOOLS_NAMESPACE?=jannfis
 TEST_TOOLS_IMAGE=argocd-test-tools
 TEST_TOOLS_VERSION?=latest
 ifdef TEST_TOOLS_NAMESPACE
