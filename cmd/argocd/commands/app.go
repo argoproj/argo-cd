@@ -731,26 +731,25 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 
 func unsetKustomizeOpt(src *argoappv1.ApplicationSource, paramStr string) {
 	parts := strings.SplitN(paramStr, "=", 2)
-	if len(parts) != 2 {
-		log.Fatalf("Expected parameter of the form: component=param. Received: %s", paramStr)
-	}
-
 	switch parts[0] {
-		case "nameprefix":
-			src.Kustomize.NamePrefix = ""
-		case "namesuffix":
-			src.Kustomize.NameSuffix = ""
-		case "kustomize-image":
-			for i, item := range src.Kustomize.Images {
-				if item.Match(argoappv1.KustomizeImage(parts[1])) {
-					//remove i
-					a := src.Kustomize.Images
-					copy(a[i:], a[i+1:]) // Shift a[i+1:] left one index.
-					a[len(a)-1] = ""     // Erase last element (write zero value).
-					a = a[:len(a)-1]     // Truncate slice.
-					src.Kustomize.Images = a
-				}
+	case "nameprefix":
+		src.Kustomize.NamePrefix = ""
+	case "namesuffix":
+		src.Kustomize.NameSuffix = ""
+	case "kustomize-image":
+		if len(parts) != 2 {
+			log.Fatalf("Expected parameter of the form: component=param. Received: %s", paramStr)
+		}
+		for i, item := range src.Kustomize.Images {
+			if item.Match(argoappv1.KustomizeImage(parts[1])) {
+				//remove i
+				a := src.Kustomize.Images
+				copy(a[i:], a[i+1:]) // Shift a[i+1:] left one index.
+				a[len(a)-1] = ""     // Erase last element (write zero value).
+				a = a[:len(a)-1]     // Truncate slice.
+				src.Kustomize.Images = a
 			}
+		}
 	}
 }
 
@@ -777,7 +776,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 			updated := false
 			if app.Spec.Source.Kustomize != nil {
 				for _, paramStr := range parameters {
-					unsetKustomizeOpt(&app.Spec.Source, paramStr);
+					unsetKustomizeOpt(&app.Spec.Source, paramStr)
 				}
 			}
 			if app.Spec.Source.Ksonnet != nil {
