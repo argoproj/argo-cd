@@ -15,14 +15,21 @@ GOCACHE?=$(HOME)/.cache/go-build
 DOCKER_SRCDIR?=${HOME}/go/src
 DOCKER_WORKDIR?=/go/src/github.com/argoproj/argo-cd
 ARGOCD_E2E_PROCFILE?=Procfile
-ARGOCD_SERVER?=127.0.0.1:8080
 
-TEST_TOOLS_NAMESPACE?=jannfis
-TEST_TOOLS_IMAGE?=argocd-test-tools
+# Configuration for building argocd-test-tools image
+TEST_TOOLS_NAMESPACE?=argoproj
+TEST_TOOLS_IMAGE=argocd-test-tools
 TEST_TOOLS_VERSION?=latest
 ifdef TEST_TOOLS_NAMESPACE
 TEST_TOOLS_PREFIX=${TEST_TOOLS_NAMESPACE}/
 endif
+
+# You can change the ports where ArgoCD components will be listening on by
+# setting the appropriate environment variables before running make.
+ARGOCD_E2E_APISERVER_PORT?=8080
+ARGOCD_E2E_REPOSERVER_PORT?=8081
+ARGOCD_E2E_REDIS_PORT?=6379
+ARGOCD_E2E_DEX_PORT?=5556
 
 # Runs any command in the argocd-test-utils container in server mode
 # Server mode container will start with uid 0 and drop privileges during runtime
@@ -50,7 +57,6 @@ define run-in-test-client
 		-u $(shell id -u) \
 		-e HOME=/home/user \
 		-e GOPATH=/go \
-		-e ARGOCD_SERVER=$(ARGOCD_SERVER) \
 		-e ARGOCD_E2E_K3S=$(ARGOCD_E2E_K3S) \
 		-v ${DOCKER_SRCDIR}:/go/src${VOLUME_MOUNT} \
 		-e GOCACHE=/tmp/go-build-cache \
@@ -76,7 +82,6 @@ IMAGE_NAMESPACE?=
 STATIC_BUILD?=true
 # build development images
 DEV_IMAGE?=false
-ARGOCD_E2E_APISERVER_PORT?=8080
 
 override LDFLAGS += \
   -X ${PACKAGE}.version=${VERSION} \
@@ -248,12 +253,15 @@ build-local:
 .PHONY: test
 test: test-tools-image
 	mkdir -p $(GOCACHE)
-	$(call run-in-test-client,make test-local)
+	$(call run-in-test-client,make TEST_MODULE=$(TEST_MODULE) test-local)
 
 .PHONY: test-local
 test-local:
-	./hack/test.sh -coverprofile=coverage.out `go list ./... | grep -v 'test/e2e'`
-
+	if test "$(TEST_MODULE)" == ""; then \
+		./hack/test.sh -coverprofile=coverage.out `go list ./... | grep -v 'test/e2e'`; \
+	else \
+		./hack/test.sh -coverprofile=coverage.out "$(TEST_MODULE)"; \
+	fi
 .PHONY: test-e2e
 test-e2e: 
 	$(call exec-in-test-server,make test-e2e-local)
