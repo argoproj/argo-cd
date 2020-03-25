@@ -729,6 +729,10 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().StringArrayVar(&opts.kustomizeImages, "kustomize-image", []string{}, "Kustomize images (e.g. --kustomize-image node:8.15.0 --kustomize-image mysql=mariadb,alpine@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d)")
 }
 
+//Usage:
+//app unset <appName> -p kustomize-image=alpine
+//app unset <appName> -p namesuffix
+//app unset <appName> -p nameprefix
 func unsetKustomizeOpt(src *argoappv1.ApplicationSource, paramStr string) {
 	parts := strings.SplitN(paramStr, "=", 2)
 	switch parts[0] {

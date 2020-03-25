@@ -182,6 +182,26 @@ func TestKustomizeImages(t *testing.T) {
 		})
 }
 
+// make sure we we can invoke the CLI to replace images
+func TestKustomizeImagesSetUnset(t *testing.T) {
+	Given(t).
+		Path("kustomize").
+		When().
+		Create().
+		// pass two flags to check the multi flag logic works
+		AppSet("--kustomize-image", "alpine:foo", "--kustomize-image", "alpine:bar").
+		Then().
+		And(func(app *Application) {
+			assert.Contains(t, app.Spec.Source.Kustomize.Images, KustomizeImage("alpine:bar"))
+		}).
+		When().
+		AppUnSet("-p kustomize-image=alpine:bar").
+		Then().
+		And(func(app *Application) {
+			assert.Contains(t, app.Spec.Source.Kustomize.Images, KustomizeImage("alpine:bar"))
+		})
+}
+
 // make sure we we can invoke the CLI to set namesuffix
 func TestKustomizeNameSuffix(t *testing.T) {
 	Given(t).
@@ -208,7 +228,7 @@ func TestKustomizeNameSuffixSetUnset(t *testing.T) {
 		}).
 		When().
 		AppUnSet("-p namesuffix=suf").
-	    Then().
+		Then().
 		And(func(app *Application) {
 			assert.Contains(t, app.Spec.Source.Kustomize.NameSuffix, "-suf")
 		})
