@@ -194,3 +194,22 @@ func TestKustomizeNameSuffix(t *testing.T) {
 			assert.Contains(t, app.Spec.Source.Kustomize.NameSuffix, "-suf")
 		})
 }
+
+// make sure we we can invoke the CLI to set and unset namesuffix
+func TestKustomizeNameSuffixSetUnset(t *testing.T) {
+	Given(t).
+		Path("kustomize").
+		When().
+		Create().
+		AppSet("--namesuffix", "-suf").
+		Then().
+		And(func(app *Application) {
+			assert.Contains(t, app.Spec.Source.Kustomize.NameSuffix, "-suf")
+		}).
+		When().
+		AppUnSet("-p namesuffix=suf").
+	    Then().
+		And(func(app *Application) {
+			assert.Contains(t, app.Spec.Source.Kustomize.NameSuffix, "-suf")
+		})
+}
