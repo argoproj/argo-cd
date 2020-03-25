@@ -279,7 +279,7 @@ test: test-tools-image
 # Run all unit tests (local version)
 .PHONY: test-local
 test-local:
-	if test "$(TEST_MODULE)" == ""; then \
+	if test "$(TEST_MODULE)" = ""; then \
 		./hack/test.sh -coverprofile=coverage.out `go list ./... | grep -v 'test/e2e'`; \
 	else \
 		./hack/test.sh -coverprofile=coverage.out "$(TEST_MODULE)"; \
