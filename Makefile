@@ -265,7 +265,7 @@ build:
 # Build all Go code (local version)
 .PHONY: build-local
 build-local:
-	go build -p 8 -v `go list ./... | grep -v 'resource_customizations\|test/e2e'`
+	go build -p 1 -v `go list ./... | grep -v 'resource_customizations\|test/e2e'`
 
 # Run all unit tests
 #
