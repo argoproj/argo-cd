@@ -44,6 +44,7 @@ func newTestSyncCtx(resources ...*v1.APIResourceList) *syncContext {
 		})
 	sc := syncContext{
 		config:    &rest.Config{},
+		rawConfig: &rest.Config{},
 		namespace: test.FakeArgoCDNamespace,
 		server:    test.FakeClusterURL,
 		syncRes: &v1alpha1.SyncOperationResult{
