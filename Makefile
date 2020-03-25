@@ -14,7 +14,7 @@ VOLUME_MOUNT=$(shell if test selinuxenabled; then echo ":Z"; elif test "$(go env
 GOCACHE?=$(HOME)/.cache/go-build
 DOCKER_SRCDIR?=${HOME}/go/src
 DOCKER_WORKDIR?=/go/src/github.com/argoproj/argo-cd
-ARGOCD_E2E_PROCFILE?=Procfile
+ARGOCD_PROCFILE?=Procfile
 
 # Configuration for building argocd-test-tools image
 TEST_TOOLS_NAMESPACE?=jannfis
@@ -30,6 +30,10 @@ ARGOCD_E2E_APISERVER_PORT?=8080
 ARGOCD_E2E_REPOSERVER_PORT?=8081
 ARGOCD_E2E_REDIS_PORT?=6379
 ARGOCD_E2E_DEX_PORT?=5556
+ARGOCD_E2E_YARN_HOST?=localhost
+
+ARGOCD_IN_CI?=false
+ARGOCD_TEST_E2E?=true
 
 # Runs any command in the argocd-test-utils container in server mode
 # Server mode container will start with uid 0 and drop privileges during runtime
@@ -40,12 +44,16 @@ define run-in-test-server
 		-e HOME=/home/user \
 		-e GOPATH=/go \
 		-e GOCACHE=/tmp/go-build-cache \
+		-e ARGOCD_IN_CI=$(ARGOCD_IN_CI) \
+		-e ARGOCD_E2E_TEST=$(ARGOCD_E2E_TEST) \
+		-e ARGOCD_E2E_YARN_HOST=$(ARGOCD_E2E_YARN_HOST) \
 		-v ${DOCKER_SRCDIR}:/go/src${VOLUME_MOUNT} \
 		-v ${GOCACHE}:/tmp/go-build-cache${VOLUME_MOUNT} \
 		-v ${HOME}/.kube:/home/user/.kube${VOLUME_MOUNT} \
 		-v /tmp:/tmp${VOLUME_MOUNT} \
 		-w ${DOCKER_WORKDIR} \
 		-p ${ARGOCD_E2E_APISERVER_PORT}:8080 \
+		-p 4000:4000 \
 		$(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE):$(TEST_TOOLS_VERSION) \
 		bash -c "$(1)"
 endef
@@ -310,7 +318,7 @@ debug-test-client:
 start-e2e: 
 	docker version
 	mkdir -p ${GOCACHE}
-	$(call run-in-test-server,ARGOCD_E2E_PROCFILE=test/container/Procfile make start-e2e-local)
+	$(call run-in-test-server,make ARGOCD_PROCFILE=test/container/Procfile start-e2e-local)
 
 # Starts e2e server locally (or within a container)
 .PHONY: start-e2e-local
@@ -323,7 +331,9 @@ start-e2e-local:
 	ARGOCD_TLS_DATA_PATH=/tmp/argo-e2e/app/config/tls \
 	ARGOCD_E2E_DISABLE_AUTH=false \
 	ARGOCD_ZJWT_FEATURE_FLAG=always \
-		goreman -f $(ARGOCD_E2E_PROCFILE) start
+	ARGOCD_IN_CI=$(ARGOCD_IN_CI) \
+	ARGOCD_E2E_TEST=true \
+		goreman -f $(ARGOCD_PROCFILE) start
 
 # Cleans VSCode debug.test files from sub-dirs to prevent them from being included in packr boxes
 .PHONY: clean-debug
@@ -334,17 +344,21 @@ clean-debug:
 clean: clean-debug
 	-rm -rf ${CURRENT_DIR}/dist
 
-# Starts a local instance of ArgoCD
-# TODO: Containerize
 .PHONY: start
 start:
-	killall goreman || true
-	# check we can connect to Docker to start Redis
 	docker version
+	$(call run-in-test-server,make ARGOCD_PROCFILE=test/container/Procfile start-local)
+
+# Starts a local instance of ArgoCD
+.PHONY: start-local
+start-local:
+	# check we can connect to Docker to start Redis
+	killall goreman || true
 	kubectl create ns argocd || true
-	kubens argocd
 	ARGOCD_ZJWT_FEATURE_FLAG=always \
-		goreman start ${ARGOCD_START}
+	ARGOCD_IN_CI=false \
+	ARGOCD_E2E_TEST=false \
+		goreman -f $(ARGOCD_PROCFILE) start ${ARGOCD_START}
 
 # Runs pre-commit validaiton with the virtualized toolchain
 .PHONY: pre-commit
@@ -405,3 +419,10 @@ install-tools-local:
 	./hack/install.sh codegen-tools
 	./hack/install.sh codegen-go-tools
 	./hack/install.sh lint-tools
+
+.PHONY: dep-ui
+dep-ui:
+	$(call run-in-test-client,make dep-ui-local)
+
+dep-ui-local:
+	cd ui && yarn install

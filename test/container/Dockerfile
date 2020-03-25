@@ -1,5 +1,7 @@
 FROM redis:5.0.3 as redis
 
+FROM node:11.15.0 as node
+
 FROM golang:1.14.0 
 
 RUN echo 'deb http://deb.debian.org/debian buster-backports main' >> /etc/apt/sources.list
@@ -82,5 +84,15 @@ RUN chmod -R 777 /usr/local/go
 # For mounting build cache into our container
 RUN mkdir -p /tmp/go-build-cache && chmod -R 777 /tmp/go-build-cache
 RUN mkdir -p /home/user/.cache && chmod 777 /home/user/.cache
+
+# Copy node binaries and libraries and create appropriate symlinks
+COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
+COPY --from=node /usr/local/bin/node /usr/local/bin
+COPY --from=node /opt/yarn-v1.15.2 /opt/yarn-v1.15.2
+RUN ln -s /usr/local/bin/node /usr/local/bin/nodejs 
+RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm
+RUN ln -s /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
+RUN ln -s /opt/yarn-v1.15.2/bin/yarn /usr/local/bin/yarn
+RUN ln -s /opt/yarn-v1.15.2/bin/yarnpkg /usr/local/bin/yarnpkg
 
 ENTRYPOINT ["/usr/local/bin/uid_entrypoint.sh"]
