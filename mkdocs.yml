@@ -72,7 +72,7 @@ nav:
     - user-guide/status-badge.md
   - Developer Guide:
     - developer-guide/index.md
-    - CONTRIBUTING.md
+    - developer-guide/contributing.md
     - developer-guide/api-docs.md
     - developer-guide/test-e2e.md
     - developer-guide/ci.md
