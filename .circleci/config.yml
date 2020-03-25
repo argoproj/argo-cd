@@ -130,6 +130,11 @@ jobs:
       - run:
           name: Uploading code coverage
           command: bash <(curl -s https://codecov.io/bash) -f coverage.out
+      - run:
+          name: Output of test-results
+          command: |
+            ls -l test-results || true
+            cat test-results/junit.xml || true
       - store_test_results:
           path: test-results
       - store_artifacts:
