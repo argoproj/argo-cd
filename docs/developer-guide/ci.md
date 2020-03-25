@@ -1,5 +1,9 @@
 # CI
 
+!!!warning
+    This documentation is out-of-date. Please bear with us while we work to
+    update the documentation to reflect reality!
+
 ## Troubleshooting Builds
 
 ### "Check nothing has changed" step fails
