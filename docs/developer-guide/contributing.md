@@ -139,9 +139,29 @@ Build the required Docker image by running `make test-tools-image` or pull the l
 
 The `Dockerfile` used to build these images can be found at `test/container/Dockerfile`.
 
+### Test connection from build container to your K8s cluster
+
+Run `make verify-kube-connect`, it should execute without error.
+
+If you receive an error similar to the following:
+
+```
+The connection to the server 127.0.0.1:6443 was refused - did you specify the right host or port?
+make: *** [Makefile:386: verify-kube-connect] Error 1
+```
+
+you should edit your `~/.kube/config` and modify the `server` option to point to your correct K8s API (as described above).
+
 ## The development cycle
 
 When you have developed and possibly manually tested the code you want to contribute, you should ensure that everything will build correctly. Commit your changes to the local copy of your Git branch and perform the following steps:
+
+### Pull in all build dependencies
+
+As build dependencies change over time, you have to synchronize your development environment with the current specification. In order to pull in all required depencies, issue:
+
+* `make dep`
+* `make dep-ensure`
 
 ### Generate API glue code and other assets
 
