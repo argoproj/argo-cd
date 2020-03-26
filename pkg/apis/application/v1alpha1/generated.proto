@@ -71,6 +71,9 @@ message AppProjectSpec {
 
   // SyncWindows controls when syncs can be run for apps in this project
   repeated SyncWindow syncWindows = 8;
+
+  // NamespaceResourceWhitelist contains list of whitelisted namespace level resources
+  repeated k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind namespaceResourceWhitelist = 9;
 }
 
 // Application is a definition of Application resource.

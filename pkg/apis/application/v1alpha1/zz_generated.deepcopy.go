@@ -132,6 +132,11 @@ func (in *AppProjectSpec) DeepCopyInto(out *AppProjectSpec) {
 			}
 		}
 	}
+	if in.NamespaceResourceWhitelist != nil {
+		in, out := &in.NamespaceResourceWhitelist, &out.NamespaceResourceWhitelist
+		*out = make([]v1.GroupKind, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

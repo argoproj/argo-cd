@@ -304,6 +304,19 @@ func schema_pkg_apis_application_v1alpha1_AppProjectSpec(ref common.ReferenceCal
 							},
 						},
 					},
+					"namespaceResourceWhitelist": {
+						SchemaProps: spec.SchemaProps{
+							Description: "NamespaceResourceWhitelist contains list of whitelisted namespace level resources",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.GroupKind"),
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},

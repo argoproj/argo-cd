@@ -1603,6 +1603,8 @@ type AppProjectSpec struct {
 	OrphanedResources *OrphanedResourcesMonitorSettings `json:"orphanedResources,omitempty" protobuf:"bytes,7,opt,name=orphanedResources"`
 	// SyncWindows controls when syncs can be run for apps in this project
 	SyncWindows SyncWindows `json:"syncWindows,omitempty" protobuf:"bytes,8,opt,name=syncWindows"`
+	// NamespaceResourceWhitelist contains list of whitelisted namespace level resources
+	NamespaceResourceWhitelist []metav1.GroupKind `json:"namespaceResourceWhitelist,omitempty" protobuf:"bytes,9,opt,name=namespaceResourceWhitelist"`
 }
 
 // SyncWindows is a collection of sync windows in this project
@@ -2127,7 +2129,9 @@ func isResourceInList(res metav1.GroupKind, list []metav1.GroupKind) bool {
 func (proj AppProject) IsGroupKindPermitted(gk schema.GroupKind, namespaced bool) bool {
 	res := metav1.GroupKind{Group: gk.Group, Kind: gk.Kind}
 	if namespaced {
-		return !isResourceInList(res, proj.Spec.NamespaceResourceBlacklist)
+		isWhiteListed := len(proj.Spec.NamespaceResourceWhitelist) == 0 || isResourceInList(res, proj.Spec.NamespaceResourceWhitelist)
+		isBlackListed := isResourceInList(res, proj.Spec.NamespaceResourceBlacklist)
+		return isWhiteListed && !isBlackListed
 	} else {
 		return isResourceInList(res, proj.Spec.ClusterResourceWhitelist)
 	}

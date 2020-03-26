@@ -3166,6 +3166,13 @@
             "$ref": "#/definitions/v1GroupKind"
           }
         },
+        "namespaceResourceWhitelist": {
+          "type": "array",
+          "title": "NamespaceResourceWhitelist contains list of whitelisted namespace level resources",
+          "items": {
+            "$ref": "#/definitions/v1GroupKind"
+          }
+        },
         "orphanedResources": {
           "$ref": "#/definitions/v1alpha1OrphanedResourcesMonitorSettings"
         },
