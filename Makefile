@@ -54,6 +54,7 @@ define run-in-test-server
 		-v ${GOCACHE}:/tmp/go-build-cache${VOLUME_MOUNT} \
 		-v ${HOME}/.kube:/home/user/.kube${VOLUME_MOUNT} \
 		-v /tmp:/tmp${VOLUME_MOUNT} \
+		-v /app/config:/app/config${VOLUME_MOUNT} \
 		-w ${DOCKER_WORKDIR} \
 		-p ${ARGOCD_E2E_APISERVER_PORT}:8080 \
 		-p 4000:4000 \
@@ -242,7 +243,7 @@ dep-local:
 # Pulls in all unvendored dependencies
 .PHONY: dep-ensure
 dep-ensure:
-	$(call run-in-test-client,dep ensure -no-vendor)
+	$(call run-in-test-client,dep ensure -no-vendor -v)
 
 # Pulls in all unvendored dependencies (local version)
 .PHONY: dep-ensure-local
