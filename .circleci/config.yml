@@ -82,7 +82,7 @@ commands:
 jobs:
   build:
     docker:
-      - image: argoproj/argocd-test-tools:0.1.0
+      - image: argoproj/argocd-test-tools:v0.1.0
     working_directory: /go/src/github.com/argoproj/argo-cd
     steps:
       - prepare_environment
@@ -97,7 +97,7 @@ jobs:
 
   codegen:
     docker:
-      - image: argoproj/argocd-test-tools:0.1.0
+      - image: argoproj/argocd-test-tools:v0.1.0
     working_directory: /go/src/github.com/argoproj/argo-cd
     steps:
       - prepare_environment
@@ -120,7 +120,7 @@ jobs:
   test:
     working_directory: /go/src/github.com/argoproj/argo-cd
     docker:
-      - image: argoproj/argocd-test-tools:0.1.0
+      - image: argoproj/argocd-test-tools:v0.1.0
     steps:
       - prepare_environment
       - checkout

@@ -22,7 +22,7 @@ ARGOCD_PROCFILE?=Procfile
 # Configuration for building argocd-test-tools image
 TEST_TOOLS_NAMESPACE?=argoproj
 TEST_TOOLS_IMAGE=argocd-test-tools
-TEST_TOOLS_VERSION?=0.1.0
+TEST_TOOLS_TAG?=v0.1.0
 ifdef TEST_TOOLS_NAMESPACE
 TEST_TOOLS_PREFIX=${TEST_TOOLS_NAMESPACE}/
 endif
@@ -58,7 +58,7 @@ define run-in-test-server
 		-w ${DOCKER_WORKDIR} \
 		-p ${ARGOCD_E2E_APISERVER_PORT}:8080 \
 		-p 4000:4000 \
-		$(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE):$(TEST_TOOLS_VERSION) \
+		$(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE):$(TEST_TOOLS_TAG) \
 		bash -c "$(1)"
 endef
 
@@ -76,7 +76,7 @@ define run-in-test-client
 		-v ${HOME}/.kube:/home/user/.kube${VOLUME_MOUNT} \
 		-v /tmp:/tmp${VOLUME_MOUNT} \
 		-w ${DOCKER_WORKDIR} \
-		$(TEST_TOOLS_NAMESPACE)/$(TEST_TOOLS_IMAGE):$(TEST_TOOLS_VERSION) \
+		$(TEST_TOOLS_NAMESPACE)/$(TEST_TOOLS_IMAGE):$(TEST_TOOLS_TAG) \
 		bash -c "$(1)"
 endef
 
@@ -172,7 +172,7 @@ argocd-util: clean-debug
 .PHONY: test-tools-image
 test-tools-image:
 	docker build -t $(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE) -f test/container/Dockerfile .
-	docker tag $(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE) $(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE):$(TEST_TOOLS_VERSION)
+	docker tag $(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE) $(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE):$(TEST_TOOLS_TAG)
 
 .PHONY: manifests-local
 manifests-local:
