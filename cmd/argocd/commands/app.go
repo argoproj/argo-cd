@@ -774,7 +774,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 					case "kustomize-image":
 						for _, kustomizeImage := range kustomizeImages {
 							for i, item := range app.Spec.Source.Kustomize.Images {
-								if item.Match(argoappv1.KustomizeImage(kustomizeImage)) {
+								if argoappv1.KustomizeImage(kustomizeImage).Match(item) {
 									updated = true
 									//remove i
 									a := app.Spec.Source.Kustomize.Images
@@ -851,7 +851,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 	command.Flags().StringArrayVar(&valuesFiles, "values", []string{}, "unset one or more helm values files")
 	command.Flags().StringVar(&nameSuffix, "namesuffix", "", "Kustomize namesuffix")
 	command.Flags().StringVar(&namePrefix, "nameprefix", "", "Kustomize nameprefix")
-	command.Flags().StringArrayVar(&kustomizeImages, "kustomize-image", []string{}, "Kustomize images (e.g. --kustomize-image node:8.15.0 --kustomize-image mysql=mariadb,alpine@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d)")
+	command.Flags().StringArrayVar(&kustomizeImages, "kustomize-image", []string{}, "Kustomize images name (e.g. --kustomize-image node --kustomize-image mysql)")
 	return command
 }
 
