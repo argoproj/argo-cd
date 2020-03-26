@@ -1764,7 +1764,7 @@ spec:
                 type: object
               type: array
             namespaceResourceWhitelist:
-              description: NamespaceResourceWhitelist contains list of blacklisted
+              description: NamespaceResourceWhitelist contains list of whitelisted
                 namespace level resources
               items:
                 description: GroupKind specifies a Group and a Kind, but does not

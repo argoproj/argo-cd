@@ -3168,7 +3168,7 @@
         },
         "namespaceResourceWhitelist": {
           "type": "array",
-          "title": "NamespaceResourceWhitelist contains list of blacklisted namespace level resources",
+          "title": "NamespaceResourceWhitelist contains list of whitelisted namespace level resources",
           "items": {
             "$ref": "#/definitions/v1GroupKind"
           }
