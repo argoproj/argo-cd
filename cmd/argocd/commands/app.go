@@ -739,8 +739,17 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 		kustomizeImages []string
 	)
 	var command = &cobra.Command{
-		Use:   "unset APPNAME ",
-		Short: "Unset application",
+		Use:   "unset APPNAME parameters",
+		Short: "Unset application parameters",
+		Example: `  # Unset kustomize override kustomize image
+  argocd app unset my-app --kustomize-image=alpine
+
+  # Unset kustomize override prefix
+  argocd app unset my-app --namesuffix
+
+  # Unset parameter override
+  argocd app unset my-app -p COMPONENT=PARAM`,
+
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
@@ -754,18 +763,19 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 
 			updated := false
 			if app.Spec.Source.Kustomize != nil {
-				visited := 0
 				c.Flags().Visit(func(f *pflag.Flag) {
-					visited++
 					switch f.Name {
 					case "nameprefix":
+						updated = true
 						app.Spec.Source.Kustomize.NamePrefix = ""
 					case "namesuffix":
+						updated = true
 						app.Spec.Source.Kustomize.NameSuffix = ""
 					case "kustomize-image":
 						for _, kustomizeImage := range kustomizeImages {
 							for i, item := range app.Spec.Source.Kustomize.Images {
 								if item.Match(argoappv1.KustomizeImage(kustomizeImage)) {
+									updated = true
 									//remove i
 									a := app.Spec.Source.Kustomize.Images
 									copy(a[i:], a[i+1:]) // Shift a[i+1:] left one index.
