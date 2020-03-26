@@ -1,6 +1,7 @@
 package v1alpha1
 
 import (
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"reflect"
 	"testing"
 	"time"
@@ -113,6 +114,25 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 		}
 		assert.Equal(t, proj.IsDestinationPermitted(data.appDest), data.isPermitted)
 	}
+}
+
+func TestAppProject_IsGroupKindPermitted(t *testing.T) {
+	proj := AppProject{
+		Spec: AppProjectSpec{
+			NamespaceResourceWhitelist: []metav1.GroupKind{},
+			NamespaceResourceBlacklist: []metav1.GroupKind{{Group: "apps", Kind: "Deployment"},},
+		},
+	}
+	assert.Equal(t, proj.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "ReplicaSet"}, true), true)
+	assert.Equal(t, proj.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "Deployment"}, true), false)
+	proj2 := AppProject{
+		Spec: AppProjectSpec{
+			NamespaceResourceWhitelist: []metav1.GroupKind{{Group: "apps", Kind: "ReplicaSet"}},
+			NamespaceResourceBlacklist: []metav1.GroupKind{{Group: "apps", Kind: "Deployment"},},
+		},
+	}
+	assert.Equal(t, proj2.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "ReplicaSet"}, true), true)
+	assert.Equal(t, proj2.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "Action"}, true), false)
 }
 
 func TestAppProject_GetRoleByName(t *testing.T) {
