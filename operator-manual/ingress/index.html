@@ -1448,6 +1448,7 @@ happen at the ingress controller.</p>
 <h2 id="traefik-v20"><a href="https://docs.traefik.io/">Traefik (v2.0)</a><a class="headerlink" href="#traefik-v20" title="Permanent link">&para;</a></h2>
 <p>Traefik can be used as an edge router and provide <a href="https://docs.traefik.io/user-guides/crd-acme/">TLS</a> termination within the same deployment.</p>
 <p>It currently has an advantage over NGINX in that it can terminate both TCP and HTTP connections <em>on the same port</em> meaning you do not require multiple ingress objects and hosts.</p>
+<p>The API server should be run with TLS disabled. Edit the <code>argocd-server</code> deployment to add the <code>--insecure</code> flag to the argocd-server command.</p>
 <div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">traefik.containo.us/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">IngressRoute</span>
 <span class="nt">metadata</span><span class="p">:</span>
