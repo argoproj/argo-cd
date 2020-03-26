@@ -194,3 +194,35 @@ func TestKustomizeNameSuffix(t *testing.T) {
 			assert.Contains(t, app.Spec.Source.Kustomize.NameSuffix, "-suf")
 		})
 }
+
+// make sure we we can invoke the CLI to set and unset namesuffix and kustomize-image
+func TestKustomizeUnsetOverride(t *testing.T) {
+	Given(t).
+		Path("kustomize").
+		When().
+		Create().
+		AppSet("--namesuffix", "-suf").
+		Then().
+		And(func(app *Application) {
+			assert.Contains(t, app.Spec.Source.Kustomize.NameSuffix, "-suf")
+		}).
+		When().
+		AppUnSet("--namesuffix").
+		Then().
+		And(func(app *Application) {
+			assert.Nil(t, app.Spec.Source.Kustomize)
+		}).
+		When().
+		AppSet("--kustomize-image", "alpine:foo", "--kustomize-image", "alpine:bar").
+		Then().
+		And(func(app *Application) {
+			assert.Contains(t, app.Spec.Source.Kustomize.Images, KustomizeImage("alpine:bar"))
+		}).
+		When().
+		//AppUnSet("--kustomize-image=alpine").
+		AppUnSet("--kustomize-image", "alpine", "--kustomize-image", "alpine").
+		Then().
+		And(func(app *Application) {
+			assert.Nil(t, app.Spec.Source.Kustomize)
+		})
+}
