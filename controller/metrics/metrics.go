@@ -101,7 +101,7 @@ var (
 			// Buckets chosen after observing a ~2100ms mean reconcile time
 			Buckets: []float64{0.25, .5, 1, 2, 4, 8, 16},
 		},
-		append(descAppDefaultLabels, "dest_server"),
+		[]string{"namespace", "dest_server"},
 	)
 
 	clusterEventsCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
@@ -191,7 +191,7 @@ func (m *MetricsServer) IncKubernetesRequest(app *argoappv1.Application, server,
 
 // IncReconcile increments the reconcile counter for an application
 func (m *MetricsServer) IncReconcile(app *argoappv1.Application, duration time.Duration) {
-	m.reconcileHistogram.WithLabelValues(app.Namespace, app.Name, app.Spec.GetProject(), app.Spec.Destination.Server).Observe(duration.Seconds())
+	m.reconcileHistogram.WithLabelValues(app.Namespace, app.Spec.Destination.Server).Observe(duration.Seconds())
 }
 
 type appCollector struct {

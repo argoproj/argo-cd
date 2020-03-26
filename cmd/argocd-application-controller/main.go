@@ -20,6 +20,7 @@ import (
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/controller"
 	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
@@ -59,8 +60,7 @@ func newCommand() *cobra.Command {
 
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
-			config.QPS = common.K8sClientConfigQPS
-			config.Burst = common.K8sClientConfigBurst
+			errors.CheckError(v1alpha1.SetK8SConfigDefaults(config))
 
 			kubeClient := kubernetes.NewForConfigOrDie(config)
 			appClient := appclientset.NewForConfigOrDie(config)

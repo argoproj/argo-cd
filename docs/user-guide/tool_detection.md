@@ -4,6 +4,26 @@ The tool used to build an application is detected as follows:
 
 If a specific tool is explicitly configured, then that tool is selected to create your application's manifests.
 
+The tool can be explicitly specified in the Application custom resource like this:
+```
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  ...
+spec:
+  ...
+  source:
+    ...
+    
+    # Tool -> plain directory
+    directory:
+      recurse: true
+...
+```
+
+You also can select the tool in the Application creation wizard in the web user interface. The default is 'Directory'. Press the dropdown button beneath the tool name if you want to choose a different one.
+
+
 If not, then the tool is detected implicitly as follows:
 
 * **Ksonnet** if there are two files, one named `app.yaml` and one named `components/params.libsonnet`.
