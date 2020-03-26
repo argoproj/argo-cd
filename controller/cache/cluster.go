@@ -73,7 +73,7 @@ func (c *clusterInfo) replaceResourceCache(gk schema.GroupKind, resourceVersion 
 			obj := &objs[i]
 			key := kube.GetResourceKey(&objs[i])
 			existingNode, exists := c.nodes[key]
-			c.onNodeUpdated(exists, existingNode, obj, key)
+			c.onNodeUpdated(exists, existingNode, obj)
 		}
 
 		// remove existing nodes that a no longer exist
@@ -566,11 +566,11 @@ func (c *clusterInfo) processEvent(event watch.EventType, un *unstructured.Unstr
 			c.onNodeRemoved(key, existingNode)
 		}
 	} else if event != watch.Deleted {
-		c.onNodeUpdated(exists, existingNode, un, key)
+		c.onNodeUpdated(exists, existingNode, un)
 	}
 }
 
-func (c *clusterInfo) onNodeUpdated(exists bool, existingNode *node, un *unstructured.Unstructured, key kube.ResourceKey) {
+func (c *clusterInfo) onNodeUpdated(exists bool, existingNode *node, un *unstructured.Unstructured) {
 	nodes := make([]*node, 0)
 	if exists {
 		nodes = append(nodes, existingNode)
