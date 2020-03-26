@@ -195,10 +195,10 @@ func TestKustomizeImagesSetUnset(t *testing.T) {
 			assert.Contains(t, app.Spec.Source.Kustomize.Images, KustomizeImage("alpine:bar"))
 		}).
 		When().
-		AppUnSet("-p kustomize-image=alpine:bar").
+		AppUnSet("--kustomize-image=alpine:bar").
 		Then().
 		And(func(app *Application) {
-			assert.Contains(t, app.Spec.Source.Kustomize.Images, KustomizeImage("alpine:bar"))
+			assert.NotContains(t, app.Spec.Source.Kustomize.Images, KustomizeImage("alpine:bar"))
 		})
 }
 
@@ -227,9 +227,9 @@ func TestKustomizeNameSuffixSetUnset(t *testing.T) {
 			assert.Contains(t, app.Spec.Source.Kustomize.NameSuffix, "-suf")
 		}).
 		When().
-		AppUnSet("-p namesuffix=suf").
+		AppUnSet("--namesuffix").
 		Then().
 		And(func(app *Application) {
-			assert.Contains(t, app.Spec.Source.Kustomize.NameSuffix, "-suf")
+			assert.Nil(t, app.Spec.Source.Kustomize.NameSuffix)
 		})
 }

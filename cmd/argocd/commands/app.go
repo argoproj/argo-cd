@@ -760,14 +760,17 @@ func unsetKustomizeOpt(src *argoappv1.ApplicationSource, paramStr string) {
 // NewApplicationUnsetCommand returns a new instance of an `argocd app unset` command
 func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		parameters  []string
-		valuesFiles []string
+		parameters      []string
+		valuesFiles     []string
+		nameSuffix      string
+		namePrefix      string
+		kustomizeImages []string
 	)
 	var command = &cobra.Command{
-		Use:   "unset APPNAME -p COMPONENT=PARAM",
-		Short: "Unset application parameters",
+		Use:   "unset APPNAME ",
+		Short: "Unset application",
 		Run: func(c *cobra.Command, args []string) {
-			if len(args) != 1 || (len(parameters) == 0 && len(valuesFiles) == 0) {
+			if len(args) != 1 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
@@ -779,11 +782,36 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 
 			updated := false
 			if app.Spec.Source.Kustomize != nil {
-				for _, paramStr := range parameters {
-					unsetKustomizeOpt(&app.Spec.Source, paramStr)
-				}
+				visited := 0
+				c.Flags().Visit(func(f *pflag.Flag) {
+					visited++
+					switch f.Name {
+					case "nameprefix":
+						app.Spec.Source.Kustomize.NamePrefix = ""
+					case "namesuffix":
+						app.Spec.Source.Kustomize.NameSuffix = ""
+					case "kustomize-image":
+						for _, kustomizeImage := range kustomizeImages {
+							for i, item := range app.Spec.Source.Kustomize.Images {
+								if item.Match(argoappv1.KustomizeImage(kustomizeImage)) {
+									//remove i
+									a := app.Spec.Source.Kustomize.Images
+									copy(a[i:], a[i+1:]) // Shift a[i+1:] left one index.
+									a[len(a)-1] = ""     // Erase last element (write zero value).
+									a = a[:len(a)-1]     // Truncate slice.
+									app.Spec.Source.Kustomize.Images = a
+								}
+							}
+						}
+
+					}
+				})
 			}
 			if app.Spec.Source.Ksonnet != nil {
+				if len(parameters) == 0 && len(valuesFiles) == 0 {
+					c.HelpFunc()(c, args)
+					os.Exit(1)
+				}
 				for _, paramStr := range parameters {
 					parts := strings.SplitN(paramStr, "=", 2)
 					if len(parts) != 2 {
@@ -800,6 +828,10 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 				}
 			}
 			if app.Spec.Source.Helm != nil {
+				if len(parameters) == 0 && len(valuesFiles) == 0 {
+					c.HelpFunc()(c, args)
+					os.Exit(1)
+				}
 				for _, paramStr := range parameters {
 					helmParams := app.Spec.Source.Helm.Parameters
 					for i, p := range helmParams {
@@ -835,6 +867,9 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 	}
 	command.Flags().StringArrayVarP(&parameters, "parameter", "p", []string{}, "unset a parameter override (e.g. -p guestbook=image)")
 	command.Flags().StringArrayVar(&valuesFiles, "values", []string{}, "unset one or more helm values files")
+	command.Flags().StringVar(&nameSuffix, "namesuffix", "", "Kustomize namesuffix")
+	command.Flags().StringVar(&namePrefix, "nameprefix", "", "Kustomize nameprefix")
+	command.Flags().StringArrayVar(&kustomizeImages, "kustomize-image", []string{}, "Kustomize images (e.g. --kustomize-image node:8.15.0 --kustomize-image mysql=mariadb,alpine@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d)")
 	return command
 }
 
