@@ -25,12 +25,12 @@ commands:
       - restore_cache:
           name: Restore vendor cache
           keys:
-            - vendor-v2-{{ checksum "Gopkg.lock" }}-{{ .Branch }}
+            - vendor-v2-{{ checksum "Gopkg.lock" }}
   save_vendor:
     steps:
       - save_cache:
           name: Save vendor cache
-          key: vendor-v2-{{ checksum "Gopkg.lock" }}-{{ .Branch }}
+          key: vendor-v2-{{ checksum "Gopkg.lock" }}
           paths:
             - ./vendor
       - persist_to_workspace:
