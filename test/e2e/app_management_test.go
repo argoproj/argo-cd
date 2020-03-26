@@ -451,6 +451,10 @@ func TestResourceDiffing(t *testing.T) {
 		})
 }
 
+func TestHelm3EdgeCase(t *testing.T) {
+	testEdgeCasesApplicationResources(t, "helm3-deps", HealthStatusHealthy)
+}
+
 func TestCRDs(t *testing.T) {
 	testEdgeCasesApplicationResources(t, "crd-creation", HealthStatusHealthy)
 }
