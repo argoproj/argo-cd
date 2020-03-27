@@ -122,7 +122,7 @@ export class App extends React.Component<{}, {popupProps: PopupProps; error: Err
             const ga = await import('react-ga');
             ga.initialize(trackingID);
             const trackPageView = () => {
-                if (loggedIn) {
+                if (loggedIn && username) {
                     const userId = !anonymizeUsers ? username : hashCode(username).toString();
                     ga.set({userId});
                 }
