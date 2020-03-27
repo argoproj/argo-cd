@@ -27,6 +27,9 @@ The Docker version must be fairly recent, and support multi-stage builds. You sh
 
 * We will assume that your Go workspace is at `~/go`
 
+!!! note
+    **Attention minikube users**: By default, minikube will create Kubernetes client configuration that uses authentication data from files. This is incompatible with the virtualized toolchain. So if you intend to use the virtualized toolchain, you have to embed this authentication data into the client configuration. To do so, issue `minikube config set embed-certs true` and restart your minikube. Please also note that minikube using the Docker driver is currently not supported with the virtualized toolchain, because the Docker driver exposes the API server on 127.0.0.1 hard-coded. If in doubt, run `make verify-kube-connect` to find out.
+
 ## Submitting PRs
 
 When you submit a PR against ArgoCD's GitHub repository, a couple of CI checks will be run automatically to ensure your changes will build fine and meet certain quality standards. Your contribution needs to pass those checks in order to be merged into the repository.
