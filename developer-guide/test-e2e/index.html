@@ -967,8 +967,20 @@
 
 
   <li class="md-nav__item">
-    <a href="../../CONTRIBUTING/" title="Contributing" class="md-nav__link">
-      Contributing
+    <a href="../contributing/" title="Contribution guide" class="md-nav__link">
+      Contribution guide
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../running-locally/" title="Running ArgoCD locally" class="md-nav__link">
+      Running ArgoCD locally
     </a>
   </li>
 
@@ -1095,6 +1107,18 @@
   <li class="md-nav__item">
     <a href="../site/" title="Site" class="md-nav__link">
       Site
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../faq/" title="Contribution FAQ" class="md-nav__link">
+      Contribution FAQ
     </a>
   </li>
 
@@ -1239,6 +1263,11 @@
                 
                 
                 <h1 id="e2e-tests">E2E Tests<a class="headerlink" href="#e2e-tests" title="Permanent link">&para;</a></h1>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This documentation is out-of-date. Please bear with us while we work to
+update the documentation to reflect reality!</p>
+</div>
 <p>The directory contains E2E tests and test applications. The test assume that Argo CD services are installed into <code>argocd-e2e</code> namespace or cluster in current context. One throw-away
 namespace <code>argocd-e2e***</code> is created prior to tests execute. The throw-away namespace is used as a target namespace for test applications.</p>
 <p>The <code>test/e2e/testdata</code> directory contains various Argo CD applications. Before test execution directory is copies into <code>/tmp/argocd-e2e***</code> temp directory and used in tests as a

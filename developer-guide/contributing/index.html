@@ -1,0 +1,1883 @@
+
+
+
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      <meta http-equiv="x-ua-compatible" content="ie=edge">
+      
+      
+      
+      
+        <meta name="lang:clipboard.copy" content="Copy to clipboard">
+      
+        <meta name="lang:clipboard.copied" content="Copied to clipboard">
+      
+        <meta name="lang:search.language" content="en">
+      
+        <meta name="lang:search.pipeline.stopwords" content="True">
+      
+        <meta name="lang:search.pipeline.trimmer" content="True">
+      
+        <meta name="lang:search.result.none" content="No matching documents">
+      
+        <meta name="lang:search.result.one" content="1 matching document">
+      
+        <meta name="lang:search.result.other" content="# matching documents">
+      
+        <meta name="lang:search.tokenizer" content="[\s\-]+">
+      
+      <link rel="shortcut icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.0.4, mkdocs-material-4.1.1">
+    
+    
+      
+        <title>Contribution guide - Argo CD - Declarative GitOps CD for Kubernetes</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/application.3020aac5.css">
+      
+        <link rel="stylesheet" href="../../assets/stylesheets/application-palette.224b79ff.css">
+      
+      
+        
+        
+        <meta name="theme-color" content="#009688">
+      
+    
+    
+      <script src="../../assets/javascripts/modernizr.01ccdecf.js"></script>
+    
+    
+      
+        <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Work+Sans:300,400,400i,700|">
+        <style>body,input{font-family:"Work Sans","Helvetica Neue",Helvetica,Arial,sans-serif}code,kbd,pre{font-family:"","Courier New",Courier,monospace}</style>
+      
+    
+    <link rel="stylesheet" href="../../assets/fonts/material-icons.css">
+    
+    
+    
+      
+        
+<script>
+  window.ga = window.ga || function() {
+    (ga.q = ga.q || []).push(arguments)
+  }
+  ga.l = +new Date
+  /* Setup integration and send page view */
+  ga("create", "UA-105170809-2", "auto")
+  ga("set", "anonymizeIp", true)
+  ga("send", "pageview")
+  /* Register handler to log search on blur */
+  document.addEventListener("DOMContentLoaded", () => {
+    if (document.forms.search) {
+      var query = document.forms.search.query
+      query.addEventListener("blur", function() {
+        if (this.value) {
+          var path = document.location.pathname;
+          ga("send", "pageview", path + "?q=" + this.value)
+        }
+      })
+    }
+  })
+</script>
+<script async src="https://www.google-analytics.com/analytics.js"></script>
+      
+    
+    
+  </head>
+  
+    
+    
+    <body dir="ltr" data-md-color-primary="teal" data-md-color-accent="">
+  
+    <svg class="md-svg">
+      <defs>
+        
+        
+          <svg xmlns="http://www.w3.org/2000/svg" width="416" height="448"
+    viewBox="0 0 416 448" id="__github">
+  <path fill="currentColor" d="M160 304q0 10-3.125 20.5t-10.75 19-18.125
+        8.5-18.125-8.5-10.75-19-3.125-20.5 3.125-20.5 10.75-19 18.125-8.5
+        18.125 8.5 10.75 19 3.125 20.5zM320 304q0 10-3.125 20.5t-10.75
+        19-18.125 8.5-18.125-8.5-10.75-19-3.125-20.5 3.125-20.5 10.75-19
+        18.125-8.5 18.125 8.5 10.75 19 3.125 20.5zM360
+        304q0-30-17.25-51t-46.75-21q-10.25 0-48.75 5.25-17.75 2.75-39.25
+        2.75t-39.25-2.75q-38-5.25-48.75-5.25-29.5 0-46.75 21t-17.25 51q0 22 8
+        38.375t20.25 25.75 30.5 15 35 7.375 37.25 1.75h42q20.5 0
+        37.25-1.75t35-7.375 30.5-15 20.25-25.75 8-38.375zM416 260q0 51.75-15.25
+        82.75-9.5 19.25-26.375 33.25t-35.25 21.5-42.5 11.875-42.875 5.5-41.75
+        1.125q-19.5 0-35.5-0.75t-36.875-3.125-38.125-7.5-34.25-12.875-30.25-20.25-21.5-28.75q-15.5-30.75-15.5-82.75
+        0-59.25 34-99-6.75-20.5-6.75-42.5 0-29 12.75-54.5 27 0 47.5 9.875t47.25
+        30.875q36.75-8.75 77.25-8.75 37 0 70 8 26.25-20.5
+        46.75-30.25t47.25-9.75q12.75 25.5 12.75 54.5 0 21.75-6.75 42 34 40 34
+        99.5z" />
+</svg>
+        
+      </defs>
+    </svg>
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" data-md-component="overlay" for="__drawer"></label>
+    
+      <a href="#contribution-guide" tabindex="1" class="md-skip">
+        Skip to content
+      </a>
+    
+    
+      <header class="md-header" data-md-component="header">
+  <nav class="md-header-nav md-grid">
+    <div class="md-flex">
+      <div class="md-flex__cell md-flex__cell--shrink">
+        <a href="../.." title="Argo CD - Declarative GitOps CD for Kubernetes" class="md-header-nav__button md-logo">
+          
+            <img src="../../assets/logo.png" width="24" height="24">
+          
+        </a>
+      </div>
+      <div class="md-flex__cell md-flex__cell--shrink">
+        <label class="md-icon md-icon--menu md-header-nav__button" for="__drawer"></label>
+      </div>
+      <div class="md-flex__cell md-flex__cell--stretch">
+        <div class="md-flex__ellipsis md-header-nav__title" data-md-component="title">
+          
+            <span class="md-header-nav__topic">
+              Argo CD - Declarative GitOps CD for Kubernetes
+            </span>
+            <span class="md-header-nav__topic">
+              Contribution guide
+            </span>
+          
+        </div>
+      </div>
+      <div class="md-flex__cell md-flex__cell--shrink">
+        
+          <label class="md-icon md-icon--search md-header-nav__button" for="__search"></label>
+          
+<div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="query" data-md-state="active">
+      <label class="md-icon md-search__icon" for="__search"></label>
+      <button type="reset" class="md-icon md-search__icon" data-md-component="reset" tabindex="-1">
+        &#xE5CD;
+      </button>
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="result">
+          <div class="md-search-result__meta">
+            Type to start searching
+          </div>
+          <ol class="md-search-result__list"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+        
+      </div>
+      
+        <div class="md-flex__cell md-flex__cell--shrink">
+          <div class="md-header-nav__source">
+            
+
+
+  
+
+<a href="https://github.com/argoproj/argo-cd/" title="Go to repository" class="md-source" data-md-source="github">
+  
+    <div class="md-source__icon">
+      <svg viewBox="0 0 24 24" width="24" height="24">
+        <use xlink:href="#__github" width="24" height="24"></use>
+      </svg>
+    </div>
+  
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+          </div>
+        </div>
+      
+    </div>
+  </nav>
+</header>
+    
+    <div class="md-container">
+      
+        
+      
+      
+      <main class="md-main">
+        <div class="md-main__inner md-grid" data-md-component="container">
+          
+            
+              <div class="md-sidebar md-sidebar--primary" data-md-component="navigation">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    <nav class="md-nav md-nav--primary" data-md-level="0">
+  <label class="md-nav__title md-nav__title--site" for="__drawer">
+    <a href="../.." title="Argo CD - Declarative GitOps CD for Kubernetes" class="md-nav__button md-logo">
+      
+        <img src="../../assets/logo.png" width="48" height="48">
+      
+    </a>
+    Argo CD - Declarative GitOps CD for Kubernetes
+  </label>
+  
+    <div class="md-nav__source">
+      
+
+
+  
+
+<a href="https://github.com/argoproj/argo-cd/" title="Go to repository" class="md-source" data-md-source="github">
+  
+    <div class="md-source__icon">
+      <svg viewBox="0 0 24 24" width="24" height="24">
+        <use xlink:href="#__github" width="24" height="24"></use>
+      </svg>
+    </div>
+  
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
+    <a href="../.." title="Overview" class="md-nav__link">
+      Overview
+    </a>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
+    <a href="../../understand_the_basics/" title="Understand The Basics" class="md-nav__link">
+      Understand The Basics
+    </a>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
+    <a href="../../core_concepts/" title="Core Concepts" class="md-nav__link">
+      Core Concepts
+    </a>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
+    <a href="../../getting_started/" title="Getting Started" class="md-nav__link">
+      Getting Started
+    </a>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item md-nav__item--nested">
+    
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-5" type="checkbox" id="nav-5">
+    
+    <label class="md-nav__link" for="nav-5">
+      Operator Manual
+    </label>
+    <nav class="md-nav" data-md-component="collapsible" data-md-level="1">
+      <label class="md-nav__title" for="nav-5">
+        Operator Manual
+      </label>
+      <ul class="md-nav__list" data-md-scrollfix>
+        
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/" title="Overview" class="md-nav__link">
+      Overview
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/architecture/" title="Architectural Overview" class="md-nav__link">
+      Architectural Overview
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/declarative-setup/" title="Declarative Setup" class="md-nav__link">
+      Declarative Setup
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/ingress/" title="Ingress Configuration" class="md-nav__link">
+      Ingress Configuration
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item md-nav__item--nested">
+    
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-5-5" type="checkbox" id="nav-5-5">
+    
+    <label class="md-nav__link" for="nav-5-5">
+      User Management
+    </label>
+    <nav class="md-nav" data-md-component="collapsible" data-md-level="2">
+      <label class="md-nav__title" for="nav-5-5">
+        User Management
+      </label>
+      <ul class="md-nav__list" data-md-scrollfix>
+        
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/user-management/" title="Overview" class="md-nav__link">
+      Overview
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/user-management/auth0/" title="Auth0" class="md-nav__link">
+      Auth0
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/user-management/microsoft/" title="Microsoft" class="md-nav__link">
+      Microsoft
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/user-management/okta/" title="Okta" class="md-nav__link">
+      Okta
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/user-management/onelogin/" title="OneLogin" class="md-nav__link">
+      OneLogin
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/rbac/" title="RBAC Configuration" class="md-nav__link">
+      RBAC Configuration
+    </a>
+  </li>
+
+        
+      </ul>
+    </nav>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/security/" title="Security" class="md-nav__link">
+      Security
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/cluster-bootstrapping/" title="Cluster Bootstrapping" class="md-nav__link">
+      Cluster Bootstrapping
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/secret-management/" title="Secret Management" class="md-nav__link">
+      Secret Management
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/high_availability/" title="High Availability" class="md-nav__link">
+      High Availability
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/disaster_recovery/" title="Disaster Recovery" class="md-nav__link">
+      Disaster Recovery
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/webhook/" title="Git Webhook Configuration" class="md-nav__link">
+      Git Webhook Configuration
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/health/" title="Resource Health" class="md-nav__link">
+      Resource Health
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/custom_tools/" title="Custom Tooling" class="md-nav__link">
+      Custom Tooling
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/metrics/" title="Metrics" class="md-nav__link">
+      Metrics
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/notifications/" title="Notifications" class="md-nav__link">
+      Notifications
+    </a>
+  </li>
+
+        
+      </ul>
+    </nav>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item md-nav__item--nested">
+    
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-6" type="checkbox" id="nav-6">
+    
+    <label class="md-nav__link" for="nav-6">
+      User Guide
+    </label>
+    <nav class="md-nav" data-md-component="collapsible" data-md-level="1">
+      <label class="md-nav__title" for="nav-6">
+        User Guide
+      </label>
+      <ul class="md-nav__list" data-md-scrollfix>
+        
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/" title="Overview" class="md-nav__link">
+      Overview
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/application_sources/" title="Tools" class="md-nav__link">
+      Tools
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/kustomize/" title="Kustomize" class="md-nav__link">
+      Kustomize
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/helm/" title="Helm" class="md-nav__link">
+      Helm
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/ksonnet/" title="Ksonnet" class="md-nav__link">
+      Ksonnet
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/jsonnet/" title="Jsonnet" class="md-nav__link">
+      Jsonnet
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/config-management-plugins/" title="Plugins" class="md-nav__link">
+      Plugins
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/tool_detection/" title="Tool Detection" class="md-nav__link">
+      Tool Detection
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/projects/" title="Projects" class="md-nav__link">
+      Projects
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/private-repositories/" title="Private Repositories" class="md-nav__link">
+      Private Repositories
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/auto_sync/" title="Automated Sync Policy" class="md-nav__link">
+      Automated Sync Policy
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/diffing/" title="Diffing Customization" class="md-nav__link">
+      Diffing Customization
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/orphaned-resources/" title="Orphaned Resources Monitoring" class="md-nav__link">
+      Orphaned Resources Monitoring
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/compare-options/" title="Compare Options" class="md-nav__link">
+      Compare Options
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/sync-options/" title="Sync Options" class="md-nav__link">
+      Sync Options
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/parameters/" title="Parameter Overrides" class="md-nav__link">
+      Parameter Overrides
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/build-environment/" title="Build Environment" class="md-nav__link">
+      Build Environment
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/tracking_strategies/" title="Tracking and Deployment Strategies" class="md-nav__link">
+      Tracking and Deployment Strategies
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/resource_hooks/" title="Resource Hooks" class="md-nav__link">
+      Resource Hooks
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/selective_sync/" title="Selective Sync" class="md-nav__link">
+      Selective Sync
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/sync-waves/" title="Sync Phases and Waves" class="md-nav__link">
+      Sync Phases and Waves
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/sync_windows/" title="Sync Windows" class="md-nav__link">
+      Sync Windows
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/ci_automation/" title="Automation from CI Pipelines" class="md-nav__link">
+      Automation from CI Pipelines
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/app_deletion/" title="App Deletion" class="md-nav__link">
+      App Deletion
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/best_practices/" title="Best Practices" class="md-nav__link">
+      Best Practices
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/status-badge/" title="Status Badge" class="md-nav__link">
+      Status Badge
+    </a>
+  </li>
+
+        
+      </ul>
+    </nav>
+  </li>
+
+    
+      
+      
+      
+
+  
+
+
+  <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-7" type="checkbox" id="nav-7" checked>
+    
+    <label class="md-nav__link" for="nav-7">
+      Developer Guide
+    </label>
+    <nav class="md-nav" data-md-component="collapsible" data-md-level="1">
+      <label class="md-nav__title" for="nav-7">
+        Developer Guide
+      </label>
+      <ul class="md-nav__list" data-md-scrollfix>
+        
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../" title="Overview" class="md-nav__link">
+      Overview
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+  
+
+
+  <li class="md-nav__item md-nav__item--active">
+    
+    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
+    
+      
+    
+    
+      <label class="md-nav__link md-nav__link--active" for="__toc">
+        Contribution guide
+      </label>
+    
+    <a href="./" title="Contribution guide" class="md-nav__link md-nav__link--active">
+      Contribution guide
+    </a>
+    
+      
+<nav class="md-nav md-nav--secondary">
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">Table of contents</label>
+    <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#preface" title="Preface" class="md-nav__link">
+    Preface
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#before-you-start" title="Before you start" class="md-nav__link">
+    Before you start
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#submitting-prs" title="Submitting PRs" class="md-nav__link">
+    Submitting PRs
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#title-of-the-pr" title="Title of the PR" class="md-nav__link">
+    Title of the PR
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#contributor-license-agreement" title="Contributor License Agreement" class="md-nav__link">
+    Contributor License Agreement
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pr-template-checklist" title="PR template checklist" class="md-nav__link">
+    PR template checklist
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#automated-builds-tests" title="Automated builds &amp; tests" class="md-nav__link">
+    Automated builds &amp; tests
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#code-test-coverage" title="Code test coverage" class="md-nav__link">
+    Code test coverage
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#local-vs-virtualized-toolchain" title="Local vs Virtualized toolchain" class="md-nav__link">
+    Local vs Virtualized toolchain
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#setting-up-your-development-environment" title="Setting up your development environment" class="md-nav__link">
+    Setting up your development environment
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#clone-the-argocd-repository-from-your-personal-fork-on-github" title="Clone the ArgoCD repository from your personal fork on GitHub" class="md-nav__link">
+    Clone the ArgoCD repository from your personal fork on GitHub
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#optional-setup-an-additional-git-remote" title="Optional: Setup an additional Git remote" class="md-nav__link">
+    Optional: Setup an additional Git remote
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#install-the-must-have-requirements" title="Install the must-have requirements" class="md-nav__link">
+    Install the must-have requirements
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#build-or-pull-the-required-docker-image" title="Build (or pull) the required Docker image" class="md-nav__link">
+    Build (or pull) the required Docker image
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-connection-from-build-container-to-your-k8s-cluster" title="Test connection from build container to your K8s cluster" class="md-nav__link">
+    Test connection from build container to your K8s cluster
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-development-cycle" title="The development cycle" class="md-nav__link">
+    The development cycle
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pull-in-all-build-dependencies" title="Pull in all build dependencies" class="md-nav__link">
+    Pull in all build dependencies
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#generate-api-glue-code-and-other-assets" title="Generate API glue code and other assets" class="md-nav__link">
+    Generate API glue code and other assets
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#build-your-code-and-run-unit-tests" title="Build your code and run unit tests" class="md-nav__link">
+    Build your code and run unit tests
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lint-your-code-base" title="Lint your code base" class="md-nav__link">
+    Lint your code base
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#setting-up-a-local-toolchain" title="Setting up a local toolchain" class="md-nav__link">
+    Setting up a local toolchain
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#install-required-dependencies-and-build-tools" title="Install required dependencies and build-tools" class="md-nav__link">
+    Install required dependencies and build-tools
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#install-go-dependencies" title="Install Go dependencies" class="md-nav__link">
+    Install Go dependencies
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-your-build-toolchain" title="Test your build toolchain" class="md-nav__link">
+    Test your build toolchain
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run-unit-tests" title="Run unit-tests" class="md-nav__link">
+    Run unit-tests
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run-end-to-end-tests" title="Run end-to-end tests" class="md-nav__link">
+    Run end-to-end tests
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+      
+      
+      
+      
+    </ul>
+  
+</nav>
+    
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../running-locally/" title="Running ArgoCD locally" class="md-nav__link">
+      Running ArgoCD locally
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../api-docs/" title="API Docs" class="md-nav__link">
+      API Docs
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../test-e2e/" title="E2E Tests" class="md-nav__link">
+      E2E Tests
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../ci/" title="CI" class="md-nav__link">
+      CI
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../releasing/" title="Releasing" class="md-nav__link">
+      Releasing
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../site/" title="Site" class="md-nav__link">
+      Site
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../faq/" title="Contribution FAQ" class="md-nav__link">
+      Contribution FAQ
+    </a>
+  </li>
+
+        
+      </ul>
+    </nav>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
+    <a href="../../faq/" title="FAQ" class="md-nav__link">
+      FAQ
+    </a>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
+    <a href="../../SUPPORT/" title="Support" class="md-nav__link">
+      Support
+    </a>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
+    <a href="https://github.com/argoproj/argo-cd/releases" title="Releases ⧉" class="md-nav__link">
+      Releases ⧉
+    </a>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
+    <a href="https://github.com/argoproj/argo-cd/milestones" title="Roadmap ⧉" class="md-nav__link">
+      Roadmap ⧉
+    </a>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
+    <a href="https://blog.argoproj.io/" title="Blog ⧉" class="md-nav__link">
+      Blog ⧉
+    </a>
+  </li>
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="toc">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+<nav class="md-nav md-nav--secondary">
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">Table of contents</label>
+    <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#preface" title="Preface" class="md-nav__link">
+    Preface
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#before-you-start" title="Before you start" class="md-nav__link">
+    Before you start
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#submitting-prs" title="Submitting PRs" class="md-nav__link">
+    Submitting PRs
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#title-of-the-pr" title="Title of the PR" class="md-nav__link">
+    Title of the PR
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#contributor-license-agreement" title="Contributor License Agreement" class="md-nav__link">
+    Contributor License Agreement
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pr-template-checklist" title="PR template checklist" class="md-nav__link">
+    PR template checklist
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#automated-builds-tests" title="Automated builds &amp; tests" class="md-nav__link">
+    Automated builds &amp; tests
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#code-test-coverage" title="Code test coverage" class="md-nav__link">
+    Code test coverage
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#local-vs-virtualized-toolchain" title="Local vs Virtualized toolchain" class="md-nav__link">
+    Local vs Virtualized toolchain
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#setting-up-your-development-environment" title="Setting up your development environment" class="md-nav__link">
+    Setting up your development environment
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#clone-the-argocd-repository-from-your-personal-fork-on-github" title="Clone the ArgoCD repository from your personal fork on GitHub" class="md-nav__link">
+    Clone the ArgoCD repository from your personal fork on GitHub
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#optional-setup-an-additional-git-remote" title="Optional: Setup an additional Git remote" class="md-nav__link">
+    Optional: Setup an additional Git remote
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#install-the-must-have-requirements" title="Install the must-have requirements" class="md-nav__link">
+    Install the must-have requirements
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#build-or-pull-the-required-docker-image" title="Build (or pull) the required Docker image" class="md-nav__link">
+    Build (or pull) the required Docker image
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-connection-from-build-container-to-your-k8s-cluster" title="Test connection from build container to your K8s cluster" class="md-nav__link">
+    Test connection from build container to your K8s cluster
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-development-cycle" title="The development cycle" class="md-nav__link">
+    The development cycle
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pull-in-all-build-dependencies" title="Pull in all build dependencies" class="md-nav__link">
+    Pull in all build dependencies
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#generate-api-glue-code-and-other-assets" title="Generate API glue code and other assets" class="md-nav__link">
+    Generate API glue code and other assets
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#build-your-code-and-run-unit-tests" title="Build your code and run unit tests" class="md-nav__link">
+    Build your code and run unit tests
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lint-your-code-base" title="Lint your code base" class="md-nav__link">
+    Lint your code base
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#setting-up-a-local-toolchain" title="Setting up a local toolchain" class="md-nav__link">
+    Setting up a local toolchain
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#install-required-dependencies-and-build-tools" title="Install required dependencies and build-tools" class="md-nav__link">
+    Install required dependencies and build-tools
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#install-go-dependencies" title="Install Go dependencies" class="md-nav__link">
+    Install Go dependencies
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-your-build-toolchain" title="Test your build toolchain" class="md-nav__link">
+    Test your build toolchain
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run-unit-tests" title="Run unit-tests" class="md-nav__link">
+    Run unit-tests
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run-end-to-end-tests" title="Run end-to-end tests" class="md-nav__link">
+    Run end-to-end tests
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+      
+      
+      
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          <div class="md-content">
+            <article class="md-content__inner md-typeset">
+              
+                
+                  <a href="https://github.com/argoproj/argo-cd/edit/master/docs/developer-guide/contributing.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
+                
+                
+                <h1 id="contribution-guide">Contribution guide<a class="headerlink" href="#contribution-guide" title="Permanent link">&para;</a></h1>
+<h2 id="preface">Preface<a class="headerlink" href="#preface" title="Permanent link">&para;</a></h2>
+<p>We want to make contributing to ArgoCD as simple and smooth as possible.</p>
+<p>This guide shall help you in setting up your build &amp; test environment, so that you can start developing and testing bug fixes and feature enhancements without having to make too much effort in setting up a local toolchain.</p>
+<p>If you want to to submit a PR, please read this document carefully, as it contains important information guiding you through our PR quality gates.</p>
+<p>As is the case with the development process, this document is under constant change. If you notice any error, or if you think this document is out-of-date, or if you think it is missing something: Feel free to submit a PR or submit a bug to our GitHub issue tracker.</p>
+<p>If you need guidance with submitting a PR, or have any other questions regarding development of ArgoCD, do not hestitate to <a href="https://argoproj.github.io/community/join-slack">join our Slack</a> and get in touch with us in the <code>#argo-dev</code> channel!</p>
+<h2 id="before-you-start">Before you start<a class="headerlink" href="#before-you-start" title="Permanent link">&para;</a></h2>
+<p>You will need at least the following things in your toolchain in order to develop and test ArgoCD locally:</p>
+<ul>
+<li>
+<p>A Kubernetes cluster. You won't need a fully blown multi-master, multi-node cluster, but you will need something like K3S, Minikube or microk8s. You will also need a working Kubernetes client (<code>kubectl</code>) configuration in your development environment. The configuration must reside in <code>~/.kube/config</code> and the API server URL must point to the IP address of your local machine (or VM), and <strong>not</strong> to <code>localhost</code> or <code>127.0.0.1</code> if you are using the virtualized development toolchain (see below)</p>
+</li>
+<li>
+<p>You will also need a working Docker runtime environment, to be able to build and run images.
+The Docker version must be fairly recent, and support multi-stage builds. You should not work as root. Make your local user a member of the <code>docker</code> group to be able to control the Docker service on your machine.</p>
+</li>
+<li>
+<p>Obviously, you will need a <code>git</code> client for pulling source code and pushing back your changes.</p>
+</li>
+<li>
+<p>Last but not least, you will need a Go SDK and related tools (such as GNU <code>make</code>) installed and working on your development environment.</p>
+</li>
+<li>
+<p>We will assume that your Go workspace is at <code>~/go</code></p>
+</li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><strong>Attention minikube users</strong>: By default, minikube will create Kubernetes client configuration that uses authentication data from files. This is incompatible with the virtualized toolchain. So if you intend to use the virtualized toolchain, you have to embed this authentication data into the client configuration. To do so, issue <code>minikube config set embed-certs true</code> and restart your minikube. Please also note that minikube using the Docker driver is currently not supported with the virtualized toolchain, because the Docker driver exposes the API server on 127.0.0.1 hard-coded. If in doubt, run <code>make verify-kube-connect</code> to find out.</p>
+</div>
+<h2 id="submitting-prs">Submitting PRs<a class="headerlink" href="#submitting-prs" title="Permanent link">&para;</a></h2>
+<p>When you submit a PR against ArgoCD's GitHub repository, a couple of CI checks will be run automatically to ensure your changes will build fine and meet certain quality standards. Your contribution needs to pass those checks in order to be merged into the repository.</p>
+<p>In general, it might be benefical to only submit a PR for an existing issue. Especially for larger changes, an Enhancement Proposal should exist before.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Please make sure that you always create PRs from a branch that is up-to-date with the latest changes from ArgoCD's master branch. Depending on how long it takes for the maintainers to review and merge your PR, it might be necessary to pull in latest changes into your branch again.</p>
+</div>
+<p>Please understand that we, as an Open Source project, have limited capacities for reviewing and merging PRs to ArgoCD. We will do our best to review your PR and give you feedback as soon as possible, but please bear with us if it takes a little longer as expected.</p>
+<p>The following read will help you to submit a PR that meets the standards of our CI tests:</p>
+<h3 id="title-of-the-pr">Title of the PR<a class="headerlink" href="#title-of-the-pr" title="Permanent link">&para;</a></h3>
+<p>Please use a meaningful and consise title for your PR. This will help us to pick PRs for review quickly, and the PR title will also end up in the Changelog.</p>
+<p>We use the <a href="https://github.com/zeke/semantic-pull-requests">Semantic PR title checker</a> to categorize your PR into one of the following categories:</p>
+<ul>
+<li><code>fix</code> - Your PR contains one or more code bug fixes</li>
+<li><code>feat</code> - Your PR contains a new feature</li>
+<li><code>docs</code> - Your PR improves the documentation</li>
+<li><code>chore</code> - Your PR improves any internals of ArgoCD, such as the build process, unit tests, etc</li>
+</ul>
+<p>Please prefix the title of your PR with one of the valid categories. For example, if you chose the title your PR <code>Add documentation for GitHub SSO integration</code>, please use <code>docs: Add documentation for GitHub SSO integration</code> instead.</p>
+<h3 id="contributor-license-agreement">Contributor License Agreement<a class="headerlink" href="#contributor-license-agreement" title="Permanent link">&para;</a></h3>
+<p>Every contributor to ArgoCD must have signed the current Contributor License Agreement (CLA). You only have to sign the CLA when you are a first time contributor, or when the agreement has changed since your last time signing it. The main purpose of the CLA is to ensure that you hold the required rights for your contribution. The CLA signing is an automated process.</p>
+<p>You can read the current version of the CLA <a href="https://cla-assistant.io/argoproj/argo-cd">here</a>.</p>
+<h3 id="pr-template-checklist">PR template checklist<a class="headerlink" href="#pr-template-checklist" title="Permanent link">&para;</a></h3>
+<p>Upon opening a PR, the details will contain a checklist from a template. Please read the checklist, and tick those marks that apply to you.</p>
+<h3 id="automated-builds-tests">Automated builds &amp; tests<a class="headerlink" href="#automated-builds-tests" title="Permanent link">&para;</a></h3>
+<p>After you have submitted your PR, and whenever you push new commits to that branch, GitHub will run a number of Continuous Integration checks against your code. It will execute the following actions, and each of them has to pass:</p>
+<ul>
+<li>Build the Go code (<code>make build</code>)</li>
+<li>Generate API glue code and manifests (<code>make codegen</code>)</li>
+<li>Run a Go linter on the code (<code>make lint</code>)</li>
+<li>Run the unit tests (<code>make test</code>)</li>
+<li>Run the End-to-End tests (<code>make test-e2e</code>)</li>
+<li>Build and lint the UI code (<code>make ui</code>)</li>
+</ul>
+<p>If any of these tests in the CI pipeline fail, it means that some of your contribution is considered faulty (or a test might be flaky, see below).</p>
+<h3 id="code-test-coverage">Code test coverage<a class="headerlink" href="#code-test-coverage" title="Permanent link">&para;</a></h3>
+<p>We use <a href="https://codecov.io">CodeCov</a> in our CI pipeline to check for test coverage, and once you submit your PR, it will run and report on the coverage difference as a comment within your PR. If the difference is too high in the negative, i.e. your submission introduced a significant drop in code coverage, the CI check will fail.</p>
+<p>Whenever you develop a new feature or submit a bug fix, please also write appropriate unit tests for it. If you write a completely new module, please aim for at least 80% of coverage.
+If you want to see how much coverage just a specific module (i.e. your new one) has, you can set the <code>TEST_MODULE</code> to the (fully qualified) name of that module with <code>make test</code>, i.e.</p>
+<div class="codehilite"><pre><span></span><code> make <span class="nb">test</span> <span class="nv">TEST_MODULE</span><span class="o">=</span>github.com/argoproj/argo-cd/server/cache
+...
+ok      github.com/argoproj/argo-cd/server/cache        <span class="m">0</span>.029s  coverage: <span class="m">89</span>.3% of statements
+</code></pre></div>
+
+
+<h2 id="local-vs-virtualized-toolchain">Local vs Virtualized toolchain<a class="headerlink" href="#local-vs-virtualized-toolchain" title="Permanent link">&para;</a></h2>
+<p>ArgoCD provides a fully virtualized development and testing toolchain using Docker images. It is recommended to use those images, as they provide the same runtime environment as the final product and it is much easier to keep up-to-date with changes to the toolchain and dependencies. But as using Docker comes with a slight performance penalty, you might want to setup a local toolchain.</p>
+<p>Most relevant targets for the build &amp; test cycles in the <code>Makefile</code> provide two variants, one of them suffixed with <code>-local</code>. For example, <code>make test</code> will run unit tests in the Docker container, <code>make test-local</code> will run it natively on your local system.</p>
+<p>If you are going to use the virtualized toolchain, please bear in mind the following things:</p>
+<ul>
+<li>Your Kubernetes API server must listen on the interface of your local machine or VM, and not on <code>127.0.0.1</code> only.</li>
+<li>Your Kubernetes client configuration (<code>~/.kube/config</code>) must not use an API URL that points to <code>localhost</code> or <code>127.0.0.1</code>.</li>
+</ul>
+<p>You can test whether the virtualized toolchain has access to your Kubernetes cluster by running <code>make verify-kube-connect</code> (<em>after</em> you have setup your development environment, as described below), which will run <code>kubectl version</code> inside the Docker container used for running all tests.</p>
+<p>The Docker container for the virtualized toolchain will use the following local mounts from your workstation, and possibly modify its contents:</p>
+<ul>
+<li><code>~/go/src</code> - Your Go workspace's source directory (modifications expected)</li>
+<li><code>~/.cache/go-build</code> - Your Go build cache (modifications expected)</li>
+<li><code>~/.kube</code> - Your Kubernetes client configuration (no modifications)</li>
+<li><code>/tmp</code> - Your system's temp directory (modifications expected)</li>
+</ul>
+<h2 id="setting-up-your-development-environment">Setting up your development environment<a class="headerlink" href="#setting-up-your-development-environment" title="Permanent link">&para;</a></h2>
+<p>The following steps are required no matter whether you chose to use a virtualized or a local toolchain.</p>
+<h3 id="clone-the-argocd-repository-from-your-personal-fork-on-github">Clone the ArgoCD repository from your personal fork on GitHub<a class="headerlink" href="#clone-the-argocd-repository-from-your-personal-fork-on-github" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>mkdir -p ~/go/src/github.com/argoproj</code></li>
+<li><code>cd ~/go/src/github.com/argoproj</code></li>
+<li><code>git clone https://github.com/yourghuser/argo-cd</code></li>
+<li><code>cd argo-cd</code></li>
+</ul>
+<h3 id="optional-setup-an-additional-git-remote">Optional: Setup an additional Git remote<a class="headerlink" href="#optional-setup-an-additional-git-remote" title="Permanent link">&para;</a></h3>
+<p>While everyone has their own Git workflow, the author of this document recommends to create a remote called <code>upstream</code> in your local copy pointing to the original ArgoCD repository. This way, you can easily keep your local branches up-to-date by merging in latest changes from the ArgoCD repository, i.e. by doing a <code>git pull upstream master</code> in your locally checked out branch. To create the remote, run <code>git remote add upstream https://github.com/argoproj/argo-cd</code></p>
+<h3 id="install-the-must-have-requirements">Install the must-have requirements<a class="headerlink" href="#install-the-must-have-requirements" title="Permanent link">&para;</a></h3>
+<p>Make sure you fulfill the pre-requisites above and run some preliminary tests. Neither of them should report an error.</p>
+<ul>
+<li>Run <code>kubectl version</code></li>
+<li>Run <code>docker version</code></li>
+<li>Run <code>go version</code></li>
+</ul>
+<h3 id="build-or-pull-the-required-docker-image">Build (or pull) the required Docker image<a class="headerlink" href="#build-or-pull-the-required-docker-image" title="Permanent link">&para;</a></h3>
+<p>Build the required Docker image by running <code>make test-tools-image</code> or pull the latest version by issuing <code>docker pull argoproj/argocd-test-tools</code>.</p>
+<p>The <code>Dockerfile</code> used to build these images can be found at <code>test/container/Dockerfile</code>.</p>
+<h3 id="test-connection-from-build-container-to-your-k8s-cluster">Test connection from build container to your K8s cluster<a class="headerlink" href="#test-connection-from-build-container-to-your-k8s-cluster" title="Permanent link">&para;</a></h3>
+<p>Run <code>make verify-kube-connect</code>, it should execute without error.</p>
+<p>If you receive an error similar to the following:</p>
+<div class="codehilite"><pre><span></span><code><span class="err">The connection to the server 127.0.0.1:6443 was refused - did you specify the right host or port?</span>
+<span class="c">make: *** [Makefile:386: verify-kube-connect] Error 1</span>
+</code></pre></div>
+
+
+<p>you should edit your <code>~/.kube/config</code> and modify the <code>server</code> option to point to your correct K8s API (as described above).</p>
+<h2 id="the-development-cycle">The development cycle<a class="headerlink" href="#the-development-cycle" title="Permanent link">&para;</a></h2>
+<p>When you have developed and possibly manually tested the code you want to contribute, you should ensure that everything will build correctly. Commit your changes to the local copy of your Git branch and perform the following steps:</p>
+<h3 id="pull-in-all-build-dependencies">Pull in all build dependencies<a class="headerlink" href="#pull-in-all-build-dependencies" title="Permanent link">&para;</a></h3>
+<p>As build dependencies change over time, you have to synchronize your development environment with the current specification. In order to pull in all required depencies, issue:</p>
+<ul>
+<li><code>make dep</code></li>
+<li><code>make dep-ensure</code></li>
+<li><code>make dep-ui</code></li>
+</ul>
+<h3 id="generate-api-glue-code-and-other-assets">Generate API glue code and other assets<a class="headerlink" href="#generate-api-glue-code-and-other-assets" title="Permanent link">&para;</a></h3>
+<p>ArgoCD relies on Google's <a href="https://developers.google.com/protocol-buffers">Protocol Buffers</a> for its API, and this makes heavy use of auto-generated glue code and stubs. Whenever you touched parts of the API code, you must re-generate the auto generated code.</p>
+<ul>
+<li>Run <code>make codegen</code>, this might take a while</li>
+<li>Check if something has changed by running <code>git status</code> or <code>git diff</code></li>
+<li>Commit any possible changes to your local Git branch, an appropriate commit message would be <code>Changes from codegen</code>, for example.</li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>There are a few non-obvious assets that are auto-generated. You should not change the autogenerated assets, as they will be overwritten by a subsequent run of <code>make codegen</code>. Instead, change their source files. Prominent examples of non-obvious auto-generated code are <code>swagger.json</code> or the installation manifest YAMLs.</p>
+</div>
+<h3 id="build-your-code-and-run-unit-tests">Build your code and run unit tests<a class="headerlink" href="#build-your-code-and-run-unit-tests" title="Permanent link">&para;</a></h3>
+<p>After the code glue has been generated, your code should build and the unit tests should run without any errors. Execute the following statements:</p>
+<ul>
+<li><code>make build</code></li>
+<li><code>make test</code></li>
+</ul>
+<p>These steps are non-modifying, so there's no need to check for changes afterwards.</p>
+<h3 id="lint-your-code-base">Lint your code base<a class="headerlink" href="#lint-your-code-base" title="Permanent link">&para;</a></h3>
+<p>In order to keep a consistent code style in our source tree, your code must be well-formed in accordance to some widely accepted rules, which are applied by a Linter.</p>
+<p>The Linter might make some automatic changes to your code, such as indentation fixes. Some other errors reported by the Linter have to be fixed manually.</p>
+<ul>
+<li>Run <code>make lint</code> and observe any errors reported by the Linter</li>
+<li>Fix any of the errors reported and commit to your local branch</li>
+<li>Finally, after the Linter reports no errors anymore, run <code>git status</code> or <code>git diff</code> to check for any changes made automatically by Lint</li>
+<li>If there were automatic changes, commit them to your local branch</li>
+</ul>
+<h2 id="setting-up-a-local-toolchain">Setting up a local toolchain<a class="headerlink" href="#setting-up-a-local-toolchain" title="Permanent link">&para;</a></h2>
+<p>For development, you can either use the fully virtualized toolchain provided as Docker images, or you can set up the toolchain on your local development machine. Due to the dynamic nature of requirements, you might want to stay with the virtualized environment.</p>
+<h3 id="install-required-dependencies-and-build-tools">Install required dependencies and build-tools<a class="headerlink" href="#install-required-dependencies-and-build-tools" title="Permanent link">&para;</a></h3>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The installations instructions are valid for Linux hosts only. Mac instructions will follow shortly.</p>
+</div>
+<p>For installing the tools required to build and test ArgoCD on your local system, we provide convinient installer scripts. By default, they will install binaries to <code>/usr/local/bin</code> on your system, which might require <code>root</code> privileges.</p>
+<p>You can change the target location by setting the <code>BIN</code> environment before running the installer scripts. For example, you can install the binaries into <code>~/go/bin</code> (which should then be the first component in your <code>PATH</code> environment, i.e. <code>export PATH=~/go/bin:$PATH</code>):</p>
+<div class="codehilite"><pre><span></span><code>make <span class="nv">BIN</span><span class="o">=</span>~/go/bin install-tools-local
+</code></pre></div>
+
+
+<p>Additionally, you have to install at least the following tools via your OS's package manager (this list might not be always up-to-date):</p>
+<ul>
+<li>Git LFS plugin</li>
+<li>GnuPG version 2</li>
+</ul>
+<h3 id="install-go-dependencies">Install Go dependencies<a class="headerlink" href="#install-go-dependencies" title="Permanent link">&para;</a></h3>
+<p>You need to pull in all required Go dependencies. To do so, run</p>
+<ul>
+<li><code>make dep-ensure-local</code></li>
+<li><code>make dep-local</code></li>
+</ul>
+<h3 id="test-your-build-toolchain">Test your build toolchain<a class="headerlink" href="#test-your-build-toolchain" title="Permanent link">&para;</a></h3>
+<p>The first thing you can do whether your build toolchain is setup correctly is by generating the glue code for the API and after that, run a normal build:</p>
+<ul>
+<li><code>make codegen-local</code></li>
+<li><code>make build-local</code></li>
+</ul>
+<p>This should return without any error.</p>
+<h3 id="run-unit-tests">Run unit-tests<a class="headerlink" href="#run-unit-tests" title="Permanent link">&para;</a></h3>
+<p>The next thing is to make sure that unit tests are running correctly on your system. These will require that all dependencies, such as Helm, Kustomize, Git, GnuPG, etc are correctly installed and fully functioning:</p>
+<ul>
+<li><code>make test-local</code></li>
+</ul>
+<h3 id="run-end-to-end-tests">Run end-to-end tests<a class="headerlink" href="#run-end-to-end-tests" title="Permanent link">&para;</a></h3>
+<p>The final step is running the End-to-End testsuite, which makes sure that your Kubernetes dependencies are working properly. This will involve starting all of the ArgoCD components locally on your computer. The end-to-end tests consists of two parts: a server component, and a client component.</p>
+<ul>
+<li>First, start the End-to-End server: <code>make start-e2e-local</code>. This will spawn a number of processes and services on your system.</li>
+<li>When all components have started, run <code>make test-e2e-local</code> to run the end-to-end tests against your local services.</li>
+</ul>
+<p>For more information about End-to-End tests, refer to the <a href="../test-e2e/">End-to-End test documentation</a>.</p>
+                
+                  
+                
+              
+              
+                
+
+
+              
+            </article>
+          </div>
+        </div>
+      </main>
+      
+        
+<footer class="md-footer">
+  
+    <div class="md-footer-nav">
+      <nav class="md-footer-nav__inner md-grid">
+        
+          <a href="../" title="Overview" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
+            <div class="md-flex__cell md-flex__cell--shrink">
+              <i class="md-icon md-icon--arrow-back md-footer-nav__button"></i>
+            </div>
+            <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
+              <span class="md-flex__ellipsis">
+                <span class="md-footer-nav__direction">
+                  Previous
+                </span>
+                Overview
+              </span>
+            </div>
+          </a>
+        
+        
+          <a href="../running-locally/" title="Running ArgoCD locally" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
+            <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
+              <span class="md-flex__ellipsis">
+                <span class="md-footer-nav__direction">
+                  Next
+                </span>
+                Running ArgoCD locally
+              </span>
+            </div>
+            <div class="md-flex__cell md-flex__cell--shrink">
+              <i class="md-icon md-icon--arrow-forward md-footer-nav__button"></i>
+            </div>
+          </a>
+        
+      </nav>
+    </div>
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-footer-copyright">
+        
+        powered by
+        <a href="https://www.mkdocs.org">MkDocs</a>
+        and
+        <a href="https://squidfunk.github.io/mkdocs-material/">
+          Material for MkDocs</a>
+      </div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    
+      <script src="../../assets/javascripts/application.dc02f8ce.js"></script>
+      
+      <script>app.initialize({version:"1.0.4",url:{base:"../.."}})</script>
+      
+    
+  </body>
+</html>
