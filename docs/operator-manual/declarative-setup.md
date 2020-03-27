@@ -100,6 +100,12 @@ spec:
     kind: LimitRange
   - group: ''
     kind: NetworkPolicy
+  # Deny all namespaced-scoped resources from being created, except for Deployment and StatefulSet
+  namespaceResourceWhilelist:
+  - group: 'apps'
+    kind: Deployment
+  - group: 'apps'
+    kind: StatefulSet
   roles:
   # A role which provides read-only access to all applications in the project
   - name: read-only

@@ -13,13 +13,15 @@ DL=$DOWNLOADS/kustomize-${KUSTOMIZE_VERSION}
 case $KUSTOMIZE_VERSION in
   2.*)
     URL=https://github.com/kubernetes-sigs/kustomize/releases/download/v${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION}_linux_amd64
+    BINNAME=kustomize2
     ;;
   *)
     URL=https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/v${KUSTOMIZE_VERSION}/kustomize_kustomize.v${KUSTOMIZE_VERSION}_linux_amd64
+    BINNAME=kustomize
     ;;
 esac
 
 [ -e $DL ] || curl -sLf --retry 3 -o $DL $URL
-cp $DL $BIN/kustomize
-chmod +x $BIN/kustomize
-kustomize version
+cp $DL $BIN/$BINNAME
+chmod +x $BIN/$BINNAME
+$BINNAME version

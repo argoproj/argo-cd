@@ -7,6 +7,8 @@ commands:
           command: |
             set -x
             echo "export GOCACHE=/tmp/go-build-cache" | tee -a $BASH_ENV
+            echo "export ARGOCD_TEST_VERBOSE=true" | tee -a $BASH_ENV
+            echo "export ARGOCD_TEST_PARALLELISM=8" | tee -a $BASH_ENV
   configure_git:
     steps:
       - run:
@@ -23,12 +25,12 @@ commands:
       - restore_cache:
           name: Restore vendor cache
           keys:
-            - vendor-v2-{{ checksum "Gopkg.lock" }}-{{ .Branch }}
+            - vendor-v2-{{ checksum "Gopkg.lock" }}
   save_vendor:
     steps:
       - save_cache:
           name: Save vendor cache
-          key: vendor-v2-{{ checksum "Gopkg.lock" }}-{{ .Branch }}
+          key: vendor-v2-{{ checksum "Gopkg.lock" }}
           paths:
             - ./vendor
       - persist_to_workspace:
@@ -80,7 +82,7 @@ commands:
 jobs:
   build:
     docker:
-      - image: jannfis/argocd-test-tools
+      - image: argoproj/argocd-test-tools:v0.1.0
     working_directory: /go/src/github.com/argoproj/argo-cd
     steps:
       - prepare_environment
@@ -95,7 +97,7 @@ jobs:
 
   codegen:
     docker:
-      - image: jannfis/argocd-dev-tools
+      - image: argoproj/argocd-test-tools:v0.1.0
     working_directory: /go/src/github.com/argoproj/argo-cd
     steps:
       - prepare_environment
@@ -118,7 +120,7 @@ jobs:
   test:
     working_directory: /go/src/github.com/argoproj/argo-cd
     docker:
-      - image: jannfis/argocd-test-utils:latest
+      - image: argoproj/argocd-test-tools:v0.1.0
     steps:
       - prepare_environment
       - checkout
@@ -130,6 +132,11 @@ jobs:
       - run:
           name: Uploading code coverage
           command: bash <(curl -s https://codecov.io/bash) -f coverage.out
+      - run:
+          name: Output of test-results
+          command: |
+            ls -l test-results || true
+            cat test-results/junit.xml || true
       - store_test_results:
           path: test-results
       - store_artifacts:
@@ -144,9 +151,6 @@ jobs:
       ARGOCD_SSH_DATA_PATH: "/tmp/argo-e2e/app/config/ssh"
       ARGOCD_TLS_DATA_PATH: "/tmp/argo-e2e/app/config/tls"
       ARGOCD_E2E_K3S: "true"
-      ARGOCD_GPG_DATA_PATH: "/tmp/argo-e2e/app/config/gpg"
-      GNUPGHOME: "/tmp/argo-e2e/app/config/gpg/keys"
-      ARGOCD_GPG_ENABLED: "yes"
     steps:
       - run:
           name: Install and start K3S v0.5.0
@@ -154,7 +158,6 @@ jobs:
             curl -sfL https://get.k3s.io | sh -
             sudo chmod -R a+rw /etc/rancher/k3s
             kubectl version
-          background: true
           environment:
             INSTALL_K3S_EXEC: --docker
             INSTALL_K3S_VERSION: v0.5.0
@@ -186,6 +189,8 @@ jobs:
           background: true
           environment:
             DOCKER_SRCDIR: /home/circleci/.go_workspace/src
+            ARGOCD_E2E_TEST: "true"
+            ARGOCD_IN_CI: "true"
       - run:
           name: Wait for API server to become available
           command: |

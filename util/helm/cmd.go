@@ -6,6 +6,8 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path"
+	"path/filepath"
 	"regexp"
 
 	"github.com/argoproj/argo-cd/util"
@@ -188,6 +190,14 @@ func cleanSetParameters(val string) string {
 }
 
 func (c *Cmd) template(chartPath string, opts *TemplateOpts) (string, error) {
+	if c.HelmVer.getPostTemplateCallback != nil {
+		if callback, err := c.HelmVer.getPostTemplateCallback(filepath.Clean(path.Join(c.WorkDir, chartPath))); err == nil {
+			defer callback()
+		} else {
+			return "", err
+		}
+	}
+
 	args := []string{"template", chartPath, c.templateNameArg, opts.Name}
 
 	if opts.Namespace != "" {

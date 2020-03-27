@@ -307,14 +307,14 @@ func schema_pkg_apis_application_v1alpha1_AppProjectSpec(ref common.ReferenceCal
 							},
 						},
 					},
-					"signatureKeys": {
+					"namespaceResourceWhitelist": {
 						SchemaProps: spec.SchemaProps{
-							Description: "List of PGP key IDs that commits to be synced to must be signed with",
+							Description: "NamespaceResourceWhitelist contains list of whitelisted namespace level resources",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SignatureKey"),
+										Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.GroupKind"),
 									},
 								},
 							},
