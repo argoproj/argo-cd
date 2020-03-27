@@ -137,6 +137,11 @@ func (in *AppProjectSpec) DeepCopyInto(out *AppProjectSpec) {
 		*out = make([]v1.GroupKind, len(*in))
 		copy(*out, *in)
 	}
+	if in.SignatureKeys != nil {
+		in, out := &in.SignatureKeys, &out.SignatureKeys
+		*out = make([]SignatureKey, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

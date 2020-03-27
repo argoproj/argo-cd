@@ -74,6 +74,9 @@ message AppProjectSpec {
 
   // NamespaceResourceWhitelist contains list of whitelisted namespace level resources
   repeated k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind namespaceResourceWhitelist = 9;
+
+  // List of PGP key IDs that commits to be synced to must be signed with
+  repeated SignatureKey signatureKeys = 10;
 }
 
 // Application is a definition of Application resource.
