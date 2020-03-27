@@ -3,6 +3,7 @@ package account
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/stretchr/testify/assert"
@@ -78,6 +79,14 @@ func adminContext(ctx context.Context) context.Context {
 	return context.WithValue(ctx, "claims", &jwt.StandardClaims{Subject: "admin", Issuer: sessionutil.SessionManagerClaimsIssuer})
 }
 
+func ssoAdminContext(ctx context.Context, iat time.Time) context.Context {
+	return context.WithValue(ctx, "claims", &jwt.StandardClaims{
+		Subject:  "admin",
+		Issuer:   "https://myargocdhost.com/api/dex",
+		IssuedAt: iat.Unix(),
+	})
+}
+
 func TestUpdatePassword(t *testing.T) {
 	accountServer, sessionServer := newTestAccountServer(context.Background())
 	ctx := adminContext(context.Background())
@@ -111,6 +120,42 @@ func TestUpdatePassword(t *testing.T) {
 	assert.Error(t, err)
 	// verify new password works
 	_, err = sessionServer.Create(ctx, &sessionpkg.SessionCreateRequest{Username: "admin", Password: "newpassword"})
+	assert.NoError(t, err)
+}
+
+func TestUpdatePassword_AdminUpdatesAnotherUser(t *testing.T) {
+	accountServer, sessionServer := newTestAccountServer(context.Background(), func(cm *v1.ConfigMap, secret *v1.Secret) {
+		cm.Data["accounts.anotherUser"] = "login"
+	})
+	ctx := adminContext(context.Background())
+
+	_, err := accountServer.UpdatePassword(ctx, &account.UpdatePasswordRequest{CurrentPassword: "oldpassword", NewPassword: "newpassword", Name: "anotherUser"})
+	assert.NoError(t, err)
+
+	_, err = sessionServer.Create(ctx, &sessionpkg.SessionCreateRequest{Username: "anotherUser", Password: "newpassword"})
+	assert.NoError(t, err)
+}
+
+func TestUpdatePassword_OldSSOToken(t *testing.T) {
+	accountServer, _ := newTestAccountServer(context.Background(), func(cm *v1.ConfigMap, secret *v1.Secret) {
+		cm.Data["accounts.anotherUser"] = "login"
+	})
+	ctx := ssoAdminContext(context.Background(), time.Now().Add(-2*common.ChangePasswordSSOTokenMaxAge))
+
+	_, err := accountServer.UpdatePassword(ctx, &account.UpdatePasswordRequest{CurrentPassword: "oldpassword", NewPassword: "newpassword", Name: "anotherUser"})
+	assert.Error(t, err)
+}
+
+func TestUpdatePassword_SSOUserUpdatesAnotherUser(t *testing.T) {
+	accountServer, sessionServer := newTestAccountServer(context.Background(), func(cm *v1.ConfigMap, secret *v1.Secret) {
+		cm.Data["accounts.anotherUser"] = "login"
+	})
+	ctx := ssoAdminContext(context.Background(), time.Now())
+
+	_, err := accountServer.UpdatePassword(ctx, &account.UpdatePasswordRequest{CurrentPassword: "oldpassword", NewPassword: "newpassword", Name: "anotherUser"})
+	assert.NoError(t, err)
+
+	_, err = sessionServer.Create(ctx, &sessionpkg.SessionCreateRequest{Username: "anotherUser", Password: "newpassword"})
 	assert.NoError(t, err)
 }
 

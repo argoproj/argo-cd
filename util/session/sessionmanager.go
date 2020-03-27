@@ -2,6 +2,7 @@ package session
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -241,6 +242,23 @@ func Iss(ctx context.Context) string {
 		return ""
 	}
 	return jwtutil.GetField(mapClaims, "iss")
+}
+
+func Iat(ctx context.Context) (time.Time, error) {
+	mapClaims, ok := mapClaims(ctx)
+	if !ok {
+		return time.Time{}, errors.New("unable to extract token claims")
+	}
+	iatField, ok := mapClaims["iat"]
+	if !ok {
+		return time.Time{}, errors.New("token does not have iat claim")
+	}
+
+	if iat, ok := iatField.(float64); !ok {
+		return time.Time{}, errors.New("iat token field has unexpected type")
+	} else {
+		return time.Unix(int64(iat), 0), nil
+	}
 }
 
 func Sub(ctx context.Context) string {
