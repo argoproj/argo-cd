@@ -9,10 +9,80 @@ GIT_COMMIT=$(shell git rev-parse HEAD)
 GIT_TAG=$(shell if [ -z "`git status --porcelain`" ]; then git describe --exact-match --tags HEAD 2>/dev/null; fi)
 GIT_TREE_STATE=$(shell if [ -z "`git status --porcelain`" ]; then echo "clean" ; else echo "dirty"; fi)
 PACKR_CMD=$(shell if [ "`which packr`" ]; then echo "packr"; else echo "go run vendor/github.com/gobuffalo/packr/packr/main.go"; fi)
-VOLUME_MOUNT=$(shell if [[ selinuxenabled -eq 0 ]]; then echo ":Z"; elif [[ $(go env GOOS)=="darwin" ]]; then echo ":delegated"; else echo ""; fi)
+VOLUME_MOUNT=$(shell if test selinuxenabled; then echo ":Z"; elif test "$(go env GOOS)"=="darwin"; then echo ":delegated"; else echo ""; fi)
 
-define run-in-dev-tool
-    docker run --rm -it -u $(shell id -u) -e HOME=/home/user -v ${CURRENT_DIR}:/go/src/github.com/argoproj/argo-cd${VOLUME_MOUNT} -w /go/src/github.com/argoproj/argo-cd argocd-dev-tools bash -c "GOPATH=/go $(1)"
+GOPATH?=$(shell if test -x `which go`; then go env GOPATH; else echo "$(HOME)/go"; fi)
+GOCACHE?=$(HOME)/.cache/go-build
+
+DOCKER_SRCDIR?=$(GOPATH)/src
+DOCKER_WORKDIR?=/go/src/github.com/argoproj/argo-cd
+
+ARGOCD_PROCFILE?=Procfile
+
+# Configuration for building argocd-test-tools image
+TEST_TOOLS_NAMESPACE?=argoproj
+TEST_TOOLS_IMAGE=argocd-test-tools
+TEST_TOOLS_TAG?=v0.1.0
+ifdef TEST_TOOLS_NAMESPACE
+TEST_TOOLS_PREFIX=${TEST_TOOLS_NAMESPACE}/
+endif
+
+# You can change the ports where ArgoCD components will be listening on by
+# setting the appropriate environment variables before running make.
+ARGOCD_E2E_APISERVER_PORT?=8080
+ARGOCD_E2E_REPOSERVER_PORT?=8081
+ARGOCD_E2E_REDIS_PORT?=6379
+ARGOCD_E2E_DEX_PORT?=5556
+ARGOCD_E2E_YARN_HOST?=localhost
+
+ARGOCD_IN_CI?=false
+ARGOCD_TEST_E2E?=true
+
+# Runs any command in the argocd-test-utils container in server mode
+# Server mode container will start with uid 0 and drop privileges during runtime
+define run-in-test-server
+	docker run --rm -it \
+		--name argocd-test-server \
+		-e USER_ID=$(shell id -u) \
+		-e HOME=/home/user \
+		-e GOPATH=/go \
+		-e GOCACHE=/tmp/go-build-cache \
+		-e ARGOCD_IN_CI=$(ARGOCD_IN_CI) \
+		-e ARGOCD_E2E_TEST=$(ARGOCD_E2E_TEST) \
+		-e ARGOCD_E2E_YARN_HOST=$(ARGOCD_E2E_YARN_HOST) \
+		-v ${DOCKER_SRCDIR}:/go/src${VOLUME_MOUNT} \
+		-v ${GOCACHE}:/tmp/go-build-cache${VOLUME_MOUNT} \
+		-v ${HOME}/.kube:/home/user/.kube${VOLUME_MOUNT} \
+		-v /tmp:/tmp${VOLUME_MOUNT} \
+		-v /app/config:/app/config${VOLUME_MOUNT} \
+		-w ${DOCKER_WORKDIR} \
+		-p ${ARGOCD_E2E_APISERVER_PORT}:8080 \
+		-p 4000:4000 \
+		$(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE):$(TEST_TOOLS_TAG) \
+		bash -c "$(1)"
+endef
+
+# Runs any command in the argocd-test-utils container in client mode
+define run-in-test-client
+	docker run --rm -it \
+	  --name argocd-test-client \
+		-u $(shell id -u) \
+		-e HOME=/home/user \
+		-e GOPATH=/go \
+		-e ARGOCD_E2E_K3S=$(ARGOCD_E2E_K3S) \
+		-e GOCACHE=/tmp/go-build-cache \
+		-v ${DOCKER_SRCDIR}:/go/src${VOLUME_MOUNT} \
+		-v ${GOCACHE}:/tmp/go-build-cache${VOLUME_MOUNT} \
+		-v ${HOME}/.kube:/home/user/.kube${VOLUME_MOUNT} \
+		-v /tmp:/tmp${VOLUME_MOUNT} \
+		-w ${DOCKER_WORKDIR} \
+		$(TEST_TOOLS_NAMESPACE)/$(TEST_TOOLS_IMAGE):$(TEST_TOOLS_TAG) \
+		bash -c "$(1)"
+endef
+
+# 
+define exec-in-test-server
+	docker exec -it -u $(shell id -u) -e ARGOCD_E2E_K3S=$(ARGOCD_E2E_K3S) argocd-test-server $(1)
 endef
 
 PATH:=$(PATH):$(PWD)/hack
@@ -71,12 +141,15 @@ clientgen:
 codegen-local: protogen clientgen openapigen manifests-local
 
 .PHONY: codegen
-codegen: dev-tools-image
-	$(call run-in-dev-tool,make codegen-local)
+codegen: test-tools-image
+	$(call run-in-test-client,make codegen-local)
 
 .PHONY: cli
 cli: clean-debug
 	CGO_ENABLED=0 ${PACKR_CMD} build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${CLI_NAME} ./cmd/argocd
+
+.PHONY: cli-docker
+	go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${CLI_NAME} ./cmd/argocd
 
 .PHONY: release-cli
 release-cli: clean-debug image
@@ -91,17 +164,23 @@ argocd-util: clean-debug
 	# Build argocd-util as a statically linked binary, so it could run within the alpine-based dex container (argoproj/argo-cd#844)
 	CGO_ENABLED=0 ${PACKR_CMD} build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-util ./cmd/argocd-util
 
-.PHONY: dev-tools-image
-dev-tools-image:
-	cd hack && docker build -t argocd-dev-tools . -f Dockerfile.dev-tools
+# .PHONY: dev-tools-image
+# dev-tools-image:
+# 	docker build -t $(DEV_TOOLS_PREFIX)$(DEV_TOOLS_IMAGE) . -f hack/Dockerfile.dev-tools
+# 	docker tag $(DEV_TOOLS_PREFIX)$(DEV_TOOLS_IMAGE) $(DEV_TOOLS_PREFIX)$(DEV_TOOLS_IMAGE):$(DEV_TOOLS_VERSION)
+
+.PHONY: test-tools-image
+test-tools-image:
+	docker build -t $(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE) -f test/container/Dockerfile .
+	docker tag $(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE) $(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE):$(TEST_TOOLS_TAG)
 
 .PHONY: manifests-local
 manifests-local:
 	./hack/update-manifests.sh
 
 .PHONY: manifests
-manifests: dev-tools-image
-	$(call run-in-dev-tool,make manifests-local IMAGE_TAG='${IMAGE_TAG}')
+manifests: test-tools-image
+	$(call run-in-test-client,make manifests-local IMAGE_TAG='${IMAGE_TAG}')
 
 
 # NOTE: we use packr to do the build instead of go, since we embed swagger files and policy.csv
@@ -151,43 +230,103 @@ builder-image:
 	docker build  -t $(IMAGE_PREFIX)argo-cd-ci-builder:$(IMAGE_TAG) --target builder .
 	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argo-cd-ci-builder:$(IMAGE_TAG) ; fi
 
+# Pulls in all vendor dependencies
 .PHONY: dep
 dep:
+	$(call run-in-test-client,dep ensure -v)
+
+# Pulls in all vendor dependencies (local version)
+.PHONY: dep-local
+dep-local:
 	dep ensure -v
 
+# Pulls in all unvendored dependencies
 .PHONY: dep-ensure
 dep-ensure:
+	$(call run-in-test-client,dep ensure -no-vendor -v)
+
+# Pulls in all unvendored dependencies (local version)
+.PHONY: dep-ensure-local
+dep-ensure-local:
 	dep ensure -no-vendor
 
+# Deprecated - replace by install-local-tools
 .PHONY: install-lint-tools
 install-lint-tools:
 	./hack/install.sh lint-tools
 
+# Run linter on the code
 .PHONY: lint
 lint:
+	$(call run-in-test-client,make lint-local)
+
+# Run linter on the code (local version)
+.PHONY: lint-local
+lint-local:
 	golangci-lint --version
 	# NOTE: If you get a "Killed" OOM message, try reducing the value of GOGC
 	# See https://github.com/golangci/golangci-lint#memory-usage-of-golangci-lint
 	GOGC=100 golangci-lint run --fix --verbose
 
+# Build all Go code
 .PHONY: build
 build:
-	go build -v `go list ./... | grep -v 'resource_customizations\|test/e2e'`
+	mkdir -p $(GOCACHE)
+	$(call run-in-test-client, make build-local)
 
+# Build all Go code (local version)
+.PHONY: build-local
+build-local:
+	go build -p 1 -v `go list ./... | grep -v 'resource_customizations\|test/e2e'`
+
+# Run all unit tests
+#
+# If TEST_MODULE is set (to fully qualified module name), only this specific
+# module will be tested.
 .PHONY: test
-test:
-	./hack/test.sh -coverprofile=coverage.out `go list ./... | grep -v 'test/e2e'`
+test: test-tools-image
+	mkdir -p $(GOCACHE)
+	$(call run-in-test-client,make TEST_MODULE=$(TEST_MODULE) test-local)
 
+# Run all unit tests (local version)
+.PHONY: test-local
+test-local:
+	if test "$(TEST_MODULE)" = ""; then \
+		./hack/test.sh -coverprofile=coverage.out `go list ./... | grep -v 'test/e2e'`; \
+	else \
+		./hack/test.sh -coverprofile=coverage.out "$(TEST_MODULE)"; \
+	fi
+
+# Run the E2E test suite. E2E test servers (see start-e2e target) must be
+# started before.
 .PHONY: test-e2e
-test-e2e:
+test-e2e: 
+	$(call exec-in-test-server,make test-e2e-local)
+
+# Run the E2E test suite (local version)
+.PHONY: test-e2e-local
+test-e2e-local: cli
 	# NO_PROXY ensures all tests don't go out through a proxy if one is configured on the test system
 	NO_PROXY=* ./hack/test.sh -timeout 15m -v ./test/e2e
 
+# Spawns a shell in the test server container for debugging purposes
+debug-test-server:
+	$(call run-in-test-server,/bin/bash)
+
+# Spawns a shell in the test client container for debugging purposes
+debug-test-client:
+	$(call run-in-test-client,/bin/bash)
+
+# Starts e2e server in a container
 .PHONY: start-e2e
-start-e2e: cli
-	killall goreman || true
-	# check we can connect to Docker to start Redis
+start-e2e: 
 	docker version
+	mkdir -p ${GOCACHE}
+	$(call run-in-test-server,make ARGOCD_PROCFILE=test/container/Procfile start-e2e-local)
+
+# Starts e2e server locally (or within a container)
+.PHONY: start-e2e-local
+start-e2e-local: 
 	kubectl create ns argocd-e2e || true
 	kubectl config set-context --current --namespace=argocd-e2e
 	kustomize build test/manifests/base | kubectl apply -f -
@@ -196,7 +335,9 @@ start-e2e: cli
 	ARGOCD_TLS_DATA_PATH=/tmp/argo-e2e/app/config/tls \
 	ARGOCD_E2E_DISABLE_AUTH=false \
 	ARGOCD_ZJWT_FEATURE_FLAG=always \
-		goreman start ${ARGOCD_START}
+	ARGOCD_IN_CI=$(ARGOCD_IN_CI) \
+	ARGOCD_E2E_TEST=true \
+		goreman -f $(ARGOCD_PROCFILE) start
 
 # Cleans VSCode debug.test files from sub-dirs to prevent them from being included in packr boxes
 .PHONY: clean-debug
@@ -209,16 +350,27 @@ clean: clean-debug
 
 .PHONY: start
 start:
-	killall goreman || true
-	# check we can connect to Docker to start Redis
 	docker version
-	kubectl create ns argocd || true
-	kubens argocd
-	ARGOCD_ZJWT_FEATURE_FLAG=always \
-		goreman start ${ARGOCD_START}
+	$(call run-in-test-server,make ARGOCD_PROCFILE=test/container/Procfile start-local)
 
+# Starts a local instance of ArgoCD
+.PHONY: start-local
+start-local:
+	# check we can connect to Docker to start Redis
+	killall goreman || true
+	kubectl create ns argocd || true
+	ARGOCD_ZJWT_FEATURE_FLAG=always \
+	ARGOCD_IN_CI=false \
+	ARGOCD_E2E_TEST=false \
+		goreman -f $(ARGOCD_PROCFILE) start ${ARGOCD_START}
+
+# Runs pre-commit validaiton with the virtualized toolchain
 .PHONY: pre-commit
 pre-commit: dep-ensure codegen build lint test
+
+# Runs pre-commit validation with the local toolchain
+.PHONY: pre-commit-local
+pre-commit-local: dep-ensure-local codegen-local build-local lint-local test-local
 
 .PHONY: release-precheck
 release-precheck: manifests
@@ -245,3 +397,36 @@ lint-docs:
 .PHONY: publish-docs
 publish-docs: lint-docs
 	mkdocs gh-deploy
+
+# Verify that kubectl can connect to your K8s cluster from Docker
+.PHONY: verify-kube-connect
+verify-kube-connect:
+	$(call run-in-test-client,kubectl version)
+
+# Show the Go version of local and virtualized environments
+.PHONY: show-go-version
+show-go-version:
+	@echo -n "Local Go version: "
+	@go version
+	@echo -n "Docker Go version: "
+	$(call run-in-test-client,go version)
+
+# Installs all tools required to build and test ArgoCD locally
+.PHONY: install-tools-local
+install-tools-local:
+	./hack/install.sh dep-linux
+	./hack/install.sh packr-linux
+	./hack/install.sh kubectl-linux
+	./hack/install.sh ksonnet-linux
+	./hack/install.sh helm2-linux
+	./hack/install.sh helm-linux
+	./hack/install.sh codegen-tools
+	./hack/install.sh codegen-go-tools
+	./hack/install.sh lint-tools
+
+.PHONY: dep-ui
+dep-ui:
+	$(call run-in-test-client,make dep-ui-local)
+
+dep-ui-local:
+	cd ui && yarn install

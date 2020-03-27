@@ -72,12 +72,14 @@ nav:
     - user-guide/status-badge.md
   - Developer Guide:
     - developer-guide/index.md
-    - CONTRIBUTING.md
+    - developer-guide/contributing.md
+    - developer-guide/running-locally.md
     - developer-guide/api-docs.md
     - developer-guide/test-e2e.md
     - developer-guide/ci.md
     - developer-guide/releasing.md
     - developer-guide/site.md
+    - developer-guide/faq.md
   - faq.md
   - Support: SUPPORT.md
   - Releases ⧉: https://github.com/argoproj/argo-cd/releases
