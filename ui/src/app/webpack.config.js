@@ -74,6 +74,7 @@ const config = {
             disableDotRule: true
         },
         port: 4000,
+        host: process.env.ARGOCD_E2E_YARN_HOST || 'localhost',
         proxy: {
             '/api': proxyConf,
             '/auth': proxyConf,
