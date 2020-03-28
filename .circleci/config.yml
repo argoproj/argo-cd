@@ -87,10 +87,10 @@ jobs:
     steps:
       - prepare_environment
       - checkout
+      - restore_vendor
       - run:
           name: Ensuring Gopkg.lock is up-to-date
           command: make dep-check-local
-      - restore_vendor
       - run:
           name: Syncing vendor dependencies
           command: dep ensure -v
