@@ -258,7 +258,7 @@ dep-check:
 # Runs dep check locally to ensure Gopkg.lock is up-to-date with dependencies
 .PHONY: dep-check-local
 dep-check-local:
-	if ! dep check; then echo "Please make sure Gopkg.lock is up-to-date - see https://argoproj.github.io/argo-cd/developer-guide/faq/#why-does-the-build-step-fail"; exit 1; fi
+	if ! dep check -skip-vendor; then echo "Please make sure Gopkg.lock is up-to-date - see https://argoproj.github.io/argo-cd/developer-guide/faq/#why-does-the-build-step-fail"; exit 1; fi
 
 # Deprecated - replace by install-local-tools
 .PHONY: install-lint-tools
