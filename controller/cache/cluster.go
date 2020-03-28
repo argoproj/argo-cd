@@ -23,6 +23,8 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/health"
 	"github.com/argoproj/argo-cd/util/kube"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/pager"
 )
 
 const (
@@ -263,11 +265,26 @@ func (c *clusterInfo) watchEvents(ctx context.Context, api kube.APIResourceInfo,
 
 		err = runSynced(c.lock, func() error {
 			if info.resourceVersion == "" {
-				list, err := resClient.List(metav1.ListOptions{})
+				listPager := pager.New(func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
+					res, err := resClient.List(opts)
+					if err == nil {
+						info.resourceVersion = res.GetResourceVersion()
+					}
+					return res, err
+				})
+				var items []unstructured.Unstructured
+				err = listPager.EachListItem(ctx, metav1.ListOptions{}, func(obj runtime.Object) error {
+					if un, ok := obj.(*unstructured.Unstructured); !ok {
+						return fmt.Errorf("object %s/%s has an unexpected type", un.GroupVersionKind().String(), un.GetName())
+					} else {
+						items = append(items, *un)
+					}
+					return nil
+				})
 				if err != nil {
-					return err
+					return fmt.Errorf("failed to load initial state of resource %s: %v", api.GroupKind.String(), err)
 				}
-				c.replaceResourceCache(api.GroupKind, list.GetResourceVersion(), list.Items, ns)
+				c.replaceResourceCache(api.GroupKind, info.resourceVersion, items, ns)
 			}
 			return nil
 		})
@@ -354,6 +371,7 @@ func (c *clusterInfo) sync() (err error) {
 	}
 	c.apisMeta = make(map[schema.GroupKind]*apiMeta)
 	c.nodes = make(map[kube.ResourceKey]*node)
+	c.namespacedResources = make(map[schema.GroupKind]bool)
 	config := c.cluster.RESTConfig()
 	version, err := c.kubectl.GetServerVersion(config)
 	if err != nil {
@@ -376,24 +394,46 @@ func (c *clusterInfo) sync() (err error) {
 	}
 	lock := sync.Mutex{}
 	err = util.RunAllAsync(len(apis), func(i int) error {
-		return c.processApi(client, apis[i], func(resClient dynamic.ResourceInterface, _ string) error {
-			list, err := resClient.List(metav1.ListOptions{})
+		api := apis[i]
+
+		lock.Lock()
+		ctx, cancel := context.WithCancel(context.Background())
+		info := &apiMeta{namespaced: api.Meta.Namespaced, watchCancel: cancel}
+		c.apisMeta[api.GroupKind] = info
+		c.namespacedResources[api.GroupKind] = api.Meta.Namespaced
+		lock.Unlock()
+
+		return c.processApi(client, api, func(resClient dynamic.ResourceInterface, ns string) error {
+
+			listPager := pager.New(func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
+				res, err := resClient.List(opts)
+				if err == nil {
+					lock.Lock()
+					info.resourceVersion = res.GetResourceVersion()
+					lock.Unlock()
+				}
+				return res, err
+			})
+
+			err = listPager.EachListItem(context.Background(), metav1.ListOptions{}, func(obj runtime.Object) error {
+				if un, ok := obj.(*unstructured.Unstructured); !ok {
+					return fmt.Errorf("object %s/%s has an unexpected type", un.GroupVersionKind().String(), un.GetName())
+				} else {
+					lock.Lock()
+					c.setNode(c.createObjInfo(un, c.cacheSettingsSrc().AppInstanceLabelKey))
+					lock.Unlock()
+				}
+				return nil
+			})
+
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to load initial state of resource %s: %v", api.GroupKind.String(), err)
 			}
 
-			lock.Lock()
-			for i := range list.Items {
-				c.setNode(c.createObjInfo(&list.Items[i], c.cacheSettingsSrc().AppInstanceLabelKey))
-			}
-			lock.Unlock()
+			go c.watchEvents(ctx, api, info, resClient, ns)
 			return nil
 		})
 	})
-
-	if err == nil {
-		err = c.startMissingWatches()
-	}
 
 	if err != nil {
 		log.Errorf("Failed to sync cluster %s: %v", c.cluster.Server, err)
