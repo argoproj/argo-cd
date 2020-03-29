@@ -2,8 +2,10 @@ package dex
 
 import (
 	"bytes"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/ghodss/yaml"
@@ -175,8 +177,40 @@ func Test_GenerateDexConfig(t *testing.T) {
 
 func Test_DexReverseProxy(t *testing.T) {
 	t.Run("Good case", func(t *testing.T) {
-		f := NewDexHTTPReverseProxy("127.0.0.1", "/")
-		assert.NotNil(t, f)
+		fakeDex := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			rw.WriteHeader(http.StatusOK)
+		}))
+		defer fakeDex.Close()
+		fmt.Printf("Fake Dex listening on %s\n", fakeDex.URL)
+		server := httptest.NewServer(http.HandlerFunc(NewDexHTTPReverseProxy(fakeDex.URL, "/")))
+		fmt.Printf("Fake API Server listening on %s\n", server.URL)
+		defer server.Close()
+		resp, err := http.Get(server.URL)
+		assert.NotNil(t, resp)
+		assert.NoError(t, err)
+		fmt.Printf("%s\n", resp.Status)
+	})
+
+	t.Run("Bad case", func(t *testing.T) {
+		fakeDex := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			rw.WriteHeader(http.StatusInternalServerError)
+		}))
+		defer fakeDex.Close()
+		fmt.Printf("Fake Dex listening on %s\n", fakeDex.URL)
+		server := httptest.NewServer(http.HandlerFunc(NewDexHTTPReverseProxy(fakeDex.URL, "/")))
+		fmt.Printf("Fake API Server listening on %s\n", server.URL)
+		defer server.Close()
+		client := &http.Client{
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				return http.ErrUseLastResponse
+			}}
+		resp, err := client.Get(server.URL)
+		assert.NotNil(t, resp)
+		assert.NoError(t, err)
+		assert.Equal(t, 303, resp.StatusCode)
+		location, _ := resp.Location()
+		fmt.Printf("%s %s\n", resp.Status, location.RequestURI())
+		assert.True(t, strings.HasPrefix(location.RequestURI(), "/login?sso_error"))
 	})
 
 	t.Run("Invalid URL for Dex reverse proxy", func(t *testing.T) {
