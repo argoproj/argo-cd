@@ -3,6 +3,7 @@ package dex
 import (
 	"testing"
 
+	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 
 	// "github.com/argoproj/argo-cd/common"
@@ -39,7 +40,25 @@ connectors:
     orgs:
     - name: your-github-org
 `
+var badDexConfig = `
+connectors:
+# GitHub example
+- type: github
+  id: github
+  name: GitHub
+  config: foo
 
+# GitHub enterprise example
+- type: github
+  id: acme-github
+  name: Acme GitHub
+  config:
+    hostName: github.acme.com
+    clientID: abcdefghijklmnopqrst
+    clientSecret: $dex.acme.clientSecret
+    orgs:
+    - name: your-github-org
+`
 var goodSecrets = map[string]string{
 	"dex.github.clientSecret": "foobar",
 	"dex.acme.clientSecret":   "barfoo",
@@ -94,7 +113,27 @@ func Test_GenerateDexConfig(t *testing.T) {
 		assert.Nil(t, config)
 	})
 
+	t.Run("Valid YAML but incorrect Dex config", func(t *testing.T) {
+		s := settings.ArgoCDSettings{
+			URL:       "http://localhost",
+			DexConfig: badDexConfig,
+		}
+		config, err := GenerateDexConfigYAML(&s)
+		assert.Error(t, err)
+		assert.Nil(t, config)
+	})
+
 	t.Run("Valid YAML and correct Dex config", func(t *testing.T) {
+		s := settings.ArgoCDSettings{
+			URL:       "http://localhost",
+			DexConfig: goodDexConfig,
+		}
+		config, err := GenerateDexConfigYAML(&s)
+		assert.NoError(t, err)
+		assert.NotNil(t, config)
+	})
+
+	t.Run("Secret dereference", func(t *testing.T) {
 		s := settings.ArgoCDSettings{
 			URL:       "http://localhost",
 			DexConfig: goodDexConfig,
@@ -103,6 +142,21 @@ func Test_GenerateDexConfig(t *testing.T) {
 		config, err := GenerateDexConfigYAML(&s)
 		assert.NoError(t, err)
 		assert.NotNil(t, config)
+		var dexCfg map[string]interface{}
+		err = yaml.Unmarshal(config, &dexCfg)
+		if err != nil {
+			panic(err.Error())
+		}
+		connectors, ok := dexCfg["connectors"].([]interface{})
+		assert.True(t, ok)
+		for i, connectorsIf := range connectors {
+			config := connectorsIf.(map[string]interface{})["config"].(map[string]interface{})
+			if i == 0 {
+				assert.Equal(t, "foobar", config["clientSecret"])
+			} else if i == 1 {
+				assert.Equal(t, "barfoo", config["clientSecret"])
+			}
+		}
 	})
 
 }
