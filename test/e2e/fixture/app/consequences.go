@@ -23,7 +23,7 @@ func (c *Consequences) Expect(e Expectation) *Consequences {
 	var message string
 	var state state
 	timeout := time.Duration(15) * time.Second
-	for start := time.Now(); time.Since(start) < timeout; time.Sleep(3 * time.Second) {
+	for start := time.Now(); time.Since(start) < timeout; time.Sleep(1 * time.Second) {
 		state, message = e(c)
 		switch state {
 		case succeeded:
