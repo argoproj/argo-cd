@@ -58,14 +58,23 @@ func GenerateDexConfigYAML(settings *settings.ArgoCDSettings) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	connectors := dexCfg["connectors"].([]interface{})
+	connectors, ok := dexCfg["connectors"].([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("malformed Dex configuration found")
+	}
 	for i, connectorIf := range connectors {
-		connector := connectorIf.(map[string]interface{})
+		connector, ok := connectorIf.(map[string]interface{})
+		if !ok {
+			return nil, fmt.Errorf("malformed Dex configuration found")
+		}
 		connectorType := connector["type"].(string)
 		if !needsRedirectURI(connectorType) {
 			continue
 		}
-		connectorCfg := connector["config"].(map[string]interface{})
+		connectorCfg, ok := connector["config"].(map[string]interface{})
+		if !ok {
+			return nil, fmt.Errorf("malformed Dex configuration found")
+		}
 		connectorCfg["redirectURI"] = dexRedirectURL
 		connector["config"] = connectorCfg
 		connectors[i] = connector
