@@ -188,6 +188,7 @@ func Test_DexReverseProxy(t *testing.T) {
 		resp, err := http.Get(server.URL)
 		assert.NotNil(t, resp)
 		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
 		fmt.Printf("%s\n", resp.Status)
 	})
 
@@ -207,7 +208,7 @@ func Test_DexReverseProxy(t *testing.T) {
 		resp, err := client.Get(server.URL)
 		assert.NotNil(t, resp)
 		assert.NoError(t, err)
-		assert.Equal(t, 303, resp.StatusCode)
+		assert.Equal(t, http.StatusSeeOther, resp.StatusCode)
 		location, _ := resp.Location()
 		fmt.Printf("%s %s\n", resp.Status, location.RequestURI())
 		assert.True(t, strings.HasPrefix(location.RequestURI(), "/login?sso_error"))
