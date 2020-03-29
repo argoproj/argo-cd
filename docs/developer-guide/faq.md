@@ -37,7 +37,11 @@ git push origin <yourbranch>
 
 ### Why does the build step fail?
 
-Sometimes, CircleCI kills the build step due to excessive memory usage. This happens rarely, but it has happened in the past. If you see a message like "killed" in the log output of CircleCI, you should retrigger the pipeline as described above. If the issue persists, please let us know.
+Chances are that it fails for two of the following reasons in the CI while running fine on your machine:
+
+* Sometimes, CircleCI kills the build step due to excessive memory usage. This happens rarely, but it has happened in the past. If you see a message like "killed" in the log output of CircleCI, you should retrigger the pipeline as described above. If the issue persists, please let us know.
+
+* If the build is failing at the `Ensuring Gopkg.lock is up-to-date` step, you need to update the dependencies before you push your commits. Run `make dep-ensure` and `make dep` and commit the changes to `Gopkg.lock` to your branch.
 
 ### Why does the codegen step fail?
 

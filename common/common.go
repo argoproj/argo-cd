@@ -3,6 +3,7 @@ package common
 import (
 	"os"
 	"strconv"
+	"time"
 )
 
 // Default service addresses and URLS of Argo CD internal services
@@ -65,6 +66,8 @@ const (
 	AuthCookieName = "argocd.token"
 	// RevisionHistoryLimit is the max number of successful sync to keep in history
 	RevisionHistoryLimit = 10
+	// ChangePasswordSSOTokenMaxAge is the max token age for password change operation
+	ChangePasswordSSOTokenMaxAge = time.Minute * 5
 )
 
 // Dex related constants

@@ -1,6 +1,7 @@
 package account
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"google.golang.org/grpc/status"
 	"k8s.io/kubernetes/pkg/util/slice"
 
+	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apiclient/account"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/util/password"
@@ -34,22 +36,44 @@ func NewServer(sessionMgr *session.SessionManager, settingsMgr *settings.Setting
 
 // UpdatePassword updates the password of the currently authenticated account or the account specified in the request.
 func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRequest) (*account.UpdatePasswordResponse, error) {
+	issuer := session.Iss(ctx)
 	username := session.Sub(ctx)
-	if rbacpolicy.IsProjectSubject(username) || session.Iss(ctx) != session.SessionManagerClaimsIssuer {
-		return nil, status.Errorf(codes.InvalidArgument, "password can only be changed for local users, not user %q", username)
-	}
-
-	err := s.sessionMgr.VerifyUsernamePassword(username, q.CurrentPassword)
-	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "current password does not match")
-	}
-
 	updatedUsername := username
-	if q.Name != "" && q.Name != username {
+
+	if q.Name != "" {
+		updatedUsername = q.Name
+	}
+	// check for permission is user is trying to change someone else's password
+	// assuming user is trying to update someone else if username is different or issuer is not Argo CD
+	if updatedUsername != username || issuer != session.SessionManagerClaimsIssuer {
 		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceAccounts, rbacpolicy.ActionUpdate, q.Name); err != nil {
 			return nil, err
 		}
-		updatedUsername = q.Name
+	}
+
+	if issuer == session.SessionManagerClaimsIssuer {
+		// local user is changing own password or another user password
+
+		// user is changing own password.
+		// ensure token belongs to a user, not project
+		if q.Name == "" && rbacpolicy.IsProjectSubject(username) {
+			return nil, status.Errorf(codes.InvalidArgument, "password can only be changed for local users, not user %q", username)
+		}
+
+		err := s.sessionMgr.VerifyUsernamePassword(username, q.CurrentPassword)
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "current password does not match")
+		}
+	} else {
+		// SSO user is changing or local user password
+
+		iat, err := session.Iat(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if time.Now().Sub(iat) > common.ChangePasswordSSOTokenMaxAge {
+			return nil, errors.New("SSO token is too old. Please use 'argocd relogin' to get a new token.")
+		}
 	}
 
 	hashedPassword, err := password.HashPassword(q.NewPassword)

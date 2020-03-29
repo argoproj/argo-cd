@@ -88,7 +88,12 @@ jobs:
       - prepare_environment
       - checkout
       - restore_vendor
-      - run: dep ensure -v
+      - run:
+          name: Ensuring Gopkg.lock is up-to-date
+          command: make dep-check-local
+      - run:
+          name: Syncing vendor dependencies
+          command: dep ensure -v
       - run: make build-local
       - run: chmod -R 777 vendor
       - run: chmod -R 777 ${GOCACHE}
