@@ -22,7 +22,7 @@ ARGOCD_PROCFILE?=Procfile
 # Configuration for building argocd-test-tools image
 TEST_TOOLS_NAMESPACE?=argoproj
 TEST_TOOLS_IMAGE=argocd-test-tools
-TEST_TOOLS_TAG?=v0.1.0
+TEST_TOOLS_TAG?=v0.2.0
 ifdef TEST_TOOLS_NAMESPACE
 TEST_TOOLS_PREFIX=${TEST_TOOLS_NAMESPACE}/
 endif
@@ -141,7 +141,7 @@ clientgen:
 codegen-local: protogen clientgen openapigen manifests-local
 
 .PHONY: codegen
-codegen: test-tools-image
+codegen:
 	$(call run-in-test-client,make codegen-local)
 
 .PHONY: cli
@@ -294,7 +294,7 @@ build-local:
 # If TEST_MODULE is set (to fully qualified module name), only this specific
 # module will be tested.
 .PHONY: test
-test: test-tools-image
+test:
 	mkdir -p $(GOCACHE)
 	$(call run-in-test-client,make TEST_MODULE=$(TEST_MODULE) test-local)
 
