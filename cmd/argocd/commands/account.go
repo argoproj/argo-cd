@@ -24,6 +24,7 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/localconfig"
+	sessionutil "github.com/argoproj/argo-cd/util/session"
 )
 
 func NewAccountCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
@@ -59,14 +60,20 @@ func NewAccountUpdatePasswordCommand(clientOpts *argocdclient.ClientOptions) *co
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
+			acdClient := argocdclient.NewClientOrDie(clientOpts)
+			conn, usrIf := acdClient.NewAccountClientOrDie()
+			defer util.Close(conn)
 
-			if currentPassword == "" {
+			userInfo := getCurrentAccount(acdClient)
+
+			if userInfo.Iss == sessionutil.SessionManagerClaimsIssuer && currentPassword == "" {
 				fmt.Print("*** Enter current password: ")
 				password, err := terminal.ReadPassword(int(os.Stdin.Fd()))
 				errors.CheckError(err)
 				currentPassword = string(password)
 				fmt.Print("\n")
 			}
+
 			if newPassword == "" {
 				var err error
 				newPassword, err = cli.ReadAndConfirmPassword()
@@ -79,16 +86,12 @@ func NewAccountUpdatePasswordCommand(clientOpts *argocdclient.ClientOptions) *co
 				Name:            account,
 			}
 
-			acdClient := argocdclient.NewClientOrDie(clientOpts)
-			conn, usrIf := acdClient.NewAccountClientOrDie()
-			defer util.Close(conn)
-
 			ctx := context.Background()
 			_, err := usrIf.UpdatePassword(ctx, &updatePasswordRequest)
 			errors.CheckError(err)
 			fmt.Printf("Password updated\n")
 
-			if account == "" || account == getCurrentAccount(acdClient) {
+			if account == "" || account == userInfo.Username {
 				// Get a new JWT token after updating the password
 				localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
 				errors.CheckError(err)
@@ -246,12 +249,12 @@ func NewAccountListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 	return cmd
 }
 
-func getCurrentAccount(clientset argocdclient.Client) string {
+func getCurrentAccount(clientset argocdclient.Client) session.GetUserInfoResponse {
 	conn, client := clientset.NewSessionClientOrDie()
 	defer util.Close(conn)
 	userInfo, err := client.GetUserInfo(context.Background(), &session.GetUserInfoRequest{})
 	errors.CheckError(err)
-	return userInfo.Username
+	return *userInfo
 }
 
 func NewAccountGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
@@ -271,7 +274,7 @@ argocd account get --account <account-name>`,
 			clientset := argocdclient.NewClientOrDie(clientOpts)
 
 			if account == "" {
-				account = getCurrentAccount(clientset)
+				account = getCurrentAccount(clientset).Username
 			}
 
 			conn, client := clientset.NewAccountClientOrDie()
@@ -343,7 +346,7 @@ argocd account generate-token --account <account-name>`,
 			conn, client := clientset.NewAccountClientOrDie()
 			defer util.Close(conn)
 			if account == "" {
-				account = getCurrentAccount(clientset)
+				account = getCurrentAccount(clientset).Username
 			}
 			expiresIn, err := timeutil.ParseDuration(expiresIn)
 			errors.CheckError(err)
@@ -383,7 +386,7 @@ argocd account generate-token --account <account-name>`,
 			conn, client := clientset.NewAccountClientOrDie()
 			defer util.Close(conn)
 			if account == "" {
-				account = getCurrentAccount(clientset)
+				account = getCurrentAccount(clientset).Username
 			}
 			_, err := client.DeleteToken(context.Background(), &accountpkg.DeleteTokenRequest{Name: account, Id: id})
 			errors.CheckError(err)
