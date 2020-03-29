@@ -30,6 +30,12 @@ const (
 
 // return an AccountServer which returns fake data
 func newTestAccountServer(ctx context.Context, opts ...func(cm *v1.ConfigMap, secret *v1.Secret)) (*Server, *session.Server) {
+	return newTestAccountServerExt(ctx, func(claims jwt.Claims, rvals ...interface{}) bool {
+		return true
+	}, opts...)
+}
+
+func newTestAccountServerExt(ctx context.Context, enforceFn rbac.ClaimsEnforcerFunc, opts ...func(cm *v1.ConfigMap, secret *v1.Secret)) (*Server, *session.Server) {
 	bcrypt, err := password.HashPassword("oldpassword")
 	errors.CheckError(err)
 	cm := &v1.ConfigMap{
@@ -59,9 +65,7 @@ func newTestAccountServer(ctx context.Context, opts ...func(cm *v1.ConfigMap, se
 	settingsMgr := settings.NewSettingsManager(ctx, kubeclientset, testNamespace)
 	sessionMgr := sessionutil.NewSessionManager(settingsMgr, "")
 	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
-	enforcer.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...interface{}) bool {
-		return true
-	})
+	enforcer.SetClaimsEnforcerFunc(enforceFn)
 
 	return NewServer(sessionMgr, settingsMgr, enforcer), session.NewServer(sessionMgr, nil)
 }
@@ -84,6 +88,13 @@ func ssoAdminContext(ctx context.Context, iat time.Time) context.Context {
 		Subject:  "admin",
 		Issuer:   "https://myargocdhost.com/api/dex",
 		IssuedAt: iat.Unix(),
+	})
+}
+
+func projTokenContext(ctx context.Context) context.Context {
+	return context.WithValue(ctx, "claims", &jwt.StandardClaims{
+		Subject: "proj:demo:deployer",
+		Issuer:  sessionutil.SessionManagerClaimsIssuer,
 	})
 }
 
@@ -134,6 +145,40 @@ func TestUpdatePassword_AdminUpdatesAnotherUser(t *testing.T) {
 
 	_, err = sessionServer.Create(ctx, &sessionpkg.SessionCreateRequest{Username: "anotherUser", Password: "newpassword"})
 	assert.NoError(t, err)
+}
+
+func TestUpdatePassword_DoesNotHavePermissions(t *testing.T) {
+	enforcer := func(claims jwt.Claims, rvals ...interface{}) bool {
+		return false
+	}
+
+	t.Run("LocalAccountUpdatesAnotherAccount", func(t *testing.T) {
+		accountServer, _ := newTestAccountServerExt(context.Background(), enforcer, func(cm *v1.ConfigMap, secret *v1.Secret) {
+			cm.Data["accounts.anotherUser"] = "login"
+		})
+		ctx := adminContext(context.Background())
+		_, err := accountServer.UpdatePassword(ctx, &account.UpdatePasswordRequest{CurrentPassword: "oldpassword", NewPassword: "newpassword", Name: "anotherUser"})
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "permission denied")
+	})
+
+	t.Run("SSOAccountWithTheSameName", func(t *testing.T) {
+		accountServer, _ := newTestAccountServerExt(context.Background(), enforcer)
+		ctx := ssoAdminContext(context.Background(), time.Now())
+		_, err := accountServer.UpdatePassword(ctx, &account.UpdatePasswordRequest{CurrentPassword: "oldpassword", NewPassword: "newpassword", Name: "admin"})
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "permission denied")
+	})
+}
+
+func TestUpdatePassword_ProjectToken(t *testing.T) {
+	accountServer, _ := newTestAccountServer(context.Background(), func(cm *v1.ConfigMap, secret *v1.Secret) {
+		cm.Data["accounts.anotherUser"] = "login"
+	})
+	ctx := projTokenContext(context.Background())
+	_, err := accountServer.UpdatePassword(ctx, &account.UpdatePasswordRequest{CurrentPassword: "oldpassword", NewPassword: "newpassword"})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "password can only be changed for local users")
 }
 
 func TestUpdatePassword_OldSSOToken(t *testing.T) {

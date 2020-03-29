@@ -36,20 +36,27 @@ func NewServer(sessionMgr *session.SessionManager, settingsMgr *settings.Setting
 
 // UpdatePassword updates the password of the currently authenticated account or the account specified in the request.
 func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRequest) (*account.UpdatePasswordResponse, error) {
+	issuer := session.Iss(ctx)
 	username := session.Sub(ctx)
 	updatedUsername := username
-	if q.Name != "" && q.Name != username {
+
+	if q.Name != "" {
+		updatedUsername = q.Name
+	}
+	// check for permission is user is trying to change someone else's password
+	// assuming user is trying to update someone else if username is different or issuer is not Argo CD
+	if updatedUsername != username || issuer != session.SessionManagerClaimsIssuer {
 		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceAccounts, rbacpolicy.ActionUpdate, q.Name); err != nil {
 			return nil, err
 		}
-		updatedUsername = q.Name
 	}
 
-	if session.Iss(ctx) == session.SessionManagerClaimsIssuer {
+	if issuer == session.SessionManagerClaimsIssuer {
 		// local user is changing own password or another user password
 
-		// using is changing own password. // ensure token belongs to a user, not project
-		if username == updatedUsername && rbacpolicy.IsProjectSubject(username) {
+		// user is changing own password.
+		// ensure token belongs to a user, not project
+		if q.Name == "" && rbacpolicy.IsProjectSubject(username) {
 			return nil, status.Errorf(codes.InvalidArgument, "password can only be changed for local users, not user %q", username)
 		}
 
