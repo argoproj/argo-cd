@@ -250,6 +250,16 @@ dep-ensure:
 dep-ensure-local:
 	dep ensure -no-vendor
 
+# Runs dep check in a container to ensure Gopkg.lock is up-to-date with dependencies
+.PHONY: dep-check
+dep-check:
+	$(call run-in-test-client,make dep-check-local)
+
+# Runs dep check locally to ensure Gopkg.lock is up-to-date with dependencies
+.PHONY: dep-check-local
+dep-check-local:
+	if ! dep check -skip-vendor; then echo "Please make sure Gopkg.lock is up-to-date - see https://argoproj.github.io/argo-cd/developer-guide/faq/#why-does-the-build-step-fail"; exit 1; fi
+
 # Deprecated - replace by install-local-tools
 .PHONY: install-lint-tools
 install-lint-tools:
