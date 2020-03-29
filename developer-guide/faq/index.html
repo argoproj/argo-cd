@@ -1378,7 +1378,15 @@ git push origin &lt;yourbranch&gt;
 
 
 <h3 id="why-does-the-build-step-fail">Why does the build step fail?<a class="headerlink" href="#why-does-the-build-step-fail" title="Permanent link">&para;</a></h3>
+<p>Chances are that it fails for two of the following reasons in the CI while running fine on your machine:</p>
+<ul>
+<li>
 <p>Sometimes, CircleCI kills the build step due to excessive memory usage. This happens rarely, but it has happened in the past. If you see a message like "killed" in the log output of CircleCI, you should retrigger the pipeline as described above. If the issue persists, please let us know.</p>
+</li>
+<li>
+<p>If the build is failing at the <code>Ensuring Gopkg.lock is up-to-date</code> step, you need to update the dependencies before you push your commits. Run <code>make dep-ensure</code> and <code>make dep</code> and commit the changes to <code>Gopkg.lock</code> to your branch.</p>
+</li>
+</ul>
 <h3 id="why-does-the-codegen-step-fail">Why does the codegen step fail?<a class="headerlink" href="#why-does-the-codegen-step-fail" title="Permanent link">&para;</a></h3>
 <p>If the codegen step fails with "Check nothing has changed...", chances are high that you did not run <code>make codegen</code>, or did not commit the changes it made. You should double check by running <code>make codegen</code> followed by <code>git status</code> in the local working copy of your branch. Commit any changes and push them to your GH branch to have the CI check it again.</p>
 <p>A second common case for this is, when you modified any of the auto generated assets, as these will be overwritten upon <code>make codegen</code>.</p>
