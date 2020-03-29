@@ -1,6 +1,9 @@
 package dex
 
 import (
+	"bytes"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/ghodss/yaml"
@@ -9,6 +12,8 @@ import (
 	// "github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/util/settings"
 )
+
+const invalidURL = ":://localhost/foo/bar"
 
 var malformedDexConfig = `
 valid:
@@ -75,7 +80,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 
 	t.Run("Invalid URL", func(t *testing.T) {
 		s := settings.ArgoCDSettings{
-			URL:       ":://localhost/foo/bar",
+			URL:       invalidURL,
 			DexConfig: goodDexConfig,
 		}
 		config, err := GenerateDexConfigYAML(&s)
@@ -159,4 +164,37 @@ func Test_GenerateDexConfig(t *testing.T) {
 		}
 	})
 
+	t.Run("Redirect config", func(t *testing.T) {
+		types := []string{"oidc", "saml", "microsoft", "linkedin", "gitlab", "github", "bitbucket-cloud"}
+		for _, c := range types {
+			assert.True(t, needsRedirectURI(c))
+		}
+		assert.False(t, needsRedirectURI("invalid"))
+	})
+}
+
+func Test_DexReverseProxy(t *testing.T) {
+	t.Run("Good case", func(t *testing.T) {
+		f := NewDexHTTPReverseProxy("127.0.0.1", "/")
+		assert.NotNil(t, f)
+	})
+
+	t.Run("Invalid URL for Dex reverse proxy", func(t *testing.T) {
+		// Can't test for now, since it would call exit
+		t.Skip()
+		f := NewDexHTTPReverseProxy(invalidURL, "/")
+		assert.Nil(t, f)
+	})
+
+	t.Run("Round Tripper", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			assert.Equal(t, "/", req.URL.String())
+		}))
+		defer server.Close()
+		rt := NewDexRewriteURLRoundTripper(server.URL, http.DefaultTransport)
+		assert.NotNil(t, rt)
+		req, err := http.NewRequest("GET", "/", bytes.NewBuffer([]byte("")))
+		assert.NoError(t, err)
+		rt.RoundTrip(req)
+	})
 }
