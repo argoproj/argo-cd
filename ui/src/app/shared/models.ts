@@ -590,6 +590,7 @@ export interface ProjectSpec {
     roles: ProjectRole[];
     clusterResourceWhitelist: GroupKind[];
     namespaceResourceBlacklist: GroupKind[];
+    namespaceResourceWhitelist: GroupKind[];
     orphanedResources?: {warn?: boolean};
     syncWindows?: SyncWindows;
 }
