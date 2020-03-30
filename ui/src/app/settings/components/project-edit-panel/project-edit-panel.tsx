@@ -26,8 +26,8 @@ export const ProjectEditPanel = (props: {nameReadonly?: boolean; defaultParams?:
                 clusterResourceWhitelist: [],
                 namespaceResourceBlacklist: [],
                 namespaceResourceWhitelist: [],
-                ...props.defaultParams}
-            }
+                ...props.defaultParams
+            }}
             validateError={(params: ProjectParams) => ({
                 name: !params.name && 'Project name is required'
             })}
