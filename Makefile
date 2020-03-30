@@ -250,6 +250,19 @@ dep-ensure:
 dep-ensure-local:
 	dep ensure -no-vendor
 
+<<<<<<< HEAD
+=======
+# Runs dep check in a container to ensure Gopkg.lock is up-to-date with dependencies
+.PHONY: dep-check
+dep-check:
+	$(call run-in-test-client,make dep-check-local)
+
+# Runs dep check locally to ensure Gopkg.lock is up-to-date with dependencies
+.PHONY: dep-check-local
+dep-check-local:
+	if ! dep check -skip-vendor; then echo "Please make sure Gopkg.lock is up-to-date - see https://argoproj.github.io/argo-cd/developer-guide/faq/#why-does-the-build-step-fail"; exit 1; fi
+
+>>>>>>> 00d44910b8e5370054b8afb41f88739887979ed1
 # Deprecated - replace by install-local-tools
 .PHONY: install-lint-tools
 install-lint-tools:
@@ -268,6 +281,17 @@ lint-local:
 	# See https://github.com/golangci/golangci-lint#memory-usage-of-golangci-lint
 	GOGC=100 golangci-lint run --fix --verbose
 
+<<<<<<< HEAD
+=======
+.PHONY: lint-ui
+lint-ui:
+	$(call run-in-test-client,make lint-ui-local)
+
+.PHONY: lint-ui-local
+lint-ui-local:
+	cd ui && yarn lint
+
+>>>>>>> 00d44910b8e5370054b8afb41f88739887979ed1
 # Build all Go code
 .PHONY: build
 build:

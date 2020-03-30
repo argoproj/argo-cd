@@ -81,6 +81,8 @@ commands:
             - go-docker-v2-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}
 jobs:
   build:
+<<<<<<< HEAD
+=======
     docker:
       - image: argoproj/argocd-test-tools:v0.1.0
     working_directory: /go/src/github.com/argoproj/argo-cd
@@ -88,6 +90,28 @@ jobs:
       - prepare_environment
       - checkout
       - restore_vendor
+      - run:
+          name: Ensuring Gopkg.lock is up-to-date
+          command: make dep-check-local
+      - run:
+          name: Syncing vendor dependencies
+          command: dep ensure -v
+      - run: make build-local
+      - run: chmod -R 777 vendor
+      - run: chmod -R 777 ${GOCACHE}
+      - save_vendor
+      - save_go_cache_docker
+
+  codegen:
+>>>>>>> 00d44910b8e5370054b8afb41f88739887979ed1
+    docker:
+      - image: argoproj/argocd-test-tools:v0.1.0
+    working_directory: /go/src/github.com/argoproj/argo-cd
+    steps:
+      - prepare_environment
+      - checkout
+      - restore_vendor
+<<<<<<< HEAD
       - run: dep ensure -v
       - run: make build-local
       - run: chmod -R 777 vendor
@@ -103,6 +127,8 @@ jobs:
       - prepare_environment
       - checkout
       - restore_vendor
+=======
+>>>>>>> 00d44910b8e5370054b8afb41f88739887979ed1
       - run: helm2 init --client-only
       - run: make codegen-local
       - run:

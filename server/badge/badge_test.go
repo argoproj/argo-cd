@@ -88,6 +88,28 @@ func TestHandlerFeatureIsEnabledRevisionIsEnabled(t *testing.T) {
 	assert.Contains(t, response, "(aa29b85)")
 }
 
+func TestHandlerRevisionIsEnabledNoOperationState(t *testing.T) {
+	app := testApp.DeepCopy()
+	app.Status.OperationState = nil
+
+	settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(&argoCDCm, &argoCDSecret), "default")
+	handler := NewHandler(appclientset.NewSimpleClientset(app), settingsMgr, "default")
+	req, err := http.NewRequest("GET", "/api/badge?name=testApp&revision=true", nil)
+	assert.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, "private, no-store", rr.Header().Get("Cache-Control"))
+
+	response := rr.Body.String()
+	assert.Equal(t, toRGBString(Green), leftRectColorPattern.FindStringSubmatch(response)[1])
+	assert.Equal(t, toRGBString(Green), rightRectColorPattern.FindStringSubmatch(response)[1])
+	assert.Equal(t, "Healthy", leftTextPattern.FindStringSubmatch(response)[1])
+	assert.Equal(t, "Synced", rightTextPattern.FindStringSubmatch(response)[1])
+	assert.NotContains(t, response, "(aa29b85)")
+}
+
 func TestHandlerFeatureIsDisabled(t *testing.T) {
 
 	argoCDCmDisabled := argoCDCm.DeepCopy()

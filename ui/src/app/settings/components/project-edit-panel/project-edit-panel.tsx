@@ -18,7 +18,16 @@ export const ProjectEditPanel = (props: {nameReadonly?: boolean; defaultParams?:
         <Form
             onSubmit={props.submit}
             getApi={props.getApi}
-            defaultValues={{sourceRepos: [], destinations: [], roles: [], syncWindows: [], clusterResourceWhitelist: [], namespaceResourceBlacklist: [], namespaceResourceWhitelist: [], ...props.defaultParams}}
+            defaultValues={{
+                sourceRepos: [],
+                destinations: [],
+                roles: [],
+                syncWindows: [],
+                clusterResourceWhitelist: [],
+                namespaceResourceBlacklist: [],
+                namespaceResourceWhitelist: [],
+                ...props.defaultParams
+            }}
             validateError={(params: ProjectParams) => ({
                 name: !params.name && 'Project name is required'
             })}
@@ -163,7 +172,7 @@ export const ProjectEditPanel = (props: {nameReadonly?: boolean; defaultParams?:
                     <React.Fragment>
                         <h4>Whitelisted Namespaced Resources</h4>
                         <div>
-                            Namespace-scoped K8s API Groups and Kinds which are <strong>permitted</strong> from being deployed
+                            Namespace-scoped K8s API Groups and Kinds which are <strong>permitted</strong> to deploy
                         </div>
                         <div className='argo-table-list__head'>
                             <div className='row'>

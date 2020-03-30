@@ -25,6 +25,7 @@ type MockKubectlCmd struct {
 	LastValidate  bool
 	Version       string
 	DynamicClient dynamic.Interface
+	APIGroups     []metav1.APIGroup
 }
 
 func (k *MockKubectlCmd) NewDynamicClient(config *rest.Config) (dynamic.Interface, error) {
@@ -70,7 +71,7 @@ func (k *MockKubectlCmd) GetServerVersion(config *rest.Config) (string, error) {
 }
 
 func (k *MockKubectlCmd) GetAPIGroups(config *rest.Config) ([]metav1.APIGroup, error) {
-	return nil, nil
+	return k.APIGroups, nil
 }
 
 func (k *MockKubectlCmd) SetOnKubectlRun(onKubectlRun func(command string) (util.Closer, error)) {
