@@ -278,6 +278,14 @@ lint-local:
 	# See https://github.com/golangci/golangci-lint#memory-usage-of-golangci-lint
 	GOGC=100 golangci-lint run --fix --verbose
 
+.PHONY: lint-ui
+lint-ui:
+	$(call run-in-test-client,make lint-ui-local)
+
+.PHONY: lint-ui-local
+lint-ui-local:
+	cd ui && yarn lint
+
 # Build all Go code
 .PHONY: build
 build:

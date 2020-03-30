@@ -198,6 +198,11 @@ The Linter might make some automatic changes to your code, such as indentation f
 * Finally, after the Linter reports no errors anymore, run `git status` or `git diff` to check for any changes made automatically by Lint
 * If there were automatic changes, commit them to your local branch
 
+If you touched UI code, you should also run the Yarn linter on it:
+
+* Run `make lint-ui`
+* Fix any of the errors reported by it
+
 ## Setting up a local toolchain
 
 For development, you can either use the fully virtualized toolchain provided as Docker images, or you can set up the toolchain on your local development machine. Due to the dynamic nature of requirements, you might want to stay with the virtualized environment.
