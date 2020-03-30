@@ -574,7 +574,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                     </div>
                 )}
 
-                <h4>Whitelisted namespaced resources {helpTip('Namespace-scoped K8s API Groups and Kinds which are permitted from being deployed')}</h4>
+                <h4>Whitelisted namespaced resources {helpTip('Namespace-scoped K8s API Groups and Kinds which are permitted to deploy')}</h4>
                 {((proj.spec.namespaceResourceWhitelist || []).length > 0 && (
                     <div className='argo-table-list'>
                         <div className='argo-table-list__head'>

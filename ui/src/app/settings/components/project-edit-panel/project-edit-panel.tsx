@@ -163,7 +163,7 @@ export const ProjectEditPanel = (props: {nameReadonly?: boolean; defaultParams?:
                     <React.Fragment>
                         <h4>Whitelisted Namespaced Resources</h4>
                         <div>
-                            Namespace-scoped K8s API Groups and Kinds which are <strong>permitted</strong> from being deployed
+                            Namespace-scoped K8s API Groups and Kinds which are <strong>permitted</strong> to deploy
                         </div>
                         <div className='argo-table-list__head'>
                             <div className='row'>
