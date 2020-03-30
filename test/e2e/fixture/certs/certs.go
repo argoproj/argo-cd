@@ -27,7 +27,7 @@ func AddCustomCACert() {
 }
 
 func AddCustomSSHKnownHostsKeys() {
-	knownHostsPath, err := filepath.Abs("../fixture/certs/ssh_known_hosts")
+	knownHostsPath, err := filepath.Abs("../fixture/testrepos/ssh_known_hosts")
 	errors.CheckError(err)
 	args := []string{"cert", "add-ssh", "--batch", "--from", knownHostsPath}
 	errors.FailOnErr(fixture.RunCli(args...))
