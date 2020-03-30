@@ -193,6 +193,8 @@ const (
 	resourceInclusionsKey = "resource.inclusions"
 	// configManagementPluginsKey is the key to the list of config management plugins
 	configManagementPluginsKey = "configManagementPlugins"
+	// configManagementPluginsKey is the key to the list of config management plugins
+	clusterAppKey = "clusterApp"
 	// kustomizeBuildOptionsKey is a string of kustomize build parameters
 	kustomizeBuildOptionsKey = "kustomize.buildOptions"
 	// anonymousUserEnabledKey is the key which enables or disables anonymous user
@@ -389,6 +391,19 @@ func (mgr *SettingsManager) GetConfigManagementPlugins() ([]v1alpha1.ConfigManag
 		}
 	}
 	return plugins, nil
+}
+
+func (mgr *SettingsManager) GetClusterApp() (*v1alpha1.ClusterApp, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return nil, err
+	}
+	if value, ok := argoCDCM.Data[clusterAppKey]; ok {
+		clusterApp := &v1alpha1.ClusterApp{}
+		err := yaml.Unmarshal([]byte(value), clusterApp)
+		return clusterApp, err
+	}
+	return nil, nil
 }
 
 // GetResourceOverrides loads Resource Overrides from argocd-cm ConfigMap

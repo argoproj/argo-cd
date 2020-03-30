@@ -54,7 +54,7 @@ type ApplicationSpec struct {
 	// Source is a reference to the location ksonnet application definition
 	Source ApplicationSource `json:"source" protobuf:"bytes,1,opt,name=source"`
 	// Destination overrides the kubernetes server and namespace defined in the environment ksonnet app.yaml
-	Destination ApplicationDestination `json:"destination" protobuf:"bytes,2,name=destination"`
+	Destination ApplicationDestination `json:"destination,omitempty" protobuf:"bytes,2,name=destination"`
 	// Project is a application project name. Empty name means that application belongs to 'default' project.
 	Project string `json:"project" protobuf:"bytes,3,name=project"`
 	// SyncPolicy controls when a sync will be performed
@@ -128,6 +128,12 @@ type ApplicationSource struct {
 	// If omitted, will sync to HEAD
 	TargetRevision string `json:"targetRevision,omitempty" protobuf:"bytes,4,opt,name=targetRevision"`
 	// Helm holds helm specific options
+	ToolParams `json:",inline"`
+	// Chart is a Helm chart name
+	Chart string `json:"chart,omitempty" protobuf:"bytes,12,opt,name=chart"`
+}
+
+type ToolParams struct {
 	Helm *ApplicationSourceHelm `json:"helm,omitempty" protobuf:"bytes,7,opt,name=helm"`
 	// Kustomize holds kustomize specific options
 	Kustomize *ApplicationSourceKustomize `json:"kustomize,omitempty" protobuf:"bytes,8,opt,name=kustomize"`
@@ -137,8 +143,6 @@ type ApplicationSource struct {
 	Directory *ApplicationSourceDirectory `json:"directory,omitempty" protobuf:"bytes,10,opt,name=directory"`
 	// ConfigManagementPlugin holds config management plugin specific options
 	Plugin *ApplicationSourcePlugin `json:"plugin,omitempty" protobuf:"bytes,11,opt,name=plugin"`
-	// Chart is a Helm chart name
-	Chart string `json:"chart,omitempty" protobuf:"bytes,12,opt,name=chart"`
 }
 
 func (a *ApplicationSource) IsHelm() bool {
@@ -150,7 +154,12 @@ func (a *ApplicationSource) IsZero() bool {
 		a.RepoURL == "" &&
 			a.Path == "" &&
 			a.TargetRevision == "" &&
-			a.Helm.IsZero() &&
+			a.ToolParams.IsZero()
+}
+
+func (a *ToolParams) IsZero() bool {
+	return a == nil ||
+		a.Helm.IsZero() &&
 			a.Kustomize.IsZero() &&
 			a.Ksonnet.IsZero() &&
 			a.Directory.IsZero() &&
@@ -1026,6 +1035,12 @@ type Cluster struct {
 	ServerVersion string `json:"serverVersion,omitempty" protobuf:"bytes,5,opt,name=serverVersion"`
 	// Holds list of namespaces which are accessible in that cluster. Cluster level resources would be ignored if namespace list if not empty.
 	Namespaces []string `json:"namespaces,omitempty" protobuf:"bytes,6,opt,name=namespaces"`
+	// Param contains values to be used for templating apps
+	Params	ToolParams `json:"params,omitempty" protobuf:"bytes,1,opt,name=params"`
+}
+
+type ClusterApp struct {
+	Spec ApplicationSpec `json:"spec" protobuf:"bytes,2,opt,name=spec"`
 }
 
 // ClusterList is a collection of Clusters.
