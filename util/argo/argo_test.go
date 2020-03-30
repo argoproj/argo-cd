@@ -2,11 +2,14 @@ package argo
 
 import (
 	"context"
+	"fmt"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/watch"
@@ -18,6 +21,10 @@ import (
 	"github.com/argoproj/argo-cd/pkg/client/informers/externalversions/application/v1alpha1"
 	applisters "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/reposerver/apiclient/mocks"
+	"github.com/argoproj/argo-cd/util"
+	dbmocks "github.com/argoproj/argo-cd/util/db/mocks"
+	"github.com/argoproj/argo-cd/util/kube/kubetest"
 )
 
 func TestRefreshApp(t *testing.T) {
@@ -209,4 +216,71 @@ func Test_enrichSpec(t *testing.T) {
 		assert.Equal(t, "my-server", spec.Destination.Server)
 		assert.Equal(t, "my-namespace", spec.Destination.Namespace)
 	})
+}
+
+func TestAPIGroupsToVersions(t *testing.T) {
+	versions := APIGroupsToVersions([]metav1.APIGroup{{
+		Versions: []metav1.GroupVersionForDiscovery{{GroupVersion: "apps/v1beta1"}, {GroupVersion: "apps/v1beta2"}},
+	}, {
+		Versions: []metav1.GroupVersionForDiscovery{{GroupVersion: "extensions/v1beta1"}},
+	}})
+
+	assert.EqualValues(t, []string{"apps/v1beta1", "apps/v1beta2", "extensions/v1beta1"}, versions)
+}
+
+func TestValidateRepo(t *testing.T) {
+	repoPath, err := filepath.Abs("./../..")
+	assert.NoError(t, err)
+
+	apiGroups := []metav1.APIGroup{{Versions: []metav1.GroupVersionForDiscovery{{GroupVersion: "apps/v1beta1"}, {GroupVersion: "apps/v1beta2"}}}}
+	kubeVersion := "v1.16"
+	kustomizeOptions := &argoappv1.KustomizeOptions{BuildOptions: "sample options"}
+	repo := &argoappv1.Repository{Repo: fmt.Sprintf("file://%s", repoPath)}
+	cluster := &argoappv1.Cluster{Server: "sample server"}
+	app := &argoappv1.Application{
+		Spec: argoappv1.ApplicationSpec{
+			Source: argoappv1.ApplicationSource{
+				RepoURL: repo.Repo,
+			},
+			Destination: argoappv1.ApplicationDestination{
+				Server:    cluster.Server,
+				Namespace: "default",
+			},
+		},
+	}
+	helmRepos := []*argoappv1.Repository{{Repo: "sample helm repo"}}
+
+	repoClient := &mocks.RepoServerServiceClient{}
+	repoClient.On("GetAppDetails", context.Background(), &apiclient.RepoServerAppDetailsQuery{
+		Repo:             repo,
+		Source:           &app.Spec.Source,
+		Repos:            helmRepos,
+		KustomizeOptions: kustomizeOptions,
+	}).Return(&apiclient.RepoAppDetailsResponse{}, nil)
+
+	repoClientSet := &mocks.Clientset{}
+	repoClientSet.On("NewRepoServerClient").Return(util.NopCloser, repoClient, nil)
+
+	db := &dbmocks.ArgoDB{}
+
+	db.On("GetRepository", context.Background(), app.Spec.Source.RepoURL).Return(repo, nil)
+	db.On("ListHelmRepositories", context.Background()).Return(helmRepos, nil)
+	db.On("GetCluster", context.Background(), app.Spec.Destination.Server).Return(cluster, nil)
+
+	var receivedRequest *apiclient.ManifestRequest
+
+	repoClient.On("GenerateManifest", context.Background(), mock.MatchedBy(func(req *apiclient.ManifestRequest) bool {
+		receivedRequest = req
+		return true
+	})).Return(nil, nil)
+
+	conditions, err := ValidateRepo(context.Background(), app, repoClientSet, db, kustomizeOptions, nil, &kubetest.MockKubectlCmd{Version: kubeVersion, APIGroups: apiGroups})
+
+	assert.NoError(t, err)
+	assert.Empty(t, conditions)
+	assert.ElementsMatch(t, []string{"apps/v1beta1", "apps/v1beta2"}, receivedRequest.ApiVersions)
+	assert.Equal(t, kubeVersion, receivedRequest.KubeVersion)
+	assert.Equal(t, app.Spec.Destination.Namespace, receivedRequest.Namespace)
+	assert.Equal(t, &app.Spec.Source, receivedRequest.ApplicationSource)
+	assert.Equal(t, kustomizeOptions, receivedRequest.KustomizeOptions)
 }
