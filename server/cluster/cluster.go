@@ -146,7 +146,6 @@ func (s *Server) Create(ctx context.Context, q *cluster.ClusterCreateRequest) (*
 			return nil, status.Errorf(codes.InvalidArgument, "existing cluster spec is different; use upsert flag to force update")
 		}
 	}
-
 	return redact(clust), err
 }
 
