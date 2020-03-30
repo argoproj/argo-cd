@@ -225,7 +225,12 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 	if err != nil {
 		return nil, err
 	}
-	cluster.ServerVersion, err = s.kubectl.GetServerVersion(cluster.RESTConfig())
+	config := cluster.RESTConfig()
+	cluster.ServerVersion, err = s.kubectl.GetServerVersion(config)
+	if err != nil {
+		return nil, err
+	}
+	apiGroups, err := s.kubectl.GetAPIGroups(config)
 	if err != nil {
 		return nil, err
 	}
@@ -240,6 +245,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		Plugins:           plugins,
 		KustomizeOptions:  &kustomizeOptions,
 		KubeVersion:       cluster.ServerVersion,
+		ApiVersions:       argo.APIGroupsToVersions(apiGroups),
 	})
 	if err != nil {
 		return nil, err
