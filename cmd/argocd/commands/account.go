@@ -174,7 +174,7 @@ argocd account can-i sync applications '*'
 argocd account can-i update projects 'default'
 
 # Can I create a cluster?
-argocd account can-i create cluster '*'
+argocd account can-i create clusters '*'
 
 Actions: %v
 Resources: %v
