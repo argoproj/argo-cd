@@ -22,25 +22,6 @@ message AWSAuthConfig {
   optional string roleARN = 2;
 }
 
-message AppParameters {
-  optional ApplicationSourceHelm helm = 7;
-
-  // Kustomize holds kustomize specific options
-  optional ApplicationSourceKustomize kustomize = 8;
-
-  // Ksonnet holds ksonnet specific options
-  optional ApplicationSourceKsonnet ksonnet = 9;
-
-  // Directory holds path/directory specific options
-  optional ApplicationSourceDirectory directory = 10;
-
-  // ConfigManagementPlugin holds config management plugin specific options
-  optional ApplicationSourcePlugin plugin = 11;
-
-  // Chart is a Helm chart name
-  optional string chart = 12;
-}
-
 // AppProject provides a logical grouping of applications, providing controls for:
 // * where the apps may deploy to (cluster whitelist)
 // * what may be deployed (repository whitelist, resource whitelist/blacklist)
@@ -152,7 +133,22 @@ message ApplicationSource {
   optional string targetRevision = 4;
 
   // Helm holds helm specific options
-  optional AppParameters appParameters = 5;
+  optional ApplicationSourceHelm helm = 7;
+
+  // Kustomize holds kustomize specific options
+  optional ApplicationSourceKustomize kustomize = 8;
+
+  // Ksonnet holds ksonnet specific options
+  optional ApplicationSourceKsonnet ksonnet = 9;
+
+  // Directory holds path/directory specific options
+  optional ApplicationSourceDirectory directory = 10;
+
+  // ConfigManagementPlugin holds config management plugin specific options
+  optional ApplicationSourcePlugin plugin = 11;
+
+  // Chart is a Helm chart name
+  optional string chart = 12;
 }
 
 message ApplicationSourceDirectory {
@@ -322,10 +318,6 @@ message Cluster {
   repeated string namespaces = 6;
 }
 
-message ClusterApp {
-  optional ApplicationSource spec = 1;
-}
-
 // ClusterConfig is the configuration attributes. This structure is subset of the go-client
 // rest.Config with annotations added for marshalling.
 message ClusterConfig {
@@ -351,9 +343,6 @@ message ClusterList {
   optional k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
 
   repeated Cluster items = 2;
-}
-
-message ClusterParameters {
 }
 
 // Command holds binary path and arguments list

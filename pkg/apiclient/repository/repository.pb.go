@@ -587,7 +587,9 @@ func init() {
 	proto.RegisterType((*RepoUpdateRequest)(nil), "repository.RepoUpdateRequest")
 }
 
-func init() { proto.RegisterFile("server/repository/repository.proto", fileDescriptor_8d38260443475705) }
+func init() {
+	proto.RegisterFile("server/repository/repository.proto", fileDescriptor_8d38260443475705)
+}
 
 var fileDescriptor_8d38260443475705 = []byte{
 	// 935 bytes of a gzipped FileDescriptorProto

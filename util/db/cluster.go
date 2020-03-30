@@ -97,7 +97,6 @@ func (db *db) CreateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 		}
 		return nil, err
 	}
-	// TODO - maybe create an app for this cluster
 	return secretToCluster(clusterSecret), db.settingsMgr.ResyncInformers()
 }
 
@@ -212,7 +211,6 @@ func (db *db) UpdateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 	if err != nil {
 		return nil, err
 	}
-	// TODO - maybe create or update an app for this cluster
 	return secretToCluster(clusterSecret), db.settingsMgr.ResyncInformers()
 }
 
@@ -238,7 +236,6 @@ func (db *db) DeleteCluster(ctx context.Context, server string) error {
 	if err != nil {
 		return err
 	}
-	// TODO - maybe delete an app for this cluster (do we prune?)
 	return db.settingsMgr.ResyncInformers()
 }
 
