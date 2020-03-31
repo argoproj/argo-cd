@@ -76,7 +76,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if app, err := h.appClientset.ArgoprojV1alpha1().Applications(h.namespace).Get(name[0], v1.GetOptions{}); err == nil {
 			health = app.Status.Health.Status
 			status = app.Status.Sync.Status
-			revision = app.Status.OperationState.SyncResult.Revision
+			if app.Status.OperationState != nil && app.Status.OperationState.SyncResult != nil {
+				revision = app.Status.OperationState.SyncResult.Revision
+			}
 		} else if errors.IsNotFound(err) {
 			notFound = true
 		}
@@ -115,7 +117,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	badge = replaceFirstGroupSubMatch(leftTextPattern, badge, leftText)
 	badge = replaceFirstGroupSubMatch(rightTextPattern, badge, rightText)
 
-	if !notFound && revisionEnabled {
+	if !notFound && revisionEnabled && revision != "" {
 		// Increase width of SVG and enable display of revision components
 		badge = svgWidthPattern.ReplaceAllString(badge, fmt.Sprintf(`<svg width="%d" $2`, svgWidthWithRevision))
 		badge = displayNonePattern.ReplaceAllString(badge, `display="inline"`)
