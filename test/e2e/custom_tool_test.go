@@ -1,6 +1,8 @@
 package e2e
 
 import (
+	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -106,7 +108,7 @@ func TestCustomToolWithEnv(t *testing.T) {
 				Name: Name(),
 				Generate: Command{
 					Command: []string{"sh", "-c"},
-					Args:    []string{`echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"Foo\": \"$FOO\", \"Bar\": \"baz\"}}}"`},
+					Args:    []string{`echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"Foo\": \"$FOO\", \"KubeVersion\": \"$KUBE_VERSION\", \"KubeApiVersion\": \"$KUBE_API_VERSIONS\",\"Bar\": \"baz\"}}}"`},
 				},
 			},
 		).
@@ -136,5 +138,23 @@ func TestCustomToolWithEnv(t *testing.T) {
 			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.Foo}")
 			assert.NoError(t, err)
 			assert.Equal(t, "bar", output)
+		}).
+		And(func(app *Application) {
+			expectedKubeVersion := GetVersions().ServerVersion.Format("%s.%s")
+			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.KubeVersion}")
+			assert.NoError(t, err)
+			assert.Equal(t, expectedKubeVersion, output)
+		}).
+		And(func(app *Application) {
+			expectedApiVersion := GetApiVersions()
+			expectedApiVersionSlice := strings.Split(expectedApiVersion, ",")
+			sort.Strings(expectedApiVersionSlice)
+
+			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.KubeApiVersion}")
+			assert.NoError(t, err)
+			outputSlice := strings.Split(output, ",")
+			sort.Strings(outputSlice)
+
+			assert.EqualValues(t, expectedApiVersionSlice, outputSlice)
 		})
 }
