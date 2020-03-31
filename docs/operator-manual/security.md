@@ -154,6 +154,33 @@ the involved applications of the webhook event (e.g. which repo was modified), t
 the related application for reconciliation. This refresh is the same refresh which occurs regularly
 at three minute intervals, just fast-tracked by the webhook event.
 
+## Known Issues And Workarounds
+
+The Argoproj team continuously working on improving Argo CD security. The security audit
+(thanks a lot to [Matt Hamilton](https://github.com/Eriner) of [https://soluble.ai](https://soluble.ai) )
+has revealed several limitations in Argo CD which could compromise security.
+The issues are related to the built-in user management implementation:
+
+**Insecure default administrative password - CWE-1188** Argo CD uses argocd-server pod as an initial admin password.
+The Pod name is generated using time-seeded PRNG, and not a CSPRNG. If an attacker
+knows the time a server was instantiated, it may be possible to guess and brute-force this value.
+
+**Insufficient anti-automation/anti-brute force - CWE-307**
+
+Argo CD does not enforce rate-limiting or other anti-automation mechanisms which would mitigate admin password brute force.
+
+**Session-fixation - CWE-384** The authentication tokens generated for built-in users have no expiry.
+
+These issues might be acceptable in the controlled isolated environment but not acceptable if Argo CD user interface is
+exposed to the Internet.
+
+**Solution**
+
+The recommended solution is to use SSO integration. As it has been mentioned in user management documentation,
+the user management is not the primary Argo CD focus. We strongly recommend using the built-in admin user only to
+perform an initial configuration, then [disable it](https://argoproj.github.io/argo-cd/operator-manual/user-management/#disable-admin-user)
+and switch to the SSO integration.
+
 ## Reporting Vulnerabilities
 
 Please report security vulnerabilities by e-mailing:
