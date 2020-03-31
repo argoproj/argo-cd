@@ -633,7 +633,7 @@ func runConfigManagementPlugin(appPath string, envVars *v1alpha1.Env, q *apiclie
 		env = append(env, environ...)
 	}
 	env = append(env, q.ApplicationSource.Plugin.Env.Environ()...)
-	env = append(env, "KUBEVERSION="+q.KubeVersion)
+	env = append(env, "KUBE_VERSION="+q.KubeVersion)
 	env = append(env, "KUBE_API_VERSIONS="+strings.Join(q.ApiVersions, ","))
 	if plugin.Init != nil {
 		_, err := runCommand(*plugin.Init, appPath, env)

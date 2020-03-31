@@ -1,6 +1,8 @@
 package e2e
 
 import (
+	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -106,7 +108,7 @@ func TestCustomToolWithEnv(t *testing.T) {
 				Name: Name(),
 				Generate: Command{
 					Command: []string{"sh", "-c"},
-					Args:    []string{`echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"Foo\": \"$FOO\", \"KubeVersion\": \"$KUBEVERSION\",\"Bar\": \"baz\"}}}"`},
+					Args:    []string{`echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"Foo\": \"$FOO\", \"KubeVersion\": \"$KUBE_VERSION\", \"KubeApiVersion\": \"$KUBE_API_VERSIONS\",\"Bar\": \"baz\"}}}"`},
 				},
 			},
 		).
@@ -142,5 +144,36 @@ func TestCustomToolWithEnv(t *testing.T) {
 			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.KubeVersion}")
 			assert.NoError(t, err)
 			assert.Equal(t, expectedKubeVersion, output)
+		}).
+		And(func(app *Application) {
+			expectedApiVersion := GetApiVersions()
+			expectedApiVersionSlice := strings.Split(expectedApiVersion, ",")
+			sort.Strings(expectedApiVersionSlice)
+
+			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.KubeApiVersion}")
+			assert.NoError(t, err)
+			outputSlice := strings.Split(output, ",")
+			sort.Strings(outputSlice)
+
+			assert.True(t, testEq(expectedApiVersionSlice, outputSlice))
 		})
+}
+
+func testEq(a, b []string) bool {
+	// If one is nil, the other must also be nil.
+	if (a == nil) != (b == nil) {
+		return false
+	}
+
+	if len(a) != len(b) {
+		return false
+	}
+
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+
+	return true
 }
