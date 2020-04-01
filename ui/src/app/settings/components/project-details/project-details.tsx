@@ -407,10 +407,10 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                             STATUS
                                             {helpTip(
                                                 'If a window is active or inactive and what the current ' +
-                                                    'effect would be if it was assigned to an application, namespace or cluster. ' +
-                                                    'Red: no syncs allowed. ' +
-                                                    'Yellow: manual syncs allowed. ' +
-                                                    'Green: all syncs allowed'
+                                                'effect would be if it was assigned to an application, namespace or cluster. ' +
+                                                'Red: no syncs allowed. ' +
+                                                'Yellow: manual syncs allowed. ' +
+                                                'Green: all syncs allowed'
                                             )}
                                         </div>
                                         <div className='columns small-2'>

@@ -304,11 +304,11 @@ metadata:
     app: argocd-redis-ha
 rules:
 - apiGroups:
-    - ""
+  - ""
   resources:
-    - endpoints
+  - endpoints
   verbs:
-    - get
+  - get
 
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-ha-rolebinding.yaml
@@ -508,38 +508,38 @@ spec:
         checksum/config: 790be9eae7c7e468c497c0256949ab96cb3f14b935c6702424647c3c60fba91c
     spec:
       # Needed when using unmodified rbac-setup.yml
-      
+
       serviceAccountName: argocd-redis-ha-haproxy
-      
+
       nodeSelector:
         {}
-        
+
       tolerations:
         null
-        
+
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
-            - labelSelector:
-                matchLabels:
-                  app: redis-ha-haproxy
-                  release: argocd
-              topologyKey: kubernetes.io/hostname
+          - labelSelector:
+              matchLabels:
+                app: redis-ha-haproxy
+                release: argocd
+            topologyKey: kubernetes.io/hostname
           preferredDuringSchedulingIgnoredDuringExecution:
-            - weight: 100
-              podAffinityTerm:
-                labelSelector:
-                  matchLabels:
-                    app:  redis-ha-haproxy
-                    release: argocd
-                topologyKey: failure-domain.beta.kubernetes.io/zone
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app:  redis-ha-haproxy
+                  release: argocd
+              topologyKey: failure-domain.beta.kubernetes.io/zone
       initContainers:
       - name: config-init
         image: haproxy:2.0.4
         imagePullPolicy: IfNotPresent
         resources:
           {}
-          
+
         command:
         - sh
         args:
@@ -554,7 +554,7 @@ spec:
         fsGroup: 1000
         runAsNonRoot: true
         runAsUser: 1000
-        
+
       containers:
       - name: haproxy
         image: haproxy:2.0.4
@@ -570,7 +570,7 @@ spec:
           containerPort: 6379
         resources:
           {}
-          
+
         volumeMounts:
         - name: data
           mountPath: /usr/local/etc/haproxy
@@ -620,26 +620,26 @@ spec:
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
-            - labelSelector:
+          - labelSelector:
+              matchLabels:
+                app: redis-ha
+                release: argocd
+                argocd-redis-ha: replica
+            topologyKey: kubernetes.io/hostname
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
                 matchLabels:
-                  app: redis-ha
+                  app:  redis-ha
                   release: argocd
                   argocd-redis-ha: replica
-              topologyKey: kubernetes.io/hostname
-          preferredDuringSchedulingIgnoredDuringExecution:
-            - weight: 100
-              podAffinityTerm:
-                labelSelector:
-                  matchLabels:
-                    app:  redis-ha
-                    release: argocd
-                    argocd-redis-ha: replica
-                topologyKey: failure-domain.beta.kubernetes.io/zone
+              topologyKey: failure-domain.beta.kubernetes.io/zone
       securityContext:
         fsGroup: 1000
         runAsNonRoot: true
         runAsUser: 1000
-        
+
       serviceAccountName: argocd-redis-ha
       initContainers:
       - name: config-init
@@ -647,7 +647,7 @@ spec:
         imagePullPolicy: IfNotPresent
         resources:
           {}
-          
+
         command:
         - sh
         args:
@@ -683,7 +683,7 @@ spec:
           initialDelaySeconds: 15
         resources:
           {}
-          
+
         ports:
         - name: redis
           containerPort: 6379
@@ -694,19 +694,19 @@ spec:
         image: redis:5.0.6-alpine
         imagePullPolicy: IfNotPresent
         command:
-          - redis-sentinel
+        - redis-sentinel
         args:
-          - /data/conf/sentinel.conf
+        - /data/conf/sentinel.conf
         livenessProbe:
           tcpSocket:
             port: 26379
           initialDelaySeconds: 15
         resources:
           {}
-          
+
         ports:
-          - name: sentinel
-            containerPort: 26379
+        - name: sentinel
+          containerPort: 26379
         volumeMounts:
         - mountPath: /data
           name: data

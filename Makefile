@@ -80,7 +80,7 @@ define run-in-test-client
 		bash -c "$(1)"
 endef
 
-# 
+#
 define exec-in-test-server
 	docker exec -it -u $(shell id -u) -e ARGOCD_E2E_K3S=$(ARGOCD_E2E_K3S) argocd-test-server $(1)
 endef
@@ -318,7 +318,7 @@ test-local:
 # Run the E2E test suite. E2E test servers (see start-e2e target) must be
 # started before.
 .PHONY: test-e2e
-test-e2e: 
+test-e2e:
 	$(call exec-in-test-server,make test-e2e-local)
 
 # Run the E2E test suite (local version)
@@ -337,14 +337,14 @@ debug-test-client:
 
 # Starts e2e server in a container
 .PHONY: start-e2e
-start-e2e: 
+start-e2e:
 	docker version
 	mkdir -p ${GOCACHE}
 	$(call run-in-test-server,make ARGOCD_PROCFILE=test/container/Procfile start-e2e-local)
 
 # Starts e2e server locally (or within a container)
 .PHONY: start-e2e-local
-start-e2e-local: 
+start-e2e-local:
 	kubectl create ns argocd-e2e || true
 	kubectl config set-context --current --namespace=argocd-e2e
 	kustomize build test/manifests/base | kubectl apply -f -
