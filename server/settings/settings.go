@@ -61,7 +61,14 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 			break
 		}
 	}
-
+	configManagementPlugins, err := s.mgr.GetConfigManagementPlugins()
+	if err != nil {
+		return nil, err
+	}
+	tools := make([]*v1alpha1.ConfigManagementPlugin, len(configManagementPlugins))
+	for i := range configManagementPlugins {
+		tools[i] = &configManagementPlugins[i]
+	}
 	set := settingspkg.Settings{
 		URL:                argoCDSettings.URL,
 		AppLabelKey:        appInstanceLabelKey,
@@ -78,8 +85,9 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 			ChatUrl:  help.ChatURL,
 			ChatText: help.ChatText,
 		},
-		Plugins:            plugins,
-		UserLoginsDisabled: userLoginsDisabled,
+		Plugins:                 plugins,
+		UserLoginsDisabled:      userLoginsDisabled,
+		ConfigManagementPlugins: tools,
 	}
 	if argoCDSettings.DexConfig != "" {
 		var cfg settingspkg.DexConfig

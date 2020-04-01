@@ -28,6 +28,7 @@ message Settings {
     Help help = 9;
     repeated Plugin plugins = 10;
     bool userLoginsDisabled = 11;
+    repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ConfigManagementPlugin configManagementPlugins = 12;
 }
 
 message GoogleAnalyticsConfig {
