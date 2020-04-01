@@ -12,10 +12,15 @@ Following enhancement were implemented in addition to Helm 3:
 * The `--set-file` flag can be specified in the application specification.
 * Fixed bug that prevents automatically update Helm chart when new version is published (#3193)
 
-#### Better Performance
+#### Better Performance and Improved Metrics
 
  If you are running Argo CD instances with several hundred applications on it, you should see a
  huge performance boost and significantly less Kubernetes API server load.
+
+ The Argo CD controller Prometheus metrics have been reworked to enable a richer Grafana dashboard.
+ The improved dashboard is available at [examples/dashboard.json](https://github.com/argoproj/argo-cd/blob/master/examples/dashboard.json).
+ You can set `ARGOCD_LEGACY_CONTROLLER_METRICS=true` environment variable and use [examples/dashboard-legacy.json](https://github.com/argoproj/argo-cd/blob/master/examples/dashboard-legacy.json)
+ to keep using old dashboard.
 
 #### Local accounts
 
@@ -31,8 +36,8 @@ in the release details page as well as on the Argo CD Help page.
 #### Breaking Changes
 
 The `argocd_app_sync_status`, `argocd_app_health_status` and `argocd_app_created_time` prometheus metrics are deprecated in favor of additional labels
-to `argocd_app_info` metric. The deprecated labels are still available can be re-enabled using ARGOCD_LEGACY_CONTROLLER_METRICS. The legacy example Grafana
-dashboard is available at [dashboard-legacy.json](https://github.com/argoproj/argo-cd/blob/master/examples/dashboard.json). 
+to `argocd_app_info` metric. The deprecated labels are still available can be re-enabled using `ARGOCD_LEGACY_CONTROLLER_METRICS=true` environment variable.
+The legacy example Grafana dashboard is available at [examples/dashboard-legacy.json](https://github.com/argoproj/argo-cd/blob/master/examples/dashboard-legacy.json). 
 
 #### Enhancements
 * feat: support helm3 (#2383) (#3178)
