@@ -15,8 +15,7 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": 1,
-  "iteration": 1584852352597,
+  "iteration": 1585703296633,
   "links": [],
   "panels": [
     {
@@ -30,15 +29,15 @@
       },
       "id": 68,
       "panels": [],
-      "title": "Applications",
+      "title": "Overview",
       "type": "row"
     },
     {
-      "content": "![argoimage](https://avatars1.githubusercontent.com/u/30269780?s=120&v=4)",
+      "content": "![argoimage](https://avatars1.githubusercontent.com/u/30269780?s=110&v=4)",
       "datasource": null,
       "gridPos": {
         "h": 4,
-        "w": 3,
+        "w": 2,
         "x": 0,
         "y": 1
       },
@@ -59,7 +58,7 @@
         "rgba(237, 129, 40, 0.89)",
         "#d44a3a"
       ],
-      "datasource": "$Source",
+      "datasource": "Prometheus",
       "format": "dtdurations",
       "gauge": {
         "maxValue": 100,
@@ -71,7 +70,7 @@
       "gridPos": {
         "h": 4,
         "w": 3,
-        "x": 3,
+        "x": 2,
         "y": 1
       },
       "id": 32,
@@ -112,7 +111,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "time() - max(process_start_time_seconds{job=\"argocd-server-metrics\",namespace=~\"$namespace\",project=~\"$project\"})",
+          "expr": "time() - max(process_start_time_seconds{job=\"argocd-server-metrics\",namespace=~\"$namespace\"})",
           "format": "time_series",
           "intervalFactor": 1,
           "refId": "A"
@@ -121,11 +120,95 @@
       "thresholds": "",
       "title": "Uptime",
       "type": "singlestat",
-      "valueFontSize": "80%",
+      "valueFontSize": "70%",
       "valueMaps": [
         {
           "op": "=",
           "text": "N/A",
+          "value": "null"
+        }
+      ],
+      "valueName": "current"
+    },
+    {
+      "cacheTimeout": null,
+      "colorBackground": false,
+      "colorValue": false,
+      "colors": [
+        "#299c46",
+        "rgba(237, 129, 40, 0.89)",
+        "#d44a3a"
+      ],
+      "datasource": null,
+      "format": "none",
+      "gauge": {
+        "maxValue": 100,
+        "minValue": 0,
+        "show": false,
+        "thresholdLabels": false,
+        "thresholdMarkers": true
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 3,
+        "x": 5,
+        "y": 1
+      },
+      "id": 94,
+      "interval": null,
+      "links": [],
+      "mappingType": 1,
+      "mappingTypes": [
+        {
+          "name": "value to text",
+          "value": 1
+        },
+        {
+          "name": "range to text",
+          "value": 2
+        }
+      ],
+      "maxDataPoints": 100,
+      "nullPointMode": "connected",
+      "nullText": null,
+      "options": {},
+      "postfix": "",
+      "postfixFontSize": "50%",
+      "prefix": "",
+      "prefixFontSize": "50%",
+      "rangeMaps": [
+        {
+          "from": "null",
+          "text": "N/A",
+          "to": "null"
+        }
+      ],
+      "sparkline": {
+        "fillColor": "rgba(31, 118, 189, 0.18)",
+        "full": false,
+        "lineColor": "rgb(31, 120, 193)",
+        "show": true
+      },
+      "tableColumn": "",
+      "targets": [
+        {
+          "expr": "count(count by (server) (argocd_cluster_info{namespace=~\"$namespace\"}))",
+          "format": "time_series",
+          "instant": false,
+          "intervalFactor": 1,
+          "refId": "A"
+        }
+      ],
+      "thresholds": "",
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Clusters",
+      "type": "singlestat",
+      "valueFontSize": "80%",
+      "valueMaps": [
+        {
+          "op": "=",
+          "text": "0",
           "value": "null"
         }
       ],
@@ -142,7 +225,7 @@
         "rgba(237, 129, 40, 0.89)",
         "#d44a3a"
       ],
-      "datasource": "$Source",
+      "datasource": null,
       "format": "none",
       "gauge": {
         "maxValue": 100,
@@ -154,7 +237,7 @@
       "gridPos": {
         "h": 4,
         "w": 3,
-        "x": 6,
+        "x": 8,
         "y": 1
       },
       "id": 75,
@@ -192,13 +275,14 @@
         "fillColor": "rgba(31, 118, 189, 0.18)",
         "full": false,
         "lineColor": "rgb(31, 120, 193)",
-        "show": false
+        "show": true
       },
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum(argocd_app_info{namespace=~\"$namespace\"})",
+          "expr": "sum(argocd_app_info{namespace=~\"$namespace\",dest_server=~\"$cluster\",health_status=~\"$health_status\",sync_status=~\"$sync_status\"})",
           "format": "time_series",
+          "instant": false,
           "intervalFactor": 1,
           "refId": "A"
         }
@@ -206,7 +290,7 @@
       "thresholds": "",
       "timeFrom": null,
       "timeShift": null,
-      "title": "Total Applications",
+      "title": "Applications",
       "type": "singlestat",
       "valueFontSize": "80%",
       "valueMaps": [
@@ -219,34 +303,187 @@
       "valueName": "current"
     },
     {
+      "cacheTimeout": null,
+      "colorBackground": false,
+      "colorValue": false,
+      "colors": [
+        "#299c46",
+        "rgba(237, 129, 40, 0.89)",
+        "#d44a3a"
+      ],
+      "datasource": null,
+      "format": "none",
+      "gauge": {
+        "maxValue": 100,
+        "minValue": 0,
+        "show": false,
+        "thresholdLabels": false,
+        "thresholdMarkers": true
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 3,
+        "x": 11,
+        "y": 1
+      },
+      "id": 107,
+      "interval": null,
+      "links": [],
+      "mappingType": 1,
+      "mappingTypes": [
+        {
+          "name": "value to text",
+          "value": 1
+        },
+        {
+          "name": "range to text",
+          "value": 2
+        }
+      ],
+      "maxDataPoints": 100,
+      "nullPointMode": "connected",
+      "nullText": null,
+      "options": {},
+      "postfix": "",
+      "postfixFontSize": "50%",
+      "prefix": "",
+      "prefixFontSize": "50%",
+      "rangeMaps": [
+        {
+          "from": "null",
+          "text": "N/A",
+          "to": "null"
+        }
+      ],
+      "sparkline": {
+        "fillColor": "rgba(31, 118, 189, 0.18)",
+        "full": false,
+        "lineColor": "rgb(31, 120, 193)",
+        "show": true
+      },
+      "tableColumn": "",
+      "targets": [
+        {
+          "expr": "count(count by (repo) (argocd_app_info{namespace=~\"$namespace\"}))",
+          "format": "time_series",
+          "instant": false,
+          "intervalFactor": 1,
+          "refId": "A"
+        }
+      ],
+      "thresholds": "",
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Repositories",
+      "type": "singlestat",
+      "valueFontSize": "80%",
+      "valueMaps": [
+        {
+          "op": "=",
+          "text": "0",
+          "value": "null"
+        }
+      ],
+      "valueName": "current"
+    },
+    {
+      "cacheTimeout": null,
+      "datasource": null,
+      "gridPos": {
+        "h": 4,
+        "w": 3,
+        "x": 14,
+        "y": 1
+      },
+      "id": 100,
+      "links": [],
+      "options": {
+        "fieldOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "defaults": {
+            "mappings": [
+              {
+                "id": 0,
+                "op": "=",
+                "text": "0",
+                "type": 1,
+                "value": "null"
+              }
+            ],
+            "max": 100,
+            "min": 0,
+            "nullValueMode": "connected",
+            "thresholds": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ],
+            "unit": "none"
+          },
+          "override": {},
+          "overrides": [],
+          "values": false
+        },
+        "orientation": "horizontal",
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "pluginVersion": "6.5.2",
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "expr": "sum(argocd_app_info{namespace=~\"$namespace\",dest_server=~\"$cluster\",operation!=\"\"})",
+          "format": "time_series",
+          "instant": true,
+          "intervalFactor": 1,
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Operations",
+      "type": "gauge"
+    },
+    {
       "aliasColors": {},
       "bars": false,
       "cacheTimeout": null,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$Source",
-      "fill": 0,
+      "datasource": null,
+      "decimals": null,
+      "fill": 1,
       "fillGradient": 0,
       "gridPos": {
         "h": 4,
-        "w": 15,
-        "x": 9,
+        "w": 7,
+        "x": 17,
         "y": 1
       },
       "hiddenSeries": false,
       "id": 28,
       "legend": {
-        "alignAsTable": false,
+        "alignAsTable": true,
         "avg": false,
-        "current": false,
+        "current": true,
         "hideEmpty": true,
         "hideZero": true,
         "max": false,
         "min": false,
-        "rightSide": false,
-        "show": false,
+        "rightSide": true,
+        "show": true,
+        "sort": "current",
+        "sortDesc": true,
         "total": false,
-        "values": false
+        "values": true
       },
       "lines": true,
       "linewidth": 1,
@@ -266,8 +503,9 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(argocd_app_info{namespace=~\"$namespace\"}) by (namespace)",
+          "expr": "sum(argocd_app_info{namespace=~\"$namespace\",dest_server=~\"$cluster\",health_status=~\"$health_status\",sync_status=~\"$sync_status\"}) by (namespace)",
           "format": "time_series",
+          "instant": false,
           "intervalFactor": 1,
           "legendFormat": "{{namespace}}",
           "refId": "A"
@@ -279,7 +517,7 @@
       "timeShift": null,
       "title": "Applications",
       "tooltip": {
-        "shared": true,
+        "shared": false,
         "sort": 2,
         "value_type": "individual"
       },
@@ -293,6 +531,7 @@
       },
       "yaxes": [
         {
+          "decimals": 0,
           "format": "short",
           "label": null,
           "logBase": 1,
@@ -325,754 +564,228 @@
       },
       "id": 77,
       "panels": [],
-      "title": "Health Status",
+      "title": "Application Status",
       "type": "row"
     },
     {
-      "cacheTimeout": null,
-      "colorBackground": false,
-      "colorPostfix": false,
-      "colorPrefix": false,
-      "colorValue": true,
-      "colors": [
-        "#d44a3a",
-        "rgba(237, 129, 40, 0.89)",
-        "#629e51"
-      ],
-      "datasource": "$Source",
-      "format": "none",
-      "gauge": {
-        "maxValue": 100,
-        "minValue": 0,
-        "show": false,
-        "thresholdLabels": false,
-        "thresholdMarkers": true
+      "aliasColors": {
+        "Degraded": "semi-dark-red",
+        "Healthy": "green",
+        "Missing": "semi-dark-purple",
+        "Progressing": "semi-dark-blue",
+        "Suspended": "semi-dark-orange",
+        "Unknown": "rgb(255, 255, 255)"
       },
+      "bars": false,
+      "cacheTimeout": null,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": null,
+      "decimals": null,
+      "fill": 1,
+      "fillGradient": 0,
       "gridPos": {
-        "h": 3,
-        "w": 4,
+        "h": 6,
+        "w": 12,
         "x": 0,
         "y": 6
       },
-      "id": 4,
-      "interval": null,
-      "links": [],
-      "mappingType": 1,
-      "mappingTypes": [
-        {
-          "name": "value to text",
-          "value": 1
-        },
-        {
-          "name": "range to text",
-          "value": 2
-        }
-      ],
-      "maxDataPoints": 100,
-      "nullPointMode": "connected",
-      "nullText": null,
-      "options": {},
-      "postfix": "",
-      "postfixFontSize": "50%",
-      "prefix": "",
-      "prefixFontSize": "50%",
-      "rangeMaps": [
-        {
-          "from": "null",
-          "text": "N/A",
-          "to": "null"
-        }
-      ],
-      "sparkline": {
-        "fillColor": "rgb(27, 62, 27)",
-        "full": false,
-        "lineColor": "#37872D",
-        "show": true
+      "hiddenSeries": false,
+      "id": 105,
+      "interval": "",
+      "legend": {
+        "alignAsTable": true,
+        "avg": false,
+        "current": true,
+        "hideEmpty": false,
+        "hideZero": false,
+        "max": false,
+        "min": false,
+        "rightSide": true,
+        "show": true,
+        "sideWidth": null,
+        "sort": "current",
+        "sortDesc": true,
+        "total": false,
+        "values": true
       },
-      "tableColumn": "",
+      "lines": true,
+      "linewidth": 1,
+      "links": [],
+      "nullPointMode": "null as zero",
+      "options": {
+        "dataLinks": []
+      },
+      "paceLength": 10,
+      "percentage": false,
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(argocd_app_info{health_status=\"Healthy\",namespace=~\"$namespace\",project=~\"$project\"} == 1)",
+          "expr": "sum(argocd_app_info{namespace=~\"$namespace\",dest_server=~\"$cluster\",health_status=~\"$health_status\",sync_status=~\"$sync_status\",health_status!=\"\"}) by (health_status)",
           "format": "time_series",
+          "instant": false,
           "intervalFactor": 1,
+          "legendFormat": "{{health_status}}",
           "refId": "A"
         }
       ],
-      "thresholds": "0,1",
-      "title": "Healthy",
-      "type": "singlestat",
-      "valueFontSize": "80%",
-      "valueMaps": [
-        {
-          "op": "=",
-          "text": "0",
-          "value": "null"
-        }
-      ],
-      "valueName": "current"
-    },
-    {
-      "cacheTimeout": null,
-      "colorBackground": false,
-      "colorPostfix": false,
-      "colorValue": true,
-      "colors": [
-        "#5794F2",
-        "#5794F2",
-        "#5794F2"
-      ],
-      "datasource": "$Source",
-      "format": "none",
-      "gauge": {
-        "maxValue": 100,
-        "minValue": 0,
-        "show": false,
-        "thresholdLabels": false,
-        "thresholdMarkers": true
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Health Status",
+      "tooltip": {
+        "shared": true,
+        "sort": 2,
+        "value_type": "individual"
       },
-      "gridPos": {
-        "h": 3,
-        "w": 4,
-        "x": 4,
-        "y": 6
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
       },
-      "id": 10,
-      "interval": null,
-      "links": [],
-      "mappingType": 1,
-      "mappingTypes": [
+      "yaxes": [
         {
-          "name": "value to text",
-          "value": 1
+          "format": "short",
+          "label": null,
+          "logBase": 2,
+          "max": null,
+          "min": null,
+          "show": true
         },
         {
-          "name": "range to text",
-          "value": 2
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
         }
       ],
-      "maxDataPoints": 100,
-      "nullPointMode": "connected",
-      "nullText": null,
-      "options": {},
-      "postfix": "",
-      "postfixFontSize": "50%",
-      "prefix": "",
-      "prefixFontSize": "50%",
-      "rangeMaps": [
-        {
-          "from": "null",
-          "text": "N/A",
-          "to": "null"
-        }
-      ],
-      "sparkline": {
-        "fillColor": "rgba(31, 118, 189, 0.18)",
-        "full": false,
-        "lineColor": "#5794F2",
-        "show": true
-      },
-      "tableColumn": "",
-      "targets": [
-        {
-          "expr": "sum(argocd_app_info{health_status=\"Progressing\",namespace=~\"$namespace\"})",
-          "format": "time_series",
-          "intervalFactor": 1,
-          "refId": "A"
-        }
-      ],
-      "thresholds": "1,3",
-      "title": "Progressing",
-      "type": "singlestat",
-      "valueFontSize": "80%",
-      "valueMaps": [
-        {
-          "op": "=",
-          "text": "0",
-          "value": "null"
-        }
-      ],
-      "valueName": "current"
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
     },
     {
+      "aliasColors": {
+        "Degraded": "semi-dark-red",
+        "Healthy": "green",
+        "Missing": "semi-dark-purple",
+        "OutOfSync": "semi-dark-yellow",
+        "Progressing": "semi-dark-blue",
+        "Suspended": "semi-dark-orange",
+        "Synced": "semi-dark-green",
+        "Unknown": "rgb(255, 255, 255)"
+      },
+      "bars": false,
       "cacheTimeout": null,
-      "colorBackground": false,
-      "colorValue": true,
-      "colors": [
-        "#FF9830",
-        "#FF9830",
-        "#FF9830"
-      ],
-      "datasource": "$Source",
-      "format": "none",
-      "gauge": {
-        "maxValue": 100,
-        "minValue": 0,
-        "show": false,
-        "thresholdLabels": false,
-        "thresholdMarkers": true
-      },
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": null,
+      "decimals": null,
+      "fill": 1,
+      "fillGradient": 0,
       "gridPos": {
-        "h": 3,
-        "w": 4,
-        "x": 8,
-        "y": 6
-      },
-      "id": 12,
-      "interval": null,
-      "links": [],
-      "mappingType": 1,
-      "mappingTypes": [
-        {
-          "name": "value to text",
-          "value": 1
-        },
-        {
-          "name": "range to text",
-          "value": 2
-        }
-      ],
-      "maxDataPoints": 100,
-      "nullPointMode": "connected",
-      "nullText": null,
-      "options": {},
-      "postfix": "",
-      "postfixFontSize": "50%",
-      "prefix": "",
-      "prefixFontSize": "50%",
-      "rangeMaps": [
-        {
-          "from": "null",
-          "text": "N/A",
-          "to": "null"
-        }
-      ],
-      "sparkline": {
-        "fillColor": "rgba(31, 118, 189, 0.18)",
-        "full": false,
-        "lineColor": "#FF9830",
-        "show": true
-      },
-      "tableColumn": "",
-      "targets": [
-        {
-          "expr": "sum(argocd_app_info{health_status=\"Suspended\",namespace=~\"$namespace\",project=~\"$project\"})",
-          "format": "time_series",
-          "intervalFactor": 1,
-          "refId": "A"
-        }
-      ],
-      "thresholds": "0,1",
-      "title": "Suspended",
-      "type": "singlestat",
-      "valueFontSize": "80%",
-      "valueMaps": [
-        {
-          "op": "=",
-          "text": "0",
-          "value": "null"
-        }
-      ],
-      "valueName": "current"
-    },
-    {
-      "cacheTimeout": null,
-      "colorBackground": false,
-      "colorValue": true,
-      "colors": [
-        "#F2495C",
-        "#F2495C",
-        "#F2495C"
-      ],
-      "datasource": "$Source",
-      "format": "none",
-      "gauge": {
-        "maxValue": 100,
-        "minValue": 0,
-        "show": false,
-        "thresholdLabels": false,
-        "thresholdMarkers": true
-      },
-      "gridPos": {
-        "h": 3,
-        "w": 4,
+        "h": 6,
+        "w": 12,
         "x": 12,
         "y": 6
       },
-      "id": 6,
-      "interval": null,
-      "links": [],
-      "mappingType": 1,
-      "mappingTypes": [
-        {
-          "name": "value to text",
-          "value": 1
-        },
-        {
-          "name": "range to text",
-          "value": 2
-        }
-      ],
-      "maxDataPoints": 100,
-      "nullPointMode": "connected",
-      "nullText": null,
-      "options": {},
-      "postfix": "",
-      "postfixFontSize": "50%",
-      "prefix": "",
-      "prefixFontSize": "50%",
-      "rangeMaps": [
-        {
-          "from": "null",
-          "text": "N/A",
-          "to": "null"
-        }
-      ],
-      "sparkline": {
-        "fillColor": "rgb(101, 32, 33)",
-        "full": false,
-        "lineColor": "#F2495C",
-        "show": true
+      "hiddenSeries": false,
+      "id": 106,
+      "interval": "",
+      "legend": {
+        "alignAsTable": true,
+        "avg": false,
+        "current": true,
+        "hideEmpty": false,
+        "hideZero": false,
+        "max": false,
+        "min": false,
+        "rightSide": true,
+        "show": true,
+        "sideWidth": null,
+        "sort": "current",
+        "sortDesc": true,
+        "total": false,
+        "values": true
       },
-      "tableColumn": "",
+      "lines": true,
+      "linewidth": 1,
+      "links": [],
+      "nullPointMode": "null as zero",
+      "options": {
+        "dataLinks": []
+      },
+      "paceLength": 10,
+      "percentage": false,
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(argocd_app_info{health_status=\"Degraded\",namespace=~\"$namespace\",project=~\"$project\"})",
+          "expr": "sum(argocd_app_info{namespace=~\"$namespace\",dest_server=~\"$cluster\",health_status=~\"$health_status\",sync_status=~\"$sync_status\",health_status!=\"\"}) by (sync_status)",
           "format": "time_series",
+          "instant": false,
           "intervalFactor": 1,
+          "legendFormat": "{{sync_status}}",
           "refId": "A"
         }
       ],
-      "thresholds": "0,1",
-      "title": "Degraded",
-      "type": "singlestat",
-      "valueFontSize": "80%",
-      "valueMaps": [
-        {
-          "op": "=",
-          "text": "0",
-          "value": "null"
-        }
-      ],
-      "valueName": "current"
-    },
-    {
-      "cacheTimeout": null,
-      "colorBackground": false,
-      "colorValue": true,
-      "colors": [
-        "#B877D9",
-        "#B877D9",
-        "#A352CC"
-      ],
-      "datasource": "$Source",
-      "format": "none",
-      "gauge": {
-        "maxValue": 100,
-        "minValue": 0,
-        "show": false,
-        "thresholdLabels": false,
-        "thresholdMarkers": true
-      },
-      "gridPos": {
-        "h": 3,
-        "w": 4,
-        "x": 16,
-        "y": 6
-      },
-      "id": 8,
-      "interval": null,
-      "links": [],
-      "mappingType": 1,
-      "mappingTypes": [
-        {
-          "name": "value to text",
-          "value": 1
-        },
-        {
-          "name": "range to text",
-          "value": 2
-        }
-      ],
-      "maxDataPoints": 100,
-      "nullPointMode": "connected",
-      "nullText": null,
-      "options": {},
-      "postfix": "",
-      "postfixFontSize": "50%",
-      "prefix": "",
-      "prefixFontSize": "50%",
-      "rangeMaps": [
-        {
-          "from": "null",
-          "text": "N/A",
-          "to": "null"
-        }
-      ],
-      "sparkline": {
-        "fillColor": "rgb(65, 27, 83)",
-        "full": false,
-        "lineColor": "#B877D9",
-        "show": true
-      },
-      "tableColumn": "",
-      "targets": [
-        {
-          "expr": "sum(argocd_app_info{health_status=\"Missing\",namespace=~\"$namespace\",project=~\"$project\"})",
-          "format": "time_series",
-          "intervalFactor": 1,
-          "refId": "A"
-        }
-      ],
-      "thresholds": "0,1",
-      "title": "Missing",
-      "type": "singlestat",
-      "valueFontSize": "80%",
-      "valueMaps": [
-        {
-          "op": "=",
-          "text": "0",
-          "value": "null"
-        }
-      ],
-      "valueName": "current"
-    },
-    {
-      "cacheTimeout": null,
-      "colorBackground": false,
-      "colorValue": false,
-      "colors": [
-        "#d44a3a",
-        "rgba(237, 129, 40, 0.89)",
-        "rgb(0, 0, 0)"
-      ],
-      "datasource": "$Source",
-      "format": "none",
-      "gauge": {
-        "maxValue": 100,
-        "minValue": 0,
-        "show": false,
-        "thresholdLabels": false,
-        "thresholdMarkers": true
-      },
-      "gridPos": {
-        "h": 3,
-        "w": 4,
-        "x": 20,
-        "y": 6
-      },
-      "id": 14,
-      "interval": null,
-      "links": [],
-      "mappingType": 1,
-      "mappingTypes": [
-        {
-          "name": "value to text",
-          "value": 1
-        },
-        {
-          "name": "range to text",
-          "value": 2
-        }
-      ],
-      "maxDataPoints": 100,
-      "nullPointMode": "connected",
-      "nullText": null,
-      "options": {},
-      "postfix": "",
-      "postfixFontSize": "50%",
-      "prefix": "",
-      "prefixFontSize": "50%",
-      "rangeMaps": [
-        {
-          "from": "null",
-          "text": "N/A",
-          "to": "null"
-        }
-      ],
-      "sparkline": {
-        "fillColor": "rgba(98, 98, 98, 0.18)",
-        "full": false,
-        "lineColor": "rgb(182, 182, 182)",
-        "show": true
-      },
-      "tableColumn": "",
-      "targets": [
-        {
-          "expr": "sum(argocd_app_info{health_status=\"Unknown\",namespace=~\"$namespace\",project=~\"$project\"})",
-          "format": "time_series",
-          "intervalFactor": 1,
-          "refId": "A"
-        }
-      ],
-      "thresholds": "1, 3",
-      "title": "Unknown",
-      "type": "singlestat",
-      "valueFontSize": "80%",
-      "valueMaps": [
-        {
-          "op": "=",
-          "text": "0",
-          "value": "null"
-        }
-      ],
-      "valueName": "current"
-    },
-    {
-      "collapsed": false,
-      "datasource": null,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 9
-      },
-      "id": 79,
-      "panels": [],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
       "title": "Sync Status",
-      "type": "row"
-    },
-    {
-      "cacheTimeout": null,
-      "colorBackground": false,
-      "colorValue": true,
-      "colors": [
-        "#d44a3a",
-        "rgba(237, 129, 40, 0.89)",
-        "#299c46"
-      ],
-      "datasource": "$Source",
-      "format": "none",
-      "gauge": {
-        "maxValue": 100,
-        "minValue": 0,
-        "show": false,
-        "thresholdLabels": false,
-        "thresholdMarkers": true
+      "tooltip": {
+        "shared": true,
+        "sort": 2,
+        "value_type": "individual"
       },
-      "gridPos": {
-        "h": 3,
-        "w": 8,
-        "x": 0,
-        "y": 10
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
       },
-      "id": 18,
-      "interval": null,
-      "links": [],
-      "mappingType": 1,
-      "mappingTypes": [
+      "yaxes": [
         {
-          "name": "value to text",
-          "value": 1
+          "format": "short",
+          "label": null,
+          "logBase": 2,
+          "max": null,
+          "min": null,
+          "show": true
         },
         {
-          "name": "range to text",
-          "value": 2
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
         }
       ],
-      "maxDataPoints": 100,
-      "nullPointMode": "connected",
-      "nullText": null,
-      "options": {},
-      "postfix": "",
-      "postfixFontSize": "50%",
-      "prefix": "",
-      "prefixFontSize": "50%",
-      "rangeMaps": [
-        {
-          "from": "null",
-          "text": "N/A",
-          "to": "null"
-        }
-      ],
-      "sparkline": {
-        "fillColor": "rgba(31, 189, 61, 0.18)",
-        "full": false,
-        "lineColor": "rgb(96, 175, 87)",
-        "show": true
-      },
-      "tableColumn": "",
-      "targets": [
-        {
-          "expr": "sum(argocd_app_info{sync_status=\"Synced\",namespace=~\"$namespace\",project=~\"$project\"})",
-          "format": "time_series",
-          "intervalFactor": 1,
-          "refId": "A"
-        }
-      ],
-      "thresholds": "0,1",
-      "title": "Synced",
-      "type": "singlestat",
-      "valueFontSize": "80%",
-      "valueMaps": [
-        {
-          "op": "=",
-          "text": "0",
-          "value": "null"
-        }
-      ],
-      "valueName": "current"
-    },
-    {
-      "cacheTimeout": null,
-      "colorBackground": false,
-      "colorValue": true,
-      "colors": [
-        "#d44a3a",
-        "#F2495C",
-        "#F2495C"
-      ],
-      "datasource": "$Source",
-      "format": "none",
-      "gauge": {
-        "maxValue": 100,
-        "minValue": 0,
-        "show": false,
-        "thresholdLabels": false,
-        "thresholdMarkers": true
-      },
-      "gridPos": {
-        "h": 3,
-        "w": 8,
-        "x": 8,
-        "y": 10
-      },
-      "id": 20,
-      "interval": null,
-      "links": [],
-      "mappingType": 1,
-      "mappingTypes": [
-        {
-          "name": "value to text",
-          "value": 1
-        },
-        {
-          "name": "range to text",
-          "value": 2
-        }
-      ],
-      "maxDataPoints": 100,
-      "nullPointMode": "connected",
-      "nullText": null,
-      "options": {},
-      "postfix": "",
-      "postfixFontSize": "50%",
-      "prefix": "",
-      "prefixFontSize": "50%",
-      "rangeMaps": [
-        {
-          "from": "null",
-          "text": "N/A",
-          "to": "null"
-        }
-      ],
-      "sparkline": {
-        "fillColor": "rgba(189, 31, 34, 0.18)",
-        "full": false,
-        "lineColor": "#F2495C",
-        "show": true
-      },
-      "tableColumn": "",
-      "targets": [
-        {
-          "expr": "sum(argocd_app_info{sync_status=\"OutOfSync\",namespace=~\"$namespace\",project=~\"$project\"})",
-          "format": "time_series",
-          "intervalFactor": 1,
-          "refId": "A"
-        }
-      ],
-      "thresholds": "0,1",
-      "title": "OutOfSync",
-      "type": "singlestat",
-      "valueFontSize": "80%",
-      "valueMaps": [
-        {
-          "op": "=",
-          "text": "0",
-          "value": "null"
-        }
-      ],
-      "valueName": "current"
-    },
-    {
-      "cacheTimeout": null,
-      "colorBackground": false,
-      "colorValue": false,
-      "colors": [
-        "#d44a3a",
-        "rgba(237, 129, 40, 0.89)",
-        "#299c46"
-      ],
-      "datasource": "$Source",
-      "format": "none",
-      "gauge": {
-        "maxValue": 100,
-        "minValue": 0,
-        "show": false,
-        "thresholdLabels": false,
-        "thresholdMarkers": true
-      },
-      "gridPos": {
-        "h": 3,
-        "w": 8,
-        "x": 16,
-        "y": 10
-      },
-      "id": 22,
-      "interval": null,
-      "links": [],
-      "mappingType": 1,
-      "mappingTypes": [
-        {
-          "name": "value to text",
-          "value": 1
-        },
-        {
-          "name": "range to text",
-          "value": 2
-        }
-      ],
-      "maxDataPoints": 100,
-      "nullPointMode": "connected",
-      "nullText": null,
-      "options": {},
-      "postfix": "",
-      "postfixFontSize": "50%",
-      "prefix": "",
-      "prefixFontSize": "50%",
-      "rangeMaps": [
-        {
-          "from": "null",
-          "text": "N/A",
-          "to": "null"
-        }
-      ],
-      "sparkline": {
-        "fillColor": "rgba(147, 147, 147, 0.18)",
-        "full": false,
-        "lineColor": "rgb(255, 255, 255)",
-        "show": true
-      },
-      "tableColumn": "",
-      "targets": [
-        {
-          "expr": "sum(argocd_app_info{sync_status=\"Unknown\",namespace=~\"$namespace\",project=~\"$project\"})",
-          "format": "time_series",
-          "intervalFactor": 1,
-          "refId": "A"
-        }
-      ],
-      "thresholds": "0,1",
-      "title": "Unknown",
-      "type": "singlestat",
-      "valueFontSize": "80%",
-      "valueMaps": [
-        {
-          "op": "=",
-          "text": "0",
-          "value": "null"
-        }
-      ],
-      "valueName": "current"
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
     },
     {
       "collapsed": false,
@@ -1081,11 +794,11 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 13
+        "y": 12
       },
-      "id": 64,
+      "id": 104,
       "panels": [],
-      "title": "Controller Stats",
+      "title": "Sync Stats",
       "type": "row"
     },
     {
@@ -1093,30 +806,33 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$Source",
-      "fill": 0,
+      "datasource": null,
+      "decimals": null,
+      "fill": 1,
       "fillGradient": 0,
       "gridPos": {
-        "h": 5,
+        "h": 6,
         "w": 24,
         "x": 0,
-        "y": 14
+        "y": 13
       },
       "hiddenSeries": false,
       "id": 56,
       "interval": "",
       "legend": {
-        "alignAsTable": false,
+        "alignAsTable": true,
         "avg": false,
-        "current": false,
+        "current": true,
         "hideEmpty": true,
         "hideZero": true,
         "max": false,
         "min": false,
-        "rightSide": false,
-        "show": false,
-        "total": false,
-        "values": false
+        "rightSide": true,
+        "show": true,
+        "sort": "total",
+        "sortDesc": true,
+        "total": true,
+        "values": true
       },
       "lines": true,
       "linewidth": 1,
@@ -1132,14 +848,14 @@
       "renderer": "flot",
       "seriesOverrides": [],
       "spaceLength": 10,
-      "stack": false,
+      "stack": true,
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(changes(argocd_app_sync_total{namespace=~\"$namespace\"}[5m])) by (namespace)",
+          "expr": "sum(round(increase(argocd_app_sync_total{namespace=~\"$namespace\",dest_server=~\"$cluster\"}[$interval]))) by ($grouping)",
           "format": "time_series",
           "intervalFactor": 1,
-          "legendFormat": "{{namespace}}",
+          "legendFormat": "{{$grouping}}",
           "refId": "A"
         }
       ],
@@ -1172,6 +888,7 @@
           "show": true
         },
         {
+          "decimals": -12,
           "format": "short",
           "label": "",
           "logBase": 1,
@@ -1190,8 +907,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$Source",
-      "fill": 0,
+      "datasource": null,
+      "decimals": null,
+      "fill": 1,
       "fillGradient": 0,
       "gridPos": {
         "h": 5,
@@ -1202,15 +920,19 @@
       "hiddenSeries": false,
       "id": 73,
       "legend": {
-        "alignAsTable": false,
+        "alignAsTable": true,
         "avg": false,
         "current": false,
+        "hideEmpty": true,
+        "hideZero": false,
         "max": false,
         "min": false,
-        "rightSide": false,
-        "show": false,
-        "total": false,
-        "values": false
+        "rightSide": true,
+        "show": true,
+        "sort": "total",
+        "sortDesc": true,
+        "total": true,
+        "values": true
       },
       "lines": true,
       "linewidth": 1,
@@ -1226,14 +948,14 @@
       "renderer": "flot",
       "seriesOverrides": [],
       "spaceLength": 10,
-      "stack": false,
+      "stack": true,
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(changes(argocd_app_sync_total{namespace=~\"$namespace\",phase=~\"Error|Failed\",project=~\"$project\"}[5m])) by (namespace, phase, project)",
+          "expr": "sum(round(increase(argocd_app_sync_total{namespace=~\"$namespace\",phase=~\"Error|Failed\",dest_server=~\"$cluster\"}[$interval]))) by ($grouping, phase)",
           "format": "time_series",
           "intervalFactor": 1,
-          "legendFormat": "{{namespace}} {{phase}}",
+          "legendFormat": "{{phase}}: {{$grouping}}",
           "refId": "A"
         }
       ],
@@ -1280,29 +1002,47 @@
       }
     },
     {
-      "aliasColors": {},
-      "bars": false,
-      "dashLength": 10,
-      "dashes": false,
-      "datasource": "$Source",
-      "fill": 0,
-      "fillGradient": 0,
+      "collapsed": false,
+      "datasource": null,
       "gridPos": {
-        "h": 8,
+        "h": 1,
         "w": 24,
         "x": 0,
         "y": 24
       },
+      "id": 64,
+      "panels": [],
+      "title": "Controller Stats",
+      "type": "row"
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": null,
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 25
+      },
       "hiddenSeries": false,
       "id": 58,
       "legend": {
-        "avg": false,
-        "current": false,
-        "max": false,
+        "alignAsTable": true,
+        "avg": true,
+        "current": true,
+        "max": true,
         "min": false,
-        "show": false,
-        "total": false,
-        "values": false
+        "rightSide": true,
+        "show": true,
+        "sort": "total",
+        "sortDesc": true,
+        "total": true,
+        "values": true
       },
       "lines": true,
       "linewidth": 1,
@@ -1322,10 +1062,10 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(increase(argocd_app_reconcile_count{namespace=~\"$namespace\", project=~\"$project\"}[10m])) by (namespace, project)",
+          "expr": "sum(increase(argocd_app_reconcile_count{namespace=~\"$namespace\",dest_server=~\"$cluster\"}[$interval])) by ($grouping)",
           "format": "time_series",
           "intervalFactor": 1,
-          "legendFormat": "{{namespace}},{{project}}",
+          "legendFormat": "{{$grouping}}",
           "refId": "A"
         }
       ],
@@ -1335,7 +1075,7 @@
       "timeShift": null,
       "title": "Reconciliation Activity",
       "tooltip": {
-        "shared": true,
+        "shared": false,
         "sort": 2,
         "value_type": "individual"
       },
@@ -1371,34 +1111,109 @@
       }
     },
     {
+      "cards": {
+        "cardPadding": null,
+        "cardRound": null
+      },
+      "color": {
+        "cardColor": "#b4ff00",
+        "colorScale": "sqrt",
+        "colorScheme": "interpolateSpectral",
+        "exponent": 0.5,
+        "min": null,
+        "mode": "spectrum"
+      },
+      "dataFormat": "tsbuckets",
+      "datasource": null,
+      "gridPos": {
+        "h": 7,
+        "w": 24,
+        "x": 0,
+        "y": 31
+      },
+      "heatmap": {},
+      "hideZeroBuckets": false,
+      "highlightCards": true,
+      "id": 60,
+      "legend": {
+        "show": true
+      },
+      "links": [],
+      "options": {},
+      "reverseYBuckets": false,
+      "targets": [
+        {
+          "expr": "sum(increase(argocd_app_reconcile_bucket{namespace=~\"$namespace\"}[$interval])) by (le)",
+          "format": "heatmap",
+          "instant": false,
+          "intervalFactor": 10,
+          "legendFormat": "{{le}}",
+          "refId": "A"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Reconciliation Performance",
+      "tooltip": {
+        "show": true,
+        "showHistogram": true
+      },
+      "tooltipDecimals": 0,
+      "type": "heatmap",
+      "xAxis": {
+        "show": true
+      },
+      "xBucketNumber": null,
+      "xBucketSize": null,
+      "yAxis": {
+        "decimals": null,
+        "format": "short",
+        "logBase": 1,
+        "max": null,
+        "min": null,
+        "show": true,
+        "splitFactor": null
+      },
+      "yBucketBound": "auto",
+      "yBucketNumber": null,
+      "yBucketSize": null
+    },
+    {
       "aliasColors": {},
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$Source",
-      "fill": 0,
+      "datasource": null,
+      "fill": 1,
       "fillGradient": 0,
       "gridPos": {
-        "h": 8,
+        "h": 6,
         "w": 24,
         "x": 0,
-        "y": 32
+        "y": 38
       },
       "hiddenSeries": false,
       "id": 80,
       "legend": {
-        "avg": false,
-        "current": false,
+        "alignAsTable": true,
+        "avg": true,
+        "current": true,
+        "hideEmpty": true,
+        "hideZero": true,
         "max": false,
         "min": false,
-        "show": false,
+        "rightSide": true,
+        "show": true,
+        "sideWidth": null,
+        "sort": "current",
+        "sortDesc": true,
         "total": false,
-        "values": false
+        "values": true
       },
       "lines": true,
       "linewidth": 1,
       "links": [],
-      "nullPointMode": "null",
+      "nullPointMode": "null as zero",
       "options": {
         "dataLinks": []
       },
@@ -1413,10 +1228,11 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(increase(argocd_app_k8s_request_total{namespace=~\"$namespace\",project=~\"$project\"}[5m])) by (namespace, project)",
+          "expr": "sum(increase(argocd_app_k8s_request_total{namespace=~\"$namespace\",server=~\"$cluster\"}[$interval])) by (verb, resource_kind)",
           "format": "time_series",
+          "instant": false,
           "intervalFactor": 1,
-          "legendFormat": "{{namespace}},{{project}}",
+          "legendFormat": "{{verb}} {{resource_kind}}",
           "refId": "A"
         }
       ],
@@ -1462,105 +1278,43 @@
       }
     },
     {
-      "cards": {
-        "cardPadding": null,
-        "cardRound": null
-      },
-      "color": {
-        "cardColor": "#b4ff00",
-        "colorScale": "sqrt",
-        "colorScheme": "interpolateSpectral",
-        "exponent": 0.5,
-        "mode": "spectrum"
-      },
-      "dataFormat": "tsbuckets",
-      "datasource": "$Source",
-      "gridPos": {
-        "h": 9,
-        "w": 24,
-        "x": 0,
-        "y": 40
-      },
-      "heatmap": {},
-      "hideZeroBuckets": false,
-      "highlightCards": true,
-      "id": 60,
-      "legend": {
-        "show": true
-      },
-      "links": [],
-      "options": {},
-      "reverseYBuckets": false,
-      "targets": [
-        {
-          "expr": "sum(increase(argocd_app_reconcile_bucket{namespace=~\"$namespace\",project=~\"$project\"}[10m])) by (le)",
-          "format": "heatmap",
-          "intervalFactor": 5,
-          "legendFormat": "{{le}}",
-          "refId": "A"
-        }
-      ],
-      "timeFrom": null,
-      "timeShift": null,
-      "title": "Reconciliation Performance",
-      "tooltip": {
-        "show": true,
-        "showHistogram": true
-      },
-      "type": "heatmap",
-      "xAxis": {
-        "show": true
-      },
-      "xBucketNumber": null,
-      "xBucketSize": null,
-      "yAxis": {
-        "decimals": null,
-        "format": "short",
-        "logBase": 1,
-        "max": null,
-        "min": null,
-        "show": true,
-        "splitFactor": null
-      },
-      "yBucketBound": "auto",
-      "yBucketNumber": null,
-      "yBucketSize": null
-    },
-    {
       "aliasColors": {},
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$Source",
-      "fill": 0,
+      "datasource": null,
+      "fill": 1,
       "fillGradient": 0,
       "gridPos": {
-        "h": 8,
-        "w": 24,
+        "h": 7,
+        "w": 12,
         "x": 0,
-        "y": 49
+        "y": 44
       },
       "hiddenSeries": false,
-      "id": 34,
+      "id": 96,
       "legend": {
-        "avg": false,
-        "current": false,
-        "max": false,
+        "alignAsTable": true,
+        "avg": true,
+        "current": true,
+        "hideZero": true,
+        "max": true,
         "min": false,
-        "show": false,
+        "rightSide": false,
+        "show": true,
+        "sideWidth": null,
         "total": false,
-        "values": false
+        "values": true
       },
       "lines": true,
       "linewidth": 1,
       "links": [],
-      "nullPointMode": "connected",
+      "nullPointMode": "null",
       "options": {
         "dataLinks": []
       },
-      "paceLength": 10,
       "percentage": false,
-      "pointradius": 5,
+      "pointradius": 2,
       "points": false,
       "renderer": "flot",
       "seriesOverrides": [],
@@ -1569,10 +1323,10 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "go_memstats_heap_alloc_bytes{job=\"argocd-metrics\",namespace=~\"$namespace\"}",
+          "expr": "sum(workqueue_depth{namespace=~\"$namespace\",name=~\"app_.*\"}) by (name)",
           "format": "time_series",
           "intervalFactor": 1,
-          "legendFormat": "{{namespace}}",
+          "legendFormat": "{{name}}",
           "refId": "A"
         }
       ],
@@ -1580,7 +1334,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "Memory Used",
+      "title": "Workqueue Depth",
       "tooltip": {
         "shared": true,
         "sort": 2,
@@ -1596,7 +1350,7 @@
       },
       "yaxes": [
         {
-          "format": "bytes",
+          "format": "short",
           "label": null,
           "logBase": 1,
           "max": null,
@@ -1608,7 +1362,7 @@
           "label": null,
           "logBase": 1,
           "max": null,
-          "min": null,
+          "min": "0",
           "show": true
         }
       ],
@@ -1622,27 +1376,28 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$Source",
-      "fill": 0,
+      "datasource": null,
+      "decimals": null,
+      "fill": 1,
       "fillGradient": 0,
       "gridPos": {
-        "h": 8,
-        "w": 24,
-        "x": 0,
-        "y": 57
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 44
       },
       "hiddenSeries": false,
-      "id": 62,
+      "id": 98,
       "legend": {
-        "avg": false,
-        "current": false,
-        "hideEmpty": false,
+        "alignAsTable": true,
+        "avg": true,
+        "current": true,
         "hideZero": false,
-        "max": false,
+        "max": true,
         "min": false,
-        "show": false,
+        "show": true,
         "total": false,
-        "values": false
+        "values": true
       },
       "lines": true,
       "linewidth": 1,
@@ -1651,9 +1406,8 @@
       "options": {
         "dataLinks": []
       },
-      "paceLength": 10,
       "percentage": false,
-      "pointradius": 5,
+      "pointradius": 2,
       "points": false,
       "renderer": "flot",
       "seriesOverrides": [],
@@ -1662,10 +1416,10 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "go_goroutines{job=\"argocd-metrics\",namespace=~\"$namespace\"}",
+          "expr": "sum(argocd_kubectl_exec_pending{namespace=~\"$namespace\"}) by (command)",
           "format": "time_series",
           "intervalFactor": 1,
-          "legendFormat": "{{namespace}}",
+          "legendFormat": "{{command}}",
           "refId": "A"
         }
       ],
@@ -1673,7 +1427,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "Goroutines",
+      "title": "Pending kubectl run",
       "tooltip": {
         "shared": true,
         "sort": 2,
@@ -1689,19 +1443,21 @@
       },
       "yaxes": [
         {
+          "decimals": 0,
           "format": "short",
-          "label": null,
+          "label": "",
           "logBase": 1,
           "max": null,
-          "min": null,
+          "min": "0",
           "show": true
         },
         {
+          "decimals": 0,
           "format": "short",
-          "label": null,
+          "label": "",
           "logBase": 1,
           "max": null,
-          "min": null,
+          "min": "0",
           "show": true
         }
       ],
@@ -1717,7 +1473,610 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 65
+        "y": 51
+      },
+      "id": 102,
+      "panels": [
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "Prometheus",
+          "fill": 1,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 7,
+            "w": 24,
+            "x": 0,
+            "y": 26
+          },
+          "hiddenSeries": false,
+          "id": 34,
+          "legend": {
+            "alignAsTable": true,
+            "avg": true,
+            "current": true,
+            "max": true,
+            "min": false,
+            "rightSide": true,
+            "show": true,
+            "sort": "current",
+            "sortDesc": true,
+            "total": false,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "connected",
+          "options": {
+            "dataLinks": []
+          },
+          "paceLength": 10,
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "go_memstats_heap_alloc_bytes{job=\"argocd-metrics\",namespace=~\"$namespace\"}",
+              "format": "time_series",
+              "intervalFactor": 1,
+              "legendFormat": "{{namespace}}",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "Memory Usage",
+          "tooltip": {
+            "shared": false,
+            "sort": 2,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "bytes",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "Prometheus",
+          "fill": 1,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 7,
+            "w": 24,
+            "x": 0,
+            "y": 33
+          },
+          "hiddenSeries": false,
+          "id": 108,
+          "legend": {
+            "alignAsTable": true,
+            "avg": true,
+            "current": true,
+            "hideEmpty": true,
+            "hideZero": true,
+            "max": true,
+            "min": false,
+            "rightSide": true,
+            "show": true,
+            "sort": "avg",
+            "sortDesc": true,
+            "total": false,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "connected",
+          "options": {
+            "dataLinks": []
+          },
+          "paceLength": 10,
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "irate(process_cpu_seconds_total{job=\"argocd-metrics\",namespace=~\"$namespace\"}[1m])",
+              "format": "time_series",
+              "intervalFactor": 1,
+              "legendFormat": "{{namespace}}",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "CPU Usage",
+          "tooltip": {
+            "shared": false,
+            "sort": 2,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "decimals": 1,
+              "format": "none",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "Prometheus",
+          "fill": 1,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 7,
+            "w": 24,
+            "x": 0,
+            "y": 40
+          },
+          "hiddenSeries": false,
+          "id": 62,
+          "legend": {
+            "alignAsTable": true,
+            "avg": true,
+            "current": true,
+            "hideEmpty": false,
+            "hideZero": false,
+            "max": true,
+            "min": false,
+            "rightSide": true,
+            "show": true,
+            "sort": "current",
+            "sortDesc": true,
+            "total": false,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null",
+          "options": {
+            "dataLinks": []
+          },
+          "paceLength": 10,
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "go_goroutines{job=\"argocd-metrics\",namespace=~\"$namespace\"}",
+              "format": "time_series",
+              "intervalFactor": 1,
+              "legendFormat": "{{namespace}}",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "Goroutines",
+          "tooltip": {
+            "shared": false,
+            "sort": 2,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        }
+      ],
+      "title": "Controller Telemetry",
+      "type": "row"
+    },
+    {
+      "collapsed": true,
+      "datasource": null,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 52
+      },
+      "id": 88,
+      "panels": [
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": null,
+          "fill": 1,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 7,
+            "w": 24,
+            "x": 0,
+            "y": 27
+          },
+          "hiddenSeries": false,
+          "id": 90,
+          "legend": {
+            "alignAsTable": true,
+            "avg": false,
+            "current": true,
+            "max": false,
+            "min": false,
+            "rightSide": true,
+            "show": true,
+            "sort": "current",
+            "sortDesc": true,
+            "total": false,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null",
+          "options": {
+            "dataLinks": []
+          },
+          "percentage": false,
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "sum(argocd_cluster_api_resource_objects{namespace=~\"$namespace\",server=~\"$cluster\"}) by (server)",
+              "format": "time_series",
+              "intervalFactor": 1,
+              "legendFormat": "{{server}}",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "Resource Objects Count",
+          "tooltip": {
+            "shared": false,
+            "sort": 2,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": null,
+          "fill": 1,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 6,
+            "w": 24,
+            "x": 0,
+            "y": 34
+          },
+          "hiddenSeries": false,
+          "id": 92,
+          "legend": {
+            "alignAsTable": true,
+            "avg": false,
+            "current": true,
+            "hideEmpty": true,
+            "max": false,
+            "min": false,
+            "rightSide": true,
+            "show": true,
+            "sort": "current",
+            "sortDesc": true,
+            "total": false,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null",
+          "options": {
+            "dataLinks": []
+          },
+          "percentage": false,
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "  sum(argocd_cluster_api_resources{namespace=~\"$namespace\",server=~\"$cluster\"}) by (server)",
+              "format": "time_series",
+              "intervalFactor": 1,
+              "legendFormat": "{{server}}",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "API Resources Count",
+          "tooltip": {
+            "shared": false,
+            "sort": 2,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": null,
+          "fill": 1,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 7,
+            "w": 24,
+            "x": 0,
+            "y": 40
+          },
+          "hiddenSeries": false,
+          "id": 86,
+          "legend": {
+            "alignAsTable": true,
+            "avg": true,
+            "current": true,
+            "max": false,
+            "min": false,
+            "rightSide": true,
+            "show": true,
+            "sort": "current",
+            "sortDesc": true,
+            "total": false,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null",
+          "options": {
+            "dataLinks": []
+          },
+          "percentage": false,
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "sum(increase(argocd_cluster_events_total{namespace=~\"$namespace\",server=~\"$cluster\"}[$interval])) by (server)",
+              "format": "time_series",
+              "intervalFactor": 1,
+              "legendFormat": "{{server}}",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "Cluster Events Count",
+          "tooltip": {
+            "shared": false,
+            "sort": 2,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        }
+      ],
+      "title": "Cluster Stats",
+      "type": "row"
+    },
+    {
+      "collapsed": true,
+      "datasource": null,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 53
       },
       "id": 66,
       "panels": [
@@ -1726,13 +2085,13 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$Source",
-          "fill": 0,
+          "datasource": "Prometheus",
+          "fill": 1,
           "gridPos": {
             "h": 8,
             "w": 24,
             "x": 0,
-            "y": 69
+            "y": 89
           },
           "id": 61,
           "legend": {
@@ -1812,13 +2171,13 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$Source",
-          "fill": 0,
+          "datasource": "Prometheus",
+          "fill": 1,
           "gridPos": {
             "h": 9,
             "w": 24,
             "x": 0,
-            "y": 77
+            "y": 97
           },
           "id": 36,
           "legend": {
@@ -1898,13 +2257,13 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$Source",
-          "fill": 0,
+          "datasource": "Prometheus",
+          "fill": 1,
           "gridPos": {
             "h": 9,
             "w": 24,
             "x": 0,
-            "y": 86
+            "y": 106
           },
           "id": 38,
           "legend": {
@@ -1985,7 +2344,7 @@
             "h": 2,
             "w": 24,
             "x": 0,
-            "y": 95
+            "y": 115
           },
           "id": 54,
           "links": [],
@@ -1999,23 +2358,30 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$Source",
-          "fill": 0,
+          "datasource": "Prometheus",
+          "decimals": null,
+          "fill": 1,
           "gridPos": {
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 97
+            "y": 117
           },
           "id": 40,
           "legend": {
-            "avg": false,
-            "current": false,
+            "alignAsTable": true,
+            "avg": true,
+            "current": true,
+            "hideEmpty": true,
+            "hideZero": true,
             "max": false,
             "min": false,
+            "rightSide": false,
             "show": true,
-            "total": false,
-            "values": false
+            "sort": "total",
+            "sortDesc": true,
+            "total": true,
+            "values": true
           },
           "lines": true,
           "linewidth": 1,
@@ -2032,10 +2398,279 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "increase(grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"application.ApplicationService\",namespace=~\"$namespace\"}[10m]) > 0 or on() vector (0)",
+              "expr": "sum(increase(grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"application.ApplicationService\",namespace=~\"$namespace\"}[$duration])) by (grpc_code, grpc_method)",
               "format": "time_series",
               "intervalFactor": 1,
-              "legendFormat": "{{grpc_code}},{{grpc_method}},{{pod}}",
+              "legendFormat": "{{grpc_code}},{{grpc_method}}",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "ApplicationService Requests",
+          "tooltip": {
+            "shared": false,
+            "sort": 2,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "Prometheus",
+          "fill": 1,
+          "gridPos": {
+            "h": 9,
+            "w": 12,
+            "x": 12,
+            "y": 117
+          },
+          "id": 42,
+          "legend": {
+            "alignAsTable": true,
+            "avg": true,
+            "current": true,
+            "hideEmpty": true,
+            "hideZero": true,
+            "max": false,
+            "min": false,
+            "rightSide": false,
+            "show": true,
+            "total": true,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null as zero",
+          "paceLength": 10,
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "sum(increase(grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"cluster.ClusterService\",namespace=~\"$namespace\"}[$duration])) by (grpc_code, grpc_method)",
+              "format": "time_series",
+              "intervalFactor": 1,
+              "legendFormat": "{{grpc_code}},{{grpc_method}}",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "ClusterService Requests",
+          "tooltip": {
+            "shared": false,
+            "sort": 2,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "Prometheus",
+          "fill": 1,
+          "gridPos": {
+            "h": 9,
+            "w": 12,
+            "x": 0,
+            "y": 126
+          },
+          "id": 44,
+          "legend": {
+            "alignAsTable": true,
+            "avg": true,
+            "current": true,
+            "hideEmpty": true,
+            "hideZero": true,
+            "max": false,
+            "min": false,
+            "rightSide": false,
+            "show": true,
+            "total": true,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null as zero",
+          "paceLength": 10,
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "sum(increase(grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"project.ProjectService\",namespace=~\"$namespace\"}[$duration])) by (grpc_code, grpc_method)",
+              "format": "time_series",
+              "intervalFactor": 1,
+              "legendFormat": "{{grpc_code}},{{grpc_method}}",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "ProjectService Requests",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "Prometheus",
+          "fill": 1,
+          "gridPos": {
+            "h": 9,
+            "w": 12,
+            "x": 12,
+            "y": 126
+          },
+          "id": 46,
+          "legend": {
+            "alignAsTable": true,
+            "avg": true,
+            "current": true,
+            "hideEmpty": true,
+            "hideZero": true,
+            "max": false,
+            "min": false,
+            "show": true,
+            "total": true,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null as zero",
+          "paceLength": 10,
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "sum(increase(grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"repository.RepositoryService\",namespace=~\"$namespace\"}[$duration])) by (grpc_code, grpc_method)",
+              "format": "time_series",
+              "intervalFactor": 1,
+              "legendFormat": "{{grpc_code}},{{grpc_method}}",
               "refId": "A"
             }
           ],
@@ -2051,7 +2686,468 @@
           "timeFrom": null,
           "timeRegions": [],
           "timeShift": null,
-          "title": "grpc service ApplicationService",
+          "title": "RepositoryService Requests",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "Prometheus",
+          "fill": 1,
+          "gridPos": {
+            "h": 9,
+            "w": 12,
+            "x": 0,
+            "y": 135
+          },
+          "id": 48,
+          "legend": {
+            "alignAsTable": true,
+            "avg": true,
+            "current": true,
+            "hideEmpty": true,
+            "hideZero": true,
+            "max": false,
+            "min": false,
+            "show": true,
+            "total": true,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null as zero",
+          "paceLength": 10,
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "sum(increase(grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"session.SessionService\",namespace=~\"$namespace\"}[$duration])) by (grpc_code, grpc_method)",
+              "format": "time_series",
+              "intervalFactor": 1,
+              "legendFormat": "{{grpc_code}},{{grpc_method}}",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "SessionService Requests",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "Prometheus",
+          "fill": 1,
+          "gridPos": {
+            "h": 9,
+            "w": 12,
+            "x": 12,
+            "y": 135
+          },
+          "id": 49,
+          "legend": {
+            "alignAsTable": true,
+            "avg": true,
+            "current": true,
+            "hideEmpty": true,
+            "hideZero": true,
+            "max": false,
+            "min": false,
+            "show": true,
+            "total": true,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null as zero",
+          "paceLength": 10,
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "sum(increase(grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"version.VersionService\",namespace=~\"$namespace\"}[$duration])) by (grpc_code, grpc_method)",
+              "format": "time_series",
+              "intervalFactor": 1,
+              "legendFormat": "{{grpc_code}},{{grpc_method}}",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "VersionService Requests",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "Prometheus",
+          "fill": 1,
+          "gridPos": {
+            "h": 9,
+            "w": 12,
+            "x": 0,
+            "y": 144
+          },
+          "id": 50,
+          "legend": {
+            "alignAsTable": true,
+            "avg": true,
+            "current": true,
+            "hideEmpty": true,
+            "hideZero": true,
+            "max": false,
+            "min": false,
+            "show": true,
+            "total": true,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null as zero",
+          "paceLength": 10,
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "sum(increase(grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"account.AccountService\",namespace=~\"$namespace\"}[$duration])) by (grpc_code, grpc_method)",
+              "format": "time_series",
+              "intervalFactor": 1,
+              "legendFormat": "{{grpc_code}},{{grpc_method}}",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "AccountService Requests",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "Prometheus",
+          "fill": 1,
+          "gridPos": {
+            "h": 9,
+            "w": 12,
+            "x": 12,
+            "y": 144
+          },
+          "id": 99,
+          "legend": {
+            "alignAsTable": true,
+            "avg": true,
+            "current": true,
+            "hideEmpty": true,
+            "hideZero": true,
+            "max": false,
+            "min": false,
+            "show": true,
+            "total": true,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null as zero",
+          "paceLength": 10,
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "sum(increase(grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"settings.SettingsService\",namespace=~\"$namespace\"}[$duration])) by (grpc_code, grpc_method)",
+              "format": "time_series",
+              "intervalFactor": 1,
+              "legendFormat": "{{grpc_code}},{{grpc_method}}",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "SettingsService Requests",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        }
+      ],
+      "title": "Server Stats",
+      "type": "row"
+    },
+    {
+      "collapsed": true,
+      "datasource": null,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 54
+      },
+      "id": 70,
+      "panels": [
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": null,
+          "fill": 1,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 69
+          },
+          "hiddenSeries": false,
+          "id": 82,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "show": false,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null",
+          "options": {
+            "dataLinks": []
+          },
+          "percentage": false,
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "sum(increase(argocd_git_request_total{request_type=\"ls-remote\", namespace=~\"$namespace\"}[10m])) by (namespace)",
+              "format": "time_series",
+              "intervalFactor": 1,
+              "legendFormat": "{{namespace}}",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "Git Requets (ls-remote)",
           "tooltip": {
             "shared": true,
             "sort": 2,
@@ -2093,31 +3189,35 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$Source",
-          "fill": 0,
+          "datasource": null,
+          "fill": 1,
+          "fillGradient": 0,
           "gridPos": {
-            "h": 9,
+            "h": 8,
             "w": 12,
             "x": 12,
-            "y": 97
+            "y": 69
           },
-          "id": 42,
+          "hiddenSeries": false,
+          "id": 84,
           "legend": {
             "avg": false,
             "current": false,
             "max": false,
             "min": false,
-            "show": true,
+            "show": false,
             "total": false,
             "values": false
           },
           "lines": true,
           "linewidth": 1,
           "links": [],
-          "nullPointMode": "null as zero",
-          "paceLength": 10,
+          "nullPointMode": "null",
+          "options": {
+            "dataLinks": []
+          },
           "percentage": false,
-          "pointradius": 5,
+          "pointradius": 2,
           "points": false,
           "renderer": "flot",
           "seriesOverrides": [],
@@ -2126,29 +3226,21 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "increase(grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"cluster.ClusterService\",namespace=~\"$namespace\"}[10m]) > 0 or on() vector (0)",
+              "expr": "sum(increase(argocd_git_request_total{request_type=\"fetch\", namespace=~\"$namespace\"}[10m])) by (namespace)",
               "format": "time_series",
               "intervalFactor": 1,
-              "legendFormat": "{{grpc_code}},{{grpc_method}},{{pod}}",
+              "legendFormat": "{{namespace}}",
               "refId": "A"
             }
           ],
-          "thresholds": [
-            {
-              "colorMode": "critical",
-              "fill": true,
-              "line": true,
-              "op": "gt",
-              "yaxis": "left"
-            }
-          ],
+          "thresholds": [],
           "timeFrom": null,
           "timeRegions": [],
           "timeShift": null,
-          "title": "grpc service ClusterService",
+          "title": "Git Requests (checkout)",
           "tooltip": {
             "shared": true,
-            "sort": 0,
+            "sort": 2,
             "value_type": "individual"
           },
           "type": "graph",
@@ -2162,7 +3254,7 @@
           "yaxes": [
             {
               "format": "short",
-              "label": null,
+              "label": "",
               "logBase": 1,
               "max": null,
               "min": null,
@@ -2187,28 +3279,33 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$Source",
-          "fill": 0,
+          "datasource": "Prometheus",
+          "fill": 1,
+          "fillGradient": 0,
           "gridPos": {
-            "h": 9,
-            "w": 12,
+            "h": 8,
+            "w": 24,
             "x": 0,
-            "y": 106
+            "y": 77
           },
-          "id": 44,
+          "hiddenSeries": false,
+          "id": 71,
           "legend": {
             "avg": false,
             "current": false,
             "max": false,
             "min": false,
-            "show": true,
+            "show": false,
             "total": false,
             "values": false
           },
           "lines": true,
           "linewidth": 1,
           "links": [],
-          "nullPointMode": "null as zero",
+          "nullPointMode": "connected",
+          "options": {
+            "dataLinks": []
+          },
           "paceLength": 10,
           "percentage": false,
           "pointradius": 5,
@@ -2220,29 +3317,21 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "increase(grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"project.ProjectService\",namespace=~\"$namespace\"}[10m]) > 0 or on() vector (0)",
+              "expr": "go_memstats_heap_alloc_bytes{job=\"argocd-repo-server\",namespace=~\"$namespace\"}",
               "format": "time_series",
               "intervalFactor": 1,
-              "legendFormat": "{{grpc_code}},{{grpc_method}},{{pod}}",
+              "legendFormat": "{{pod}}",
               "refId": "A"
             }
           ],
-          "thresholds": [
-            {
-              "colorMode": "critical",
-              "fill": true,
-              "line": true,
-              "op": "gt",
-              "yaxis": "left"
-            }
-          ],
+          "thresholds": [],
           "timeFrom": null,
           "timeRegions": [],
           "timeShift": null,
-          "title": "grpc service ProjectService",
+          "title": "Memory Used",
           "tooltip": {
             "shared": true,
-            "sort": 0,
+            "sort": 2,
             "value_type": "individual"
           },
           "type": "graph",
@@ -2255,7 +3344,7 @@
           },
           "yaxes": [
             {
-              "format": "short",
+              "format": "bytes",
               "label": null,
               "logBase": 1,
               "max": null,
@@ -2281,122 +3370,33 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$Source",
-          "fill": 0,
+          "datasource": "Prometheus",
+          "fill": 1,
+          "fillGradient": 0,
           "gridPos": {
-            "h": 9,
-            "w": 12,
-            "x": 12,
-            "y": 106
-          },
-          "id": 46,
-          "legend": {
-            "avg": false,
-            "current": false,
-            "max": false,
-            "min": false,
-            "show": true,
-            "total": false,
-            "values": false
-          },
-          "lines": true,
-          "linewidth": 1,
-          "links": [],
-          "nullPointMode": "null as zero",
-          "paceLength": 10,
-          "percentage": false,
-          "pointradius": 5,
-          "points": false,
-          "renderer": "flot",
-          "seriesOverrides": [],
-          "spaceLength": 10,
-          "stack": false,
-          "steppedLine": false,
-          "targets": [
-            {
-              "expr": "increase(grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"repository.RepositoryService\",namespace=~\"$namespace\"}[10m]) > 0 or on() vector (0)",
-              "format": "time_series",
-              "intervalFactor": 1,
-              "legendFormat": "{{grpc_code}},{{grpc_method}},{{pod}}",
-              "refId": "A"
-            }
-          ],
-          "thresholds": [
-            {
-              "colorMode": "critical",
-              "fill": true,
-              "line": true,
-              "op": "gt",
-              "yaxis": "left"
-            }
-          ],
-          "timeFrom": null,
-          "timeRegions": [],
-          "timeShift": null,
-          "title": "grpc service RepositoryService",
-          "tooltip": {
-            "shared": true,
-            "sort": 0,
-            "value_type": "individual"
-          },
-          "type": "graph",
-          "xaxis": {
-            "buckets": null,
-            "mode": "time",
-            "name": null,
-            "show": true,
-            "values": []
-          },
-          "yaxes": [
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            },
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            }
-          ],
-          "yaxis": {
-            "align": false,
-            "alignLevel": null
-          }
-        },
-        {
-          "aliasColors": {},
-          "bars": false,
-          "dashLength": 10,
-          "dashes": false,
-          "datasource": "$Source",
-          "fill": 0,
-          "gridPos": {
-            "h": 9,
-            "w": 12,
+            "h": 7,
+            "w": 24,
             "x": 0,
-            "y": 115
+            "y": 85
           },
-          "id": 48,
+          "hiddenSeries": false,
+          "id": 72,
           "legend": {
             "avg": false,
             "current": false,
             "max": false,
             "min": false,
-            "show": true,
+            "show": false,
             "total": false,
             "values": false
           },
           "lines": true,
           "linewidth": 1,
           "links": [],
-          "nullPointMode": "null as zero",
+          "nullPointMode": "null",
+          "options": {
+            "dataLinks": []
+          },
           "paceLength": 10,
           "percentage": false,
           "pointradius": 5,
@@ -2408,217 +3408,21 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "increase(grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"session.SessionService\",namespace=~\"$namespace\"}[10m]) > 0 or on() vector (0)",
+              "expr": "go_goroutines{job=\"argocd-repo-server\",namespace=~\"$namespace\"}",
               "format": "time_series",
               "intervalFactor": 1,
-              "legendFormat": "{{grpc_code}},{{grpc_method}},{{pod}}",
+              "legendFormat": "{{pod}}",
               "refId": "A"
             }
           ],
-          "thresholds": [
-            {
-              "colorMode": "critical",
-              "fill": true,
-              "line": true,
-              "op": "gt",
-              "yaxis": "left"
-            }
-          ],
+          "thresholds": [],
           "timeFrom": null,
           "timeRegions": [],
           "timeShift": null,
-          "title": "grpc service SessionService",
+          "title": "Goroutines",
           "tooltip": {
             "shared": true,
-            "sort": 0,
-            "value_type": "individual"
-          },
-          "type": "graph",
-          "xaxis": {
-            "buckets": null,
-            "mode": "time",
-            "name": null,
-            "show": true,
-            "values": []
-          },
-          "yaxes": [
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            },
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            }
-          ],
-          "yaxis": {
-            "align": false,
-            "alignLevel": null
-          }
-        },
-        {
-          "aliasColors": {},
-          "bars": false,
-          "dashLength": 10,
-          "dashes": false,
-          "datasource": "$Source",
-          "fill": 0,
-          "gridPos": {
-            "h": 9,
-            "w": 12,
-            "x": 12,
-            "y": 115
-          },
-          "id": 49,
-          "legend": {
-            "avg": false,
-            "current": false,
-            "max": false,
-            "min": false,
-            "show": true,
-            "total": false,
-            "values": false
-          },
-          "lines": true,
-          "linewidth": 1,
-          "links": [],
-          "nullPointMode": "null as zero",
-          "paceLength": 10,
-          "percentage": false,
-          "pointradius": 5,
-          "points": false,
-          "renderer": "flot",
-          "seriesOverrides": [],
-          "spaceLength": 10,
-          "stack": false,
-          "steppedLine": false,
-          "targets": [
-            {
-              "expr": "increase(grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"version.VersionService\",namespace=~\"$namespace\"}[10m]) > 0 or on() vector (0)",
-              "format": "time_series",
-              "intervalFactor": 1,
-              "legendFormat": "{{grpc_code}},{{grpc_method}},{{pod}}",
-              "refId": "A"
-            }
-          ],
-          "thresholds": [
-            {
-              "colorMode": "critical",
-              "fill": true,
-              "line": true,
-              "op": "gt",
-              "yaxis": "left"
-            }
-          ],
-          "timeFrom": null,
-          "timeRegions": [],
-          "timeShift": null,
-          "title": "grpc service VersionService",
-          "tooltip": {
-            "shared": true,
-            "sort": 0,
-            "value_type": "individual"
-          },
-          "type": "graph",
-          "xaxis": {
-            "buckets": null,
-            "mode": "time",
-            "name": null,
-            "show": true,
-            "values": []
-          },
-          "yaxes": [
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            },
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            }
-          ],
-          "yaxis": {
-            "align": false,
-            "alignLevel": null
-          }
-        },
-        {
-          "aliasColors": {},
-          "bars": false,
-          "dashLength": 10,
-          "dashes": false,
-          "datasource": "$Source",
-          "fill": 0,
-          "gridPos": {
-            "h": 9,
-            "w": 12,
-            "x": 0,
-            "y": 124
-          },
-          "id": 50,
-          "legend": {
-            "avg": false,
-            "current": false,
-            "max": false,
-            "min": false,
-            "show": true,
-            "total": false,
-            "values": false
-          },
-          "lines": true,
-          "linewidth": 1,
-          "links": [],
-          "nullPointMode": "null as zero",
-          "paceLength": 10,
-          "percentage": false,
-          "pointradius": 5,
-          "points": false,
-          "renderer": "flot",
-          "seriesOverrides": [],
-          "spaceLength": 10,
-          "stack": false,
-          "steppedLine": false,
-          "targets": [
-            {
-              "expr": "increase(grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"account.AccountService\",namespace=~\"$namespace\"}[10m]) > 1 or on() vector (0)",
-              "format": "time_series",
-              "intervalFactor": 1,
-              "legendFormat": "{{grpc_code}},{{grpc_method}},{{pod}}",
-              "refId": "A"
-            }
-          ],
-          "thresholds": [
-            {
-              "colorMode": "critical",
-              "fill": true,
-              "line": true,
-              "op": "gt",
-              "yaxis": "left"
-            }
-          ],
-          "timeFrom": null,
-          "timeRegions": [],
-          "timeShift": null,
-          "title": "grpc service AccountService",
-          "tooltip": {
-            "shared": true,
-            "sort": 0,
+            "sort": 2,
             "value_type": "individual"
           },
           "type": "graph",
@@ -2653,384 +3457,8 @@
           }
         }
       ],
-      "title": "Server Stats:",
+      "title": "Repo Server Stats",
       "type": "row"
-    },
-    {
-      "collapsed": false,
-      "datasource": null,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 66
-      },
-      "id": 70,
-      "panels": [],
-      "title": "Repo Server Stats:",
-      "type": "row"
-    },
-    {
-      "aliasColors": {},
-      "bars": false,
-      "dashLength": 10,
-      "dashes": false,
-      "datasource": "$Source",
-      "fill": 0,
-      "fillGradient": 0,
-      "gridPos": {
-        "h": 8,
-        "w": 24,
-        "x": 0,
-        "y": 67
-      },
-      "hiddenSeries": false,
-      "id": 71,
-      "legend": {
-        "avg": false,
-        "current": false,
-        "max": false,
-        "min": false,
-        "show": false,
-        "total": false,
-        "values": false
-      },
-      "lines": true,
-      "linewidth": 1,
-      "links": [],
-      "nullPointMode": "connected",
-      "options": {
-        "dataLinks": []
-      },
-      "paceLength": 10,
-      "percentage": false,
-      "pointradius": 5,
-      "points": false,
-      "renderer": "flot",
-      "seriesOverrides": [],
-      "spaceLength": 10,
-      "stack": false,
-      "steppedLine": false,
-      "targets": [
-        {
-          "expr": "go_memstats_heap_alloc_bytes{job=\"argocd-repo-server\",namespace=~\"$namespace\"}",
-          "format": "time_series",
-          "intervalFactor": 1,
-          "legendFormat": "{{pod}}",
-          "refId": "A"
-        }
-      ],
-      "thresholds": [],
-      "timeFrom": null,
-      "timeRegions": [],
-      "timeShift": null,
-      "title": "Memory Used",
-      "tooltip": {
-        "shared": true,
-        "sort": 2,
-        "value_type": "individual"
-      },
-      "type": "graph",
-      "xaxis": {
-        "buckets": null,
-        "mode": "time",
-        "name": null,
-        "show": true,
-        "values": []
-      },
-      "yaxes": [
-        {
-          "format": "bytes",
-          "label": null,
-          "logBase": 1,
-          "max": null,
-          "min": "0",
-          "show": true
-        },
-        {
-          "format": "short",
-          "label": null,
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": true
-        }
-      ],
-      "yaxis": {
-        "align": false,
-        "alignLevel": null
-      }
-    },
-    {
-      "aliasColors": {},
-      "bars": false,
-      "dashLength": 10,
-      "dashes": false,
-      "datasource": "$Source",
-      "fill": 0,
-      "fillGradient": 0,
-      "gridPos": {
-        "h": 9,
-        "w": 24,
-        "x": 0,
-        "y": 75
-      },
-      "hiddenSeries": false,
-      "id": 72,
-      "legend": {
-        "avg": false,
-        "current": false,
-        "max": false,
-        "min": false,
-        "show": false,
-        "total": false,
-        "values": false
-      },
-      "lines": true,
-      "linewidth": 1,
-      "links": [],
-      "nullPointMode": "null",
-      "options": {
-        "dataLinks": []
-      },
-      "paceLength": 10,
-      "percentage": false,
-      "pointradius": 5,
-      "points": false,
-      "renderer": "flot",
-      "seriesOverrides": [],
-      "spaceLength": 10,
-      "stack": false,
-      "steppedLine": false,
-      "targets": [
-        {
-          "expr": "go_goroutines{job=\"argocd-repo-server\",namespace=~\"$namespace\"}",
-          "format": "time_series",
-          "intervalFactor": 1,
-          "legendFormat": "{{pod}}",
-          "refId": "A"
-        }
-      ],
-      "thresholds": [],
-      "timeFrom": null,
-      "timeRegions": [],
-      "timeShift": null,
-      "title": "Goroutines",
-      "tooltip": {
-        "shared": true,
-        "sort": 2,
-        "value_type": "individual"
-      },
-      "type": "graph",
-      "xaxis": {
-        "buckets": null,
-        "mode": "time",
-        "name": null,
-        "show": true,
-        "values": []
-      },
-      "yaxes": [
-        {
-          "format": "short",
-          "label": null,
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": true
-        },
-        {
-          "format": "short",
-          "label": null,
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": true
-        }
-      ],
-      "yaxis": {
-        "align": false,
-        "alignLevel": null
-      }
-    },
-    {
-      "aliasColors": {},
-      "bars": false,
-      "dashLength": 10,
-      "dashes": false,
-      "datasource": "$Source",
-      "fill": 0,
-      "fillGradient": 0,
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 84
-      },
-      "hiddenSeries": false,
-      "id": 82,
-      "legend": {
-        "avg": false,
-        "current": false,
-        "max": false,
-        "min": false,
-        "show": true,
-        "total": false,
-        "values": false
-      },
-      "lines": true,
-      "linewidth": 1,
-      "links": [],
-      "nullPointMode": "null",
-      "options": {
-        "dataLinks": []
-      },
-      "percentage": false,
-      "pointradius": 2,
-      "points": false,
-      "renderer": "flot",
-      "seriesOverrides": [],
-      "spaceLength": 10,
-      "stack": false,
-      "steppedLine": false,
-      "targets": [
-        {
-          "expr": "sum(increase(argocd_git_request_total{request_type=\"ls-remote\", namespace=~\"$namespace\"}[10m])) by (namespace)",
-          "format": "time_series",
-          "intervalFactor": 1,
-          "legendFormat": "{{namespace}}",
-          "refId": "A"
-        }
-      ],
-      "thresholds": [],
-      "timeFrom": null,
-      "timeRegions": [],
-      "timeShift": null,
-      "title": "Git Requests (ls-remote)",
-      "tooltip": {
-        "shared": true,
-        "sort": 0,
-        "value_type": "individual"
-      },
-      "type": "graph",
-      "xaxis": {
-        "buckets": null,
-        "mode": "time",
-        "name": null,
-        "show": true,
-        "values": []
-      },
-      "yaxes": [
-        {
-          "format": "short",
-          "label": null,
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": true
-        },
-        {
-          "format": "short",
-          "label": null,
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": true
-        }
-      ],
-      "yaxis": {
-        "align": false,
-        "alignLevel": null
-      }
-    },
-    {
-      "aliasColors": {},
-      "bars": false,
-      "dashLength": 10,
-      "dashes": false,
-      "datasource": "$Source",
-      "fill": 0,
-      "fillGradient": 0,
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 84
-      },
-      "hiddenSeries": false,
-      "id": 84,
-      "legend": {
-        "avg": false,
-        "current": false,
-        "max": false,
-        "min": false,
-        "show": true,
-        "total": false,
-        "values": false
-      },
-      "lines": true,
-      "linewidth": 1,
-      "links": [],
-      "nullPointMode": "null",
-      "options": {
-        "dataLinks": []
-      },
-      "percentage": false,
-      "pointradius": 2,
-      "points": false,
-      "renderer": "flot",
-      "seriesOverrides": [],
-      "spaceLength": 10,
-      "stack": false,
-      "steppedLine": false,
-      "targets": [
-        {
-          "expr": "sum(increase(argocd_git_request_total{request_type=\"fetch\", namespace=~\"$namespace\"}[10m])) by (namespace)",
-          "format": "time_series",
-          "intervalFactor": 1,
-          "legendFormat": "{{namespace}}",
-          "refId": "A"
-        }
-      ],
-      "thresholds": [],
-      "timeFrom": null,
-      "timeRegions": [],
-      "timeShift": null,
-      "title": "Git Requests (checkout)",
-      "tooltip": {
-        "shared": true,
-        "sort": 0,
-        "value_type": "individual"
-      },
-      "type": "graph",
-      "xaxis": {
-        "buckets": null,
-        "mode": "time",
-        "name": null,
-        "show": true,
-        "values": []
-      },
-      "yaxes": [
-        {
-          "format": "short",
-          "label": null,
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": true
-        },
-        {
-          "format": "short",
-          "label": null,
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": true
-        }
-      ],
-      "yaxis": {
-        "align": false,
-        "alignLevel": null
-      }
     }
   ],
   "refresh": false,
@@ -3046,9 +3474,9 @@
         },
         "hide": 0,
         "includeAll": false,
-        "label": "Prometheus",
+        "label": null,
         "multi": false,
-        "name": "Source",
+        "name": "datasource",
         "options": [],
         "query": "prometheus",
         "refresh": 1,
@@ -3063,7 +3491,7 @@
           "text": "All",
           "value": "$__all"
         },
-        "datasource": "$Source",
+        "datasource": "Prometheus",
         "definition": "label_values(kube_pod_info, namespace)",
         "hide": 0,
         "includeAll": true,
@@ -3083,36 +3511,1099 @@
         "useTags": false
       },
       {
+        "auto": true,
+        "auto_count": 30,
+        "auto_min": "1m",
+        "current": {
+          "selected": false,
+          "text": "auto",
+          "value": "$__auto_interval_interval"
+        },
+        "hide": 0,
+        "label": null,
+        "name": "interval",
+        "options": [
+          {
+            "selected": true,
+            "text": "auto",
+            "value": "$__auto_interval_interval"
+          },
+          {
+            "selected": false,
+            "text": "1m",
+            "value": "1m"
+          },
+          {
+            "selected": false,
+            "text": "5m",
+            "value": "5m"
+          },
+          {
+            "selected": false,
+            "text": "10m",
+            "value": "10m"
+          },
+          {
+            "selected": false,
+            "text": "30m",
+            "value": "30m"
+          },
+          {
+            "selected": false,
+            "text": "1h",
+            "value": "1h"
+          },
+          {
+            "selected": false,
+            "text": "2h",
+            "value": "2h"
+          },
+          {
+            "selected": false,
+            "text": "4h",
+            "value": "4h"
+          },
+          {
+            "selected": false,
+            "text": "8h",
+            "value": "8h"
+          }
+        ],
+        "query": "1m,5m,10m,30m,1h,2h,4h,8h",
+        "refresh": 2,
+        "skipUrlSync": false,
+        "type": "interval"
+      },
+      {
+        "allValue": "",
+        "current": {
+          "selected": true,
+          "text": "namespace",
+          "value": "namespace"
+        },
+        "hide": 0,
+        "includeAll": false,
+        "label": null,
+        "multi": false,
+        "name": "grouping",
+        "options": [
+          {
+            "selected": true,
+            "text": "namespace",
+            "value": "namespace"
+          },
+          {
+            "selected": false,
+            "text": "name",
+            "value": "name"
+          },
+          {
+            "selected": false,
+            "text": "project",
+            "value": "project"
+          }
+        ],
+        "query": "namespace,name,project",
+        "skipUrlSync": false,
+        "type": "custom"
+      },
+      {
         "allValue": ".*",
         "current": {
+          "selected": true,
           "text": "All",
-          "value": [
-            "$__all"
-          ]
+          "value": "$__all"
         },
-        "datasource": "$Source",
-        "definition": "label_values(argocd_app_health_status, project)",
+        "datasource": "Prometheus",
+        "definition": "label_values(argocd_cluster_info, server)",
         "hide": 0,
         "includeAll": true,
         "label": null,
-        "multi": true,
-        "name": "project",
-        "options": [],
-        "query": "label_values(argocd_app_health_status, project)",
-        "refresh": 1,
+        "multi": false,
+        "name": "cluster",
+        "options": [
+          {
+            "selected": true,
+            "text": "All",
+            "value": "$__all"
+          },
+          {
+            "selected": false,
+            "text": "https://api-apigw-ext-prod-apse2--ajcgom-1477658793.ap-southeast-2.elb.amazonaws.com",
+            "value": "https://api-apigw-ext-prod-apse2--ajcgom-1477658793.ap-southeast-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-apigw-int-ppd-apse2-c-4047ur-1662838789.ap-southeast-2.elb.amazonaws.com",
+            "value": "https://api-apigw-int-ppd-apse2-c-4047ur-1662838789.ap-southeast-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-apigw-int-ppd-use2-cl-j46u5k-1744483418.us-east-2.elb.amazonaws.com",
+            "value": "https://api-apigw-int-ppd-use2-cl-j46u5k-1744483418.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-apigw-int-ppd-usw2-cl-a48f31-919827323.us-west-2.elb.amazonaws.com",
+            "value": "https://api-apigw-int-ppd-usw2-cl-a48f31-919827323.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-argo-event-poc-cluste-ssnni7-1214287823.us-west-2.elb.amazonaws.com",
+            "value": "https://api-argo-event-poc-cluste-ssnni7-1214287823.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-cg-mint-ppd-usw2-clus-1e0d9d-470119742.us-west-2.elb.amazonaws.com",
+            "value": "https://api-cg-mint-ppd-usw2-clus-1e0d9d-470119742.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-cg-mint-prod-use2-clu-asrqnr-961048441.us-east-2.elb.amazonaws.com",
+            "value": "https://api-cg-mint-prod-use2-clu-asrqnr-961048441.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-cg-mint-prod-usw2-clu-6h0ggm-1786392133.us-west-2.elb.amazonaws.com",
+            "value": "https://api-cg-mint-prod-usw2-clu-6h0ggm-1786392133.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-cg-rtb-ppd-usw2-clust-alna4q-1345754692.us-west-2.elb.amazonaws.com",
+            "value": "https://api-cg-rtb-ppd-usw2-clust-alna4q-1345754692.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-cg-tax-ppd-usw2-clust-1jsfon-429035650.us-west-2.elb.amazonaws.com",
+            "value": "https://api-cg-tax-ppd-usw2-clust-1jsfon-429035650.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-cgc-ppd-usw2-cluster--unc0rm-1781190519.us-west-2.elb.amazonaws.com",
+            "value": "https://api-cgc-ppd-usw2-cluster--unc0rm-1781190519.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-compositdl-ppd-usw2-c-9hnbna-1091919459.us-west-2.elb.amazonaws.com",
+            "value": "https://api-compositdl-ppd-usw2-c-9hnbna-1091919459.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-compositdl-prd-usw2-c-s05kkp-228303682.us-west-2.elb.amazonaws.com",
+            "value": "https://api-compositdl-prd-usw2-c-s05kkp-228303682.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-composite-ppd-apse2-c-qafpg6-78213868.ap-southeast-2.elb.amazonaws.com",
+            "value": "https://api-composite-ppd-apse2-c-qafpg6-78213868.ap-southeast-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-composite-ppd-use2-cl-df4b6a-1357310412.us-east-2.elb.amazonaws.com",
+            "value": "https://api-composite-ppd-use2-cl-df4b6a-1357310412.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-composite-ppd-usw2-cl-hoj4tl-714904011.us-west-2.elb.amazonaws.com",
+            "value": "https://api-composite-ppd-usw2-cl-hoj4tl-714904011.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-composite-prod-use2-c-pampbn-1096414376.us-east-2.elb.amazonaws.com",
+            "value": "https://api-composite-prod-use2-c-pampbn-1096414376.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-composite-prod-usw2-c-a47ms4-536636489.us-west-2.elb.amazonaws.com",
+            "value": "https://api-composite-prod-usw2-c-a47ms4-536636489.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-conversation-sgmnt-pp-eo5qs8-950001142.us-west-2.elb.amazonaws.com",
+            "value": "https://api-conversation-sgmnt-pp-eo5qs8-950001142.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-convo-sgmnt-ppd-use2--khn5dp-933046739.us-east-2.elb.amazonaws.com",
+            "value": "https://api-convo-sgmnt-ppd-use2--khn5dp-933046739.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-convo-sgmnt-prd-use2--qqqtk5-1804625067.us-east-2.elb.amazonaws.com",
+            "value": "https://api-convo-sgmnt-prd-use2--qqqtk5-1804625067.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-convo-sgmnt-prod-usw2-ra525r-12260721.us-west-2.elb.amazonaws.com",
+            "value": "https://api-convo-sgmnt-prod-usw2-ra525r-12260721.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-cotest-ppd-cluster-k8-kbgevp-1124127088.us-west-2.elb.amazonaws.com",
+            "value": "https://api-cotest-ppd-cluster-k8-kbgevp-1124127088.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-curation-ppd-usw2-clu-1pe7gm-475640896.us-west-2.elb.amazonaws.com",
+            "value": "https://api-curation-ppd-usw2-clu-1pe7gm-475640896.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-curation-prod-usw2-cl-5hde3t-153413509.us-west-2.elb.amazonaws.com",
+            "value": "https://api-curation-prod-usw2-cl-5hde3t-153413509.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-data-platform-ppd-usw-2dpfaf-1288680808.us-west-2.elb.amazonaws.com",
+            "value": "https://api-data-platform-ppd-usw-2dpfaf-1288680808.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-data-platform-prod-us-iqvi9a-1934175226.us-west-2.elb.amazonaws.com",
+            "value": "https://api-data-platform-prod-us-iqvi9a-1934175226.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-data-sgmnt-ppd-apse2--9iga8h-1767700090.ap-southeast-2.elb.amazonaws.com",
+            "value": "https://api-data-sgmnt-ppd-apse2--9iga8h-1767700090.ap-southeast-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-data-sgmnt-ppd-cluste-ifntau-646656739.us-west-2.elb.amazonaws.com",
+            "value": "https://api-data-sgmnt-ppd-cluste-ifntau-646656739.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-data-sgmnt-ppd-use2-c-sa21je-337658149.us-east-2.elb.amazonaws.com",
+            "value": "https://api-data-sgmnt-ppd-use2-c-sa21je-337658149.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-data-sgmnt-prod-apse2-6ldsj7-1591106900.ap-southeast-2.elb.amazonaws.com",
+            "value": "https://api-data-sgmnt-prod-apse2-6ldsj7-1591106900.ap-southeast-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-data-sgmnt-prod-clust-rnt9ec-227566643.us-west-2.elb.amazonaws.com",
+            "value": "https://api-data-sgmnt-prod-clust-rnt9ec-227566643.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-data-sgmnt-prod-use2--8fjeou-644944342.us-east-2.elb.amazonaws.com",
+            "value": "https://api-data-sgmnt-prod-use2--8fjeou-644944342.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-desktop-sgmnt-ppd-clu-7l29io-588465511.us-west-2.elb.amazonaws.com",
+            "value": "https://api-desktop-sgmnt-ppd-clu-7l29io-588465511.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-desktop-sgmnt-prod-us-peildp-1000873625.us-west-2.elb.amazonaws.com",
+            "value": "https://api-desktop-sgmnt-prod-us-peildp-1000873625.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-dev-sgmnt-ppd-cluster-j43mvc-927853943.us-west-2.elb.amazonaws.com",
+            "value": "https://api-dev-sgmnt-ppd-cluster-j43mvc-927853943.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-futures-ppd-use2-clus-e2418p-1778765675.us-east-2.elb.amazonaws.com",
+            "value": "https://api-futures-ppd-use2-clus-e2418p-1778765675.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-futures-ppd-usw2-clus-btkdnc-986403855.us-west-2.elb.amazonaws.com",
+            "value": "https://api-futures-ppd-usw2-clus-btkdnc-986403855.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-futures-prod-use2-clu-00u8l8-636934646.us-east-2.elb.amazonaws.com",
+            "value": "https://api-futures-prod-use2-clu-00u8l8-636934646.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-futures-prod-usw2-clu-db2s23-733796797.us-west-2.elb.amazonaws.com",
+            "value": "https://api-futures-prod-usw2-clu-db2s23-733796797.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-identity-ppd-use2-clu-ivmf89-971910057.us-east-2.elb.amazonaws.com",
+            "value": "https://api-identity-ppd-use2-clu-ivmf89-971910057.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-identity-ppd-usw2-clu-hjoef6-2115894896.us-west-2.elb.amazonaws.com",
+            "value": "https://api-identity-ppd-usw2-clu-hjoef6-2115894896.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-identity-preprod-east-oa6usa-1503670907.us-east-2.elb.amazonaws.com",
+            "value": "https://api-identity-preprod-east-oa6usa-1503670907.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-identity-preprod-west-e3t71r-1394074200.us-west-2.elb.amazonaws.com",
+            "value": "https://api-identity-preprod-west-e3t71r-1394074200.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-identity-prod-use2-cl-co547l-591428147.us-east-2.elb.amazonaws.com",
+            "value": "https://api-identity-prod-use2-cl-co547l-591428147.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-identity-prod-usw2-cl-8emaga-1100086350.us-west-2.elb.amazonaws.com",
+            "value": "https://api-identity-prod-usw2-cl-8emaga-1100086350.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-identity-prod-west2-c-ebp75t-1014542658.us-west-2.elb.amazonaws.com",
+            "value": "https://api-identity-prod-west2-c-ebp75t-1014542658.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-idg-sgmnt-ppd-usw2-cl-2anft0-1540742056.us-west-2.elb.amazonaws.com",
+            "value": "https://api-idg-sgmnt-ppd-usw2-cl-2anft0-1540742056.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-idg-sgmnt-prod-usw2-c-c5kvdv-1464488025.us-west-2.elb.amazonaws.com",
+            "value": "https://api-idg-sgmnt-prod-usw2-c-c5kvdv-1464488025.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-idp-spp-client-ppd-us-24v5un-1515630276.us-west-2.elb.amazonaws.com",
+            "value": "https://api-idp-spp-client-ppd-us-24v5un-1515630276.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-idp-spp-client-prd-us-t7qoql-1340811723.us-west-2.elb.amazonaws.com",
+            "value": "https://api-idp-spp-client-prd-us-t7qoql-1340811723.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-idp-spp-dl-ppd-usw2-c-62u4qp-2046133582.us-west-2.elb.amazonaws.com",
+            "value": "https://api-idp-spp-dl-ppd-usw2-c-62u4qp-2046133582.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-idp-spp-dl-prod-usw2--2ktkh5-2080704990.us-west-2.elb.amazonaws.com",
+            "value": "https://api-idp-spp-dl-prod-usw2--2ktkh5-2080704990.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-idp-spp-ppd-usw2-clus-5sk67t-1592208577.us-west-2.elb.amazonaws.com",
+            "value": "https://api-idp-spp-ppd-usw2-clus-5sk67t-1592208577.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-idp-spp-prd-usw2-clus-frb2gv-1114828433.us-west-2.elb.amazonaws.com",
+            "value": "https://api-idp-spp-prd-usw2-clus-frb2gv-1114828433.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-idps-preprod-west2-cl-efhmev-305206372.us-west-2.elb.amazonaws.com",
+            "value": "https://api-idps-preprod-west2-cl-efhmev-305206372.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-ifdp-ppd-use2-cluster-en408e-1175267704.us-east-2.elb.amazonaws.com",
+            "value": "https://api-ifdp-ppd-use2-cluster-en408e-1175267704.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-ifdp-preprod-west2-cl-hja3l2-1950077541.us-west-2.elb.amazonaws.com",
+            "value": "https://api-ifdp-preprod-west2-cl-hja3l2-1950077541.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-ifdp-prod-pci-use2-cl-7ussjb-919989744.us-east-2.elb.amazonaws.com",
+            "value": "https://api-ifdp-prod-pci-use2-cl-7ussjb-919989744.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-ifdp-prod-pci-usw2-cl-vbms8a-732712385.us-west-2.elb.amazonaws.com",
+            "value": "https://api-ifdp-prod-pci-usw2-cl-vbms8a-732712385.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-ifdp-prod-use2-cluste-bmfimj-797818649.us-east-2.elb.amazonaws.com",
+            "value": "https://api-ifdp-prod-use2-cluste-bmfimj-797818649.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-ifdp-prod-usw2-cluste-g56upo-829039191.us-west-2.elb.amazonaws.com",
+            "value": "https://api-ifdp-prod-usw2-cluste-g56upo-829039191.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-ifdp2-ppd-usw2-cluste-g6nckd-1208784512.us-west-2.elb.amazonaws.com",
+            "value": "https://api-ifdp2-ppd-usw2-cluste-g6nckd-1208784512.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-ifdp2-prod-use2-clust-kscsaf-1298732788.us-east-2.elb.amazonaws.com",
+            "value": "https://api-ifdp2-prod-use2-clust-kscsaf-1298732788.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-ifdp2-prod-usw2-clust-c7dp9s-406040011.us-west-2.elb.amazonaws.com",
+            "value": "https://api-ifdp2-prod-usw2-clust-c7dp9s-406040011.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-iip-core-ppd-use2-clu-vvfde4-833746318.us-east-2.elb.amazonaws.com",
+            "value": "https://api-iip-core-ppd-use2-clu-vvfde4-833746318.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-iip-core-ppd-usw2-clu-0bupph-426861653.us-west-2.elb.amazonaws.com",
+            "value": "https://api-iip-core-ppd-usw2-clu-0bupph-426861653.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-iip-core-prod-use2-cl-70g1tk-879841593.us-east-2.elb.amazonaws.com",
+            "value": "https://api-iip-core-prod-use2-cl-70g1tk-879841593.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-iip-core-prod-usw2-cl-d13qit-1576117646.us-west-2.elb.amazonaws.com",
+            "value": "https://api-iip-core-prod-usw2-cl-d13qit-1576117646.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-iis-sgmnt-ppd-use2-cl-oee09u-1998733613.us-east-2.elb.amazonaws.com",
+            "value": "https://api-iis-sgmnt-ppd-use2-cl-oee09u-1998733613.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-iis-sgmnt-ppd-usw2-cl-8ckmmn-1974739600.us-west-2.elb.amazonaws.com",
+            "value": "https://api-iis-sgmnt-ppd-usw2-cl-8ckmmn-1974739600.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-iis-sgmnt-prod-use2-c-r7ivp5-1622995416.us-east-2.elb.amazonaws.com",
+            "value": "https://api-iis-sgmnt-prod-use2-c-r7ivp5-1622995416.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-iis-sgmnt-prod-usw2-c-fb1hmg-1651875011.us-west-2.elb.amazonaws.com",
+            "value": "https://api-iis-sgmnt-prod-usw2-c-fb1hmg-1651875011.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-ip-dl-spok-ppd-usw2-c-kkp2hu-462136879.us-west-2.elb.amazonaws.com",
+            "value": "https://api-ip-dl-spok-ppd-usw2-c-kkp2hu-462136879.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-ip-dl-spok-prod-usw2--q4dni2-22296936.us-west-2.elb.amazonaws.com",
+            "value": "https://api-ip-dl-spok-prod-usw2--q4dni2-22296936.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-ip-itg-ppd-usw2-clust-ls1llc-197203101.us-west-2.elb.amazonaws.com",
+            "value": "https://api-ip-itg-ppd-usw2-clust-ls1llc-197203101.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-ip-itg2-ppd-usw2-clus-stfr44-982958874.us-west-2.elb.amazonaws.com",
+            "value": "https://api-ip-itg2-ppd-usw2-clus-stfr44-982958874.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-ip-itg2-prod-use2-clu-m9iv30-1059964380.us-east-2.elb.amazonaws.com",
+            "value": "https://api-ip-itg2-prod-use2-clu-m9iv30-1059964380.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-ip-itg2-prod-usw2-clu-n416ir-1621186947.us-west-2.elb.amazonaws.com",
+            "value": "https://api-ip-itg2-prod-usw2-clu-n416ir-1621186947.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-mint-sgmnt-ppd-cluste-i6vobr-694301605.us-west-2.elb.amazonaws.com",
+            "value": "https://api-mint-sgmnt-ppd-cluste-i6vobr-694301605.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-msaas-sgmnt-ppd-usw2--l5anrf-152855548.us-west-2.elb.amazonaws.com",
+            "value": "https://api-msaas-sgmnt-ppd-usw2--l5anrf-152855548.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-msaas-sgmnt-prod-usw2-6fokf8-550692327.us-west-2.elb.amazonaws.com",
+            "value": "https://api-msaas-sgmnt-prod-usw2-6fokf8-550692327.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-msaasfmea1-ppd-usw2-c-7tapgj-620113846.us-west-2.elb.amazonaws.com",
+            "value": "https://api-msaasfmea1-ppd-usw2-c-7tapgj-620113846.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-msaasfmea2-ppd-usw2-c-oinpvs-1381259784.us-west-2.elb.amazonaws.com",
+            "value": "https://api-msaasfmea2-ppd-usw2-c-oinpvs-1381259784.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-msaasfmea3-ppd-usw2-c-irbavv-815576169.us-west-2.elb.amazonaws.com",
+            "value": "https://api-msaasfmea3-ppd-usw2-c-irbavv-815576169.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-msaasfmea4-ppd-use2-c-83ant8-1782381867.us-east-2.elb.amazonaws.com",
+            "value": "https://api-msaasfmea4-ppd-use2-c-83ant8-1782381867.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-msaasfmea4-ppd-usw2-c-65bi83-1204106462.us-west-2.elb.amazonaws.com",
+            "value": "https://api-msaasfmea4-ppd-usw2-c-65bi83-1204106462.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-ops-prim-ppd-cluster--2mdegs-238699754.us-west-2.elb.amazonaws.com",
+            "value": "https://api-ops-prim-ppd-cluster--2mdegs-238699754.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-ops-prim-ppd-use2-clu-6g269h-1300428880.us-east-2.elb.amazonaws.com",
+            "value": "https://api-ops-prim-ppd-use2-clu-6g269h-1300428880.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-ops-prim-prod-cluster-i24ge2-410224132.us-west-2.elb.amazonaws.com",
+            "value": "https://api-ops-prim-prod-cluster-i24ge2-410224132.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-ops-prim-prod-use2-cl-c22hp2-460935150.us-east-2.elb.amazonaws.com",
+            "value": "https://api-ops-prim-prod-use2-cl-c22hp2-460935150.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-paas-ppd-use2-cluster-dsut27-1802047578.us-east-2.elb.amazonaws.com",
+            "value": "https://api-paas-ppd-use2-cluster-dsut27-1802047578.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-paas-ppd-usw2-cluster-a9115e-1238401209.us-west-2.elb.amazonaws.com",
+            "value": "https://api-paas-ppd-usw2-cluster-a9115e-1238401209.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-paas-prod-east2-clust-u8fvke-779741542.us-east-2.elb.amazonaws.com",
+            "value": "https://api-paas-prod-east2-clust-u8fvke-779741542.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-paas-prod-vpn-east2-c-gt5rtd-1633228488.us-east-2.elb.amazonaws.com",
+            "value": "https://api-paas-prod-vpn-east2-c-gt5rtd-1633228488.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-paas-prod-vpn-west2-c-vv49k1-1098478661.us-west-2.elb.amazonaws.com",
+            "value": "https://api-paas-prod-vpn-west2-c-vv49k1-1098478661.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-paas-prod-west2-clust-vqkbk7-1700476732.us-west-2.elb.amazonaws.com",
+            "value": "https://api-paas-prod-west2-clust-vqkbk7-1700476732.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-payment-ppd-usw2-clus-f8u9s2-1662312025.us-west-2.elb.amazonaws.com",
+            "value": "https://api-payment-ppd-usw2-clus-f8u9s2-1662312025.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-payment-prod-use2-clu-lmuuhh-12555726.us-east-2.elb.amazonaws.com",
+            "value": "https://api-payment-prod-use2-clu-lmuuhh-12555726.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-payment-prod-usw2-clu-rqg0je-171126898.us-west-2.elb.amazonaws.com",
+            "value": "https://api-payment-prod-usw2-clu-rqg0je-171126898.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-payment-sgmnt-ppd-clu-v7c84d-1332277199.us-east-2.elb.amazonaws.com",
+            "value": "https://api-payment-sgmnt-ppd-clu-v7c84d-1332277199.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-payment-sgmnt-ppd-usw-l62o28-602037984.us-west-2.elb.amazonaws.com",
+            "value": "https://api-payment-sgmnt-ppd-usw-l62o28-602037984.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-payment-sgmnt-prod-cl-2r93d3-1508547364.us-east-2.elb.amazonaws.com",
+            "value": "https://api-payment-sgmnt-prod-cl-2r93d3-1508547364.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-payment-sgmnt-prod-pc-3j4upc-311845742.us-west-2.elb.amazonaws.com",
+            "value": "https://api-payment-sgmnt-prod-pc-3j4upc-311845742.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-payment-sgmnt-prod-pc-guqmdv-1540892630.us-east-2.elb.amazonaws.com",
+            "value": "https://api-payment-sgmnt-prod-pc-guqmdv-1540892630.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-payment-sgmnt-prod-us-jpqdd7-2055083576.us-west-2.elb.amazonaws.com",
+            "value": "https://api-payment-sgmnt-prod-us-jpqdd7-2055083576.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-payroll-compliance-pp-8j4pht-915393821.us-west-2.elb.amazonaws.com",
+            "value": "https://api-payroll-compliance-pp-8j4pht-915393821.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-payroll-compliance-pr-vb2ejc-1076364054.us-west-2.elb.amazonaws.com",
+            "value": "https://api-payroll-compliance-pr-vb2ejc-1076364054.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-payroll-mono-sgmnt-pr-qqi93m-548517081.us-west-2.elb.amazonaws.com",
+            "value": "https://api-payroll-mono-sgmnt-pr-qqi93m-548517081.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-payroll-ppd-use2-clus-6utm6h-1689118486.us-east-2.elb.amazonaws.com",
+            "value": "https://api-payroll-ppd-use2-clus-6utm6h-1689118486.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-payroll-prod-use2-clu-ho034o-1105194242.us-east-2.elb.amazonaws.com",
+            "value": "https://api-payroll-prod-use2-clu-ho034o-1105194242.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-payroll-sgmnt-ppd-clu-nnpb8c-1969862882.us-west-2.elb.amazonaws.com",
+            "value": "https://api-payroll-sgmnt-ppd-clu-nnpb8c-1969862882.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-payroll-sgmnt-prod-us-3mukrf-1318184389.us-west-2.elb.amazonaws.com",
+            "value": "https://api-payroll-sgmnt-prod-us-3mukrf-1318184389.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-payrollbo-ppd-use2-cl-qqgv7n-2034165365.us-east-2.elb.amazonaws.com",
+            "value": "https://api-payrollbo-ppd-use2-cl-qqgv7n-2034165365.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-payrollbo-prod-use2-c-lldq3b-77238586.us-east-2.elb.amazonaws.com",
+            "value": "https://api-payrollbo-prod-use2-c-lldq3b-77238586.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-payrollbo-sgmnt-ppd-c-t2s1v3-1521097917.us-west-2.elb.amazonaws.com",
+            "value": "https://api-payrollbo-sgmnt-ppd-c-t2s1v3-1521097917.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-payrollbo-sgmnt-prod--hitc6l-1229366617.us-west-2.elb.amazonaws.com",
+            "value": "https://api-payrollbo-sgmnt-prod--hitc6l-1229366617.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-pcg-ppd-usw2-cluster--e09f3g-742562133.us-west-2.elb.amazonaws.com",
+            "value": "https://api-pcg-ppd-usw2-cluster--e09f3g-742562133.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-pi-ppd-use2-cluster-k-shsfpv-254440456.us-east-2.elb.amazonaws.com",
+            "value": "https://api-pi-ppd-use2-cluster-k-shsfpv-254440456.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-pi-ppd-usw2-cluster-k-34umb6-523149175.us-west-2.elb.amazonaws.com",
+            "value": "https://api-pi-ppd-usw2-cluster-k-34umb6-523149175.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-pi-prod-use2-cluster--i55jho-1797458153.us-east-2.elb.amazonaws.com",
+            "value": "https://api-pi-prod-use2-cluster--i55jho-1797458153.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-pi-prod-usw2-cluster--6pjuud-2098097015.us-west-2.elb.amazonaws.com",
+            "value": "https://api-pi-prod-usw2-cluster--6pjuud-2098097015.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-platform-sgmnt-ppd-cl-6v3umq-16187736.us-west-2.elb.amazonaws.com",
+            "value": "https://api-platform-sgmnt-ppd-cl-6v3umq-16187736.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-platform-sgmnt-prod-u-bbsofe-1294961518.us-west-2.elb.amazonaws.com",
+            "value": "https://api-platform-sgmnt-prod-u-bbsofe-1294961518.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-qbcapital-sgmnt-ppd-c-rftr34-1007312512.us-west-2.elb.amazonaws.com",
+            "value": "https://api-qbcapital-sgmnt-ppd-c-rftr34-1007312512.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-qbcapital-sgmnt-prod--8cb8s7-213782079.us-west-2.elb.amazonaws.com",
+            "value": "https://api-qbcapital-sgmnt-prod--8cb8s7-213782079.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-qbdt-preprod-cluster--tffdli-983470154.us-west-2.elb.amazonaws.com",
+            "value": "https://api-qbdt-preprod-cluster--tffdli-983470154.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-qbo-mono-prod-usw2-cl-2jsc40-158828040.us-west-2.elb.amazonaws.com",
+            "value": "https://api-qbo-mono-prod-usw2-cl-2jsc40-158828040.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-qbo-mono-sgmnt-ppd-us-692f5d-2088967687.us-west-2.elb.amazonaws.com",
+            "value": "https://api-qbo-mono-sgmnt-ppd-us-692f5d-2088967687.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-qbo-sgmnt-ppd-cluster-vv6tkk-1035675836.us-west-2.elb.amazonaws.com",
+            "value": "https://api-qbo-sgmnt-ppd-cluster-vv6tkk-1035675836.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-qbo-sgmnt-prod-use2-c-8j2lqc-856340299.us-east-2.elb.amazonaws.com",
+            "value": "https://api-qbo-sgmnt-prod-use2-c-8j2lqc-856340299.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-qbo-sgmnt-prod-usw2-c-gi1e5l-1903536990.us-west-2.elb.amazonaws.com",
+            "value": "https://api-qbo-sgmnt-prod-usw2-c-gi1e5l-1903536990.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-qbo-sgmnt2-ppd-use2-c-3cb4a4-1525564779.us-east-2.elb.amazonaws.com",
+            "value": "https://api-qbo-sgmnt2-ppd-use2-c-3cb4a4-1525564779.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-qbo-sgmnt2-ppd-usw2-c-iiq6pn-2076170973.us-west-2.elb.amazonaws.com",
+            "value": "https://api-qbo-sgmnt2-ppd-usw2-c-iiq6pn-2076170973.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-qbo-sgmnt2-prd-usw2-c-f0aho2-147721169.us-west-2.elb.amazonaws.com",
+            "value": "https://api-qbo-sgmnt2-prd-usw2-c-f0aho2-147721169.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-qbse-sgmnt-ppd-cluste-sflec2-1933599344.us-west-2.elb.amazonaws.com",
+            "value": "https://api-qbse-sgmnt-ppd-cluste-sflec2-1933599344.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-qbse-sgmnt-prod-use2--dneddr-1062915788.us-east-2.elb.amazonaws.com",
+            "value": "https://api-qbse-sgmnt-prod-use2--dneddr-1062915788.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-qbse-sgmnt-prod-usw2--9bj36m-178861584.us-west-2.elb.amazonaws.com",
+            "value": "https://api-qbse-sgmnt-prod-usw2--9bj36m-178861584.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-salestax-ppd-usw2-clu-3uulmk-1156768781.us-west-2.elb.amazonaws.com",
+            "value": "https://api-salestax-ppd-usw2-clu-3uulmk-1156768781.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-salestax-prod-usw2-cl-7lhv3p-1991680512.us-west-2.elb.amazonaws.com",
+            "value": "https://api-salestax-prod-usw2-cl-7lhv3p-1991680512.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-sbg-convo-ppd-use2-cl-2n1tc7-1459153889.us-east-2.elb.amazonaws.com",
+            "value": "https://api-sbg-convo-ppd-use2-cl-2n1tc7-1459153889.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-sbg-convo-prd-use2-cl-g8skvc-1608760275.us-east-2.elb.amazonaws.com",
+            "value": "https://api-sbg-convo-prd-use2-cl-g8skvc-1608760275.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-sbseg-kafka-k8s-ppd-c-4glco7-1584469196.us-west-2.elb.amazonaws.com",
+            "value": "https://api-sbseg-kafka-k8s-ppd-c-4glco7-1584469196.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-security-sgmnt-ppd-us-55n0uv-1627921617.us-west-2.elb.amazonaws.com",
+            "value": "https://api-security-sgmnt-ppd-us-55n0uv-1627921617.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-serverless-ppd-usw2-c-bnpae2-496736143.us-west-2.elb.amazonaws.com",
+            "value": "https://api-serverless-ppd-usw2-c-bnpae2-496736143.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-serverless-prod-usw2--aoo39e-1025567686.us-west-2.elb.amazonaws.com",
+            "value": "https://api-serverless-prod-usw2--aoo39e-1025567686.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-spp-e2e-dev-usw2-clus-enhqa4-1699175780.us-west-2.elb.amazonaws.com",
+            "value": "https://api-spp-e2e-dev-usw2-clus-enhqa4-1699175780.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-t4i-obill1-ppd-usw2-c-6nj6mr-1815417173.us-west-2.elb.amazonaws.com",
+            "value": "https://api-t4i-obill1-ppd-usw2-c-6nj6mr-1815417173.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-t4i-obill1-prod-usw2--va2qrc-1249499883.us-west-2.elb.amazonaws.com",
+            "value": "https://api-t4i-obill1-prod-usw2--va2qrc-1249499883.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-t4i-obill2-ppd-usw2-c-8iutvq-1593842772.us-west-2.elb.amazonaws.com",
+            "value": "https://api-t4i-obill2-ppd-usw2-c-8iutvq-1593842772.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-t4i-preprod-east2-clu-hh264g-90105699.us-east-2.elb.amazonaws.com",
+            "value": "https://api-t4i-preprod-east2-clu-hh264g-90105699.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-t4i-preprod-west2-clu-1c8pbe-1547055698.us-west-2.elb.amazonaws.com",
+            "value": "https://api-t4i-preprod-west2-clu-1c8pbe-1547055698.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-t4i-prod-east2-cluste-ggv163-1813580935.us-east-2.elb.amazonaws.com",
+            "value": "https://api-t4i-prod-east2-cluste-ggv163-1813580935.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-t4i-prod-pci-east2-cl-ius71u-731300133.us-east-2.elb.amazonaws.com",
+            "value": "https://api-t4i-prod-pci-east2-cl-ius71u-731300133.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-t4i-prod-pci-west2-cl-srdidc-1197310594.us-west-2.elb.amazonaws.com",
+            "value": "https://api-t4i-prod-pci-west2-cl-srdidc-1197310594.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-t4i-prod-west2-cluste-uggsne-1376449254.us-west-2.elb.amazonaws.com",
+            "value": "https://api-t4i-prod-west2-cluste-uggsne-1376449254.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-t4i2-ppd-use2-cluster-tisiee-153651140.us-east-2.elb.amazonaws.com",
+            "value": "https://api-t4i2-ppd-use2-cluster-tisiee-153651140.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-t4i2-ppd-usw2-cluster-nfbgch-1518060045.us-west-2.elb.amazonaws.com",
+            "value": "https://api-t4i2-ppd-usw2-cluster-nfbgch-1518060045.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-t4ies-prod-sox-usw2-c-j6iis6-347914266.us-west-2.elb.amazonaws.com",
+            "value": "https://api-t4ies-prod-sox-usw2-c-j6iis6-347914266.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-tech-ai-2-ppd-usw2-cl-o7u202-227823336.us-west-2.elb.amazonaws.com",
+            "value": "https://api-tech-ai-2-ppd-usw2-cl-o7u202-227823336.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-tech-ai-2-prod-usw2-c-q4cqve-1039485222.us-west-2.elb.amazonaws.com",
+            "value": "https://api-tech-ai-2-prod-usw2-c-q4cqve-1039485222.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-tech-ai-ppd-usw2-clus-ceh5r5-1075681039.us-west-2.elb.amazonaws.com",
+            "value": "https://api-tech-ai-ppd-usw2-clus-ceh5r5-1075681039.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-tech-ai-prod-usw2-clu-ucleqe-937487790.us-west-2.elb.amazonaws.com",
+            "value": "https://api-tech-ai-prod-usw2-clu-ucleqe-937487790.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-tools-sgmnt-ppd-usw2--s8maps-2116249654.us-west-2.elb.amazonaws.com",
+            "value": "https://api-tools-sgmnt-ppd-usw2--s8maps-2116249654.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-tools-sgmnt-prod-clus-7a3fcq-1154882921.us-west-2.elb.amazonaws.com",
+            "value": "https://api-tools-sgmnt-prod-clus-7a3fcq-1154882921.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-tools-sgmnt-prod-use2-pitpmu-1620805294.us-east-2.elb.amazonaws.com",
+            "value": "https://api-tools-sgmnt-prod-use2-pitpmu-1620805294.us-east-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-tsheets-ppd-usw2-clus-o0tttj-1157683220.us-west-2.elb.amazonaws.com",
+            "value": "https://api-tsheets-ppd-usw2-clus-o0tttj-1157683220.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://api-tsheets-prod-usw2-clu-sq8m16-813329670.us-west-2.elb.amazonaws.com",
+            "value": "https://api-tsheets-prod-usw2-clu-sq8m16-813329670.us-west-2.elb.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://eksapi-iksm-ppd-usw2-k8s-7513683aaca04705.elb.us-west-2.amazonaws.com",
+            "value": "https://eksapi-iksm-ppd-usw2-k8s-7513683aaca04705.elb.us-west-2.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://eksapi-ip-fmea1-ppd-usw2-k8s-0a93554f55b5f37a.elb.us-west-2.amazonaws.com",
+            "value": "https://eksapi-ip-fmea1-ppd-usw2-k8s-0a93554f55b5f37a.elb.us-west-2.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://eksapi-ip-fmea1-ppd-usw2-k8s-56f832a2873fde27.elb.us-west-2.amazonaws.com",
+            "value": "https://eksapi-ip-fmea1-ppd-usw2-k8s-56f832a2873fde27.elb.us-west-2.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://eksapi-ip-msok-ppd-usw2-k8s-1eedff9c19fcb548.elb.us-west-2.amazonaws.com",
+            "value": "https://eksapi-ip-msok-ppd-usw2-k8s-1eedff9c19fcb548.elb.us-west-2.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://eksapi-qbse-ppd-usw2-k8s-3e43b9eee11b6e04.elb.us-west-2.amazonaws.com",
+            "value": "https://eksapi-qbse-ppd-usw2-k8s-3e43b9eee11b6e04.elb.us-west-2.amazonaws.com"
+          },
+          {
+            "selected": false,
+            "text": "https://kubernetes.default.svc",
+            "value": "https://kubernetes.default.svc"
+          }
+        ],
+        "query": "label_values(argocd_cluster_info, server)",
+        "refresh": 0,
         "regex": "",
         "skipUrlSync": false,
-        "sort": 0,
+        "sort": 1,
         "tagValuesQuery": "",
         "tags": [],
         "tagsQuery": "",
         "type": "query",
         "useTags": false
+      },
+      {
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "hide": 0,
+        "includeAll": true,
+        "label": null,
+        "multi": false,
+        "name": "health_status",
+        "options": [
+          {
+            "selected": true,
+            "text": "All",
+            "value": "$__all"
+          },
+          {
+            "selected": false,
+            "text": "Healthy",
+            "value": "Healthy"
+          },
+          {
+            "selected": false,
+            "text": "Progressing",
+            "value": "Progressing"
+          },
+          {
+            "selected": false,
+            "text": "Suspended",
+            "value": "Suspended"
+          },
+          {
+            "selected": false,
+            "text": "Missing",
+            "value": "Missing"
+          },
+          {
+            "selected": false,
+            "text": "Degraded",
+            "value": "Degraded"
+          },
+          {
+            "selected": false,
+            "text": "Unknown",
+            "value": "Unknown"
+          }
+        ],
+        "query": "Healthy,Progressing,Suspended,Missing,Degraded,Unknown",
+        "skipUrlSync": false,
+        "type": "custom"
+      },
+      {
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "hide": 0,
+        "includeAll": true,
+        "label": null,
+        "multi": false,
+        "name": "sync_status",
+        "options": [
+          {
+            "selected": true,
+            "text": "All",
+            "value": "$__all"
+          },
+          {
+            "selected": false,
+            "text": "Synced",
+            "value": "Synced"
+          },
+          {
+            "selected": false,
+            "text": "OutOfSync",
+            "value": "OutOfSync"
+          },
+          {
+            "selected": false,
+            "text": "Unknown",
+            "value": "Unknown"
+          }
+        ],
+        "query": "Synced,OutOfSync,Unknown",
+        "skipUrlSync": false,
+        "type": "custom"
       }
     ]
   },
   "time": {
-    "from": "now-6h",
+    "from": "now-1h",
     "to": "now"
   },
   "timepicker": {
@@ -3142,6 +4633,6 @@
   },
   "timezone": "",
   "title": "ArgoCD",
-  "uid": "BjWwX3jik",
-  "version": 1
+  "uid": "LCAgc9rWz",
+  "version": 2
 }
