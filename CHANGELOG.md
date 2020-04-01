@@ -12,11 +12,27 @@ Following enhancement were implemented in addition to Helm 3:
 * The `--set-file` flag can be specified in the application specification.
 * Fixed bug that prevents automatically update Helm chart when new version is published (#3193)
 
+#### Better Performance
+
+ If you are running Argo CD instances with several hundred applications on it, you should see a
+ huge performance boost and significantly less Kubernetes API server load.
+
 #### Local accounts
 
 The local accounts had been introduced additional to `admin` user and SSO integration. The feature is useful for creating authentication
 tokens with limited permissions to automate Argo CD management. Local accounts also could be used small by teams when SSO integration is overkill.
 This enhancement also allows to disable admin user and enforce only SSO logins.
+
+#### Windows CLI
+
+Windows users deploy to Kubernetes too! Now you can use Argo CD CLI on Linux, Mac OS, and Windows. The Windows compatible binary is available 
+in the release details page as well as on the Argo CD Help page.
+
+#### Breaking Changes
+
+The `argocd_app_sync_status`, `argocd_app_health_status` and `argocd_app_created_time` prometheus metrics are deprecated in favor of additional labels
+to `argocd_app_info` metric. The deprecated labels are still available can be re-enabled using ARGOCD_LEGACY_CONTROLLER_METRICS. The legacy example Grafana
+dashboard is available at [dashboard-legacy.json](https://github.com/argoproj/argo-cd/blob/master/examples/dashboard.json). 
 
 #### Enhancements
 * feat: support helm3 (#2383) (#3178)
