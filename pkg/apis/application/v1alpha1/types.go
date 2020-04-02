@@ -1913,34 +1913,7 @@ type JWTToken struct {
 	ExpiresAt int64 `json:"exp,omitempty" protobuf:"int64,2,opt,name=exp"`
 }
 
-// we append parameters to arguments using these settings
-// ${optionName} ${key}${keyValueDelimiter}${value}
-// e.g.
-// if
-//   optionName="-p"
-//   delimiter="="
-//
-//  -p key1=value1 -p key2=value2
-//
-type ParameterFormat struct {
-	OptionName string `json:"optionName,omitempty" protobuf:"bytes,1,name=optionName"`
-	Delimiter  string `json:"delimiter,omitempty" protobuf:"bytes,2,name=delimiter"`
-}
-
-func (in ParameterFormat) IsZero() bool {
-	return in.OptionName == "" && in.Delimiter == ""
-}
-
 type Parameters map[string]string
-
-func (in ParameterFormat) Format(p Parameters) []string {
-	output := make([]string, 0)
-	for name, value := range p {
-		output = append(output, in.OptionName)
-		output = append(output, name+in.Delimiter+value)
-	}
-	return output
-}
 
 func (in Parameters) IsZero() bool {
 	return len(in) == 0
@@ -1948,9 +1921,8 @@ func (in Parameters) IsZero() bool {
 
 // Command holds binary path and arguments list
 type Command struct {
-	Command         []string         `json:"command,omitempty" protobuf:"bytes,1,name=command"`
-	Args            []string         `json:"args,omitempty" protobuf:"bytes,2,rep,name=args"`
-	ParameterFormat *ParameterFormat `json:"parameterFormat,omitempty" protobuf:"bytes,3,rep,name=parameterFormat"`
+	Command []string `json:"command,omitempty" protobuf:"bytes,1,name=command"`
+	Args    []string `json:"args,omitempty" protobuf:"bytes,2,rep,name=args"`
 }
 
 // ConfigManagementPlugin contains config management plugin configuration
@@ -1958,6 +1930,8 @@ type ConfigManagementPlugin struct {
 	Name     string   `json:"name" protobuf:"bytes,1,name=name"`
 	Init     *Command `json:"init,omitempty" protobuf:"bytes,2,name=init"`
 	Generate Command  `json:"generate" protobuf:"bytes,3,name=generate"`
+	// Parameters is an optional command that is used to convert the parameters in the app spec and generates the appropriate command line args to append to the generate command.
+	Parameters *Command `json:"parameters,omitempty" protobuf:"bytes,2,name=paramaters"`
 }
 
 // KustomizeOptions are options for kustomize to use when building manifests
