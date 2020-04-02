@@ -642,8 +642,20 @@ func runConfigManagementPlugin(appPath string, envVars *v1alpha1.Env, q *apiclie
 			return nil, err
 		}
 	}
-	var args []string
+	args, err := getGenerateArgs(plugin, q, appPath, env)
+	if err != nil {
+		return nil, err
+	}
+	out, err := runCommand(plugin.Generate, appPath, env, args)
+	if err != nil {
+		return nil, err
+	}
+	return kube.SplitYAML(out)
+}
+
+func getGenerateArgs(plugin *v1alpha1.ConfigManagementPlugin, q *apiclient.ManifestRequest, appPath string, env []string) ([]string, error) {
 	if plugin.Parameters != nil {
+		var args []string
 		for n, v := range q.ApplicationSource.Plugin.Parameters {
 			args = append(args, n+"="+v)
 		}
@@ -651,14 +663,9 @@ func runConfigManagementPlugin(appPath string, envVars *v1alpha1.Env, q *apiclie
 		if err != nil {
 			return nil, err
 		}
-		args = strings.Split(out, " ")
+		return strings.Split(out, " "), nil
 	}
-
-	out, err := runCommand(plugin.Generate, appPath, env, args)
-	if err != nil {
-		return nil, err
-	}
-	return kube.SplitYAML(out)
+	return nil, nil
 }
 
 func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppDetailsQuery) (*apiclient.RepoAppDetailsResponse, error) {
