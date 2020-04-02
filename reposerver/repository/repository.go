@@ -599,11 +599,18 @@ func makeJsonnetVm(sourceJsonnet v1alpha1.ApplicationSourceJsonnet, env *v1alpha
 	return vm
 }
 
-func runCommand(command v1alpha1.Command, path string, env []string) (string, error) {
+func runCommand(command v1alpha1.Command, path string, env []string, parameters v1alpha1.Parameters) (string, error) {
 	if len(command.Command) == 0 {
 		return "", fmt.Errorf("Command is empty")
 	}
-	cmd := exec.Command(command.Command[0], append(command.Command[1:], command.Args...)...)
+	var args []string
+	if parameters != nil {
+		if command.ParameterFormat == nil {
+			return "", fmt.Errorf("cannot format parameters without formatter")
+		}
+		args = command.ParameterFormat.Format(parameters)
+	}
+	cmd := exec.Command(command.Command[0], append(append(command.Command[1:], command.Args...), args...)...)
 	cmd.Env = env
 	cmd.Dir = path
 	return executil.Run(cmd)
@@ -636,12 +643,12 @@ func runConfigManagementPlugin(appPath string, envVars *v1alpha1.Env, q *apiclie
 	env = append(env, "KUBE_VERSION="+q.KubeVersion)
 	env = append(env, "KUBE_API_VERSIONS="+strings.Join(q.ApiVersions, ","))
 	if plugin.Init != nil {
-		_, err := runCommand(*plugin.Init, appPath, env)
+		_, err := runCommand(*plugin.Init, appPath, env, q.ApplicationSource.Plugin.Parameters)
 		if err != nil {
 			return nil, err
 		}
 	}
-	out, err := runCommand(plugin.Generate, appPath, env)
+	out, err := runCommand(plugin.Generate, appPath, env, q.ApplicationSource.Plugin.Parameters)
 	if err != nil {
 		return nil, err
 	}
