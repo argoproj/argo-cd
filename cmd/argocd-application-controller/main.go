@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/argoproj/pkg/stats"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
@@ -19,13 +20,13 @@ import (
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/controller"
 	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/settings"
-	"github.com/argoproj/argo-cd/util/stats"
 )
 
 const (
@@ -59,8 +60,7 @@ func newCommand() *cobra.Command {
 
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
-			config.QPS = common.K8sClientConfigQPS
-			config.Burst = common.K8sClientConfigBurst
+			errors.CheckError(v1alpha1.SetK8SConfigDefaults(config))
 
 			kubeClient := kubernetes.NewForConfigOrDie(config)
 			appClient := appclientset.NewForConfigOrDie(config)
@@ -92,7 +92,8 @@ func newCommand() *cobra.Command {
 				kubectlParallelismLimit)
 			errors.CheckError(err)
 
-			log.Infof("Application Controller (version: %s) starting (namespace: %s)", common.GetVersion(), namespace)
+			vers := common.GetVersion()
+			log.Infof("Application Controller (version: %s, built: %s) starting (namespace: %s)", vers.Version, vers.BuildDate, namespace)
 			stats.RegisterStackDumper()
 			stats.StartStatsTicker(10 * time.Minute)
 			stats.RegisterHeapDumper("memprofile")

@@ -19,7 +19,7 @@ services.viewPreferences.init();
 const bases = document.getElementsByTagName('base');
 const base = bases.length > 0 ? bases[0].getAttribute('href') || '/' : '/';
 export const history = createBrowserHistory({basename: base});
-requests.setApiRoot(`${base}api/v1`);
+requests.setBaseHRef(base);
 
 const routes: {[path: string]: {component: React.ComponentType<RouteComponentProps<any>>; noLayout?: boolean}} = {
     '/login': {component: login.component as any, noLayout: true},
@@ -87,7 +87,7 @@ requests.onError.subscribe(async err => {
         if (isSSO) {
             window.location.href = `${basehref}/auth/login?return_url=${encodeURIComponent(location.href)}`;
         } else {
-            history.push(`${basehref}/login?return_url=${encodeURIComponent(location.href)}`);
+            history.push(`/login?return_url=${encodeURIComponent(location.href)}`);
         }
     }
 });
@@ -122,7 +122,7 @@ export class App extends React.Component<{}, {popupProps: PopupProps; error: Err
             const ga = await import('react-ga');
             ga.initialize(trackingID);
             const trackPageView = () => {
-                if (loggedIn) {
+                if (loggedIn && username) {
                     const userId = !anonymizeUsers ? username : hashCode(username).toString();
                     ga.set({userId});
                 }

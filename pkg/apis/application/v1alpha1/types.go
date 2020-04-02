@@ -3,6 +3,8 @@ package v1alpha1
 import (
 	"encoding/json"
 	"fmt"
+	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -22,6 +24,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	utilnet "k8s.io/apimachinery/pkg/util/net"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -412,9 +415,18 @@ type ApplicationStatus struct {
 	Summary    ApplicationSummary    `json:"summary,omitempty" protobuf:"bytes,10,opt,name=summary"`
 }
 
+// OperationInitiator holds information about the operation initiator
+type OperationInitiator struct {
+	// Name of a user who started operation.
+	Username string `json:"username,omitempty" protobuf:"bytes,1,opt,name=username"`
+	// Automated is set to true if operation was initiated automatically by the application controller.
+	Automated bool `json:"automated,omitempty" protobuf:"bytes,2,opt,name=automated"`
+}
+
 // Operation contains requested operation parameters.
 type Operation struct {
-	Sync *SyncOperation `json:"sync,omitempty" protobuf:"bytes,1,opt,name=sync"`
+	Sync        *SyncOperation     `json:"sync,omitempty" protobuf:"bytes,1,opt,name=sync"`
+	InitiatedBy OperationInitiator `json:"initiatedBy,omitempty" protobuf:"bytes,2,opt,name=initiatedBy"`
 }
 
 // SyncOperationResource contains resources to sync.
@@ -461,6 +473,8 @@ type SyncOperation struct {
 	Source *ApplicationSource `json:"source,omitempty" protobuf:"bytes,7,opt,name=source"`
 	// Manifests is an optional field that overrides sync source with a local directory for development
 	Manifests []string `json:"manifests,omitempty" protobuf:"bytes,8,opt,name=manifests"`
+	// SyncOptions provide per-sync sync-options, e.g. Validate=false
+	SyncOptions SyncOptions `json:"syncOptions,omitempty" protobuf:"bytes,9,opt,name=syncOptions"`
 }
 
 func (o *SyncOperation) IsApplyStrategy() bool {
@@ -518,10 +532,45 @@ type Info struct {
 	Value string `json:"value" protobuf:"bytes,2,name=value"`
 }
 
+type SyncOptions []string
+
+func (o SyncOptions) AddOption(option string) SyncOptions {
+	for _, j := range o {
+		if j == option {
+			return o
+		}
+	}
+	return append(o, option)
+}
+
+func (o SyncOptions) RemoveOption(option string) SyncOptions {
+	for i, j := range o {
+		if j == option {
+			return append(o[:i], o[i+1:]...)
+		}
+	}
+	return o
+}
+
+func (o SyncOptions) HasOption(option string) bool {
+	for _, i := range o {
+		if option == i {
+			return true
+		}
+	}
+	return false
+}
+
 // SyncPolicy controls when a sync will be performed in response to updates in git
 type SyncPolicy struct {
 	// Automated will keep an application synced to the target revision
 	Automated *SyncPolicyAutomated `json:"automated,omitempty" protobuf:"bytes,1,opt,name=automated"`
+	// Options allow youe to specify whole app sync-options
+	SyncOptions SyncOptions `json:"syncOptions,omitempty" protobuf:"bytes,2,opt,name=syncOptions"`
+}
+
+func (p *SyncPolicy) IsZero() bool {
+	return p == nil || (p.Automated == nil && len(p.SyncOptions) == 0)
 }
 
 // SyncPolicyAutomated controls the behavior of an automated sync
@@ -1554,6 +1603,8 @@ type AppProjectSpec struct {
 	OrphanedResources *OrphanedResourcesMonitorSettings `json:"orphanedResources,omitempty" protobuf:"bytes,7,opt,name=orphanedResources"`
 	// SyncWindows controls when syncs can be run for apps in this project
 	SyncWindows SyncWindows `json:"syncWindows,omitempty" protobuf:"bytes,8,opt,name=syncWindows"`
+	// NamespaceResourceWhitelist contains list of whitelisted namespace level resources
+	NamespaceResourceWhitelist []metav1.GroupKind `json:"namespaceResourceWhitelist,omitempty" protobuf:"bytes,9,opt,name=namespaceResourceWhitelist"`
 }
 
 // SyncWindows is a collection of sync windows in this project
@@ -2078,7 +2129,9 @@ func isResourceInList(res metav1.GroupKind, list []metav1.GroupKind) bool {
 func (proj AppProject) IsGroupKindPermitted(gk schema.GroupKind, namespaced bool) bool {
 	res := metav1.GroupKind{Group: gk.Group, Kind: gk.Kind}
 	if namespaced {
-		return !isResourceInList(res, proj.Spec.NamespaceResourceBlacklist)
+		isWhiteListed := len(proj.Spec.NamespaceResourceWhitelist) == 0 || isResourceInList(res, proj.Spec.NamespaceResourceWhitelist)
+		isBlackListed := isResourceInList(res, proj.Spec.NamespaceResourceBlacklist)
+		return isWhiteListed && !isBlackListed
 	} else {
 		return isResourceInList(res, proj.Spec.ClusterResourceWhitelist)
 	}
@@ -2126,8 +2179,45 @@ func (proj AppProject) IsDestinationPermitted(dst ApplicationDestination) bool {
 	return false
 }
 
-// RESTConfig returns a go-client REST config from cluster
-func (c *Cluster) RESTConfig() *rest.Config {
+// SetK8SConfigDefaults sets Kubernetes REST config default settings
+func SetK8SConfigDefaults(config *rest.Config) error {
+	config.QPS = common.K8sClientConfigQPS
+	config.Burst = common.K8sClientConfigBurst
+	tlsConfig, err := rest.TLSConfigFor(config)
+	if err != nil {
+		return err
+	}
+
+	dial := (&net.Dialer{
+		Timeout:   30 * time.Second,
+		KeepAlive: 30 * time.Second,
+	}).DialContext
+	transport := utilnet.SetTransportDefaults(&http.Transport{
+		Proxy:               http.ProxyFromEnvironment,
+		TLSHandshakeTimeout: 10 * time.Second,
+		TLSClientConfig:     tlsConfig,
+		MaxIdleConns:        common.K8sMaxIdleConnections,
+		MaxIdleConnsPerHost: common.K8sMaxIdleConnections,
+		MaxConnsPerHost:     common.K8sMaxIdleConnections,
+		DialContext:         dial,
+		DisableCompression:  config.DisableCompression,
+	})
+	tr, err := rest.HTTPWrappersForConfig(config, transport)
+	if err != nil {
+		return err
+	}
+
+	// set default tls config and remove auth/exec provides since we use it in a custom transport
+	config.TLSClientConfig = rest.TLSClientConfig{}
+	config.AuthProvider = nil
+	config.ExecProvider = nil
+
+	config.Transport = tr
+	return nil
+}
+
+// RawRestConfig returns a go-client REST config from cluster that might be serialized into the file using kube.WriteKubeConfig method.
+func (c *Cluster) RawRestConfig() *rest.Config {
 	var config *rest.Config
 	var err error
 	if c.Server == common.KubernetesInternalAPIServerAddr && os.Getenv(common.EnvVarFakeInClusterConfig) == "true" {
@@ -2174,8 +2264,16 @@ func (c *Cluster) RESTConfig() *rest.Config {
 	if err != nil {
 		panic(fmt.Sprintf("Unable to create K8s REST config: %v", err))
 	}
-	config.QPS = common.K8sClientConfigQPS
-	config.Burst = common.K8sClientConfigBurst
+	return config
+}
+
+// RESTConfig returns a go-client REST config from cluster with tuned throttling and HTTP client settings.
+func (c *Cluster) RESTConfig() *rest.Config {
+	config := c.RawRestConfig()
+	err := SetK8SConfigDefaults(config)
+	if err != nil {
+		panic(fmt.Sprintf("Unable to apply K8s REST config defaults: %v", err))
+	}
 	return config
 }
 

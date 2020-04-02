@@ -71,6 +71,9 @@ message AppProjectSpec {
 
   // SyncWindows controls when syncs can be run for apps in this project
   repeated SyncWindow syncWindows = 8;
+
+  // NamespaceResourceWhitelist contains list of whitelisted namespace level resources
+  repeated k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind namespaceResourceWhitelist = 9;
 }
 
 // Application is a definition of Application resource.
@@ -467,6 +470,17 @@ message KustomizeOptions {
 // Operation contains requested operation parameters.
 message Operation {
   optional SyncOperation sync = 1;
+
+  optional OperationInitiator initiatedBy = 2;
+}
+
+// OperationInitiator holds information about the operation initiator
+message OperationInitiator {
+  // Name of a user who started operation.
+  optional string username = 1;
+
+  // Automated is set to true if operation was initiated automatically by the application controller.
+  optional bool automated = 2;
 }
 
 // OperationState contains information about state of currently performing operation on application.
@@ -851,6 +865,9 @@ message SyncOperation {
 
   // Manifests is an optional field that overrides sync source with a local directory for development
   repeated string manifests = 8;
+
+  // SyncOptions provide per-sync sync-options, e.g. Validate=false
+  repeated string syncOptions = 9;
 }
 
 // SyncOperationResource contains resources to sync.
@@ -878,6 +895,9 @@ message SyncOperationResult {
 message SyncPolicy {
   // Automated will keep an application synced to the target revision
   optional SyncPolicyAutomated automated = 1;
+
+  // Options allow youe to specify whole app sync-options
+  repeated string syncOptions = 2;
 }
 
 // SyncPolicyAutomated controls the behavior of an automated sync

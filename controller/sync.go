@@ -47,6 +47,7 @@ type syncContext struct {
 	proj                *v1alpha1.AppProject
 	compareResult       *comparisonResult
 	config              *rest.Config
+	rawConfig           *rest.Config
 	dynamicIf           dynamic.Interface
 	disco               discovery.DiscoveryInterface
 	extensionsclientset *clientset.Clientset
@@ -173,6 +174,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		proj:                proj,
 		compareResult:       compareResult,
 		config:              restConfig,
+		rawConfig:           clst.RawRestConfig(),
 		dynamicIf:           dynamicIf,
 		disco:               disco,
 		extensionsclientset: extensionsclientset,
@@ -548,9 +550,8 @@ func (sc *syncContext) ensureCRDReady(name string) {
 }
 
 // applyObject performs a `kubectl apply` of a single resource
-func (sc *syncContext) applyObject(targetObj *unstructured.Unstructured, dryRun bool, force bool) (v1alpha1.ResultCode, string) {
-	validate := !resource.HasAnnotationOption(targetObj, common.AnnotationSyncOptions, "Validate=false")
-	message, err := sc.kubectl.ApplyResource(sc.config, targetObj, targetObj.GetNamespace(), dryRun, force, validate)
+func (sc *syncContext) applyObject(targetObj *unstructured.Unstructured, dryRun, force, validate bool) (v1alpha1.ResultCode, string) {
+	message, err := sc.kubectl.ApplyResource(sc.rawConfig, targetObj, targetObj.GetNamespace(), dryRun, force, validate)
 	if err != nil {
 		return v1alpha1.ResultCodeSyncFailed, err.Error()
 	}
@@ -750,7 +751,8 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) runState {
 					defer createWg.Done()
 					logCtx := sc.log.WithFields(log.Fields{"dryRun": dryRun, "task": t})
 					logCtx.Debug("applying")
-					result, message := sc.applyObject(t.targetObj, dryRun, sc.syncOp.SyncStrategy.Force())
+					validate := !(sc.syncOp.SyncOptions.HasOption("Validate=false") || resource.HasAnnotationOption(t.targetObj, common.AnnotationSyncOptions, "Validate=false"))
+					result, message := sc.applyObject(t.targetObj, dryRun, sc.syncOp.SyncStrategy.Force(), validate)
 					if result == v1alpha1.ResultCodeSyncFailed {
 						logCtx.WithField("message", message).Info("apply failed")
 						runState = failed

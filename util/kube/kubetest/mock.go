@@ -1,6 +1,7 @@
 package kubetest
 
 import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -24,6 +25,7 @@ type MockKubectlCmd struct {
 	LastValidate  bool
 	Version       string
 	DynamicClient dynamic.Interface
+	APIGroups     []metav1.APIGroup
 }
 
 func (k *MockKubectlCmd) NewDynamicClient(config *rest.Config) (dynamic.Interface, error) {
@@ -66,6 +68,10 @@ func (k *MockKubectlCmd) ConvertToVersion(obj *unstructured.Unstructured, group,
 
 func (k *MockKubectlCmd) GetServerVersion(config *rest.Config) (string, error) {
 	return k.Version, nil
+}
+
+func (k *MockKubectlCmd) GetAPIGroups(config *rest.Config) ([]metav1.APIGroup, error) {
+	return k.APIGroups, nil
 }
 
 func (k *MockKubectlCmd) SetOnKubectlRun(onKubectlRun func(command string) (util.Closer, error)) {

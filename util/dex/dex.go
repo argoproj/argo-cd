@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"path"
 	"regexp"
 	"strconv"
 
@@ -20,9 +21,10 @@ var messageRe = regexp.MustCompile(`<p>(.*)([\s\S]*?)<\/p>`)
 // with the external issuer URL muxed to the same path configured in server.go. In other words, if
 // Argo CD API server wants to proxy requests at /api/dex, then the dex config yaml issuer URL should
 // also be /api/dex (e.g. issuer: https://argocd.example.com/api/dex)
-func NewDexHTTPReverseProxy(serverAddr string) func(writer http.ResponseWriter, request *http.Request) {
+func NewDexHTTPReverseProxy(serverAddr string, baseHRef string) func(writer http.ResponseWriter, request *http.Request) {
 	target, err := url.Parse(serverAddr)
 	errors.CheckError(err)
+	target.Path = baseHRef
 	proxy := httputil.NewSingleHostReverseProxy(target)
 	proxy.ModifyResponse = func(resp *http.Response) error {
 		if resp.StatusCode == 500 {
@@ -43,7 +45,7 @@ func NewDexHTTPReverseProxy(serverAddr string) func(writer http.ResponseWriter, 
 			}
 			resp.ContentLength = 0
 			resp.Header.Set("Content-Length", strconv.Itoa(0))
-			resp.Header.Set("Location", fmt.Sprintf("/login?sso_error=%s", url.QueryEscape(message)))
+			resp.Header.Set("Location", fmt.Sprintf("%s?sso_error=%s", path.Join(baseHRef, "login"), url.QueryEscape(message)))
 			resp.StatusCode = http.StatusSeeOther
 			resp.Body = ioutil.NopCloser(bytes.NewReader(make([]byte, 0)))
 			return nil

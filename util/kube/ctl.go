@@ -39,6 +39,7 @@ type Kubectl interface {
 	GetResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error)
 	PatchResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, patchType types.PatchType, patchBytes []byte) (*unstructured.Unstructured, error)
 	GetAPIResources(config *rest.Config, resourceFilter ResourceFilter) ([]APIResourceInfo, error)
+	GetAPIGroups(config *rest.Config) ([]metav1.APIGroup, error)
 	GetServerVersion(config *rest.Config) (string, error)
 	NewDynamicClient(config *rest.Config) (dynamic.Interface, error)
 	SetOnKubectlRun(onKubectlRun func(command string) (util.Closer, error))
@@ -107,6 +108,18 @@ func isSupportedVerb(apiResource *metav1.APIResource, verb string) bool {
 		}
 	}
 	return false
+}
+
+func (k *KubectlCmd) GetAPIGroups(config *rest.Config) ([]metav1.APIGroup, error) {
+	disco, err := discovery.NewDiscoveryClientForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+	serverGroupList, err := disco.ServerGroups()
+	if err != nil {
+		return nil, err
+	}
+	return serverGroupList.Groups, nil
 }
 
 func (k *KubectlCmd) GetAPIResources(config *rest.Config, resourceFilter ResourceFilter) ([]APIResourceInfo, error) {

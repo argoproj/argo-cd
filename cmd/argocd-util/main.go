@@ -26,7 +26,6 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
-	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/dex"
@@ -385,8 +384,14 @@ func NewExportCommand() *cobra.Command {
 			} else {
 				f, err := os.Create(out)
 				errors.CheckError(err)
-				defer util.Close(f)
-				writer = bufio.NewWriter(f)
+				bw := bufio.NewWriter(f)
+				writer = bw
+				defer func() {
+					err = bw.Flush()
+					errors.CheckError(err)
+					err = f.Close()
+					errors.CheckError(err)
+				}()
 			}
 
 			acdClients := newArgoCDClientsets(config, namespace)
@@ -540,10 +545,21 @@ func specsEqual(left, right unstructured.Unstructured) bool {
 		leftData, _, _ := unstructured.NestedMap(left.Object, "data")
 		rightData, _, _ := unstructured.NestedMap(right.Object, "data")
 		return reflect.DeepEqual(leftData, rightData)
-	case "AppProject", "Application":
+	case "AppProject":
 		leftSpec, _, _ := unstructured.NestedMap(left.Object, "spec")
 		rightSpec, _, _ := unstructured.NestedMap(right.Object, "spec")
 		return reflect.DeepEqual(leftSpec, rightSpec)
+	case "Application":
+		leftSpec, _, _ := unstructured.NestedMap(left.Object, "spec")
+		rightSpec, _, _ := unstructured.NestedMap(right.Object, "spec")
+		leftStatus, _, _ := unstructured.NestedMap(left.Object, "status")
+		rightStatus, _, _ := unstructured.NestedMap(right.Object, "status")
+		// reconciledAt and observedAt are constantly changing and we ignore any diff there
+		delete(leftStatus, "reconciledAt")
+		delete(rightStatus, "reconciledAt")
+		delete(leftStatus, "observedAt")
+		delete(rightStatus, "observedAt")
+		return reflect.DeepEqual(leftSpec, rightSpec) && reflect.DeepEqual(leftStatus, rightStatus)
 	}
 	return false
 }
@@ -558,8 +574,13 @@ func updateLive(bak, live *unstructured.Unstructured) *unstructured.Unstructured
 	switch live.GetKind() {
 	case "Secret", "ConfigMap":
 		newLive.Object["data"] = bak.Object["data"]
-	case "AppProject", "Application":
+	case "AppProject":
 		newLive.Object["spec"] = bak.Object["spec"]
+	case "Application":
+		newLive.Object["spec"] = bak.Object["spec"]
+		if _, ok := bak.Object["status"]; ok {
+			newLive.Object["status"] = bak.Object["status"]
+		}
 	}
 	return newLive
 }

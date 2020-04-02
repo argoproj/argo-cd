@@ -153,7 +153,7 @@ func newCluster(objs ...*unstructured.Unstructured) *clusterInfo {
 
 func newClusterExt(kubectl kube.Kubectl) *clusterInfo {
 	return &clusterInfo{
-		lock:            &sync.Mutex{},
+		lock:            &sync.RWMutex{},
 		nodes:           make(map[kube.ResourceKey]*node),
 		onObjectUpdated: func(managedByApp map[string]bool, reference corev1.ObjectReference) {},
 		kubectl:         kubectl,
@@ -322,7 +322,7 @@ metadata:
 				Namespace: "default",
 			},
 		},
-	}, []*unstructured.Unstructured{targetDeploy}, nil)
+	}, []*unstructured.Unstructured{targetDeploy})
 	assert.Nil(t, err)
 	assert.Equal(t, managedObjs, map[kube.ResourceKey]*unstructured.Unstructured{
 		kube.NewResourceKey("apps", "Deployment", "default", "helm-guestbook"): testDeploy,

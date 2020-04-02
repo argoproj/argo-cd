@@ -1,6 +1,7 @@
 package v1alpha1
 
 import (
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"reflect"
 	"testing"
 	"time"
@@ -113,6 +114,26 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 		}
 		assert.Equal(t, proj.IsDestinationPermitted(data.appDest), data.isPermitted)
 	}
+}
+
+func TestAppProject_IsGroupKindPermitted(t *testing.T) {
+	proj := AppProject{
+		Spec: AppProjectSpec{
+			NamespaceResourceWhitelist: []metav1.GroupKind{},
+			NamespaceResourceBlacklist: []metav1.GroupKind{{Group: "apps", Kind: "Deployment"},},
+		},
+	}
+	assert.True(t, proj.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "ReplicaSet"}, true))
+	assert.False(t, proj.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "Deployment"}, true))
+
+	proj2 := AppProject{
+		Spec: AppProjectSpec{
+			NamespaceResourceWhitelist: []metav1.GroupKind{{Group: "apps", Kind: "ReplicaSet"}},
+			NamespaceResourceBlacklist: []metav1.GroupKind{{Group: "apps", Kind: "Deployment"},},
+		},
+	}
+	assert.True(t, proj2.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "ReplicaSet"}, true))
+	assert.False(t, proj2.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "Action"}, true))
 }
 
 func TestAppProject_GetRoleByName(t *testing.T) {
@@ -1651,6 +1672,33 @@ func assertConditions(t *testing.T, expected []ApplicationCondition, actual []Ap
 		assert.Equal(t, expected[i].Type, actual[i].Type)
 		assert.Equal(t, expected[i].Message, actual[i].Message)
 	}
+}
+
+func TestSyncPolicy_IsZero(t *testing.T) {
+	var nilPolicy *SyncPolicy
+	assert.True(t, nilPolicy.IsZero())
+	assert.True(t, (&SyncPolicy{}).IsZero())
+	assert.False(t, (&SyncPolicy{Automated: &SyncPolicyAutomated{}}).IsZero())
+	assert.False(t, (&SyncPolicy{SyncOptions: SyncOptions{""}}).IsZero())
+}
+
+func TestSyncOptions_HasOption(t *testing.T) {
+	var nilOptions SyncOptions
+	assert.False(t, nilOptions.HasOption("a=1"))
+	assert.False(t, (&SyncOptions{}).HasOption("a=1"))
+	assert.True(t, (&SyncOptions{"a=1"}).HasOption("a=1"))
+}
+
+func TestSyncOptions_AddOption(t *testing.T) {
+	options := SyncOptions{}
+	assert.Len(t, options.AddOption("a=1"), 1)
+	assert.Len(t, options.AddOption("a=1").AddOption("a=1"), 1)
+}
+
+func TestSyncOptions_RemoveOption(t *testing.T) {
+	options := SyncOptions{"a=1"}
+	assert.Len(t, options.RemoveOption("a=1"), 0)
+	assert.Len(t, options.RemoveOption("a=1").RemoveOption("a=1"), 0)
 }
 
 func TestRevisionHistories_Trunc(t *testing.T) {

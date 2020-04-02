@@ -5,3 +5,9 @@ entries:
       urls:
         - http://localhost:9080/argo-e2e/testdata.git/helm-repo/helm-1.0.0.tgz
       version: 1.0.0
+  helm2:
+    - created: "2020-03-02T08:16:19.960425-08:00"
+      name: helm2
+      urls:
+        - http://localhost:9080/argo-e2e/testdata.git/helm-repo/helm2-1.0.0.tgz
+      version: 1.0.0

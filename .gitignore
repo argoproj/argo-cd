@@ -5,6 +5,7 @@ vendor/
 dist/
 site/
 *.iml
+.scannerwork/
 # delve debug binaries
 cmd/**/debug
 debug.test

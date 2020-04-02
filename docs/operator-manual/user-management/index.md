@@ -1,7 +1,91 @@
-# SSO Overview
+# Overview
 
-Argo CD does not have any local users other than the built-in `admin` user. All other users are
-expected to login via SSO. There are two ways that SSO can be configured:
+Once installed Argo CD has one built-in `admin` user that has full access to the system. It is recommended to use `admin` user only
+for initial configuration and then switch to local users or configure SSO integration.
+
+## Local users/accounts (v1.5)
+
+The local users/accounts feature serving to main use-cases:
+
+* Auth tokens for Argo CD management automation. It is possible to configure an API account with limited permissions and generate an authentication token.
+Such token can be used to automatically create applications, projects etc.
+* Additional users for a very small team when SSO integration is overkill. The local users don't provide advanced features such as groups,
+login history etc. So if you need such features it is strongly recommended to use SSO.
+
+### Create new user
+
+New users should be defined in `argocd-cm` ConfigMap:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  # add an additional local user with apiKey and login capabilities
+  #   apiKey - allows generating API keys
+  #   login - allows to login using UI
+  accounts.alice: apiKey, login
+  # disables user. User is enabled by default
+  accounts.alice.enabled: "false"
+```
+
+Each user might have two capabilities:
+* apiKey - allows generating authentication tokens for API access
+* login - allows to login using UI
+
+### Disable admin user
+
+As soon as additional users are created it is recommended to disable `admin` user:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  admin.enabled: "false"
+```
+
+### Manage users
+
+The Argo CD CLI provides set of commands to set user password and generate tokens.
+
+* Get full users list
+```bash
+argocd account list
+```
+
+* Get specific user details
+```bash
+argocd account get <username>
+```
+
+* Set user password
+```bash
+argocd account update-password \
+  --account <name> \
+  --current-password <current-admin> \
+  --new-password <new-user-password>
+```
+
+* Generate auth token
+```bash
+# if flag --account is omitted then Argo CD generates token for current user
+argocd account generate-token --account <username> 
+```
+
+## SSO
+
+There are two ways that SSO can be configured:
 
 * [Bundled Dex OIDC provider](#dex) - use this option if your current provider does not support OIDC (e.g. SAML,
   LDAP) or if you wish to leverage any of Dex's connector features (e.g. the ability to map GitHub

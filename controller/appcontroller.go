@@ -821,22 +821,20 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		return
 	}
 
+	app := origApp.DeepCopy()
+	logCtx := log.WithFields(log.Fields{"application": app.Name})
 	startTime := time.Now()
 	defer func() {
 		reconcileDuration := time.Since(startTime)
 		ctrl.metricsServer.IncReconcile(origApp, reconcileDuration)
-		logCtx := log.WithFields(log.Fields{
-			"application":    origApp.Name,
-			"time_ms":        reconcileDuration.Seconds() * 1e3,
+		logCtx.WithFields(log.Fields{
+			"time_ms":        reconcileDuration.Milliseconds(),
 			"level":          comparisonLevel,
 			"dest-server":    origApp.Spec.Destination.Server,
 			"dest-namespace": origApp.Spec.Destination.Namespace,
-		})
-		logCtx.Info("Reconciliation completed")
+		}).Info("Reconciliation completed")
 	}()
 
-	app := origApp.DeepCopy()
-	logCtx := log.WithFields(log.Fields{"application": app.Name})
 	if comparisonLevel == ComparisonWithNothing {
 		managedResources := make([]*appv1.ResourceDiff, 0)
 		if err := ctrl.cache.GetAppManagedResources(app.Name, &managedResources); err != nil {
@@ -888,6 +886,9 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 
 	observedAt := metav1.Now()
 	compareResult := ctrl.appStateManager.CompareAppState(app, project, revision, app.Spec.Source, refreshType == appv1.RefreshTypeHard, localManifests)
+	for k, v := range compareResult.timings {
+		logCtx = logCtx.WithField(k, v.Milliseconds())
+	}
 
 	ctrl.normalizeApplication(origApp, app)
 
@@ -912,7 +913,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 			)
 		}
 	} else {
-		logCtx.Infof("Sync prevented by sync window")
+		logCtx.Info("Sync prevented by sync window")
 	}
 
 	if app.Status.ReconciledAt == nil || comparisonLevel == CompareWithLatest {
@@ -1080,14 +1081,30 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		return nil
 	}
 
+	if !app.Spec.SyncPolicy.Automated.Prune {
+		requirePruneOnly := true
+		for _, r := range resources {
+			if r.Status != appv1.SyncStatusCodeSynced && !r.RequiresPruning {
+				requirePruneOnly = false
+				break
+			}
+		}
+		if requirePruneOnly {
+			logCtx.Infof("Skipping auto-sync: need to prune extra resources only but automated prune is disabled")
+			return nil
+		}
+	}
+
 	desiredCommitSHA := syncStatus.Revision
 	alreadyAttempted, attemptPhase := alreadyAttemptedSync(app, desiredCommitSHA)
 	selfHeal := app.Spec.SyncPolicy.Automated.SelfHeal
 	op := appv1.Operation{
 		Sync: &appv1.SyncOperation{
-			Revision: desiredCommitSHA,
-			Prune:    app.Spec.SyncPolicy.Automated.Prune,
+			Revision:    desiredCommitSHA,
+			Prune:       app.Spec.SyncPolicy.Automated.Prune,
+			SyncOptions: app.Spec.SyncPolicy.SyncOptions,
 		},
+		InitiatedBy: appv1.OperationInitiator{Automated: true},
 	}
 	// It is possible for manifests to remain OutOfSync even after a sync/kubectl apply (e.g.
 	// auto-sync with pruning disabled). We need to ensure that we do not keep Syncing an

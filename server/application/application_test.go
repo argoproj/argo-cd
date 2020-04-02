@@ -18,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
+	k8scache "k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
@@ -92,8 +93,8 @@ func newTestAppServer(objects ...runtime.Object) *Server {
 			"server.secretkey": []byte("test"),
 		},
 	})
-	db := db.NewDB(testNamespace, settings.NewSettingsManager(context.Background(), kubeclientset, testNamespace), kubeclientset)
 	ctx := context.Background()
+	db := db.NewDB(testNamespace, settings.NewSettingsManager(ctx, kubeclientset, testNamespace), kubeclientset)
 	_, err := db.CreateRepository(ctx, fakeRepo())
 	errors.CheckError(err)
 	_, err = db.CreateCluster(ctx, fakeCluster())
@@ -148,12 +149,22 @@ func newTestAppServer(objects ...runtime.Object) *Server {
 	enforcer.SetDefaultRole("role:admin")
 	enforcer.SetClaimsEnforcerFunc(rbacpolicy.NewRBACPolicyEnforcer(enforcer, fakeProjLister).EnforceClaims)
 
-	settingsMgr := settings.NewSettingsManager(context.Background(), kubeclientset, testNamespace)
+	settingsMgr := settings.NewSettingsManager(ctx, kubeclientset, testNamespace)
+
+	// populate the app informer with the fake objects
+	appInformer := factory.Argoproj().V1alpha1().Applications().Informer()
+	// TODO(jessesuen): probably should return cancel function so tests can stop background informer
+	//ctx, cancel := context.WithCancel(context.Background())
+	go appInformer.Run(ctx.Done())
+	if !k8scache.WaitForCacheSync(ctx.Done(), appInformer.HasSynced) {
+		panic("Timed out waiting forfff caches to sync")
+	}
 
 	server := NewServer(
 		testNamespace,
 		kubeclientset,
 		fakeAppsClientset,
+		factory.Argoproj().V1alpha1().Applications().Lister().Applications(testNamespace),
 		mockRepoClient,
 		nil,
 		&kubetest.MockKubectlCmd{},
@@ -183,13 +194,34 @@ spec:
     server: https://cluster-api.com
 `
 
-func newTestApp() *appsv1.Application {
+func newTestApp(opts ...func(app *appsv1.Application)) *appsv1.Application {
 	var app appsv1.Application
 	err := yaml.Unmarshal([]byte(fakeApp), &app)
 	if err != nil {
 		panic(err)
 	}
+	for i := range opts {
+		opts[i](&app)
+	}
 	return &app
+}
+
+func TestListApps(t *testing.T) {
+	appServer := newTestAppServer(newTestApp(func(app *appsv1.Application) {
+		app.Name = "bcd"
+	}), newTestApp(func(app *appsv1.Application) {
+		app.Name = "abc"
+	}), newTestApp(func(app *appsv1.Application) {
+		app.Name = "def"
+	}))
+
+	res, err := appServer.List(context.Background(), &application.ApplicationQuery{})
+	assert.NoError(t, err)
+	var names []string
+	for i := range res.Items {
+		names = append(names, res.Items[i].Name)
+	}
+	assert.Equal(t, []string{"abc", "bcd", "def"}, names)
 }
 
 func TestCreateApp(t *testing.T) {

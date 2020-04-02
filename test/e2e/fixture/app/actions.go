@@ -190,6 +190,14 @@ func (a *Actions) AppSet(flags ...string) *Actions {
 	return a
 }
 
+func (a *Actions) AppUnSet(flags ...string) *Actions {
+	a.context.t.Helper()
+	args := []string{"app", "unset", a.context.name}
+	args = append(args, flags...)
+	a.runCli(args...)
+	return a
+}
+
 func (a *Actions) Sync(args ...string) *Actions {
 	a.context.t.Helper()
 	args = append([]string{"app", "sync"}, args...)

@@ -41,9 +41,14 @@ export interface RollbackOperation {
     dryRun: boolean;
 }
 
+export interface OperationInitiator {
+    username: string;
+    automated: boolean;
+}
+
 export interface Operation {
     sync: SyncOperation;
-    rollback: RollbackOperation;
+    initiatedBy: OperationInitiator;
 }
 
 export type OperationPhase = 'Running' | 'Error' | 'Failed' | 'Succeeded' | 'Terminating';
@@ -207,8 +212,14 @@ export interface ApplicationSourceDirectory {
     jsonnet?: ApplicationSourceJsonnet;
 }
 
+export interface Automated {
+    prune: boolean;
+    selfHeal: boolean;
+}
+
 export interface SyncPolicy {
-    automated?: {prune: boolean; selfHeal: boolean};
+    automated?: Automated;
+    syncOptions?: string[];
 }
 
 export interface Info {
@@ -382,6 +393,7 @@ export interface AuthSettings {
         chatText: string;
     };
     plugins: Plugin[];
+    userLoginsDisabled: boolean;
 }
 
 export interface UserInfo {
@@ -578,6 +590,7 @@ export interface ProjectSpec {
     roles: ProjectRole[];
     clusterResourceWhitelist: GroupKind[];
     namespaceResourceBlacklist: GroupKind[];
+    namespaceResourceWhitelist: GroupKind[];
     orphanedResources?: {warn?: boolean};
     syncWindows?: SyncWindows;
 }
@@ -637,4 +650,17 @@ export interface ApplicationSyncWindowState {
 
 export interface VersionMessage {
     Version: string;
+}
+
+export interface Token {
+    id: string;
+    issuedAt: number;
+    expiresAt: number;
+}
+
+export interface Account {
+    name: string;
+    enabled: boolean;
+    capabilities: string[];
+    tokens: Token[];
 }

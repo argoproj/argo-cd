@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/argoproj/pkg/stats"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
@@ -16,7 +17,6 @@ import (
 	reposervercache "github.com/argoproj/argo-cd/reposerver/cache"
 	"github.com/argoproj/argo-cd/reposerver/metrics"
 	"github.com/argoproj/argo-cd/util/cli"
-	"github.com/argoproj/argo-cd/util/stats"
 	"github.com/argoproj/argo-cd/util/tls"
 )
 

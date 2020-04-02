@@ -54,6 +54,11 @@
             p, role:org-admin, repositories, delete, *, allow
             g, "Grp Argo CD", role:org-admin
 
+5. Mapping role from jwt token to argo
+
+    If you want to map the roles from the jwt token to match the default roles (readonly and admin) then you must change the scope variable in the rbac-configmap.
+        
+        scopes: '[roles, email]'
 
 ## With Dex
 

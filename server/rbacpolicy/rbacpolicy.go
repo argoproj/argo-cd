@@ -19,6 +19,7 @@ const (
 	ResourceApplications = "applications"
 	ResourceRepositories = "repositories"
 	ResourceCertificates = "certificates"
+	ResourceAccounts     = "accounts"
 
 	// please add new items to Actions
 	ActionGet      = "get"
@@ -71,6 +72,10 @@ func (p *RBACPolicyEnforcer) SetScopes(scopes []string) {
 	p.scopes = scopes
 }
 
+func IsProjectSubject(subject string) bool {
+	return strings.HasPrefix(subject, "proj:")
+}
+
 // EnforceClaims is an RBAC claims enforcer specific to the Argo CD API server
 func (p *RBACPolicyEnforcer) EnforceClaims(claims jwt.Claims, rvals ...interface{}) bool {
 	mapClaims, err := jwtutil.MapClaims(claims)
@@ -84,7 +89,7 @@ func (p *RBACPolicyEnforcer) EnforceClaims(claims jwt.Claims, rvals ...interface
 	var runtimePolicy string
 	proj := p.getProjectFromRequest(rvals...)
 	if proj != nil {
-		if strings.HasPrefix(subject, "proj:") {
+		if IsProjectSubject(subject) {
 			return p.enforceProjectToken(subject, mapClaims, proj, rvals...)
 		}
 		runtimePolicy = proj.ProjectPoliciesString()

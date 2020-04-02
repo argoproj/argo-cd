@@ -170,7 +170,7 @@ argocd app get $PROJ-$ROLE --auth-token $JWT
 
 # Removing the policy we added and adding one with a wildcard.
 argocd proj role remove-policy $PROJ $TOKEN -a get -o $PROJ-$TOKEN
-argocd proj role remove-policy $PROJ $TOKEN -a get -o '*'
+argocd proj role add-policy $PROJ $ROLE -a get --permission allow -o '*'
 # The wildcard allows us to access the application due to the wildcard.
 argocd app get $PROJ-$TOKEN --auth-token $JWT
 argocd proj role get $PROJ

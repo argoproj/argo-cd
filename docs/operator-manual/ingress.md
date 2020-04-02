@@ -158,6 +158,8 @@ Traefik can be used as an edge router and provide [TLS](https://docs.traefik.io/
 
 It currently has an advantage over NGINX in that it can terminate both TCP and HTTP connections _on the same port_ meaning you do not require multiple ingress objects and hosts.
 
+The API server should be run with TLS disabled. Edit the `argocd-server` deployment to add the `--insecure` flag to the argocd-server command.
+
 ```yaml
 apiVersion: traefik.containo.us/v1alpha1
 kind: IngressRoute
@@ -241,6 +243,8 @@ http {
             proxy_set_header   X-Real-IP $remote_addr;
             proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
             proxy_set_header   X-Forwarded-Host $server_name;
+            # buffering should be disabled for api/v1/stream/applications to support chunked response
+            proxy_buffering off;
         }
     }
 }

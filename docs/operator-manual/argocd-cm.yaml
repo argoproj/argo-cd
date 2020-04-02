@@ -100,7 +100,7 @@ data:
       # List of json pointers in the object to ignore differences
       ignoreDifferences: |
         jsonPointers:
-        - webhooks/0/clientConfig/caBundle
+        - /webhooks/0/clientConfig/caBundle
     certmanager.k8s.io/Certificate:
       # Lua script for customizing the health status assessment
       health.lua: |
@@ -183,6 +183,16 @@ data:
       clusters:
       - "*.local"
 
+  # By default all resource group/kinds are included. The resource.inclusions setting allows customizing
+  # list of included group/kinds.
+  resource.inclusions: |
+    - apiGroups:
+      - repositories.stash.appscode.com
+      kinds:
+      - Snapshot
+      clusters:
+      - "*.local"
+
   # Configuration to add a config management plugin.
   configManagementPlugins: |
     - name: kasane
@@ -198,3 +208,12 @@ data:
   # Tracking labels are used to determine which resources need to be deleted when pruning.
   # If omitted, Argo CD injects the app name into the label: 'app.kubernetes.io/instance'
   application.instanceLabelKey: mycompany.com/appname
+
+  # disables admin user. Admin is enabled by default
+  admin.enabled: "false"
+  # add an additional local user with apiKey and login capabilities
+  #   apiKey - allows generating API keys
+  #   login - allows to login using UI
+  accounts.alice: apiKey, login
+  # disables user. User is enabled by default
+  accounts.alice.enabled: "false"

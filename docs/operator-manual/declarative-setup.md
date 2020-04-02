@@ -100,6 +100,12 @@ spec:
     kind: LimitRange
   - group: ''
     kind: NetworkPolicy
+  # Deny all namespaced-scoped resources from being created, except for Deployment and StatefulSet
+  namespaceResourceWhilelist:
+  - group: 'apps'
+    kind: Deployment
+  - group: 'apps'
+    kind: StatefulSet
   roles:
   # A role which provides read-only access to all applications in the project
   - name: read-only
@@ -506,7 +512,7 @@ data:
         key: key
 ```
 
-## Resource Exclusion
+## Resource Exclusion/Inclusion
 
 Resources can be excluded from discovery and sync so that ArgoCD is unaware of them. For example, `events.k8s.io` and `metrics.k8s.io` are always excluded. Use cases:
 
@@ -543,6 +549,25 @@ The `resource.exclusions` node is a list of objects. Each object can have:
 
 If all three match, then the resource is ignored.
 
+In addition to exclusions, you might configure the list of included resources using the `resource.inclusions` setting.
+By default, all resource group/kinds are included. The `resource.inclusions` setting allows customizing the list of included group/kinds: 
+
+```yaml
+apiVersion: v1
+data:
+  resource.inclusions: |
+    - apiGroups:
+      - "*"
+      kinds:
+      - Deployment
+      clusters:
+      - https://192.168.0.20
+kind: ConfigMap
+```
+
+The `resource.inclusions` and `resource.exclusions` might be used together. The final list of resources includes group/kinds specified in `resource.inclusions` minus group/kinds
+specified in `resource.exclusions` setting.
+
 Notes:
 
 * Quote globs in your YAML to avoid parsing errors.
@@ -551,7 +576,7 @@ Notes:
 
 ## SSO & RBAC
 
-* SSO configuration details: [SSO](./sso/index.md)
+* SSO configuration details: [SSO](./user-management/index.md)
 * RBAC configuration details: [RBAC](./rbac.md)
 
 ## Manage Argo CD Using Argo CD

@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import {Timestamp} from '../../../shared/components/timestamp';
+import {Timestamp} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {getConditionCategory} from '../utils';
 
