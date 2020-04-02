@@ -119,3 +119,8 @@ required = [
 [[constraint]]
   name = "github.com/google/uuid"
   version = "1.1.1"
+
+
+[[constraint]]
+  name = "github.com/alicebob/miniredis"
+  version = "2.7.0"
