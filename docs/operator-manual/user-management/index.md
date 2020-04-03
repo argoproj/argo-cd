@@ -12,6 +12,8 @@ Such token can be used to automatically create applications, projects etc.
 * Additional users for a very small team when SSO integration is overkill. The local users don't provide advanced features such as groups,
 login history etc. So if you need such features it is strongly recommended to use SSO.
 
+!!! warning "Make sure to read about security limitations related to local users in [security considerations](../../security_considerations.md) document"
+
 ### Create new user
 
 New users should be defined in `argocd-cm` ConfigMap:
