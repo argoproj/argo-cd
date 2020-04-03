@@ -17,7 +17,7 @@ A working Single Sign-On configuration using Okta via at least two methods was a
 1. Click `View setup instructions` after creating the application in Okta.
     * ![Okta SAML App 3](../../assets/saml-3.png)
 1. Copy the SSO URL to the `argocd-cm` in the data.oicd
-1. Download the CA certificate to use in the `argocd-cm` configuration.
+1. Download the CA certificate to use in the `argocd-cm` configuration.  If you are using this in the caData field, you will need to pass the entire certificate (including `-----BEGIN CERTIFICATE-----` and `-----END CERTIFICATE-----` stanzas) through base64 encoding, for example, `base64 my_cert.pem`.
     * ![Okta SAML App 4](../../assets/saml-4.png)
 1. Edit the `argocd-cm` and configure the `data.dex.config` section:
 
@@ -35,7 +35,7 @@ dex.config: |
       ssoURL: https://yourorganization.oktapreview.com/app/yourorganizationsandbox_appnamesaml_2/rghdr9s6hg98s9dse/sso/saml
       # You need `caData` _OR_ `ca`, but not both.
       caData: |
-        <base64 encoded CA cert>
+        <CA cert passed through base64 encoding>
       # You need `caData` _OR_ `ca`, but not both.
       ca: /path/to/ca.pem
       redirectURI: https://ui.argocd.yourorganization.net/api/dex/callback
