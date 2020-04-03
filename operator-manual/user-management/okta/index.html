@@ -1245,7 +1245,7 @@
 </ul>
 </li>
 <li>Copy the SSO URL to the <code>argocd-cm</code> in the data.oicd</li>
-<li>Download the CA certificate to use in the <code>argocd-cm</code> configuration.<ul>
+<li>Download the CA certificate to use in the <code>argocd-cm</code> configuration.  If you are using this in the caData field, you will need to pass the entire certificate (including <code>-----BEGIN CERTIFICATE-----</code> and <code>-----END CERTIFICATE-----</code> stanzas) through base64 encoding, for example, <code>base64 my_cert.pem</code>.<ul>
 <li><img alt="Okta SAML App 4" src="../../../assets/saml-4.png" /></li>
 </ul>
 </li>
@@ -1265,7 +1265,7 @@
       <span class="no">ssoURL: https://yourorganization.oktapreview.com/app/yourorganizationsandbox_appnamesaml_2/rghdr9s6hg98s9dse/sso/saml</span>
       <span class="no"># You need `caData` _OR_ `ca`, but not both.</span>
       <span class="no">caData: |</span>
-        <span class="no">&lt;base64 encoded CA cert&gt;</span>
+        <span class="no">&lt;CA cert passed through base64 encoding&gt;</span>
       <span class="no"># You need `caData` _OR_ `ca`, but not both.</span>
       <span class="no">ca: /path/to/ca.pem</span>
       <span class="no">redirectURI: https://ui.argocd.yourorganization.net/api/dex/callback</span>
