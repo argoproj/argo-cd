@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	. "github.com/argoproj/argo-cd/errors"
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
@@ -156,5 +157,38 @@ func TestCustomToolWithEnv(t *testing.T) {
 			sort.Strings(outputSlice)
 
 			assert.EqualValues(t, expectedApiVersionSlice, outputSlice)
+		})
+}
+
+//make sure we can sync and diff with --local
+func TestCustomToolSyncAndDiffLocal(t *testing.T) {
+	Given(t).
+		// path does not matter, we ignore it
+		ConfigManagementPlugin(
+			ConfigManagementPlugin{
+				Name: Name(),
+				Generate: Command{
+					Command: []string{"sh", "-c"},
+					Args:    []string{`echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"Foo\": \"$FOO\", \"KubeVersion\": \"$KUBE_VERSION\", \"KubeApiVersion\": \"$KUBE_API_VERSIONS\",\"Bar\": \"baz\"}}}"`},
+				},
+			},
+		).
+		// does not matter what the path is
+		Path("guestbook").
+		When().
+		Create("--config-management-plugin", Name()).
+		Sync("--local", "testdata/guestbook").
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(HealthStatusHealthy)).
+		And(func(app *Application) {
+			time.Sleep(1 * time.Second)
+		}).
+		And(func(app *Application) {
+			FailOnErr(RunCli("app", "sync", app.Name, "--local", "testdata/guestbook"))
+		}).
+		And(func(app *Application) {
+			FailOnErr(RunCli("app", "diff", app.Name, "--local", "testdata/guestbook"))
 		})
 }

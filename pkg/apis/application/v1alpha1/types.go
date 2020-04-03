@@ -2187,8 +2187,7 @@ func SetK8SConfigDefaults(config *rest.Config) error {
 	if err != nil {
 		return err
 	}
-	// set default tls config since we use it in a custom transport
-	config.TLSClientConfig = rest.TLSClientConfig{}
+
 	dial := (&net.Dialer{
 		Timeout:   30 * time.Second,
 		KeepAlive: 30 * time.Second,
@@ -2207,6 +2206,12 @@ func SetK8SConfigDefaults(config *rest.Config) error {
 	if err != nil {
 		return err
 	}
+
+	// set default tls config and remove auth/exec provides since we use it in a custom transport
+	config.TLSClientConfig = rest.TLSClientConfig{}
+	config.AuthProvider = nil
+	config.ExecProvider = nil
+
 	config.Transport = tr
 	return nil
 }

@@ -1,6 +1,7 @@
 package settings
 
 import (
+	sessionmgr "github.com/argoproj/argo-cd/util/session"
 	"github.com/ghodss/yaml"
 	"golang.org/x/net/context"
 
@@ -11,12 +12,17 @@ import (
 
 // Server provides a Settings service
 type Server struct {
-	mgr *settings.SettingsManager
+	mgr           *settings.SettingsManager
+	authenticator Authenticator
+}
+
+type Authenticator interface {
+	Authenticate(ctx context.Context) (context.Context, error)
 }
 
 // NewServer returns a new instance of the Settings service
-func NewServer(mgr *settings.SettingsManager) *Server {
-	return &Server{mgr: mgr}
+func NewServer(mgr *settings.SettingsManager, authenticator Authenticator) *Server {
+	return &Server{mgr: mgr, authenticator: authenticator}
 }
 
 // Get returns Argo CD settings
@@ -81,6 +87,18 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 		Plugins:            plugins,
 		UserLoginsDisabled: userLoginsDisabled,
 	}
+
+	if sessionmgr.LoggedIn(ctx) {
+		configManagementPlugins, err := s.mgr.GetConfigManagementPlugins()
+		if err != nil {
+			return nil, err
+		}
+		tools := make([]*v1alpha1.ConfigManagementPlugin, len(configManagementPlugins))
+		for i := range configManagementPlugins {
+			tools[i] = &configManagementPlugins[i]
+		}
+		set.ConfigManagementPlugins = tools
+	}
 	if argoCDSettings.DexConfig != "" {
 		var cfg settingspkg.DexConfig
 		err = yaml.Unmarshal([]byte(argoCDSettings.DexConfig), &cfg)
@@ -118,5 +136,7 @@ func (s *Server) plugins() ([]*settingspkg.Plugin, error) {
 
 // AuthFuncOverride disables authentication for settings service
 func (s *Server) AuthFuncOverride(ctx context.Context, fullMethodName string) (context.Context, error) {
+	// this authenticates the user, but ignores any error, so that we have claims populated
+	ctx, _ = s.authenticator.Authenticate(ctx)
 	return ctx, nil
 }

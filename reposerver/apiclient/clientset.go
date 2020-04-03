@@ -14,6 +14,11 @@ import (
 	argogrpc "github.com/argoproj/argo-cd/util/grpc"
 )
 
+const (
+	// MaxGRPCMessageSize contains max grpc message size
+	MaxGRPCMessageSize = 100 * 1024 * 1024
+)
+
 // Clientset represets repository server api clients
 type Clientset interface {
 	NewRepoServerClient() (util.Closer, RepoServerServiceClient, error)
@@ -37,6 +42,7 @@ func (c *clientSet) NewRepoServerClient() (util.Closer, RepoServerServiceClient,
 		grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})),
 		grpc.WithStreamInterceptor(grpc_retry.StreamClientInterceptor(retryOpts...)),
 		grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(unaryInterceptors...)),
+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(MaxGRPCMessageSize), grpc.MaxCallSendMsgSize(MaxGRPCMessageSize)),
 	}
 
 	conn, err := grpc.Dial(c.address, opts...)
