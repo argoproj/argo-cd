@@ -2230,9 +2230,9 @@ data:
       tcp-check expect string REPLACE_ANNOUNCE0
       tcp-check send QUIT\r\n
       tcp-check expect string +OK
-      server R0 argocd-redis-ha-announce-0:26379 check inter 1s
-      server R1 argocd-redis-ha-announce-1:26379 check inter 1s
-      server R2 argocd-redis-ha-announce-2:26379 check inter 1s
+      server R0 argocd-redis-ha-announce-0:26379 check inter 3s
+      server R1 argocd-redis-ha-announce-1:26379 check inter 3s
+      server R2 argocd-redis-ha-announce-2:26379 check inter 3s
     # Check Sentinel and whether they are nominated master
     backend check_if_redis_is_master_1
       mode tcp
@@ -2244,9 +2244,9 @@ data:
       tcp-check expect string REPLACE_ANNOUNCE1
       tcp-check send QUIT\r\n
       tcp-check expect string +OK
-      server R0 argocd-redis-ha-announce-0:26379 check inter 1s
-      server R1 argocd-redis-ha-announce-1:26379 check inter 1s
-      server R2 argocd-redis-ha-announce-2:26379 check inter 1s
+      server R0 argocd-redis-ha-announce-0:26379 check inter 3s
+      server R1 argocd-redis-ha-announce-1:26379 check inter 3s
+      server R2 argocd-redis-ha-announce-2:26379 check inter 3s
     # Check Sentinel and whether they are nominated master
     backend check_if_redis_is_master_2
       mode tcp
@@ -2258,9 +2258,9 @@ data:
       tcp-check expect string REPLACE_ANNOUNCE2
       tcp-check send QUIT\r\n
       tcp-check expect string +OK
-      server R0 argocd-redis-ha-announce-0:26379 check inter 1s
-      server R1 argocd-redis-ha-announce-1:26379 check inter 1s
-      server R2 argocd-redis-ha-announce-2:26379 check inter 1s
+      server R0 argocd-redis-ha-announce-0:26379 check inter 3s
+      server R1 argocd-redis-ha-announce-1:26379 check inter 3s
+      server R2 argocd-redis-ha-announce-2:26379 check inter 3s
 
     # decide redis backend to use
     #master
@@ -2279,11 +2279,11 @@ data:
       tcp-check send QUIT\r\n
       tcp-check expect string +OK
       use-server R0 if { srv_is_up(R0) } { nbsrv(check_if_redis_is_master_0) ge 2 }
-      server R0 argocd-redis-ha-announce-0:6379 check inter 1s fall 1 rise 1
+      server R0 argocd-redis-ha-announce-0:6379 check inter 3s fall 1 rise 1
       use-server R1 if { srv_is_up(R1) } { nbsrv(check_if_redis_is_master_1) ge 2 }
-      server R1 argocd-redis-ha-announce-1:6379 check inter 1s fall 1 rise 1
+      server R1 argocd-redis-ha-announce-1:6379 check inter 3s fall 1 rise 1
       use-server R2 if { srv_is_up(R2) } { nbsrv(check_if_redis_is_master_2) ge 2 }
-      server R2 argocd-redis-ha-announce-2:6379 check inter 1s fall 1 rise 1
+      server R2 argocd-redis-ha-announce-2:6379 check inter 3s fall 1 rise 1
   haproxy_init.sh: |
     HAPROXY_CONF=/data/haproxy.cfg
     cp /readonly/haproxy.cfg "$HAPROXY_CONF"
