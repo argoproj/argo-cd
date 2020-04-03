@@ -179,7 +179,7 @@ manifests-local:
 	./hack/update-manifests.sh
 
 .PHONY: manifests
-manifests: test-tools-image
+manifests:
 	$(call run-in-test-client,make manifests-local IMAGE_TAG='${IMAGE_TAG}')
 
 
