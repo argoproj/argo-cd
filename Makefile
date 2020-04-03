@@ -125,6 +125,10 @@ endif
 .PHONY: all
 all: cli image argocd-util
 
+.PHONY: gogen
+gogen:
+	go generate ./util/argo/...
+
 .PHONY: protogen
 protogen:
 	./hack/generate-proto.sh
@@ -138,7 +142,7 @@ clientgen:
 	./hack/update-codegen.sh
 
 .PHONY: codegen-local
-codegen-local: protogen clientgen openapigen manifests-local
+codegen-local: gogen protogen clientgen openapigen manifests-local
 
 .PHONY: codegen
 codegen:

@@ -12,14 +12,13 @@ import (
 	"time"
 
 	"github.com/argoproj/pkg/errors"
-
 	log "github.com/sirupsen/logrus"
-
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	networkingv1beta "k8s.io/api/networking/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/pointer"
@@ -453,6 +452,37 @@ func TestResourceDiffing(t *testing.T) {
 
 func TestCRDs(t *testing.T) {
 	testEdgeCasesApplicationResources(t, "crd-creation", HealthStatusHealthy)
+}
+
+func TestKnownTypesInCRDDiffing(t *testing.T) {
+	dummiesGVR := schema.GroupVersionResource{Group: "argoproj.io", Version: "v1alpha1", Resource: "dummies"}
+
+	Given(t).
+		Path("crd-creation").
+		When().Create().Sync().Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		And(func() {
+			dummyResIf := DynamicClientset.Resource(dummiesGVR).Namespace(DeploymentNamespace())
+			patchData := []byte(`{"spec":{"requests": {"cpu": "2"}}}`)
+			FailOnErr(dummyResIf.Patch("dummy-crd-instance", types.MergePatchType, patchData, metav1.PatchOptions{}))
+		}).Refresh(RefreshTypeNormal).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		When().
+		And(func() {
+			SetResourceOverrides(map[string]ResourceOverride{
+				"argoproj.io/Dummy": {
+					KnownTypeFields: []KnownTypeField{{
+						Field: "spec.requests",
+						Type:  "core/v1/ResourceList",
+					}},
+				},
+			})
+		}).
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
 func TestDuplicatedResources(t *testing.T) {
