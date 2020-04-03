@@ -1,8 +1,12 @@
 package cert
 
 import (
+	"io/ioutil"
+	"os"
+	"path"
 	"testing"
 
+	"github.com/argoproj/argo-cd/common"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -426,4 +430,137 @@ func Test_EscapeBracketPattern(t *testing.T) {
 	for original, expected := range patternList {
 		assert.Equal(t, nonBracketedPattern(original), expected)
 	}
+}
+
+func TestGetTLSCertificateDataPath(t *testing.T) {
+	t.Run("Get default path", func(t *testing.T) {
+		os.Setenv(common.EnvVarTLSDataPath, "")
+		path := GetTLSCertificateDataPath()
+		assert.Equal(t, common.DefaultPathTLSConfig, path)
+	})
+
+	t.Run("Get custom path", func(t *testing.T) {
+		os.Setenv(common.EnvVarTLSDataPath, "/some/where")
+		path := GetTLSCertificateDataPath()
+		assert.Equal(t, "/some/where", path)
+		os.Setenv(common.EnvVarTLSDataPath, "")
+	})
+}
+
+func TestGetSSHKnownHostseDataPath(t *testing.T) {
+	t.Run("Get default path", func(t *testing.T) {
+		os.Setenv(common.EnvVarSSHDataPath, "")
+		p := GetSSHKnownHostsDataPath()
+		assert.Equal(t, path.Join(common.DefaultPathSSHConfig, "ssh_known_hosts"), p)
+	})
+
+	t.Run("Get custom path", func(t *testing.T) {
+		os.Setenv(common.EnvVarSSHDataPath, "/some/where")
+		path := GetSSHKnownHostsDataPath()
+		assert.Equal(t, "/some/where/ssh_known_hosts", path)
+		os.Setenv(common.EnvVarSSHDataPath, "")
+	})
+}
+
+func TestGetCertificateForConnect(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		temppath, err := ioutil.TempDir("", "argocd-cert-test")
+		if err != nil {
+			panic(err)
+		}
+		cert, err := ioutil.ReadFile("../../test/fixture/certs/argocd-test-server.crt")
+		if err != nil {
+			panic(err)
+		}
+		err = ioutil.WriteFile(path.Join(temppath, "127.0.0.1"), cert, 0666)
+		if err != nil {
+			panic(err)
+		}
+		defer os.RemoveAll(temppath)
+		os.Setenv(common.EnvVarTLSDataPath, temppath)
+		certs, err := GetCertificateForConnect("127.0.0.1")
+		assert.NoError(t, err)
+		assert.Len(t, certs, 1)
+	})
+
+	t.Run("No cert found", func(t *testing.T) {
+		temppath, err := ioutil.TempDir("", "argocd-cert-test")
+		if err != nil {
+			panic(err)
+		}
+		defer os.RemoveAll(temppath)
+		os.Setenv(common.EnvVarTLSDataPath, temppath)
+		certs, err := GetCertificateForConnect("127.0.0.1")
+		assert.NoError(t, err)
+		assert.Len(t, certs, 0)
+	})
+
+	t.Run("No valid cert in file", func(t *testing.T) {
+		temppath, err := ioutil.TempDir("", "argocd-cert-test")
+		if err != nil {
+			panic(err)
+		}
+		err = ioutil.WriteFile(path.Join(temppath, "127.0.0.1"), []byte("foobar"), 0666)
+		if err != nil {
+			panic(err)
+		}
+		defer os.RemoveAll(temppath)
+		os.Setenv(common.EnvVarTLSDataPath, temppath)
+		certs, err := GetCertificateForConnect("127.0.0.1")
+		assert.Error(t, err)
+		assert.Len(t, certs, 0)
+		assert.Contains(t, err.Error(), "No certificates found")
+	})
+
+}
+
+func TestGetCertBundlePathForRepository(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		temppath, err := ioutil.TempDir("", "argocd-cert-test")
+		if err != nil {
+			panic(err)
+		}
+		cert, err := ioutil.ReadFile("../../test/fixture/certs/argocd-test-server.crt")
+		if err != nil {
+			panic(err)
+		}
+		err = ioutil.WriteFile(path.Join(temppath, "127.0.0.1"), cert, 0666)
+		if err != nil {
+			panic(err)
+		}
+		defer os.RemoveAll(temppath)
+		os.Setenv(common.EnvVarTLSDataPath, temppath)
+		certpath, err := GetCertBundlePathForRepository("127.0.0.1")
+		assert.NoError(t, err)
+		assert.Equal(t, certpath, path.Join(temppath, "127.0.0.1"))
+	})
+
+	t.Run("No cert found", func(t *testing.T) {
+		temppath, err := ioutil.TempDir("", "argocd-cert-test")
+		if err != nil {
+			panic(err)
+		}
+		defer os.RemoveAll(temppath)
+		os.Setenv(common.EnvVarTLSDataPath, temppath)
+		certpath, err := GetCertBundlePathForRepository("127.0.0.1")
+		assert.NoError(t, err)
+		assert.Empty(t, certpath)
+	})
+
+	t.Run("No valid cert in file", func(t *testing.T) {
+		temppath, err := ioutil.TempDir("", "argocd-cert-test")
+		if err != nil {
+			panic(err)
+		}
+		err = ioutil.WriteFile(path.Join(temppath, "127.0.0.1"), []byte("foobar"), 0666)
+		if err != nil {
+			panic(err)
+		}
+		defer os.RemoveAll(temppath)
+		os.Setenv(common.EnvVarTLSDataPath, temppath)
+		certpath, err := GetCertBundlePathForRepository("127.0.0.1")
+		assert.NoError(t, err)
+		assert.Empty(t, certpath)
+	})
+
 }
