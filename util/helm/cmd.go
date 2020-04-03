@@ -221,6 +221,9 @@ func (c *Cmd) template(chartPath string, opts *TemplateOpts) (string, error) {
 	for _, v := range opts.APIVersions {
 		args = append(args, "--api-versions", v)
 	}
+	if c.HelmVer.additionalTemplateArgs != nil {
+		args = append(args, c.HelmVer.additionalTemplateArgs...)
+	}
 
 	return c.run(args...)
 }
