@@ -8,8 +8,11 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/grpc/codes"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/watch"
@@ -283,4 +286,300 @@ func TestValidateRepo(t *testing.T) {
 	assert.Equal(t, app.Spec.Destination.Namespace, receivedRequest.Namespace)
 	assert.Equal(t, &app.Spec.Source, receivedRequest.ApplicationSource)
 	assert.Equal(t, kustomizeOptions, receivedRequest.KustomizeOptions)
+}
+
+func TestFormatAppConditions(t *testing.T) {
+	conditions := []argoappv1.ApplicationCondition{
+		{
+			Type:    EventReasonOperationCompleted,
+			Message: "Foo",
+		},
+		{
+			Type:    EventReasonResourceCreated,
+			Message: "Bar",
+		},
+	}
+
+	t.Run("Single Condition", func(t *testing.T) {
+		res := FormatAppConditions(conditions[0:1])
+		assert.NotEmpty(t, res)
+		assert.Equal(t, fmt.Sprintf("%s: Foo", EventReasonOperationCompleted), res)
+	})
+
+	t.Run("Multiple Conditions", func(t *testing.T) {
+		res := FormatAppConditions(conditions)
+		assert.NotEmpty(t, res)
+		assert.Equal(t, fmt.Sprintf("%s: Foo;%s: Bar", EventReasonOperationCompleted, EventReasonResourceCreated), res)
+	})
+
+	t.Run("Empty Conditions", func(t *testing.T) {
+		res := FormatAppConditions([]argoappv1.ApplicationCondition{})
+		assert.Empty(t, res)
+	})
+}
+
+func TestFilterByProjects(t *testing.T) {
+	apps := []argoappv1.Application{
+		{
+			Spec: argoappv1.ApplicationSpec{
+				Project: "fooproj",
+			},
+		},
+		{
+			Spec: argoappv1.ApplicationSpec{
+				Project: "barproj",
+			},
+		},
+	}
+
+	t.Run("No apps in single project", func(t *testing.T) {
+		res := FilterByProjects(apps, []string{"foobarproj"})
+		assert.Empty(t, res)
+	})
+
+	t.Run("Single app in single project", func(t *testing.T) {
+		res := FilterByProjects(apps, []string{"fooproj"})
+		assert.Len(t, res, 1)
+	})
+
+	t.Run("Single app in multiple project", func(t *testing.T) {
+		res := FilterByProjects(apps, []string{"fooproj", "foobarproj"})
+		assert.Len(t, res, 1)
+	})
+
+	t.Run("Multiple apps in multiple project", func(t *testing.T) {
+		res := FilterByProjects(apps, []string{"fooproj", "barproj"})
+		assert.Len(t, res, 2)
+	})
+}
+
+func TestValidatePermissions(t *testing.T) {
+	t.Run("Empty Repo URL result in condition", func(t *testing.T) {
+		spec := argoappv1.ApplicationSpec{
+			Source: argoappv1.ApplicationSource{
+				RepoURL: "",
+			},
+		}
+		proj := argoappv1.AppProject{}
+		db := &dbmocks.ArgoDB{}
+		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
+		assert.NoError(t, err)
+		assert.Len(t, conditions, 1)
+		assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, conditions[0].Type)
+		assert.Contains(t, conditions[0].Message, "are required")
+	})
+
+	t.Run("Incomplete Path/Chart combo result in condition", func(t *testing.T) {
+		spec := argoappv1.ApplicationSpec{
+			Source: argoappv1.ApplicationSource{
+				RepoURL: "http://some/where",
+				Path:    "",
+				Chart:   "",
+			},
+		}
+		proj := argoappv1.AppProject{}
+		db := &dbmocks.ArgoDB{}
+		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
+		assert.NoError(t, err)
+		assert.Len(t, conditions, 1)
+		assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, conditions[0].Type)
+		assert.Contains(t, conditions[0].Message, "are required")
+	})
+
+	t.Run("Helm chart requires targetRevision", func(t *testing.T) {
+		spec := argoappv1.ApplicationSpec{
+			Source: argoappv1.ApplicationSource{
+				RepoURL: "http://some/where",
+				Path:    "",
+				Chart:   "somechart",
+			},
+		}
+		proj := argoappv1.AppProject{}
+		db := &dbmocks.ArgoDB{}
+		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
+		assert.NoError(t, err)
+		assert.Len(t, conditions, 1)
+		assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, conditions[0].Type)
+		assert.Contains(t, conditions[0].Message, "is required if the manifest source is a helm chart")
+	})
+
+	t.Run("Application source is not permitted in project", func(t *testing.T) {
+		spec := argoappv1.ApplicationSpec{
+			Source: argoappv1.ApplicationSource{
+				RepoURL:        "http://some/where",
+				Path:           "",
+				Chart:          "somechart",
+				TargetRevision: "1.4.1",
+			},
+			Destination: argoappv1.ApplicationDestination{
+				Server:    "https://127.0.0.1:6443",
+				Namespace: "testns",
+			},
+		}
+		proj := argoappv1.AppProject{
+			Spec: argoappv1.AppProjectSpec{
+				Destinations: []argoappv1.ApplicationDestination{
+					{
+						Server:    "*",
+						Namespace: "*",
+					},
+				},
+				SourceRepos: []string{"http://some/where/else"},
+			},
+		}
+		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443"}
+		db := &dbmocks.ArgoDB{}
+		db.On("GetCluster", context.Background(), spec.Destination.Server).Return(cluster, nil)
+		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
+		assert.NoError(t, err)
+		assert.Len(t, conditions, 1)
+		assert.Contains(t, conditions[0].Message, "application repo http://some/where is not permitted")
+	})
+
+	t.Run("Application destination is not permitted in project", func(t *testing.T) {
+		spec := argoappv1.ApplicationSpec{
+			Source: argoappv1.ApplicationSource{
+				RepoURL:        "http://some/where",
+				Path:           "",
+				Chart:          "somechart",
+				TargetRevision: "1.4.1",
+			},
+			Destination: argoappv1.ApplicationDestination{
+				Server:    "https://127.0.0.1:6443",
+				Namespace: "testns",
+			},
+		}
+		proj := argoappv1.AppProject{
+			Spec: argoappv1.AppProjectSpec{
+				Destinations: []argoappv1.ApplicationDestination{
+					{
+						Server:    "*",
+						Namespace: "default",
+					},
+				},
+				SourceRepos: []string{"http://some/where"},
+			},
+		}
+		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443"}
+		db := &dbmocks.ArgoDB{}
+		db.On("GetCluster", context.Background(), spec.Destination.Server).Return(cluster, nil)
+		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
+		assert.NoError(t, err)
+		assert.Len(t, conditions, 1)
+		assert.Contains(t, conditions[0].Message, "application destination")
+	})
+
+	t.Run("Destination cluster does not exist", func(t *testing.T) {
+		spec := argoappv1.ApplicationSpec{
+			Source: argoappv1.ApplicationSource{
+				RepoURL:        "http://some/where",
+				Path:           "",
+				Chart:          "somechart",
+				TargetRevision: "1.4.1",
+			},
+			Destination: argoappv1.ApplicationDestination{
+				Server:    "https://127.0.0.1:6443",
+				Namespace: "default",
+			},
+		}
+		proj := argoappv1.AppProject{
+			Spec: argoappv1.AppProjectSpec{
+				Destinations: []argoappv1.ApplicationDestination{
+					{
+						Server:    "*",
+						Namespace: "default",
+					},
+				},
+				SourceRepos: []string{"http://some/where"},
+			},
+		}
+		db := &dbmocks.ArgoDB{}
+		db.On("GetCluster", context.Background(), spec.Destination.Server).Return(nil, status.Errorf(codes.NotFound, "Cluster does not exist"))
+		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
+		assert.NoError(t, err)
+		assert.Len(t, conditions, 1)
+		assert.Contains(t, conditions[0].Message, "has not been configured")
+	})
+
+	t.Run("Cannot get cluster info from DB", func(t *testing.T) {
+		spec := argoappv1.ApplicationSpec{
+			Source: argoappv1.ApplicationSource{
+				RepoURL:        "http://some/where",
+				Path:           "",
+				Chart:          "somechart",
+				TargetRevision: "1.4.1",
+			},
+			Destination: argoappv1.ApplicationDestination{
+				Server:    "https://127.0.0.1:6443",
+				Namespace: "default",
+			},
+		}
+		proj := argoappv1.AppProject{
+			Spec: argoappv1.AppProjectSpec{
+				Destinations: []argoappv1.ApplicationDestination{
+					{
+						Server:    "*",
+						Namespace: "default",
+					},
+				},
+				SourceRepos: []string{"http://some/where"},
+			},
+		}
+		db := &dbmocks.ArgoDB{}
+		db.On("GetCluster", context.Background(), spec.Destination.Server).Return(nil, fmt.Errorf("Unknown error occured"))
+		_, err := ValidatePermissions(context.Background(), &spec, &proj, db)
+		assert.Error(t, err)
+	})
+}
+
+func TestSetAppOperations(t *testing.T) {
+	t.Run("Application not existing", func(t *testing.T) {
+		appIf := appclientset.NewSimpleClientset().ArgoprojV1alpha1().Applications("default")
+		app, err := SetAppOperation(appIf, "someapp", &argoappv1.Operation{Sync: &argoappv1.SyncOperation{Revision: "aaa"}})
+		assert.Error(t, err)
+		assert.Nil(t, app)
+	})
+
+	t.Run("Operation already in progress", func(t *testing.T) {
+		a := argoappv1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "someapp",
+				Namespace: "default",
+			},
+			Operation: &argoappv1.Operation{Sync: &argoappv1.SyncOperation{Revision: "aaa"}},
+		}
+		appIf := appclientset.NewSimpleClientset(&a).ArgoprojV1alpha1().Applications("default")
+		app, err := SetAppOperation(appIf, "someapp", &argoappv1.Operation{Sync: &argoappv1.SyncOperation{Revision: "aaa"}})
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "operation is already in progress")
+		assert.Nil(t, app)
+	})
+
+	t.Run("Operation unspecified", func(t *testing.T) {
+		a := argoappv1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "someapp",
+				Namespace: "default",
+			},
+		}
+		appIf := appclientset.NewSimpleClientset(&a).ArgoprojV1alpha1().Applications("default")
+		app, err := SetAppOperation(appIf, "someapp", &argoappv1.Operation{Sync: nil})
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Operation unspecified")
+		assert.Nil(t, app)
+	})
+
+	t.Run("Success", func(t *testing.T) {
+		a := argoappv1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "someapp",
+				Namespace: "default",
+			},
+		}
+		appIf := appclientset.NewSimpleClientset(&a).ArgoprojV1alpha1().Applications("default")
+		app, err := SetAppOperation(appIf, "someapp", &argoappv1.Operation{Sync: &argoappv1.SyncOperation{Revision: "aaa"}})
+		assert.NoError(t, err)
+		assert.NotNil(t, app)
+	})
+
 }
