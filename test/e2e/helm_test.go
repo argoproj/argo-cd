@@ -290,3 +290,13 @@ func testHelmWithDependencies(t *testing.T, chartPath string, legacyRepo bool) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
+
+func TestHelm3CRD(t *testing.T) {
+	Given(t).
+		Path("helm3-crd").
+		When().
+		Create().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}
