@@ -1201,6 +1201,18 @@
 
 
   <li class="md-nav__item">
+    <a href="../../security_considerations/" title="Security Considerations" class="md-nav__link">
+      Security Considerations
+    </a>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
     <a href="../../SUPPORT/" title="Support" class="md-nav__link">
       Support
     </a>
@@ -1381,6 +1393,9 @@ Such token can be used to automatically create applications, projects etc.</li>
 <li>Additional users for a very small team when SSO integration is overkill. The local users don't provide advanced features such as groups,
 login history etc. So if you need such features it is strongly recommended to use SSO.</li>
 </ul>
+<div class="admonition warning">
+<p class="admonition-title">Make sure to read about security limitations related to local users in <a href="../../security_considerations/">security considerations</a> document</p>
+</div>
 <h3 id="create-new-user">Create new user<a class="headerlink" href="#create-new-user" title="Permanent link">&para;</a></h3>
 <p>New users should be defined in <code>argocd-cm</code> ConfigMap:</p>
 <div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
