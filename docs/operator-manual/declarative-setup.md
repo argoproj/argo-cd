@@ -128,6 +128,12 @@ spec:
 
 ## Repositories
 
+!!!note
+    Some Git hosters - notably GitLab and possibly on-premise GitLab instances as well - require you to
+    specify the `.git` suffix in the repository URL, otherwise they will send a HTTP 301 redirect to the
+    repository URL suffixed with `.git`. ArgoCD will **not** follow these redirects, so you have to
+    adapt your repository URL to be suffixed with `.git`.
+
 Repository credentials are stored in secret. Use following steps to configure a repo:
 
 1. Create secret which contains repository credentials. Consider using [bitnami-labs/sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) to store encrypted secret
