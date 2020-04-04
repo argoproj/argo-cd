@@ -40,7 +40,7 @@ If you want to exclude a whole class of objects globally, consider setting `reso
     
 ## Skip Dry Run for new custom resources types
 
->v1.5
+>v1.6
 
 When syncing a custom resource which is not yet known to the cluster, there are generally two options:
 
