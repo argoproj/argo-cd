@@ -1,6 +1,6 @@
 # Changelog
 
-## v1.5.0 (Not released)
+## v1.5.0 (2020-04-02)
 
 #### Helm Integration Enhancements - Helm 3 Support And More
 
@@ -28,6 +28,14 @@ The local accounts had been introduced additional to `admin` user and SSO integr
 tokens with limited permissions to automate Argo CD management. Local accounts also could be used small by teams when SSO integration is overkill.
 This enhancement also allows to disable admin user and enforce only SSO logins.
 
+#### Redis HA Proxy mode
+
+As part of this release, the bundled Redis was upgraded to version 4.3.4 with enabled HAProxy.
+The HA proxy replaced the sentinel and provides more reliable Redis connection.
+
+> After publishing 1.5.0 release we've discovered that default HAProxy settings might cause intermittent failures.
+> See [argo-cd#3358](https://github.com/argoproj/argo-cd/issues/3358)
+
 #### Windows CLI
 
 Windows users deploy to Kubernetes too! Now you can use Argo CD CLI on Linux, Mac OS, and Windows. The Windows compatible binary is available 
@@ -38,6 +46,14 @@ in the release details page as well as on the Argo CD Help page.
 The `argocd_app_sync_status`, `argocd_app_health_status` and `argocd_app_created_time` prometheus metrics are deprecated in favor of additional labels
 to `argocd_app_info` metric. The deprecated labels are still available can be re-enabled using `ARGOCD_LEGACY_CONTROLLER_METRICS=true` environment variable.
 The legacy example Grafana dashboard is available at [examples/dashboard-legacy.json](https://github.com/argoproj/argo-cd/blob/master/examples/dashboard-legacy.json). 
+
+####  Known issues
+Last-minute bugs that will be addressed in 1.5.1 shortly:
+ 
+* https://github.com/argoproj/argo-cd/issues/3336
+* https://github.com/argoproj/argo-cd/issues/3319
+* https://github.com/argoproj/argo-cd/issues/3339
+* https://github.com/argoproj/argo-cd/issues/3358
 
 #### Enhancements
 * feat: support helm3 (#2383) (#3178)
