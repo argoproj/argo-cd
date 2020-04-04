@@ -153,11 +153,3 @@ Payloads from webhook events are considered untrusted. Argo CD only examines the
 the involved applications of the webhook event (e.g. which repo was modified), then refreshes
 the related application for reconciliation. This refresh is the same refresh which occurs regularly
 at three minute intervals, just fast-tracked by the webhook event.
-
-## Reporting Vulnerabilities
-
-Please report security vulnerabilities by e-mailing:
-
-* [Jesse_Suen@intuit.com](mailto:Jesse_Suen@intuit.com)
-* [Alexander_Matyushentsev@intuit.com](mailto:Alexander_Matyushentsev@intuit.com)
-* [Edward_Lee@intuit.com](mailto:Edward_Lee@intuit.com)
