@@ -424,7 +424,13 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 				// metadata.generateName, then we will generate a formulated metadata.name before submission.
 				targetObj := obj.DeepCopy()
 				if targetObj.GetName() == "" {
-					postfix := strings.ToLower(fmt.Sprintf("%s-%s-%d", sc.syncRes.Revision[0:7], phase, sc.opState.StartedAt.UTC().Unix()))
+					var syncRevision string
+					if len(sc.syncRes.Revision) >= 8 {
+						syncRevision = sc.syncRes.Revision[0:7]
+					} else {
+						syncRevision = sc.syncRes.Revision
+					}
+					postfix := strings.ToLower(fmt.Sprintf("%s-%s-%d", syncRevision, phase, sc.opState.StartedAt.UTC().Unix()))
 					generateName := obj.GetGenerateName()
 					targetObj.SetName(fmt.Sprintf("%s%s", generateName, postfix))
 				}
