@@ -18,4 +18,4 @@ helm2 template ./chart \
   ${helm_execute} \
   >> ./chart/upstream_orig.yaml
 
-sed -e 's/check inter 1s/check inter 3s/' ./chart/upstream_orig.yaml > ./chart/upstream.yaml && rm ./chart/upstream_orig.yaml
+sed -e 's/check inter 1s/check inter 3s/' ./chart/upstream_orig.yaml >> ./chart/upstream.yaml && rm ./chart/upstream_orig.yaml
