@@ -675,7 +675,6 @@ spec:
         - redis-server
         args:
         - /data/conf/redis.conf
-        env:
         livenessProbe:
           tcpSocket:
             port: 6379
