@@ -66,6 +66,25 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:3cce78d5d0090e3f1162945fba60ba74e72e8422e8e41bb9c701afb67237bb65"
+  name = "github.com/alicebob/gopher-json"
+  packages = ["."]
+  pruneopts = ""
+  revision = "5a6b3ba71ee69b77cf64febf8b5a7526ca5eaef0"
+
+[[projects]]
+  digest = "1:18a07506ddaa87b1612bfd69eef03f510faf122398df3da774d46dcfe751a060"
+  name = "github.com/alicebob/miniredis"
+  packages = [
+    ".",
+    "server",
+  ]
+  pruneopts = ""
+  revision = "3d7aa1333af56ab862d446678d93aaa6803e0938"
+  version = "v2.7.0"
+
+[[projects]]
+  branch = "master"
   digest = "1:fbe4779f247babd0b21e2283d419f848a8dab42c0f6bbdeb88d83f190f52c159"
   name = "github.com/argoproj/pkg"
   packages = [
@@ -468,6 +487,17 @@
   pruneopts = ""
   revision = "aa810b61a9c79d51363740d207bb46cf8e620ed5"
   version = "v1.2.0"
+
+[[projects]]
+  digest = "1:dcf8316121302735c0ac84e05f4686e3b34e284444435e9a206da48d8be18cb1"
+  name = "github.com/gomodule/redigo"
+  packages = [
+    "internal",
+    "redis",
+  ]
+  pruneopts = ""
+  revision = "9c11da706d9b7902c6da69c592f75637793fe121"
+  version = "v2.0.0"
 
 [[projects]]
   digest = "1:1e5b1e14524ed08301977b7b8e10c719ed853cbf3f24ecb66fae783a46f207a6"
@@ -1939,6 +1969,7 @@
     "bou.ke/monkey",
     "github.com/Masterminds/semver",
     "github.com/TomOnTime/utfutil",
+    "github.com/alicebob/miniredis",
     "github.com/argoproj/pkg/errors",
     "github.com/argoproj/pkg/exec",
     "github.com/argoproj/pkg/grpc/http",

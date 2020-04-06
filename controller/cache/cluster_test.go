@@ -504,6 +504,7 @@ func TestWatchCacheUpdated(t *testing.T) {
 
 	podGroupKind := testPod.GroupVersionKind().GroupKind()
 
+	cluster.lock.Lock()
 	cluster.replaceResourceCache(podGroupKind, "updated-list-version", []unstructured.Unstructured{*updated, *added}, "")
 
 	_, ok := cluster.nodes[kube.GetResourceKey(removed)]
@@ -515,6 +516,7 @@ func TestWatchCacheUpdated(t *testing.T) {
 
 	_, ok = cluster.nodes[kube.GetResourceKey(added)]
 	assert.True(t, ok)
+	cluster.lock.Unlock()
 }
 
 func TestNamespaceModeReplace(t *testing.T) {
