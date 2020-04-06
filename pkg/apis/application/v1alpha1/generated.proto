@@ -452,6 +452,13 @@ message JsonnetVar {
   optional bool code = 3;
 }
 
+// KnownTypeField contains mapping between CRD field and known Kubernetes type
+message KnownTypeField {
+  optional string field = 1;
+
+  optional string type = 2;
+}
+
 // KsonnetParameter is a ksonnet component parameter
 message KsonnetParameter {
   optional string component = 1;
@@ -743,6 +750,8 @@ message ResourceOverride {
   optional string actions = 3;
 
   optional string ignoreDifferences = 2;
+
+  repeated KnownTypeField knownTypeFields = 4;
 }
 
 // ResourceRef includes fields which unique identify resource

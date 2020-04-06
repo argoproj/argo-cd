@@ -1,4 +1,4 @@
-package argo
+package normalizers
 
 import (
 	"testing"
@@ -13,7 +13,7 @@ import (
 )
 
 func TestNormalizeObjectWithMatchedGroupKind(t *testing.T) {
-	normalizer, err := NewDiffNormalizer([]v1alpha1.ResourceIgnoreDifferences{{
+	normalizer, err := NewIgnoreNormalizer([]v1alpha1.ResourceIgnoreDifferences{{
 		Group:        "apps",
 		Kind:         "Deployment",
 		JSONPointers: []string{"/not-matching-path", "/spec/template/spec/containers"},
@@ -35,7 +35,7 @@ func TestNormalizeObjectWithMatchedGroupKind(t *testing.T) {
 }
 
 func TestNormalizeNoMatchedGroupKinds(t *testing.T) {
-	normalizer, err := NewDiffNormalizer([]v1alpha1.ResourceIgnoreDifferences{{
+	normalizer, err := NewIgnoreNormalizer([]v1alpha1.ResourceIgnoreDifferences{{
 		Group:        "",
 		Kind:         "Service",
 		JSONPointers: []string{"/spec"},
@@ -54,7 +54,7 @@ func TestNormalizeNoMatchedGroupKinds(t *testing.T) {
 }
 
 func TestNormalizeMatchedResourceOverrides(t *testing.T) {
-	normalizer, err := NewDiffNormalizer([]v1alpha1.ResourceIgnoreDifferences{}, map[string]v1alpha1.ResourceOverride{
+	normalizer, err := NewIgnoreNormalizer([]v1alpha1.ResourceIgnoreDifferences{}, map[string]v1alpha1.ResourceOverride{
 		"apps/Deployment": {
 			IgnoreDifferences: `jsonPointers: ["/spec/template/spec/containers"]`,
 		},
@@ -94,7 +94,7 @@ spec:
   version: v1alpha1`
 
 func TestNormalizeMissingJsonPointer(t *testing.T) {
-	normalizer, err := NewDiffNormalizer([]v1alpha1.ResourceIgnoreDifferences{}, map[string]v1alpha1.ResourceOverride{
+	normalizer, err := NewIgnoreNormalizer([]v1alpha1.ResourceIgnoreDifferences{}, map[string]v1alpha1.ResourceOverride{
 		"apps/Deployment": {
 			IgnoreDifferences: `jsonPointers: ["/garbage"]`,
 		},

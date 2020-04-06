@@ -39,6 +39,7 @@ API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/appli
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ResourceNode,Images
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ResourceNode,Info
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ResourceNode,ParentRefs
+API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ResourceOverride,KnownTypeFields
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,RevisionMetadata,Tags
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,SyncOperation,Manifests
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,SyncOperation,Resources

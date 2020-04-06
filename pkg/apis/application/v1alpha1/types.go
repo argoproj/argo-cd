@@ -1081,11 +1081,18 @@ type TLSClientConfig struct {
 	CAData []byte `json:"caData,omitempty" protobuf:"bytes,5,opt,name=caData"`
 }
 
+// KnownTypeField contains mapping between CRD field and known Kubernetes type
+type KnownTypeField struct {
+	Field string `json:"field, omitempty" protobuf:"bytes,1,opt,name=field"`
+	Type  string `json:"type, omitempty" protobuf:"bytes,2,opt,name=type"`
+}
+
 // ResourceOverride holds configuration to customize resource diffing and health assessment
 type ResourceOverride struct {
-	HealthLua         string `json:"health.lua,omitempty" protobuf:"bytes,1,opt,name=healthLua"`
-	Actions           string `json:"actions,omitempty" protobuf:"bytes,3,opt,name=actions"`
-	IgnoreDifferences string `json:"ignoreDifferences,omitempty" protobuf:"bytes,2,opt,name=ignoreDifferences"`
+	HealthLua         string           `json:"health.lua,omitempty" protobuf:"bytes,1,opt,name=healthLua"`
+	Actions           string           `json:"actions,omitempty" protobuf:"bytes,3,opt,name=actions"`
+	IgnoreDifferences string           `json:"ignoreDifferences,omitempty" protobuf:"bytes,2,opt,name=ignoreDifferences"`
+	KnownTypeFields   []KnownTypeField `json:"knownTypeFields,omitempty" protobuf:"bytes,4,opt,name=knownTypeFields"`
 }
 
 func (o *ResourceOverride) GetActions() (ResourceActions, error) {

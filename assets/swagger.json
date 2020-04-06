@@ -3808,6 +3808,18 @@
         }
       }
     },
+    "v1alpha1KnownTypeField": {
+      "type": "object",
+      "title": "KnownTypeField contains mapping between CRD field and known Kubernetes type",
+      "properties": {
+        "field": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        }
+      }
+    },
     "v1alpha1KsonnetParameter": {
       "type": "object",
       "title": "KsonnetParameter is a ksonnet component parameter",
@@ -4282,6 +4294,12 @@
         },
         "ignoreDifferences": {
           "type": "string"
+        },
+        "knownTypeFields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1KnownTypeField"
+          }
         }
       }
     },

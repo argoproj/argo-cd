@@ -115,9 +115,7 @@ E.g.
 * `'3072Mi'` normalized to `'3Gi'`
 * `3072` normalized to `'3072'` (quotes added)
 
-To fix this - replace your values with the normalized values.
-
-See [#1615](https://github.com/argoproj/argo-cd/issues/1615)
+To fix this use diffing customizations [settings](./user-guide/diffing.md#known-kubernetes-types-in-crds-resource-limits-volume-mounts-etc).
 
 # How Do I Fix "invalid cookie, longer than max length 4093"?
 
