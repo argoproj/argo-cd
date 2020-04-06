@@ -1448,8 +1448,7 @@ argocd-util kubeconfig https://&lt;cluster-url&gt; /tmp/config --namespace argoc
 <li><code>'3072Mi'</code> normalized to <code>'3Gi'</code></li>
 <li><code>3072</code> normalized to <code>'3072'</code> (quotes added)</li>
 </ul>
-<p>To fix this - replace your values with the normalized values.</p>
-<p>See <a href="https://github.com/argoproj/argo-cd/issues/1615">#1615</a></p>
+<p>To fix this use diffing customizations <a href="../user-guide/diffing/#known-kubernetes-types-in-crds-resource-limits-volume-mounts-etc">settings</a>.</p>
 <h1 id="how-do-i-fix-invalid-cookie-longer-than-max-length-4093">How Do I Fix "invalid cookie, longer than max length 4093"?<a class="headerlink" href="#how-do-i-fix-invalid-cookie-longer-than-max-length-4093" title="Permanent link">&para;</a></h1>
 <p>Argo CD uses a JWT as the auth token. You likely are part of many groups and have gone over the 4KB limit which is set for cookies.
 You can get the list of groups by opening "developer tools -&gt; network"</p>

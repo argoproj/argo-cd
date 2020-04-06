@@ -791,6 +791,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#known-kubernetes-types-in-crds-resource-limits-volume-mounts-etc" title="Known Kubernetes types in CRDs (Resource limits, Volume mounts etc)" class="md-nav__link">
+    Known Kubernetes types in CRDs (Resource limits, Volume mounts etc)
+  </a>
+  
+</li>
+      
       
       
       
@@ -1213,6 +1220,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#known-kubernetes-types-in-crds-resource-limits-volume-mounts-etc" title="Known Kubernetes types in CRDs (Resource limits, Volume mounts etc)" class="md-nav__link">
+    Known Kubernetes types in CRDs (Resource limits, Volume mounts etc)
+  </a>
+  
+</li>
+      
       
       
       
@@ -1283,6 +1297,48 @@ of a <code>MutatingWebhookConfiguration</code> webhooks:</p>
         <span class="no">jsonPointers:</span>
         <span class="no">- /webhooks/0/clientConfig/caBundle</span>
 </code></pre></div>
+
+
+<h2 id="known-kubernetes-types-in-crds-resource-limits-volume-mounts-etc">Known Kubernetes types in CRDs (Resource limits, Volume mounts etc)<a class="headerlink" href="#known-kubernetes-types-in-crds-resource-limits-volume-mounts-etc" title="Permanent link">&para;</a></h2>
+<p>Some CRDs are re-using data structures defined in the Kubernetes source base and therefore inheriting custom
+JSON/YAML marshaling. Custom marshalers might serialize CRDs in a slightly different format that causes false
+positives during drift detection. </p>
+<p>A typical example is the <code>argoproj.io/Rollout</code> CRD that re-using <code>core/v1/PodSpec</code> data structure. Pod resource requests
+might be reformatted by the custom marshaller of <code>IntOrString</code> data type:</p>
+<p>from:</p>
+<div class="codehilite"><pre><span></span><code><span class="nt">resources</span><span class="p">:</span>
+  <span class="nt">requests</span><span class="p">:</span>
+    <span class="nt">cpu</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">100m</span>
+</code></pre></div>
+
+
+<p>to:</p>
+<div class="codehilite"><pre><span></span><code><span class="nt">resources</span><span class="p">:</span>
+  <span class="nt">requests</span><span class="p">:</span>
+    <span class="nt">cpu</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">0.1</span>
+</code></pre></div>
+
+
+<p>The solution is to specify which CRDs fields are using built-in Kubernetes types in the <code>resource.customizations</code>
+section of <code>argocd-cm</code> ConfigMap:  </p>
+<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
+  <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
+  <span class="nt">labels</span><span class="p">:</span>
+    <span class="nt">app.kubernetes.io/name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
+    <span class="nt">app.kubernetes.io/part-of</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
+<span class="nt">data</span><span class="p">:</span>
+  <span class="nt">resource.customizations</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+    <span class="no">argoproj.io/Rollout:</span>
+      <span class="no">knownTypeFields:</span>
+      <span class="no">- field: spec.template.spec</span>
+        <span class="no">type: core/v1/PodSpec</span>
+</code></pre></div>
+
+
+<p>The list of supported Kubernetes types is available in <a href="https://raw.githubusercontent.com/argoproj/argo-cd/master/util/argo/diffing_known_types.txt">diffing_known_types.txt</a></p>
                 
                   
                 
