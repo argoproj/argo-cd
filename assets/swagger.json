@@ -3810,6 +3810,7 @@
     },
     "v1alpha1KnownTypeField": {
       "type": "object",
+      "title": "KnownTypeField contains mapping between CRD field and known Kubernetes type",
       "properties": {
         "field": {
           "type": "string"

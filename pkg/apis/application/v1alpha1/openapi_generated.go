@@ -1623,7 +1623,8 @@ func schema_pkg_apis_application_v1alpha1_KnownTypeField(ref common.ReferenceCal
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
+				Description: "KnownTypeField contains mapping between CRD field and known Kubernetes type",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"field": {
 						SchemaProps: spec.SchemaProps{
