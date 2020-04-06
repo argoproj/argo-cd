@@ -1,3 +1,4 @@
+# This is an auto-generated file. DO NOT EDIT
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-ha-configmap.yaml
 apiVersion: v1
