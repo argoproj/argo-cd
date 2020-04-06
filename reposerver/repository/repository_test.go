@@ -199,24 +199,23 @@ func TestGenerateHelmWithValues(t *testing.T) {
 		},
 	})
 
-	assert.NoError(t, err)
-
-	replicasVerified := false
-	for _, src := range res.Manifests {
-		obj := unstructured.Unstructured{}
-		err = json.Unmarshal([]byte(src), &obj)
-		assert.NoError(t, err)
-
-		if obj.GetKind() == "Deployment" && obj.GetName() == "test-redis-slave" {
-			var dep v1.Deployment
-			err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &dep)
+	if assert.NoError(t, err) {
+		replicasVerified := false
+		for _, src := range res.Manifests {
+			obj := unstructured.Unstructured{}
+			err = json.Unmarshal([]byte(src), &obj)
 			assert.NoError(t, err)
-			assert.Equal(t, int32(2), *dep.Spec.Replicas)
-			replicasVerified = true
-		}
-	}
-	assert.True(t, replicasVerified)
 
+			if obj.GetKind() == "Deployment" && obj.GetName() == "test-redis-slave" {
+				var dep v1.Deployment
+				err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &dep)
+				assert.NoError(t, err)
+				assert.Equal(t, int32(2), *dep.Spec.Replicas)
+				replicasVerified = true
+			}
+		}
+		assert.True(t, replicasVerified)
+	}
 }
 
 // The requested value file (`../minio/values.yaml`) is outside the app path (`./util/helm/testdata/redis`), however
@@ -451,10 +450,11 @@ func TestRunCustomTool(t *testing.T) {
 				Name: "test",
 				Env: argoappv1.Env{
 					{Name: "BAZ", Value: "qux"},
+					{Name: "FILE", Value: "/tmp/obj.json"},
 				},
 				// tell out parameters command this is the file to cat
 				Parameters: argoappv1.Parameters{
-					"file": "/tmp/obj.json",
+					"file": "${FILE}",
 				},
 			},
 		},
@@ -469,7 +469,7 @@ func TestRunCustomTool(t *testing.T) {
 			Parameters: &argoappv1.Command{
 				Command: []string{"sh", "-c"},
 				// we expect to get file=/tmp/obj.json, so lets remove the prefix
-				Args:    []string{`cat $params_file`},
+				Args: []string{`cat $params_file`},
 			},
 			// echo the contents of the file cat to stdout
 			Generate: argoappv1.Command{
@@ -619,6 +619,8 @@ func Test_newEnv(t *testing.T) {
 		&argoappv1.EnvEntry{Name: "ARGOCD_APP_SOURCE_REPO_URL", Value: "https://github.com/my-org/my-repo"},
 		&argoappv1.EnvEntry{Name: "ARGOCD_APP_SOURCE_PATH", Value: "my-path"},
 		&argoappv1.EnvEntry{Name: "ARGOCD_APP_SOURCE_TARGET_REVISION", Value: "my-target-revision"},
+		&argoappv1.EnvEntry{Name: "KUBE_VERSION", Value: "my-kube-version"},
+		&argoappv1.EnvEntry{Name: "KUBE_API_VERSIONS", Value: "my-api-version"},
 	}, newEnv(&apiclient.ManifestRequest{
 		AppLabelValue: "my-app-name",
 		Namespace:     "my-namespace",
@@ -627,6 +629,8 @@ func Test_newEnv(t *testing.T) {
 			Path:           "my-path",
 			TargetRevision: "my-target-revision",
 		},
+		ApiVersions: []string{"my-api-version"},
+		KubeVersion: "my-kube-version",
 	}, "my-revision"))
 }
 

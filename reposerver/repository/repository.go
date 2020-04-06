@@ -426,6 +426,8 @@ func newEnv(q *apiclient.ManifestRequest, revision string) *v1alpha1.Env {
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_REPO_URL", Value: q.Repo.Repo},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_PATH", Value: q.ApplicationSource.Path},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_TARGET_REVISION", Value: q.ApplicationSource.TargetRevision},
+		&v1alpha1.EnvEntry{Name: "KUBE_VERSION", Value: q.KubeVersion},
+		&v1alpha1.EnvEntry{Name: "KUBE_API_VERSIONS", Value: strings.Join(q.ApiVersions, ",")},
 	}
 }
 
@@ -633,9 +635,6 @@ func runConfigManagementPlugin(appPath string, envVars *v1alpha1.Env, q *apiclie
 		env = append(env, environ...)
 	}
 	env = append(env, q.ApplicationSource.Plugin.Env.Environ()...)
-	env = append(env, "KUBE_VERSION="+q.KubeVersion)
-	env = append(env, "KUBE_API_VERSIONS="+strings.Join(q.ApiVersions, ","))
-
 	if plugin.Init != nil {
 		_, err := runCommand(*plugin.Init, appPath, env, nil)
 		if err != nil {
@@ -654,9 +653,12 @@ func runConfigManagementPlugin(appPath string, envVars *v1alpha1.Env, q *apiclie
 }
 
 func getGenerateArgs(plugin *v1alpha1.ConfigManagementPlugin, q *apiclient.ManifestRequest, appPath string, env []string) ([]string, error) {
+	if plugin.Parameters == nil && !q.ApplicationSource.Plugin.Parameters.IsZero() {
+		return nil, fmt.Errorf("plugin has been passed parameters, but is not configured to use them")
+	}
 	if plugin.Parameters != nil {
 		for n, v := range q.ApplicationSource.Plugin.Parameters {
-			env = append(env, "params_"+n+"="+v)
+			env = append(env, "params_"+n+"="+q.ApplicationSource.Plugin.Env.Envsubst(v))
 		}
 		out, err := runCommand(*plugin.Parameters, appPath, env, nil)
 		if err != nil {
