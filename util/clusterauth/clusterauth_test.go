@@ -176,6 +176,14 @@ func TestInstallClusterManagerRBAC(t *testing.T) {
 
 }
 
+func TestUninstallClusterManagerRBAC(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		cs := fake.NewSimpleClientset(newServiceAccountSecret())
+		err := UninstallClusterManagerRBAC(cs)
+		assert.NoError(t, err)
+	})
+}
+
 func TestGenerateNewClusterManagerSecret(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset(newServiceAccountSecret())
 	kubeclientset.ReactionChain = nil
