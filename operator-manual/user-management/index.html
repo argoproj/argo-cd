@@ -1396,6 +1396,10 @@ login history etc. So if you need such features it is strongly recommended to us
 <div class="admonition warning">
 <p class="admonition-title">Make sure to read about security limitations related to local users in <a href="../../security_considerations/">security considerations</a> document</p>
 </div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>When you create local users, each of those users will need additional <a href="../rbac/">RBAC rules</a> set up, otherwise they will fall back to the default policy specified by <code>policy.default</code> field of the <code>argocd-rbac-cm</code> ConfigMap.</p>
+</div>
 <h3 id="create-new-user">Create new user<a class="headerlink" href="#create-new-user" title="Permanent link">&para;</a></h3>
 <p>New users should be defined in <code>argocd-cm</code> ConfigMap:</p>
 <div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>

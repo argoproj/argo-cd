@@ -1291,8 +1291,8 @@
                 <h1 id="rbac-configuration">RBAC Configuration<a class="headerlink" href="#rbac-configuration" title="Permanent link">&para;</a></h1>
 <p>The RBAC feature enables restriction of access to Argo CD resources. Argo CD does not have its own
 user management system and has only one built-in user <code>admin</code>. The <code>admin</code> user is a superuser and
-it has unrestricted access to the system. RBAC requires <a href="../user-management/">SSO configuration</a>. Once SSO is
-configured, additional RBAC roles can be defined, and SSO groups can man be mapped to roles.</p>
+it has unrestricted access to the system. RBAC requires <a href="../user-management/">SSO configuration</a> or <a href="../user-management/">one or more local users setup</a>. 
+Once SSO or local users are configured, additional RBAC roles can be defined, and SSO groups or local users can man be mapped to roles.</p>
 <h2 id="basic-built-in-roles">Basic Built-in Roles<a class="headerlink" href="#basic-built-in-roles" title="Permanent link">&para;</a></h2>
 <p>Argo CD has two pre-defined roles but RBAC configuration allows defining roles and groups (see below).</p>
 <ul>
