@@ -2,6 +2,7 @@ package normalizers
 
 import (
 	"fmt"
+	"io/ioutil"
 	"strings"
 	"testing"
 
@@ -222,4 +223,21 @@ func TestFieldDoesNotExist(t *testing.T) {
 	}
 
 	assert.Equal(t, "2000m", cpu)
+}
+
+func TestKnownTypes(t *testing.T) {
+	typesData, err := ioutil.ReadFile("./diffing_known_types.txt")
+	if !assert.NoError(t, err) {
+		return
+	}
+	for _, typeName := range strings.Split(string(typesData), "\n") {
+		if typeName = strings.TrimSpace(typeName); typeName == "" {
+			continue
+		}
+		fn, ok := knownTypes[typeName]
+		if !assert.True(t, ok) {
+			continue
+		}
+		assert.NotNil(t, fn())
+	}
 }

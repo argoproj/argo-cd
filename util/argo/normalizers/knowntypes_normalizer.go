@@ -13,7 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-//go:generate go run github.com/argoproj/argo-cd/hack/known_types corev1 k8s.io/api/core/v1 corev1_known_types.go --docs ../../../docs/user-guide/diffing_known_types.txt
+//go:generate go run github.com/argoproj/argo-cd/hack/known_types corev1 k8s.io/api/core/v1 corev1_known_types.go --docs diffing_known_types.txt
 var knownTypes = map[string]func() interface{}{}
 
 type knownTypeField struct {
@@ -63,7 +63,7 @@ func normalize(obj map[string]interface{}, field knownTypeField, fieldPath []str
 				continue
 			}
 			for j := range items {
-				item := items[j].(map[string]interface{})
+				item, ok := items[j].(map[string]interface{})
 				if !ok {
 					continue
 				}
