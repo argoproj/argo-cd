@@ -3092,7 +3092,6 @@ spec:
         - /data/conf/redis.conf
         command:
         - redis-server
-        env: null
         image: redis:5.0.6-alpine
         imagePullPolicy: IfNotPresent
         livenessProbe:

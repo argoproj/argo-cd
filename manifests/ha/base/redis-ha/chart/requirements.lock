@@ -1,6 +1,6 @@
 dependencies:
 - name: redis-ha
-  repository: https://kubernetes-charts.storage.googleapis.com
-  version: 4.3.4
-digest: sha256:d130faa98f99a99e503bce560bcec26e1dc0a988775a6609e39a8d855ec687d5
-generated: "2020-02-20T10:42:01.98332-08:00"
+  repository: https://dandydeveloper.github.io/charts
+  version: 4.5.3
+digest: sha256:79e2a60f86c34dcd2c81217f111ef6dfb55e949dd71cc43aebf6a679dc27c042
+generated: "2020-04-06T18:11:37.013005+09:00"
