@@ -449,13 +449,31 @@ func TestRunCustomTool(t *testing.T) {
 		ApplicationSource: &argoappv1.ApplicationSource{
 			Plugin: &argoappv1.ApplicationSourcePlugin{
 				Name: "test",
+				Env: argoappv1.Env{
+					{Name: "BAZ", Value: "qux"},
+				},
+				// tell out parameters command this is the file to cat
+				Parameters: argoappv1.Parameters{
+					"file": "/tmp/obj.json",
+				},
 			},
 		},
 		Plugins: []*argoappv1.ConfigManagementPlugin{{
 			Name: "test",
-			Generate: argoappv1.Command{
+			// create a tmp file
+			Init: &argoappv1.Command{
 				Command: []string{"sh", "-c"},
-				Args:    []string{`echo "{\"kind\": \"FakeObject\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"GIT_ASKPASS\": \"$GIT_ASKPASS\", \"GIT_USERNAME\": \"$GIT_USERNAME\", \"GIT_PASSWORD\": \"$GIT_PASSWORD\"}}}"`},
+				Args:    []string{`echo "{\"kind\": \"FakeObject\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"GIT_ASKPASS\": \"$GIT_ASKPASS\", \"GIT_USERNAME\": \"$GIT_USERNAME\", \"GIT_PASSWORD\": \"$GIT_PASSWORD\", \"BAZ\": \"$BAZ\"}}}" > /tmp/obj.json`},
+			},
+			// cat that tmp file to stdout
+			Parameters: &argoappv1.Command{
+				Command: []string{"sh", "-c"},
+				// we expect to get file=/tmp/obj.json, so lets remove the prefix
+				Args:    []string{`cat $params_file`},
+			},
+			// echo the contents of the file cat to stdout
+			Generate: argoappv1.Command{
+				Command: []string{"echo"},
 			},
 		}},
 		Repo: &argoappv1.Repository{
@@ -463,17 +481,19 @@ func TestRunCustomTool(t *testing.T) {
 		},
 	})
 
-	assert.Nil(t, err)
-	assert.Equal(t, 1, len(res.Manifests))
-
-	obj := &unstructured.Unstructured{}
-	assert.Nil(t, json.Unmarshal([]byte(res.Manifests[0]), obj))
-
-	assert.Equal(t, obj.GetName(), "test-app")
-	assert.Equal(t, obj.GetNamespace(), "test-namespace")
-	assert.Equal(t, "git-ask-pass.sh", obj.GetAnnotations()["GIT_ASKPASS"])
-	assert.Equal(t, "foo", obj.GetAnnotations()["GIT_USERNAME"])
-	assert.Equal(t, "bar", obj.GetAnnotations()["GIT_PASSWORD"])
+	if assert.NoError(t, err) {
+		assert.Equal(t, 1, len(res.Manifests))
+		obj := &unstructured.Unstructured{}
+		if assert.NoError(t, json.Unmarshal([]byte(res.Manifests[0]), obj)) {
+			assert.Equal(t, obj.GetName(), "test-app")
+			assert.Equal(t, obj.GetNamespace(), "test-namespace")
+			annotations := obj.GetAnnotations()
+			assert.Equal(t, "git-ask-pass.sh", annotations["GIT_ASKPASS"])
+			assert.Equal(t, "foo", annotations["GIT_USERNAME"])
+			assert.Equal(t, "bar", annotations["GIT_PASSWORD"])
+			assert.Equal(t, "qux", annotations["BAZ"])
+		}
+	}
 }
 
 func TestGenerateFromUTF16(t *testing.T) {

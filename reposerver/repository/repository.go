@@ -655,11 +655,10 @@ func runConfigManagementPlugin(appPath string, envVars *v1alpha1.Env, q *apiclie
 
 func getGenerateArgs(plugin *v1alpha1.ConfigManagementPlugin, q *apiclient.ManifestRequest, appPath string, env []string) ([]string, error) {
 	if plugin.Parameters != nil {
-		var args []string
 		for n, v := range q.ApplicationSource.Plugin.Parameters {
-			args = append(args, n+"="+v)
+			env = append(env, "params_"+n+"="+v)
 		}
-		out, err := runCommand(*plugin.Parameters, appPath, env, args)
+		out, err := runCommand(*plugin.Parameters, appPath, env, nil)
 		if err != nil {
 			return nil, err
 		}

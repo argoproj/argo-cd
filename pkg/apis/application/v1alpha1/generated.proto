@@ -213,6 +213,8 @@ message ApplicationSourcePlugin {
   optional string name = 1;
 
   repeated EnvEntry env = 2;
+
+  map<string, string> parameters = 3;
 }
 
 // ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision.
@@ -375,6 +377,9 @@ message ConfigManagementPlugin {
   optional Command init = 2;
 
   optional Command generate = 3;
+
+  // Parameters is an optional command that is used to convert the parameters in the app spec and generates the appropriate command line args to append to the generate command.
+  optional Command parameters = 4;
 }
 
 // ConnectionState contains information about remote resource connection state

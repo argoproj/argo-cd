@@ -3430,6 +3430,12 @@
         },
         "name": {
           "type": "string"
+        },
+        "parameters": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       }
     },
@@ -3678,6 +3684,9 @@
         },
         "name": {
           "type": "string"
+        },
+        "parameters": {
+          "$ref": "#/definitions/v1alpha1Command"
         }
       }
     },

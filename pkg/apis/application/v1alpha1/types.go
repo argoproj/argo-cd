@@ -1931,7 +1931,7 @@ type ConfigManagementPlugin struct {
 	Init     *Command `json:"init,omitempty" protobuf:"bytes,2,name=init"`
 	Generate Command  `json:"generate" protobuf:"bytes,3,name=generate"`
 	// Parameters is an optional command that is used to convert the parameters in the app spec and generates the appropriate command line args to append to the generate command.
-	Parameters *Command `json:"parameters,omitempty" protobuf:"bytes,2,name=paramaters"`
+	Parameters *Command `json:"parameters,omitempty" protobuf:"bytes,4,name=parameters"`
 }
 
 // KustomizeOptions are options for kustomize to use when building manifests

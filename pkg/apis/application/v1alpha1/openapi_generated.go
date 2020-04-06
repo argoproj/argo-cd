@@ -810,6 +810,20 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourcePlugin(ref common.Ref
 							},
 						},
 					},
+					"parameters": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Type:   []string{"string"},
+										Format: "",
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
@@ -1352,6 +1366,12 @@ func schema_pkg_apis_application_v1alpha1_ConfigManagementPlugin(ref common.Refe
 					"generate": {
 						SchemaProps: spec.SchemaProps{
 							Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Command"),
+						},
+					},
+					"parameters": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Parameters is an optional command that is used to convert the parameters in the app spec and generates the appropriate command line args to append to the generate command.",
+							Ref:         ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Command"),
 						},
 					},
 				},
