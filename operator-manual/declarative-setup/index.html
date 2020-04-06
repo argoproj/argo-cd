@@ -1606,6 +1606,13 @@ It is defined by the following key pieces of information:</p>
 
 
 <h2 id="repositories">Repositories<a class="headerlink" href="#repositories" title="Permanent link">&para;</a></h2>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Some Git hosters - notably GitLab and possibly on-premise GitLab instances as well - require you to
+specify the <code>.git</code> suffix in the repository URL, otherwise they will send a HTTP 301 redirect to the
+repository URL suffixed with <code>.git</code>. ArgoCD will <strong>not</strong> follow these redirects, so you have to
+adapt your repository URL to be suffixed with <code>.git</code>.</p>
+</div>
 <p>Repository credentials are stored in secret. Use following steps to configure a repo:</p>
 <ol>
 <li>Create secret which contains repository credentials. Consider using <a href="https://github.com/bitnami-labs/sealed-secrets">bitnami-labs/sealed-secrets</a> to store encrypted secret

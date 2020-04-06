@@ -1477,6 +1477,13 @@
                 
                 
                 <h1 id="private-repositories">Private Repositories<a class="headerlink" href="#private-repositories" title="Permanent link">&para;</a></h1>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Some Git hosters - notably GitLab and possibly on-premise GitLab instances as well - require you to
+specify the <code>.git</code> suffix in the repository URL, otherwise they will send a HTTP 301 redirect to the
+repository URL suffixed with <code>.git</code>. ArgoCD will <strong>not</strong> follow these redirects, so you have to
+adapt your repository URL to be suffixed with <code>.git</code>.</p>
+</div>
 <h2 id="credentials">Credentials<a class="headerlink" href="#credentials" title="Permanent link">&para;</a></h2>
 <p>If application manifests are located in private repository then repository credentials have to be configured. Argo CD supports both HTTP and SSH Git credentials.</p>
 <h3 id="https-username-and-password-credential">HTTPS Username And Password Credential<a class="headerlink" href="#https-username-and-password-credential" title="Permanent link">&para;</a></h3>
