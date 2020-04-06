@@ -581,13 +581,13 @@ spec:
         configMap:
           name: argocd-redis-ha-configmap
       - name: shared-socket
-        emptyDir:
+        emptyDir: 
           {}
-
+          
       - name: data
-        emptyDir:
+        emptyDir: 
           {}
-
+          
 
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-ha-statefulset.yaml
@@ -720,7 +720,7 @@ spec:
       - name: data
         emptyDir:
           {}
-
+          
 
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-auth-secret.yaml
