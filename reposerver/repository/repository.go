@@ -533,7 +533,7 @@ func findManifests(appPath string, env *v1alpha1.Env, directory v1alpha1.Applica
 			vm.Importer(&jsonnet.FileImporter{
 				JPaths: []string{appPath},
 			})
-			jsonStr, err := vm.EvaluateSnippet(f.Name(), string(out))
+			jsonStr, err := vm.EvaluateSnippet(path, string(out))
 			if err != nil {
 				return status.Errorf(codes.FailedPrecondition, "Failed to evaluate jsonnet %q: %v", f.Name(), err)
 			}
