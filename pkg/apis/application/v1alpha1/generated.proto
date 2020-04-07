@@ -74,6 +74,12 @@ message AppProjectSpec {
 
   // NamespaceResourceWhitelist contains list of whitelisted namespace level resources
   repeated k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind namespaceResourceWhitelist = 9;
+
+  // ImpersonateUser is the impersonation username to be used to deploy applications
+  optional string impersonateUser = 10;
+
+  // ImpersonateGroups are the impersonation groups to be used to deploy applications
+  repeated string impersonateGroups = 11;
 }
 
 // Application is a definition of Application resource.

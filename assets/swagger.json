@@ -124,7 +124,7 @@
         "tags": [
           "AccountService"
         ],
-        "operationId": "CreateTokenMixin9",
+        "operationId": "CreateToken",
         "parameters": [
           {
             "type": "string",
@@ -156,7 +156,7 @@
         "tags": [
           "AccountService"
         ],
-        "operationId": "DeleteTokenMixin9",
+        "operationId": "DeleteToken",
         "parameters": [
           {
             "type": "string",
@@ -187,7 +187,7 @@
           "ApplicationService"
         ],
         "summary": "List returns list of applications",
-        "operationId": "List",
+        "operationId": "ListMixin5",
         "parameters": [
           {
             "type": "string",
@@ -237,7 +237,7 @@
           "ApplicationService"
         ],
         "summary": "Create creates an application",
-        "operationId": "Create",
+        "operationId": "CreateMixin5",
         "parameters": [
           {
             "name": "body",
@@ -264,7 +264,7 @@
           "ApplicationService"
         ],
         "summary": "Update updates an application",
-        "operationId": "Update",
+        "operationId": "UpdateMixin5",
         "parameters": [
           {
             "type": "string",
@@ -395,7 +395,7 @@
           "ApplicationService"
         ],
         "summary": "Get returns an application by name",
-        "operationId": "Get",
+        "operationId": "GetMixin5",
         "parameters": [
           {
             "type": "string",
@@ -445,7 +445,7 @@
           "ApplicationService"
         ],
         "summary": "Delete deletes an application",
-        "operationId": "Delete",
+        "operationId": "DeleteMixin5",
         "parameters": [
           {
             "type": "string",
@@ -1084,7 +1084,7 @@
           "ClusterService"
         ],
         "summary": "List returns list of clusters",
-        "operationId": "ListMixin4",
+        "operationId": "List",
         "parameters": [
           {
             "type": "string",
@@ -1106,7 +1106,7 @@
           "ClusterService"
         ],
         "summary": "Create creates a cluster",
-        "operationId": "CreateMixin4",
+        "operationId": "Create",
         "parameters": [
           {
             "name": "body",
@@ -1133,7 +1133,7 @@
           "ClusterService"
         ],
         "summary": "Update updates a cluster",
-        "operationId": "UpdateMixin4",
+        "operationId": "Update",
         "parameters": [
           {
             "type": "string",
@@ -1166,7 +1166,7 @@
           "ClusterService"
         ],
         "summary": "Get returns a cluster by server address",
-        "operationId": "GetMixin4",
+        "operationId": "Get",
         "parameters": [
           {
             "type": "string",
@@ -1189,7 +1189,7 @@
           "ClusterService"
         ],
         "summary": "Delete deletes a cluster",
-        "operationId": "DeleteMixin4",
+        "operationId": "Delete",
         "parameters": [
           {
             "type": "string",
@@ -1239,7 +1239,7 @@
           "ProjectService"
         ],
         "summary": "List returns list of projects",
-        "operationId": "ListMixin5",
+        "operationId": "ListMixin6",
         "parameters": [
           {
             "type": "string",
@@ -1261,7 +1261,7 @@
           "ProjectService"
         ],
         "summary": "Create a new project.",
-        "operationId": "CreateMixin5",
+        "operationId": "CreateMixin6",
         "parameters": [
           {
             "name": "body",
@@ -1288,7 +1288,7 @@
           "ProjectService"
         ],
         "summary": "Get returns a project by name",
-        "operationId": "GetMixin5",
+        "operationId": "GetMixin6",
         "parameters": [
           {
             "type": "string",
@@ -1311,7 +1311,7 @@
           "ProjectService"
         ],
         "summary": "Delete deletes a project",
-        "operationId": "DeleteMixin5",
+        "operationId": "DeleteMixin6",
         "parameters": [
           {
             "type": "string",
@@ -1386,7 +1386,7 @@
           "ProjectService"
         ],
         "summary": "Update updates a project",
-        "operationId": "UpdateMixin5",
+        "operationId": "UpdateMixin6",
         "parameters": [
           {
             "type": "string",
@@ -1419,7 +1419,7 @@
           "ProjectService"
         ],
         "summary": "Create a new project token.",
-        "operationId": "CreateToken",
+        "operationId": "CreateTokenMixin6",
         "parameters": [
           {
             "type": "string",
@@ -1458,7 +1458,7 @@
           "ProjectService"
         ],
         "summary": "Delete a new project token.",
-        "operationId": "DeleteToken",
+        "operationId": "DeleteTokenMixin6",
         "parameters": [
           {
             "type": "string",
@@ -1846,7 +1846,7 @@
           "SessionService"
         ],
         "summary": "Create a new JWT for authentication and set a cookie if using HTTP.",
-        "operationId": "CreateMixin10",
+        "operationId": "CreateMixin7",
         "parameters": [
           {
             "name": "body",
@@ -1871,7 +1871,7 @@
           "SessionService"
         ],
         "summary": "Delete an existing JWT cookie if using HTTP.",
-        "operationId": "DeleteMixin10",
+        "operationId": "DeleteMixin7",
         "responses": {
           "200": {
             "description": "(empty)",
@@ -1905,7 +1905,7 @@
           "SettingsService"
         ],
         "summary": "Get returns Argo CD settings",
-        "operationId": "GetMixin7",
+        "operationId": "GetMixin9",
         "responses": {
           "200": {
             "description": "(empty)",
@@ -3164,6 +3164,17 @@
           "items": {
             "$ref": "#/definitions/v1alpha1ApplicationDestination"
           }
+        },
+        "impersonateGroups": {
+          "type": "array",
+          "title": "ImpersonateGroups are the impersonation groups to be used to deploy applications",
+          "items": {
+            "type": "string"
+          }
+        },
+        "impersonateUser": {
+          "type": "string",
+          "title": "ImpersonateUser is the impersonation username to be used to deploy applications"
         },
         "namespaceResourceBlacklist": {
           "type": "array",

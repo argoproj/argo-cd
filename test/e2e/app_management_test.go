@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	networkingv1beta "k8s.io/api/networking/v1beta1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -1027,4 +1028,87 @@ func TestNotPermittedResources(t *testing.T) {
 	// Make sure prohibited resources are not deleted during application deletion
 	FailOnErr(KubeClientset.NetworkingV1beta1().Ingresses(ArgoCDNamespace).Get("sample-ingress", metav1.GetOptions{}))
 	FailOnErr(KubeClientset.CoreV1().Services(DeploymentNamespace()).Get("guestbook-ui", metav1.GetOptions{}))
+}
+
+func TestNotPermittedResourcesByImpersonation(t *testing.T) {
+	ctx := Given(t)
+
+	saName := "mysa"
+	sa := &v1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      saName,
+			Namespace: DeploymentNamespace(),
+		},
+	}
+	role := &rbacv1.Role{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      saName,
+			Namespace: DeploymentNamespace(),
+		},
+		Rules: []rbacv1.PolicyRule{
+			{
+				APIGroups: []string{"apps"},
+				Resources: []string{"deployments"},
+				Verbs:     []string{"get", "watch", "list", "create", "update", "patch", "delete"},
+			},
+			{
+				APIGroups: []string{""},
+				Resources: []string{"services"},
+				Verbs:     []string{"get", "watch", "list"},
+			},
+		},
+	}
+	roleBinding := &rbacv1.RoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      saName,
+			Namespace: DeploymentNamespace(),
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      "ServiceAccount",
+				Namespace: DeploymentNamespace(),
+				Name:      saName,
+			},
+		},
+		RoleRef: rbacv1.RoleRef{
+			Kind:     "Role",
+			Name:     saName,
+			APIGroup: "rbac.authorization.k8s.io",
+		},
+	}
+
+	ctx.ProjectSpec(AppProjectSpec{
+		SourceRepos:     []string{"*"},
+		Destinations:    []ApplicationDestination{{Namespace: DeploymentNamespace(), Server: "*"}},
+		ImpersonateUser: fmt.Sprintf("system:serviceaccount:%s:%s", DeploymentNamespace(), saName)}).
+		And(func() {
+			_, err := KubeClientset.CoreV1().ServiceAccounts(DeploymentNamespace()).Create(sa)
+			assert.NoError(t, err)
+			_, err = KubeClientset.RbacV1().Roles(DeploymentNamespace()).Create(role)
+			assert.NoError(t, err)
+			_, err = KubeClientset.RbacV1().RoleBindings(DeploymentNamespace()).Create(roleBinding)
+			assert.NoError(t, err)
+		}).
+		Path(guestbookPath).
+		When().
+		Create().
+		IgnoreErrors().
+		Sync().
+		DoNotIgnoreErrors().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		And(func(app *Application) {
+			statusByKind := make(map[string]ResourceStatus)
+			for _, res := range app.Status.Resources {
+				statusByKind[res.Kind] = res
+			}
+			serviceStatus := statusByKind[kube.ServiceKind]
+			assert.Equal(t, serviceStatus.Status, SyncStatusCodeOutOfSync, "Service is prohibited managed resource so should be set to OutOfSync")
+			deploymentStatus := statusByKind[kube.DeploymentKind]
+			assert.Equal(t, deploymentStatus.Status, SyncStatusCodeSynced)
+		}).
+		When().
+		Delete(true).
+		Then().
+		Expect(DoesNotExist())
 }

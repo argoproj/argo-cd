@@ -1612,6 +1612,10 @@ type AppProjectSpec struct {
 	SyncWindows SyncWindows `json:"syncWindows,omitempty" protobuf:"bytes,8,opt,name=syncWindows"`
 	// NamespaceResourceWhitelist contains list of whitelisted namespace level resources
 	NamespaceResourceWhitelist []metav1.GroupKind `json:"namespaceResourceWhitelist,omitempty" protobuf:"bytes,9,opt,name=namespaceResourceWhitelist"`
+	// ImpersonateUser is the impersonation username to be used to deploy applications
+	ImpersonateUser string `json:"impersonateUser,omitempty" protobuf:"bytes,10,opt,name=impersonateUser"`
+	// ImpersonateGroups are the impersonation groups to be used to deploy applications
+	ImpersonateGroups []string `json:"impersonateGroups,omitempty" protobuf:"bytes,11,rep,name=impersonateGroups"`
 }
 
 // SyncWindows is a collection of sync windows in this project

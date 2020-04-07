@@ -318,6 +318,27 @@ func schema_pkg_apis_application_v1alpha1_AppProjectSpec(ref common.ReferenceCal
 							},
 						},
 					},
+					"impersonateUser": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ImpersonateUser is the impersonation username to be used to deploy applications",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"impersonateGroups": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ImpersonateGroups are the impersonation groups to be used to deploy applications",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Type:   []string{"string"},
+										Format: "",
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},

@@ -76,6 +76,16 @@ spec:
                     type: string
                 type: object
               type: array
+            impersonateGroups:
+              description: ImpersonateGroups are the impersonation groups to be used
+                to deploy applications
+              items:
+                type: string
+              type: array
+            impersonateUser:
+              description: ImpersonateUser is the impersonation username to be used
+                to deploy applications
+              type: string
             namespaceResourceBlacklist:
               description: NamespaceResourceBlacklist contains list of blacklisted
                 namespace level resources

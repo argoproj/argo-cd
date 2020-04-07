@@ -340,6 +340,8 @@ func newAuthInfo(restConfig *rest.Config) *clientcmdapi.AuthInfo {
 		// well known token path. See issue #774
 		authInfo.TokenFile = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 	}
+	authInfo.Impersonate = restConfig.Impersonate.UserName
+	authInfo.ImpersonateGroups = restConfig.Impersonate.Groups
 	return &authInfo
 }
 

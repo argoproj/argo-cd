@@ -138,7 +138,14 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 
+	rawConfig := clst.RawRestConfig()
+	rawConfig.Impersonate.UserName = proj.Spec.ImpersonateUser
+	rawConfig.Impersonate.Groups = proj.Spec.ImpersonateGroups
+
 	restConfig := metrics.AddMetricsTransportWrapper(m.metricsServer, app, clst.RESTConfig())
+	restConfig.Impersonate.UserName = proj.Spec.ImpersonateUser
+	restConfig.Impersonate.Groups = proj.Spec.ImpersonateGroups
+
 	dynamicIf, err := dynamic.NewForConfig(restConfig)
 	if err != nil {
 		state.Phase = v1alpha1.OperationError
@@ -174,7 +181,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		proj:                proj,
 		compareResult:       compareResult,
 		config:              restConfig,
-		rawConfig:           clst.RawRestConfig(),
+		rawConfig:           rawConfig,
 		dynamicIf:           dynamicIf,
 		disco:               disco,
 		extensionsclientset: extensionsclientset,
