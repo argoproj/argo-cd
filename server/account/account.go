@@ -193,7 +193,7 @@ func (s *Server) CreateToken(ctx context.Context, r *account.CreateTokenRequest)
 		}
 		id := uniqueId.String()
 		now := time.Now()
-		tokenString, err = s.sessionMgr.Create(r.Name, r.ExpiresIn, id)
+		tokenString, err = s.sessionMgr.Create(r.Name, r.ExpiresIn, id, "")
 		if err != nil {
 			return err
 		}

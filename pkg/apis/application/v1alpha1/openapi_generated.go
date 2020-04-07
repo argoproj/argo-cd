@@ -1580,8 +1580,14 @@ func schema_pkg_apis_application_v1alpha1_JWTToken(ref common.ReferenceCallback)
 							Format: "int64",
 						},
 					},
+					"tkn": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
 				},
-				Required: []string{"iat"},
+				Required: []string{"iat", "tkn"},
 			},
 		},
 	}
