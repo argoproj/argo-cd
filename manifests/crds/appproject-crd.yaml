@@ -147,8 +147,11 @@ spec:
                         iat:
                           format: int64
                           type: integer
+                        tkn:
+                          type: string
                       required:
                       - iat
+                      - tkn
                       type: object
                     type: array
                   name:

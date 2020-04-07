@@ -80,7 +80,7 @@ func NewSessionManager(settingsMgr *settings.SettingsManager, dexServerAddr stri
 // Create creates a new token for a given subject (user) and returns it as a string.
 // Passing a value of `0` for secondsBeforeExpiry creates a token that never expires.
 // The id parameter holds an optional unique JWT token identifier and stored as a standard claim "jti" in the JWT token.
-func (mgr *SessionManager) Create(subject string, secondsBeforeExpiry int64, id string) (string, error) {
+func (mgr *SessionManager) Create(subject string, secondsBeforeExpiry int64, id string, tokenName string) (string, error) {
 	// Create a new token object, specifying signing method and the claims
 	// you would like it to contain.
 	now := time.Now().UTC()
@@ -90,6 +90,7 @@ func (mgr *SessionManager) Create(subject string, secondsBeforeExpiry int64, id 
 		NotBefore: now.Unix(),
 		Subject:   subject,
 		Id:        id,
+		TokenName: tokenName,
 	}
 	if secondsBeforeExpiry > 0 {
 		expires := now.Add(time.Duration(secondsBeforeExpiry) * time.Second)

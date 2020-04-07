@@ -84,8 +84,13 @@ func (s *Server) CreateToken(ctx context.Context, q *project.ProjectTokenCreateR
 			return nil, err
 		}
 	}
-	tokenName := fmt.Sprintf(JWTTokenSubFormat, q.Project, q.Role)
-	jwtToken, err := s.sessionMgr.Create(tokenName, q.ExpiresIn, "")
+	tokenName := q.TokenName
+	if err := prj.ValidateTokenName(q.Role, q.TokenName); err != nil {
+		return nil, status.Errorf(codes.InvalidArgument,  err.Error())
+	}
+
+	subject := fmt.Sprintf(JWTTokenSubFormat, q.Project, q.Role)
+	jwtToken, err := s.sessionMgr.Create(subject, q.ExpiresIn, "", tokenName)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -100,7 +105,7 @@ func (s *Server) CreateToken(ctx context.Context, q *project.ProjectTokenCreateR
 	issuedAt := claims.IssuedAt
 	expiresAt := claims.ExpiresAt
 
-	prj.Spec.Roles[index].JWTTokens = append(prj.Spec.Roles[index].JWTTokens, v1alpha1.JWTToken{IssuedAt: issuedAt, ExpiresAt: expiresAt})
+	prj.Spec.Roles[index].JWTTokens = append(prj.Spec.Roles[index].JWTTokens, v1alpha1.JWTToken{IssuedAt: issuedAt, ExpiresAt: expiresAt, TokenName: tokenName})
 	_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(prj)
 	if err != nil {
 		return nil, err
