@@ -98,6 +98,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 
+	rawConfig := clst.RawRestConfig()
 	restConfig := metrics.AddMetricsTransportWrapper(m.metricsServer, app, clst.RESTConfig())
 
 	resourceOverrides, err := m.settingsMgr.GetResourceOverrides()
@@ -125,7 +126,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 			Order:       i + 1,
 		})
 	}
-	syncCtx, err := sync.NewSyncContext(compareResult.syncStatus.Revision, compareResult.reconciliationResult, restConfig, m.kubectl, app.Spec.Destination.Namespace, logEntry,
+	syncCtx, err := sync.NewSyncContext(compareResult.syncStatus.Revision, compareResult.reconciliationResult, restConfig, rawConfig, m.kubectl, app.Spec.Destination.Namespace, logEntry,
 		sync.WithHealthOverride(lua.ResourceHealthOverrides(resourceOverrides)),
 		sync.WithPermissionValidator(func(un *unstructured.Unstructured, res *v1.APIResource) error {
 			if !proj.IsGroupKindPermitted(un.GroupVersionKind().GroupKind(), res.Namespaced) {

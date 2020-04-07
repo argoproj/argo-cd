@@ -15,7 +15,7 @@ func splitHooks(target []*unstructured.Unstructured) ([]*unstructured.Unstructur
 	targetObjs := make([]*unstructured.Unstructured, 0)
 	hooks := make([]*unstructured.Unstructured, 0)
 	for _, obj := range target {
-		if ignore.Ignore(obj) {
+		if obj == nil || ignore.Ignore(obj) {
 			continue
 		}
 		if hookutil.IsHook(obj) {

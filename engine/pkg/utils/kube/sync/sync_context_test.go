@@ -42,6 +42,7 @@ func newTestSyncCtx(opts ...SyncOpt) *syncContext {
 		})
 	sc := syncContext{
 		config:    &rest.Config{},
+		rawConfig: &rest.Config{},
 		namespace: FakeArgoCDNamespace,
 		revision:  "FooBarBaz",
 		disco:     fakeDisco,
@@ -217,60 +218,6 @@ func TestSyncCustomResources(t *testing.T) {
 
 }
 
-//func TestSyncCreateNotWhitelistedClusterResources(t *testing.T) {
-//	syncCtx := newTestSyncCtx(&v1.APIResourceList{
-//		GroupVersion: v1alpha1.SchemeGroupVersion.String(),
-//		APIResources: []v1.APIResource{
-//			{Name: "workflows", Namespaced: false, Kind: "Workflow", Group: "argoproj.io"},
-//			{Name: "application", Namespaced: false, Kind: "Application", Group: "argoproj.io"},
-//		},
-//	}, &v1.APIResourceList{
-//		GroupVersion: "rbac.authorization.k8s.io/v1",
-//		APIResources: []v1.APIResource{
-//			{Name: "clusterroles", Namespaced: false, Kind: "ClusterRole", Group: "rbac.authorization.k8s.io"},
-//		},
-//	})
-//
-//	syncCtx.proj.Spec.ClusterResourceWhitelist = []v1.GroupKind{
-//		{Group: "argoproj.io", Kind: "*"},
-//	}
-//
-//	syncCtx.kubectl = &kubetest.MockKubectlCmd{}
-//	syncCtx.compareResult = &controller.comparisonResult{
-//		managedResources: []controller.managedResource{{
-//			Live: nil,
-//			Target: kube.MustToUnstructured(&rbacv1.ClusterRole{
-//				TypeMeta:   metav1.TypeMeta{Kind: "ClusterRole", APIVersion: "rbac.authorization.k8s.io/v1"},
-//				ObjectMeta: metav1.ObjectMeta{Name: "argo-ui-cluster-role"}}),
-//		}},
-//	}
-//	syncCtx.sync()
-//	assert.Len(t, syncCtx.syncRes.Resources, 1)
-//	result := syncCtx.syncRes.Resources[0]
-//	assert.Equal(t, v1alpha1.ResultCodeSyncFailed, result.Status)
-//	assert.Contains(t, result.Message, "not permitted in project")
-//}
-//
-//func TestSyncBlacklistedNamespacedResources(t *testing.T) {
-//	syncCtx := newTestSyncCtx()
-//
-//	syncCtx.proj.Spec.NamespaceResourceBlacklist = []v1.GroupKind{
-//		{Group: "*", Kind: "Deployment"},
-//	}
-//
-//	syncCtx.compareResult = &controller.comparisonResult{
-//		managedResources: []controller.managedResource{{
-//			Live:   nil,
-//			Target: test.NewDeployment(),
-//		}},
-//	}
-//	syncCtx.sync()
-//	assert.Len(t, syncCtx.syncRes.Resources, 1)
-//	result := syncCtx.syncRes.Resources[0]
-//	assert.Equal(t, v1alpha1.ResultCodeSyncFailed, result.Status)
-//	assert.Contains(t, result.Message, "not permitted in project")
-//}
-//
 func TestSyncSuccessfully(t *testing.T) {
 	syncCtx := newTestSyncCtx(WithOperationSettings(false, true, false, false))
 	pod := NewPod()

@@ -67,7 +67,7 @@ func (e *gitOpsEngine) Sync(ctx context.Context,
 		return nil, err
 	}
 	result := sync.Reconcile(resources, managedResources, namespace, e.cache)
-	syncCtx, err := sync.NewSyncContext(revision, result, e.config, e.kubectl, namespace, log.NewEntry(log.New()), opts...)
+	syncCtx, err := sync.NewSyncContext(revision, result, e.config, e.config, e.kubectl, namespace, log.NewEntry(log.New()), opts...)
 	if err != nil {
 		return nil, err
 	}

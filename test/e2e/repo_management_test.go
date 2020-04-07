@@ -4,10 +4,9 @@ import (
 	"context"
 	"testing"
 
-	argoio "github.com/argoproj/argo-cd/engine/pkg/utils/io"
-
 	"github.com/stretchr/testify/assert"
 
+	argoio "github.com/argoproj/argo-cd/engine/pkg/utils/io"
 	repositorypkg "github.com/argoproj/argo-cd/pkg/apiclient/repository"
 	"github.com/argoproj/argo-cd/test/e2e/fixture"
 	"github.com/argoproj/argo-cd/test/e2e/fixture/app"
@@ -126,7 +125,7 @@ func TestAddHelmRepoInsecureSkipVerify(t *testing.T) {
 
 		conn, repoClient, err := fixture.ArgoCDClientset.NewRepoClient()
 		assert.NoError(t, err)
-		defer util.Close(conn)
+		defer argoio.Close(conn)
 
 		repo, err := repoClient.List(context.Background(), &repositorypkg.RepoQuery{})
 

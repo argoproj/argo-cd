@@ -95,6 +95,7 @@ func NewSyncContext(
 	revision string,
 	reconciliationResult ReconciliationResult,
 	restConfig *rest.Config,
+	rawConfig *rest.Config,
 	kubectl kubeutil.Kubectl,
 	namespace string,
 	log *log.Entry,
@@ -117,6 +118,7 @@ func NewSyncContext(
 		resources:           groupResources(reconciliationResult),
 		hooks:               reconciliationResult.Hooks,
 		config:              restConfig,
+		rawConfig:           rawConfig,
 		dynamicIf:           dynamicIf,
 		disco:               disco,
 		extensionsclientset: extensionsclientset,
@@ -189,6 +191,7 @@ type syncContext struct {
 	resources           map[kube.ResourceKey]reconciledResource
 	hooks               []*unstructured.Unstructured
 	config              *rest.Config
+	rawConfig           *rest.Config
 	dynamicIf           dynamic.Interface
 	disco               discovery.DiscoveryInterface
 	extensionsclientset *clientset.Clientset
@@ -539,7 +542,7 @@ func (sc *syncContext) ensureCRDReady(name string) {
 }
 
 func (sc *syncContext) applyObject(targetObj *unstructured.Unstructured, dryRun bool, force bool, validate bool) (common.ResultCode, string) {
-	message, err := sc.kubectl.ApplyResource(sc.config, targetObj, targetObj.GetNamespace(), dryRun, force, validate)
+	message, err := sc.kubectl.ApplyResource(sc.rawConfig, targetObj, targetObj.GetNamespace(), dryRun, force, validate)
 	if err != nil {
 		return common.ResultCodeSyncFailed, err.Error()
 	}
