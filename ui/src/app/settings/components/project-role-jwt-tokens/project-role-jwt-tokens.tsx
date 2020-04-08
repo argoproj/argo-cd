@@ -31,21 +31,19 @@ export const ProjectRoleJWTTokens = (props: ProjectRoleJWTTokensProps) => {
                         <div className='argo-table-list'>
                             <div className='argo-table-list__head'>
                                 <div className='row'>
-                                    <div className='columns small-3'>NAME</div>
                                     <div className='columns small-3'>ID</div>
-                                    <div className='columns small-3'>ISSUED AT</div>
-                                    <div className='columns small-3'>EXPIRES AT</div>
+                                    <div className='columns small-4'>ISSUED AT</div>
+                                    <div className='columns small-4'>EXPIRES AT</div>
                                 </div>
                             </div>
                             {props.tokens.map((jwtToken: JwtToken) => (
                                 <div className='argo-table-list__row' key={`${jwtToken.iat}`}>
                                     <div className='row'>
-                                        <div className='columns small-3'>{jwtToken.tkn}</div>
-                                        <div className='columns small-3'>{jwtToken.iat}</div>
-                                        <div className='columns small-3'>{new Date(jwtToken.iat * 1000).toISOString()}</div>
-                                        <div className='columns small-3'>{jwtToken.exp == null ? 'None' : new Date(jwtToken.exp * 1000).toISOString()}</div>
+                                        <div className='columns small-3'>{jwtToken.id}</div>
+                                        <div className='columns small-4'>{new Date(jwtToken.iat * 1000).toISOString()}</div>
+                                        <div className='columns small-4'>{jwtToken.exp == null ? 'None' : new Date(jwtToken.exp * 1000).toISOString()}</div>
                                         <div className='columns small-1'>
-                                            <i className='fa fa-times' onClick={() => deleteJWTToken(props, jwtToken.iat, ctx, jwtToken.tkn)} style={{cursor: 'pointer'}} />
+                                            <i className='fa fa-times' onClick={() => deleteJWTToken(props, jwtToken.iat, ctx, jwtToken.id)} style={{cursor: 'pointer'}} />
                                         </div>
                                     </div>
                                 </div>
@@ -143,7 +141,7 @@ async function createJWTToken(props: ProjectRoleJWTTokensProps, api: FormApi, ct
 async function deleteJWTToken(props: ProjectRoleJWTTokensProps, iat: number, ctx: any, tkn: string) {
     const confirmed = await ctx.popup.confirm(
         'Delete JWT Token',
-        `Are you sure you want to delete ID '${iat}' with name '${tkn}' for role '${props.roleName}' in project '${props.projName}'?`
+        `Are you sure you want to delete ID '${tkn}' for role '${props.roleName}' in project '${props.projName}'?`
     );
     if (confirmed) {
         props.deleteJWTToken({project: props.projName, role: props.roleName, iat} as DeleteJWTTokenParams);
