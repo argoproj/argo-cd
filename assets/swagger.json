@@ -3793,7 +3793,7 @@
           "type": "string",
           "format": "int64"
         },
-        "tkn": {
+        "id": {
           "type": "string"
         }
       }
