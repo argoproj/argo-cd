@@ -1169,6 +1169,34 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#how-do-i-fix-invalid-cookie-longer-than-max-length-4093" title="How Do I Fix "invalid cookie, longer than max length 4093"?" class="md-nav__link">
+    How Do I Fix "invalid cookie, longer than max length 4093"?
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-am-i-getting-rpc-error-code-unavailable-desc-transport-is-closing-when-using-the-cli" title="Why Am I Getting rpc error: code = Unavailable desc = transport is closing When Using The CLI?" class="md-nav__link">
+    Why Am I Getting rpc error: code = Unavailable desc = transport is closing When Using The CLI?
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-am-i-getting-x509-certificate-signed-by-unknown-authority-when-using-the-cli" title="Why Am I Getting x509: certificate signed by unknown authority When Using The CLI?" class="md-nav__link">
+    Why Am I Getting x509: certificate signed by unknown authority When Using The CLI?
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#i-have-configured-dex-via-dexconfig-in-argocd-cm-it-still-says-dex-is-unconfigured-why" title="I have configured Dex via dex.config in argocd-cm, it still says Dex is unconfigured. Why?" class="md-nav__link">
+    I have configured Dex via dex.config in argocd-cm, it still says Dex is unconfigured. Why?
+  </a>
+  
+</li>
+      
       
       
       
@@ -1337,6 +1365,34 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#how-do-i-fix-invalid-cookie-longer-than-max-length-4093" title="How Do I Fix "invalid cookie, longer than max length 4093"?" class="md-nav__link">
+    How Do I Fix "invalid cookie, longer than max length 4093"?
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-am-i-getting-rpc-error-code-unavailable-desc-transport-is-closing-when-using-the-cli" title="Why Am I Getting rpc error: code = Unavailable desc = transport is closing When Using The CLI?" class="md-nav__link">
+    Why Am I Getting rpc error: code = Unavailable desc = transport is closing When Using The CLI?
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-am-i-getting-x509-certificate-signed-by-unknown-authority-when-using-the-cli" title="Why Am I Getting x509: certificate signed by unknown authority When Using The CLI?" class="md-nav__link">
+    Why Am I Getting x509: certificate signed by unknown authority When Using The CLI?
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#i-have-configured-dex-via-dexconfig-in-argocd-cm-it-still-says-dex-is-unconfigured-why" title="I have configured Dex via dex.config in argocd-cm, it still says Dex is unconfigured. Why?" class="md-nav__link">
+    I have configured Dex via dex.config in argocd-cm, it still says Dex is unconfigured. Why?
+  </a>
+  
+</li>
+      
       
       
       
@@ -1449,7 +1505,7 @@ argocd-util kubeconfig https://&lt;cluster-url&gt; /tmp/config --namespace argoc
 <li><code>3072</code> normalized to <code>'3072'</code> (quotes added)</li>
 </ul>
 <p>To fix this use diffing customizations <a href="../user-guide/diffing/#known-kubernetes-types-in-crds-resource-limits-volume-mounts-etc">settings</a>.</p>
-<h1 id="how-do-i-fix-invalid-cookie-longer-than-max-length-4093">How Do I Fix "invalid cookie, longer than max length 4093"?<a class="headerlink" href="#how-do-i-fix-invalid-cookie-longer-than-max-length-4093" title="Permanent link">&para;</a></h1>
+<h2 id="how-do-i-fix-invalid-cookie-longer-than-max-length-4093">How Do I Fix "invalid cookie, longer than max length 4093"?<a class="headerlink" href="#how-do-i-fix-invalid-cookie-longer-than-max-length-4093" title="Permanent link">&para;</a></h2>
 <p>Argo CD uses a JWT as the auth token. You likely are part of many groups and have gone over the 4KB limit which is set for cookies.
 You can get the list of groups by opening "developer tools -&gt; network"</p>
 <ul>
@@ -1474,6 +1530,9 @@ You can get the list of groups by opening "developer tools -&gt; network"</p>
 <div class="admonition warning">
 <p class="admonition-title">Do not use <code>--insecure</code> in production</p>
 </div>
+<h2 id="i-have-configured-dex-via-dexconfig-in-argocd-cm-it-still-says-dex-is-unconfigured-why">I have configured Dex via <code>dex.config</code> in <code>argocd-cm</code>, it still says Dex is unconfigured. Why?<a class="headerlink" href="#i-have-configured-dex-via-dexconfig-in-argocd-cm-it-still-says-dex-is-unconfigured-why" title="Permanent link">&para;</a></h2>
+<p>Most likely you forgot to set the <code>url</code> in <code>argocd-cm</code> to point to your ArgoCD as well. See also
+<a href="/operator-manual/user-management/#2-configure-argo-cd-for-sso">the docs</a></p>
                 
                   
                 
