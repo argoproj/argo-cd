@@ -139,10 +139,7 @@ async function createJWTToken(props: ProjectRoleJWTTokensProps, api: FormApi, ct
 }
 
 async function deleteJWTToken(props: ProjectRoleJWTTokensProps, iat: number, ctx: any, tkn: string) {
-    const confirmed = await ctx.popup.confirm(
-        'Delete JWT Token',
-        `Are you sure you want to delete ID '${tkn}' for role '${props.roleName}' in project '${props.projName}'?`
-    );
+    const confirmed = await ctx.popup.confirm('Delete JWT Token', `Are you sure you want to delete ID '${tkn}' for role '${props.roleName}' in project '${props.projName}'?`);
     if (confirmed) {
         props.deleteJWTToken({project: props.projName, role: props.roleName, iat} as DeleteJWTTokenParams);
     }
