@@ -1375,17 +1375,17 @@ func (p *AppProject) GetJWTToken(roleName string, issuedAt int64) (*JWTToken, in
 	return nil, -1, fmt.Errorf("JWT token for role '%s' issued at '%d' does not exist in project '%s'", role.Name, issuedAt, p.Name)
 }
 
-func (p *AppProject) ValidateTokenName(roleName string, tokenName string) error {
+func (p *AppProject) ValidateTokenID(roleName string, id string) error {
 	role, _, err := p.GetRoleByName(roleName)
 	if err != nil {
 		return err
 	}
-	if tokenName == "" {
+	if id == "" {
 		return nil
 	}
 	for _, token := range role.JWTTokens {
-		if tokenName == token.TokenName {
-			return status.Errorf(codes.InvalidArgument, "Token name '%s' has been used. ", tokenName)
+		if id == token.ID {
+			return status.Errorf(codes.InvalidArgument, "Token id '%s' has been used. ", id)
 		}
 	}
 	return nil
@@ -1933,7 +1933,7 @@ type ProjectRole struct {
 type JWTToken struct {
 	IssuedAt  int64  `json:"iat" protobuf:"int64,1,opt,name=iat"`
 	ExpiresAt int64  `json:"exp,omitempty" protobuf:"int64,2,opt,name=exp"`
-	TokenName string `json:"tkn" protobuf:"bytes,3,opt,name=tkn"`
+	ID        string `json:"id" protobuf:"bytes,3,opt,name=id"`
 }
 
 // Command holds binary path and arguments list

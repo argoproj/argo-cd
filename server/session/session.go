@@ -38,7 +38,7 @@ func (s *Server) Create(_ context.Context, q *session.SessionCreateRequest) (*se
 	if err != nil {
 		return nil, err
 	}
-	jwtToken, err := s.mgr.Create(q.Username, 0, "", "")
+	jwtToken, err := s.mgr.Create(q.Username, 0, "")
 	if err != nil {
 		return nil, err
 	}
