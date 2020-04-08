@@ -33,7 +33,7 @@ message ProjectTokenCreateRequest {
     string role = 3;
     // expiresIn represents a duration in seconds
     int64 expiresIn = 4;
-    string tokenName = 5;
+    string id = 5;
 }
 // ProjectTokenResponse wraps the created token or returns an empty string if deleted.
 message ProjectTokenResponse {

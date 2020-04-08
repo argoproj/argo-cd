@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/dgrijalva/jwt-go"
@@ -84,8 +85,8 @@ func (s *Server) CreateToken(ctx context.Context, q *project.ProjectTokenCreateR
 			return nil, err
 		}
 	}
-	id := q.TokenName
-	if err := prj.ValidateTokenID(q.Role, q.TokenName); err != nil {
+	id := q.Id
+	if err := prj.ValidateTokenID(q.Role, q.Id); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument,  err.Error())
 	}
 
@@ -209,7 +210,20 @@ func (s *Server) Get(ctx context.Context, q *project.ProjectQuery) (*v1alpha1.Ap
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionGet, q.Name); err != nil {
 		return nil, err
 	}
-	return s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Name, metav1.GetOptions{})
+	proj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	for i, role := range proj.Spec.Roles {
+		for j, token := range role.JWTTokens {
+			if token.ID == "" {
+				token.ID = strconv.FormatInt(token.IssuedAt, 10)
+				role.JWTTokens[j] = token
+			}
+		}
+		proj.Spec.Roles[i] = role
+	}
+	return proj, err
 }
 
 // Update updates a project

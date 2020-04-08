@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	"net"
 	"net/http"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
@@ -86,7 +86,8 @@ func (mgr *SessionManager) Create(subject string, secondsBeforeExpiry int64, id 
 	// you would like it to contain.
 	now := time.Now().UTC()
 	if id == "" {
-		id = strconv.FormatInt(now.Unix(), 10)
+		uniqueId, _ := uuid.NewRandom()
+		id = uniqueId.String()
 	}
 	claims := jwt.StandardClaims{
 		IssuedAt:  now.Unix(),
@@ -145,10 +146,9 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, error) {
 		return nil, err
 	}
 
-	// Since JWT token has id now, removing this verification
-	// if id := jwtutil.GetField(claims, "jti"); id != ""  && account.TokenIndex(id) == -1 {
-	//	return nil, fmt.Errorf("account %s does not have token with id %s", subject, id)
-	//}
+	if id := jwtutil.GetField(claims, "jti"); id != ""  && account.TokenIndex(id) == -1 {
+		return nil, fmt.Errorf("account %s does not have token with id %s", subject, id)
+	}
 
 	issuedAt := time.Unix(int64(claims["iat"].(float64)), 0)
 	if account.PasswordMtime != nil && issuedAt.Before(*account.PasswordMtime) {
