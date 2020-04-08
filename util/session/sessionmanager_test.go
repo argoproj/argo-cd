@@ -52,7 +52,7 @@ func getKubeClient(pass string, enabled bool) *fake.Clientset {
 
 func TestSessionManager(t *testing.T) {
 	const (
-		defaultSubject = "proj:admin"
+		defaultSubject = "admin"
 	)
 	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("pass", true), "argocd")
 	mgr := NewSessionManager(settingsMgr, "")
@@ -69,7 +69,7 @@ func TestSessionManager(t *testing.T) {
 
 	mapClaims := *(claims.(*jwt.MapClaims))
 	subject := mapClaims["sub"].(string)
-	if subject != "proj:admin" {
+	if subject != "admin" {
 		t.Errorf("Token claim subject \"%s\" does not match expected subject \"%s\".", subject, defaultSubject)
 	}
 }
