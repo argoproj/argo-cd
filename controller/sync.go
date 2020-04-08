@@ -484,9 +484,11 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 		serverRes, err := kube.ServerResourceForGroupVersionKind(sc.disco, task.groupVersionKind())
 		if err != nil {
 			// Special case for custom resources: if CRD is not yet known by the K8s API server,
-			// skip verification during `kubectl apply --dry-run` since we expect the CRD
+			// and the CRD is part of this sync or the resource is annotated with SkipDryRunOnMissingResource=true,
+			// then skip verification during `kubectl apply --dry-run` since we expect the CRD
 			// to be created during app synchronization.
-			if apierr.IsNotFound(err) && sc.hasCRDOfGroupKind(task.group(), task.kind()) {
+			skipDryRunOnMissingResource := resource.HasAnnotationOption(task.targetObj, common.AnnotationSyncOptions, "SkipDryRunOnMissingResource=true")
+			if apierr.IsNotFound(err) && (skipDryRunOnMissingResource || sc.hasCRDOfGroupKind(task.group(), task.kind())) {
 				sc.log.WithFields(log.Fields{"task": task}).Debug("skip dry-run for custom resource")
 				task.skipDryRun = true
 			} else {
