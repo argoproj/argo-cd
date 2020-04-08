@@ -2431,13 +2431,13 @@
           "format": "int64",
           "title": "expiresIn represents a duration in seconds"
         },
+        "id": {
+          "type": "string"
+        },
         "project": {
           "type": "string"
         },
         "role": {
-          "type": "string"
-        },
-        "tokenName": {
           "type": "string"
         }
       }
