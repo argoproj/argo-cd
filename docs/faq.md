@@ -119,7 +119,7 @@ To fix this - replace your values with the normalized values.
 
 See [#1615](https://github.com/argoproj/argo-cd/issues/1615)
 
-# How Do I Fix "invalid cookie, longer than max length 4093"?
+## How Do I Fix "invalid cookie, longer than max length 4093"?
 
 Argo CD uses a JWT as the auth token. You likely are part of many groups and have gone over the 4KB limit which is set for cookies.
 You can get the list of groups by opening "developer tools -> network"
@@ -150,3 +150,8 @@ argocd ... --insecure
 ```
 
 !!! warning "Do not use `--insecure` in production"
+
+## I have configured Dex via `dex.config` in `argocd-cm`, it still says Dex is unconfigured. Why?
+
+Most likely you forgot to set the `url` in `argocd-cm` to point to your ArgoCD as well. See also
+[the docs](/operator-manual/user-management/#2-configure-argo-cd-for-sso)
