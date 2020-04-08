@@ -145,9 +145,10 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, error) {
 		return nil, err
 	}
 
-	if id := jwtutil.GetField(claims, "jti"); id != "" && account.TokenIndex(id) == -1 {
-		return nil, fmt.Errorf("account %s does not have token with id %s", subject, id)
-	}
+	// Since JWT token has id now, removing this verification
+	// if id := jwtutil.GetField(claims, "jti"); id != ""  && account.TokenIndex(id) == -1 {
+	//	return nil, fmt.Errorf("account %s does not have token with id %s", subject, id)
+	//}
 
 	issuedAt := time.Unix(int64(claims["iat"].(float64)), 0)
 	if account.PasswordMtime != nil && issuedAt.Before(*account.PasswordMtime) {
