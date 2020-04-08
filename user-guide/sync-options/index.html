@@ -827,6 +827,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#skip-dry-run-for-new-custom-resources-types" title="Skip Dry Run for new custom resources types" class="md-nav__link">
+    Skip Dry Run for new custom resources types
+  </a>
+  
+</li>
+      
       
       
       
@@ -1213,6 +1220,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#skip-dry-run-for-new-custom-resources-types" title="Skip Dry Run for new custom resources types" class="md-nav__link">
+    Skip Dry Run for new custom resources types
+  </a>
+  
+</li>
+      
       
       
       
@@ -1261,6 +1275,22 @@
 
 
 <p>If you want to exclude a whole class of objects globally, consider setting <code>resource.customizations</code> in <a href="../diffing/#system-level-configuration">system level configuation</a>. </p>
+<h2 id="skip-dry-run-for-new-custom-resources-types">Skip Dry Run for new custom resources types<a class="headerlink" href="#skip-dry-run-for-new-custom-resources-types" title="Permanent link">&para;</a></h2>
+<blockquote>
+<p>v1.6</p>
+</blockquote>
+<p>When syncing a custom resource which is not yet known to the cluster, there are generally two options:</p>
+<p>1) The CRD manifest is part of the same sync. Then ArgoCD will automatically skip the dry run, the CRD will be applied and the resource can be created.
+2) In some cases the CRD is not part of the sync, but it could be created in another way, e.g. by a controller in the cluster. An example is <a href="https://github.com/open-policy-agent/gatekeeper">gatekeeper</a>,
+which creates CRDs in response to user defined <code>ConstraintTemplates</code>. ArgoCD cannot find the CRD in the sync and will fail with the error <code>the server could not find the requested resource</code>.</p>
+<p>To skip the dry run for missing resource types, use the following annotation:</p>
+<div class="codehilite"><pre><span></span><code><span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">annotations</span><span class="p">:</span>
+    <span class="nt">argocd.argoproj.io/sync-options</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">SkipDryRunOnMissingResource=true</span>
+</code></pre></div>
+
+
+<p>The dry run will still be executed if the CRD is already present in the cluster.</p>
                 
                   
                 
