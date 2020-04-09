@@ -9,6 +9,7 @@ commands:
             echo "export GOCACHE=/tmp/go-build-cache" | tee -a $BASH_ENV
             echo "export ARGOCD_TEST_VERBOSE=true" | tee -a $BASH_ENV
             echo "export ARGOCD_TEST_PARALLELISM=8" | tee -a $BASH_ENV
+            echo "export ARGOCD_SONAR_VERSION=4.2.0.1873" | tee -a $BASH_ENV
   configure_git:
     steps:
       - run:
@@ -37,6 +38,12 @@ commands:
           root: .
           paths:
             - vendor
+  save_coverage_info:
+    steps:
+      - persist_to_workspace:
+          root: .
+          paths:
+            - coverage.out
   attach_vendor:
     steps:
       - attach_workspace:
@@ -142,11 +149,55 @@ jobs:
           command: |
             ls -l test-results || true
             cat test-results/junit.xml || true
+      - save_coverage_info
       - store_test_results:
           path: test-results
       - store_artifacts:
           path: test-results
           destination: .
+  
+  sonarcloud:
+    working_directory: /go/src/github.com/argoproj/argo-cd
+    docker:
+      - image: argoproj/argocd-test-tools:v0.2.0
+    environment:
+      NODE_MODULES: /go/src/github.com/argoproj/argo-cd/ui/node_modules
+    steps:
+      - prepare_environment
+      - checkout
+      - attach_workspace:
+          at: .
+      - run:
+          command: mkdir -p /tmp/cache/scanner
+          name: Create cache directory if it doesn't exist
+      - restore_cache:
+          keys:
+            - v1-sonarcloud-scanner-4.2.0.1873
+      - run:
+          command: |
+            set -e
+            VERSION=4.2.0.1873
+            SONAR_TOKEN=$SONAR_TOKEN
+            SCANNER_DIRECTORY=/tmp/cache/scanner
+            export SONAR_USER_HOME=$SCANNER_DIRECTORY/.sonar
+            OS="linux"
+            echo $SONAR_USER_HOME
+
+            if [[ ! -x "$SCANNER_DIRECTORY/sonar-scanner-$VERSION-$OS/bin/sonar-scanner" ]]; then
+              curl -Ol https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-$VERSION-$OS.zip
+              unzip -qq -o sonar-scanner-cli-$VERSION-$OS.zip -d $SCANNER_DIRECTORY
+            fi
+
+            chmod +x $SCANNER_DIRECTORY/sonar-scanner-$VERSION-$OS/bin/sonar-scanner
+            chmod +x $SCANNER_DIRECTORY/sonar-scanner-$VERSION-$OS/jre/bin/java
+
+            $SCANNER_DIRECTORY/sonar-scanner-$VERSION-$OS/bin/sonar-scanner
+          name: SonarCloud
+      - save_cache:
+          key: v1-sonarcloud-scanner-4.2.0.1873
+          paths:
+            - /tmp/cache/scanner
+    
   e2e:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
     machine:
@@ -240,6 +291,10 @@ jobs:
       - run: ./node_modules/.bin/codecov -p ..
       - run: NODE_ENV='production' yarn build
       - run: yarn lint
+
+orbs:
+  sonarcloud: sonarsource/sonarcloud@1.0.1
+
 workflows:
   version: 2
   workflow:
@@ -253,7 +308,11 @@ workflows:
             - build
       - ui:
           requires:
-            - codegen
+            - build
+      - sonarcloud:
+          context: SonarCloud
+          requires:
+            - test
       - e2e:
           requires:
             - build
