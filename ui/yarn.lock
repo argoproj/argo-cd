@@ -3835,9 +3835,9 @@ forwarded@~0.1.2:
   integrity sha1-mMI9qxF1ZXuMBXPozszZGw/xjIQ=
 
 foundation-sites@^6.4.3:
-  version "6.6.2"
-  resolved "https://registry.yarnpkg.com/foundation-sites/-/foundation-sites-6.6.2.tgz#02cd6c9dcac741a4d50edda8a51a48211d089ddc"
-  integrity sha512-fGdJVYodUxUCbdNDuNTXFIpEWAD+9yl0uLkkX8/rRHmK8/EYqQnRAGnmPADDhMKLZ+fJuSGheEcnSM2imgk3Wg==
+  version "6.6.3"
+  resolved "https://registry.yarnpkg.com/foundation-sites/-/foundation-sites-6.6.3.tgz#8ca5f246357db69e6a0e73351ce06aa8acce6540"
+  integrity sha512-8X93wUAmUg1HhVv8uWMWnwoBLSQWSmFImJencneIZDctswn724Bq/MV1cbPZN/GFWGOB/9ngoQHztfzd4+ovCg==
 
 fragment-cache@^0.2.1:
   version "0.2.1"
