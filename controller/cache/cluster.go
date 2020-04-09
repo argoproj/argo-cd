@@ -131,6 +131,17 @@ func (c *clusterInfo) createObjInfo(un *unstructured.Unstructured, appInstanceLa
 		})
 	}
 
+	// Special case for Operator Lifecycle Manager ClusterServiceVersion:
+	if un.GroupVersionKind().Group == "operators.coreos.com" && un.GetKind() == "ClusterServiceVersion" {
+		if un.GetAnnotations()["olm.operatorGroup"] != "" {
+			ownerRefs = append(ownerRefs, metav1.OwnerReference{
+				Name:       un.GetAnnotations()["olm.operatorGroup"],
+				Kind:       "OperatorGroup",
+				APIVersion: "operators.coreos.com/v1",
+			})
+		}
+	}
+
 	// edge case. Consider auto-created service account tokens as a child of service account objects
 	if yes, ref := isServiceAccountTokenSecret(un); yes {
 		ownerRefs = append(ownerRefs, ref)
