@@ -1259,6 +1259,13 @@
 
 </li>
 <li>
+<p>Setup permissions for Azure AD Application</p>
+<p>On "API permissions" page find <code>User.Read</code> permission (under <code>Microsoft Graph</code>) and grant it to the created application:</p>
+<p><img alt="Azure AD API permissions" src="../../../assets/azure-api-permissions.png" title="Azure AD API permissions" /></p>
+<p>Also, on "Token Configuration" page add groups claim for the groups assigned to the application:</p>
+<p><img alt="Azure AD token configuration" src="../../../assets/azure-token-configuration.png" title="Azure AD token configuration" /></p>
+</li>
+<li>
 <p>Edit <code>argocd-cm</code> and configure the <code>data.oidc.config</code> section:</p>
 <div class="codehilite"><pre><span></span><code><span class="n">ConfigMap</span> <span class="o">-&gt;</span> <span class="n">argocd</span><span class="o">-</span><span class="n">cm</span>
 
@@ -1266,9 +1273,16 @@
     <span class="n">url</span><span class="p">:</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">argocd</span><span class="p">.</span><span class="n">example</span><span class="p">.</span><span class="n">com</span><span class="o">/</span>
     <span class="n">oidc</span><span class="p">.</span><span class="n">config</span><span class="p">:</span> <span class="o">|</span>
         <span class="n">name</span><span class="p">:</span> <span class="n">Azure</span>
-        <span class="n">issuer</span><span class="p">:</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">sts</span><span class="p">.</span><span class="n">windows</span><span class="p">.</span><span class="n">net</span><span class="o">/</span><span class="err">{</span><span class="n">directory_tenant_id</span><span class="err">}</span><span class="o">/</span>
+        <span class="n">issuer</span><span class="p">:</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">login</span><span class="p">.</span><span class="n">microsoftonline</span><span class="p">.</span><span class="n">com</span><span class="o">/</span><span class="err">{</span><span class="n">directory_tenant_id</span><span class="err">}</span><span class="o">/</span><span class="n">v2</span><span class="p">.</span><span class="mi">0</span>
         <span class="n">clientID</span><span class="p">:</span> <span class="err">{</span><span class="n">azure_ad_application_client_id</span><span class="err">}</span>
         <span class="n">clientSecret</span><span class="p">:</span> <span class="err">$</span><span class="n">oidc</span><span class="p">.</span><span class="n">azure</span><span class="p">.</span><span class="n">clientSecret</span>
+        <span class="n">requestedIDTokenClaims</span><span class="p">:</span>
+            <span class="n">groups</span><span class="p">:</span>
+                <span class="n">essential</span><span class="p">:</span> <span class="k">true</span>
+        <span class="n">requestedScopes</span><span class="p">:</span>
+            <span class="o">-</span> <span class="n">openid</span>
+            <span class="o">-</span> <span class="n">profile</span>
+            <span class="o">-</span> <span class="n">email</span>
 </code></pre></div>
 
 
@@ -1284,7 +1298,7 @@
 
 </li>
 <li>
-<p>Edit <code>argocd-rbac-cm</code> to configure permissions</p>
+<p>Edit <code>argocd-rbac-cm</code> to configure permissions. Use group ID from Azure for assigning roles</p>
 <p><a href="../../rbac/">RBAC Configurations</a></p>
 <div class="codehilite"><pre><span></span><code><span class="n">ConfigMap</span> <span class="o">-&gt;</span> <span class="n">argocd</span><span class="o">-</span><span class="n">cm</span>
 
@@ -1296,7 +1310,7 @@
 <span class="cm">    p, role:org-admin, repositories, create, *, allow</span>
 <span class="cm">    p, role:org-admin, repositories, update, *, allow</span>
 <span class="cm">    p, role:org-admin, repositories, delete, *, allow</span>
-<span class="cm">    g, &quot;Grp Argo CD&quot;, role:org-admin</span>
+<span class="cm">    g, &quot;84ce98d1-e359-4f3b-85af-985b458de3c6&quot;, role:org-admin</span>
 </code></pre></div>
 
 
