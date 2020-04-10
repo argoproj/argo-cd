@@ -191,6 +191,11 @@ jobs:
             chmod +x $SCANNER_DIRECTORY/sonar-scanner-$VERSION-$OS/bin/sonar-scanner
             chmod +x $SCANNER_DIRECTORY/sonar-scanner-$VERSION-$OS/jre/bin/java
 
+            if ! echo $CIRCLE_PULL_REQUEST | grep https://github.com/argoproj; then
+              unset CIRCLE_PULL_REQUEST
+              unset CIRCLE_PULL_REQUESTS
+            fi
+
             $SCANNER_DIRECTORY/sonar-scanner-$VERSION-$OS/bin/sonar-scanner
           name: SonarCloud
       - save_cache:
