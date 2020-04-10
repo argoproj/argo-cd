@@ -58,6 +58,15 @@ func GetScopeValues(claims jwtgo.MapClaims, scopes []string) []string {
 	return groups
 }
 
+func GetID(m jwtgo.MapClaims) (string, error){
+	if jtiIf, ok := m["jti"]; ok {
+		if jti, ok := jtiIf.(string); ok {
+			return jti, nil
+		}
+	}
+	return "", fmt.Errorf("jti '%v' is not a string" , m["jti"])
+}
+
 // GetIssuedAt returns the issued at as an int64
 func GetIssuedAt(m jwtgo.MapClaims) (int64, error) {
 	switch iat := m["iat"].(type) {

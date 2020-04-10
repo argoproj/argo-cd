@@ -3,6 +3,7 @@ package project
 import (
 	"context"
 	"fmt"
+	"github.com/google/uuid"
 	"reflect"
 	"strconv"
 	"strings"
@@ -10,7 +11,7 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	v1 "k8s.io/api/core/v1"
+	"k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -89,7 +90,10 @@ func (s *Server) CreateToken(ctx context.Context, q *project.ProjectTokenCreateR
 	if err := prj.ValidateJWTTokenID(q.Role, q.Id); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument,  err.Error())
 	}
-
+	if id == "" {
+		uniqueId, _ := uuid.NewRandom()
+		id = uniqueId.String()
+	}
 	subject := fmt.Sprintf(JWTTokenSubFormat, q.Project, q.Role)
 	jwtToken, err := s.sessionMgr.Create(subject, q.ExpiresIn, id)
 	if err != nil {
@@ -140,7 +144,7 @@ func (s *Server) DeleteToken(ctx context.Context, q *project.ProjectTokenDeleteR
 			return nil, err
 		}
 	}
-	_, jwtTokenIndex, err := prj.GetJWTToken(q.Role, q.Iat)
+	_, jwtTokenIndex, err := prj.GetJWTToken(q.Role, q.Iat, q.Id)
 	if err != nil {
 		return &project.EmptyResponse{}, nil
 	}
