@@ -37,9 +37,16 @@
             url: https://argocd.example.com/
             oidc.config: |
                 name: Azure
-                issuer: https://sts.windows.net/{directory_tenant_id}/
+                issuer: https://login.microsoftonline.com/{directory_tenant_id}/v2.0
                 clientID: {azure_ad_application_client_id}
                 clientSecret: $oidc.azure.clientSecret
+                requestedIDTokenClaims:
+                    groups:
+                        essential: true
+                requestedScopes:
+                    - openid
+                    - profile
+                    - email
 
 4. Edit `argocd-secret` and configure the `data.oidc.azure.clientSecret` section:
 
@@ -48,7 +55,7 @@
         data:
             oidc.azure.clientSecret: {client_secret | base64_encoded}
 
-5. Edit `argocd-rbac-cm` to configure permissions
+5. Edit `argocd-rbac-cm` to configure permissions. Use group ID from Azure for assigning roles
 
     [RBAC Configurations](../rbac.md)
 
@@ -62,7 +69,7 @@
             p, role:org-admin, repositories, create, *, allow
             p, role:org-admin, repositories, update, *, allow
             p, role:org-admin, repositories, delete, *, allow
-            g, "Grp Argo CD", role:org-admin
+            g, "84ce98d1-e359-4f3b-85af-985b458de3c6", role:org-admin
 
 6. Mapping role from jwt token to argo
 
