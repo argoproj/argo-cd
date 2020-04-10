@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
 	"net"
 	"net/http"
 	"os"
@@ -85,10 +84,6 @@ func (mgr *SessionManager) Create(subject string, secondsBeforeExpiry int64, id 
 	// Create a new token object, specifying signing method and the claims
 	// you would like it to contain.
 	now := time.Now().UTC()
-	if id == "" && rbacpolicy.IsProjectSubject(subject) {
-		uniqueId, _ := uuid.NewRandom()
-		id = uniqueId.String()
-	}
 	claims := jwt.StandardClaims{
 		IssuedAt:  now.Unix(),
 		Issuer:    SessionManagerClaimsIssuer,
