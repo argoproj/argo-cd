@@ -44,6 +44,12 @@ commands:
           root: .
           paths:
             - coverage.out
+  save_node_modules:
+    steps:
+      - persist_to_workspace:
+          root: ~/argo-cd
+          paths:
+            - ui/node_modules
   attach_vendor:
     steps:
       - attach_workspace:
@@ -197,10 +203,6 @@ jobs:
               unset CIRCLE_PULL_REQUESTS
             fi
 
-            # Set NODE_MODULES correctly, so that TypeScript scanner will run
-            # correctly.
-            export NODE_MODULES=$(pwd)/ui/node_modules
-
             $SCANNER_DIRECTORY/sonar-scanner-$VERSION-$OS/bin/sonar-scanner
           name: SonarCloud
       - save_cache:
@@ -301,6 +303,7 @@ jobs:
       - run: ./node_modules/.bin/codecov -p ..
       - run: NODE_ENV='production' yarn build
       - run: yarn lint
+      - save_node_modules
 
 orbs:
   sonarcloud: sonarsource/sonarcloud@1.0.1
@@ -323,6 +326,7 @@ workflows:
           context: SonarCloud
           requires:
             - test
+            - ui
       - e2e:
           requires:
             - build
