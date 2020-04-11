@@ -203,6 +203,9 @@ jobs:
               unset CIRCLE_PULL_REQUESTS
             fi
 
+            # Explicitly set NODE_MODULES
+            export NODE_MODULES=/go/src/github.com/argoproj/argo-cd/ui/node_modules
+
             $SCANNER_DIRECTORY/sonar-scanner-$VERSION-$OS/bin/sonar-scanner
           name: SonarCloud
       - save_cache:
