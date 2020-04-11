@@ -191,10 +191,15 @@ jobs:
             chmod +x $SCANNER_DIRECTORY/sonar-scanner-$VERSION-$OS/bin/sonar-scanner
             chmod +x $SCANNER_DIRECTORY/sonar-scanner-$VERSION-$OS/jre/bin/java
 
+            # Workaround for a possible bug in CircleCI
             if ! echo $CIRCLE_PULL_REQUEST | grep https://github.com/argoproj; then
               unset CIRCLE_PULL_REQUEST
               unset CIRCLE_PULL_REQUESTS
             fi
+
+            # Set NODE_MODULES correctly, so that TypeScript scanner will run
+            # correctly.
+            export NODE_MODULES=$(pwd)/ui/node_modules
 
             $SCANNER_DIRECTORY/sonar-scanner-$VERSION-$OS/bin/sonar-scanner
           name: SonarCloud
