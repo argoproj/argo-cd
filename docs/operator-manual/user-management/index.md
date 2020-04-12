@@ -17,6 +17,8 @@ login history etc. So if you need such features it is strongly recommended to us
 !!! note
     When you create local users, each of those users will need additional [RBAC rules](../rbac.md) set up, otherwise they will fall back to the default policy specified by `policy.default` field of the `argocd-rbac-cm` ConfigMap.
 
+The maximum length of a local account's username is 32.
+
 ### Create new user
 
 New users should be defined in `argocd-cm` ConfigMap:

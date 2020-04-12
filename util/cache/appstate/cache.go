@@ -13,7 +13,7 @@ import (
 var ErrCacheMiss = cacheutil.ErrCacheMiss
 
 type Cache struct {
-	cache                   *cacheutil.Cache
+	Cache                   *cacheutil.Cache
 	appStateCacheExpiration time.Duration
 }
 
@@ -43,11 +43,11 @@ func AddCacheFlagsToCmd(cmd *cobra.Command) func() (*Cache, error) {
 }
 
 func (c *Cache) GetItem(key string, item interface{}) error {
-	return c.cache.GetItem(key, item)
+	return c.Cache.GetItem(key, item)
 }
 
 func (c *Cache) SetItem(key string, item interface{}, expiration time.Duration, delete bool) error {
-	return c.cache.SetItem(key, item, expiration, delete)
+	return c.Cache.SetItem(key, item, expiration, delete)
 }
 
 func appManagedResourcesKey(appName string) string {

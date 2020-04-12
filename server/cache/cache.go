@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	cacheutil "github.com/argoproj/argo-cd/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
 )
 
@@ -103,4 +104,8 @@ func (c *Cache) GetOIDCState(key string) (*OIDCState, error) {
 
 func (c *Cache) SetOIDCState(key string, state *OIDCState) error {
 	return c.cache.SetItem(oidcStateKey(key), state, c.oidcCacheExpiration, state == nil)
+}
+
+func (c *Cache) GetCache() *cacheutil.Cache {
+	return c.cache.Cache
 }

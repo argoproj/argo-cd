@@ -4,9 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
+	"math/rand"
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
@@ -17,6 +20,8 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/argoproj/argo-cd/common"
+	cacheutil "github.com/argoproj/argo-cd/util/cache"
+	appstate "github.com/argoproj/argo-cd/util/cache/appstate"
 	"github.com/argoproj/argo-cd/util/dex"
 	httputil "github.com/argoproj/argo-cd/util/http"
 	jwtutil "github.com/argoproj/argo-cd/util/jwt"
@@ -30,6 +35,15 @@ type SessionManager struct {
 	settingsMgr *settings.SettingsManager
 	client      *http.Client
 	prov        oidcutil.Provider
+	cache       *cacheutil.Cache
+}
+
+// LoginAttempts is a timestamped counter for failed login attempts
+type LoginAttempts struct {
+	// Time of the last failed login
+	LastFailed time.Time `json:"lastFailed"`
+	// Number of consecutive login failures
+	FailCount int `json:"failCount"`
 }
 
 const (
@@ -37,15 +51,107 @@ const (
 	SessionManagerClaimsIssuer = "argocd"
 
 	// invalidLoginError, for security purposes, doesn't say whether the username or password was invalid.  This does not mitigate the potential for timing attacks to determine which is which.
-	invalidLoginError  = "Invalid username or password"
-	blankPasswordError = "Blank passwords are not allowed"
-	accountDisabled    = "Account %s is disabled"
+	invalidLoginError    = "Invalid username or password"
+	blankPasswordError   = "Blank passwords are not allowed"
+	accountDisabled      = "Account %s is disabled"
+	usernameTooLongError = "Username is too long (%d bytes max)"
+	// nolint:varcheck,deadcode,unused
+	accountDelayed = "Too many login failures. Login for account %s is delayed by %d seconds"
 )
 
+const (
+	// Maximum length of username, too keep the cache's memory signature low
+	maxUsernameLength = 32
+	// The key prefix to store login attempts in the cache
+	loginAttemptsCacheKey = "session|login.attempts"
+	// The default maximum session cache size
+	defaultMaxCacheSize = 1000
+	// The default number of maximum login failures before delay kicks in
+	defaultMaxLoginFailures = 5
+	// The default delay in seconds to be waited for after login attempts have been reached
+	defaultLoginDelayStart = 3
+	// How many seconds to increase delay after next consecutive login failure
+	defaultLoginDelayIncrease = 2
+	// Default maximum delay in seconds, delay won't be further increased than that
+	defaultLoginDelayMax = 30
+	// The default time in seconds for the failure window
+	defaultFailureWindow = 300
+
+	// environment variables to control rate limiter behaviour
+	envLoginDelayStart    = "ARGOCD_SESSION_FAILURE_DELAY_START"
+	envLoginDelayIncrease = "ARGOCD_SESSION_FAILURE_DELAY_INCREASE"
+	envLoginDelayMax      = "ARGOCD_SESSION_FAILURE_DELAY_MAX"
+	envLoginMaxFailCount  = "ARGOCD_SESSION_FAILURE_MAX_FAIL_COUNT"
+	envLoginFailureWindow = "ARGOCD_SESSION_FAILURE_WINDOW"
+	envLoginMaxCacheSize  = "ARGOCD_SESSION_MAX_CACHE_SIZE"
+)
+
+// Returns the cache key to use for a given user
+func getSessionCacheKeyForUser(username string) string {
+	return fmt.Sprintf("%s|%s", loginAttemptsCacheKey, username)
+}
+
+// Helper function to parse a number from an environment variable. Returns a
+// default if env is not set, is not parseable to a number, exceeds max (if
+// max is greater than 0) or is less than min.
+//
+// nolint:unparam
+func parseNumFromEnv(env string, defaultValue, min, max int) int {
+	str := os.Getenv(env)
+	if str == "" {
+		return defaultValue
+	}
+	num, err := strconv.Atoi(str)
+	if err != nil {
+		log.Warnf("Could not parse '%s' as a number from environment %s", str, env)
+		return defaultValue
+	}
+	if num < min {
+		log.Warnf("Value in %s is %d, which is less than minimum %d allowed", env, num, min)
+		return defaultValue
+	}
+	if num > max {
+		log.Warnf("Value in %s is %d, which is greater than maximum %d allowed", env, num, max)
+		return defaultValue
+	}
+	return num
+}
+
+// Returns the maximum cache size as number of entries
+func getMaximumCacheSize() int {
+	return parseNumFromEnv(envLoginMaxCacheSize, defaultMaxCacheSize, 1, math.MaxInt32)
+}
+
+// Returns the maximum number of login failures before login delay kicks in
+func getMaxLoginFailures() int {
+	return parseNumFromEnv(envLoginMaxFailCount, defaultMaxLoginFailures, 1, math.MaxInt32)
+}
+
+// Returns the number of seconds login should be delayed after maximum number of failures has been reached
+func getLoginDelayStart() int {
+	return parseNumFromEnv(envLoginDelayStart, defaultLoginDelayStart, 1, math.MaxInt32)
+}
+
+// Returns the number of seconds the delay shall be increased by on consecutive login failures
+func getLoginDelayIncrease() int {
+	return parseNumFromEnv(envLoginDelayIncrease, defaultLoginDelayIncrease, 0, math.MaxInt32)
+}
+
+// Returns the number of maximum seconds the login is allowed to delay for
+func getLoginDelayMax() int {
+	return parseNumFromEnv(envLoginDelayMax, defaultLoginDelayMax, 0, math.MaxInt32)
+}
+
+// Returns the number of maximum seconds the login is allowed to delay for
+func getLoginFailureWindow() time.Duration {
+	return time.Duration(parseNumFromEnv(envLoginFailureWindow, defaultFailureWindow, 0, math.MaxInt32))
+}
+
 // NewSessionManager creates a new session manager from Argo CD settings
-func NewSessionManager(settingsMgr *settings.SettingsManager, dexServerAddr string) *SessionManager {
+func NewSessionManager(settingsMgr *settings.SettingsManager, dexServerAddr string, cache *cacheutil.Cache) *SessionManager {
 	s := SessionManager{
 		settingsMgr: settingsMgr,
+		cache:       cache,
 	}
 	settings, err := settingsMgr.GetSettings()
 	if err != nil {
@@ -152,11 +258,163 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, error) {
 	return token.Claims, nil
 }
 
+// GetLoginFailures retrieves the login failure information from the cache
+func (mgr *SessionManager) GetLoginFailures() map[string]LoginAttempts {
+	// Get failures from the cache
+	var failures map[string]LoginAttempts
+	err := mgr.cache.GetItem(loginAttemptsCacheKey, &failures)
+	if err != nil {
+		if err != appstate.ErrCacheMiss {
+			log.Errorf("Could not retrieve %s from cache: %s", loginAttemptsCacheKey, err.Error())
+		}
+		failures = make(map[string]LoginAttempts)
+	}
+
+	return failures
+}
+
+func expireOldFailedAttempts(maxAge time.Duration, failures *map[string]LoginAttempts) int {
+	expiredCount := 0
+	for key, attempt := range *failures {
+		if time.Since(attempt.LastFailed) > maxAge*time.Second {
+			expiredCount += 1
+			delete(*failures, key)
+		}
+	}
+	return expiredCount
+}
+
+// Updates the failure count for a given username. If failed is true, increases the counter. Otherwise, sets counter back to 0.
+func (mgr *SessionManager) updateFailureCount(username string, failed bool) {
+
+	failures := mgr.GetLoginFailures()
+
+	// Expire old entries in the cache if we have a failure window defined.
+	if window := getLoginFailureWindow(); window > 0 {
+		count := expireOldFailedAttempts(window, &failures)
+		if count > 0 {
+			log.Infof("Expired %d entries from session cache due to max age reached", count)
+		}
+	}
+
+	// If we exceed a certain cache size, we need to remove random entries to
+	// prevent overbloating the cache with fake entries, as this could lead to
+	// memory exhaustion and ultimately in a DoS. We remove a single entry to
+	// replace it with the new one.
+	//
+	// Chances are that we remove the one that is under active attack, but this
+	// chance is low (1:cache_size)
+	if failed && len(failures) >= getMaximumCacheSize() {
+		log.Warnf("Session cache size exceeds %d entries, removing random entry", getMaximumCacheSize())
+		idx := rand.Intn(len(failures) - 1)
+		var rmUser string
+		i := 0
+		for key := range failures {
+			if i == idx {
+				rmUser = key
+				delete(failures, key)
+				break
+			}
+			i++
+		}
+		log.Infof("Deleted entry for user %s from cache", rmUser)
+	}
+
+	attempt, ok := failures[username]
+	if !ok {
+		attempt = LoginAttempts{FailCount: 0}
+	}
+
+	// On login failure, increase fail count and update last failed timestamp.
+	// On login success, remove the entry from the cache.
+	if failed {
+		attempt.FailCount += 1
+		attempt.LastFailed = time.Now()
+		err := mgr.cache.SetItem(getSessionCacheKeyForUser(username), attempt, 0, false)
+		if err != nil {
+			log.Errorf("Could not update session cache: %s", err.Error())
+		}
+		failures[username] = attempt
+		log.Warnf("User %s failed login %d time(s)", username, attempt.FailCount)
+	} else {
+		if attempt.FailCount > 0 {
+			err := mgr.cache.SetItem(getSessionCacheKeyForUser(username), attempt, 0, true)
+			if err != nil {
+				log.Errorf("Could not update session cache: %s", err.Error())
+			}
+			// Forget username for cache size enforcement, since entry in cache was deleted
+			delete(failures, username)
+		}
+	}
+
+	err := mgr.cache.SetItem(loginAttemptsCacheKey, failures, 0, false)
+	if err != nil {
+		log.Errorf("Could not update session cache: %s", err.Error())
+	}
+
+}
+
+// Get the current login failure attempts for given username
+func (mgr *SessionManager) getFailureCount(username string) LoginAttempts {
+	failures := mgr.GetLoginFailures()
+	attempt, ok := failures[username]
+	if !ok {
+		attempt = LoginAttempts{FailCount: 0}
+	}
+	return attempt
+}
+
+// Calculate a login delay for the given login attempt
+func (mgr *SessionManager) calculateLogonDelay(attempt LoginAttempts) int {
+	maxFails := getMaxLoginFailures()
+
+	delayStart := getLoginDelayStart()
+	delayIncrease := getLoginDelayIncrease()
+	delayMax := getLoginDelayMax()
+	failureWindow := getLoginFailureWindow()
+
+	duration := 0
+
+	// Whether we are in the failure window for given attempt
+	inWindow := func() bool {
+		if failureWindow == 0 || time.Since(attempt.LastFailed).Seconds() <= float64(failureWindow) {
+			return true
+		}
+		return false
+	}
+
+	// If we reached max failed attempts within failure window, we need to calc the delay
+	if attempt.FailCount >= maxFails && inWindow() {
+		increase := (attempt.FailCount - maxFails) * delayIncrease
+		if increase+delayStart > delayMax {
+			duration = delayMax
+		} else {
+			duration += delayStart + increase
+		}
+	}
+
+	return duration
+}
+
 // VerifyUsernamePassword verifies if a username/password combo is correct
 func (mgr *SessionManager) VerifyUsernamePassword(username string, password string) error {
+	// Enforce maximum length of username on local accounts
+	if len(username) > maxUsernameLength {
+		return status.Errorf(codes.InvalidArgument, usernameTooLongError, maxUsernameLength)
+	}
+
+	attempt := mgr.getFailureCount(username)
+
+	duration := mgr.calculateLogonDelay(attempt)
+	if duration > 0 {
+		log.Warnf("User %s had too many failed logins (%d), sleeping for %d seconds", username, attempt.FailCount, duration)
+		time.Sleep(time.Duration(duration) * time.Second)
+	}
+
 	account, err := mgr.settingsMgr.GetAccount(username)
 	if err != nil {
 		if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
+			mgr.updateFailureCount(username, true)
 			err = status.Errorf(codes.Unauthenticated, invalidLoginError)
 		}
 		return err
@@ -170,8 +428,10 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 
 	valid, _ := passwordutil.VerifyPassword(password, account.PasswordHash)
 	if !valid {
+		mgr.updateFailureCount(username, true)
 		return status.Errorf(codes.Unauthenticated, invalidLoginError)
 	}
+	mgr.updateFailureCount(username, false)
 	return nil
 }
 
