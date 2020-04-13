@@ -44,6 +44,12 @@ commands:
           root: .
           paths:
             - coverage.out
+  save_node_modules:
+    steps:
+      - persist_to_workspace:
+          root: ~/argo-cd
+          paths:
+            - ui/node_modules
   attach_vendor:
     steps:
       - attach_workspace:
@@ -191,10 +197,15 @@ jobs:
             chmod +x $SCANNER_DIRECTORY/sonar-scanner-$VERSION-$OS/bin/sonar-scanner
             chmod +x $SCANNER_DIRECTORY/sonar-scanner-$VERSION-$OS/jre/bin/java
 
+            # Workaround for a possible bug in CircleCI
             if ! echo $CIRCLE_PULL_REQUEST | grep https://github.com/argoproj; then
               unset CIRCLE_PULL_REQUEST
               unset CIRCLE_PULL_REQUESTS
             fi
+
+            # Explicitly set NODE_MODULES
+            export NODE_MODULES=/go/src/github.com/argoproj/argo-cd/ui/node_modules
+            export NODE_PATH=/go/src/github.com/argoproj/argo-cd/ui/node_modules
 
             $SCANNER_DIRECTORY/sonar-scanner-$VERSION-$OS/bin/sonar-scanner
           name: SonarCloud
@@ -296,6 +307,7 @@ jobs:
       - run: ./node_modules/.bin/codecov -p ..
       - run: NODE_ENV='production' yarn build
       - run: yarn lint
+      - save_node_modules
 
 orbs:
   sonarcloud: sonarsource/sonarcloud@1.0.1
@@ -318,6 +330,7 @@ workflows:
           context: SonarCloud
           requires:
             - test
+            - ui
       - e2e:
           requires:
             - build
