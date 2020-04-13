@@ -1105,6 +1105,13 @@
     <ul class="md-nav__list" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#overview-of-past-and-current-issues" title="Overview of past and current issues" class="md-nav__link">
+    Overview of past and current issues
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#known-issues-and-workarounds" title="Known Issues And Workarounds" class="md-nav__link">
     Known Issues And Workarounds
   </a>
@@ -1113,22 +1120,36 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#insecure-default-administrative-password-cve-2020-8828" title="Insecure default administrative password - CVE-2020-8828" class="md-nav__link">
-    Insecure default administrative password - CVE-2020-8828
+  <a href="#cve-2020-11576-user-enumeration" title="CVE-2020-11576 - User Enumeration" class="md-nav__link">
+    CVE-2020-11576 - User Enumeration
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#insufficient-anti-automationanti-brute-force-cve-2020-8827" title="Insufficient anti-automation/anti-brute force - CVE-2020-8827" class="md-nav__link">
-    Insufficient anti-automation/anti-brute force - CVE-2020-8827
+  <a href="#cve-2020-8828-insecure-default-administrative-password" title="CVE-2020-8828 - Insecure default administrative password" class="md-nav__link">
+    CVE-2020-8828 - Insecure default administrative password
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#session-fixation-cve-2020-8826" title="Session-fixation - CVE-2020-8826" class="md-nav__link">
-    Session-fixation - CVE-2020-8826
+  <a href="#cve-2020-8827-insufficient-anti-automationanti-brute-force" title="CVE-2020-8827 - Insufficient anti-automation/anti-brute force" class="md-nav__link">
+    CVE-2020-8827 - Insufficient anti-automation/anti-brute force
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cve-2020-8826-session-fixation" title="CVE-2020-8826 - Session-fixation" class="md-nav__link">
+    CVE-2020-8826 - Session-fixation
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cve-2018-21034-sensitive-information-disclosure" title="CVE-2018-21034 - Sensitive Information Disclosure" class="md-nav__link">
+    CVE-2018-21034 - Sensitive Information Disclosure
   </a>
   
 </li>
@@ -1225,6 +1246,13 @@
     <ul class="md-nav__list" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#overview-of-past-and-current-issues" title="Overview of past and current issues" class="md-nav__link">
+    Overview of past and current issues
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#known-issues-and-workarounds" title="Known Issues And Workarounds" class="md-nav__link">
     Known Issues And Workarounds
   </a>
@@ -1233,22 +1261,36 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#insecure-default-administrative-password-cve-2020-8828" title="Insecure default administrative password - CVE-2020-8828" class="md-nav__link">
-    Insecure default administrative password - CVE-2020-8828
+  <a href="#cve-2020-11576-user-enumeration" title="CVE-2020-11576 - User Enumeration" class="md-nav__link">
+    CVE-2020-11576 - User Enumeration
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#insufficient-anti-automationanti-brute-force-cve-2020-8827" title="Insufficient anti-automation/anti-brute force - CVE-2020-8827" class="md-nav__link">
-    Insufficient anti-automation/anti-brute force - CVE-2020-8827
+  <a href="#cve-2020-8828-insecure-default-administrative-password" title="CVE-2020-8828 - Insecure default administrative password" class="md-nav__link">
+    CVE-2020-8828 - Insecure default administrative password
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#session-fixation-cve-2020-8826" title="Session-fixation - CVE-2020-8826" class="md-nav__link">
-    Session-fixation - CVE-2020-8826
+  <a href="#cve-2020-8827-insufficient-anti-automationanti-brute-force" title="CVE-2020-8827 - Insufficient anti-automation/anti-brute force" class="md-nav__link">
+    CVE-2020-8827 - Insufficient anti-automation/anti-brute force
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cve-2020-8826-session-fixation" title="CVE-2020-8826 - Session-fixation" class="md-nav__link">
+    CVE-2020-8826 - Session-fixation
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cve-2018-21034-sensitive-information-disclosure" title="CVE-2018-21034 - Sensitive Information Disclosure" class="md-nav__link">
+    CVE-2018-21034 - Sensitive Information Disclosure
   </a>
   
 </li>
@@ -1288,28 +1330,202 @@
 <p>As a deployment tool, Argo CD needs to have production access which makes security a very important topic. 
 The Argoproj team takes security very seriously and continuously working on improving it. Learn more about security
 related features in <a href="../operator-manual/security/">Security</a> section.</p>
+<h2 id="overview-of-past-and-current-issues">Overview of past and current issues<a class="headerlink" href="#overview-of-past-and-current-issues" title="Permanent link">&para;</a></h2>
+<p>The following table gives a general overview about past and present issues known
+to the ArgoCD project. See in the <a href="#known-issues-and-workarounds">Known Issues</a>
+section if there is a work-around available if you cannot update or if there is
+no fix yet.</p>
+<table>
+<thead>
+<tr>
+<th>Date</th>
+<th>CVE</th>
+<th>Title</th>
+<th>Risk</th>
+<th>Affected version(s)</th>
+<th>Fix version</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2020-04-08</td>
+<td><a href="https://nvd.nist.gov/vuln/detail/CVE-2020-11576">CVE-2020-11576</a></td>
+<td>User Enumeration</td>
+<td>Medium</td>
+<td>v1.5.0</td>
+<td>v1.5.1</td>
+</tr>
+<tr>
+<td>2020-04-08</td>
+<td><a href="https://nvd.nist.gov/vuln/detail/CVE-2020-8826">CVE-2020-8826</a></td>
+<td>Session-fixation</td>
+<td>High</td>
+<td>all</td>
+<td>n/a</td>
+</tr>
+<tr>
+<td>2020-04-08</td>
+<td><a href="https://nvd.nist.gov/vuln/detail/CVE-2020-8827">CVE-2020-8827</a></td>
+<td>Insufficient anti-automation/anti-brute force</td>
+<td>High</td>
+<td>all</td>
+<td>n/a</td>
+</tr>
+<tr>
+<td>2020-04-08</td>
+<td><a href="https://nvd.nist.gov/vuln/detail/CVE-2020-8828">CVE-2020-8828</a></td>
+<td>Insecure default administrative password</td>
+<td>High</td>
+<td>all</td>
+<td>n/a</td>
+</tr>
+<tr>
+<td>2020-04-08</td>
+<td><a href="https://nvd.nist.gov/vuln/detail/CVE-2018-21034">CVE-2018-21034</a></td>
+<td>Sensitive Information Disclosure</td>
+<td>Medium</td>
+<td>all &lt;= v1.5.0</td>
+<td>v1.5.0</td>
+</tr>
+</tbody>
+</table>
 <h2 id="known-issues-and-workarounds">Known Issues And Workarounds<a class="headerlink" href="#known-issues-and-workarounds" title="Permanent link">&para;</a></h2>
 <p>A recent security audit (thanks a lot to <a href="https://github.com/Eriner">Matt Hamilton</a> of <a href="https://soluble.ai">https://soluble.ai</a> )
 has revealed several limitations in Argo CD which could compromise security.
 Most of the issues are related to the built-in user management implementation.</p>
-<h4 id="insecure-default-administrative-password-cve-2020-8828">Insecure default administrative password - CVE-2020-8828<a class="headerlink" href="#insecure-default-administrative-password-cve-2020-8828" title="Permanent link">&para;</a></h4>
+<h3 id="cve-2020-11576-user-enumeration">CVE-2020-11576 - User Enumeration<a class="headerlink" href="#cve-2020-11576-user-enumeration" title="Permanent link">&para;</a></h3>
+<p><strong>Summary:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Reported by</th>
+<th>Fix version</th>
+<th>Workaround</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Medium</td>
+<td><a href="https://github.com/Eriner">Matt Hamilton</a> of <a href="https://soluble.ai">https://soluble.ai</a></td>
+<td>v1.5.1</td>
+<td>Yes</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Details:</strong></p>
+<p>Argo version v1.5.0 was vulnerable to a user-enumeration vulnerability which allowed attackers to determine the usernames of valid (non-SSO) accounts within Argo.</p>
+<p><strong>Mitigation and/or workaround:</strong></p>
+<p>Upgrade to ArgoCD v1.5.1 or higher. As a workaround, disable local users and use only SSO authentication.</p>
+<h3 id="cve-2020-8828-insecure-default-administrative-password">CVE-2020-8828 - Insecure default administrative password<a class="headerlink" href="#cve-2020-8828-insecure-default-administrative-password" title="Permanent link">&para;</a></h3>
+<p><strong>Summary:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Reported by</th>
+<th>Fix version</th>
+<th>Workaround</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>High</td>
+<td><a href="https://github.com/Eriner">Matt Hamilton</a> of <a href="https://soluble.ai">https://soluble.ai</a></td>
+<td>n/a</td>
+<td>Yes</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Details:</strong></p>
 <p>Argo CD uses the <code>argocd-server</code> pod name (ex: <code>argocd-server-55594fbdb9-ptsf5</code>) as the default admin password.</p>
 <p>Kubernetes users able to list pods in the argo namespace are able to retrieve the default password.</p>
 <p>Additionally, In most installations, <a href="https://github.com/kubernetes/kubernetes/blob/dda530cfb74b157f1d17b97818aa128a9db8e711/staging/src/k8s.io/apiserver/pkg/storage/names/generate.go#L37">the Pod name contains a random "trail" of characters</a>.
 These characters are generated using <a href="https://github.com/kubernetes/apimachinery/blob/master/pkg/util/rand/rand.go#L26">a time-seeded PRNG</a> and not a CSPRNG.
 An attacker could use this information in an attempt to deduce the state of the internal PRNG, aiding bruteforce attacks.</p>
+<p><strong>Mitigation and/or workaround:</strong></p>
 <p>The recommended mitigation as described in the user documentation is to use SSO integration. The default admin password
 should only be used for initial configuration and then <a href="https://argoproj.github.io/argo-cd/operator-manual/user-management/#disable-admin-user">disabled</a>
 or at least changed to a more secure password.</p>
-<h4 id="insufficient-anti-automationanti-brute-force-cve-2020-8827">Insufficient anti-automation/anti-brute force - CVE-2020-8827<a class="headerlink" href="#insufficient-anti-automationanti-brute-force-cve-2020-8827" title="Permanent link">&para;</a></h4>
+<h3 id="cve-2020-8827-insufficient-anti-automationanti-brute-force">CVE-2020-8827 - Insufficient anti-automation/anti-brute force<a class="headerlink" href="#cve-2020-8827-insufficient-anti-automationanti-brute-force" title="Permanent link">&para;</a></h3>
+<p><strong>Summary:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Reported by</th>
+<th>Fix version</th>
+<th>Workaround</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>High</td>
+<td><a href="https://github.com/Eriner">Matt Hamilton</a> of <a href="https://soluble.ai">https://soluble.ai</a></td>
+<td>n/a</td>
+<td>Yes</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Details:</strong></p>
 <p>Argo CD does not enforce rate-limiting or other anti-automation mechanisms which would mitigate admin password brute force.</p>
 <p>We are considering some simple options for rate-limiting.</p>
-<h4 id="session-fixation-cve-2020-8826">Session-fixation - CVE-2020-8826<a class="headerlink" href="#session-fixation-cve-2020-8826" title="Permanent link">&para;</a></h4>
+<p><strong>Mitigation and/or workaround:</strong></p>
+<p>As a workaround for mitigation until a fix is available, we recommend to disable local users and use SSO instead.</p>
+<h3 id="cve-2020-8826-session-fixation">CVE-2020-8826 - Session-fixation<a class="headerlink" href="#cve-2020-8826-session-fixation" title="Permanent link">&para;</a></h3>
+<p><strong>Summary:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Reported by</th>
+<th>Fix version</th>
+<th>Workaround</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>High</td>
+<td><a href="https://github.com/Eriner">Matt Hamilton</a> of <a href="https://soluble.ai">https://soluble.ai</a></td>
+<td>n/a</td>
+<td>Yes</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Details:</strong></p>
 <p>The authentication tokens generated for built-in users have no expiry.</p>
 <p>These issues might be acceptable in the controlled isolated environment but not acceptable if Argo CD user interface is
 exposed to the Internet.</p>
+<p><strong>Mitigation and/or workaround:</strong></p>
 <p>The recommended mitigation is to change the password periodically to invalidate the authentication tokens.</p>
+<h3 id="cve-2018-21034-sensitive-information-disclosure">CVE-2018-21034 - Sensitive Information Disclosure<a class="headerlink" href="#cve-2018-21034-sensitive-information-disclosure" title="Permanent link">&para;</a></h3>
+<p><strong>Summary:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Reported by</th>
+<th>Fix version</th>
+<th>Workaround</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Medium</td>
+<td><a href="https://github.com/Eriner">Matt Hamilton</a> of <a href="https://soluble.ai">https://soluble.ai</a></td>
+<td>v1.5.0</td>
+<td>No</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Details:</strong></p>
+<p>In Argo versions prior to v1.5.0-rc1, it was possible for authenticated Argo users to submit API calls to retrieve secrets and other manifests which were stored within git.</p>
+<p><strong>Mitigation and/or workaround:</strong></p>
+<p>Upgrade to ArgoCD v1.5.0 or higher. No workaround available</p>
 <h2 id="reporting-vulnerabilities">Reporting Vulnerabilities<a class="headerlink" href="#reporting-vulnerabilities" title="Permanent link">&para;</a></h2>
+<p>If you find a security related bug in ArgoCD, we kindly ask you for responsible
+disclosure and for giving us appropriate time to react, analyze and develop a
+fix to mitigate the found security vulnerability.</p>
 <p>Please report security vulnerabilities by e-mailing:</p>
 <ul>
 <li><a href="mailto:Jesse_Suen@intuit.com">Jesse_Suen@intuit.com</a></li>
