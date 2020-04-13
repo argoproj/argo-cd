@@ -441,6 +441,8 @@ message JWTToken {
   optional int64 iat = 1;
 
   optional int64 exp = 2;
+
+  optional string id = 3;
 }
 
 // JsonnetVar is a jsonnet variable
