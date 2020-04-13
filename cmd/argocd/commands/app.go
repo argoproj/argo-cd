@@ -903,7 +903,7 @@ func getLocalObjectsString(app *argoappv1.Application, local, appLabelKey, kubeV
 		KustomizeOptions:  kustomizeOptions,
 		KubeVersion:       kubeVersion,
 		Plugins:           configManagementPlugins,
-	})
+	}, true)
 	errors.CheckError(err)
 
 	return res.Manifests
