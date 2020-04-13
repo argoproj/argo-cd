@@ -54,7 +54,6 @@ func TestEnforceProjectToken(t *testing.T) {
 	roleName := "testRole"
 	subFormat := "proj:%s:%s"
 	policyTemplate := "p, %s, applications, get, %s/%s, %s"
-
 	defaultObject := "*"
 	defaultEffect := "allow"
 	defaultTestObject := fmt.Sprintf("%s/%s", projectName, "test")
