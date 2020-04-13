@@ -3,6 +3,7 @@ package project
 import (
 	"context"
 	"fmt"
+	"github.com/google/uuid"
 	"strings"
 	"testing"
 
@@ -281,6 +282,7 @@ func TestProjectServer(t *testing.T) {
 	ctx := context.WithValue(context.Background(), "claims", &jwt.MapClaims{"groups": []string{"my-group"}})
 
 	tokenName := "testToken"
+	id := "testId"
 
 	t.Run("TestCreateTokenDenied", func(t *testing.T) {
 		sessionMgr := session.NewSessionManager(settingsMgr, "")
@@ -318,6 +320,47 @@ func TestProjectServer(t *testing.T) {
 		expectedSubject := fmt.Sprintf(JWTTokenSubFormat, projectWithRole.Name, tokenName)
 		assert.Equal(t, expectedSubject, subject)
 		assert.NoError(t, err)
+	})
+
+	t.Run("TestCreateTokenWithIDSuccessfully", func(t *testing.T) {
+		sessionMgr := session.NewSessionManager(settingsMgr, "")
+		projectWithRole := existingProj.DeepCopy()
+		projectWithRole.Spec.Roles = []v1alpha1.ProjectRole{{Name: tokenName}}
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithRole), enforcer, util.NewKeyLock(), sessionMgr)
+		tokenResponse, err := projectServer.CreateToken(context.Background(), &project.ProjectTokenCreateRequest{Project: projectWithRole.Name, Role: tokenName, ExpiresIn: 1, Id: id})
+		assert.NoError(t, err)
+		claims, err := sessionMgr.Parse(tokenResponse.Token)
+		assert.NoError(t, err)
+
+		mapClaims, err := jwtutil.MapClaims(claims)
+		subject, ok := mapClaims["sub"].(string)
+		assert.True(t, ok)
+		expectedSubject := fmt.Sprintf(JWTTokenSubFormat, projectWithRole.Name, tokenName)
+		assert.Equal(t, expectedSubject, subject)
+		assert.NoError(t, err)
+	})
+
+	t.Run("TestCreateTokenWithSameIdDeny", func(t *testing.T) {
+		sessionMgr := session.NewSessionManager(settingsMgr, "")
+		projectWithRole := existingProj.DeepCopy()
+		projectWithRole.Spec.Roles = []v1alpha1.ProjectRole{{Name: tokenName}}
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithRole), enforcer, util.NewKeyLock(), sessionMgr)
+		tokenResponse, err := projectServer.CreateToken(context.Background(), &project.ProjectTokenCreateRequest{Project: projectWithRole.Name, Role: tokenName, ExpiresIn: 1, Id: id})
+
+		assert.NoError(t, err)
+		claims, err := sessionMgr.Parse(tokenResponse.Token)
+		assert.NoError(t, err)
+
+		mapClaims, err := jwtutil.MapClaims(claims)
+		subject, ok := mapClaims["sub"].(string)
+		assert.True(t, ok)
+		expectedSubject := fmt.Sprintf(JWTTokenSubFormat, projectWithRole.Name, tokenName)
+		assert.Equal(t, expectedSubject, subject)
+		assert.NoError(t, err)
+
+		_, err1 := projectServer.CreateToken(context.Background(), &project.ProjectTokenCreateRequest{Project: projectWithRole.Name, Role: tokenName, ExpiresIn: 1, Id: id})
+		expectedErr := fmt.Sprintf("rpc error: code = InvalidArgument desc = rpc error: code = InvalidArgument desc = Token id '%s' has been used. ",id)
+		assert.EqualError(t, err1, expectedErr)
 	})
 
 	_ = enforcer.SetBuiltinPolicy(`p, *, *, *, *, deny`)
@@ -361,6 +404,30 @@ p, role:admin, projects, update, *, allow`)
 
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, util.NewKeyLock(), sessionMgr)
 		_, err := projectServer.DeleteToken(ctx, &project.ProjectTokenDeleteRequest{Project: projWithToken.Name, Role: tokenName, Iat: issuedAt})
+		assert.NoError(t, err)
+		projWithoutToken, err := projectServer.Get(context.Background(), &project.ProjectQuery{Name: projWithToken.Name})
+		assert.NoError(t, err)
+		assert.Len(t, projWithoutToken.Spec.Roles, 1)
+		assert.Len(t, projWithoutToken.Spec.Roles[0].JWTTokens, 1)
+		assert.Equal(t, projWithoutToken.Spec.Roles[0].JWTTokens[0].IssuedAt, secondIssuedAt)
+	})
+
+	_ = enforcer.SetBuiltinPolicy(`p, role:admin, projects, get, *, allow
+p, role:admin, projects, update, *, allow`)
+
+	t.Run("TestDeleteTokenByIdSuccessfully", func(t *testing.T) {
+		sessionMgr := session.NewSessionManager(settingsMgr, "")
+		projWithToken := existingProj.DeepCopy()
+		issuedAt := int64(1)
+		secondIssuedAt := issuedAt + 1
+		id := "testId"
+		uniqueId, _ := 	uuid.NewRandom()
+		secondId := uniqueId.String()
+		token := v1alpha1.ProjectRole{Name: tokenName, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: issuedAt, ID: id}, {IssuedAt: secondIssuedAt, ID: secondId}}}
+		projWithToken.Spec.Roles = append(projWithToken.Spec.Roles, token)
+
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, util.NewKeyLock(), sessionMgr)
+		_, err := projectServer.DeleteToken(ctx, &project.ProjectTokenDeleteRequest{Project: projWithToken.Name, Role: tokenName, Iat: secondIssuedAt, Id: id })
 		assert.NoError(t, err)
 		projWithoutToken, err := projectServer.Get(context.Background(), &project.ProjectQuery{Name: projWithToken.Name})
 		assert.NoError(t, err)

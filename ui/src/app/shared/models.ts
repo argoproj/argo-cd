@@ -576,6 +576,7 @@ export interface ProjectRole {
 export interface JwtToken {
     iat: number;
     exp: number;
+    id: string;
 }
 
 export interface GroupKind {

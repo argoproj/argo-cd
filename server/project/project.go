@@ -3,13 +3,15 @@ package project
 import (
 	"context"
 	"fmt"
+	"github.com/google/uuid"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/dgrijalva/jwt-go"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	v1 "k8s.io/api/core/v1"
+	"k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -84,8 +86,16 @@ func (s *Server) CreateToken(ctx context.Context, q *project.ProjectTokenCreateR
 			return nil, err
 		}
 	}
-	tokenName := fmt.Sprintf(JWTTokenSubFormat, q.Project, q.Role)
-	jwtToken, err := s.sessionMgr.Create(tokenName, q.ExpiresIn, "")
+	id := q.Id
+	if err := prj.ValidateJWTTokenID(q.Role, q.Id); err != nil {
+		return nil, status.Errorf(codes.InvalidArgument,  err.Error())
+	}
+	if id == "" {
+		uniqueId, _ := uuid.NewRandom()
+		id = uniqueId.String()
+	}
+	subject := fmt.Sprintf(JWTTokenSubFormat, q.Project, q.Role)
+	jwtToken, err := s.sessionMgr.Create(subject, q.ExpiresIn, id)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -99,8 +109,9 @@ func (s *Server) CreateToken(ctx context.Context, q *project.ProjectTokenCreateR
 	}
 	issuedAt := claims.IssuedAt
 	expiresAt := claims.ExpiresAt
+	id = claims.Id
 
-	prj.Spec.Roles[index].JWTTokens = append(prj.Spec.Roles[index].JWTTokens, v1alpha1.JWTToken{IssuedAt: issuedAt, ExpiresAt: expiresAt})
+	prj.Spec.Roles[index].JWTTokens = append(prj.Spec.Roles[index].JWTTokens, v1alpha1.JWTToken{IssuedAt: issuedAt, ExpiresAt: expiresAt, ID: id})
 	_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(prj)
 	if err != nil {
 		return nil, err
@@ -133,7 +144,7 @@ func (s *Server) DeleteToken(ctx context.Context, q *project.ProjectTokenDeleteR
 			return nil, err
 		}
 	}
-	_, jwtTokenIndex, err := prj.GetJWTToken(q.Role, q.Iat)
+	_, jwtTokenIndex, err := prj.GetJWTToken(q.Role, q.Iat, q.Id)
 	if err != nil {
 		return &project.EmptyResponse{}, nil
 	}
@@ -203,7 +214,20 @@ func (s *Server) Get(ctx context.Context, q *project.ProjectQuery) (*v1alpha1.Ap
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionGet, q.Name); err != nil {
 		return nil, err
 	}
-	return s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Name, metav1.GetOptions{})
+	proj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	for i, role := range proj.Spec.Roles {
+		for j, token := range role.JWTTokens {
+			if token.ID == "" {
+				token.ID = strconv.FormatInt(token.IssuedAt, 10)
+				role.JWTTokens[j] = token
+			}
+		}
+		proj.Spec.Roles[i] = role
+	}
+	return proj, err
 }
 
 // Update updates a project
