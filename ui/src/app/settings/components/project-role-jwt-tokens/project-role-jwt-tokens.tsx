@@ -68,7 +68,9 @@ export const ProjectRoleJWTTokens = (props: ProjectRoleJWTTokensProps) => {
                                         </div>
 
                                         <div className='columns small-3'>
-                                            <button className='argo-button argo-button--base' onClick={() => createJWTToken(props, api, ctx)}>Create</button>
+                                            <button className='argo-button argo-button--base' onClick={() => createJWTToken(props, api, ctx)}>
+                                                Create
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -111,7 +113,7 @@ async function createJWTToken(props: ProjectRoleJWTTokensProps, api: FormApi, ct
         expiresInPrompt = 'expires in ' + api.values.expiresIn;
     }
     const id = api.values.id;
-    const nameContext = (id == undefined || id == '') ? ' has no token ID and ' : " has token ID \'" + id + "\' and "
+    const nameContext = id === undefined || id === '' ? ` has no token ID and ` : ` has token ID '${id}' and `;
     const confirmed = await ctx.popup.confirm(
         'Create JWT Token',
         `Are you sure you want to create a JWT token that ${nameContext}${expiresInPrompt} for role '${role}' in project '${project}'?`
