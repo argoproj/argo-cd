@@ -3,7 +3,6 @@ package commands
 import (
 	"bytes"
 	"context"
-	syserrors "errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -62,7 +61,7 @@ func setSettingsMeta(obj v1.Object) {
 func (opts *settingsOpts) createSettingsManager() (*settings.SettingsManager, error) {
 	var argocdCM *corev1.ConfigMap
 	if opts.argocdCMPath == "" && !opts.loadClusterSettings {
-		return nil, syserrors.New("either --argocd-cm-path must be provided or --load-cluster-settings must be set to true")
+		return nil, fmt.Errorf("either --argocd-cm-path must be provided or --load-cluster-settings must be set to true")
 	} else if opts.argocdCMPath == "" {
 		realClientset, ns, err := opts.getK8sClient()
 		if err != nil {
@@ -149,7 +148,8 @@ func NewSettingsCommand() *cobra.Command {
 	)
 
 	var command = &cobra.Command{
-		Use: "settings",
+		Use:   "settings",
+		Short: "Provides set of commands for settings validation and troubleshooting",
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 		},
@@ -196,7 +196,7 @@ var validatorsByGroup = map[string]settingValidator{
 			return "", err
 		}
 		var summary string
-		ssoConfigured := general.IsSSOConfigured()
+		ssoConfigured := general.DexConfig != "" || general.OIDCConfigRAW != ""
 		if ssoConfigured && general.URL == "" {
 			summary = "sso configured ('url' field is missing)"
 		} else if ssoConfigured && general.URL != "" {
@@ -272,8 +272,9 @@ func NewValidateSettingsCommand(opts *settingsOpts) *cobra.Command {
 	})
 
 	var command = &cobra.Command{
-		Use:  "validate",
-		Long: "Validates settings specified in 'argocd-cm' ConfigMap and 'argocd-secret' Secret",
+		Use:   "validate",
+		Short: "Validate settings",
+		Long:  "Validates settings specified in 'argocd-cm' ConfigMap and 'argocd-secret' Secret",
 		Example: `
 #Validates all settings in the specified YAML file
 argocd-util settings validate --argocd-cm-path ./argocd-cm.yaml
@@ -321,7 +322,8 @@ argocd-util settings validate --group accounts --group plugins --load-cluster-se
 
 func NewResourceOverridesCommand(opts *settingsOpts) *cobra.Command {
 	var command = &cobra.Command{
-		Use: "resource-overrides",
+		Use:   "resource-overrides",
+		Short: "Troubleshoot resource overrides",
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 		},
@@ -355,8 +357,9 @@ func executeResourceOverrideCommand(opts *settingsOpts, args []string, callback 
 
 func NewResourceIgnoreDifferencesCommand(opts *settingsOpts) *cobra.Command {
 	var command = &cobra.Command{
-		Use:  "ignore-differences RESOURCE_YAML_PATH",
-		Long: "Renders ignored fields using the 'ignoreDifferences' setting specified in the 'resource.customizations' field of 'argocd-cm' ConfigMap",
+		Use:   "ignore-differences RESOURCE_YAML_PATH",
+		Short: "Renders fields excluded from diffing",
+		Long:  "Renders ignored fields using the 'ignoreDifferences' setting specified in the 'resource.customizations' field of 'argocd-cm' ConfigMap",
 		Example: `
 argocd-util settings resource-overrides ignore-differences ./deploy.yaml --argocd-cm-path ./argocd-cm.yaml`,
 		Run: func(c *cobra.Command, args []string) {
@@ -398,8 +401,9 @@ argocd-util settings resource-overrides ignore-differences ./deploy.yaml --argoc
 
 func NewResourceHealthCommand(opts *settingsOpts) *cobra.Command {
 	var command = &cobra.Command{
-		Use:  "health RESOURCE_YAML_PATH",
-		Long: "Assess resource health using the lua script configured in the 'resource.customizations' field of 'argocd-cm' ConfigMap",
+		Use:   "health RESOURCE_YAML_PATH",
+		Short: "Assess resource health",
+		Long:  "Assess resource health using the lua script configured in the 'resource.customizations' field of 'argocd-cm' ConfigMap",
 		Example: `
 argocd-util settings resource-overrides health ./deploy.yaml --argocd-cm-path ./argocd-cm.yaml`,
 		Run: func(c *cobra.Command, args []string) {
@@ -428,8 +432,9 @@ argocd-util settings resource-overrides health ./deploy.yaml --argocd-cm-path ./
 
 func NewResourceActionCommand(opts *settingsOpts) *cobra.Command {
 	var command = &cobra.Command{
-		Use:  "action RESOURCE_YAML_PATH ACTION",
-		Long: "Executes resource action using the lua script configured in the 'resource.customizations' field of 'argocd-cm' ConfigMap and outputs updated fields",
+		Use:   "action RESOURCE_YAML_PATH ACTION",
+		Short: "Executes resource action",
+		Long:  "Executes resource action using the lua script configured in the 'resource.customizations' field of 'argocd-cm' ConfigMap and outputs updated fields",
 		Example: `
 argocd-util settings resource-overrides action /tmp/deploy.yaml restart --argocd-cm-path ./argocd-cm.yaml`,
 		Run: func(c *cobra.Command, args []string) {

@@ -8,14 +8,20 @@ connectivity issues.
 Argo CD provides multiple ways to customize system behavior and has a lot of settings. It might be dangerous to modify
 settings on Argo CD used in production by multiple users. Before applying settings you can use `argocd-util` binary to
 make sure that settings are valid and Argo CD is working as expected. The `argocd-util` binary is available in `argocd`
-mage and might be used using docker. Example:
+image and might be used using docker. Example:
 
 ```bash
 docker run --rm -it -w /src -v $(pwd):/src argoproj/argocd:<version> \
   argocd-util settings validate --argocd-cm-path ./argocd-cm.yaml
 ```
 
-The `argocd argocd-util settings validate` command performs basic settings validation and print short summary
+If you are using Linux you can extract `argocd-util` binary from docker image:
+
+```bash
+docker run --rm -it -w /src -v $(pwd):/src argocd cp /usr/local/bin/argocd-util ./argocd-util
+``` 
+
+The `argocd-util settings validate` command performs basic settings validation and print short summary
 of each settings group.
 
 **Diffing Customization**
