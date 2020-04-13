@@ -301,3 +301,25 @@ func TestHelm3CRD(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(ResourceSyncStatusIs("CustomResourceDefinition", "crontabs.stable.example.com", SyncStatusCodeSynced))
 }
+
+func TestHelmRepoDiffLocal(t *testing.T) {
+	Given(t).
+		Path("helm3-repo-diff-local").
+		And(func() {
+			args := []string{
+				"repo",
+				"add",
+				"https://azure-samples.github.io/helm-charts/",
+				"--type", "helm",
+				"--name", "mayhelmrepo",
+			}
+			errors.FailOnErr(fixture.RunCli(args...))
+		}).
+		When().
+		Create().
+		Sync().
+		Then().
+		And(func(app *Application) {
+			FailOnErr(RunCli("app", "diff", app.Name, "--local", "testdata/helm3-repo-diff-local"))
+		})
+}
