@@ -43,6 +43,7 @@ nav:
     - operator-manual/custom_tools.md
     - operator-manual/metrics.md
     - operator-manual/notifications.md
+    - operator-manual/troubleshooting.md
   - User Guide:
     - user-guide/index.md
     - user-guide/application_sources.md

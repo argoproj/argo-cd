@@ -24,6 +24,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
+	"github.com/argoproj/argo-cd/cmd/argocd-util/commands"
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/util/cli"
@@ -72,7 +73,8 @@ func NewCommand() *cobra.Command {
 	command.AddCommand(NewImportCommand())
 	command.AddCommand(NewExportCommand())
 	command.AddCommand(NewClusterConfig())
-	command.AddCommand(NewProjectsCommand())
+	command.AddCommand(commands.NewProjectsCommand())
+	command.AddCommand(commands.NewSettingsCommand())
 
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	return command
