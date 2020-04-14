@@ -205,7 +205,7 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	}
 	err := s.runRepoOperation(ctx, q.Revision, q.Repo, q.ApplicationSource, getCached, func(appPath, repoRoot, revision string) error {
 		var err error
-		res, err = GenerateManifests(appPath, repoRoot, revision, q)
+		res, err = GenerateManifests(appPath, repoRoot, revision, q, false)
 		if err != nil {
 			return err
 		}
@@ -714,7 +714,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 					res.Helm.ValueFiles = append(res.Helm.ValueFiles, fName)
 				}
 			}
-			h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos))
+			h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos), false)
 			if err != nil {
 				return err
 			}
