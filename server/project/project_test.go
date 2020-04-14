@@ -3,9 +3,10 @@ package project
 import (
 	"context"
 	"fmt"
-	"github.com/google/uuid"
 	"strings"
 	"testing"
+
+	"github.com/google/uuid"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/stretchr/testify/assert"
@@ -359,7 +360,7 @@ func TestProjectServer(t *testing.T) {
 		assert.NoError(t, err)
 
 		_, err1 := projectServer.CreateToken(context.Background(), &project.ProjectTokenCreateRequest{Project: projectWithRole.Name, Role: tokenName, ExpiresIn: 1, Id: id})
-		expectedErr := fmt.Sprintf("rpc error: code = InvalidArgument desc = rpc error: code = InvalidArgument desc = Token id '%s' has been used. ",id)
+		expectedErr := fmt.Sprintf("rpc error: code = InvalidArgument desc = rpc error: code = InvalidArgument desc = Token id '%s' has been used. ", id)
 		assert.EqualError(t, err1, expectedErr)
 	})
 
@@ -421,13 +422,13 @@ p, role:admin, projects, update, *, allow`)
 		issuedAt := int64(1)
 		secondIssuedAt := issuedAt + 1
 		id := "testId"
-		uniqueId, _ := 	uuid.NewRandom()
+		uniqueId, _ := uuid.NewRandom()
 		secondId := uniqueId.String()
 		token := v1alpha1.ProjectRole{Name: tokenName, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: issuedAt, ID: id}, {IssuedAt: secondIssuedAt, ID: secondId}}}
 		projWithToken.Spec.Roles = append(projWithToken.Spec.Roles, token)
 
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, util.NewKeyLock(), sessionMgr)
-		_, err := projectServer.DeleteToken(ctx, &project.ProjectTokenDeleteRequest{Project: projWithToken.Name, Role: tokenName, Iat: secondIssuedAt, Id: id })
+		_, err := projectServer.DeleteToken(ctx, &project.ProjectTokenDeleteRequest{Project: projWithToken.Name, Role: tokenName, Iat: secondIssuedAt, Id: id})
 		assert.NoError(t, err)
 		projWithoutToken, err := projectServer.Get(context.Background(), &project.ProjectQuery{Name: projWithToken.Name})
 		assert.NoError(t, err)

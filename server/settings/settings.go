@@ -1,9 +1,10 @@
 package settings
 
 import (
-	sessionmgr "github.com/argoproj/argo-cd/util/session"
 	"github.com/ghodss/yaml"
 	"golang.org/x/net/context"
+
+	sessionmgr "github.com/argoproj/argo-cd/util/session"
 
 	settingspkg "github.com/argoproj/argo-cd/pkg/apiclient/settings"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"

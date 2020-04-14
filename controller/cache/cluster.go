@@ -18,13 +18,14 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic"
 
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/pager"
+
 	"github.com/argoproj/argo-cd/controller/metrics"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/health"
 	"github.com/argoproj/argo-cd/util/kube"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/tools/pager"
 )
 
 const (

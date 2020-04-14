@@ -3,15 +3,16 @@ package project
 import (
 	"context"
 	"fmt"
-	"github.com/google/uuid"
 	"reflect"
 	"strconv"
 	"strings"
 
+	"github.com/google/uuid"
+
 	"github.com/dgrijalva/jwt-go"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -88,7 +89,7 @@ func (s *Server) CreateToken(ctx context.Context, q *project.ProjectTokenCreateR
 	}
 	id := q.Id
 	if err := prj.ValidateJWTTokenID(q.Role, q.Id); err != nil {
-		return nil, status.Errorf(codes.InvalidArgument,  err.Error())
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 	if id == "" {
 		uniqueId, _ := uuid.NewRandom()

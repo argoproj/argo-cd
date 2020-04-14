@@ -1,10 +1,11 @@
 package v1alpha1
 
 import (
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"reflect"
 	"testing"
 	"time"
+
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -120,7 +121,7 @@ func TestAppProject_IsGroupKindPermitted(t *testing.T) {
 	proj := AppProject{
 		Spec: AppProjectSpec{
 			NamespaceResourceWhitelist: []metav1.GroupKind{},
-			NamespaceResourceBlacklist: []metav1.GroupKind{{Group: "apps", Kind: "Deployment"},},
+			NamespaceResourceBlacklist: []metav1.GroupKind{{Group: "apps", Kind: "Deployment"}},
 		},
 	}
 	assert.True(t, proj.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "ReplicaSet"}, true))
@@ -129,7 +130,7 @@ func TestAppProject_IsGroupKindPermitted(t *testing.T) {
 	proj2 := AppProject{
 		Spec: AppProjectSpec{
 			NamespaceResourceWhitelist: []metav1.GroupKind{{Group: "apps", Kind: "ReplicaSet"}},
-			NamespaceResourceBlacklist: []metav1.GroupKind{{Group: "apps", Kind: "Deployment"},},
+			NamespaceResourceBlacklist: []metav1.GroupKind{{Group: "apps", Kind: "Deployment"}},
 		},
 	}
 	assert.True(t, proj2.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "ReplicaSet"}, true))
