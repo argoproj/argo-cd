@@ -1313,8 +1313,8 @@ repository or kustomize base.</p>
 </code></pre></div>
 
 
-<p>The above kustomization has a remote base to he HEAD revision of the argo-cd repo. Since this
-is not stable target, the manifests for this kustomize application can suddenly change meaning, even without
+<p>The above kustomization has a remote base to the HEAD revision of the argo-cd repo. Since this
+is not a stable target, the manifests for this kustomize application can suddenly change meaning, even without
 any changes to your own Git repository.</p>
 <p>A better version would be to use a Git tag or commit SHA. For example:</p>
 <div class="codehilite"><pre><span></span><code><span class="nt">bases</span><span class="p">:</span>
