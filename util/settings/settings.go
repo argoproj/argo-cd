@@ -850,8 +850,7 @@ func (a *ArgoCDSettings) IsDexConfigured() bool {
 	if a.URL == "" {
 		return false
 	}
-	var dexCfg map[string]interface{}
-	err := yaml.Unmarshal([]byte(a.DexConfig), &dexCfg)
+	dexCfg, err := UnmarshalDexConfig(a.DexConfig)
 	if err != nil {
 		log.Warn("invalid dex yaml config")
 		return false
@@ -859,18 +858,29 @@ func (a *ArgoCDSettings) IsDexConfigured() bool {
 	return len(dexCfg) > 0
 }
 
+func UnmarshalDexConfig(config string) (map[string]interface{}, error) {
+	var dexCfg map[string]interface{}
+	err := yaml.Unmarshal([]byte(config), &dexCfg)
+	return dexCfg, err
+}
+
 func (a *ArgoCDSettings) OIDCConfig() *OIDCConfig {
 	if a.OIDCConfigRAW == "" {
 		return nil
 	}
-	var oidcConfig OIDCConfig
-	err := yaml.Unmarshal([]byte(a.OIDCConfigRAW), &oidcConfig)
+	oidcConfig, err := UnmarshalOIDCConfig(a.OIDCConfigRAW)
 	if err != nil {
 		log.Warnf("invalid oidc config: %v", err)
 		return nil
 	}
 	oidcConfig.ClientSecret = ReplaceStringSecret(oidcConfig.ClientSecret, a.Secrets)
 	return &oidcConfig
+}
+
+func UnmarshalOIDCConfig(config string) (OIDCConfig, error) {
+	var oidcConfig OIDCConfig
+	err := yaml.Unmarshal([]byte(config), &oidcConfig)
+	return oidcConfig, err
 }
 
 // TLSConfig returns a tls.Config with the configured certificates

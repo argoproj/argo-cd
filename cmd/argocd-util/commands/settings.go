@@ -39,6 +39,10 @@ type settingsOpts struct {
 	clientConfig        clientcmd.ClientConfig
 }
 
+type commandContext interface {
+	createSettingsManager() (*settings.SettingsManager, error)
+}
+
 func collectLogs(callback func()) string {
 	log.SetLevel(log.DebugLevel)
 	out := bytes.Buffer{}
@@ -195,14 +199,28 @@ var validatorsByGroup = map[string]settingValidator{
 		if err != nil {
 			return "", err
 		}
+		ssoProvider := ""
+		if general.DexConfig != "" {
+			if _, err := settings.UnmarshalDexConfig(general.DexConfig); err != nil {
+				return "", fmt.Errorf("invalid dex.config: %v", err)
+			}
+			ssoProvider = "Dex"
+		} else if general.OIDCConfigRAW != "" {
+			if _, err := settings.UnmarshalOIDCConfig(general.OIDCConfigRAW); err != nil {
+				return "", fmt.Errorf("invalid oidc.config: %v", err)
+			}
+			ssoProvider = "OIDC"
+		}
 		var summary string
-		ssoConfigured := general.DexConfig != "" || general.OIDCConfigRAW != ""
-		if ssoConfigured && general.URL == "" {
-			summary = "sso configured ('url' field is missing)"
-		} else if ssoConfigured && general.URL != "" {
-			summary = "sso configured"
+		if ssoProvider != "" {
+			summary = fmt.Sprintf("%s is configured", ssoProvider)
+			if general.URL == "" {
+				summary = summary + " ('url' field is missing)"
+			}
+		} else if ssoProvider != "" && general.URL != "" {
+
 		} else {
-			summary = "sso is not configured"
+			summary = "SSO is not configured"
 		}
 		return summary, nil
 	}, func(manager *settings.SettingsManager) (string, error) {
@@ -258,7 +276,7 @@ var validatorsByGroup = map[string]settingValidator{
 	},
 }
 
-func NewValidateSettingsCommand(opts *settingsOpts) *cobra.Command {
+func NewValidateSettingsCommand(cmdCtx commandContext) *cobra.Command {
 	var (
 		groups []string
 	)
@@ -282,7 +300,7 @@ argocd-util settings validate --argocd-cm-path ./argocd-cm.yaml
 #Validates accounts and plugins settings in Kubernetes cluster of current kubeconfig context
 argocd-util settings validate --group accounts --group plugins --load-cluster-settings`,
 		Run: func(c *cobra.Command, args []string) {
-			settingsManager, err := opts.createSettingsManager()
+			settingsManager, err := cmdCtx.createSettingsManager()
 			errors.CheckError(err)
 
 			if len(groups) == 0 {
@@ -320,7 +338,7 @@ argocd-util settings validate --group accounts --group plugins --load-cluster-se
 	return command
 }
 
-func NewResourceOverridesCommand(opts *settingsOpts) *cobra.Command {
+func NewResourceOverridesCommand(cmdCtx commandContext) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "resource-overrides",
 		Short: "Troubleshoot resource overrides",
@@ -328,26 +346,30 @@ func NewResourceOverridesCommand(opts *settingsOpts) *cobra.Command {
 			c.HelpFunc()(c, args)
 		},
 	}
-	command.AddCommand(NewResourceIgnoreDifferencesCommand(opts))
-	command.AddCommand(NewResourceActionCommand(opts))
-	command.AddCommand(NewResourceHealthCommand(opts))
+	command.AddCommand(NewResourceIgnoreDifferencesCommand(cmdCtx))
+	command.AddCommand(NewResourceActionCommand(cmdCtx))
+	command.AddCommand(NewResourceHealthCommand(cmdCtx))
 	return command
 }
 
-func executeResourceOverrideCommand(opts *settingsOpts, args []string, callback func(res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride)) {
+func executeResourceOverrideCommand(cmdCtx commandContext, args []string, callback func(res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride)) {
 	data, err := ioutil.ReadFile(args[0])
 	errors.CheckError(err)
 
 	res := unstructured.Unstructured{}
 	errors.CheckError(yaml.Unmarshal(data, &res))
 
-	settingsManager, err := opts.createSettingsManager()
+	settingsManager, err := cmdCtx.createSettingsManager()
 	errors.CheckError(err)
 
 	overrides, err := settingsManager.GetResourceOverrides()
 	errors.CheckError(err)
 	gvk := res.GroupVersionKind()
-	override, hasOverride := overrides[fmt.Sprintf("%s/%s", gvk.Group, gvk.Kind)]
+	key := gvk.Kind
+	if gvk.Group != "" {
+		key = fmt.Sprintf("%s/%s", gvk.Group, gvk.Kind)
+	}
+	override, hasOverride := overrides[key]
 	if !hasOverride {
 		_, _ = fmt.Printf("No overrides configured for '%s/%s'\n", gvk.Group, gvk.Kind)
 		return
@@ -355,7 +377,7 @@ func executeResourceOverrideCommand(opts *settingsOpts, args []string, callback 
 	callback(res, override, overrides)
 }
 
-func NewResourceIgnoreDifferencesCommand(opts *settingsOpts) *cobra.Command {
+func NewResourceIgnoreDifferencesCommand(cmdCtx commandContext) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "ignore-differences RESOURCE_YAML_PATH",
 		Short: "Renders fields excluded from diffing",
@@ -368,7 +390,7 @@ argocd-util settings resource-overrides ignore-differences ./deploy.yaml --argoc
 				os.Exit(1)
 			}
 
-			executeResourceOverrideCommand(opts, args, func(res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride) {
+			executeResourceOverrideCommand(cmdCtx, args, func(res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride) {
 				gvk := res.GroupVersionKind()
 				if override.IgnoreDifferences == "" {
 					_, _ = fmt.Printf("Ignore differences are not configured for '%s/%s'\n", gvk.Group, gvk.Kind)
@@ -399,7 +421,7 @@ argocd-util settings resource-overrides ignore-differences ./deploy.yaml --argoc
 	return command
 }
 
-func NewResourceHealthCommand(opts *settingsOpts) *cobra.Command {
+func NewResourceHealthCommand(cmdCtx commandContext) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "health RESOURCE_YAML_PATH",
 		Short: "Assess resource health",
@@ -412,7 +434,7 @@ argocd-util settings resource-overrides health ./deploy.yaml --argocd-cm-path ./
 				os.Exit(1)
 			}
 
-			executeResourceOverrideCommand(opts, args, func(res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride) {
+			executeResourceOverrideCommand(cmdCtx, args, func(res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride) {
 				gvk := res.GroupVersionKind()
 				if override.HealthLua == "" {
 					_, _ = fmt.Printf("Health script is not configured for '%s/%s'\n", gvk.Group, gvk.Kind)
@@ -430,7 +452,7 @@ argocd-util settings resource-overrides health ./deploy.yaml --argocd-cm-path ./
 	return command
 }
 
-func NewResourceActionCommand(opts *settingsOpts) *cobra.Command {
+func NewResourceActionCommand(cmdCtx commandContext) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "action RESOURCE_YAML_PATH ACTION",
 		Short: "Executes resource action",
@@ -444,7 +466,7 @@ argocd-util settings resource-overrides action /tmp/deploy.yaml restart --argocd
 			}
 			action := args[1]
 
-			executeResourceOverrideCommand(opts, args, func(res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride) {
+			executeResourceOverrideCommand(cmdCtx, args, func(res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride) {
 				gvk := res.GroupVersionKind()
 				if override.Actions == "" {
 					_, _ = fmt.Printf("Actions are not configured for '%s/%s'\n", gvk.Group, gvk.Kind)
