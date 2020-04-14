@@ -102,6 +102,39 @@ type HelmRepoCredentials struct {
 	KeySecret      *apiv1.SecretKeySelector `json:"keySecret,omitempty"`
 }
 
+// KustomizeVersion holds information about additional Kustomize version
+type KustomizeVersion struct {
+	// Name holds Kustomize version name
+	Name string
+	// Name holds corresponding binary path
+	Path string
+}
+
+// KustomizeSettings holds kustomize settings
+type KustomizeSettings struct {
+	BuildOptions string
+	Versions     []KustomizeVersion
+}
+
+func (ks *KustomizeSettings) GetOptions(source v1alpha1.ApplicationSource) (*v1alpha1.KustomizeOptions, error) {
+	binaryPath := ""
+	if source.Kustomize != nil && source.Kustomize.Version != "" {
+		for _, ver := range ks.Versions {
+			if ver.Name == source.Kustomize.Version {
+				binaryPath = ver.Path
+				break
+			}
+		}
+		if binaryPath == "" {
+			return nil, fmt.Errorf("kustomize version %s is not registered", source.Kustomize.Version)
+		}
+	}
+	return &v1alpha1.KustomizeOptions{
+		BuildOptions: ks.BuildOptions,
+		BinaryPath:   binaryPath,
+	}, nil
+}
+
 // Credentials for accessing a Git repository
 type Repository struct {
 	// The URL to the repository
@@ -195,6 +228,8 @@ const (
 	configManagementPluginsKey = "configManagementPlugins"
 	// kustomizeBuildOptionsKey is a string of kustomize build parameters
 	kustomizeBuildOptionsKey = "kustomize.buildOptions"
+	// kustomizeVersionKeyPrefix is a kustomize version key prefix
+	kustomizeVersionKeyPrefix = "kustomize.version"
 	// anonymousUserEnabledKey is the key which enables or disables anonymous user
 	anonymousUserEnabledKey = "users.anonymous.enabled"
 )
@@ -408,16 +443,26 @@ func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.Resource
 	return resourceOverrides, nil
 }
 
-// GetKustomizeBuildOptions loads the kustomize build options from argocd-cm ConfigMap
-func (mgr *SettingsManager) GetKustomizeBuildOptions() (string, error) {
+// GetKustomizeSettings loads the kustomize settings from argocd-cm ConfigMap
+func (mgr *SettingsManager) GetKustomizeSettings() (*KustomizeSettings, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
+	settings := &KustomizeSettings{}
 	if value, ok := argoCDCM.Data[kustomizeBuildOptionsKey]; ok {
-		return value, nil
+		settings.BuildOptions = value
 	}
-	return "", nil
+	for k, v := range argoCDCM.Data {
+		if !strings.HasPrefix(k, kustomizeVersionKeyPrefix) {
+			continue
+		}
+		settings.Versions = append(settings.Versions, KustomizeVersion{
+			Name: k[len(kustomizeVersionKeyPrefix)+1:],
+			Path: v,
+		})
+	}
+	return settings, nil
 }
 
 // DEPRECATED. Helm repository credentials are now managed using RepoCredentials

@@ -357,7 +357,11 @@ func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.Manifest
 	case v1alpha1.ApplicationSourceTypeHelm:
 		targetObjs, err = helmTemplate(appPath, repoRoot, env, q, isLocal)
 	case v1alpha1.ApplicationSourceTypeKustomize:
-		k := kustomize.NewKustomizeApp(appPath, q.Repo.GetGitCreds(), repoURL)
+		kustomizeBinary := ""
+		if q.KustomizeOptions != nil {
+			kustomizeBinary = q.KustomizeOptions.BinaryPath
+		}
+		k := kustomize.NewKustomizeApp(appPath, q.Repo.GetGitCreds(), repoURL, kustomizeBinary)
 		targetObjs, _, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions)
 	case v1alpha1.ApplicationSourceTypePlugin:
 		targetObjs, err = runConfigManagementPlugin(appPath, env, q, q.Repo.GetGitCreds())
@@ -750,7 +754,11 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 			}
 		case v1alpha1.ApplicationSourceTypeKustomize:
 			res.Kustomize = &apiclient.KustomizeAppSpec{}
-			k := kustomize.NewKustomizeApp(appPath, q.Repo.GetGitCreds(), q.Repo.Repo)
+			kustomizeBinary := ""
+			if q.KustomizeOptions != nil {
+				kustomizeBinary = q.KustomizeOptions.BinaryPath
+			}
+			k := kustomize.NewKustomizeApp(appPath, q.Repo.GetGitCreds(), q.Repo.Repo, kustomizeBinary)
 			_, images, err := k.Build(nil, q.KustomizeOptions)
 			if err != nil {
 				return err

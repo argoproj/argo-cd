@@ -305,12 +305,15 @@ type ApplicationSourceKustomize struct {
 	Images KustomizeImages `json:"images,omitempty" protobuf:"bytes,3,opt,name=images"`
 	// CommonLabels adds additional kustomize commonLabels
 	CommonLabels map[string]string `json:"commonLabels,omitempty" protobuf:"bytes,4,opt,name=commonLabels"`
+	// Version contains optional Kustomize version
+	Version string `json:"version,omitempty" protobuf:"bytes,5,opt,name=version"`
 }
 
 func (k *ApplicationSourceKustomize) IsZero() bool {
 	return k == nil ||
 		k.NamePrefix == "" &&
 			k.NameSuffix == "" &&
+			k.Version == "" &&
 			len(k.Images) == 0 &&
 			len(k.CommonLabels) == 0
 }
@@ -1965,6 +1968,8 @@ type ConfigManagementPlugin struct {
 type KustomizeOptions struct {
 	// BuildOptions is a string of build parameters to use when calling `kustomize build`
 	BuildOptions string `protobuf:"bytes,1,opt,name=buildOptions"`
+	// BinaryPath holds optional path to kustomize binary
+	BinaryPath string `protobuf:"bytes,2,opt,name=binaryPath"`
 }
 
 // ProjectPoliciesString returns Casbin formated string of a project's policies for each role

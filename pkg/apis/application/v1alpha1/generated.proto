@@ -206,6 +206,9 @@ message ApplicationSourceKustomize {
 
   // CommonLabels adds additional kustomize commonLabels
   map<string, string> commonLabels = 4;
+
+  // Version contains optional Kustomize version
+  optional string version = 5;
 }
 
 // ApplicationSourcePlugin holds config management plugin specific options
@@ -474,6 +477,9 @@ message KsonnetParameter {
 message KustomizeOptions {
   // BuildOptions is a string of build parameters to use when calling `kustomize build`
   optional string buildOptions = 1;
+
+  // BinaryPath holds optional path to kustomize binary
+  optional string binaryPath = 2;
 }
 
 // Operation contains requested operation parameters.

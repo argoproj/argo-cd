@@ -69,6 +69,15 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 		}
 	}
 
+	kustomizeSettings, err := s.mgr.GetKustomizeSettings()
+	if err != nil {
+		return nil, err
+	}
+	var kustomizeVersions []string
+	for i := range kustomizeSettings.Versions {
+		kustomizeVersions = append(kustomizeVersions, kustomizeSettings.Versions[i].Name)
+	}
+
 	set := settingspkg.Settings{
 		URL:                argoCDSettings.URL,
 		AppLabelKey:        appInstanceLabelKey,
@@ -87,6 +96,7 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 		},
 		Plugins:            plugins,
 		UserLoginsDisabled: userLoginsDisabled,
+		KustomizeVersions:  kustomizeVersions,
 	}
 
 	if sessionmgr.LoggedIn(ctx) {

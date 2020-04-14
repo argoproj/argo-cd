@@ -514,6 +514,8 @@ func setAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			setKustomizeOpt(&spec.Source, kustomizeOpts{nameSuffix: appOpts.nameSuffix})
 		case "kustomize-image":
 			setKustomizeOpt(&spec.Source, kustomizeOpts{images: appOpts.kustomizeImages})
+		case "kustomize-version":
+			setKustomizeOpt(&spec.Source, kustomizeOpts{version: appOpts.kustomizeVersion})
 		case "jsonnet-tla-str":
 			setJsonnetOpt(&spec.Source, appOpts.jsonnetTlaStr, false)
 		case "jsonnet-tla-code":
@@ -589,12 +591,14 @@ type kustomizeOpts struct {
 	namePrefix string
 	nameSuffix string
 	images     []string
+	version    string
 }
 
 func setKustomizeOpt(src *argoappv1.ApplicationSource, opts kustomizeOpts) {
 	if src.Kustomize == nil {
 		src.Kustomize = &argoappv1.ApplicationSourceKustomize{}
 	}
+	src.Kustomize.Version = opts.version
 	src.Kustomize.NamePrefix = opts.namePrefix
 	src.Kustomize.NameSuffix = opts.nameSuffix
 	for _, image := range opts.images {
@@ -696,6 +700,7 @@ type appOptions struct {
 	jsonnetExtVarStr       []string
 	jsonnetExtVarCode      []string
 	kustomizeImages        []string
+	kustomizeVersion       string
 }
 
 func addAppFlags(command *cobra.Command, opts *appOptions) {
@@ -720,6 +725,7 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().BoolVar(&opts.selfHeal, "self-heal", false, "Set self healing when sync is automated")
 	command.Flags().StringVar(&opts.namePrefix, "nameprefix", "", "Kustomize nameprefix")
 	command.Flags().StringVar(&opts.nameSuffix, "namesuffix", "", "Kustomize namesuffix")
+	command.Flags().StringVar(&opts.nameSuffix, "kustomize-vesion", "", "Kustomize version")
 	command.Flags().BoolVar(&opts.directoryRecurse, "directory-recurse", false, "Recurse directory")
 	command.Flags().StringVar(&opts.configManagementPlugin, "config-management-plugin", "", "Config management plugin name")
 	command.Flags().StringArrayVar(&opts.jsonnetTlaStr, "jsonnet-tla-str", []string{}, "Jsonnet top level string arguments")
@@ -732,11 +738,12 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 // NewApplicationUnsetCommand returns a new instance of an `argocd app unset` command
 func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		parameters      []string
-		valuesFiles     []string
-		nameSuffix      bool
-		namePrefix      bool
-		kustomizeImages []string
+		parameters       []string
+		valuesFiles      []string
+		nameSuffix       bool
+		namePrefix       bool
+		kustomizeVersion bool
+		kustomizeImages  []string
 	)
 	var command = &cobra.Command{
 		Use:   "unset APPNAME parameters",
@@ -771,6 +778,11 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 				if nameSuffix {
 					updated = true
 					app.Spec.Source.Kustomize.NameSuffix = ""
+				}
+
+				if kustomizeVersion {
+					updated = true
+					app.Spec.Source.Kustomize.Version = ""
 				}
 
 				for _, kustomizeImage := range kustomizeImages {
@@ -849,6 +861,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 	command.Flags().StringArrayVar(&valuesFiles, "values", []string{}, "unset one or more helm values files")
 	command.Flags().BoolVar(&nameSuffix, "namesuffix", false, "Kustomize namesuffix")
 	command.Flags().BoolVar(&namePrefix, "nameprefix", false, "Kustomize nameprefix")
+	command.Flags().BoolVar(&kustomizeVersion, "kustomize-version", false, "Kustomize version")
 	command.Flags().StringArrayVar(&kustomizeImages, "kustomize-image", []string{}, "Kustomize images name (e.g. --kustomize-image node --kustomize-image mysql)")
 	return command
 }
