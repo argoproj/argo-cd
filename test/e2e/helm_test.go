@@ -2,6 +2,8 @@ package e2e
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -85,24 +87,6 @@ func TestDeclarativeHelmInvalidValuesFile(t *testing.T) {
 		Expect(HealthIs(HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeUnknown)).
 		Expect(Condition(ApplicationConditionComparisonError, "does-not-exist-values.yaml: no such file or directory"))
-}
-
-func TestHelmRepo(t *testing.T) {
-	Given(t).
-		CustomCACertAdded().
-		HelmRepoAdded("custom-repo").
-		RepoURLType(RepoURLTypeHelm).
-		Chart("helm").
-		Revision("1.0.0").
-		When().
-		Create().
-		Then().
-		When().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(HealthIs(HealthStatusHealthy)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
 func TestHelmValues(t *testing.T) {
@@ -303,23 +287,33 @@ func TestHelm3CRD(t *testing.T) {
 }
 
 func TestHelmRepoDiffLocal(t *testing.T) {
+	helmTmp, err := ioutil.TempDir("", "argocd-helm-repo-diff-local-test")
+	assert.NoError(t, err)
 	Given(t).
-		Path("helm3-repo-diff-local").
-		And(func() {
-			args := []string{
-				"repo",
-				"add",
-				"https://azure-samples.github.io/helm-charts/",
-				"--type", "helm",
-				"--name", "mayhelmrepo",
-			}
-			errors.FailOnErr(fixture.RunCli(args...))
-		}).
+		CustomCACertAdded().
+		HelmRepoAdded("custom-repo").
+		RepoURLType(RepoURLTypeHelm).
+		Chart("helm").
+		Revision("1.0.0").
 		When().
 		Create().
+		Then().
+		When().
 		Sync().
 		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
-			FailOnErr(RunCli("app", "diff", app.Name, "--local", "testdata/helm3-repo-diff-local"))
+			_ = os.Setenv("XDG_CONFIG_HOME", helmTmp)
+			FailOnErr(Run("", "helm", "repo", "add", "custom-repo", RepoURL(RepoURLTypeHelm),
+				"--username", GitUsername,
+				"--password", GitPassword,
+				"--cert-file", "../fixture/certs/argocd-test-client.crt",
+				"--key-file", "../fixture/certs/argocd-test-client.key",
+				"--ca-file", "../fixture/certs/argocd-test-ca.crt",
+			))
+			diffOutput := FailOnErr(RunCli("app", "diff", app.Name, "--local", "testdata/helm")).(string)
+			assert.Empty(t, diffOutput)
 		})
 }
