@@ -43,7 +43,7 @@ var (
 	descAppInfo = prometheus.NewDesc(
 		"argocd_app_info",
 		"Information about application.",
-		append(descAppDefaultLabels, "repo", "dest_server", "dest_namespace", "sync_status", "health_status", "operation","sync_automated","sync_prune","sync_selfheal"),
+		append(descAppDefaultLabels, "repo", "dest_server", "dest_namespace", "sync_status", "health_status", "operation", "sync_automated", "sync_prune", "sync_selfheal"),
 		nil,
 	)
 	// DEPRECATED
