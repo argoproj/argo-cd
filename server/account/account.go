@@ -71,7 +71,7 @@ func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRe
 		if err != nil {
 			return nil, err
 		}
-		if time.Now().Sub(iat) > common.ChangePasswordSSOTokenMaxAge {
+		if time.Since(iat) > common.ChangePasswordSSOTokenMaxAge {
 			return nil, errors.New("SSO token is too old. Please use 'argocd relogin' to get a new token.")
 		}
 	}

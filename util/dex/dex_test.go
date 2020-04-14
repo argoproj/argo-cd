@@ -230,6 +230,7 @@ func Test_DexReverseProxy(t *testing.T) {
 		assert.NotNil(t, rt)
 		req, err := http.NewRequest("GET", "/", bytes.NewBuffer([]byte("")))
 		assert.NoError(t, err)
-		rt.RoundTrip(req)
+		_, err = rt.RoundTrip(req)
+		assert.NoError(t, err)
 	})
 }

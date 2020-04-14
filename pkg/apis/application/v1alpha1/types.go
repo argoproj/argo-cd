@@ -1083,8 +1083,8 @@ type TLSClientConfig struct {
 
 // KnownTypeField contains mapping between CRD field and known Kubernetes type
 type KnownTypeField struct {
-	Field string `json:"field, omitempty" protobuf:"bytes,1,opt,name=field"`
-	Type  string `json:"type, omitempty" protobuf:"bytes,2,opt,name=type"`
+	Field string `json:"field,omitempty" protobuf:"bytes,1,opt,name=field"`
+	Type  string `json:"type,omitempty" protobuf:"bytes,2,opt,name=type"`
 }
 
 // ResourceOverride holds configuration to customize resource diffing and health assessment

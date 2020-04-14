@@ -233,6 +233,7 @@ func newTLSConfig(creds Creds) (*tls.Config, error) {
 		}
 		tlsConfig.Certificates = []tls.Certificate{cert}
 	}
+	// nolint:staticcheck
 	tlsConfig.BuildNameToCertificate()
 
 	return tlsConfig, nil
