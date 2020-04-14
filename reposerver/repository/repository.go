@@ -227,7 +227,7 @@ func getHelmRepos(repositories []*v1alpha1.Repository) []helm.HelmRepository {
 	return repos
 }
 
-func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal ...bool) ([]*unstructured.Unstructured, error) {
+func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool) ([]*unstructured.Unstructured, error) {
 	templateOpts := &helm.TemplateOpts{
 		Name:        q.AppLabelValue,
 		Namespace:   q.Namespace,
@@ -309,7 +309,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 	for i, j := range templateOpts.SetFile {
 		templateOpts.SetFile[i] = env.Envsubst(j)
 	}
-	h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos), isLocal...)
+	h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos), isLocal)
 
 	if err != nil {
 		return nil, err
@@ -337,7 +337,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 }
 
 // GenerateManifests generates manifests from a path
-func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.ManifestRequest, isLocal ...bool) (*apiclient.ManifestResponse, error) {
+func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.ManifestRequest, isLocal bool) (*apiclient.ManifestResponse, error) {
 	var targetObjs []*unstructured.Unstructured
 	var dest *v1alpha1.ApplicationDestination
 
@@ -355,7 +355,7 @@ func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.Manifest
 	case v1alpha1.ApplicationSourceTypeKsonnet:
 		targetObjs, dest, err = ksShow(q.AppLabelKey, appPath, q.ApplicationSource.Ksonnet)
 	case v1alpha1.ApplicationSourceTypeHelm:
-		targetObjs, err = helmTemplate(appPath, repoRoot, env, q, isLocal...)
+		targetObjs, err = helmTemplate(appPath, repoRoot, env, q, isLocal)
 	case v1alpha1.ApplicationSourceTypeKustomize:
 		k := kustomize.NewKustomizeApp(appPath, q.Repo.GetGitCreds(), repoURL)
 		targetObjs, _, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions)
