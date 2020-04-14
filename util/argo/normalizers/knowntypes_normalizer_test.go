@@ -45,6 +45,7 @@ func mustUnmarshalYAML(yamlStr string) *unstructured.Unstructured {
 	return un
 }
 
+// nolint:unparam
 func nestedSliceMap(obj map[string]interface{}, i int, path ...string) (map[string]interface{}, error) {
 	items, ok, err := unstructured.NestedSlice(obj, path...)
 	if err != nil {
