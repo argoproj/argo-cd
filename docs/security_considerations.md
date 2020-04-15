@@ -1,6 +1,6 @@
 # Security Considerations
 
-As a deployment tool, Argo CD needs to have production access which makes security a very important topic. 
+As a deployment tool, Argo CD needs to have production access which makes security a very important topic.
 The Argoproj team takes security very seriously and continuously working on improving it. Learn more about security
 related features in [Security](./operator-manual/security.md) section.
 
@@ -13,6 +13,7 @@ no fix yet.
 
 |Date|CVE|Title|Risk|Affected version(s)|Fix version|
 |----|---|-----|----|-------------------|-----------|
+|2020-04-14|[CVE-2020-5260](https://nvd.nist.gov/vuln/detail/CVE-2020-5260)|Possible Git credential leak|Critical|all|v1.4.3,v1.5.2|
 |2020-04-08|[CVE-2020-11576](https://nvd.nist.gov/vuln/detail/CVE-2020-11576)|User Enumeration|Medium|v1.5.0|v1.5.1|
 |2020-04-08|[CVE-2020-8826](https://nvd.nist.gov/vuln/detail/CVE-2020-8826)|Session-fixation|High|all|n/a|
 |2020-04-08|[CVE-2020-8827](https://nvd.nist.gov/vuln/detail/CVE-2020-8827)|Insufficient anti-automation/anti-brute force|High|all|n/a|
@@ -24,6 +25,41 @@ no fix yet.
 A recent security audit (thanks a lot to [Matt Hamilton](https://github.com/Eriner) of [https://soluble.ai](https://soluble.ai) )
 has revealed several limitations in Argo CD which could compromise security.
 Most of the issues are related to the built-in user management implementation.
+
+### CVE-2020-5260 - Possible Git credential leak
+
+**Summary:**
+
+|Risk|Reported by|Fix version|Workaround|
+|----|-----------|-----------|----------|
+|Critical|Felix Wilhelm of Google Project Zero|v1.4.3,v1.5.2|Yes|
+
+**Details:**
+
+ArgoCD relies on Git for many of its operations. The Git project released a
+[security advisory](https://github.com/git/git/security/advisories/GHSA-qm7j-c969-7j4q)
+on 2020-04-14, describing a serious vulnerability in Git which can lead to credential
+leakage through credential helpers by feeding malicious URLs to the `git clone`
+operation.
+
+We do not believe ArgoCD is affected by this vulnerability, because ArgoCD does neither
+make use of Git credential helpers nor does it use `git clone` for repository operations.
+However, we do not know whether our users might have configured Git credential helpers on
+their own and chose to release new images which contain the bug fix for Git.
+
+**Mitigation and/or workaround:**
+
+We strongly recommend to upgrade your ArgoCD installation to either `v1.4.3` (if on v1.4
+branch) or `v1.5.2` (if on v1.5 branch) 
+
+
+When you are running `v1.4.x`, you can upgrade to `v1.4.3` by simply changing the image
+tags for `argocd-server`, `argocd-repo-server` and `argocd-controller` to `v1.4.3`. 
+The `v1.4.3` release does not contain additional functional bug fixes.
+
+Likewise, hen you are running `v1.5.x`, you can upgrade to `v1.5.2` by simply changing
+the image tags for `argocd-server`, `argocd-repo-server` and `argocd-controller` to `v1.5.2`.
+The `v1.5.2` release does not contain additional functional bug fixes.
 
 ### CVE-2020-11576 - User Enumeration
 

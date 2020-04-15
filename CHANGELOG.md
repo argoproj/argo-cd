@@ -1,5 +1,32 @@
 # Changelog
 
+## v1.5.2 (2020-04-20)
+
+#### Critical security fix
+
+This release contains a critical security fix. Please refer to the
+[security document](https://argoproj.github.io/argo-cd/security_considerations/#CVE-2020-5260-possible-git-credential-leak)
+for more information.
+
+**Upgrading is strongly recommended**
+
+## v1.4.3 (2020-04-20)
+
+#### Critical security fix
+
+This release contains a critical security fix. Please refer to the
+[security document](https://argoproj.github.io/argo-cd/security_considerations/#CVE-2020-5260-possible-git-credential-leak)
+for more information.
+
+## v1.5.1 (2020-04-06)
+
+#### Bug Fixes
+
+* fix: return 401 error code if username does not exist (#3369)
+* fix: Do not panic while running hooks with short revision (#3368)
+* fix: Increase HAProxy check interval to prevent intermittent failures (#3356)
+* fix: Helm v3 CRD are not deployed (#3345)
+
 ## v1.5.0 (2020-04-02)
 
 #### Helm Integration Enhancements - Helm 3 Support And More
