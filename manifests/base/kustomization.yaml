@@ -12,4 +12,4 @@ bases:
 images:
 - name: argoproj/argocd
   newName: argoproj/argocd
-  newTag: v1.5.1
+  newTag: v1.5.2
