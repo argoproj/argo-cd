@@ -241,11 +241,18 @@ var validatorsByGroup = map[string]settingValidator{
 		return fmt.Sprintf("%d plugins", len(plugins)), nil
 	},
 	"kustomize": func(manager *settings.SettingsManager) (string, error) {
-		opts, err := manager.GetKustomizeBuildOptions()
-		if opts == "" {
-			opts = "default options"
+		opts, err := manager.GetKustomizeSettings()
+		if err != nil {
+			return "", err
 		}
-		return opts, err
+		summary := "default options"
+		if opts.BuildOptions != "" {
+			summary = opts.BuildOptions
+		}
+		if len(opts.Versions) > 0 {
+			summary = fmt.Sprintf("%s (%d versions)", summary, len(opts.Versions))
+		}
+		return summary, err
 	},
 	"repositories": joinValidators(func(manager *settings.SettingsManager) (string, error) {
 		repos, err := manager.GetRepositories()

@@ -124,7 +124,7 @@
         "tags": [
           "AccountService"
         ],
-        "operationId": "CreateToken",
+        "operationId": "CreateTokenMixin9",
         "parameters": [
           {
             "type": "string",
@@ -156,7 +156,7 @@
         "tags": [
           "AccountService"
         ],
-        "operationId": "DeleteToken",
+        "operationId": "DeleteTokenMixin9",
         "parameters": [
           {
             "type": "string",
@@ -187,7 +187,7 @@
           "ApplicationService"
         ],
         "summary": "List returns list of applications",
-        "operationId": "ListMixin5",
+        "operationId": "ListMixin8",
         "parameters": [
           {
             "type": "string",
@@ -237,7 +237,7 @@
           "ApplicationService"
         ],
         "summary": "Create creates an application",
-        "operationId": "CreateMixin5",
+        "operationId": "CreateMixin8",
         "parameters": [
           {
             "name": "body",
@@ -264,7 +264,7 @@
           "ApplicationService"
         ],
         "summary": "Update updates an application",
-        "operationId": "UpdateMixin5",
+        "operationId": "UpdateMixin8",
         "parameters": [
           {
             "type": "string",
@@ -395,7 +395,7 @@
           "ApplicationService"
         ],
         "summary": "Get returns an application by name",
-        "operationId": "GetMixin5",
+        "operationId": "GetMixin8",
         "parameters": [
           {
             "type": "string",
@@ -445,7 +445,7 @@
           "ApplicationService"
         ],
         "summary": "Delete deletes an application",
-        "operationId": "DeleteMixin5",
+        "operationId": "DeleteMixin8",
         "parameters": [
           {
             "type": "string",
@@ -1166,7 +1166,7 @@
           "ClusterService"
         ],
         "summary": "Get returns a cluster by server address",
-        "operationId": "GetMixin3",
+        "operationId": "GetMixin2",
         "parameters": [
           {
             "type": "string",
@@ -1419,7 +1419,7 @@
           "ProjectService"
         ],
         "summary": "Create a new project token.",
-        "operationId": "CreateTokenMixin6",
+        "operationId": "CreateToken",
         "parameters": [
           {
             "type": "string",
@@ -1458,7 +1458,7 @@
           "ProjectService"
         ],
         "summary": "Delete a new project token.",
-        "operationId": "DeleteTokenMixin6",
+        "operationId": "DeleteToken",
         "parameters": [
           {
             "type": "string",
@@ -1846,7 +1846,7 @@
           "SessionService"
         ],
         "summary": "Create a new JWT for authentication and set a cookie if using HTTP.",
-        "operationId": "CreateMixin8",
+        "operationId": "CreateMixin10",
         "parameters": [
           {
             "name": "body",
@@ -1871,7 +1871,7 @@
           "SessionService"
         ],
         "summary": "Delete an existing JWT cookie if using HTTP.",
-        "operationId": "DeleteMixin8",
+        "operationId": "DeleteMixin10",
         "responses": {
           "200": {
             "description": "(empty)",
@@ -2356,6 +2356,12 @@
         },
         "kustomizeOptions": {
           "$ref": "#/definitions/v1alpha1KustomizeOptions"
+        },
+        "kustomizeVersions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         },
         "oidcConfig": {
           "$ref": "#/definitions/clusterOIDCConfig"
@@ -3418,6 +3424,10 @@
         "nameSuffix": {
           "type": "string",
           "title": "NameSuffix is a suffix appended to resources for kustomize apps"
+        },
+        "version": {
+          "type": "string",
+          "title": "Version contains optional Kustomize version"
         }
       }
     },
@@ -3845,6 +3855,10 @@
       "type": "object",
       "title": "KustomizeOptions are options for kustomize to use when building manifests",
       "properties": {
+        "binaryPath": {
+          "type": "string",
+          "title": "BinaryPath holds optional path to kustomize binary"
+        },
         "buildOptions": {
           "type": "string",
           "title": "BuildOptions is a string of build parameters to use when calling `kustomize build`"

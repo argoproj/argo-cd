@@ -168,17 +168,19 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 	if err != nil {
 		return nil, err
 	}
-	buildOptions, err := s.settings.GetKustomizeBuildOptions()
+	kustomizeSettings, err := s.settings.GetKustomizeSettings()
+	if err != nil {
+		return nil, err
+	}
+	kustomizeOptions, err := kustomizeSettings.GetOptions(*q.Source)
 	if err != nil {
 		return nil, err
 	}
 	return repoClient.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
-		Repo:   repo,
-		Source: q.Source,
-		Repos:  helmRepos,
-		KustomizeOptions: &appsv1.KustomizeOptions{
-			BuildOptions: buildOptions,
-		},
+		Repo:             repo,
+		Source:           q.Source,
+		Repos:            helmRepos,
+		KustomizeOptions: kustomizeOptions,
 	})
 }
 

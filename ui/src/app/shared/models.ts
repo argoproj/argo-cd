@@ -179,6 +179,7 @@ export interface ApplicationSourceKustomize {
     namePrefix: string;
     nameSuffix: string;
     images: string[];
+    version: string;
 }
 
 export interface ApplicationSourceKsonnet {
@@ -394,6 +395,7 @@ export interface AuthSettings {
     };
     plugins: Plugin[];
     userLoginsDisabled: boolean;
+    kustomizeVersions: string[];
 }
 
 export interface UserInfo {

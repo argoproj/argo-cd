@@ -232,6 +232,9 @@ spec:
                           description: NameSuffix is a suffix appended to resources
                             for kustomize apps
                           type: string
+                        version:
+                          description: Version contains optional Kustomize version
+                          type: string
                       type: object
                     path:
                       description: Path is a directory path within the Git repository
@@ -516,6 +519,9 @@ spec:
                       description: NameSuffix is a suffix appended to resources for
                         kustomize apps
                       type: string
+                    version:
+                      description: Version contains optional Kustomize version
+                      type: string
                   type: object
                 path:
                   description: Path is a directory path within the Git repository
@@ -774,6 +780,9 @@ spec:
                           nameSuffix:
                             description: NameSuffix is a suffix appended to resources
                               for kustomize apps
+                            type: string
+                          version:
+                            description: Version contains optional Kustomize version
                             type: string
                         type: object
                       path:
@@ -1047,6 +1056,10 @@ spec:
                                 nameSuffix:
                                   description: NameSuffix is a suffix appended to
                                     resources for kustomize apps
+                                  type: string
+                                version:
+                                  description: Version contains optional Kustomize
+                                    version
                                   type: string
                               type: object
                             path:
@@ -1334,6 +1347,9 @@ spec:
                               description: NameSuffix is a suffix appended to resources
                                 for kustomize apps
                               type: string
+                            version:
+                              description: Version contains optional Kustomize version
+                              type: string
                           type: object
                         path:
                           description: Path is a directory path within the Git repository
@@ -1606,6 +1622,9 @@ spec:
                             nameSuffix:
                               description: NameSuffix is a suffix appended to resources
                                 for kustomize apps
+                              type: string
+                            version:
+                              description: Version contains optional Kustomize version
                               type: string
                           type: object
                         path:

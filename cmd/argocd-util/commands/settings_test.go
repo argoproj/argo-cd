@@ -161,7 +161,9 @@ clientSecret: aaaabbbbccccddddeee`,
 		"Kustomize_DefaultOptions": {
 			validator: "kustomize",
 			data: map[string]string{
-				"kustomize.buildOptions": "updated-options",
+				"kustomize.buildOptions":  "updated-options (2 versions)",
+				"kustomize.versions.v123": "binary-123",
+				"kustomize.versions.v321": "binary-321",
 			},
 			containsSummary: "updated-options",
 		},

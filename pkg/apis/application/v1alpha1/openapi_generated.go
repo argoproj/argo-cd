@@ -780,6 +780,13 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref common.
 							},
 						},
 					},
+					"version": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Version contains optional Kustomize version",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
@@ -1696,8 +1703,15 @@ func schema_pkg_apis_application_v1alpha1_KustomizeOptions(ref common.ReferenceC
 							Format:      "",
 						},
 					},
+					"BinaryPath": {
+						SchemaProps: spec.SchemaProps{
+							Description: "BinaryPath holds optional path to kustomize binary",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
-				Required: []string{"BuildOptions"},
+				Required: []string{"BuildOptions", "BinaryPath"},
 			},
 		},
 	}
