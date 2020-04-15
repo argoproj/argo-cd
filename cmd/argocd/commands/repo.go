@@ -165,7 +165,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				Upsert: upsert,
 			}
 
-			createdRepo, err := repoIf.CreateRepository(context.Background(), &repoCreateReq)
+			createdRepo, err := repoIf.Create(context.Background(), &repoCreateReq)
 			errors.CheckError(err)
 			fmt.Printf("repository '%s' added\n", createdRepo.Repo)
 		},
@@ -197,7 +197,7 @@ func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			conn, repoIf := argocdclient.NewClientOrDie(clientOpts).NewRepoClientOrDie()
 			defer util.Close(conn)
 			for _, repoURL := range args {
-				_, err := repoIf.DeleteRepository(context.Background(), &repositorypkg.RepoQuery{Repo: repoURL})
+				_, err := repoIf.Delete(context.Background(), &repositorypkg.RepoQuery{Repo: repoURL})
 				errors.CheckError(err)
 			}
 		},
@@ -253,7 +253,7 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				err := fmt.Errorf("--refresh must be one of: 'hard'")
 				errors.CheckError(err)
 			}
-			repos, err := repoIf.ListRepositories(context.Background(), &repositorypkg.RepoQuery{ForceRefresh: forceRefresh})
+			repos, err := repoIf.List(context.Background(), &repositorypkg.RepoQuery{ForceRefresh: forceRefresh})
 			errors.CheckError(err)
 			switch output {
 			case "yaml", "json":
