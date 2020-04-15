@@ -46,14 +46,15 @@ export const AccountDetails = (props: RouteComponentProps<{name: string}>) => {
 
                             <h4>Tokens</h4>
                             <Form
-                                onSubmit={async params => {
+                                onSubmit={async (params, event, api) => {
                                     const expiresIn = convertExpiresInToSeconds(params.expiresIn);
                                     const confirmed = await ctx.popup.confirm('Generate new token?', 'Are you sure you want to generate new token?');
                                     if (!confirmed) {
                                         return;
                                     }
                                     try {
-                                        setNewToken(await services.accounts.createToken(props.match.params.name, expiresIn));
+                                        setNewToken(await services.accounts.createToken(props.match.params.name, params.id, expiresIn));
+                                        api.resetAll();
                                         if (tokensLoaderRef.current) {
                                             tokensLoaderRef.current.reload();
                                         }
@@ -71,6 +72,9 @@ export const AccountDetails = (props: RouteComponentProps<{name: string}>) => {
                                     <form onSubmit={api.submitForm}>
                                         <div className='row argo-table-list__row'>
                                             <div className='columns small-10'>
+                                                <div className='argo-form-row'>
+                                                    <FormField formApi={api} label='Token ID' field='id' component={Text} />
+                                                </div>
                                                 <div className='argo-form-row'>
                                                     <FormField formApi={api} label='Expires In' field='expiresIn' component={Text} />
                                                 </div>
