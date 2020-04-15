@@ -696,6 +696,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#custom-kustomize-versions" title="Custom Kustomize versions" class="md-nav__link">
+    Custom Kustomize versions
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#build-environment" title="Build Environment" class="md-nav__link">
     Build Environment
   </a>
@@ -1233,6 +1240,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#custom-kustomize-versions" title="Custom Kustomize versions" class="md-nav__link">
+    Custom Kustomize versions
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#build-environment" title="Build Environment" class="md-nav__link">
     Build Environment
   </a>
@@ -1259,11 +1273,12 @@
                 
                 
                 <h1 id="kustomize">Kustomize<a class="headerlink" href="#kustomize" title="Permanent link">&para;</a></h1>
-<p>You have three configuration options for Kustomize:</p>
+<p>The following configuration options are available for Kustomize:</p>
 <ul>
 <li><code>namePrefix</code> is a prefix appended to resources for Kustomize apps</li>
 <li><code>nameSuffix</code> is a suffix appended to resources for Kustomize apps</li>
 <li><code>images</code> is a list of Kustomize image overrides</li>
+<li><code>commonLabels</code> is a string map of an additional labels</li>
 </ul>
 <p>To use Kustomize with an overlay, point your path to the overlay.</p>
 <div class="admonition tip">
@@ -1286,6 +1301,24 @@
     <span class="nt">app.kubernetes.io/part-of</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
 <span class="nt">data</span><span class="p">:</span>
     <span class="nt">kustomize.buildOptions</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">--load_restrictor none</span>
+</code></pre></div>
+
+
+<h2 id="custom-kustomize-versions">Custom Kustomize versions<a class="headerlink" href="#custom-kustomize-versions" title="Permanent link">&para;</a></h2>
+<p>Argo CD supports using multiple kustomize versions simultaneously and specify required version per application.
+To add additional versions make sure required versions are <a href="../../operator-manual/custom_tools/">bundled</a> and then
+use <code>kustomize.version.&lt;version&gt;</code> fields of <code>argocd-cm</code> ConfigMap to register bundled additional versions.   </p>
+<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
+  <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
+  <span class="nt">labels</span><span class="p">:</span>
+    <span class="nt">app.kubernetes.io/name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
+    <span class="nt">app.kubernetes.io/part-of</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
+<span class="nt">data</span><span class="p">:</span>
+    <span class="nt">kustomize.version.v3.5.1</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">/custom-tools/kustomize_3_5_1</span>
+    <span class="nt">kustomize.version.v3.5.4</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">/custom-tools/kustomize_3_5_4</span>
 </code></pre></div>
 
 
