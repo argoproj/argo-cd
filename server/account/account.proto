@@ -57,6 +57,7 @@ message CreateTokenRequest {
 	string name = 1;
 	// expiresIn represents a duration in seconds
     int64 expiresIn = 2;
+	string id = 3;
 }
 
 message CreateTokenResponse {

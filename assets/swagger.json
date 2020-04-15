@@ -2038,6 +2038,9 @@
           "format": "int64",
           "title": "expiresIn represents a duration in seconds"
         },
+        "id": {
+          "type": "string"
+        },
         "name": {
           "type": "string"
         }

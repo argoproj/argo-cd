@@ -10,10 +10,10 @@ export class AccountsService {
         return requests.get(`/account/${name}`).then(res => res.body as Account);
     }
 
-    public createToken(name: string, expiresIn: number): Promise<string> {
+    public createToken(name: string, tokenId: string, expiresIn: number): Promise<string> {
         return requests
             .post(`/account/${name}/token`)
-            .send({expiresIn})
+            .send({expiresIn, id: tokenId})
             .then(res => res.body.token as string);
     }
 
