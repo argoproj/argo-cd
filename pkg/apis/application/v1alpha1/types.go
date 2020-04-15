@@ -1249,11 +1249,12 @@ func (repo *Repository) GetGitCreds() git.Creds {
 
 func (repo *Repository) GetHelmCreds() helm.Creds {
 	return helm.Creds{
-		Username: repo.Username,
-		Password: repo.Password,
-		CAPath:   getCAPath(repo.Repo),
-		CertData: []byte(repo.TLSClientCertData),
-		KeyData:  []byte(repo.TLSClientCertKey),
+		Username:           repo.Username,
+		Password:           repo.Password,
+		CAPath:             getCAPath(repo.Repo),
+		CertData:           []byte(repo.TLSClientCertData),
+		KeyData:            []byte(repo.TLSClientCertKey),
+		InsecureSkipVerify: repo.Insecure,
 	}
 }
 

@@ -29,11 +29,12 @@ var (
 )
 
 type Creds struct {
-	Username string
-	Password string
-	CAPath   string
-	CertData []byte
-	KeyData  []byte
+	Username           string
+	Password           string
+	CAPath             string
+	CertData           []byte
+	KeyData            []byte
+	InsecureSkipVerify bool
 }
 
 type Client interface {
@@ -213,7 +214,7 @@ func (c *nativeHelmChart) loadRepoIndex() ([]byte, error) {
 }
 
 func newTLSConfig(creds Creds) (*tls.Config, error) {
-	tlsConfig := &tls.Config{InsecureSkipVerify: false}
+	tlsConfig := &tls.Config{InsecureSkipVerify: creds.InsecureSkipVerify}
 
 	if creds.CAPath != "" {
 		caData, err := ioutil.ReadFile(creds.CAPath)
