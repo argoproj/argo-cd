@@ -1160,6 +1160,13 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#why-does-the-lint-step-fail" title="Why does the lint step fail?" class="md-nav__link">
+    Why does the lint step fail?
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#why-does-the-test-or-e2e-steps-fail" title="Why does the test or e2e steps fail?" class="md-nav__link">
     Why does the test or e2e steps fail?
   </a>
@@ -1350,6 +1357,13 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#why-does-the-lint-step-fail" title="Why does the lint step fail?" class="md-nav__link">
+    Why does the lint step fail?
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#why-does-the-test-or-e2e-steps-fail" title="Why does the test or e2e steps fail?" class="md-nav__link">
     Why does the test or e2e steps fail?
   </a>
@@ -1415,6 +1429,17 @@ git push origin &lt;yourbranch&gt;
 <p>If the codegen step fails with "Check nothing has changed...", chances are high that you did not run <code>make codegen</code>, or did not commit the changes it made. You should double check by running <code>make codegen</code> followed by <code>git status</code> in the local working copy of your branch. Commit any changes and push them to your GH branch to have the CI check it again.</p>
 <p>A second common case for this is, when you modified any of the auto generated assets, as these will be overwritten upon <code>make codegen</code>.</p>
 <p>Generally, this step runs <code>codegen</code> and compares the outcome against the Git branch it has checked out. If there are differences, the step will fail.</p>
+<h3 id="why-does-the-lint-step-fail">Why does the lint step fail?<a class="headerlink" href="#why-does-the-lint-step-fail" title="Permanent link">&para;</a></h3>
+<p>The lint step is most likely to fail for two reasons:</p>
+<ul>
+<li>
+<p>The <code>golangci-lint</code> process was OOM killed by CircleCI. This happens sometimes, and is annoying. This is indicated by a <code>Killed.</code> message in the CircleCI output.
+  If this is the case, please re-trigger the CI process as described above and see if it runs through.</p>
+</li>
+<li>
+<p>Your code failed to lint correctly, or modifications were performed by the <code>golangci-lint</code> process. You should run <code>make lint</code> on your local branch and fix all the issues.</p>
+</li>
+</ul>
 <h3 id="why-does-the-test-or-e2e-steps-fail">Why does the test or e2e steps fail?<a class="headerlink" href="#why-does-the-test-or-e2e-steps-fail" title="Permanent link">&para;</a></h3>
 <p>You should check for the cause of the failure on the CircleCI web site, as described above. This will give you the name of the test that has failed, and details about why. If your test are passing locally (using the virtualized toolchain), chances are that the test might be flaky and will pass the next time it is run. Please retrigger the CI pipeline as described above and see if the test step now passes.</p>
                 
