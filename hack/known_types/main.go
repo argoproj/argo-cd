@@ -40,6 +40,7 @@ func newCommand() *cobra.Command {
 
 			var imprt types.Importer
 			if runtime.GOOS == "linux" {
+				// nolint:staticcheck
 				imprt = importer.For("source", nil)
 			} else {
 				imprt = importer.Default()

@@ -214,12 +214,13 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		return nil, err
 	}
 	// If source is Kustomize add build options
-	buildOptions, err := s.settingsMgr.GetKustomizeBuildOptions()
+	kustomizeSettings, err := s.settingsMgr.GetKustomizeSettings()
 	if err != nil {
 		return nil, err
 	}
-	kustomizeOptions := appv1.KustomizeOptions{
-		BuildOptions: buildOptions,
+	kustomizeOptions, err := kustomizeSettings.GetOptions(a.Spec.Source)
+	if err != nil {
+		return nil, err
 	}
 	cluster, err := s.db.GetCluster(context.Background(), a.Spec.Destination.Server)
 	if err != nil {
@@ -243,7 +244,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		ApplicationSource: &a.Spec.Source,
 		Repos:             helmRepos,
 		Plugins:           plugins,
-		KustomizeOptions:  &kustomizeOptions,
+		KustomizeOptions:  kustomizeOptions,
 		KubeVersion:       cluster.ServerVersion,
 		ApiVersions:       argo.APIGroupsToVersions(apiGroups),
 	})
@@ -670,19 +671,21 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 		}
 	}
 
-	buildOptions, err := s.settingsMgr.GetKustomizeBuildOptions()
+	// If source is Kustomize add build options
+	kustomizeSettings, err := s.settingsMgr.GetKustomizeSettings()
 	if err != nil {
 		return err
 	}
-	kustomizeOptions := appv1.KustomizeOptions{
-		BuildOptions: buildOptions,
+	kustomizeOptions, err := kustomizeSettings.GetOptions(app.Spec.Source)
+	if err != nil {
+		return err
 	}
 	plugins, err := s.plugins()
 	if err != nil {
 		return err
 	}
 
-	conditions, err := argo.ValidateRepo(ctx, app, s.repoClientset, s.db, &kustomizeOptions, plugins, s.kubectl)
+	conditions, err := argo.ValidateRepo(ctx, app, s.repoClientset, s.db, kustomizeOptions, plugins, s.kubectl)
 	if err != nil {
 		return err
 	}

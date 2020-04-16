@@ -305,12 +305,15 @@ type ApplicationSourceKustomize struct {
 	Images KustomizeImages `json:"images,omitempty" protobuf:"bytes,3,opt,name=images"`
 	// CommonLabels adds additional kustomize commonLabels
 	CommonLabels map[string]string `json:"commonLabels,omitempty" protobuf:"bytes,4,opt,name=commonLabels"`
+	// Version contains optional Kustomize version
+	Version string `json:"version,omitempty" protobuf:"bytes,5,opt,name=version"`
 }
 
 func (k *ApplicationSourceKustomize) IsZero() bool {
 	return k == nil ||
 		k.NamePrefix == "" &&
 			k.NameSuffix == "" &&
+			k.Version == "" &&
 			len(k.Images) == 0 &&
 			len(k.CommonLabels) == 0
 }
@@ -1083,8 +1086,8 @@ type TLSClientConfig struct {
 
 // KnownTypeField contains mapping between CRD field and known Kubernetes type
 type KnownTypeField struct {
-	Field string `json:"field, omitempty" protobuf:"bytes,1,opt,name=field"`
-	Type  string `json:"type, omitempty" protobuf:"bytes,2,opt,name=type"`
+	Field string `json:"field,omitempty" protobuf:"bytes,1,opt,name=field"`
+	Type  string `json:"type,omitempty" protobuf:"bytes,2,opt,name=type"`
 }
 
 // ResourceOverride holds configuration to customize resource diffing and health assessment
@@ -1246,11 +1249,12 @@ func (repo *Repository) GetGitCreds() git.Creds {
 
 func (repo *Repository) GetHelmCreds() helm.Creds {
 	return helm.Creds{
-		Username: repo.Username,
-		Password: repo.Password,
-		CAPath:   getCAPath(repo.Repo),
-		CertData: []byte(repo.TLSClientCertData),
-		KeyData:  []byte(repo.TLSClientCertKey),
+		Username:           repo.Username,
+		Password:           repo.Password,
+		CAPath:             getCAPath(repo.Repo),
+		CertData:           []byte(repo.TLSClientCertData),
+		KeyData:            []byte(repo.TLSClientCertKey),
+		InsecureSkipVerify: repo.Insecure,
 	}
 }
 
@@ -1361,18 +1365,46 @@ func (p *AppProject) GetRoleByName(name string) (*ProjectRole, int, error) {
 	return nil, -1, fmt.Errorf("role '%s' does not exist in project '%s'", name, p.Name)
 }
 
-// GetJWTToken looks up the index of a JWTToken in a project by the issue at time
-func (p *AppProject) GetJWTToken(roleName string, issuedAt int64) (*JWTToken, int, error) {
+// GetJWTToken looks up the index of a JWTToken in a project by id (new token), if not then by the issue at time (old token)
+func (p *AppProject) GetJWTToken(roleName string, issuedAt int64, id string) (*JWTToken, int, error) {
 	role, _, err := p.GetRoleByName(roleName)
 	if err != nil {
 		return nil, -1, err
 	}
-	for i, token := range role.JWTTokens {
-		if issuedAt == token.IssuedAt {
-			return &token, i, nil
+
+	if id != "" {
+		for i, token := range role.JWTTokens {
+			if id == token.ID {
+				return &token, i, nil
+			}
 		}
 	}
+
+	if issuedAt != -1 {
+		for i, token := range role.JWTTokens {
+			if issuedAt == token.IssuedAt {
+				return &token, i, nil
+			}
+		}
+	}
+
 	return nil, -1, fmt.Errorf("JWT token for role '%s' issued at '%d' does not exist in project '%s'", role.Name, issuedAt, p.Name)
+}
+
+func (p *AppProject) ValidateJWTTokenID(roleName string, id string) error {
+	role, _, err := p.GetRoleByName(roleName)
+	if err != nil {
+		return err
+	}
+	if id == "" {
+		return nil
+	}
+	for _, token := range role.JWTTokens {
+		if id == token.ID {
+			return status.Errorf(codes.InvalidArgument, "Token id '%s' has been used. ", id)
+		}
+	}
+	return nil
 }
 
 func (p *AppProject) ValidateProject() error {
@@ -1915,8 +1947,9 @@ type ProjectRole struct {
 
 // JWTToken holds the issuedAt and expiresAt values of a token
 type JWTToken struct {
-	IssuedAt  int64 `json:"iat" protobuf:"int64,1,opt,name=iat"`
-	ExpiresAt int64 `json:"exp,omitempty" protobuf:"int64,2,opt,name=exp"`
+	IssuedAt  int64  `json:"iat" protobuf:"int64,1,opt,name=iat"`
+	ExpiresAt int64  `json:"exp,omitempty" protobuf:"int64,2,opt,name=exp"`
+	ID        string `json:"id,omitempty" protobuf:"bytes,3,opt,name=id"`
 }
 
 // Command holds binary path and arguments list
@@ -1936,6 +1969,8 @@ type ConfigManagementPlugin struct {
 type KustomizeOptions struct {
 	// BuildOptions is a string of build parameters to use when calling `kustomize build`
 	BuildOptions string `protobuf:"bytes,1,opt,name=buildOptions"`
+	// BinaryPath holds optional path to kustomize binary
+	BinaryPath string `protobuf:"bytes,2,opt,name=binaryPath"`
 }
 
 // ProjectPoliciesString returns Casbin formated string of a project's policies for each role

@@ -31,11 +31,12 @@ type Kustomize interface {
 }
 
 // NewKustomizeApp create a new wrapper to run commands on the `kustomize` command-line tool.
-func NewKustomizeApp(path string, creds git.Creds, fromRepo string) Kustomize {
+func NewKustomizeApp(path string, creds git.Creds, fromRepo string, binaryPath string) Kustomize {
 	return &kustomize{
-		path:  path,
-		creds: creds,
-		repo:  fromRepo,
+		path:       path,
+		creds:      creds,
+		repo:       fromRepo,
+		binaryPath: binaryPath,
 	}
 }
 
@@ -46,13 +47,22 @@ type kustomize struct {
 	creds git.Creds
 	// the Git repository URL where we checked out
 	repo string
+	// optional kustomize binary path
+	binaryPath string
+}
+
+func (k *kustomize) getBinaryPath() string {
+	if k.binaryPath != "" {
+		return k.binaryPath
+	}
+	return "kustomize"
 }
 
 func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOptions *v1alpha1.KustomizeOptions) ([]*unstructured.Unstructured, []Image, error) {
 
 	if opts != nil {
 		if opts.NamePrefix != "" {
-			cmd := exec.Command("kustomize", "edit", "set", "nameprefix", "--", opts.NamePrefix)
+			cmd := exec.Command(k.getBinaryPath(), "edit", "set", "nameprefix", "--", opts.NamePrefix)
 			cmd.Dir = k.path
 			_, err := executil.Run(cmd)
 			if err != nil {
@@ -60,7 +70,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			}
 		}
 		if opts.NameSuffix != "" {
-			cmd := exec.Command("kustomize", "edit", "set", "namesuffix", "--", opts.NameSuffix)
+			cmd := exec.Command(k.getBinaryPath(), "edit", "set", "namesuffix", "--", opts.NameSuffix)
 			cmd.Dir = k.path
 			_, err := executil.Run(cmd)
 			if err != nil {
@@ -74,7 +84,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			for _, image := range opts.Images {
 				args = append(args, string(image))
 			}
-			cmd := exec.Command("kustomize", args...)
+			cmd := exec.Command(k.getBinaryPath(), args...)
 			cmd.Dir = k.path
 			_, err := executil.Run(cmd)
 			if err != nil {
@@ -93,7 +103,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 				arg += fmt.Sprintf("%s:%s", labelName, labelValue)
 			}
 			args = append(args, arg)
-			cmd := exec.Command("kustomize", args...)
+			cmd := exec.Command(k.getBinaryPath(), args...)
 			cmd.Dir = k.path
 			_, err := executil.Run(cmd)
 			if err != nil {
@@ -105,9 +115,9 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 	var cmd *exec.Cmd
 	if kustomizeOptions != nil && kustomizeOptions.BuildOptions != "" {
 		params := parseKustomizeBuildOptions(k.path, kustomizeOptions.BuildOptions)
-		cmd = exec.Command("kustomize", params...)
+		cmd = exec.Command(k.getBinaryPath(), params...)
 	} else {
-		cmd = exec.Command("kustomize", "build", k.path)
+		cmd = exec.Command(k.getBinaryPath(), "build", k.path)
 	}
 
 	cmd.Env = os.Environ()

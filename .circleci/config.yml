@@ -44,6 +44,12 @@ commands:
           root: .
           paths:
             - coverage.out
+  save_node_modules:
+    steps:
+      - persist_to_workspace:
+          root: ~/argo-cd
+          paths:
+            - ui/node_modules
   attach_vendor:
     steps:
       - attach_workspace:
@@ -156,6 +162,35 @@ jobs:
           path: test-results
           destination: .
   
+  lint:
+    working_directory: /go/src/github.com/argoproj/argo-cd
+    docker:
+      - image: argoproj/argocd-test-tools:v0.2.0
+    steps:
+      - prepare_environment
+      - checkout
+      - configure_git
+      - restore_vendor
+      - run: dep ensure -v
+      - restore_go_cache_docker
+      - run:
+          name: Run golangci-lint
+          command: ARGOCD_LINT_GOGC=10 make lint-local
+      - run:
+          name: Check that nothing has changed
+          command: |
+            gDiff=$(git diff)
+            if test "$gDiff" != ""; then
+              echo
+              echo "###############################################################################"
+              echo "golangci-lint has made automatic corrections to your code. Please check below"
+              echo "diff output and commit this to your local branch, or run make lint locally."
+              echo "###############################################################################"
+              echo
+              git diff
+              exit 1
+            fi
+
   sonarcloud:
     working_directory: /go/src/github.com/argoproj/argo-cd
     docker:
@@ -191,10 +226,15 @@ jobs:
             chmod +x $SCANNER_DIRECTORY/sonar-scanner-$VERSION-$OS/bin/sonar-scanner
             chmod +x $SCANNER_DIRECTORY/sonar-scanner-$VERSION-$OS/jre/bin/java
 
+            # Workaround for a possible bug in CircleCI
             if ! echo $CIRCLE_PULL_REQUEST | grep https://github.com/argoproj; then
               unset CIRCLE_PULL_REQUEST
               unset CIRCLE_PULL_REQUESTS
             fi
+
+            # Explicitly set NODE_MODULES
+            export NODE_MODULES=/go/src/github.com/argoproj/argo-cd/ui/node_modules
+            export NODE_PATH=/go/src/github.com/argoproj/argo-cd/ui/node_modules
 
             $SCANNER_DIRECTORY/sonar-scanner-$VERSION-$OS/bin/sonar-scanner
           name: SonarCloud
@@ -296,6 +336,7 @@ jobs:
       - run: ./node_modules/.bin/codecov -p ..
       - run: NODE_ENV='production' yarn build
       - run: yarn lint
+      - save_node_modules
 
 orbs:
   sonarcloud: sonarsource/sonarcloud@1.0.1
@@ -314,10 +355,14 @@ workflows:
       - ui:
           requires:
             - build
+      - lint:
+          requires:
+            - build
       - sonarcloud:
           context: SonarCloud
           requires:
             - test
+            - ui
       - e2e:
           requires:
             - build
