@@ -162,6 +162,35 @@ jobs:
           path: test-results
           destination: .
   
+  lint:
+    working_directory: /go/src/github.com/argoproj/argo-cd
+    docker:
+      - image: argoproj/argocd-test-tools:v0.2.0
+    steps:
+      - prepare_environment
+      - checkout
+      - configure_git
+      - restore_vendor
+      - run: dep ensure -v
+      - restore_go_cache_docker
+      - run:
+          name: Run golangci-lint
+          command: ARGOCD_LINT_GOGC=10 make lint-local
+      - run:
+          name: Check that nothing has changed
+          command: |
+            gDiff=$(git diff)
+            if test "$gDiff" != ""; then
+              echo
+              echo "###############################################################################"
+              echo "golangci-lint has made automatic corrections to your code. Please check below"
+              echo "diff output and commit this to your local branch, or run make lint locally."
+              echo "###############################################################################"
+              echo
+              git diff
+              exit 1
+            fi
+
   sonarcloud:
     working_directory: /go/src/github.com/argoproj/argo-cd
     docker:
@@ -324,6 +353,9 @@ workflows:
           requires:
             - build
       - ui:
+          requires:
+            - build
+      - lint:
           requires:
             - build
       - sonarcloud:
