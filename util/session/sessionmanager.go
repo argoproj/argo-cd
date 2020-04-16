@@ -86,11 +86,6 @@ const (
 	envLoginMaxCacheSize  = "ARGOCD_SESSION_MAX_CACHE_SIZE"
 )
 
-// Returns the cache key to use for a given user
-func getSessionCacheKeyForUser(username string) string {
-	return fmt.Sprintf("%s|%s", loginAttemptsCacheKey, username)
-}
-
 // Helper function to parse a number from an environment variable. Returns a
 // default if env is not set, is not parseable to a number, exceeds max (if
 // max is greater than 0) or is less than min.
@@ -330,18 +325,10 @@ func (mgr *SessionManager) updateFailureCount(username string, failed bool) {
 	if failed {
 		attempt.FailCount += 1
 		attempt.LastFailed = time.Now()
-		err := mgr.cache.SetItem(getSessionCacheKeyForUser(username), attempt, 0, false)
-		if err != nil {
-			log.Errorf("Could not update session cache: %s", err.Error())
-		}
 		failures[username] = attempt
 		log.Warnf("User %s failed login %d time(s)", username, attempt.FailCount)
 	} else {
 		if attempt.FailCount > 0 {
-			err := mgr.cache.SetItem(getSessionCacheKeyForUser(username), attempt, 0, true)
-			if err != nil {
-				log.Errorf("Could not update session cache: %s", err.Error())
-			}
 			// Forget username for cache size enforcement, since entry in cache was deleted
 			delete(failures, username)
 		}
