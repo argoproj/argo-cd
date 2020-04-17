@@ -34,6 +34,7 @@ type SessionManager struct {
 	client      *http.Client
 	prov        oidcutil.Provider
 	storage     UserStateStorage
+	sleep       func(d time.Duration)
 }
 
 type inMemoryUserStateStorage struct {
@@ -164,6 +165,7 @@ func NewSessionManager(settingsMgr *settings.SettingsManager, dexServerAddr stri
 	s := SessionManager{
 		settingsMgr: settingsMgr,
 		storage:     storage,
+		sleep:       time.Sleep,
 	}
 	settings, err := settingsMgr.GetSettings()
 	if err != nil {
@@ -412,7 +414,7 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 	duration := mgr.calculateLogonDelay(attempt)
 	if duration > 0 {
 		log.Warnf("User %s had too many failed logins (%d), sleeping for %d seconds", username, attempt.FailCount, duration)
-		time.Sleep(time.Duration(duration) * time.Second)
+		mgr.sleep(time.Duration(duration) * time.Second)
 	}
 
 	account, err := mgr.settingsMgr.GetAccount(username)

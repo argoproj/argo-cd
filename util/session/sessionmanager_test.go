@@ -295,8 +295,12 @@ func TestCacheValueGetters(t *testing.T) {
 }
 
 func TestLoginRateLimiter(t *testing.T) {
+	var sleptFor time.Duration
 	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("password", true), "argocd")
 	mgr := NewSessionManager(settingsMgr, "", NewInMemoryUserStateStorage())
+	mgr.sleep = func(d time.Duration) {
+		sleptFor = d
+	}
 
 	t.Run("Test login delay valid user", func(t *testing.T) {
 		for i := 0; i < getMaxLoginFailures(); i++ {
@@ -304,37 +308,29 @@ func TestLoginRateLimiter(t *testing.T) {
 			assert.Error(t, err)
 		}
 
-		// Decrease delay to 3 seconds, so we don't waste too much time in tests
-		os.Setenv(envLoginDelayStart, "3")
-
 		// The 11th time should have a delay, we test for it
 		{
-			start := time.Now()
+			sleptFor = 0
 			err := mgr.VerifyUsernamePassword("admin", "wrong")
 			assert.Error(t, err)
-			end := time.Now()
-			assert.GreaterOrEqual(t, end.Sub(start).Seconds(), float64(3))
+			assert.GreaterOrEqual(t, sleptFor.Seconds(), float64(3))
 		}
 
 		// Valid password should be validated with delay, too. Delay should have been increased
 		{
-			start := time.Now()
+			sleptFor = 0
 			err := mgr.VerifyUsernamePassword("admin", "password")
 			assert.NoError(t, err)
-			end := time.Now()
-			assert.GreaterOrEqual(t, end.Unix()-start.Unix(), int64(3+getLoginDelayIncrease()))
+			assert.GreaterOrEqual(t, sleptFor.Seconds(), float64(3+getLoginDelayIncrease()))
 		}
 
 		// Failed counter should have been reseted, should validate immediately
 		{
-			start := time.Now()
+			sleptFor = 0
 			err := mgr.VerifyUsernamePassword("admin", "password")
 			assert.NoError(t, err)
-			end := time.Now()
-			assert.LessOrEqual(t, end.Unix()-start.Unix(), int64(1))
+			assert.LessOrEqual(t, sleptFor.Seconds(), float64(1))
 		}
-
-		os.Setenv(envLoginDelayStart, "")
 	})
 
 	t.Run("Test login delay invalid user", func(t *testing.T) {
@@ -343,17 +339,11 @@ func TestLoginRateLimiter(t *testing.T) {
 			assert.Error(t, err)
 		}
 
-		// Decrease delay to 3 seconds, so we don't waste too much time in tests
-		os.Setenv(envLoginDelayStart, "3")
-
 		// The 11th time should have a delay, we test for it
-		start := time.Now()
+		sleptFor = 0
 		err := mgr.VerifyUsernamePassword("invalid", "wrong")
 		assert.Error(t, err)
-		end := time.Now()
-		assert.GreaterOrEqual(t, end.Unix()-start.Unix(), int64(3))
-
-		os.Setenv(envLoginDelayStart, "")
+		assert.GreaterOrEqual(t, sleptFor.Seconds(), float64(3))
 	})
 }
 
