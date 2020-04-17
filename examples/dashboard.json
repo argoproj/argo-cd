@@ -15,7 +15,6 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "iteration": 1585703296633,
   "links": [],
   "panels": [
     {
@@ -3621,20 +3620,9 @@
         "label": null,
         "multi": false,
         "name": "cluster",
-        "options": [
-          {
-            "selected": true,
-            "text": "All",
-            "value": "$__all"
-          },
-          {
-            "selected": false,
-            "text": "https://kubernetes.default.svc",
-            "value": "https://kubernetes.default.svc"
-          }
-        ],
+        "options": [],
         "query": "label_values(argocd_cluster_info, server)",
-        "refresh": 0,
+        "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
         "sort": 1,
@@ -3768,6 +3756,5 @@
   },
   "timezone": "",
   "title": "ArgoCD",
-  "uid": "LCAgc9rWz",
   "version": 2
 }
