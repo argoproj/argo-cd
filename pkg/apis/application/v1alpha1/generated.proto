@@ -217,7 +217,7 @@ message ApplicationSourcePlugin {
 
   repeated EnvEntry env = 2;
 
-  map<string, string> parameters = 3;
+  repeated PluginParameter parameters = 3;
 }
 
 // ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision.
@@ -528,6 +528,12 @@ message OperationState {
 message OrphanedResourcesMonitorSettings {
   // Warn indicates if warning condition should be created for apps which have orphaned resources
   optional bool warn = 1;
+}
+
+message PluginParameter {
+  optional string name = 1;
+
+  optional string value = 2;
 }
 
 // ProjectRole represents a role that has access to a project

@@ -384,11 +384,21 @@ func (d *ApplicationSourceDirectory) IsZero() bool {
 	return d == nil || !d.Recurse && d.Jsonnet.IsZero()
 }
 
+type PluginParameter struct {
+	Name  string `json:"name" protobuf:"bytes,1,name=name"`
+	Value string `json:"value,omitempty" protobuf:"bytes,2,name=name"`
+}
+type PluginParameters []PluginParameter
+
+func (in PluginParameters) IsZero() bool {
+	return len(in) == 0
+}
+
 // ApplicationSourcePlugin holds config management plugin specific options
 type ApplicationSourcePlugin struct {
 	Name       string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
 	Env        `json:"env,omitempty" protobuf:"bytes,2,opt,name=env"`
-	Parameters Parameters `json:"parameters,omitempty" protobuf:"bytes,3,opt,name=parameters"`
+	Parameters PluginParameters `json:"parameters,omitempty" protobuf:"bytes,3,opt,name=parameters"`
 }
 
 func (c *ApplicationSourcePlugin) IsZero() bool {
@@ -1951,12 +1961,6 @@ type JWTToken struct {
 	IssuedAt  int64  `json:"iat" protobuf:"int64,1,opt,name=iat"`
 	ExpiresAt int64  `json:"exp,omitempty" protobuf:"int64,2,opt,name=exp"`
 	ID        string `json:"id,omitempty" protobuf:"bytes,3,opt,name=id"`
-}
-
-type Parameters map[string]string
-
-func (in Parameters) IsZero() bool {
-	return len(in) == 0
 }
 
 // Command holds binary path and arguments list

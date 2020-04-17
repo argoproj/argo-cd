@@ -259,9 +259,16 @@ spec:
                         name:
                           type: string
                         parameters:
-                          additionalProperties:
-                            type: string
-                          type: object
+                          items:
+                            properties:
+                              name:
+                                type: string
+                              value:
+                                type: string
+                            required:
+                            - name
+                            type: object
+                          type: array
                       type: object
                     repoURL:
                       description: RepoURL is the repository URL of the application
@@ -550,9 +557,16 @@ spec:
                     name:
                       type: string
                     parameters:
-                      additionalProperties:
-                        type: string
-                      type: object
+                      items:
+                        properties:
+                          name:
+                            type: string
+                          value:
+                            type: string
+                        required:
+                        - name
+                        type: object
+                      type: array
                   type: object
                 repoURL:
                   description: RepoURL is the repository URL of the application manifests
@@ -816,9 +830,16 @@ spec:
                           name:
                             type: string
                           parameters:
-                            additionalProperties:
-                              type: string
-                            type: object
+                            items:
+                              properties:
+                                name:
+                                  type: string
+                                value:
+                                  type: string
+                              required:
+                              - name
+                              type: object
+                            type: array
                         type: object
                       repoURL:
                         description: RepoURL is the repository URL of the application
@@ -1098,9 +1119,16 @@ spec:
                                 name:
                                   type: string
                                 parameters:
-                                  additionalProperties:
-                                    type: string
-                                  type: object
+                                  items:
+                                    properties:
+                                      name:
+                                        type: string
+                                      value:
+                                        type: string
+                                    required:
+                                    - name
+                                    type: object
+                                  type: array
                               type: object
                             repoURL:
                               description: RepoURL is the repository URL of the application
@@ -1390,9 +1418,16 @@ spec:
                             name:
                               type: string
                             parameters:
-                              additionalProperties:
-                                type: string
-                              type: object
+                              items:
+                                properties:
+                                  name:
+                                    type: string
+                                  value:
+                                    type: string
+                                required:
+                                - name
+                                type: object
+                              type: array
                           type: object
                         repoURL:
                           description: RepoURL is the repository URL of the application
@@ -1670,9 +1705,16 @@ spec:
                             name:
                               type: string
                             parameters:
-                              additionalProperties:
-                                type: string
-                              type: object
+                              items:
+                                properties:
+                                  name:
+                                    type: string
+                                  value:
+                                    type: string
+                                required:
+                                - name
+                                type: object
+                              type: array
                           type: object
                         repoURL:
                           description: RepoURL is the repository URL of the application

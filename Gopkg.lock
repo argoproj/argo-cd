@@ -741,6 +741,14 @@
   revision = "32fa128f234d041f196a9f3e0fea5ac9772c08e1"
 
 [[projects]]
+  digest = "1:35003f9721da35808b8029dd672dbe37f369bfdd58496fa8992767b6563d654e"
+  name = "github.com/mattn/go-shellwords"
+  packages = ["."]
+  pruneopts = ""
+  revision = "28e4fdf351f0744b1249317edb45e4c2aa7a5e43"
+  version = "v1.0.10"
+
+[[projects]]
   digest = "1:63722a4b1e1717be7b98fc686e0b30d5e7f734b9e93d7dee86293b6deab7ea28"
   name = "github.com/matttproud/golang_protobuf_extensions"
   packages = ["pbutil"]
@@ -2019,6 +2027,7 @@
     "github.com/grpc-ecosystem/grpc-gateway/utilities",
     "github.com/improbable-eng/grpc-web/go/grpcweb",
     "github.com/kballard/go-shellquote",
+    "github.com/mattn/go-shellwords",
     "github.com/patrickmn/go-cache",
     "github.com/pkg/errors",
     "github.com/prometheus/client_golang/prometheus",

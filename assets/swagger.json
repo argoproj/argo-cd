@@ -3448,9 +3448,9 @@
           "type": "string"
         },
         "parameters": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "string"
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1PluginParameter"
           }
         }
       }
@@ -3938,6 +3938,17 @@
           "type": "boolean",
           "format": "boolean",
           "title": "Warn indicates if warning condition should be created for apps which have orphaned resources"
+        }
+      }
+    },
+    "v1alpha1PluginParameter": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
         }
       }
     },

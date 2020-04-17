@@ -12,13 +12,11 @@ import (
 	"regexp"
 	"strings"
 
-	executil "github.com/argoproj/argo-cd/util/exec"
-	"github.com/argoproj/argo-cd/util/security"
-
 	"github.com/Masterminds/semver"
 	"github.com/TomOnTime/utfutil"
 	"github.com/ghodss/yaml"
 	"github.com/google/go-jsonnet"
+	shellwords "github.com/mattn/go-shellwords"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
 	"google.golang.org/grpc/codes"
@@ -35,11 +33,13 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/app/discovery"
 	argopath "github.com/argoproj/argo-cd/util/app/path"
+	executil "github.com/argoproj/argo-cd/util/exec"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/ksonnet"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/kustomize"
+	"github.com/argoproj/argo-cd/util/security"
 	"github.com/argoproj/argo-cd/util/text"
 )
 
@@ -662,14 +662,15 @@ func getGenerateArgs(plugin *v1alpha1.ConfigManagementPlugin, q *apiclient.Manif
 		return nil, fmt.Errorf("plugin has been passed parameters, but is not configured to use them")
 	}
 	if plugin.Parameters != nil {
-		for n, v := range q.ApplicationSource.Plugin.Parameters {
-			env = append(env, "params_"+n+"="+q.ApplicationSource.Plugin.Env.Envsubst(v))
+		for _, p := range q.ApplicationSource.Plugin.Parameters {
+			// TODO how to deal with parameters with the same name
+			env = append(env, "params_"+p.Name+"="+q.ApplicationSource.Plugin.Env.Envsubst(p.Value))
 		}
 		out, err := runCommand(*plugin.Parameters, appPath, env, nil)
 		if err != nil {
 			return nil, err
 		}
-		return strings.Split(out, " "), nil
+		return shellwords.Parse(out)
 	}
 	return nil, nil
 }
