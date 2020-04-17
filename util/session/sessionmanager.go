@@ -30,11 +30,12 @@ import (
 
 // SessionManager generates and validates JWT tokens for login sessions.
 type SessionManager struct {
-	settingsMgr *settings.SettingsManager
-	client      *http.Client
-	prov        oidcutil.Provider
-	storage     UserStateStorage
-	sleep       func(d time.Duration)
+	settingsMgr               *settings.SettingsManager
+	client                    *http.Client
+	prov                      oidcutil.Provider
+	storage                   UserStateStorage
+	sleep                     func(d time.Duration)
+	verificationDelayNoiseMax time.Duration
 }
 
 type inMemoryUserStateStorage struct {
@@ -94,6 +95,8 @@ const (
 	defaultLoginDelayMax = 30
 	// The default time in seconds for the failure window
 	defaultFailureWindow = 300
+	// The password verification delay max
+	verificationDelayNoiseMax = 100 * time.Millisecond
 
 	// environment variables to control rate limiter behaviour:
 
@@ -175,9 +178,10 @@ func getLoginFailureWindow() time.Duration {
 // NewSessionManager creates a new session manager from Argo CD settings
 func NewSessionManager(settingsMgr *settings.SettingsManager, dexServerAddr string, storage UserStateStorage) *SessionManager {
 	s := SessionManager{
-		settingsMgr: settingsMgr,
-		storage:     storage,
-		sleep:       time.Sleep,
+		settingsMgr:               settingsMgr,
+		storage:                   storage,
+		sleep:                     time.Sleep,
+		verificationDelayNoiseMax: verificationDelayNoiseMax,
 	}
 	settings, err := settingsMgr.GetSettings()
 	if err != nil {
@@ -416,17 +420,25 @@ func (mgr *SessionManager) calculateLogonDelay(attempt LoginAttempts) int {
 
 // VerifyUsernamePassword verifies if a username/password combo is correct
 func (mgr *SessionManager) VerifyUsernamePassword(username string, password string) error {
+	if password == "" {
+		return status.Errorf(codes.Unauthenticated, blankPasswordError)
+	}
 	// Enforce maximum length of username on local accounts
 	if len(username) > maxUsernameLength {
 		return status.Errorf(codes.InvalidArgument, usernameTooLongError, maxUsernameLength)
 	}
 
 	attempt := mgr.getFailureCount(username)
-
 	duration := mgr.calculateLogonDelay(attempt)
 	if duration > 0 {
 		log.Warnf("User %s had too many failed logins (%d), sleeping for %d seconds", username, attempt.FailCount, duration)
 		mgr.sleep(time.Duration(duration) * time.Second)
+	}
+
+	// introduces random delay to protect from timing-based user enumeration attack
+	if mgr.verificationDelayNoiseMax > 0 {
+		delay := time.Duration(rand.Intn(int(mgr.verificationDelayNoiseMax.Nanoseconds())))
+		mgr.sleep(delay)
 	}
 
 	account, err := mgr.settingsMgr.GetAccount(username)
@@ -439,9 +451,6 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 	}
 	if !account.Enabled {
 		return status.Errorf(codes.Unauthenticated, accountDisabled, username)
-	}
-	if password == "" {
-		return status.Errorf(codes.Unauthenticated, blankPasswordError)
 	}
 
 	valid, _ := passwordutil.VerifyPassword(password, account.PasswordHash)

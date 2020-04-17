@@ -294,10 +294,28 @@ func TestCacheValueGetters(t *testing.T) {
 
 }
 
+func TestRandomPasswordVerificationDelay(t *testing.T) {
+	var sleptFor time.Duration
+	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("password", true), "argocd")
+	mgr := NewSessionManager(settingsMgr, "", NewInMemoryUserStateStorage())
+	mgr.verificationDelayNoiseMax = 1000 * time.Millisecond
+	mgr.sleep = func(d time.Duration) {
+		sleptFor = d
+	}
+	for i := 0; i < 10; i++ {
+		sleptFor = 0
+		if !assert.NoError(t, mgr.VerifyUsernamePassword("admin", "password")) {
+			return
+		}
+		assert.True(t, sleptFor >= 0 && sleptFor <= mgr.verificationDelayNoiseMax)
+	}
+}
+
 func TestLoginRateLimiter(t *testing.T) {
 	var sleptFor time.Duration
 	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("password", true), "argocd")
 	mgr := NewSessionManager(settingsMgr, "", NewInMemoryUserStateStorage())
+	mgr.verificationDelayNoiseMax = 0
 	mgr.sleep = func(d time.Duration) {
 		sleptFor = d
 	}
