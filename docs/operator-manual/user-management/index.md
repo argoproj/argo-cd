@@ -113,7 +113,7 @@ Default: 300 (5 minutes). If this is set to 0, the failure window is
 disabled and the delay kicks in after 10 consecutive logon failures,
 regardless of the time frame they happened.
 
-`ARGOCD_SESSION_MAX_CACHE_SIZE`: Maximum number of entries allowed in the
+* `ARGOCD_SESSION_MAX_CACHE_SIZE`: Maximum number of entries allowed in the
 cache. Default: 1000
 
 ## SSO
