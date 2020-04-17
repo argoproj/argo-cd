@@ -9,29 +9,19 @@ import (
 	"testing"
 	"time"
 
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-
-	"github.com/go-redis/redis"
-
-	"github.com/alicebob/miniredis"
-
 	"github.com/dgrijalva/jwt-go"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
-	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/password"
 	"github.com/argoproj/argo-cd/util/settings"
 )
-
-func newSessionCache() *cache.Cache {
-	return cache.NewCache(cache.NewInMemoryCache(0))
-}
 
 func getKubeClient(pass string, enabled bool) *fake.Clientset {
 	const defaultSecretKey = "Hello, world!"
@@ -67,7 +57,7 @@ func TestSessionManager(t *testing.T) {
 		defaultSubject = "admin"
 	)
 	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("pass", true), "argocd")
-	mgr := NewSessionManager(settingsMgr, "", newSessionCache())
+	mgr := NewSessionManager(settingsMgr, "", NewInMemoryUserStateStorage())
 
 	token, err := mgr.Create(defaultSubject, 0, "")
 	if err != nil {
@@ -155,7 +145,7 @@ func TestVerifyUsernamePassword(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient(password, !tc.disabled), "argocd")
 
-			mgr := NewSessionManager(settingsMgr, "", newSessionCache())
+			mgr := NewSessionManager(settingsMgr, "", NewInMemoryUserStateStorage())
 
 			err := mgr.VerifyUsernamePassword(tc.userName, tc.password)
 
@@ -305,14 +295,8 @@ func TestCacheValueGetters(t *testing.T) {
 }
 
 func TestLoginRateLimiter(t *testing.T) {
-	mr, err := miniredis.Run()
-	if err != nil {
-		panic(err)
-	}
-	defer mr.Close()
-
 	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("password", true), "argocd")
-	mgr := NewSessionManager(settingsMgr, "", cache.NewCache(cache.NewRedisCache(redis.NewClient(&redis.Options{Addr: mr.Addr()}), 0)))
+	mgr := NewSessionManager(settingsMgr, "", NewInMemoryUserStateStorage())
 
 	t.Run("Test login delay valid user", func(t *testing.T) {
 		for i := 0; i < getMaxLoginFailures(); i++ {
@@ -335,7 +319,7 @@ func TestLoginRateLimiter(t *testing.T) {
 		// Valid password should be validated with delay, too. Delay should have been increased
 		{
 			start := time.Now()
-			err = mgr.VerifyUsernamePassword("admin", "password")
+			err := mgr.VerifyUsernamePassword("admin", "password")
 			assert.NoError(t, err)
 			end := time.Now()
 			assert.GreaterOrEqual(t, end.Unix()-start.Unix(), int64(3+getLoginDelayIncrease()))
@@ -364,7 +348,7 @@ func TestLoginRateLimiter(t *testing.T) {
 
 		// The 11th time should have a delay, we test for it
 		start := time.Now()
-		err = mgr.VerifyUsernamePassword("invalid", "wrong")
+		err := mgr.VerifyUsernamePassword("invalid", "wrong")
 		assert.Error(t, err)
 		end := time.Now()
 		assert.GreaterOrEqual(t, end.Unix()-start.Unix(), int64(3))
@@ -379,21 +363,15 @@ func TestMaxUsernameLength(t *testing.T) {
 		username += "a"
 	}
 	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("password", true), "argocd")
-	mgr := NewSessionManager(settingsMgr, "", newSessionCache())
+	mgr := NewSessionManager(settingsMgr, "", NewInMemoryUserStateStorage())
 	err := mgr.VerifyUsernamePassword(username, "password")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), fmt.Sprintf(usernameTooLongError, maxUsernameLength))
 }
 
 func TestMaxCacheSize(t *testing.T) {
-	mr, err := miniredis.Run()
-	if err != nil {
-		panic(err)
-	}
-	defer mr.Close()
-
 	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("password", true), "argocd")
-	mgr := NewSessionManager(settingsMgr, "", cache.NewCache(cache.NewRedisCache(redis.NewClient(&redis.Options{Addr: mr.Addr()}), 0)))
+	mgr := NewSessionManager(settingsMgr, "", NewInMemoryUserStateStorage())
 
 	invalidUsers := []string{"invalid1", "invalid2", "invalid3", "invalid4", "invalid5", "invalid6", "invalid7"}
 	// Temporarily decrease max cache size
@@ -408,14 +386,8 @@ func TestMaxCacheSize(t *testing.T) {
 }
 
 func TestFailedAttemptsExpiry(t *testing.T) {
-	mr, err := miniredis.Run()
-	if err != nil {
-		panic(err)
-	}
-	defer mr.Close()
-
 	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("password", true), "argocd")
-	mgr := NewSessionManager(settingsMgr, "", cache.NewCache(cache.NewRedisCache(redis.NewClient(&redis.Options{Addr: mr.Addr()}), 0)))
+	mgr := NewSessionManager(settingsMgr, "", NewInMemoryUserStateStorage())
 
 	invalidUsers := []string{"invalid1", "invalid2", "invalid3", "invalid4", "invalid5", "invalid6", "invalid7"}
 
@@ -428,7 +400,7 @@ func TestFailedAttemptsExpiry(t *testing.T) {
 
 	time.Sleep(2 * time.Second)
 
-	err = mgr.VerifyUsernamePassword("invalid8", "password")
+	err := mgr.VerifyUsernamePassword("invalid8", "password")
 	assert.Error(t, err)
 	assert.Len(t, mgr.GetLoginFailures(), 1)
 

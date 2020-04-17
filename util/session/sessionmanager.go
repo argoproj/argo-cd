@@ -12,16 +12,14 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/argoproj/argo-cd/server/rbacpolicy"
-
 	"github.com/dgrijalva/jwt-go"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	"github.com/argoproj/argo-cd/common"
-	cacheutil "github.com/argoproj/argo-cd/util/cache"
-	appstate "github.com/argoproj/argo-cd/util/cache/appstate"
+	"github.com/argoproj/argo-cd/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/util/cache/appstate"
 	"github.com/argoproj/argo-cd/util/dex"
 	httputil "github.com/argoproj/argo-cd/util/http"
 	jwtutil "github.com/argoproj/argo-cd/util/jwt"
@@ -35,7 +33,30 @@ type SessionManager struct {
 	settingsMgr *settings.SettingsManager
 	client      *http.Client
 	prov        oidcutil.Provider
-	cache       *cacheutil.Cache
+	storage     UserStateStorage
+}
+
+type inMemoryUserStateStorage struct {
+	attempts map[string]LoginAttempts
+}
+
+func NewInMemoryUserStateStorage() *inMemoryUserStateStorage {
+	return &inMemoryUserStateStorage{attempts: map[string]LoginAttempts{}}
+}
+
+func (storage *inMemoryUserStateStorage) GetLoginAttempts(attempts *map[string]LoginAttempts) error {
+	*attempts = storage.attempts
+	return nil
+}
+
+func (storage *inMemoryUserStateStorage) SetLoginAttempts(attempts map[string]LoginAttempts) error {
+	storage.attempts = attempts
+	return nil
+}
+
+type UserStateStorage interface {
+	GetLoginAttempts(attempts *map[string]LoginAttempts) error
+	SetLoginAttempts(attempts map[string]LoginAttempts) error
 }
 
 // LoginAttempts is a timestamped counter for failed login attempts
@@ -55,15 +76,11 @@ const (
 	blankPasswordError   = "Blank passwords are not allowed"
 	accountDisabled      = "Account %s is disabled"
 	usernameTooLongError = "Username is too long (%d bytes max)"
-	// nolint:varcheck,deadcode,unused
-	accountDelayed = "Too many login failures. Login for account %s is delayed by %d seconds"
 )
 
 const (
 	// Maximum length of username, too keep the cache's memory signature low
 	maxUsernameLength = 32
-	// The key prefix to store login attempts in the cache
-	loginAttemptsCacheKey = "session|login.attempts"
 	// The default maximum session cache size
 	defaultMaxCacheSize = 1000
 	// The default number of maximum login failures before delay kicks in
@@ -143,10 +160,10 @@ func getLoginFailureWindow() time.Duration {
 }
 
 // NewSessionManager creates a new session manager from Argo CD settings
-func NewSessionManager(settingsMgr *settings.SettingsManager, dexServerAddr string, cache *cacheutil.Cache) *SessionManager {
+func NewSessionManager(settingsMgr *settings.SettingsManager, dexServerAddr string, storage UserStateStorage) *SessionManager {
 	s := SessionManager{
 		settingsMgr: settingsMgr,
-		cache:       cache,
+		storage:     storage,
 	}
 	settings, err := settingsMgr.GetSettings()
 	if err != nil {
@@ -257,10 +274,10 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, error) {
 func (mgr *SessionManager) GetLoginFailures() map[string]LoginAttempts {
 	// Get failures from the cache
 	var failures map[string]LoginAttempts
-	err := mgr.cache.GetItem(loginAttemptsCacheKey, &failures)
+	err := mgr.storage.GetLoginAttempts(&failures)
 	if err != nil {
 		if err != appstate.ErrCacheMiss {
-			log.Errorf("Could not retrieve %s from cache: %s", loginAttemptsCacheKey, err.Error())
+			log.Errorf("Could not retrieve login attempts: %v", err)
 		}
 		failures = make(map[string]LoginAttempts)
 	}
@@ -334,9 +351,9 @@ func (mgr *SessionManager) updateFailureCount(username string, failed bool) {
 		}
 	}
 
-	err := mgr.cache.SetItem(loginAttemptsCacheKey, failures, 0, false)
+	err := mgr.storage.SetLoginAttempts(failures)
 	if err != nil {
-		log.Errorf("Could not update session cache: %s", err.Error())
+		log.Errorf("Could not update login attempts: %v", err)
 	}
 
 }
