@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/argoproj/argo-cd/pkg/apis/application"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/diff"
-
 	log "github.com/sirupsen/logrus"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -26,21 +26,34 @@ type knownTypesNormalizer struct {
 }
 
 // NewKnownTypesNormalizer create a normalizer that re-format custom resource fields using built-in Kubernetes types.
-func NewKnownTypesNormalizer(overrides map[string]v1alpha1.ResourceOverride) (diff.Normalizer, error) {
+func NewKnownTypesNormalizer(overrides map[string]v1alpha1.ResourceOverride) (*knownTypesNormalizer, error) {
 	normalizer := knownTypesNormalizer{typeFields: map[schema.GroupKind][]knownTypeField{}}
 	for key, override := range overrides {
-		parts := strings.Split(key, "/")
-		if len(parts) < 2 {
-			continue
+		group, kind, err := getGroupKindForOverrideKey(key)
+		if err != nil {
+			log.Warn(err)
 		}
-		gk := schema.GroupKind{Group: parts[0], Kind: parts[1]}
+		gk := schema.GroupKind{Group: group, Kind: kind}
 		for _, f := range override.KnownTypeFields {
 			if err := normalizer.addKnownField(gk, f.Field, f.Type); err != nil {
 				log.Warnf("Failed to configure known field normalizer: %v", err)
 			}
 		}
 	}
+	normalizer.ensureDefaultCRDsConfigured()
 	return &normalizer, nil
+}
+
+func (n *knownTypesNormalizer) ensureDefaultCRDsConfigured() {
+	rolloutGK := schema.GroupKind{Group: application.Group, Kind: "Rollout"}
+	if _, ok := n.typeFields[rolloutGK]; !ok {
+		n.typeFields[rolloutGK] = []knownTypeField{{
+			fieldPath: []string{"spec", "template", "spec"},
+			newFieldFn: func() interface{} {
+				return &v1.PodSpec{}
+			},
+		}}
+	}
 }
 
 func (n *knownTypesNormalizer) addKnownField(gk schema.GroupKind, fieldPath string, typePath string) error {
