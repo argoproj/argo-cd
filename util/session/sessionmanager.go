@@ -95,13 +95,25 @@ const (
 	// The default time in seconds for the failure window
 	defaultFailureWindow = 300
 
-	// environment variables to control rate limiter behaviour
-	envLoginDelayStart    = "ARGOCD_SESSION_FAILURE_DELAY_START"
-	envLoginDelayIncrease = "ARGOCD_SESSION_FAILURE_DELAY_INCREASE"
-	envLoginDelayMax      = "ARGOCD_SESSION_FAILURE_DELAY_MAX"
-	envLoginMaxFailCount  = "ARGOCD_SESSION_FAILURE_MAX_FAIL_COUNT"
-	envLoginFailureWindow = "ARGOCD_SESSION_FAILURE_WINDOW"
-	envLoginMaxCacheSize  = "ARGOCD_SESSION_MAX_CACHE_SIZE"
+	// environment variables to control rate limiter behaviour:
+
+	// Time in seconds the authentication should be delayed for if the limiter becomes first active. Default: 3
+	envLoginDelayStartSeconds = "ARGOCD_SESSION_FAILURE_DELAY_START_SECONDS"
+
+	// Time in seconds the authentication delay should be increased on consecutive login failures after max fail count has been reached. Default: 2
+	envLoginDelayIncreaseSeconds = "ARGOCD_SESSION_FAILURE_DELAY_INCREASE_SECONDS"
+
+	// Max time in seconds the authentication delay can be increased to. Default: 30
+	envLoginDelayMaxSeconds = "ARGOCD_SESSION_FAILURE_DELAY_MAX_SECONDS"
+
+	// Max number of login failures before login delay kicks in
+	envLoginMaxFailCount = "ARGOCD_SESSION_FAILURE_MAX_FAIL_COUNT"
+
+	// Number of maximum seconds the login is allowed to delay for. Default: 300 (5 minutes).
+	envLoginFailureWindowSeconds = "ARGOCD_SESSION_FAILURE_WINDOW_SECONDS"
+
+	// Max number of stored usernames
+	envLoginMaxCacheSize = "ARGOCD_SESSION_MAX_CACHE_SIZE"
 )
 
 // Helper function to parse a number from an environment variable. Returns a
@@ -142,22 +154,22 @@ func getMaxLoginFailures() int {
 
 // Returns the number of seconds login should be delayed after maximum number of failures has been reached
 func getLoginDelayStart() int {
-	return parseNumFromEnv(envLoginDelayStart, defaultLoginDelayStart, 1, math.MaxInt32)
+	return parseNumFromEnv(envLoginDelayStartSeconds, defaultLoginDelayStart, 1, math.MaxInt32)
 }
 
 // Returns the number of seconds the delay shall be increased by on consecutive login failures
 func getLoginDelayIncrease() int {
-	return parseNumFromEnv(envLoginDelayIncrease, defaultLoginDelayIncrease, 0, math.MaxInt32)
+	return parseNumFromEnv(envLoginDelayIncreaseSeconds, defaultLoginDelayIncrease, 0, math.MaxInt32)
 }
 
 // Returns the number of maximum seconds the login is allowed to delay for
 func getLoginDelayMax() int {
-	return parseNumFromEnv(envLoginDelayMax, defaultLoginDelayMax, 0, math.MaxInt32)
+	return parseNumFromEnv(envLoginDelayMaxSeconds, defaultLoginDelayMax, 0, math.MaxInt32)
 }
 
 // Returns the number of maximum seconds the login is allowed to delay for
 func getLoginFailureWindow() time.Duration {
-	return time.Duration(parseNumFromEnv(envLoginFailureWindow, defaultFailureWindow, 0, math.MaxInt32))
+	return time.Duration(parseNumFromEnv(envLoginFailureWindowSeconds, defaultFailureWindow, 0, math.MaxInt32))
 }
 
 // NewSessionManager creates a new session manager from Argo CD settings

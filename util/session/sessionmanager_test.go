@@ -177,9 +177,9 @@ func TestCacheValueGetters(t *testing.T) {
 	})
 
 	t.Run("Valid environment overrides", func(t *testing.T) {
-		os.Setenv(envLoginDelayStart, "5")
-		os.Setenv(envLoginDelayIncrease, "5")
-		os.Setenv(envLoginDelayMax, "5")
+		os.Setenv(envLoginDelayStartSeconds, "5")
+		os.Setenv(envLoginDelayIncreaseSeconds, "5")
+		os.Setenv(envLoginDelayMaxSeconds, "5")
 		os.Setenv(envLoginMaxFailCount, "5")
 		os.Setenv(envLoginMaxCacheSize, "5")
 
@@ -198,17 +198,17 @@ func TestCacheValueGetters(t *testing.T) {
 		mcs := getMaximumCacheSize()
 		assert.Equal(t, 5, mcs)
 
-		os.Setenv(envLoginDelayStart, "")
-		os.Setenv(envLoginDelayIncrease, "")
-		os.Setenv(envLoginDelayMax, "")
+		os.Setenv(envLoginDelayStartSeconds, "")
+		os.Setenv(envLoginDelayIncreaseSeconds, "")
+		os.Setenv(envLoginDelayMaxSeconds, "")
 		os.Setenv(envLoginMaxFailCount, "")
 		os.Setenv(envLoginMaxCacheSize, "")
 	})
 
 	t.Run("Invalid environment overrides", func(t *testing.T) {
-		os.Setenv(envLoginDelayStart, "invalid")
-		os.Setenv(envLoginDelayIncrease, "invalid")
-		os.Setenv(envLoginDelayMax, "invalid")
+		os.Setenv(envLoginDelayStartSeconds, "invalid")
+		os.Setenv(envLoginDelayIncreaseSeconds, "invalid")
+		os.Setenv(envLoginDelayMaxSeconds, "invalid")
 		os.Setenv(envLoginMaxFailCount, "invalid")
 		os.Setenv(envLoginMaxCacheSize, "invalid")
 
@@ -227,17 +227,17 @@ func TestCacheValueGetters(t *testing.T) {
 		mcs := getMaximumCacheSize()
 		assert.Equal(t, defaultMaxCacheSize, mcs)
 
-		os.Setenv(envLoginDelayStart, "")
-		os.Setenv(envLoginDelayIncrease, "")
-		os.Setenv(envLoginDelayMax, "")
+		os.Setenv(envLoginDelayStartSeconds, "")
+		os.Setenv(envLoginDelayIncreaseSeconds, "")
+		os.Setenv(envLoginDelayMaxSeconds, "")
 		os.Setenv(envLoginMaxFailCount, "")
 		os.Setenv(envLoginMaxCacheSize, "")
 	})
 
 	t.Run("Less than allowed in environment overrides", func(t *testing.T) {
-		os.Setenv(envLoginDelayStart, "-1")
-		os.Setenv(envLoginDelayIncrease, "-1")
-		os.Setenv(envLoginDelayMax, "-1")
+		os.Setenv(envLoginDelayStartSeconds, "-1")
+		os.Setenv(envLoginDelayIncreaseSeconds, "-1")
+		os.Setenv(envLoginDelayMaxSeconds, "-1")
 		os.Setenv(envLoginMaxFailCount, "-1")
 		os.Setenv(envLoginMaxCacheSize, "-1")
 
@@ -256,17 +256,17 @@ func TestCacheValueGetters(t *testing.T) {
 		mcs := getMaximumCacheSize()
 		assert.Equal(t, defaultMaxCacheSize, mcs)
 
-		os.Setenv(envLoginDelayStart, "")
-		os.Setenv(envLoginDelayIncrease, "")
-		os.Setenv(envLoginDelayMax, "")
+		os.Setenv(envLoginDelayStartSeconds, "")
+		os.Setenv(envLoginDelayIncreaseSeconds, "")
+		os.Setenv(envLoginDelayMaxSeconds, "")
 		os.Setenv(envLoginMaxFailCount, "")
 		os.Setenv(envLoginMaxCacheSize, "")
 	})
 
 	t.Run("Greater than allowed in environment overrides", func(t *testing.T) {
-		os.Setenv(envLoginDelayStart, fmt.Sprintf("%d", math.MaxInt32+1))
-		os.Setenv(envLoginDelayIncrease, fmt.Sprintf("%d", math.MaxInt32+1))
-		os.Setenv(envLoginDelayMax, fmt.Sprintf("%d", math.MaxInt32+1))
+		os.Setenv(envLoginDelayStartSeconds, fmt.Sprintf("%d", math.MaxInt32+1))
+		os.Setenv(envLoginDelayIncreaseSeconds, fmt.Sprintf("%d", math.MaxInt32+1))
+		os.Setenv(envLoginDelayMaxSeconds, fmt.Sprintf("%d", math.MaxInt32+1))
 		os.Setenv(envLoginMaxFailCount, fmt.Sprintf("%d", math.MaxInt32+1))
 		os.Setenv(envLoginMaxCacheSize, fmt.Sprintf("%d", math.MaxInt32+1))
 
@@ -285,9 +285,9 @@ func TestCacheValueGetters(t *testing.T) {
 		mcs := getMaximumCacheSize()
 		assert.Equal(t, defaultMaxCacheSize, mcs)
 
-		os.Setenv(envLoginDelayStart, "")
-		os.Setenv(envLoginDelayIncrease, "")
-		os.Setenv(envLoginDelayMax, "")
+		os.Setenv(envLoginDelayStartSeconds, "")
+		os.Setenv(envLoginDelayIncreaseSeconds, "")
+		os.Setenv(envLoginDelayMaxSeconds, "")
 		os.Setenv(envLoginMaxFailCount, "")
 		os.Setenv(envLoginMaxCacheSize, "")
 	})
@@ -381,7 +381,7 @@ func TestFailedAttemptsExpiry(t *testing.T) {
 
 	invalidUsers := []string{"invalid1", "invalid2", "invalid3", "invalid4", "invalid5", "invalid6", "invalid7"}
 
-	os.Setenv(envLoginFailureWindow, "1")
+	os.Setenv(envLoginFailureWindowSeconds, "1")
 
 	for _, user := range invalidUsers {
 		err := mgr.VerifyUsernamePassword(user, "password")
@@ -394,5 +394,5 @@ func TestFailedAttemptsExpiry(t *testing.T) {
 	assert.Error(t, err)
 	assert.Len(t, mgr.GetLoginFailures(), 1)
 
-	os.Setenv(envLoginFailureWindow, "")
+	os.Setenv(envLoginFailureWindowSeconds, "")
 }
