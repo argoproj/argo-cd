@@ -154,20 +154,23 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, error) {
 
 // VerifyUsernamePassword verifies if a username/password combo is correct
 func (mgr *SessionManager) VerifyUsernamePassword(username string, password string) error {
+	if password == "" {
+		return status.Errorf(codes.Unauthenticated, blankPasswordError)
+	}
 	account, err := mgr.settingsMgr.GetAccount(username)
 	if err != nil {
 		if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
 			err = status.Errorf(codes.Unauthenticated, invalidLoginError)
 		}
+		// to prevent time-based user enumeration, we must perform a password
+		// hash cycle to keep response time consistent (if the function were
+		// to continue and not return here)
+		_, _ = passwordutil.HashPassword("for_consistent_response_time")
 		return err
 	}
 	if !account.Enabled {
 		return status.Errorf(codes.Unauthenticated, accountDisabled, username)
 	}
-	if password == "" {
-		return status.Errorf(codes.Unauthenticated, blankPasswordError)
-	}
-
 	valid, _ := passwordutil.VerifyPassword(password, account.PasswordHash)
 	if !valid {
 		return status.Errorf(codes.Unauthenticated, invalidLoginError)
