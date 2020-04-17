@@ -14,6 +14,9 @@ login history etc. So if you need such features it is strongly recommended to us
 
 !!! warning "Make sure to read about security limitations related to local users in [security considerations](../../security_considerations.md) document"
 
+!!! note
+    When you create local users, each of those users will need additional [RBAC rules](../rbac.md) set up, otherwise they will fall back to the default policy specified by `policy.default` field of the `argocd-rbac-cm` ConfigMap.
+
 ### Create new user
 
 New users should be defined in `argocd-cm` ConfigMap:

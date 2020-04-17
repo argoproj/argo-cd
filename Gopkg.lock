@@ -522,15 +522,19 @@
   version = "v0.3.1"
 
 [[projects]]
-  digest = "1:14d826ee25139b4674e9768ac287a135f4e7c14e1134a5b15e4e152edfd49f41"
+  digest = "1:ce886a0d7c4737485b1d72453aa6f22282c021fffe209abe33220d54d0e2e670"
   name = "github.com/google/go-jsonnet"
   packages = [
     ".",
     "ast",
-    "parser",
+    "astgen",
+    "internal/errors",
+    "internal/parser",
+    "internal/program",
   ]
   pruneopts = ""
-  revision = "dfddf2b4e3aec377b0dcdf247ff92e7d078b8179"
+  revision = "70a6b3d419d9ee16a144345c35e0305052c6f2d9"
+  version = "v0.15.0"
 
 [[projects]]
   branch = "master"

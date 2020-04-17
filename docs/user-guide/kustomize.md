@@ -1,10 +1,11 @@
 # Kustomize
 
-You have three configuration options for Kustomize:
+The following configuration options are available for Kustomize:
 
 * `namePrefix` is a prefix appended to resources for Kustomize apps
 * `nameSuffix` is a suffix appended to resources for Kustomize apps
 * `images` is a list of Kustomize image overrides
+* `commonLabels` is a string map of an additional labels
     
 To use Kustomize with an overlay, point your path to the overlay.
 
@@ -34,6 +35,25 @@ metadata:
     app.kubernetes.io/part-of: argocd
 data:
     kustomize.buildOptions: --load_restrictor none
+```
+## Custom Kustomize versions
+
+Argo CD supports using multiple kustomize versions simultaneously and specify required version per application.
+To add additional versions make sure required versions are [bundled](../operator-manual/custom_tools.md) and then
+use `kustomize.version.<version>` fields of `argocd-cm` ConfigMap to register bundled additional versions.   
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cm
+    app.kubernetes.io/part-of: argocd
+data:
+    kustomize.version.v3.5.1: /custom-tools/kustomize_3_5_1
+    kustomize.version.v3.5.4: /custom-tools/kustomize_3_5_4
 ```
 
 ## Build Environment

@@ -369,11 +369,11 @@ func modifyNamespaceResourceCmd(cmdUse, cmdDesc string, clientOpts *argocdclient
 	var (
 		list string
 	)
-	var command =  &cobra.Command{
+	var command = &cobra.Command{
 		Use:   cmdUse,
 		Short: cmdDesc,
 		Run: func(c *cobra.Command, args []string) {
-			if len(args) != 3  {
+			if len(args) != 3 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
@@ -385,7 +385,7 @@ func modifyNamespaceResourceCmd(cmdUse, cmdDesc string, clientOpts *argocdclient
 			errors.CheckError(err)
 			var useWhitelist = false
 			if list == "white" {
-				useWhitelist= true
+				useWhitelist = true
 			}
 			if action(proj, group, kind, useWhitelist) {
 				_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
@@ -777,5 +777,3 @@ func NewProjectEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 	}
 	return command
 }
-
-

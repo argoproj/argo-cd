@@ -57,3 +57,48 @@ data:
         jsonPointers:
         - /webhooks/0/clientConfig/caBundle
 ```
+
+## Known Kubernetes types in CRDs (Resource limits, Volume mounts etc)
+
+Some CRDs are re-using data structures defined in the Kubernetes source base and therefore inheriting custom
+JSON/YAML marshaling. Custom marshalers might serialize CRDs in a slightly different format that causes false
+positives during drift detection. 
+
+A typical example is the `argoproj.io/Rollout` CRD that re-using `core/v1/PodSpec` data structure. Pod resource requests
+might be reformatted by the custom marshaller of `IntOrString` data type:
+
+from:
+```yaml
+resources:
+  requests:
+    cpu: 100m
+```
+
+to:
+```yaml
+resources:
+  requests:
+    cpu: 0.1
+```
+
+The solution is to specify which CRDs fields are using built-in Kubernetes types in the `resource.customizations`
+section of `argocd-cm` ConfigMap:  
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  resource.customizations: |
+    argoproj.io/Rollout:
+      knownTypeFields:
+      - field: spec.template.spec
+        type: core/v1/PodSpec
+```
+
+The list of supported Kubernetes types is available in [diffing_known_types.txt](https://raw.githubusercontent.com/argoproj/argo-cd/master/util/argo/normalizers/diffing_known_types.txt)

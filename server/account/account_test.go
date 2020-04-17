@@ -276,6 +276,22 @@ func TestCreateToken_DoesNotHaveCapability(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestCreateToken_UserSpecifiedID(t *testing.T) {
+	ctx := adminContext(context.Background())
+	accountServer, _ := newTestAccountServer(ctx, func(cm *v1.ConfigMap, secret *v1.Secret) {
+		cm.Data["accounts.account1"] = "apiKey"
+	})
+
+	_, err := accountServer.CreateToken(ctx, &account.CreateTokenRequest{Name: "account1", Id: "test"})
+	assert.NoError(t, err)
+
+	_, err = accountServer.CreateToken(ctx, &account.CreateTokenRequest{Name: "account1", Id: "test"})
+	if !assert.Error(t, err) {
+		return
+	}
+	assert.Contains(t, "account already has token with id 'test'", err.Error())
+}
+
 func TestDeleteToken_SuccessfullyRemoved(t *testing.T) {
 	ctx := adminContext(context.Background())
 	accountServer, _ := newTestAccountServer(ctx, func(cm *v1.ConfigMap, secret *v1.Secret) {

@@ -156,6 +156,9 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, error) {
 func (mgr *SessionManager) VerifyUsernamePassword(username string, password string) error {
 	account, err := mgr.settingsMgr.GetAccount(username)
 	if err != nil {
+		if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
+			err = status.Errorf(codes.Unauthenticated, invalidLoginError)
+		}
 		return err
 	}
 	if !account.Enabled {

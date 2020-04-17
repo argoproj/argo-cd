@@ -18,13 +18,14 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic"
 
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/pager"
+
 	"github.com/argoproj/argo-cd/controller/metrics"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/health"
 	"github.com/argoproj/argo-cd/util/kube"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/tools/pager"
 )
 
 const (
@@ -129,6 +130,17 @@ func (c *clusterInfo) createObjInfo(un *unstructured.Unstructured, appInstanceLa
 			Kind:       kube.ServiceKind,
 			APIVersion: "v1",
 		})
+	}
+
+	// Special case for Operator Lifecycle Manager ClusterServiceVersion:
+	if un.GroupVersionKind().Group == "operators.coreos.com" && un.GetKind() == "ClusterServiceVersion" {
+		if un.GetAnnotations()["olm.operatorGroup"] != "" {
+			ownerRefs = append(ownerRefs, metav1.OwnerReference{
+				Name:       un.GetAnnotations()["olm.operatorGroup"],
+				Kind:       "OperatorGroup",
+				APIVersion: "operators.coreos.com/v1",
+			})
+		}
 	}
 
 	// edge case. Consider auto-created service account tokens as a child of service account objects

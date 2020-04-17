@@ -424,7 +424,13 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 				// metadata.generateName, then we will generate a formulated metadata.name before submission.
 				targetObj := obj.DeepCopy()
 				if targetObj.GetName() == "" {
-					postfix := strings.ToLower(fmt.Sprintf("%s-%s-%d", sc.syncRes.Revision[0:7], phase, sc.opState.StartedAt.UTC().Unix()))
+					var syncRevision string
+					if len(sc.syncRes.Revision) >= 8 {
+						syncRevision = sc.syncRes.Revision[0:7]
+					} else {
+						syncRevision = sc.syncRes.Revision
+					}
+					postfix := strings.ToLower(fmt.Sprintf("%s-%s-%d", syncRevision, phase, sc.opState.StartedAt.UTC().Unix()))
 					generateName := obj.GetGenerateName()
 					targetObj.SetName(fmt.Sprintf("%s%s", generateName, postfix))
 				}
@@ -478,9 +484,11 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 		serverRes, err := kube.ServerResourceForGroupVersionKind(sc.disco, task.groupVersionKind())
 		if err != nil {
 			// Special case for custom resources: if CRD is not yet known by the K8s API server,
-			// skip verification during `kubectl apply --dry-run` since we expect the CRD
+			// and the CRD is part of this sync or the resource is annotated with SkipDryRunOnMissingResource=true,
+			// then skip verification during `kubectl apply --dry-run` since we expect the CRD
 			// to be created during app synchronization.
-			if apierr.IsNotFound(err) && sc.hasCRDOfGroupKind(task.group(), task.kind()) {
+			skipDryRunOnMissingResource := resource.HasAnnotationOption(task.targetObj, common.AnnotationSyncOptions, "SkipDryRunOnMissingResource=true")
+			if apierr.IsNotFound(err) && (skipDryRunOnMissingResource || sc.hasCRDOfGroupKind(task.group(), task.kind())) {
 				sc.log.WithFields(log.Fields{"task": task}).Debug("skip dry-run for custom resource")
 				task.skipDryRun = true
 			} else {
