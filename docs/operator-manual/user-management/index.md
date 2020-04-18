@@ -40,6 +40,7 @@ data:
 ```
 
 Each user might have two capabilities:
+
 * apiKey - allows generating authentication tokens for API access
 * login - allows to login using UI
 
