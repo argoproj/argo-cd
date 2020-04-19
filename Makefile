@@ -240,7 +240,7 @@ builder-image:
 # Pulls in all vendor dependencies
 .PHONY: dep
 dep:
-	$(call run-in-test-client,dep ensure -v)
+	$(call run-in-test-client,,dep ensure -v)
 
 # Pulls in all vendor dependencies (local version)
 .PHONY: dep-local
