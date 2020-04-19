@@ -42,7 +42,7 @@ jobs:
         working-directory: ./src/github.com/argoproj/argo-cd
 
       - name: Run golangci-lint
-        run: make lint
+        run: make lint DOCKER_ARGS= 
         working-directory: ./src/github.com/argoproj/argo-cd
 
       - name: Install golangci-lint

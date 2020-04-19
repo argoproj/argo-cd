@@ -16,6 +16,7 @@ GOCACHE?=$(HOME)/.cache/go-build
 
 DOCKER_SRCDIR?=$(GOPATH)/src
 DOCKER_WORKDIR?=/go/src/github.com/argoproj/argo-cd
+DOCKER_ARGS?=-it
 
 ARGOCD_PROCFILE?=Procfile
 
@@ -65,7 +66,7 @@ endef
 
 # Runs any command in the argocd-test-utils container in client mode
 define run-in-test-client
-	docker run --rm $(1) \
+	docker run --rm $(DOCKER_ARGS) \
 	  --name argocd-test-client \
 		-u $(shell id -u) \
 		-e HOME=/home/user \
@@ -279,6 +280,7 @@ lint:
 # Run linter on the code (local version)
 .PHONY: lint-local
 lint-local:
+	go env
 	golangci-lint --version
 	# NOTE: If you get a "Killed" OOM message, try reducing the value of GOGC
 	# See https://github.com/golangci/golangci-lint#memory-usage-of-golangci-lint
