@@ -24,7 +24,7 @@ jobs:
         uses: actions/cache@v1
         with:
           path: src/github.com/argoproj/argo-cd/vendor
-          key: ${{ runner.os }}-go-dep-v1-${{ hashFiles('**/Gopkg.lock') }}
+          key: ${{ runner.os }}-go-dep-v2-${{ hashFiles('**/Gopkg.lock') }}
 
       - name: Synchronize vendor dependencies
         run: make dep 
