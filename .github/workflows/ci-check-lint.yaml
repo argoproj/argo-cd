@@ -32,9 +32,10 @@ jobs:
       - name: Install dep dependency
         run: mkdir -p $(go env GOPATH)/bin && curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
 
+      - run: echo $PATH
+
       - name: Synchronize vendor dependencies
-        run: dep ensure -v
-        working-directory: src/github.com/argoproj/argo-cd
+        run: $(go env GOPATH)/bin/dep ensure -v
 
       - name: Run golangci-lint
         uses: actions-contrib/golangci-lint@v1
