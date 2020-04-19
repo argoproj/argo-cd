@@ -3,7 +3,7 @@ name: Lint codebase
 on:
   push:
     branches:
-      - '**' 
+      - 'master' 
   pull_request:
     branches:
       - 'master'
@@ -20,7 +20,7 @@ jobs:
         with:
           path: src/github.com/argoproj/argo-cd
 
-      - run: mkdir -p $HOME/.cache/go-build && ls -l $HOME/.cache/go-build
+      - run: mkdir -p $HOME/.cache/go-build
 
       - name: Restore dependency cahce
         uses: actions/cache@v1
@@ -33,5 +33,18 @@ jobs:
         working-directory: ./src/github.com/argoproj/argo-cd
 
       - name: Run golangci-lint
-        run: make lint
+        run: make lint ARGOCD_LINT_GOGC=50
+        working-directory: ./src/github.com/argoproj/argo-cd
+
+      - name: Check that nothing has changed
+        run: |
+          gDiff=$(git diff)
+          if test "$gDiff" != ""; then
+            echo "################################################################################"
+            echo "golangci-lint has detected & fixed changes. Please fix them in your local repo,"
+            echo "commit the changes and push them to re-trigger the check."
+            echo "################################################################################"
+            git diff
+            exit 1
+          fi
         working-directory: ./src/github.com/argoproj/argo-cd

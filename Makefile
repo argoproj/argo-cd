@@ -16,6 +16,8 @@ GOCACHE?=$(HOME)/.cache/go-build
 
 DOCKER_SRCDIR?=$(GOPATH)/src
 DOCKER_WORKDIR?=/go/src/github.com/argoproj/argo-cd
+
+# DOCKER_ARGS should be unset when running from a non-pty device, i.e. CI
 DOCKER_ARGS?=-it
 
 ARGOCD_PROCFILE?=Procfile
@@ -44,7 +46,7 @@ ARGOCD_LINT_GOGC?=20
 # Runs any command in the argocd-test-utils container in server mode
 # Server mode container will start with uid 0 and drop privileges during runtime
 define run-in-test-server
-	docker run --rm $(1) \
+	docker run --rm $(DOCKER_ARGS) \
 		--name argocd-test-server \
 		-e USER_ID=$(shell id -u) \
 		-e HOME=/home/user \
@@ -61,7 +63,7 @@ define run-in-test-server
 		-p ${ARGOCD_E2E_APISERVER_PORT}:8080 \
 		-p 4000:4000 \
 		$(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE):$(TEST_TOOLS_TAG) \
-		bash -c "$(2)"
+		bash -c "$(1)"
 endef
 
 # Runs any command in the argocd-test-utils container in client mode
@@ -80,7 +82,7 @@ define run-in-test-client
 		-v /tmp:/tmp${VOLUME_MOUNT} \
 		-w ${DOCKER_WORKDIR} \
 		$(TEST_TOOLS_NAMESPACE)/$(TEST_TOOLS_IMAGE):$(TEST_TOOLS_TAG) \
-		bash -c "$(2)"
+		bash -c "$(1)"
 endef
 
 # 
@@ -149,7 +151,7 @@ codegen-local: gogen protogen clientgen openapigen manifests-local
 
 .PHONY: codegen
 codegen:
-	$(call run-in-test-client,,make codegen-local)
+	$(call run-in-test-client,make codegen-local)
 
 .PHONY: cli
 cli: clean-debug
@@ -187,7 +189,7 @@ manifests-local:
 
 .PHONY: manifests
 manifests: test-tools-image
-	$(call run-in-test-client,,make manifests-local IMAGE_TAG='${IMAGE_TAG}')
+	$(call run-in-test-client,make manifests-local IMAGE_TAG='${IMAGE_TAG}')
 
 
 # NOTE: we use packr to do the build instead of go, since we embed swagger files and policy.csv
@@ -240,7 +242,7 @@ builder-image:
 # Pulls in all vendor dependencies
 .PHONY: dep
 dep:
-	$(call run-in-test-client,,dep ensure -v)
+	$(call run-in-test-client,dep ensure -v)
 
 # Pulls in all vendor dependencies (local version)
 .PHONY: dep-local
@@ -275,20 +277,19 @@ install-lint-tools:
 # Run linter on the code
 .PHONY: lint
 lint:
-	$(call run-in-test-client,,make lint-local)
+	$(call run-in-test-client,make lint-local)
 
 # Run linter on the code (local version)
 .PHONY: lint-local
 lint-local:
-	go env
 	golangci-lint --version
 	# NOTE: If you get a "Killed" OOM message, try reducing the value of GOGC
 	# See https://github.com/golangci/golangci-lint#memory-usage-of-golangci-lint
-	GL_DEBUG=linters_output GOPACKAGESPRINTGOLISTERRORS=1 GOGC=$(ARGOCD_LINT_GOGC) GOMAXPROCS=2 golangci-lint run --fix --verbose --timeout 300s
+	GOGC=$(ARGOCD_LINT_GOGC) GOMAXPROCS=2 golangci-lint run --fix --verbose --timeout 300s
 
 .PHONY: lint-ui
 lint-ui:
-	$(call run-in-test-client,,make lint-ui-local)
+	$(call run-in-test-client,make lint-ui-local)
 
 .PHONY: lint-ui-local
 lint-ui-local:
@@ -298,7 +299,7 @@ lint-ui-local:
 .PHONY: build
 build:
 	mkdir -p $(GOCACHE)
-	$(call run-in-test-client,,make build-local)
+	$(call run-in-test-client,make build-local)
 
 # Build all Go code (local version)
 .PHONY: build-local
@@ -312,7 +313,7 @@ build-local:
 .PHONY: test
 test:
 	mkdir -p $(GOCACHE)
-	$(call run-in-test-client,,make TEST_MODULE=$(TEST_MODULE) test-local)
+	$(call run-in-test-client,make TEST_MODULE=$(TEST_MODULE) test-local)
 
 # Run all unit tests (local version)
 .PHONY: test-local
@@ -341,7 +342,7 @@ debug-test-server:
 
 # Spawns a shell in the test client container for debugging purposes
 debug-test-client:
-	$(call run-in-test-client,-it,/bin/bash)
+	$(call run-in-test-client,/bin/bash)
 
 # Starts e2e server in a container
 .PHONY: start-e2e
@@ -427,7 +428,7 @@ publish-docs: lint-docs
 # Verify that kubectl can connect to your K8s cluster from Docker
 .PHONY: verify-kube-connect
 verify-kube-connect:
-	$(call run-in-test-client,,kubectl version)
+	$(call run-in-test-client,kubectl version)
 
 # Show the Go version of local and virtualized environments
 .PHONY: show-go-version
@@ -435,7 +436,7 @@ show-go-version:
 	@echo -n "Local Go version: "
 	@go version
 	@echo -n "Docker Go version: "
-	$(call run-in-test-client,,go version)
+	$(call run-in-test-client,go version)
 
 # Installs all tools required to build and test ArgoCD locally
 .PHONY: install-tools-local
@@ -452,7 +453,7 @@ install-tools-local:
 
 .PHONY: dep-ui
 dep-ui:
-	$(call run-in-test-client,,make dep-ui-local)
+	$(call run-in-test-client,make dep-ui-local)
 
 dep-ui-local:
 	cd ui && yarn install
