@@ -20,6 +20,8 @@ jobs:
         with:
           path: src/github.com/argoproj/argo-cd
 
+      - run: mkdir -p $HOME/.cache/go-build && ls -l $HOME/.cache/go-build
+
       - name: Restore dependency cahce
         uses: actions/cache@v1
         with:
