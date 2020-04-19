@@ -32,6 +32,17 @@ jobs:
           path: src/github.com/argoproj/argo-cd/vendor
           key: ${{ runner.os }}-go-dep-v2-${{ hashFiles('**/Gopkg.lock') }}
 
+      - name: Restore Docker image cache
+        id: cache-docker-image
+        uses: actions/cache@v1
+        with:
+          path: /home/runner/images/argocd-test-tools
+          key: ${{ runner.os }}-test-tools-${{ env.TEST_TOOLS_TAG }}
+
+      - name: Import argocd-test-tools image in local Docker store
+        run: docker load -i ./images/argocd-test-tools
+        if: steps.cache-docker-image.outputs.cache-hit == 'true'
+
       - name: Ensure Gopkg.lock is in sync with Gopkg.toml
         run: make dep-check
         working-directory: ./src/github.com/argoproj/argo-cd
@@ -45,13 +56,6 @@ jobs:
         with:
           path: /home/runner/.cache/go-build
           key: ${{ runner.os }}-go-build-v2-${{ env.GITHUB_SHA }}
-
-      - name: Restore Docker image cache
-        id: cache-docker-image
-        uses: actions/cache@v1
-        with:
-          path: /home/runner/images/argocd-test-tools
-          key: ${{ runner.os }}-test-tools-${{ env.TEST_TOOLS_TAG }}
 
       - name: Build the codebase
         run: make build
