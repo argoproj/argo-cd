@@ -23,7 +23,7 @@ jobs:
 
       - run: mkdir -p $HOME/.cache/go-build
 
-      - name: Restore dependency cahce
+      - name: Restore dependency cache
         uses: actions/cache@v1
         with:
           path: src/github.com/argoproj/argo-cd/vendor
@@ -37,15 +37,15 @@ jobs:
         run: make dep 
         working-directory: ./src/github.com/argoproj/argo-cd
 
+      - name: Restore any build cache for this PR
+        uses: actions/cache@v1
+        with:
+          path: /home/runner/.cache/go-build
+          key: ${{ runner.os }}-go-build-v2-${{ env.GITHUB_SHA }}
+
       - name: Build the codebase
         run: make build
         working-directory: ./src/github.com/argoproj/argo-cd
-
-      - name: Persist the Go build cache
-        uses: actions/upload-artifact@v1
-        with:
-          name: go-build-cache
-          path: /home/runner/.cache/go-build
 
   lint:
     needs: 
@@ -61,16 +61,17 @@ jobs:
         with:
           path: src/github.com/argoproj/argo-cd
 
-      - name: Restore dependency cahce
+      - name: Restore dependency cache
         uses: actions/cache@v1
         with:
           path: src/github.com/argoproj/argo-cd/vendor
           key: ${{ runner.os }}-go-dep-v2-${{ hashFiles('**/Gopkg.lock') }}
 
-      - name: Restore the Go build cache
-        uses: actions/download-artifact@v1
+      - name: Restore any build cache for this PR
+        uses: actions/cache@v1
         with:
-          name: go-build-cache
+          path: /home/runner/.cache/go-build
+          key: ${{ runner.os }}-go-build-v2-${{ env.GITHUB_SHA }}
 
       - name: Run golangci-lint
         run: make lint ARGOCD_LINT_GOGC=50
