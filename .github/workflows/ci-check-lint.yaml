@@ -12,7 +12,7 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     env:
-      GOPATH: $HOME/go
+      GOPATH: /home/runner/go
     steps:
       - name: Setup Go environment
         uses: actions/setup-go@v1
