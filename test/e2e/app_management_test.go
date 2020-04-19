@@ -495,6 +495,11 @@ func TestConfigMap(t *testing.T) {
 
 func TestFailedConversion(t *testing.T) {
 
+	// k3s does not validate at all, so this test does not work
+	if os.Getenv("ARGOCD_E2E_K3S") == "true" {
+		t.SkipNow()
+	}
+
 	defer func() {
 		FailOnErr(Run("", "kubectl", "delete", "apiservice", "v1beta1.metrics.k8s.io"))
 	}()

@@ -1,0 +1,383 @@
+name: CI checks
+
+on:
+  push:
+    branches:
+      - '**' 
+  pull_request:
+    branches:
+      - 'master'
+
+env:
+  GO_VERSION: 1.14.1
+  TEST_TOOLS_TAG: v0.2.0
+  DOCKER_ARGS: null
+
+jobs:
+  #############################################################################
+  # The build job is responsible for a complete build of all Go units in the
+  # codebase. It also ensures Gopkg.lock is up-to-date with Gopkg.toml and the
+  # dependencies. It sets up the vendor and build caches, so must be run before
+  # all other jobs.
+  #############################################################################
+  build:
+    name: Build codebase
+    runs-on: ubuntu-latest
+    env:
+      GOPATH: ${{ github.workspace }}
+      DOCKER_ARGS: null
+    steps:
+      - name: Pull required images
+        run: docker pull argoproj/argocd-test-tools:$TEST_TOOLS_TAG
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          path: ${{ github.workspace }}/src/github.com/argoproj/argo-cd
+
+      - run: mkdir -p $HOME/.cache/go-build
+
+      - name: Restore dependency cache
+        uses: actions/cache@v1
+        with:
+          path: ${{ github.workspace }}/src/github.com/argoproj/argo-cd/vendor
+          key: ${{ runner.os }}-go-dep-v2-${{ hashFiles('**/Gopkg.lock') }}
+
+      - name: Ensure Gopkg.lock is in sync with Gopkg.toml
+        run: make dep-check
+        working-directory: ${{ github.workspace }}/src/github.com/argoproj/argo-cd
+
+      - name: Synchronize vendor dependencies
+        run: make dep 
+        working-directory: ${{ github.workspace }}/src/github.com/argoproj/argo-cd
+
+      - name: Restore any build cache for this PR
+        uses: actions/cache@v1
+        with:
+          path: /home/runner/.cache/go-build
+          key: ${{ runner.os }}-go-build-v2-${{ github.ref }}
+
+      - name: Build the codebase
+        run: make build
+        working-directory: ${{ github.workspace }}/src/github.com/argoproj/argo-cd
+
+  codegen:
+    name: Run codegen
+    runs-on: ubuntu-latest
+    needs: 
+      - build
+
+    env:
+      GOPATH: /home/runner/work/argo-cd/argo-cd
+      DOCKER_ARGS: null
+
+    steps:
+    - name: Pull required images
+      run: docker pull argoproj/argocd-test-tools:$TEST_TOOLS_TAG
+
+    - name: Checkout code
+      uses: actions/checkout@v2
+      with:
+        path: ${{ github.workspace }}/src/github.com/argoproj/argo-cd
+
+    - name: Restore dependency cache
+      id: cache-dependencies
+      uses: actions/cache@v1
+      with:
+        path: ${{ github.workspace }}/src/github.com/argoproj/argo-cd/vendor
+        key: ${{ runner.os }}-go-dep-v2-${{ hashFiles('**/Gopkg.lock') }}
+
+    - name: Restore any build cache for this PR
+      id: cache-build-cache
+      uses: actions/cache@v1
+      with:
+        path: /home/runner/.cache/go-build
+        key: ${{ runner.os }}-go-build-v2-${{ github.ref }}
+
+    - name: Run codegen 
+      run: make codegen
+      working-directory: ${{ github.workspace }}/src/github.com/argoproj/argo-cd
+
+    - name: Ensure nothing has changed
+      run: |
+        set -xo pipefail
+        # This makes sure you ran `make pre-commit` before you pushed.
+        # We exclude the Swagger resources; CircleCI doesn't generate them correctly.
+        # When this fails, it will, create a patch file you can apply locally to fix it.
+        # To troubleshoot builds: https://argoproj.github.io/argo-cd/developer-guide/ci/
+        git diff --exit-code -- . ':!Gopkg.lock'  ':!assets/swagger.json' | tee codegen.patch
+      working-directory: ${{ github.workspace }}/src/github.com/argoproj/argo-cd
+
+  test:
+    name: Run unit tests
+    runs-on: ubuntu-latest
+    needs: 
+      - build
+    env:
+      GOPATH: ${{ github.workspace }}
+      DOCKER_ARGS: null
+      GOCACHE: /home/runner/.cache/go-build
+
+    steps:
+    - name: Pull required images
+      run: docker pull argoproj/argocd-test-tools:$TEST_TOOLS_TAG
+
+    - name: Checkout code
+      uses: actions/checkout@v2
+      with:
+        path: ${{ github.workspace }}/src/github.com/argoproj/argo-cd
+
+    - name: Restore dependency cache
+      id: cache-dependencies
+      uses: actions/cache@v1
+      with:
+        path: ${{ github.workspace }}/src/github.com/argoproj/argo-cd/vendor
+        key: ${{ runner.os }}-go-dep-v2-${{ hashFiles('**/Gopkg.lock') }}
+
+    - name: Restore any build cache for this PR
+      id: cache-build-cache
+      uses: actions/cache@v1
+      with:
+        path: ${{ env.GOCACHE }}
+        key: ${{ runner.os }}-go-build-v2-${{ github.ref }}
+    
+    - name: Show cache directory
+      run: ls -la
+      working-directory: ${{ env.GOCACHE }}
+
+    - name: Run all unit tests
+      run: |
+        export PATH=$PATH:$GITHUB_WORKSPACE/src/github.com/argoproj/argo-cd/hack
+        make test
+      working-directory: ${{ github.workspace }}/src/github.com/argoproj/argo-cd
+
+    - name: Store coverage information
+      uses: actions/upload-artifact@v1
+      with:
+        name: test-results
+        path: ${{ github.workspace }}/./src/github.com/argoproj/argo-cd/test-results
+
+  sonarcloud:
+    name: Run sonarcloud analysis
+    needs:
+      - test
+    runs-on: ubuntu-latest
+    env:
+      GOPATH: /home/runner/work/argo-cd/argo-cd
+      DOCKER_ARGS: null
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          path: ${{ github.workspace }}/src/github.com/argoproj/argo-cd
+          fetch-depth: 0
+
+      - name: Fetch complete history for blame information
+        run: |
+          git fetch --prune --depth 1 --no-tags origin +refs/heads/*:refs/remotes/origin/*
+        working-directory: ${{ github.workspace }}/src/github.com/argoproj/argo-cd
+
+      - name: Create test-results directory
+        run: mkdir -p $GITHUB_WORKSPACE/src/github.com/argoproj/argo-cd/test-results
+
+      - name: Restore node dependency cache
+        id: cache-dependencies
+        uses: actions/cache@v1
+        with:
+          path: ${{ github.workspace}}/src/github.com/argoproj/argo-cd/ui/node_modules
+          key: ${{ runner.os }}-node-dep-v2-${{ hashFiles('**/yarn.lock') }}
+
+      - name: Remove stray node configuration
+        run: |
+          rm -rf ui/node_modules/argo-ui/node_modules
+        working-directory: ${{ github.workspace }}/src/github.com/argoproj/argo-cd
+
+      - name: Restore Code coverage information
+        uses: actions/download-artifact@v1
+        with:
+          name: test-results
+          path: ${{ github.workspace }}/src/github.com/argoproj/argo-cd/test-results
+
+      - name: Run sonar-scanner
+        uses: jannfis/sonarcloud-github-action@master
+        with:
+          projectBaseDir: ${{ github.workspace }}/src/github.com/argoproj/argo-cd
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          NODE_MODULES: ${{ github.workspace }}/src/github.com/argoproj/argo-cd/ui/node_modules
+
+  lint:
+    needs: 
+      - build
+    name: Lint codebase
+    runs-on: ubuntu-latest
+    env:
+      GOPATH: /home/runner/work/argo-cd/argo-cd
+      DOCKER_ARGS: null
+    steps:
+      - name: Pull required images
+        run: docker pull argoproj/argocd-test-tools:$TEST_TOOLS_TAG
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          path: ${{ github.workspace}}/src/github.com/argoproj/argo-cd
+
+      - name: Restore dependency cache
+        id: cache-dependencies
+        uses: actions/cache@v1
+        with:
+          path: ${{ github.workspace}}/src/github.com/argoproj/argo-cd/vendor
+          key: ${{ runner.os }}-go-dep-v2-${{ hashFiles('**/Gopkg.lock') }}
+
+      - name: Restore any build cache for this PR
+        id: cache-build-cache
+        uses: actions/cache@v1
+        with:
+          path: /home/runner/.cache/go-build
+          key: ${{ runner.os }}-go-build-v2-${{ github.ref }}
+
+      - name: Run golangci-lint
+        run: make lint ARGOCD_LINT_GOGC=100
+        working-directory: ${{ github.workspace }}/src/github.com/argoproj/argo-cd
+
+      - name: Check that nothing has changed
+        run: |
+          gDiff=$(git diff)
+          if test "$gDiff" != ""; then
+            echo "################################################################################"
+            echo "golangci-lint has detected & fixed changes. Please fix them in your local repo,"
+            echo "commit the changes and push them to re-trigger the check."
+            echo "################################################################################"
+            git diff
+            exit 1
+          fi
+        working-directory: ${{ github.workspace }}/src/github.com/argoproj/argo-cd
+
+  test-e2e:
+    name: Run end-to-end tests
+    runs-on: ubuntu-latest
+    needs: 
+      - build
+    env:
+      GOPATH: /home/runner/work/argo-cd/argo-cd
+      DOCKER_ARGS: null
+      ARGOCD_FAKE_IN_CLUSTER: "true"
+      ARGOCD_SSH_DATA_PATH: "/tmp/argo-e2e/app/config/ssh"
+      ARGOCD_TLS_DATA_PATH: "/tmp/argo-e2e/app/config/tls"
+      ARGOCD_E2E_K3S: "true"
+      ARGOCD_IN_CI: "true"
+
+    steps:
+      - name: Pull required images
+        run: docker pull argoproj/argocd-test-tools:$TEST_TOOLS_TAG
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          path: ${{ github.workspace}}/src/github.com/argoproj/argo-cd
+
+      - name: Restore dependency cache
+        id: cache-dependencies
+        uses: actions/cache@v1
+        with:
+          path: ${{ github.workspace}}/src/github.com/argoproj/argo-cd/vendor
+          key: ${{ runner.os }}-go-dep-v2-${{ hashFiles('**/Gopkg.lock') }}
+
+      - name: Restore any build cache for this PR
+        id: cache-build-cache
+        uses: actions/cache@v1
+        with:
+          path: /home/runner/.cache/go-build
+          key: ${{ runner.os }}-go-build-v2-${{ github.ref }}
+
+      - name: Install K3S
+        env:
+          INSTALL_K3S_VERSION: v1.0.1
+        run: |
+          set -x
+          curl -sfL https://get.k3s.io | sh -
+          sudo chmod -R a+rw /etc/rancher/k3s
+          sudo mkdir -p $HOME/.kube && sudo chown -R runner $HOME/.kube
+          sudo k3s kubectl config view --raw > $HOME/.kube/config
+          sudo chown runner $HOME/.kube/config
+          kubectl version
+
+      - name: Get interface information
+        env:
+          IFACE: eth0
+        run: |
+          set -x
+          ifconfig
+          ipaddr=$(ifconfig $IFACE |grep "inet " | awk '{print $2}')
+          if echo $ipaddr | grep -q 'addr:'; then
+            ipaddr=$(echo $ipaddr | awk -F ':' '{print $2}')
+          fi
+          echo "Using IPAddr '$ipaddr'"
+          test -d $HOME/.kube || mkdir -p $HOME/.kube
+          tempfile=$(mktemp)
+          kubectl config view --raw | sed -e "s/127.0.0.1:6443/${ipaddr}:6443/g" -e "s/localhost:6443/${ipaddr}:6443/g" > $tempfile
+          mv $tempfile $HOME/.kube/config
+          kubectl version
+
+      - name: Run E2E server and wait for it being available
+        timeout-minutes: 30
+        run: |
+          set -x
+          make start-e2e &
+          count=1
+          until curl http://localhost:8080/healthz; do 
+            sleep 10;
+            if test $count -ge 60; then
+              echo "Timeout"
+              exit 1
+            fi
+            count=$((count+1))
+          done
+        working-directory: ${{ github.workspace }}/src/github.com/argoproj/argo-cd
+
+      - name: Run E2E tests
+        timeout-minutes: 30
+        env:
+          ARGOCD_OPTS: "--plaintext"
+          ARGOCD_E2E_K3S: "true"
+          DOCKER_ARGS: -t
+          DOCKER_SRCDIR: ${{ github.workspace }}/src
+        run: |
+          set -x
+          make test-e2e
+        working-directory: ${{ github.workspace }}/src/github.com/argoproj/argo-cd
+
+  ui:
+    runs-on: ubuntu-latest
+    name: Build & lint UI code
+    env:
+      DOCKER_SRCDIR: ${{ github.workspace }}/src
+    steps:
+
+      - name: Pull required images
+        run: docker pull argoproj/argocd-test-tools:$TEST_TOOLS_TAG
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          path: ${{ github.workspace}}/src/github.com/argoproj/argo-cd
+
+      - name: Restore node dependency cache
+        id: cache-dependencies
+        uses: actions/cache@v1
+        with:
+          path: ${{ github.workspace}}/src/github.com/argoproj/argo-cd/ui/node_modules
+          key: ${{ runner.os }}-node-dep-v2-${{ hashFiles('**/yarn.lock') }}
+
+      - name: Update yarn dependencies
+        run: |
+          make dep-ui
+        if: steps.cache-dependencies.outputs.cache-hit != 'true'
+        working-directory: ${{ github.workspace }}/src/github.com/argoproj/argo-cd
+
+      - name: Test, build and lint UI code
+        run: |
+          make build-ui
+        working-directory: ${{ github.workspace }}/src/github.com/argoproj/argo-cd

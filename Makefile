@@ -9,13 +9,16 @@ GIT_COMMIT=$(shell git rev-parse HEAD)
 GIT_TAG=$(shell if [ -z "`git status --porcelain`" ]; then git describe --exact-match --tags HEAD 2>/dev/null; fi)
 GIT_TREE_STATE=$(shell if [ -z "`git status --porcelain`" ]; then echo "clean" ; else echo "dirty"; fi)
 PACKR_CMD=$(shell if [ "`which packr`" ]; then echo "packr"; else echo "go run vendor/github.com/gobuffalo/packr/packr/main.go"; fi)
-VOLUME_MOUNT=$(shell if test "$(go env GOOS)"=="darwin"; then echo ":delegated"; elif test selinuxenabled; then echo ":Z"; else echo ""; fi)
+VOLUME_MOUNT=$(shell if test "$(go env GOOS)" = "darwin"; then echo ":delegated"; elif test selinuxenabled; then echo ":Z"; else echo ""; fi)
 
 GOPATH?=$(shell if test -x `which go`; then go env GOPATH; else echo "$(HOME)/go"; fi)
 GOCACHE?=$(HOME)/.cache/go-build
 
 DOCKER_SRCDIR?=$(GOPATH)/src
 DOCKER_WORKDIR?=/go/src/github.com/argoproj/argo-cd
+
+# DOCKER_ARGS should be unset when running from a non-pty device, i.e. CI
+DOCKER_ARGS?=-it
 
 ARGOCD_PROCFILE?=Procfile
 
@@ -39,11 +42,13 @@ ARGOCD_IN_CI?=false
 ARGOCD_TEST_E2E?=true
 
 ARGOCD_LINT_GOGC?=20
+ARGOCD_TEST_PARALLELISM?=
+ARGOCD_TEST_VERBOSE?=true
 
 # Runs any command in the argocd-test-utils container in server mode
 # Server mode container will start with uid 0 and drop privileges during runtime
 define run-in-test-server
-	docker run --rm -it \
+	docker run --rm $(DOCKER_ARGS) \
 		--name argocd-test-server \
 		-e USER_ID=$(shell id -u) \
 		-e HOME=/home/user \
@@ -65,7 +70,7 @@ endef
 
 # Runs any command in the argocd-test-utils container in client mode
 define run-in-test-client
-	docker run --rm -it \
+	docker run --rm $(DOCKER_ARGS) \
 	  --name argocd-test-client \
 		-u $(shell id -u) \
 		-e HOME=/home/user \
@@ -73,6 +78,8 @@ define run-in-test-client
 		-e ARGOCD_E2E_K3S=$(ARGOCD_E2E_K3S) \
 		-e GOCACHE=/tmp/go-build-cache \
 		-e ARGOCD_LINT_GOGC=$(ARGOCD_LINT_GOGC) \
+		-e ARGOCD_TEST_PARALLELISM=$(ARGOCD_TEST_PARALLELISM) \
+		-e ARGOCD_TEST_VERBOSE=$(ARGOCD_TEST_VERBOSE) \
 		-v ${DOCKER_SRCDIR}:/go/src${VOLUME_MOUNT} \
 		-v ${GOCACHE}:/tmp/go-build-cache${VOLUME_MOUNT} \
 		-v ${HOME}/.kube:/home/user/.kube${VOLUME_MOUNT} \
@@ -84,7 +91,7 @@ endef
 
 # 
 define exec-in-test-server
-	docker exec -it -u $(shell id -u) -e ARGOCD_E2E_K3S=$(ARGOCD_E2E_K3S) argocd-test-server $(1)
+	docker exec $(DOCKER_ARGS) -u $(shell id -u) -e ARGOCD_E2E_K3S=$(ARGOCD_E2E_K3S) argocd-test-server $(1)
 endef
 
 PATH:=$(PATH):$(PWD)/hack
@@ -259,7 +266,7 @@ dep-ensure-local:
 # Runs dep check in a container to ensure Gopkg.lock is up-to-date with dependencies
 .PHONY: dep-check
 dep-check:
-	$(call run-in-test-client,make dep-check-local)
+	$(call run-in-test-client,pwd && ls -la && make dep-check-local)
 
 # Runs dep check locally to ensure Gopkg.lock is up-to-date with dependencies
 .PHONY: dep-check-local
@@ -296,7 +303,7 @@ lint-ui-local:
 .PHONY: build
 build:
 	mkdir -p $(GOCACHE)
-	$(call run-in-test-client, make build-local)
+	$(call run-in-test-client,make build-local)
 
 # Build all Go code (local version)
 .PHONY: build-local
@@ -316,9 +323,9 @@ test:
 .PHONY: test-local
 test-local:
 	if test "$(TEST_MODULE)" = ""; then \
-		./hack/test.sh -coverprofile=coverage.out `go list ./... | grep -v 'test/e2e'`; \
+		./hack/test.sh -coverprofile=test-results/coverage.out `go list ./... | grep -v 'test/e2e'`; \
 	else \
-		./hack/test.sh -coverprofile=coverage.out "$(TEST_MODULE)"; \
+		./hack/test.sh -coverprofile=test-results/coverage.out "$(TEST_MODULE)"; \
 	fi
 
 # Run the E2E test suite. E2E test servers (see start-e2e target) must be
@@ -331,7 +338,7 @@ test-e2e:
 .PHONY: test-e2e-local
 test-e2e-local: cli
 	# NO_PROXY ensures all tests don't go out through a proxy if one is configured on the test system
-	NO_PROXY=* ./hack/test.sh -timeout 15m -v ./test/e2e
+	NO_PROXY=* ./hack/test.sh -timeout 15m -v -p 1 ./test/e2e
 
 # Spawns a shell in the test server container for debugging purposes
 debug-test-server:
@@ -452,5 +459,16 @@ install-tools-local:
 dep-ui:
 	$(call run-in-test-client,make dep-ui-local)
 
+.PHONY: dep-ui-local
 dep-ui-local:
-	cd ui && yarn install
+	cd ui && yarn install --frozen-lockfile --ignore-optional --non-interactive
+
+.PHONY: build-ui
+build-ui:
+	$(call run-in-test-client,make build-ui-local)
+
+.PHONY: build-ui-local
+build-ui-local:
+	cd ui && yarn test
+	cd ui && NODE_ENV='production' yarn build
+	cd ui && yarn lint
