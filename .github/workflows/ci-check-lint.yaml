@@ -36,7 +36,7 @@ jobs:
         id: cache-docker-image
         uses: actions/cache@v1
         with:
-          path: /home/runner/images/argocd-test-tools
+          path: /home/runner/images
           key: ${{ runner.os }}-test-tools-${{ env.TEST_TOOLS_TAG }}
 
       - name: Import argocd-test-tools image in local Docker store
@@ -65,6 +65,8 @@ jobs:
       - name: Export argocd-test-tools Docker image
         run: mkdir -p ./images && docker save -o ./images/argocd-test-tools argoproj/argocd-test-tools:$TEST_TOOLS_TAG
         if: steps.cache-docker-image.outputs.cache-hit != 'true'
+
+      - run: ls -la ./images
 
   lint:
     needs: 
@@ -98,7 +100,7 @@ jobs:
         id: cache-docker-image
         uses: actions/cache@v1
         with:
-          path: /home/runner/images/argocd-test-tools
+          path: /home/runner/images
           key: ${{ runner.os }}-test-tools-${{ env.TEST_TOOLS_TAG }}
 
       - name: Import argocd-test-tools image in local Docker store
