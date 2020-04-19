@@ -9,7 +9,8 @@ on:
       - 'master'
 
 jobs:
-  lint:
+  build:
+    name: Build codebase
     runs-on: ubuntu-latest
     env:
       GOPATH: /home/runner/work/argo-cd/argo-cd
@@ -28,9 +29,48 @@ jobs:
           path: src/github.com/argoproj/argo-cd/vendor
           key: ${{ runner.os }}-go-dep-v2-${{ hashFiles('**/Gopkg.lock') }}
 
+      - name: Ensure Gopkg.lock is in sync with Gopkg.toml
+        run: make dep-check
+        working-directory: ./src/github.com/argoproj/argo-cd
+
       - name: Synchronize vendor dependencies
         run: make dep 
         working-directory: ./src/github.com/argoproj/argo-cd
+
+      - name: Build the codebase
+        run: make build
+        working-directory: ./src/github.com/argoproj/argo-cd
+
+      - name: Persist the Go build cache
+        uses: actions/upload-artifact@v1
+        with:
+          name: go-build-cache
+          path: $HOME/.cache/go-build
+
+  lint:
+    needs: 
+      - build
+    name: Lint codebase
+    runs-on: ubuntu-latest
+    env:
+      GOPATH: /home/runner/work/argo-cd/argo-cd
+      DOCKER_ARGS: null
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          path: src/github.com/argoproj/argo-cd
+
+      - name: Restore dependency cahce
+        uses: actions/cache@v1
+        with:
+          path: src/github.com/argoproj/argo-cd/vendor
+          key: ${{ runner.os }}-go-dep-v2-${{ hashFiles('**/Gopkg.lock') }}
+
+      - name: Restore the Go build cache
+        uses: actions/download-artifact@v1
+        with:
+          name: go-build-cache
 
       - name: Run golangci-lint
         run: make lint ARGOCD_LINT_GOGC=50
