@@ -30,7 +30,7 @@ jobs:
           key: ${{ runner.os }}-go-dep-v1-${{ hashFiles('**/Gopkg.lock') }}
 
       - name: Install dep dependency
-        run: mkdir -p $GITHUB_WORKSPACE/bin && curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+        run: mkdir -p $(go env GOPATH)/bin && curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
 
       - name: Synchronize vendor dependencies
         run: dep ensure -v
