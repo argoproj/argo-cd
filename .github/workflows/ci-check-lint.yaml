@@ -41,6 +41,10 @@ jobs:
         run: $(go env GOPATH)/bin/dep ensure -v
         working-directory: ./src/github.com/argoproj/argo-cd
 
+      - name: Run golangci-lint
+        run: make lint
+        working-directory: ./src/github.com/argoproj/argo-cd
+
       - name: Install golangci-lint
         run: ./hack/install.sh lint-tools
         working-directory: ./src/github.com/argoproj/argo-cd
