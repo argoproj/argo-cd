@@ -37,7 +37,7 @@ jobs:
         uses: actions/cache@v1
         with:
           path: /home/runner/images
-          key: ${{ runner.os }}-test-tools-${{ env.TEST_TOOLS_TAG }}
+          key: ${{ runner.os }}-test-tools-v1-${{ env.TEST_TOOLS_TAG }}
 
       - name: Import argocd-test-tools image in local Docker store
         run: docker load -i ./images/argocd-test-tools
@@ -101,7 +101,7 @@ jobs:
         uses: actions/cache@v1
         with:
           path: /home/runner/images
-          key: ${{ runner.os }}-test-tools-${{ env.TEST_TOOLS_TAG }}
+          key: ${{ runner.os }}-test-tools-v1-${{ env.TEST_TOOLS_TAG }}
 
       - name: Import argocd-test-tools image in local Docker store
         run: docker load -i ./images/argocd-test-tools
