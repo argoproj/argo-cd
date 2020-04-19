@@ -40,8 +40,12 @@ jobs:
           key: ${{ runner.os }}-test-tools-v1-${{ env.TEST_TOOLS_TAG }}
 
       - name: Import argocd-test-tools image in local Docker store
-        run: docker load -i ./images/argocd-test-tools
+        run: docker load -i /home/runner/images/argocd-test-tools
         if: steps.cache-docker-image.outputs.cache-hit == 'true'
+
+      - name: Pull image if it wasn't in the cache
+        run: docker pull argoproj/argocd-test-tools:$TEST_TOOLS_TAG
+        if: steps.cache-docker-image.outputs.cache-hit != 'true'
 
       - name: Ensure Gopkg.lock is in sync with Gopkg.toml
         run: make dep-check
@@ -63,10 +67,8 @@ jobs:
 
       # Export Docker image if we hadn't have it in the cache, 
       - name: Export argocd-test-tools Docker image
-        run: mkdir -p ./images && docker save -o ./images/argocd-test-tools argoproj/argocd-test-tools:$TEST_TOOLS_TAG
+        run: mkdir -p /home/runner/images && docker save -o /home/runner/images/argocd-test-tools argoproj/argocd-test-tools:$TEST_TOOLS_TAG
         if: steps.cache-docker-image.outputs.cache-hit != 'true'
-
-      - run: ls -la ./images
 
   lint:
     needs: 
@@ -104,7 +106,7 @@ jobs:
           key: ${{ runner.os }}-test-tools-v1-${{ env.TEST_TOOLS_TAG }}
 
       - name: Import argocd-test-tools image in local Docker store
-        run: docker load -i ./images/argocd-test-tools
+        run: docker load -i /home/runner/images/argocd-test-tools
 
       - name: Run golangci-lint
         run: make lint ARGOCD_LINT_GOGC=50
