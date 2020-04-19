@@ -43,4 +43,5 @@ jobs:
 
       - name: Run golangci-lint
         uses: actions-contrib/golangci-lint@v1
-        working-directory: ./src/github.com/argoproj/argo-cd
+        with:
+          working-directory: ./src/github.com/argoproj/argo-cd
