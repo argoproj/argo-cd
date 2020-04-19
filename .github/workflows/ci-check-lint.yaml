@@ -12,7 +12,21 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
+      - name: Setup Go environment
+        uses: actions/setup-go@v1
+        with:
+          go-version: '1.14.1'
       - name: Checkout code
         uses: actions/checkout@v2
+      - name: Restore dependency cahce
+        uses: actions/cache@v1
+        with:
+          path: src/github.com/argoproj/argo-cd/vendor
+          key: ${{ runner.os }}-go-dep-v1-${{ hashFiles('**/Gopkg.lock') }}
+      - name: Install dep dependency
+        run: mkdir -p $GITHUB_WORKSPACE/bin && curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+      - name: Synchronize vendor dependencies
+        run: make dep-local
+        working-directory: ./src/github.com/argoproj/argo-cd
       - name: Run golangci-lint
         uses: actions-contrib/golangci-lint@v1
