@@ -11,7 +11,8 @@ on:
 jobs:
   lint:
     runs-on: ubuntu-latest
-
+    env:
+      GOPATH: /home/runner/work/argo-cd/argo-cd
     steps:
       - name: Setup Go environment
         uses: actions/setup-go@v1
@@ -22,6 +23,8 @@ jobs:
 
       - name: Checkout code
         uses: actions/checkout@v2
+        with:
+          path: src/github.com/argoproj/argo-cd
 
       - name: Restore dependency cahce
         uses: actions/cache@v1
@@ -36,6 +39,8 @@ jobs:
 
       - name: Synchronize vendor dependencies
         run: $(go env GOPATH)/bin/dep ensure -v
+        working-directory: ./src/github.com/argoproj/argo-cd
 
       - name: Run golangci-lint
         uses: actions-contrib/golangci-lint@v1
+        working-directory: ./src/github.com/argoproj/argo-cd
