@@ -15,4 +15,4 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Run golangci-lint
-        uses: actions-contrib/golangci-lint@v2
+        uses: actions-contrib/golangci-lint@v1
