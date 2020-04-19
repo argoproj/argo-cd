@@ -45,7 +45,7 @@ jobs:
         uses: actions/upload-artifact@v1
         with:
           name: go-build-cache
-          path: $HOME/.cache/go-build
+          path: /home/runner/.cache/go-build
 
   lint:
     needs: 
