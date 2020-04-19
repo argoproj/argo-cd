@@ -38,7 +38,7 @@ ARGOCD_E2E_YARN_HOST?=localhost
 ARGOCD_IN_CI?=false
 ARGOCD_TEST_E2E?=true
 
-ARGOCD_LINT_GOGC?=100
+ARGOCD_LINT_GOGC?=20
 
 # Runs any command in the argocd-test-utils container in server mode
 # Server mode container will start with uid 0 and drop privileges during runtime

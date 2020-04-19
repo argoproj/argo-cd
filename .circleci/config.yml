@@ -346,6 +346,7 @@ workflows:
   workflow:
     jobs:
       - build
+      - lint
       - test:
           requires:
             - build
@@ -353,9 +354,6 @@ workflows:
           requires:
             - build
       - ui:
-          requires:
-            - build
-      - lint:
           requires:
             - build
       - sonarcloud:
