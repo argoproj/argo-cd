@@ -63,8 +63,7 @@ jobs:
 
       # Export Docker image if we hadn't have it in the cache, 
       - name: Export argocd-test-tools Docker image
-        run: |
-          docker save -o ./images/argocd-test-tools argoproj/argocd-test-tools:$TEST_TOOLS_TAG
+        run: mkdir -p ./images && docker save -o ./images/argocd-test-tools argoproj/argocd-test-tools:$TEST_TOOLS_TAG
         if: steps.cache-docker-image.outputs.cache-hit != 'true'
 
   lint:
