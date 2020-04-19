@@ -1,4 +1,4 @@
-name: Lint codebase
+name: ArgoCD CI checks
 
 on:
   push:
@@ -7,6 +7,9 @@ on:
   pull_request:
     branches:
       - 'master'
+
+env:
+  TEST_TOOLS_TAG: v0.2.0
 
 jobs:
   build:
@@ -43,9 +46,22 @@ jobs:
           path: /home/runner/.cache/go-build
           key: ${{ runner.os }}-go-build-v2-${{ env.GITHUB_SHA }}
 
+      - name: Restore Docker image cache
+        id: cache-docker-image
+        uses: actions/cache@v1
+        with:
+          path: /home/runner/images/argocd-test-tools
+          key: ${{ runner.os }}-test-tools-${{ env.TEST_TOOLS_TAG }}
+
       - name: Build the codebase
         run: make build
         working-directory: ./src/github.com/argoproj/argo-cd
+
+      # Export Docker image if we hadn't have it in the cache, 
+      - name: Export argocd-test-tools Docker image
+        run: |
+          docker save -o ./images/argocd-test-tools argoproj/argocd-test-tools:$TEST_TOOLS_TAG
+        if: steps.cache-docker-image.outputs.cache-hit != 'true'
 
   lint:
     needs: 
@@ -62,16 +78,28 @@ jobs:
           path: src/github.com/argoproj/argo-cd
 
       - name: Restore dependency cache
+        id: cache-dependencies
         uses: actions/cache@v1
         with:
           path: src/github.com/argoproj/argo-cd/vendor
           key: ${{ runner.os }}-go-dep-v2-${{ hashFiles('**/Gopkg.lock') }}
 
       - name: Restore any build cache for this PR
+        id: cache-build-cache
         uses: actions/cache@v1
         with:
           path: /home/runner/.cache/go-build
           key: ${{ runner.os }}-go-build-v2-${{ env.GITHUB_SHA }}
+
+      - name: Restore Docker image cache
+        id: cache-docker-image
+        uses: actions/cache@v1
+        with:
+          path: /home/runner/images/argocd-test-tools
+          key: ${{ runner.os }}-test-tools-${{ env.TEST_TOOLS_TAG }}
+
+      - name: Import argocd-test-tools image in local Docker store
+        run: docker load -i ./images/argocd-test-tools
 
       - name: Run golangci-lint
         run: make lint ARGOCD_LINT_GOGC=50
