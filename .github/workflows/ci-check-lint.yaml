@@ -32,7 +32,3 @@ jobs:
       - name: Run golangci-lint
         run: make lint DOCKER_ARGS= 
         working-directory: ./src/github.com/argoproj/argo-cd
-
-      - name: Install golangci-lint
-        run: ./hack/install.sh lint-tools
-        working-directory: ./src/github.com/argoproj/argo-cd
