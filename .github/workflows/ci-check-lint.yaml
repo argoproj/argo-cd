@@ -13,6 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GOPATH: /home/runner/work/argo-cd/argo-cd
+      DOCKER_ARGS: null
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -26,9 +27,9 @@ jobs:
           key: ${{ runner.os }}-go-dep-v1-${{ hashFiles('**/Gopkg.lock') }}
 
       - name: Synchronize vendor dependencies
-        run: make dep
+        run: make dep 
         working-directory: ./src/github.com/argoproj/argo-cd
 
       - name: Run golangci-lint
-        run: make lint DOCKER_ARGS= 
+        run: make lint
         working-directory: ./src/github.com/argoproj/argo-cd
