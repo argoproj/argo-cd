@@ -12,12 +12,14 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     env:
-      GOPATH: /home/runner/work/argo-cd/argo-cd
+      GOPATH: $HOME/go
     steps:
       - name: Setup Go environment
         uses: actions/setup-go@v1
         with:
           go-version: '1.14.1'
+
+      - run: go env
 
       - name: Checkout code
         uses: actions/checkout@v2
