@@ -43,7 +43,7 @@ var (
 	descAppInfo = prometheus.NewDesc(
 		"argocd_app_info",
 		"Information about application.",
-		append(descAppDefaultLabels, "repo", "dest_server", "dest_namespace", "sync_status", "health_status", "operation", "sync_automated", "sync_prune", "sync_selfheal"),
+		append(descAppDefaultLabels, "repo", "dest_server", "dest_namespace", "sync_status", "health_status", "operation"),
 		nil,
 	)
 	// DEPRECATED
@@ -238,28 +238,6 @@ func boolFloat64(b bool) float64 {
 	return 0
 }
 
-func getsync(app *argoappv1.Application) (automated string, prune string, selfheal string) {
-	automated = "false"
-	prune = "false"
-	selfheal = "false"
-
-	if app.Spec.SyncPolicy == nil || app.Spec.SyncPolicy.Automated == nil {
-		return
-	} else {
-		automated = "true"
-	}
-
-	if app.Spec.SyncPolicy.Automated.Prune {
-		prune = "true"
-	}
-
-	if app.Spec.SyncPolicy.Automated.SelfHeal {
-		selfheal = "true"
-	}
-
-	return
-}
-
 func collectApps(ch chan<- prometheus.Metric, app *argoappv1.Application) {
 	addConstMetric := func(desc *prometheus.Desc, t prometheus.ValueType, v float64, lv ...string) {
 		project := app.Spec.GetProject()
@@ -270,7 +248,6 @@ func collectApps(ch chan<- prometheus.Metric, app *argoappv1.Application) {
 		addConstMetric(desc, prometheus.GaugeValue, v, lv...)
 	}
 
-	var sync_automated, sync_prune, sync_selfheal = getsync(app)
 	var operation string
 	if app.DeletionTimestamp != nil {
 		operation = "delete"
@@ -286,7 +263,7 @@ func collectApps(ch chan<- prometheus.Metric, app *argoappv1.Application) {
 		healthStatus = argoappv1.HealthStatusUnknown
 	}
 
-	addGauge(descAppInfo, 1, git.NormalizeGitURL(app.Spec.Source.RepoURL), app.Spec.Destination.Server, app.Spec.Destination.Namespace, string(syncStatus), healthStatus, operation, sync_automated, sync_prune, sync_selfheal)
+	addGauge(descAppInfo, 1, git.NormalizeGitURL(app.Spec.Source.RepoURL), app.Spec.Destination.Server, app.Spec.Destination.Namespace, string(syncStatus), healthStatus, operation)
 
 	// Deprecated controller metrics
 	if os.Getenv(EnvVarLegacyControllerMetrics) == "true" {
@@ -304,4 +281,3 @@ func collectApps(ch chan<- prometheus.Metric, app *argoappv1.Application) {
 		addGauge(descAppHealthStatus, boolFloat64(healthStatus == argoappv1.HealthStatusMissing), argoappv1.HealthStatusMissing)
 	}
 }
-
