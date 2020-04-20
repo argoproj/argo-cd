@@ -36,6 +36,10 @@ spec:
   source:
     path: some/path
     repoURL: https://github.com/argoproj/argocd-example-apps.git
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
 status:
   sync:
     status: Synced
@@ -57,6 +61,8 @@ spec:
   source:
     path: some/path
     repoURL: https://github.com/argoproj/argocd-example-apps.git
+  syncPolicy:
+    automated: {}
 status:
   sync:
     status: Synced
@@ -104,6 +110,10 @@ spec:
   source:
     path: some/path
     repoURL: https://github.com/argoproj/argocd-example-apps.git
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
 status:
   sync:
     status: Synced
@@ -168,9 +178,9 @@ func TestMetrics(t *testing.T) {
 			expectedResponse: `
 # HELP argocd_app_info Information about application.
 # TYPE argocd_app_info gauge
-argocd_app_info{dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Degraded",name="my-app-3",namespace="argocd",operation="delete",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="OutOfSync"} 1
-argocd_app_info{dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",name="my-app",namespace="argocd",operation="",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
-argocd_app_info{dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",name="my-app-2",namespace="argocd",operation="sync",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
+argocd_app_info{dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Degraded",name="my-app-3",namespace="argocd",operation="delete",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_automated="false",sync_prune="false",sync_selfheal="false",sync_status="OutOfSync"} 1
+argocd_app_info{dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",name="my-app",namespace="argocd",operation="",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_automated="true",sync_prune="true",sync_selfheal="true",sync_status="Synced"} 1
+argocd_app_info{dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",name="my-app-2",namespace="argocd",operation="sync",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_automated="true",sync_prune="false",sync_selfheal="false",sync_status="Synced"} 1
 `,
 		},
 		{
@@ -178,7 +188,7 @@ argocd_app_info{dest_namespace="dummy-namespace",dest_server="https://localhost:
 			expectedResponse: `
 # HELP argocd_app_info Information about application.
 # TYPE argocd_app_info gauge
-argocd_app_info{dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",name="my-app",namespace="argocd",operation="",project="default",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
+argocd_app_info{dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",name="my-app",namespace="argocd",operation="",project="default",repo="https://github.com/argoproj/argocd-example-apps",sync_automated="true",sync_prune="true",sync_selfheal="true",sync_status="Synced"} 1
 `,
 		},
 	}
@@ -283,3 +293,4 @@ argocd_app_reconcile_count{dest_server="https://localhost:6443",namespace="argoc
 	log.Println(body)
 	assertMetricsPrinted(t, appReconcileMetrics, body)
 }
+
