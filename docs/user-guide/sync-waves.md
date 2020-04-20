@@ -38,7 +38,34 @@ When Argo CD starts a sync, it orders the resources in the following precedence:
 
 * The phase
 * The wave they are in (lower values first)
-* By kind (e.g. namespaces first)
+* By kind in the following order
+  1. Namespace
+  1. ResourceQuota
+  1. LimitRange
+  1. PodSecurityPolicy
+  1. PodDisruptionBudget
+  1. Secret
+  1. ConfigMap
+  1. StorageClass
+  1. PersistentVolume
+  1. PersistentVolumeClaim
+  1. ServiceAccount
+  1. CustomResourceDefinition
+  1. ClusterRole
+  1. ClusterRoleBinding
+  1. Role
+  1. RoleBinding
+  1. Service
+  1. DaemonSet
+  1. Pod
+  1. ReplicationController
+  1. ReplicaSet
+  1. Deployment
+  1. StatefulSet
+  1. Job
+  1. CronJob
+  1. Ingress
+  1. APIService
 * By name 
 
 It then determines which the number of the next wave to apply. This is the first number where any resource is out-of-sync or unhealthy.
