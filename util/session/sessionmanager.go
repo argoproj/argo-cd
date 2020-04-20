@@ -30,12 +30,12 @@ import (
 
 // SessionManager generates and validates JWT tokens for login sessions.
 type SessionManager struct {
-	settingsMgr               *settings.SettingsManager
-	client                    *http.Client
-	prov                      oidcutil.Provider
-	storage                   UserStateStorage
-	sleep                     func(d time.Duration)
-	verificationDelayNoiseMax time.Duration
+	settingsMgr                   *settings.SettingsManager
+	client                        *http.Client
+	prov                          oidcutil.Provider
+	storage                       UserStateStorage
+	sleep                         func(d time.Duration)
+	verificationDelayNoiseEnabled bool
 }
 
 type inMemoryUserStateStorage struct {
@@ -96,18 +96,11 @@ const (
 	// The default time in seconds for the failure window
 	defaultFailureWindow = 300
 	// The password verification delay max
-	verificationDelayNoiseMax = 100 * time.Millisecond
+	verificationDelayNoiseMin = 500 * time.Millisecond
+	// The password verification delay max
+	verificationDelayNoiseMax = 1000 * time.Millisecond
 
 	// environment variables to control rate limiter behaviour:
-
-	// Time in seconds the authentication should be delayed for if the limiter becomes first active. Default: 3
-	envLoginDelayStartSeconds = "ARGOCD_SESSION_FAILURE_DELAY_START_SECONDS"
-
-	// Time in seconds the authentication delay should be increased on consecutive login failures after max fail count has been reached. Default: 2
-	envLoginDelayIncreaseSeconds = "ARGOCD_SESSION_FAILURE_DELAY_INCREASE_SECONDS"
-
-	// Max time in seconds the authentication delay can be increased to. Default: 30
-	envLoginDelayMaxSeconds = "ARGOCD_SESSION_FAILURE_DELAY_MAX_SECONDS"
 
 	// Max number of login failures before login delay kicks in
 	envLoginMaxFailCount = "ARGOCD_SESSION_FAILURE_MAX_FAIL_COUNT"
@@ -155,21 +148,6 @@ func getMaxLoginFailures() int {
 	return parseNumFromEnv(envLoginMaxFailCount, defaultMaxLoginFailures, 1, math.MaxInt32)
 }
 
-// Returns the number of seconds login should be delayed after maximum number of failures has been reached
-func getLoginDelayStart() int {
-	return parseNumFromEnv(envLoginDelayStartSeconds, defaultLoginDelayStart, 1, math.MaxInt32)
-}
-
-// Returns the number of seconds the delay shall be increased by on consecutive login failures
-func getLoginDelayIncrease() int {
-	return parseNumFromEnv(envLoginDelayIncreaseSeconds, defaultLoginDelayIncrease, 0, math.MaxInt32)
-}
-
-// Returns the number of maximum seconds the login is allowed to delay for
-func getLoginDelayMax() int {
-	return parseNumFromEnv(envLoginDelayMaxSeconds, defaultLoginDelayMax, 0, math.MaxInt32)
-}
-
 // Returns the number of maximum seconds the login is allowed to delay for
 func getLoginFailureWindow() time.Duration {
 	return time.Duration(parseNumFromEnv(envLoginFailureWindowSeconds, defaultFailureWindow, 0, math.MaxInt32))
@@ -178,10 +156,10 @@ func getLoginFailureWindow() time.Duration {
 // NewSessionManager creates a new session manager from Argo CD settings
 func NewSessionManager(settingsMgr *settings.SettingsManager, dexServerAddr string, storage UserStateStorage) *SessionManager {
 	s := SessionManager{
-		settingsMgr:               settingsMgr,
-		storage:                   storage,
-		sleep:                     time.Sleep,
-		verificationDelayNoiseMax: verificationDelayNoiseMax,
+		settingsMgr:                   settingsMgr,
+		storage:                       storage,
+		sleep:                         time.Sleep,
+		verificationDelayNoiseEnabled: true,
 	}
 	settings, err := settingsMgr.GetSettings()
 	if err != nil {
@@ -387,15 +365,9 @@ func (mgr *SessionManager) getFailureCount(username string) LoginAttempts {
 }
 
 // Calculate a login delay for the given login attempt
-func (mgr *SessionManager) calculateLogonDelay(attempt LoginAttempts) int {
+func (mgr *SessionManager) exceededFailedLoginAttempts(attempt LoginAttempts) bool {
 	maxFails := getMaxLoginFailures()
-
-	delayStart := getLoginDelayStart()
-	delayIncrease := getLoginDelayIncrease()
-	delayMax := getLoginDelayMax()
 	failureWindow := getLoginFailureWindow()
-
-	duration := 0
 
 	// Whether we are in the failure window for given attempt
 	inWindow := func() bool {
@@ -407,15 +379,10 @@ func (mgr *SessionManager) calculateLogonDelay(attempt LoginAttempts) int {
 
 	// If we reached max failed attempts within failure window, we need to calc the delay
 	if attempt.FailCount >= maxFails && inWindow() {
-		increase := (attempt.FailCount - maxFails) * delayIncrease
-		if increase+delayStart > delayMax {
-			duration = delayMax
-		} else {
-			duration += delayStart + increase
-		}
+		return true
 	}
 
-	return duration
+	return false
 }
 
 // VerifyUsernamePassword verifies if a username/password combo is correct
@@ -428,17 +395,24 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 		return status.Errorf(codes.InvalidArgument, usernameTooLongError, maxUsernameLength)
 	}
 
-	attempt := mgr.getFailureCount(username)
-	duration := mgr.calculateLogonDelay(attempt)
-	if duration > 0 {
-		log.Warnf("User %s had too many failed logins (%d), sleeping for %d seconds", username, attempt.FailCount, duration)
-		mgr.sleep(time.Duration(duration) * time.Second)
+	start := time.Now()
+	if mgr.verificationDelayNoiseEnabled {
+		defer func() {
+			// introduces random delay to protect from timing-based user enumeration attack
+			delayNanoseconds := verificationDelayNoiseMin.Nanoseconds() +
+				int64(rand.Intn(int(verificationDelayNoiseMax.Nanoseconds()-verificationDelayNoiseMin.Nanoseconds())))
+				// take into account amount of time spent since the request start
+			delayNanoseconds = delayNanoseconds - time.Now().Sub(start).Nanoseconds()
+			if delayNanoseconds > 0 {
+				mgr.sleep(time.Duration(delayNanoseconds))
+			}
+		}()
 	}
 
-	// introduces random delay to protect from timing-based user enumeration attack
-	if mgr.verificationDelayNoiseMax > 0 {
-		delay := time.Duration(rand.Intn(int(mgr.verificationDelayNoiseMax.Nanoseconds())))
-		mgr.sleep(delay)
+	attempt := mgr.getFailureCount(username)
+	if mgr.exceededFailedLoginAttempts(attempt) {
+		log.Warnf("User %s had too many failed logins (%d)", username, attempt.FailCount)
+		return status.Errorf(codes.Unauthenticated, invalidLoginError)
 	}
 
 	account, err := mgr.settingsMgr.GetAccount(username)
@@ -447,6 +421,10 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 			mgr.updateFailureCount(username, true)
 			err = status.Errorf(codes.Unauthenticated, invalidLoginError)
 		}
+		// to prevent time-based user enumeration, we must perform a password
+		// hash cycle to keep response time consistent (if the function were
+		// to continue and not return here)
+		_, _ = passwordutil.HashPassword("for_consistent_response_time")
 		return err
 	}
 	if !account.Enabled {

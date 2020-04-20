@@ -92,25 +92,15 @@ argocd account generate-token --account <username>
 
 ### Failed logins rate limiting
 
-Argo CD throttles failed login attempts in order to prevent password brute-forcing. The following environments
-variables are available to control throttling settings:
+Argo CD rejects login attempts after too many failed in order to prevent password brute-forcing.
+The following environments variables are available to control throttling settings:
 
-* `ARGOCD_SESSION_MAX_FAIL_COUNT`: Maximum number of failed logins before the
-delay kicks in. Default: 5.
-
-* `ARGOCD_SESSION_FAILURE_DELAY_START_SECONDS`: Time in seconds the authentication
-should be delayed for if the limiter becomes first active. Default: 3
-
-* `ARGOCD_SESSION_FAILURE_DELAY_INCREASE_SECONDS`: Time in seconds the authentication
-delay should be increased on consecutive login failures after max fail count
-has been reached. Default: 2
-
-* `ARGOCD_SESSION_FAILURE_DELAY_MAX_SECONDS`: Max time in seconds the authentication
-delay can be increased to. Default: 30
+* `ARGOCD_SESSION_MAX_FAIL_COUNT`: Maximum number of failed logins before Argo CD starts
+rejecting login attempts. Default: 5.
 
 * `ARGOCD_SESSION_FAILURE_WINDOW_SECONDS`: Number of seconds for the failure window.
 Default: 300 (5 minutes). If this is set to 0, the failure window is
-disabled and the delay kicks in after 10 consecutive logon failures,
+disabled and the login attempts gets rejected after 10 consecutive logon failures,
 regardless of the time frame they happened.
 
 * `ARGOCD_SESSION_MAX_CACHE_SIZE`: Maximum number of entries allowed in the
