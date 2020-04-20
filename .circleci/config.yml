@@ -346,7 +346,6 @@ workflows:
   workflow:
     jobs:
       - build
-      - lint
       - test:
           requires:
             - build
