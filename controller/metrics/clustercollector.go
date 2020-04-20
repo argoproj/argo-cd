@@ -43,7 +43,6 @@ var (
 
 type ClusterInfo struct {
 	Server            string
-	Clustername       string
 	K8SVersion        string
 	ResourcesCount    int
 	APIsCount         int
@@ -88,7 +87,7 @@ func (c *clusterCollector) Collect(ch chan<- prometheus.Metric) {
 	now := time.Now()
 	for _, c := range c.info {
 		defaultValues := []string{c.Server}
-		ch <- prometheus.MustNewConstMetric(descClusterInfo, prometheus.GaugeValue, 1, append(defaultValues, c.K8SVersion, c.Clustername)...)
+		ch <- prometheus.MustNewConstMetric(descClusterInfo, prometheus.GaugeValue, 1, append(defaultValues, c.K8SVersion)...)
 		ch <- prometheus.MustNewConstMetric(descClusterCacheResources, prometheus.GaugeValue, float64(c.ResourcesCount), defaultValues...)
 		ch <- prometheus.MustNewConstMetric(descClusterAPIs, prometheus.GaugeValue, float64(c.APIsCount), defaultValues...)
 		cacheAgeSeconds := -1
@@ -98,4 +97,3 @@ func (c *clusterCollector) Collect(ch chan<- prometheus.Metric) {
 		ch <- prometheus.MustNewConstMetric(descClusterCacheAgeSeconds, prometheus.GaugeValue, float64(cacheAgeSeconds), defaultValues...)
 	}
 }
-
