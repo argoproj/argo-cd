@@ -1389,10 +1389,6 @@ func (s *Server) GetApplicationSyncWindows(ctx context.Context, q *application.A
 		return nil, err
 	}
 
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionGet, a.Spec.Project); err != nil {
-		return nil, err
-	}
-
 	proj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(a.Spec.Project, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
