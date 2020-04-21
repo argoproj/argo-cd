@@ -32,7 +32,7 @@ or UI:
 
     ![connect repo](../assets/repo-add-https.png)
 
-    *Note: username in screenshot is for illustration purposes only , we have no relationship to this GitHub account should it exists*
+    *Note: username in screenshot is for illustration purposes only , we have no relationship to this GitHub account should it exist.*
 
 1. Click `Connect` to test the connection and have the repository added 
 
