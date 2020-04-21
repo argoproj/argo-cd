@@ -90,6 +90,22 @@ argocd account update-password \
 argocd account generate-token --account <username> 
 ```
 
+### Failed logins rate limiting
+
+Argo CD rejects login attempts after too many failed in order to prevent password brute-forcing.
+The following environments variables are available to control throttling settings:
+
+* `ARGOCD_SESSION_MAX_FAIL_COUNT`: Maximum number of failed logins before Argo CD starts
+rejecting login attempts. Default: 5.
+
+* `ARGOCD_SESSION_FAILURE_WINDOW_SECONDS`: Number of seconds for the failure window.
+Default: 300 (5 minutes). If this is set to 0, the failure window is
+disabled and the login attempts gets rejected after 10 consecutive logon failures,
+regardless of the time frame they happened.
+
+* `ARGOCD_SESSION_MAX_CACHE_SIZE`: Maximum number of entries allowed in the
+cache. Default: 1000
+
 ## SSO
 
 There are two ways that SSO can be configured:

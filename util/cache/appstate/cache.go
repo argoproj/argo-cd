@@ -21,11 +21,6 @@ func NewCache(cache *cacheutil.Cache, appStateCacheExpiration time.Duration) *Ca
 	return &Cache{cache, appStateCacheExpiration}
 }
 
-type OIDCState struct {
-	// ReturnURL is the URL in which to redirect a user back to after completing an OAuth2 login
-	ReturnURL string `json:"returnURL"`
-}
-
 func AddCacheFlagsToCmd(cmd *cobra.Command) func() (*Cache, error) {
 	var appStateCacheExpiration time.Duration
 

@@ -9,29 +9,19 @@ import (
 	"testing"
 	"time"
 
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-
-	"github.com/go-redis/redis"
-
-	"github.com/alicebob/miniredis"
-
 	"github.com/dgrijalva/jwt-go"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
-	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/password"
 	"github.com/argoproj/argo-cd/util/settings"
 )
-
-func newSessionCache() *cache.Cache {
-	return cache.NewCache(cache.NewInMemoryCache(0))
-}
 
 func getKubeClient(pass string, enabled bool) *fake.Clientset {
 	const defaultSecretKey = "Hello, world!"
@@ -62,12 +52,18 @@ func getKubeClient(pass string, enabled bool) *fake.Clientset {
 	})
 }
 
+func newSessionManager(settingsMgr *settings.SettingsManager, dexServerAddr string, storage UserStateStorage) *SessionManager {
+	mgr := NewSessionManager(settingsMgr, dexServerAddr, storage)
+	mgr.verificationDelayNoiseEnabled = false
+	return mgr
+}
+
 func TestSessionManager(t *testing.T) {
 	const (
 		defaultSubject = "admin"
 	)
 	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("pass", true), "argocd")
-	mgr := NewSessionManager(settingsMgr, "", newSessionCache())
+	mgr := newSessionManager(settingsMgr, "", NewInMemoryUserStateStorage())
 
 	token, err := mgr.Create(defaultSubject, 0, "")
 	if err != nil {
@@ -155,7 +151,7 @@ func TestVerifyUsernamePassword(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient(password, !tc.disabled), "argocd")
 
-			mgr := NewSessionManager(settingsMgr, "", newSessionCache())
+			mgr := newSessionManager(settingsMgr, "", NewInMemoryUserStateStorage())
 
 			err := mgr.VerifyUsernamePassword(tc.userName, tc.password)
 
@@ -170,15 +166,6 @@ func TestVerifyUsernamePassword(t *testing.T) {
 
 func TestCacheValueGetters(t *testing.T) {
 	t.Run("Default values", func(t *testing.T) {
-		lds := getLoginDelayStart()
-		assert.Equal(t, defaultLoginDelayStart, lds)
-
-		ldi := getLoginDelayIncrease()
-		assert.Equal(t, defaultLoginDelayIncrease, ldi)
-
-		ldm := getLoginDelayMax()
-		assert.Equal(t, defaultLoginDelayMax, ldm)
-
 		mlf := getMaxLoginFailures()
 		assert.Equal(t, defaultMaxLoginFailures, mlf)
 
@@ -187,20 +174,8 @@ func TestCacheValueGetters(t *testing.T) {
 	})
 
 	t.Run("Valid environment overrides", func(t *testing.T) {
-		os.Setenv(envLoginDelayStart, "5")
-		os.Setenv(envLoginDelayIncrease, "5")
-		os.Setenv(envLoginDelayMax, "5")
 		os.Setenv(envLoginMaxFailCount, "5")
 		os.Setenv(envLoginMaxCacheSize, "5")
-
-		lds := getLoginDelayStart()
-		assert.Equal(t, 5, lds)
-
-		ldi := getLoginDelayIncrease()
-		assert.Equal(t, 5, ldi)
-
-		ldm := getLoginDelayMax()
-		assert.Equal(t, 5, ldm)
 
 		mlf := getMaxLoginFailures()
 		assert.Equal(t, 5, mlf)
@@ -208,28 +183,13 @@ func TestCacheValueGetters(t *testing.T) {
 		mcs := getMaximumCacheSize()
 		assert.Equal(t, 5, mcs)
 
-		os.Setenv(envLoginDelayStart, "")
-		os.Setenv(envLoginDelayIncrease, "")
-		os.Setenv(envLoginDelayMax, "")
 		os.Setenv(envLoginMaxFailCount, "")
 		os.Setenv(envLoginMaxCacheSize, "")
 	})
 
 	t.Run("Invalid environment overrides", func(t *testing.T) {
-		os.Setenv(envLoginDelayStart, "invalid")
-		os.Setenv(envLoginDelayIncrease, "invalid")
-		os.Setenv(envLoginDelayMax, "invalid")
 		os.Setenv(envLoginMaxFailCount, "invalid")
 		os.Setenv(envLoginMaxCacheSize, "invalid")
-
-		lds := getLoginDelayStart()
-		assert.Equal(t, defaultLoginDelayStart, lds)
-
-		ldi := getLoginDelayIncrease()
-		assert.Equal(t, defaultLoginDelayIncrease, ldi)
-
-		ldm := getLoginDelayMax()
-		assert.Equal(t, defaultLoginDelayMax, ldm)
 
 		mlf := getMaxLoginFailures()
 		assert.Equal(t, defaultMaxLoginFailures, mlf)
@@ -237,28 +197,13 @@ func TestCacheValueGetters(t *testing.T) {
 		mcs := getMaximumCacheSize()
 		assert.Equal(t, defaultMaxCacheSize, mcs)
 
-		os.Setenv(envLoginDelayStart, "")
-		os.Setenv(envLoginDelayIncrease, "")
-		os.Setenv(envLoginDelayMax, "")
 		os.Setenv(envLoginMaxFailCount, "")
 		os.Setenv(envLoginMaxCacheSize, "")
 	})
 
 	t.Run("Less than allowed in environment overrides", func(t *testing.T) {
-		os.Setenv(envLoginDelayStart, "-1")
-		os.Setenv(envLoginDelayIncrease, "-1")
-		os.Setenv(envLoginDelayMax, "-1")
 		os.Setenv(envLoginMaxFailCount, "-1")
 		os.Setenv(envLoginMaxCacheSize, "-1")
-
-		lds := getLoginDelayStart()
-		assert.Equal(t, defaultLoginDelayStart, lds)
-
-		ldi := getLoginDelayIncrease()
-		assert.Equal(t, defaultLoginDelayIncrease, ldi)
-
-		ldm := getLoginDelayMax()
-		assert.Equal(t, defaultLoginDelayMax, ldm)
 
 		mlf := getMaxLoginFailures()
 		assert.Equal(t, defaultMaxLoginFailures, mlf)
@@ -266,28 +211,13 @@ func TestCacheValueGetters(t *testing.T) {
 		mcs := getMaximumCacheSize()
 		assert.Equal(t, defaultMaxCacheSize, mcs)
 
-		os.Setenv(envLoginDelayStart, "")
-		os.Setenv(envLoginDelayIncrease, "")
-		os.Setenv(envLoginDelayMax, "")
 		os.Setenv(envLoginMaxFailCount, "")
 		os.Setenv(envLoginMaxCacheSize, "")
 	})
 
 	t.Run("Greater than allowed in environment overrides", func(t *testing.T) {
-		os.Setenv(envLoginDelayStart, fmt.Sprintf("%d", math.MaxInt32+1))
-		os.Setenv(envLoginDelayIncrease, fmt.Sprintf("%d", math.MaxInt32+1))
-		os.Setenv(envLoginDelayMax, fmt.Sprintf("%d", math.MaxInt32+1))
 		os.Setenv(envLoginMaxFailCount, fmt.Sprintf("%d", math.MaxInt32+1))
 		os.Setenv(envLoginMaxCacheSize, fmt.Sprintf("%d", math.MaxInt32+1))
-
-		lds := getLoginDelayStart()
-		assert.Equal(t, defaultLoginDelayStart, lds)
-
-		ldi := getLoginDelayIncrease()
-		assert.Equal(t, defaultLoginDelayIncrease, ldi)
-
-		ldm := getLoginDelayMax()
-		assert.Equal(t, defaultLoginDelayMax, ldm)
 
 		mlf := getMaxLoginFailures()
 		assert.Equal(t, defaultMaxLoginFailures, mlf)
@@ -295,24 +225,37 @@ func TestCacheValueGetters(t *testing.T) {
 		mcs := getMaximumCacheSize()
 		assert.Equal(t, defaultMaxCacheSize, mcs)
 
-		os.Setenv(envLoginDelayStart, "")
-		os.Setenv(envLoginDelayIncrease, "")
-		os.Setenv(envLoginDelayMax, "")
 		os.Setenv(envLoginMaxFailCount, "")
 		os.Setenv(envLoginMaxCacheSize, "")
 	})
 
 }
 
-func TestLoginRateLimiter(t *testing.T) {
-	mr, err := miniredis.Run()
-	if err != nil {
-		panic(err)
-	}
-	defer mr.Close()
-
+func TestRandomPasswordVerificationDelay(t *testing.T) {
+	var sleptFor time.Duration
 	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("password", true), "argocd")
-	mgr := NewSessionManager(settingsMgr, "", cache.NewCache(cache.NewRedisCache(redis.NewClient(&redis.Options{Addr: mr.Addr()}), 0)))
+	mgr := newSessionManager(settingsMgr, "", NewInMemoryUserStateStorage())
+	mgr.verificationDelayNoiseEnabled = true
+	mgr.sleep = func(d time.Duration) {
+		sleptFor = d
+	}
+	for i := 0; i < 10; i++ {
+		sleptFor = 0
+		start := time.Now()
+		if !assert.NoError(t, mgr.VerifyUsernamePassword("admin", "password")) {
+			return
+		}
+		totalDuration := time.Now().Sub(start) + sleptFor
+		assert.GreaterOrEqual(t, totalDuration.Nanoseconds(), verificationDelayNoiseMin.Nanoseconds())
+		assert.LessOrEqual(t, totalDuration.Nanoseconds(), verificationDelayNoiseMax.Nanoseconds())
+	}
+}
+
+func TestLoginRateLimiter(t *testing.T) {
+	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("password", true), "argocd")
+	storage := NewInMemoryUserStateStorage()
+
+	mgr := newSessionManager(settingsMgr, "", storage)
 
 	t.Run("Test login delay valid user", func(t *testing.T) {
 		for i := 0; i < getMaxLoginFailures(); i++ {
@@ -320,37 +263,18 @@ func TestLoginRateLimiter(t *testing.T) {
 			assert.Error(t, err)
 		}
 
-		// Decrease delay to 3 seconds, so we don't waste too much time in tests
-		os.Setenv(envLoginDelayStart, "3")
-
-		// The 11th time should have a delay, we test for it
+		// The 11th time should fail even if password is right
 		{
-			start := time.Now()
-			err := mgr.VerifyUsernamePassword("admin", "wrong")
+			err := mgr.VerifyUsernamePassword("admin", "password")
 			assert.Error(t, err)
-			end := time.Now()
-			assert.GreaterOrEqual(t, end.Sub(start).Seconds(), float64(3))
 		}
 
-		// Valid password should be validated with delay, too. Delay should have been increased
-		{
-			start := time.Now()
-			err = mgr.VerifyUsernamePassword("admin", "password")
-			assert.NoError(t, err)
-			end := time.Now()
-			assert.GreaterOrEqual(t, end.Unix()-start.Unix(), int64(3+getLoginDelayIncrease()))
-		}
-
+		storage.attempts = map[string]LoginAttempts{}
 		// Failed counter should have been reseted, should validate immediately
 		{
-			start := time.Now()
 			err := mgr.VerifyUsernamePassword("admin", "password")
 			assert.NoError(t, err)
-			end := time.Now()
-			assert.LessOrEqual(t, end.Unix()-start.Unix(), int64(1))
 		}
-
-		os.Setenv(envLoginDelayStart, "")
 	})
 
 	t.Run("Test login delay invalid user", func(t *testing.T) {
@@ -359,17 +283,8 @@ func TestLoginRateLimiter(t *testing.T) {
 			assert.Error(t, err)
 		}
 
-		// Decrease delay to 3 seconds, so we don't waste too much time in tests
-		os.Setenv(envLoginDelayStart, "3")
-
-		// The 11th time should have a delay, we test for it
-		start := time.Now()
-		err = mgr.VerifyUsernamePassword("invalid", "wrong")
+		err := mgr.VerifyUsernamePassword("invalid", "wrong")
 		assert.Error(t, err)
-		end := time.Now()
-		assert.GreaterOrEqual(t, end.Unix()-start.Unix(), int64(3))
-
-		os.Setenv(envLoginDelayStart, "")
 	})
 }
 
@@ -379,21 +294,15 @@ func TestMaxUsernameLength(t *testing.T) {
 		username += "a"
 	}
 	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("password", true), "argocd")
-	mgr := NewSessionManager(settingsMgr, "", newSessionCache())
+	mgr := newSessionManager(settingsMgr, "", NewInMemoryUserStateStorage())
 	err := mgr.VerifyUsernamePassword(username, "password")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), fmt.Sprintf(usernameTooLongError, maxUsernameLength))
 }
 
 func TestMaxCacheSize(t *testing.T) {
-	mr, err := miniredis.Run()
-	if err != nil {
-		panic(err)
-	}
-	defer mr.Close()
-
 	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("password", true), "argocd")
-	mgr := NewSessionManager(settingsMgr, "", cache.NewCache(cache.NewRedisCache(redis.NewClient(&redis.Options{Addr: mr.Addr()}), 0)))
+	mgr := newSessionManager(settingsMgr, "", NewInMemoryUserStateStorage())
 
 	invalidUsers := []string{"invalid1", "invalid2", "invalid3", "invalid4", "invalid5", "invalid6", "invalid7"}
 	// Temporarily decrease max cache size
@@ -408,18 +317,12 @@ func TestMaxCacheSize(t *testing.T) {
 }
 
 func TestFailedAttemptsExpiry(t *testing.T) {
-	mr, err := miniredis.Run()
-	if err != nil {
-		panic(err)
-	}
-	defer mr.Close()
-
 	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("password", true), "argocd")
-	mgr := NewSessionManager(settingsMgr, "", cache.NewCache(cache.NewRedisCache(redis.NewClient(&redis.Options{Addr: mr.Addr()}), 0)))
+	mgr := newSessionManager(settingsMgr, "", NewInMemoryUserStateStorage())
 
 	invalidUsers := []string{"invalid1", "invalid2", "invalid3", "invalid4", "invalid5", "invalid6", "invalid7"}
 
-	os.Setenv(envLoginFailureWindow, "1")
+	os.Setenv(envLoginFailureWindowSeconds, "1")
 
 	for _, user := range invalidUsers {
 		err := mgr.VerifyUsernamePassword(user, "password")
@@ -428,9 +331,9 @@ func TestFailedAttemptsExpiry(t *testing.T) {
 
 	time.Sleep(2 * time.Second)
 
-	err = mgr.VerifyUsernamePassword("invalid8", "password")
+	err := mgr.VerifyUsernamePassword("invalid8", "password")
 	assert.Error(t, err)
 	assert.Len(t, mgr.GetLoginFailures(), 1)
 
-	os.Setenv(envLoginFailureWindow, "")
+	os.Setenv(envLoginFailureWindowSeconds, "")
 }

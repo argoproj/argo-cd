@@ -74,7 +74,6 @@ import (
 	"github.com/argoproj/argo-cd/server/version"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/assets"
-	cacheutil "github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/dex"
 	dexutil "github.com/argoproj/argo-cd/util/dex"
@@ -179,14 +178,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 	err = initializeDefaultProject(opts)
 	errors.CheckError(err)
 
-	var smgrCache *cacheutil.Cache
-	if opts.Cache != nil && opts.Cache.GetCache() != nil {
-		smgrCache = opts.Cache.GetCache()
-	} else {
-		log.Warnf("Running session manager with InMemory cache, which is not recommended.")
-		smgrCache = cacheutil.NewCache(cacheutil.NewInMemoryCache(0))
-	}
-	sessionMgr := util_session.NewSessionManager(settingsMgr, opts.DexServerAddr, smgrCache)
+	sessionMgr := util_session.NewSessionManager(settingsMgr, opts.DexServerAddr, opts.Cache)
 
 	factory := appinformer.NewFilteredSharedInformerFactory(opts.AppClientset, 0, opts.Namespace, func(options *metav1.ListOptions) {})
 	projInformer := factory.Argoproj().V1alpha1().AppProjects().Informer()
