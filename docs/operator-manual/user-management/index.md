@@ -17,6 +17,8 @@ login history etc. So if you need such features it is strongly recommended to us
 !!! note
     When you create local users, each of those users will need additional [RBAC rules](../rbac.md) set up, otherwise they will fall back to the default policy specified by `policy.default` field of the `argocd-rbac-cm` ConfigMap.
 
+The maximum length of a local account's username is 32.
+
 ### Create new user
 
 New users should be defined in `argocd-cm` ConfigMap:
@@ -87,6 +89,22 @@ argocd account update-password \
 # if flag --account is omitted then Argo CD generates token for current user
 argocd account generate-token --account <username> 
 ```
+
+### Failed logins rate limiting
+
+Argo CD rejects login attempts after too many failed in order to prevent password brute-forcing.
+The following environments variables are available to control throttling settings:
+
+* `ARGOCD_SESSION_MAX_FAIL_COUNT`: Maximum number of failed logins before Argo CD starts
+rejecting login attempts. Default: 5.
+
+* `ARGOCD_SESSION_FAILURE_WINDOW_SECONDS`: Number of seconds for the failure window.
+Default: 300 (5 minutes). If this is set to 0, the failure window is
+disabled and the login attempts gets rejected after 10 consecutive logon failures,
+regardless of the time frame they happened.
+
+* `ARGOCD_SESSION_MAX_CACHE_SIZE`: Maximum number of entries allowed in the
+cache. Default: 1000
 
 ## SSO
 

@@ -13,17 +13,12 @@ import (
 var ErrCacheMiss = cacheutil.ErrCacheMiss
 
 type Cache struct {
-	cache                   *cacheutil.Cache
+	Cache                   *cacheutil.Cache
 	appStateCacheExpiration time.Duration
 }
 
 func NewCache(cache *cacheutil.Cache, appStateCacheExpiration time.Duration) *Cache {
 	return &Cache{cache, appStateCacheExpiration}
-}
-
-type OIDCState struct {
-	// ReturnURL is the URL in which to redirect a user back to after completing an OAuth2 login
-	ReturnURL string `json:"returnURL"`
 }
 
 func AddCacheFlagsToCmd(cmd *cobra.Command) func() (*Cache, error) {
@@ -43,11 +38,11 @@ func AddCacheFlagsToCmd(cmd *cobra.Command) func() (*Cache, error) {
 }
 
 func (c *Cache) GetItem(key string, item interface{}) error {
-	return c.cache.GetItem(key, item)
+	return c.Cache.GetItem(key, item)
 }
 
 func (c *Cache) SetItem(key string, item interface{}, expiration time.Duration, delete bool) error {
-	return c.cache.SetItem(key, item, expiration, delete)
+	return c.Cache.SetItem(key, item, expiration, delete)
 }
 
 func appManagedResourcesKey(appName string) string {
