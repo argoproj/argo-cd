@@ -455,6 +455,13 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#failed-logins-rate-limiting" title="Failed logins rate limiting" class="md-nav__link">
+    Failed logins rate limiting
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1316,6 +1323,13 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#failed-logins-rate-limiting" title="Failed logins rate limiting" class="md-nav__link">
+    Failed logins rate limiting
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1412,6 +1426,7 @@ login history etc. So if you need such features it is strongly recommended to us
 <p class="admonition-title">Note</p>
 <p>When you create local users, each of those users will need additional <a href="../rbac/">RBAC rules</a> set up, otherwise they will fall back to the default policy specified by <code>policy.default</code> field of the <code>argocd-rbac-cm</code> ConfigMap.</p>
 </div>
+<p>The maximum length of a local account's username is 32.</p>
 <h3 id="create-new-user">Create new user<a class="headerlink" href="#create-new-user" title="Permanent link">&para;</a></h3>
 <p>New users should be defined in <code>argocd-cm</code> ConfigMap:</p>
 <div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
@@ -1484,6 +1499,25 @@ argocd account generate-token --account &lt;username&gt;
 </code></pre></div>
 
 
+<h3 id="failed-logins-rate-limiting">Failed logins rate limiting<a class="headerlink" href="#failed-logins-rate-limiting" title="Permanent link">&para;</a></h3>
+<p>Argo CD rejects login attempts after too many failed in order to prevent password brute-forcing.
+The following environments variables are available to control throttling settings:</p>
+<ul>
+<li>
+<p><code>ARGOCD_SESSION_MAX_FAIL_COUNT</code>: Maximum number of failed logins before Argo CD starts
+rejecting login attempts. Default: 5.</p>
+</li>
+<li>
+<p><code>ARGOCD_SESSION_FAILURE_WINDOW_SECONDS</code>: Number of seconds for the failure window.
+Default: 300 (5 minutes). If this is set to 0, the failure window is
+disabled and the login attempts gets rejected after 10 consecutive logon failures,
+regardless of the time frame they happened.</p>
+</li>
+<li>
+<p><code>ARGOCD_SESSION_MAX_CACHE_SIZE</code>: Maximum number of entries allowed in the
+cache. Default: 1000</p>
+</li>
+</ul>
 <h2 id="sso">SSO<a class="headerlink" href="#sso" title="Permanent link">&para;</a></h2>
 <p>There are two ways that SSO can be configured:</p>
 <ul>
