@@ -88,6 +88,8 @@ const (
 	ArgoCDCLIClientAppName = "Argo CD CLI"
 	// ArgoCDCLIClientAppID is the Oauth client ID we will use when registering our CLI to dex
 	ArgoCDCLIClientAppID = "argo-cd-cli"
+	// Workaround for https://github.com/dexidp/dex/issues/1695. Should be removed when bug is fixed.
+	ArgoCDCLISecret = "dummy-secret"
 )
 
 // Resource metadata labels and annotations (keys and values) used by Argo CD components
