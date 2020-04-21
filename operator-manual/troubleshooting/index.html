@@ -628,6 +628,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#cluster-credentials" title="Cluster credentials" class="md-nav__link">
+    Cluster credentials
+  </a>
+  
+</li>
+      
       
       
       
@@ -1211,6 +1218,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#cluster-credentials" title="Cluster credentials" class="md-nav__link">
+    Cluster credentials
+  </a>
+  
+</li>
+      
       
       
       
@@ -1278,6 +1292,26 @@ The diffing customizations are configured in <code>resource.customizations</code
 applied modifications.</p>
 <div class="codehilite"><pre><span></span><code>docker run --rm -it -w /src -v <span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>:/src argoproj/argocd:&lt;version&gt; <span class="se">\</span>
   argocd-util settings resource-overrides action /tmp/deploy.yaml restart --argocd-cm-path /private/tmp/argocd-cm.yaml 
+</code></pre></div>
+
+
+<h2 id="cluster-credentials">Cluster credentials<a class="headerlink" href="#cluster-credentials" title="Permanent link">&para;</a></h2>
+<p>The <code>argocd-util kubeconfig</code> is useful if you manually created Secret with cluster credentials and trying need to
+troubleshoot connectivity issues. In this case, it is suggested to use the following steps:</p>
+<p>1 SSH into [argocd-application-controller] pod.</p>
+<div class="codehilite"><pre><span></span><code><span class="err">kubectl exec -n argocd -it \</span>
+<span class="err">  $(kubectl get pods -n argocd -l app.kubernetes.io/name=argocd-application-controller -o jsonpath=&#39;{.items[0].metadata.name}&#39;) bash</span>
+</code></pre></div>
+
+
+<p>2 Use <code>argocd-util kubeconfig</code> command to export kubeconfig file from the configured Secret: </p>
+<div class="codehilite"><pre><span></span><code><span class="err">argocd-util kubeconfig https://&lt;api-server-url&gt; /tmp/kubeconfig --namespace argocd</span>
+</code></pre></div>
+
+
+<p>3 Use <code>kubectl</code> to get more details about connection issues, fix them and apply changes back to secret:</p>
+<div class="codehilite"><pre><span></span><code><span class="err">export KUBECONFIG=/tmp/kubeconfig</span>
+<span class="err">kubectl get pods -v 9</span>
 </code></pre></div>
                 
                   
