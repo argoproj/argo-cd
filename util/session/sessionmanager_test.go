@@ -52,8 +52,8 @@ func getKubeClient(pass string, enabled bool) *fake.Clientset {
 	})
 }
 
-func newSessionManager(settingsMgr *settings.SettingsManager, dexServerAddr string, storage UserStateStorage) *SessionManager {
-	mgr := NewSessionManager(settingsMgr, dexServerAddr, storage)
+func newSessionManager(settingsMgr *settings.SettingsManager, storage UserStateStorage) *SessionManager {
+	mgr := NewSessionManager(settingsMgr, "", storage)
 	mgr.verificationDelayNoiseEnabled = false
 	return mgr
 }
@@ -63,7 +63,7 @@ func TestSessionManager(t *testing.T) {
 		defaultSubject = "admin"
 	)
 	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("pass", true), "argocd")
-	mgr := newSessionManager(settingsMgr, "", NewInMemoryUserStateStorage())
+	mgr := newSessionManager(settingsMgr, NewInMemoryUserStateStorage())
 
 	token, err := mgr.Create(defaultSubject, 0, "")
 	if err != nil {
@@ -151,7 +151,7 @@ func TestVerifyUsernamePassword(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient(password, !tc.disabled), "argocd")
 
-			mgr := newSessionManager(settingsMgr, "", NewInMemoryUserStateStorage())
+			mgr := newSessionManager(settingsMgr, NewInMemoryUserStateStorage())
 
 			err := mgr.VerifyUsernamePassword(tc.userName, tc.password)
 
@@ -234,7 +234,7 @@ func TestCacheValueGetters(t *testing.T) {
 func TestRandomPasswordVerificationDelay(t *testing.T) {
 	var sleptFor time.Duration
 	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("password", true), "argocd")
-	mgr := newSessionManager(settingsMgr, "", NewInMemoryUserStateStorage())
+	mgr := newSessionManager(settingsMgr, NewInMemoryUserStateStorage())
 	mgr.verificationDelayNoiseEnabled = true
 	mgr.sleep = func(d time.Duration) {
 		sleptFor = d
@@ -245,7 +245,7 @@ func TestRandomPasswordVerificationDelay(t *testing.T) {
 		if !assert.NoError(t, mgr.VerifyUsernamePassword("admin", "password")) {
 			return
 		}
-		totalDuration := time.Now().Sub(start) + sleptFor
+		totalDuration := time.Since(start) + sleptFor
 		assert.GreaterOrEqual(t, totalDuration.Nanoseconds(), verificationDelayNoiseMin.Nanoseconds())
 		assert.LessOrEqual(t, totalDuration.Nanoseconds(), verificationDelayNoiseMax.Nanoseconds())
 	}
@@ -255,7 +255,7 @@ func TestLoginRateLimiter(t *testing.T) {
 	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("password", true), "argocd")
 	storage := NewInMemoryUserStateStorage()
 
-	mgr := newSessionManager(settingsMgr, "", storage)
+	mgr := newSessionManager(settingsMgr, storage)
 
 	t.Run("Test login delay valid user", func(t *testing.T) {
 		for i := 0; i < getMaxLoginFailures(); i++ {
@@ -294,7 +294,7 @@ func TestMaxUsernameLength(t *testing.T) {
 		username += "a"
 	}
 	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("password", true), "argocd")
-	mgr := newSessionManager(settingsMgr, "", NewInMemoryUserStateStorage())
+	mgr := newSessionManager(settingsMgr, NewInMemoryUserStateStorage())
 	err := mgr.VerifyUsernamePassword(username, "password")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), fmt.Sprintf(usernameTooLongError, maxUsernameLength))
@@ -302,7 +302,7 @@ func TestMaxUsernameLength(t *testing.T) {
 
 func TestMaxCacheSize(t *testing.T) {
 	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("password", true), "argocd")
-	mgr := newSessionManager(settingsMgr, "", NewInMemoryUserStateStorage())
+	mgr := newSessionManager(settingsMgr, NewInMemoryUserStateStorage())
 
 	invalidUsers := []string{"invalid1", "invalid2", "invalid3", "invalid4", "invalid5", "invalid6", "invalid7"}
 	// Temporarily decrease max cache size
@@ -318,7 +318,7 @@ func TestMaxCacheSize(t *testing.T) {
 
 func TestFailedAttemptsExpiry(t *testing.T) {
 	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("password", true), "argocd")
-	mgr := newSessionManager(settingsMgr, "", NewInMemoryUserStateStorage())
+	mgr := newSessionManager(settingsMgr, NewInMemoryUserStateStorage())
 
 	invalidUsers := []string{"invalid1", "invalid2", "invalid3", "invalid4", "invalid5", "invalid6", "invalid7"}
 

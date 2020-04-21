@@ -396,7 +396,7 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 			delayNanoseconds := verificationDelayNoiseMin.Nanoseconds() +
 				int64(rand.Intn(int(verificationDelayNoiseMax.Nanoseconds()-verificationDelayNoiseMin.Nanoseconds())))
 				// take into account amount of time spent since the request start
-			delayNanoseconds = delayNanoseconds - time.Now().Sub(start).Nanoseconds()
+			delayNanoseconds = delayNanoseconds - time.Since(start).Nanoseconds()
 			if delayNanoseconds > 0 {
 				mgr.sleep(time.Duration(delayNanoseconds))
 			}
