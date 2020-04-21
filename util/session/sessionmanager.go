@@ -87,12 +87,6 @@ const (
 	defaultMaxCacheSize = 1000
 	// The default number of maximum login failures before delay kicks in
 	defaultMaxLoginFailures = 5
-	// The default delay in seconds to be waited for after login attempts have been reached
-	defaultLoginDelayStart = 3
-	// How many seconds to increase delay after next consecutive login failure
-	defaultLoginDelayIncrease = 2
-	// Default maximum delay in seconds, delay won't be further increased than that
-	defaultLoginDelayMax = 30
 	// The default time in seconds for the failure window
 	defaultFailureWindow = 300
 	// The password verification delay max
