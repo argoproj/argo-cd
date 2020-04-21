@@ -634,7 +634,7 @@ func NewClusterConfig() *cobra.Command {
 
 			cluster, err := db.NewDB(namespace, settings.NewSettingsManager(context.Background(), kubeclientset, namespace), kubeclientset).GetCluster(context.Background(), serverUrl)
 			errors.CheckError(err)
-			err = kube.WriteKubeConfig(cluster.RESTConfig(), namespace, output)
+			err = kube.WriteKubeConfig(cluster.RawRestConfig(), namespace, output)
 			errors.CheckError(err)
 		},
 	}
