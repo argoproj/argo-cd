@@ -160,6 +160,7 @@ jobs:
     name: Run sonarcloud analysis
     needs:
       - test
+      - ui
     runs-on: ubuntu-latest
     env:
       GOPATH: /home/runner/work/argo-cd/argo-cd
@@ -173,7 +174,7 @@ jobs:
 
       - name: Fetch complete history for blame information
         run: |
-          git fetch --prune --depth 1 --no-tags origin +refs/heads/*:refs/remotes/origin/*
+          git fetch --prune --no-tags origin +refs/heads/*:refs/remotes/origin/*
         working-directory: ${{ github.workspace }}/src/github.com/argoproj/argo-cd
 
       - name: Create test-results directory
