@@ -355,11 +355,11 @@ workflows:
       - ui:
           requires:
             - build
-      - sonarcloud:
-          context: SonarCloud
-          requires:
-            - test
-            - ui
+      # - sonarcloud:
+      #     context: SonarCloud
+      #     requires:
+      #       - test
+      #       - ui
       - e2e:
           requires:
             - build
