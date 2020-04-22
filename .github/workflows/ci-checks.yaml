@@ -145,6 +145,8 @@ jobs:
       working-directory: ${{ env.GOCACHE }}
 
     - name: Run all unit tests
+      env:
+        ARGOCD_TEST_PARALLELISM: 2
       run: |
         export PATH=$PATH:$GITHUB_WORKSPACE/src/github.com/argoproj/argo-cd/hack
         make test
