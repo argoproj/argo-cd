@@ -125,6 +125,8 @@ jobs:
       uses: actions/checkout@v2
       with:
         path: ${{ github.workspace }}/src/github.com/argoproj/argo-cd
+        fetch-depth: 0
+        persist-credentials: false
 
     - name: Restore dependency cache
       id: cache-dependencies
@@ -146,7 +148,7 @@ jobs:
 
     - name: Run all unit tests
       env:
-        ARGOCD_TEST_PARALLELISM: 1
+        ARGOCD_TEST_PARALLELISM: 8
       run: |
         export PATH=$PATH:$GITHUB_WORKSPACE/src/github.com/argoproj/argo-cd/hack
         make test
