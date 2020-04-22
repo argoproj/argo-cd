@@ -116,6 +116,14 @@
   revision = "3a771d992973f24aa725d07868b467d1ddfceafb"
 
 [[projects]]
+  digest = "1:6e56c4e58a4359f844880c50b3c0a154c73c51c9399c2d16fa79221a6a110598"
+  name = "github.com/bsm/redislock"
+  packages = ["."]
+  pruneopts = ""
+  revision = "3d76f17a9f1e22d11521f78267ce1795641ae596"
+  version = "v0.4.3"
+
+[[projects]]
   digest = "1:6e2b0748ea11cffebe87b4a671a44ecfb243141cdd5df54cb44b7e8e93cb7ea3"
   name = "github.com/casbin/casbin"
   packages = [
@@ -1980,6 +1988,7 @@
     "github.com/argoproj/pkg/kubeclientmetrics",
     "github.com/argoproj/pkg/stats",
     "github.com/argoproj/pkg/time",
+    "github.com/bsm/redislock",
     "github.com/casbin/casbin",
     "github.com/casbin/casbin/model",
     "github.com/coreos/go-oidc",

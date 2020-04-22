@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/go-redis/redis"
 	"github.com/spf13/cobra"
 
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -36,7 +37,7 @@ type ClusterInfo struct {
 	Version string
 }
 
-func AddCacheFlagsToCmd(cmd *cobra.Command) func() (*Cache, error) {
+func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) func() (*Cache, error) {
 	var connectionStatusCacheExpiration time.Duration
 	var oidcCacheExpiration time.Duration
 	var loginAttemptsExpiration time.Duration
@@ -45,7 +46,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command) func() (*Cache, error) {
 	cmd.Flags().DurationVar(&oidcCacheExpiration, "oidc-cache-expiration", 3*time.Minute, "Cache expiration for OIDC state")
 	cmd.Flags().DurationVar(&loginAttemptsExpiration, "login-attempts-expiration", 24*time.Hour, "Cache expiration for failed login attempts")
 
-	fn := appstatecache.AddCacheFlagsToCmd(cmd)
+	fn := appstatecache.AddCacheFlagsToCmd(cmd, opts...)
 
 	return func() (*Cache, error) {
 		cache, err := fn()

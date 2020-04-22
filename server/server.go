@@ -12,10 +12,12 @@ import (
 	"os/exec"
 	"path"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
+	"github.com/go-redis/redis"
 	golang_proto "github.com/golang/protobuf/proto"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
@@ -92,6 +94,10 @@ import (
 	"github.com/argoproj/argo-cd/util/webhook"
 )
 
+const (
+	maxConcurrentLoginRequestsCountEnv = "ARGOCD_MAX_CONCURRENT_LOGIN_REQUESTS_COUNT"
+)
+
 var (
 	// ErrNoSession indicates no auth token was supplied as part of a request
 	ErrNoSession = status.Errorf(codes.Unauthenticated, "no session information")
@@ -114,7 +120,19 @@ var backoff = wait.Backoff{
 var (
 	clientConstraint = fmt.Sprintf(">= %s", common.MinClientVersion)
 	baseHRefRegex    = regexp.MustCompile(`<base href="(.*)">`)
+	// limits number of concurrent login requests to prevent password brute forcing. If set to 0 then no limit is enforced.
+	maxConcurrentLoginRequestsCount = 50
 )
+
+func init() {
+	if valStr := os.Getenv(maxConcurrentLoginRequestsCountEnv); valStr != "" {
+		if val, err := strconv.Atoi(valStr); err != nil {
+			log.Warnf("Failed to parse '%s' env variable: %v", maxConcurrentLoginRequestsCountEnv, err)
+		} else {
+			maxConcurrentLoginRequestsCount = val
+		}
+	}
+}
 
 // ArgoCDServer is the API server for Argo CD
 type ArgoCDServer struct {
@@ -148,6 +166,7 @@ type ArgoCDServerOpts struct {
 	AppClientset        appclientset.Interface
 	RepoClientset       repoapiclient.Clientset
 	Cache               *servercache.Cache
+	RedisClient         *redis.Client
 	TLSConfigCustomizer tlsutil.ConfigCustomizer
 	XFrameOptions       string
 }
@@ -470,7 +489,11 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	clusterService := cluster.NewServer(db, a.enf, a.Cache, kubectl)
 	repoService := repository.NewServer(a.RepoClientset, db, a.enf, a.Cache, a.settingsMgr)
 	repoCredsService := repocreds.NewServer(a.RepoClientset, db, a.enf, a.settingsMgr)
-	sessionService := session.NewServer(a.sessionMgr, a)
+	var loginRateLimiter func() (util.Closer, error)
+	if maxConcurrentLoginRequestsCount > 0 {
+		loginRateLimiter = session.NewLoginRateLimiter(a.ArgoCDServerOpts.RedisClient, maxConcurrentLoginRequestsCount)
+	}
+	sessionService := session.NewServer(a.sessionMgr, a, loginRateLimiter)
 	projectLock := util.NewKeyLock()
 	applicationService := application.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.appLister, a.RepoClientset, a.Cache, kubectl, db, a.enf, projectLock, a.settingsMgr)
 	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr)

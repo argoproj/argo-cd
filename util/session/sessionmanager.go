@@ -106,6 +106,10 @@ const (
 	envLoginMaxCacheSize = "ARGOCD_SESSION_MAX_CACHE_SIZE"
 )
 
+var (
+	InvalidLoginErr = status.Errorf(codes.Unauthenticated, invalidLoginError)
+)
+
 // Helper function to parse a number from an environment variable. Returns a
 // default if env is not set, is not parseable to a number, exceeds max (if
 // max is greater than 0) or is less than min.
@@ -406,14 +410,14 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 	attempt := mgr.getFailureCount(username)
 	if mgr.exceededFailedLoginAttempts(attempt) {
 		log.Warnf("User %s had too many failed logins (%d)", username, attempt.FailCount)
-		return status.Errorf(codes.Unauthenticated, invalidLoginError)
+		return InvalidLoginErr
 	}
 
 	account, err := mgr.settingsMgr.GetAccount(username)
 	if err != nil {
 		if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
 			mgr.updateFailureCount(username, true)
-			err = status.Errorf(codes.Unauthenticated, invalidLoginError)
+			err = InvalidLoginErr
 		}
 		// to prevent time-based user enumeration, we must perform a password
 		// hash cycle to keep response time consistent (if the function were
@@ -428,7 +432,7 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 	valid, _ := passwordutil.VerifyPassword(password, account.PasswordHash)
 	if !valid {
 		mgr.updateFailureCount(username, true)
-		return status.Errorf(codes.Unauthenticated, invalidLoginError)
+		return InvalidLoginErr
 	}
 	mgr.updateFailureCount(username, false)
 	return nil

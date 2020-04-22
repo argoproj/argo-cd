@@ -106,6 +106,9 @@ regardless of the time frame they happened.
 * `ARGOCD_SESSION_MAX_CACHE_SIZE`: Maximum number of entries allowed in the
 cache. Default: 1000
 
+* `ARGOCD_MAX_CONCURRENT_LOGIN_REQUESTS_COUNT`: Limits max number of concurrent login requests.
+If set to 0 then limit is disabled. Default: 50. 
+
 ## SSO
 
 There are two ways that SSO can be configured:
