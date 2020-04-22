@@ -125,12 +125,10 @@ jobs:
       uses: actions/checkout@v2
       with:
         path: ${{ github.workspace }}/src/github.com/argoproj/argo-cd
-        fetch-depth: 0
-        persist-credentials: false
 
     - name: Fetch complete history for blame information
       run: |
-        git fetch --prune --no-tags origin +refs/heads/*:refs/remotes/origin/*
+        git fetch --prune --no-tags --depth=1 origin +refs/heads/*:refs/remotes/origin/*
       working-directory: ${{ github.workspace }}/src/github.com/argoproj/argo-cd
 
     - name: Restore dependency cache
