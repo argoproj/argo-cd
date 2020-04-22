@@ -9,7 +9,6 @@ on:
       - 'master'
 
 env:
-  GO_VERSION: 1.14.1
   TEST_TOOLS_TAG: v0.2.0
   DOCKER_ARGS: null
 
