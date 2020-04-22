@@ -13,13 +13,13 @@ VERSION=$(curl --silent "https://api.github.com/repos/argoproj/argo-cd/releases/
 Replace `VERSION` in the command below with the version of Argo CD you would like to download:
 
 ```bash
-curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/download/$VERSION/argocd-linux-amd64
+sudo curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/download/$VERSION/argocd-linux-amd64
 ```
 
 Make the `argocd` CLI executable:
 
 ```bash
-chmod +x /usr/local/bin/argocd
+sudo chmod +x /usr/local/bin/argocd
 ```
 
 You should now be able to run `argocd` commands.
@@ -44,13 +44,13 @@ VERSION=$(curl --silent "https://api.github.com/repos/argoproj/argo-cd/releases/
 Replace `VERSION` in the command below with the version of Argo CD you would like to download:
 
 ```bash
-curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/download/$VERSION/argocd-darwin-amd64
+sudo curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/download/$VERSION/argocd-darwin-amd64
 ```
 
 Make the `argocd` CLI executable:
 
 ```bash
-chmod +x /usr/local/bin/argocd
+sudo chmod +x /usr/local/bin/argocd
 ```
 
 After finishing either of the instructions above, you should now be able to run `argocd` commands.
