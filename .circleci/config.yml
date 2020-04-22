@@ -43,7 +43,7 @@ commands:
       - persist_to_workspace:
           root: .
           paths:
-            - coverage.out
+            - test-results/coverage.out
   save_node_modules:
     steps:
       - persist_to_workspace:
@@ -149,7 +149,7 @@ jobs:
       - run: make test-local
       - run:
           name: Uploading code coverage
-          command: bash <(curl -s https://codecov.io/bash) -f coverage.out
+          command: bash <(curl -s https://codecov.io/bash) -f test-results/coverage.out
       - run:
           name: Output of test-results
           command: |
