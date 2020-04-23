@@ -9,7 +9,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -21,6 +20,7 @@ import (
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/util/cache/appstate"
 	"github.com/argoproj/argo-cd/util/dex"
+	"github.com/argoproj/argo-cd/util/env"
 	httputil "github.com/argoproj/argo-cd/util/http"
 	jwtutil "github.com/argoproj/argo-cd/util/jwt"
 	oidcutil "github.com/argoproj/argo-cd/util/oidc"
@@ -106,45 +106,23 @@ const (
 	envLoginMaxCacheSize = "ARGOCD_SESSION_MAX_CACHE_SIZE"
 )
 
-// Helper function to parse a number from an environment variable. Returns a
-// default if env is not set, is not parseable to a number, exceeds max (if
-// max is greater than 0) or is less than min.
-//
-// nolint:unparam
-func parseNumFromEnv(env string, defaultValue, min, max int) int {
-	str := os.Getenv(env)
-	if str == "" {
-		return defaultValue
-	}
-	num, err := strconv.Atoi(str)
-	if err != nil {
-		log.Warnf("Could not parse '%s' as a number from environment %s", str, env)
-		return defaultValue
-	}
-	if num < min {
-		log.Warnf("Value in %s is %d, which is less than minimum %d allowed", env, num, min)
-		return defaultValue
-	}
-	if num > max {
-		log.Warnf("Value in %s is %d, which is greater than maximum %d allowed", env, num, max)
-		return defaultValue
-	}
-	return num
-}
+var (
+	InvalidLoginErr = status.Errorf(codes.Unauthenticated, invalidLoginError)
+)
 
 // Returns the maximum cache size as number of entries
 func getMaximumCacheSize() int {
-	return parseNumFromEnv(envLoginMaxCacheSize, defaultMaxCacheSize, 1, math.MaxInt32)
+	return env.ParseNumFromEnv(envLoginMaxCacheSize, defaultMaxCacheSize, 1, math.MaxInt32)
 }
 
 // Returns the maximum number of login failures before login delay kicks in
 func getMaxLoginFailures() int {
-	return parseNumFromEnv(envLoginMaxFailCount, defaultMaxLoginFailures, 1, math.MaxInt32)
+	return env.ParseNumFromEnv(envLoginMaxFailCount, defaultMaxLoginFailures, 1, math.MaxInt32)
 }
 
 // Returns the number of maximum seconds the login is allowed to delay for
 func getLoginFailureWindow() time.Duration {
-	return time.Duration(parseNumFromEnv(envLoginFailureWindowSeconds, defaultFailureWindow, 0, math.MaxInt32))
+	return time.Duration(env.ParseNumFromEnv(envLoginFailureWindowSeconds, defaultFailureWindow, 0, math.MaxInt32))
 }
 
 // NewSessionManager creates a new session manager from Argo CD settings
@@ -406,14 +384,14 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 	attempt := mgr.getFailureCount(username)
 	if mgr.exceededFailedLoginAttempts(attempt) {
 		log.Warnf("User %s had too many failed logins (%d)", username, attempt.FailCount)
-		return status.Errorf(codes.Unauthenticated, invalidLoginError)
+		return InvalidLoginErr
 	}
 
 	account, err := mgr.settingsMgr.GetAccount(username)
 	if err != nil {
 		if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
 			mgr.updateFailureCount(username, true)
-			err = status.Errorf(codes.Unauthenticated, invalidLoginError)
+			err = InvalidLoginErr
 		}
 		// to prevent time-based user enumeration, we must perform a password
 		// hash cycle to keep response time consistent (if the function were
@@ -428,7 +406,7 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 	valid, _ := passwordutil.VerifyPassword(password, account.PasswordHash)
 	if !valid {
 		mgr.updateFailureCount(username, true)
-		return status.Errorf(codes.Unauthenticated, invalidLoginError)
+		return InvalidLoginErr
 	}
 	mgr.updateFailureCount(username, false)
 	return nil
