@@ -2,6 +2,7 @@ package session
 
 import (
 	"fmt"
+	"io"
 	"time"
 
 	"github.com/argoproj/argo-cd/util"
@@ -18,15 +19,45 @@ const (
 	inProgressTimeoutDelay = time.Minute
 )
 
-func NewLoginRateLimiter(client *redis.Client, maxNumber int) func() (util.Closer, error) {
-	locker := redislock.New(client)
+type stateStorage interface {
+	obtainLock(key string, ttl time.Duration) (io.Closer, error)
+	set(key string, value interface{}, expiration time.Duration) error
+	get(key string) (int, error)
+}
+
+func NewRedisStateStorage(client *redis.Client) *redisStateStorage {
+	return &redisStateStorage{client: client, locker: redislock.New(client)}
+}
+
+type redisStateStorage struct {
+	client *redis.Client
+	locker *redislock.Client
+}
+
+func (redis *redisStateStorage) obtainLock(key string, ttl time.Duration) (io.Closer, error) {
+	lock, err := redis.locker.Obtain(key, ttl, nil)
+	if err != nil {
+		return nil, err
+	}
+	return util.NewCloser(lock.Release), nil
+}
+
+func (redis *redisStateStorage) set(key string, value interface{}, expiration time.Duration) error {
+	return redis.client.Set(key, value, expiration).Err()
+}
+
+func (redis *redisStateStorage) get(key string) (int, error) {
+	return redis.client.Get(key).Int()
+}
+
+func NewLoginRateLimiter(storage stateStorage, maxNumber int) func() (util.Closer, error) {
 	runLocked := func(callback func() error) error {
-		lock, err := locker.Obtain(lockKey, 100*time.Millisecond, nil)
+		closer, err := storage.obtainLock(lockKey, 100*time.Millisecond)
 		if err != nil {
 			return fmt.Errorf("failed to enforce max concurrent logins limit: %v", err)
 		}
 		defer func() {
-			if err = lock.Release(); err != nil {
+			if err = closer.Close(); err != nil {
 				log.Warnf("failed to release redis lock: %v", err)
 			}
 		}()
@@ -35,7 +66,7 @@ func NewLoginRateLimiter(client *redis.Client, maxNumber int) func() (util.Close
 
 	return func() (util.Closer, error) {
 		if err := runLocked(func() error {
-			inProgressCount, err := client.Get(inProgressCountKey).Int()
+			inProgressCount, err := storage.get(inProgressCountKey)
 			if err != nil && err != redis.Nil {
 				return err
 			}
@@ -43,16 +74,16 @@ func NewLoginRateLimiter(client *redis.Client, maxNumber int) func() (util.Close
 				log.Warnf("Exceeded number of concurrent login requests")
 				return session.InvalidLoginErr
 			}
-			return client.Set(inProgressCountKey, inProgressCount, inProgressTimeoutDelay).Err()
+			return storage.set(inProgressCountKey, inProgressCount, inProgressTimeoutDelay)
 		}); err != nil {
 			return nil, err
 		}
 		return util.NewCloser(func() error {
-			inProgressCount, err := client.Get(inProgressCountKey).Int()
+			inProgressCount, err := storage.get(inProgressCountKey)
 			if err != nil && err != redis.Nil {
 				return err
 			}
-			return client.Set(inProgressCountKey, inProgressCount-1, inProgressTimeoutDelay).Err()
+			return storage.set(inProgressCountKey, inProgressCount-1, inProgressTimeoutDelay)
 		}), nil
 	}
 }
