@@ -25,6 +25,8 @@ type stateStorage interface {
 	get(key string) (int, error)
 }
 
+// NewRedisStateStorage creates storage which leverages redis to establish distributed lock and store number
+// of incomplete login requests.
 func NewRedisStateStorage(client *redis.Client) *redisStateStorage {
 	return &redisStateStorage{client: client, locker: redislock.New(client)}
 }
@@ -50,6 +52,9 @@ func (redis *redisStateStorage) get(key string) (int, error) {
 	return redis.client.Get(key).Int()
 }
 
+// NewLoginRateLimiter creates a function which enforces max number of concurrent login requests.
+// Function returns closer that should be closed when loging request has completed or error if number
+// of incomplete requests exceeded max number.
 func NewLoginRateLimiter(storage stateStorage, maxNumber int) func() (util.Closer, error) {
 	runLocked := func(callback func() error) error {
 		closer, err := storage.obtainLock(lockKey, 100*time.Millisecond)

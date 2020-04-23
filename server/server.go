@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"net"
 	"net/http"
 	"net/url"
@@ -12,7 +13,6 @@ import (
 	"os/exec"
 	"path"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -79,6 +79,7 @@ import (
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/dex"
 	dexutil "github.com/argoproj/argo-cd/util/dex"
+	"github.com/argoproj/argo-cd/util/env"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/healthz"
 	httputil "github.com/argoproj/argo-cd/util/http"
@@ -125,13 +126,7 @@ var (
 )
 
 func init() {
-	if valStr := os.Getenv(maxConcurrentLoginRequestsCountEnv); valStr != "" {
-		if val, err := strconv.Atoi(valStr); err != nil {
-			log.Warnf("Failed to parse '%s' env variable: %v", maxConcurrentLoginRequestsCountEnv, err)
-		} else {
-			maxConcurrentLoginRequestsCount = val
-		}
-	}
+	maxConcurrentLoginRequestsCount = env.ParseNumFromEnv(maxConcurrentLoginRequestsCountEnv, maxConcurrentLoginRequestsCount, 0, math.MaxInt32)
 }
 
 // ArgoCDServer is the API server for Argo CD
