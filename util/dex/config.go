@@ -50,7 +50,6 @@ func GenerateDexConfigYAML(settings *settings.ArgoCDSettings) ([]byte, error) {
 		{
 			"id":     common.ArgoCDCLIClientAppID,
 			"name":   common.ArgoCDCLIClientAppName,
-			"secret": common.ArgoCDCLISecret,
 			"public": true,
 			"redirectURIs": []string{
 				"http://localhost",
