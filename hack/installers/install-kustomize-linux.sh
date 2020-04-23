@@ -1,8 +1,7 @@
 #!/bin/bash
 set -eux -o pipefail
 
-KUSTOMIZE_VERSION=${KUSTOMIZE_VERSION:-3.2.1}
-DL=$DOWNLOADS/kustomize-${KUSTOMIZE_VERSION}
+KUSTOMIZE_VERSION=${KUSTOMIZE_VERSION:-3.5.4}
 
 # Note that kustomize release URIs have changed for v3.2.1. Then again for
 # v3.3.0. When upgrading to versions >= v3.3.0 please change the URI format. And
@@ -12,16 +11,23 @@ DL=$DOWNLOADS/kustomize-${KUSTOMIZE_VERSION}
 # v3.3.0 = https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/v3.3.0/kustomize_v3.3.0_linux_amd64.tar.gz
 case $KUSTOMIZE_VERSION in
   2.*)
+    DL=$DOWNLOADS/kustomize-${KUSTOMIZE_VERSION}
     URL=https://github.com/kubernetes-sigs/kustomize/releases/download/v${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION}_linux_amd64
     BINNAME=kustomize2
+    [ -e $DL ] || curl -sLf --retry 3 -o $DL $URL
+    mv $DL $BIN/$BINNAME
     ;;
   *)
-    URL=https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/v${KUSTOMIZE_VERSION}/kustomize_kustomize.v${KUSTOMIZE_VERSION}_linux_amd64
+    DL=$DOWNLOADS/kustomize-${KUSTOMIZE_VERSION}.tar.gz
+    URL=https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/v${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_linux_amd64.tar.gz
     BINNAME=kustomize
+
+    [ -e $DL ] || curl -sLf --retry 3 -o $DL $URL
+    tar -C /tmp -xf $DL
+    mv /tmp/kustomize $BIN/$BINNAME
     ;;
 esac
 
-[ -e $DL ] || curl -sLf --retry 3 -o $DL $URL
-cp $DL $BIN/$BINNAME
+
 chmod +x $BIN/$BINNAME
 $BINNAME version
