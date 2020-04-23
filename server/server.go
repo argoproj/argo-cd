@@ -144,6 +144,7 @@ type ArgoCDServerOpts struct {
 	DexServerAddr       string
 	StaticAssetsDir     string
 	BaseHRef            string
+	RootPath            string
 	KubeClientset       kubernetes.Interface
 	AppClientset        appclientset.Interface
 	RepoClientset       repoapiclient.Clientset
@@ -525,7 +526,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	httpS := http.Server{
 		Addr: endpoint,
 		Handler: &handlerSwitcher{
-			handler: &bug21955Workaround{handler: mux},
+			handler: &bug21955Workaround{handler: mux, rootPath: a.ArgoCDServerOpts.RootPath},
 			urlToHandler: map[string]http.Handler{
 				"/api/badge": badge.NewHandler(a.AppClientset, a.settingsMgr, a.Namespace),
 			},
@@ -847,7 +848,8 @@ func (s *handlerSwitcher) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // Workaround for https://github.com/golang/go/issues/21955 to support escaped URLs in URL path.
 type bug21955Workaround struct {
-	handler http.Handler
+	handler  http.Handler
+	rootPath string
 }
 
 var pathPatters = []*regexp.Regexp{
@@ -859,6 +861,10 @@ var pathPatters = []*regexp.Regexp{
 }
 
 func (bf *bug21955Workaround) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if strings.HasPrefix(r.URL.Path, bf.rootPath) {
+		r.URL.Path = r.URL.Path[len(bf.rootPath):len(r.URL.Path)]
+
+	}
 	for _, pattern := range pathPatters {
 		if pattern.MatchString(r.URL.RawPath) {
 			r.URL.Path = r.URL.RawPath

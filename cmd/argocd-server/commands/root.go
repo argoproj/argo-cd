@@ -32,6 +32,7 @@ func NewCommand() *cobra.Command {
 		repoServerTimeoutSeconds int
 		staticAssetsDir          string
 		baseHRef                 string
+		rootPath                 string
 		repoServerAddress        string
 		dexServerAddress         string
 		disableAuth              bool
@@ -70,6 +71,7 @@ func NewCommand() *cobra.Command {
 				Namespace:           namespace,
 				StaticAssetsDir:     staticAssetsDir,
 				BaseHRef:            baseHRef,
+				RootPath:            rootPath,
 				KubeClientset:       kubeclientset,
 				AppClientset:        appclientset,
 				RepoClientset:       repoclientset,
@@ -98,6 +100,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&insecure, "insecure", false, "Run server without TLS")
 	command.Flags().StringVar(&staticAssetsDir, "staticassets", "", "Static assets directory path")
 	command.Flags().StringVar(&baseHRef, "basehref", "/", "Value for base href in index.html. Used if Argo CD is running behind reverse proxy under subpath different from /")
+	command.Flags().StringVar(&rootPath, "rootpath", "", "Used if Argo CD is running behind reverse proxy under subpath different from /")
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().IntVar(&glogLevel, "gloglevel", 0, "Set the glog logging level")
 	command.Flags().StringVar(&repoServerAddress, "repo-server", common.DefaultRepoServerAddr, "Repo server address")
