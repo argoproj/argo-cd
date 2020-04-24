@@ -541,7 +541,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	httpS := http.Server{
 		Addr: endpoint,
 		Handler: &handlerSwitcher{
-			handler: &bug21955Workaround{handler: mux, rootPath: a.ArgoCDServerOpts.RootPath},
+			handler: &bug21955Workaround{handler: mux},
 			urlToHandler: map[string]http.Handler{
 				"/api/badge": badge.NewHandler(a.AppClientset, a.settingsMgr, a.Namespace),
 			},
@@ -863,8 +863,7 @@ func (s *handlerSwitcher) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // Workaround for https://github.com/golang/go/issues/21955 to support escaped URLs in URL path.
 type bug21955Workaround struct {
-	handler  http.Handler
-	rootPath string
+	handler http.Handler
 }
 
 var pathPatters = []*regexp.Regexp{
