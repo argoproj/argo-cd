@@ -2,7 +2,6 @@ package normalizers
 
 import (
 	"encoding/json"
-	"strings"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/diff"
@@ -32,12 +31,10 @@ type overrideIgnoreDiff struct {
 // NewIgnoreNormalizer creates diff normalizer which removes ignored fields according to given application spec and resource overrides
 func NewIgnoreNormalizer(ignore []v1alpha1.ResourceIgnoreDifferences, overrides map[string]v1alpha1.ResourceOverride) (diff.Normalizer, error) {
 	for key, override := range overrides {
-		parts := strings.Split(key, "/")
-		if len(parts) < 2 {
-			continue
+		group, kind, err := getGroupKindForOverrideKey(key)
+		if err != nil {
+			log.Warn(err)
 		}
-		group := parts[0]
-		kind := parts[1]
 		if override.IgnoreDifferences != "" {
 			ignoreSettings := overrideIgnoreDiff{}
 			err := yaml.Unmarshal([]byte(override.IgnoreDifferences), &ignoreSettings)

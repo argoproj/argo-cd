@@ -2,7 +2,7 @@ import {NotificationType, SlidingPanel} from 'argo-ui';
 import * as React from 'react';
 import {FormApi} from 'react-form';
 
-import {DataLoader, ErrorNotification, Page, Query} from '../../../shared/components';
+import {DataLoader, EmptyState, ErrorNotification, Page, Query} from '../../../shared/components';
 import {Consumer} from '../../../shared/context';
 import {services} from '../../../shared/services';
 import {ProjectEditPanel} from '../project-edit-panel/project-edit-panel';
@@ -24,7 +24,7 @@ export class ProjectsList extends React.Component {
                         <div className='projects argo-container'>
                             <DataLoader load={() => services.projects.list()} ref={loader => (this.loader = loader)}>
                                 {projects =>
-                                    projects.length > 0 && (
+                                    (projects.length > 0 && (
                                         <div className='argo-table-list argo-table-list--clickable'>
                                             <div className='argo-table-list__head'>
                                                 <div className='row'>
@@ -43,6 +43,14 @@ export class ProjectsList extends React.Component {
                                                 </div>
                                             ))}
                                         </div>
+                                    )) || (
+                                        <EmptyState icon='fa fa-object-group'>
+                                            <h4>No projects yet</h4>
+                                            <h5>Create new projects to group your applications</h5>
+                                            <button className='argo-button argo-button--base' onClick={() => ctx.navigation.goto('.', {add: true})}>
+                                                New project
+                                            </button>
+                                        </EmptyState>
                                     )
                                 }
                             </DataLoader>

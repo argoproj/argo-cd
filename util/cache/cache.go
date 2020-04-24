@@ -21,7 +21,7 @@ func NewCache(client CacheClient) *Cache {
 }
 
 // AddCacheFlagsToCmd adds flags which control caching to the specified command
-func AddCacheFlagsToCmd(cmd *cobra.Command) func() (*Cache, error) {
+func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) func() (*Cache, error) {
 	redisAddress := ""
 	sentinelAddresses := make([]string, 0)
 	sentinelMaster := ""
@@ -42,6 +42,9 @@ func AddCacheFlagsToCmd(cmd *cobra.Command) func() (*Cache, error) {
 				DB:            redisDB,
 				Password:      password,
 			})
+			for i := range opts {
+				opts[i](client)
+			}
 			return NewCache(NewRedisCache(client, defaultCacheExpiration)), nil
 		}
 
@@ -53,6 +56,9 @@ func AddCacheFlagsToCmd(cmd *cobra.Command) func() (*Cache, error) {
 			Password: password,
 			DB:       redisDB,
 		})
+		for i := range opts {
+			opts[i](client)
+		}
 		return NewCache(NewRedisCache(client, defaultCacheExpiration)), nil
 	}
 }

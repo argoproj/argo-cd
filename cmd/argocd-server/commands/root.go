@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/argoproj/pkg/stats"
+	"github.com/go-redis/redis"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -23,6 +24,7 @@ import (
 // NewCommand returns a new instance of an argocd command
 func NewCommand() *cobra.Command {
 	var (
+		redisClient              *redis.Client
 		insecure                 bool
 		listenPort               int
 		metricsPort              int
@@ -78,6 +80,7 @@ func NewCommand() *cobra.Command {
 				TLSConfigCustomizer: tlsConfigCustomizer,
 				Cache:               cache,
 				XFrameOptions:       frameOptions,
+				RedisClient:         redisClient,
 			}
 
 			stats.RegisterStackDumper()
@@ -109,6 +112,8 @@ func NewCommand() *cobra.Command {
 	command.Flags().IntVar(&repoServerTimeoutSeconds, "repo-server-timeout-seconds", 60, "Repo server RPC call timeout seconds.")
 	command.Flags().StringVar(&frameOptions, "x-frame-options", "sameorigin", "Set X-Frame-Options header in HTTP responses to `value`. To disable, set to \"\".")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(command)
-	cacheSrc = servercache.AddCacheFlagsToCmd(command)
+	cacheSrc = servercache.AddCacheFlagsToCmd(command, func(client *redis.Client) {
+		redisClient = client
+	})
 	return command
 }

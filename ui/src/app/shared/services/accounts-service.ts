@@ -3,7 +3,7 @@ import requests from './requests';
 
 export class AccountsService {
     public list(): Promise<Account[]> {
-        return requests.get('/account').then(res => res.body.items as Account[]);
+        return requests.get('/account').then(res => (res.body.items || []) as Account[]);
     }
 
     public get(name: string): Promise<Account> {
