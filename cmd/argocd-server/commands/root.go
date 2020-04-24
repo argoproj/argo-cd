@@ -18,6 +18,7 @@ import (
 	servercache "github.com/argoproj/argo-cd/server/cache"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/tls"
+	log "github.com/sirupsen/logrus"
 )
 
 // NewCommand returns a new instance of an argocd command
@@ -63,6 +64,13 @@ func NewCommand() *cobra.Command {
 			kubeclientset := kubernetes.NewForConfigOrDie(config)
 			appclientset := appclientset.NewForConfigOrDie(config)
 			repoclientset := apiclient.NewRepoServerClientset(repoServerAddress, repoServerTimeoutSeconds)
+
+			if rootPath != "" {
+				if baseHRef != "" && baseHRef != rootPath {
+					log.Warnf("--basehref and --rootpath had conflict: basehref: %s rootpath: %s", baseHRef, rootPath)
+				}
+				baseHRef = rootPath
+			}
 
 			argoCDOpts := server.ArgoCDServerOpts{
 				Insecure:            insecure,

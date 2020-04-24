@@ -226,6 +226,12 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
 	} else {
 		httpS = a.newHTTPServer(ctx, port, grpcWebS)
 	}
+	if a.RootPath != "" {
+		httpS.Handler = withRootPath(httpS.Handler, a.RootPath)
+		if httpsS != nil {
+			httpsS.Handler = withRootPath(httpsS.Handler, a.RootPath)
+		}
+	}
 	metricsServ := newAPIServerMetricsServer(metricsPort)
 
 	// Start listener
@@ -516,6 +522,15 @@ func (a *ArgoCDServer) translateGrpcCookieHeader(ctx context.Context, w http.Res
 		w.Header().Set("Set-Cookie", cookie)
 	}
 	return nil
+}
+
+func withRootPath(handler http.Handler, root string) http.Handler {
+	// get rid of slashes
+	root = strings.TrimRight(strings.TrimLeft(root, "/"), "/")
+
+	mux := http.NewServeMux()
+	mux.Handle("/"+root+"/", http.StripPrefix("/"+root, handler))
+	return mux
 }
 
 // newHTTPServer returns the HTTP server to serve HTTP/HTTPS requests. This is implemented
@@ -861,10 +876,6 @@ var pathPatters = []*regexp.Regexp{
 }
 
 func (bf *bug21955Workaround) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if strings.HasPrefix(r.URL.Path, bf.rootPath) {
-		r.URL.Path = r.URL.Path[len(bf.rootPath):len(r.URL.Path)]
-
-	}
 	for _, pattern := range pathPatters {
 		if pattern.MatchString(r.URL.RawPath) {
 			r.URL.Path = r.URL.RawPath
