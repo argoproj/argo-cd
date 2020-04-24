@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/coreos/go-oidc"
@@ -77,6 +78,10 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 
 			if ctxName == "" {
 				ctxName = server
+				if globalClientOpts.GRPCWebRootPath != "" {
+					rootPath := strings.TrimRight(strings.TrimLeft(globalClientOpts.GRPCWebRootPath, "/"), "/")
+					ctxName = fmt.Sprintf("%s/%s", server, rootPath)
+				}
 			}
 
 			// Perform the login
