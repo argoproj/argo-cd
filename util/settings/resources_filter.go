@@ -21,10 +21,10 @@ func (rf *ResourcesFilter) getExcludedResources() []FilteredResource {
 	return append(coreExcludedResources, rf.ResourceExclusions...)
 }
 
-func (rf *ResourcesFilter) checkResourcePresence(apiGroup, kind, cluster string, filteredResources []FilteredResource) bool {
+func (rf *ResourcesFilter) checkResourcePresence(apiGroup, kind, cluster string, labels map[string]string, filteredResources []FilteredResource) bool {
 
 	for _, includedResource := range filteredResources {
-		if includedResource.Match(apiGroup, kind, cluster) {
+		if includedResource.Match(apiGroup, kind, cluster, labels) {
 			return true
 		}
 	}
@@ -32,12 +32,12 @@ func (rf *ResourcesFilter) checkResourcePresence(apiGroup, kind, cluster string,
 	return false
 }
 
-func (rf *ResourcesFilter) isIncludedResource(apiGroup, kind, cluster string) bool {
-	return rf.checkResourcePresence(apiGroup, kind, cluster, rf.ResourceInclusions)
+func (rf *ResourcesFilter) isIncludedResource(apiGroup, kind, cluster string, labels map[string]string) bool {
+	return rf.checkResourcePresence(apiGroup, kind, cluster, labels, rf.ResourceInclusions)
 }
 
-func (rf *ResourcesFilter) isExcludedResource(apiGroup, kind, cluster string) bool {
-	return rf.checkResourcePresence(apiGroup, kind, cluster, rf.getExcludedResources())
+func (rf *ResourcesFilter) isExcludedResource(apiGroup, kind, cluster string, labels map[string]string) bool {
+	return rf.checkResourcePresence(apiGroup, kind, cluster, labels, rf.getExcludedResources())
 }
 
 // Behavior of this function is as follows:
@@ -63,14 +63,14 @@ func (rf *ResourcesFilter) isExcludedResource(apiGroup, kind, cluster string) bo
 // |   Present   |   Present   | Not Allowed |
 // +-------------+-------------+-------------+
 //
-func (rf *ResourcesFilter) IsExcludedResource(apiGroup, kind, cluster string) bool {
+func (rf *ResourcesFilter) IsExcludedResource(apiGroup, kind, cluster string, labels map[string]string) bool {
 	if len(rf.ResourceInclusions) > 0 {
-		if rf.isIncludedResource(apiGroup, kind, cluster) {
-			return rf.isExcludedResource(apiGroup, kind, cluster)
+		if rf.isIncludedResource(apiGroup, kind, cluster, labels) {
+			return rf.isExcludedResource(apiGroup, kind, cluster, labels)
 		} else {
 			return true
 		}
 	} else {
-		return rf.isExcludedResource(apiGroup, kind, cluster)
+		return rf.isExcludedResource(apiGroup, kind, cluster, labels)
 	}
 }

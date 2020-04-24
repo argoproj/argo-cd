@@ -78,7 +78,7 @@ func filterAPIResources(config *rest.Config, resourceFilter ResourceFilter, filt
 		}
 		for _, apiResource := range apiResourcesList.APIResources {
 
-			if resourceFilter.IsExcludedResource(gv.Group, apiResource.Kind, config.Host) {
+			if resourceFilter.IsExcludedResource(gv.Group, apiResource.Kind, config.Host, map[string]string{}) {
 				continue
 			}
 
