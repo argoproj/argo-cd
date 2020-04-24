@@ -1081,9 +1081,9 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					var live *unstructured.Unstructured
 					var target *unstructured.Unstructured
 					if item.target != nil && item.live != nil {
-						target = item.live
-						live = &unstructured.Unstructured{}
-						err = json.Unmarshal(diffRes.PredictedLive, live)
+						target = &unstructured.Unstructured{}
+						live = item.live
+						err = json.Unmarshal(diffRes.PredictedLive, target)
 						errors.CheckError(err)
 					} else {
 						live = item.live
@@ -1091,7 +1091,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					}
 
 					foundDiffs = true
-					_ = diff.PrintDiff(item.key.Name, target, live)
+					_ = diff.PrintDiff(item.key.Name, live, target)
 				}
 			}
 			if foundDiffs {
