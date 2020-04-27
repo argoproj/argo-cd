@@ -157,6 +157,7 @@ type ArgoCDServerOpts struct {
 	DexServerAddr       string
 	StaticAssetsDir     string
 	BaseHRef            string
+	RootPath            string
 	KubeClientset       kubernetes.Interface
 	AppClientset        appclientset.Interface
 	RepoClientset       repoapiclient.Clientset
@@ -238,6 +239,12 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
 		httpsS = a.newHTTPServer(ctx, port, grpcWebS)
 	} else {
 		httpS = a.newHTTPServer(ctx, port, grpcWebS)
+	}
+	if a.RootPath != "" {
+		httpS.Handler = withRootPath(httpS.Handler, a.RootPath)
+		if httpsS != nil {
+			httpsS.Handler = withRootPath(httpsS.Handler, a.RootPath)
+		}
 	}
 	metricsServ := newAPIServerMetricsServer(metricsPort)
 
@@ -534,6 +541,15 @@ func (a *ArgoCDServer) translateGrpcCookieHeader(ctx context.Context, w http.Res
 		w.Header().Set("Set-Cookie", cookie)
 	}
 	return nil
+}
+
+func withRootPath(handler http.Handler, root string) http.Handler {
+	// get rid of slashes
+	root = strings.TrimRight(strings.TrimLeft(root, "/"), "/")
+
+	mux := http.NewServeMux()
+	mux.Handle("/"+root+"/", http.StripPrefix("/"+root, handler))
+	return mux
 }
 
 // newHTTPServer returns the HTTP server to serve HTTP/HTTPS requests. This is implemented
