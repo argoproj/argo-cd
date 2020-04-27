@@ -214,7 +214,15 @@ spec:
     name: fake-cluster
 `
 
-func newTestApp(testApp string, opts ...func(app *appsv1.Application)) *appsv1.Application {
+func newTestAppWithDestName(opts ...func(app *appsv1.Application)) *appsv1.Application {
+	return createTestApp(fakeAppWithDestName, opts...)
+}
+
+func newTestApp(opts ...func(app *appsv1.Application)) *appsv1.Application {
+	return createTestApp(fakeApp, opts...)
+}
+
+func createTestApp(testApp string, opts ...func(app *appsv1.Application)) *appsv1.Application {
 	var app appsv1.Application
 	err := yaml.Unmarshal([]byte(testApp), &app)
 	if err != nil {
@@ -227,11 +235,11 @@ func newTestApp(testApp string, opts ...func(app *appsv1.Application)) *appsv1.A
 }
 
 func TestListApps(t *testing.T) {
-	appServer := newTestAppServer(newTestApp(fakeApp, func(app *appsv1.Application) {
+	appServer := newTestAppServer(newTestApp(func(app *appsv1.Application) {
 		app.Name = "bcd"
-	}), newTestApp(fakeApp, func(app *appsv1.Application) {
+	}), newTestApp(func(app *appsv1.Application) {
 		app.Name = "abc"
-	}), newTestApp(fakeApp, func(app *appsv1.Application) {
+	}), newTestApp(func(app *appsv1.Application) {
 		app.Name = "def"
 	}))
 
@@ -245,7 +253,7 @@ func TestListApps(t *testing.T) {
 }
 
 func TestCreateApp(t *testing.T) {
-	testApp := newTestApp(fakeApp)
+	testApp := newTestApp()
 	appServer := newTestAppServer()
 	testApp.Spec.Project = ""
 	createReq := application.ApplicationCreateRequest{
@@ -260,7 +268,7 @@ func TestCreateApp(t *testing.T) {
 
 func TestCreateAppWithDestName(t *testing.T) {
 	appServer := newTestAppServer()
-	testApp := newTestApp(fakeAppWithDestName)
+	testApp := newTestAppWithDestName()
 	createReq := application.ApplicationCreateRequest{
 		Application: *testApp,
 	}
@@ -271,7 +279,7 @@ func TestCreateAppWithDestName(t *testing.T) {
 }
 
 func TestUpdateApp(t *testing.T) {
-	testApp := newTestApp(fakeApp)
+	testApp := newTestApp()
 	appServer := newTestAppServer(testApp)
 	testApp.Spec.Project = ""
 	app, err := appServer.Update(context.Background(), &application.ApplicationUpdateRequest{
@@ -282,7 +290,7 @@ func TestUpdateApp(t *testing.T) {
 }
 
 func TestUpdateAppSpec(t *testing.T) {
-	testApp := newTestApp(fakeApp)
+	testApp := newTestApp()
 	appServer := newTestAppServer(testApp)
 	testApp.Spec.Project = ""
 	spec, err := appServer.UpdateSpec(context.Background(), &application.ApplicationUpdateSpecRequest{
@@ -300,7 +308,7 @@ func TestDeleteApp(t *testing.T) {
 	ctx := context.Background()
 	appServer := newTestAppServer()
 	createReq := application.ApplicationCreateRequest{
-		Application: *newTestApp(fakeApp),
+		Application: *newTestApp(),
 	}
 	app, err := appServer.Create(ctx, &createReq)
 	assert.Nil(t, err)
@@ -354,7 +362,7 @@ func TestDeleteApp_InvalidName(t *testing.T) {
 func TestSyncAndTerminate(t *testing.T) {
 	ctx := context.Background()
 	appServer := newTestAppServer()
-	testApp := newTestApp(fakeApp)
+	testApp := newTestApp()
 	testApp.Spec.Source.RepoURL = "https://github.com/argoproj/argo-cd.git"
 	createReq := application.ApplicationCreateRequest{
 		Application: *testApp,
@@ -395,7 +403,7 @@ func TestSyncAndTerminate(t *testing.T) {
 func TestSyncHelm(t *testing.T) {
 	ctx := context.Background()
 	appServer := newTestAppServer()
-	testApp := newTestApp(fakeApp)
+	testApp := newTestApp()
 	testApp.Spec.Source.RepoURL = "https://argoproj.github.io/argo-helm"
 	testApp.Spec.Source.Path = ""
 	testApp.Spec.Source.Chart = "argo-cd"
@@ -415,7 +423,7 @@ func TestSyncHelm(t *testing.T) {
 }
 
 func TestRollbackApp(t *testing.T) {
-	testApp := newTestApp(fakeApp)
+	testApp := newTestApp()
 	testApp.Status.History = []appsv1.RevisionHistory{{
 		ID:       1,
 		Revision: "abc",
@@ -437,7 +445,7 @@ func TestRollbackApp(t *testing.T) {
 }
 
 func TestUpdateAppProject(t *testing.T) {
-	testApp := newTestApp(fakeApp)
+	testApp := newTestApp()
 	ctx := context.Background()
 	// nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.StandardClaims{Subject: "admin"})
@@ -490,7 +498,7 @@ p, admin, applications, update, my-proj/test-app, allow
 }
 
 func TestAppJsonPatch(t *testing.T) {
-	testApp := newTestApp(fakeApp)
+	testApp := newTestApp()
 	ctx := context.Background()
 	// nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.StandardClaims{Subject: "admin"})
@@ -511,7 +519,7 @@ func TestAppJsonPatch(t *testing.T) {
 }
 
 func TestAppMergePatch(t *testing.T) {
-	testApp := newTestApp(fakeApp)
+	testApp := newTestApp()
 	ctx := context.Background()
 	// nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.StandardClaims{Subject: "admin"})
@@ -526,7 +534,7 @@ func TestAppMergePatch(t *testing.T) {
 
 func TestServer_GetApplicationSyncWindowsState(t *testing.T) {
 	t.Run("Active", func(t *testing.T) {
-		testApp := newTestApp(fakeApp)
+		testApp := newTestApp()
 		testApp.Spec.Project = "proj-maint"
 		appServer := newTestAppServer(testApp)
 
@@ -535,7 +543,7 @@ func TestServer_GetApplicationSyncWindowsState(t *testing.T) {
 		assert.Equal(t, 1, len(active.ActiveWindows))
 	})
 	t.Run("Inactive", func(t *testing.T) {
-		testApp := newTestApp(fakeApp)
+		testApp := newTestApp()
 		testApp.Spec.Project = "default"
 		appServer := newTestAppServer(testApp)
 
@@ -544,7 +552,7 @@ func TestServer_GetApplicationSyncWindowsState(t *testing.T) {
 		assert.Equal(t, 0, len(active.ActiveWindows))
 	})
 	t.Run("ProjectDoesNotExist", func(t *testing.T) {
-		testApp := newTestApp(fakeApp)
+		testApp := newTestApp()
 		testApp.Spec.Project = "none"
 		appServer := newTestAppServer(testApp)
 
@@ -555,7 +563,7 @@ func TestServer_GetApplicationSyncWindowsState(t *testing.T) {
 }
 
 func TestGetCachedAppState(t *testing.T) {
-	testApp := newTestApp(fakeApp)
+	testApp := newTestApp()
 	testApp.Spec.Project = "none"
 	appServer := newTestAppServer(testApp)
 

@@ -247,7 +247,19 @@ metadata:
 data:
 `
 
-func newFakeApp(testApp string) *argoappv1.Application {
+func newFakeApp() *argoappv1.Application {
+	return createFakeApp(fakeApp)
+}
+
+func newFakeAppWithDestMismatch() *argoappv1.Application {
+	return createFakeApp(fakeAppWithDestMismatch)
+}
+
+func newFakeAppWithDestName() *argoappv1.Application {
+	return createFakeApp(fakeAppWithDestName)
+}
+
+func createFakeApp(testApp string) *argoappv1.Application {
 	var app argoappv1.Application
 	err := yaml.Unmarshal([]byte(testApp), &app)
 	if err != nil {
@@ -266,7 +278,7 @@ func newFakeCM() map[string]interface{} {
 }
 
 func TestAutoSync(t *testing.T) {
-	app := newFakeApp(fakeApp)
+	app := newFakeApp()
 	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
 	syncStatus := argoappv1.SyncStatus{
 		Status:   argoappv1.SyncStatusCodeOutOfSync,
@@ -285,7 +297,7 @@ func TestSkipAutoSync(t *testing.T) {
 	// Verify we skip when we previously synced to it in our most recent history
 	// Set current to 'aaaaa', desired to 'aaaa' and mark system OutOfSync
 	t.Run("PreviouslySyncedToRevision", func(t *testing.T) {
-		app := newFakeApp(fakeApp)
+		app := newFakeApp()
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
 		syncStatus := argoappv1.SyncStatus{
 			Status:   argoappv1.SyncStatusCodeOutOfSync,
@@ -300,7 +312,7 @@ func TestSkipAutoSync(t *testing.T) {
 
 	// Verify we skip when we are already Synced (even if revision is different)
 	t.Run("AlreadyInSyncedState", func(t *testing.T) {
-		app := newFakeApp(fakeApp)
+		app := newFakeApp()
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
 		syncStatus := argoappv1.SyncStatus{
 			Status:   argoappv1.SyncStatusCodeSynced,
@@ -315,7 +327,7 @@ func TestSkipAutoSync(t *testing.T) {
 
 	// Verify we skip when auto-sync is disabled
 	t.Run("AutoSyncIsDisabled", func(t *testing.T) {
-		app := newFakeApp(fakeApp)
+		app := newFakeApp()
 		app.Spec.SyncPolicy = nil
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
 		syncStatus := argoappv1.SyncStatus{
@@ -331,7 +343,7 @@ func TestSkipAutoSync(t *testing.T) {
 
 	// Verify we skip when application is marked for deletion
 	t.Run("ApplicationIsMarkedForDeletion", func(t *testing.T) {
-		app := newFakeApp(fakeApp)
+		app := newFakeApp()
 		now := metav1.Now()
 		app.DeletionTimestamp = &now
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
@@ -349,7 +361,7 @@ func TestSkipAutoSync(t *testing.T) {
 	// Verify we skip when previous sync attempt failed and return error condition
 	// Set current to 'aaaaa', desired to 'bbbbb' and add 'bbbbb' to failure history
 	t.Run("PreviousSyncAttemptFailed", func(t *testing.T) {
-		app := newFakeApp(fakeApp)
+		app := newFakeApp()
 		app.Status.OperationState = &argoappv1.OperationState{
 			Operation: argoappv1.Operation{
 				Sync: &argoappv1.SyncOperation{},
@@ -373,7 +385,7 @@ func TestSkipAutoSync(t *testing.T) {
 	})
 
 	t.Run("NeedsToPruneResourcesOnlyButAutomatedPruneDisabled", func(t *testing.T) {
-		app := newFakeApp(fakeApp)
+		app := newFakeApp()
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
 		syncStatus := argoappv1.SyncStatus{
 			Status:   argoappv1.SyncStatusCodeOutOfSync,
@@ -391,7 +403,7 @@ func TestSkipAutoSync(t *testing.T) {
 
 // TestAutoSyncIndicateError verifies we skip auto-sync and return error condition if previous sync failed
 func TestAutoSyncIndicateError(t *testing.T) {
-	app := newFakeApp(fakeApp)
+	app := newFakeApp()
 	app.Spec.Source.Helm = &argoappv1.ApplicationSourceHelm{
 		Parameters: []argoappv1.HelmParameter{
 			{
@@ -426,7 +438,7 @@ func TestAutoSyncIndicateError(t *testing.T) {
 
 // TestAutoSyncParameterOverrides verifies we auto-sync if revision is same but parameter overrides are different
 func TestAutoSyncParameterOverrides(t *testing.T) {
-	app := newFakeApp(fakeApp)
+	app := newFakeApp()
 	app.Spec.Source.Helm = &argoappv1.ApplicationSourceHelm{
 		Parameters: []argoappv1.HelmParameter{
 			{
@@ -486,7 +498,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 				},
 			},
 		}
-		app := newFakeApp(fakeApp)
+		app := newFakeApp()
 		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
 		appObj := kube.MustToUnstructured(&app)
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}, managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
@@ -542,7 +554,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 				},
 			},
 		}
-		app := newFakeApp(fakeApp)
+		app := newFakeApp()
 		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
 		app.Spec.Project = "restricted"
 		appObj := kube.MustToUnstructured(&app)
@@ -600,7 +612,7 @@ func TestNormalizeApplication(t *testing.T) {
 			},
 		},
 	}
-	app := newFakeApp(fakeApp)
+	app := newFakeApp()
 	app.Spec.Project = ""
 	app.Spec.Source.Kustomize = &argoappv1.ApplicationSourceKustomize{NamePrefix: "foo-"}
 	data := fakeData{
@@ -658,7 +670,7 @@ func TestNormalizeApplication(t *testing.T) {
 }
 
 func TestHandleAppUpdated(t *testing.T) {
-	app := newFakeApp(fakeApp)
+	app := newFakeApp()
 	app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
 	app.Spec.Destination.Server = common.KubernetesInternalAPIServerAddr
 	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
@@ -675,12 +687,12 @@ func TestHandleAppUpdated(t *testing.T) {
 }
 
 func TestHandleOrphanedResourceUpdated(t *testing.T) {
-	app1 := newFakeApp(fakeApp)
+	app1 := newFakeApp()
 	app1.Name = "app1"
 	app1.Spec.Destination.Namespace = test.FakeArgoCDNamespace
 	app1.Spec.Destination.Server = common.KubernetesInternalAPIServerAddr
 
-	app2 := newFakeApp(fakeApp)
+	app2 := newFakeApp()
 	app2.Name = "app2"
 	app2.Spec.Destination.Namespace = test.FakeArgoCDNamespace
 	app2.Spec.Destination.Server = common.KubernetesInternalAPIServerAddr
@@ -710,14 +722,14 @@ func TestSetOperationStateOnDeletedApp(t *testing.T) {
 		patched = true
 		return true, nil, apierr.NewNotFound(schema.GroupResource{}, "my-app")
 	})
-	ctrl.setOperationState(newFakeApp(fakeApp), &argoappv1.OperationState{Phase: synccommon.OperationSucceeded})
+	ctrl.setOperationState(newFakeApp(), &argoappv1.OperationState{Phase: synccommon.OperationSucceeded})
 	assert.True(t, patched)
 }
 
 func TestNeedRefreshAppStatus(t *testing.T) {
 	ctrl := newFakeController(&fakeData{apps: []runtime.Object{}})
 
-	app := newFakeApp(fakeApp)
+	app := newFakeApp()
 	now := metav1.Now()
 	app.Status.ReconciledAt = &now
 	app.Status.Sync = argoappv1.SyncStatus{
@@ -812,7 +824,7 @@ func TestRefreshAppConditions(t *testing.T) {
 	}
 
 	t.Run("NoErrorConditions", func(t *testing.T) {
-		app := newFakeApp(fakeApp)
+		app := newFakeApp()
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}})
 
 		_, hasErrors := ctrl.refreshAppConditions(app)
@@ -821,7 +833,7 @@ func TestRefreshAppConditions(t *testing.T) {
 	})
 
 	t.Run("PreserveExistingWarningCondition", func(t *testing.T) {
-		app := newFakeApp(fakeApp)
+		app := newFakeApp()
 		app.Status.SetConditions([]argoappv1.ApplicationCondition{{Type: argoappv1.ApplicationConditionExcludedResourceWarning}}, nil)
 
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}})
@@ -833,7 +845,7 @@ func TestRefreshAppConditions(t *testing.T) {
 	})
 
 	t.Run("ReplacesSpecErrorCondition", func(t *testing.T) {
-		app := newFakeApp(fakeApp)
+		app := newFakeApp()
 		app.Spec.Project = "wrong project"
 		app.Status.SetConditions([]argoappv1.ApplicationCondition{{Type: argoappv1.ApplicationConditionInvalidSpecError, Message: "old message"}}, nil)
 
@@ -847,7 +859,7 @@ func TestRefreshAppConditions(t *testing.T) {
 	})
 
 	t.Run("NoErrorConditionsWithDestNameOnly", func(t *testing.T) {
-		app := newFakeApp(fakeAppWithDestName)
+		app := newFakeAppWithDestName()
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}})
 
 		_, hasErrors := ctrl.refreshAppConditions(app)
@@ -856,7 +868,7 @@ func TestRefreshAppConditions(t *testing.T) {
 	})
 
 	t.Run("ErrorOnBothDestNameAndServer", func(t *testing.T) {
-		app := newFakeApp(fakeAppWithDestMismatch)
+		app := newFakeAppWithDestMismatch()
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}})
 
 		_, hasErrors := ctrl.refreshAppConditions(app)
@@ -868,7 +880,7 @@ func TestRefreshAppConditions(t *testing.T) {
 }
 
 func TestUpdateReconciledAt(t *testing.T) {
-	app := newFakeApp(fakeApp)
+	app := newFakeApp()
 	reconciledAt := metav1.NewTime(time.Now().Add(-1 * time.Second))
 	app.Status = argoappv1.ApplicationStatus{ReconciledAt: &reconciledAt}
 	app.Status.Sync = argoappv1.SyncStatus{ComparedTo: argoappv1.ComparedTo{Source: app.Spec.Source, Destination: app.Spec.Destination}}
