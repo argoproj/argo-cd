@@ -249,13 +249,15 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
 	}
 
 	metricsServ := metrics.NewMetricsServer(metricsPort)
-	a.RedisClient.WrapProcess(func(oldProcess func(cmd redis.Cmder) error) func(cmd redis.Cmder) error {
-		return func(cmd redis.Cmder) error {
-			err := oldProcess(cmd)
-			metricsServ.IncRedisRequest(err != nil && err != rediscache.ErrCacheMiss)
-			return err
-		}
-	})
+	if a.RedisClient != nil {
+		a.RedisClient.WrapProcess(func(oldProcess func(cmd redis.Cmder) error) func(cmd redis.Cmder) error {
+			return func(cmd redis.Cmder) error {
+				err := oldProcess(cmd)
+				metricsServ.IncRedisRequest(err != nil && err != rediscache.ErrCacheMiss)
+				return err
+			}
+		})
+	}
 
 	// Start listener
 	var conn net.Listener
