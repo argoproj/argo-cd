@@ -235,15 +235,16 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
 	var httpS *http.Server
 	var httpsS *http.Server
 	if a.useTLS() {
-		httpS = newRedirectServer(port)
+		httpS = newRedirectServer(port, a.RootPath)
 		httpsS = a.newHTTPServer(ctx, port, grpcWebS)
 	} else {
 		httpS = a.newHTTPServer(ctx, port, grpcWebS)
 	}
 	if a.RootPath != "" {
-		httpS.Handler = withRootPath(httpS.Handler, a.RootPath)
+		httpS.Handler = withRootPath(httpS.Handler, a)
+
 		if httpsS != nil {
-			httpsS.Handler = withRootPath(httpsS.Handler, a.RootPath)
+			httpsS.Handler = withRootPath(httpsS.Handler, a)
 		}
 	}
 	metricsServ := newAPIServerMetricsServer(metricsPort)
@@ -544,12 +545,15 @@ func (a *ArgoCDServer) translateGrpcCookieHeader(ctx context.Context, w http.Res
 	return nil
 }
 
-func withRootPath(handler http.Handler, root string) http.Handler {
+func withRootPath(handler http.Handler, a *ArgoCDServer) http.Handler {
 	// get rid of slashes
-	root = strings.TrimRight(strings.TrimLeft(root, "/"), "/")
+	root := strings.TrimRight(strings.TrimLeft(a.RootPath, "/"), "/")
 
 	mux := http.NewServeMux()
 	mux.Handle("/"+root+"/", http.StripPrefix("/"+root, handler))
+
+	additionalHandler(mux, a)
+
 	return mux
 }
 
@@ -610,6 +614,11 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	mustRegisterGWHandler(accountpkg.RegisterAccountServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(certificatepkg.RegisterCertificateServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 
+	additionalHandler(mux, a)
+	return &httpS
+}
+
+func additionalHandler(mux *http.ServeMux, a *ArgoCDServer) {
 	// Swagger UI
 	swagger.ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui")
 	healthz.ServeHealthCheck(mux, func() error {
@@ -631,7 +640,6 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	if a.StaticAssetsDir != "" {
 		mux.HandleFunc("/", a.newStaticAssetsHandler(a.StaticAssetsDir, a.BaseHRef))
 	}
-	return &httpS
 }
 
 // registerDexHandlers will register dex HTTP handlers, creating the the OAuth client app
@@ -653,9 +661,10 @@ func (a *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
 }
 
 // newRedirectServer returns an HTTP server which does a 307 redirect to the HTTPS server
-func newRedirectServer(port int) *http.Server {
+func newRedirectServer(port int, rootPath string) *http.Server {
+	addr := fmt.Sprintf("localhost:%d/%s/", port, strings.TrimRight(strings.TrimLeft(rootPath, "/"), "/"))
 	return &http.Server{
-		Addr: fmt.Sprintf("localhost:%d", port),
+		Addr: addr,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			target := "https://" + req.Host + req.URL.Path
 			if len(req.URL.RawQuery) > 0 {
