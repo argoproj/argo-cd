@@ -8,11 +8,8 @@ import (
 
 	util "github.com/argoproj/argo-cd/engine/pkg/utils/io"
 	"github.com/argoproj/argo-cd/pkg/apiclient/session"
-<<<<<<< HEAD
-=======
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/util"
->>>>>>> apply scopes from argocd-rbac-cm to projects
 	sessionmgr "github.com/argoproj/argo-cd/util/session"
 )
 
