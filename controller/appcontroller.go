@@ -167,6 +167,10 @@ func NewApplicationController(
 	return &ctrl, nil
 }
 
+func (ctrl *ApplicationController) GetMetricsServer() *metrics.MetricsServer {
+	return ctrl.metricsServer
+}
+
 func (ctrl *ApplicationController) onKubectlRun(command string) (util.Closer, error) {
 	ctrl.metricsServer.IncKubectlExec(command)
 	if ctrl.kubectlSemaphore != nil {
