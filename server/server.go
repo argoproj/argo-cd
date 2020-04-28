@@ -522,7 +522,8 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 // TranslateGrpcCookieHeader conditionally sets a cookie on the response.
 func (a *ArgoCDServer) translateGrpcCookieHeader(ctx context.Context, w http.ResponseWriter, resp golang_proto.Message) error {
 	if sessionResp, ok := resp.(*sessionpkg.SessionResponse); ok {
-		flags := []string{"path=/", "SameSite=lax", "httpOnly"}
+		cookiePath := fmt.Sprintf("path=/%s", strings.TrimRight(strings.TrimLeft(a.ArgoCDServerOpts.RootPath, "/"), "/"))
+		flags := []string{cookiePath, "SameSite=lax", "httpOnly"}
 		if !a.Insecure {
 			flags = append(flags, "Secure")
 		}
