@@ -1488,15 +1488,15 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					app, err := waitOnApplicationStatus(acdClient, appName, timeout, false, false, true, false, selectedResources)
 					errors.CheckError(err)
 
-					// Only get resources to be pruned if sync was application-wide
-					if len(selectedResources) == 0 {
-						pruningRequired := app.Status.OperationState.SyncResult.Resources.PruningRequired()
-						if pruningRequired > 0 {
-							log.Fatalf("%d resources require pruning", pruningRequired)
-						}
-
-						if !app.Status.OperationState.Phase.Successful() && !dryRun {
-							os.Exit(1)
+					if !dryRun {
+						if !app.Status.OperationState.Phase.Successful() {
+							log.Fatalf("Operation has completed with phase: %s", app.Status.OperationState.Phase)
+						} else if len(selectedResources) == 0 && app.Status.Sync.Status != argoappv1.SyncStatusCodeSynced {
+							// Only get resources to be pruned if sync was application-wide and final status is not synced
+							pruningRequired := app.Status.OperationState.SyncResult.Resources.PruningRequired()
+							if pruningRequired > 0 {
+								log.Fatalf("%d resources require pruning", pruningRequired)
+							}
 						}
 					}
 				}
@@ -1652,7 +1652,7 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 	// time when the sync status lags behind when an operation completes
 	refresh := false
 
-	printFinalStatus := func(app *argoappv1.Application) {
+	printFinalStatus := func(app *argoappv1.Application) *argoappv1.Application {
 		var err error
 		if refresh {
 			conn, appClient := acdClient.NewApplicationClientOrDie()
@@ -1675,6 +1675,7 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 			printAppResources(w, app)
 			_ = w.Flush()
 		}
+		return app
 	}
 
 	if timeout != 0 {
@@ -1695,8 +1696,21 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 
 	for appEvent := range appEventCh {
 		app = &appEvent.Application
+
+		operationInProgress := false
+		// consider the operation is in progress
 		if app.Operation != nil {
+			// if it just got requested
+			operationInProgress = true
 			refresh = true
+		} else if app.Status.OperationState != nil {
+			if app.Status.OperationState.FinishedAt == nil {
+				// if it is not finished yet
+				operationInProgress = true
+			} else if app.Status.ReconciledAt == nil || app.Status.ReconciledAt.Before(app.Status.OperationState.FinishedAt) {
+				// if it is just finished and we need to wait for controller to reconcile app once after syncing
+				operationInProgress = true
+			}
 		}
 
 		var selectedResourcesAreReady bool
@@ -1716,8 +1730,8 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 			selectedResourcesAreReady = checkResourceStatus(watchSync, watchHealth, watchOperation, watchSuspended, app.Status.Health.Status, string(app.Status.Sync.Status), appEvent.Application.Operation)
 		}
 
-		if selectedResourcesAreReady {
-			printFinalStatus(app)
+		if selectedResourcesAreReady && !operationInProgress {
+			app = printFinalStatus(app)
 			return app, nil
 		}
 
@@ -1727,7 +1741,7 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 			stateKey := newState.Key()
 			if prevState, found := prevStates[stateKey]; found {
 				if watchHealth && prevState.Health != argoappv1.HealthStatusUnknown && prevState.Health != argoappv1.HealthStatusDegraded && newState.Health == argoappv1.HealthStatusDegraded {
-					printFinalStatus(app)
+					_ = printFinalStatus(app)
 					return nil, fmt.Errorf("application '%s' health state has transitioned from %s to %s", appName, prevState.Health, newState.Health)
 				}
 				doPrint = prevState.Merge(newState)
@@ -1741,7 +1755,7 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 		}
 		_ = w.Flush()
 	}
-	printFinalStatus(app)
+	_ = printFinalStatus(app)
 	return nil, fmt.Errorf("timed out (%ds) waiting for app %q match desired state", timeout, appName)
 }
 

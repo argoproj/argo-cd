@@ -811,6 +811,7 @@ func TestSyncOptionValidateFalse(t *testing.T) {
 // make sure that, if we have a resource that needs pruning, but we're ignoring it, the app is in-sync
 func TestCompareOptionIgnoreExtraneous(t *testing.T) {
 	Given(t).
+		Prune(false).
 		Path("two-nice-pods").
 		When().
 		PatchFile("pod-1.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/compare-options": "IgnoreExtraneous"}}]`).
@@ -826,7 +827,12 @@ func TestCompareOptionIgnoreExtraneous(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			assert.Len(t, app.Status.Resources, 2)
-			assert.Equal(t, SyncStatusCodeOutOfSync, app.Status.Resources[1].Status)
+			statusByName := map[string]SyncStatusCode{}
+			for _, r := range app.Status.Resources {
+				statusByName[r.Name] = r.Status
+			}
+			assert.Equal(t, SyncStatusCodeOutOfSync, statusByName["pod-1"])
+			assert.Equal(t, SyncStatusCodeSynced, statusByName["pod-2"])
 		}).
 		When().
 		Sync().

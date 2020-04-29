@@ -21,6 +21,7 @@ import (
 	"github.com/argoproj/argo-cd/util/webhook"
 
 	"github.com/dgrijalva/jwt-go"
+	rediscache "github.com/go-redis/cache"
 	"github.com/go-redis/redis"
 	golang_proto "github.com/golang/protobuf/proto"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
@@ -29,7 +30,6 @@ import (
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
 	"github.com/soheilhy/cmux"
 	netCtx "golang.org/x/net/context"
@@ -71,6 +71,7 @@ import (
 	servercache "github.com/argoproj/argo-cd/server/cache"
 	"github.com/argoproj/argo-cd/server/certificate"
 	"github.com/argoproj/argo-cd/server/cluster"
+	"github.com/argoproj/argo-cd/server/metrics"
 	"github.com/argoproj/argo-cd/server/project"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/server/repocreds"
@@ -248,7 +249,17 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
 			httpsS.Handler = withRootPath(httpsS.Handler, a)
 		}
 	}
-	metricsServ := newAPIServerMetricsServer(metricsPort)
+
+	metricsServ := metrics.NewMetricsServer(metricsPort)
+	if a.RedisClient != nil {
+		a.RedisClient.WrapProcess(func(oldProcess func(cmd redis.Cmder) error) func(cmd redis.Cmder) error {
+			return func(cmd redis.Cmder) error {
+				err := oldProcess(cmd)
+				metricsServ.IncRedisRequest(err != nil && err != rediscache.ErrCacheMiss)
+				return err
+			}
+		})
+	}
 
 	// Start listener
 	var conn net.Listener
@@ -736,16 +747,6 @@ func indexFilePath(srcPath string, baseHRef string) (string, error) {
 	}
 
 	return filePath, nil
-}
-
-// newAPIServerMetricsServer returns HTTP server which serves prometheus metrics on gRPC requests
-func newAPIServerMetricsServer(port int) *http.Server {
-	mux := http.NewServeMux()
-	mux.Handle("/metrics", promhttp.Handler())
-	return &http.Server{
-		Addr:    fmt.Sprintf("0.0.0.0:%d", port),
-		Handler: mux,
-	}
 }
 
 func fileExists(filename string) bool {
