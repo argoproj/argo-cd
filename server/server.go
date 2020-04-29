@@ -16,6 +16,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/argo-cd/util/healthz"
+	"github.com/argoproj/argo-cd/util/swagger"
+	"github.com/argoproj/argo-cd/util/webhook"
+
 	"github.com/dgrijalva/jwt-go"
 	"github.com/go-redis/redis"
 	golang_proto "github.com/golang/protobuf/proto"
@@ -81,7 +85,6 @@ import (
 	dexutil "github.com/argoproj/argo-cd/util/dex"
 	"github.com/argoproj/argo-cd/util/env"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
-	"github.com/argoproj/argo-cd/util/healthz"
 	httputil "github.com/argoproj/argo-cd/util/http"
 	jsonutil "github.com/argoproj/argo-cd/util/json"
 	"github.com/argoproj/argo-cd/util/jwt/zjwt"
@@ -90,9 +93,7 @@ import (
 	"github.com/argoproj/argo-cd/util/rbac"
 	util_session "github.com/argoproj/argo-cd/util/session"
 	settings_util "github.com/argoproj/argo-cd/util/settings"
-	"github.com/argoproj/argo-cd/util/swagger"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
-	"github.com/argoproj/argo-cd/util/webhook"
 )
 
 const (
@@ -552,7 +553,10 @@ func withRootPath(handler http.Handler, a *ArgoCDServer) http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("/"+root+"/", http.StripPrefix("/"+root, handler))
 
-	additionalHandler(mux, a)
+	healthz.ServeHealthCheck(mux, func() error {
+		_, err := a.KubeClientset.(*kubernetes.Clientset).ServerVersion()
+		return err
+	})
 
 	return mux
 }
@@ -614,11 +618,6 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	mustRegisterGWHandler(accountpkg.RegisterAccountServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(certificatepkg.RegisterCertificateServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 
-	additionalHandler(mux, a)
-	return &httpS
-}
-
-func additionalHandler(mux *http.ServeMux, a *ArgoCDServer) {
 	// Swagger UI
 	swagger.ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui")
 	healthz.ServeHealthCheck(mux, func() error {
@@ -640,6 +639,8 @@ func additionalHandler(mux *http.ServeMux, a *ArgoCDServer) {
 	if a.StaticAssetsDir != "" {
 		mux.HandleFunc("/", a.newStaticAssetsHandler(a.StaticAssetsDir, a.BaseHRef))
 	}
+
+	return &httpS
 }
 
 // registerDexHandlers will register dex HTTP handlers, creating the the OAuth client app
@@ -666,7 +667,11 @@ func newRedirectServer(port int, rootPath string) *http.Server {
 	return &http.Server{
 		Addr: addr,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			target := "https://" + req.Host + req.URL.Path
+			target := "https://" + req.Host
+			if rootPath != "" {
+				target += strings.TrimRight(strings.TrimLeft(rootPath, "/"), "/")
+			}
+			target += req.URL.Path
 			if len(req.URL.RawQuery) > 0 {
 				target += "?" + req.URL.RawQuery
 			}
