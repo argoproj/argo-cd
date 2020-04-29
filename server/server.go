@@ -650,7 +650,6 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	if a.StaticAssetsDir != "" {
 		mux.HandleFunc("/", a.newStaticAssetsHandler(a.StaticAssetsDir, a.BaseHRef))
 	}
-
 	return &httpS
 }
 
