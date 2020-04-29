@@ -673,13 +673,13 @@ func (a *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
 
 // newRedirectServer returns an HTTP server which does a 307 redirect to the HTTPS server
 func newRedirectServer(port int, rootPath string) *http.Server {
-	addr := fmt.Sprintf("localhost:%d/%s/", port, strings.TrimRight(strings.TrimLeft(rootPath, "/"), "/"))
+	addr := fmt.Sprintf("localhost:%d/%s", port, strings.TrimRight(strings.TrimLeft(rootPath, "/"), "/"))
 	return &http.Server{
 		Addr: addr,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			target := "https://" + req.Host + "/"
+			target := "https://" + req.Host
 			if rootPath != "" {
-				target += strings.TrimRight(strings.TrimLeft(rootPath, "/"), "/")
+				target += "/" + strings.TrimRight(strings.TrimLeft(rootPath, "/"), "/")
 			}
 			target += req.URL.Path
 			if len(req.URL.RawQuery) > 0 {
