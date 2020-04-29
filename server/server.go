@@ -16,6 +16,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/argo-cd/util/healthz"
+	"github.com/argoproj/argo-cd/util/swagger"
+	"github.com/argoproj/argo-cd/util/webhook"
+
 	"github.com/dgrijalva/jwt-go"
 	rediscache "github.com/go-redis/cache"
 	"github.com/go-redis/redis"
@@ -82,7 +86,6 @@ import (
 	dexutil "github.com/argoproj/argo-cd/util/dex"
 	"github.com/argoproj/argo-cd/util/env"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
-	"github.com/argoproj/argo-cd/util/healthz"
 	httputil "github.com/argoproj/argo-cd/util/http"
 	jsonutil "github.com/argoproj/argo-cd/util/json"
 	"github.com/argoproj/argo-cd/util/jwt/zjwt"
@@ -91,9 +94,7 @@ import (
 	"github.com/argoproj/argo-cd/util/rbac"
 	util_session "github.com/argoproj/argo-cd/util/session"
 	settings_util "github.com/argoproj/argo-cd/util/settings"
-	"github.com/argoproj/argo-cd/util/swagger"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
-	"github.com/argoproj/argo-cd/util/webhook"
 )
 
 const (
@@ -236,15 +237,16 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
 	var httpS *http.Server
 	var httpsS *http.Server
 	if a.useTLS() {
-		httpS = newRedirectServer(port)
+		httpS = newRedirectServer(port, a.RootPath)
 		httpsS = a.newHTTPServer(ctx, port, grpcWebS)
 	} else {
 		httpS = a.newHTTPServer(ctx, port, grpcWebS)
 	}
 	if a.RootPath != "" {
-		httpS.Handler = withRootPath(httpS.Handler, a.RootPath)
+		httpS.Handler = withRootPath(httpS.Handler, a)
+
 		if httpsS != nil {
-			httpsS.Handler = withRootPath(httpsS.Handler, a.RootPath)
+			httpsS.Handler = withRootPath(httpsS.Handler, a)
 		}
 	}
 
@@ -555,12 +557,18 @@ func (a *ArgoCDServer) translateGrpcCookieHeader(ctx context.Context, w http.Res
 	return nil
 }
 
-func withRootPath(handler http.Handler, root string) http.Handler {
+func withRootPath(handler http.Handler, a *ArgoCDServer) http.Handler {
 	// get rid of slashes
-	root = strings.TrimRight(strings.TrimLeft(root, "/"), "/")
+	root := strings.TrimRight(strings.TrimLeft(a.RootPath, "/"), "/")
 
 	mux := http.NewServeMux()
 	mux.Handle("/"+root+"/", http.StripPrefix("/"+root, handler))
+
+	healthz.ServeHealthCheck(mux, func() error {
+		_, err := a.KubeClientset.(*kubernetes.Clientset).ServerVersion()
+		return err
+	})
+
 	return mux
 }
 
@@ -622,7 +630,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	mustRegisterGWHandler(certificatepkg.RegisterCertificateServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 
 	// Swagger UI
-	swagger.ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui")
+	swagger.ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui", a.RootPath)
 	healthz.ServeHealthCheck(mux, func() error {
 		_, err := a.KubeClientset.(*kubernetes.Clientset).ServerVersion()
 		return err
@@ -664,11 +672,16 @@ func (a *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
 }
 
 // newRedirectServer returns an HTTP server which does a 307 redirect to the HTTPS server
-func newRedirectServer(port int) *http.Server {
+func newRedirectServer(port int, rootPath string) *http.Server {
+	addr := fmt.Sprintf("localhost:%d/%s", port, strings.TrimRight(strings.TrimLeft(rootPath, "/"), "/"))
 	return &http.Server{
-		Addr: fmt.Sprintf("localhost:%d", port),
+		Addr: addr,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			target := "https://" + req.Host + req.URL.Path
+			target := "https://" + req.Host
+			if rootPath != "" {
+				target += "/" + strings.TrimRight(strings.TrimLeft(rootPath, "/"), "/")
+			}
+			target += req.URL.Path
 			if len(req.URL.RawQuery) > 0 {
 				target += "?" + req.URL.RawQuery
 			}
