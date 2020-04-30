@@ -6,8 +6,10 @@ This patch release introduces a set of enhancements and bug fixes. Here are most
 
 #### Multiple Kustomize Versions
 
-Argo CD bundles Kustomize binary and allows end-users to change it using [custom image or init container](https://argoproj.github.io/argo-cd/operator-manual/custom_tools/).
-This feature enables bundling multiple Kustomize versions at the same time and allows end-users to specify the required version per application.
+The bundled Kustomize version had been upgraded to v3.5.4. Argo CD allows changing bundled version using
+[custom image or init container](https://argoproj.github.io/argo-cd/operator-manual/custom_tools/). 
+This [feature](https://argoproj.github.io/argo-cd/user-guide/kustomize/#custom-kustomize-versions)
+enables bundling multiple Kustomize versions at the same time and allows end-users to specify the required version per application.
 
 #### Custom Root Path
 
@@ -35,7 +37,7 @@ customizations, custom resource health checks, and more.
 
 #### Enhancements
 
-* feat: added --grpc-web-root-path for CLI.
+* feat: added --grpc-web-root-path for CLI. (#3483)
 * feat: limit the maximum number of concurrent login attempts (#3467)
 * feat: upgrade kustomize version to 3.5.4 (#3472)
 * feat: upgrade dex to 2.22.0 (#3468)
@@ -47,7 +49,7 @@ customizations, custom resource health checks, and more.
 * feat: Display link between OLM ClusterServiceVersion and it's OperatorGroup (#3390)
 * feat: Introduce sync-option SkipDryRunOnMissingResource=true (#2873) (#3247)
 * feat: support normalizing CRD fields that use known built-in K8S types (#3357)
-* feat: Whitelisted namespace resources
+* feat: Whitelisted namespace resources (#2900)
 
 #### Bug Fixes
 
@@ -61,7 +63,7 @@ customizations, custom resource health checks, and more.
 * fix: Updating to jsonnet v1.15.0 fix issue #3277 (#3431)
 * fix for helm repo add with flag --insecure-skip-server-verification (#3420)
 * fix: app diff --local support for helm repo. #3151 (#3407)
-* fix: Syncing apps incorrectly states "app synced", but this is not true
+* fix: Syncing apps incorrectly states "app synced", but this is not true (#3286)
 * fix: for jsonnet when it is localed in nested subdirectory and uses import (#3372)
 * fix: Update 4.5.3 redis-ha helm manifest (#3370)
 * fix: return 401 error code if username does not exist (#3369)
