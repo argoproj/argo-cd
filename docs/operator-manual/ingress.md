@@ -198,7 +198,7 @@ ArgoCD endpoints may be protected by one or more reverse proxies layers, in that
 $ argocd login <host>:<port> --header 'x-token1:foo' --header 'x-token2:bar' # can be repeated multiple times
 $ argocd login <host>:<port> --header 'x-token1:foo,x-token2:bar' # headers can also be comma separated
 ```
-## ArgoCD Server and UI Root Path
+## ArgoCD Server and UI Root Path (v1.5.3)
 
 ArgoCD server and UI can be configured to be available under a non-root path (e.g. `/argo-cd`).
 To do this, add the `--rootpath` flag into the `argocd-server` deployment command:
