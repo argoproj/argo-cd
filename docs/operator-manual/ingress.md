@@ -233,8 +233,8 @@ http {
     server {
         listen 443;
 
-        location /argo-cd {
-            proxy_pass         https://localhost:8080/argo-cd;
+        location /argo-cd/ {
+            proxy_pass         https://localhost:8080/argo-cd/;
             proxy_redirect     off;
             proxy_set_header   Host $host;
             proxy_set_header   X-Real-IP $remote_addr;
