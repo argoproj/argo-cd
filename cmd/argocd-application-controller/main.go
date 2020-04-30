@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/argoproj/pkg/stats"
+	rediscache "github.com/go-redis/cache"
+	"github.com/go-redis/redis"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
@@ -50,6 +52,7 @@ func newCommand() *cobra.Command {
 		metricsPort              int
 		kubectlParallelismLimit  int64
 		cacheSrc                 func() (*appstatecache.Cache, error)
+		redisClient              *redis.Client
 	)
 	var command = cobra.Command{
 		Use:   cliName,
@@ -91,6 +94,14 @@ func newCommand() *cobra.Command {
 				metricsPort,
 				kubectlParallelismLimit)
 			errors.CheckError(err)
+			metricsServer := appController.GetMetricsServer()
+			redisClient.WrapProcess(func(oldProcess func(cmd redis.Cmder) error) func(cmd redis.Cmder) error {
+				return func(cmd redis.Cmder) error {
+					err := oldProcess(cmd)
+					metricsServer.IncRedisRequest(err != nil && err != rediscache.ErrCacheMiss)
+					return err
+				}
+			})
 
 			vers := common.GetVersion()
 			log.Infof("Application Controller (version: %s, built: %s) starting (namespace: %s)", vers.Version, vers.BuildDate, namespace)
@@ -116,8 +127,9 @@ func newCommand() *cobra.Command {
 	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortArgoCDMetrics, "Start metrics server on given port")
 	command.Flags().IntVar(&selfHealTimeoutSeconds, "self-heal-timeout-seconds", 5, "Specifies timeout between application self heal attempts")
 	command.Flags().Int64Var(&kubectlParallelismLimit, "kubectl-parallelism-limit", 20, "Number of allowed concurrent kubectl fork/execs. Any value less the 1 means no limit.")
-
-	cacheSrc = appstatecache.AddCacheFlagsToCmd(&command)
+	cacheSrc = appstatecache.AddCacheFlagsToCmd(&command, func(client *redis.Client) {
+		redisClient = client
+	})
 	return &command
 }
 

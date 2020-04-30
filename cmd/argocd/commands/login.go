@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/coreos/go-oidc"
@@ -64,11 +65,12 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 				}
 			}
 			clientOpts := argocdclient.ClientOptions{
-				ConfigPath: "",
-				ServerAddr: server,
-				Insecure:   globalClientOpts.Insecure,
-				PlainText:  globalClientOpts.PlainText,
-				GRPCWeb:    globalClientOpts.GRPCWeb,
+				ConfigPath:      "",
+				ServerAddr:      server,
+				Insecure:        globalClientOpts.Insecure,
+				PlainText:       globalClientOpts.PlainText,
+				GRPCWeb:         globalClientOpts.GRPCWeb,
+				GRPCWebRootPath: globalClientOpts.GRPCWebRootPath,
 			}
 			acdClient := argocdclient.NewClientOrDie(&clientOpts)
 			setConn, setIf := acdClient.NewSettingsClientOrDie()
@@ -76,6 +78,10 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 
 			if ctxName == "" {
 				ctxName = server
+				if globalClientOpts.GRPCWebRootPath != "" {
+					rootPath := strings.TrimRight(strings.TrimLeft(globalClientOpts.GRPCWebRootPath, "/"), "/")
+					ctxName = fmt.Sprintf("%s/%s", server, rootPath)
+				}
 			}
 
 			// Perform the login
@@ -110,10 +116,11 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 				localCfg = &localconfig.LocalConfig{}
 			}
 			localCfg.UpsertServer(localconfig.Server{
-				Server:    server,
-				PlainText: globalClientOpts.PlainText,
-				Insecure:  globalClientOpts.Insecure,
-				GRPCWeb:   globalClientOpts.GRPCWeb,
+				Server:          server,
+				PlainText:       globalClientOpts.PlainText,
+				Insecure:        globalClientOpts.Insecure,
+				GRPCWeb:         globalClientOpts.GRPCWeb,
+				GRPCWebRootPath: globalClientOpts.GRPCWebRootPath,
 			})
 			localCfg.UpsertUser(localconfig.User{
 				Name:         ctxName,

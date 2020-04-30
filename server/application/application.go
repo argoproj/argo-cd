@@ -1052,7 +1052,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionOverride, appRBACName(*a)); err != nil {
 			return nil, err
 		}
-		if a.Spec.SyncPolicy != nil {
+		if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.Automated != nil {
 			return nil, status.Error(codes.FailedPrecondition, "Cannot use local sync when Automatic Sync Policy is enabled")
 		}
 	}
