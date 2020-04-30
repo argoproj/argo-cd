@@ -455,6 +455,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#argocd-server-and-ui-root-path-v153" title="ArgoCD Server and UI Root Path (v1.5.3)" class="md-nav__link">
+    ArgoCD Server and UI Root Path (v1.5.3)
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#ui-base-path" title="UI Base Path" class="md-nav__link">
     UI Base Path
   </a>
@@ -1327,6 +1334,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#argocd-server-and-ui-root-path-v153" title="ArgoCD Server and UI Root Path (v1.5.3)" class="md-nav__link">
+    ArgoCD Server and UI Root Path (v1.5.3)
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#ui-base-path" title="UI Base Path" class="md-nav__link">
     UI Base Path
   </a>
@@ -1528,6 +1542,53 @@ passthrough mode is needed, or NLBs.</p>
 <p>ArgoCD endpoints may be protected by one or more reverse proxies layers, in that case, you can provide additional headers through the <code>argocd</code> CLI <code>--header</code> parameter to authenticate through those layers.</p>
 <div class="codehilite"><pre><span></span><code>$ argocd login &lt;host&gt;:&lt;port&gt; --header <span class="s1">&#39;x-token1:foo&#39;</span> --header <span class="s1">&#39;x-token2:bar&#39;</span> <span class="c1"># can be repeated multiple times</span>
 $ argocd login &lt;host&gt;:&lt;port&gt; --header <span class="s1">&#39;x-token1:foo,x-token2:bar&#39;</span> <span class="c1"># headers can also be comma separated</span>
+</code></pre></div>
+
+
+<h2 id="argocd-server-and-ui-root-path-v153">ArgoCD Server and UI Root Path (v1.5.3)<a class="headerlink" href="#argocd-server-and-ui-root-path-v153" title="Permanent link">&para;</a></h2>
+<p>ArgoCD server and UI can be configured to be available under a non-root path (e.g. <code>/argo-cd</code>).
+To do this, add the <code>--rootpath</code> flag into the <code>argocd-server</code> deployment command:</p>
+<div class="codehilite"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">template</span><span class="p">:</span>
+    <span class="nt">spec</span><span class="p">:</span>
+      <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-server</span>
+      <span class="nt">containers</span><span class="p">:</span>
+      <span class="p p-Indicator">-</span> <span class="nt">command</span><span class="p">:</span>
+        <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">/argocd-server</span>
+        <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">--staticassets</span>
+        <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">/shared/app</span>
+        <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">--repo-server</span>
+        <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">argocd-repo-server:8081</span>
+        <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">--rootpath</span>
+        <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">/argo-cd</span>
+</code></pre></div>
+
+
+<p>NOTE: The flag <code>--rootpath</code> changes both API Server and UI base URL. 
+Example nginx.conf:</p>
+<div class="codehilite"><pre><span></span><code><span class="nt">worker_processes</span> <span class="nt">1</span><span class="o">;</span>
+
+<span class="nt">events</span> <span class="p">{</span> <span class="err">worker_connections</span> <span class="err">1024</span><span class="p">;</span> <span class="p">}</span>
+
+<span class="nt">http</span> <span class="p">{</span>
+
+    <span class="err">sendfile</span> <span class="err">on</span><span class="p">;</span>
+
+    <span class="err">server</span> <span class="err">{</span>
+        <span class="err">listen</span> <span class="err">443</span><span class="p">;</span>
+
+        <span class="err">location</span> <span class="err">/argo-cd/</span> <span class="err">{</span>
+            <span class="err">proxy_pass</span>         <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">localhost</span><span class="o">:</span><span class="mi">8080</span><span class="o">/</span><span class="n">argo-cd</span><span class="o">/</span><span class="p">;</span>
+            <span class="err">proxy_redirect</span>     <span class="err">off</span><span class="p">;</span>
+            <span class="err">proxy_set_header</span>   <span class="err">Host</span> <span class="err">$host</span><span class="p">;</span>
+            <span class="err">proxy_set_header</span>   <span class="err">X-Real-IP</span> <span class="err">$remote_addr</span><span class="p">;</span>
+            <span class="err">proxy_set_header</span>   <span class="err">X-Forwarded-For</span> <span class="err">$proxy_add_x_forwarded_for</span><span class="p">;</span>
+            <span class="err">proxy_set_header</span>   <span class="err">X-Forwarded-Host</span> <span class="err">$server_name</span><span class="p">;</span>
+            <span class="err">#</span> <span class="err">buffering</span> <span class="err">should</span> <span class="err">be</span> <span class="err">disabled</span> <span class="err">for</span> <span class="err">api/v1/stream/applications</span> <span class="err">to</span> <span class="err">support</span> <span class="err">chunked</span> <span class="err">response</span>
+            <span class="err">proxy_buffering</span> <span class="err">off</span><span class="p">;</span>
+        <span class="p">}</span>
+    <span class="err">}</span>
+<span class="err">}</span>
 </code></pre></div>
 
 
