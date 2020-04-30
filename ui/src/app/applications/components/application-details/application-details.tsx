@@ -630,7 +630,7 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
                             () => (
                                 <div>
                                     <p>
-                                        Are your sure you want to delete {resource.kind} '{resource.name}'?`
+                                        Are your sure you want to delete {resource.kind} '{resource.name}'?
                                     </p>
                                     <div className='argo-form-row' style={{paddingLeft: '30px'}}>
                                         <Checkbox id='force-delete-checkbox' field='force' /> <label htmlFor='force-delete-checkbox'>Force delete</label>
