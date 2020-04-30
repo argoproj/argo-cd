@@ -206,20 +206,6 @@ func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 	return command
 }
 
-func printTable(r appsv1.Repository, w *tabwriter.Writer) {
-	var hasCreds string
-	if !r.HasCredentials() {
-		hasCreds = "false"
-	} else {
-		if r.InheritedCreds {
-			hasCreds = "inherited"
-		} else {
-			hasCreds = "true"
-		}
-	}
-	_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%v\t%v\t%s\t%s\t%s\n", r.Type, r.Name, r.Repo, r.IsInsecure(), r.EnableLFS, hasCreds, r.ConnectionState.Status, r.ConnectionState.Message)
-}
-
 // Print table of repo info
 func printRepoTable(repos appsv1.Repositories) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
@@ -327,9 +313,7 @@ func NewRepoGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				fmt.Println(repo.Repo)
 				// wide is the default
 			case "wide", "":
-				w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-				printTable(*repo, w)
-				_ = w.Flush()
+				printRepoTable(appsv1.Repositories{repo})
 			default:
 				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 			}
