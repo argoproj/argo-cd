@@ -57,3 +57,4 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Walkbase](https://www.walkbase.com/)
 1. [Whitehat Berlin](https://whitehat.berlin) by Guido Maria Serra +Fenaroli
 1. [Yieldlab](https://www.yieldlab.de/)
+1. [MTN Group](https://www.mtn.com/)
