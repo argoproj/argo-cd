@@ -85,6 +85,10 @@ func (c *Cmd) RepoAdd(name string, url string, opts Creds) (string, error) {
 		args = append(args, "--ca-file", opts.CAPath)
 	}
 
+	if opts.InsecureSkipVerify && c.insecureSkipVerifySupported {
+		args = append(args, "--insecure-skip-tls-verify")
+	}
+
 	if len(opts.CertData) > 0 {
 		certFile, err := ioutil.TempFile("", "helm")
 		if err != nil {
