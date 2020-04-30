@@ -1406,6 +1406,27 @@ use <code>kustomize.version.&lt;version&gt;</code> fields of <code>argocd-cm</co
 </code></pre></div>
 
 
+<p>Once new version is configured you can reference it in Application spec as following:</p>
+<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Application</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">source</span><span class="p">:</span>
+    <span class="nt">repoURL</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">https://github.com/argoproj/argocd-example-apps.git</span>
+    <span class="nt">targetRevision</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">HEAD</span>
+    <span class="nt">path</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook-kustomize</span>
+
+    <span class="nt">kustomize</span><span class="p">:</span>
+      <span class="nt">version</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v3.5.4</span>
+</code></pre></div>
+
+
+<p>Additionally application kustomize version can be configured using Parameters tab of Application Details page or using following CLI command:</p>
+<div class="codehilite"><pre><span></span><code><span class="err">argocd app set &lt;appyName&gt; --kustomize-version v3.5.4</span>
+</code></pre></div>
+
+
 <h2 id="build-environment">Build Environment<a class="headerlink" href="#build-environment" title="Permanent link">&para;</a></h2>
 <p>Kustomize does not support parameters and therefore cannot support the standard <a href="../build-environment/">build environment</a>.</p>
                 
