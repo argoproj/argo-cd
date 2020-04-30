@@ -85,28 +85,30 @@ func (s *Server) List(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.
 	return s.ListRepositories(ctx, q)
 }
 
-// GetRepository return the requested configured repository by URL and the state of its connections.
-func (s *Server) GetRepository(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.Repository, error) {
-	repo, err := s.db.GetRepository(ctx, q.repo)
+// Get return the requested configured repository by URL and the state of its connections.
+func (s *Server) Get(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.Repository, error) {
+	repo, err := s.db.GetRepository(ctx, q.Repo)
 	if err != nil {
 		return nil, err
 	}
 
-	if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.RessourceRepositories, rbac.ActionGet, repo.repo) {
+	var item appsv1.Repository
+
+	if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, repo.Repo) {
 		// For backwards compatibility, if we have no repo type set assume a default
 		rType := repo.Type
 		if rType == "" {
 			rType = common.DefaultRepoType
 		}
 		// remove secrets
-		item = &appsv1.Repository{
+		item = appsv1.Repository{
 			Repo:      repo.Repo,
 			Type:      rType,
 			Name:      repo.Name,
 			Username:  repo.Username,
 			Insecure:  repo.IsInsecure(),
 			EnableLFS: repo.EnableLFS,
-		})
+		}
 	}
 
 	item.ConnectionState = s.getConnectionState(ctx, item.Repo, q.ForceRefresh)

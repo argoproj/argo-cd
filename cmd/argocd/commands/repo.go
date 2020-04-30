@@ -317,7 +317,6 @@ func NewRepoGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				err := fmt.Errorf("--refresh must be one of: 'hard'")
 				errors.CheckError(err)
 			}
-
 			repo, err := repoIf.Get(context.Background(), &repositorypkg.RepoQuery{Repo: repoURL, ForceRefresh: forceRefresh})
 			errors.CheckError(err)
 			switch output {
@@ -329,7 +328,7 @@ func NewRepoGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				// wide is the default
 			case "wide", "":
 				w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-				printTable(repo, w)
+				printTable(*repo, w)
 				_ = w.Flush()
 			default:
 				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
