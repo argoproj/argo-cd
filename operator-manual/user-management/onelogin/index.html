@@ -1281,6 +1281,126 @@
 <div style="text-align:center"><img src="../../../assets/argo.png" /></div>
 
 <!-- markdownlint-enable MD033 -->
+
+<h1 id="integrating-onelogin-and-argocd">Integrating OneLogin and ArgoCD<a class="headerlink" href="#integrating-onelogin-and-argocd" title="Permanent link">&para;</a></h1>
+<p>These instructions will take you through the entire process of getting your ArgoCD application authenticating with OneLogin. You will create a custom OIDC application within OneLogin and configure ArgoCD to use OneLogin for authentication, using UserRoles set in OneLogin to determine privileges in Argo.</p>
+<h2 id="creating-and-configuring-onelogin-app">Creating and Configuring OneLogin App<a class="headerlink" href="#creating-and-configuring-onelogin-app" title="Permanent link">&para;</a></h2>
+<p>For your ArgoCD application to communicate with OneLogin, you will first need to create and configure the OIDC application on the OneLogin side.</p>
+<h3 id="create-oidc-application">Create OIDC Application<a class="headerlink" href="#create-oidc-application" title="Permanent link">&para;</a></h3>
+<p>To create the application, do the following:</p>
+<ol>
+<li>Navigate to your OneLogin portal, then Administration &gt; Applications.</li>
+<li>Click "Add App".</li>
+<li>Search for "OpenID Connect" in the search field.</li>
+<li>Select the "OpenId Connect (OIDC)" app to create.</li>
+<li>Update the "Display Name" field (could be something like "ArgoCD (Production)".</li>
+<li>Click "Save".</li>
+</ol>
+<h3 id="configuring-oidc-application-settings">Configuring OIDC Application Settings<a class="headerlink" href="#configuring-oidc-application-settings" title="Permanent link">&para;</a></h3>
+<p>Now that the application is created, you can configure the settings of the app.</p>
+<h4 id="configuration-tab">Configuration Tab<a class="headerlink" href="#configuration-tab" title="Permanent link">&para;</a></h4>
+<p>Update the "Configuration" settings as follows:</p>
+<ol>
+<li>Select the "Configuration" tab on the left.</li>
+<li>Set the "Login Url" field to https://argocd.myproject.com/auth/login, replacing the hostname with your own.</li>
+<li>Set the "Redirect Url" field to https://argocd.myproject.com/auth/callback, replacing the hostname with your own.</li>
+<li>Click "Save".</li>
+</ol>
+<div class="admonition note">
+<p class="admonition-title">OneLogin may not let you save any other fields until the above fields are set.</p>
+</div>
+<h4 id="info-tab">Info Tab<a class="headerlink" href="#info-tab" title="Permanent link">&para;</a></h4>
+<p>You can update the "Display Name", "Description", "Notes", or the display images that appear in the OneLogin portal here.</p>
+<h4 id="parameters-tab">Parameters Tab<a class="headerlink" href="#parameters-tab" title="Permanent link">&para;</a></h4>
+<p>This tab controls what information is sent to Argo in the token. By default it will contain a Groups field and "Credentials are" is set to "Configured by admin". Leave "Credentials are" as the default.</p>
+<p>How the Value of the Groups field is configured will vary based on your needs, but to use OneLogin User roles for ArgoCD privileges, configure the Value of the Groups field with the following:</p>
+<ol>
+<li>Click "Groups". A modal appears.</li>
+<li>Set the "Default if no value selected" field to "User Roles".</li>
+<li>Set the transform field (below it) to "Semicolon Delimited Input".</li>
+<li>Click "Save".</li>
+</ol>
+<p>When a user attempts to login to Argo with OneLogin, the User roles in OneLogin, say, Manager, ProductTeam, and TestEngineering, will be included in the Groups field in the token. These are the values needed for Argo to assign permissions.</p>
+<p>The groups field in the token will look similar to the following:</p>
+<div class="codehilite"><pre><span></span><code><span class="err">&quot;groups&quot;: [</span>
+<span class="err">    &quot;Manager&quot;,</span>
+<span class="err">    &quot;ProductTeam&quot;,</span>
+<span class="err">    &quot;TestEngineering&quot;,</span>
+<span class="err">  ],</span>
+</code></pre></div>
+
+
+<h4 id="rules-tab">Rules Tab<a class="headerlink" href="#rules-tab" title="Permanent link">&para;</a></h4>
+<p>To get up and running, you do not need to make modifications to any settings here.</p>
+<h4 id="sso-tab">SSO Tab<a class="headerlink" href="#sso-tab" title="Permanent link">&para;</a></h4>
+<p>This tab contains much of the information needed to be placed into your ArgoCD configuration file (API endpoints, client ID, client secret).</p>
+<p>Confirm "Application Type" is set to "Web".</p>
+<p>Confirm "Token Endpoint" is set to "Basic".</p>
+<h4 id="access-tab">Access Tab<a class="headerlink" href="#access-tab" title="Permanent link">&para;</a></h4>
+<p>This tab controls who can see this application in the OneLogin portal.</p>
+<p>Select the roles you wish to have access to this application and click "Save".</p>
+<h4 id="users-tab">Users Tab<a class="headerlink" href="#users-tab" title="Permanent link">&para;</a></h4>
+<p>This tab shows you the individual users that have access to this application (usually the ones that have roles specified in the Access Tab).</p>
+<p>To get up and running, you do not need to make modifications to any settings here.</p>
+<h4 id="privileges-tab">Privileges Tab<a class="headerlink" href="#privileges-tab" title="Permanent link">&para;</a></h4>
+<p>This tab shows which OneLogin users can configure this app.</p>
+<p>To get up and running, you do not need to make modifications to any settings here.</p>
+<h2 id="updating-oidc-configuration-in-argocd">Updating OIDC configuration in ArgoCD<a class="headerlink" href="#updating-oidc-configuration-in-argocd" title="Permanent link">&para;</a></h2>
+<p>Now that the OIDC application is configured in OneLogin, you can update Argo configuration to communicate with OneLogin, as well as control permissions for those users that authenticate via OneLogin.</p>
+<h3 id="tell-argo-where-onelogin-is">Tell Argo where OneLogin is<a class="headerlink" href="#tell-argo-where-onelogin-is" title="Permanent link">&para;</a></h3>
+<p>Argo needs to have its config map (argocd-cm) updated in order to communicate with OneLogin. Consider the following yaml:</p>
+<div class="codehilite"><pre><span></span><code><span class="n">apiVersion</span><span class="o">:</span> <span class="n">v1</span>
+<span class="n">kind</span><span class="o">:</span> <span class="n">ConfigMap</span>
+<span class="n">metadata</span><span class="o">:</span>
+  <span class="n">name</span><span class="o">:</span> <span class="n">argocd</span><span class="o">-</span><span class="n">cm</span>
+<span class="n">data</span><span class="o">:</span>
+  <span class="n">url</span><span class="o">:</span> <span class="n">https</span><span class="o">://&lt;</span><span class="n">argocd</span><span class="o">.</span><span class="na">myproject</span><span class="o">.</span><span class="na">com</span><span class="o">&gt;</span>
+  <span class="n">oidc</span><span class="o">.</span><span class="na">config</span><span class="o">:</span> <span class="o">|</span>
+    <span class="n">name</span><span class="o">:</span> <span class="n">OneLogin</span>
+    <span class="n">issuer</span><span class="o">:</span> <span class="n">https</span><span class="o">://</span><span class="n">openid</span><span class="o">-</span><span class="n">connect</span><span class="o">.</span><span class="na">onelogin</span><span class="o">.</span><span class="na">com</span><span class="o">/</span><span class="n">oidc</span>
+    <span class="n">clientID</span><span class="o">:</span> <span class="n">aaaaaaaa</span><span class="o">-</span><span class="n">aaaa</span><span class="o">-</span><span class="n">aaaa</span><span class="o">-</span><span class="n">aaaa</span><span class="o">-</span><span class="n">aaaaaaaaaaaaaaaaaa</span>
+    <span class="err">#</span> <span class="n">This</span> <span class="k">is</span> <span class="n">a</span> <span class="n">base64</span> <span class="n">encoded</span> <span class="n">value</span><span class="o">!</span>
+    <span class="n">clientSecret</span><span class="o">:</span> <span class="n">YWFiYmNjZGQ</span><span class="o">=</span>  
+
+    <span class="err">#</span> <span class="n">Optional</span> <span class="kd">set</span> <span class="n">of</span> <span class="n">OIDC</span> <span class="n">scopes</span> <span class="n">to</span> <span class="n">request</span><span class="o">.</span> <span class="n">If</span> <span class="n">omitted</span><span class="o">,</span> <span class="n">defaults</span> <span class="n">to</span><span class="o">:</span> <span class="o">[</span><span class="s2">&quot;openid&quot;</span><span class="o">,</span> <span class="s2">&quot;profile&quot;</span><span class="o">,</span> <span class="s2">&quot;email&quot;</span><span class="o">,</span> <span class="s2">&quot;groups&quot;</span><span class="o">]</span>
+    <span class="n">requestedScopes</span><span class="o">:</span> <span class="o">[</span><span class="s2">&quot;openid&quot;</span><span class="o">,</span> <span class="s2">&quot;profile&quot;</span><span class="o">,</span> <span class="s2">&quot;email&quot;</span><span class="o">,</span> <span class="s2">&quot;groups&quot;</span><span class="o">]</span>
+</code></pre></div>
+
+
+<p>The "url" key should have a value of the hostname of your Argo project.</p>
+<p>The "clientID" is taken from the SSO tab of the OneLogin application.</p>
+<p>The “issuer” is taken from the SSO tab of the OneLogin application. It is one of the issuer api endpoints.</p>
+<p>The "clientSecret" value should be a base64 encoded version of the client secret located in the SSO tab of the OneLogin application. To generate this value, you can take the value of the client secret in OneLogin, and pipe it into base64 in a Linux/Unix terminal like so:</p>
+<div class="codehilite"><pre><span></span><code>$ <span class="nb">echo</span> -n <span class="s2">&quot;aabbccdd&quot;</span> <span class="p">|</span> base64
+<span class="nv">YWFiYmNjZGQ</span><span class="o">=</span>
+</code></pre></div>
+
+
+<div class="admonition note">
+<p class="admonition-title">If you get an <code>invalid_client</code> error when trying the authenticate with OneLogin, there is a possibility that your client secret was not [correctly] base64 encoded."</p>
+</div>
+<h3 id="configure-permissions-for-onelogin-authd-users">Configure Permissions for OneLogin Auth'd Users<a class="headerlink" href="#configure-permissions-for-onelogin-authd-users" title="Permanent link">&para;</a></h3>
+<p>Permissions in ArgoCD can be configured by using the OneLogin role names that are passed in the Groups field in the token. Consider the following yaml in argocd-rbac-cm.yaml:</p>
+<div class="codehilite"><pre><span></span><code><span class="n">apiVersion</span><span class="o">:</span> <span class="n">v1</span>
+<span class="n">kind</span><span class="o">:</span> <span class="n">ConfigMap</span>
+<span class="n">metadata</span><span class="o">:</span>
+  <span class="n">name</span><span class="o">:</span> <span class="n">argocd</span><span class="o">-</span><span class="n">rbac</span><span class="o">-</span><span class="n">cm</span>
+  <span class="kd">namespace</span><span class="o">:</span> <span class="n">argocd</span>
+<span class="n">data</span><span class="o">:</span>
+  <span class="n">policy</span><span class="o">.</span><span class="na">default</span><span class="o">:</span> <span class="n">role</span><span class="o">:</span><span class="n">readonly</span>
+  <span class="n">policy</span><span class="o">.</span><span class="na">csv</span><span class="o">:</span> <span class="o">|</span>
+    <span class="n">p</span><span class="o">,</span> <span class="n">role</span><span class="o">:</span><span class="n">org</span><span class="o">-</span><span class="n">admin</span><span class="o">,</span> <span class="n">applications</span><span class="o">,</span> <span class="o">*,</span> <span class="o">*/*,</span> <span class="n">allow</span>
+    <span class="n">p</span><span class="o">,</span> <span class="n">role</span><span class="o">:</span><span class="n">org</span><span class="o">-</span><span class="n">admin</span><span class="o">,</span> <span class="n">clusters</span><span class="o">,</span> <span class="kd">get</span><span class="o">,</span> <span class="o">*,</span> <span class="n">allow</span>
+    <span class="n">p</span><span class="o">,</span> <span class="n">role</span><span class="o">:</span><span class="n">org</span><span class="o">-</span><span class="n">admin</span><span class="o">,</span> <span class="n">repositories</span><span class="o">,</span> <span class="kd">get</span><span class="o">,</span> <span class="o">*,</span> <span class="n">allow</span>
+    <span class="n">p</span><span class="o">,</span> <span class="n">role</span><span class="o">:</span><span class="n">org</span><span class="o">-</span><span class="n">admin</span><span class="o">,</span> <span class="n">repositories</span><span class="o">,</span> <span class="n">create</span><span class="o">,</span> <span class="o">*,</span> <span class="n">allow</span>
+    <span class="n">p</span><span class="o">,</span> <span class="n">role</span><span class="o">:</span><span class="n">org</span><span class="o">-</span><span class="n">admin</span><span class="o">,</span> <span class="n">repositories</span><span class="o">,</span> <span class="n">update</span><span class="o">,</span> <span class="o">*,</span> <span class="n">allow</span>
+    <span class="n">p</span><span class="o">,</span> <span class="n">role</span><span class="o">:</span><span class="n">org</span><span class="o">-</span><span class="n">admin</span><span class="o">,</span> <span class="n">repositories</span><span class="o">,</span> <span class="n">delete</span><span class="o">,</span> <span class="o">*,</span> <span class="n">allow</span>
+
+    <span class="n">g</span><span class="o">,</span> <span class="n">TestEngineering</span><span class="o">,</span> <span class="n">role</span><span class="o">:</span><span class="n">org</span><span class="o">-</span><span class="n">admin</span>
+</code></pre></div>
+
+
+<p>In OneLogin, a user with user role "TestEngineering" will receive ArgoCD admin privileges when they log in to Argo via OneLogin. All other users will receive the readonly role. The key takeaway here is that "TestEngineering" is passed via the Group field in the token (which is specified in the Parameters tab in OneLogin).</p>
                 
                   
                 
