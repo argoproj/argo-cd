@@ -282,7 +282,7 @@ func NewRepoGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		refresh string
 	)
 	var command = &cobra.Command{
-		Use:   "Get",
+		Use:   "get",
 		Short: "Get a configured repository by URL",
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 1 {
