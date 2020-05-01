@@ -1,10 +1,11 @@
 # Kustomize
 
-You have three configuration options for Kustomize:
+The following configuration options are available for Kustomize:
 
 * `namePrefix` is a prefix appended to resources for Kustomize apps
 * `nameSuffix` is a suffix appended to resources for Kustomize apps
 * `images` is a list of Kustomize image overrides
+* `commonLabels` is a string map of an additional labels
     
 To use Kustomize with an overlay, point your path to the overlay.
 
@@ -35,6 +36,49 @@ metadata:
 data:
     kustomize.buildOptions: --load_restrictor none
 ```
+## Custom Kustomize versions
+
+Argo CD supports using multiple kustomize versions simultaneously and specify required version per application.
+To add additional versions make sure required versions are [bundled](../operator-manual/custom_tools.md) and then
+use `kustomize.version.<version>` fields of `argocd-cm` ConfigMap to register bundled additional versions.   
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cm
+    app.kubernetes.io/part-of: argocd
+data:
+    kustomize.version.v3.5.1: /custom-tools/kustomize_3_5_1
+    kustomize.version.v3.5.4: /custom-tools/kustomize_3_5_4
+```
+
+Once new version is configured you can reference it in Application spec as following:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: guestbook
+spec:
+  source:
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+    targetRevision: HEAD
+    path: guestbook-kustomize
+
+    kustomize:
+      version: v3.5.4
+```
+
+Additionally application kustomize version can be configured using Parameters tab of Application Details page or using following CLI command:
+
+```
+argocd app set <appyName> --kustomize-version v3.5.4
+```
+
 
 ## Build Environment
 

@@ -2,6 +2,7 @@ API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/appli
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,AppProjectSpec,ClusterResourceWhitelist
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,AppProjectSpec,Destinations
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,AppProjectSpec,NamespaceResourceBlacklist
+API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,AppProjectSpec,NamespaceResourceWhitelist
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,AppProjectSpec,Roles
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,AppProjectSpec,SourceRepos
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ApplicationList,Items
@@ -38,6 +39,7 @@ API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/appli
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ResourceNode,Images
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ResourceNode,Info
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ResourceNode,ParentRefs
+API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ResourceOverride,KnownTypeFields
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,RevisionMetadata,Tags
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,SyncOperation,Manifests
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,SyncOperation,Resources
@@ -51,6 +53,7 @@ API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application
 API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ConnectionState,ModifiedAt
 API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,JWTToken,ExpiresAt
 API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,JWTToken,IssuedAt
+API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,KustomizeOptions,BinaryPath
 API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,KustomizeOptions,BuildOptions
 API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,Repository,EnableLFS
 API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ResourceActionDefinition,ActionLua

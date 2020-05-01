@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -24,6 +25,7 @@ type MetricsServer struct {
 	kubectlExecPendingGauge *prometheus.GaugeVec
 	k8sRequestCounter       *prometheus.CounterVec
 	clusterEventsCounter    *prometheus.CounterVec
+	redisRequestCounter     *prometheus.CounterVec
 	reconcileHistogram      *prometheus.HistogramVec
 	registry                *prometheus.Registry
 }
@@ -108,6 +110,14 @@ var (
 		Name: "argocd_cluster_events_total",
 		Help: "Number of processes k8s resource events.",
 	}, append(descClusterDefaultLabels, "group", "kind"))
+
+	redisRequestCounter = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "argocd_redis_request_total",
+			Help: "Number of kubernetes requests executed during application reconciliation.",
+		},
+		[]string{"initiator", "failed"},
+	)
 )
 
 // NewMetricsServer returns a new prometheus server which collects application metrics
@@ -128,6 +138,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, health
 	registry.MustRegister(kubectlExecPendingGauge)
 	registry.MustRegister(reconcileHistogram)
 	registry.MustRegister(clusterEventsCounter)
+	registry.MustRegister(redisRequestCounter)
 
 	return &MetricsServer{
 		registry: registry,
@@ -141,6 +152,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, health
 		kubectlExecPendingGauge: kubectlExecPendingGauge,
 		reconcileHistogram:      reconcileHistogram,
 		clusterEventsCounter:    clusterEventsCounter,
+		redisRequestCounter:     redisRequestCounter,
 	}
 }
 
@@ -187,6 +199,10 @@ func (m *MetricsServer) IncKubernetesRequest(app *argoappv1.Application, server,
 		namespace, name, project, server, statusCode,
 		verb, resourceKind, resourceNamespace,
 	).Inc()
+}
+
+func (m *MetricsServer) IncRedisRequest(failed bool) {
+	m.redisRequestCounter.WithLabelValues("argocd-application-controller", strconv.FormatBool(failed)).Inc()
 }
 
 // IncReconcile increments the reconcile counter for an application

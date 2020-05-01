@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/dgrijalva/jwt-go"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -281,9 +282,10 @@ func TestProjectServer(t *testing.T) {
 	ctx := context.WithValue(context.Background(), "claims", &jwt.MapClaims{"groups": []string{"my-group"}})
 
 	tokenName := "testToken"
+	id := "testId"
 
 	t.Run("TestCreateTokenDenied", func(t *testing.T) {
-		sessionMgr := session.NewSessionManager(settingsMgr, "")
+		sessionMgr := session.NewSessionManager(settingsMgr, "", session.NewInMemoryUserStateStorage())
 		projectWithRole := existingProj.DeepCopy()
 		projectWithRole.Spec.Roles = []v1alpha1.ProjectRole{{Name: tokenName}}
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithRole), enforcer, util.NewKeyLock(), sessionMgr)
@@ -292,7 +294,7 @@ func TestProjectServer(t *testing.T) {
 	})
 
 	t.Run("TestCreateTokenSuccessfullyUsingGroup", func(t *testing.T) {
-		sessionMgr := session.NewSessionManager(settingsMgr, "")
+		sessionMgr := session.NewSessionManager(settingsMgr, "", session.NewInMemoryUserStateStorage())
 		projectWithRole := existingProj.DeepCopy()
 		projectWithRole.Spec.Roles = []v1alpha1.ProjectRole{{Name: tokenName, Groups: []string{"my-group"}}}
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithRole), enforcer, util.NewKeyLock(), sessionMgr)
@@ -303,7 +305,7 @@ func TestProjectServer(t *testing.T) {
 	_ = enforcer.SetBuiltinPolicy(`p, role:admin, projects, update, *, allow`)
 
 	t.Run("TestCreateTokenSuccessfully", func(t *testing.T) {
-		sessionMgr := session.NewSessionManager(settingsMgr, "")
+		sessionMgr := session.NewSessionManager(settingsMgr, "", session.NewInMemoryUserStateStorage())
 		projectWithRole := existingProj.DeepCopy()
 		projectWithRole.Spec.Roles = []v1alpha1.ProjectRole{{Name: tokenName}}
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithRole), enforcer, util.NewKeyLock(), sessionMgr)
@@ -320,10 +322,51 @@ func TestProjectServer(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
+	t.Run("TestCreateTokenWithIDSuccessfully", func(t *testing.T) {
+		sessionMgr := session.NewSessionManager(settingsMgr, "", session.NewInMemoryUserStateStorage())
+		projectWithRole := existingProj.DeepCopy()
+		projectWithRole.Spec.Roles = []v1alpha1.ProjectRole{{Name: tokenName}}
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithRole), enforcer, util.NewKeyLock(), sessionMgr)
+		tokenResponse, err := projectServer.CreateToken(context.Background(), &project.ProjectTokenCreateRequest{Project: projectWithRole.Name, Role: tokenName, ExpiresIn: 1, Id: id})
+		assert.NoError(t, err)
+		claims, err := sessionMgr.Parse(tokenResponse.Token)
+		assert.NoError(t, err)
+
+		mapClaims, err := jwtutil.MapClaims(claims)
+		subject, ok := mapClaims["sub"].(string)
+		assert.True(t, ok)
+		expectedSubject := fmt.Sprintf(JWTTokenSubFormat, projectWithRole.Name, tokenName)
+		assert.Equal(t, expectedSubject, subject)
+		assert.NoError(t, err)
+	})
+
+	t.Run("TestCreateTokenWithSameIdDeny", func(t *testing.T) {
+		sessionMgr := session.NewSessionManager(settingsMgr, "", session.NewInMemoryUserStateStorage())
+		projectWithRole := existingProj.DeepCopy()
+		projectWithRole.Spec.Roles = []v1alpha1.ProjectRole{{Name: tokenName}}
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithRole), enforcer, util.NewKeyLock(), sessionMgr)
+		tokenResponse, err := projectServer.CreateToken(context.Background(), &project.ProjectTokenCreateRequest{Project: projectWithRole.Name, Role: tokenName, ExpiresIn: 1, Id: id})
+
+		assert.NoError(t, err)
+		claims, err := sessionMgr.Parse(tokenResponse.Token)
+		assert.NoError(t, err)
+
+		mapClaims, err := jwtutil.MapClaims(claims)
+		subject, ok := mapClaims["sub"].(string)
+		assert.True(t, ok)
+		expectedSubject := fmt.Sprintf(JWTTokenSubFormat, projectWithRole.Name, tokenName)
+		assert.Equal(t, expectedSubject, subject)
+		assert.NoError(t, err)
+
+		_, err1 := projectServer.CreateToken(context.Background(), &project.ProjectTokenCreateRequest{Project: projectWithRole.Name, Role: tokenName, ExpiresIn: 1, Id: id})
+		expectedErr := fmt.Sprintf("rpc error: code = InvalidArgument desc = rpc error: code = InvalidArgument desc = Token id '%s' has been used. ", id)
+		assert.EqualError(t, err1, expectedErr)
+	})
+
 	_ = enforcer.SetBuiltinPolicy(`p, *, *, *, *, deny`)
 
 	t.Run("TestDeleteTokenDenied", func(t *testing.T) {
-		sessionMgr := session.NewSessionManager(settingsMgr, "")
+		sessionMgr := session.NewSessionManager(settingsMgr, "", session.NewInMemoryUserStateStorage())
 		projWithToken := existingProj.DeepCopy()
 		issuedAt := int64(1)
 		secondIssuedAt := issuedAt + 1
@@ -336,7 +379,7 @@ func TestProjectServer(t *testing.T) {
 	})
 
 	t.Run("TestDeleteTokenSuccessfullyWithGroup", func(t *testing.T) {
-		sessionMgr := session.NewSessionManager(settingsMgr, "")
+		sessionMgr := session.NewSessionManager(settingsMgr, "", session.NewInMemoryUserStateStorage())
 		projWithToken := existingProj.DeepCopy()
 		issuedAt := int64(1)
 		secondIssuedAt := issuedAt + 1
@@ -352,7 +395,7 @@ func TestProjectServer(t *testing.T) {
 p, role:admin, projects, update, *, allow`)
 
 	t.Run("TestDeleteTokenSuccessfully", func(t *testing.T) {
-		sessionMgr := session.NewSessionManager(settingsMgr, "")
+		sessionMgr := session.NewSessionManager(settingsMgr, "", session.NewInMemoryUserStateStorage())
 		projWithToken := existingProj.DeepCopy()
 		issuedAt := int64(1)
 		secondIssuedAt := issuedAt + 1
@@ -369,10 +412,34 @@ p, role:admin, projects, update, *, allow`)
 		assert.Equal(t, projWithoutToken.Spec.Roles[0].JWTTokens[0].IssuedAt, secondIssuedAt)
 	})
 
+	_ = enforcer.SetBuiltinPolicy(`p, role:admin, projects, get, *, allow
+p, role:admin, projects, update, *, allow`)
+
+	t.Run("TestDeleteTokenByIdSuccessfully", func(t *testing.T) {
+		sessionMgr := session.NewSessionManager(settingsMgr, "", session.NewInMemoryUserStateStorage())
+		projWithToken := existingProj.DeepCopy()
+		issuedAt := int64(1)
+		secondIssuedAt := issuedAt + 1
+		id := "testId"
+		uniqueId, _ := uuid.NewRandom()
+		secondId := uniqueId.String()
+		token := v1alpha1.ProjectRole{Name: tokenName, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: issuedAt, ID: id}, {IssuedAt: secondIssuedAt, ID: secondId}}}
+		projWithToken.Spec.Roles = append(projWithToken.Spec.Roles, token)
+
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, util.NewKeyLock(), sessionMgr)
+		_, err := projectServer.DeleteToken(ctx, &project.ProjectTokenDeleteRequest{Project: projWithToken.Name, Role: tokenName, Iat: secondIssuedAt, Id: id})
+		assert.NoError(t, err)
+		projWithoutToken, err := projectServer.Get(context.Background(), &project.ProjectQuery{Name: projWithToken.Name})
+		assert.NoError(t, err)
+		assert.Len(t, projWithoutToken.Spec.Roles, 1)
+		assert.Len(t, projWithoutToken.Spec.Roles[0].JWTTokens, 1)
+		assert.Equal(t, projWithoutToken.Spec.Roles[0].JWTTokens[0].IssuedAt, secondIssuedAt)
+	})
+
 	enforcer = newEnforcer(kubeclientset)
 
 	t.Run("TestCreateTwoTokensInRoleSuccess", func(t *testing.T) {
-		sessionMgr := session.NewSessionManager(settingsMgr, "")
+		sessionMgr := session.NewSessionManager(settingsMgr, "", session.NewInMemoryUserStateStorage())
 		projWithToken := existingProj.DeepCopy()
 		tokenName := "testToken"
 		token := v1alpha1.ProjectRole{Name: tokenName, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: 1}}}
@@ -537,7 +604,7 @@ p, role:admin, projects, update, *, allow`)
 	})
 
 	t.Run("TestSyncWindowsActive", func(t *testing.T) {
-		sessionMgr := session.NewSessionManager(settingsMgr, "")
+		sessionMgr := session.NewSessionManager(settingsMgr, "", session.NewInMemoryUserStateStorage())
 		projectWithSyncWindows := existingProj.DeepCopy()
 		projectWithSyncWindows.Spec.SyncWindows = v1alpha1.SyncWindows{}
 		win := &v1alpha1.SyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "1h"}
@@ -550,7 +617,7 @@ p, role:admin, projects, update, *, allow`)
 	})
 
 	t.Run("TestGetSyncWindowsStateCannotGetProjectDetails", func(t *testing.T) {
-		sessionMgr := session.NewSessionManager(settingsMgr, "")
+		sessionMgr := session.NewSessionManager(settingsMgr, "", session.NewInMemoryUserStateStorage())
 		projectWithSyncWindows := existingProj.DeepCopy()
 		projectWithSyncWindows.Spec.SyncWindows = v1alpha1.SyncWindows{}
 		win := &v1alpha1.SyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "1h"}
@@ -568,7 +635,7 @@ p, role:admin, projects, update, *, allow`)
 		enforcer.SetClaimsEnforcerFunc(nil)
 		ctx := context.WithValue(context.Background(), "claims", &jwt.MapClaims{"groups": []string{"my-group"}})
 
-		sessionMgr := session.NewSessionManager(settingsMgr, "")
+		sessionMgr := session.NewSessionManager(settingsMgr, "", session.NewInMemoryUserStateStorage())
 		projectWithSyncWindows := existingProj.DeepCopy()
 		win := &v1alpha1.SyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "1h"}
 		projectWithSyncWindows.Spec.SyncWindows = append(projectWithSyncWindows.Spec.SyncWindows, win)

@@ -12,14 +12,13 @@ import (
 	"time"
 
 	"github.com/argoproj/pkg/errors"
-
 	log "github.com/sirupsen/logrus"
-
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	networkingv1beta "k8s.io/api/networking/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/pointer"
@@ -455,6 +454,37 @@ func TestCRDs(t *testing.T) {
 	testEdgeCasesApplicationResources(t, "crd-creation", HealthStatusHealthy)
 }
 
+func TestKnownTypesInCRDDiffing(t *testing.T) {
+	dummiesGVR := schema.GroupVersionResource{Group: "argoproj.io", Version: "v1alpha1", Resource: "dummies"}
+
+	Given(t).
+		Path("crd-creation").
+		When().Create().Sync().Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		And(func() {
+			dummyResIf := DynamicClientset.Resource(dummiesGVR).Namespace(DeploymentNamespace())
+			patchData := []byte(`{"spec":{"requests": {"cpu": "2"}}}`)
+			FailOnErr(dummyResIf.Patch("dummy-crd-instance", types.MergePatchType, patchData, metav1.PatchOptions{}))
+		}).Refresh(RefreshTypeNormal).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		When().
+		And(func() {
+			SetResourceOverrides(map[string]ResourceOverride{
+				"argoproj.io/Dummy": {
+					KnownTypeFields: []KnownTypeField{{
+						Field: "spec.requests",
+						Type:  "core/v1/ResourceList",
+					}},
+				},
+			})
+		}).
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}
+
 func TestDuplicatedResources(t *testing.T) {
 	testEdgeCasesApplicationResources(t, "duplicated-resources", HealthStatusHealthy)
 }
@@ -781,6 +811,7 @@ func TestSyncOptionValidateFalse(t *testing.T) {
 // make sure that, if we have a resource that needs pruning, but we're ignoring it, the app is in-sync
 func TestCompareOptionIgnoreExtraneous(t *testing.T) {
 	Given(t).
+		Prune(false).
 		Path("two-nice-pods").
 		When().
 		PatchFile("pod-1.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/compare-options": "IgnoreExtraneous"}}]`).
@@ -796,7 +827,12 @@ func TestCompareOptionIgnoreExtraneous(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			assert.Len(t, app.Status.Resources, 2)
-			assert.Equal(t, SyncStatusCodeOutOfSync, app.Status.Resources[1].Status)
+			statusByName := map[string]SyncStatusCode{}
+			for _, r := range app.Status.Resources {
+				statusByName[r.Name] = r.Status
+			}
+			assert.Equal(t, SyncStatusCodeOutOfSync, statusByName["pod-1"])
+			assert.Equal(t, SyncStatusCodeSynced, statusByName["pod-2"])
 		}).
 		When().
 		Sync().

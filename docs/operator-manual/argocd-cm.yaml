@@ -204,6 +204,10 @@ data:
   # Build options/parameters to use with `kustomize build` (optional)
   kustomize.buildOptions: --load_restrictor none
 
+  # Additional Kustomize versions and corresponding binary paths
+  kustomize.version.v3.5.1: /custom-tools/kustomize_3_5_1
+  kustomize.version.v3.5.4: /custom-tools/kustomize_3_5_4
+
   # The metadata.label key name where Argo CD injects the app name as a tracking label (optional).
   # Tracking labels are used to determine which resources need to be deleted when pruning.
   # If omitted, Argo CD injects the app name into the label: 'app.kubernetes.io/instance'

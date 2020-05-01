@@ -94,21 +94,23 @@ type ClientOptions struct {
 	Context              string
 	UserAgent            string
 	GRPCWeb              bool
+	GRPCWebRootPath      string
 	PortForward          bool
 	PortForwardNamespace string
 	Headers              []string
 }
 
 type client struct {
-	ServerAddr   string
-	PlainText    bool
-	Insecure     bool
-	CertPEMData  []byte
-	AuthToken    string
-	RefreshToken string
-	UserAgent    string
-	GRPCWeb      bool
-	Headers      []string
+	ServerAddr      string
+	PlainText       bool
+	Insecure        bool
+	CertPEMData     []byte
+	AuthToken       string
+	RefreshToken    string
+	UserAgent       string
+	GRPCWeb         bool
+	GRPCWebRootPath string
+	Headers         []string
 
 	proxyMutex      *sync.Mutex
 	proxyListener   net.Listener
@@ -141,6 +143,7 @@ func NewClient(opts *ClientOptions) (Client, error) {
 			c.PlainText = configCtx.Server.PlainText
 			c.Insecure = configCtx.Server.Insecure
 			c.GRPCWeb = configCtx.Server.GRPCWeb
+			c.GRPCWebRootPath = configCtx.Server.GRPCWebRootPath
 			c.AuthToken = configCtx.User.AuthToken
 			c.RefreshToken = configCtx.User.RefreshToken
 			ctxName = configCtx.Name
@@ -198,6 +201,9 @@ func NewClient(opts *ClientOptions) (Client, error) {
 	}
 	if opts.GRPCWeb {
 		c.GRPCWeb = true
+	}
+	if opts.GRPCWebRootPath != "" {
+		c.GRPCWebRootPath = opts.GRPCWebRootPath
 	}
 	if localCfg != nil {
 		err = c.refreshAuthToken(localCfg, ctxName, opts.ConfigPath)
@@ -376,7 +382,7 @@ func (c *client) newConn() (*grpc.ClientConn, io.Closer, error) {
 	closers := make([]io.Closer, 0)
 	serverAddr := c.ServerAddr
 	network := "tcp"
-	if c.GRPCWeb {
+	if c.GRPCWeb || c.GRPCWebRootPath != "" {
 		// start local grpc server which proxies requests using grpc-web protocol
 		addr, closer, err := c.useGRPCProxy()
 		if err != nil {
@@ -388,7 +394,7 @@ func (c *client) newConn() (*grpc.ClientConn, io.Closer, error) {
 	}
 
 	var creds credentials.TransportCredentials
-	if !c.PlainText && !c.GRPCWeb {
+	if !c.PlainText && !c.GRPCWeb && c.GRPCWebRootPath == "" {
 		tlsConfig, err := c.tlsConfig()
 		if err != nil {
 			return nil, nil, err

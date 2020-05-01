@@ -63,11 +63,11 @@ func newTestAccountServerExt(ctx context.Context, enforceFn rbac.ClaimsEnforcerF
 	}
 	kubeclientset := fake.NewSimpleClientset(cm, secret)
 	settingsMgr := settings.NewSettingsManager(ctx, kubeclientset, testNamespace)
-	sessionMgr := sessionutil.NewSessionManager(settingsMgr, "")
+	sessionMgr := sessionutil.NewSessionManager(settingsMgr, "", sessionutil.NewInMemoryUserStateStorage())
 	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
 	enforcer.SetClaimsEnforcerFunc(enforceFn)
 
-	return NewServer(sessionMgr, settingsMgr, enforcer), session.NewServer(sessionMgr, nil)
+	return NewServer(sessionMgr, settingsMgr, enforcer), session.NewServer(sessionMgr, nil, nil)
 }
 
 func getAdminAccount(mgr *settings.SettingsManager) (*settings.Account, error) {
@@ -274,6 +274,22 @@ func TestCreateToken_DoesNotHaveCapability(t *testing.T) {
 
 	_, err := accountServer.CreateToken(ctx, &account.CreateTokenRequest{Name: "account1"})
 	assert.Error(t, err)
+}
+
+func TestCreateToken_UserSpecifiedID(t *testing.T) {
+	ctx := adminContext(context.Background())
+	accountServer, _ := newTestAccountServer(ctx, func(cm *v1.ConfigMap, secret *v1.Secret) {
+		cm.Data["accounts.account1"] = "apiKey"
+	})
+
+	_, err := accountServer.CreateToken(ctx, &account.CreateTokenRequest{Name: "account1", Id: "test"})
+	assert.NoError(t, err)
+
+	_, err = accountServer.CreateToken(ctx, &account.CreateTokenRequest{Name: "account1", Id: "test"})
+	if !assert.Error(t, err) {
+		return
+	}
+	assert.Contains(t, "account already has token with id 'test'", err.Error())
 }
 
 func TestDeleteToken_SuccessfullyRemoved(t *testing.T) {

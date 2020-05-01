@@ -100,6 +100,12 @@ spec:
     kind: LimitRange
   - group: ''
     kind: NetworkPolicy
+  # Deny all namespaced-scoped resources from being created, except for Deployment and StatefulSet
+  namespaceResourceWhilelist:
+  - group: 'apps'
+    kind: Deployment
+  - group: 'apps'
+    kind: StatefulSet
   roles:
   # A role which provides read-only access to all applications in the project
   - name: read-only
@@ -121,6 +127,12 @@ spec:
 ```
 
 ## Repositories
+
+!!!note
+    Some Git hosters - notably GitLab and possibly on-premise GitLab instances as well - require you to
+    specify the `.git` suffix in the repository URL, otherwise they will send a HTTP 301 redirect to the
+    repository URL suffixed with `.git`. ArgoCD will **not** follow these redirects, so you have to
+    adapt your repository URL to be suffixed with `.git`.
 
 Repository credentials are stored in secret. Use following steps to configure a repo:
 

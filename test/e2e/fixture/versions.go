@@ -3,6 +3,7 @@ package fixture
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/argoproj/argo-cd/errors"
 )
@@ -28,4 +29,10 @@ func GetVersions() *Versions {
 	version := &Versions{}
 	errors.CheckError(json.Unmarshal([]byte(output), version))
 	return version
+}
+
+func GetApiVersions() string {
+	output := errors.FailOnErr(Run(".", "kubectl", "api-versions")).(string)
+	res := strings.Replace(output, "\n", ",", -1)
+	return res
 }

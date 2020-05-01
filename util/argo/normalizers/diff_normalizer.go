@@ -1,8 +1,7 @@
-package argo
+package normalizers
 
 import (
 	"encoding/json"
-	"strings"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/diff"
@@ -21,7 +20,7 @@ type normalizerPatch struct {
 	patch     jsonpatch.Patch
 }
 
-type normalizer struct {
+type ignoreNormalizer struct {
 	patches []normalizerPatch
 }
 
@@ -29,15 +28,13 @@ type overrideIgnoreDiff struct {
 	JSONPointers []string `yaml:"jsonPointers"`
 }
 
-// NewDiffNormalizer creates diff normalizer which removes ignored fields according to given application spec and resource overrides
-func NewDiffNormalizer(ignore []v1alpha1.ResourceIgnoreDifferences, overrides map[string]v1alpha1.ResourceOverride) (diff.Normalizer, error) {
+// NewIgnoreNormalizer creates diff normalizer which removes ignored fields according to given application spec and resource overrides
+func NewIgnoreNormalizer(ignore []v1alpha1.ResourceIgnoreDifferences, overrides map[string]v1alpha1.ResourceOverride) (diff.Normalizer, error) {
 	for key, override := range overrides {
-		parts := strings.Split(key, "/")
-		if len(parts) < 2 {
-			continue
+		group, kind, err := getGroupKindForOverrideKey(key)
+		if err != nil {
+			log.Warn(err)
 		}
-		group := parts[0]
-		kind := parts[1]
 		if override.IgnoreDifferences != "" {
 			ignoreSettings := overrideIgnoreDiff{}
 			err := yaml.Unmarshal([]byte(override.IgnoreDifferences), &ignoreSettings)
@@ -72,11 +69,11 @@ func NewDiffNormalizer(ignore []v1alpha1.ResourceIgnoreDifferences, overrides ma
 		}
 
 	}
-	return &normalizer{patches: patches}, nil
+	return &ignoreNormalizer{patches: patches}, nil
 }
 
 // Normalize removes fields from supplied resource using json paths from matching items of specified resources ignored differences list
-func (n *normalizer) Normalize(un *unstructured.Unstructured) error {
+func (n *ignoreNormalizer) Normalize(un *unstructured.Unstructured) error {
 	matched := make([]normalizerPatch, 0)
 	for _, patch := range n.patches {
 		groupKind := un.GroupVersionKind().GroupKind()

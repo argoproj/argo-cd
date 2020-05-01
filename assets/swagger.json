@@ -2038,6 +2038,9 @@
           "format": "int64",
           "title": "expiresIn represents a duration in seconds"
         },
+        "id": {
+          "type": "string"
+        },
         "name": {
           "type": "string"
         }
@@ -2339,6 +2342,12 @@
         "appLabelKey": {
           "type": "string"
         },
+        "configManagementPlugins": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ConfigManagementPlugin"
+          }
+        },
         "dexConfig": {
           "$ref": "#/definitions/clusterDexConfig"
         },
@@ -2350,6 +2359,12 @@
         },
         "kustomizeOptions": {
           "$ref": "#/definitions/v1alpha1KustomizeOptions"
+        },
+        "kustomizeVersions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         },
         "oidcConfig": {
           "$ref": "#/definitions/clusterOIDCConfig"
@@ -2424,6 +2439,9 @@
           "type": "string",
           "format": "int64",
           "title": "expiresIn represents a duration in seconds"
+        },
+        "id": {
+          "type": "string"
         },
         "project": {
           "type": "string"
@@ -3166,6 +3184,13 @@
             "$ref": "#/definitions/v1GroupKind"
           }
         },
+        "namespaceResourceWhitelist": {
+          "type": "array",
+          "title": "NamespaceResourceWhitelist contains list of whitelisted namespace level resources",
+          "items": {
+            "$ref": "#/definitions/v1GroupKind"
+          }
+        },
         "orphanedResources": {
           "$ref": "#/definitions/v1alpha1OrphanedResourcesMonitorSettings"
         },
@@ -3402,6 +3427,10 @@
         "nameSuffix": {
           "type": "string",
           "title": "NameSuffix is a suffix appended to resources for kustomize apps"
+        },
+        "version": {
+          "type": "string",
+          "title": "Version contains optional Kustomize version"
         }
       }
     },
@@ -3623,6 +3652,24 @@
         }
       }
     },
+    "v1alpha1Command": {
+      "type": "object",
+      "title": "Command holds binary path and arguments list",
+      "properties": {
+        "args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "command": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "v1alpha1ComparedTo": {
       "type": "object",
       "title": "ComparedTo contains application source and target which was used for resources comparison",
@@ -3632,6 +3679,21 @@
         },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
+        }
+      }
+    },
+    "v1alpha1ConfigManagementPlugin": {
+      "type": "object",
+      "title": "ConfigManagementPlugin contains config management plugin configuration",
+      "properties": {
+        "generate": {
+          "$ref": "#/definitions/v1alpha1Command"
+        },
+        "init": {
+          "$ref": "#/definitions/v1alpha1Command"
+        },
+        "name": {
+          "type": "string"
         }
       }
     },
@@ -3743,6 +3805,9 @@
         "iat": {
           "type": "string",
           "format": "int64"
+        },
+        "id": {
+          "type": "string"
         }
       }
     },
@@ -3758,6 +3823,18 @@
           "type": "string"
         },
         "value": {
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1KnownTypeField": {
+      "type": "object",
+      "title": "KnownTypeField contains mapping between CRD field and known Kubernetes type",
+      "properties": {
+        "field": {
+          "type": "string"
+        },
+        "type": {
           "type": "string"
         }
       }
@@ -3781,6 +3858,10 @@
       "type": "object",
       "title": "KustomizeOptions are options for kustomize to use when building manifests",
       "properties": {
+        "binaryPath": {
+          "type": "string",
+          "title": "BinaryPath holds optional path to kustomize binary"
+        },
         "buildOptions": {
           "type": "string",
           "title": "BuildOptions is a string of build parameters to use when calling `kustomize build`"
@@ -4236,6 +4317,12 @@
         },
         "ignoreDifferences": {
           "type": "string"
+        },
+        "knownTypeFields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1KnownTypeField"
+          }
         }
       }
     },

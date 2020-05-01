@@ -22,6 +22,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Fave](https://myfave.com)
 1. [Future PLC](https://www.futureplc.com/)
 1. [GMETRI](https://gmetri.com/)
+1. [Healy](https://www.healyworld.net)
 1. [hipages](https://hipages.com.au/)
 1. [Intuit](https://www.intuit.com/)
 1. [KintoHub](https://www.kintohub.com/)
@@ -56,3 +57,4 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Walkbase](https://www.walkbase.com/)
 1. [Whitehat Berlin](https://whitehat.berlin) by Guido Maria Serra +Fenaroli
 1. [Yieldlab](https://www.yieldlab.de/)
+1. [MTN Group](https://www.mtn.com/)

@@ -88,10 +88,8 @@ func TestSyncStatusOptionIgnore(t *testing.T) {
 		Then().
 		// this is standard logging from the command - tough one - true statement
 		When().
-		IgnoreErrors().
 		Sync().
 		Then().
-		Expect(Error("", "1 resources require pruning")).
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		// this is a key check - we expect the app to be healthy because, even though we have a resources that needs
 		// pruning, because it is annotated with IgnoreExtraneous it should not contribute to the sync status
@@ -192,5 +190,37 @@ func TestKustomizeNameSuffix(t *testing.T) {
 		Then().
 		And(func(app *Application) {
 			assert.Contains(t, app.Spec.Source.Kustomize.NameSuffix, "-suf")
+		})
+}
+
+// make sure we we can invoke the CLI to set and unset namesuffix and kustomize-image
+func TestKustomizeUnsetOverride(t *testing.T) {
+	Given(t).
+		Path("kustomize").
+		When().
+		Create().
+		AppSet("--namesuffix", "-suf").
+		Then().
+		And(func(app *Application) {
+			assert.Contains(t, app.Spec.Source.Kustomize.NameSuffix, "-suf")
+		}).
+		When().
+		AppUnSet("--namesuffix").
+		Then().
+		And(func(app *Application) {
+			assert.Nil(t, app.Spec.Source.Kustomize)
+		}).
+		When().
+		AppSet("--kustomize-image", "alpine:foo", "--kustomize-image", "alpine:bar").
+		Then().
+		And(func(app *Application) {
+			assert.Contains(t, app.Spec.Source.Kustomize.Images, KustomizeImage("alpine:bar"))
+		}).
+		When().
+		//AppUnSet("--kustomize-image=alpine").
+		AppUnSet("--kustomize-image", "alpine", "--kustomize-image", "alpine").
+		Then().
+		And(func(app *Application) {
+			assert.Nil(t, app.Spec.Source.Kustomize)
 		})
 }

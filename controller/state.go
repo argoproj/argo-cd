@@ -131,7 +131,11 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		tools[i] = &plugins[i]
 	}
 
-	buildOptions, err := m.settingsMgr.GetKustomizeBuildOptions()
+	kustomizeSettings, err := m.settingsMgr.GetKustomizeSettings()
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	kustomizeOptions, err := kustomizeSettings.GetOptions(app.Spec.Source)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -151,11 +155,9 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		Namespace:         app.Spec.Destination.Namespace,
 		ApplicationSource: &source,
 		Plugins:           tools,
-		KustomizeOptions: &appv1.KustomizeOptions{
-			BuildOptions: buildOptions,
-		},
-		KubeVersion: serverVersion,
-		ApiVersions: argo.APIGroupsToVersions(apiGroups),
+		KustomizeOptions:  kustomizeOptions,
+		KubeVersion:       serverVersion,
+		ApiVersions:       argo.APIGroupsToVersions(apiGroups),
 	})
 	if err != nil {
 		return nil, nil, nil, err

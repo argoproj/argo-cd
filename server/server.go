@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"net"
 	"net/http"
 	"net/url"
@@ -15,7 +16,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/argo-cd/util/healthz"
+	"github.com/argoproj/argo-cd/util/swagger"
+	"github.com/argoproj/argo-cd/util/webhook"
+
 	"github.com/dgrijalva/jwt-go"
+	rediscache "github.com/go-redis/cache"
+	"github.com/go-redis/redis"
 	golang_proto "github.com/golang/protobuf/proto"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
@@ -23,7 +30,6 @@ import (
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
 	"github.com/soheilhy/cmux"
 	netCtx "golang.org/x/net/context"
@@ -65,6 +71,7 @@ import (
 	servercache "github.com/argoproj/argo-cd/server/cache"
 	"github.com/argoproj/argo-cd/server/certificate"
 	"github.com/argoproj/argo-cd/server/cluster"
+	"github.com/argoproj/argo-cd/server/metrics"
 	"github.com/argoproj/argo-cd/server/project"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/server/repocreds"
@@ -77,8 +84,8 @@ import (
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/dex"
 	dexutil "github.com/argoproj/argo-cd/util/dex"
+	"github.com/argoproj/argo-cd/util/env"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
-	"github.com/argoproj/argo-cd/util/healthz"
 	httputil "github.com/argoproj/argo-cd/util/http"
 	jsonutil "github.com/argoproj/argo-cd/util/json"
 	"github.com/argoproj/argo-cd/util/jwt/zjwt"
@@ -87,9 +94,11 @@ import (
 	"github.com/argoproj/argo-cd/util/rbac"
 	util_session "github.com/argoproj/argo-cd/util/session"
 	settings_util "github.com/argoproj/argo-cd/util/settings"
-	"github.com/argoproj/argo-cd/util/swagger"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
-	"github.com/argoproj/argo-cd/util/webhook"
+)
+
+const (
+	maxConcurrentLoginRequestsCountEnv = "ARGOCD_MAX_CONCURRENT_LOGIN_REQUESTS_COUNT"
 )
 
 var (
@@ -114,7 +123,13 @@ var backoff = wait.Backoff{
 var (
 	clientConstraint = fmt.Sprintf(">= %s", common.MinClientVersion)
 	baseHRefRegex    = regexp.MustCompile(`<base href="(.*)">`)
+	// limits number of concurrent login requests to prevent password brute forcing. If set to 0 then no limit is enforced.
+	maxConcurrentLoginRequestsCount = 50
 )
+
+func init() {
+	maxConcurrentLoginRequestsCount = env.ParseNumFromEnv(maxConcurrentLoginRequestsCountEnv, maxConcurrentLoginRequestsCount, 0, math.MaxInt32)
+}
 
 // ArgoCDServer is the API server for Argo CD
 type ArgoCDServer struct {
@@ -144,10 +159,12 @@ type ArgoCDServerOpts struct {
 	DexServerAddr       string
 	StaticAssetsDir     string
 	BaseHRef            string
+	RootPath            string
 	KubeClientset       kubernetes.Interface
 	AppClientset        appclientset.Interface
 	RepoClientset       repoapiclient.Clientset
 	Cache               *servercache.Cache
+	RedisClient         *redis.Client
 	TLSConfigCustomizer tlsutil.ConfigCustomizer
 	XFrameOptions       string
 }
@@ -177,7 +194,8 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 	errors.CheckError(err)
 	err = initializeDefaultProject(opts)
 	errors.CheckError(err)
-	sessionMgr := util_session.NewSessionManager(settingsMgr, opts.DexServerAddr)
+
+	sessionMgr := util_session.NewSessionManager(settingsMgr, opts.DexServerAddr, opts.Cache)
 
 	factory := appinformer.NewFilteredSharedInformerFactory(opts.AppClientset, 0, opts.Namespace, func(options *metav1.ListOptions) {})
 	projInformer := factory.Argoproj().V1alpha1().AppProjects().Informer()
@@ -219,12 +237,29 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
 	var httpS *http.Server
 	var httpsS *http.Server
 	if a.useTLS() {
-		httpS = newRedirectServer(port)
+		httpS = newRedirectServer(port, a.RootPath)
 		httpsS = a.newHTTPServer(ctx, port, grpcWebS)
 	} else {
 		httpS = a.newHTTPServer(ctx, port, grpcWebS)
 	}
-	metricsServ := newAPIServerMetricsServer(metricsPort)
+	if a.RootPath != "" {
+		httpS.Handler = withRootPath(httpS.Handler, a)
+
+		if httpsS != nil {
+			httpsS.Handler = withRootPath(httpsS.Handler, a)
+		}
+	}
+
+	metricsServ := metrics.NewMetricsServer(metricsPort)
+	if a.RedisClient != nil {
+		a.RedisClient.WrapProcess(func(oldProcess func(cmd redis.Cmder) error) func(cmd redis.Cmder) error {
+			return func(cmd redis.Cmder) error {
+				err := oldProcess(cmd)
+				metricsServ.IncRedisRequest(err != nil && err != rediscache.ErrCacheMiss)
+				return err
+			}
+		})
+	}
 
 	// Start listener
 	var conn net.Listener
@@ -469,11 +504,16 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	clusterService := cluster.NewServer(db, a.enf, a.Cache, kubectl)
 	repoService := repository.NewServer(a.RepoClientset, db, a.enf, a.Cache, a.settingsMgr)
 	repoCredsService := repocreds.NewServer(a.RepoClientset, db, a.enf, a.settingsMgr)
-	sessionService := session.NewServer(a.sessionMgr, a)
+	var loginRateLimiter func() (util.Closer, error)
+	if maxConcurrentLoginRequestsCount > 0 {
+		loginRateLimiter = session.NewLoginRateLimiter(
+			session.NewRedisStateStorage(a.ArgoCDServerOpts.RedisClient), maxConcurrentLoginRequestsCount)
+	}
+	sessionService := session.NewServer(a.sessionMgr, a, loginRateLimiter)
 	projectLock := util.NewKeyLock()
 	applicationService := application.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.appLister, a.RepoClientset, a.Cache, kubectl, db, a.enf, projectLock, a.settingsMgr)
 	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr)
-	settingsService := settings.NewServer(a.settingsMgr)
+	settingsService := settings.NewServer(a.settingsMgr, a)
 	accountService := account.NewServer(a.sessionMgr, a.settingsMgr, a.enf)
 	certificateService := certificate.NewServer(a.RepoClientset, db, a.enf)
 	versionpkg.RegisterVersionServiceServer(grpcS, &version.Server{})
@@ -495,7 +535,8 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 // TranslateGrpcCookieHeader conditionally sets a cookie on the response.
 func (a *ArgoCDServer) translateGrpcCookieHeader(ctx context.Context, w http.ResponseWriter, resp golang_proto.Message) error {
 	if sessionResp, ok := resp.(*sessionpkg.SessionResponse); ok {
-		flags := []string{"path=/", "SameSite=lax", "httpOnly"}
+		cookiePath := fmt.Sprintf("path=/%s", strings.TrimRight(strings.TrimLeft(a.ArgoCDServerOpts.RootPath, "/"), "/"))
+		flags := []string{cookiePath, "SameSite=lax", "httpOnly"}
 		if !a.Insecure {
 			flags = append(flags, "Secure")
 		}
@@ -514,6 +555,21 @@ func (a *ArgoCDServer) translateGrpcCookieHeader(ctx context.Context, w http.Res
 		w.Header().Set("Set-Cookie", cookie)
 	}
 	return nil
+}
+
+func withRootPath(handler http.Handler, a *ArgoCDServer) http.Handler {
+	// get rid of slashes
+	root := strings.TrimRight(strings.TrimLeft(a.RootPath, "/"), "/")
+
+	mux := http.NewServeMux()
+	mux.Handle("/"+root+"/", http.StripPrefix("/"+root, handler))
+
+	healthz.ServeHealthCheck(mux, func() error {
+		_, err := a.KubeClientset.(*kubernetes.Clientset).ServerVersion()
+		return err
+	})
+
+	return mux
 }
 
 // newHTTPServer returns the HTTP server to serve HTTP/HTTPS requests. This is implemented
@@ -574,7 +630,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	mustRegisterGWHandler(certificatepkg.RegisterCertificateServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 
 	// Swagger UI
-	swagger.ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui")
+	swagger.ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui", a.RootPath)
 	healthz.ServeHealthCheck(mux, func() error {
 		_, err := a.KubeClientset.(*kubernetes.Clientset).ServerVersion()
 		return err
@@ -616,11 +672,16 @@ func (a *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
 }
 
 // newRedirectServer returns an HTTP server which does a 307 redirect to the HTTPS server
-func newRedirectServer(port int) *http.Server {
+func newRedirectServer(port int, rootPath string) *http.Server {
+	addr := fmt.Sprintf("localhost:%d/%s", port, strings.TrimRight(strings.TrimLeft(rootPath, "/"), "/"))
 	return &http.Server{
-		Addr: fmt.Sprintf("localhost:%d", port),
+		Addr: addr,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			target := "https://" + req.Host + req.URL.Path
+			target := "https://" + req.Host
+			if rootPath != "" {
+				target += "/" + strings.TrimRight(strings.TrimLeft(rootPath, "/"), "/")
+			}
+			target += req.URL.Path
 			if len(req.URL.RawQuery) > 0 {
 				target += "?" + req.URL.RawQuery
 			}
@@ -685,16 +746,6 @@ func indexFilePath(srcPath string, baseHRef string) (string, error) {
 	}
 
 	return filePath, nil
-}
-
-// newAPIServerMetricsServer returns HTTP server which serves prometheus metrics on gRPC requests
-func newAPIServerMetricsServer(port int) *http.Server {
-	mux := http.NewServeMux()
-	mux.Handle("/metrics", promhttp.Handler())
-	return &http.Server{
-		Addr:    fmt.Sprintf("0.0.0.0:%d", port),
-		Handler: mux,
-	}
 }
 
 func fileExists(filename string) bool {

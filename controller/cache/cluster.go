@@ -18,13 +18,14 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic"
 
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/pager"
+
 	"github.com/argoproj/argo-cd/controller/metrics"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/health"
 	"github.com/argoproj/argo-cd/util/kube"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/tools/pager"
 )
 
 const (
@@ -75,7 +76,7 @@ func (c *clusterInfo) replaceResourceCache(gk schema.GroupKind, resourceVersion 
 			obj := &objs[i]
 			key := kube.GetResourceKey(&objs[i])
 			existingNode, exists := c.nodes[key]
-			c.onNodeUpdated(exists, existingNode, obj, key)
+			c.onNodeUpdated(exists, existingNode, obj)
 		}
 
 		// remove existing nodes that a no longer exist
@@ -129,6 +130,17 @@ func (c *clusterInfo) createObjInfo(un *unstructured.Unstructured, appInstanceLa
 			Kind:       kube.ServiceKind,
 			APIVersion: "v1",
 		})
+	}
+
+	// Special case for Operator Lifecycle Manager ClusterServiceVersion:
+	if un.GroupVersionKind().Group == "operators.coreos.com" && un.GetKind() == "ClusterServiceVersion" {
+		if un.GetAnnotations()["olm.operatorGroup"] != "" {
+			ownerRefs = append(ownerRefs, metav1.OwnerReference{
+				Name:       un.GetAnnotations()["olm.operatorGroup"],
+				Kind:       "OperatorGroup",
+				APIVersion: "operators.coreos.com/v1",
+			})
+		}
 	}
 
 	// edge case. Consider auto-created service account tokens as a child of service account objects
@@ -606,11 +618,11 @@ func (c *clusterInfo) processEvent(event watch.EventType, un *unstructured.Unstr
 			c.onNodeRemoved(key, existingNode)
 		}
 	} else if event != watch.Deleted {
-		c.onNodeUpdated(exists, existingNode, un, key)
+		c.onNodeUpdated(exists, existingNode, un)
 	}
 }
 
-func (c *clusterInfo) onNodeUpdated(exists bool, existingNode *node, un *unstructured.Unstructured, key kube.ResourceKey) {
+func (c *clusterInfo) onNodeUpdated(exists bool, existingNode *node, un *unstructured.Unstructured) {
 	nodes := make([]*node, 0)
 	if exists {
 		nodes = append(nodes, existingNode)

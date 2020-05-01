@@ -23,7 +23,7 @@ func TestSwaggerUI(t *testing.T) {
 		c <- listener.Addr().String()
 
 		mux := http.NewServeMux()
-		ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui")
+		ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui", "")
 		panic(http.Serve(listener, mux))
 	}
 

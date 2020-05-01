@@ -7,13 +7,15 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/argoproj/argo-cd/pkg/apiclient/session"
+	"github.com/argoproj/argo-cd/util"
 	sessionmgr "github.com/argoproj/argo-cd/util/session"
 )
 
 // Server provides a Session service
 type Server struct {
-	mgr           *sessionmgr.SessionManager
-	authenticator Authenticator
+	mgr                *sessionmgr.SessionManager
+	authenticator      Authenticator
+	limitLoginAttempts func() (util.Closer, error)
 }
 
 type Authenticator interface {
@@ -21,13 +23,21 @@ type Authenticator interface {
 }
 
 // NewServer returns a new instance of the Session service
-func NewServer(mgr *sessionmgr.SessionManager, authenticator Authenticator) *Server {
-	return &Server{mgr, authenticator}
+func NewServer(mgr *sessionmgr.SessionManager, authenticator Authenticator, rateLimiter func() (util.Closer, error)) *Server {
+	return &Server{mgr, authenticator, rateLimiter}
 }
 
 // Create generates a JWT token signed by Argo CD intended for web/CLI logins of the admin user
 // using username/password
 func (s *Server) Create(_ context.Context, q *session.SessionCreateRequest) (*session.SessionResponse, error) {
+	if s.limitLoginAttempts != nil {
+		closer, err := s.limitLoginAttempts()
+		if err != nil {
+			return nil, err
+		}
+		defer util.Close(closer)
+	}
+
 	if q.Token != "" {
 		return nil, status.Errorf(codes.Unauthenticated, "token-based session creation no longer supported. please upgrade argocd cli to v0.7+")
 	}
