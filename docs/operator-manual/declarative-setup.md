@@ -14,6 +14,9 @@ Argo CD applications, projects and settings can be defined declaratively using K
 | [`application.yaml`](application.yaml) | Application | Example application spec |
 | [`project.yaml`](project.yaml) | AppProject | Example project spec |
 
+!!!warning "A note about ConfigMap resources"
+    Be sure to annotate your ConfigMap resources using the label `app.kubernetes.io/part-of: argocd`, otherwise ArgoCD will not be able to use them.
+
 ## Applications
 
 The Application CRD is the Kubernetes resource object representing a deployed application instance
