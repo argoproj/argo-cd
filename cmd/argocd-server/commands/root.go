@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/argoproj/argo-cd/controller/metrics"
+
 	"github.com/argoproj/pkg/stats"
 	"github.com/go-redis/redis"
 	"github.com/spf13/cobra"
@@ -62,6 +64,8 @@ func NewCommand() *cobra.Command {
 			errors.CheckError(err)
 			cache, err := cacheSrc()
 			errors.CheckError(err)
+
+			config = metrics.AddFailureRetryWrapper(config)
 
 			kubeclientset := kubernetes.NewForConfigOrDie(config)
 			appclientset := appclientset.NewForConfigOrDie(config)
