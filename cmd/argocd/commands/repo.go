@@ -32,6 +32,7 @@ func NewRepoCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	}
 
 	command.AddCommand(NewRepoAddCommand(clientOpts))
+	command.AddCommand(NewRepoGetCommand(clientOpts))
 	command.AddCommand(NewRepoListCommand(clientOpts))
 	command.AddCommand(NewRepoRemoveCommand(clientOpts))
 	return command
@@ -264,6 +265,55 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				// wide is the default
 			case "wide", "":
 				printRepoTable(repos.Items)
+			default:
+				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
+			}
+		},
+	}
+	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|url")
+	command.Flags().StringVar(&refresh, "refresh", "", "Force a cache refresh on connection status")
+	return command
+}
+
+// NewRepoGetCommand returns a new instance of an `argocd repo rm` command
+func NewRepoGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var (
+		output  string
+		refresh string
+	)
+	var command = &cobra.Command{
+		Use:   "get",
+		Short: "Get a configured repository by URL",
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 1 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+
+			// Repository URL
+			repoURL := args[0]
+			conn, repoIf := argocdclient.NewClientOrDie(clientOpts).NewRepoClientOrDie()
+			defer util.Close(conn)
+			forceRefresh := false
+			switch refresh {
+			case "":
+			case "hard":
+				forceRefresh = true
+			default:
+				err := fmt.Errorf("--refresh must be one of: 'hard'")
+				errors.CheckError(err)
+			}
+			repo, err := repoIf.Get(context.Background(), &repositorypkg.RepoQuery{Repo: repoURL, ForceRefresh: forceRefresh})
+			errors.CheckError(err)
+			switch output {
+			case "yaml", "json":
+				err := PrintResource(repo, output)
+				errors.CheckError(err)
+			case "url":
+				fmt.Println(repo.Repo)
+				// wide is the default
+			case "wide", "":
+				printRepoTable(appsv1.Repositories{repo})
 			default:
 				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 			}

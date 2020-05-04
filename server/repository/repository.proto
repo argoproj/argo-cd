@@ -91,6 +91,11 @@ service RepositoryService {
 		option deprecated = true;
 	}
 
+		// Get returns a repository or its credentials
+	rpc Get(RepoQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository) {
+		option (google.api.http).get = "/api/v1/repositories/{repo}";
+	}
+
 	// ListRepositories gets a list of all configured repositories
 	rpc ListRepositories(RepoQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.RepositoryList) {
 		option (google.api.http).get = "/api/v1/repositories";
