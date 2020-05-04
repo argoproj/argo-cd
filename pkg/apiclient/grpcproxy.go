@@ -56,7 +56,15 @@ func (c *client) executeRequest(fullMethodName string, msg []byte, md metadata.M
 		schema = "http"
 	}
 	rootPath := strings.TrimRight(strings.TrimLeft(c.GRPCWebRootPath, "/"), "/")
-	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s://%s/%s%s", schema, c.ServerAddr, rootPath, fullMethodName), bytes.NewReader(toFrame(msg)))
+
+	var requestURL string
+	if rootPath != "" {
+		requestURL = fmt.Sprintf("%s://%s/%s%s", schema, c.ServerAddr, rootPath, fullMethodName)
+	} else {
+		requestURL = fmt.Sprintf("%s://%s%s", schema, c.ServerAddr, fullMethodName)
+	}
+	req, err := http.NewRequest(http.MethodPost, requestURL, bytes.NewReader(toFrame(msg)))
+
 	if err != nil {
 		return nil, err
 	}
