@@ -85,6 +85,36 @@ func (s *Server) List(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.
 	return s.ListRepositories(ctx, q)
 }
 
+// Get return the requested configured repository by URL and the state of its connections.
+func (s *Server) Get(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.Repository, error) {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, q.Repo); err != nil {
+		return nil, err
+	}
+
+	repo, err := s.db.GetRepository(ctx, q.Repo)
+	if err != nil {
+		return nil, err
+	}
+	// For backwards compatibility, if we have no repo type set assume a default
+	rType := repo.Type
+	if rType == "" {
+		rType = common.DefaultRepoType
+	}
+	// remove secrets
+	item := appsv1.Repository{
+		Repo:      repo.Repo,
+		Type:      rType,
+		Name:      repo.Name,
+		Username:  repo.Username,
+		Insecure:  repo.IsInsecure(),
+		EnableLFS: repo.EnableLFS,
+	}
+
+	item.ConnectionState = s.getConnectionState(ctx, item.Repo, q.ForceRefresh)
+
+	return &item, nil
+}
+
 // ListRepositories returns a list of all configured repositories and the state of their connections
 func (s *Server) ListRepositories(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.RepositoryList, error) {
 	repos, err := s.db.ListRepositories(ctx)

@@ -56,6 +56,7 @@ var (
 // NewCommand returns a new instance of an argocd command
 func NewCommand() *cobra.Command {
 	var (
+		logFormat string
 		logLevel string
 	)
 
@@ -76,6 +77,7 @@ func NewCommand() *cobra.Command {
 	command.AddCommand(commands.NewProjectsCommand())
 	command.AddCommand(commands.NewSettingsCommand())
 
+	command.Flags().StringVar(&logFormat, "logformat", "text", "Set the logging format. One of: text|json")
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	return command
 }

@@ -27,31 +27,33 @@ import (
 // NewCommand returns a new instance of an argocd command
 func NewCommand() *cobra.Command {
 	var (
-		redisClient               *redis.Client
-		insecure                  bool
-		listenPort                int
-		metricsPort               int
-		logLevel                  string
-		glogLevel                 int
-		clientConfig              clientcmd.ClientConfig
-		repoServerTimeoutSeconds  int
-		staticAssetsDir           string
-		baseHRef                  string
-		rootPath                  string
-		repoServerAddress         string
-		dexServerAddress          string
-		disableAuth               bool
-		tlsConfigCustomizerSrc    func() (tls.ConfigCustomizer, error)
-		cacheSrc                  func() (*servercache.Cache, error)
-		frameOptions              string
+		redisClient              *redis.Client
+		insecure                 bool
+		listenPort               int
+		metricsPort              int
+		logFormat                string
+		logLevel                 string
+		glogLevel                int
+		clientConfig             clientcmd.ClientConfig
+		repoServerTimeoutSeconds int
+		staticAssetsDir          string
+		baseHRef                 string
+		rootPath                 string
+		repoServerAddress        string
+		dexServerAddress         string
+		disableAuth              bool
+		tlsConfigCustomizerSrc   func() (tls.ConfigCustomizer, error)
+		cacheSrc                 func() (*servercache.Cache, error)
+		frameOptions             string
 		failureRetryCount         int
-		failureRetryPeriodSeconds int
+		failureRetryPeriodSeconds
 	)
 	var command = &cobra.Command{
 		Use:   cliName,
 		Short: "Run the argocd API server",
 		Long:  "Run the argocd API server",
 		Run: func(c *cobra.Command, args []string) {
+			cli.SetLogFormat(logFormat)
 			cli.SetLogLevel(logLevel)
 			cli.SetGLogLevel(glogLevel)
 
@@ -120,6 +122,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&staticAssetsDir, "staticassets", "", "Static assets directory path")
 	command.Flags().StringVar(&baseHRef, "basehref", "/", "Value for base href in index.html. Used if Argo CD is running behind reverse proxy under subpath different from /")
 	command.Flags().StringVar(&rootPath, "rootpath", "", "Used if Argo CD is running behind reverse proxy under subpath different from /")
+	command.Flags().StringVar(&logFormat, "logformat", "text", "Set the logging format. One of: text|json")
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().IntVar(&glogLevel, "gloglevel", 0, "Set the glog logging level")
 	command.Flags().StringVar(&repoServerAddress, "repo-server", common.DefaultRepoServerAddr, "Repo server address")
