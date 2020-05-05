@@ -167,6 +167,7 @@ type ArgoCDServerOpts struct {
 	RedisClient         *redis.Client
 	TLSConfigCustomizer tlsutil.ConfigCustomizer
 	XFrameOptions       string
+	FailureRetryCount   int
 }
 
 // initializeDefaultProject creates the default project if it does not already exist

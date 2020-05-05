@@ -27,23 +27,25 @@ import (
 // NewCommand returns a new instance of an argocd command
 func NewCommand() *cobra.Command {
 	var (
-		redisClient              *redis.Client
-		insecure                 bool
-		listenPort               int
-		metricsPort              int
-		logLevel                 string
-		glogLevel                int
-		clientConfig             clientcmd.ClientConfig
-		repoServerTimeoutSeconds int
-		staticAssetsDir          string
-		baseHRef                 string
-		rootPath                 string
-		repoServerAddress        string
-		dexServerAddress         string
-		disableAuth              bool
-		tlsConfigCustomizerSrc   func() (tls.ConfigCustomizer, error)
-		cacheSrc                 func() (*servercache.Cache, error)
-		frameOptions             string
+		redisClient               *redis.Client
+		insecure                  bool
+		listenPort                int
+		metricsPort               int
+		logLevel                  string
+		glogLevel                 int
+		clientConfig              clientcmd.ClientConfig
+		repoServerTimeoutSeconds  int
+		staticAssetsDir           string
+		baseHRef                  string
+		rootPath                  string
+		repoServerAddress         string
+		dexServerAddress          string
+		disableAuth               bool
+		tlsConfigCustomizerSrc    func() (tls.ConfigCustomizer, error)
+		cacheSrc                  func() (*servercache.Cache, error)
+		frameOptions              string
+		failureRetryCount         int
+		failureRetryPeriodSeconds int
 	)
 	var command = &cobra.Command{
 		Use:   cliName,
@@ -65,7 +67,9 @@ func NewCommand() *cobra.Command {
 			cache, err := cacheSrc()
 			errors.CheckError(err)
 
-			config = metrics.AddFailureRetryWrapper(config)
+			if failureRetryCount > 0 {
+				config = metrics.AddFailureRetryWrapper(config, failureRetryCount, failureRetryPeriodSeconds)
+			}
 
 			kubeclientset := kubernetes.NewForConfigOrDie(config)
 			appclientset := appclientset.NewForConfigOrDie(config)
@@ -126,6 +130,8 @@ func NewCommand() *cobra.Command {
 	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortArgoCDAPIServerMetrics, "Start metrics on given port")
 	command.Flags().IntVar(&repoServerTimeoutSeconds, "repo-server-timeout-seconds", 60, "Repo server RPC call timeout seconds.")
 	command.Flags().StringVar(&frameOptions, "x-frame-options", "sameorigin", "Set X-Frame-Options header in HTTP responses to `value`. To disable, set to \"\".")
+	command.Flags().IntVar(&failureRetryCount, "failure-retry-count", 0, "Number of failure retry attemps.")
+	command.Flags().IntVar(&failureRetryPeriodSeconds, "failure-retry-period-seconds", 1, "Failure retry period seconds.")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(command)
 	cacheSrc = servercache.AddCacheFlagsToCmd(command, func(client *redis.Client) {
 		redisClient = client
