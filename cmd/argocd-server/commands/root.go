@@ -27,26 +27,26 @@ import (
 // NewCommand returns a new instance of an argocd command
 func NewCommand() *cobra.Command {
 	var (
-		redisClient              *redis.Client
-		insecure                 bool
-		listenPort               int
-		metricsPort              int
-		logFormat                string
-		logLevel                 string
-		glogLevel                int
-		clientConfig             clientcmd.ClientConfig
-		repoServerTimeoutSeconds int
-		staticAssetsDir          string
-		baseHRef                 string
-		rootPath                 string
-		repoServerAddress        string
-		dexServerAddress         string
-		disableAuth              bool
-		tlsConfigCustomizerSrc   func() (tls.ConfigCustomizer, error)
-		cacheSrc                 func() (*servercache.Cache, error)
-		frameOptions             string
+		redisClient               *redis.Client
+		insecure                  bool
+		listenPort                int
+		metricsPort               int
+		logFormat                 string
+		logLevel                  string
+		glogLevel                 int
+		clientConfig              clientcmd.ClientConfig
+		repoServerTimeoutSeconds  int
+		staticAssetsDir           string
+		baseHRef                  string
+		rootPath                  string
+		repoServerAddress         string
+		dexServerAddress          string
+		disableAuth               bool
+		tlsConfigCustomizerSrc    func() (tls.ConfigCustomizer, error)
+		cacheSrc                  func() (*servercache.Cache, error)
+		frameOptions              string
 		failureRetryCount         int
-		failureRetryPeriodSeconds
+		failureRetryPeriodSeconds int
 	)
 	var command = &cobra.Command{
 		Use:   cliName,
