@@ -1453,8 +1453,8 @@
                 <h1 id="running-argocd-locally">Running ArgoCD locally<a class="headerlink" href="#running-argocd-locally" title="Permanent link">&para;</a></h1>
 <h2 id="run-argocd-outside-of-kubernetes">Run ArgoCD outside of Kubernetes<a class="headerlink" href="#run-argocd-outside-of-kubernetes" title="Permanent link">&para;</a></h2>
 <p>During development, it might be viable to run ArgoCD outside of a Kubernetes cluster. This will greatly speed up development, as you don't have to constantly build, push and install new ArgoCD Docker images with your latest changes.</p>
-<p>You will still need a working Kubernetes cluster, as described in the <a href="Contribution Guide">contributing.md</a>, where ArgoCD will store all of its resources.</p>
-<p>If you followed the <a href="Contribution Guide">contributing.md</a> in setting up your toolchain, you can run ArgoCD locally with these simple steps:</p>
+<p>You will still need a working Kubernetes cluster, as described in the <a href="../contributing/">Contribution Guide</a>, where ArgoCD will store all of its resources.</p>
+<p>If you followed the <a href="../contributing/">Contribution Guide</a> in setting up your toolchain, you can run ArgoCD locally with these simple steps:</p>
 <h3 id="scale-down-any-argocd-instance-in-your-cluster">Scale down any ArgoCD instance in your cluster<a class="headerlink" href="#scale-down-any-argocd-instance-in-your-cluster" title="Permanent link">&para;</a></h3>
 <p>First make sure that ArgoCD is not running in your development cluster by scaling down the deployments:</p>
 <div class="codehilite"><pre><span></span><code>kubectl -n argocd scale deployment/argocd-application-controller --replicas <span class="m">0</span>
