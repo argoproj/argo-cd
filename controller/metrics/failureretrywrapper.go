@@ -43,13 +43,11 @@ func shouldRetry(counter int, r *http.Request, response *http.Response, err erro
 		switch err.(type) {
 		case *os.SyscallError:
 			newErr, _ := err.(*os.SyscallError)
-			log.Println("SyscallError")
 			if newErr.Timeout() {
 				return true
 			}
 		case *net.OpError:
 			newErr, _ := err.(*net.OpError)
-			log.Println("OpError")
 			if newErr.Timeout() {
 				return true
 			}
@@ -58,7 +56,6 @@ func shouldRetry(counter int, r *http.Request, response *http.Response, err erro
 		}
 	}
 	if response != nil && (response.StatusCode == 504 || response.StatusCode == 503) {
-		log.Debug("failureRetryRoundTripper: retry")
 		return true
 	}
 
