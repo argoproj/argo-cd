@@ -27,6 +27,7 @@ const (
 
 func newCommand() *cobra.Command {
 	var (
+		logFormat              string
 		logLevel               string
 		parallelismLimit       int64
 		listenPort             int
@@ -38,6 +39,7 @@ func newCommand() *cobra.Command {
 		Use:   cliName,
 		Short: "Run argocd-repo-server",
 		RunE: func(c *cobra.Command, args []string) error {
+			cli.SetLogFormat(logFormat)
 			cli.SetLogLevel(logLevel)
 
 			tlsConfigCustomizer, err := tlsConfigCustomizerSrc()
@@ -67,6 +69,7 @@ func newCommand() *cobra.Command {
 		},
 	}
 
+	command.Flags().StringVar(&logFormat, "logformat", "text", "Set the logging format. One of: text|json")
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().Int64Var(&parallelismLimit, "parallelismlimit", 0, "Limit on number of concurrent manifests generate requests. Any value less the 1 means no limit.")
 	command.Flags().IntVar(&listenPort, "port", common.DefaultPortRepoServer, "Listen on given port for incoming connections")
