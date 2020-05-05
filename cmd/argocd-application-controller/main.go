@@ -47,6 +47,7 @@ func newCommand() *cobra.Command {
 		selfHealTimeoutSeconds   int
 		statusProcessors         int
 		operationProcessors      int
+		logFormat                string
 		logLevel                 string
 		glogLevel                int
 		metricsPort              int
@@ -58,6 +59,7 @@ func newCommand() *cobra.Command {
 		Use:   cliName,
 		Short: "application-controller is a controller to operate on applications CRD",
 		RunE: func(c *cobra.Command, args []string) error {
+			cli.SetLogFormat(logFormat)
 			cli.SetLogLevel(logLevel)
 			cli.SetGLogLevel(glogLevel)
 
@@ -122,6 +124,7 @@ func newCommand() *cobra.Command {
 	command.Flags().IntVar(&repoServerTimeoutSeconds, "repo-server-timeout-seconds", 60, "Repo server RPC call timeout seconds.")
 	command.Flags().IntVar(&statusProcessors, "status-processors", 1, "Number of application status processors")
 	command.Flags().IntVar(&operationProcessors, "operation-processors", 1, "Number of application operation processors")
+	command.Flags().StringVar(&logFormat, "logformat", "text", "Set the logging format. One of: text|json")
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().IntVar(&glogLevel, "gloglevel", 0, "Set the glog logging level")
 	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortArgoCDMetrics, "Start metrics server on given port")
