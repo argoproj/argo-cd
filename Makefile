@@ -237,6 +237,12 @@ image:
 endif
 	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argocd:$(IMAGE_TAG) ; fi
 
+.PHONY: armimage
+# The "BUILD_ALL_CLIS" argument is to skip building the CLIs for darwin and windows
+# which would take a really long time.
+armimage:
+	docker build -t $(IMAGE_PREFIX)argocd:$(IMAGE_TAG)-arm . --build-arg BUILD_ALL_CLIS="false"
+
 .PHONY: builder-image
 builder-image:
 	docker build  -t $(IMAGE_PREFIX)argo-cd-ci-builder:$(IMAGE_TAG) --target builder .
