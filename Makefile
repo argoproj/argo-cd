@@ -8,7 +8,8 @@ BUILD_DATE=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
 GIT_COMMIT=$(shell git rev-parse HEAD)
 GIT_TAG=$(shell if [ -z "`git status --porcelain`" ]; then git describe --exact-match --tags HEAD 2>/dev/null; fi)
 GIT_TREE_STATE=$(shell if [ -z "`git status --porcelain`" ]; then echo "clean" ; else echo "dirty"; fi)
-PACKR_CMD=$(shell if [ "`which packr`" ]; then echo "packr"; else echo "go run vendor/github.com/gobuffalo/packr/packr/main.go"; fi)
+PACKR_VERSION=$(shell go list -m github.com/gobuffalo/packr | awk '{print $2}' | head -1)
+PACKR_CMD=$(shell if [ "`which packr`" ]; then echo "packr"; else echo go run "$(GOPATH)/pkg/mod/github.com/gobuffalo/packr@${PACKR_VERSION}/packr/main.go"; fi)
 VOLUME_MOUNT=$(shell if test "$(go env GOOS)"=="darwin"; then echo ":delegated"; elif test selinuxenabled; then echo ":Z"; else echo ""; fi)
 
 GOPATH?=$(shell if test -x `which go`; then go env GOPATH; else echo "$(HOME)/go"; fi)
@@ -87,6 +88,17 @@ define exec-in-test-server
 	docker exec -it -u $(shell id -u) -e ARGOCD_E2E_K3S=$(ARGOCD_E2E_K3S) argocd-test-server $(1)
 endef
 
+define backup_go_mod
+	# Back-up go.*, but only if we have not already done this (because that would suggest we failed mid-codegen and the currenty go.* files are borked).
+	@mkdir -p dist
+	[ -e dist/go.mod ] || cp go.mod go.sum dist/
+endef
+
+define restore_go_mod
+	# Restore the back-ups.
+	mv dist/go.mod dist/go.sum .
+endef
+
 PATH:=$(PATH):$(PWD)/hack
 
 # docker image publishing options
@@ -127,24 +139,16 @@ endif
 .PHONY: all
 all: cli image argocd-util
 
-.PHONY: gogen
-gogen:
-	go generate ./util/argo/...
-
-.PHONY: protogen
-protogen:
-	./hack/generate-proto.sh
-
-.PHONY: openapigen
-openapigen:
-	./hack/update-openapi.sh
-
-.PHONY: clientgen
-clientgen:
-	./hack/update-codegen.sh
-
 .PHONY: codegen-local
-codegen-local: gogen protogen clientgen openapigen manifests-local
+codegen-local:
+	$(call backup_go_mod)
+	go mod vendor
+	go generate ./util/argo/...
+	./hack/generate-proto.sh
+	./hack/update-openapi.sh
+	./hack/update-codegen.sh
+	$(call manifests-local)
+	$(call restore_go_mod)
 
 .PHONY: codegen
 codegen:
@@ -205,7 +209,7 @@ controller:
 
 .PHONY: packr
 packr:
-	go build -o ${DIST_DIR}/packr ./vendor/github.com/gobuffalo/packr/packr/
+	go build -o ${DIST_DIR}/packr ${GOPATH}/pkg/mod/github.com/gobuffalo/packr@${PACKR_VERSION}/packr
 
 .PHONY: image
 ifeq ($(DEV_IMAGE), true)

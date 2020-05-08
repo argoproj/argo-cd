@@ -101,6 +101,7 @@ jobs:
       - prepare_environment
       - checkout
       - restore_go_modules
+      - run: go mod download
       - run: make build-local
       - run: chmod -R 777 ${GOCACHE}
       - save_go_modules
@@ -114,6 +115,7 @@ jobs:
       - prepare_environment
       - checkout
       - restore_go_modules
+      - run: go mod download
       - run: helm2 init --client-only
       - run: make codegen-local
       - run:
@@ -137,6 +139,7 @@ jobs:
       - checkout
       - configure_git
       - restore_go_modules
+      - run: go mod download
       - restore_go_cache_docker
       - run: make test-local
       - run:
@@ -163,6 +166,7 @@ jobs:
       - checkout
       - configure_git
       - restore_go_modules
+      - run: go mod download
       - restore_go_cache_docker
       - run:
           name: Run golangci-lint
