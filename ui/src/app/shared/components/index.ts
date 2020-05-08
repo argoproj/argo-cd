@@ -21,3 +21,4 @@ export * from './progress/progress-popup';
 export * from './repo';
 export * from './revision';
 export * from './timestamp';
+export * from './spinner';
