@@ -1486,8 +1486,8 @@ no fix yet.</p>
 <td><a href="https://nvd.nist.gov/vuln/detail/CVE-2020-8827">CVE-2020-8827</a></td>
 <td>Insufficient anti-automation/anti-brute force</td>
 <td>High</td>
-<td>all</td>
-<td>n/a</td>
+<td>all &lt;= 1.5.3</td>
+<td>v1.5.3</td>
 </tr>
 <tr>
 <td>2020-04-08</td>
@@ -1625,10 +1625,10 @@ or at least changed to a more secure password.</p>
 </tbody>
 </table>
 <p><strong>Details:</strong></p>
-<p>Argo CD does not enforce rate-limiting or other anti-automation mechanisms which would mitigate admin password brute force.</p>
-<p>We are considering some simple options for rate-limiting.</p>
+<p>ArgoCD before v1.5.3 does not enforce rate-limiting or other anti-automation mechanisms which would mitigate admin password brute force.</p>
 <p><strong>Mitigation and/or workaround:</strong></p>
-<p>As a workaround for mitigation until a fix is available, we recommend to disable local users and use SSO instead.</p>
+<p>Rate-limiting and anti-automation mechanisms for local user accounts have been introduced with ArgoCD v1.5.3.</p>
+<p>As a workaround for mitigation if you cannot upgrade ArgoCD to v1.5.3 yet, we recommend to disable local users and use SSO instead.</p>
 <h3 id="cve-2020-8826-session-fixation">CVE-2020-8826 - Session-fixation<a class="headerlink" href="#cve-2020-8826-session-fixation" title="Permanent link">&para;</a></h3>
 <p><strong>Summary:</strong></p>
 <table>
