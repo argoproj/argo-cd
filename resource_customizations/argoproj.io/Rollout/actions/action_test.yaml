@@ -26,3 +26,6 @@ actionTests:
 - action: resume
   inputPath: testdata/has_pause_condition_rollout.yaml
   expectedOutputPath: testdata/no_pause_condition_rollout.yaml
+- action: restart
+  inputPath: testdata/rollout_not_restarted.yaml
+  expectedOutputPath: testdata/rollout_restarted.yaml
