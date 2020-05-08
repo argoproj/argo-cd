@@ -249,6 +249,10 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
 			httpsS.Handler = withRootPath(httpsS.Handler, a)
 		}
 	}
+	httpS.Handler = &bug21955Workaround{handler: httpS.Handler}
+	if httpsS != nil {
+		httpsS.Handler = &bug21955Workaround{handler: httpsS.Handler}
+	}
 
 	metricsServ := metrics.NewMetricsServer(metricsPort)
 	if a.RedisClient != nil {
@@ -580,7 +584,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	httpS := http.Server{
 		Addr: endpoint,
 		Handler: &handlerSwitcher{
-			handler: &bug21955Workaround{handler: mux},
+			handler: mux,
 			urlToHandler: map[string]http.Handler{
 				"/api/badge": badge.NewHandler(a.AppClientset, a.settingsMgr, a.Namespace),
 			},
