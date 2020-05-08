@@ -1552,7 +1552,8 @@
 <table>
 <thead>
 <tr>
-<th>Name</th>
+<th>File Name</th>
+<th>Resource Name</th>
 <th>Kind</th>
 <th>Description</th>
 </tr>
@@ -1560,41 +1561,53 @@
 <tbody>
 <tr>
 <td><a href="../argocd-cm.yaml"><code>argocd-cm.yaml</code></a></td>
+<td>argocd-cm</td>
 <td>ConfigMap</td>
 <td>General Argo CD configuration</td>
 </tr>
 <tr>
 <td><a href="../argocd-secret.yaml"><code>argocd-secret.yaml</code></a></td>
+<td>argocd-secret</td>
 <td>Secret</td>
 <td>Password, Certificates, Signing Key</td>
 </tr>
 <tr>
 <td><a href="../argocd-rbac-cm.yaml"><code>argocd-rbac-cm.yaml</code></a></td>
+<td>argocd-rbac-cm</td>
 <td>ConfigMap</td>
 <td>RBAC Configuration</td>
 </tr>
 <tr>
 <td><a href="../argocd-tls-certs-cm.yaml"><code>argocd-tls-certs-cm.yaml</code></a></td>
+<td>argocd-tls-certs-cm</td>
 <td>ConfigMap</td>
 <td>Custom TLS certificates for connecting Git repositories via HTTPS (v1.2 and later)</td>
 </tr>
 <tr>
 <td><a href="../argocd-ssh-known-hosts-cm.yaml"><code>argocd-ssh-known-hosts-cm.yaml</code></a></td>
+<td>argocd-ssh-known-hosts-cm</td>
 <td>ConfigMap</td>
 <td>SSH known hosts data for connecting Git repositories via SSH (v1.2 and later)</td>
 </tr>
 <tr>
 <td><a href="../application.yaml"><code>application.yaml</code></a></td>
+<td>-</td>
 <td>Application</td>
 <td>Example application spec</td>
 </tr>
 <tr>
 <td><a href="../project.yaml"><code>project.yaml</code></a></td>
+<td>-</td>
 <td>AppProject</td>
 <td>Example project spec</td>
 </tr>
 </tbody>
 </table>
+<p>All resources, including <code>Application</code> and <code>AppProject</code> specs, have to be installed in the ArgoCD namespace (by default <code>argocd</code>). Also, ConfigMap and Secret resources need to be named as shown in the table above. For <code>Application</code> and <code>AppProject</code> resources, the name of the resource equals the name of the application or project within ArgoCD. This also means that application and project names are unique within the same ArgoCD installation - you cannot i.e. have the same application name for two different applications.</p>
+<div class="admonition warning">
+<p class="admonition-title">A note about ConfigMap resources</p>
+<p>Be sure to annotate your ConfigMap resources using the label <code>app.kubernetes.io/part-of: argocd</code>, otherwise ArgoCD will not be able to use them.</p>
+</div>
 <h2 id="applications">Applications<a class="headerlink" href="#applications" title="Permanent link">&para;</a></h2>
 <p>The Application CRD is the Kubernetes resource object representing a deployed application instance
 in an environment. It is defined by two key pieces of information:</p>
