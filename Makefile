@@ -236,36 +236,6 @@ builder-image:
 	docker build  -t $(IMAGE_PREFIX)argo-cd-ci-builder:$(IMAGE_TAG) --target builder .
 	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argo-cd-ci-builder:$(IMAGE_TAG) ; fi
 
-# Pulls in all vendor dependencies
-.PHONY: dep
-dep:
-	$(call run-in-test-client,dep ensure -v)
-
-# Pulls in all vendor dependencies (local version)
-.PHONY: dep-local
-dep-local:
-	dep ensure -v
-
-# Pulls in all unvendored dependencies
-.PHONY: dep-ensure
-dep-ensure:
-	$(call run-in-test-client,dep ensure -no-vendor -v)
-
-# Pulls in all unvendored dependencies (local version)
-.PHONY: dep-ensure-local
-dep-ensure-local:
-	dep ensure -no-vendor
-
-# Runs dep check in a container to ensure Gopkg.lock is up-to-date with dependencies
-.PHONY: dep-check
-dep-check:
-	$(call run-in-test-client,make dep-check-local)
-
-# Runs dep check locally to ensure Gopkg.lock is up-to-date with dependencies
-.PHONY: dep-check-local
-dep-check-local:
-	if ! dep check -skip-vendor; then echo "Please make sure Gopkg.lock is up-to-date - see https://argoproj.github.io/argo-cd/developer-guide/faq/#why-does-the-build-step-fail"; exit 1; fi
-
 # Deprecated - replace by install-local-tools
 .PHONY: install-lint-tools
 install-lint-tools:
@@ -390,11 +360,11 @@ start-local:
 
 # Runs pre-commit validaiton with the virtualized toolchain
 .PHONY: pre-commit
-pre-commit: dep-ensure codegen build lint test
+pre-commit: codegen build lint test
 
 # Runs pre-commit validation with the local toolchain
 .PHONY: pre-commit-local
-pre-commit-local: dep-ensure-local codegen-local build-local lint-local test-local
+pre-commit-local: codegen-local build-local lint-local test-local
 
 .PHONY: release-precheck
 release-precheck: manifests
@@ -438,7 +408,6 @@ show-go-version:
 # Installs all tools required to build and test ArgoCD locally
 .PHONY: install-tools-local
 install-tools-local:
-	./hack/install.sh dep-linux
 	./hack/install.sh packr-linux
 	./hack/install.sh kubectl-linux
 	./hack/install.sh ksonnet-linux

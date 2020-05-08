@@ -21,23 +21,23 @@ commands:
             git config --global user.name "Your Name"
             echo "export PATH=/home/circleci/.go_workspace/src/github.com/argoproj/argo-cd/hack:\$PATH" | tee -a $BASH_ENV
             echo "export GIT_ASKPASS=git-ask-pass.sh" | tee -a $BASH_ENV
-  restore_vendor:
+  restore_go_modules:
     steps:
       - restore_cache:
-          name: Restore vendor cache
+          name: Restore go modules cache
           keys:
-            - vendor-v2-{{ checksum "Gopkg.lock" }}
-  save_vendor:
+            - go-modules-{{ checksum "go.sum" }}
+  save_go_modules:
     steps:
       - save_cache:
-          name: Save vendor cache
-          key: vendor-v2-{{ checksum "Gopkg.lock" }}
+          name: Save go modules cache
+          key: go-modules-{{ checksum "go.sum" }}
           paths:
-            - ./vendor
+            - /go/pkg/mod
       - persist_to_workspace:
-          root: .
+          root: /go
           paths:
-            - vendor
+            - pkg/mod
   save_coverage_info:
     steps:
       - persist_to_workspace:
@@ -50,10 +50,10 @@ commands:
           root: ~/argo-cd
           paths:
             - ui/node_modules
-  attach_vendor:
+  attach_go_modules:
     steps:
       - attach_workspace:
-          at: .
+          at: /home/circleci/.go_workspace
   install_golang:
     steps:
       - run:
@@ -100,17 +100,10 @@ jobs:
     steps:
       - prepare_environment
       - checkout
-      - restore_vendor
-      - run:
-          name: Ensuring Gopkg.lock is up-to-date
-          command: make dep-check-local
-      - run:
-          name: Syncing vendor dependencies
-          command: dep ensure -v
+      - restore_go_modules
       - run: make build-local
-      - run: chmod -R 777 vendor
       - run: chmod -R 777 ${GOCACHE}
-      - save_vendor
+      - save_go_modules
       - save_go_cache_docker
 
   codegen:
@@ -120,7 +113,7 @@ jobs:
     steps:
       - prepare_environment
       - checkout
-      - restore_vendor
+      - restore_go_modules
       - run: helm2 init --client-only
       - run: make codegen-local
       - run:
@@ -131,7 +124,7 @@ jobs:
             # We exclude the Swagger resources; CircleCI doesn't generate them correctly.
             # When this fails, it will, create a patch file you can apply locally to fix it.
             # To troubleshoot builds: https://argoproj.github.io/argo-cd/developer-guide/ci/
-            git diff --exit-code -- . ':!Gopkg.lock'  ':!assets/swagger.json' | tee codegen.patch
+            git diff --exit-code -- . ':!go.sum'  ':!assets/swagger.json' | tee codegen.patch
       - store_artifacts:
           path: codegen.patch
           destination: .
@@ -143,8 +136,7 @@ jobs:
       - prepare_environment
       - checkout
       - configure_git
-      - restore_vendor
-      - run: dep ensure -v
+      - restore_go_modules
       - restore_go_cache_docker
       - run: make test-local
       - run:
@@ -170,8 +162,7 @@ jobs:
       - prepare_environment
       - checkout
       - configure_git
-      - restore_vendor
-      - run: dep ensure -v
+      - restore_go_modules
       - restore_go_cache_docker
       - run:
           name: Run golangci-lint
@@ -265,14 +256,7 @@ jobs:
       - prepare_environment
       - restore_go_cache_docker
       - checkout
-      - restore_cache:
-          keys: [e2e-dl-v2]
-      - run: sudo ./hack/install.sh dep-linux
-      - save_cache:
-          key: e2e-dl-v2
-          paths: [/tmp/dl]
-      - attach_vendor
-      - run: dep ensure -v
+      - attach_go_modules
       - run:
           name: Update kubectl configuration for container
           command: |

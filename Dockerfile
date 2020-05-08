@@ -26,7 +26,6 @@ WORKDIR /tmp
 ADD hack/install.sh .
 ADD hack/installers installers
 
-RUN ./install.sh dep-linux
 RUN ./install.sh packr-linux
 RUN ./install.sh kubectl-linux
 RUN ./install.sh ksonnet-linux
@@ -99,18 +98,7 @@ RUN NODE_ENV='production' yarn build
 ####################################################################################################
 FROM golang:1.14.1 as argocd-build
 
-COPY --from=builder /usr/local/bin/dep /usr/local/bin/dep
 COPY --from=builder /usr/local/bin/packr /usr/local/bin/packr
-
-# A dummy directory is created under $GOPATH/src/dummy so we are able to use dep
-# to install all the packages of our dep lock file
-COPY Gopkg.toml ${GOPATH}/src/dummy/Gopkg.toml
-COPY Gopkg.lock ${GOPATH}/src/dummy/Gopkg.lock
-
-RUN cd ${GOPATH}/src/dummy && \
-    dep ensure -vendor-only && \
-    mv vendor/* ${GOPATH}/src/ && \
-    rmdir vendor
 
 # Perform the build
 WORKDIR /go/src/github.com/argoproj/argo-cd
@@ -118,7 +106,6 @@ COPY . .
 RUN make cli server controller repo-server argocd-util && \
     make CLI_NAME=argocd-darwin-amd64 GOOS=darwin cli && \
     make CLI_NAME=argocd-windows-amd64.exe GOOS=windows cli
-
 
 ####################################################################################################
 # Final image

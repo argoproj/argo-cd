@@ -34,8 +34,7 @@ ENV GOPATH /go
 ADD ./hack/install.sh .
 ADD ./hack/installers installers
 
-RUN ./install.sh dep-linux && \
-    ./install.sh packr-linux && \
+RUN ./install.sh packr-linux && \
     ./install.sh kubectl-linux && \
     ./install.sh ksonnet-linux && \
     ./install.sh helm2-linux && \
