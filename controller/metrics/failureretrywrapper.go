@@ -1,11 +1,12 @@
 package metrics
 
 import (
-	"net"
 	"net/http"
-	"os"
 	"regexp"
 	"time"
+
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	utilnet "k8s.io/apimachinery/pkg/util/net"
 
 	log "github.com/sirupsen/logrus"
 
@@ -40,30 +41,15 @@ func shouldRetry(counter int, r *http.Request, response *http.Response, err erro
 		return false
 	}
 	if err != nil {
-		switch err.(type) {
-		case *os.SyscallError:
-			newErr, _ := err.(*os.SyscallError)
-			if newErr.Timeout() {
-				return true
-			}
-		case *net.OpError:
-			newErr, _ := err.(*net.OpError)
-			if newErr.Timeout() {
-				return true
-			}
-		default:
-			return false
+		if apierrors.IsInternalError(err) || apierrors.IsTimeout(err) || apierrors.IsServerTimeout(err) ||
+			apierrors.IsTooManyRequests(err) || utilnet.IsProbableEOF(err) || utilnet.IsConnectionReset(err) {
+			return true
 		}
 	}
 	if response != nil && (response.StatusCode == 504 || response.StatusCode == 503) {
 		return true
 	}
 
-	//for testing purpose
-	//if response != nil && r.Method == "GET" {
-	//	log.Debug("failureRetryRoundTripper: retry")
-	//	return true
-	//}
 	return false
 }
 
