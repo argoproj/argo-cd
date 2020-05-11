@@ -1676,6 +1676,11 @@ Example nginx.conf:</p>
 </code></pre></div>
 
 
+<p>Flag <code>--grpc-web-root-path</code> is used to provide a non-root path (e.g. /argo-cd)</p>
+<div class="codehilite"><pre><span></span><code>$ argocd login &lt;host&gt;:&lt;port&gt; --grpc-web-root-path /argo-cd
+</code></pre></div>
+
+
 <h2 id="ui-base-path">UI Base Path<a class="headerlink" href="#ui-base-path" title="Permanent link">&para;</a></h2>
 <p>If the Argo CD UI is available under a non-root path (e.g. <code>/argo-cd</code> instead of <code>/</code>) then the UI path should be configured in the API server.
 To configure the UI path add the <code>--basehref</code> flag into the <code>argocd-server</code> deployment command:</p>
