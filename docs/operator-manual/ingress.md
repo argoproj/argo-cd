@@ -246,6 +246,11 @@ http {
     }
 }
 ```
+Flag ```--grpc-web-root-path ``` is used to provide a non-root path (e.g. /argo-cd)
+
+```shell
+$ argocd login <host>:<port> --grpc-web-root-path /argo-cd
+```
 
 ## UI Base Path
 
