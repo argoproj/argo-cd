@@ -27,6 +27,7 @@ type MetricsServer struct {
 	clusterEventsCounter    *prometheus.CounterVec
 	redisRequestCounter     *prometheus.CounterVec
 	reconcileHistogram      *prometheus.HistogramVec
+	redisRequestHistogram   *prometheus.HistogramVec
 	registry                *prometheus.Registry
 }
 
@@ -118,6 +119,15 @@ var (
 		},
 		[]string{"initiator", "failed"},
 	)
+
+	redisRequestHistogram = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "argocd_redis_request_duration",
+			Help:    "Redis requests duration.",
+			Buckets: []float64{0.01, 0.05, 0.10, 0.25, .5, 1},
+		},
+		[]string{"initiator"},
+	)
 )
 
 // NewMetricsServer returns a new prometheus server which collects application metrics
@@ -139,6 +149,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, health
 	registry.MustRegister(reconcileHistogram)
 	registry.MustRegister(clusterEventsCounter)
 	registry.MustRegister(redisRequestCounter)
+	registry.MustRegister(redisRequestHistogram)
 
 	return &MetricsServer{
 		registry: registry,
@@ -153,6 +164,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, health
 		reconcileHistogram:      reconcileHistogram,
 		clusterEventsCounter:    clusterEventsCounter,
 		redisRequestCounter:     redisRequestCounter,
+		redisRequestHistogram:   redisRequestHistogram,
 	}
 }
 
@@ -203,6 +215,11 @@ func (m *MetricsServer) IncKubernetesRequest(app *argoappv1.Application, server,
 
 func (m *MetricsServer) IncRedisRequest(failed bool) {
 	m.redisRequestCounter.WithLabelValues("argocd-application-controller", strconv.FormatBool(failed)).Inc()
+}
+
+// ObserveRedisRequestDuration observes redis request duration
+func (m *MetricsServer) ObserveRedisRequestDuration(duration time.Duration) {
+	m.redisRequestHistogram.WithLabelValues("argocd-application-controller").Observe(duration.Seconds())
 }
 
 // IncReconcile increments the reconcile counter for an application

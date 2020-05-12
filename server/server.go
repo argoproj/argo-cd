@@ -16,12 +16,12 @@ import (
 	"strings"
 	"time"
 
+	cacheutil "github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/healthz"
 	"github.com/argoproj/argo-cd/util/swagger"
 	"github.com/argoproj/argo-cd/util/webhook"
 
 	"github.com/dgrijalva/jwt-go"
-	rediscache "github.com/go-redis/cache"
 	"github.com/go-redis/redis"
 	golang_proto "github.com/golang/protobuf/proto"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
@@ -256,13 +256,7 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
 
 	metricsServ := metrics.NewMetricsServer(metricsPort)
 	if a.RedisClient != nil {
-		a.RedisClient.WrapProcess(func(oldProcess func(cmd redis.Cmder) error) func(cmd redis.Cmder) error {
-			return func(cmd redis.Cmder) error {
-				err := oldProcess(cmd)
-				metricsServ.IncRedisRequest(err != nil && err != rediscache.ErrCacheMiss)
-				return err
-			}
-		})
+		cacheutil.CollectMetrics(a.RedisClient, metricsServ)
 	}
 
 	// Start listener
