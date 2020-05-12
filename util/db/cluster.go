@@ -207,6 +207,8 @@ func (db *db) UpdateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 		return nil, err
 	}
 	clusterSecret.Data = clusterToData(c)
+	clusterSecret.Annotations["lastCacheSyncTime"] = c.LastCacheSyncTime
+	clusterSecret.Annotations["serverVersion"] = c.ServerVersion
 	clusterSecret, err = db.kubeclientset.CoreV1().Secrets(db.ns).Update(clusterSecret)
 	if err != nil {
 		return nil, err
@@ -287,10 +289,12 @@ func secretToCluster(s *apiv1.Secret) *appv1.Cluster {
 	}
 
 	cluster := appv1.Cluster{
-		Server:     string(s.Data["server"]),
-		Name:       string(s.Data["name"]),
-		Namespaces: namespaces,
-		Config:     config,
+		Server:            string(s.Data["server"]),
+		Name:              string(s.Data["name"]),
+		Namespaces:        namespaces,
+		Config:            config,
+		ServerVersion:     s.Annotations["serverVersion"],
+		LastCacheSyncTime: s.Annotations["lastCacheSyncTime"],
 	}
 	return &cluster
 }

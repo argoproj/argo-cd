@@ -1029,6 +1029,8 @@ type Cluster struct {
 	ServerVersion string `json:"serverVersion,omitempty" protobuf:"bytes,5,opt,name=serverVersion"`
 	// Holds list of namespaces which are accessible in that cluster. Cluster level resources would be ignored if namespace list if not empty.
 	Namespaces []string `json:"namespaces,omitempty" protobuf:"bytes,6,opt,name=namespaces"`
+	// Last Cache sync time
+	LastCacheSyncTime string `json:"lastSyncTime,omitempty" protobuf:"bytes,7,opt,name=lastSyncTime"`
 }
 
 // ClusterList is a collection of Clusters.

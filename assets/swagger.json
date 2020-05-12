@@ -3623,6 +3623,10 @@
         "connectionState": {
           "$ref": "#/definitions/v1alpha1ConnectionState"
         },
+        "lastSyncTime": {
+          "type": "string",
+          "title": "Last Cache sync time"
+        },
         "name": {
           "type": "string",
           "title": "Name of the cluster. If omitted, will use the server address"

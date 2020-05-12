@@ -3,7 +3,6 @@ package cluster
 import (
 	"fmt"
 	"reflect"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -41,26 +40,18 @@ func NewServer(db db.ArgoDB, enf *rbac.Enforcer, cache *servercache.Cache, kubec
 	}
 }
 
-func (s *Server) getConnectionState(cluster appv1.Cluster, errorMessage string) (appv1.ConnectionState, string) {
+func (s *Server) getConnectionState(cluster appv1.Cluster, errorMessage string) appv1.ConnectionState {
 	if clusterInfo, err := s.cache.GetClusterInfo(cluster.Server); err == nil {
-		return clusterInfo.ConnectionState, clusterInfo.Version
+		return clusterInfo.ConnectionState
 	}
 	now := v1.Now()
 	clusterInfo := servercache.ClusterInfo{
-		ConnectionState: appv1.ConnectionState{
-			Status:     appv1.ConnectionStatusSuccessful,
-			ModifiedAt: &now,
-		},
+		ConnectionState: appv1.ConnectionState{},
 	}
 
-	config := cluster.RESTConfig()
-	config.Timeout = time.Second
-	version, err := s.kubectl.GetServerVersion(config)
-	if err != nil {
-		clusterInfo.Status = appv1.ConnectionStatusFailed
-		clusterInfo.Message = fmt.Sprintf("Unable to connect to cluster: %v", err)
-	} else {
-		clusterInfo.Version = version
+	if cluster.LastCacheSyncTime != "" {
+		clusterInfo.Status = appv1.ConnectionStatusSuccessful
+		clusterInfo.ModifiedAt = &now
 	}
 
 	if errorMessage != "" {
@@ -68,11 +59,11 @@ func (s *Server) getConnectionState(cluster appv1.Cluster, errorMessage string) 
 		clusterInfo.Message = fmt.Sprintf("%s %s", errorMessage, clusterInfo.Message)
 	}
 
-	err = s.cache.SetClusterInfo(cluster.Server, &clusterInfo)
+	err := s.cache.SetClusterInfo(cluster.Server, &clusterInfo)
 	if err != nil {
 		log.Warnf("getClusterInfo cache set error %s: %v", cluster.Server, err)
 	}
-	return clusterInfo.ConnectionState, clusterInfo.Version
+	return clusterInfo.ConnectionState
 }
 
 // List returns list of clusters
@@ -101,9 +92,8 @@ func (s *Server) List(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Clus
 			warningMessage = fmt.Sprintf("There are %d credentials configured this cluster.", len(clusters))
 		}
 		if clust.ConnectionState.Status == "" {
-			state, serverVersion := s.getConnectionState(clust, warningMessage)
+			state := s.getConnectionState(clust, warningMessage)
 			clust.ConnectionState = state
-			clust.ServerVersion = serverVersion
 		}
 		items[i] = *redact(&clust)
 		return nil

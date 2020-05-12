@@ -1152,6 +1152,13 @@ func schema_pkg_apis_application_v1alpha1_Cluster(ref common.ReferenceCallback) 
 							},
 						},
 					},
+					"lastSyncTime": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Last Cache sync time",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"server", "name", "config"},
 			},

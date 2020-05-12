@@ -319,6 +319,9 @@ message Cluster {
 
   // Holds list of namespaces which are accessible in that cluster. Cluster level resources would be ignored if namespace list if not empty.
   repeated string namespaces = 6;
+
+  // Last Cache sync time
+  optional string lastSyncTime = 7;
 }
 
 // ClusterConfig is the configuration attributes. This structure is subset of the go-client
