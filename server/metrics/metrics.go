@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -11,7 +12,8 @@ import (
 
 type MetricsServer struct {
 	*http.Server
-	redisRequestCounter *prometheus.CounterVec
+	redisRequestCounter   *prometheus.CounterVec
+	redisRequestHistogram *prometheus.HistogramVec
 }
 
 var (
@@ -21,6 +23,14 @@ var (
 			Help: "Number of kubernetes requests executed during application reconciliation.",
 		},
 		[]string{"initiator", "failed"},
+	)
+	redisRequestHistogram = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "argocd_redis_request_duration",
+			Help:    "Redis requests duration.",
+			Buckets: []float64{0.1, 0.25, .5, 1, 2},
+		},
+		[]string{"initiator"},
 	)
 )
 
@@ -34,16 +44,23 @@ func NewMetricsServer(port int) *MetricsServer {
 	}, promhttp.HandlerOpts{}))
 
 	registry.MustRegister(redisRequestCounter)
+	registry.MustRegister(redisRequestHistogram)
 
 	return &MetricsServer{
 		Server: &http.Server{
 			Addr:    fmt.Sprintf("0.0.0.0:%d", port),
 			Handler: mux,
 		},
-		redisRequestCounter: redisRequestCounter,
+		redisRequestCounter:   redisRequestCounter,
+		redisRequestHistogram: redisRequestHistogram,
 	}
 }
 
 func (m *MetricsServer) IncRedisRequest(failed bool) {
 	m.redisRequestCounter.WithLabelValues("argocd-server", strconv.FormatBool(failed)).Inc()
+}
+
+// ObserveRedisRequestDuration observes redis request duration
+func (m *MetricsServer) ObserveRedisRequestDuration(duration time.Duration) {
+	m.redisRequestHistogram.WithLabelValues("argocd-server").Observe(duration.Seconds())
 }

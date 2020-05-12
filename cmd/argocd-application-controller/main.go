@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/argoproj/pkg/stats"
-	rediscache "github.com/go-redis/cache"
 	"github.com/go-redis/redis"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -25,6 +24,7 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
+	cacheutil "github.com/argoproj/argo-cd/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/kube"
@@ -96,14 +96,7 @@ func newCommand() *cobra.Command {
 				metricsPort,
 				kubectlParallelismLimit)
 			errors.CheckError(err)
-			metricsServer := appController.GetMetricsServer()
-			redisClient.WrapProcess(func(oldProcess func(cmd redis.Cmder) error) func(cmd redis.Cmder) error {
-				return func(cmd redis.Cmder) error {
-					err := oldProcess(cmd)
-					metricsServer.IncRedisRequest(err != nil && err != rediscache.ErrCacheMiss)
-					return err
-				}
-			})
+			cacheutil.CollectMetrics(redisClient, appController.GetMetricsServer())
 
 			vers := common.GetVersion()
 			log.Infof("Application Controller (version: %s, built: %s) starting (namespace: %s)", vers.Version, vers.BuildDate, namespace)
