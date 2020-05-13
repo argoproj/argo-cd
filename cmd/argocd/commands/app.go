@@ -1073,7 +1073,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				normalizer, err := argo.NewDiffNormalizer(app.Spec.IgnoreDifferences, overrides)
 				errors.CheckError(err)
 
-				diffRes, err := diff.Diff(item.target, item.live, normalizer)
+				diffRes, err := diff.Diff(item.target, item.live, normalizer, diff.GetDefaultDiffOptions())
 				errors.CheckError(err)
 
 				if diffRes.Modified || item.target == nil || item.live == nil {

@@ -27,6 +27,10 @@ import (
 	jsonutil "github.com/argoproj/argo-cd/util/json"
 )
 
+type DiffOptions struct {
+	IgnoreAggregatedRoles bool `json:"ignoreAggregatedRoles,omitempty"`
+}
+
 type DiffResult struct {
 	// Deprecated: Use PredictedLive and NormalizedLive instead
 	Diff           gojsondiff.Diff
@@ -44,20 +48,27 @@ type Normalizer interface {
 	Normalize(un *unstructured.Unstructured) error
 }
 
+// Returns the default diff options
+func GetDefaultDiffOptions() DiffOptions {
+	return DiffOptions{
+		IgnoreAggregatedRoles: false,
+	}
+}
+
 // Diff performs a diff on two unstructured objects. If the live object happens to have a
 // "kubectl.kubernetes.io/last-applied-configuration", then perform a three way diff.
-func Diff(config, live *unstructured.Unstructured, normalizer Normalizer) (*DiffResult, error) {
+func Diff(config, live *unstructured.Unstructured, normalizer Normalizer, options DiffOptions) (*DiffResult, error) {
 	if config != nil {
 		config = remarshal(config)
-		Normalize(config, normalizer)
+		Normalize(config, normalizer, options)
 	}
 	if live != nil {
 		live = remarshal(live)
-		Normalize(live, normalizer)
+		Normalize(live, normalizer, options)
 	}
 	orig := GetLastAppliedConfigAnnotation(live)
 	if orig != nil && config != nil {
-		Normalize(orig, normalizer)
+		Normalize(orig, normalizer, options)
 		dr, err := ThreeWayDiff(orig, config, live)
 		if err == nil {
 			return dr, nil
@@ -253,7 +264,7 @@ func GetLastAppliedConfigAnnotation(live *unstructured.Unstructured) *unstructur
 
 // DiffArray performs a diff on a list of unstructured objects. Objects are expected to match
 // environments
-func DiffArray(configArray, liveArray []*unstructured.Unstructured, normalizer Normalizer) (*DiffResultList, error) {
+func DiffArray(configArray, liveArray []*unstructured.Unstructured, normalizer Normalizer, options DiffOptions) (*DiffResultList, error) {
 	numItems := len(configArray)
 	if len(liveArray) != numItems {
 		return nil, fmt.Errorf("left and right arrays have mismatched lengths")
@@ -265,7 +276,7 @@ func DiffArray(configArray, liveArray []*unstructured.Unstructured, normalizer N
 	for i := 0; i < numItems; i++ {
 		config := configArray[i]
 		live := liveArray[i]
-		diffRes, err := Diff(config, live, normalizer)
+		diffRes, err := Diff(config, live, normalizer, options)
 		if err != nil {
 			return nil, err
 		}
@@ -286,7 +297,7 @@ func (d *DiffResult) JSONFormat() (string, error) {
 	return jsonFmt.Format(d.Diff)
 }
 
-func Normalize(un *unstructured.Unstructured, normalizer Normalizer) {
+func Normalize(un *unstructured.Unstructured, normalizer Normalizer, options DiffOptions) {
 	if un == nil {
 		return
 	}
@@ -299,7 +310,7 @@ func Normalize(un *unstructured.Unstructured, normalizer Normalizer) {
 	if gvk.Group == "" && gvk.Kind == "Secret" {
 		NormalizeSecret(un)
 	} else if gvk.Group == "rbac.authorization.k8s.io" && (gvk.Kind == "ClusterRole" || gvk.Kind == "Role") {
-		normalizeRole(un)
+		normalizeRole(un, options)
 	}
 
 	if normalizer != nil {
@@ -354,8 +365,8 @@ func NormalizeSecret(un *unstructured.Unstructured) {
 	}
 }
 
-// normalizeRole mutates the supplied Role/ClusterRole and sets rules to null if it is an empty list
-func normalizeRole(un *unstructured.Unstructured) {
+// normalizeRole mutates the supplied Role/ClusterRole and sets rules to null if it is an empty list or an aggregated role
+func normalizeRole(un *unstructured.Unstructured, options DiffOptions) {
 	if un == nil {
 		return
 	}
@@ -363,6 +374,20 @@ func normalizeRole(un *unstructured.Unstructured) {
 	if gvk.Group != "rbac.authorization.k8s.io" || (gvk.Kind != "Role" && gvk.Kind != "ClusterRole") {
 		return
 	}
+
+	// Check whether the role we're checking is an aggregation role. If it is, we ignore any differences in rules.
+	if options.IgnoreAggregatedRoles {
+		aggrIf, ok := un.Object["aggregationRule"]
+		if ok {
+			_, ok = aggrIf.(map[string]interface{})
+			if !ok {
+				log.Infof("Malformed aggregrationRule in resource '%s', won't modify.", un.GetName())
+			} else {
+				un.Object["rules"] = nil
+			}
+		}
+	}
+
 	rulesIf, ok := un.Object["rules"]
 	if !ok {
 		return
@@ -374,6 +399,7 @@ func normalizeRole(un *unstructured.Unstructured) {
 	if rules != nil && len(rules) == 0 {
 		un.Object["rules"] = nil
 	}
+
 }
 
 // CreateTwoWayMergePatch is a helper to construct a two-way merge patch from objects (instead of bytes)

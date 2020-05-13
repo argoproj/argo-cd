@@ -363,7 +363,11 @@ func (ctrl *ApplicationController) managedResources(comparisonResult *comparison
 			if err != nil {
 				return nil, err
 			}
-			resDiffPtr, err := diff.Diff(target, live, comparisonResult.diffNormalizer)
+			compareOptions, err := ctrl.settingsMgr.GetResourceCompareOptions()
+			if err != nil {
+				return nil, err
+			}
+			resDiffPtr, err := diff.Diff(target, live, comparisonResult.diffNormalizer, compareOptions)
 			if err != nil {
 				return nil, err
 			}

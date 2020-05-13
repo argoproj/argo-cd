@@ -31,6 +31,7 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/server/settings/oidc"
 	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/password"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
 )
@@ -232,6 +233,8 @@ const (
 	kustomizeVersionKeyPrefix = "kustomize.version"
 	// anonymousUserEnabledKey is the key which enables or disables anonymous user
 	anonymousUserEnabledKey = "users.anonymous.enabled"
+	// diffOptions is the key where diff options are configured
+	resourceCompareOptionsKey = "resource.compareoptions"
 )
 
 // SettingsManager holds config info for a new manager with which to access Kubernetes ConfigMaps.
@@ -441,6 +444,26 @@ func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.Resource
 	}
 
 	return resourceOverrides, nil
+}
+
+// GetResourceCompareOptions loads the resource compare options settings from the ConfigMap
+func (mgr *SettingsManager) GetResourceCompareOptions() (diff.DiffOptions, error) {
+	// We have a sane set of default diff options
+	diffOptions := diff.GetDefaultDiffOptions()
+
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return diffOptions, err
+	}
+
+	if value, ok := argoCDCM.Data[resourceCompareOptionsKey]; ok {
+		err := yaml.Unmarshal([]byte(value), &diffOptions)
+		if err != nil {
+			return diffOptions, err
+		}
+	}
+
+	return diffOptions, nil
 }
 
 // GetKustomizeSettings loads the kustomize settings from argocd-cm ConfigMap

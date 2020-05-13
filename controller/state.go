@@ -412,8 +412,14 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		managedLiveObj = append(managedLiveObj, obj)
 	}
 
+	compareOptions, err := m.settingsMgr.GetResourceCompareOptions()
+	if err != nil {
+		log.Warnf("Could not get compare options from ConfigMap (assuming defaults): %v", err)
+		compareOptions = diff.GetDefaultDiffOptions()
+	}
+
 	// Do the actual comparison
-	diffResults, err := diff.DiffArray(targetObjs, managedLiveObj, diffNormalizer)
+	diffResults, err := diff.DiffArray(targetObjs, managedLiveObj, diffNormalizer, compareOptions)
 	if err != nil {
 		diffResults = &diff.DiffResultList{}
 		failedToLoadObjs = true

@@ -6,6 +6,7 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/diff"
 
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
@@ -156,6 +157,48 @@ func TestGetResourceOverrides(t *testing.T) {
 	assert.Equal(t, v1alpha1.ResourceOverride{
 		IgnoreDifferences: "jsonPointers:\n- /webhooks/0/clientConfig/caBundle",
 	}, webHookOverrides)
+}
+
+func TestGetResourceCompareOptions(t *testing.T) {
+	// ignoreAggregatedRules is true
+	{
+		_, settingsManager := fixtures(map[string]string{
+			"resource.compareoptions": "ignoreAggregatedRoles: true",
+		})
+		compareOptions, err := settingsManager.GetResourceCompareOptions()
+		assert.NoError(t, err)
+		assert.True(t, compareOptions.IgnoreAggregatedRoles)
+	}
+
+	// ignoreAggregatedRules is false
+	{
+		_, settingsManager := fixtures(map[string]string{
+			"resource.compareoptions": "ignoreAggregatedRoles: false",
+		})
+		compareOptions, err := settingsManager.GetResourceCompareOptions()
+		assert.NoError(t, err)
+		assert.False(t, compareOptions.IgnoreAggregatedRoles)
+	}
+
+	// The empty resource.compareoptions should result in default being returned
+	{
+		_, settingsManager := fixtures(map[string]string{
+			"resource.compareoptions": "",
+		})
+		compareOptions, err := settingsManager.GetResourceCompareOptions()
+		defaultOptions := diff.GetDefaultDiffOptions()
+		assert.NoError(t, err)
+		assert.Equal(t, defaultOptions.IgnoreAggregatedRoles, compareOptions.IgnoreAggregatedRoles)
+	}
+
+	// resource.compareoptions not defined - should result in default being returned
+	{
+		_, settingsManager := fixtures(map[string]string{})
+		compareOptions, err := settingsManager.GetResourceCompareOptions()
+		defaultOptions := diff.GetDefaultDiffOptions()
+		assert.NoError(t, err)
+		assert.Equal(t, defaultOptions.IgnoreAggregatedRoles, compareOptions.IgnoreAggregatedRoles)
+	}
 }
 
 func TestSettingsManager_GetKustomizeBuildOptions(t *testing.T) {
