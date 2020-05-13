@@ -93,6 +93,23 @@ spec:
                 - kind
                 type: object
               type: array
+            namespaceResourceWhitelist:
+              description: NamespaceResourceWhitelist contains list of whitelisted
+                namespace level resources
+              items:
+                description: GroupKind specifies a Group and a Kind, but does not
+                  force a version.  This is useful for identifying concepts during
+                  lookup stages without having partially valid types
+                properties:
+                  group:
+                    type: string
+                  kind:
+                    type: string
+                required:
+                - group
+                - kind
+                type: object
+              type: array
             orphanedResources:
               description: OrphanedResources specifies if controller should monitor
                 orphaned resources of apps in this project
@@ -130,6 +147,8 @@ spec:
                         iat:
                           format: int64
                           type: integer
+                        id:
+                          type: string
                       required:
                       - iat
                       type: object

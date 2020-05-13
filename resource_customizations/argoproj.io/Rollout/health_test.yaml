@@ -48,6 +48,10 @@ tests:
 - healthStatus:
     status: Healthy
     message: The rollout has completed all steps
+  inputPath: testdata/canary/healthy_executedAllStepsPreV0.8.yaml
+- healthStatus:
+     status: Healthy
+     message: The rollout has completed all steps
   inputPath: testdata/canary/healthy_executedAllSteps.yaml
 - healthStatus:
     status: Progressing

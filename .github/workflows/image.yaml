@@ -13,7 +13,7 @@ jobs:
     steps:
       - uses: actions/setup-go@v1
         with:
-          go-version: '1.14'
+          go-version: '1.14.1'
       - uses: actions/checkout@master
         with:
           path: src/github.com/argoproj/argo-cd
@@ -33,7 +33,9 @@ jobs:
         id: image
 
       # build
-      - run: make image DEV_IMAGE=true DOCKER_PUSH=false IMAGE_NAMESPACE=docker.pkg.github.com/argoproj/argo-cd IMAGE_TAG=${{ steps.image.outputs.tag }}
+      - run: |
+          docker images -a --format "{{.ID}}" | xargs -I {} docker rmi {}
+          make image DEV_IMAGE=true DOCKER_PUSH=false IMAGE_NAMESPACE=docker.pkg.github.com/argoproj/argo-cd IMAGE_TAG=${{ steps.image.outputs.tag }}
         working-directory: ./src/github.com/argoproj/argo-cd
 
       # publish

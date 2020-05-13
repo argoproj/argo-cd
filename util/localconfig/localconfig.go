@@ -41,6 +41,8 @@ type Server struct {
 	Insecure bool `json:"insecure,omitempty"`
 	// GRPCWeb indicates to connect to the server using gRPC Web protocol
 	GRPCWeb bool `json:"grpc-web,omitempty"`
+	// GRPCWebRootPath indicates to connect to the server using gRPC Web protocol with this root path
+	GRPCWebRootPath string `json:"grpc-web-root-path"`
 	// CACertificateAuthorityData is the base64 string of a PEM encoded certificate
 	// TODO: not yet implemented
 	CACertificateAuthorityData string `json:"certificate-authority-data,omitempty"`

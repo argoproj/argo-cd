@@ -41,9 +41,14 @@ export interface RollbackOperation {
     dryRun: boolean;
 }
 
+export interface OperationInitiator {
+    username: string;
+    automated: boolean;
+}
+
 export interface Operation {
     sync: SyncOperation;
-    rollback: RollbackOperation;
+    initiatedBy: OperationInitiator;
 }
 
 export type OperationPhase = 'Running' | 'Error' | 'Failed' | 'Succeeded' | 'Terminating';
@@ -174,6 +179,7 @@ export interface ApplicationSourceKustomize {
     namePrefix: string;
     nameSuffix: string;
     images: string[];
+    version: string;
 }
 
 export interface ApplicationSourceKsonnet {
@@ -388,7 +394,8 @@ export interface AuthSettings {
         chatText: string;
     };
     plugins: Plugin[];
-    disableAdmin: boolean;
+    userLoginsDisabled: boolean;
+    kustomizeVersions: string[];
 }
 
 export interface UserInfo {
@@ -571,6 +578,7 @@ export interface ProjectRole {
 export interface JwtToken {
     iat: number;
     exp: number;
+    id: string;
 }
 
 export interface GroupKind {
@@ -585,6 +593,7 @@ export interface ProjectSpec {
     roles: ProjectRole[];
     clusterResourceWhitelist: GroupKind[];
     namespaceResourceBlacklist: GroupKind[];
+    namespaceResourceWhitelist: GroupKind[];
     orphanedResources?: {warn?: boolean};
     syncWindows?: SyncWindows;
 }
@@ -644,4 +653,17 @@ export interface ApplicationSyncWindowState {
 
 export interface VersionMessage {
     Version: string;
+}
+
+export interface Token {
+    id: string;
+    issuedAt: number;
+    expiresAt: number;
+}
+
+export interface Account {
+    name: string;
+    enabled: boolean;
+    capabilities: string[];
+    tokens: Token[];
 }

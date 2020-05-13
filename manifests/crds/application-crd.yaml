@@ -35,6 +35,18 @@ spec:
         operation:
           description: Operation contains requested operation parameters.
           properties:
+            initiatedBy:
+              description: OperationInitiator holds information about the operation
+                initiator
+              properties:
+                automated:
+                  description: Automated is set to true if operation was initiated
+                    automatically by the application controller.
+                  type: boolean
+                username:
+                  description: Name of a user who started operation.
+                  type: string
+              type: object
             sync:
               description: SyncOperation contains sync operation details.
               properties:
@@ -218,6 +230,9 @@ spec:
                         nameSuffix:
                           description: NameSuffix is a suffix appended to resources
                             for kustomize apps
+                          type: string
+                        version:
+                          description: Version contains optional Kustomize version
                           type: string
                       type: object
                     path:
@@ -503,6 +518,9 @@ spec:
                       description: NameSuffix is a suffix appended to resources for
                         kustomize apps
                       type: string
+                    version:
+                      description: Version contains optional Kustomize version
+                      type: string
                   type: object
                 path:
                   description: Path is a directory path within the Git repository
@@ -762,6 +780,9 @@ spec:
                             description: NameSuffix is a suffix appended to resources
                               for kustomize apps
                             type: string
+                          version:
+                            description: Version contains optional Kustomize version
+                            type: string
                         type: object
                       path:
                         description: Path is a directory path within the Git repository
@@ -825,6 +846,18 @@ spec:
                 operation:
                   description: Operation is the original requested operation
                   properties:
+                    initiatedBy:
+                      description: OperationInitiator holds information about the
+                        operation initiator
+                      properties:
+                        automated:
+                          description: Automated is set to true if operation was initiated
+                            automatically by the application controller.
+                          type: boolean
+                        username:
+                          description: Name of a user who started operation.
+                          type: string
+                      type: object
                     sync:
                       description: SyncOperation contains sync operation details.
                       properties:
@@ -1022,6 +1055,10 @@ spec:
                                 nameSuffix:
                                   description: NameSuffix is a suffix appended to
                                     resources for kustomize apps
+                                  type: string
+                                version:
+                                  description: Version contains optional Kustomize
+                                    version
                                   type: string
                               type: object
                             path:
@@ -1309,6 +1346,9 @@ spec:
                               description: NameSuffix is a suffix appended to resources
                                 for kustomize apps
                               type: string
+                            version:
+                              description: Version contains optional Kustomize version
+                              type: string
                           type: object
                         path:
                           description: Path is a directory path within the Git repository
@@ -1581,6 +1621,9 @@ spec:
                             nameSuffix:
                               description: NameSuffix is a suffix appended to resources
                                 for kustomize apps
+                              type: string
+                            version:
+                              description: Version contains optional Kustomize version
                               type: string
                           type: object
                         path:

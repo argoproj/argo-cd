@@ -9,13 +9,13 @@ import (
 func TestGetHelmVersion_Helm3(t *testing.T) {
 	ver, err := getHelmVersion("./testdata/minio")
 	assert.NoError(t, err)
-	assert.Equal(t, *ver, HelmV3)
+	assert.Equal(t, ver.binaryName, HelmV3.binaryName)
 }
 
 func TestGetHelmVersion_Helm2(t *testing.T) {
 	ver, err := getHelmVersion("./testdata/helm2-dependency")
 	assert.NoError(t, err)
-	assert.Equal(t, *ver, HelmV2)
+	assert.Equal(t, ver.binaryName, HelmV2.binaryName)
 }
 
 func TestGetHelmVersion_InvalidVersion(t *testing.T) {

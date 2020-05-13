@@ -24,6 +24,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
+	"github.com/argoproj/argo-cd/cmd/argocd-util/commands"
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/util/cli"
@@ -55,6 +56,7 @@ var (
 // NewCommand returns a new instance of an argocd command
 func NewCommand() *cobra.Command {
 	var (
+		logFormat string
 		logLevel string
 	)
 
@@ -72,8 +74,10 @@ func NewCommand() *cobra.Command {
 	command.AddCommand(NewImportCommand())
 	command.AddCommand(NewExportCommand())
 	command.AddCommand(NewClusterConfig())
-	command.AddCommand(NewProjectsCommand())
+	command.AddCommand(commands.NewProjectsCommand())
+	command.AddCommand(commands.NewSettingsCommand())
 
+	command.Flags().StringVar(&logFormat, "logformat", "text", "Set the logging format. One of: text|json")
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	return command
 }
@@ -632,7 +636,7 @@ func NewClusterConfig() *cobra.Command {
 
 			cluster, err := db.NewDB(namespace, settings.NewSettingsManager(context.Background(), kubeclientset, namespace), kubeclientset).GetCluster(context.Background(), serverUrl)
 			errors.CheckError(err)
-			err = kube.WriteKubeConfig(cluster.RESTConfig(), namespace, output)
+			err = kube.WriteKubeConfig(cluster.RawRestConfig(), namespace, output)
 			errors.CheckError(err)
 		},
 	}

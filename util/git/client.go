@@ -147,6 +147,7 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds) *http.Client 
 				InsecureSkipVerify:   true,
 				GetClientCertificate: clientCertFunc,
 			},
+			DisableKeepAlives: true,
 		}
 	} else {
 		parsedURL, err := url.Parse(repoURL)
@@ -164,6 +165,7 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds) *http.Client 
 					RootCAs:              certPool,
 					GetClientCertificate: clientCertFunc,
 				},
+				DisableKeepAlives: true,
 			}
 		} else {
 			// else no custom certificate stored.
@@ -172,6 +174,7 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds) *http.Client 
 				TLSClientConfig: &tls.Config{
 					GetClientCertificate: clientCertFunc,
 				},
+				DisableKeepAlives: true,
 			}
 		}
 	}

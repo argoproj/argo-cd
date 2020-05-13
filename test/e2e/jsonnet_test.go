@@ -100,3 +100,17 @@ func TestJsonnetExtVarEnv(t *testing.T) {
 			assert.Equal(t, Name(), FailOnErr(Run(".", "kubectl", "-n", DeploymentNamespace(), "get", "cm", "my-map", "-o", "jsonpath={.data.bar}")).(string))
 		})
 }
+
+//Jsonnet file located in nested sub directory uses import
+func TestJsonnetNestedDirWithImports(t *testing.T) {
+	Given(t).
+		Path("jsonnet-nested-dir-with-imports/apps").
+		When().
+		Create("--directory-recurse").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(ResourceSyncStatusIs("Namespace", "hello-world", SyncStatusCodeSynced)).
+		Expect(ResourceSyncStatusIs("Namespace", "hello-root", SyncStatusCodeSynced))
+}

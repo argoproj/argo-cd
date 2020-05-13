@@ -36,6 +36,18 @@ spec:
         operation:
           description: Operation contains requested operation parameters.
           properties:
+            initiatedBy:
+              description: OperationInitiator holds information about the operation
+                initiator
+              properties:
+                automated:
+                  description: Automated is set to true if operation was initiated
+                    automatically by the application controller.
+                  type: boolean
+                username:
+                  description: Name of a user who started operation.
+                  type: string
+              type: object
             sync:
               description: SyncOperation contains sync operation details.
               properties:
@@ -219,6 +231,9 @@ spec:
                         nameSuffix:
                           description: NameSuffix is a suffix appended to resources
                             for kustomize apps
+                          type: string
+                        version:
+                          description: Version contains optional Kustomize version
                           type: string
                       type: object
                     path:
@@ -504,6 +519,9 @@ spec:
                       description: NameSuffix is a suffix appended to resources for
                         kustomize apps
                       type: string
+                    version:
+                      description: Version contains optional Kustomize version
+                      type: string
                   type: object
                 path:
                   description: Path is a directory path within the Git repository
@@ -763,6 +781,9 @@ spec:
                             description: NameSuffix is a suffix appended to resources
                               for kustomize apps
                             type: string
+                          version:
+                            description: Version contains optional Kustomize version
+                            type: string
                         type: object
                       path:
                         description: Path is a directory path within the Git repository
@@ -826,6 +847,18 @@ spec:
                 operation:
                   description: Operation is the original requested operation
                   properties:
+                    initiatedBy:
+                      description: OperationInitiator holds information about the
+                        operation initiator
+                      properties:
+                        automated:
+                          description: Automated is set to true if operation was initiated
+                            automatically by the application controller.
+                          type: boolean
+                        username:
+                          description: Name of a user who started operation.
+                          type: string
+                      type: object
                     sync:
                       description: SyncOperation contains sync operation details.
                       properties:
@@ -1023,6 +1056,10 @@ spec:
                                 nameSuffix:
                                   description: NameSuffix is a suffix appended to
                                     resources for kustomize apps
+                                  type: string
+                                version:
+                                  description: Version contains optional Kustomize
+                                    version
                                   type: string
                               type: object
                             path:
@@ -1310,6 +1347,9 @@ spec:
                               description: NameSuffix is a suffix appended to resources
                                 for kustomize apps
                               type: string
+                            version:
+                              description: Version contains optional Kustomize version
+                              type: string
                           type: object
                         path:
                           description: Path is a directory path within the Git repository
@@ -1583,6 +1623,9 @@ spec:
                               description: NameSuffix is a suffix appended to resources
                                 for kustomize apps
                               type: string
+                            version:
+                              description: Version contains optional Kustomize version
+                              type: string
                           type: object
                         path:
                           description: Path is a directory path within the Git repository
@@ -1739,6 +1782,23 @@ spec:
                 - kind
                 type: object
               type: array
+            namespaceResourceWhitelist:
+              description: NamespaceResourceWhitelist contains list of whitelisted
+                namespace level resources
+              items:
+                description: GroupKind specifies a Group and a Kind, but does not
+                  force a version.  This is useful for identifying concepts during
+                  lookup stages without having partially valid types
+                properties:
+                  group:
+                    type: string
+                  kind:
+                    type: string
+                required:
+                - group
+                - kind
+                type: object
+              type: array
             orphanedResources:
               description: OrphanedResources specifies if controller should monitor
                 orphaned resources of apps in this project
@@ -1776,6 +1836,8 @@ spec:
                         iat:
                           format: int64
                           type: integer
+                        id:
+                          type: string
                       required:
                       - iat
                       type: object
@@ -2169,8 +2231,8 @@ data:
     defaults REDIS
       mode tcp
       timeout connect 4s
-      timeout server 30s
-      timeout client 30s
+      timeout server 6m
+      timeout client 6m
       timeout check 2s
 
     listen health_check_http_url
@@ -2189,9 +2251,9 @@ data:
       tcp-check expect string REPLACE_ANNOUNCE0
       tcp-check send QUIT\r\n
       tcp-check expect string +OK
-      server R0 argocd-redis-ha-announce-0:26379 check inter 1s
-      server R1 argocd-redis-ha-announce-1:26379 check inter 1s
-      server R2 argocd-redis-ha-announce-2:26379 check inter 1s
+      server R0 argocd-redis-ha-announce-0:26379 check inter 3s
+      server R1 argocd-redis-ha-announce-1:26379 check inter 3s
+      server R2 argocd-redis-ha-announce-2:26379 check inter 3s
     # Check Sentinel and whether they are nominated master
     backend check_if_redis_is_master_1
       mode tcp
@@ -2203,9 +2265,9 @@ data:
       tcp-check expect string REPLACE_ANNOUNCE1
       tcp-check send QUIT\r\n
       tcp-check expect string +OK
-      server R0 argocd-redis-ha-announce-0:26379 check inter 1s
-      server R1 argocd-redis-ha-announce-1:26379 check inter 1s
-      server R2 argocd-redis-ha-announce-2:26379 check inter 1s
+      server R0 argocd-redis-ha-announce-0:26379 check inter 3s
+      server R1 argocd-redis-ha-announce-1:26379 check inter 3s
+      server R2 argocd-redis-ha-announce-2:26379 check inter 3s
     # Check Sentinel and whether they are nominated master
     backend check_if_redis_is_master_2
       mode tcp
@@ -2217,9 +2279,9 @@ data:
       tcp-check expect string REPLACE_ANNOUNCE2
       tcp-check send QUIT\r\n
       tcp-check expect string +OK
-      server R0 argocd-redis-ha-announce-0:26379 check inter 1s
-      server R1 argocd-redis-ha-announce-1:26379 check inter 1s
-      server R2 argocd-redis-ha-announce-2:26379 check inter 1s
+      server R0 argocd-redis-ha-announce-0:26379 check inter 3s
+      server R1 argocd-redis-ha-announce-1:26379 check inter 3s
+      server R2 argocd-redis-ha-announce-2:26379 check inter 3s
 
     # decide redis backend to use
     #master
@@ -2238,11 +2300,11 @@ data:
       tcp-check send QUIT\r\n
       tcp-check expect string +OK
       use-server R0 if { srv_is_up(R0) } { nbsrv(check_if_redis_is_master_0) ge 2 }
-      server R0 argocd-redis-ha-announce-0:6379 check inter 1s fall 1 rise 1
+      server R0 argocd-redis-ha-announce-0:6379 check inter 3s fall 1 rise 1
       use-server R1 if { srv_is_up(R1) } { nbsrv(check_if_redis_is_master_1) ge 2 }
-      server R1 argocd-redis-ha-announce-1:6379 check inter 1s fall 1 rise 1
+      server R1 argocd-redis-ha-announce-1:6379 check inter 3s fall 1 rise 1
       use-server R2 if { srv_is_up(R2) } { nbsrv(check_if_redis_is_master_2) ge 2 }
-      server R2 argocd-redis-ha-announce-2:6379 check inter 1s fall 1 rise 1
+      server R2 argocd-redis-ha-announce-2:6379 check inter 3s fall 1 rise 1
   haproxy_init.sh: |
     HAPROXY_CONF=/data/haproxy.cfg
     cp /readonly/haproxy.cfg "$HAPROXY_CONF"
@@ -2608,6 +2670,10 @@ spec:
     port: 5557
     protocol: TCP
     targetPort: 5557
+  - name: metrics
+    port: 5558
+    protocol: TCP
+    targetPort: 5558
   selector:
     app.kubernetes.io/name: argocd-dex-server
 ---
@@ -2843,12 +2909,13 @@ spec:
       - command:
         - /shared/argocd-util
         - rundex
-        image: quay.io/dexidp/dex:v2.21.0
+        image: quay.io/dexidp/dex:v2.22.0
         imagePullPolicy: Always
         name: dex
         ports:
         - containerPort: 5556
         - containerPort: 5557
+        - containerPort: 5558
         volumeMounts:
         - mountPath: /shared
           name: static-files
@@ -3051,7 +3118,6 @@ spec:
         - /data/conf/redis.conf
         command:
         - redis-server
-        env: null
         image: redis:5.0.6-alpine
         imagePullPolicy: IfNotPresent
         livenessProbe:

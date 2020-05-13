@@ -6,6 +6,8 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path"
+	"path/filepath"
 	"regexp"
 
 	"github.com/argoproj/argo-cd/util"
@@ -17,6 +19,7 @@ type Cmd struct {
 	HelmVer
 	helmHome string
 	WorkDir  string
+	IsLocal  bool
 }
 
 func NewCmd(workDir string) (*Cmd, error) {
@@ -44,11 +47,13 @@ func (c Cmd) run(args ...string) (string, error) {
 	cmd := exec.Command(c.binaryName, args...)
 	cmd.Dir = c.WorkDir
 	cmd.Env = os.Environ()
-	cmd.Env = append(cmd.Env,
-		fmt.Sprintf("XDG_CACHE_HOME=%s/cache", c.helmHome),
-		fmt.Sprintf("XDG_CONFIG_HOME=%s/config", c.helmHome),
-		fmt.Sprintf("XDG_DATA_HOME=%s/data", c.helmHome),
-		fmt.Sprintf("HELM_HOME=%s", c.helmHome))
+	if !c.IsLocal {
+		cmd.Env = append(cmd.Env,
+			fmt.Sprintf("XDG_CACHE_HOME=%s/cache", c.helmHome),
+			fmt.Sprintf("XDG_CONFIG_HOME=%s/config", c.helmHome),
+			fmt.Sprintf("XDG_DATA_HOME=%s/data", c.helmHome),
+			fmt.Sprintf("HELM_HOME=%s", c.helmHome))
+	}
 	return executil.RunWithRedactor(cmd, redactor)
 }
 
@@ -78,6 +83,10 @@ func (c *Cmd) RepoAdd(name string, url string, opts Creds) (string, error) {
 
 	if opts.CAPath != "" {
 		args = append(args, "--ca-file", opts.CAPath)
+	}
+
+	if opts.InsecureSkipVerify && c.insecureSkipVerifySupported {
+		args = append(args, "--insecure-skip-tls-verify")
 	}
 
 	if len(opts.CertData) > 0 {
@@ -172,6 +181,7 @@ type TemplateOpts struct {
 	Name        string
 	Namespace   string
 	KubeVersion string
+	APIVersions []string
 	Set         map[string]string
 	SetString   map[string]string
 	SetFile     map[string]string
@@ -187,6 +197,14 @@ func cleanSetParameters(val string) string {
 }
 
 func (c *Cmd) template(chartPath string, opts *TemplateOpts) (string, error) {
+	if c.HelmVer.getPostTemplateCallback != nil {
+		if callback, err := c.HelmVer.getPostTemplateCallback(filepath.Clean(path.Join(c.WorkDir, chartPath))); err == nil {
+			defer callback()
+		} else {
+			return "", err
+		}
+	}
+
 	args := []string{"template", chartPath, c.templateNameArg, opts.Name}
 
 	if opts.Namespace != "" {
@@ -206,6 +224,12 @@ func (c *Cmd) template(chartPath string, opts *TemplateOpts) (string, error) {
 	}
 	for _, val := range opts.Values {
 		args = append(args, "--values", val)
+	}
+	for _, v := range opts.APIVersions {
+		args = append(args, "--api-versions", v)
+	}
+	if c.HelmVer.additionalTemplateArgs != nil {
+		args = append(args, c.HelmVer.additionalTemplateArgs...)
 	}
 
 	return c.run(args...)

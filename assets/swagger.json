@@ -16,6 +16,22 @@
     "version": "version not set"
   },
   "paths": {
+    "/api/v1/account": {
+      "get": {
+        "tags": [
+          "AccountService"
+        ],
+        "operationId": "ListAccounts",
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/accountAccountsList"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/account/can-i/{resource}/{action}/{subresource}": {
       "get": {
         "tags": [
@@ -74,6 +90,92 @@
             "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/accountUpdatePasswordResponse"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/account/{name}": {
+      "get": {
+        "tags": [
+          "AccountService"
+        ],
+        "operationId": "GetAccount",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/accountAccount"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/account/{name}/token": {
+      "post": {
+        "tags": [
+          "AccountService"
+        ],
+        "operationId": "CreateTokenMixin9",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/accountCreateTokenRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/accountCreateTokenResponse"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/account/{name}/token/{id}": {
+      "delete": {
+        "tags": [
+          "AccountService"
+        ],
+        "operationId": "DeleteTokenMixin9",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/accountEmptyResponse"
             }
           }
         }
@@ -1587,6 +1689,36 @@
       }
     },
     "/api/v1/repositories/{repo}": {
+      "get": {
+        "tags": [
+          "RepositoryService"
+        ],
+        "summary": "Get returns a repository or its credentials",
+        "operationId": "GetMixin3",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "repo",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "boolean",
+            "format": "boolean",
+            "description": "Whether to force a cache refresh on repo's connection state.",
+            "name": "forceRefresh",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Repository"
+            }
+          }
+        }
+      },
       "delete": {
         "tags": [
           "RepositoryService"
@@ -1885,6 +2017,41 @@
     }
   },
   "definitions": {
+    "accountAccount": {
+      "type": "object",
+      "properties": {
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "enabled": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "tokens": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/accountToken"
+          }
+        }
+      }
+    },
+    "accountAccountsList": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/accountAccount"
+          }
+        }
+      }
+    },
     "accountCanIResponse": {
       "type": "object",
       "properties": {
@@ -1893,10 +2060,56 @@
         }
       }
     },
+    "accountCreateTokenRequest": {
+      "type": "object",
+      "properties": {
+        "expiresIn": {
+          "type": "string",
+          "format": "int64",
+          "title": "expiresIn represents a duration in seconds"
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    },
+    "accountCreateTokenResponse": {
+      "type": "object",
+      "properties": {
+        "token": {
+          "type": "string"
+        }
+      }
+    },
+    "accountEmptyResponse": {
+      "type": "object"
+    },
+    "accountToken": {
+      "type": "object",
+      "properties": {
+        "expiresAt": {
+          "type": "string",
+          "format": "int64"
+        },
+        "id": {
+          "type": "string"
+        },
+        "issuedAt": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
+    },
     "accountUpdatePasswordRequest": {
       "type": "object",
       "properties": {
         "currentPassword": {
+          "type": "string"
+        },
+        "name": {
           "type": "string"
         },
         "newPassword": {
@@ -2159,12 +2372,14 @@
         "appLabelKey": {
           "type": "string"
         },
+        "configManagementPlugins": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ConfigManagementPlugin"
+          }
+        },
         "dexConfig": {
           "$ref": "#/definitions/clusterDexConfig"
-        },
-        "disableAdmin": {
-          "type": "boolean",
-          "format": "boolean"
         },
         "googleAnalytics": {
           "$ref": "#/definitions/clusterGoogleAnalyticsConfig"
@@ -2174,6 +2389,12 @@
         },
         "kustomizeOptions": {
           "$ref": "#/definitions/v1alpha1KustomizeOptions"
+        },
+        "kustomizeVersions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         },
         "oidcConfig": {
           "$ref": "#/definitions/clusterOIDCConfig"
@@ -2196,6 +2417,10 @@
         },
         "url": {
           "type": "string"
+        },
+        "userLoginsDisabled": {
+          "type": "boolean",
+          "format": "boolean"
         }
       }
     },
@@ -2244,6 +2469,9 @@
           "type": "string",
           "format": "int64",
           "title": "expiresIn represents a duration in seconds"
+        },
+        "id": {
+          "type": "string"
         },
         "project": {
           "type": "string"
@@ -2986,6 +3214,13 @@
             "$ref": "#/definitions/v1GroupKind"
           }
         },
+        "namespaceResourceWhitelist": {
+          "type": "array",
+          "title": "NamespaceResourceWhitelist contains list of whitelisted namespace level resources",
+          "items": {
+            "$ref": "#/definitions/v1GroupKind"
+          }
+        },
         "orphanedResources": {
           "$ref": "#/definitions/v1alpha1OrphanedResourcesMonitorSettings"
         },
@@ -3222,6 +3457,10 @@
         "nameSuffix": {
           "type": "string",
           "title": "NameSuffix is a suffix appended to resources for kustomize apps"
+        },
+        "version": {
+          "type": "string",
+          "title": "Version contains optional Kustomize version"
         }
       }
     },
@@ -3443,6 +3682,24 @@
         }
       }
     },
+    "v1alpha1Command": {
+      "type": "object",
+      "title": "Command holds binary path and arguments list",
+      "properties": {
+        "args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "command": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "v1alpha1ComparedTo": {
       "type": "object",
       "title": "ComparedTo contains application source and target which was used for resources comparison",
@@ -3452,6 +3709,21 @@
         },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
+        }
+      }
+    },
+    "v1alpha1ConfigManagementPlugin": {
+      "type": "object",
+      "title": "ConfigManagementPlugin contains config management plugin configuration",
+      "properties": {
+        "generate": {
+          "$ref": "#/definitions/v1alpha1Command"
+        },
+        "init": {
+          "$ref": "#/definitions/v1alpha1Command"
+        },
+        "name": {
+          "type": "string"
         }
       }
     },
@@ -3563,6 +3835,9 @@
         "iat": {
           "type": "string",
           "format": "int64"
+        },
+        "id": {
+          "type": "string"
         }
       }
     },
@@ -3578,6 +3853,18 @@
           "type": "string"
         },
         "value": {
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1KnownTypeField": {
+      "type": "object",
+      "title": "KnownTypeField contains mapping between CRD field and known Kubernetes type",
+      "properties": {
+        "field": {
+          "type": "string"
+        },
+        "type": {
           "type": "string"
         }
       }
@@ -3601,6 +3888,10 @@
       "type": "object",
       "title": "KustomizeOptions are options for kustomize to use when building manifests",
       "properties": {
+        "binaryPath": {
+          "type": "string",
+          "title": "BinaryPath holds optional path to kustomize binary"
+        },
         "buildOptions": {
           "type": "string",
           "title": "BuildOptions is a string of build parameters to use when calling `kustomize build`"
@@ -3611,8 +3902,26 @@
       "description": "Operation contains requested operation parameters.",
       "type": "object",
       "properties": {
+        "initiatedBy": {
+          "$ref": "#/definitions/v1alpha1OperationInitiator"
+        },
         "sync": {
           "$ref": "#/definitions/v1alpha1SyncOperation"
+        }
+      }
+    },
+    "v1alpha1OperationInitiator": {
+      "type": "object",
+      "title": "OperationInitiator holds information about the operation initiator",
+      "properties": {
+        "automated": {
+          "description": "Automated is set to true if operation was initiated automatically by the application controller.",
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "username": {
+          "description": "Name of a user who started operation.",
+          "type": "string"
         }
       }
     },
@@ -4038,6 +4347,12 @@
         },
         "ignoreDifferences": {
           "type": "string"
+        },
+        "knownTypeFields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1KnownTypeField"
+          }
         }
       }
     },

@@ -26,6 +26,11 @@ const settings = [
         title: 'Projects',
         description: 'Configure Argo CD projects',
         path: './projects'
+    },
+    {
+        title: 'Accounts',
+        description: 'Configure Accounts',
+        path: './accounts'
     }
 ];
 

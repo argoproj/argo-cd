@@ -67,8 +67,8 @@ bases:
 - github.com/argoproj/argo-cd//manifests/cluster-install
 ```
 
-The above kustomization has a remote base to he HEAD revision of the argo-cd repo. Since this
-is not stable target, the manifests for this kustomize application can suddenly change meaning, even without
+The above kustomization has a remote base to the HEAD revision of the argo-cd repo. Since this
+is not a stable target, the manifests for this kustomize application can suddenly change meaning, even without
 any changes to your own Git repository.
 
 A better version would be to use a Git tag or commit SHA. For example:

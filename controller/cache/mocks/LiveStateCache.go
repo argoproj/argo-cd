@@ -14,6 +14,8 @@ import (
 
 	unstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	v1alpha1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )
 
@@ -84,8 +86,8 @@ func (_m *LiveStateCache) GetNamespaceTopLevelResources(server string, namespace
 	return r0, r1
 }
 
-// GetServerVersion provides a mock function with given fields: serverURL
-func (_m *LiveStateCache) GetServerVersion(serverURL string) (string, error) {
+// GetVersionsInfo provides a mock function with given fields: serverURL
+func (_m *LiveStateCache) GetVersionsInfo(serverURL string) (string, []v1.APIGroup, error) {
 	ret := _m.Called(serverURL)
 
 	var r0 string
@@ -95,14 +97,23 @@ func (_m *LiveStateCache) GetServerVersion(serverURL string) (string, error) {
 		r0 = ret.Get(0).(string)
 	}
 
-	var r1 error
-	if rf, ok := ret.Get(1).(func(string) error); ok {
+	var r1 []v1.APIGroup
+	if rf, ok := ret.Get(1).(func(string) []v1.APIGroup); ok {
 		r1 = rf(serverURL)
 	} else {
-		r1 = ret.Error(1)
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).([]v1.APIGroup)
+		}
 	}
 
-	return r0, r1
+	var r2 error
+	if rf, ok := ret.Get(2).(func(string) error); ok {
+		r2 = rf(serverURL)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
 }
 
 // Invalidate provides a mock function with given fields:

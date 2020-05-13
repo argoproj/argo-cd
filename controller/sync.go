@@ -47,6 +47,7 @@ type syncContext struct {
 	proj                *v1alpha1.AppProject
 	compareResult       *comparisonResult
 	config              *rest.Config
+	rawConfig           *rest.Config
 	dynamicIf           dynamic.Interface
 	disco               discovery.DiscoveryInterface
 	extensionsclientset *clientset.Clientset
@@ -173,6 +174,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		proj:                proj,
 		compareResult:       compareResult,
 		config:              restConfig,
+		rawConfig:           clst.RawRestConfig(),
 		dynamicIf:           dynamicIf,
 		disco:               disco,
 		extensionsclientset: extensionsclientset,
@@ -422,7 +424,13 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 				// metadata.generateName, then we will generate a formulated metadata.name before submission.
 				targetObj := obj.DeepCopy()
 				if targetObj.GetName() == "" {
-					postfix := strings.ToLower(fmt.Sprintf("%s-%s-%d", sc.syncRes.Revision[0:7], phase, sc.opState.StartedAt.UTC().Unix()))
+					var syncRevision string
+					if len(sc.syncRes.Revision) >= 8 {
+						syncRevision = sc.syncRes.Revision[0:7]
+					} else {
+						syncRevision = sc.syncRes.Revision
+					}
+					postfix := strings.ToLower(fmt.Sprintf("%s-%s-%d", syncRevision, phase, sc.opState.StartedAt.UTC().Unix()))
 					generateName := obj.GetGenerateName()
 					targetObj.SetName(fmt.Sprintf("%s%s", generateName, postfix))
 				}
@@ -476,9 +484,11 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 		serverRes, err := kube.ServerResourceForGroupVersionKind(sc.disco, task.groupVersionKind())
 		if err != nil {
 			// Special case for custom resources: if CRD is not yet known by the K8s API server,
-			// skip verification during `kubectl apply --dry-run` since we expect the CRD
+			// and the CRD is part of this sync or the resource is annotated with SkipDryRunOnMissingResource=true,
+			// then skip verification during `kubectl apply --dry-run` since we expect the CRD
 			// to be created during app synchronization.
-			if apierr.IsNotFound(err) && sc.hasCRDOfGroupKind(task.group(), task.kind()) {
+			skipDryRunOnMissingResource := resource.HasAnnotationOption(task.targetObj, common.AnnotationSyncOptions, "SkipDryRunOnMissingResource=true")
+			if apierr.IsNotFound(err) && (skipDryRunOnMissingResource || sc.hasCRDOfGroupKind(task.group(), task.kind())) {
 				sc.log.WithFields(log.Fields{"task": task}).Debug("skip dry-run for custom resource")
 				task.skipDryRun = true
 			} else {
@@ -549,7 +559,7 @@ func (sc *syncContext) ensureCRDReady(name string) {
 
 // applyObject performs a `kubectl apply` of a single resource
 func (sc *syncContext) applyObject(targetObj *unstructured.Unstructured, dryRun, force, validate bool) (v1alpha1.ResultCode, string) {
-	message, err := sc.kubectl.ApplyResource(sc.config, targetObj, targetObj.GetNamespace(), dryRun, force, validate)
+	message, err := sc.kubectl.ApplyResource(sc.rawConfig, targetObj, targetObj.GetNamespace(), dryRun, force, validate)
 	if err != nil {
 		return v1alpha1.ResultCodeSyncFailed, err.Error()
 	}
@@ -561,10 +571,10 @@ func (sc *syncContext) applyObject(targetObj *unstructured.Unstructured, dryRun,
 
 // pruneObject deletes the object if both prune is true and dryRun is false. Otherwise appropriate message
 func (sc *syncContext) pruneObject(liveObj *unstructured.Unstructured, prune, dryRun bool) (v1alpha1.ResultCode, string) {
-	if !prune {
-		return v1alpha1.ResultCodePruneSkipped, "ignored (requires pruning)"
-	} else if resource.HasAnnotationOption(liveObj, common.AnnotationSyncOptions, "Prune=false") {
+	if resource.HasAnnotationOption(liveObj, common.AnnotationSyncOptions, "Prune=false") {
 		return v1alpha1.ResultCodePruneSkipped, "ignored (no prune)"
+	} else if !prune {
+		return v1alpha1.ResultCodePruneSkipped, "ignored (requires pruning)"
 	} else {
 		if dryRun {
 			return v1alpha1.ResultCodePruned, "pruned (dry run)"

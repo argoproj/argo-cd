@@ -48,9 +48,6 @@ func TestCanAddAppFromPrivateRepoWithRepoCfg(t *testing.T) {
 		Expect(Success(""))
 }
 
-func TestCanAddAppFromPrivateRepoWithCredsFromCLI(t *testing.T) {
-}
-
 // make sure you can create an app from a private repo, if the creds are set-up in the CM
 func TestCanAddAppFromInsecurePrivateRepoWithCredCfg(t *testing.T) {
 	Given(t).

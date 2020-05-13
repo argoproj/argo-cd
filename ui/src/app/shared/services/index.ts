@@ -1,3 +1,4 @@
+import {AccountsService} from './accounts-service';
 import {ApplicationsService} from './applications-service';
 import {AuthService} from './auth-service';
 import {CertificatesService} from './cert-service';
@@ -20,6 +21,7 @@ export interface Services {
     projects: ProjectsService;
     viewPreferences: ViewPreferencesService;
     version: VersionService;
+    accounts: AccountsService;
 }
 
 export const services: Services = {
@@ -32,7 +34,8 @@ export const services: Services = {
     repocreds: new RepoCredsService(),
     projects: new ProjectsService(),
     viewPreferences: new ViewPreferencesService(),
-    version: new VersionService()
+    version: new VersionService(),
+    accounts: new AccountsService()
 };
 
 export {ProjectParams, ProjectRoleParams, CreateJWTTokenParams, DeleteJWTTokenParams, JWTTokenResponse} from './projects-service';

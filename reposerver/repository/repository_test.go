@@ -84,7 +84,7 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	assert.Equal(t, countOfManifests, len(res1.Manifests))
 
 	// this will test concatenated manifests to verify we split YAMLs correctly
-	res2, err := GenerateManifests("./testdata/concatenated", "/", "", &q)
+	res2, err := GenerateManifests("./testdata/concatenated", "/", "", &q, false)
 	assert.NoError(t, err)
 	assert.Equal(t, 3, len(res2.Manifests))
 }
@@ -481,7 +481,7 @@ func TestGenerateFromUTF16(t *testing.T) {
 		Repo:              &argoappv1.Repository{},
 		ApplicationSource: &argoappv1.ApplicationSource{},
 	}
-	res1, err := GenerateManifests("./testdata/utf-16", "/", "", &q)
+	res1, err := GenerateManifests("./testdata/utf-16", "/", "", &q, false)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(res1.Manifests))
 }

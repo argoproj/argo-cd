@@ -153,7 +153,7 @@ func newCluster(objs ...*unstructured.Unstructured) *clusterInfo {
 
 func newClusterExt(kubectl kube.Kubectl) *clusterInfo {
 	return &clusterInfo{
-		lock:            &sync.Mutex{},
+		lock:            &sync.RWMutex{},
 		nodes:           make(map[kube.ResourceKey]*node),
 		onObjectUpdated: func(managedByApp map[string]bool, reference corev1.ObjectReference) {},
 		kubectl:         kubectl,
@@ -322,7 +322,7 @@ metadata:
 				Namespace: "default",
 			},
 		},
-	}, []*unstructured.Unstructured{targetDeploy}, nil)
+	}, []*unstructured.Unstructured{targetDeploy})
 	assert.Nil(t, err)
 	assert.Equal(t, managedObjs, map[kube.ResourceKey]*unstructured.Unstructured{
 		kube.NewResourceKey("apps", "Deployment", "default", "helm-guestbook"): testDeploy,
@@ -504,6 +504,7 @@ func TestWatchCacheUpdated(t *testing.T) {
 
 	podGroupKind := testPod.GroupVersionKind().GroupKind()
 
+	cluster.lock.Lock()
 	cluster.replaceResourceCache(podGroupKind, "updated-list-version", []unstructured.Unstructured{*updated, *added}, "")
 
 	_, ok := cluster.nodes[kube.GetResourceKey(removed)]
@@ -515,6 +516,7 @@ func TestWatchCacheUpdated(t *testing.T) {
 
 	_, ok = cluster.nodes[kube.GetResourceKey(added)]
 	assert.True(t, ok)
+	cluster.lock.Unlock()
 }
 
 func TestNamespaceModeReplace(t *testing.T) {

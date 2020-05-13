@@ -4,15 +4,20 @@ Argo CD applications, projects and settings can be defined declaratively using K
 
 ## Quick Reference
 
-| Name | Kind | Description |
-|------|------|-------------|
-| [`argocd-cm.yaml`](argocd-cm.yaml) | ConfigMap | General Argo CD configuration |
-| [`argocd-secret.yaml`](argocd-secret.yaml) | Secret | Password, Certificates, Signing Key |
-| [`argocd-rbac-cm.yaml`](argocd-rbac-cm.yaml) | ConfigMap | RBAC Configuration |
-| [`argocd-tls-certs-cm.yaml`](argocd-tls-certs-cm.yaml) | ConfigMap | Custom TLS certificates for connecting Git repositories via HTTPS (v1.2 and later) |
-| [`argocd-ssh-known-hosts-cm.yaml`](argocd-ssh-known-hosts-cm.yaml) | ConfigMap | SSH known hosts data for connecting Git repositories via SSH (v1.2 and later) |
-| [`application.yaml`](application.yaml) | Application | Example application spec |
-| [`project.yaml`](project.yaml) | AppProject | Example project spec |
+| File Name | Resource Name | Kind | Description |
+|-----------|---------------|------|-------------|
+| [`argocd-cm.yaml`](argocd-cm.yaml) | argocd-cm | ConfigMap | General Argo CD configuration |
+| [`argocd-secret.yaml`](argocd-secret.yaml) | argocd-secret | Secret | Password, Certificates, Signing Key |
+| [`argocd-rbac-cm.yaml`](argocd-rbac-cm.yaml) | argocd-rbac-cm | ConfigMap | RBAC Configuration |
+| [`argocd-tls-certs-cm.yaml`](argocd-tls-certs-cm.yaml) | argocd-tls-certs-cm | ConfigMap | Custom TLS certificates for connecting Git repositories via HTTPS (v1.2 and later) |
+| [`argocd-ssh-known-hosts-cm.yaml`](argocd-ssh-known-hosts-cm.yaml) | argocd-ssh-known-hosts-cm | ConfigMap | SSH known hosts data for connecting Git repositories via SSH (v1.2 and later) |
+| [`application.yaml`](application.yaml) | - | Application | Example application spec |
+| [`project.yaml`](project.yaml) | - | AppProject | Example project spec |
+
+All resources, including `Application` and `AppProject` specs, have to be installed in the ArgoCD namespace (by default `argocd`). Also, ConfigMap and Secret resources need to be named as shown in the table above. For `Application` and `AppProject` resources, the name of the resource equals the name of the application or project within ArgoCD. This also means that application and project names are unique within the same ArgoCD installation - you cannot i.e. have the same application name for two different applications.
+
+!!!warning "A note about ConfigMap resources"
+    Be sure to annotate your ConfigMap resources using the label `app.kubernetes.io/part-of: argocd`, otherwise ArgoCD will not be able to use them.
 
 ## Applications
 
@@ -100,6 +105,12 @@ spec:
     kind: LimitRange
   - group: ''
     kind: NetworkPolicy
+  # Deny all namespaced-scoped resources from being created, except for Deployment and StatefulSet
+  namespaceResourceWhilelist:
+  - group: 'apps'
+    kind: Deployment
+  - group: 'apps'
+    kind: StatefulSet
   roles:
   # A role which provides read-only access to all applications in the project
   - name: read-only
@@ -121,6 +132,12 @@ spec:
 ```
 
 ## Repositories
+
+!!!note
+    Some Git hosters - notably GitLab and possibly on-premise GitLab instances as well - require you to
+    specify the `.git` suffix in the repository URL, otherwise they will send a HTTP 301 redirect to the
+    repository URL suffixed with `.git`. ArgoCD will **not** follow these redirects, so you have to
+    adapt your repository URL to be suffixed with `.git`.
 
 Repository credentials are stored in secret. Use following steps to configure a repo:
 
@@ -570,7 +587,7 @@ Notes:
 
 ## SSO & RBAC
 
-* SSO configuration details: [SSO](./sso/index.md)
+* SSO configuration details: [SSO](./user-management/index.md)
 * RBAC configuration details: [RBAC](./rbac.md)
 
 ## Manage Argo CD Using Argo CD

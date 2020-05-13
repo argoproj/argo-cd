@@ -17,6 +17,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -53,6 +54,7 @@ var (
 	deploymentNamespace string
 	name                string
 	KubeClientset       kubernetes.Interface
+	DynamicClientset    dynamic.Interface
 	AppClientset        appclientset.Interface
 	ArgoCDClientset     argocdclient.Client
 	apiServerAddress    string
@@ -96,6 +98,7 @@ func init() {
 	config := getKubeConfig("", clientcmd.ConfigOverrides{})
 	AppClientset = appclientset.NewForConfigOrDie(config)
 	KubeClientset = kubernetes.NewForConfigOrDie(config)
+	DynamicClientset = dynamic.NewForConfigOrDie(config)
 	apiServerAddress = os.Getenv(argocdclient.EnvArgoCDServer)
 	if apiServerAddress == "" {
 		apiServerAddress = defaultApiServer
@@ -214,6 +217,15 @@ func SetResourceOverrides(overrides map[string]v1alpha1.ResourceOverride) {
 			cm.Data["resource.customizations"] = string(yamlBytes)
 		} else {
 			delete(cm.Data, "resource.customizations")
+		}
+		return nil
+	})
+}
+
+func SetAccounts(accounts map[string][]string) {
+	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		for k, v := range accounts {
+			cm.Data[fmt.Sprintf("accounts.%s", k)] = strings.Join(v, ",")
 		}
 		return nil
 	})

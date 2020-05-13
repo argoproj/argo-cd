@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/coreos/go-oidc"
@@ -41,34 +42,44 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 		Short: "Log in to Argo CD",
 		Long:  "Log in to Argo CD",
 		Run: func(c *cobra.Command, args []string) {
-			if len(args) == 0 {
+			var server string
+
+			if len(args) != 1 && !globalClientOpts.PortForward {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			server := args[0]
-			tlsTestResult, err := grpc_util.TestTLS(server)
-			errors.CheckError(err)
-			if !tlsTestResult.TLS {
-				if !globalClientOpts.PlainText {
-					if !cli.AskToProceed("WARNING: server is not configured with TLS. Proceed (y/n)? ") {
-						os.Exit(1)
+
+			if globalClientOpts.PortForward {
+				server = "port-forward"
+			} else {
+				server = args[0]
+				tlsTestResult, err := grpc_util.TestTLS(server)
+				errors.CheckError(err)
+				if !tlsTestResult.TLS {
+					if !globalClientOpts.PlainText {
+						if !cli.AskToProceed("WARNING: server is not configured with TLS. Proceed (y/n)? ") {
+							os.Exit(1)
+						}
+						globalClientOpts.PlainText = true
 					}
-					globalClientOpts.PlainText = true
-				}
-			} else if tlsTestResult.InsecureErr != nil {
-				if !globalClientOpts.Insecure {
-					if !cli.AskToProceed(fmt.Sprintf("WARNING: server certificate had error: %s. Proceed insecurely (y/n)? ", tlsTestResult.InsecureErr)) {
-						os.Exit(1)
+				} else if tlsTestResult.InsecureErr != nil {
+					if !globalClientOpts.Insecure {
+						if !cli.AskToProceed(fmt.Sprintf("WARNING: server certificate had error: %s. Proceed insecurely (y/n)? ", tlsTestResult.InsecureErr)) {
+							os.Exit(1)
+						}
+						globalClientOpts.Insecure = true
 					}
-					globalClientOpts.Insecure = true
 				}
 			}
 			clientOpts := argocdclient.ClientOptions{
-				ConfigPath: "",
-				ServerAddr: server,
-				Insecure:   globalClientOpts.Insecure,
-				PlainText:  globalClientOpts.PlainText,
-				GRPCWeb:    globalClientOpts.GRPCWeb,
+				ConfigPath:           "",
+				ServerAddr:           server,
+				Insecure:             globalClientOpts.Insecure,
+				PlainText:            globalClientOpts.PlainText,
+				GRPCWeb:              globalClientOpts.GRPCWeb,
+				GRPCWebRootPath:      globalClientOpts.GRPCWebRootPath,
+				PortForward:          globalClientOpts.PortForward,
+				PortForwardNamespace: globalClientOpts.PortForwardNamespace,
 			}
 			acdClient := argocdclient.NewClientOrDie(&clientOpts)
 			setConn, setIf := acdClient.NewSettingsClientOrDie()
@@ -76,6 +87,10 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 
 			if ctxName == "" {
 				ctxName = server
+				if globalClientOpts.GRPCWebRootPath != "" {
+					rootPath := strings.TrimRight(strings.TrimLeft(globalClientOpts.GRPCWebRootPath, "/"), "/")
+					ctxName = fmt.Sprintf("%s/%s", server, rootPath)
+				}
 			}
 
 			// Perform the login
@@ -99,7 +114,7 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 				SkipClaimsValidation: true,
 			}
 			claims := jwt.MapClaims{}
-			_, _, err = parser.ParseUnverified(tokenString, &claims)
+			_, _, err := parser.ParseUnverified(tokenString, &claims)
 			errors.CheckError(err)
 
 			fmt.Printf("'%s' logged in successfully\n", userDisplayName(claims))
@@ -110,10 +125,11 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 				localCfg = &localconfig.LocalConfig{}
 			}
 			localCfg.UpsertServer(localconfig.Server{
-				Server:    server,
-				PlainText: globalClientOpts.PlainText,
-				Insecure:  globalClientOpts.Insecure,
-				GRPCWeb:   globalClientOpts.GRPCWeb,
+				Server:          server,
+				PlainText:       globalClientOpts.PlainText,
+				Insecure:        globalClientOpts.Insecure,
+				GRPCWeb:         globalClientOpts.GRPCWeb,
+				GRPCWebRootPath: globalClientOpts.GRPCWebRootPath,
 			})
 			localCfg.UpsertUser(localconfig.User{
 				Name:         ctxName,

@@ -1,4 +1,4 @@
-import {AutocompleteField, Checkbox, DataLoader, DropDownMenu, FormField, Select} from 'argo-ui';
+import {AutocompleteField, Checkbox, DataLoader, DropDownMenu, FormField, HelpIcon, Select} from 'argo-ui';
 import * as deepMerge from 'deepmerge';
 import * as React from 'react';
 import {FieldApi, Form, FormApi, FormField as ReactFormField, Text} from 'react-form';
@@ -60,10 +60,16 @@ const AutoSyncFormField = ReactFormField((props: {fieldApi: FieldApi; className:
             />
             {automated && (
                 <div className='application-create-panel__sync-params'>
-                    <Checkbox onChange={val => setValue({...automated, prune: val})} checked={automated.prune} id='policyPrune' />{' '}
-                    <label htmlFor='policyPrune'>Prune Resources</label>{' '}
-                    <Checkbox onChange={val => setValue({...automated, selfHeal: val})} checked={automated.selfHeal} id='policySelfHeal' />{' '}
-                    <label htmlFor='selfHeal'>Self Heal</label>
+                    <div className='checkbox-container'>
+                        <Checkbox onChange={val => setValue({...automated, prune: val})} checked={automated.prune} id='policyPrune' />
+                        <label htmlFor='policyPrune'>Prune Resources</label>
+                        <HelpIcon title='If checked, Argo will delete resources if they are no longer defined in Git' />
+                    </div>
+                    <div className='checkbox-container'>
+                        <Checkbox onChange={val => setValue({...automated, selfHeal: val})} checked={automated.selfHeal} id='policySelfHeal' />
+                        <label htmlFor='selfHeal'>Self Heal</label>
+                        <HelpIcon title='If checked, Argo will force the state defined in Git into the cluster when a deviation in the cluster is detected' />
+                    </div>
                 </div>
             )}
         </React.Fragment>

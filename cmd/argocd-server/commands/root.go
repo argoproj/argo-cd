@@ -4,53 +4,58 @@ import (
 	"context"
 	"time"
 
+	"github.com/argoproj/pkg/stats"
+	"github.com/go-redis/redis"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/server"
 	servercache "github.com/argoproj/argo-cd/server/cache"
 	"github.com/argoproj/argo-cd/util/cli"
-	"github.com/argoproj/argo-cd/util/stats"
 	"github.com/argoproj/argo-cd/util/tls"
+	log "github.com/sirupsen/logrus"
 )
 
 // NewCommand returns a new instance of an argocd command
 func NewCommand() *cobra.Command {
 	var (
+		redisClient              *redis.Client
 		insecure                 bool
 		listenPort               int
 		metricsPort              int
+		logFormat                string
 		logLevel                 string
 		glogLevel                int
 		clientConfig             clientcmd.ClientConfig
 		repoServerTimeoutSeconds int
 		staticAssetsDir          string
 		baseHRef                 string
+		rootPath                 string
 		repoServerAddress        string
 		dexServerAddress         string
 		disableAuth              bool
 		tlsConfigCustomizerSrc   func() (tls.ConfigCustomizer, error)
 		cacheSrc                 func() (*servercache.Cache, error)
 		frameOptions             string
-		disableAdmin             bool
 	)
 	var command = &cobra.Command{
 		Use:   cliName,
 		Short: "Run the argocd API server",
 		Long:  "Run the argocd API server",
 		Run: func(c *cobra.Command, args []string) {
+			cli.SetLogFormat(logFormat)
 			cli.SetLogLevel(logLevel)
 			cli.SetGLogLevel(glogLevel)
 
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
-			config.QPS = common.K8sClientConfigQPS
-			config.Burst = common.K8sClientConfigBurst
+			errors.CheckError(v1alpha1.SetK8SConfigDefaults(config))
 
 			namespace, _, err := clientConfig.Namespace()
 			errors.CheckError(err)
@@ -64,6 +69,13 @@ func NewCommand() *cobra.Command {
 			appclientset := appclientset.NewForConfigOrDie(config)
 			repoclientset := apiclient.NewRepoServerClientset(repoServerAddress, repoServerTimeoutSeconds)
 
+			if rootPath != "" {
+				if baseHRef != "" && baseHRef != rootPath {
+					log.Warnf("--basehref and --rootpath had conflict: basehref: %s rootpath: %s", baseHRef, rootPath)
+				}
+				baseHRef = rootPath
+			}
+
 			argoCDOpts := server.ArgoCDServerOpts{
 				Insecure:            insecure,
 				ListenPort:          listenPort,
@@ -71,6 +83,7 @@ func NewCommand() *cobra.Command {
 				Namespace:           namespace,
 				StaticAssetsDir:     staticAssetsDir,
 				BaseHRef:            baseHRef,
+				RootPath:            rootPath,
 				KubeClientset:       kubeclientset,
 				AppClientset:        appclientset,
 				RepoClientset:       repoclientset,
@@ -79,7 +92,7 @@ func NewCommand() *cobra.Command {
 				TLSConfigCustomizer: tlsConfigCustomizer,
 				Cache:               cache,
 				XFrameOptions:       frameOptions,
-				DisableAdmin:        disableAdmin,
+				RedisClient:         redisClient,
 			}
 
 			stats.RegisterStackDumper()
@@ -100,6 +113,8 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&insecure, "insecure", false, "Run server without TLS")
 	command.Flags().StringVar(&staticAssetsDir, "staticassets", "", "Static assets directory path")
 	command.Flags().StringVar(&baseHRef, "basehref", "/", "Value for base href in index.html. Used if Argo CD is running behind reverse proxy under subpath different from /")
+	command.Flags().StringVar(&rootPath, "rootpath", "", "Used if Argo CD is running behind reverse proxy under subpath different from /")
+	command.Flags().StringVar(&logFormat, "logformat", "text", "Set the logging format. One of: text|json")
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().IntVar(&glogLevel, "gloglevel", 0, "Set the glog logging level")
 	command.Flags().StringVar(&repoServerAddress, "repo-server", common.DefaultRepoServerAddr, "Repo server address")
@@ -110,8 +125,9 @@ func NewCommand() *cobra.Command {
 	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortArgoCDAPIServerMetrics, "Start metrics on given port")
 	command.Flags().IntVar(&repoServerTimeoutSeconds, "repo-server-timeout-seconds", 60, "Repo server RPC call timeout seconds.")
 	command.Flags().StringVar(&frameOptions, "x-frame-options", "sameorigin", "Set X-Frame-Options header in HTTP responses to `value`. To disable, set to \"\".")
-	command.Flags().BoolVar(&disableAdmin, "disable-admin", false, "Disable Admin User")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(command)
-	cacheSrc = servercache.AddCacheFlagsToCmd(command)
+	cacheSrc = servercache.AddCacheFlagsToCmd(command, func(client *redis.Client) {
+		redisClient = client
+	})
 	return command
 }

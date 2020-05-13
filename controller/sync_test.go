@@ -44,6 +44,7 @@ func newTestSyncCtx(resources ...*v1.APIResourceList) *syncContext {
 		})
 	sc := syncContext{
 		config:    &rest.Config{},
+		rawConfig: &rest.Config{},
 		namespace: test.FakeArgoCDNamespace,
 		server:    test.FakeClusterURL,
 		syncRes: &v1alpha1.SyncOperationResult{
@@ -398,20 +399,40 @@ func TestSelectiveSyncOnly(t *testing.T) {
 }
 
 func TestUnnamedHooksGetUniqueNames(t *testing.T) {
-	syncCtx := newTestSyncCtx()
-	syncCtx.syncOp.SyncStrategy.Apply = nil
-	pod := test.NewPod()
-	pod.SetName("")
-	pod.SetAnnotations(map[string]string{common.AnnotationKeyHook: "PreSync,PostSync"})
-	syncCtx.compareResult = &comparisonResult{hooks: []*unstructured.Unstructured{pod}}
+	t.Run("Truncated revision", func(t *testing.T) {
+		syncCtx := newTestSyncCtx()
+		syncCtx.syncOp.SyncStrategy.Apply = nil
+		pod := test.NewPod()
+		pod.SetName("")
+		pod.SetAnnotations(map[string]string{common.AnnotationKeyHook: "PreSync,PostSync"})
+		syncCtx.compareResult = &comparisonResult{hooks: []*unstructured.Unstructured{pod}}
 
-	tasks, successful := syncCtx.getSyncTasks()
+		tasks, successful := syncCtx.getSyncTasks()
 
-	assert.True(t, successful)
-	assert.Len(t, tasks, 2)
-	assert.Contains(t, tasks[0].name(), "foobarb-presync-")
-	assert.Contains(t, tasks[1].name(), "foobarb-postsync-")
-	assert.Equal(t, "", pod.GetName())
+		assert.True(t, successful)
+		assert.Len(t, tasks, 2)
+		assert.Contains(t, tasks[0].name(), "foobarb-presync-")
+		assert.Contains(t, tasks[1].name(), "foobarb-postsync-")
+		assert.Equal(t, "", pod.GetName())
+	})
+
+	t.Run("Short revision", func(t *testing.T) {
+		syncCtx := newTestSyncCtx()
+		syncCtx.syncOp.SyncStrategy.Apply = nil
+		pod := test.NewPod()
+		pod.SetName("")
+		pod.SetAnnotations(map[string]string{common.AnnotationKeyHook: "PreSync,PostSync"})
+		syncCtx.compareResult = &comparisonResult{hooks: []*unstructured.Unstructured{pod}}
+		syncCtx.syncRes.Revision = "foobar"
+		tasks, successful := syncCtx.getSyncTasks()
+
+		assert.True(t, successful)
+		assert.Len(t, tasks, 2)
+		assert.Contains(t, tasks[0].name(), "foobar-presync-")
+		assert.Contains(t, tasks[1].name(), "foobar-postsync-")
+		assert.Equal(t, "", pod.GetName())
+	})
+
 }
 
 func TestManagedResourceAreNotNamed(t *testing.T) {
@@ -455,6 +476,101 @@ func TestObjectsGetANamespace(t *testing.T) {
 	assert.Len(t, tasks, 1)
 	assert.Equal(t, test.FakeArgoCDNamespace, tasks[0].namespace())
 	assert.Equal(t, "", pod.GetNamespace())
+}
+
+func TestSyncCustomResources(t *testing.T) {
+	type fields struct {
+		skipDryRunAnnotationPresent bool
+		crdAlreadyPresent           bool
+		crdInSameSync               bool
+	}
+
+	tests := []struct {
+		name        string
+		fields      fields
+		wantDryRun  bool
+		wantSuccess bool
+	}{
+
+		{"unknown crd", fields{
+			skipDryRunAnnotationPresent: false, crdAlreadyPresent: false, crdInSameSync: false,
+		}, true, false},
+		{"crd present in same sync", fields{
+			skipDryRunAnnotationPresent: false, crdAlreadyPresent: false, crdInSameSync: true,
+		}, false, true},
+		{"crd is already present in cluster", fields{
+			skipDryRunAnnotationPresent: false, crdAlreadyPresent: true, crdInSameSync: false,
+		}, true, true},
+		{"crd is already present in cluster, skip dry run annotated", fields{
+			skipDryRunAnnotationPresent: true, crdAlreadyPresent: true, crdInSameSync: false,
+		}, true, true},
+		{"unknown crd, skip dry run annotated", fields{
+			skipDryRunAnnotationPresent: true, crdAlreadyPresent: false, crdInSameSync: false,
+		}, false, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			knownCustomResourceTypes := []v1.APIResource{}
+			if tt.fields.crdAlreadyPresent {
+				knownCustomResourceTypes = append(knownCustomResourceTypes, v1.APIResource{Kind: "TestCrd", Group: "argoproj.io", Version: "v1", Namespaced: true})
+			}
+
+			syncCtx := newTestSyncCtx(
+				&v1.APIResourceList{
+					GroupVersion: "argoproj.io/v1",
+					APIResources: knownCustomResourceTypes,
+				},
+				&v1.APIResourceList{
+					GroupVersion: "apiextensions.k8s.io/v1beta1",
+					APIResources: []v1.APIResource{
+						{Kind: "CustomResourceDefinition", Group: "apiextensions.k8s.io", Version: "v1beta1", Namespaced: true},
+					},
+				},
+			)
+
+			cr := test.Unstructured(`
+{
+  "apiVersion": "argoproj.io/v1",
+  "kind": "TestCrd",
+  "metadata": {
+    "name": "my-resource"
+  }
+}
+`)
+
+			if tt.fields.skipDryRunAnnotationPresent {
+				cr.SetAnnotations(map[string]string{common.AnnotationSyncOptions: "SkipDryRunOnMissingResource=true"})
+			}
+
+			resources := []managedResource{{Target: cr}}
+			if tt.fields.crdInSameSync {
+				resources = append(resources, managedResource{Target: test.NewCRD()})
+			}
+
+			syncCtx.compareResult = &comparisonResult{managedResources: resources}
+
+			tasks, successful := syncCtx.getSyncTasks()
+
+			if successful != tt.wantSuccess {
+				t.Errorf("successful = %v, want: %v", successful, tt.wantSuccess)
+				return
+			}
+
+			skipDryRun := false
+			for _, task := range tasks {
+				if task.targetObj.GetKind() == cr.GetKind() {
+					skipDryRun = task.skipDryRun
+					break
+				}
+			}
+
+			if tt.wantDryRun != !skipDryRun {
+				t.Errorf("dryRun = %v, want: %v", !skipDryRun, tt.wantDryRun)
+			}
+		})
+	}
+
 }
 
 func TestPersistRevisionHistory(t *testing.T) {

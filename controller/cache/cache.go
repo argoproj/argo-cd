@@ -7,6 +7,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
@@ -28,7 +29,7 @@ type cacheSettings struct {
 
 type LiveStateCache interface {
 	// Returns k8s server version
-	GetServerVersion(serverURL string) (string, error)
+	GetVersionsInfo(serverURL string) (string, []metav1.APIGroup, error)
 	// Returns true of given group kind is a namespaced resource
 	IsNamespaced(server string, gk schema.GroupKind) (bool, error)
 	// Executes give callback against resource specified by the key and all its children
@@ -70,7 +71,7 @@ func NewLiveStateCache(
 		appInformer:       appInformer,
 		db:                db,
 		clusters:          make(map[string]*clusterInfo),
-		lock:              &sync.Mutex{},
+		lock:              &sync.RWMutex{},
 		onObjectUpdated:   onObjectUpdated,
 		kubectl:           kubectl,
 		settingsMgr:       settingsMgr,
@@ -82,7 +83,7 @@ func NewLiveStateCache(
 type liveStateCache struct {
 	db                db.ArgoDB
 	clusters          map[string]*clusterInfo
-	lock              *sync.Mutex
+	lock              *sync.RWMutex
 	appInformer       cache.SharedIndexInformer
 	onObjectUpdated   ObjectUpdatedHandler
 	kubectl           kube.Kubectl
@@ -109,32 +110,47 @@ func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
 }
 
 func (c *liveStateCache) getCluster(server string) (*clusterInfo, error) {
+	c.lock.RLock()
+	info, ok := c.clusters[server]
+	c.lock.RUnlock()
+
+	if ok {
+		return info, nil
+	}
+
 	c.lock.Lock()
 	defer c.lock.Unlock()
-	info, ok := c.clusters[server]
-	if !ok {
-		cluster, err := c.db.GetCluster(context.Background(), server)
-		if err != nil {
-			return nil, err
-		}
-		info = &clusterInfo{
-			apisMeta:         make(map[schema.GroupKind]*apiMeta),
-			lock:             &sync.Mutex{},
-			nodes:            make(map[kube.ResourceKey]*node),
-			nsIndex:          make(map[string]map[kube.ResourceKey]*node),
-			onObjectUpdated:  c.onObjectUpdated,
-			kubectl:          c.kubectl,
-			cluster:          cluster,
-			syncTime:         nil,
-			log:              log.WithField("server", cluster.Server),
-			cacheSettingsSrc: c.getCacheSettings,
-			onEventReceived: func(event watch.EventType, un *unstructured.Unstructured) {
-				c.metricsServer.IncClusterEventsCount(cluster.Server)
-			},
-		}
 
-		c.clusters[cluster.Server] = info
+	info, ok = c.clusters[server]
+	if ok {
+		return info, nil
 	}
+
+	logCtx := log.WithField("server", server)
+	logCtx.Info("initializing cluster")
+	cluster, err := c.db.GetCluster(context.Background(), server)
+	if err != nil {
+		return nil, err
+	}
+	info = &clusterInfo{
+		apisMeta:         make(map[schema.GroupKind]*apiMeta),
+		lock:             &sync.RWMutex{},
+		nodes:            make(map[kube.ResourceKey]*node),
+		nsIndex:          make(map[string]map[kube.ResourceKey]*node),
+		onObjectUpdated:  c.onObjectUpdated,
+		kubectl:          c.kubectl,
+		cluster:          cluster,
+		syncTime:         nil,
+		log:              logCtx,
+		cacheSettingsSrc: c.getCacheSettings,
+		onEventReceived: func(event watch.EventType, un *unstructured.Unstructured) {
+			gvk := un.GroupVersionKind()
+			c.metricsServer.IncClusterEventsCount(cluster.Server, gvk.Group, gvk.Kind)
+		},
+		metricsServer: c.metricsServer,
+	}
+	c.clusters[cluster.Server] = info
+
 	return info, nil
 }
 
@@ -152,8 +168,8 @@ func (c *liveStateCache) getSyncedCluster(server string) (*clusterInfo, error) {
 
 func (c *liveStateCache) Invalidate() {
 	log.Info("invalidating live state cache")
-	c.lock.Lock()
-	defer c.lock.Unlock()
+	c.lock.RLock()
+	defer c.lock.RLock()
 	for _, clust := range c.clusters {
 		clust.invalidate()
 	}
@@ -190,14 +206,15 @@ func (c *liveStateCache) GetManagedLiveObjs(a *appv1.Application, targetObjs []*
 	if err != nil {
 		return nil, err
 	}
-	return clusterInfo.getManagedLiveObjs(a, targetObjs, c.metricsServer)
+	return clusterInfo.getManagedLiveObjs(a, targetObjs)
 }
-func (c *liveStateCache) GetServerVersion(serverURL string) (string, error) {
+
+func (c *liveStateCache) GetVersionsInfo(serverURL string) (string, []metav1.APIGroup, error) {
 	clusterInfo, err := c.getSyncedCluster(serverURL)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
-	return clusterInfo.serverVersion, nil
+	return clusterInfo.serverVersion, clusterInfo.apiGroups, nil
 }
 
 func isClusterHasApps(apps []interface{}, cluster *appv1.Cluster) bool {
@@ -210,8 +227,6 @@ func isClusterHasApps(apps []interface{}, cluster *appv1.Cluster) bool {
 }
 
 func (c *liveStateCache) getCacheSettings() *cacheSettings {
-	c.cacheSettingsLock.Lock()
-	defer c.cacheSettingsLock.Unlock()
 	return c.cacheSettings
 }
 
@@ -261,8 +276,9 @@ func (c *liveStateCache) Run(ctx context.Context) error {
 	util.RetryUntilSucceed(func() error {
 		clusterEventCallback := func(event *db.ClusterEvent) {
 			c.lock.Lock()
-			defer c.lock.Unlock()
-			if cluster, ok := c.clusters[event.Cluster.Server]; ok {
+			cluster, ok := c.clusters[event.Cluster.Server]
+			if ok {
+				defer c.lock.Unlock()
 				if event.Type == watch.Deleted {
 					cluster.invalidate()
 					delete(c.clusters, event.Cluster.Server)
@@ -270,11 +286,14 @@ func (c *liveStateCache) Run(ctx context.Context) error {
 					cluster.cluster = event.Cluster
 					cluster.invalidate()
 				}
-			} else if event.Type == watch.Added && isClusterHasApps(c.appInformer.GetStore().List(), event.Cluster) {
-				go func() {
-					// warm up cache for cluster with apps
-					_, _ = c.getSyncedCluster(event.Cluster.Server)
-				}()
+			} else {
+				c.lock.Unlock()
+				if event.Type == watch.Added && isClusterHasApps(c.appInformer.GetStore().List(), event.Cluster) {
+					go func() {
+						// warm up cache for cluster with apps
+						_, _ = c.getSyncedCluster(event.Cluster.Server)
+					}()
+				}
 			}
 		}
 
@@ -287,8 +306,8 @@ func (c *liveStateCache) Run(ctx context.Context) error {
 }
 
 func (c *liveStateCache) GetClustersInfo() []metrics.ClusterInfo {
-	c.lock.Lock()
-	defer c.lock.Unlock()
+	c.lock.RLock()
+	defer c.lock.RUnlock()
 	res := make([]metrics.ClusterInfo, 0)
 	for _, info := range c.clusters {
 		res = append(res, info.getClusterInfo())

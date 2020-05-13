@@ -66,16 +66,38 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:52905b00a73cda93a2ce8c5fa35185daed673d59e39576e81ad6ab6fb7076b3c"
+  digest = "1:3cce78d5d0090e3f1162945fba60ba74e72e8422e8e41bb9c701afb67237bb65"
+  name = "github.com/alicebob/gopher-json"
+  packages = ["."]
+  pruneopts = ""
+  revision = "5a6b3ba71ee69b77cf64febf8b5a7526ca5eaef0"
+
+[[projects]]
+  digest = "1:18a07506ddaa87b1612bfd69eef03f510faf122398df3da774d46dcfe751a060"
+  name = "github.com/alicebob/miniredis"
+  packages = [
+    ".",
+    "server",
+  ]
+  pruneopts = ""
+  revision = "3d7aa1333af56ab862d446678d93aaa6803e0938"
+  version = "v2.7.0"
+
+[[projects]]
+  branch = "master"
+  digest = "1:fbe4779f247babd0b21e2283d419f848a8dab42c0f6bbdeb88d83f190f52c159"
   name = "github.com/argoproj/pkg"
   packages = [
     "errors",
     "exec",
+    "grpc/http",
+    "kubeclientmetrics",
     "rand",
+    "stats",
     "time",
   ]
   pruneopts = ""
-  revision = "02a6aac40ac4cd23de448afe7a1ec0ba4b6d2b96"
+  revision = "f46beff7cd548bafc0264b95a4efed645fb1862c"
 
 [[projects]]
   digest = "1:d8a2bb36a048d1571bcc1aee208b61f39dc16c6c53823feffd37449dde162507"
@@ -92,6 +114,14 @@
   packages = ["quantile"]
   pruneopts = ""
   revision = "3a771d992973f24aa725d07868b467d1ddfceafb"
+
+[[projects]]
+  digest = "1:6e56c4e58a4359f844880c50b3c0a154c73c51c9399c2d16fa79221a6a110598"
+  name = "github.com/bsm/redislock"
+  packages = ["."]
+  pruneopts = ""
+  revision = "3d76f17a9f1e22d11521f78267ce1795641ae596"
+  version = "v0.4.3"
 
 [[projects]]
   digest = "1:6e2b0748ea11cffebe87b4a671a44ecfb243141cdd5df54cb44b7e8e93cb7ea3"
@@ -467,6 +497,17 @@
   version = "v1.2.0"
 
 [[projects]]
+  digest = "1:dcf8316121302735c0ac84e05f4686e3b34e284444435e9a206da48d8be18cb1"
+  name = "github.com/gomodule/redigo"
+  packages = [
+    "internal",
+    "redis",
+  ]
+  pruneopts = ""
+  revision = "9c11da706d9b7902c6da69c592f75637793fe121"
+  version = "v2.0.0"
+
+[[projects]]
   digest = "1:1e5b1e14524ed08301977b7b8e10c719ed853cbf3f24ecb66fae783a46f207a6"
   name = "github.com/google/btree"
   packages = ["."]
@@ -489,15 +530,19 @@
   version = "v0.3.1"
 
 [[projects]]
-  digest = "1:14d826ee25139b4674e9768ac287a135f4e7c14e1134a5b15e4e152edfd49f41"
+  digest = "1:ce886a0d7c4737485b1d72453aa6f22282c021fffe209abe33220d54d0e2e670"
   name = "github.com/google/go-jsonnet"
   packages = [
     ".",
     "ast",
-    "parser",
+    "astgen",
+    "internal/errors",
+    "internal/parser",
+    "internal/program",
   ]
   pruneopts = ""
-  revision = "dfddf2b4e3aec377b0dcdf247ff92e7d078b8179"
+  revision = "70a6b3d419d9ee16a144345c35e0305052c6f2d9"
+  version = "v0.15.0"
 
 [[projects]]
   branch = "master"
@@ -514,6 +559,14 @@
   packages = ["."]
   pruneopts = ""
   revision = "c34317bd91bf98fab745d77b03933cf8769299fe"
+
+[[projects]]
+  digest = "1:ad92aa49f34cbc3546063c7eb2cabb55ee2278b72842eda80e2a20a8a06a8d73"
+  name = "github.com/google/uuid"
+  packages = ["."]
+  pruneopts = ""
+  revision = "0cd6bf5da1e1c83f8b45653022c74f71af0538a4"
+  version = "v1.1.1"
 
 [[projects]]
   digest = "1:2a131706ff80636629ab6373f2944569b8252ecc018cda8040931b05d32e3c16"
@@ -950,15 +1003,15 @@
   version = "v0.1"
 
 [[projects]]
-  digest = "1:c587772fb8ad29ad4db67575dad25ba17a51f072ff18a22b4f0257a4d9c24f75"
+  digest = "1:cc4eb6813da8d08694e557fcafae8fcc24f47f61a0717f952da130ca9a486dfc"
   name = "github.com/stretchr/testify"
   packages = [
     "assert",
     "mock",
   ]
   pruneopts = ""
-  revision = "f35b8ab0b5a2cef36673838d662e249dd9c94686"
-  version = "v1.2.2"
+  revision = "3ebf1ddaeb260c4b1ae502a01c7844fa8c1fa0e9"
+  version = "v1.5.1"
 
 [[projects]]
   digest = "1:51cf0fca93f4866709ceaf01b750e51d997c299a7bd2edf7ccd79e3b428754ae"
@@ -1928,9 +1981,14 @@
     "bou.ke/monkey",
     "github.com/Masterminds/semver",
     "github.com/TomOnTime/utfutil",
+    "github.com/alicebob/miniredis",
     "github.com/argoproj/pkg/errors",
     "github.com/argoproj/pkg/exec",
+    "github.com/argoproj/pkg/grpc/http",
+    "github.com/argoproj/pkg/kubeclientmetrics",
+    "github.com/argoproj/pkg/stats",
     "github.com/argoproj/pkg/time",
+    "github.com/bsm/redislock",
     "github.com/casbin/casbin",
     "github.com/casbin/casbin/model",
     "github.com/coreos/go-oidc",
@@ -1956,6 +2014,7 @@
     "github.com/golang/protobuf/ptypes/empty",
     "github.com/google/go-jsonnet",
     "github.com/google/shlex",
+    "github.com/google/uuid",
     "github.com/grpc-ecosystem/go-grpc-middleware",
     "github.com/grpc-ecosystem/go-grpc-middleware/auth",
     "github.com/grpc-ecosystem/go-grpc-middleware/logging",
@@ -2038,6 +2097,7 @@
     "k8s.io/apimachinery/pkg/types",
     "k8s.io/apimachinery/pkg/util/intstr",
     "k8s.io/apimachinery/pkg/util/jsonmergepatch",
+    "k8s.io/apimachinery/pkg/util/net",
     "k8s.io/apimachinery/pkg/util/runtime",
     "k8s.io/apimachinery/pkg/util/strategicpatch",
     "k8s.io/apimachinery/pkg/util/wait",
@@ -2060,6 +2120,7 @@
     "k8s.io/client-go/tools/cache",
     "k8s.io/client-go/tools/clientcmd",
     "k8s.io/client-go/tools/clientcmd/api",
+    "k8s.io/client-go/tools/pager",
     "k8s.io/client-go/tools/portforward",
     "k8s.io/client-go/transport/spdy",
     "k8s.io/client-go/util/flowcontrol",

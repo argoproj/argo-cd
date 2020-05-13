@@ -14,8 +14,8 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 )
 
-func fixtures(data map[string]string) (*fake.Clientset, *SettingsManager) {
-	kubeClient := fake.NewSimpleClientset(&v1.ConfigMap{
+func fixtures(data map[string]string, opts ...func(secret *v1.Secret)) (*fake.Clientset, *SettingsManager) {
+	cm := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDConfigMapName,
 			Namespace: "default",
@@ -24,7 +24,21 @@ func fixtures(data map[string]string) (*fake.Clientset, *SettingsManager) {
 			},
 		},
 		Data: data,
-	})
+	}
+	secret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDSecretName,
+			Namespace: "default",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+		Data: map[string][]byte{},
+	}
+	for i := range opts {
+		opts[i](secret)
+	}
+	kubeClient := fake.NewSimpleClientset(cm, secret)
 	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
 
 	return kubeClient, settingsManager
@@ -191,18 +205,46 @@ func TestSettingsManager_GetKustomizeBuildOptions(t *testing.T) {
 	t.Run("Empty", func(t *testing.T) {
 		_, settingsManager := fixtures(map[string]string{})
 
-		options, err := settingsManager.GetKustomizeBuildOptions()
+		settings, err := settingsManager.GetKustomizeSettings()
 
 		assert.NoError(t, err)
-		assert.Empty(t, options)
+		assert.Empty(t, settings.BuildOptions)
+		assert.Empty(t, settings.Versions)
 	})
 	t.Run("Set", func(t *testing.T) {
-		_, settingsManager := fixtures(map[string]string{"kustomize.buildOptions": "foo"})
+		_, settingsManager := fixtures(map[string]string{
+			"kustomize.buildOptions":   "foo",
+			"kustomize.version.v3.2.1": "somePath",
+		})
 
-		options, err := settingsManager.GetKustomizeBuildOptions()
+		options, err := settingsManager.GetKustomizeSettings()
 
 		assert.NoError(t, err)
-		assert.Equal(t, "foo", options)
+		assert.Equal(t, "foo", options.BuildOptions)
+		assert.Equal(t, []KustomizeVersion{{Name: "v3.2.1", Path: "somePath"}}, options.Versions)
+	})
+}
+
+func TestKustomizeSettings_GetOptions(t *testing.T) {
+	settings := KustomizeSettings{Versions: []KustomizeVersion{
+		{Name: "v1", Path: "path_v1"},
+		{Name: "v2", Path: "path_v2"},
+		{Name: "v3", Path: "path_v3"},
+	}}
+
+	t.Run("VersionDoesNotExist", func(t *testing.T) {
+		_, err := settings.GetOptions(v1alpha1.ApplicationSource{
+			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v4"}})
+		assert.Error(t, err)
+	})
+
+	t.Run("VersionExists", func(t *testing.T) {
+		ver, err := settings.GetOptions(v1alpha1.ApplicationSource{
+			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v2"}})
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Equal(t, "path_v2", ver.BinaryPath)
 	})
 }
 
