@@ -1337,8 +1337,18 @@ in favor of additional labels to <code>argocd_app_info</code> metric. The deprec
 using <code>ARGOCD_LEGACY_CONTROLLER_METRICS=true</code> environment variable. The legacy example Grafana dashboard is available at
 <a href="https://github.com/argoproj/argo-cd/blob/master/examples/dashboard-legacy.json">examples/dashboard-legacy.json</a>. </p>
 <h2 id="redis-ha-proxy">Redis HA Proxy<a class="headerlink" href="#redis-ha-proxy" title="Permanent link">&para;</a></h2>
-<p>High-availability (HA) Argo CD manifests now bundles Redis in HA Proxy in front of it. During the upgrade Redis requests
-might fail you might see intermittent login failures.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Manual intervention might be required to complete the upgrade.</p>
+</div>
+<p>High-availability (HA) Argo CD manifests now bundles Redis in HA Proxy in front of it. Following issue have been
+observed during the upgrade:</p>
+<ul>
+<li>you might see intermittent login failures;</li>
+<li>after upgrade is completed ha proxy might be unable to access redis server
+(see <a href="https://github.com/argoproj/argo-cd/issues/3547">argo-cd#3547</a>, <a href="https://github.com/DandyDeveloper/charts/issues/26">DandyDeveloper/charts#26</a>).
+As workaround "restart" <code>argocd-redis-ha-haproxy</code> Deployment and <code>argocd-redis-ha-server</code> StatefulSet.   </li>
+</ul>
 <p>From here on you can follow the <a href="../overview/">regular upgrade process</a>.</p>
                 
                   
