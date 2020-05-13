@@ -1,8 +1,7 @@
-package metrics
+package kube
 
 import (
 	"net/http"
-	"regexp"
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -14,30 +13,13 @@ import (
 )
 
 type failureRetryRoundTripper struct {
-	roundTripper              http.RoundTripper
-	failureRetryCount         int
-	failureRetryPeriodSeconds int
-}
-
-var retryActionPatterns = []*regexp.Regexp{
-	regexp.MustCompile("/apis/argoproj.io/.*/applications(/)?.*"),
-	regexp.MustCompile("/apis/argoproj.io/.*/appprojects(/)?.*"),
-}
-
-func isInterestedInRetry(path string) bool {
-	for i := range retryActionPatterns {
-		if retryActionPatterns[i].MatchString(path) {
-			return true
-		}
-	}
-	return false
+	roundTripper                   http.RoundTripper
+	failureRetryCount              int
+	failureRetryPeriodMilliSeconds int
 }
 
 func shouldRetry(counter int, r *http.Request, response *http.Response, err error) bool {
 	if counter <= 0 {
-		return false
-	}
-	if !isInterestedInRetry(r.URL.Path) {
 		return false
 	}
 	if err != nil {
@@ -58,9 +40,9 @@ func (frt *failureRetryRoundTripper) RoundTrip(r *http.Request) (*http.Response,
 	counter := frt.failureRetryCount
 	for shouldRetry(counter, r, resp, roundTimeErr) {
 		log.Debug("failureRetryRoundTripper: ", r.URL.Path, " ", r.Method)
+		time.Sleep(time.Duration(frt.failureRetryPeriodMilliSeconds) * time.Millisecond)
 		resp, roundTimeErr = frt.roundTripper.RoundTrip(r)
 		counter--
-		time.Sleep(time.Duration(frt.failureRetryPeriodSeconds) * time.Second)
 	}
 	return resp, roundTimeErr
 }
@@ -73,9 +55,9 @@ func AddFailureRetryWrapper(config *rest.Config, failureRetryCount int, failureR
 			rt = wrap(rt)
 		}
 		return &failureRetryRoundTripper{
-			roundTripper:              rt,
-			failureRetryCount:         failureRetryCount,
-			failureRetryPeriodSeconds: failureRetryPeriodSeconds,
+			roundTripper:                   rt,
+			failureRetryCount:              failureRetryCount,
+			failureRetryPeriodMilliSeconds: failureRetryPeriodSeconds,
 		}
 	}
 	return config

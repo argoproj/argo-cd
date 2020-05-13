@@ -4,7 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/argoproj/argo-cd/controller/metrics"
+	"github.com/argoproj/argo-cd/util/env"
+
+	"github.com/argoproj/argo-cd/util/kube"
 
 	"github.com/argoproj/pkg/stats"
 	"github.com/go-redis/redis"
@@ -24,29 +26,42 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+const (
+	failureRetryCountEnv              = "ARGOCD_K8S_RETRY_COUNT"
+	failureRetryPeriodMilliSecondsEnv = "ARGOCD_K8S_RETRY_DURATION_MILLISECONDS"
+)
+
+var (
+	failureRetryCount              = 0
+	failureRetryPeriodMilliSeconds = 100
+)
+
+func init() {
+	failureRetryCount = env.ParseNumFromEnv(failureRetryCountEnv, failureRetryCount, 0, 10)
+	failureRetryPeriodMilliSeconds = env.ParseNumFromEnv(failureRetryPeriodMilliSecondsEnv, failureRetryPeriodMilliSeconds, 0, 1000)
+}
+
 // NewCommand returns a new instance of an argocd command
 func NewCommand() *cobra.Command {
 	var (
-		redisClient               *redis.Client
-		insecure                  bool
-		listenPort                int
-		metricsPort               int
-		logFormat                 string
-		logLevel                  string
-		glogLevel                 int
-		clientConfig              clientcmd.ClientConfig
-		repoServerTimeoutSeconds  int
-		staticAssetsDir           string
-		baseHRef                  string
-		rootPath                  string
-		repoServerAddress         string
-		dexServerAddress          string
-		disableAuth               bool
-		tlsConfigCustomizerSrc    func() (tls.ConfigCustomizer, error)
-		cacheSrc                  func() (*servercache.Cache, error)
-		frameOptions              string
-		failureRetryCount         int
-		failureRetryPeriodSeconds int
+		redisClient              *redis.Client
+		insecure                 bool
+		listenPort               int
+		metricsPort              int
+		logFormat                string
+		logLevel                 string
+		glogLevel                int
+		clientConfig             clientcmd.ClientConfig
+		repoServerTimeoutSeconds int
+		staticAssetsDir          string
+		baseHRef                 string
+		rootPath                 string
+		repoServerAddress        string
+		dexServerAddress         string
+		disableAuth              bool
+		tlsConfigCustomizerSrc   func() (tls.ConfigCustomizer, error)
+		cacheSrc                 func() (*servercache.Cache, error)
+		frameOptions             string
 	)
 	var command = &cobra.Command{
 		Use:   cliName,
@@ -69,12 +84,16 @@ func NewCommand() *cobra.Command {
 			cache, err := cacheSrc()
 			errors.CheckError(err)
 
-			if failureRetryCount > 0 {
-				config = metrics.AddFailureRetryWrapper(config, failureRetryCount, failureRetryPeriodSeconds)
-			}
-
 			kubeclientset := kubernetes.NewForConfigOrDie(config)
-			appclientset := appclientset.NewForConfigOrDie(config)
+
+			appclientsetConfig, err := clientConfig.ClientConfig()
+			errors.CheckError(err)
+			errors.CheckError(v1alpha1.SetK8SConfigDefaults(appclientsetConfig))
+
+			if failureRetryCount > 0 {
+				appclientsetConfig = kube.AddFailureRetryWrapper(appclientsetConfig, failureRetryCount, failureRetryPeriodMilliSeconds)
+			}
+			appclientset := appclientset.NewForConfigOrDie(appclientsetConfig)
 			repoclientset := apiclient.NewRepoServerClientset(repoServerAddress, repoServerTimeoutSeconds)
 
 			if rootPath != "" {
@@ -133,8 +152,6 @@ func NewCommand() *cobra.Command {
 	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortArgoCDAPIServerMetrics, "Start metrics on given port")
 	command.Flags().IntVar(&repoServerTimeoutSeconds, "repo-server-timeout-seconds", 60, "Repo server RPC call timeout seconds.")
 	command.Flags().StringVar(&frameOptions, "x-frame-options", "sameorigin", "Set X-Frame-Options header in HTTP responses to `value`. To disable, set to \"\".")
-	command.Flags().IntVar(&failureRetryCount, "failure-retry-count", 0, "Number of failure retry attemps.")
-	command.Flags().IntVar(&failureRetryPeriodSeconds, "failure-retry-period-seconds", 1, "Failure retry period seconds.")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(command)
 	cacheSrc = servercache.AddCacheFlagsToCmd(command, func(client *redis.Client) {
 		redisClient = client
