@@ -54,6 +54,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Universidad Mesoamericana](https://www.umes.edu.gt/)
 1. [Viaduct](https://www.viaduct.ai/)
 1. [Volvo Cars](https://www.volvocars.com/)
+1. [VSHN - The DevOps Company](https://vshn.ch/)
 1. [Walkbase](https://www.walkbase.com/)
 1. [Whitehat Berlin](https://whitehat.berlin) by Guido Maria Serra +Fenaroli
 1. [Yieldlab](https://www.yieldlab.de/)
