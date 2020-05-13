@@ -89,7 +89,7 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 	s.repoLock.Lock(gitClient.Root())
 	defer s.repoLock.Unlock(gitClient.Root())
 
-	commitSHA, err = checkoutRevision(gitClient, commitSHA)
+	_, err = checkoutRevision(gitClient, commitSHA)
 	if err != nil {
 		return nil, err
 	}
@@ -175,7 +175,7 @@ func (s *Service) runRepoOperation(
 		if !settings.noCache && getCached(revision) {
 			return nil
 		}
-		revision, err = checkoutRevision(gitClient, revision)
+		_, err = checkoutRevision(gitClient, revision)
 		if err != nil {
 			return err
 		}
