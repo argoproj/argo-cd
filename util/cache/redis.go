@@ -1,7 +1,6 @@
 package cache
 
 import (
-	"fmt"
 	"time"
 
 	rediscache "github.com/go-redis/cache"
@@ -64,9 +63,8 @@ func CollectMetrics(client *redis.Client, registry MetricsRegistry) {
 		return func(cmd redis.Cmder) error {
 			startTime := time.Now()
 			err := oldProcess(cmd)
-			registry.IncRedisRequest(err != nil && err != rediscache.ErrCacheMiss)
+			registry.IncRedisRequest(err != nil && err != redis.Nil)
 			duration := time.Since(startTime)
-			println(fmt.Sprintf("%v", duration.Seconds()))
 			registry.ObserveRedisRequestDuration(duration)
 			return err
 		}
