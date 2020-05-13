@@ -89,7 +89,7 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 	s.repoLock.Lock(gitClient.Root())
 	defer s.repoLock.Unlock(gitClient.Root())
 
-	commitSHA, err = checkoutRevision(gitClient, commitSHA)
+	_, err = checkoutRevision(gitClient, commitSHA, log.WithField("repo", q.Repo.Repo))
 	if err != nil {
 		return nil, err
 	}
@@ -175,7 +175,7 @@ func (s *Service) runRepoOperation(
 		if !settings.noCache && getCached(revision) {
 			return nil
 		}
-		revision, err = checkoutRevision(gitClient, revision)
+		_, err = checkoutRevision(gitClient, revision, log.WithField("repo", repo.Repo))
 		if err != nil {
 			return err
 		}
@@ -799,7 +799,7 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 	s.repoLock.Lock(gitClient.Root())
 	defer s.repoLock.Unlock(gitClient.Root())
 
-	_, err = checkoutRevision(gitClient, q.Revision)
+	_, err = checkoutRevision(gitClient, q.Revision, log.WithField("repo", q.Repo.Repo))
 	if err != nil {
 		return nil, err
 	}
@@ -877,7 +877,7 @@ func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revisi
 
 // checkoutRevision is a convenience function to initialize a repo, fetch, and checkout a revision
 // Returns the 40 character commit SHA after the checkout has been performed
-func checkoutRevision(gitClient git.Client, commitSHA string) (string, error) {
+func checkoutRevision(gitClient git.Client, commitSHA string, logEntry *log.Entry) (string, error) {
 	err := gitClient.Init()
 	if err != nil {
 		return "", status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
@@ -890,7 +890,11 @@ func checkoutRevision(gitClient git.Client, commitSHA string) (string, error) {
 	if err != nil {
 		return "", status.Errorf(codes.Internal, "Failed to checkout %s: %v", commitSHA, err)
 	}
-	return gitClient.CommitSHA()
+	sha, err := gitClient.CommitSHA()
+	if err == nil && git.IsCommitSHA(commitSHA) && sha != commitSHA {
+		logEntry.Warnf("'git checkout %s' has switched repo to unexpected commit: %s", commitSHA, sha)
+	}
+	return sha, err
 }
 
 func (s *Service) GetHelmCharts(ctx context.Context, q *apiclient.HelmChartsRequest) (*apiclient.HelmChartsResponse, error) {
