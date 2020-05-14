@@ -277,8 +277,8 @@ func (c *liveStateCache) getSyncedCluster(server string) (clustercache.ClusterCa
 
 func (c *liveStateCache) invalidate(settings clustercache.Settings, appInstanceLabelKey string) {
 	log.Info("invalidating live state cache")
-	c.lock.Lock()
-	defer c.lock.Unlock()
+	c.lock.RLock()
+	defer c.lock.RUnlock()
 
 	c.appInstanceLabelKey = appInstanceLabelKey
 	for _, clust := range c.clusters {
