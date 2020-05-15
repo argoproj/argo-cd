@@ -9,10 +9,10 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/errors"
+	argoio "github.com/argoproj/argo-cd/engine/pkg/utils/io"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	settingspkg "github.com/argoproj/argo-cd/pkg/apiclient/settings"
-	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/localconfig"
 	"github.com/argoproj/argo-cd/util/session"
 )
@@ -59,7 +59,7 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 			} else {
 				fmt.Println("Reinitiating SSO login")
 				setConn, setIf := acdClient.NewSettingsClientOrDie()
-				defer util.Close(setConn)
+				defer argoio.Close(setConn)
 				ctx := context.Background()
 				httpClient, err := acdClient.HTTPClient()
 				errors.CheckError(err)

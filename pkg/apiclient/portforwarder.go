@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/io"
 
 	"github.com/pkg/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -73,7 +73,7 @@ func portForward(podSelector string, namespace string) (int, error) {
 		return -1, err
 	}
 	port := ln.Addr().(*net.TCPAddr).Port
-	util.Close(ln)
+	io.Close(ln)
 
 	forwarder, err := portforward.New(dialer, []string{fmt.Sprintf("%d:8080", port)}, context.Background().Done(), readyChan, out, errOut)
 	if err != nil {

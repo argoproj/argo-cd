@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/argoproj/pkg/stats"
-	rediscache "github.com/go-redis/cache"
 	"github.com/go-redis/redis"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -21,13 +20,14 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/controller"
-	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/errors"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/kube"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
+	cacheutil "github.com/argoproj/argo-cd/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
 	"github.com/argoproj/argo-cd/util/cli"
-	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
@@ -47,6 +47,7 @@ func newCommand() *cobra.Command {
 		selfHealTimeoutSeconds   int
 		statusProcessors         int
 		operationProcessors      int
+		logFormat                string
 		logLevel                 string
 		glogLevel                int
 		metricsPort              int
@@ -58,6 +59,7 @@ func newCommand() *cobra.Command {
 		Use:   cliName,
 		Short: "application-controller is a controller to operate on applications CRD",
 		RunE: func(c *cobra.Command, args []string) error {
+			cli.SetLogFormat(logFormat)
 			cli.SetLogLevel(logLevel)
 			cli.SetGLogLevel(glogLevel)
 
@@ -94,14 +96,7 @@ func newCommand() *cobra.Command {
 				metricsPort,
 				kubectlParallelismLimit)
 			errors.CheckError(err)
-			metricsServer := appController.GetMetricsServer()
-			redisClient.WrapProcess(func(oldProcess func(cmd redis.Cmder) error) func(cmd redis.Cmder) error {
-				return func(cmd redis.Cmder) error {
-					err := oldProcess(cmd)
-					metricsServer.IncRedisRequest(err != nil && err != rediscache.ErrCacheMiss)
-					return err
-				}
-			})
+			cacheutil.CollectMetrics(redisClient, appController.GetMetricsServer())
 
 			vers := common.GetVersion()
 			log.Infof("Application Controller (version: %s, built: %s) starting (namespace: %s)", vers.Version, vers.BuildDate, namespace)
@@ -122,6 +117,7 @@ func newCommand() *cobra.Command {
 	command.Flags().IntVar(&repoServerTimeoutSeconds, "repo-server-timeout-seconds", 60, "Repo server RPC call timeout seconds.")
 	command.Flags().IntVar(&statusProcessors, "status-processors", 1, "Number of application status processors")
 	command.Flags().IntVar(&operationProcessors, "operation-processors", 1, "Number of application operation processors")
+	command.Flags().StringVar(&logFormat, "logformat", "text", "Set the logging format. One of: text|json")
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().IntVar(&glogLevel, "gloglevel", 0, "Set the glog logging level")
 	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortArgoCDMetrics, "Start metrics server on given port")

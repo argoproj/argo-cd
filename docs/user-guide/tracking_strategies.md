@@ -1,6 +1,6 @@
 # Tracking and Deployment Strategies
 
-An Argo CD application spec provides several different ways of track Kubernetes resource manifests
+An Argo CD application spec provides several different ways of tracking Kubernetes resource manifests.
 
 In all tracking strategies, the app has the option to sync automatically. If [auto-sync](auto_sync.md)
 is configured, the new resources manifests will be applied automatically -- as soon as a difference

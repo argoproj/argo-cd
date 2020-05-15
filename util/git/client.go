@@ -25,8 +25,8 @@ import (
 	"gopkg.in/src-d/go-git.v4/storage/memory"
 
 	"github.com/argoproj/argo-cd/common"
+	executil "github.com/argoproj/argo-cd/engine/pkg/utils/exec"
 	certutil "github.com/argoproj/argo-cd/util/cert"
-	executil "github.com/argoproj/argo-cd/util/exec"
 )
 
 type RevisionMetadata struct {
@@ -147,6 +147,7 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds) *http.Client 
 				InsecureSkipVerify:   true,
 				GetClientCertificate: clientCertFunc,
 			},
+			DisableKeepAlives: true,
 		}
 	} else {
 		parsedURL, err := url.Parse(repoURL)
@@ -164,6 +165,7 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds) *http.Client 
 					RootCAs:              certPool,
 					GetClientCertificate: clientCertFunc,
 				},
+				DisableKeepAlives: true,
 			}
 		} else {
 			// else no custom certificate stored.
@@ -172,6 +174,7 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds) *http.Client 
 				TLSClientConfig: &tls.Config{
 					GetClientCertificate: clientCertFunc,
 				},
+				DisableKeepAlives: true,
 			}
 		}
 	}

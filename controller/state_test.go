@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"testing"
 
+	synccommon "github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/common"
+
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -11,10 +13,12 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/health"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/kube"
+	. "github.com/argoproj/argo-cd/engine/pkg/utils/testing"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/test"
-	"github.com/argoproj/argo-cd/util/kube"
 )
 
 // TestCompareAppStateEmpty tests comparison when both git and live have no objects
@@ -45,7 +49,7 @@ func TestCompareAppStateMissing(t *testing.T) {
 	data := fakeData{
 		apps: []runtime.Object{app},
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{test.PodManifest},
+			Manifests: []string{PodManifest},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -64,7 +68,7 @@ func TestCompareAppStateMissing(t *testing.T) {
 
 // TestCompareAppStateExtra tests when there is an extra object in live but not defined in git
 func TestCompareAppStateExtra(t *testing.T) {
-	pod := test.NewPod()
+	pod := NewPod()
 	pod.SetNamespace(test.FakeDestNamespace)
 	app := newFakeApp()
 	key := kube.ResourceKey{Group: "", Kind: "Pod", Namespace: test.FakeDestNamespace, Name: app.Name}
@@ -91,8 +95,8 @@ func TestCompareAppStateExtra(t *testing.T) {
 // TestCompareAppStateHook checks that hooks are detected during manifest generation, and not
 // considered as part of resources when assessing Synced status
 func TestCompareAppStateHook(t *testing.T) {
-	pod := test.NewPod()
-	pod.SetAnnotations(map[string]string{common.AnnotationKeyHook: "PreSync"})
+	pod := NewPod()
+	pod.SetAnnotations(map[string]string{synccommon.AnnotationKeyHook: "PreSync"})
 	podBytes, _ := json.Marshal(pod)
 	app := newFakeApp()
 	data := fakeData{
@@ -111,13 +115,13 @@ func TestCompareAppStateHook(t *testing.T) {
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
 	assert.Equal(t, 0, len(compRes.resources))
 	assert.Equal(t, 0, len(compRes.managedResources))
-	assert.Equal(t, 1, len(compRes.hooks))
+	assert.Equal(t, 1, len(compRes.reconciliationResult.Hooks))
 	assert.Equal(t, 0, len(app.Status.Conditions))
 }
 
 // checks that ignore resources are detected, but excluded from status
 func TestCompareAppStateCompareOptionIgnoreExtraneous(t *testing.T) {
-	pod := test.NewPod()
+	pod := NewPod()
 	pod.SetAnnotations(map[string]string{common.AnnotationCompareOptions: "IgnoreExtraneous"})
 	app := newFakeApp()
 	data := fakeData{
@@ -143,8 +147,8 @@ func TestCompareAppStateCompareOptionIgnoreExtraneous(t *testing.T) {
 
 // TestCompareAppStateExtraHook tests when there is an extra _hook_ object in live but not defined in git
 func TestCompareAppStateExtraHook(t *testing.T) {
-	pod := test.NewPod()
-	pod.SetAnnotations(map[string]string{common.AnnotationKeyHook: "PreSync"})
+	pod := NewPod()
+	pod.SetAnnotations(map[string]string{synccommon.AnnotationKeyHook: "PreSync"})
 	pod.SetNamespace(test.FakeDestNamespace)
 	app := newFakeApp()
 	key := kube.ResourceKey{Group: "", Kind: "Pod", Namespace: test.FakeDestNamespace, Name: app.Name}
@@ -166,7 +170,7 @@ func TestCompareAppStateExtraHook(t *testing.T) {
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
 	assert.Equal(t, 1, len(compRes.resources))
 	assert.Equal(t, 1, len(compRes.managedResources))
-	assert.Equal(t, 0, len(compRes.hooks))
+	assert.Equal(t, 0, len(compRes.reconciliationResult.Hooks))
 	assert.Equal(t, 0, len(app.Status.Conditions))
 }
 
@@ -177,10 +181,10 @@ func toJSON(t *testing.T, obj *unstructured.Unstructured) string {
 }
 
 func TestCompareAppStateDuplicatedNamespacedResources(t *testing.T) {
-	obj1 := test.NewPod()
+	obj1 := NewPod()
 	obj1.SetNamespace(test.FakeDestNamespace)
-	obj2 := test.NewPod()
-	obj3 := test.NewPod()
+	obj2 := NewPod()
+	obj3 := NewPod()
 	obj3.SetNamespace("kube-system")
 
 	app := newFakeApp()
@@ -250,7 +254,7 @@ func TestSetHealth(t *testing.T) {
 
 	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, nil)
 
-	assert.Equal(t, compRes.healthStatus.Status, argoappv1.HealthStatusHealthy)
+	assert.Equal(t, compRes.healthStatus.Status, health.HealthStatusHealthy)
 }
 
 func TestSetHealthSelfReferencedApp(t *testing.T) {
@@ -282,7 +286,7 @@ func TestSetHealthSelfReferencedApp(t *testing.T) {
 
 	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, nil)
 
-	assert.Equal(t, compRes.healthStatus.Status, argoappv1.HealthStatusHealthy)
+	assert.Equal(t, compRes.healthStatus.Status, health.HealthStatusHealthy)
 }
 
 func TestSetManagedResourcesWithOrphanedResources(t *testing.T) {
@@ -352,7 +356,7 @@ func TestReturnUnknownComparisonStateOnSettingLoadError(t *testing.T) {
 
 	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, nil)
 
-	assert.Equal(t, argoappv1.HealthStatusUnknown, compRes.healthStatus.Status)
+	assert.Equal(t, health.HealthStatusUnknown, compRes.healthStatus.Status)
 	assert.Equal(t, argoappv1.SyncStatusCodeUnknown, compRes.syncStatus.Status)
 }
 
@@ -383,13 +387,6 @@ func TestSetManagedResourcesKnownOrphanedResourceExceptions(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, tree.OrphanedNodes, 1)
 	assert.Equal(t, "guestbook", tree.OrphanedNodes[0].Name)
-}
-
-func Test_comparisonResult_obs(t *testing.T) {
-	assert.Len(t, (&comparisonResult{}).targetObjs(), 0)
-	assert.Len(t, (&comparisonResult{managedResources: []managedResource{{}}}).targetObjs(), 0)
-	assert.Len(t, (&comparisonResult{managedResources: []managedResource{{Target: test.NewPod()}}}).targetObjs(), 1)
-	assert.Len(t, (&comparisonResult{hooks: []*unstructured.Unstructured{{}}}).targetObjs(), 1)
 }
 
 func Test_appStateManager_persistRevisionHistory(t *testing.T) {

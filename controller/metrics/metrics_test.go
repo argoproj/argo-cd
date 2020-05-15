@@ -16,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
 
+	"github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/common"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
 	appinformer "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
@@ -227,11 +228,11 @@ argocd_app_sync_total{dest_server="https://localhost:6443",name="my-app",namespa
 `
 
 	fakeApp := newFakeApp(fakeApp)
-	metricsServ.IncSync(fakeApp, &argoappv1.OperationState{Phase: argoappv1.OperationRunning})
-	metricsServ.IncSync(fakeApp, &argoappv1.OperationState{Phase: argoappv1.OperationFailed})
-	metricsServ.IncSync(fakeApp, &argoappv1.OperationState{Phase: argoappv1.OperationError})
-	metricsServ.IncSync(fakeApp, &argoappv1.OperationState{Phase: argoappv1.OperationSucceeded})
-	metricsServ.IncSync(fakeApp, &argoappv1.OperationState{Phase: argoappv1.OperationSucceeded})
+	metricsServ.IncSync(fakeApp, &argoappv1.OperationState{Phase: common.OperationRunning})
+	metricsServ.IncSync(fakeApp, &argoappv1.OperationState{Phase: common.OperationFailed})
+	metricsServ.IncSync(fakeApp, &argoappv1.OperationState{Phase: common.OperationError})
+	metricsServ.IncSync(fakeApp, &argoappv1.OperationState{Phase: common.OperationSucceeded})
+	metricsServ.IncSync(fakeApp, &argoappv1.OperationState{Phase: common.OperationSucceeded})
 
 	req, err := http.NewRequest("GET", "/metrics", nil)
 	assert.NoError(t, err)

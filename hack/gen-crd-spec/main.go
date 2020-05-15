@@ -8,8 +8,8 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/argoproj/argo-cd/engine/pkg/utils/kube"
 	"github.com/argoproj/argo-cd/pkg/apis/application"
-	"github.com/argoproj/argo-cd/util/kube"
 
 	"github.com/ghodss/yaml"
 	extensionsobj "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"

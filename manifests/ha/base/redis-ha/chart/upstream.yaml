@@ -135,8 +135,8 @@ data:
     defaults REDIS
       mode tcp
       timeout connect 4s
-      timeout server 30s
-      timeout client 30s
+      timeout server 6m
+      timeout client 6m
       timeout check 2s
 
     listen health_check_http_url

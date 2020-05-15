@@ -16,8 +16,12 @@ import (
 	"strings"
 	"time"
 
+	cacheutil "github.com/argoproj/argo-cd/util/cache"
+	"github.com/argoproj/argo-cd/util/healthz"
+	"github.com/argoproj/argo-cd/util/swagger"
+	"github.com/argoproj/argo-cd/util/webhook"
+
 	"github.com/dgrijalva/jwt-go"
-	rediscache "github.com/go-redis/cache"
 	"github.com/go-redis/redis"
 	golang_proto "github.com/golang/protobuf/proto"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
@@ -44,7 +48,10 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/errors"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/io"
+	jsonutil "github.com/argoproj/argo-cd/engine/pkg/utils/json"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/kube"
 	"github.com/argoproj/argo-cd/pkg/apiclient"
 	accountpkg "github.com/argoproj/argo-cd/pkg/apiclient/account"
 	applicationpkg "github.com/argoproj/argo-cd/pkg/apiclient/application"
@@ -82,18 +89,13 @@ import (
 	dexutil "github.com/argoproj/argo-cd/util/dex"
 	"github.com/argoproj/argo-cd/util/env"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
-	"github.com/argoproj/argo-cd/util/healthz"
 	httputil "github.com/argoproj/argo-cd/util/http"
-	jsonutil "github.com/argoproj/argo-cd/util/json"
 	"github.com/argoproj/argo-cd/util/jwt/zjwt"
-	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/oidc"
 	"github.com/argoproj/argo-cd/util/rbac"
 	util_session "github.com/argoproj/argo-cd/util/session"
 	settings_util "github.com/argoproj/argo-cd/util/settings"
-	"github.com/argoproj/argo-cd/util/swagger"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
-	"github.com/argoproj/argo-cd/util/webhook"
 )
 
 const (
@@ -236,27 +238,26 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
 	var httpS *http.Server
 	var httpsS *http.Server
 	if a.useTLS() {
-		httpS = newRedirectServer(port)
+		httpS = newRedirectServer(port, a.RootPath)
 		httpsS = a.newHTTPServer(ctx, port, grpcWebS)
 	} else {
 		httpS = a.newHTTPServer(ctx, port, grpcWebS)
 	}
 	if a.RootPath != "" {
-		httpS.Handler = withRootPath(httpS.Handler, a.RootPath)
+		httpS.Handler = withRootPath(httpS.Handler, a)
+
 		if httpsS != nil {
-			httpsS.Handler = withRootPath(httpsS.Handler, a.RootPath)
+			httpsS.Handler = withRootPath(httpsS.Handler, a)
 		}
+	}
+	httpS.Handler = &bug21955Workaround{handler: httpS.Handler}
+	if httpsS != nil {
+		httpsS.Handler = &bug21955Workaround{handler: httpsS.Handler}
 	}
 
 	metricsServ := metrics.NewMetricsServer(metricsPort)
 	if a.RedisClient != nil {
-		a.RedisClient.WrapProcess(func(oldProcess func(cmd redis.Cmder) error) func(cmd redis.Cmder) error {
-			return func(cmd redis.Cmder) error {
-				err := oldProcess(cmd)
-				metricsServ.IncRedisRequest(err != nil && err != rediscache.ErrCacheMiss)
-				return err
-			}
-		})
+		cacheutil.CollectMetrics(a.RedisClient, metricsServ)
 	}
 
 	// Start listener
@@ -502,7 +503,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	clusterService := cluster.NewServer(db, a.enf, a.Cache, kubectl)
 	repoService := repository.NewServer(a.RepoClientset, db, a.enf, a.Cache, a.settingsMgr)
 	repoCredsService := repocreds.NewServer(a.RepoClientset, db, a.enf, a.settingsMgr)
-	var loginRateLimiter func() (util.Closer, error)
+	var loginRateLimiter func() (io.Closer, error)
 	if maxConcurrentLoginRequestsCount > 0 {
 		loginRateLimiter = session.NewLoginRateLimiter(
 			session.NewRedisStateStorage(a.ArgoCDServerOpts.RedisClient), maxConcurrentLoginRequestsCount)
@@ -555,12 +556,18 @@ func (a *ArgoCDServer) translateGrpcCookieHeader(ctx context.Context, w http.Res
 	return nil
 }
 
-func withRootPath(handler http.Handler, root string) http.Handler {
+func withRootPath(handler http.Handler, a *ArgoCDServer) http.Handler {
 	// get rid of slashes
-	root = strings.TrimRight(strings.TrimLeft(root, "/"), "/")
+	root := strings.TrimRight(strings.TrimLeft(a.RootPath, "/"), "/")
 
 	mux := http.NewServeMux()
 	mux.Handle("/"+root+"/", http.StripPrefix("/"+root, handler))
+
+	healthz.ServeHealthCheck(mux, func() error {
+		_, err := a.KubeClientset.(*kubernetes.Clientset).ServerVersion()
+		return err
+	})
+
 	return mux
 }
 
@@ -572,7 +579,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	httpS := http.Server{
 		Addr: endpoint,
 		Handler: &handlerSwitcher{
-			handler: &bug21955Workaround{handler: mux},
+			handler: mux,
 			urlToHandler: map[string]http.Handler{
 				"/api/badge": badge.NewHandler(a.AppClientset, a.settingsMgr, a.Namespace),
 			},
@@ -622,7 +629,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	mustRegisterGWHandler(certificatepkg.RegisterCertificateServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 
 	// Swagger UI
-	swagger.ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui")
+	swagger.ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui", a.RootPath)
 	healthz.ServeHealthCheck(mux, func() error {
 		_, err := a.KubeClientset.(*kubernetes.Clientset).ServerVersion()
 		return err
@@ -664,11 +671,16 @@ func (a *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
 }
 
 // newRedirectServer returns an HTTP server which does a 307 redirect to the HTTPS server
-func newRedirectServer(port int) *http.Server {
+func newRedirectServer(port int, rootPath string) *http.Server {
+	addr := fmt.Sprintf("localhost:%d/%s", port, strings.TrimRight(strings.TrimLeft(rootPath, "/"), "/"))
 	return &http.Server{
-		Addr: fmt.Sprintf("localhost:%d", port),
+		Addr: addr,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			target := "https://" + req.Host + req.URL.Path
+			target := "https://" + req.Host
+			if rootPath != "" {
+				target += "/" + strings.TrimRight(strings.TrimLeft(rootPath, "/"), "/")
+			}
+			target += req.URL.Path
 			if len(req.URL.RawQuery) > 0 {
 				target += "?" + req.URL.RawQuery
 			}
@@ -718,7 +730,7 @@ func indexFilePath(srcPath string, baseHRef string) (string, error) {
 		}
 		return "", err
 	}
-	defer util.Close(f)
+	defer io.Close(f)
 
 	data, err := ioutil.ReadFile(srcPath)
 	if err != nil {

@@ -1,7 +1,6 @@
 package cache
 
 import (
-	"io"
 	"time"
 
 	rediscache "github.com/go-redis/cache"
@@ -29,39 +28,45 @@ type redisCache struct {
 	codec      *rediscache.Codec
 }
 
-// if redis server goes down the first client request fails with EOF error
-func doWithRetry(action func() error) error {
-	err := action()
-	if err == io.EOF {
-		return action()
-	}
-	return err
-}
-
 func (r *redisCache) Set(item *Item) error {
 	expiration := item.Expiration
 	if expiration == 0 {
 		expiration = r.expiration
 	}
-	return doWithRetry(func() error {
-		return r.codec.Set(&rediscache.Item{
-			Key:        item.Key,
-			Object:     item.Object,
-			Expiration: expiration,
-		})
+	return r.codec.Set(&rediscache.Item{
+		Key:        item.Key,
+		Object:     item.Object,
+		Expiration: expiration,
 	})
 }
 
 func (r *redisCache) Get(key string, obj interface{}) error {
-	return doWithRetry(func() error {
-		err := r.codec.Get(key, obj)
-		if err == rediscache.ErrCacheMiss {
-			return ErrCacheMiss
-		}
-		return err
-	})
+	err := r.codec.Get(key, obj)
+	if err == rediscache.ErrCacheMiss {
+		return ErrCacheMiss
+	}
+	return err
 }
 
 func (r *redisCache) Delete(key string) error {
 	return r.codec.Delete(key)
+}
+
+type MetricsRegistry interface {
+	IncRedisRequest(failed bool)
+	ObserveRedisRequestDuration(duration time.Duration)
+}
+
+// CollectMetrics add transport wrapper that pushes metrics into the specified metrics registry
+func CollectMetrics(client *redis.Client, registry MetricsRegistry) {
+	client.WrapProcess(func(oldProcess func(cmd redis.Cmder) error) func(cmd redis.Cmder) error {
+		return func(cmd redis.Cmder) error {
+			startTime := time.Now()
+			err := oldProcess(cmd)
+			registry.IncRedisRequest(err != nil && err != redis.Nil)
+			duration := time.Since(startTime)
+			registry.ObserveRedisRequestDuration(duration)
+			return err
+		}
+	})
 }

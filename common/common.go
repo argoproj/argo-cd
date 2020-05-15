@@ -104,14 +104,7 @@ const (
 
 	// AnnotationCompareOptions is a comma-separated list of options for comparison
 	AnnotationCompareOptions = "argocd.argoproj.io/compare-options"
-	// AnnotationSyncOptions is a comma-separated list of options for syncing
-	AnnotationSyncOptions = "argocd.argoproj.io/sync-options"
-	// AnnotationSyncWave indicates which wave of the sync the resource or hook should be in
-	AnnotationSyncWave = "argocd.argoproj.io/sync-wave"
-	// AnnotationKeyHook contains the hook type of a resource
-	AnnotationKeyHook = "argocd.argoproj.io/hook"
-	// AnnotationKeyHookDeletePolicy is the policy of deleting a hook
-	AnnotationKeyHookDeletePolicy = "argocd.argoproj.io/hook-delete-policy"
+
 	// AnnotationKeyRefresh is the annotation key which indicates that app needs to be refreshed. Removed by application controller after app is refreshed.
 	// Might take values 'normal'/'hard'. Value 'hard' means manifest cache and target cluster state cache should be invalidated before refresh.
 	AnnotationKeyRefresh = "argocd.argoproj.io/refresh"

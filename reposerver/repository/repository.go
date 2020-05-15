@@ -12,9 +12,6 @@ import (
 	"regexp"
 	"strings"
 
-	executil "github.com/argoproj/argo-cd/util/exec"
-	"github.com/argoproj/argo-cd/util/security"
-
 	"github.com/Masterminds/semver"
 	"github.com/TomOnTime/utfutil"
 	"github.com/ghodss/yaml"
@@ -28,6 +25,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/argoproj/argo-cd/common"
+	executil "github.com/argoproj/argo-cd/engine/pkg/utils/exec"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/io"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/kube"
+	textutils "github.com/argoproj/argo-cd/engine/pkg/utils/text"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	reposervercache "github.com/argoproj/argo-cd/reposerver/cache"
@@ -38,8 +39,9 @@ import (
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/ksonnet"
-	"github.com/argoproj/argo-cd/util/kube"
+	argokube "github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/kustomize"
+	"github.com/argoproj/argo-cd/util/security"
 	"github.com/argoproj/argo-cd/util/text"
 )
 
@@ -89,7 +91,7 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 	s.repoLock.Lock(gitClient.Root())
 	defer s.repoLock.Unlock(gitClient.Root())
 
-	commitSHA, err = checkoutRevision(gitClient, commitSHA)
+	_, err = checkoutRevision(gitClient, commitSHA, log.WithField("repo", q.Repo.Repo))
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +125,7 @@ func (s *Service) runRepoOperation(
 	var gitClient git.Client
 	var helmClient helm.Client
 	var err error
-	revision = util.FirstNonEmpty(revision, source.TargetRevision)
+	revision = textutils.FirstNonEmpty(revision, source.TargetRevision)
 	if source.IsHelm() {
 		helmClient, revision, err = s.newHelmClientResolveRevision(repo, revision, source.Chart)
 		if err != nil {
@@ -166,7 +168,7 @@ func (s *Service) runRepoOperation(
 		if err != nil {
 			return err
 		}
-		defer util.Close(closer)
+		defer io.Close(closer)
 		return operation(chartPath, chartPath, revision)
 	} else {
 		s.repoLock.Lock(gitClient.Root())
@@ -175,7 +177,7 @@ func (s *Service) runRepoOperation(
 		if !settings.noCache && getCached(revision) {
 			return nil
 		}
-		revision, err = checkoutRevision(gitClient, revision)
+		_, err = checkoutRevision(gitClient, revision, log.WithField("repo", repo.Repo))
 		if err != nil {
 			return err
 		}
@@ -399,7 +401,7 @@ func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.Manifest
 
 		for _, target := range targets {
 			if q.AppLabelKey != "" && q.AppLabelValue != "" && !kube.IsCRD(target) {
-				err = kube.SetAppInstanceLabel(target, q.AppLabelKey, q.AppLabelValue)
+				err = argokube.SetAppInstanceLabel(target, q.AppLabelKey, q.AppLabelValue)
 				if err != nil {
 					return nil, err
 				}
@@ -799,7 +801,7 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 	s.repoLock.Lock(gitClient.Root())
 	defer s.repoLock.Unlock(gitClient.Root())
 
-	_, err = checkoutRevision(gitClient, q.Revision)
+	_, err = checkoutRevision(gitClient, q.Revision, log.WithField("repo", q.Repo.Repo))
 	if err != nil {
 		return nil, err
 	}
@@ -877,7 +879,7 @@ func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revisi
 
 // checkoutRevision is a convenience function to initialize a repo, fetch, and checkout a revision
 // Returns the 40 character commit SHA after the checkout has been performed
-func checkoutRevision(gitClient git.Client, commitSHA string) (string, error) {
+func checkoutRevision(gitClient git.Client, commitSHA string, logEntry *log.Entry) (string, error) {
 	err := gitClient.Init()
 	if err != nil {
 		return "", status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
@@ -890,7 +892,11 @@ func checkoutRevision(gitClient git.Client, commitSHA string) (string, error) {
 	if err != nil {
 		return "", status.Errorf(codes.Internal, "Failed to checkout %s: %v", commitSHA, err)
 	}
-	return gitClient.CommitSHA()
+	sha, err := gitClient.CommitSHA()
+	if err == nil && git.IsCommitSHA(commitSHA) && sha != commitSHA {
+		logEntry.Warnf("'git checkout %s' has switched repo to unexpected commit: %s", commitSHA, sha)
+	}
+	return sha, err
 }
 
 func (s *Service) GetHelmCharts(ctx context.Context, q *apiclient.HelmChartsRequest) (*apiclient.HelmChartsResponse, error) {

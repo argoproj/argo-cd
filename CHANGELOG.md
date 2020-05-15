@@ -1,5 +1,74 @@
 # Changelog
 
+## v1.5.3 (Unreleased)
+
+This patch release introduces a set of enhancements and bug fixes. Here are most notable changes:
+
+#### Multiple Kustomize Versions
+
+The bundled Kustomize version had been upgraded to v3.5.4. Argo CD allows changing bundled version using
+[custom image or init container](https://argoproj.github.io/argo-cd/operator-manual/custom_tools/). 
+This [feature](https://argoproj.github.io/argo-cd/user-guide/kustomize/#custom-kustomize-versions)
+enables bundling multiple Kustomize versions at the same time and allows end-users to specify the required version per application.
+
+#### Custom Root Path
+
+The feature allows accessing Argo CD UI and API using a custom root path(for example https://myhostname/argocd).
+This enables running Argo CD behind a proxy that takes care of user authentication (such as Ambassador) or hosting
+multiple Argo CD using the same hostname. A set of bug fixes and enhancements had been implemented to makes it easier.
+Use new `--rootpath` [flag](https://argoproj.github.io/argo-cd/operator-manual/ingress/#argocd-server-and-ui-root-path-v153) to enable the feature.
+
+### Login Rate Limiting
+
+The feature prevents a built-in user password brute force attack and addresses the known 
+[vulnerability](https://argoproj.github.io/argo-cd/security_considerations/#cve-2020-8827-insufficient-anti-automationanti-brute-force).
+
+### Settings Management Tools
+
+A new set of [CLI commands](https://argoproj.github.io/argo-cd/operator-manual/troubleshooting/) that simplify configuring Argo CD.
+Using the CLI you can test settings changes offline without affecting running Argo CD instance and have ability to troubleshot diffing
+customizations, custom resource health checks, and more.
+
+### Other
+
+* New Project and Application CRD settings ([#2900](https://github.com/argoproj/argo-cd/issues/2900), [#2873](https://github.com/argoproj/argo-cd/issues/2873)) that allows customizing Argo CD behavior.
+* Upgraded Dex (v2.22.0) enables seamless [SSO integration](https://www.openshift.com/blog/openshift-authentication-integration-with-argocd) with Openshift.
+
+
+#### Enhancements
+
+* feat: added --grpc-web-root-path for CLI. (#3483)
+* feat: limit the maximum number of concurrent login attempts (#3467)
+* feat: upgrade kustomize version to 3.5.4 (#3472)
+* feat: upgrade dex to 2.22.0 (#3468)
+* feat: support user specified account token ids (#3425)
+* feat: support separate Kustomize version per application (#3414)
+* feat: add support for dex prometheus metrics (#3249)
+* feat: add settings troubleshooting commands to the 'argocd-util' binary (#3398)
+* feat: Let user to define meaningful unique JWT token name (#3388)
+* feat: Display link between OLM ClusterServiceVersion and it's OperatorGroup (#3390)
+* feat: Introduce sync-option SkipDryRunOnMissingResource=true (#2873) (#3247)
+* feat: support normalizing CRD fields that use known built-in K8S types (#3357)
+* feat: Whitelisted namespace resources (#2900)
+
+#### Bug Fixes
+
+* fix: added path to cookie (#3501)
+* fix: 'argocd sync' does not take into account IgnoreExtraneous annotation (#3486)
+* fix: CLI renders flipped diff results (#3480)
+* fix: GetApplicationSyncWindows API should not validate project permissions (#3456)
+* fix: argocd-util kubeconfig should use RawRestConfig to export config (#3447)
+* fix: javascript error on accounts list page (#3453)
+* fix: support both <group>/<kind> as well as <kind> as a resource override key (#3433)
+* fix: Updating to jsonnet v1.15.0 fix issue #3277 (#3431)
+* fix for helm repo add with flag --insecure-skip-server-verification (#3420)
+* fix: app diff --local support for helm repo. #3151 (#3407)
+* fix: Syncing apps incorrectly states "app synced", but this is not true (#3286)
+* fix: for jsonnet when it is localed in nested subdirectory and uses import (#3372)
+* fix: Update 4.5.3 redis-ha helm manifest (#3370)
+* fix: return 401 error code if username does not exist (#3369)
+* fix: Do not panic while running hooks with short revision (#3368)
+
 ## v1.5.2 (2020-04-20)
 
 #### Critical security fix

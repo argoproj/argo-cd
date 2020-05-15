@@ -198,6 +198,59 @@ ArgoCD endpoints may be protected by one or more reverse proxies layers, in that
 $ argocd login <host>:<port> --header 'x-token1:foo' --header 'x-token2:bar' # can be repeated multiple times
 $ argocd login <host>:<port> --header 'x-token1:foo,x-token2:bar' # headers can also be comma separated
 ```
+## ArgoCD Server and UI Root Path (v1.5.3)
+
+ArgoCD server and UI can be configured to be available under a non-root path (e.g. `/argo-cd`).
+To do this, add the `--rootpath` flag into the `argocd-server` deployment command:
+
+```yaml
+spec:
+  template:
+    spec:
+      name: argocd-server
+      containers:
+      - command:
+        - /argocd-server
+        - --staticassets
+        - /shared/app
+        - --repo-server
+        - argocd-repo-server:8081
+        - --rootpath
+        - /argo-cd
+```
+NOTE: The flag `--rootpath` changes both API Server and UI base URL. 
+Example nginx.conf:
+
+```
+worker_processes 1;
+
+events { worker_connections 1024; }
+
+http {
+
+    sendfile on;
+
+    server {
+        listen 443;
+
+        location /argo-cd/ {
+            proxy_pass         https://localhost:8080/argo-cd/;
+            proxy_redirect     off;
+            proxy_set_header   Host $host;
+            proxy_set_header   X-Real-IP $remote_addr;
+            proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header   X-Forwarded-Host $server_name;
+            # buffering should be disabled for api/v1/stream/applications to support chunked response
+            proxy_buffering off;
+        }
+    }
+}
+```
+Flag ```--grpc-web-root-path ``` is used to provide a non-root path (e.g. /argo-cd)
+
+```shell
+$ argocd login <host>:<port> --grpc-web-root-path /argo-cd
+```
 
 ## UI Base Path
 

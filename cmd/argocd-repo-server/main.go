@@ -8,14 +8,16 @@ import (
 	"time"
 
 	"github.com/argoproj/pkg/stats"
+	"github.com/go-redis/redis"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/errors"
 	"github.com/argoproj/argo-cd/reposerver"
 	reposervercache "github.com/argoproj/argo-cd/reposerver/cache"
 	"github.com/argoproj/argo-cd/reposerver/metrics"
+	cacheutil "github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/tls"
 )
@@ -27,17 +29,20 @@ const (
 
 func newCommand() *cobra.Command {
 	var (
+		logFormat              string
 		logLevel               string
 		parallelismLimit       int64
 		listenPort             int
 		metricsPort            int
 		cacheSrc               func() (*reposervercache.Cache, error)
 		tlsConfigCustomizerSrc func() (tls.ConfigCustomizer, error)
+		redisClient            *redis.Client
 	)
 	var command = cobra.Command{
 		Use:   cliName,
 		Short: "Run argocd-repo-server",
 		RunE: func(c *cobra.Command, args []string) error {
+			cli.SetLogFormat(logFormat)
 			cli.SetLogLevel(logLevel)
 
 			tlsConfigCustomizer, err := tlsConfigCustomizerSrc()
@@ -47,6 +52,7 @@ func newCommand() *cobra.Command {
 			errors.CheckError(err)
 
 			metricsServer := metrics.NewMetricsServer()
+			cacheutil.CollectMetrics(redisClient, metricsServer)
 			server, err := reposerver.NewServer(metricsServer, cache, tlsConfigCustomizer, parallelismLimit)
 			errors.CheckError(err)
 
@@ -67,12 +73,15 @@ func newCommand() *cobra.Command {
 		},
 	}
 
+	command.Flags().StringVar(&logFormat, "logformat", "text", "Set the logging format. One of: text|json")
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().Int64Var(&parallelismLimit, "parallelismlimit", 0, "Limit on number of concurrent manifests generate requests. Any value less the 1 means no limit.")
 	command.Flags().IntVar(&listenPort, "port", common.DefaultPortRepoServer, "Listen on given port for incoming connections")
 	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortRepoServerMetrics, "Start metrics server on given port")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)
-	cacheSrc = reposervercache.AddCacheFlagsToCmd(&command)
+	cacheSrc = reposervercache.AddCacheFlagsToCmd(&command, func(client *redis.Client) {
+		redisClient = client
+	})
 	return &command
 }
 

@@ -5,6 +5,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/argoproj/argo-cd/engine/pkg/utils/kube/cache"
+
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -41,21 +43,13 @@ var (
 	)
 )
 
-type ClusterInfo struct {
-	Server            string
-	K8SVersion        string
-	ResourcesCount    int
-	APIsCount         int
-	LastCacheSyncTime *time.Time
-}
-
 type HasClustersInfo interface {
-	GetClustersInfo() []ClusterInfo
+	GetClustersInfo() []cache.ClusterInfo
 }
 
 type clusterCollector struct {
 	infoSource HasClustersInfo
-	info       []ClusterInfo
+	info       []cache.ClusterInfo
 	lock       sync.Mutex
 }
 

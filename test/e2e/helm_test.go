@@ -10,8 +10,9 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/argoproj/argo-cd/errors"
-	. "github.com/argoproj/argo-cd/errors"
+	. "github.com/argoproj/argo-cd/engine/pkg/utils/errors"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/health"
+	. "github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/common"
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture"
@@ -29,7 +30,7 @@ func TestHelmHooksAreCreated(t *testing.T) {
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "hook", Message: "pod/hook created", HookType: HookTypePreSync, HookPhase: OperationSucceeded, SyncPhase: SyncPhasePreSync}))
 }
@@ -74,7 +75,7 @@ func TestDeclarativeHelm(t *testing.T) {
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
@@ -84,9 +85,27 @@ func TestDeclarativeHelmInvalidValuesFile(t *testing.T) {
 		When().
 		Declarative("declarative-apps/invalid-helm.yaml").
 		Then().
-		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeUnknown)).
 		Expect(Condition(ApplicationConditionComparisonError, "does-not-exist-values.yaml: no such file or directory"))
+}
+
+func TestHelmRepo(t *testing.T) {
+	Given(t).
+		CustomCACertAdded().
+		HelmRepoAdded("custom-repo").
+		RepoURLType(RepoURLTypeHelm).
+		Chart("helm").
+		Revision("1.0.0").
+		When().
+		Create().
+		Then().
+		When().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
 func TestHelmValues(t *testing.T) {
@@ -110,7 +129,7 @@ func TestHelmCrdHook(t *testing.T) {
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(ResourceResultNumbering(2))
 }
@@ -221,7 +240,7 @@ func TestHelmValuesHiddenDirectory(t *testing.T) {
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
@@ -244,14 +263,14 @@ func testHelmWithDependencies(t *testing.T, chartPath string, legacyRepo bool) {
 		Timeout(30)
 	if legacyRepo {
 		ctx.And(func() {
-			errors.FailOnErr(fixture.Run("", "kubectl", "create", "secret", "generic", "helm-repo",
+			FailOnErr(fixture.Run("", "kubectl", "create", "secret", "generic", "helm-repo",
 				"-n", fixture.ArgoCDNamespace,
 				fmt.Sprintf("--from-file=certSecret=%s", repos.CertPath),
 				fmt.Sprintf("--from-file=keySecret=%s", repos.CertKeyPath),
 				fmt.Sprintf("--from-literal=username=%s", GitUsername),
 				fmt.Sprintf("--from-literal=password=%s", GitPassword),
 			))
-			errors.FailOnErr(fixture.KubeClientset.CoreV1().Secrets(fixture.ArgoCDNamespace).Patch(
+			FailOnErr(fixture.KubeClientset.CoreV1().Secrets(fixture.ArgoCDNamespace).Patch(
 				"helm-repo", types.MergePatchType, []byte(`{"metadata": { "labels": {"e2e.argoproj.io": "true"} }}`)))
 
 			fixture.SetHelmRepos(settings.HelmRepoCredentials{
@@ -302,7 +321,7 @@ func TestHelmRepoDiffLocal(t *testing.T) {
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			_ = os.Setenv("XDG_CONFIG_HOME", helmTmp)

@@ -17,8 +17,8 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
-	argocderrors "github.com/argoproj/argo-cd/errors"
-	"github.com/argoproj/argo-cd/util"
+	argocderrors "github.com/argoproj/argo-cd/engine/pkg/utils/errors"
+	argoio "github.com/argoproj/argo-cd/engine/pkg/utils/io"
 	"github.com/argoproj/argo-cd/util/rand"
 )
 
@@ -56,7 +56,15 @@ func (c *client) executeRequest(fullMethodName string, msg []byte, md metadata.M
 		schema = "http"
 	}
 	rootPath := strings.TrimRight(strings.TrimLeft(c.GRPCWebRootPath, "/"), "/")
-	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s://%s/%s%s", schema, c.ServerAddr, rootPath, fullMethodName), bytes.NewReader(toFrame(msg)))
+
+	var requestURL string
+	if rootPath != "" {
+		requestURL = fmt.Sprintf("%s://%s/%s%s", schema, c.ServerAddr, rootPath, fullMethodName)
+	} else {
+		requestURL = fmt.Sprintf("%s://%s%s", schema, c.ServerAddr, fullMethodName)
+	}
+	req, err := http.NewRequest(http.MethodPost, requestURL, bytes.NewReader(toFrame(msg)))
+
 	if err != nil {
 		return nil, err
 	}
@@ -131,9 +139,9 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 
 			go func() {
 				<-stream.Context().Done()
-				util.Close(resp.Body)
+				argoio.Close(resp.Body)
 			}()
-			defer util.Close(resp.Body)
+			defer argoio.Close(resp.Body)
 
 			for {
 				header := make([]byte, frameHeaderLength)
@@ -187,7 +195,7 @@ func (c *client) useGRPCProxy() (net.Addr, io.Closer, error) {
 	}
 	c.proxyUsersCount = c.proxyUsersCount + 1
 
-	return c.proxyListener.Addr(), util.NewCloser(func() error {
+	return c.proxyListener.Addr(), argoio.NewCloser(func() error {
 		c.proxyMutex.Lock()
 		defer c.proxyMutex.Unlock()
 		c.proxyUsersCount = c.proxyUsersCount - 1
