@@ -6,13 +6,13 @@ import (
 	"os"
 	"testing"
 
+	. "github.com/argoproj/gitops-engine/pkg/utils/errors"
+	"github.com/argoproj/gitops-engine/pkg/utils/health"
+	. "github.com/argoproj/gitops-engine/pkg/utils/kube/sync/common"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	. "github.com/argoproj/argo-cd/engine/pkg/utils/errors"
-	"github.com/argoproj/argo-cd/engine/pkg/utils/health"
-	. "github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/common"
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture"

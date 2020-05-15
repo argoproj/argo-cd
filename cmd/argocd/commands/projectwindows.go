@@ -8,10 +8,10 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/errors"
+	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/spf13/cobra"
 
-	"github.com/argoproj/argo-cd/engine/pkg/utils/errors"
-	"github.com/argoproj/argo-cd/engine/pkg/utils/io"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	projectpkg "github.com/argoproj/argo-cd/pkg/apiclient/project"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"

@@ -16,13 +16,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/argo-cd/engine/pkg/utils/io"
-
 	"github.com/Masterminds/semver"
+	executil "github.com/argoproj/gitops-engine/pkg/utils/exec"
+	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 
-	executil "github.com/argoproj/argo-cd/engine/pkg/utils/exec"
 	"github.com/argoproj/argo-cd/util"
 )
 

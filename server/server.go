@@ -21,6 +21,10 @@ import (
 	"github.com/argoproj/argo-cd/util/swagger"
 	"github.com/argoproj/argo-cd/util/webhook"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/errors"
+	"github.com/argoproj/gitops-engine/pkg/utils/io"
+	jsonutil "github.com/argoproj/gitops-engine/pkg/utils/json"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/go-redis/redis"
 	golang_proto "github.com/golang/protobuf/proto"
@@ -48,10 +52,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/engine/pkg/utils/errors"
-	"github.com/argoproj/argo-cd/engine/pkg/utils/io"
-	jsonutil "github.com/argoproj/argo-cd/engine/pkg/utils/json"
-	"github.com/argoproj/argo-cd/engine/pkg/utils/kube"
 	"github.com/argoproj/argo-cd/pkg/apiclient"
 	accountpkg "github.com/argoproj/argo-cd/pkg/apiclient/account"
 	applicationpkg "github.com/argoproj/argo-cd/pkg/apiclient/application"

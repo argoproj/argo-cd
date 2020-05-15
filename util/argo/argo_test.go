@@ -8,13 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/engine/pkg/utils/io"
-	"github.com/argoproj/argo-cd/engine/pkg/utils/kube/kubetest"
-
-	"google.golang.org/grpc/codes"
-
+	"github.com/argoproj/gitops-engine/pkg/utils/io"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"

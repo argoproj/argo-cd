@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/coreos/go-oidc"
 	"github.com/dgrijalva/jwt-go"
 	log "github.com/sirupsen/logrus"
@@ -26,7 +27,6 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/argoproj/argo-cd/common"
-	argoio "github.com/argoproj/argo-cd/engine/pkg/utils/io"
 	accountpkg "github.com/argoproj/argo-cd/pkg/apiclient/account"
 	applicationpkg "github.com/argoproj/argo-cd/pkg/apiclient/application"
 	certificatepkg "github.com/argoproj/argo-cd/pkg/apiclient/certificate"

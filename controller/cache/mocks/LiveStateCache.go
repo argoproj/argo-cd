@@ -5,9 +5,9 @@ package mocks
 import (
 	context "context"
 
-	cache "github.com/argoproj/argo-cd/engine/pkg/utils/kube/cache"
+	cache "github.com/argoproj/gitops-engine/pkg/utils/kube/cache"
 
-	kube "github.com/argoproj/argo-cd/engine/pkg/utils/kube"
+	kube "github.com/argoproj/gitops-engine/pkg/utils/kube"
 
 	mock "github.com/stretchr/testify/mock"
 

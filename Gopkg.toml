@@ -128,3 +128,7 @@ required = [
 [[constraint]]
   name = "github.com/bsm/redislock"
   version = "0.4.3"
+
+[[constraint]]
+  name = "github.com/argoproj/gitops-engine"
+  version = "0.1.0"

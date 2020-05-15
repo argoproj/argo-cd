@@ -6,6 +6,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube/cache/mocks"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
+	synccommon "github.com/argoproj/gitops-engine/pkg/utils/kube/sync/common"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -21,10 +25,6 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	mockstatecache "github.com/argoproj/argo-cd/controller/cache/mocks"
-	"github.com/argoproj/argo-cd/engine/pkg/utils/kube"
-	"github.com/argoproj/argo-cd/engine/pkg/utils/kube/cache/mocks"
-	"github.com/argoproj/argo-cd/engine/pkg/utils/kube/kubetest"
-	synccommon "github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/common"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"

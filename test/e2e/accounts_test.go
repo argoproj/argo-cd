@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/argoproj/argo-cd/engine/pkg/utils/io"
-
+	"github.com/argoproj/gitops-engine/pkg/utils/io"
+	"github.com/argoproj/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -13,7 +13,6 @@ import (
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	"github.com/argoproj/argo-cd/pkg/apiclient/session"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture"
-	"github.com/argoproj/pkg/errors"
 )
 
 func TestCreateAndUseAccount(t *testing.T) {

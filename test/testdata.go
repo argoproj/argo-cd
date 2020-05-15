@@ -7,10 +7,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/engine/pkg/utils/testing"
 	apps "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
 	appinformer "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
 	applister "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
+	"github.com/argoproj/gitops-engine/pkg/utils/testing"
 )
 
 const (

@@ -4,9 +4,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/argoproj/argo-cd/engine/pkg/utils/io"
-
 	"github.com/Masterminds/semver"
+	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/stretchr/testify/assert"
 )
 

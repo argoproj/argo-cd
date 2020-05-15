@@ -12,6 +12,11 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver"
+	"github.com/argoproj/gitops-engine/pkg/utils/diff"
+	"github.com/argoproj/gitops-engine/pkg/utils/io"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube/sync/common"
+	"github.com/argoproj/gitops-engine/pkg/utils/text"
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -29,11 +34,6 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/utils/pointer"
 
-	"github.com/argoproj/argo-cd/engine/pkg/utils/diff"
-	"github.com/argoproj/argo-cd/engine/pkg/utils/io"
-	"github.com/argoproj/argo-cd/engine/pkg/utils/kube"
-	"github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/common"
-	"github.com/argoproj/argo-cd/engine/pkg/utils/text"
 	"github.com/argoproj/argo-cd/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
