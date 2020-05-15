@@ -9,8 +9,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/argoproj/argo-cd/engine/pkg/utils/io"
-
+	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/pkg/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"

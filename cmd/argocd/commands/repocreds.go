@@ -7,11 +7,11 @@ import (
 	"os"
 	"text/tabwriter"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/errors"
+	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/argoproj/argo-cd/engine/pkg/utils/errors"
-	"github.com/argoproj/argo-cd/engine/pkg/utils/io"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	repocredspkg "github.com/argoproj/argo-cd/pkg/apiclient/repocreds"
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"

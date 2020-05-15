@@ -6,15 +6,15 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube/sync"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube/sync/common"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/argoproj/argo-cd/controller/metrics"
-	"github.com/argoproj/argo-cd/engine/pkg/utils/kube"
-	"github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync"
-	"github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	listersv1alpha1 "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/argo"

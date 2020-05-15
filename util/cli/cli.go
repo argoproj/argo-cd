@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/errors"
+	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh/terminal"
@@ -21,8 +23,6 @@ import (
 	"k8s.io/kubectl/pkg/util/term"
 
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/engine/pkg/utils/errors"
-	"github.com/argoproj/argo-cd/engine/pkg/utils/io"
 )
 
 // NewVersionCmd returns a new `version` command to be used as a sub-command to root

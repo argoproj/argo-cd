@@ -3,10 +3,11 @@ package e2e
 import (
 	"testing"
 
-	"github.com/argoproj/argo-cd/engine/pkg/utils/health"
-	. "github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/common"
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
+
+	"github.com/argoproj/gitops-engine/pkg/utils/health"
+	. "github.com/argoproj/gitops-engine/pkg/utils/kube/sync/common"
 )
 
 func TestFixingDegradedApp(t *testing.T) {

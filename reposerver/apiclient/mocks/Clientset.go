@@ -3,9 +3,9 @@
 package mocks
 
 import (
-	io "github.com/argoproj/argo-cd/engine/pkg/utils/io"
 	apiclient "github.com/argoproj/argo-cd/reposerver/apiclient"
 
+	io "github.com/argoproj/gitops-engine/pkg/utils/io"
 	mock "github.com/stretchr/testify/mock"
 )
 

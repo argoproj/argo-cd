@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	. "github.com/argoproj/argo-cd/engine/pkg/utils/errors"
+	. "github.com/argoproj/gitops-engine/pkg/utils/errors"
+
 	"github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
 )

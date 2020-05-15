@@ -11,6 +11,8 @@ import (
 	"reflect"
 	"syscall"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/errors"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -26,8 +28,6 @@ import (
 
 	"github.com/argoproj/argo-cd/cmd/argocd-util/commands"
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/engine/pkg/utils/errors"
-	"github.com/argoproj/argo-cd/engine/pkg/utils/kube"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/dex"
@@ -57,7 +57,7 @@ var (
 func NewCommand() *cobra.Command {
 	var (
 		logFormat string
-		logLevel string
+		logLevel  string
 	)
 
 	var command = &cobra.Command{

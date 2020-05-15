@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	executil "github.com/argoproj/gitops-engine/pkg/utils/exec"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
@@ -25,7 +26,6 @@ import (
 	"gopkg.in/src-d/go-git.v4/storage/memory"
 
 	"github.com/argoproj/argo-cd/common"
-	executil "github.com/argoproj/argo-cd/engine/pkg/utils/exec"
 	certutil "github.com/argoproj/argo-cd/util/cert"
 )
 

@@ -8,9 +8,9 @@ import (
 	"path"
 	"strings"
 
+	executil "github.com/argoproj/gitops-engine/pkg/utils/exec"
 	"github.com/ghodss/yaml"
 
-	executil "github.com/argoproj/argo-cd/engine/pkg/utils/exec"
 	"github.com/argoproj/argo-cd/util/config"
 )
 
