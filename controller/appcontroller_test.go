@@ -21,16 +21,17 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	mockstatecache "github.com/argoproj/argo-cd/controller/cache/mocks"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/kube/cache/mocks"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/kube/kubetest"
+	synccommon "github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/common"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	mockrepoclient "github.com/argoproj/argo-cd/reposerver/apiclient/mocks"
-	mockreposerver "github.com/argoproj/argo-cd/reposerver/mocks"
 	"github.com/argoproj/argo-cd/test"
 	cacheutil "github.com/argoproj/argo-cd/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
-	"github.com/argoproj/argo-cd/util/kube"
-	"github.com/argoproj/argo-cd/util/kube/kubetest"
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
@@ -57,7 +58,7 @@ func newFakeController(data *fakeData) *ApplicationController {
 	// Mock out call to GenerateManifest
 	mockRepoClient := mockrepoclient.RepoServerServiceClient{}
 	mockRepoClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(data.manifestResponse, nil)
-	mockRepoClientset := mockreposerver.Clientset{}
+	mockRepoClientset := mockrepoclient.Clientset{}
 	mockRepoClientset.On("NewRepoServerClient").Return(&fakeCloser{}, &mockRepoClient, nil)
 
 	secret := corev1.Secret{
@@ -106,6 +107,9 @@ func newFakeController(data *fakeData) *ApplicationController {
 	defer cancelProj()
 	cancelApp := test.StartInformer(ctrl.appInformer)
 	defer cancelApp()
+	clusterCacheMock := mocks.ClusterCache{}
+	clusterCacheMock.On("IsNamespaced", mock.Anything).Return(true, nil)
+
 	mockStateCache := mockstatecache.LiveStateCache{}
 	ctrl.appStateManager.(*appStateManager).liveStateCache = &mockStateCache
 	ctrl.stateCache = &mockStateCache
@@ -117,6 +121,7 @@ func newFakeController(data *fakeData) *ApplicationController {
 		response[k] = v.ResourceNode
 	}
 	mockStateCache.On("GetNamespaceTopLevelResources", mock.Anything, mock.Anything).Return(response, nil)
+	mockStateCache.On("GetClusterCache", mock.Anything).Return(&clusterCacheMock, nil)
 	mockStateCache.On("IterateHierarchy", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
 		key := args[1].(kube.ResourceKey)
 		action := args[2].(func(child argoappv1.ResourceNode, appName string))
@@ -310,7 +315,7 @@ func TestSkipAutoSync(t *testing.T) {
 			Operation: argoappv1.Operation{
 				Sync: &argoappv1.SyncOperation{},
 			},
-			Phase: argoappv1.OperationFailed,
+			Phase: synccommon.OperationFailed,
 			SyncResult: &argoappv1.SyncOperationResult{
 				Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 				Source:   *app.Spec.Source.DeepCopy(),
@@ -367,7 +372,7 @@ func TestAutoSyncIndicateError(t *testing.T) {
 				Source: app.Spec.Source.DeepCopy(),
 			},
 		},
-		Phase: argoappv1.OperationFailed,
+		Phase: synccommon.OperationFailed,
 		SyncResult: &argoappv1.SyncOperationResult{
 			Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 			Source:   *app.Spec.Source.DeepCopy(),
@@ -411,7 +416,7 @@ func TestAutoSyncParameterOverrides(t *testing.T) {
 				},
 			},
 		},
-		Phase: argoappv1.OperationFailed,
+		Phase: synccommon.OperationFailed,
 		SyncResult: &argoappv1.SyncOperationResult{
 			Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 		},
@@ -666,7 +671,7 @@ func TestSetOperationStateOnDeletedApp(t *testing.T) {
 		patched = true
 		return true, nil, apierr.NewNotFound(schema.GroupResource{}, "my-app")
 	})
-	ctrl.setOperationState(newFakeApp(), &argoappv1.OperationState{Phase: argoappv1.OperationSucceeded})
+	ctrl.setOperationState(newFakeApp(), &argoappv1.OperationState{Phase: synccommon.OperationSucceeded})
 	assert.True(t, patched)
 }
 

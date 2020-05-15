@@ -48,7 +48,10 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/errors"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/io"
+	jsonutil "github.com/argoproj/argo-cd/engine/pkg/utils/json"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/kube"
 	"github.com/argoproj/argo-cd/pkg/apiclient"
 	accountpkg "github.com/argoproj/argo-cd/pkg/apiclient/account"
 	applicationpkg "github.com/argoproj/argo-cd/pkg/apiclient/application"
@@ -87,9 +90,7 @@ import (
 	"github.com/argoproj/argo-cd/util/env"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	httputil "github.com/argoproj/argo-cd/util/http"
-	jsonutil "github.com/argoproj/argo-cd/util/json"
 	"github.com/argoproj/argo-cd/util/jwt/zjwt"
-	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/oidc"
 	"github.com/argoproj/argo-cd/util/rbac"
 	util_session "github.com/argoproj/argo-cd/util/session"
@@ -502,7 +503,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	clusterService := cluster.NewServer(db, a.enf, a.Cache, kubectl)
 	repoService := repository.NewServer(a.RepoClientset, db, a.enf, a.Cache, a.settingsMgr)
 	repoCredsService := repocreds.NewServer(a.RepoClientset, db, a.enf, a.settingsMgr)
-	var loginRateLimiter func() (util.Closer, error)
+	var loginRateLimiter func() (io.Closer, error)
 	if maxConcurrentLoginRequestsCount > 0 {
 		loginRateLimiter = session.NewLoginRateLimiter(
 			session.NewRedisStateStorage(a.ArgoCDServerOpts.RedisClient), maxConcurrentLoginRequestsCount)
@@ -729,7 +730,7 @@ func indexFilePath(srcPath string, baseHRef string) (string, error) {
 		}
 		return "", err
 	}
-	defer util.Close(f)
+	defer io.Close(f)
 
 	data, err := ioutil.ReadFile(srcPath)
 	if err != nil {

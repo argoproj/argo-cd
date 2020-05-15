@@ -6,7 +6,7 @@ import (
 
 	argoexec "github.com/argoproj/pkg/exec"
 
-	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/errors"
 )
 
 var Author string

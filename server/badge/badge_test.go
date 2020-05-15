@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/argoproj/argo-cd/engine/pkg/utils/health"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-cd/util/settings"
@@ -40,7 +41,7 @@ var (
 		ObjectMeta: v1.ObjectMeta{Name: "testApp", Namespace: "default"},
 		Status: v1alpha1.ApplicationStatus{
 			Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced},
-			Health: v1alpha1.HealthStatus{Status: v1alpha1.HealthStatusHealthy},
+			Health: v1alpha1.HealthStatus{Status: health.HealthStatusHealthy},
 			OperationState: &v1alpha1.OperationState{
 				SyncResult: &v1alpha1.SyncOperationResult{
 					Revision: "aa29b85",

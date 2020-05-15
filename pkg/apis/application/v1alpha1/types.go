@@ -31,6 +31,8 @@ import (
 	"k8s.io/client-go/tools/clientcmd/api"
 
 	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/health"
+	synccommon "github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/common"
 	"github.com/argoproj/argo-cd/util/cert"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/helm"
@@ -484,42 +486,12 @@ func (o *SyncOperation) IsApplyStrategy() bool {
 	return o.SyncStrategy != nil && o.SyncStrategy.Apply != nil
 }
 
-type OperationPhase string
-
-const (
-	OperationRunning     OperationPhase = "Running"
-	OperationTerminating OperationPhase = "Terminating"
-	OperationFailed      OperationPhase = "Failed"
-	OperationError       OperationPhase = "Error"
-	OperationSucceeded   OperationPhase = "Succeeded"
-)
-
-func (os OperationPhase) Completed() bool {
-	switch os {
-	case OperationFailed, OperationError, OperationSucceeded:
-		return true
-	}
-	return false
-}
-
-func (os OperationPhase) Running() bool {
-	return os == OperationRunning
-}
-
-func (os OperationPhase) Successful() bool {
-	return os == OperationSucceeded
-}
-
-func (os OperationPhase) Failed() bool {
-	return os == OperationFailed
-}
-
 // OperationState contains information about state of currently performing operation on application.
 type OperationState struct {
 	// Operation is the original requested operation
 	Operation Operation `json:"operation" protobuf:"bytes,1,opt,name=operation"`
 	// Phase is the current phase of the operation
-	Phase OperationPhase `json:"phase" protobuf:"bytes,2,opt,name=phase"`
+	Phase synccommon.OperationPhase `json:"phase" protobuf:"bytes,2,opt,name=phase"`
 	// Message hold any pertinent messages when attempting to perform operation (typically errors).
 	Message string `json:"message,omitempty" protobuf:"bytes,3,opt,name=message"`
 	// SyncResult is the result of a Sync operation
@@ -620,41 +592,6 @@ type SyncStrategyHook struct {
 	SyncStrategyApply `json:",inline" protobuf:"bytes,1,opt,name=syncStrategyApply"`
 }
 
-type HookType string
-
-const (
-	HookTypePreSync  HookType = "PreSync"
-	HookTypeSync     HookType = "Sync"
-	HookTypePostSync HookType = "PostSync"
-	HookTypeSkip     HookType = "Skip"
-	HookTypeSyncFail HookType = "SyncFail"
-)
-
-func NewHookType(t string) (HookType, bool) {
-	return HookType(t),
-		t == string(HookTypePreSync) ||
-			t == string(HookTypeSync) ||
-			t == string(HookTypePostSync) ||
-			t == string(HookTypeSyncFail) ||
-			t == string(HookTypeSkip)
-
-}
-
-type HookDeletePolicy string
-
-const (
-	HookDeletePolicyHookSucceeded      HookDeletePolicy = "HookSucceeded"
-	HookDeletePolicyHookFailed         HookDeletePolicy = "HookFailed"
-	HookDeletePolicyBeforeHookCreation HookDeletePolicy = "BeforeHookCreation"
-)
-
-func NewHookDeletePolicy(p string) (HookDeletePolicy, bool) {
-	return HookDeletePolicy(p),
-		p == string(HookDeletePolicyHookSucceeded) ||
-			p == string(HookDeletePolicyHookFailed) ||
-			p == string(HookDeletePolicyBeforeHookCreation)
-}
-
 // data about a specific revision within a repo
 type RevisionMetadata struct {
 	// who authored this revision,
@@ -682,24 +619,6 @@ type SyncOperationResult struct {
 	Source ApplicationSource `json:"source,omitempty" protobuf:"bytes,3,opt,name=source"`
 }
 
-type ResultCode string
-
-const (
-	ResultCodeSynced       ResultCode = "Synced"
-	ResultCodeSyncFailed   ResultCode = "SyncFailed"
-	ResultCodePruned       ResultCode = "Pruned"
-	ResultCodePruneSkipped ResultCode = "PruneSkipped"
-)
-
-type SyncPhase = string
-
-const (
-	SyncPhasePreSync  = "PreSync"
-	SyncPhaseSync     = "Sync"
-	SyncPhasePostSync = "PostSync"
-	SyncPhaseSyncFail = "SyncFail"
-)
-
 // ResourceResult holds the operation result details of a specific resource
 type ResourceResult struct {
 	Group     string `json:"group" protobuf:"bytes,1,opt,name=group"`
@@ -708,16 +627,16 @@ type ResourceResult struct {
 	Namespace string `json:"namespace" protobuf:"bytes,4,opt,name=namespace"`
 	Name      string `json:"name" protobuf:"bytes,5,opt,name=name"`
 	// the final result of the sync, this is be empty if the resources is yet to be applied/pruned and is always zero-value for hooks
-	Status ResultCode `json:"status,omitempty" protobuf:"bytes,6,opt,name=status"`
+	Status synccommon.ResultCode `json:"status,omitempty" protobuf:"bytes,6,opt,name=status"`
 	// message for the last sync OR operation
 	Message string `json:"message,omitempty" protobuf:"bytes,7,opt,name=message"`
 	// the type of the hook, empty for non-hook resources
-	HookType HookType `json:"hookType,omitempty" protobuf:"bytes,8,opt,name=hookType"`
+	HookType synccommon.HookType `json:"hookType,omitempty" protobuf:"bytes,8,opt,name=hookType"`
 	// the state of any operation associated with this resource OR hook
 	// note: can contain values for non-hook resources
-	HookPhase OperationPhase `json:"hookPhase,omitempty" protobuf:"bytes,9,opt,name=hookPhase"`
+	HookPhase synccommon.OperationPhase `json:"hookPhase,omitempty" protobuf:"bytes,9,opt,name=hookPhase"`
 	// indicates the particular phase of the sync that this is for
-	SyncPhase SyncPhase `json:"syncPhase,omitempty" protobuf:"bytes,10,opt,name=syncPhase"`
+	SyncPhase synccommon.SyncPhase `json:"syncPhase,omitempty" protobuf:"bytes,10,opt,name=syncPhase"`
 }
 
 func (r *ResourceResult) GroupVersionKind() schema.GroupVersionKind {
@@ -730,16 +649,7 @@ func (r *ResourceResult) GroupVersionKind() schema.GroupVersionKind {
 
 type ResourceResults []*ResourceResult
 
-func (r ResourceResults) Filter(predicate func(r *ResourceResult) bool) ResourceResults {
-	results := ResourceResults{}
-	for _, res := range r {
-		if predicate(res) {
-			results = append(results, res)
-		}
-	}
-	return results
-}
-func (r ResourceResults) Find(group string, kind string, namespace string, name string, phase SyncPhase) (int, *ResourceResult) {
+func (r ResourceResults) Find(group string, kind string, namespace string, name string, phase synccommon.SyncPhase) (int, *ResourceResult) {
 	for i, res := range r {
 		if res.Group == group && res.Kind == kind && res.Namespace == namespace && res.Name == name && res.SyncPhase == phase {
 			return i, res
@@ -750,7 +660,7 @@ func (r ResourceResults) Find(group string, kind string, namespace string, name 
 
 func (r ResourceResults) PruningRequired() (num int) {
 	for _, res := range r {
-		if res.Status == ResultCodePruneSkipped {
+		if res.Status == synccommon.ResultCodePruneSkipped {
 			num++
 		}
 	}
@@ -853,20 +763,9 @@ type SyncStatus struct {
 }
 
 type HealthStatus struct {
-	Status  HealthStatusCode `json:"status,omitempty" protobuf:"bytes,1,opt,name=status"`
-	Message string           `json:"message,omitempty" protobuf:"bytes,2,opt,name=message"`
+	Status  health.HealthStatusCode `json:"status,omitempty" protobuf:"bytes,1,opt,name=status"`
+	Message string                  `json:"message,omitempty" protobuf:"bytes,2,opt,name=message"`
 }
-
-type HealthStatusCode = string
-
-const (
-	HealthStatusUnknown     HealthStatusCode = "Unknown"
-	HealthStatusProgressing HealthStatusCode = "Progressing"
-	HealthStatusHealthy     HealthStatusCode = "Healthy"
-	HealthStatusSuspended   HealthStatusCode = "Suspended"
-	HealthStatusDegraded    HealthStatusCode = "Degraded"
-	HealthStatusMissing     HealthStatusCode = "Missing"
-)
 
 // InfoItem contains human readable information about object
 type InfoItem struct {

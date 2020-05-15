@@ -10,11 +10,11 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/errors"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/io"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	certificatepkg "github.com/argoproj/argo-cd/pkg/apiclient/certificate"
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util"
 	certutil "github.com/argoproj/argo-cd/util/cert"
 
 	"crypto/x509"
@@ -66,7 +66,7 @@ func NewCertAddTLSCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 		Short: "Add TLS certificate data for connecting to repository server SERVERNAME",
 		Run: func(c *cobra.Command, args []string) {
 			conn, certIf := argocdclient.NewClientOrDie(clientOpts).NewCertClientOrDie()
-			defer util.Close(conn)
+			defer io.Close(conn)
 
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
@@ -149,7 +149,7 @@ func NewCertAddSSHCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 		Run: func(c *cobra.Command, args []string) {
 
 			conn, certIf := argocdclient.NewClientOrDie(clientOpts).NewCertClientOrDie()
-			defer util.Close(conn)
+			defer io.Close(conn)
 
 			var sshKnownHostsLists []string
 			var err error
@@ -221,7 +221,7 @@ func NewCertRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				os.Exit(1)
 			}
 			conn, certIf := argocdclient.NewClientOrDie(clientOpts).NewCertClientOrDie()
-			defer util.Close(conn)
+			defer io.Close(conn)
 			hostNamePattern := args[0]
 
 			// Prevent the user from specifying a wildcard as hostname as precaution
@@ -276,7 +276,7 @@ func NewCertListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			}
 
 			conn, certIf := argocdclient.NewClientOrDie(clientOpts).NewCertClientOrDie()
-			defer util.Close(conn)
+			defer io.Close(conn)
 			certificates, err := certIf.ListCertificates(context.Background(), &certificatepkg.RepositoryCertificateQuery{HostNamePattern: hostNamePattern, CertType: certType})
 			errors.CheckError(err)
 
