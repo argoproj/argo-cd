@@ -67,7 +67,7 @@ func newTestAccountServerExt(ctx context.Context, enforceFn rbac.ClaimsEnforcerF
 	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
 	enforcer.SetClaimsEnforcerFunc(enforceFn)
 
-	return NewServer(sessionMgr, settingsMgr, enforcer), session.NewServer(sessionMgr, nil, nil)
+	return NewServer(sessionMgr, settingsMgr, enforcer), session.NewServer(sessionMgr, nil, nil, nil)
 }
 
 func getAdminAccount(mgr *settings.SettingsManager) (*settings.Account, error) {

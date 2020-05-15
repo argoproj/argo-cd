@@ -508,10 +508,10 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 		loginRateLimiter = session.NewLoginRateLimiter(
 			session.NewRedisStateStorage(a.ArgoCDServerOpts.RedisClient), maxConcurrentLoginRequestsCount)
 	}
-	sessionService := session.NewServer(a.sessionMgr, a, loginRateLimiter)
+	sessionService := session.NewServer(a.sessionMgr, a, a.policyEnforcer,loginRateLimiter)
 	projectLock := util.NewKeyLock()
 	applicationService := application.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.appLister, a.RepoClientset, a.Cache, kubectl, db, a.enf, projectLock, a.settingsMgr)
-	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr)
+	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr, a.policyEnforcer)
 	settingsService := settings.NewServer(a.settingsMgr, a)
 	accountService := account.NewServer(a.sessionMgr, a.settingsMgr, a.enf)
 	certificateService := certificate.NewServer(a.RepoClientset, db, a.enf)
