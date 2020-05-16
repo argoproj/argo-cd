@@ -1,6 +1,16 @@
 # Changelog
 
-## v1.5.3 (Unreleased)
+## v1.5.5 (2020-05-16)
+
+- feat: add Rollout restart action (#3557)
+- fix: enable redis retries; add redis request duration metric (#3547)
+- fix: when --rootpath is on, 404 is returned when URL contains encoded URI (#3564)
+
+## v1.5.4 (2020-05-05)
+
+- fix: CLI commands with --grpc-web
+
+## v1.5.3 (2020-05-01)
 
 This patch release introduces a set of enhancements and bug fixes. Here are most notable changes:
 
