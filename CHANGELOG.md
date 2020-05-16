@@ -1,6 +1,6 @@
 # Changelog
 
-## v1.5.5 (2020-05-14)
+## v1.5.5 (2020-05-16)
 
 - feat: add Rollout restart action (#3557)
 - fix: enable redis retries; add redis request duration metric (#3547)
