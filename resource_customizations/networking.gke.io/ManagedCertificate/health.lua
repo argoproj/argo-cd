@@ -3,7 +3,7 @@ hs = {}
 if obj.status ~= nil then
   if obj.status.domainStatus ~= nil then
     for i, domainStatus in ipairs(obj.status.domainStatus) do
-      if domainStatus.status == "Failed" then
+      if domainStatus.status == "FailedNotVisible" then
         hs.status = "Degraded"
         hs.message = "At least one certificate has failed to be provisioned"
         return hs
