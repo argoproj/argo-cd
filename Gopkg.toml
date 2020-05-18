@@ -120,7 +120,6 @@ required = [
   name = "github.com/google/uuid"
   version = "1.1.1"
 
-
 [[constraint]]
   name = "github.com/alicebob/miniredis"
   version = "2.7.0"
@@ -129,6 +128,7 @@ required = [
   name = "github.com/bsm/redislock"
   version = "0.4.3"
 
+# use master branch until we get first stable gitops-engine version
 [[constraint]]
   name = "github.com/argoproj/gitops-engine"
-  version = "0.1.0"
+  branch = "master"
