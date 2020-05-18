@@ -3,7 +3,7 @@ package jwt
 import (
 	"testing"
 
-	"github.com/argoproj/argo-cd/util/jwt"
+	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/stretchr/testify/assert"
 )
 
