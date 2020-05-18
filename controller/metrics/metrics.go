@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/health"
 	"github.com/argoproj/argo-cd/util/db"
+	"github.com/argoproj/gitops-engine/pkg/utils/health"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
