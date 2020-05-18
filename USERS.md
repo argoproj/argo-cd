@@ -61,3 +61,4 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Yieldlab](https://www.yieldlab.de/)
 1. [MTN Group](https://www.mtn.com/)
 1. [Moengage](https://www.moengage.com/)
+1. [Swissquote](https://github.com/swissquote)
