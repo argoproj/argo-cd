@@ -48,9 +48,7 @@ func (e *gitOpsEngine) Run() (io.Closer, error) {
 	}
 
 	return ioutil.NewCloser(func() error {
-		e.cache.Invalidate(func(config *rest.Config, ns []string, settings cache.Settings) (*rest.Config, []string, cache.Settings) {
-			return config, ns, settings
-		})
+		e.cache.Invalidate()
 		return nil
 	}), nil
 }

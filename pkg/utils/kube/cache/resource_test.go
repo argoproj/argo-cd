@@ -4,9 +4,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"k8s.io/client-go/rest"
 )
 
-var c = &clusterCache{}
+var c = NewClusterCache(&rest.Config{}, nil)
 
 func TestIsParentOf(t *testing.T) {
 	child := c.newResource(testPod)

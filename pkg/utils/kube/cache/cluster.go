@@ -22,7 +22,6 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/pager"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/health"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 )
 
@@ -54,15 +53,15 @@ type ClusterInfo struct {
 	SyncError error
 }
 
-type Settings struct {
-	ResourceHealthOverride health.HealthOverride
-	ResourcesFilter        kube.ResourceFilter
-}
-
 var handlerKey uint64
 
+// OnEventHandler is a function that handles Kubernetes event
 type OnEventHandler func(event watch.EventType, un *unstructured.Unstructured)
+
+// OnPopulateResourceInfoHandler returns additional resource metadata that should be stored in cache
 type OnPopulateResourceInfoHandler func(un *unstructured.Unstructured, isRoot bool) (info interface{}, cacheManifest bool)
+
+// OnResourceUpdatedHandler handlers resource update event
 type OnResourceUpdatedHandler func(newRes *Resource, oldRes *Resource, namespaceResources map[kube.ResourceKey]*Resource)
 type Unsubscribe func()
 
@@ -74,7 +73,7 @@ type ClusterCache interface {
 	// GetAPIGroups returns information about observed API groups
 	GetAPIGroups() []metav1.APIGroup
 	// Invalidate cache and executes callback that optionally might update cache settings
-	Invalidate(settingsCallback func(*rest.Config, []string, Settings) (*rest.Config, []string, Settings))
+	Invalidate(opts ...func(cache *clusterCache))
 	// GetNamespaceTopLevelResources returns top level resources in the specified namespace
 	GetNamespaceTopLevelResources(namespace string) map[kube.ResourceKey]*Resource
 	// IterateHierarchy iterates resource tree starting from the specified top level resource and executes callback for each resource in the tree
@@ -96,20 +95,23 @@ type ClusterCache interface {
 }
 
 // NewClusterCache creates new instance of cluster cache
-func NewClusterCache(settings Settings, config *rest.Config, namespaces []string, kubectl kube.Kubectl) *clusterCache {
-	return &clusterCache{
-		settings:                settings,
+func NewClusterCache(config *rest.Config, kubectl kube.Kubectl, opts ...func(cache *clusterCache)) *clusterCache {
+	cache := &clusterCache{
+		settings:                Settings{ResourceHealthOverride: &noopSettings{}, ResourcesFilter: &noopSettings{}},
 		apisMeta:                make(map[schema.GroupKind]*apiMeta),
 		resources:               make(map[kube.ResourceKey]*Resource),
 		nsIndex:                 make(map[string]map[kube.ResourceKey]*Resource),
 		config:                  config,
-		namespaces:              namespaces,
 		kubectl:                 kubectl,
 		syncTime:                nil,
 		resourceUpdatedHandlers: map[uint64]OnResourceUpdatedHandler{},
 		eventHandlers:           map[uint64]OnEventHandler{},
 		log:                     log.WithField("server", config.Host),
 	}
+	for i := range opts {
+		opts[i](cache)
+	}
+	return cache
 }
 
 type clusterCache struct {
@@ -314,15 +316,15 @@ func (c *clusterCache) setNode(n *Resource) {
 }
 
 // Invalidate cache and executes callback that optionally might update cache settings
-func (c *clusterCache) Invalidate(settingsCallback func(*rest.Config, []string, Settings) (*rest.Config, []string, Settings)) {
+func (c *clusterCache) Invalidate(opts ...func(cache *clusterCache)) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	c.syncTime = nil
 	for i := range c.apisMeta {
 		c.apisMeta[i].watchCancel()
 	}
-	if settingsCallback != nil {
-		c.config, c.namespaces, c.settings = settingsCallback(c.config, c.namespaces, c.settings)
+	for i := range opts {
+		opts[i](c)
 	}
 	c.apisMeta = nil
 	c.namespacedResources = nil

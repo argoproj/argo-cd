@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/ghodss/yaml"
-	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -18,7 +17,6 @@ import (
 	"k8s.io/client-go/rest"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/errors"
-	"github.com/argoproj/gitops-engine/pkg/utils/health"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
 )
@@ -112,33 +110,8 @@ func newCluster(objs ...*unstructured.Unstructured) *clusterCache {
 		Meta:                 metav1.APIResource{Namespaced: true},
 	}}
 
-	return newClusterExt(&kubetest.MockKubectlCmd{APIResources: apiResources, DynamicClient: client})
-}
-
-func newClusterExt(kubectl kube.Kubectl) *clusterCache {
-	return &clusterCache{
-		resources: make(map[kube.ResourceKey]*Resource),
-		kubectl:   kubectl,
-		nsIndex:   make(map[string]map[kube.ResourceKey]*Resource),
-		apisMeta:  make(map[schema.GroupKind]*apiMeta),
-		log:       log.WithField("cluster", "test"),
-		settings: Settings{
-			ResourceHealthOverride: &fakeSettings{},
-			ResourcesFilter:        &fakeSettings{},
-		},
-		config: &rest.Config{Host: "https://test"},
-	}
-}
-
-type fakeSettings struct {
-}
-
-func (f *fakeSettings) GetResourceHealth(obj *unstructured.Unstructured) (*health.HealthStatus, error) {
-	return nil, nil
-}
-
-func (f *fakeSettings) IsExcludedResource(group, kind, cluster string) bool {
-	return false
+	return NewClusterCache(
+		&rest.Config{Host: "https://test"}, &kubetest.MockKubectlCmd{APIResources: apiResources, DynamicClient: client})
 }
 
 func getChildren(cluster *clusterCache, un *unstructured.Unstructured) []*Resource {
