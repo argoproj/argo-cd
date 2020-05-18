@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	util "github.com/argoproj/argo-cd/engine/pkg/utils/io"
 	"github.com/argoproj/argo-cd/util/session"
 
+	util "github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/bsm/redislock"
 	"github.com/go-redis/redis"
 	log "github.com/sirupsen/logrus"

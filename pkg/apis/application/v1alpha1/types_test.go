@@ -5,8 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/common"
-
+	"github.com/argoproj/gitops-engine/pkg/utils/kube/sync/common"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"

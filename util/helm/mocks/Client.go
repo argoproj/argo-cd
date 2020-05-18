@@ -3,8 +3,9 @@
 package mocks
 
 import (
-	io "github.com/argoproj/argo-cd/engine/pkg/utils/io"
 	helm "github.com/argoproj/argo-cd/util/helm"
+
+	io "github.com/argoproj/gitops-engine/pkg/utils/io"
 
 	mock "github.com/stretchr/testify/mock"
 

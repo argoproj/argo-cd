@@ -5,6 +5,9 @@ import (
 	"reflect"
 	"sync"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/health"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	clustercache "github.com/argoproj/gitops-engine/pkg/utils/kube/cache"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -15,9 +18,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/controller/metrics"
-	"github.com/argoproj/argo-cd/engine/pkg/utils/health"
-	"github.com/argoproj/argo-cd/engine/pkg/utils/kube"
-	clustercache "github.com/argoproj/argo-cd/engine/pkg/utils/kube/cache"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/lua"

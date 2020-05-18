@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"regexp"
 
+	healthutil "github.com/argoproj/gitops-engine/pkg/utils/health"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	healthutil "github.com/argoproj/argo-cd/engine/pkg/utils/health"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/util/assets"

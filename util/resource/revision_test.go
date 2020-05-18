@@ -3,9 +3,9 @@ package resource
 import (
 	"testing"
 
+	. "github.com/argoproj/gitops-engine/pkg/utils/testing"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	. "github.com/argoproj/argo-cd/engine/pkg/utils/testing"
 	"github.com/argoproj/argo-cd/test"
 )
 
