@@ -47,6 +47,7 @@ func (s *Server) getConnectionState(cluster appv1.Cluster, errorMessage string) 
 			Status:     appv1.ConnectionStatusSuccessful,
 			ModifiedAt: &now,
 		},
+		Version: cluster.ServerVersion,
 	}
 
 	if cluster.ConnectionState.ModifiedAt != nil {
