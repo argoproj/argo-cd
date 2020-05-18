@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/argoproj/argo-cd/util/env"
+	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/argoproj/pkg/stats"
 	"github.com/go-redis/redis"
@@ -22,6 +24,21 @@ import (
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/tls"
 )
+
+const (
+	failureRetryCountEnv              = "ARGOCD_K8S_RETRY_COUNT"
+	failureRetryPeriodMilliSecondsEnv = "ARGOCD_K8S_RETRY_DURATION_MILLISECONDS"
+)
+
+var (
+	failureRetryCount              = 0
+	failureRetryPeriodMilliSeconds = 100
+)
+
+func init() {
+	failureRetryCount = env.ParseNumFromEnv(failureRetryCountEnv, failureRetryCount, 0, 10)
+	failureRetryPeriodMilliSeconds = env.ParseNumFromEnv(failureRetryPeriodMilliSecondsEnv, failureRetryPeriodMilliSeconds, 0, 1000)
+}
 
 // NewCommand returns a new instance of an argocd command
 func NewCommand() *cobra.Command {
@@ -67,7 +84,15 @@ func NewCommand() *cobra.Command {
 			errors.CheckError(err)
 
 			kubeclientset := kubernetes.NewForConfigOrDie(config)
-			appclientset := appclientset.NewForConfigOrDie(config)
+
+			appclientsetConfig, err := clientConfig.ClientConfig()
+			errors.CheckError(err)
+			errors.CheckError(v1alpha1.SetK8SConfigDefaults(appclientsetConfig))
+
+			if failureRetryCount > 0 {
+				appclientsetConfig = kube.AddFailureRetryWrapper(appclientsetConfig, failureRetryCount, failureRetryPeriodMilliSeconds)
+			}
+			appclientset := appclientset.NewForConfigOrDie(appclientsetConfig)
 			repoclientset := apiclient.NewRepoServerClientset(repoServerAddress, repoServerTimeoutSeconds)
 
 			if rootPath != "" {
