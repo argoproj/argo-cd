@@ -4,11 +4,9 @@ import (
 	"net/http"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	utilnet "k8s.io/apimachinery/pkg/util/net"
-
-	log "github.com/sirupsen/logrus"
-
 	"k8s.io/client-go/rest"
 )
 
