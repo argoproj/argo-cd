@@ -2,12 +2,11 @@ package session
 
 import (
 	"fmt"
-	"io"
 	"time"
 
-	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/session"
 
+	util "github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/bsm/redislock"
 	"github.com/go-redis/redis"
 	log "github.com/sirupsen/logrus"
@@ -20,7 +19,7 @@ const (
 )
 
 type stateStorage interface {
-	obtainLock(key string, ttl time.Duration) (io.Closer, error)
+	obtainLock(key string, ttl time.Duration) (util.Closer, error)
 	set(key string, value interface{}, expiration time.Duration) error
 	get(key string) (int, error)
 }
@@ -36,7 +35,7 @@ type redisStateStorage struct {
 	locker *redislock.Client
 }
 
-func (redis *redisStateStorage) obtainLock(key string, ttl time.Duration) (io.Closer, error) {
+func (redis *redisStateStorage) obtainLock(key string, ttl time.Duration) (util.Closer, error) {
 	lock, err := redis.locker.Obtain(key, ttl, nil)
 	if err != nil {
 		return nil, err

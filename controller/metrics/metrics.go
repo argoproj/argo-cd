@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/health"
 	"github.com/argoproj/argo-cd/util/db"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -300,10 +301,10 @@ func collectApps(ch chan<- prometheus.Metric, app *argoappv1.Application) {
 	}
 	healthStatus := app.Status.Health.Status
 	if healthStatus == "" {
-		healthStatus = argoappv1.HealthStatusUnknown
+		healthStatus = health.HealthStatusUnknown
 	}
 
-	addGauge(descAppInfo, 1, git.NormalizeGitURL(app.Spec.Source.RepoURL), app.Spec.Destination.Server, app.Spec.Destination.Namespace, string(syncStatus), healthStatus, operation)
+	addGauge(descAppInfo, 1, git.NormalizeGitURL(app.Spec.Source.RepoURL), app.Spec.Destination.Server, app.Spec.Destination.Namespace, string(syncStatus), string(healthStatus), operation)
 
 	// Deprecated controller metrics
 	if os.Getenv(EnvVarLegacyControllerMetrics) == "true" {
@@ -313,11 +314,12 @@ func collectApps(ch chan<- prometheus.Metric, app *argoappv1.Application) {
 		addGauge(descAppSyncStatusCode, boolFloat64(syncStatus == argoappv1.SyncStatusCodeOutOfSync), string(argoappv1.SyncStatusCodeOutOfSync))
 		addGauge(descAppSyncStatusCode, boolFloat64(syncStatus == argoappv1.SyncStatusCodeUnknown || syncStatus == ""), string(argoappv1.SyncStatusCodeUnknown))
 
-		addGauge(descAppHealthStatus, boolFloat64(healthStatus == argoappv1.HealthStatusUnknown || healthStatus == ""), argoappv1.HealthStatusUnknown)
-		addGauge(descAppHealthStatus, boolFloat64(healthStatus == argoappv1.HealthStatusProgressing), argoappv1.HealthStatusProgressing)
-		addGauge(descAppHealthStatus, boolFloat64(healthStatus == argoappv1.HealthStatusSuspended), argoappv1.HealthStatusSuspended)
-		addGauge(descAppHealthStatus, boolFloat64(healthStatus == argoappv1.HealthStatusHealthy), argoappv1.HealthStatusHealthy)
-		addGauge(descAppHealthStatus, boolFloat64(healthStatus == argoappv1.HealthStatusDegraded), argoappv1.HealthStatusDegraded)
-		addGauge(descAppHealthStatus, boolFloat64(healthStatus == argoappv1.HealthStatusMissing), argoappv1.HealthStatusMissing)
+		healthStatus := app.Status.Health.Status
+		addGauge(descAppHealthStatus, boolFloat64(healthStatus == health.HealthStatusUnknown || healthStatus == ""), string(health.HealthStatusUnknown))
+		addGauge(descAppHealthStatus, boolFloat64(healthStatus == health.HealthStatusProgressing), string(health.HealthStatusProgressing))
+		addGauge(descAppHealthStatus, boolFloat64(healthStatus == health.HealthStatusSuspended), string(health.HealthStatusSuspended))
+		addGauge(descAppHealthStatus, boolFloat64(healthStatus == health.HealthStatusHealthy), string(health.HealthStatusHealthy))
+		addGauge(descAppHealthStatus, boolFloat64(healthStatus == health.HealthStatusDegraded), string(health.HealthStatusDegraded))
+		addGauge(descAppHealthStatus, boolFloat64(healthStatus == health.HealthStatusMissing), string(health.HealthStatusMissing))
 	}
 }

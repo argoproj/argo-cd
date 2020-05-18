@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/errors"
+	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	"github.com/argoproj/argo-cd/pkg/apiclient/version"
-	"github.com/argoproj/argo-cd/util"
 )
 
 // NewVersionCmd returns a new `version` command to be used as a sub-command to root
@@ -48,7 +48,7 @@ func NewVersionCmd(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			if !client {
 				// Get Server version
 				conn, versionIf = argocdclient.NewClientOrDie(clientOpts).NewVersionClientOrDie()
-				defer util.Close(conn)
+				defer argoio.Close(conn)
 				serverVers, err = versionIf.Version(context.Background(), &empty.Empty{})
 				errors.CheckError(err)
 			}

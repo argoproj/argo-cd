@@ -5,6 +5,8 @@ import (
 
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
+	"github.com/argoproj/gitops-engine/pkg/utils/health"
+	. "github.com/argoproj/gitops-engine/pkg/utils/kube/sync/common"
 )
 
 // when we have a config map generator, AND the ignore annotation, it is ignored in the app's sync status
@@ -17,7 +19,7 @@ func TestDeployment(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
 		When().
 		PatchFile("deployment.yaml", `[
     {

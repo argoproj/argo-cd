@@ -9,7 +9,6 @@ import (
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/test"
-	"github.com/argoproj/argo-cd/util/kube"
 )
 
 func TestNormalizeObjectWithMatchedGroupKind(t *testing.T) {
@@ -21,7 +20,7 @@ func TestNormalizeObjectWithMatchedGroupKind(t *testing.T) {
 
 	assert.Nil(t, err)
 
-	deployment := kube.MustToUnstructured(test.DemoDeployment())
+	deployment := test.NewDeployment()
 
 	_, has, err := unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
 	assert.Nil(t, err)
@@ -43,7 +42,7 @@ func TestNormalizeNoMatchedGroupKinds(t *testing.T) {
 
 	assert.Nil(t, err)
 
-	deployment := kube.MustToUnstructured(test.DemoDeployment())
+	deployment := test.NewDeployment()
 
 	err = normalizer.Normalize(deployment)
 	assert.Nil(t, err)
@@ -62,7 +61,7 @@ func TestNormalizeMatchedResourceOverrides(t *testing.T) {
 
 	assert.Nil(t, err)
 
-	deployment := kube.MustToUnstructured(test.DemoDeployment())
+	deployment := test.NewDeployment()
 
 	_, has, err := unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
 	assert.Nil(t, err)
@@ -104,7 +103,7 @@ func TestNormalizeMissingJsonPointer(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	deployment := kube.MustToUnstructured(test.DemoDeployment())
+	deployment := test.NewDeployment()
 
 	err = normalizer.Normalize(deployment)
 	assert.NoError(t, err)

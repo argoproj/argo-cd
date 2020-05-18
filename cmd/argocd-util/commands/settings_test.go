@@ -10,9 +10,9 @@ import (
 	"testing"
 
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/settings"
 
+	utils "github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,7 +33,7 @@ func captureStdout(callback func()) (string, error) {
 	}()
 
 	callback()
-	util.Close(w)
+	utils.Close(w)
 
 	data, err := ioutil.ReadAll(r)
 
@@ -97,7 +97,7 @@ data:
 	if !assert.NoError(t, err) {
 		return
 	}
-	defer util.Close(closer)
+	defer utils.Close(closer)
 
 	opts := settingsOpts{argocdCMPath: f}
 	settingsManager, err := opts.createSettingsManager()
@@ -240,7 +240,7 @@ func tempFile(content string) (string, io.Closer, error) {
 		_ = os.Remove(f.Name())
 		return "", nil, err
 	}
-	return f.Name(), util.NewCloser(func() error {
+	return f.Name(), utils.NewCloser(func() error {
 		return os.Remove(f.Name())
 	}), nil
 }
@@ -263,7 +263,7 @@ func TestResourceOverrideIgnoreDifferences(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	defer util.Close(closer)
+	defer utils.Close(closer)
 
 	t.Run("NoOverridesConfigured", func(t *testing.T) {
 		cmd := NewResourceOverridesCommand(newCmdContext(map[string]string{}))
@@ -297,7 +297,7 @@ func TestResourceOverrideHealth(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	defer util.Close(closer)
+	defer utils.Close(closer)
 
 	t.Run("NoHealthAssessment", func(t *testing.T) {
 		cmd := NewResourceOverridesCommand(newCmdContext(map[string]string{
@@ -332,7 +332,7 @@ func TestResourceOverrideAction(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	defer util.Close(closer)
+	defer utils.Close(closer)
 
 	t.Run("NoActions", func(t *testing.T) {
 		cmd := NewResourceOverridesCommand(newCmdContext(map[string]string{

@@ -1,13 +1,12 @@
 package session
 
 import (
-	"io"
 	"testing"
 	"time"
 
+	util "github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/session"
 )
 
@@ -16,7 +15,7 @@ type fakeStorage struct {
 	values map[string]int
 }
 
-func (f *fakeStorage) obtainLock(key string, ttl time.Duration) (io.Closer, error) {
+func (f *fakeStorage) obtainLock(key string, ttl time.Duration) (util.Closer, error) {
 	return util.NopCloser, nil
 }
 

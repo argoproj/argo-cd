@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"regexp"
 
+	healthutil "github.com/argoproj/gitops-engine/pkg/utils/health"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -61,7 +62,7 @@ func replaceFirstGroupSubMatch(re *regexp.Regexp, str string, repl string) strin
 //ServeHTTP returns badge with health and sync status for application
 //(or an error badge if wrong query or application name is given)
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	health := appv1.HealthStatusUnknown
+	health := healthutil.HealthStatusUnknown
 	status := appv1.SyncStatusCodeUnknown
 	revision := ""
 	revisionEnabled := false
@@ -103,7 +104,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		rightColorString = toRGBString(Grey)
 	}
 
-	leftText := health
+	leftText := string(health)
 	rightText := string(status)
 
 	if notFound {

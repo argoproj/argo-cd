@@ -10,8 +10,9 @@ import (
 	"sort"
 	"strings"
 
-	"k8s.io/client-go/kubernetes/fake"
-
+	"github.com/argoproj/gitops-engine/pkg/utils/diff"
+	"github.com/argoproj/gitops-engine/pkg/utils/errors"
+	healthutil "github.com/argoproj/gitops-engine/pkg/utils/health"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -19,15 +20,13 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/argo/normalizers"
 	"github.com/argoproj/argo-cd/util/cli"
-	"github.com/argoproj/argo-cd/util/diff"
-	"github.com/argoproj/argo-cd/util/health"
 	"github.com/argoproj/argo-cd/util/lua"
 	"github.com/argoproj/argo-cd/util/settings"
 )
@@ -448,7 +447,7 @@ argocd-util settings resource-overrides health ./deploy.yaml --argocd-cm-path ./
 					return
 				}
 
-				resHealth, err := health.GetResourceHealth(&res, overrides)
+				resHealth, err := healthutil.GetResourceHealth(&res, lua.ResourceHealthOverrides(overrides))
 				errors.CheckError(err)
 
 				_, _ = fmt.Printf("STATUS: %s\n", resHealth.Status)
