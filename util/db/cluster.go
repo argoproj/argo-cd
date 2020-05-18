@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"reflect"
 	"strings"
+	"time"
 
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
@@ -90,6 +91,12 @@ func (db *db) CreateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 		},
 	}
 	clusterSecret.Data = clusterToData(c)
+	if c.ConnectionState.ModifiedAt != nil {
+		clusterSecret.Annotations["modifiedAt"] = c.ConnectionState.ModifiedAt.Format(time.RFC3339)
+	}
+	if c.ServerVersion != "" {
+		clusterSecret.Annotations["serverVersion"] = c.ServerVersion
+	}
 	clusterSecret, err = db.kubeclientset.CoreV1().Secrets(db.ns).Create(clusterSecret)
 	if err != nil {
 		if apierr.IsAlreadyExists(err) {
@@ -207,6 +214,12 @@ func (db *db) UpdateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 		return nil, err
 	}
 	clusterSecret.Data = clusterToData(c)
+	if c.ConnectionState.ModifiedAt != nil {
+		clusterSecret.Annotations["modifiedAt"] = c.ConnectionState.ModifiedAt.Format(time.RFC3339)
+	}
+	if c.ServerVersion != "" {
+		clusterSecret.Annotations["serverVersion"] = c.ServerVersion
+	}
 	clusterSecret, err = db.kubeclientset.CoreV1().Secrets(db.ns).Update(clusterSecret)
 	if err != nil {
 		return nil, err
@@ -286,11 +299,24 @@ func secretToCluster(s *apiv1.Secret) *appv1.Cluster {
 		}
 	}
 
+	connectionState := appv1.ConnectionState{}
+
+	if v, found := s.Annotations["modifiedAt"]; found {
+		time, err := time.Parse(time.RFC3339, v)
+		if err != nil {
+			fmt.Println("Error while parsing date :", err)
+		} else {
+			connectionState.ModifiedAt = &metav1.Time{Time: time}
+		}
+	}
+
 	cluster := appv1.Cluster{
-		Server:     string(s.Data["server"]),
-		Name:       string(s.Data["name"]),
-		Namespaces: namespaces,
-		Config:     config,
+		Server:          string(s.Data["server"]),
+		Name:            string(s.Data["name"]),
+		Namespaces:      namespaces,
+		Config:          config,
+		ServerVersion:   s.Annotations["serverVersion"],
+		ConnectionState: connectionState,
 	}
 	return &cluster
 }

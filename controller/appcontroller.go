@@ -414,6 +414,8 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 	defer ctrl.appOperationQueue.ShutDown()
 
 	ctrl.metricsServer.RegisterClustersInfoSource(ctx, ctrl.stateCache)
+	ctrl.metricsServer.RegisterClusterSecretUpdater(ctx, ctrl.stateCache, ctrl.db)
+
 	go ctrl.appInformer.Run(ctx.Done())
 	go ctrl.projInformer.Run(ctx.Done())
 

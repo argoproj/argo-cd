@@ -1006,6 +1006,7 @@ type ConnectionStatus = string
 const (
 	ConnectionStatusSuccessful = "Successful"
 	ConnectionStatusFailed     = "Failed"
+	ConnectionStatusUnknown    = "Unknown"
 )
 
 // ConnectionState contains information about remote resource connection state

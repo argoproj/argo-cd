@@ -42,9 +42,6 @@ func NewServer(db db.ArgoDB, enf *rbac.Enforcer, cache *servercache.Cache, kubec
 }
 
 func (s *Server) getConnectionState(cluster appv1.Cluster, errorMessage string) (appv1.ConnectionState, string) {
-	if clusterInfo, err := s.cache.GetClusterInfo(cluster.Server); err == nil {
-		return clusterInfo.ConnectionState, clusterInfo.Version
-	}
 	now := v1.Now()
 	clusterInfo := servercache.ClusterInfo{
 		ConnectionState: appv1.ConnectionState{
@@ -53,14 +50,18 @@ func (s *Server) getConnectionState(cluster appv1.Cluster, errorMessage string) 
 		},
 	}
 
-	config := cluster.RESTConfig()
-	config.Timeout = time.Second
-	version, err := s.kubectl.GetServerVersion(config)
-	if err != nil {
-		clusterInfo.Status = appv1.ConnectionStatusFailed
-		clusterInfo.Message = fmt.Sprintf("Unable to connect to cluster: %v", err)
+	if cluster.ConnectionState.ModifiedAt != nil {
+		oneHourAgo := v1.Now().Add(-1 * time.Hour)
+		if cluster.ConnectionState.ModifiedAt.After(oneHourAgo) {
+			clusterInfo.Status = appv1.ConnectionStatusSuccessful
+			clusterInfo.ModifiedAt = cluster.ConnectionState.ModifiedAt
+		} else {
+			clusterInfo.Status = appv1.ConnectionStatusUnknown
+			clusterInfo.ModifiedAt = cluster.ConnectionState.ModifiedAt
+		}
 	} else {
-		clusterInfo.Version = version
+		clusterInfo.Status = appv1.ConnectionStatusUnknown
+		clusterInfo.ModifiedAt = nil
 	}
 
 	if errorMessage != "" {
@@ -68,7 +69,7 @@ func (s *Server) getConnectionState(cluster appv1.Cluster, errorMessage string) 
 		clusterInfo.Message = fmt.Sprintf("%s %s", errorMessage, clusterInfo.Message)
 	}
 
-	err = s.cache.SetClusterInfo(cluster.Server, &clusterInfo)
+	err := s.cache.SetClusterInfo(cluster.Server, &clusterInfo)
 	if err != nil {
 		log.Warnf("getClusterInfo cache set error %s: %v", cluster.Server, err)
 	}
@@ -127,7 +128,10 @@ func (s *Server) Create(ctx context.Context, q *cluster.ClusterCreateRequest) (*
 		return nil, err
 	}
 
-	c.ConnectionState = appv1.ConnectionState{Status: appv1.ConnectionStatusSuccessful}
+	c.ConnectionState = appv1.ConnectionState{
+		Status:     appv1.ConnectionStatusSuccessful,
+		ModifiedAt: &v1.Time{Time: time.Now()},
+	}
 	clust, err := s.db.CreateCluster(ctx, c)
 	if status.Convert(err).Code() == codes.AlreadyExists {
 		// act idempotent if existing spec matches new spec
