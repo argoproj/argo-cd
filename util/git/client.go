@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	executil "github.com/argoproj/gitops-engine/pkg/utils/exec"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
@@ -26,7 +27,6 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	certutil "github.com/argoproj/argo-cd/util/cert"
-	executil "github.com/argoproj/argo-cd/util/exec"
 )
 
 type RevisionMetadata struct {

@@ -8,10 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"google.golang.org/grpc/codes"
-
+	"github.com/argoproj/gitops-engine/pkg/utils/io"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -25,9 +26,7 @@ import (
 	applisters "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/reposerver/apiclient/mocks"
-	"github.com/argoproj/argo-cd/util"
 	dbmocks "github.com/argoproj/argo-cd/util/db/mocks"
-	"github.com/argoproj/argo-cd/util/kube/kubetest"
 )
 
 func TestRefreshApp(t *testing.T) {
@@ -262,7 +261,7 @@ func TestValidateRepo(t *testing.T) {
 	}).Return(&apiclient.RepoAppDetailsResponse{}, nil)
 
 	repoClientSet := &mocks.Clientset{}
-	repoClientSet.On("NewRepoServerClient").Return(util.NopCloser, repoClient, nil)
+	repoClientSet.On("NewRepoServerClient").Return(io.NopCloser, repoClient, nil)
 
 	db := &dbmocks.ArgoDB{}
 

@@ -24,6 +24,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [GMETRI](https://gmetri.com/)
 1. [Healy](https://www.healyworld.net)
 1. [hipages](https://hipages.com.au/)
+1. [Honestbank](https://honestbank.com)
 1. [Intuit](https://www.intuit.com/)
 1. [KintoHub](https://www.kintohub.com/)
 1. [KompiTech GmbH](https://www.kompitech.com/)
@@ -54,7 +55,9 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Universidad Mesoamericana](https://www.umes.edu.gt/)
 1. [Viaduct](https://www.viaduct.ai/)
 1. [Volvo Cars](https://www.volvocars.com/)
+1. [VSHN - The DevOps Company](https://vshn.ch/)
 1. [Walkbase](https://www.walkbase.com/)
 1. [Whitehat Berlin](https://whitehat.berlin) by Guido Maria Serra +Fenaroli
 1. [Yieldlab](https://www.yieldlab.de/)
 1. [MTN Group](https://www.mtn.com/)
+1. [Moengage](https://www.moengage.com/)

@@ -3,9 +3,9 @@ package commands
 import (
 	"fmt"
 	"io"
-	"log"
 	"os"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 

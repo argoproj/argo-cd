@@ -16,12 +16,16 @@ import (
 	"strings"
 	"time"
 
+	cacheutil "github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/healthz"
 	"github.com/argoproj/argo-cd/util/swagger"
 	"github.com/argoproj/argo-cd/util/webhook"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/errors"
+	"github.com/argoproj/gitops-engine/pkg/utils/io"
+	jsonutil "github.com/argoproj/gitops-engine/pkg/utils/json"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/dgrijalva/jwt-go"
-	rediscache "github.com/go-redis/cache"
 	"github.com/go-redis/redis"
 	golang_proto "github.com/golang/protobuf/proto"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
@@ -48,7 +52,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/pkg/apiclient"
 	accountpkg "github.com/argoproj/argo-cd/pkg/apiclient/account"
 	applicationpkg "github.com/argoproj/argo-cd/pkg/apiclient/application"
@@ -87,9 +90,7 @@ import (
 	"github.com/argoproj/argo-cd/util/env"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	httputil "github.com/argoproj/argo-cd/util/http"
-	jsonutil "github.com/argoproj/argo-cd/util/json"
 	"github.com/argoproj/argo-cd/util/jwt/zjwt"
-	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/oidc"
 	"github.com/argoproj/argo-cd/util/rbac"
 	util_session "github.com/argoproj/argo-cd/util/session"
@@ -249,16 +250,14 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
 			httpsS.Handler = withRootPath(httpsS.Handler, a)
 		}
 	}
+	httpS.Handler = &bug21955Workaround{handler: httpS.Handler}
+	if httpsS != nil {
+		httpsS.Handler = &bug21955Workaround{handler: httpsS.Handler}
+	}
 
 	metricsServ := metrics.NewMetricsServer(metricsPort)
 	if a.RedisClient != nil {
-		a.RedisClient.WrapProcess(func(oldProcess func(cmd redis.Cmder) error) func(cmd redis.Cmder) error {
-			return func(cmd redis.Cmder) error {
-				err := oldProcess(cmd)
-				metricsServ.IncRedisRequest(err != nil && err != rediscache.ErrCacheMiss)
-				return err
-			}
-		})
+		cacheutil.CollectMetrics(a.RedisClient, metricsServ)
 	}
 
 	// Start listener
@@ -504,7 +503,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	clusterService := cluster.NewServer(db, a.enf, a.Cache, kubectl)
 	repoService := repository.NewServer(a.RepoClientset, db, a.enf, a.Cache, a.settingsMgr)
 	repoCredsService := repocreds.NewServer(a.RepoClientset, db, a.enf, a.settingsMgr)
-	var loginRateLimiter func() (util.Closer, error)
+	var loginRateLimiter func() (io.Closer, error)
 	if maxConcurrentLoginRequestsCount > 0 {
 		loginRateLimiter = session.NewLoginRateLimiter(
 			session.NewRedisStateStorage(a.ArgoCDServerOpts.RedisClient), maxConcurrentLoginRequestsCount)
@@ -580,7 +579,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	httpS := http.Server{
 		Addr: endpoint,
 		Handler: &handlerSwitcher{
-			handler: &bug21955Workaround{handler: mux},
+			handler: mux,
 			urlToHandler: map[string]http.Handler{
 				"/api/badge": badge.NewHandler(a.AppClientset, a.settingsMgr, a.Namespace),
 			},
@@ -731,7 +730,7 @@ func indexFilePath(srcPath string, baseHRef string) (string, error) {
 		}
 		return "", err
 	}
-	defer util.Close(f)
+	defer io.Close(f)
 
 	data, err := ioutil.ReadFile(srcPath)
 	if err != nil {

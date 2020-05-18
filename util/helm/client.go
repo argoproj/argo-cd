@@ -17,11 +17,12 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver"
+	executil "github.com/argoproj/gitops-engine/pkg/utils/exec"
+	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 
 	"github.com/argoproj/argo-cd/util"
-	executil "github.com/argoproj/argo-cd/util/exec"
 )
 
 var (
@@ -39,7 +40,7 @@ type Creds struct {
 
 type Client interface {
 	CleanChartCache(chart string, version *semver.Version) error
-	ExtractChart(chart string, version *semver.Version) (string, util.Closer, error)
+	ExtractChart(chart string, version *semver.Version) (string, io.Closer, error)
 	GetIndex() (*Index, error)
 }
 
@@ -89,7 +90,7 @@ func (c *nativeHelmChart) CleanChartCache(chart string, version *semver.Version)
 	return os.RemoveAll(c.getChartPath(chart, version))
 }
 
-func (c *nativeHelmChart) ExtractChart(chart string, version *semver.Version) (string, util.Closer, error) {
+func (c *nativeHelmChart) ExtractChart(chart string, version *semver.Version) (string, io.Closer, error) {
 	err := c.ensureHelmChartRepoPath()
 	if err != nil {
 		return "", nil, err
@@ -152,7 +153,7 @@ func (c *nativeHelmChart) ExtractChart(chart string, version *semver.Version) (s
 		_ = os.RemoveAll(tempDir)
 		return "", nil, err
 	}
-	return path.Join(tempDir, chart), util.NewCloser(func() error {
+	return path.Join(tempDir, chart), io.NewCloser(func() error {
 		return os.RemoveAll(tempDir)
 	}), nil
 }
