@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/gitops-engine/pkg/utils/health"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -175,11 +174,6 @@ func (m *MetricsServer) RegisterClustersInfoSource(ctx context.Context, source H
 	collector := &clusterCollector{infoSource: source}
 	go collector.Run(ctx)
 	m.registry.MustRegister(collector)
-}
-
-func (m *MetricsServer) RegisterClusterSecretUpdater(ctx context.Context, source HasClustersInfo, db db.ArgoDB) {
-	updater := &clusterSecretUpdater{infoSource: source, db: db}
-	go updater.Run(ctx)
 }
 
 // IncSync increments the sync counter for an application

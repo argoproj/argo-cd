@@ -1,23 +1,29 @@
-package metrics
+package controller
 
 import (
 	"context"
 	"sync"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/argoproj/argo-cd/controller/metrics"
 	"github.com/argoproj/argo-cd/util/db"
 )
 
+const (
+	secretUpdateInterval = 30 * time.Second
+)
+
 type clusterSecretUpdater struct {
-	infoSource HasClustersInfo
+	infoSource metrics.HasClustersInfo
 	lock       sync.Mutex
 	db         db.ArgoDB
 }
 
 func (c clusterSecretUpdater) Run(ctx context.Context) {
-	tick := time.Tick(metricsCollectionInterval)
+	tick := time.Tick(secretUpdateInterval)
 	for {
 		select {
 		case <-ctx.Done():
@@ -40,8 +46,15 @@ func (c clusterSecretUpdater) Run(ctx context.Context) {
 						toUpdate = true
 					}
 				}
+				if info.SyncError != nil {
+					cluster.ConnectionState.Message = info.SyncError.Error()
+					toUpdate = true
+				}
 				if toUpdate {
-					c.db.UpdateCluster(context.Background(), cluster)
+					_, err := c.db.UpdateCluster(context.Background(), cluster)
+					if err != nil {
+						log.Warnf("Unable to pdate Cluster %s: %v", cluster.Server, err)
+					}
 				}
 			}
 		}

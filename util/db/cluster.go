@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -92,10 +94,13 @@ func (db *db) CreateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 	}
 	clusterSecret.Data = clusterToData(c)
 	if c.ConnectionState.ModifiedAt != nil {
-		clusterSecret.Annotations["modifiedAt"] = c.ConnectionState.ModifiedAt.Format(time.RFC3339)
+		clusterSecret.Annotations[common.AnnotationKeyModifiedAt] = c.ConnectionState.ModifiedAt.Format(time.RFC3339)
+	}
+	if c.ConnectionState.Message != "" {
+		clusterSecret.Annotations[common.AnnotationKeyMessage] = c.ConnectionState.Message
 	}
 	if c.ServerVersion != "" {
-		clusterSecret.Annotations["serverVersion"] = c.ServerVersion
+		clusterSecret.Annotations[common.AnnotationKeyServerVersion] = c.ServerVersion
 	}
 	clusterSecret, err = db.kubeclientset.CoreV1().Secrets(db.ns).Create(clusterSecret)
 	if err != nil {
@@ -215,10 +220,13 @@ func (db *db) UpdateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 	}
 	clusterSecret.Data = clusterToData(c)
 	if c.ConnectionState.ModifiedAt != nil {
-		clusterSecret.Annotations["modifiedAt"] = c.ConnectionState.ModifiedAt.Format(time.RFC3339)
+		clusterSecret.Annotations[common.AnnotationKeyModifiedAt] = c.ConnectionState.ModifiedAt.Format(time.RFC3339)
 	}
 	if c.ServerVersion != "" {
-		clusterSecret.Annotations["serverVersion"] = c.ServerVersion
+		clusterSecret.Annotations[common.AnnotationKeyServerVersion] = c.ServerVersion
+	}
+	if c.ConnectionState.Message != "" {
+		clusterSecret.Annotations[common.AnnotationKeyMessage] = c.ConnectionState.Message
 	}
 	clusterSecret, err = db.kubeclientset.CoreV1().Secrets(db.ns).Update(clusterSecret)
 	if err != nil {
@@ -300,22 +308,23 @@ func secretToCluster(s *apiv1.Secret) *appv1.Cluster {
 	}
 
 	connectionState := appv1.ConnectionState{}
-
-	if v, found := s.Annotations["modifiedAt"]; found {
+	if v, found := s.Annotations[common.AnnotationKeyModifiedAt]; found {
 		time, err := time.Parse(time.RFC3339, v)
 		if err != nil {
-			fmt.Println("Error while parsing date :", err)
+			log.Warnf("Error while parsing date :", err)
 		} else {
 			connectionState.ModifiedAt = &metav1.Time{Time: time}
 		}
 	}
-
+	if message, found := s.Annotations[common.AnnotationKeyMessage]; found {
+		connectionState.Message = message
+	}
 	cluster := appv1.Cluster{
 		Server:          string(s.Data["server"]),
 		Name:            string(s.Data["name"]),
 		Namespaces:      namespaces,
 		Config:          config,
-		ServerVersion:   s.Annotations["serverVersion"],
+		ServerVersion:   s.Annotations[common.AnnotationKeyServerVersion],
 		ConnectionState: connectionState,
 	}
 	return &cluster

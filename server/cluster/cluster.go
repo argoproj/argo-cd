@@ -41,6 +41,9 @@ func NewServer(db db.ArgoDB, enf *rbac.Enforcer, cache *servercache.Cache, kubec
 }
 
 func (s *Server) getConnectionState(cluster appv1.Cluster, errorMessage string) (appv1.ConnectionState, string) {
+	if clusterInfo, err := s.cache.GetClusterInfo(cluster.Server); err == nil {
+		return clusterInfo.ConnectionState, clusterInfo.Version
+	}
 	now := v1.Now()
 	clusterInfo := servercache.ClusterInfo{
 		ConnectionState: appv1.ConnectionState{
@@ -51,13 +54,11 @@ func (s *Server) getConnectionState(cluster appv1.Cluster, errorMessage string) 
 	}
 
 	if cluster.ConnectionState.ModifiedAt != nil {
-		oneHourAgo := v1.Now().Add(-1 * time.Hour)
-		if cluster.ConnectionState.ModifiedAt.After(oneHourAgo) {
-			clusterInfo.Status = appv1.ConnectionStatusSuccessful
-			clusterInfo.ModifiedAt = cluster.ConnectionState.ModifiedAt
+		clusterInfo.ModifiedAt = cluster.ConnectionState.ModifiedAt
+		if cluster.ConnectionState.Message != "" {
+			clusterInfo.Status = appv1.ConnectionStatusFailed
 		} else {
-			clusterInfo.Status = appv1.ConnectionStatusUnknown
-			clusterInfo.ModifiedAt = cluster.ConnectionState.ModifiedAt
+			clusterInfo.Status = appv1.ConnectionStatusSuccessful
 		}
 	} else {
 		clusterInfo.Status = appv1.ConnectionStatusUnknown

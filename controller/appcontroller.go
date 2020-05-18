@@ -416,7 +416,7 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 	defer ctrl.appOperationQueue.ShutDown()
 
 	ctrl.metricsServer.RegisterClustersInfoSource(ctx, ctrl.stateCache)
-	ctrl.metricsServer.RegisterClusterSecretUpdater(ctx, ctrl.stateCache, ctrl.db)
+	ctrl.RegisterClusterSecretUpdater(ctx, ctrl.stateCache, ctrl.db)
 
 	go ctrl.appInformer.Run(ctx.Done())
 	go ctrl.projInformer.Run(ctx.Done())
@@ -1254,6 +1254,11 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 		},
 	})
 	return informer, lister, err
+}
+
+func (ctrl *ApplicationController) RegisterClusterSecretUpdater(ctx context.Context, source metrics.HasClustersInfo, db db.ArgoDB) {
+	updater := &clusterSecretUpdater{infoSource: source, db: db}
+	go updater.Run(ctx)
 }
 
 func isOperationInProgress(app *appv1.Application) bool {
