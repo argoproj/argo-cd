@@ -10,8 +10,9 @@ import (
 	"sort"
 	"strings"
 
-	"k8s.io/client-go/kubernetes/fake"
-
+	"github.com/argoproj/gitops-engine/pkg/utils/diff"
+	"github.com/argoproj/gitops-engine/pkg/utils/errors"
+	healthutil "github.com/argoproj/gitops-engine/pkg/utils/health"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -19,12 +20,10 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/engine/pkg/utils/diff"
-	"github.com/argoproj/argo-cd/engine/pkg/utils/errors"
-	healthutil "github.com/argoproj/argo-cd/engine/pkg/utils/health"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/argo/normalizers"
 	"github.com/argoproj/argo-cd/util/cli"

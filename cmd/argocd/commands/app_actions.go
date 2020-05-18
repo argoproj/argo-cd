@@ -8,12 +8,12 @@ import (
 	"strconv"
 	"text/tabwriter"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/errors"
+	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/argoproj/argo-cd/engine/pkg/utils/errors"
-	"github.com/argoproj/argo-cd/engine/pkg/utils/io"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	applicationpkg "github.com/argoproj/argo-cd/pkg/apiclient/application"
 )

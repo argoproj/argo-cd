@@ -9,6 +9,8 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/errors"
+	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
@@ -16,8 +18,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/engine/pkg/utils/errors"
-	"github.com/argoproj/argo-cd/engine/pkg/utils/io"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	clusterpkg "github.com/argoproj/argo-cd/pkg/apiclient/cluster"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"

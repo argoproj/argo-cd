@@ -2,22 +2,21 @@ package commands
 
 import (
 	"context"
+	"crypto/x509"
 	"fmt"
 	"os"
 	"sort"
 	"strings"
 	"text/tabwriter"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/errors"
+	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/spf13/cobra"
 
-	"github.com/argoproj/argo-cd/engine/pkg/utils/errors"
-	"github.com/argoproj/argo-cd/engine/pkg/utils/io"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	certificatepkg "github.com/argoproj/argo-cd/pkg/apiclient/certificate"
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	certutil "github.com/argoproj/argo-cd/util/cert"
-
-	"crypto/x509"
 )
 
 // NewCertCommand returns a new instance of an `argocd repo` command

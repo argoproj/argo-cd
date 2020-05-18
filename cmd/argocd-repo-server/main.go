@@ -7,13 +7,13 @@ import (
 	"os"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/argoproj/pkg/stats"
 	"github.com/go-redis/redis"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/engine/pkg/utils/errors"
 	"github.com/argoproj/argo-cd/reposerver"
 	reposervercache "github.com/argoproj/argo-cd/reposerver/cache"
 	"github.com/argoproj/argo-cd/reposerver/metrics"

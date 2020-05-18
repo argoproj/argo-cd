@@ -1,10 +1,10 @@
 package commands
 
 import (
+	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/argoproj/argo-cd/engine/pkg/utils/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/config"
@@ -17,7 +17,7 @@ func init() {
 
 var (
 	logFormat string
-	logLevel string
+	logLevel  string
 )
 
 func initConfig() {

@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/errors"
+	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/coreos/go-oidc"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/argoproj/argo-cd/engine/pkg/utils/errors"
-	argoio "github.com/argoproj/argo-cd/engine/pkg/utils/io"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	settingspkg "github.com/argoproj/argo-cd/pkg/apiclient/settings"
 	"github.com/argoproj/argo-cd/util/localconfig"

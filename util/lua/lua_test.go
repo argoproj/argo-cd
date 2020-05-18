@@ -4,10 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/argoproj/argo-cd/engine/pkg/utils/health"
-
-	"github.com/argoproj/argo-cd/engine/pkg/utils/json"
-
+	"github.com/argoproj/gitops-engine/pkg/utils/health"
+	"github.com/argoproj/gitops-engine/pkg/utils/json"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	lua "github.com/yuin/gopher-lua"

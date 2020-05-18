@@ -15,6 +15,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/health"
+	synccommon "github.com/argoproj/gitops-engine/pkg/utils/kube/sync/common"
 	"github.com/robfig/cron"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -31,8 +33,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd/api"
 
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/engine/pkg/utils/health"
-	synccommon "github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/common"
 	"github.com/argoproj/argo-cd/util/cert"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/helm"

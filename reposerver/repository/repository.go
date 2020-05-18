@@ -14,6 +14,10 @@ import (
 
 	"github.com/Masterminds/semver"
 	"github.com/TomOnTime/utfutil"
+	executil "github.com/argoproj/gitops-engine/pkg/utils/exec"
+	"github.com/argoproj/gitops-engine/pkg/utils/io"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	textutils "github.com/argoproj/gitops-engine/pkg/utils/text"
 	"github.com/ghodss/yaml"
 	"github.com/google/go-jsonnet"
 	log "github.com/sirupsen/logrus"
@@ -25,10 +29,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/argoproj/argo-cd/common"
-	executil "github.com/argoproj/argo-cd/engine/pkg/utils/exec"
-	"github.com/argoproj/argo-cd/engine/pkg/utils/io"
-	"github.com/argoproj/argo-cd/engine/pkg/utils/kube"
-	textutils "github.com/argoproj/argo-cd/engine/pkg/utils/text"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	reposervercache "github.com/argoproj/argo-cd/reposerver/cache"

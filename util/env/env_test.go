@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	util "github.com/argoproj/argo-cd/engine/pkg/utils/io"
+	util "github.com/argoproj/gitops-engine/pkg/utils/io"
 
 	"github.com/stretchr/testify/assert"
 )

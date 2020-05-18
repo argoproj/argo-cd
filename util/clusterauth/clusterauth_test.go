@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"testing"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -12,8 +13,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
-
-	"github.com/argoproj/argo-cd/engine/pkg/utils/errors"
 )
 
 const (

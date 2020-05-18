@@ -4,13 +4,13 @@ import (
 	"crypto/tls"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
-	"github.com/argoproj/argo-cd/engine/pkg/utils/io"
 	argogrpc "github.com/argoproj/argo-cd/util/grpc"
 )
 

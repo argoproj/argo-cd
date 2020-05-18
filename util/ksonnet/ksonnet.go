@@ -9,11 +9,11 @@ import (
 	"path/filepath"
 	"strings"
 
+	executil "github.com/argoproj/gitops-engine/pkg/utils/exec"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/ghodss/yaml"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	executil "github.com/argoproj/argo-cd/engine/pkg/utils/exec"
-	"github.com/argoproj/argo-cd/engine/pkg/utils/kube"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )
 

@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 
+	jwt "github.com/dgrijalva/jwt-go"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	v1 "k8s.io/api/core/v1"
