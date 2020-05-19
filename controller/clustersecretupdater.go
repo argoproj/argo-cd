@@ -5,11 +5,13 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/controller/metrics"
+	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/db"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube/cache"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -35,19 +37,40 @@ func (c clusterSecretUpdater) Run(ctx context.Context) {
 					continue
 				}
 				toUpdate := false
-				if info.K8SVersion != "" && info.K8SVersion != cluster.ServerVersion {
+				if info.K8SVersion != cluster.ServerVersion {
 					cluster.ServerVersion = info.K8SVersion
 					toUpdate = true
 				}
-				if info.LastCacheSyncTime != nil {
-					if cluster.ConnectionState.ModifiedAt == nil ||
-						(cluster.ConnectionState.ModifiedAt != nil && cluster.ConnectionState.ModifiedAt.Time != *info.LastCacheSyncTime) {
+				if info.LastCacheSyncTime == nil {
+					if cluster.ConnectionState.ModifiedAt != nil {
+						cluster.ConnectionState.ModifiedAt = nil
+						toUpdate = true
+					}
+				} else {
+					if cluster.ConnectionState.ModifiedAt == nil {
 						cluster.ConnectionState.ModifiedAt = &metav1.Time{Time: *info.LastCacheSyncTime}
+						toUpdate = true
+					} else {
+						if cluster.ConnectionState.ModifiedAt.Format(time.RFC3339) != (*info.LastCacheSyncTime).Format(time.RFC3339) {
+							cluster.ConnectionState.ModifiedAt = &metav1.Time{Time: *info.LastCacheSyncTime}
+							toUpdate = true
+						}
+					}
+				}
+				if info.SyncError == nil {
+					if cluster.ConnectionState.Message != "" {
+						cluster.ConnectionState.Message = ""
+						toUpdate = true
+					}
+				} else {
+					if info.SyncError.Error() != cluster.ConnectionState.Message {
+						cluster.ConnectionState.Message = info.SyncError.Error()
 						toUpdate = true
 					}
 				}
-				if info.SyncError != nil {
-					cluster.ConnectionState.Message = info.SyncError.Error()
+				connectionStatus := getConnectionStatus(info)
+				if connectionStatus != cluster.ConnectionState.Status {
+					cluster.ConnectionState.Status = connectionStatus
 					toUpdate = true
 				}
 				if toUpdate {
@@ -59,4 +82,18 @@ func (c clusterSecretUpdater) Run(ctx context.Context) {
 			}
 		}
 	}
+}
+
+func getConnectionStatus(info cache.ClusterInfo) appv1.ConnectionStatus {
+	var connectionStatus appv1.ConnectionStatus
+	if info.LastCacheSyncTime == nil {
+		connectionStatus = appv1.ConnectionStatusUnknown
+	} else {
+		if info.SyncError == nil {
+			connectionStatus = appv1.ConnectionStatusSuccessful
+		} else {
+			connectionStatus = appv1.ConnectionStatusFailed
+		}
+	}
+	return connectionStatus
 }

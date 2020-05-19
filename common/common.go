@@ -121,6 +121,8 @@ const (
 	AnnotationKeyServerVersion = "serverVersion"
 	// AnnotationMessage is the annotation key which contains message
 	AnnotationKeyMessage = "message"
+	// AnnotationStatus is the annotation key which contains status
+	AnnotationKeyStatus = "status"
 )
 
 // Environment variables for tuning and debugging Argo CD

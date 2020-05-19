@@ -44,32 +44,13 @@ func (s *Server) getConnectionState(cluster appv1.Cluster, errorMessage string) 
 	if clusterInfo, err := s.cache.GetClusterInfo(cluster.Server); err == nil {
 		return clusterInfo.ConnectionState, clusterInfo.Version
 	}
-	now := v1.Now()
 	clusterInfo := servercache.ClusterInfo{
 		ConnectionState: appv1.ConnectionState{
-			Status:     appv1.ConnectionStatusSuccessful,
-			ModifiedAt: &now,
+			Status:     cluster.ConnectionState.Status,
+			ModifiedAt: cluster.ConnectionState.ModifiedAt,
 		},
 		Version: cluster.ServerVersion,
 	}
-
-	if cluster.ConnectionState.ModifiedAt != nil {
-		clusterInfo.ModifiedAt = cluster.ConnectionState.ModifiedAt
-		if cluster.ConnectionState.Message != "" {
-			clusterInfo.Status = appv1.ConnectionStatusFailed
-		} else {
-			clusterInfo.Status = appv1.ConnectionStatusSuccessful
-		}
-	} else {
-		clusterInfo.Status = appv1.ConnectionStatusUnknown
-		clusterInfo.ModifiedAt = nil
-	}
-
-	if errorMessage != "" {
-		clusterInfo.Status = appv1.ConnectionStatusFailed
-		clusterInfo.Message = fmt.Sprintf("%s %s", errorMessage, clusterInfo.Message)
-	}
-
 	err := s.cache.SetClusterInfo(cluster.Server, &clusterInfo)
 	if err != nil {
 		log.Warnf("getClusterInfo cache set error %s: %v", cluster.Server, err)

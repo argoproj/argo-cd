@@ -98,6 +98,9 @@ func (db *db) CreateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 	if c.ConnectionState.Message != "" {
 		clusterSecret.Annotations[common.AnnotationKeyMessage] = c.ConnectionState.Message
 	}
+	if c.ConnectionState.Status != "" {
+		clusterSecret.Annotations[common.AnnotationKeyStatus] = c.ConnectionState.Status
+	}
 	if c.ServerVersion != "" {
 		clusterSecret.Annotations[common.AnnotationKeyServerVersion] = c.ServerVersion
 	}
@@ -220,12 +223,23 @@ func (db *db) UpdateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 	clusterSecret.Data = clusterToData(c)
 	if c.ConnectionState.ModifiedAt != nil {
 		clusterSecret.Annotations[common.AnnotationKeyModifiedAt] = c.ConnectionState.ModifiedAt.Format(time.RFC3339)
+	} else {
+		delete(clusterSecret.Annotations, common.AnnotationKeyModifiedAt)
 	}
 	if c.ServerVersion != "" {
 		clusterSecret.Annotations[common.AnnotationKeyServerVersion] = c.ServerVersion
+	} else {
+		delete(clusterSecret.Annotations, common.AnnotationKeyServerVersion)
 	}
 	if c.ConnectionState.Message != "" {
 		clusterSecret.Annotations[common.AnnotationKeyMessage] = c.ConnectionState.Message
+	} else {
+		delete(clusterSecret.Annotations, common.AnnotationKeyMessage)
+	}
+	if c.ConnectionState.Status != "" {
+		clusterSecret.Annotations[common.AnnotationKeyStatus] = c.ConnectionState.Status
+	} else {
+		delete(clusterSecret.Annotations, common.AnnotationKeyStatus)
 	}
 	clusterSecret, err = db.kubeclientset.CoreV1().Secrets(db.ns).Update(clusterSecret)
 	if err != nil {
@@ -305,7 +319,6 @@ func secretToCluster(s *apiv1.Secret) *appv1.Cluster {
 			namespaces = append(namespaces, ns)
 		}
 	}
-
 	connectionState := appv1.ConnectionState{}
 	if v, found := s.Annotations[common.AnnotationKeyModifiedAt]; found {
 		time, err := time.Parse(time.RFC3339, v)
@@ -315,9 +328,8 @@ func secretToCluster(s *apiv1.Secret) *appv1.Cluster {
 			connectionState.ModifiedAt = &metav1.Time{Time: time}
 		}
 	}
-	if message, found := s.Annotations[common.AnnotationKeyMessage]; found {
-		connectionState.Message = message
-	}
+	connectionState.Status = s.Annotations[common.AnnotationKeyStatus]
+	connectionState.Message = s.Annotations[common.AnnotationKeyMessage]
 	cluster := appv1.Cluster{
 		Server:          string(s.Data["server"]),
 		Name:            string(s.Data["name"]),
