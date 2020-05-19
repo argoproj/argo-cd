@@ -44,6 +44,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Riskified](https://www.riskified.com/)
 1. [Saildrone](https://www.saildrone.com/)
 1. [Saloodo! GmbH](https://www.saloodo.com)
+1. [Swissquote](https://github.com/swissquote)
 1. [Syncier](https://syncier.com/)
 1. [Tesla](https://tesla.com/)
 1. [ThousandEyes](https://www.thousandeyes.com/)
@@ -61,4 +62,3 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Yieldlab](https://www.yieldlab.de/)
 1. [MTN Group](https://www.mtn.com/)
 1. [Moengage](https://www.moengage.com/)
-1. [Swissquote](https://github.com/swissquote)
