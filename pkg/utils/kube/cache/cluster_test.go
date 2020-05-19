@@ -111,7 +111,7 @@ func newCluster(objs ...*unstructured.Unstructured) *clusterCache {
 	}}
 
 	return NewClusterCache(
-		&rest.Config{Host: "https://test"}, &kubetest.MockKubectlCmd{APIResources: apiResources, DynamicClient: client})
+		&rest.Config{Host: "https://test"}, SetKubectl(&kubetest.MockKubectlCmd{APIResources: apiResources, DynamicClient: client}))
 }
 
 func getChildren(cluster *clusterCache, un *unstructured.Unstructured) []*Resource {

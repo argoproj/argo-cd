@@ -95,14 +95,14 @@ type ClusterCache interface {
 }
 
 // NewClusterCache creates new instance of cluster cache
-func NewClusterCache(config *rest.Config, kubectl kube.Kubectl, opts ...func(cache *clusterCache)) *clusterCache {
+func NewClusterCache(config *rest.Config, opts ...func(cache *clusterCache)) *clusterCache {
 	cache := &clusterCache{
 		settings:                Settings{ResourceHealthOverride: &noopSettings{}, ResourcesFilter: &noopSettings{}},
 		apisMeta:                make(map[schema.GroupKind]*apiMeta),
 		resources:               make(map[kube.ResourceKey]*Resource),
 		nsIndex:                 make(map[string]map[kube.ResourceKey]*Resource),
 		config:                  config,
-		kubectl:                 kubectl,
+		kubectl:                 &kube.KubectlCmd{},
 		syncTime:                nil,
 		resourceUpdatedHandlers: map[uint64]OnResourceUpdatedHandler{},
 		eventHandlers:           map[uint64]OnEventHandler{},

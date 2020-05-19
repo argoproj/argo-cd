@@ -7,7 +7,7 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-var c = NewClusterCache(&rest.Config{}, nil)
+var c = NewClusterCache(&rest.Config{})
 
 func TestIsParentOf(t *testing.T) {
 	child := c.newResource(testPod)

@@ -10,7 +10,7 @@ import (
 )
 
 func TestSetSettings(t *testing.T) {
-	cache := NewClusterCache(&rest.Config{}, &kubetest.MockKubectlCmd{})
+	cache := NewClusterCache(&rest.Config{}, SetKubectl(&kubetest.MockKubectlCmd{}))
 	updatedHealth := &noopSettings{}
 	updatedFilter := &noopSettings{}
 	cache.Invalidate(SetSettings(Settings{ResourceHealthOverride: updatedHealth, ResourcesFilter: updatedFilter}))
@@ -20,7 +20,7 @@ func TestSetSettings(t *testing.T) {
 }
 
 func TestSetConfig(t *testing.T) {
-	cache := NewClusterCache(&rest.Config{}, &kubetest.MockKubectlCmd{})
+	cache := NewClusterCache(&rest.Config{}, SetKubectl(&kubetest.MockKubectlCmd{}))
 	updatedConfig := &rest.Config{Host: "http://newhost"}
 	cache.Invalidate(SetConfig(updatedConfig))
 
@@ -28,7 +28,7 @@ func TestSetConfig(t *testing.T) {
 }
 
 func TestSetNamespaces(t *testing.T) {
-	cache := NewClusterCache(&rest.Config{}, &kubetest.MockKubectlCmd{}, SetNamespaces([]string{"default"}))
+	cache := NewClusterCache(&rest.Config{}, SetKubectl(&kubetest.MockKubectlCmd{}), SetNamespaces([]string{"default"}))
 
 	updatedNamespaces := []string{"updated"}
 	cache.Invalidate(SetNamespaces(updatedNamespaces))
