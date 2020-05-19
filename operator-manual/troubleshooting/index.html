@@ -1375,7 +1375,13 @@ The diffing customizations are configured in <code>resource.customizations</code
 <p>The following <code>argocd-util</code> command executes action using Lua script configured in the specified ConfigMap and prints
 applied modifications.</p>
 <div class="codehilite"><pre><span></span><code>docker run --rm -it -w /src -v <span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>:/src argoproj/argocd:&lt;version&gt; <span class="se">\</span>
-  argocd-util settings resource-overrides action /tmp/deploy.yaml restart --argocd-cm-path /private/tmp/argocd-cm.yaml 
+  argocd-util settings resource-overrides run-action /tmp/deploy.yaml restart --argocd-cm-path /private/tmp/argocd-cm.yaml 
+</code></pre></div>
+
+
+<p>The following <code>argocd-util</code> command lists actions available for a given resource using Lua script configured in the specified ConfigMap.</p>
+<div class="codehilite"><pre><span></span><code>docker run --rm -it -w /src -v <span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>:/src argoproj/argocd:&lt;version&gt; <span class="se">\</span>
+  argocd-util settings resource-overrides list-actions /tmp/deploy.yaml --argocd-cm-path /private/tmp/argocd-cm.yaml 
 </code></pre></div>
 
 
