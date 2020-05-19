@@ -8,7 +8,9 @@ import (
 	"os"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
+	"text/tabwriter"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/diff"
 	"github.com/argoproj/gitops-engine/pkg/utils/errors"
@@ -353,7 +355,8 @@ func NewResourceOverridesCommand(cmdCtx commandContext) *cobra.Command {
 		},
 	}
 	command.AddCommand(NewResourceIgnoreDifferencesCommand(cmdCtx))
-	command.AddCommand(NewResourceActionCommand(cmdCtx))
+	command.AddCommand(NewResourceActionListCommand(cmdCtx))
+	command.AddCommand(NewResourceActionRunCommand(cmdCtx))
 	command.AddCommand(NewResourceHealthCommand(cmdCtx))
 	return command
 }
@@ -458,13 +461,53 @@ argocd-util settings resource-overrides health ./deploy.yaml --argocd-cm-path ./
 	return command
 }
 
-func NewResourceActionCommand(cmdCtx commandContext) *cobra.Command {
+func NewResourceActionListCommand(cmdCtx commandContext) *cobra.Command {
 	var command = &cobra.Command{
-		Use:   "action RESOURCE_YAML_PATH ACTION",
-		Short: "Executes resource action",
-		Long:  "Executes resource action using the lua script configured in the 'resource.customizations' field of 'argocd-cm' ConfigMap and outputs updated fields",
+		Use:   "list-actions RESOURCE_YAML_PATH",
+		Short: "List available resource actions",
+		Long:  "List actions available for given resource action using the lua scripts configured in the 'resource.customizations' field of 'argocd-cm' ConfigMap and outputs updated fields",
 		Example: `
-argocd-util settings resource-overrides action /tmp/deploy.yaml restart --argocd-cm-path ./argocd-cm.yaml`,
+argocd-util settings resource-overrides action list /tmp/deploy.yaml --argocd-cm-path ./argocd-cm.yaml`,
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) < 1 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+
+			executeResourceOverrideCommand(cmdCtx, args, func(res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride) {
+				gvk := res.GroupVersionKind()
+				if override.Actions == "" {
+					_, _ = fmt.Printf("Actions are not configured for '%s/%s'\n", gvk.Group, gvk.Kind)
+					return
+				}
+
+				luaVM := lua.VM{ResourceOverrides: overrides}
+				discoveryScript, err := luaVM.GetResourceActionDiscovery(&res)
+				errors.CheckError(err)
+
+				availableActions, err := luaVM.ExecuteResourceActionDiscovery(&res, discoveryScript)
+				errors.CheckError(err)
+
+				w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+				_, _ = fmt.Fprintf(w, "NAME\tENABLED\n")
+				for _, action := range availableActions {
+					_, _ = fmt.Fprintf(w, "%s\t%s\n", action.Name, strconv.FormatBool(action.Disabled))
+				}
+				_ = w.Flush()
+			})
+		},
+	}
+	return command
+}
+
+func NewResourceActionRunCommand(cmdCtx commandContext) *cobra.Command {
+	var command = &cobra.Command{
+		Use:     "run-action RESOURCE_YAML_PATH ACTION",
+		Aliases: []string{"action"},
+		Short:   "Executes resource action",
+		Long:    "Executes resource action using the lua script configured in the 'resource.customizations' field of 'argocd-cm' ConfigMap and outputs updated fields",
+		Example: `
+argocd-util settings resource-overrides action run /tmp/deploy.yaml restart --argocd-cm-path ./argocd-cm.yaml`,
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) < 2 {
 				c.HelpFunc()(c, args)

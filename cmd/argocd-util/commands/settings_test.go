@@ -338,7 +338,7 @@ func TestResourceOverrideAction(t *testing.T) {
 		cmd := NewResourceOverridesCommand(newCmdContext(map[string]string{
 			"resource.customizations": `apps/Deployment: {}`}))
 		out, err := captureStdout(func() {
-			cmd.SetArgs([]string{"action", f, "test"})
+			cmd.SetArgs([]string{"run-action", f, "test"})
 			err := cmd.Execute()
 			assert.NoError(t, err)
 		})
@@ -346,10 +346,15 @@ func TestResourceOverrideAction(t *testing.T) {
 		assert.Contains(t, out, "Actions are not configured")
 	})
 
-	t.Run("HealthAssessmentConfigured", func(t *testing.T) {
+	t.Run("ActionConfigured", func(t *testing.T) {
 		cmd := NewResourceOverridesCommand(newCmdContext(map[string]string{
 			"resource.customizations": `apps/Deployment:
   actions: |
+    discovery.lua: |
+      actions = {}
+      actions["resume"] = {["disabled"] = false}
+      actions["restart"] = {["disabled"] = false}
+      return actions
     definitions:
     - name: test
       action.lua: |
@@ -357,11 +362,22 @@ func TestResourceOverrideAction(t *testing.T) {
         return obj
 `}))
 		out, err := captureStdout(func() {
-			cmd.SetArgs([]string{"action", f, "test"})
+			cmd.SetArgs([]string{"run-action", f, "test"})
 			err := cmd.Execute()
 			assert.NoError(t, err)
 		})
 		assert.NoError(t, err)
 		assert.Contains(t, out, "test: updated")
+
+		out, err = captureStdout(func() {
+			cmd.SetArgs([]string{"list-actions", f})
+			err := cmd.Execute()
+			assert.NoError(t, err)
+		})
+		assert.NoError(t, err)
+		assert.Contains(t, out, `NAME     ENABLED
+restart  false
+resume   false
+`)
 	})
 }
