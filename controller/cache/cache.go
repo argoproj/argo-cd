@@ -14,7 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/controller/metrics"
@@ -217,7 +216,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		return nil, err
 	}
 
-	clusterCache = clustercache.NewClusterCache(c.cacheSettings, cluster.RESTConfig(), cluster.Namespaces, c.kubectl)
+	clusterCache = clustercache.NewClusterCache(cluster.RESTConfig(), clustercache.SetSettings(c.cacheSettings), clustercache.SetNamespaces(cluster.Namespaces))
 	clusterCache.SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (interface{}, bool) {
 		res := &ResourceInfo{}
 		populateNodeInfo(un, res)
@@ -282,9 +281,7 @@ func (c *liveStateCache) invalidate(settings clustercache.Settings, appInstanceL
 
 	c.appInstanceLabelKey = appInstanceLabelKey
 	for _, clust := range c.clusters {
-		clust.Invalidate(func(config *rest.Config, namespaces []string, _ clustercache.Settings) (*rest.Config, []string, clustercache.Settings) {
-			return config, namespaces, settings
-		})
+		clust.Invalidate(clustercache.SetSettings(settings))
 	}
 	log.Info("live state cache invalidated")
 }
@@ -402,9 +399,7 @@ func (c *liveStateCache) Run(ctx context.Context) error {
 					cluster.Invalidate(nil)
 					delete(c.clusters, event.Cluster.Server)
 				} else if event.Type == watch.Modified {
-					cluster.Invalidate(func(cfg *rest.Config, namespaces []string, settings clustercache.Settings) (*rest.Config, []string, clustercache.Settings) {
-						return event.Cluster.RESTConfig(), event.Cluster.Namespaces, settings
-					})
+					cluster.Invalidate(clustercache.SetConfig(event.Cluster.RESTConfig()))
 				}
 			} else {
 				c.lock.Unlock()
