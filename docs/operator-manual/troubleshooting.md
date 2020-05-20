@@ -57,7 +57,14 @@ applied modifications.
 
 ```bash
 docker run --rm -it -w /src -v $(pwd):/src argoproj/argocd:<version> \
-  argocd-util settings resource-overrides action /tmp/deploy.yaml restart --argocd-cm-path /private/tmp/argocd-cm.yaml 
+  argocd-util settings resource-overrides run-action /tmp/deploy.yaml restart --argocd-cm-path /private/tmp/argocd-cm.yaml 
+```
+
+The following `argocd-util` command lists actions available for a given resource using Lua script configured in the specified ConfigMap.
+
+```bash
+docker run --rm -it -w /src -v $(pwd):/src argoproj/argocd:<version> \
+  argocd-util settings resource-overrides list-actions /tmp/deploy.yaml --argocd-cm-path /private/tmp/argocd-cm.yaml 
 ```
 
 ## Cluster credentials

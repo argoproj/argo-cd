@@ -67,7 +67,9 @@ func TestLuaResourceActionsScript(t *testing.T) {
 				assert.NoError(t, err)
 				result, err := vm.ExecuteResourceActionDiscovery(obj, discoveryLua)
 				assert.NoError(t, err)
-				assert.Equal(t, test.Result, result)
+				for i := range result {
+					assert.Contains(t, test.Result, result[i])
+				}
 			})
 		}
 		for i := range resourceTest.ActionTests {
