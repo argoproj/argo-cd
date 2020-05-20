@@ -5,7 +5,7 @@ for initial configuration and then switch to local users or configure SSO integr
 
 ## Local users/accounts (v1.5)
 
-The local users/accounts feature serving to main use-cases:
+The local users/accounts feature serves two main use-cases:
 
 * Auth tokens for Argo CD management automation. It is possible to configure an API account with limited permissions and generate an authentication token.
 Such token can be used to automatically create applications, projects etc.
