@@ -323,7 +323,7 @@ func secretToCluster(s *apiv1.Secret) *appv1.Cluster {
 	if v, found := s.Annotations[common.AnnotationKeyModifiedAt]; found {
 		time, err := time.Parse(time.RFC3339, v)
 		if err != nil {
-			log.Warnf("Error while parsing date :", err)
+			log.Warnf("Error while parsing date : %v", err)
 		} else {
 			connectionState.ModifiedAt = &metav1.Time{Time: time}
 		}
