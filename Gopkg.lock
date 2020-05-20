@@ -85,7 +85,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:7779ea0b96a2e523d1fee75a86541c2b284b21c866a2799a9ea7fc14ea76dd24"
+  digest = "1:c968c1b907743ed62dc26598628ead80c68c3f51a086f8ef78b220cad799f09c"
   name = "github.com/argoproj/gitops-engine"
   packages = [
     "pkg/utils/diff",
@@ -110,7 +110,7 @@
     "pkg/utils/tracing",
   ]
   pruneopts = ""
-  revision = "916375861ee2e3773e1d5e07b5bda78687d3b6f7"
+  revision = "a70208905739108b980fd7b1648a21f28fdef988"
 
 [[projects]]
   branch = "master"
