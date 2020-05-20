@@ -21,23 +21,25 @@ commands:
             git config --global user.name "Your Name"
             echo "export PATH=/home/circleci/.go_workspace/src/github.com/argoproj/argo-cd/hack:\$PATH" | tee -a $BASH_ENV
             echo "export GIT_ASKPASS=git-ask-pass.sh" | tee -a $BASH_ENV
-  restore_vendor:
-    steps:
-      - restore_cache:
-          name: Restore vendor cache
-          keys:
-            - vendor-v2-{{ checksum "Gopkg.lock" }}
   save_vendor:
     steps:
-      - save_cache:
-          name: Save vendor cache
-          key: vendor-v2-{{ checksum "Gopkg.lock" }}
-          paths:
-            - ./vendor
       - persist_to_workspace:
           root: .
           paths:
             - vendor
+  save_go_modules:
+    steps:
+      - save_cache:
+        name: Save go module cache
+        key: modules-v1-{{ checksum "go.sum" }}
+        paths:
+          - {{ .Environment.GOPATH }}/pkg/mod
+  restore_go_modules:
+    steps:
+      - restore_cache:
+        name: Restore go module cache
+        keys:
+          - modules-v1-{{ checksum "go.sum" }}
   save_coverage_info:
     steps:
       - persist_to_workspace:
@@ -100,16 +102,20 @@ jobs:
     steps:
       - prepare_environment
       - checkout
-      - restore_vendor
+      - restore_go_modules
       - run:
-          name: Ensuring Gopkg.lock is up-to-date
-          command: make dep-check-local
+          name: Ensure integrity of Go modules cache
+          command: go mod verify
       - run:
-          name: Syncing vendor dependencies
-          command: dep ensure -v
+          name: Download new modules
+          command: go mod download
+      - run:
+          name: Populate local vendor directory
+          command: go mod vendor
       - run: make build-local
       - run: chmod -R 777 vendor
       - run: chmod -R 777 ${GOCACHE}
+      - save_go_modules
       - save_vendor
       - save_go_cache_docker
 
@@ -120,6 +126,7 @@ jobs:
     steps:
       - prepare_environment
       - checkout
+      - restore_go_modules
       - restore_vendor
       - run: helm2 init --client-only
       - run: make codegen-local
@@ -143,8 +150,8 @@ jobs:
       - prepare_environment
       - checkout
       - configure_git
+      - restore_go_modules
       - restore_vendor
-      - run: dep ensure -v
       - restore_go_cache_docker
       - run: make test-local
       - run:
@@ -171,7 +178,6 @@ jobs:
       - checkout
       - configure_git
       - restore_vendor
-      - run: dep ensure -v
       - restore_go_cache_docker
       - run:
           name: Run golangci-lint
@@ -263,16 +269,10 @@ jobs:
             INSTALL_K3S_EXEC: --docker
             INSTALL_K3S_VERSION: v0.5.0
       - prepare_environment
+      - restore_go_modules
+      - restore_vendor
       - restore_go_cache_docker
       - checkout
-      - restore_cache:
-          keys: [e2e-dl-v2]
-      - run: sudo ./hack/install.sh dep-linux
-      - save_cache:
-          key: e2e-dl-v2
-          paths: [/tmp/dl]
-      - attach_vendor
-      - run: dep ensure -v
       - run:
           name: Update kubectl configuration for container
           command: |

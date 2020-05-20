@@ -53,6 +53,7 @@ define run-in-test-server
 		-e ARGOCD_E2E_TEST=$(ARGOCD_E2E_TEST) \
 		-e ARGOCD_E2E_YARN_HOST=$(ARGOCD_E2E_YARN_HOST) \
 		-v ${DOCKER_SRCDIR}:/go/src${VOLUME_MOUNT} \
+		-v ${GOPATH}/pkg/mod:/go/pkg/mod${VOLUME_MOUNT} \
 		-v ${GOCACHE}:/tmp/go-build-cache${VOLUME_MOUNT} \
 		-v ${HOME}/.kube:/home/user/.kube${VOLUME_MOUNT} \
 		-v /tmp:/tmp${VOLUME_MOUNT} \
@@ -74,6 +75,7 @@ define run-in-test-client
 		-e GOCACHE=/tmp/go-build-cache \
 		-e ARGOCD_LINT_GOGC=$(ARGOCD_LINT_GOGC) \
 		-v ${DOCKER_SRCDIR}:/go/src${VOLUME_MOUNT} \
+		-v ${GOPATH}/pkg/mod:/go/pkg/mod${VOLUME_MOUNT} \
 		-v ${GOCACHE}:/tmp/go-build-cache${VOLUME_MOUNT} \
 		-v ${HOME}/.kube:/home/user/.kube${VOLUME_MOUNT} \
 		-v /tmp:/tmp${VOLUME_MOUNT} \
@@ -236,35 +238,21 @@ builder-image:
 	docker build  -t $(IMAGE_PREFIX)argo-cd-ci-builder:$(IMAGE_TAG) --target builder .
 	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argo-cd-ci-builder:$(IMAGE_TAG) ; fi
 
-# Pulls in all vendor dependencies
-.PHONY: dep
-dep:
-	$(call run-in-test-client,dep ensure -v)
+.PHONY: mod-download
+mod-download:
+	$(call run-in-test-client,go mod download)
 
-# Pulls in all vendor dependencies (local version)
-.PHONY: dep-local
-dep-local:
-	dep ensure -v
+.PHONY: mod-download-local
+mod-download-local:
+	go mod download
 
-# Pulls in all unvendored dependencies
-.PHONY: dep-ensure
-dep-ensure:
-	$(call run-in-test-client,dep ensure -no-vendor -v)
+.PHONY: mod-vendor
+mod-vendor:
+	$(call run-in-test-client,go mod vendor)
 
-# Pulls in all unvendored dependencies (local version)
-.PHONY: dep-ensure-local
-dep-ensure-local:
-	dep ensure -no-vendor
-
-# Runs dep check in a container to ensure Gopkg.lock is up-to-date with dependencies
-.PHONY: dep-check
-dep-check:
-	$(call run-in-test-client,make dep-check-local)
-
-# Runs dep check locally to ensure Gopkg.lock is up-to-date with dependencies
-.PHONY: dep-check-local
-dep-check-local:
-	if ! dep check -skip-vendor; then echo "Please make sure Gopkg.lock is up-to-date - see https://argoproj.github.io/argo-cd/developer-guide/faq/#why-does-the-build-step-fail"; exit 1; fi
+.PHONY: mod-vendor-local
+mod-vendor-local:
+	go mod vendor
 
 # Deprecated - replace by install-local-tools
 .PHONY: install-lint-tools
