@@ -106,7 +106,7 @@ spec:
   - group: ''
     kind: NetworkPolicy
   # Deny all namespaced-scoped resources from being created, except for Deployment and StatefulSet
-  namespaceResourceWhilelist:
+  namespaceResourceWhitelist:
   - group: 'apps'
     kind: Deployment
   - group: 'apps'
