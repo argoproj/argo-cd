@@ -73,7 +73,7 @@ type ClusterCache interface {
 	// GetAPIGroups returns information about observed API groups
 	GetAPIGroups() []metav1.APIGroup
 	// Invalidate cache and executes callback that optionally might update cache settings
-	Invalidate(opts ...func(cache *clusterCache))
+	Invalidate(opts ...UpdateSettingsFunc)
 	// GetNamespaceTopLevelResources returns top level resources in the specified namespace
 	GetNamespaceTopLevelResources(namespace string) map[kube.ResourceKey]*Resource
 	// IterateHierarchy iterates resource tree starting from the specified top level resource and executes callback for each resource in the tree
@@ -316,7 +316,7 @@ func (c *clusterCache) setNode(n *Resource) {
 }
 
 // Invalidate cache and executes callback that optionally might update cache settings
-func (c *clusterCache) Invalidate(opts ...func(cache *clusterCache)) {
+func (c *clusterCache) Invalidate(opts ...UpdateSettingsFunc) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	c.syncTime = nil

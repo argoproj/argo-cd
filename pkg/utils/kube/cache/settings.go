@@ -37,8 +37,10 @@ func SetKubectl(kubectl kube.Kubectl) func(cache *clusterCache) {
 	}
 }
 
+type UpdateSettingsFunc func(cache *clusterCache)
+
 // SetSettings updates caching settings
-func SetSettings(settings Settings) func(cache *clusterCache) {
+func SetSettings(settings Settings) UpdateSettingsFunc {
 	return func(cache *clusterCache) {
 		if !reflect.DeepEqual(cache.settings, settings) {
 			log.WithField("server", cache.config.Host).Infof("Changing cluster cache settings to: %v", settings)
@@ -48,7 +50,7 @@ func SetSettings(settings Settings) func(cache *clusterCache) {
 }
 
 // SetNamespaces updates list of monitored namespaces
-func SetNamespaces(namespaces []string) func(cache *clusterCache) {
+func SetNamespaces(namespaces []string) UpdateSettingsFunc {
 	return func(cache *clusterCache) {
 		if !reflect.DeepEqual(cache.namespaces, namespaces) {
 			log.WithField("server", cache.config.Host).Infof("Changing cluster namespaces to: %v", namespaces)
@@ -58,7 +60,7 @@ func SetNamespaces(namespaces []string) func(cache *clusterCache) {
 }
 
 // SetConfig updates cluster rest config
-func SetConfig(config *rest.Config) func(cache *clusterCache) {
+func SetConfig(config *rest.Config) UpdateSettingsFunc {
 	return func(cache *clusterCache) {
 		if !reflect.DeepEqual(cache.config, config) {
 			log.WithField("server", cache.config.Host).Infof("Changing cluster config to: %v", config)
