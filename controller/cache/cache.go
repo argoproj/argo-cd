@@ -374,7 +374,7 @@ func (c *liveStateCache) watchSettings(ctx context.Context) {
 			needInvalidate := false
 			if !reflect.DeepEqual(c.cacheSettings, nextCacheSettings) {
 				c.cacheSettings = *nextCacheSettings
-				//needInvalidate = true
+				needInvalidate = true
 			}
 			c.lock.Unlock()
 			if needInvalidate {
