@@ -76,5 +76,6 @@ func (s *Server) GetUserInfo(ctx context.Context, q *session.GetUserInfoRequest)
 		Username: sessionmgr.Username(ctx),
 		Iss:      sessionmgr.Iss(ctx),
 		Groups:   sessionmgr.Groups(ctx),
+		Subject:  sessionmgr.Sub(ctx),
 	}, nil
 }

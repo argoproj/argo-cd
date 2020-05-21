@@ -2736,6 +2736,9 @@
           "type": "boolean",
           "format": "boolean"
         },
+        "subject": {
+          "type": "string"
+        },
         "username": {
           "type": "string"
         }

@@ -399,6 +399,7 @@ export interface AuthSettings {
 }
 
 export interface UserInfo {
+    subject: string;
     loggedIn: boolean;
     username: string;
     iss: string;
