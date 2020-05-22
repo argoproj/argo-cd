@@ -5,6 +5,9 @@ import (
 	"reflect"
 	"sync"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/health"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	clustercache "github.com/argoproj/gitops-engine/pkg/utils/kube/cache"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -18,9 +21,6 @@ import (
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/lua"
 	"github.com/argoproj/argo-cd/util/settings"
-	"github.com/argoproj/gitops-engine/pkg/utils/health"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	clustercache "github.com/argoproj/gitops-engine/pkg/utils/kube/cache"
 )
 
 type LiveStateCache interface {
@@ -364,7 +364,7 @@ func (c *liveStateCache) watchSettings(ctx context.Context) {
 
 			c.lock.Lock()
 			needInvalidate := false
-			if !reflect.DeepEqual(c.cacheSettings, *nextCacheSettings) {
+			if !reflect.DeepEqual(c.cacheSettings, nextCacheSettings) {
 				c.cacheSettings = *nextCacheSettings
 				needInvalidate = true
 			}

@@ -95,7 +95,7 @@ commands:
 jobs:
   build:
     docker:
-      - image: argoproj/argocd-test-tools:v0.4.0
+      - image: argoproj/argocd-test-tools:v0.5.0
     working_directory: /go/src/github.com/argoproj/argo-cd
     steps:
       - prepare_environment
@@ -115,7 +115,7 @@ jobs:
 
   codegen:
     docker:
-      - image: argoproj/argocd-test-tools:v0.4.0
+      - image: argoproj/argocd-test-tools:v0.5.0
     working_directory: /go/src/github.com/argoproj/argo-cd
     steps:
       - prepare_environment
@@ -138,7 +138,7 @@ jobs:
   test:
     working_directory: /go/src/github.com/argoproj/argo-cd
     docker:
-      - image: argoproj/argocd-test-tools:v0.4.0
+      - image: argoproj/argocd-test-tools:v0.5.0
     steps:
       - prepare_environment
       - checkout
@@ -165,7 +165,7 @@ jobs:
   lint:
     working_directory: /go/src/github.com/argoproj/argo-cd
     docker:
-      - image: argoproj/argocd-test-tools:v0.4.0
+      - image: argoproj/argocd-test-tools:v0.5.0
     steps:
       - prepare_environment
       - checkout
@@ -194,7 +194,7 @@ jobs:
   sonarcloud:
     working_directory: /go/src/github.com/argoproj/argo-cd
     docker:
-      - image: argoproj/argocd-test-tools:v0.4.0
+      - image: argoproj/argocd-test-tools:v0.5.0
     environment:
       NODE_MODULES: /go/src/github.com/argoproj/argo-cd/ui/node_modules
     steps:
