@@ -396,7 +396,7 @@ func (c *liveStateCache) Run(ctx context.Context) error {
 			if ok {
 				defer c.lock.Unlock()
 				if event.Type == watch.Deleted {
-					cluster.Invalidate(nil)
+					cluster.Invalidate()
 					delete(c.clusters, event.Cluster.Server)
 				} else if event.Type == watch.Modified {
 					cluster.Invalidate(clustercache.SetConfig(event.Cluster.RESTConfig()))
