@@ -372,7 +372,7 @@ func (c *liveStateCache) watchSettings(ctx context.Context) {
 
 			c.lock.Lock()
 			needInvalidate := false
-			if !reflect.DeepEqual(c.cacheSettings, nextCacheSettings) {
+			if !reflect.DeepEqual(c.cacheSettings, *nextCacheSettings) {
 				c.cacheSettings = *nextCacheSettings
 				needInvalidate = true
 			}
@@ -439,7 +439,7 @@ func (c *liveStateCache) Run(ctx context.Context) error {
 					cluster, ok := c.clusters[string(secretObj.Data["server"])]
 					if ok {
 						defer c.lock.Unlock()
-						cluster.Invalidate(nil)
+						cluster.Invalidate()
 						delete(c.clusters, string(secretObj.Data["server"]))
 					} else {
 						c.lock.Unlock()
