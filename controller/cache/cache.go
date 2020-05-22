@@ -4,20 +4,15 @@ import (
 	"context"
 	"reflect"
 	"sync"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
-	informerv1 "k8s.io/client-go/informers/core/v1"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/controller/metrics"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/db"
@@ -65,7 +60,6 @@ func NewLiveStateCache(
 	kubectl kube.Kubectl,
 	metricsServer *metrics.MetricsServer,
 	onObjectUpdated ObjectUpdatedHandler,
-	kubeClientset kubernetes.Interface,
 	namespace string) LiveStateCache {
 
 	return &liveStateCache{
@@ -76,7 +70,6 @@ func NewLiveStateCache(
 		kubectl:         kubectl,
 		settingsMgr:     settingsMgr,
 		metricsServer:   metricsServer,
-		kubeClientset:   kubeClientset,
 		namespace:       namespace,
 	}
 }
@@ -92,7 +85,6 @@ type liveStateCache struct {
 	metricsServer       *metrics.MetricsServer
 	cacheSettings       clustercache.Settings
 	appInstanceLabelKey string
-	kubeClientset       kubernetes.Interface
 	namespace           string
 }
 
@@ -400,82 +392,11 @@ func (c *liveStateCache) Run(ctx context.Context) error {
 
 	go c.watchSettings(ctx)
 
-	localCls, err := c.db.GetCluster(ctx, common.KubernetesInternalAPIServerAddr)
+	err = c.db.WatchClusters(ctx, c.namespace, c.handleAddEvent, c.handleModEvent, c.handleDeleteEvent)
 	if err != nil {
 		return err
 	}
-	c.handleAddEvent(localCls)
 
-	clusterSecretListOptions := func(options *metav1.ListOptions) {
-		clusterLabelSelector := fields.ParseSelectorOrDie(common.LabelKeySecretType + "=" + common.LabelValueSecretTypeCluster)
-		options.LabelSelector = clusterLabelSelector.String()
-	}
-	clusterEventHandler := cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			if secretObj, ok := obj.(*v1.Secret); ok {
-				cluster, err := c.db.GetCluster(context.Background(), string(secretObj.Data["server"]))
-				if err != nil {
-					return
-				}
-				if cluster.Server == common.KubernetesInternalAPIServerAddr {
-					if reflect.DeepEqual(localCls.Config, cluster.Config) {
-						return
-					}
-					localCls = cluster
-					// change local cluster event to modified or deleted, since it cannot be re-added or deleted
-					c.handleModEvent(nil, localCls)
-					return
-				}
-				c.handleAddEvent(cluster)
-			}
-		},
-		DeleteFunc: func(obj interface{}) {
-			if secretObj, ok := obj.(*v1.Secret); ok {
-				if string(secretObj.Data["server"]) == common.KubernetesInternalAPIServerAddr {
-					// change local cluster event to modified or deleted, since it cannot be re-added or deleted
-					c.handleModEvent(nil, localCls)
-				} else {
-					c.lock.Lock()
-					cluster, ok := c.clusters[string(secretObj.Data["server"])]
-					if ok {
-						defer c.lock.Unlock()
-						cluster.Invalidate()
-						delete(c.clusters, string(secretObj.Data["server"]))
-					} else {
-						c.lock.Unlock()
-					}
-				}
-			}
-		},
-		UpdateFunc: func(oldObj, newObj interface{}) {
-			if oldSecretObj, ok := oldObj.(*v1.Secret); ok {
-				if newSecretObj, ok := newObj.(*v1.Secret); ok {
-					oldCluster, err := c.db.GetCluster(context.Background(), string(oldSecretObj.Data["server"]))
-					if err != nil {
-						return
-					}
-					newCluster, err := c.db.GetCluster(context.Background(), string(newSecretObj.Data["server"]))
-					if err != nil {
-						return
-					}
-					if newCluster.Server == common.KubernetesInternalAPIServerAddr {
-						localCls = newCluster
-					}
-					c.handleModEvent(oldCluster, newCluster)
-				}
-			}
-		},
-	}
-	indexers := cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}
-	clusterSecretInformer := informerv1.NewFilteredSecretInformer(c.kubeClientset, c.namespace, 3*time.Minute, indexers, clusterSecretListOptions)
-	clusterSecretInformer.AddEventHandler(clusterEventHandler)
-	log.Info("Starting clusterSecretInformer informers")
-	go func() {
-		clusterSecretInformer.Run(ctx.Done())
-		log.Info("clusterSecretInformer cancelled")
-	}()
-
-	select {}
 	<-ctx.Done()
 	c.invalidate(c.cacheSettings, c.appInstanceLabelKey)
 	return nil
@@ -516,6 +437,18 @@ func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *a
 	}
 	if bToInvalidate {
 		cluster.Invalidate(nil)
+	}
+}
+
+func (c *liveStateCache) handleDeleteEvent(clusterServer string) {
+	c.lock.Lock()
+	cluster, ok := c.clusters[clusterServer]
+	if ok {
+		defer c.lock.Unlock()
+		cluster.Invalidate()
+		delete(c.clusters, clusterServer)
+	} else {
+		c.lock.Unlock()
 	}
 }
 
