@@ -1030,10 +1030,15 @@ func (mgr *SettingsManager) notifySubscribers(newSettings *ArgoCDSettings) {
 	mgr.mutex.Lock()
 	defer mgr.mutex.Unlock()
 	if len(mgr.subscribers) > 0 {
-		log.Infof("Notifying %d settings subscribers: %v", len(mgr.subscribers), mgr.subscribers)
-		for _, sub := range mgr.subscribers {
-			sub <- newSettings
-		}
+		subscribers := make([]chan<- *ArgoCDSettings, len(mgr.subscribers))
+		copy(subscribers, mgr.subscribers)
+		// make sure subscribes are notified in a separate thread to avoid potential deadlock
+		go func() {
+			log.Infof("Notifying %d settings subscribers: %v", len(subscribers), subscribers)
+			for _, sub := range subscribers {
+				sub <- newSettings
+			}
+		}()
 	}
 }
 
