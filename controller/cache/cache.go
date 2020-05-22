@@ -436,7 +436,7 @@ func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *a
 		}
 	}
 	if bToInvalidate {
-		cluster.Invalidate(nil)
+		cluster.Invalidate()
 	}
 }
 
