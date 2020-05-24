@@ -270,6 +270,11 @@ jobs:
       - checkout
       - restore_go_cache_docker
       - run:
+          name: Fix permissions on Go modules cache
+          command: |
+            mkdir -p /home/circleci/.go_workspace/pkg/mod
+            chmod -R 777 /home/circleci/.go_workspace/pkg/mod
+      - run:
           name: Download Go modules
           command: make mod-download
           environment:
