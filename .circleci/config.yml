@@ -270,7 +270,7 @@ jobs:
       - checkout
       - run:
           name: Download Go modules
-          command: go mod download
+          command: make mod-download
       - restore_go_cache_docker
       - run:
           name: Update kubectl configuration for container
