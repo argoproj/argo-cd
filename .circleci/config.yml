@@ -298,6 +298,7 @@ jobs:
             DOCKER_SRCDIR: /home/circleci/.go_workspace/src
             ARGOCD_E2E_TEST: "true"
             ARGOCD_IN_CI: "true"
+            GOPATH: /home/circleci/.go_workspace
       - run:
           name: Wait for API server to become available
           command: |
@@ -319,6 +320,7 @@ jobs:
             ARGOCD_E2E_K3S: "true"
             IFACE: ens4
             DOCKER_SRCDIR: /home/circleci/.go_workspace/src
+            GOPATH: /home/circleci/.go_workspace
       - store_test_results:
           path: test-results
       - store_artifacts:
