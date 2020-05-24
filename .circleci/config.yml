@@ -268,12 +268,12 @@ jobs:
             INSTALL_K3S_VERSION: v0.5.0
       - prepare_environment
       - checkout
+      - restore_go_cache_docker
       - run:
           name: Download Go modules
           command: make mod-download
           environment:
             GOPATH: /home/circleci/.go_workspace
-      - restore_go_cache_docker
       - run:
           name: Update kubectl configuration for container
           command: |
