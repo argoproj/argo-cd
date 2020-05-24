@@ -149,8 +149,8 @@ jobs:
       - checkout
       - configure_git
       - restore_go_modules
-      - restore_vendor
       - restore_go_cache_docker
+      - attach_vendor
       - run: make test-local
       - run:
           name: Uploading code coverage
