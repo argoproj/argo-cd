@@ -32,7 +32,7 @@ commands:
       - save_cache:
           key: modules-v1-{{ checksum "go.sum" }}
           paths:
-            - {{ .Environment.GOPATH }}/pkg/mod
+            - "{{ .Environment.GOPATH }}/pkg/mod"
   restore_go_modules:
     steps:
       - restore_cache:
