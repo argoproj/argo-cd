@@ -21,23 +21,13 @@ commands:
             git config --global user.name "Your Name"
             echo "export PATH=/home/circleci/.go_workspace/src/github.com/argoproj/argo-cd/hack:\$PATH" | tee -a $BASH_ENV
             echo "export GIT_ASKPASS=git-ask-pass.sh" | tee -a $BASH_ENV
-  save_vendor:
+  setup_go_modules:
     steps:
-      - persist_to_workspace:
-          root: .
-          paths:
-            - vendor
-  save_go_modules:
-    steps:
-      - save_cache:
-          key: modules-v2-{{ checksum "go.sum" }}
-          paths:
-            - "/go/pkg/mod"
-  restore_go_modules:
-    steps:
-      - restore_cache:
-          keys:
-            - modules-v2-{{ checksum "go.sum" }}
+      - run:
+          name: Run go mod download and populate vendor
+          command: |
+            go mod download
+            go mod vendor
   save_coverage_info:
     steps:
       - persist_to_workspace:
@@ -64,34 +54,6 @@ commands:
             go env
             echo "export GOPATH=/home/circleci/.go_workspace" | tee -a $BASH_ENV
             echo "export PATH=/home/circleci/sdk/go1.14.1/bin:\$PATH" | tee -a $BASH_ENV
-  save_go_cache:
-    steps:
-      - save_cache:
-          key: go-v2-{{ .Branch }}-{{ .Environment.CIRCLE_JOB }}
-          # https://circleci.com/docs/2.0/language-go/
-          paths:
-            - /home/circleci/.cache/go-build
-            - /home/circleci/sdk/go1.14.1
-  restore_go_cache:
-    steps:
-      - restore_cache:
-          keys:
-            - go-v2-{{ .Branch }}-{{ .Environment.CIRCLE_JOB }}
-
-  save_go_cache_docker:
-    steps:
-      - save_cache:
-          name: Save Go build cache
-          key: go-docker-v2-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}
-          # https://circleci.com/docs/2.0/language-go/
-          paths:
-            - /tmp/go-build-cache
-  restore_go_cache_docker:
-    steps:
-      - restore_cache:
-          name: Restore Go build cache
-          keys:
-            - go-docker-v2-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}
 jobs:
   build:
     docker:
@@ -100,22 +62,10 @@ jobs:
     steps:
       - prepare_environment
       - checkout
-      - restore_go_modules
-      - run:
-          name: Ensure integrity of Go modules cache
-          command: go mod verify
-      - run:
-          name: Download new modules
-          command: go mod download
-      - run:
-          name: Populate local vendor directory
-          command: go mod vendor
+      - setup_go_modules
       - run: make build-local
       - run: chmod -R 777 vendor
       - run: chmod -R 777 ${GOCACHE}
-      - save_go_modules
-      - save_vendor
-      - save_go_cache_docker
 
   codegen:
     docker:
@@ -124,8 +74,7 @@ jobs:
     steps:
       - prepare_environment
       - checkout
-      - restore_go_modules
-      - attach_vendor
+      - setup_go_modules
       - run: helm2 init --client-only
       - run: make codegen-local
       - run:
@@ -148,9 +97,7 @@ jobs:
       - prepare_environment
       - checkout
       - configure_git
-      - restore_go_modules
-      - restore_go_cache_docker
-      - attach_vendor
+      - setup_go_modules
       - run: make test-local
       - run:
           name: Uploading code coverage
@@ -268,7 +215,6 @@ jobs:
             INSTALL_K3S_VERSION: v0.5.0
       - prepare_environment
       - checkout
-      - restore_go_cache_docker
       - run:
           name: Fix permissions on Go modules cache
           command: |
@@ -276,7 +222,9 @@ jobs:
             chmod -R 777 /home/circleci/.go_workspace/pkg/mod
       - run:
           name: Download Go modules
-          command: make mod-download
+          command: |
+            make mod-download
+            make mod-vendor
           environment:
             GOPATH: /home/circleci/.go_workspace
       - run:
