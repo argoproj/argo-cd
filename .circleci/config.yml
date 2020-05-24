@@ -216,10 +216,12 @@ jobs:
       - prepare_environment
       - checkout
       - run:
-          name: Fix permissions on Go modules cache
+          name: Fix permissions on filesystem
           command: |
             mkdir -p /home/circleci/.go_workspace/pkg/mod
             chmod -R 777 /home/circleci/.go_workspace/pkg/mod
+            mkdir -p /tmp/go-build-cache
+            chmod -R 777 /tmp/go-build-cache
       - run:
           name: Download Go modules
           command: |
