@@ -268,9 +268,9 @@ jobs:
             INSTALL_K3S_VERSION: v0.5.0
       - prepare_environment
       - restore_go_modules
-      - attach_vendor
       - restore_go_cache_docker
       - checkout
+      - attach_vendor
       - run:
           name: Update kubectl configuration for container
           command: |
