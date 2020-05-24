@@ -40,10 +40,16 @@ commands:
           root: ~/argo-cd
           paths:
             - ui/node_modules
-  attach_vendor:
+  save_go_cache:
+    steps:
+      - persist_to_workspace:
+          root: /tmp
+          paths:
+            - go-build-cache
+  attach_go_cache:
     steps:
       - attach_workspace:
-          at: .
+          at: /tmp
   install_golang:
     steps:
       - run:
@@ -66,6 +72,7 @@ jobs:
       - run: make build-local
       - run: chmod -R 777 vendor
       - run: chmod -R 777 ${GOCACHE}
+      - save_go_cache
 
   codegen:
     docker:
@@ -75,6 +82,7 @@ jobs:
       - prepare_environment
       - checkout
       - setup_go_modules
+      - restore_go_cache
       - run: helm2 init --client-only
       - run: make codegen-local
       - run:
@@ -98,6 +106,7 @@ jobs:
       - checkout
       - configure_git
       - setup_go_modules
+      - restore_go_cache
       - run: make test-local
       - run:
           name: Uploading code coverage
@@ -229,6 +238,7 @@ jobs:
             make mod-vendor
           environment:
             GOPATH: /home/circleci/.go_workspace
+      - restore_go_cache
       - run:
           name: Update kubectl configuration for container
           command: |
