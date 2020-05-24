@@ -82,7 +82,7 @@ jobs:
       - prepare_environment
       - checkout
       - setup_go_modules
-      - restore_go_cache
+      - attach_go_cache
       - run: helm2 init --client-only
       - run: make codegen-local
       - run:
@@ -106,7 +106,7 @@ jobs:
       - checkout
       - configure_git
       - setup_go_modules
-      - restore_go_cache
+      - attach_go_cache
       - run: make test-local
       - run:
           name: Uploading code coverage
@@ -132,7 +132,7 @@ jobs:
       - checkout
       - configure_git
       - attach_vendor
-      - restore_go_cache_docker
+      - store_go_cache_docker
       - run:
           name: Run golangci-lint
           command: ARGOCD_LINT_GOGC=10 make lint-local
@@ -238,7 +238,7 @@ jobs:
             make mod-vendor
           environment:
             GOPATH: /home/circleci/.go_workspace
-      - restore_go_cache
+      - attach_go_cache
       - run:
           name: Update kubectl configuration for container
           command: |
