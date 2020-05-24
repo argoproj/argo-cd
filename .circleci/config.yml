@@ -30,16 +30,14 @@ commands:
   save_go_modules:
     steps:
       - save_cache:
-        name: Save go module cache
-        key: modules-v1-{{ checksum "go.sum" }}
-        paths:
-          - {{ .Environment.GOPATH }}/pkg/mod
+          key: modules-v1-{{ checksum "go.sum" }}
+          paths:
+            - {{ .Environment.GOPATH }}/pkg/mod
   restore_go_modules:
     steps:
       - restore_cache:
-        name: Restore go module cache
-        keys:
-          - modules-v1-{{ checksum "go.sum" }}
+          keys:
+            - modules-v1-{{ checksum "go.sum" }}
   save_coverage_info:
     steps:
       - persist_to_workspace:
