@@ -271,6 +271,8 @@ jobs:
       - run:
           name: Download Go modules
           command: make mod-download
+          environment:
+            GOPATH: /home/circleci/.go_workspace
       - restore_go_cache_docker
       - run:
           name: Update kubectl configuration for container
