@@ -125,7 +125,7 @@ jobs:
       - prepare_environment
       - checkout
       - restore_go_modules
-      - restore_vendor
+      - attach_vendor
       - run: helm2 init --client-only
       - run: make codegen-local
       - run:
@@ -175,7 +175,7 @@ jobs:
       - prepare_environment
       - checkout
       - configure_git
-      - restore_vendor
+      - attach_vendor
       - restore_go_cache_docker
       - run:
           name: Run golangci-lint
@@ -268,7 +268,7 @@ jobs:
             INSTALL_K3S_VERSION: v0.5.0
       - prepare_environment
       - restore_go_modules
-      - restore_vendor
+      - attach_vendor
       - restore_go_cache_docker
       - checkout
       - run:
