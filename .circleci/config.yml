@@ -268,9 +268,10 @@ jobs:
             INSTALL_K3S_VERSION: v0.5.0
       - prepare_environment
       - checkout
-      - restore_go_modules
+      - run:
+          name: Download Go modules
+          command: go mod download
       - restore_go_cache_docker
-      - attach_vendor
       - run:
           name: Update kubectl configuration for container
           command: |
