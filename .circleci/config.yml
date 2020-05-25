@@ -264,7 +264,6 @@ jobs:
       - run:
           name: Run E2E tests
           command: |
-            chmod -R 777 /home/circleci/.go_workspace/pkg/mod
             make test-e2e
           environment:
             ARGOCD_OPTS: "--plaintext"
