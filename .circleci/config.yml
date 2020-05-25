@@ -8,7 +8,6 @@ commands:
             set -x
             echo "export GOCACHE=/tmp/go-build-cache" | tee -a $BASH_ENV
             echo "export ARGOCD_TEST_VERBOSE=true" | tee -a $BASH_ENV
-            echo "export ARGOCD_TEST_PARALLELISM=8" | tee -a $BASH_ENV
             echo "export ARGOCD_SONAR_VERSION=4.2.0.1873" | tee -a $BASH_ENV
   configure_git:
     steps:
