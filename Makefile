@@ -150,7 +150,7 @@ clientgen:
 	./hack/update-codegen.sh
 
 .PHONY: codegen-local
-codegen-local: gogen protogen clientgen openapigen manifests-local
+codegen-local: mod-vendor-local gogen protogen clientgen openapigen manifests-local
 
 .PHONY: codegen
 codegen:
@@ -255,7 +255,7 @@ mod-vendor:
 	$(call run-in-test-client,go mod vendor)
 
 .PHONY: mod-vendor-local
-mod-vendor-local:
+mod-vendor-local: mod-download-local
 	go mod vendor
 
 # Deprecated - replace by install-local-tools
@@ -323,7 +323,7 @@ test-e2e:
 
 # Run the E2E test suite (local version)
 .PHONY: test-e2e-local
-test-e2e-local: cli
+test-e2e-local: mod-vendor-local cli
 	# NO_PROXY ensures all tests don't go out through a proxy if one is configured on the test system
 	export GO111MODULE=off
 	NO_PROXY=* ./hack/test.sh -timeout 15m -v ./test/e2e
@@ -345,7 +345,7 @@ start-e2e:
 
 # Starts e2e server locally (or within a container)
 .PHONY: start-e2e-local
-start-e2e-local: 
+start-e2e-local: mod-vendor-local
 	export GO111MODULE=off
 	kubectl create ns argocd-e2e || true
 	kubectl config set-context --current --namespace=argocd-e2e
@@ -375,7 +375,7 @@ start:
 
 # Starts a local instance of ArgoCD
 .PHONY: start-local
-start-local:
+start-local: mod-vendor-local
 	# check we can connect to Docker to start Redis
 	killall goreman || true
 	kubectl create ns argocd || true
