@@ -72,6 +72,10 @@ func (p *RBACPolicyEnforcer) SetScopes(scopes []string) {
 	p.scopes = scopes
 }
 
+func (p *RBACPolicyEnforcer) GetScopes() []string {
+	return p.scopes
+}
+
 func IsProjectSubject(subject string) bool {
 	return strings.HasPrefix(subject, "proj:")
 }

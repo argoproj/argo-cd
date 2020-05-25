@@ -20,12 +20,11 @@ import (
 	"github.com/argoproj/argo-cd/util/healthz"
 	"github.com/argoproj/argo-cd/util/swagger"
 	"github.com/argoproj/argo-cd/util/webhook"
-
 	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	jsonutil "github.com/argoproj/gitops-engine/pkg/utils/json"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/dgrijalva/jwt-go"
+	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/go-redis/redis"
 	golang_proto "github.com/golang/protobuf/proto"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
@@ -43,7 +42,7 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
-	"gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v2"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -508,10 +507,10 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 		loginRateLimiter = session.NewLoginRateLimiter(
 			session.NewRedisStateStorage(a.ArgoCDServerOpts.RedisClient), maxConcurrentLoginRequestsCount)
 	}
-	sessionService := session.NewServer(a.sessionMgr, a, loginRateLimiter)
+	sessionService := session.NewServer(a.sessionMgr, a, a.policyEnforcer, loginRateLimiter)
 	projectLock := util.NewKeyLock()
 	applicationService := application.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.appLister, a.RepoClientset, a.Cache, kubectl, db, a.enf, projectLock, a.settingsMgr)
-	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr)
+	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr, a.policyEnforcer)
 	settingsService := settings.NewServer(a.settingsMgr, a)
 	accountService := account.NewServer(a.sessionMgr, a.settingsMgr, a.enf)
 	certificateService := certificate.NewServer(a.RepoClientset, db, a.enf)
