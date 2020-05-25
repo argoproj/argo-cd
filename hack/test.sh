@@ -1,6 +1,8 @@
 #!/bin/bash
 set -eux -o pipefail
 
+export GO111MODULE=off
+
 # make sure apiclient does not depend on packr
 which godepgraph || go get github.com/kisielk/godepgraph
 which go-junit-report || go get github.com/jstemmer/go-junit-report

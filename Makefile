@@ -131,18 +131,22 @@ all: cli image argocd-util
 
 .PHONY: gogen
 gogen:
+	export GO111MODULE=off
 	go generate ./util/argo/...
 
 .PHONY: protogen
 protogen:
+	export GO111MODULE=off
 	./hack/generate-proto.sh
 
 .PHONY: openapigen
 openapigen:
+	export GO111MODULE=off
 	./hack/update-openapi.sh
 
 .PHONY: clientgen
 clientgen:
+	export GO111MODULE=off
 	./hack/update-codegen.sh
 
 .PHONY: codegen-local
@@ -288,7 +292,8 @@ build:
 
 # Build all Go code (local version)
 .PHONY: build-local
-build-local:
+build-local: mod-vendor-local
+	export GO111MODULE=off
 	go build -p 1 -v `go list ./... | grep -v 'resource_customizations\|test/e2e'`
 
 # Run all unit tests
@@ -302,7 +307,8 @@ test:
 
 # Run all unit tests (local version)
 .PHONY: test-local
-test-local:
+test-local: mod-vendor-local
+	export GO111MODULE=off
 	if test "$(TEST_MODULE)" = ""; then \
 		./hack/test.sh -coverprofile=coverage.out `go list ./... | grep -v 'test/e2e'`; \
 	else \
@@ -319,6 +325,7 @@ test-e2e:
 .PHONY: test-e2e-local
 test-e2e-local: cli
 	# NO_PROXY ensures all tests don't go out through a proxy if one is configured on the test system
+	export GO111MODULE=off
 	NO_PROXY=* ./hack/test.sh -timeout 15m -v ./test/e2e
 
 # Spawns a shell in the test server container for debugging purposes
@@ -339,6 +346,7 @@ start-e2e:
 # Starts e2e server locally (or within a container)
 .PHONY: start-e2e-local
 start-e2e-local: 
+	export GO111MODULE=off
 	kubectl create ns argocd-e2e || true
 	kubectl config set-context --current --namespace=argocd-e2e
 	kustomize build test/manifests/base | kubectl apply -f -
