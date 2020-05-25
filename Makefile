@@ -323,7 +323,7 @@ test-e2e:
 
 # Run the E2E test suite (local version)
 .PHONY: test-e2e-local
-test-e2e-local: mod-vendor-local cli
+test-e2e-local: cli
 	# NO_PROXY ensures all tests don't go out through a proxy if one is configured on the test system
 	export GO111MODULE=off
 	NO_PROXY=* ./hack/test.sh -timeout 15m -v ./test/e2e
