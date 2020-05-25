@@ -5,25 +5,20 @@ go 1.14
 require (
 	bou.ke/monkey v1.0.1
 	github.com/Masterminds/semver v1.5.0
-	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
 	github.com/alicebob/gopher-json v0.0.0-20180125190556-5a6b3ba71ee6 // indirect
 	github.com/alicebob/miniredis v2.5.0+incompatible
 	github.com/argoproj/gitops-engine v0.1.1-0.20200520172719-a70208905739
 	github.com/argoproj/pkg v0.0.0-20200319004004-f46beff7cd54
-	github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973 // indirect
 	github.com/bsm/redislock v0.4.3
 	github.com/casbin/casbin v1.9.1
 	github.com/chai2010/gettext-go v0.0.0-20170215093142-bf70f2a70fb1 // indirect
 	github.com/coreos/go-oidc v2.1.0+incompatible
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
-	github.com/docker/distribution v2.7.1+incompatible // indirect
 	github.com/docker/docker v1.6.0-rc5 // indirect
 	github.com/docker/spdystream v0.0.0-20181023171402-6480d4af844c // indirect
 	github.com/dustin/go-humanize v1.0.0
 	github.com/evanphx/json-patch v4.5.0+incompatible
-	github.com/exponent-io/jsonpath v0.0.0-20151013193312-d6023ce2651d // indirect
-	github.com/fatih/camelcase v1.0.0 // indirect
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-openapi/loads v0.19.2
 	github.com/go-openapi/runtime v0.19.0
@@ -34,8 +29,6 @@ require (
 	github.com/gobwas/glob v0.2.3
 	github.com/gogits/go-gogs-client v0.0.0-20190616193657-5a05380e4bc2
 	github.com/gogo/protobuf v1.3.1
-	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b // indirect
-	github.com/golang/lint v0.0.0-20180702182130-06c8688daad7 // indirect
 	github.com/golang/protobuf v1.3.1
 	github.com/gomodule/redigo v2.0.0+incompatible // indirect
 	github.com/google/btree v1.0.0 // indirect
@@ -43,32 +36,21 @@ require (
 	github.com/google/go-jsonnet v0.15.0
 	github.com/google/uuid v1.1.1
 	github.com/googleapis/gnostic v0.1.0 // indirect
-	github.com/gorilla/websocket v1.4.0 // indirect
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v0.0.0-20190222133341-cfaf5686ec79
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/grpc-ecosystem/grpc-gateway v1.3.1
 	github.com/improbable-eng/grpc-web v0.0.0-20181111100011-16092bd1d58a
-	github.com/inconshreveable/mousetrap v1.0.0 // indirect
-	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
-	github.com/jonboulle/clockwork v0.1.0 // indirect
+	github.com/k0kubun/colorstring v0.0.0-20150214042306-9440f1994b88 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
-	github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de // indirect
-	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
-	github.com/mitchellh/go-wordwrap v1.0.0 // indirect
-	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
-	github.com/opencontainers/go-digest v1.0.0-rc1 // indirect
+	github.com/malexdev/utfutil v0.0.0-20180510171754-00c8d4a8e7a8 // indirect
+	github.com/mwitkow/go-conntrack v0.0.0-20190716064945-2f068394615f // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible
-	github.com/pelletier/go-buffruneio v0.2.0 // indirect
-	github.com/petar/GoLLRB v0.0.0-20190514000832-33fb24c13b99 // indirect
 	github.com/pkg/errors v0.9.1
-	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/pquerna/cachecontrol v0.0.0-20180306154005-525d0eb5f91d // indirect
 	github.com/prometheus/client_golang v0.9.2
-	github.com/prometheus/client_model v0.0.0-20180712105110-5c3871d89910 // indirect
 	github.com/robfig/cron v1.1.0
 	github.com/rs/cors v1.6.0 // indirect
-	github.com/russross/blackfriday v1.5.2 // indirect
 	github.com/sirupsen/logrus v1.4.2
 	github.com/skratchdot/open-golang v0.0.0-20160302144031-75fb7ed4208c
 	github.com/soheilhy/cmux v0.1.4
@@ -77,7 +59,7 @@ require (
 	github.com/stretchr/testify v1.5.1
 	github.com/vmihailenco/msgpack v3.3.1+incompatible
 	github.com/yudai/gojsondiff v1.0.1-0.20180504020246-0525c875b75c
-	github.com/yudai/golcs v0.0.0-20170316035057-ecda9a501e82 // indirect
+	github.com/yudai/pp v2.0.1+incompatible // indirect
 	github.com/yuin/gopher-lua v0.0.0-20190115140932-732aa6820ec4
 	golang.org/x/crypto v0.0.0-20190820162420-60c769a6c586
 	golang.org/x/net v0.0.0-20191004110552-13f9640d40b9
@@ -87,9 +69,7 @@ require (
 	google.golang.org/genproto v0.0.0-20190502173448-54afdca5d873
 	google.golang.org/grpc v1.23.0
 	gopkg.in/go-playground/webhooks.v5 v5.11.0
-	gopkg.in/mgo.v2 v2.0.0-20160818020120-3f83fa500528 // indirect
 	gopkg.in/src-d/go-git.v4 v4.13.1
-	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v2 v2.2.8
 	k8s.io/api v0.16.6
 	k8s.io/apiextensions-apiserver v0.16.6
@@ -102,14 +82,12 @@ require (
 	k8s.io/kubernetes v1.17.0-alpha.0.0.20191207011953-bfafae8f1c2f
 	k8s.io/utils v0.0.0-20191114200735-6ca3b61696b6
 	layeh.com/gopher-json v0.0.0-20190114024228-97fed8db8427
-	sigs.k8s.io/kustomize v2.0.3+incompatible // indirect
-	sigs.k8s.io/yaml v1.1.0 // indirect
 )
 
 replace (
-	github.com/improbable-eng/grpc-web => github.com/improbable-eng/grpc-web v0.0.0-20181111100011-16092bd1d58a
 	github.com/golang/protobuf => github.com/golang/protobuf v1.2.0
 	github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc-gateway v1.3.1
+	github.com/improbable-eng/grpc-web => github.com/improbable-eng/grpc-web v0.0.0-20181111100011-16092bd1d58a
 
 	google.golang.org/grpc => google.golang.org/grpc v1.15.0
 
@@ -121,6 +99,7 @@ replace (
 	k8s.io/client-go => k8s.io/client-go v0.16.6
 	k8s.io/cloud-provider => k8s.io/cloud-provider v0.16.6
 	k8s.io/cluster-bootstrap => k8s.io/cluster-bootstrap v0.16.6
+	k8s.io/code-generator => k8s.io/code-generator v0.16.6
 	k8s.io/component-base => k8s.io/component-base v0.16.6
 	k8s.io/cri-api => k8s.io/cri-api v0.16.6
 	k8s.io/csi-translation-lib => k8s.io/csi-translation-lib v0.16.6
@@ -136,5 +115,4 @@ replace (
 	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.16.6
 	k8s.io/sample-cli-plugin => k8s.io/sample-cli-plugin v0.16.6
 	k8s.io/sample-controller => k8s.io/sample-controller v0.16.6
-	k8s.io/code-generator => k8s.io/code-generator v0.16.6
 )
