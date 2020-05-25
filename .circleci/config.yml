@@ -68,7 +68,6 @@ jobs:
     steps:
       - prepare_environment
       - checkout
-      - setup_go_modules
       - run: make build-local
       - run: chmod -R 777 vendor
       - run: chmod -R 777 ${GOCACHE}
@@ -81,7 +80,6 @@ jobs:
     steps:
       - prepare_environment
       - checkout
-      - setup_go_modules
       - attach_go_cache
       - run: helm2 init --client-only
       - run: make codegen-local
@@ -105,7 +103,6 @@ jobs:
       - prepare_environment
       - checkout
       - configure_git
-      - setup_go_modules
       - attach_go_cache
       - run: make test-local
       - run:
@@ -231,13 +228,6 @@ jobs:
             chmod -R 777 /home/circleci/.go_workspace/pkg/mod
             mkdir -p /tmp/go-build-cache
             chmod -R 777 /tmp/go-build-cache
-      - run:
-          name: Download Go modules
-          command: |
-            make mod-download
-            make mod-vendor
-          environment:
-            GOPATH: /home/circleci/.go_workspace
       - attach_go_cache
       - run:
           name: Update kubectl configuration for container
