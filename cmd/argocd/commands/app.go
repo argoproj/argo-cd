@@ -836,17 +836,16 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 						}
 					}
 				}
-				specValueFiles := app.Spec.Source.Helm.ValueFiles
 				for _, valuesFile := range valuesFiles {
+					specValueFiles := app.Spec.Source.Helm.ValueFiles
 					for i, vf := range specValueFiles {
 						if vf == valuesFile {
-							specValueFiles = append(specValueFiles[0:i], specValueFiles[i+1:]...)
+							app.Spec.Source.Helm.ValueFiles = append(specValueFiles[0:i], specValueFiles[i+1:]...)
 							updated = true
 							break
 						}
 					}
 				}
-				setHelmOpt(&app.Spec.Source, helmOpts{valueFiles: specValueFiles})
 				if !updated {
 					return
 				}
