@@ -14,7 +14,7 @@ end
 
 if obj.status ~= nil and obj.status.certificateStatus == "Active" then
   hs.status = "Healthy"
-  hs.message = "All ceritificates are active"
+  hs.message = "All certificates are active"
   return hs
 end
 

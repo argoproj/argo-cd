@@ -9,5 +9,5 @@ tests:
     inputPath: testdata/failed.yaml
   - healthStatus:
       status: Healthy
-      message: "All ceritificates are active"
+      message: "All certificates are active"
     inputPath: testdata/active.yaml
