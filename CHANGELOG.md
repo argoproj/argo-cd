@@ -618,7 +618,7 @@ Support for Git LFS enabled repositories - now you can store Helm charts as tar 
 + Added 'SyncFail' to possible HookTypes in UI (#2147)
 + Support for Git LFS enabled repositories (#1853)
 + Server certificate and known hosts management (#1514)
-+ Client HTTPS certifcates for private git repositories (#1945)
++ Client HTTPS certificates for private git repositories (#1945)
 + Badge for application status (#1435)
 + Make the health check for APIService a built in (#1841)
 + Bitbucket Server and Gogs webhook providers (#1269)
