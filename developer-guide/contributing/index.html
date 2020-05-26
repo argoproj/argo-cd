@@ -1840,9 +1840,12 @@ ok      github.com/argoproj/argo-cd/server/cache        <span class="m">0</span>
 <h3 id="pull-in-all-build-dependencies">Pull in all build dependencies<a class="headerlink" href="#pull-in-all-build-dependencies" title="Permanent link">&para;</a></h3>
 <p>As build dependencies change over time, you have to synchronize your development environment with the current specification. In order to pull in all required depencies, issue:</p>
 <ul>
-<li><code>make dep</code></li>
-<li><code>make dep-ensure</code></li>
 <li><code>make dep-ui</code></li>
+</ul>
+<p>ArgoCD recently migrated to Go modules. Usually, dependencies will be downloaded on build time, but the Makefile provides two targets to download and vendor all dependencies:</p>
+<ul>
+<li><code>make mod-download</code> will download all required Go modules and</li>
+<li><code>make mod-vendor</code> will vendor those dependencies into the ArgoCD source tree</li>
 </ul>
 <h3 id="generate-api-glue-code-and-other-assets">Generate API glue code and other assets<a class="headerlink" href="#generate-api-glue-code-and-other-assets" title="Permanent link">&para;</a></h3>
 <p>ArgoCD relies on Google's <a href="https://developers.google.com/protocol-buffers">Protocol Buffers</a> for its API, and this makes heavy use of auto-generated glue code and stubs. Whenever you touched parts of the API code, you must re-generate the auto generated code.</p>
@@ -1897,8 +1900,8 @@ ok      github.com/argoproj/argo-cd/server/cache        <span class="m">0</span>
 <h3 id="install-go-dependencies">Install Go dependencies<a class="headerlink" href="#install-go-dependencies" title="Permanent link">&para;</a></h3>
 <p>You need to pull in all required Go dependencies. To do so, run</p>
 <ul>
-<li><code>make dep-ensure-local</code></li>
-<li><code>make dep-local</code></li>
+<li><code>make mod-download-local</code></li>
+<li><code>make mod-vendor-local</code></li>
 </ul>
 <h3 id="test-your-build-toolchain">Test your build toolchain<a class="headerlink" href="#test-your-build-toolchain" title="Permanent link">&para;</a></h3>
 <p>The first thing you can do whether your build toolchain is setup correctly is by generating the glue code for the API and after that, run a normal build:</p>
