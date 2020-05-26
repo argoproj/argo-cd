@@ -46,7 +46,7 @@ The following read will help you to submit a PR that meets the standards of our 
 
 ### Title of the PR
 
-Please use a meaningful and consise title for your PR. This will help us to pick PRs for review quickly, and the PR title will also end up in the Changelog.
+Please use a meaningful and concise title for your PR. This will help us to pick PRs for review quickly, and the PR title will also end up in the Changelog.
 
 We use the [Semantic PR title checker](https://github.com/zeke/semantic-pull-requests) to categorize your PR into one of the following categories:
 
