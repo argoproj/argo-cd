@@ -109,7 +109,7 @@ func (e Env) Environ() []string {
 	return environ
 }
 
-// does an operation similar to `envstubst` tool,
+// does an operation similar to `envsubst` tool,
 // but unlike envsubst it does not change missing names into empty string
 // see https://linux.die.net/man/1/envsubst
 func (e Env) Envsubst(s string) string {
