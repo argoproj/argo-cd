@@ -41,7 +41,7 @@ data:
     - openid
     - profile
     - email
-    # not strictly nesscessary - but good practice:
+    # not strictly necessary - but good practice:
     - 'http://your.domain/groups'
 ...
 ```
