@@ -164,9 +164,12 @@ When you have developed and possibly manually tested the code you want to contri
 
 As build dependencies change over time, you have to synchronize your development environment with the current specification. In order to pull in all required depencies, issue:
 
-* `make dep`
-* `make dep-ensure`
 * `make dep-ui`
+
+ArgoCD recently migrated to Go modules. Usually, dependencies will be downloaded on build time, but the Makefile provides two targets to download and vendor all dependencies:
+
+* `make mod-download` will download all required Go modules and
+* `make mod-vendor` will vendor those dependencies into the ArgoCD source tree
 
 ### Generate API glue code and other assets
 
@@ -230,8 +233,8 @@ Additionally, you have to install at least the following tools via your OS's pac
 
 You need to pull in all required Go dependencies. To do so, run
 
-* `make dep-ensure-local`
-* `make dep-local`
+* `make mod-download-local`
+* `make mod-vendor-local`
 
 ### Test your build toolchain
 
