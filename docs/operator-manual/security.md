@@ -1,6 +1,6 @@
 # Security
 
-Argo CD has undergone rigourous internal security reviews and penetration testing to satisfy [PCI
+Argo CD has undergone rigorous internal security reviews and penetration testing to satisfy [PCI
 compliance](https://www.pcisecuritystandards.org) requirements. The following are some security
 topics and implementation details of Argo CD.
 
