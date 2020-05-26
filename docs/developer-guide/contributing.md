@@ -10,7 +10,7 @@ If you want to to submit a PR, please read this document carefully, as it contai
 
 As is the case with the development process, this document is under constant change. If you notice any error, or if you think this document is out-of-date, or if you think it is missing something: Feel free to submit a PR or submit a bug to our GitHub issue tracker.
 
-If you need guidance with submitting a PR, or have any other questions regarding development of ArgoCD, do not hestitate to [join our Slack](https://argoproj.github.io/community/join-slack) and get in touch with us in the `#argo-dev` channel!
+If you need guidance with submitting a PR, or have any other questions regarding development of ArgoCD, do not hesitate to [join our Slack](https://argoproj.github.io/community/join-slack) and get in touch with us in the `#argo-dev` channel!
 
 ## Before you start
 
