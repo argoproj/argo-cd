@@ -447,7 +447,7 @@ tlsClientConfig:
     # PEM-encoded bytes (typically read from a client certificate key file).
     keyData: string
     # ServerName is passed to the server for SNI and is used in the client to check server
-    # ceritificates against. If ServerName is empty, the hostname used to contact the
+    # certificates against. If ServerName is empty, the hostname used to contact the
     # server is used.
     serverName: string
 ```
