@@ -1439,7 +1439,7 @@
                 
                 
                 <h1 id="security">Security<a class="headerlink" href="#security" title="Permanent link">&para;</a></h1>
-<p>Argo CD has undergone rigourous internal security reviews and penetration testing to satisfy <a href="https://www.pcisecuritystandards.org">PCI
+<p>Argo CD has undergone rigorous internal security reviews and penetration testing to satisfy <a href="https://www.pcisecuritystandards.org">PCI
 compliance</a> requirements. The following are some security
 topics and implementation details of Argo CD.</p>
 <h2 id="authentication">Authentication<a class="headerlink" href="#authentication" title="Permanent link">&para;</a></h2>
@@ -1456,7 +1456,7 @@ in one of the following ways:</p>
 <li>
 <p>For Single Sign-On users, the user completes an OAuth2 login flow to the configured OIDC identity
    provider (either delegated through the bundled Dex provider, or directly to a self-managed OIDC
-   provider). This JWT is signed &amp; issued by the IDP, and expiration and revokation is handled by
+   provider). This JWT is signed &amp; issued by the IDP, and expiration and revocation is handled by
    the provider. Dex tokens expire after 24 hours.</p>
 </li>
 <li>
@@ -1493,7 +1493,7 @@ to that API server (TLS configuration/certs, aws-iam-authenticator RoleARN, etc.
 The information is used to reconstruct a REST config and kubeconfig to the cluster used by Argo CD
 services.</p>
 <p>To rotate the bearer token used by Argo CD, the token can be deleted (e.g. using kubectl) which
-causes kuberentes to generate a new secret with a new bearer token. The new token can be re-inputted
+causes kubernetes to generate a new secret with a new bearer token. The new token can be re-inputted
 to Argo CD by re-running <code>argocd cluster add</code>. Run the following commands against the <em><em>managed</em></em>
 cluster:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1"># run using a kubeconfig for the externally managed cluster</span>
@@ -1517,7 +1517,7 @@ argocd cluster rm https://your-kubernetes-cluster-addr
 <blockquote>
 <p>NOTE: for AWS EKS clusters, <a href="https://github.com/kubernetes-sigs/aws-iam-authenticator">aws-iam-authenticator</a>
   is used to authenticate to the external cluster, which uses IAM roles in lieu of locally stored
-  tokens, so token rotation is not needed, and revokation is handled through IAM.
+  tokens, so token rotation is not needed, and revocation is handled through IAM.
 <!-- markdownlint-enable MD027 --></p>
 </blockquote>
 <h2 id="cluster-rbac">Cluster RBAC<a class="headerlink" href="#cluster-rbac" title="Permanent link">&para;</a></h2>

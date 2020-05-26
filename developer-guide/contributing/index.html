@@ -1718,7 +1718,7 @@
 <p>This guide shall help you in setting up your build &amp; test environment, so that you can start developing and testing bug fixes and feature enhancements without having to make too much effort in setting up a local toolchain.</p>
 <p>If you want to to submit a PR, please read this document carefully, as it contains important information guiding you through our PR quality gates.</p>
 <p>As is the case with the development process, this document is under constant change. If you notice any error, or if you think this document is out-of-date, or if you think it is missing something: Feel free to submit a PR or submit a bug to our GitHub issue tracker.</p>
-<p>If you need guidance with submitting a PR, or have any other questions regarding development of ArgoCD, do not hestitate to <a href="https://argoproj.github.io/community/join-slack">join our Slack</a> and get in touch with us in the <code>#argo-dev</code> channel!</p>
+<p>If you need guidance with submitting a PR, or have any other questions regarding development of ArgoCD, do not hesitate to <a href="https://argoproj.github.io/community/join-slack">join our Slack</a> and get in touch with us in the <code>#argo-dev</code> channel!</p>
 <h2 id="before-you-start">Before you start<a class="headerlink" href="#before-you-start" title="Permanent link">&para;</a></h2>
 <p>You will need at least the following things in your toolchain in order to develop and test ArgoCD locally:</p>
 <ul>
@@ -1745,7 +1745,7 @@ The Docker version must be fairly recent, and support multi-stage builds. You sh
 </div>
 <h2 id="submitting-prs">Submitting PRs<a class="headerlink" href="#submitting-prs" title="Permanent link">&para;</a></h2>
 <p>When you submit a PR against ArgoCD's GitHub repository, a couple of CI checks will be run automatically to ensure your changes will build fine and meet certain quality standards. Your contribution needs to pass those checks in order to be merged into the repository.</p>
-<p>In general, it might be benefical to only submit a PR for an existing issue. Especially for larger changes, an Enhancement Proposal should exist before.</p>
+<p>In general, it might be beneficial to only submit a PR for an existing issue. Especially for larger changes, an Enhancement Proposal should exist before.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>Please make sure that you always create PRs from a branch that is up-to-date with the latest changes from ArgoCD's master branch. Depending on how long it takes for the maintainers to review and merge your PR, it might be necessary to pull in latest changes into your branch again.</p>
@@ -1753,7 +1753,7 @@ The Docker version must be fairly recent, and support multi-stage builds. You sh
 <p>Please understand that we, as an Open Source project, have limited capacities for reviewing and merging PRs to ArgoCD. We will do our best to review your PR and give you feedback as soon as possible, but please bear with us if it takes a little longer as expected.</p>
 <p>The following read will help you to submit a PR that meets the standards of our CI tests:</p>
 <h3 id="title-of-the-pr">Title of the PR<a class="headerlink" href="#title-of-the-pr" title="Permanent link">&para;</a></h3>
-<p>Please use a meaningful and consise title for your PR. This will help us to pick PRs for review quickly, and the PR title will also end up in the Changelog.</p>
+<p>Please use a meaningful and concise title for your PR. This will help us to pick PRs for review quickly, and the PR title will also end up in the Changelog.</p>
 <p>We use the <a href="https://github.com/zeke/semantic-pull-requests">Semantic PR title checker</a> to categorize your PR into one of the following categories:</p>
 <ul>
 <li><code>fix</code> - Your PR contains one or more code bug fixes</li>
@@ -1838,7 +1838,7 @@ ok      github.com/argoproj/argo-cd/server/cache        <span class="m">0</span>
 <h2 id="the-development-cycle">The development cycle<a class="headerlink" href="#the-development-cycle" title="Permanent link">&para;</a></h2>
 <p>When you have developed and possibly manually tested the code you want to contribute, you should ensure that everything will build correctly. Commit your changes to the local copy of your Git branch and perform the following steps:</p>
 <h3 id="pull-in-all-build-dependencies">Pull in all build dependencies<a class="headerlink" href="#pull-in-all-build-dependencies" title="Permanent link">&para;</a></h3>
-<p>As build dependencies change over time, you have to synchronize your development environment with the current specification. In order to pull in all required depencies, issue:</p>
+<p>As build dependencies change over time, you have to synchronize your development environment with the current specification. In order to pull in all required dependencies, issue:</p>
 <ul>
 <li><code>make dep-ui</code></li>
 </ul>
@@ -1886,7 +1886,7 @@ ok      github.com/argoproj/argo-cd/server/cache        <span class="m">0</span>
 <p class="admonition-title">Note</p>
 <p>The installations instructions are valid for Linux hosts only. Mac instructions will follow shortly.</p>
 </div>
-<p>For installing the tools required to build and test ArgoCD on your local system, we provide convinient installer scripts. By default, they will install binaries to <code>/usr/local/bin</code> on your system, which might require <code>root</code> privileges.</p>
+<p>For installing the tools required to build and test ArgoCD on your local system, we provide convenient installer scripts. By default, they will install binaries to <code>/usr/local/bin</code> on your system, which might require <code>root</code> privileges.</p>
 <p>You can change the target location by setting the <code>BIN</code> environment before running the installer scripts. For example, you can install the binaries into <code>~/go/bin</code> (which should then be the first component in your <code>PATH</code> environment, i.e. <code>export PATH=~/go/bin:$PATH</code>):</p>
 <div class="codehilite"><pre><span></span><code>make <span class="nv">BIN</span><span class="o">=</span>~/go/bin install-tools-local
 </code></pre></div>

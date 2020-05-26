@@ -1344,7 +1344,7 @@
 <ol>
 <li>Create a new SAML application in Okta UI.<ul>
 <li><img alt="Okta SAML App 1" src="../../../assets/saml-1.png" />
-    I've disabled <code>App Visibility</code> because Dex doesn't support Provider-initated login flows.</li>
+    I've disabled <code>App Visibility</code> because Dex doesn't support Provider-initiated login flows.</li>
 <li><img alt="Okta SAML App 2" src="../../../assets/saml-2.png" /></li>
 </ul>
 </li>
@@ -1389,7 +1389,7 @@
 <h2 id="oidc-without-dex">OIDC (without Dex)<a class="headerlink" href="#oidc-without-dex" title="Permanent link">&para;</a></h2>
 <div class="admonition warning">
 <p class="admonition-title">Do you want groups for RBAC later?</p>
-<p>If you want <code>groups</code> scope returned from Okta you need to unforunately contact support to enable <a href="https://developer.okta.com/docs/concepts/api-access-management/">API Access Management with Okta</a> or <a href="#saml-with-dex"><em>just use SAML above!</em></a></p>
+<p>If you want <code>groups</code> scope returned from Okta you need to unfortunately contact support to enable <a href="https://developer.okta.com/docs/concepts/api-access-management/">API Access Management with Okta</a> or <a href="#saml-with-dex"><em>just use SAML above!</em></a></p>
 <p>Next you may need the API Access Management feature, which the support team can enable for your OktaPreview domain for testing, to enable "custom scopes" and a separate endpoint to use instead of the "public" <code>/oauth2/v1/authorize</code> API Access Management endpoint. This might be a paid feature if you want OIDC unfortunately. The free alternative I found was SAML.</p>
 </div>
 <ol>
