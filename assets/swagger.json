@@ -2511,7 +2511,7 @@
     },
     "repocredsRepoCredsResponse": {
       "type": "object",
-      "title": "RepoCredsResponse is a resonse to most repository credentials requests"
+      "title": "RepoCredsResponse is a response to most repository credentials requests"
     },
     "repositoryAppInfo": {
       "type": "object",
