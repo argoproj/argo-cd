@@ -8,7 +8,7 @@ commands:
             set -x
             echo "export GOCACHE=/tmp/go-build-cache" | tee -a $BASH_ENV
             echo "export ARGOCD_TEST_VERBOSE=true" | tee -a $BASH_ENV
-            echo "export ARGOCD_TEST_PARALLELISM=8" | tee -a $BASH_ENV
+            echo "export ARGOCD_TEST_PARALLELISM=4" | tee -a $BASH_ENV
             echo "export ARGOCD_SONAR_VERSION=4.2.0.1873" | tee -a $BASH_ENV
   configure_git:
     steps:
@@ -21,23 +21,13 @@ commands:
             git config --global user.name "Your Name"
             echo "export PATH=/home/circleci/.go_workspace/src/github.com/argoproj/argo-cd/hack:\$PATH" | tee -a $BASH_ENV
             echo "export GIT_ASKPASS=git-ask-pass.sh" | tee -a $BASH_ENV
-  restore_vendor:
+  setup_go_modules:
     steps:
-      - restore_cache:
-          name: Restore vendor cache
-          keys:
-            - vendor-v2-{{ checksum "Gopkg.lock" }}
-  save_vendor:
-    steps:
-      - save_cache:
-          name: Save vendor cache
-          key: vendor-v2-{{ checksum "Gopkg.lock" }}
-          paths:
-            - ./vendor
-      - persist_to_workspace:
-          root: .
-          paths:
-            - vendor
+      - run:
+          name: Run go mod download and populate vendor
+          command: |
+            go mod download
+            go mod vendor
   save_coverage_info:
     steps:
       - persist_to_workspace:
@@ -50,10 +40,16 @@ commands:
           root: ~/argo-cd
           paths:
             - ui/node_modules
-  attach_vendor:
+  save_go_cache:
+    steps:
+      - persist_to_workspace:
+          root: /tmp
+          paths:
+            - go-build-cache
+  attach_go_cache:
     steps:
       - attach_workspace:
-          at: .
+          at: /tmp
   install_golang:
     steps:
       - run:
@@ -64,34 +60,6 @@ commands:
             go env
             echo "export GOPATH=/home/circleci/.go_workspace" | tee -a $BASH_ENV
             echo "export PATH=/home/circleci/sdk/go1.14.1/bin:\$PATH" | tee -a $BASH_ENV
-  save_go_cache:
-    steps:
-      - save_cache:
-          key: go-v2-{{ .Branch }}-{{ .Environment.CIRCLE_JOB }}
-          # https://circleci.com/docs/2.0/language-go/
-          paths:
-            - /home/circleci/.cache/go-build
-            - /home/circleci/sdk/go1.14.1
-  restore_go_cache:
-    steps:
-      - restore_cache:
-          keys:
-            - go-v2-{{ .Branch }}-{{ .Environment.CIRCLE_JOB }}
-
-  save_go_cache_docker:
-    steps:
-      - save_cache:
-          name: Save Go build cache
-          key: go-docker-v2-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}
-          # https://circleci.com/docs/2.0/language-go/
-          paths:
-            - /tmp/go-build-cache
-  restore_go_cache_docker:
-    steps:
-      - restore_cache:
-          name: Restore Go build cache
-          keys:
-            - go-docker-v2-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}
 jobs:
   build:
     docker:
@@ -100,18 +68,10 @@ jobs:
     steps:
       - prepare_environment
       - checkout
-      - restore_vendor
-      - run:
-          name: Ensuring Gopkg.lock is up-to-date
-          command: make dep-check-local
-      - run:
-          name: Syncing vendor dependencies
-          command: dep ensure -v
       - run: make build-local
       - run: chmod -R 777 vendor
       - run: chmod -R 777 ${GOCACHE}
-      - save_vendor
-      - save_go_cache_docker
+      - save_go_cache
 
   codegen:
     docker:
@@ -120,7 +80,7 @@ jobs:
     steps:
       - prepare_environment
       - checkout
-      - restore_vendor
+      - attach_go_cache
       - run: helm2 init --client-only
       - run: make codegen-local
       - run:
@@ -143,9 +103,7 @@ jobs:
       - prepare_environment
       - checkout
       - configure_git
-      - restore_vendor
-      - run: dep ensure -v
-      - restore_go_cache_docker
+      - attach_go_cache
       - run: make test-local
       - run:
           name: Uploading code coverage
@@ -170,9 +128,8 @@ jobs:
       - prepare_environment
       - checkout
       - configure_git
-      - restore_vendor
-      - run: dep ensure -v
-      - restore_go_cache_docker
+      - attach_vendor
+      - store_go_cache_docker
       - run:
           name: Run golangci-lint
           command: ARGOCD_LINT_GOGC=10 make lint-local
@@ -263,16 +220,15 @@ jobs:
             INSTALL_K3S_EXEC: --docker
             INSTALL_K3S_VERSION: v0.5.0
       - prepare_environment
-      - restore_go_cache_docker
       - checkout
-      - restore_cache:
-          keys: [e2e-dl-v2]
-      - run: sudo ./hack/install.sh dep-linux
-      - save_cache:
-          key: e2e-dl-v2
-          paths: [/tmp/dl]
-      - attach_vendor
-      - run: dep ensure -v
+      - run:
+          name: Fix permissions on filesystem
+          command: |
+            mkdir -p /home/circleci/.go_workspace/pkg/mod
+            chmod -R 777 /home/circleci/.go_workspace/pkg/mod
+            mkdir -p /tmp/go-build-cache
+            chmod -R 777 /tmp/go-build-cache
+      - attach_go_cache
       - run:
           name: Update kubectl configuration for container
           command: |
@@ -292,6 +248,7 @@ jobs:
             DOCKER_SRCDIR: /home/circleci/.go_workspace/src
             ARGOCD_E2E_TEST: "true"
             ARGOCD_IN_CI: "true"
+            GOPATH: /home/circleci/.go_workspace
       - run:
           name: Wait for API server to become available
           command: |
@@ -313,6 +270,7 @@ jobs:
             ARGOCD_E2E_K3S: "true"
             IFACE: ens4
             DOCKER_SRCDIR: /home/circleci/.go_workspace/src
+            GOPATH: /home/circleci/.go_workspace
       - store_test_results:
           path: test-results
       - store_artifacts:
