@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	gooidc "github.com/coreos/go-oidc"
@@ -253,7 +254,12 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("invalid session token: %v", err), http.StatusInternalServerError)
 		return
 	}
-	flags := []string{"path=/"}
+	path := "/"
+	if a.baseHRef != "" {
+	    path = strings.TrimRight(strings.TrimLeft(a.baseHRef, "/"), "/")
+	}
+	cookiePath := fmt.Sprintf("path=/%s", path)
+	flags := []string{cookiePath, "SameSite=lax", "httpOnly"}
 	if a.secureCookie {
 		flags = append(flags, "Secure")
 	}
