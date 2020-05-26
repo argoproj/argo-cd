@@ -5,7 +5,7 @@
 Lots of issues on our issue tracker. Many of them not bugs, but questions,
 or very environment related. It's easy to lose oversight.
 
-Also, it's not obvous which bugs are important. Which bugs should be fixed
+Also, it's not obvious which bugs are important. Which bugs should be fixed
 first? Can we make a new release with the current inventory of open bugs?
 Is there still a bug that should make it to the new release?
 

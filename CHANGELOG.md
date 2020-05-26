@@ -442,7 +442,7 @@ https://youtu.be/GP7xtrnNznw
 
 ##### Orphan Resources
 
-Some users would like to make sure that resources in a namespace are managed only by Argo CD. So we've introduced the concept of an "orphan resource" - any resource that is in namespace associated with an app, but not managed by Argo CD. This is enabled in the project settings. Once enabled, Argo CD will show in the app view any resources in the app's namepspace that is not mananged by Argo CD. 
+Some users would like to make sure that resources in a namespace are managed only by Argo CD. So we've introduced the concept of an "orphan resource" - any resource that is in namespace associated with an app, but not managed by Argo CD. This is enabled in the project settings. Once enabled, Argo CD will show in the app view any resources in the app's namespace that is not managed by Argo CD. 
 
 https://youtu.be/9ZoTevVQf5I
 
@@ -485,7 +485,7 @@ There may be instances when you want to control the times during which an Argo C
 #### Bug Fixes
 
 - failed parsing on parameters with comma (#1660)
-- Statefuleset with OnDelete Update Strategy stuck progressing (#1881)
+- Statefulset with OnDelete Update Strategy stuck progressing (#1881)
 - Warning during secret diffing (#1923)
 - Error message "Unable to load data: key is missing" is confusing (#1944)
 - OIDC group bindings are truncated (#2006)
@@ -524,7 +524,7 @@ There may be instances when you want to control the times during which an Argo C
 - Creating an application from Helm repository should select "Helm" as source type (#2378)
 - The parameters of ValidateAccess GRPC method should not be logged  (#2386)
 - Maintenance window meaning is confusing (#2398)
-- UI bug when targetRevision is ommited (#2407)
+- UI bug when targetRevision is omitted (#2407)
 - Too many vulnerabilities in Docker image (#2425)
 - proj windows commands not consistent with other commands (#2443)
 - Custom resource actions cannot be executed from the UI (#2448)
@@ -618,7 +618,7 @@ Support for Git LFS enabled repositories - now you can store Helm charts as tar 
 + Added 'SyncFail' to possible HookTypes in UI (#2147)
 + Support for Git LFS enabled repositories (#1853)
 + Server certificate and known hosts management (#1514)
-+ Client HTTPS certifcates for private git repositories (#1945)
++ Client HTTPS certificates for private git repositories (#1945)
 + Badge for application status (#1435)
 + Make the health check for APIService a built in (#1841)
 + Bitbucket Server and Gogs webhook providers (#1269)
@@ -658,7 +658,7 @@ Support for Git LFS enabled repositories - now you can store Helm charts as tar 
 - Fix history api fallback implementation to support app names with dots (#2114)
 - Fixes some code issues related to Kustomize build options. (#2146)
 - Adds checks around valid paths for apps (#2133)
-- Enpoint incorrectly considered top level managed resource (#2060)
+- Endpoint incorrectly considered top level managed resource (#2060)
 - Allow adding certs for hostnames ending on a dot (#2116)
 
 #### Other
@@ -981,7 +981,7 @@ Argo CD introduces some additional CLI commands:
 #### Label selector changes, dex-server rename
 
 The label selectors for deployments were been renamed to use kubernetes common labels
-(`app.kuberentes.io/name=NAME` instead of `app=NAME`). Since K8s deployment label selectors are
+(`app.kubernetes.io/name=NAME` instead of `app=NAME`). Since K8s deployment label selectors are
 immutable, during an upgrade from v0.11 to v0.12, the old deployments should be deleted using
 `--cascade=false` which allows the new deployments to be created without introducing downtime.
 Once the new deployments are ready, the older replicasets can be deleted. Use the following
@@ -1078,7 +1078,7 @@ has a minimum client version of v0.12.0. Older CLI clients will be rejected.
 - Fix CRD creation/deletion handling (#1249)
 - Git cloning via SSH was not verifying host public key (#1276)
 - Fixed multiple goroutine leaks in controller and api-server
-- Fix isssue where `argocd app set -p` required repo privileges. (#1280)
+- Fix issue where `argocd app set -p` required repo privileges. (#1280)
 - Fix local diff of non-namespaced resources. Also handle duplicates in local diff (#1289)
 - Deprecated resource kinds from 'extensions' groups are not reconciled correctly (#1232)
 - Fix issue where CLI would panic after timeout when cli did not have get permissions (#1209)
@@ -1256,7 +1256,7 @@ which have a dependency to external helm repositories.
 
 + Allow more fine-grained sync (issue #508)
 + Display init container logs (issue #681)
-+ Redirect to /auth/login instead of /login when SSO token is used for authenticaion (issue #348)
++ Redirect to /auth/login instead of /login when SSO token is used for authentication (issue #348)
 + Support ability to use a helm values files from a URL (issue #624)
 + Support public not-connected repo in app creation UI (issue #426)
 + Use ksonnet CLI instead of ksonnet libs (issue #626)
@@ -1531,7 +1531,7 @@ RBAC policy rules, need to be rewritten to include one extra column with the eff
 + Sync/Rollback/Delete is asynchronously handled by controller
 * Refactor CRUD operation on clusters and repos
 * Sync will always perform kubectl apply
-* Synced Status considers last-applied-configuration annotatoin
+* Synced Status considers last-applied-configuration annotation
 * Server & namespace are mandatory fields (still inferred from app.yaml)
 * Manifests are memoized in repo server
 - Fix connection timeouts to SSH repos
