@@ -59,8 +59,7 @@ func NewLiveStateCache(
 	settingsMgr *settings.SettingsManager,
 	kubectl kube.Kubectl,
 	metricsServer *metrics.MetricsServer,
-	onObjectUpdated ObjectUpdatedHandler,
-	namespace string) LiveStateCache {
+	onObjectUpdated ObjectUpdatedHandler) LiveStateCache {
 
 	return &liveStateCache{
 		appInformer:     appInformer,
@@ -70,7 +69,6 @@ func NewLiveStateCache(
 		kubectl:         kubectl,
 		settingsMgr:     settingsMgr,
 		metricsServer:   metricsServer,
-		namespace:       namespace,
 	}
 }
 
@@ -85,7 +83,6 @@ type liveStateCache struct {
 	metricsServer       *metrics.MetricsServer
 	cacheSettings       clustercache.Settings
 	appInstanceLabelKey string
-	namespace           string
 }
 
 func (c *liveStateCache) loadCacheSettings() (*clustercache.Settings, string, error) {
