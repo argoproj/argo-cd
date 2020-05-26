@@ -455,7 +455,7 @@ func TestGetTLSCertificateDataPath(t *testing.T) {
 	})
 }
 
-func TestGetSSHKnownHostseDataPath(t *testing.T) {
+func TestGetSSHKnownHostsDataPath(t *testing.T) {
 	t.Run("Get default path", func(t *testing.T) {
 		os.Setenv(common.EnvVarSSHDataPath, "")
 		p := GetSSHKnownHostsDataPath()
