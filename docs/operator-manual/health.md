@@ -3,7 +3,7 @@
 ## Overview
 Argo CD provides built-in health assessment for several standard Kubernetes types, which is then
 surfaced to the overall Application health status as a whole. The following checks are made for
-specific types of kuberentes resources:
+specific types of kubernetes resources:
 
 ### Deployment, ReplicaSet, StatefulSet DaemonSet
 * Observed generation is equal to desired generation.

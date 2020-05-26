@@ -60,7 +60,7 @@ The information is used to reconstruct a REST config and kubeconfig to the clust
 services.
 
 To rotate the bearer token used by Argo CD, the token can be deleted (e.g. using kubectl) which
-causes kuberentes to generate a new secret with a new bearer token. The new token can be re-inputted
+causes kubernetes to generate a new secret with a new bearer token. The new token can be re-inputted
 to Argo CD by re-running `argocd cluster add`. Run the following commands against the *_managed_*
 cluster:
 

@@ -981,7 +981,7 @@ Argo CD introduces some additional CLI commands:
 #### Label selector changes, dex-server rename
 
 The label selectors for deployments were been renamed to use kubernetes common labels
-(`app.kuberentes.io/name=NAME` instead of `app=NAME`). Since K8s deployment label selectors are
+(`app.kubernetes.io/name=NAME` instead of `app=NAME`). Since K8s deployment label selectors are
 immutable, during an upgrade from v0.11 to v0.12, the old deployments should be deleted using
 `--cascade=false` which allows the new deployments to be created without introducing downtime.
 Once the new deployments are ready, the older replicasets can be deleted. Use the following
