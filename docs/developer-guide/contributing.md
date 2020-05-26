@@ -162,7 +162,7 @@ When you have developed and possibly manually tested the code you want to contri
 
 ### Pull in all build dependencies
 
-As build dependencies change over time, you have to synchronize your development environment with the current specification. In order to pull in all required depencies, issue:
+As build dependencies change over time, you have to synchronize your development environment with the current specification. In order to pull in all required dependencies, issue:
 
 * `make dep`
 * `make dep-ensure`
