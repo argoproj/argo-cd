@@ -34,7 +34,7 @@ The Docker version must be fairly recent, and support multi-stage builds. You sh
 
 When you submit a PR against ArgoCD's GitHub repository, a couple of CI checks will be run automatically to ensure your changes will build fine and meet certain quality standards. Your contribution needs to pass those checks in order to be merged into the repository.
 
-In general, it might be benefical to only submit a PR for an existing issue. Especially for larger changes, an Enhancement Proposal should exist before.
+In general, it might be beneficial to only submit a PR for an existing issue. Especially for larger changes, an Enhancement Proposal should exist before.
 
 !!!note
 
