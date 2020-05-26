@@ -21,7 +21,7 @@ MOD_ROOT=${GOPATH}/pkg/mod
 
 . ${PROJECT_ROOT}/hack/versions.sh
 
-# protbuf tooling required to build .proto files from go annotations from k8s-like api types
+# protobuf tooling required to build .proto files from go annotations from k8s-like api types
 go build -i -o dist/go-to-protobuf ./vendor/k8s.io/code-generator/cmd/go-to-protobuf
 go build -i -o dist/protoc-gen-gogo ./vendor/k8s.io/code-generator/cmd/go-to-protobuf/protoc-gen-gogo
 
