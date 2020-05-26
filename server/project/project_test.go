@@ -459,14 +459,14 @@ p, role:admin, projects, update, *, allow`)
 	t.Run("TestAddWildcardSource", func(t *testing.T) {
 
 		proj := existingProj.DeepCopy()
-		wildSouceRepo := "*"
-		proj.Spec.SourceRepos = append(proj.Spec.SourceRepos, wildSouceRepo)
+		wildSourceRepo := "*"
+		proj.Spec.SourceRepos = append(proj.Spec.SourceRepos, wildSourceRepo)
 
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(proj), enforcer, util.NewKeyLock(), nil, policyEnf)
 		request := &project.ProjectUpdateRequest{Project: proj}
 		updatedProj, err := projectServer.Update(context.Background(), request)
 		assert.Nil(t, err)
-		assert.Equal(t, wildSouceRepo, updatedProj.Spec.SourceRepos[1])
+		assert.Equal(t, wildSourceRepo, updatedProj.Spec.SourceRepos[1])
 	})
 
 	t.Run("TestCreateRolePolicySuccessfully", func(t *testing.T) {
