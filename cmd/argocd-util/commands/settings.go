@@ -487,6 +487,9 @@ argocd-util settings resource-overrides action list /tmp/deploy.yaml --argocd-cm
 
 				availableActions, err := luaVM.ExecuteResourceActionDiscovery(&res, discoveryScript)
 				errors.CheckError(err)
+				sort.Slice(availableActions, func(i, j int) bool {
+					return availableActions[i].Name < availableActions[j].Name
+				})
 
 				w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 				_, _ = fmt.Fprintf(w, "NAME\tENABLED\n")
