@@ -17,13 +17,13 @@ func TestRedisSetCache(t *testing.T) {
 	defer mr.Close()
 	assert.NotNil(t, mr)
 
-	t.Run("Successfull set", func(t *testing.T) {
+	t.Run("Successful set", func(t *testing.T) {
 		client := NewRedisCache(redis.NewClient(&redis.Options{Addr: mr.Addr()}), 60*time.Second)
 		err = client.Set(&Item{Key: "foo", Object: "bar"})
 		assert.NoError(t, err)
 	})
 
-	t.Run("Successfull get", func(t *testing.T) {
+	t.Run("Successful get", func(t *testing.T) {
 		var res string
 		client := NewRedisCache(redis.NewClient(&redis.Options{Addr: mr.Addr()}), 10*time.Second)
 		err = client.Get("foo", &res)
@@ -31,7 +31,7 @@ func TestRedisSetCache(t *testing.T) {
 		assert.Equal(t, res, "bar")
 	})
 
-	t.Run("Successfull delete", func(t *testing.T) {
+	t.Run("Successful delete", func(t *testing.T) {
 		client := NewRedisCache(redis.NewClient(&redis.Options{Addr: mr.Addr()}), 10*time.Second)
 		err = client.Delete("foo")
 		assert.NoError(t, err)
