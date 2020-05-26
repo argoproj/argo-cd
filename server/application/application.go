@@ -844,7 +844,7 @@ func (s *Server) PatchResource(ctx context.Context, q *application.ApplicationRe
 	}, nil
 }
 
-// DeleteResource deletes a specificed resource
+// DeleteResource deletes a specified resource
 func (s *Server) DeleteResource(ctx context.Context, q *application.ApplicationResourceDeleteRequest) (*application.ApplicationResponse, error) {
 	resourceRequest := &application.ApplicationResourceRequest{
 		Name:         q.Name,
