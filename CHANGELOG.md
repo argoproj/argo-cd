@@ -658,7 +658,7 @@ Support for Git LFS enabled repositories - now you can store Helm charts as tar 
 - Fix history api fallback implementation to support app names with dots (#2114)
 - Fixes some code issues related to Kustomize build options. (#2146)
 - Adds checks around valid paths for apps (#2133)
-- Enpoint incorrectly considered top level managed resource (#2060)
+- Endpoint incorrectly considered top level managed resource (#2060)
 - Allow adding certs for hostnames ending on a dot (#2116)
 
 #### Other
