@@ -213,7 +213,7 @@ For development, you can either use the fully virtualized toolchain provided as 
 !!!note
     The installations instructions are valid for Linux hosts only. Mac instructions will follow shortly.
 
-For installing the tools required to build and test ArgoCD on your local system, we provide convinient installer scripts. By default, they will install binaries to `/usr/local/bin` on your system, which might require `root` privileges.
+For installing the tools required to build and test ArgoCD on your local system, we provide convenient installer scripts. By default, they will install binaries to `/usr/local/bin` on your system, which might require `root` privileges.
 
 You can change the target location by setting the `BIN` environment before running the installer scripts. For example, you can install the binaries into `~/go/bin` (which should then be the first component in your `PATH` environment, i.e. `export PATH=~/go/bin:$PATH`):
 
