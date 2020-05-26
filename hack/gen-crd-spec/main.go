@@ -45,7 +45,7 @@ func getCustomResourceDefinitions() map[string]*extensionsobj.CustomResourceDefi
 
 		// We need to completely remove validation of problematic fields such as creationTimestamp,
 		// which get marshalled to `null`, but are typed as as a `string` during Open API validation
-		removeValidataion(un, "metadata.creationTimestamp")
+		removeValidation(un, "metadata.creationTimestamp")
 
 		crd := toCRD(un)
 		crd.Labels = map[string]string{
@@ -65,7 +65,7 @@ func deleteFile(path string) {
 	checkErr(os.Remove(path))
 }
 
-func removeValidataion(un *unstructured.Unstructured, path string) {
+func removeValidation(un *unstructured.Unstructured, path string) {
 	schemaPath := []string{"spec", "validation", "openAPIV3Schema"}
 	for _, part := range strings.Split(path, ".") {
 		schemaPath = append(schemaPath, "properties", part)
