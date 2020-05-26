@@ -37,7 +37,7 @@ func TestRefreshApp(t *testing.T) {
 	appIf := appClientset.ArgoprojV1alpha1().Applications("default")
 	_, err := RefreshApp(appIf, "test-app", argoappv1.RefreshTypeNormal)
 	assert.Nil(t, err)
-	// For some reason, the fake Application inferface doesn't reflect the patch status after Patch(),
+	// For some reason, the fake Application interface doesn't reflect the patch status after Patch(),
 	// so can't verify it was set in unit tests.
 	//_, ok := newApp.Annotations[common.AnnotationKeyRefresh]
 	//assert.True(t, ok)
