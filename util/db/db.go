@@ -17,7 +17,6 @@ type ArgoDB interface {
 	CreateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Cluster, error)
 	// WatchClusters allow watching for cluster informer
 	WatchClusters(ctx context.Context,
-		namespace string,
 		handleAddEvent func(cluster *appv1.Cluster),
 		handleModEvent func(oldCluster *appv1.Cluster, newCluster *appv1.Cluster),
 		handleDeleteEvent func(clusterServer string)) error

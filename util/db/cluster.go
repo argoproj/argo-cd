@@ -123,7 +123,6 @@ type ClusterEvent struct {
 }
 
 func (db *db) WatchClusters(ctx context.Context,
-	namespace string,
 	handleAddEvent func(cluster *appv1.Cluster),
 	handleModEvent func(oldCluster *appv1.Cluster, newCluster *appv1.Cluster),
 	handleDeleteEvent func(clusterServer string)) error {
@@ -169,14 +168,8 @@ func (db *db) WatchClusters(ctx context.Context,
 		UpdateFunc: func(oldObj, newObj interface{}) {
 			if oldSecretObj, ok := oldObj.(*apiv1.Secret); ok {
 				if newSecretObj, ok := newObj.(*apiv1.Secret); ok {
-					oldCluster, err := db.GetCluster(context.Background(), string(oldSecretObj.Data["server"]))
-					if err != nil {
-						return
-					}
-					newCluster, err := db.GetCluster(context.Background(), string(newSecretObj.Data["server"]))
-					if err != nil {
-						return
-					}
+					oldCluster := secretToCluster(oldSecretObj)
+					newCluster := secretToCluster(newSecretObj)
 					if newCluster.Server == common.KubernetesInternalAPIServerAddr {
 						localCls = newCluster
 					}
@@ -186,7 +179,7 @@ func (db *db) WatchClusters(ctx context.Context,
 		},
 	}
 	indexers := cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}
-	clusterSecretInformer := informerv1.NewFilteredSecretInformer(db.kubeclientset, namespace, 3*time.Minute, indexers, clusterSecretListOptions)
+	clusterSecretInformer := informerv1.NewFilteredSecretInformer(db.kubeclientset, db.ns, 3*time.Minute, indexers, clusterSecretListOptions)
 	clusterSecretInformer.AddEventHandler(clusterEventHandler)
 	log.Info("Starting clusterSecretInformer informers")
 	go func() {
@@ -194,7 +187,10 @@ func (db *db) WatchClusters(ctx context.Context,
 		log.Info("clusterSecretInformer cancelled")
 	}()
 
-	select {}
+	select {
+	case <-ctx.Done():
+	}
+	return err
 }
 
 func (db *db) getClusterSecret(server string) (*apiv1.Secret, error) {

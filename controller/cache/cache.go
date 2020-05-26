@@ -392,10 +392,9 @@ func (c *liveStateCache) Run(ctx context.Context) error {
 
 	go c.watchSettings(ctx)
 
-	err = c.db.WatchClusters(ctx, c.namespace, c.handleAddEvent, c.handleModEvent, c.handleDeleteEvent)
-	if err != nil {
-		return err
-	}
+	kube.RetryUntilSucceed(func() error {
+		return c.db.WatchClusters(ctx, c.handleAddEvent, c.handleModEvent, c.handleDeleteEvent)
+	}, "watch clusters", ctx, clustercache.ClusterRetryTimeout)
 
 	<-ctx.Done()
 	c.invalidate(c.cacheSettings, c.appInstanceLabelKey)
@@ -403,7 +402,9 @@ func (c *liveStateCache) Run(ctx context.Context) error {
 }
 
 func (c *liveStateCache) handleAddEvent(cluster *appv1.Cluster) {
+	c.lock.Lock()
 	_, ok := c.clusters[cluster.Server]
+	c.lock.Unlock()
 	if !ok {
 		if isClusterHasApps(c.appInformer.GetStore().List(), cluster) {
 			go func() {
@@ -419,7 +420,9 @@ func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *a
 	if newCluster == nil {
 		return
 	}
+	c.lock.Lock()
 	cluster, ok := c.clusters[newCluster.Server]
+	c.lock.Unlock()
 	if ok {
 		if oldCluster == nil {
 			bToInvalidate = true
