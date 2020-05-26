@@ -1078,7 +1078,7 @@ has a minimum client version of v0.12.0. Older CLI clients will be rejected.
 - Fix CRD creation/deletion handling (#1249)
 - Git cloning via SSH was not verifying host public key (#1276)
 - Fixed multiple goroutine leaks in controller and api-server
-- Fix isssue where `argocd app set -p` required repo privileges. (#1280)
+- Fix issue where `argocd app set -p` required repo privileges. (#1280)
 - Fix local diff of non-namespaced resources. Also handle duplicates in local diff (#1289)
 - Deprecated resource kinds from 'extensions' groups are not reconciled correctly (#1232)
 - Fix issue where CLI would panic after timeout when cli did not have get permissions (#1209)
