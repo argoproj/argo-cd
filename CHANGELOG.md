@@ -1531,7 +1531,7 @@ RBAC policy rules, need to be rewritten to include one extra column with the eff
 + Sync/Rollback/Delete is asynchronously handled by controller
 * Refactor CRUD operation on clusters and repos
 * Sync will always perform kubectl apply
-* Synced Status considers last-applied-configuration annotatoin
+* Synced Status considers last-applied-configuration annotation
 * Server & namespace are mandatory fields (still inferred from app.yaml)
 * Manifests are memoized in repo server
 - Fix connection timeouts to SSH repos
