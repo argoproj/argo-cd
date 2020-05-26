@@ -52,7 +52,7 @@ func (redis *redisStateStorage) get(key string) (int, error) {
 }
 
 // NewLoginRateLimiter creates a function which enforces max number of concurrent login requests.
-// Function returns closer that should be closed when loging request has completed or error if number
+// Function returns closer that should be closed when logging request has completed or error if number
 // of incomplete requests exceeded max number.
 func NewLoginRateLimiter(storage stateStorage, maxNumber int) func() (util.Closer, error) {
 	runLocked := func(callback func() error) error {
