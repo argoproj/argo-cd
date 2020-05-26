@@ -17,7 +17,7 @@ in one of the following ways:
 
 2. For Single Sign-On users, the user completes an OAuth2 login flow to the configured OIDC identity
    provider (either delegated through the bundled Dex provider, or directly to a self-managed OIDC
-   provider). This JWT is signed & issued by the IDP, and expiration and revokation is handled by
+   provider). This JWT is signed & issued by the IDP, and expiration and revocation is handled by
    the provider. Dex tokens expire after 24 hours.
 
 3. Automation tokens are generated for a project using the `/api/v1/projects/{project}/roles/{role}/token`
@@ -83,7 +83,7 @@ argocd cluster rm https://your-kubernetes-cluster-addr
 <!-- markdownlint-disable MD027 -->
 > NOTE: for AWS EKS clusters, [aws-iam-authenticator](https://github.com/kubernetes-sigs/aws-iam-authenticator)
   is used to authenticate to the external cluster, which uses IAM roles in lieu of locally stored
-  tokens, so token rotation is not needed, and revokation is handled through IAM.
+  tokens, so token rotation is not needed, and revocation is handled through IAM.
 <!-- markdownlint-enable MD027 -->
 
 ## Cluster RBAC
