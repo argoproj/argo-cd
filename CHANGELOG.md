@@ -1256,7 +1256,7 @@ which have a dependency to external helm repositories.
 
 + Allow more fine-grained sync (issue #508)
 + Display init container logs (issue #681)
-+ Redirect to /auth/login instead of /login when SSO token is used for authenticaion (issue #348)
++ Redirect to /auth/login instead of /login when SSO token is used for authentication (issue #348)
 + Support ability to use a helm values files from a URL (issue #624)
 + Support public not-connected repo in app creation UI (issue #426)
 + Use ksonnet CLI instead of ksonnet libs (issue #626)
