@@ -277,7 +277,7 @@ func MatchHostName(hostname, pattern string) bool {
 	return match
 }
 
-// Convinience wrapper around SSHFingerprintSHA256
+// Convenience wrapper around SSHFingerprintSHA256
 func SSHFingerprintSHA256FromString(key string) string {
 	pubKey, _, _, _, err := ssh.ParseAuthorizedKey([]byte(key))
 	if err != nil {
