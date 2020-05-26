@@ -760,7 +760,7 @@ func (m *KustomizeAppSpec) GetImages() []string {
 type KsonnetEnvironment struct {
 	// Name is the user defined name of an environment
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// KubernetesVersion is the kubernetes version the targetted cluster is running on.
+	// KubernetesVersion is the kubernetes version the targeted cluster is running on.
 	K8SVersion string `protobuf:"bytes,2,opt,name=k8sVersion,proto3" json:"k8sVersion,omitempty"`
 	// Destination stores the cluster address that this environment points to.
 	Destination          *KsonnetEnvironmentDestination `protobuf:"bytes,4,opt,name=destination,proto3" json:"destination,omitempty"`

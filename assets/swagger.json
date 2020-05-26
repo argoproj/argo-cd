@@ -2615,7 +2615,7 @@
           "$ref": "#/definitions/repositoryKsonnetEnvironmentDestination"
         },
         "k8sVersion": {
-          "description": "KubernetesVersion is the kubernetes version the targetted cluster is running on.",
+          "description": "KubernetesVersion is the kubernetes version the targeted cluster is running on.",
           "type": "string"
         },
         "name": {

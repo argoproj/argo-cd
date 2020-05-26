@@ -98,7 +98,7 @@ message KustomizeAppSpec {
 message KsonnetEnvironment {
     // Name is the user defined name of an environment
     string name = 1;
-    // KubernetesVersion is the kubernetes version the targetted cluster is running on.
+    // KubernetesVersion is the kubernetes version the targeted cluster is running on.
     string k8sVersion = 2;
     // Destination stores the cluster address that this environment points to.
     KsonnetEnvironmentDestination destination = 4;
