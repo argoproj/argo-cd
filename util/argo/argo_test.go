@@ -111,7 +111,7 @@ func TestContainsSyncResource(t *testing.T) {
 
 	for _, table := range tables {
 		if out := ContainsSyncResource(table.u.GetName(), table.u.GroupVersionKind(), table.rr); out != table.expected {
-			t.Errorf("Expected %t for slice %+v conains resource %+v; instead got %t", table.expected, table.rr, table.u, out)
+			t.Errorf("Expected %t for slice %+v contains resource %+v; instead got %t", table.expected, table.rr, table.u, out)
 		}
 	}
 }
