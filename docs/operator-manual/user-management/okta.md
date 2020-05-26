@@ -12,7 +12,7 @@ A working Single Sign-On configuration using Okta via at least two methods was a
 
 1. Create a new SAML application in Okta UI.
     * ![Okta SAML App 1](../../assets/saml-1.png)
-        I've disabled `App Visibility` because Dex doesn't support Provider-initated login flows.
+        I've disabled `App Visibility` because Dex doesn't support Provider-initiated login flows.
     * ![Okta SAML App 2](../../assets/saml-2.png)
 1. Click `View setup instructions` after creating the application in Okta.
     * ![Okta SAML App 3](../../assets/saml-3.png)
