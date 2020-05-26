@@ -540,7 +540,7 @@ func (o SyncOptions) HasOption(option string) bool {
 type SyncPolicy struct {
 	// Automated will keep an application synced to the target revision
 	Automated *SyncPolicyAutomated `json:"automated,omitempty" protobuf:"bytes,1,opt,name=automated"`
-	// Options allow youe to specify whole app sync-options
+	// Options allow you to specify whole app sync-options
 	SyncOptions SyncOptions `json:"syncOptions,omitempty" protobuf:"bytes,2,opt,name=syncOptions"`
 }
 

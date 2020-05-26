@@ -4590,7 +4590,7 @@
         },
         "syncOptions": {
           "type": "array",
-          "title": "Options allow youe to specify whole app sync-options",
+          "title": "Options allow you to specify whole app sync-options",
           "items": {
             "type": "string"
           }
