@@ -121,15 +121,24 @@ func TestAddHelmRepoInsecureSkipVerify(t *testing.T) {
 			"--insecure-skip-server-verification",
 			"--tls-client-cert-path", repos.CertPath,
 			"--tls-client-cert-key-path", repos.CertKeyPath)
-		assert.NoError(t, err)
+
+		if !assert.NoError(t, err) {
+			return
+		}
 
 		conn, repoClient, err := fixture.ArgoCDClientset.NewRepoClient()
-		assert.NoError(t, err)
+		if !assert.NoError(t, err) {
+			return
+		}
+
 		defer argoio.Close(conn)
 
 		repo, err := repoClient.List(context.Background(), &repositorypkg.RepoQuery{})
 
-		assert.NoError(t, err)
+		if !assert.NoError(t, err) {
+			return
+		}
+
 		exists := false
 		for i := range repo.Items {
 			if repo.Items[i].Repo == fixture.RepoURL(fixture.RepoURLTypeHelm) {
