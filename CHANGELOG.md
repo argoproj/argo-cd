@@ -524,7 +524,7 @@ There may be instances when you want to control the times during which an Argo C
 - Creating an application from Helm repository should select "Helm" as source type (#2378)
 - The parameters of ValidateAccess GRPC method should not be logged  (#2386)
 - Maintenance window meaning is confusing (#2398)
-- UI bug when targetRevision is ommited (#2407)
+- UI bug when targetRevision is omitted (#2407)
 - Too many vulnerabilities in Docker image (#2425)
 - proj windows commands not consistent with other commands (#2443)
 - Custom resource actions cannot be executed from the UI (#2448)
