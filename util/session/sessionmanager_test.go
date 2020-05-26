@@ -270,7 +270,7 @@ func TestLoginRateLimiter(t *testing.T) {
 		}
 
 		storage.attempts = map[string]LoginAttempts{}
-		// Failed counter should have been reseted, should validate immediately
+		// Failed counter should have been reset, should validate immediately
 		{
 			err := mgr.VerifyUsernamePassword("admin", "password")
 			assert.NoError(t, err)
