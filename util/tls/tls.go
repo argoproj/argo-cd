@@ -79,7 +79,7 @@ func getTLSVersionByString(version string) (uint16, error) {
 	return 0, fmt.Errorf("%s is not valid TLS version", version)
 }
 
-// Parse colon seperated string representation of TLS cipher suites into array of values usable by crypto/tls
+// Parse colon separated string representation of TLS cipher suites into array of values usable by crypto/tls
 func getTLSCipherSuitesByString(cipherSuites string) ([]uint16, error) {
 	suiteMap := make(map[string]uint16)
 	for _, s := range tls.CipherSuites() {
