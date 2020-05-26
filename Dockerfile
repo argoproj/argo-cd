@@ -100,10 +100,15 @@ FROM golang:1.14.1 as argocd-build
 
 COPY --from=builder /usr/local/bin/packr /usr/local/bin/packr
 
-# Perform the build
 WORKDIR /go/src/github.com/argoproj/argo-cd
-COPY . .
+
+COPY go.mod go.mod
+COPY go.sum go.sum
+
 RUN go mod download
+
+# Perform the build
+COPY . .
 RUN make cli server controller repo-server argocd-util && \
     make CLI_NAME=argocd-darwin-amd64 GOOS=darwin cli && \
     make CLI_NAME=argocd-windows-amd64.exe GOOS=windows cli
