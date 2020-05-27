@@ -105,8 +105,8 @@ func TestSub(t *testing.T) {
 }
 
 func TestGroups(t *testing.T) {
-	assert.Empty(t, Groups(loggedOutContext))
-	assert.Equal(t, []string{"baz"}, Groups(loggedInContext))
+	assert.Empty(t, Groups(loggedOutContext, []string{"groups"}))
+	assert.Equal(t, []string{"baz"}, Groups(loggedInContext, []string{"groups"}))
 }
 
 func TestVerifyUsernamePassword(t *testing.T) {

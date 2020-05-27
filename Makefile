@@ -8,7 +8,7 @@ BUILD_DATE=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
 GIT_COMMIT=$(shell git rev-parse HEAD)
 GIT_TAG=$(shell if [ -z "`git status --porcelain`" ]; then git describe --exact-match --tags HEAD 2>/dev/null; fi)
 GIT_TREE_STATE=$(shell if [ -z "`git status --porcelain`" ]; then echo "clean" ; else echo "dirty"; fi)
-PACKR_CMD=$(shell if [ "`which packr`" ]; then echo "packr"; else echo "go run vendor/github.com/gobuffalo/packr/packr/main.go"; fi)
+PACKR_CMD=$(shell if [ "`which packr`" ]; then echo "packr"; else echo "go run github.com/gobuffalo/packr/packr"; fi)
 VOLUME_MOUNT=$(shell if test "$(go env GOOS)" = "darwin"; then echo ":delegated"; elif test selinuxenabled; then echo ":Z"; else echo ""; fi)
 
 GOPATH?=$(shell if test -x `which go`; then go env GOPATH; else echo "$(HOME)/go"; fi)
@@ -53,6 +53,7 @@ define run-in-test-server
 		-e ARGOCD_E2E_TEST=$(ARGOCD_E2E_TEST) \
 		-e ARGOCD_E2E_YARN_HOST=$(ARGOCD_E2E_YARN_HOST) \
 		-v ${DOCKER_SRCDIR}:/go/src${VOLUME_MOUNT} \
+		-v ${GOPATH}/pkg/mod:/go/pkg/mod${VOLUME_MOUNT} \
 		-v ${GOCACHE}:/tmp/go-build-cache${VOLUME_MOUNT} \
 		-v ${HOME}/.kube:/home/user/.kube${VOLUME_MOUNT} \
 		-v /tmp:/tmp${VOLUME_MOUNT} \
@@ -74,6 +75,7 @@ define run-in-test-client
 		-e GOCACHE=/tmp/go-build-cache \
 		-e ARGOCD_LINT_GOGC=$(ARGOCD_LINT_GOGC) \
 		-v ${DOCKER_SRCDIR}:/go/src${VOLUME_MOUNT} \
+		-v ${GOPATH}/pkg/mod:/go/pkg/mod${VOLUME_MOUNT} \
 		-v ${GOCACHE}:/tmp/go-build-cache${VOLUME_MOUNT} \
 		-v ${HOME}/.kube:/home/user/.kube${VOLUME_MOUNT} \
 		-v /tmp:/tmp${VOLUME_MOUNT} \
@@ -129,22 +131,26 @@ all: cli image argocd-util
 
 .PHONY: gogen
 gogen:
+	export GO111MODULE=off
 	go generate ./util/argo/...
 
 .PHONY: protogen
 protogen:
+	export GO111MODULE=off
 	./hack/generate-proto.sh
 
 .PHONY: openapigen
 openapigen:
+	export GO111MODULE=off
 	./hack/update-openapi.sh
 
 .PHONY: clientgen
 clientgen:
+	export GO111MODULE=off
 	./hack/update-codegen.sh
 
 .PHONY: codegen-local
-codegen-local: gogen protogen clientgen openapigen manifests-local
+codegen-local: mod-vendor-local gogen protogen clientgen openapigen manifests-local
 
 .PHONY: codegen
 codegen:
@@ -205,7 +211,7 @@ controller:
 
 .PHONY: packr
 packr:
-	go build -o ${DIST_DIR}/packr ./vendor/github.com/gobuffalo/packr/packr/
+	go build -o ${DIST_DIR}/packr github.com/gobuffalo/packr/packr/
 
 .PHONY: image
 ifeq ($(DEV_IMAGE), true)
@@ -236,35 +242,21 @@ builder-image:
 	docker build  -t $(IMAGE_PREFIX)argo-cd-ci-builder:$(IMAGE_TAG) --target builder .
 	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argo-cd-ci-builder:$(IMAGE_TAG) ; fi
 
-# Pulls in all vendor dependencies
-.PHONY: dep
-dep:
-	$(call run-in-test-client,dep ensure -v)
+.PHONY: mod-download
+mod-download:
+	$(call run-in-test-client,go mod download)
 
-# Pulls in all vendor dependencies (local version)
-.PHONY: dep-local
-dep-local:
-	dep ensure -v
+.PHONY: mod-download-local
+mod-download-local:
+	go mod download
 
-# Pulls in all unvendored dependencies
-.PHONY: dep-ensure
-dep-ensure:
-	$(call run-in-test-client,dep ensure -no-vendor -v)
+.PHONY: mod-vendor
+mod-vendor:
+	$(call run-in-test-client,go mod vendor)
 
-# Pulls in all unvendored dependencies (local version)
-.PHONY: dep-ensure-local
-dep-ensure-local:
-	dep ensure -no-vendor
-
-# Runs dep check in a container to ensure Gopkg.lock is up-to-date with dependencies
-.PHONY: dep-check
-dep-check:
-	$(call run-in-test-client,make dep-check-local)
-
-# Runs dep check locally to ensure Gopkg.lock is up-to-date with dependencies
-.PHONY: dep-check-local
-dep-check-local:
-	if ! dep check -skip-vendor; then echo "Please make sure Gopkg.lock is up-to-date - see https://argoproj.github.io/argo-cd/developer-guide/faq/#why-does-the-build-step-fail"; exit 1; fi
+.PHONY: mod-vendor-local
+mod-vendor-local: mod-download-local
+	go mod vendor
 
 # Deprecated - replace by install-local-tools
 .PHONY: install-lint-tools
@@ -300,7 +292,8 @@ build:
 
 # Build all Go code (local version)
 .PHONY: build-local
-build-local:
+build-local: mod-vendor-local
+	export GO111MODULE=off
 	go build -p 1 -v `go list ./... | grep -v 'resource_customizations\|test/e2e'`
 
 # Run all unit tests
@@ -314,7 +307,8 @@ test:
 
 # Run all unit tests (local version)
 .PHONY: test-local
-test-local:
+test-local: mod-vendor-local
+	export GO111MODULE=off
 	if test "$(TEST_MODULE)" = ""; then \
 		./hack/test.sh -coverprofile=coverage.out `go list ./... | grep -v 'test/e2e'`; \
 	else \
@@ -331,6 +325,7 @@ test-e2e:
 .PHONY: test-e2e-local
 test-e2e-local: cli
 	# NO_PROXY ensures all tests don't go out through a proxy if one is configured on the test system
+	export GO111MODULE=off
 	NO_PROXY=* ./hack/test.sh -timeout 15m -v ./test/e2e
 
 # Spawns a shell in the test server container for debugging purposes
@@ -350,7 +345,8 @@ start-e2e:
 
 # Starts e2e server locally (or within a container)
 .PHONY: start-e2e-local
-start-e2e-local: 
+start-e2e-local: mod-vendor-local
+	export GO111MODULE=off
 	kubectl create ns argocd-e2e || true
 	kubectl config set-context --current --namespace=argocd-e2e
 	kustomize build test/manifests/base | kubectl apply -f -
@@ -379,7 +375,7 @@ start:
 
 # Starts a local instance of ArgoCD
 .PHONY: start-local
-start-local:
+start-local: mod-vendor-local
 	# check we can connect to Docker to start Redis
 	killall goreman || true
 	kubectl create ns argocd || true

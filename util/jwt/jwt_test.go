@@ -3,7 +3,7 @@ package jwt
 import (
 	"testing"
 
-	"github.com/dgrijalva/jwt-go"
+	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -26,13 +26,13 @@ func TestClaims(t *testing.T) {
 }
 
 func TestIsMember(t *testing.T) {
-	assert.False(t, IsMember(jwt.MapClaims{}, nil))
-	assert.False(t, IsMember(jwt.MapClaims{"groups": []string{""}}, []string{"my-group"}))
-	assert.False(t, IsMember(jwt.MapClaims{"groups": []string{"my-group"}}, []string{""}))
-	assert.True(t, IsMember(jwt.MapClaims{"groups": []string{"my-group"}}, []string{"my-group"}))
+	assert.False(t, IsMember(jwt.MapClaims{}, nil, []string{"groups"}))
+	assert.False(t, IsMember(jwt.MapClaims{"groups": []string{""}}, []string{"my-group"}, []string{"groups"}))
+	assert.False(t, IsMember(jwt.MapClaims{"groups": []string{"my-group"}}, []string{""}, []string{"groups"}))
+	assert.True(t, IsMember(jwt.MapClaims{"groups": []string{"my-group"}}, []string{"my-group"}, []string{"groups"}))
 }
 
 func TestGetGroups(t *testing.T) {
-	assert.Empty(t, GetGroups(jwt.MapClaims{}))
-	assert.Equal(t, []string{"foo"}, GetGroups(jwt.MapClaims{"groups": []string{"foo"}}))
+	assert.Empty(t, GetGroups(jwt.MapClaims{}, []string{"groups"}))
+	assert.Equal(t, []string{"foo"}, GetGroups(jwt.MapClaims{"groups": []string{"foo"}}, []string{"groups"}))
 }
