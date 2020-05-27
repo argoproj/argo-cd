@@ -5,12 +5,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-
 	"github.com/stretchr/testify/assert"
 	"k8s.io/client-go/kubernetes/fake"
 
+	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
@@ -24,144 +23,93 @@ func Test_serverToSecretName(t *testing.T) {
 	assert.Equal(t, "cluster-foo-752281925", name)
 }
 
-func TestWatchClusters(t *testing.T) {
+func TestWatchClustersNoClustersRegistered(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
 	settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
 	db := NewDB(fakeNamespace, settingsManager, kubeclientset)
 	timeout := time.Second * 5
 
-	t.Run("NoClustersRegistered", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-		addedClusters := make(chan *v1alpha1.Cluster)
+	addedClusters := make(chan *v1alpha1.Cluster)
 
-		go func() {
-			assert.NoError(t, db.WatchClusters(ctx, func(cluster *v1alpha1.Cluster) {
-				addedClusters <- cluster
-			}, func(oldCluster *v1alpha1.Cluster, newCluster *v1alpha1.Cluster) {
-				assert.Fail(t, "no cluster modifications expected")
-			}, func(clusterServer string) {
-				assert.Fail(t, "no cluster removals expected")
-			}))
-		}()
+	go func() {
+		assert.NoError(t, db.WatchClusters(ctx, func(cluster *v1alpha1.Cluster) {
+			addedClusters <- cluster
+		}, func(oldCluster *v1alpha1.Cluster, newCluster *v1alpha1.Cluster) {
+			assert.Fail(t, "no cluster modifications expected")
+		}, func(clusterServer string) {
+			assert.Fail(t, "no cluster removals expected")
+		}))
+	}()
 
-		select {
-		case addedCluster := <-addedClusters:
-			assert.Equal(t, addedCluster.Server, common.KubernetesInternalAPIServerAddr)
-		case <-time.After(timeout):
-			assert.Fail(t, "no cluster event within timeout")
-		}
-	})
+	select {
+	case addedCluster := <-addedClusters:
+		assert.Equal(t, addedCluster.Server, common.KubernetesInternalAPIServerAddr)
+	case <-time.After(timeout):
+		assert.Fail(t, "no cluster event within timeout")
+	}
+}
 
-	t.Run("ClusterAdded", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+func TestWatchClusters(t *testing.T) {
+	kubeclientset := fake.NewSimpleClientset()
+	settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
+	db := NewDB(fakeNamespace, settingsManager, kubeclientset)
 
-		addedClusters := make(chan *v1alpha1.Cluster)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-		go func() {
-			assert.NoError(t, db.WatchClusters(ctx, func(cluster *v1alpha1.Cluster) {
-				addedClusters <- cluster
-			}, func(oldCluster *v1alpha1.Cluster, newCluster *v1alpha1.Cluster) {
-				assert.Fail(t, "no cluster modifications expected")
-			}, func(clusterServer string) {
-				assert.Fail(t, "no cluster removals expected")
-			}))
-		}()
+	addedClusters := make(chan *v1alpha1.Cluster, 5)
+	updatedClusters := make(chan *v1alpha1.Cluster, 5)
+	deletedClusters := make(chan string, 5)
 
-		_, err := db.CreateCluster(ctx, &v1alpha1.Cluster{Server: "http://minikube"})
-		if !assert.NoError(t, err) {
-			return
-		}
+	go func() {
+		assert.NoError(t, db.WatchClusters(ctx, func(cluster *v1alpha1.Cluster) {
+			addedClusters <- cluster
+		}, func(oldCluster *v1alpha1.Cluster, newCluster *v1alpha1.Cluster) {
+			updatedClusters <- newCluster
+		}, func(clusterServer string) {
+			deletedClusters <- clusterServer
+			close(addedClusters)
+			close(updatedClusters)
+			close(deletedClusters)
+		}))
+	}()
 
-		var addClusterServers []string
-		// expect two cluster added events
-		for i := 0; i < 2; i++ {
-			select {
-			case addedCluster := <-addedClusters:
-				addClusterServers = append(addClusterServers, addedCluster.Server)
-			case <-time.After(timeout):
-				assert.Fail(t, "no cluster event within timeout")
-			}
-		}
+	cluster, err := db.CreateCluster(ctx, &v1alpha1.Cluster{Server: "http://minikube"})
+	if !assert.NoError(t, err) {
+		return
+	}
 
-		assert.ElementsMatch(t, []string{common.KubernetesInternalAPIServerAddr, "http://minikube"}, addClusterServers)
-	})
+	message := "sync successful"
+	cluster.ConnectionState.Message = message
+	cluster, err = db.UpdateCluster(ctx, cluster)
+	if !assert.NoError(t, err) {
+		return
+	}
 
-	t.Run("ClusterMod", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		updatedClusters := make(chan *v1alpha1.Cluster)
+	err = db.DeleteCluster(ctx, cluster.Server)
+	if !assert.NoError(t, err) {
+		return
+	}
 
-		//Start with clean data
-		db.DeleteCluster(ctx, "http://minikube")
+	var addClusterServers []string
+	for elem := range addedClusters {
+		addClusterServers = append(addClusterServers, elem.Server)
+	}
 
-		go func() {
-			assert.NoError(t, db.WatchClusters(ctx, func(cluster *v1alpha1.Cluster) {
-			}, func(oldCluster *v1alpha1.Cluster, newCluster *v1alpha1.Cluster) {
-				updatedClusters <- newCluster
-			}, func(clusterServer string) {
-				assert.Fail(t, "no cluster removals expected")
-			}))
-		}()
+	var updatedClusterServers []string
+	for elem := range updatedClusters {
+		updatedClusterServers = append(updatedClusterServers, elem.Server)
+	}
 
-		cluster, err := db.CreateCluster(ctx, &v1alpha1.Cluster{Server: "http://minikube"})
-		if !assert.NoError(t, err) {
-			return
-		}
+	var deletedClusterServers []string
+	for elem := range deletedClusters {
+		deletedClusterServers = append(deletedClusterServers, elem)
+	}
 
-		message := "sync successful"
-		cluster.ConnectionState.Message = message
-		cluster, err = db.UpdateCluster(ctx, cluster)
-		if !assert.NoError(t, err) {
-			return
-		}
-
-		select {
-		case updatedCluster := <-updatedClusters:
-			assert.Equal(t, message, updatedCluster.ConnectionState.Message)
-		case <-time.After(timeout):
-			assert.Fail(t, "no cluster event within timeout")
-		}
-	})
-
-	t.Run("ClusterDel", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-
-		//Start with clean data
-		db.DeleteCluster(ctx, "http://minikube")
-
-		deletedClusters := make(chan string)
-
-		go func() {
-			assert.NoError(t, db.WatchClusters(ctx, func(cluster *v1alpha1.Cluster) {
-			}, func(oldCluster *v1alpha1.Cluster, newCluster *v1alpha1.Cluster) {
-				assert.Fail(t, "no cluster update expected")
-			}, func(clusterServer string) {
-				deletedClusters <- clusterServer
-			}))
-		}()
-
-		cluster, err := db.CreateCluster(ctx, &v1alpha1.Cluster{Server: "http://minikube"})
-		if !assert.NoError(t, err) {
-			return
-		}
-
-		err = db.DeleteCluster(ctx, cluster.Server)
-		if !assert.NoError(t, err) {
-			return
-		}
-
-		var deletedClusterServers []string
-		select {
-		case deletedCluster := <-deletedClusters:
-			deletedClusterServers = append(deletedClusterServers, deletedCluster)
-		case <-time.After(timeout):
-			assert.Fail(t, "no cluster event within timeout")
-		}
-
-		assert.ElementsMatch(t, []string{"http://minikube"}, deletedClusterServers)
-	})
+	assert.ElementsMatch(t, []string{common.KubernetesInternalAPIServerAddr, "http://minikube"}, addClusterServers)
+	assert.ElementsMatch(t, []string{"http://minikube"}, updatedClusterServers)
+	assert.ElementsMatch(t, []string{"http://minikube"}, deletedClusterServers)
 }
