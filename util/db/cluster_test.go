@@ -2,22 +2,19 @@ package db
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	apiv1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
-	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
 const (
-	fakeClusterSecretName = "fake-secret"
-	fakeNamespace         = "fake-ns"
+	fakeNamespace = "fake-ns"
 )
 
 func Test_serverToSecretName(t *testing.T) {
@@ -26,56 +23,69 @@ func Test_serverToSecretName(t *testing.T) {
 	assert.Equal(t, "cluster-foo-752281925", name)
 }
 
-// TestClusterInformer verifies the informer will get updated with a new cluster
-func TestClusterInformer(t *testing.T) {
-	cm := fakeSecret()
-	kubeclientset := fake.NewSimpleClientset(cm)
-	settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, "default")
+func TestWatchClusters(t *testing.T) {
+	kubeclientset := fake.NewSimpleClientset()
+	settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
 	db := NewDB(fakeNamespace, settingsManager, kubeclientset)
-	ctx := context.Background()
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
+	timeout := time.Second * 5
 
-	go func() {
-		db.WatchClusters(ctx, handleAddEvent, handleModEvent, handleDeleteEvent)
-	}()
+	t.Run("NoClustersRegistered", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 
-	for i := 1; i <= 20; i++ {
-		kubeclientset.CoreV1().Secrets(fakeNamespace).Create(cm)
-		time.Sleep(200 * time.Millisecond)
-	}
-}
+		addedClusters := make(chan *v1alpha1.Cluster)
 
-func handleAddEvent(cluster *appv1.Cluster) {
-	fmt.Print(cluster.Name)
-}
-func handleModEvent(oldCluster *appv1.Cluster, newCluster *appv1.Cluster) {
-	fmt.Print(oldCluster.Name)
-}
-func handleDeleteEvent(clusterServer string) {
-	fmt.Print(clusterServer)
-}
+		go func() {
+			assert.NoError(t, db.WatchClusters(ctx, func(cluster *v1alpha1.Cluster) {
+				addedClusters <- cluster
+			}, func(oldCluster *v1alpha1.Cluster, newCluster *v1alpha1.Cluster) {
+				assert.Fail(t, "no cluster modifications expected")
+			}, func(clusterServer string) {
+				assert.Fail(t, "no cluster removals expected")
+			}))
+		}()
 
-func fakeSecret() *apiv1.Secret {
-	secret := apiv1.Secret{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Secret",
-			APIVersion: "v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      fakeClusterSecretName,
-			Namespace: fakeNamespace,
-			Labels: map[string]string{
-				"argocd.argoproj.io/secret-type": "cluster",
-			},
-			Annotations: map[string]string{
-				"managed-by": "argocd.argoproj.io",
-			},
-		},
-		Data: map[string][]byte{
-			"name":   []byte("fakeClusterSecretName"),
-			"server": []byte("test"),
-		},
-	}
-	return &secret
+		select {
+		case addedCluster := <-addedClusters:
+			assert.Equal(t, addedCluster.Server, common.KubernetesInternalAPIServerAddr)
+		case <-time.After(timeout):
+			assert.Fail(t, "no cluster event within timeout")
+		}
+	})
+
+	t.Run("ClusterAdded", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		addedClusters := make(chan *v1alpha1.Cluster)
+
+		go func() {
+			assert.NoError(t, db.WatchClusters(ctx, func(cluster *v1alpha1.Cluster) {
+				addedClusters <- cluster
+			}, func(oldCluster *v1alpha1.Cluster, newCluster *v1alpha1.Cluster) {
+				assert.Fail(t, "no cluster modifications expected")
+			}, func(clusterServer string) {
+				assert.Fail(t, "no cluster removals expected")
+			}))
+		}()
+
+		_, err := db.CreateCluster(ctx, &v1alpha1.Cluster{Server: "http://minikube"})
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		var addClusterServers []string
+		// expect two cluster added events
+		for i := 0; i < 2; i++ {
+			select {
+			case addedCluster := <-addedClusters:
+				addClusterServers = append(addClusterServers, addedCluster.Server)
+			case <-time.After(timeout):
+				assert.Fail(t, "no cluster event within timeout")
+			}
+		}
+
+		assert.ElementsMatch(t, []string{common.KubernetesInternalAPIServerAddr, "http://minikube"}, addClusterServers)
+	})
+
 }
