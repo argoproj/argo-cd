@@ -302,22 +302,22 @@ orbs:
 workflows:
   version: 2
   workflow:
-    jobs:
-      - build
-      - test:
-          requires:
-            - build
-      - codegen:
-          requires:
-            - build
-      - ui:
-          requires:
-            - build
-      - sonarcloud:
-          context: SonarCloud
-          requires:
-            - test
-            - ui
-      - e2e:
-          requires:
-            - build
+    jobs: []
+      # - build
+      # - test:
+      #     requires:
+      #       - build
+      # - codegen:
+      #     requires:
+      #       - build
+      # - ui:
+      #     requires:
+      #       - build
+      # - sonarcloud:
+      #     context: SonarCloud
+      #     requires:
+      #       - test
+      #       - ui
+      # - e2e:
+      #     requires:
+      #       - build
