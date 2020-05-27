@@ -20,7 +20,7 @@ This will create a new namespace, `argocd`, where Argo CD services and applicati
 On GKE, you will need grant your account the ability to create new cluster roles:
     
 ```bash
-kubectl create clusterrolebinding YOURNAME-cluster-admin-binding --clusterrole=cluster-admin --user=YOUREMAIL@gmail.com
+kubectl create clusterrolebinding cluster-admin-binding --clusterrole=cluster-admin --user="$(gcloud config get-value account)"
 ```
 
 !!! note
