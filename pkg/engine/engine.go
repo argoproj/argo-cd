@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/rest"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/diff"
 	ioutil "github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/cache"
@@ -65,6 +66,11 @@ func (e *gitOpsEngine) Sync(ctx context.Context,
 		return nil, err
 	}
 	result := sync.Reconcile(resources, managedResources, namespace, e.cache)
+	diffRes, err := diff.DiffArray(result.Target, result.Live, diff.GetNoopNormalizer(), diff.GetDefaultDiffOptions())
+	if err != nil {
+		return nil, err
+	}
+	opts = append(opts, sync.WithSkipHooks(!diffRes.Modified))
 	syncCtx, err := sync.NewSyncContext(revision, result, e.config, e.config, e.kubectl, namespace, log.NewEntry(log.New()), opts...)
 	if err != nil {
 		return nil, err

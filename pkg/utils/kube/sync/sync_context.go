@@ -45,20 +45,24 @@ type SyncContext interface {
 	GetState() (common.OperationPhase, string, []common.ResourceSyncResult)
 }
 
+// SyncOpt is a callback that update sync operation settings
 type SyncOpt func(ctx *syncContext)
 
+// WithPermissionValidator sets specified permission validator
 func WithPermissionValidator(validator common.PermissionValidator) SyncOpt {
 	return func(ctx *syncContext) {
 		ctx.permissionValidator = validator
 	}
 }
 
+// WithPermissionValidator sets specified health override
 func WithHealthOverride(override health.HealthOverride) SyncOpt {
 	return func(ctx *syncContext) {
 		ctx.healthOverride = override
 	}
 }
 
+// WithInitialState sets sync operation initial state
 func WithInitialState(phase common.OperationPhase, message string, results []common.ResourceSyncResult) SyncOpt {
 	return func(ctx *syncContext) {
 		ctx.phase = phase
@@ -70,12 +74,21 @@ func WithInitialState(phase common.OperationPhase, message string, results []com
 	}
 }
 
+// WithResourcesFilter sets sync operation resources filter
 func WithResourcesFilter(resourcesFilter func(key kube.ResourceKey, target *unstructured.Unstructured, live *unstructured.Unstructured) bool) SyncOpt {
 	return func(ctx *syncContext) {
 		ctx.resourcesFilter = resourcesFilter
 	}
 }
 
+// WithSkipHooks specifies if hooks should be enabled or not
+func WithSkipHooks(skipHooks bool) SyncOpt {
+	return func(ctx *syncContext) {
+		ctx.skipHooks = skipHooks
+	}
+}
+
+// WithOperationSettings allows to set sync operation settings
 func WithOperationSettings(dryRun bool, prune bool, force bool, skipHooks bool) SyncOpt {
 	return func(ctx *syncContext) {
 		ctx.prune = prune
@@ -85,6 +98,7 @@ func WithOperationSettings(dryRun bool, prune bool, force bool, skipHooks bool) 
 	}
 }
 
+// WithSkipHooks enables or disables manifest validation
 func WithManifestValidation(enabled bool) SyncOpt {
 	return func(ctx *syncContext) {
 		ctx.validate = enabled
