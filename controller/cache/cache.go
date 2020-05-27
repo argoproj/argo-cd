@@ -414,9 +414,6 @@ func (c *liveStateCache) handleAddEvent(cluster *appv1.Cluster) {
 
 func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *appv1.Cluster) {
 	var bToInvalidate bool
-	if newCluster == nil {
-		return
-	}
 	c.lock.Lock()
 	cluster, ok := c.clusters[newCluster.Server]
 	c.lock.Unlock()
@@ -442,13 +439,11 @@ func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *a
 
 func (c *liveStateCache) handleDeleteEvent(clusterServer string) {
 	c.lock.Lock()
+	defer c.lock.Unlock()
 	cluster, ok := c.clusters[clusterServer]
 	if ok {
-		defer c.lock.Unlock()
 		cluster.Invalidate()
 		delete(c.clusters, clusterServer)
-	} else {
-		c.lock.Unlock()
 	}
 }
 

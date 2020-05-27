@@ -139,17 +139,14 @@ func (db *db) WatchClusters(ctx context.Context,
 	clusterEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			if secretObj, ok := obj.(*apiv1.Secret); ok {
-				cluster, err := db.GetCluster(context.Background(), string(secretObj.Data["server"]))
-				if err != nil {
-					return
-				}
+				cluster := secretToCluster(secretObj)
 				if cluster.Server == common.KubernetesInternalAPIServerAddr {
 					if reflect.DeepEqual(localCls.Config, cluster.Config) {
 						return
 					}
 					localCls = cluster
 					// change local cluster event to modified or deleted, since it cannot be re-added or deleted
-					handleModEvent(nil, localCls)
+					handleModEvent(localCls, cluster)
 					return
 				}
 				handleAddEvent(cluster)
