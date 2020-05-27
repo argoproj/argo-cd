@@ -19,7 +19,7 @@ const (
 	MaxGRPCMessageSize = 100 * 1024 * 1024
 )
 
-// Clientset represets repository server api clients
+// Clientset represents repository server api clients
 type Clientset interface {
 	NewRepoServerClient() (io.Closer, RepoServerServiceClient, error)
 }

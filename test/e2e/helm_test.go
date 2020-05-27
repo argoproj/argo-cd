@@ -225,7 +225,7 @@ func TestKubeVersion(t *testing.T) {
 		And(func(app *Application) {
 			kubeVersion := FailOnErr(Run(".", "kubectl", "-n", DeploymentNamespace(), "get", "cm", "my-map",
 				"-o", "jsonpath={.data.kubeVersion}")).(string)
-			// Capabiliets.KubeVersion defaults to 1.9.0, we assume here you are running a later version
+			// Capabilities.KubeVersion defaults to 1.9.0, we assume here you are running a later version
 			assert.Equal(t, GetVersions().ServerVersion.Format("v%s.%s.0"), kubeVersion)
 		})
 }

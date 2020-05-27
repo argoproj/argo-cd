@@ -130,7 +130,7 @@ func (m *RepoCredsDeleteRequest) GetUrl() string {
 	return ""
 }
 
-// RepoCredsResponse is a resonse to most repository credentials requests
+// RepoCredsResponse is a response to most repository credentials requests
 type RepoCredsResponse struct {
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`

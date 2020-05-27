@@ -37,7 +37,7 @@ func TestRefreshApp(t *testing.T) {
 	appIf := appClientset.ArgoprojV1alpha1().Applications("default")
 	_, err := RefreshApp(appIf, "test-app", argoappv1.RefreshTypeNormal)
 	assert.Nil(t, err)
-	// For some reason, the fake Application inferface doesn't reflect the patch status after Patch(),
+	// For some reason, the fake Application interface doesn't reflect the patch status after Patch(),
 	// so can't verify it was set in unit tests.
 	//_, ok := newApp.Annotations[common.AnnotationKeyRefresh]
 	//assert.True(t, ok)
@@ -111,7 +111,7 @@ func TestContainsSyncResource(t *testing.T) {
 
 	for _, table := range tables {
 		if out := ContainsSyncResource(table.u.GetName(), table.u.GroupVersionKind(), table.rr); out != table.expected {
-			t.Errorf("Expected %t for slice %+v conains resource %+v; instead got %t", table.expected, table.rr, table.u, out)
+			t.Errorf("Expected %t for slice %+v contains resource %+v; instead got %t", table.expected, table.rr, table.u, out)
 		}
 	}
 }
@@ -525,7 +525,7 @@ func TestValidatePermissions(t *testing.T) {
 			},
 		}
 		db := &dbmocks.ArgoDB{}
-		db.On("GetCluster", context.Background(), spec.Destination.Server).Return(nil, fmt.Errorf("Unknown error occured"))
+		db.On("GetCluster", context.Background(), spec.Destination.Server).Return(nil, fmt.Errorf("Unknown error occurred"))
 		_, err := ValidatePermissions(context.Background(), &spec, &proj, db)
 		assert.Error(t, err)
 	})

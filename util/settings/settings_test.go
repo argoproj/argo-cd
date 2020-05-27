@@ -66,7 +66,7 @@ func TestSaveRepositories(t *testing.T) {
 	assert.ElementsMatch(t, repos, []Repository{{URL: "http://foo"}})
 }
 
-func TestSaveRepositoresNoConfigMap(t *testing.T) {
+func TestSaveRepositoriesNoConfigMap(t *testing.T) {
 	kubeClient := fake.NewSimpleClientset()
 	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
 

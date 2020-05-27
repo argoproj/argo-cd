@@ -913,7 +913,7 @@ message SyncPolicy {
   // Automated will keep an application synced to the target revision
   optional SyncPolicyAutomated automated = 1;
 
-  // Options allow youe to specify whole app sync-options
+  // Options allow you to specify whole app sync-options
   repeated string syncOptions = 2;
 }
 

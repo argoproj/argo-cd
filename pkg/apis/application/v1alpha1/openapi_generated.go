@@ -3177,7 +3177,7 @@ func schema_pkg_apis_application_v1alpha1_SyncPolicy(ref common.ReferenceCallbac
 					},
 					"syncOptions": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Options allow youe to specify whole app sync-options",
+							Description: "Options allow you to specify whole app sync-options",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{

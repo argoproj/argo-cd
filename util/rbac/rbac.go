@@ -37,7 +37,7 @@ const (
 // * is backed by a kubernetes config map
 // * has a predefined RBAC model
 // * supports a built-in policy
-// * supports a user-defined bolicy
+// * supports a user-defined policy
 // * supports a custom JWT claims enforce function
 type Enforcer struct {
 	*casbin.Enforcer

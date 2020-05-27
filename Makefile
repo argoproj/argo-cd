@@ -384,7 +384,7 @@ start-local: mod-vendor-local
 	ARGOCD_E2E_TEST=false \
 		goreman -f $(ARGOCD_PROCFILE) start ${ARGOCD_START}
 
-# Runs pre-commit validaiton with the virtualized toolchain
+# Runs pre-commit validation with the virtualized toolchain
 .PHONY: pre-commit
 pre-commit: dep-ensure codegen build lint test
 

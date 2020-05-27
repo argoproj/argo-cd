@@ -569,7 +569,7 @@ func setAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 	}
 	if flags.Changed("self-heal") {
 		if spec.SyncPolicy == nil || spec.SyncPolicy.Automated == nil {
-			log.Fatal("Cannot set --self-helf: application not configured with automatic sync")
+			log.Fatal("Cannot set --self-heal: application not configured with automatic sync")
 		}
 		spec.SyncPolicy.Automated.SelfHeal = appOpts.selfHeal
 	}

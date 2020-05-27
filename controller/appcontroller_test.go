@@ -470,7 +470,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		assert.True(t, patched)
 	}
 
-	// Ensure any stray resources irregulary labeled with instance label of app are not deleted upon deleting,
+	// Ensure any stray resources irregularly labeled with instance label of app are not deleted upon deleting,
 	// when app project restriction is in place
 	{
 		defaultProj := argoappv1.AppProject{

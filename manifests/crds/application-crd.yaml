@@ -572,7 +572,7 @@ spec:
                       type: boolean
                   type: object
                 syncOptions:
-                  description: Options allow youe to specify whole app sync-options
+                  description: Options allow you to specify whole app sync-options
                   items:
                     type: string
                   type: array

@@ -2511,7 +2511,7 @@
     },
     "repocredsRepoCredsResponse": {
       "type": "object",
-      "title": "RepoCredsResponse is a resonse to most repository credentials requests"
+      "title": "RepoCredsResponse is a response to most repository credentials requests"
     },
     "repositoryAppInfo": {
       "type": "object",
@@ -2615,7 +2615,7 @@
           "$ref": "#/definitions/repositoryKsonnetEnvironmentDestination"
         },
         "k8sVersion": {
-          "description": "KubernetesVersion is the kubernetes version the targetted cluster is running on.",
+          "description": "KubernetesVersion is the kubernetes version the targeted cluster is running on.",
           "type": "string"
         },
         "name": {
@@ -4590,7 +4590,7 @@
         },
         "syncOptions": {
           "type": "array",
-          "title": "Options allow youe to specify whole app sync-options",
+          "title": "Options allow you to specify whole app sync-options",
           "items": {
             "type": "string"
           }
