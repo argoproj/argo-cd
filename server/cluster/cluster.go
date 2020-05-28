@@ -45,28 +45,13 @@ func (s *Server) List(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Clus
 	if err != nil {
 		return nil, err
 	}
-	clustersByServer := make(map[string][]appv1.Cluster)
+
+	items := make([]appv1.Cluster, 0)
 	for _, clust := range clusterList.Items {
 		if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionGet, clust.Server) {
-			clustersByServer[clust.Server] = append(clustersByServer[clust.Server], clust)
+			items = append(items, *redact(&clust))
 		}
 	}
-	servers := make([]string, 0)
-	for server := range clustersByServer {
-		servers = append(servers, server)
-	}
-
-	items := make([]appv1.Cluster, len(servers))
-	err = kube.RunAllAsync(len(servers), func(i int) error {
-		clusters := clustersByServer[servers[i]]
-		clust := clusters[0]
-		items[i] = *redact(&clust)
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
 	clusterList.Items = items
 	return clusterList, err
 }
