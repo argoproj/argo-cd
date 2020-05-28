@@ -1,7 +1,6 @@
 package cluster
 
 import (
-	"fmt"
 	"reflect"
 	"time"
 
@@ -40,24 +39,6 @@ func NewServer(db db.ArgoDB, enf *rbac.Enforcer, cache *servercache.Cache, kubec
 	}
 }
 
-func (s *Server) getConnectionState(cluster appv1.Cluster, errorMessage string) (appv1.ConnectionState, string) {
-	if clusterInfo, err := s.cache.GetClusterInfo(cluster.Server); err == nil {
-		return clusterInfo.ConnectionState, clusterInfo.Version
-	}
-	clusterInfo := servercache.ClusterInfo{
-		ConnectionState: appv1.ConnectionState{
-			Status:     cluster.ConnectionState.Status,
-			ModifiedAt: cluster.ConnectionState.ModifiedAt,
-		},
-		Version: cluster.ServerVersion,
-	}
-	err := s.cache.SetClusterInfo(cluster.Server, &clusterInfo)
-	if err != nil {
-		log.Warnf("getClusterInfo cache set error %s: %v", cluster.Server, err)
-	}
-	return clusterInfo.ConnectionState, clusterInfo.Version
-}
-
 // List returns list of clusters
 func (s *Server) List(ctx context.Context, q *cluster.ClusterQuery) (*appv1.ClusterList, error) {
 	clusterList, err := s.db.ListClusters(ctx)
@@ -79,15 +60,6 @@ func (s *Server) List(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Clus
 	err = kube.RunAllAsync(len(servers), func(i int) error {
 		clusters := clustersByServer[servers[i]]
 		clust := clusters[0]
-		warningMessage := ""
-		if len(clusters) > 1 {
-			warningMessage = fmt.Sprintf("There are %d credentials configured this cluster.", len(clusters))
-		}
-		if clust.ConnectionState.Status == "" {
-			state, serverVersion := s.getConnectionState(clust, warningMessage)
-			clust.ConnectionState = state
-			clust.ServerVersion = serverVersion
-		}
 		items[i] = *redact(&clust)
 		return nil
 	})
