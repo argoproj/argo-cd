@@ -16,13 +16,10 @@ import (
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
-const (
-	fakeNamespace = "fake-ns"
-)
-
 // Test when clusterInfo has newly updated K8SVersion
 // Expect this update is persisted in cluster secret
 func TestClusterSecretUpdater(t *testing.T) {
+	const fakeNamespace = "fake-ns"
 	const updatedK8sVersion = "1.0"
 
 	kubeclientset := fake.NewSimpleClientset()
@@ -48,7 +45,6 @@ func TestClusterSecretUpdater(t *testing.T) {
 	mockedLiveStateCache.On("GetClustersInfo", mock.Anything, mock.Anything).Return(clusterInfos, nil)
 
 	updater := &clusterSecretUpdater{infoSource: &mockedLiveStateCache, db: db}
-
 	go func() {
 		updater.Run(ctx)
 	}()
