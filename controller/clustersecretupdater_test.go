@@ -2,7 +2,7 @@ package controller
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -28,7 +28,7 @@ func TestClusterSecretUpdater(t *testing.T) {
 	}{
 		{nil, nil, v1alpha1.ConnectionStatusUnknown},
 		{&now, nil, v1alpha1.ConnectionStatusSuccessful},
-		{&now, errors.New("sync failed"), v1alpha1.ConnectionStatusFailed},
+		{&now, fmt.Errorf("sync failed"), v1alpha1.ConnectionStatusFailed},
 	}
 
 	kubeclientset := fake.NewSimpleClientset()
