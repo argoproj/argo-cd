@@ -416,7 +416,7 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 	defer ctrl.appOperationQueue.ShutDown()
 
 	ctrl.metricsServer.RegisterClustersInfoSource(ctx, ctrl.stateCache)
-	ctrl.RegisterClusterSecretUpdater(ctx, ctrl.stateCache, ctrl.db)
+	ctrl.RegisterClusterSecretUpdater(ctx)
 
 	go ctrl.appInformer.Run(ctx.Done())
 	go ctrl.projInformer.Run(ctx.Done())
@@ -1256,8 +1256,8 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 	return informer, lister, err
 }
 
-func (ctrl *ApplicationController) RegisterClusterSecretUpdater(ctx context.Context, source metrics.HasClustersInfo, db db.ArgoDB) {
-	updater := &clusterSecretUpdater{infoSource: source, db: db, secretUpdateInterval: 30 * time.Second}
+func (ctrl *ApplicationController) RegisterClusterSecretUpdater(ctx context.Context) {
+	updater := &clusterSecretUpdater{infoSource: ctrl.stateCache, db: ctrl.db}
 	go updater.Run(ctx)
 }
 
