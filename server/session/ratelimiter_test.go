@@ -11,6 +11,19 @@ import (
 )
 
 type fakeStorage struct {
+package session
+
+import (
+	"testing"
+	"time"
+
+	util "github.com/argoproj/gitops-engine/pkg/utils/io"
+	"github.com/stretchr/testify/assert"
+
+	"github.com/argoproj/argo-cd/util/session"
+)
+
+type fakeStorage struct {
 	locked bool
 	values map[string]int
 }

@@ -5,11 +5,12 @@ import (
 	"testing"
 	"time"
 
-	mockstatecache "github.com/argoproj/argo-cd/controller/cache/mocks"
 	clustercache "github.com/argoproj/gitops-engine/pkg/utils/kube/cache"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"k8s.io/client-go/kubernetes/fake"
+
+	mockstatecache "github.com/argoproj/argo-cd/controller/cache/mocks"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/db"

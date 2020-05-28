@@ -7,6 +7,29 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/kube/cache"
+	log "github.com/sirupsen/logrus"
+
+	"github.com/argoproj/argo-cd/controller/metrics"
+	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/db"
+)
+
+const (
+	secretUpdateInterval = 30 * time.Second
+)
+
+type clusterSecretUpdater struct {
+	infoSource metrics.HasClustersInfo
+package controller
+
+import (
+	"context"
+	"sync"
+	"time"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/argoproj/argo-cd/controller/metrics"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/db"
