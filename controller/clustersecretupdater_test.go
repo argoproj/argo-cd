@@ -2,7 +2,9 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"testing"
+	"time"
 
 	clustercache "github.com/argoproj/gitops-engine/pkg/utils/kube/cache"
 	"github.com/stretchr/testify/assert"
@@ -13,11 +15,21 @@ import (
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
-// Test when cluster cache has newly updated K8SVersion.
-// Expect this update is persisted in cluster secret
+// Expect cluster cache update is persisted in cluster secret
 func TestClusterSecretUpdater(t *testing.T) {
 	const fakeNamespace = "fake-ns"
 	const updatedK8sVersion = "1.0"
+	now := time.Now()
+
+	var tests = []struct {
+		LastCacheSyncTime *time.Time
+		SyncError         error
+		ExpectedStatus    v1alpha1.ConnectionStatus
+	}{
+		{nil, nil, v1alpha1.ConnectionStatusUnknown},
+		{&now, nil, v1alpha1.ConnectionStatusSuccessful},
+		{&now, errors.New("sync failed"), v1alpha1.ConnectionStatusFailed},
+	}
 
 	kubeclientset := fake.NewSimpleClientset()
 	settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
@@ -29,15 +41,19 @@ func TestClusterSecretUpdater(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	//cluster cache's K8SVersion is changed to updatedK8sVersion
-	info := &clustercache.ClusterInfo{
-		Server:     cluster.Server,
-		K8SVersion: updatedK8sVersion,
-	}
 
-	err = updateClusterFromClusterCache(db, info)
-	cluster, err = db.GetCluster(ctx, cluster.Server)
-	assert.NoError(t, err)
-	assert.Equal(t, updatedK8sVersion, cluster.ServerVersion)
-	assert.Equal(t, v1alpha1.ConnectionStatusUnknown, cluster.ConnectionState.Status)
+	for _, test := range tests {
+		info := &clustercache.ClusterInfo{
+			Server:            cluster.Server,
+			K8SVersion:        updatedK8sVersion,
+			LastCacheSyncTime: test.LastCacheSyncTime,
+			SyncError:         test.SyncError,
+		}
+
+		err = updateClusterFromClusterCache(db, info)
+		cluster, err = db.GetCluster(ctx, cluster.Server)
+		assert.NoError(t, err)
+		assert.Equal(t, updatedK8sVersion, cluster.ServerVersion)
+		assert.Equal(t, test.ExpectedStatus, cluster.ConnectionState.Status)
+	}
 }
