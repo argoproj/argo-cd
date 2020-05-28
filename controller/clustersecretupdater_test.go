@@ -28,8 +28,8 @@ func TestClusterSecretUpdater(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	//secretUpdateInterval = 30 * time.Second, so this has to be larger than that
-	timeout := time.Second * 36
+	//secretUpdateInterval = time.Second, so this has to be larger than that
+	timeout := time.Second * 2
 	cluster, err := db.CreateCluster(ctx, &v1alpha1.Cluster{Server: "http://minikube"})
 	if !assert.NoError(t, err) {
 		return
@@ -44,7 +44,7 @@ func TestClusterSecretUpdater(t *testing.T) {
 	var mockedLiveStateCache = mockstatecache.LiveStateCache{}
 	mockedLiveStateCache.On("GetClustersInfo", mock.Anything, mock.Anything).Return(clusterInfos, nil)
 
-	updater := &clusterSecretUpdater{infoSource: &mockedLiveStateCache, db: db}
+	updater := &clusterSecretUpdater{infoSource: &mockedLiveStateCache, db: db, secretUpdateInterval: time.Second}
 	go func() {
 		updater.Run(ctx)
 	}()

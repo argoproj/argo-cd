@@ -14,18 +14,15 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const (
-	secretUpdateInterval = 30 * time.Second
-)
-
 type clusterSecretUpdater struct {
-	infoSource metrics.HasClustersInfo
-	lock       sync.Mutex
-	db         db.ArgoDB
+	infoSource           metrics.HasClustersInfo
+	lock                 sync.Mutex
+	db                   db.ArgoDB
+	secretUpdateInterval time.Duration
 }
 
 func (c clusterSecretUpdater) Run(ctx context.Context) {
-	tick := time.Tick(secretUpdateInterval)
+	tick := time.Tick(c.secretUpdateInterval)
 	for {
 		select {
 		case <-ctx.Done():

@@ -1257,7 +1257,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 }
 
 func (ctrl *ApplicationController) RegisterClusterSecretUpdater(ctx context.Context, source metrics.HasClustersInfo, db db.ArgoDB) {
-	updater := &clusterSecretUpdater{infoSource: source, db: db}
+	updater := &clusterSecretUpdater{infoSource: source, db: db, secretUpdateInterval: 30 * time.Second}
 	go updater.Run(ctx)
 }
 
