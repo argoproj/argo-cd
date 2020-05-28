@@ -77,11 +77,12 @@ func (s *Server) Create(ctx context.Context, q *cluster.ClusterCreateRequest) (*
 		return nil, err
 	}
 	c := q.Cluster
-	err := kube.TestConfig(q.Cluster.RESTConfig())
+	serverVersion, err := s.kubectl.GetServerVersion(c.RESTConfig())
 	if err != nil {
 		return nil, err
 	}
 
+	c.ServerVersion = serverVersion
 	c.ConnectionState = appv1.ConnectionState{
 		Status:     appv1.ConnectionStatusSuccessful,
 		ModifiedAt: &v1.Time{Time: time.Now()},
@@ -113,10 +114,6 @@ func (s *Server) Get(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Clust
 		return nil, err
 	}
 	c, err := s.db.GetCluster(ctx, q.Server)
-	if err != nil {
-		return nil, err
-	}
-	c.ServerVersion, err = s.kubectl.GetServerVersion(c.RESTConfig())
 	if err != nil {
 		return nil, err
 	}
