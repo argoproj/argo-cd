@@ -4,15 +4,14 @@ import (
 	"context"
 	"time"
 
+	"github.com/argoproj/argo-cd/util/env"
+	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/argoproj/pkg/stats"
 	"github.com/go-redis/redis"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-
-	"github.com/argoproj/argo-cd/util/env"
-	"github.com/argoproj/argo-cd/util/kube"
 
 	log "github.com/sirupsen/logrus"
 
