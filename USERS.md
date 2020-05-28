@@ -6,6 +6,7 @@ Currently, the following organizations are **officially** using Argo CD:
 
 1. [127Labs](https://127labs.com/)
 1. [Adevinta](https://www.adevinta.com/)
+1. [AppDirect](https://www.appdirect.com)
 1. [ANSTO - Australian Synchrotron](https://www.synchrotron.org.au/)
 1. [ARZ Allgemeines Rechenzentrum GmbH ](https://www.arz.at/)
 1. [Baloise](https://www.baloise.com)
