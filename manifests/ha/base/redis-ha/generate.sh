@@ -14,6 +14,7 @@ echo "${AUTOGENMSG}" > ./chart/upstream.yaml
 
 helm2 template ./chart \
   --name argocd \
+  --namespace default \
   --values ./chart/values.yaml \
   ${helm_execute} \
   >> ./chart/upstream_orig.yaml
