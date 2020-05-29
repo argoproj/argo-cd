@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/cache/mocks"
+	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube/cache/mocks"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
-	synccommon "github.com/argoproj/gitops-engine/pkg/utils/kube/sync/common"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"

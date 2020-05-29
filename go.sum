@@ -53,6 +53,8 @@ github.com/anmitsu/go-shlex v0.0.0-20161002113705-648efa622239 h1:kFOfPq6dUM1hTo
 github.com/anmitsu/go-shlex v0.0.0-20161002113705-648efa622239/go.mod h1:2FmKhYUyUczH0OGQWaF5ceTx0UBShxjsH6f8oGKYe2c=
 github.com/argoproj/gitops-engine v0.1.1-0.20200520172719-a70208905739 h1:u7o1TSi6ouoTg5ONt68d0jybixSxYGfk/uzVd3H2vVs=
 github.com/argoproj/gitops-engine v0.1.1-0.20200520172719-a70208905739/go.mod h1:/4AoMuf5SCQoxZuCk2y6FsDWvU8xItbbqvdDfikZ8gg=
+github.com/argoproj/gitops-engine v0.1.1-0.20200529001831-99bd42d9a3ee h1:OcGmfEW5/OHaGH6aoepDlzbcnf+CwjLkshtWkOqiHnY=
+github.com/argoproj/gitops-engine v0.1.1-0.20200529001831-99bd42d9a3ee/go.mod h1:QWwQdqfctsHHameV7uEgW37divnMGjIAD7Xw5C1QtZ4=
 github.com/argoproj/pkg v0.0.0-20200102163130-2dd1f3f6b4de/go.mod h1:2EZ44RG/CcgtPTwrRR0apOc7oU6UIw8GjCUJWZ8X3bM=
 github.com/argoproj/pkg v0.0.0-20200319004004-f46beff7cd54 h1:hDn02iEkh5EUl4TJfOo6AI9uSgh0vt/qh66ODuQl/YE=
 github.com/argoproj/pkg v0.0.0-20200319004004-f46beff7cd54/go.mod h1:2EZ44RG/CcgtPTwrRR0apOc7oU6UIw8GjCUJWZ8X3bM=

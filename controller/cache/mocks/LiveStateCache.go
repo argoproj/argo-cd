@@ -5,7 +5,7 @@ package mocks
 import (
 	context "context"
 
-	cache "github.com/argoproj/gitops-engine/pkg/utils/kube/cache"
+	cache "github.com/argoproj/gitops-engine/pkg/cache"
 
 	kube "github.com/argoproj/gitops-engine/pkg/utils/kube"
 

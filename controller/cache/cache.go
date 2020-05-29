@@ -5,9 +5,9 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/health"
+	clustercache "github.com/argoproj/gitops-engine/pkg/cache"
+	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	clustercache "github.com/argoproj/gitops-engine/pkg/utils/kube/cache"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
