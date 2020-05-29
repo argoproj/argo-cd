@@ -3,6 +3,8 @@ package e2e
 import (
 	"fmt"
 	"io/ioutil"
+	"net"
+	"net/http"
 	"os"
 	"testing"
 
@@ -118,6 +120,70 @@ func TestHelmValues(t *testing.T) {
 		Then().
 		And(func(app *Application) {
 			assert.Equal(t, []string{"foo.yml"}, app.Spec.Source.Helm.ValueFiles)
+		})
+}
+
+func TestHelmValuesLiteralFileLocal(t *testing.T) {
+	Given(t).
+		Path("helm").
+		When().
+		Create().
+		AppSet("--values-literal-file", "testdata/helm/baz.yaml").
+		Then().
+		And(func(app *Application) {
+			data, err := ioutil.ReadFile("testdata/helm/baz.yaml")
+			if err != nil {
+				panic(err)
+			}
+			assert.Equal(t, string(data), app.Spec.Source.Helm.Values)
+		}).
+		When().
+		AppUnSet("--values-literal").
+		Then().
+		And(func(app *Application) {
+			assert.Nil(t, app.Spec.Source.Helm)
+		})
+}
+
+func TestHelmValuesLiteralFileRemote(t *testing.T) {
+	sentinel := "a: b"
+	serve := func(c chan<- string) {
+		// listen on first available dynamic (unprivileged) port
+		listener, err := net.Listen("tcp", ":0")
+		if err != nil {
+			panic(err)
+		}
+
+		// send back the address so that it can be used
+		c <- listener.Addr().String()
+		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			// return the sentinel text at root URL
+			fmt.Fprint(w, sentinel)
+		})
+
+		panic(http.Serve(listener, nil))
+	}
+	c := make(chan string, 1)
+
+	// run a local webserver to test data retrieval
+	go serve(c)
+	address := <-c
+	t.Logf("Listening at address: %s", address)
+
+	Given(t).
+		Path("helm").
+		When().
+		Create().
+		AppSet("--values-literal-file", "http://"+address).
+		Then().
+		And(func(app *Application) {
+			assert.Equal(t, "a: b", app.Spec.Source.Helm.Values)
+		}).
+		When().
+		AppUnSet("--values-literal").
+		Then().
+		And(func(app *Application) {
+			assert.Nil(t, app.Spec.Source.Helm)
 		})
 }
 
