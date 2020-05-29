@@ -3,8 +3,8 @@ package helm
 import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube/sync/common"
-	resourceutil "github.com/argoproj/gitops-engine/pkg/utils/kube/sync/resource"
+	"github.com/argoproj/gitops-engine/pkg/sync/common"
+	resourceutil "github.com/argoproj/gitops-engine/pkg/sync/resource"
 )
 
 type Type string

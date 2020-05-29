@@ -1,8 +1,8 @@
 package helm
 
 import (
-	"github.com/argoproj/gitops-engine/pkg/utils/kube/sync/common"
-	resourceutil "github.com/argoproj/gitops-engine/pkg/utils/kube/sync/resource"
+	"github.com/argoproj/gitops-engine/pkg/sync/common"
+	resourceutil "github.com/argoproj/gitops-engine/pkg/sync/resource"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )

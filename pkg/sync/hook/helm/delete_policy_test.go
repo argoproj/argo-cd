@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube/sync/common"
+	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	. "github.com/argoproj/gitops-engine/pkg/utils/testing"
 )
 

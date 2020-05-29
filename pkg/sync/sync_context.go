@@ -19,12 +19,12 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/health"
+	"github.com/argoproj/gitops-engine/pkg/health"
+	"github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/gitops-engine/pkg/sync/hook"
+	resourceutil "github.com/argoproj/gitops-engine/pkg/sync/resource"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	kubeutil "github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube/sync/common"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube/sync/hook"
-	resourceutil "github.com/argoproj/gitops-engine/pkg/utils/kube/sync/resource"
 )
 
 type reconciledResource struct {

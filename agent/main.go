@@ -17,12 +17,12 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/tools/clientcmd"
 
+	"github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/engine"
 	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	executil "github.com/argoproj/gitops-engine/pkg/utils/exec"
 	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube/cache"
 )
 
 func nothingManaged(_ *cache.Resource) bool {

@@ -28,7 +28,7 @@ import (
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubernetes/pkg/kubectl/cmd/auth"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/diff"
+	"github.com/argoproj/gitops-engine/pkg/diff"
 	executil "github.com/argoproj/gitops-engine/pkg/utils/exec"
 	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/argoproj/gitops-engine/pkg/utils/tracing"

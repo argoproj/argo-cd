@@ -5,7 +5,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube/sync/common"
+	"github.com/argoproj/gitops-engine/pkg/sync/common"
 
 	"github.com/stretchr/testify/assert"
 

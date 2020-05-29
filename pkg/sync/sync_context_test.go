@@ -15,10 +15,9 @@ import (
 	"k8s.io/client-go/rest"
 	testcore "k8s.io/client-go/testing"
 
+	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube/sync/common"
-	synccommon "github.com/argoproj/gitops-engine/pkg/utils/kube/sync/common"
 	. "github.com/argoproj/gitops-engine/pkg/utils/testing"
 	testingutils "github.com/argoproj/gitops-engine/pkg/utils/testing"
 )
@@ -181,7 +180,7 @@ func TestSyncCustomResources(t *testing.T) {
 `)
 
 			if tt.fields.skipDryRunAnnotationPresent {
-				cr.SetAnnotations(map[string]string{common.AnnotationSyncOptions: "SkipDryRunOnMissingResource=true"})
+				cr.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: "SkipDryRunOnMissingResource=true"})
 			}
 
 			resources := []*unstructured.Unstructured{cr}
@@ -331,11 +330,11 @@ func TestDontSyncOrPruneHooks(t *testing.T) {
 	syncCtx := newTestSyncCtx(WithOperationSettings(false, false, false, true))
 	targetPod := NewPod()
 	targetPod.SetName("dont-create-me")
-	targetPod.SetAnnotations(map[string]string{common.AnnotationKeyHook: "PreSync"})
+	targetPod.SetAnnotations(map[string]string{synccommon.AnnotationKeyHook: "PreSync"})
 	liveSvc := NewService()
 	liveSvc.SetName("dont-prune-me")
 	liveSvc.SetNamespace(FakeArgoCDNamespace)
-	liveSvc.SetAnnotations(map[string]string{common.AnnotationKeyHook: "PreSync"})
+	liveSvc.SetAnnotations(map[string]string{synccommon.AnnotationKeyHook: "PreSync"})
 
 	syncCtx.hooks = []*unstructured.Unstructured{targetPod, liveSvc}
 	syncCtx.Sync()
@@ -348,7 +347,7 @@ func TestDontSyncOrPruneHooks(t *testing.T) {
 func TestDontPrunePruneFalse(t *testing.T) {
 	syncCtx := newTestSyncCtx(WithOperationSettings(false, true, false, false))
 	pod := NewPod()
-	pod.SetAnnotations(map[string]string{common.AnnotationSyncOptions: "Prune=false"})
+	pod.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: "Prune=false"})
 	pod.SetNamespace(FakeArgoCDNamespace)
 	syncCtx.resources = groupResources(ReconciliationResult{
 		Live:   []*unstructured.Unstructured{pod},
@@ -384,7 +383,7 @@ func TestSyncOptionValidate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			syncCtx := newTestSyncCtx()
 			pod := NewPod()
-			pod.SetAnnotations(map[string]string{common.AnnotationSyncOptions: tt.annotationVal})
+			pod.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: tt.annotationVal})
 			pod.SetNamespace(FakeArgoCDNamespace)
 			syncCtx.resources = groupResources(ReconciliationResult{
 				Live:   []*unstructured.Unstructured{pod},
@@ -424,7 +423,7 @@ func TestUnnamedHooksGetUniqueNames(t *testing.T) {
 
 		pod := NewPod()
 		pod.SetName("")
-		pod.SetAnnotations(map[string]string{common.AnnotationKeyHook: "PreSync,PostSync"})
+		pod.SetAnnotations(map[string]string{synccommon.AnnotationKeyHook: "PreSync,PostSync"})
 		syncCtx.hooks = []*unstructured.Unstructured{pod}
 
 		tasks, successful := syncCtx.getSyncTasks()
@@ -440,7 +439,7 @@ func TestUnnamedHooksGetUniqueNames(t *testing.T) {
 		syncCtx := newTestSyncCtx()
 		pod := NewPod()
 		pod.SetName("")
-		pod.SetAnnotations(map[string]string{common.AnnotationKeyHook: "PreSync,PostSync"})
+		pod.SetAnnotations(map[string]string{synccommon.AnnotationKeyHook: "PreSync,PostSync"})
 		syncCtx.hooks = []*unstructured.Unstructured{pod}
 		syncCtx.revision = "foobar"
 		tasks, successful := syncCtx.getSyncTasks()
@@ -474,7 +473,7 @@ func TestManagedResourceAreNotNamed(t *testing.T) {
 func TestDeDupingTasks(t *testing.T) {
 	syncCtx := newTestSyncCtx(WithOperationSettings(false, true, false, false))
 	pod := NewPod()
-	pod.SetAnnotations(map[string]string{common.AnnotationKeyHook: "Sync"})
+	pod.SetAnnotations(map[string]string{synccommon.AnnotationKeyHook: "Sync"})
 	syncCtx.resources = groupResources(ReconciliationResult{
 		Live:   []*unstructured.Unstructured{nil},
 		Target: []*unstructured.Unstructured{pod},
@@ -540,7 +539,7 @@ func TestSyncFailureHookWithFailedSync(t *testing.T) {
 
 func TestBeforeHookCreation(t *testing.T) {
 	syncCtx := newTestSyncCtx()
-	hook := Annotate(Annotate(NewPod(), common.AnnotationKeyHook, "Sync"), common.AnnotationKeyHookDeletePolicy, "BeforeHookCreation")
+	hook := Annotate(Annotate(NewPod(), synccommon.AnnotationKeyHook, "Sync"), synccommon.AnnotationKeyHookDeletePolicy, "BeforeHookCreation")
 	hook.SetNamespace(FakeArgoCDNamespace)
 	syncCtx.resources = groupResources(ReconciliationResult{
 		Live:   []*unstructured.Unstructured{hook},
