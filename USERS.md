@@ -40,6 +40,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Peloton Interactive](https://www.onepeloton.com/)
 1. [Pipefy](https://www.pipefy.com/)
 1. [Prudential](https://prudential.com.sg)
+1. [PUBG](https://www.pubg.com)
 1. [Red Hat](https://www.redhat.com/)
 1. [Robotinfra](https://www.robotinfra.com)
 1. [Riskified](https://www.riskified.com/)

@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	. "github.com/argoproj/gitops-engine/pkg/utils/kube/sync/common"
+	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
 )

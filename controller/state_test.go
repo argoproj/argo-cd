@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/health"
+	"github.com/argoproj/gitops-engine/pkg/health"
+	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	synccommon "github.com/argoproj/gitops-engine/pkg/utils/kube/sync/common"
 	. "github.com/argoproj/gitops-engine/pkg/utils/testing"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/apps/v1"

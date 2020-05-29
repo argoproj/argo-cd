@@ -3,7 +3,7 @@ package normalizers
 import (
 	"encoding/json"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/diff"
+	"github.com/argoproj/gitops-engine/pkg/diff"
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"

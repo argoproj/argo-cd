@@ -179,22 +179,42 @@ func newCluster(name string, namespaces []string, conf *rest.Config, managerBear
 		Insecure:   conf.TLSClientConfig.Insecure,
 		ServerName: conf.TLSClientConfig.ServerName,
 		CAData:     conf.TLSClientConfig.CAData,
+		CertData:   conf.TLSClientConfig.CertData,
+		KeyData:    conf.TLSClientConfig.KeyData,
 	}
 	if len(conf.TLSClientConfig.CAData) == 0 && conf.TLSClientConfig.CAFile != "" {
 		data, err := ioutil.ReadFile(conf.TLSClientConfig.CAFile)
 		errors.CheckError(err)
 		tlsClientConfig.CAData = data
 	}
+	if len(conf.TLSClientConfig.CertData) == 0 && conf.TLSClientConfig.CertFile != "" {
+		data, err := ioutil.ReadFile(conf.TLSClientConfig.CertFile)
+		errors.CheckError(err)
+		tlsClientConfig.CertData = data
+	}
+	if len(conf.TLSClientConfig.KeyData) == 0 && conf.TLSClientConfig.KeyFile != "" {
+		data, err := ioutil.ReadFile(conf.TLSClientConfig.KeyFile)
+		errors.CheckError(err)
+		tlsClientConfig.KeyData = data
+	}
+
 	clst := argoappv1.Cluster{
 		Server:     conf.Host,
 		Name:       name,
 		Namespaces: namespaces,
 		Config: argoappv1.ClusterConfig{
-			BearerToken:     managerBearerToken,
 			TLSClientConfig: tlsClientConfig,
 			AWSAuthConfig:   awsAuthConf,
 		},
 	}
+
+	// Bearer token will preferentially be used for auth if present,
+	// Even in presence of key/cert credentials
+	// So set bearer token only if the key/cert data is absent
+	if len(tlsClientConfig.CertData) == 0 || len(tlsClientConfig.KeyData) == 0 {
+		clst.Config.BearerToken = managerBearerToken
+	}
+
 	return &clst
 }
 

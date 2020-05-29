@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/health"
+	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 	. "github.com/argoproj/gitops-engine/pkg/utils/errors"
-	"github.com/argoproj/gitops-engine/pkg/utils/health"
-	. "github.com/argoproj/gitops-engine/pkg/utils/kube/sync/common"
 	"github.com/stretchr/testify/assert"
 
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"

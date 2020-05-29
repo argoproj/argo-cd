@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/health"
+	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/utils/json"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
