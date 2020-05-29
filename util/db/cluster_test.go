@@ -85,9 +85,7 @@ func TestWatchClusters(t *testing.T) {
 	}()
 
 	err := crudCluster(ctx, db, cluserServerAddr, syncMessage)
-	if !assert.NoError(t, err) {
-		assert.Fail(t, "Test prepare test data crdCluster failed")
-	}
+	assert.NoError(t, err, "Test prepare test data crdCluster failed")
 
 	select {
 	case <-timeout:
@@ -142,9 +140,7 @@ func TestWatchClustersLocalCluster(t *testing.T) {
 
 	//crud local cluster
 	err := crudCluster(ctx, db, common.KubernetesInternalAPIServerAddr, syncMessage)
-	if !assert.NoError(t, err) {
-		assert.Fail(t, "Test prepare test data crdCluster failed")
-	}
+	assert.NoError(t, err, "Test prepare test data crdCluster failed")
 
 	select {
 	case <-timeout:

@@ -38,9 +38,7 @@ func TestClusterSecretUpdater(t *testing.T) {
 	defer cancel()
 
 	cluster, err := db.CreateCluster(ctx, &v1alpha1.Cluster{Server: "http://minikube"})
-	if !assert.NoError(t, err) {
-		return
-	}
+	assert.NoError(t, err, "Test prepare test data create cluster failed")
 
 	for _, test := range tests {
 		info := &clustercache.ClusterInfo{
@@ -51,6 +49,8 @@ func TestClusterSecretUpdater(t *testing.T) {
 		}
 
 		err = updateClusterFromClusterCache(db, info)
+		assert.NoError(t, err, "Invoking updateClusterFromClusterCache failed.")
+
 		cluster, err = db.GetCluster(ctx, cluster.Server)
 		assert.NoError(t, err)
 		assert.Equal(t, updatedK8sVersion, cluster.ServerVersion)
