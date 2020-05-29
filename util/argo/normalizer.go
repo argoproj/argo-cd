@@ -4,7 +4,7 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/argo/normalizers"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/diff"
+	"github.com/argoproj/gitops-engine/pkg/diff"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 

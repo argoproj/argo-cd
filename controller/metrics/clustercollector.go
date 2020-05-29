@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube/cache"
+	"github.com/argoproj/gitops-engine/pkg/cache"
 
 	"github.com/prometheus/client_golang/prometheus"
 )

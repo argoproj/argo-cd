@@ -12,9 +12,9 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/diff"
+	"github.com/argoproj/gitops-engine/pkg/diff"
+	healthutil "github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/utils/errors"
-	healthutil "github.com/argoproj/gitops-engine/pkg/utils/health"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"

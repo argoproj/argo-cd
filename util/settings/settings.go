@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	apiv1 "k8s.io/api/core/v1"
@@ -33,7 +34,6 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/password"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
-	"github.com/argoproj/gitops-engine/pkg/utils/diff"
 )
 
 // ArgoCDSettings holds in-memory runtime configuration options.
