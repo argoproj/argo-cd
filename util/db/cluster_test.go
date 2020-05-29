@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 
 const (
 	fakeNamespace = "fake-ns"
+	syncMessage   = "Sync successful"
 )
 
 func Test_serverToSecretName(t *testing.T) {
@@ -53,6 +55,8 @@ func TestWatchClustersNoClustersRegistered(t *testing.T) {
 }
 
 func TestWatchClusters(t *testing.T) {
+	const cluserServerAddr = "http://minikube"
+
 	kubeclientset := fake.NewSimpleClientset()
 	settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
 	db := NewDB(fakeNamespace, settingsManager, kubeclientset)
@@ -60,56 +64,113 @@ func TestWatchClusters(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	addedClusters := make(chan *v1alpha1.Cluster, 5)
-	updatedClusters := make(chan *v1alpha1.Cluster, 5)
-	deletedClusters := make(chan string, 5)
+	addedClusters := make([]string, 0)
+	updatedClusters := make([]string, 0)
+	deletedClusters := make([]string, 0)
+
+	done := make(chan bool)
+	timeout := time.After(3 * time.Second)
 
 	go func() {
 		assert.NoError(t, db.WatchClusters(ctx, func(cluster *v1alpha1.Cluster) {
-			addedClusters <- cluster
+			addedClusters = append(addedClusters, cluster.Server)
 		}, func(oldCluster *v1alpha1.Cluster, newCluster *v1alpha1.Cluster) {
-			updatedClusters <- newCluster
+			updatedClusters = append(updatedClusters, newCluster.Server)
+			assert.Equal(t, syncMessage, newCluster.ConnectionState.Message)
+			assert.Empty(t, oldCluster.ConnectionState.Message)
 		}, func(clusterServer string) {
-			deletedClusters <- clusterServer
-			close(addedClusters)
-			close(updatedClusters)
-			close(deletedClusters)
+			deletedClusters = append(deletedClusters, clusterServer)
+			done <- true
 		}))
 	}()
 
-	cluster, err := db.CreateCluster(ctx, &v1alpha1.Cluster{Server: "http://minikube"})
+	err := crudCluster(ctx, db, cluserServerAddr, syncMessage)
 	if !assert.NoError(t, err) {
-		return
+		assert.Fail(t, "Test prepare test data crdCluster failed")
 	}
 
-	message := "sync successful"
+	select {
+	case <-timeout:
+		assert.Fail(t, "Test didn't finish in time")
+	case <-done:
+	}
+
+	assert.ElementsMatch(t, []string{common.KubernetesInternalAPIServerAddr, cluserServerAddr}, addedClusters)
+	assert.ElementsMatch(t, []string{"http://minikube"}, updatedClusters)
+	assert.ElementsMatch(t, []string{"http://minikube"}, deletedClusters)
+}
+
+//Cluster with address common.KubernetesInternalAPIServerAddr is local cluster
+//In this test we crud local cluster
+func TestWatchClustersLocalCluster(t *testing.T) {
+	kubeclientset := fake.NewSimpleClientset()
+	settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
+	db := NewDB(fakeNamespace, settingsManager, kubeclientset)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	addedClusters := make([]string, 0)
+	updatedClusters := make([]string, 0)
+
+	done := make(chan bool)
+	timeout := time.After(5 * time.Second)
+
+	var ops uint64
+
+	go func() {
+		assert.NoError(t, db.WatchClusters(ctx, func(cluster *v1alpha1.Cluster) {
+			addedClusters = append(addedClusters, cluster.Server)
+		}, func(oldCluster *v1alpha1.Cluster, newCluster *v1alpha1.Cluster) {
+			updatedClusters = append(updatedClusters, newCluster.Server)
+			atomic.AddUint64(&ops, 1)
+			if ops == 1 {
+				//this is triggered by mod cluster
+				assert.Equal(t, syncMessage, newCluster.ConnectionState.Message)
+				assert.Empty(t, oldCluster.ConnectionState.Message)
+			}
+			if ops == 2 {
+				//this is triggered by delete cluster
+				assert.Empty(t, newCluster.ConnectionState.Message)
+				assert.Equal(t, syncMessage, oldCluster.ConnectionState.Message)
+				done <- true
+			}
+		}, func(clusterServer string) {
+			assert.Fail(t, "Not expecting delete for local cluster")
+		}))
+	}()
+
+	//crud local cluster
+	err := crudCluster(ctx, db, common.KubernetesInternalAPIServerAddr, syncMessage)
+	if !assert.NoError(t, err) {
+		assert.Fail(t, "Test prepare test data crdCluster failed")
+	}
+
+	select {
+	case <-timeout:
+		assert.Fail(t, "Test didn't finish in time")
+	case <-done:
+	}
+
+	assert.ElementsMatch(t, []string{common.KubernetesInternalAPIServerAddr}, addedClusters)
+	assert.ElementsMatch(t, []string{common.KubernetesInternalAPIServerAddr, common.KubernetesInternalAPIServerAddr}, updatedClusters)
+}
+
+func crudCluster(ctx context.Context, db ArgoDB, cluserServerAddr string, message string) error {
+	cluster, err := db.CreateCluster(ctx, &v1alpha1.Cluster{Server: cluserServerAddr})
+	if err != nil {
+		return err
+	}
+
 	cluster.ConnectionState.Message = message
 	cluster, err = db.UpdateCluster(ctx, cluster)
-	if !assert.NoError(t, err) {
-		return
+	if err != nil {
+		return err
 	}
 
 	err = db.DeleteCluster(ctx, cluster.Server)
-	if !assert.NoError(t, err) {
-		return
+	if err != nil {
+		return err
 	}
-
-	var addClusterServers []string
-	for elem := range addedClusters {
-		addClusterServers = append(addClusterServers, elem.Server)
-	}
-
-	var updatedClusterServers []string
-	for elem := range updatedClusters {
-		updatedClusterServers = append(updatedClusterServers, elem.Server)
-	}
-
-	var deletedClusterServers []string
-	for elem := range deletedClusters {
-		deletedClusterServers = append(deletedClusterServers, elem)
-	}
-
-	assert.ElementsMatch(t, []string{common.KubernetesInternalAPIServerAddr, "http://minikube"}, addClusterServers)
-	assert.ElementsMatch(t, []string{"http://minikube"}, updatedClusterServers)
-	assert.ElementsMatch(t, []string{"http://minikube"}, deletedClusterServers)
+	return err
 }

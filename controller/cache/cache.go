@@ -418,18 +418,14 @@ func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *a
 	cluster, ok := c.clusters[newCluster.Server]
 	c.lock.Unlock()
 	if ok {
-		if oldCluster == nil {
+		if oldCluster.Server != newCluster.Server {
 			bToInvalidate = true
-		} else {
-			if oldCluster.Server != newCluster.Server {
-				bToInvalidate = true
-			}
-			if !reflect.DeepEqual(oldCluster.Config, newCluster.Config) {
-				bToInvalidate = true
-			}
-			if !reflect.DeepEqual(oldCluster.Namespaces, newCluster.Namespaces) {
-				bToInvalidate = true
-			}
+		}
+		if !reflect.DeepEqual(oldCluster.Config, newCluster.Config) {
+			bToInvalidate = true
+		}
+		if !reflect.DeepEqual(oldCluster.Namespaces, newCluster.Namespaces) {
+			bToInvalidate = true
 		}
 	}
 	if bToInvalidate {
