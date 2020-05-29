@@ -157,6 +157,7 @@ func (db *db) WatchClusters(ctx context.Context,
 				if string(secretObj.Data["server"]) == common.KubernetesInternalAPIServerAddr {
 					// change local cluster event to modified or deleted, since it cannot be re-added or deleted
 					handleModEvent(localCls, &localCluster)
+					localCls = &localCluster
 				} else {
 					handleDeleteEvent(string(secretObj.Data["server"]))
 				}
