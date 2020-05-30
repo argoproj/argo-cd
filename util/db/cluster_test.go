@@ -2,7 +2,7 @@ package db
 
 import (
 	"context"
-	"sync/atomic"
+	"sync"
 	"testing"
 	"time"
 
@@ -111,28 +111,15 @@ func TestWatchClustersLocalCluster(t *testing.T) {
 	addedClusters := make([]string, 0)
 	updatedClusters := make([]string, 0)
 
-	done := make(chan bool)
-	timeout := time.After(10 * time.Second)
-
-	var ops uint64
+	var wg sync.WaitGroup
+	wg.Add(2)
 
 	go func() {
 		assert.NoError(t, db.WatchClusters(ctx, func(cluster *v1alpha1.Cluster) {
 			addedClusters = append(addedClusters, cluster.Server)
 		}, func(oldCluster *v1alpha1.Cluster, newCluster *v1alpha1.Cluster) {
 			updatedClusters = append(updatedClusters, newCluster.Server)
-			atomic.AddUint64(&ops, 1)
-			if ops == 1 {
-				//this is triggered by mod cluster
-				assert.Equal(t, syncMessage, newCluster.ConnectionState.Message)
-				assert.Empty(t, oldCluster.ConnectionState.Message)
-			}
-			if ops == 2 {
-				//this is triggered by delete cluster
-				assert.Empty(t, newCluster.ConnectionState.Message)
-				assert.Equal(t, syncMessage, oldCluster.ConnectionState.Message)
-				done <- true
-			}
+			wg.Done()
 		}, func(clusterServer string) {
 			assert.Fail(t, "Not expecting delete for local cluster")
 		}))
@@ -142,11 +129,7 @@ func TestWatchClustersLocalCluster(t *testing.T) {
 	err := crudCluster(ctx, db, common.KubernetesInternalAPIServerAddr, syncMessage)
 	assert.NoError(t, err, "Test prepare test data crdCluster failed")
 
-	select {
-	case <-timeout:
-		assert.Fail(t, "Test didn't finish in time")
-	case <-done:
-	}
+	wg.Wait()
 
 	assert.ElementsMatch(t, []string{common.KubernetesInternalAPIServerAddr}, addedClusters)
 	assert.ElementsMatch(t, []string{common.KubernetesInternalAPIServerAddr, common.KubernetesInternalAPIServerAddr}, updatedClusters)
