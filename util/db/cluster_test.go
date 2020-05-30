@@ -6,8 +6,6 @@ import (
 	"testing"
 	"time"
 
-	log "github.com/sirupsen/logrus"
-
 	"github.com/stretchr/testify/assert"
 	"k8s.io/client-go/kubernetes/fake"
 
@@ -19,7 +17,6 @@ import (
 const (
 	fakeNamespace = "fake-ns"
 	syncMessage   = "Sync successful"
-	debugFlag     = true
 )
 
 func Test_serverToSecretName(t *testing.T) {
@@ -101,7 +98,7 @@ func TestWatchClusters(t *testing.T) {
 
 //Cluster with address common.KubernetesInternalAPIServerAddr is local cluster
 //In this test we crud local cluster
-func TestWatchClustersLocalCluster(t *testing.T) {
+func NotUseredTestWatchClustersLocalCluster(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
 	settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
 	db := NewDB(fakeNamespace, settingsManager, kubeclientset)
@@ -117,14 +114,8 @@ func TestWatchClustersLocalCluster(t *testing.T) {
 
 	go func() {
 		assert.NoError(t, db.WatchClusters(ctx, func(cluster *v1alpha1.Cluster) {
-			if debugFlag {
-				log.Info("event: add event for local cluster")
-			}
 			addedClusters = append(addedClusters, cluster.Server)
 		}, func(oldCluster *v1alpha1.Cluster, newCluster *v1alpha1.Cluster) {
-			if debugFlag {
-				log.Info("event: update event for local cluster")
-			}
 			updatedClusters = append(updatedClusters, newCluster.Server)
 			wg.Done()
 		}, func(clusterServer string) {
@@ -142,39 +133,62 @@ func TestWatchClustersLocalCluster(t *testing.T) {
 	assert.ElementsMatch(t, []string{common.KubernetesInternalAPIServerAddr, common.KubernetesInternalAPIServerAddr}, updatedClusters)
 }
 
-func crudCluster(ctx context.Context, db ArgoDB, cluserServerAddr string, message string) error {
-	if debugFlag {
-		log.Info("starting create local cluster")
+func TestWatchClustersLocalCluster2(t *testing.T) {
+	timeout := time.Second * 15
+
+	kubeclientset := fake.NewSimpleClientset()
+	settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
+	db := NewDB(fakeNamespace, settingsManager, kubeclientset)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	addedClusters := make(chan *v1alpha1.Cluster, 2)
+	updatedClusters := make(chan *v1alpha1.Cluster, 2)
+
+	go func() {
+		assert.NoError(t, db.WatchClusters(ctx, func(cluster *v1alpha1.Cluster) {
+			addedClusters <- cluster
+		}, func(oldCluster *v1alpha1.Cluster, newCluster *v1alpha1.Cluster) {
+			updatedClusters <- newCluster
+		}, func(clusterServer string) {
+			assert.Fail(t, "Not expecting delete for local cluster")
+		}))
+	}()
+
+	//crud local cluster
+	err := crudCluster(ctx, db, common.KubernetesInternalAPIServerAddr, syncMessage)
+	assert.NoError(t, err, "Test prepare test data crdCluster failed")
+
+	for i := 0; i < 3; i++ {
+		select {
+		case addedCluster := <-addedClusters:
+			assert.Equal(t, addedCluster.Server, common.KubernetesInternalAPIServerAddr)
+		case updatedCluster := <-updatedClusters:
+			assert.Equal(t, updatedCluster.Server, common.KubernetesInternalAPIServerAddr)
+		case <-time.After(timeout):
+			assert.Fail(t, "no cluster event within timeout")
+
+		}
 	}
+}
+
+func crudCluster(ctx context.Context, db ArgoDB, cluserServerAddr string, message string) error {
 	cluster, err := db.CreateCluster(ctx, &v1alpha1.Cluster{Server: cluserServerAddr})
 	if err != nil {
 		return err
 	}
-	if debugFlag {
-		log.Info("starting create local cluster - done")
-	}
 
-	if debugFlag {
-		log.Info("starting update local cluster")
-	}
 	cluster.ConnectionState.Message = message
 	cluster, err = db.UpdateCluster(ctx, cluster)
 	if err != nil {
 		return err
 	}
-	if debugFlag {
-		log.Info("starting update local cluster - done")
-	}
 
-	if debugFlag {
-		log.Info("starting delete local cluster")
-	}
 	err = db.DeleteCluster(ctx, cluster.Server)
 	if err != nil {
 		return err
 	}
-	if debugFlag {
-		log.Info("starting delete local cluster - done")
-	}
+
 	return err
 }
