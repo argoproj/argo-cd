@@ -112,7 +112,7 @@ func TestWatchClustersLocalCluster(t *testing.T) {
 	updatedClusters := make([]string, 0)
 
 	done := make(chan bool)
-	timeout := time.After(5 * time.Second)
+	timeout := time.After(10 * time.Second)
 
 	var ops uint64
 
