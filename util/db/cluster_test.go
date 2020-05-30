@@ -173,8 +173,8 @@ func crudCluster(ctx context.Context, db ArgoDB, cluserServerAddr string, messag
 	if err != nil {
 		return err
 	}
-	return err
 	if debugFlag {
 		log.Info("starting delete local cluster - done")
 	}
+	return err
 }
