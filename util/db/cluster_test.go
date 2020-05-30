@@ -68,30 +68,28 @@ func TestWatchClusters(t *testing.T) {
 	updatedClusters := make([]string, 0)
 	deletedClusters := make([]string, 0)
 
-	done := make(chan bool)
-	timeout := time.After(3 * time.Second)
+	var wg sync.WaitGroup
+	wg.Add(4)
 
 	go func() {
 		assert.NoError(t, db.WatchClusters(ctx, func(cluster *v1alpha1.Cluster) {
 			addedClusters = append(addedClusters, cluster.Server)
+			wg.Done()
 		}, func(oldCluster *v1alpha1.Cluster, newCluster *v1alpha1.Cluster) {
 			updatedClusters = append(updatedClusters, newCluster.Server)
 			assert.Equal(t, syncMessage, newCluster.ConnectionState.Message)
 			assert.Empty(t, oldCluster.ConnectionState.Message)
+			wg.Done()
 		}, func(clusterServer string) {
 			deletedClusters = append(deletedClusters, clusterServer)
-			done <- true
+			wg.Done()
 		}))
 	}()
 
 	err := crudCluster(ctx, db, cluserServerAddr, syncMessage)
 	assert.NoError(t, err, "Test prepare test data crdCluster failed")
 
-	select {
-	case <-timeout:
-		assert.Fail(t, "Test didn't finish in time")
-	case <-done:
-	}
+	wg.Wait()
 
 	assert.ElementsMatch(t, []string{common.KubernetesInternalAPIServerAddr, cluserServerAddr}, addedClusters)
 	assert.ElementsMatch(t, []string{"http://minikube"}, updatedClusters)
