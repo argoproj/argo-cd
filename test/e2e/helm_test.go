@@ -123,6 +123,34 @@ func TestHelmValues(t *testing.T) {
 		})
 }
 
+func TestHelmValuesMultipleUnset(t *testing.T) {
+	Given(t).
+		Path("helm").
+		When().
+		AddFile("foo.yml", "").
+		AddFile("baz.yml", "").
+		Create().
+		AppSet("--values", "foo.yml", "--values", "baz.yml").
+		Then().
+		And(func(app *Application) {
+			assert.NotNil(t, app.Spec.Source.Helm)
+			assert.Equal(t, []string{"foo.yml", "baz.yml"}, app.Spec.Source.Helm.ValueFiles)
+		}).
+		When().
+		AppUnSet("--values", "foo.yml").
+		Then().
+		And(func(app *Application) {
+			assert.NotNil(t, app.Spec.Source.Helm)
+			assert.Equal(t, []string{"baz.yml"}, app.Spec.Source.Helm.ValueFiles)
+		}).
+		When().
+		AppUnSet("--values", "baz.yml").
+		Then().
+		And(func(app *Application) {
+			assert.Nil(t, app.Spec.Source.Helm)
+		})
+}
+
 func TestHelmValuesLiteralFileLocal(t *testing.T) {
 	Given(t).
 		Path("helm").
