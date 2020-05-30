@@ -168,7 +168,7 @@ func (db *db) WatchClusters(ctx context.Context,
 			}
 		},
 		UpdateFunc: func(oldObj, newObj interface{}) {
-			log.Info("watcher: in update func")
+			log.Info("watcher: in update func oldObj %v, newObj %v", oldObj, newObj)
 			if oldSecretObj, ok := oldObj.(*apiv1.Secret); ok {
 				if newSecretObj, ok := newObj.(*apiv1.Secret); ok {
 					oldCluster := secretToCluster(oldSecretObj)
@@ -176,9 +176,13 @@ func (db *db) WatchClusters(ctx context.Context,
 					if newCluster.Server == common.KubernetesInternalAPIServerAddr {
 						localCls = newCluster
 					}
-					log.Info("watcher: in add func - calling handle mod event")
+					log.Info("watcher: in update func - calling handle mod event")
 					handleModEvent(oldCluster, newCluster)
+				} else {
+					log.Info("watcher: in update func. bad path. new obj is not a secret")
 				}
+			} else {
+				log.Info("watcher: in update func. bad path. old obj is not a secret")
 			}
 		},
 	}

@@ -118,12 +118,12 @@ func TestWatchClustersLocalCluster(t *testing.T) {
 	go func() {
 		assert.NoError(t, db.WatchClusters(ctx, func(cluster *v1alpha1.Cluster) {
 			if debugFlag {
-				log.Info("called adding event for local cluster")
+				log.Info("event: add event for local cluster")
 			}
 			addedClusters = append(addedClusters, cluster.Server)
 		}, func(oldCluster *v1alpha1.Cluster, newCluster *v1alpha1.Cluster) {
 			if debugFlag {
-				log.Info("called update event for local cluster")
+				log.Info("event: update event for local cluster %v", newCluster)
 			}
 			updatedClusters = append(updatedClusters, newCluster.Server)
 			wg.Done()
