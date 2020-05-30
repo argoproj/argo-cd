@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/stretchr/testify/assert"
 	"k8s.io/client-go/kubernetes/fake"
 
@@ -17,6 +19,7 @@ import (
 const (
 	fakeNamespace = "fake-ns"
 	syncMessage   = "Sync successful"
+	debugFlag     = true
 )
 
 func Test_serverToSecretName(t *testing.T) {
@@ -114,8 +117,14 @@ func TestWatchClustersLocalCluster(t *testing.T) {
 
 	go func() {
 		assert.NoError(t, db.WatchClusters(ctx, func(cluster *v1alpha1.Cluster) {
+			if debugFlag {
+				log.Info("called adding event for local cluster")
+			}
 			addedClusters = append(addedClusters, cluster.Server)
 		}, func(oldCluster *v1alpha1.Cluster, newCluster *v1alpha1.Cluster) {
+			if debugFlag {
+				log.Info("called update event for local cluster")
+			}
 			updatedClusters = append(updatedClusters, newCluster.Server)
 			wg.Done()
 		}, func(clusterServer string) {
@@ -134,20 +143,38 @@ func TestWatchClustersLocalCluster(t *testing.T) {
 }
 
 func crudCluster(ctx context.Context, db ArgoDB, cluserServerAddr string, message string) error {
+	if debugFlag {
+		log.Info("starting create local cluster")
+	}
 	cluster, err := db.CreateCluster(ctx, &v1alpha1.Cluster{Server: cluserServerAddr})
 	if err != nil {
 		return err
 	}
+	if debugFlag {
+		log.Info("starting create local cluster - done")
+	}
 
+	if debugFlag {
+		log.Info("starting update local cluster")
+	}
 	cluster.ConnectionState.Message = message
 	cluster, err = db.UpdateCluster(ctx, cluster)
 	if err != nil {
 		return err
 	}
+	if debugFlag {
+		log.Info("starting update local cluster - done")
+	}
 
+	if debugFlag {
+		log.Info("starting delete local cluster")
+	}
 	err = db.DeleteCluster(ctx, cluster.Server)
 	if err != nil {
 		return err
 	}
 	return err
+	if debugFlag {
+		log.Info("starting delete local cluster - done")
+	}
 }
