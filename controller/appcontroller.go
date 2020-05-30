@@ -968,7 +968,7 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 		reason = "spec.destination differs"
 	} else if requested, level := ctrl.isRefreshRequested(app.Name); requested {
 		compareWith = level
-		reason = fmt.Sprintf("controller refresh requested")
+		reason = "controller refresh requested"
 	}
 
 	if reason != "" {

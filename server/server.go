@@ -16,10 +16,6 @@ import (
 	"strings"
 	"time"
 
-	cacheutil "github.com/argoproj/argo-cd/util/cache"
-	"github.com/argoproj/argo-cd/util/healthz"
-	"github.com/argoproj/argo-cd/util/swagger"
-	"github.com/argoproj/argo-cd/util/webhook"
 	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	jsonutil "github.com/argoproj/gitops-engine/pkg/utils/json"
@@ -49,6 +45,11 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+
+	cacheutil "github.com/argoproj/argo-cd/util/cache"
+	"github.com/argoproj/argo-cd/util/healthz"
+	"github.com/argoproj/argo-cd/util/swagger"
+	"github.com/argoproj/argo-cd/util/webhook"
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apiclient"
@@ -806,6 +807,7 @@ func (a *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, error
 	claims, claimsErr := a.getClaims(ctx)
 	if claims != nil {
 		// Add claims to the context to inspect for RBAC
+		// nolint:staticcheck
 		ctx = context.WithValue(ctx, "claims", claims)
 	}
 

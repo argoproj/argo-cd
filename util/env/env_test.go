@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// nolint:unparam
 func setEnv(t *testing.T, env string, val string) io.Closer {
 	assert.NoError(t, os.Setenv(env, val))
 	return util.NewCloser(func() error {

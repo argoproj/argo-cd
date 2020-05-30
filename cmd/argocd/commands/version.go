@@ -8,11 +8,12 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/errors"
+	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
+
 	"github.com/argoproj/argo-cd/common"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	"github.com/argoproj/argo-cd/pkg/apiclient/version"
-	"github.com/argoproj/gitops-engine/pkg/utils/errors"
-	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
 )
 
 // NewVersionCmd returns a new `version` command to be used as a sub-command to root
@@ -25,7 +26,7 @@ func NewVersionCmd(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 
 	versionCmd := cobra.Command{
 		Use:   "version",
-		Short: fmt.Sprintf("Print version information"),
+		Short: "Print version information",
 		Example: `  # Print the full version of client and server to stdout
   argocd version
 

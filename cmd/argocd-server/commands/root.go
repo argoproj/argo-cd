@@ -4,8 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/argoproj/argo-cd/util/env"
-	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/argoproj/pkg/stats"
 	"github.com/go-redis/redis"
@@ -22,6 +20,8 @@ import (
 	"github.com/argoproj/argo-cd/server"
 	servercache "github.com/argoproj/argo-cd/server/cache"
 	"github.com/argoproj/argo-cd/util/cli"
+	"github.com/argoproj/argo-cd/util/env"
+	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/tls"
 )
 
