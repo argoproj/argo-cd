@@ -123,7 +123,7 @@ func TestWatchClustersLocalCluster(t *testing.T) {
 			addedClusters = append(addedClusters, cluster.Server)
 		}, func(oldCluster *v1alpha1.Cluster, newCluster *v1alpha1.Cluster) {
 			if debugFlag {
-				log.Info("event: update event for local cluster %v", newCluster)
+				log.Info("event: update event for local cluster")
 			}
 			updatedClusters = append(updatedClusters, newCluster.Server)
 			wg.Done()

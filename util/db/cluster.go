@@ -168,7 +168,7 @@ func (db *db) WatchClusters(ctx context.Context,
 			}
 		},
 		UpdateFunc: func(oldObj, newObj interface{}) {
-			log.Info("watcher: in update func oldObj %v, newObj %v", oldObj, newObj)
+			log.Info("watcher: in update func ")
 			if oldSecretObj, ok := oldObj.(*apiv1.Secret); ok {
 				if newSecretObj, ok := newObj.(*apiv1.Secret); ok {
 					oldCluster := secretToCluster(oldSecretObj)
