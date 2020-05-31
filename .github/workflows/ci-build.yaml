@@ -192,7 +192,7 @@ jobs:
         working-directory: ui/
 
   analyze:
-    name: Perform static code analysis 
+    name: Process & analyze test artifacts
     runs-on: ubuntu-latest
     needs:
       - test-go
@@ -225,13 +225,11 @@ jobs:
         with:
           name: test-results
           path: test-results
-      - name: Display working directory
-        run: ls -la
       - name: Upload code coverage information to codecov.io
         uses: codecov/codecov-action@v1
         with:
           file: coverage.out
-      - name: Run SonarCloud scanner
+      - name: Perform static code analysis using SonarCloud
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
