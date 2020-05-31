@@ -227,6 +227,10 @@ jobs:
           path: test-results
       - name: Display working directory
         run: ls -la
+      - name: Upload code coverage information to codecov.io
+        uses: codecov/codecov-action@v1
+        with:
+          file: coverage.out
       - name: Run SonarCloud scanner
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
