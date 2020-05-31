@@ -30,7 +30,7 @@ func NewVersionCmd(cliName string) *cobra.Command {
 	var short bool
 	versionCmd := cobra.Command{
 		Use:   "version",
-		Short: fmt.Sprintf("Print version information"),
+		Short: "Print version information",
 		Run: func(cmd *cobra.Command, args []string) {
 			version := common.GetVersion()
 			fmt.Printf("%s: %s\n", cliName, version)

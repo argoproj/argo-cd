@@ -80,10 +80,12 @@ func getAdminAccount(mgr *settings.SettingsManager) (*settings.Account, error) {
 }
 
 func adminContext(ctx context.Context) context.Context {
+	// nolint:staticcheck
 	return context.WithValue(ctx, "claims", &jwt.StandardClaims{Subject: "admin", Issuer: sessionutil.SessionManagerClaimsIssuer})
 }
 
 func ssoAdminContext(ctx context.Context, iat time.Time) context.Context {
+	// nolint:staticcheck
 	return context.WithValue(ctx, "claims", &jwt.StandardClaims{
 		Subject:  "admin",
 		Issuer:   "https://myargocdhost.com/api/dex",
@@ -92,6 +94,7 @@ func ssoAdminContext(ctx context.Context, iat time.Time) context.Context {
 }
 
 func projTokenContext(ctx context.Context) context.Context {
+	// nolint:staticcheck
 	return context.WithValue(ctx, "claims", &jwt.StandardClaims{
 		Subject: "proj:demo:deployer",
 		Issuer:  sessionutil.SessionManagerClaimsIssuer,

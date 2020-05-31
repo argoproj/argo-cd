@@ -879,6 +879,7 @@ func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revisi
 
 // checkoutRevision is a convenience function to initialize a repo, fetch, and checkout a revision
 // Returns the 40 character commit SHA after the checkout has been performed
+// nolint:unparam
 func checkoutRevision(gitClient git.Client, commitSHA string, logEntry *log.Entry) (string, error) {
 	err := gitClient.Init()
 	if err != nil {

@@ -68,14 +68,12 @@ func (c *client) executeRequest(fullMethodName string, msg []byte, md metadata.M
 	if err != nil {
 		return nil, err
 	}
-	if md != nil {
-		for k, v := range md {
-			if strings.HasPrefix(k, ":") {
-				continue
-			}
-			for i := range v {
-				req.Header.Set(k, v[i])
-			}
+	for k, v := range md {
+		if strings.HasPrefix(k, ":") {
+			continue
+		}
+		for i := range v {
+			req.Header.Set(k, v[i])
 		}
 	}
 	req.Header.Set("content-type", "application/grpc-web+proto")

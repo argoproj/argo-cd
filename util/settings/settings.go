@@ -342,8 +342,13 @@ func (mgr *SettingsManager) updateConfigMap(callback func(*apiv1.ConfigMap) erro
 		_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Update(argoCDCM)
 	}
 
+	if err != nil {
+		return err
+	}
+
 	mgr.invalidateCache()
-	return err
+
+	return mgr.ResyncInformers()
 }
 
 func (mgr *SettingsManager) getConfigMap() (*apiv1.ConfigMap, error) {
