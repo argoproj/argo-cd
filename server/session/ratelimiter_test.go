@@ -11,7 +11,6 @@ import (
 )
 
 type fakeStorage struct {
-	locked bool
 	values map[string]int
 }
 

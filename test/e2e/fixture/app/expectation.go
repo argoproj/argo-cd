@@ -143,7 +143,7 @@ func Pod(predicate func(p v1.Pod) bool) Expectation {
 				return succeeded, fmt.Sprintf("pod predicate matched pod named '%s'", pod.GetName())
 			}
 		}
-		return pending, fmt.Sprintf("pod predicate does not match pods")
+		return pending, "pod predicate does not match pods"
 	}
 }
 
@@ -158,7 +158,7 @@ func NotPod(predicate func(p v1.Pod) bool) Expectation {
 				return pending, fmt.Sprintf("pod predicate matched pod named '%s'", pod.GetName())
 			}
 		}
-		return succeeded, fmt.Sprintf("pod predicate did not match any pod")
+		return succeeded, "pod predicate did not match any pod"
 	}
 }
 

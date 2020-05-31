@@ -83,6 +83,8 @@ func TestSessionManager(t *testing.T) {
 }
 
 var loggedOutContext = context.Background()
+
+// nolint:staticcheck
 var loggedInContext = context.WithValue(context.Background(), "claims", &jwt.MapClaims{"iss": "qux", "sub": "foo", "email": "bar", "groups": []string{"baz"}})
 
 func TestIss(t *testing.T) {

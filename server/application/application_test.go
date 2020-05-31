@@ -396,6 +396,7 @@ func TestRollbackApp(t *testing.T) {
 func TestUpdateAppProject(t *testing.T) {
 	testApp := newTestApp()
 	ctx := context.Background()
+	// nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.StandardClaims{Subject: "admin"})
 	appServer := newTestAppServer(testApp)
 	appServer.enf.SetDefaultRole("")
@@ -448,6 +449,7 @@ p, admin, applications, update, my-proj/test-app, allow
 func TestAppJsonPatch(t *testing.T) {
 	testApp := newTestApp()
 	ctx := context.Background()
+	// nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.StandardClaims{Subject: "admin"})
 	appServer := newTestAppServer(testApp)
 	appServer.enf.SetDefaultRole("")
@@ -468,6 +470,7 @@ func TestAppJsonPatch(t *testing.T) {
 func TestAppMergePatch(t *testing.T) {
 	testApp := newTestApp()
 	ctx := context.Background()
+	// nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.StandardClaims{Subject: "admin"})
 	appServer := newTestAppServer(testApp)
 	appServer.enf.SetDefaultRole("")
