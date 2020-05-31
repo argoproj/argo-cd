@@ -138,7 +138,6 @@ func (db *db) WatchClusters(ctx context.Context,
 	}
 	clusterEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			log.Info("watcher: in add func")
 			if secretObj, ok := obj.(*apiv1.Secret); ok {
 				cluster := secretToCluster(secretObj)
 				if cluster.Server == common.KubernetesInternalAPIServerAddr {
@@ -146,7 +145,6 @@ func (db *db) WatchClusters(ctx context.Context,
 						return
 					}
 					// change local cluster event to modified or deleted, since it cannot be re-added or deleted
-					log.Info("watcher: in add func - calling handleModEvent")
 					handleModEvent(localCls, cluster)
 					localCls = cluster
 					return
@@ -155,11 +153,9 @@ func (db *db) WatchClusters(ctx context.Context,
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
-			log.Info("watcher: in delete func")
 			if secretObj, ok := obj.(*apiv1.Secret); ok {
 				if string(secretObj.Data["server"]) == common.KubernetesInternalAPIServerAddr {
 					// change local cluster event to modified or deleted, since it cannot be re-added or deleted
-					log.Info("watcher: in delete func - calling handle Mod Event")
 					handleModEvent(localCls, &localCluster)
 					localCls = &localCluster
 				} else {
@@ -168,7 +164,6 @@ func (db *db) WatchClusters(ctx context.Context,
 			}
 		},
 		UpdateFunc: func(oldObj, newObj interface{}) {
-			log.Info("watcher: in update func ")
 			if oldSecretObj, ok := oldObj.(*apiv1.Secret); ok {
 				if newSecretObj, ok := newObj.(*apiv1.Secret); ok {
 					oldCluster := secretToCluster(oldSecretObj)
@@ -176,13 +171,8 @@ func (db *db) WatchClusters(ctx context.Context,
 					if newCluster.Server == common.KubernetesInternalAPIServerAddr {
 						localCls = newCluster
 					}
-					log.Info("watcher: in update func - calling handle mod event")
 					handleModEvent(oldCluster, newCluster)
-				} else {
-					log.Info("watcher: in update func. bad path. new obj is not a secret")
 				}
-			} else {
-				log.Info("watcher: in update func. bad path. old obj is not a secret")
 			}
 		},
 	}

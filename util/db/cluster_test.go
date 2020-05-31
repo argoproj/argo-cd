@@ -98,43 +98,8 @@ func TestWatchClusters(t *testing.T) {
 
 //Cluster with address common.KubernetesInternalAPIServerAddr is local cluster
 //In this test we crud local cluster
-func NotUseredTestWatchClustersLocalCluster(t *testing.T) {
-	kubeclientset := fake.NewSimpleClientset()
-	settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
-	db := NewDB(fakeNamespace, settingsManager, kubeclientset)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	addedClusters := make([]string, 0)
-	updatedClusters := make([]string, 0)
-
-	var wg sync.WaitGroup
-	wg.Add(2)
-
-	go func() {
-		assert.NoError(t, db.WatchClusters(ctx, func(cluster *v1alpha1.Cluster) {
-			addedClusters = append(addedClusters, cluster.Server)
-		}, func(oldCluster *v1alpha1.Cluster, newCluster *v1alpha1.Cluster) {
-			updatedClusters = append(updatedClusters, newCluster.Server)
-			wg.Done()
-		}, func(clusterServer string) {
-			assert.Fail(t, "Not expecting delete for local cluster")
-		}))
-	}()
-
-	//crud local cluster
-	err := crudCluster(ctx, db, common.KubernetesInternalAPIServerAddr, syncMessage)
-	assert.NoError(t, err, "Test prepare test data crdCluster failed")
-
-	wg.Wait()
-
-	assert.ElementsMatch(t, []string{common.KubernetesInternalAPIServerAddr}, addedClusters)
-	assert.ElementsMatch(t, []string{common.KubernetesInternalAPIServerAddr, common.KubernetesInternalAPIServerAddr}, updatedClusters)
-}
-
-func TestWatchClustersLocalCluster2(t *testing.T) {
-	timeout := time.Second * 15
+func TestWatchClustersLocalCluster(t *testing.T) {
+	timeout := time.Second * 5
 
 	kubeclientset := fake.NewSimpleClientset()
 	settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
@@ -159,7 +124,11 @@ func TestWatchClustersLocalCluster2(t *testing.T) {
 		}))
 	}()
 
-	<-done
+	select {
+	case <-done:
+	case <-time.After(timeout):
+		assert.Fail(t, "Failed due to timeout when starting clusterSecretInformer")
+	}
 
 	//crud local cluster
 	err := crudCluster(ctx, db, common.KubernetesInternalAPIServerAddr, syncMessage)
