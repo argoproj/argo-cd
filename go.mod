@@ -8,7 +8,7 @@ require (
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
 	github.com/alicebob/gopher-json v0.0.0-20180125190556-5a6b3ba71ee6 // indirect
 	github.com/alicebob/miniredis v2.5.0+incompatible
-	github.com/argoproj/gitops-engine v0.1.1-0.20200529001831-99bd42d9a3ee
+	github.com/argoproj/gitops-engine v0.0.0-00010101000000-000000000000
 	github.com/argoproj/pkg v0.0.0-20200319004004-f46beff7cd54
 	github.com/bsm/redislock v0.4.3
 	github.com/casbin/casbin v1.9.1
@@ -39,7 +39,7 @@ require (
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v0.0.0-20190222133341-cfaf5686ec79
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
-	github.com/grpc-ecosystem/grpc-gateway v1.3.1
+	github.com/grpc-ecosystem/grpc-gateway v1.9.2
 	github.com/improbable-eng/grpc-web v0.0.0-20181111100011-16092bd1d58a
 	github.com/k0kubun/colorstring v0.0.0-20150214042306-9440f1994b88 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
@@ -79,12 +79,13 @@ require (
 	k8s.io/klog v1.0.0
 	k8s.io/kube-openapi v0.0.0-20191107075043-30be4d16710a
 	k8s.io/kubectl v0.16.6
-	k8s.io/kubernetes v1.17.0-alpha.0.0.20191207011953-bfafae8f1c2f
+	k8s.io/kubernetes v1.16.6
 	k8s.io/utils v0.0.0-20191114200735-6ca3b61696b6
 	layeh.com/gopher-json v0.0.0-20190114024228-97fed8db8427
 )
 
 replace (
+	github.com/argoproj/gitops-engine => github.com/argoproj/gitops-engine v0.1.1-0.20200529001831-99bd42d9a3ee
 	github.com/golang/protobuf => github.com/golang/protobuf v1.2.0
 	github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc-gateway v1.3.1
 	github.com/improbable-eng/grpc-web => github.com/improbable-eng/grpc-web v0.0.0-20181111100011-16092bd1d58a

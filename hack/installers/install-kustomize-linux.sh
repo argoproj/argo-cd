@@ -1,7 +1,9 @@
 #!/bin/bash
 set -eux -o pipefail
 
-KUSTOMIZE_VERSION=${KUSTOMIZE_VERSION:-3.5.5}
+. $(dirname $0)/../tool-versions.sh
+
+KUSTOMIZE_VERSION=${KUSTOMIZE_VERSION:-$kustomize3_version}
 
 # Note that kustomize release URIs have changed for v3.2.1. Then again for
 # v3.3.0. When upgrading to versions >= v3.3.0 please change the URI format. And

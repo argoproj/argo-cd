@@ -151,6 +151,7 @@ clientgen:
 
 .PHONY: codegen-local
 codegen-local: mod-vendor-local gogen protogen clientgen openapigen manifests-local
+	rm -rf vendor/
 
 .PHONY: codegen
 codegen:
@@ -298,9 +299,8 @@ build:
 
 # Build all Go code (local version)
 .PHONY: build-local
-build-local: mod-vendor-local
-	export GO111MODULE=off
-	go build -p 1 -v `go list ./... | grep -v 'resource_customizations\|test/e2e'`
+build-local: 
+	go build -v `go list ./... | grep -v 'resource_customizations\|test/e2e'`
 
 # Run all unit tests
 #
@@ -313,8 +313,7 @@ test:
 
 # Run all unit tests (local version)
 .PHONY: test-local
-test-local: mod-vendor-local
-	export GO111MODULE=off
+test-local:
 	if test "$(TEST_MODULE)" = ""; then \
 		./hack/test.sh -coverprofile=coverage.out `go list ./... | grep -v 'test/e2e'`; \
 	else \
@@ -351,8 +350,7 @@ start-e2e:
 
 # Starts e2e server locally (or within a container)
 .PHONY: start-e2e-local
-start-e2e-local: mod-vendor-local
-	export GO111MODULE=off
+start-e2e-local: 
 	kubectl create ns argocd-e2e || true
 	kubectl config set-context --current --namespace=argocd-e2e
 	kustomize build test/manifests/base | kubectl apply -f -
@@ -439,16 +437,27 @@ show-go-version:
 
 # Installs all tools required to build and test ArgoCD locally
 .PHONY: install-tools-local
-install-tools-local:
-	./hack/install.sh dep-linux
-	./hack/install.sh packr-linux
-	./hack/install.sh kubectl-linux
-	./hack/install.sh ksonnet-linux
-	./hack/install.sh helm2-linux
-	./hack/install.sh helm-linux
-	./hack/install.sh codegen-tools
+install-tools-local: install-test-tools-local install-codegen-tools-local install-go-tools-local
+
+# Installs all tools required for running unit & end-to-end tests (Linux packages)
+.PHONY: install-test-tools-local
+install-test-tools-local:
+	sudo ./hack/install.sh packr-linux
+	sudo ./hack/install.sh kubectl-linux
+	sudo ./hack/install.sh kustomize-linux
+	sudo ./hack/install.sh ksonnet-linux
+	sudo ./hack/install.sh helm2-linux
+	sudo ./hack/install.sh helm-linux
+
+# Installs all tools required for running codegen (Linux packages)
+.PHONY: install-codegen-tools-local
+install-codegen-tools-local:
+	sudo ./hack/install.sh codegen-tools
+
+# Installs all tools required for running codegen (Go packages)
+.PHONY: install-go-tools-local
+install-go-tools-local:
 	./hack/install.sh codegen-go-tools
-	./hack/install.sh lint-tools
 
 .PHONY: dep-ui
 dep-ui:

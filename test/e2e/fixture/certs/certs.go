@@ -2,6 +2,7 @@ package certs
 
 import (
 	"io/ioutil"
+	"os"
 	"path/filepath"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/errors"
@@ -28,7 +29,11 @@ func AddCustomCACert() {
 }
 
 func AddCustomSSHKnownHostsKeys() {
-	knownHostsPath, err := filepath.Abs("../fixture/testrepos/ssh_known_hosts")
+	source := os.Getenv("ARGOCD_E2E_SSH_KNOWN_HOSTS")
+	if source == "" {
+		source = "../fixture/testrepos/ssh_known_hosts"
+	}
+	knownHostsPath, err := filepath.Abs(source)
 	errors.CheckError(err)
 	args := []string{"cert", "add-ssh", "--batch", "--from", knownHostsPath}
 	errors.FailOnErr(fixture.RunCli(args...))

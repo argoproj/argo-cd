@@ -1,7 +1,9 @@
 #!/bin/bash
 set -eux -o pipefail
 
-PACKR_VERSION=1.21.9
+. $(dirname $0)/../tool-versions.sh
+
+PACKR_VERSION=${packr_version}
 case $ARCHITECTURE in
   arm|arm64)
     set +o pipefail

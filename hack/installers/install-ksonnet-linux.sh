@@ -1,7 +1,9 @@
 #!/bin/bash
 set -eux -o pipefail
 
-KSONNET_VERSION=0.13.1
+. $(dirname $0)/../tool-versions.sh
+
+KSONNET_VERSION=${ksonnet_version}
 case $ARCHITECTURE in
   arm|arm64)
     set +o pipefail
