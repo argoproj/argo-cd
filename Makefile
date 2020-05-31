@@ -452,7 +452,6 @@ install-codegen-tools-local:
 .PHONY: install-go-tools-local
 install-go-tools-local:
 	./hack/install.sh codegen-go-tools
-	./hack/install.sh lint-tools
 
 .PHONY: dep-ui
 dep-ui:
