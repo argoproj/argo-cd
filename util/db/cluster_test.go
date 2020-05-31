@@ -54,7 +54,9 @@ func TestWatchClustersNoClustersRegistered(t *testing.T) {
 	}
 }
 
+//In this test we crud a new cluster
 func TestWatchClusters(t *testing.T) {
+	timeout := time.Second * 5
 	const cluserServerAddr = "http://minikube"
 
 	kubeclientset := fake.NewSimpleClientset()
@@ -68,12 +70,16 @@ func TestWatchClusters(t *testing.T) {
 	updatedClusters := make([]string, 0)
 	deletedClusters := make([]string, 0)
 
+	milestoneTestSetupDone := make(chan bool, 1)
+
 	var wg sync.WaitGroup
+	//It includes events of create, mod, delete this cluster and also create local cluster. So total is 4 events
 	wg.Add(4)
 
 	go func() {
 		assert.NoError(t, db.WatchClusters(ctx, func(cluster *v1alpha1.Cluster) {
 			addedClusters = append(addedClusters, cluster.Server)
+			milestoneTestSetupDone <- true
 			wg.Done()
 		}, func(oldCluster *v1alpha1.Cluster, newCluster *v1alpha1.Cluster) {
 			updatedClusters = append(updatedClusters, newCluster.Server)
@@ -86,11 +92,19 @@ func TestWatchClusters(t *testing.T) {
 		}))
 	}()
 
+	select {
+	case <-milestoneTestSetupDone:
+	case <-time.After(timeout):
+		assert.Fail(t, "Failed due to timeout when starting clusterSecretInformer")
+	}
+
+	time.Sleep(300 * time.Millisecond)
 	err := crudCluster(ctx, db, cluserServerAddr, syncMessage)
 	assert.NoError(t, err, "Test prepare test data crdCluster failed")
 
 	wg.Wait()
 
+	//addedClusters contains local cluster and the new crud cluster
 	assert.ElementsMatch(t, []string{common.KubernetesInternalAPIServerAddr, cluserServerAddr}, addedClusters)
 	assert.ElementsMatch(t, []string{"http://minikube"}, updatedClusters)
 	assert.ElementsMatch(t, []string{"http://minikube"}, deletedClusters)
@@ -108,43 +122,41 @@ func TestWatchClustersLocalCluster(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	done := make(chan bool, 1)
+	milestoneTestSetupDone := make(chan bool, 1)
+	var wg sync.WaitGroup
+	wg.Add(3)
 
-	addedClusters := make(chan *v1alpha1.Cluster, 2)
-	updatedClusters := make(chan *v1alpha1.Cluster, 2)
+	addedClusters := make([]string, 0)
+	updatedClusters := make([]string, 0)
 
 	go func() {
 		assert.NoError(t, db.WatchClusters(ctx, func(cluster *v1alpha1.Cluster) {
-			addedClusters <- cluster
-			done <- true
+			addedClusters = append(addedClusters, cluster.Server)
+			milestoneTestSetupDone <- true
+			wg.Done()
 		}, func(oldCluster *v1alpha1.Cluster, newCluster *v1alpha1.Cluster) {
-			updatedClusters <- newCluster
+			updatedClusters = append(updatedClusters, newCluster.Server)
+			wg.Done()
 		}, func(clusterServer string) {
 			assert.Fail(t, "Not expecting delete for local cluster")
 		}))
 	}()
 
 	select {
-	case <-done:
+	case <-milestoneTestSetupDone:
 	case <-time.After(timeout):
 		assert.Fail(t, "Failed due to timeout when starting clusterSecretInformer")
 	}
 
 	//crud local cluster
+	time.Sleep(300 * time.Millisecond)
 	err := crudCluster(ctx, db, common.KubernetesInternalAPIServerAddr, syncMessage)
-	assert.NoError(t, err, "Test prepare test data crdCluster failed")
+	assert.NoError(t, err, "Test prepare test data crdCluster failed ")
 
-	for i := 0; i < 3; i++ {
-		select {
-		case addedCluster := <-addedClusters:
-			assert.Equal(t, addedCluster.Server, common.KubernetesInternalAPIServerAddr)
-		case updatedCluster := <-updatedClusters:
-			assert.Equal(t, updatedCluster.Server, common.KubernetesInternalAPIServerAddr)
-		case <-time.After(timeout):
-			assert.Fail(t, "no cluster event within timeout")
+	wg.Wait()
 
-		}
-	}
+	assert.ElementsMatch(t, []string{common.KubernetesInternalAPIServerAddr}, addedClusters)
+	assert.ElementsMatch(t, []string{common.KubernetesInternalAPIServerAddr, common.KubernetesInternalAPIServerAddr}, updatedClusters)
 }
 
 func crudCluster(ctx context.Context, db ArgoDB, cluserServerAddr string, message string) error {
