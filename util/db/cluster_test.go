@@ -143,18 +143,23 @@ func TestWatchClustersLocalCluster2(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	done := make(chan bool, 1)
+
 	addedClusters := make(chan *v1alpha1.Cluster, 2)
 	updatedClusters := make(chan *v1alpha1.Cluster, 2)
 
 	go func() {
 		assert.NoError(t, db.WatchClusters(ctx, func(cluster *v1alpha1.Cluster) {
 			addedClusters <- cluster
+			done <- true
 		}, func(oldCluster *v1alpha1.Cluster, newCluster *v1alpha1.Cluster) {
 			updatedClusters <- newCluster
 		}, func(clusterServer string) {
 			assert.Fail(t, "Not expecting delete for local cluster")
 		}))
 	}()
+
+	<-done
 
 	//crud local cluster
 	err := crudCluster(ctx, db, common.KubernetesInternalAPIServerAddr, syncMessage)
