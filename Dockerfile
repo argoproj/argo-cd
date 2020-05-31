@@ -25,6 +25,7 @@ WORKDIR /tmp
 
 ADD hack/install.sh .
 ADD hack/installers installers
+ADD hack/tool-versions.sh .
 
 RUN ./install.sh packr-linux
 RUN ./install.sh kubectl-linux
