@@ -52,7 +52,9 @@ func getCustomResourceDefinitions() map[string]*extensionsobj.CustomResourceDefi
 			"app.kubernetes.io/name":    crd.Name,
 			"app.kubernetes.io/part-of": "argocd",
 		}
+		delete(crd.Annotations, "controller-gen.kubebuilder.io/version")
 		crd.Spec.Scope = "Namespaced"
+		crd.Spec.PreserveUnknownFields = nil
 		crds[crd.Name] = crd
 	}
 	return crds
