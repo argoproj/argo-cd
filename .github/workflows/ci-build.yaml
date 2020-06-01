@@ -116,6 +116,12 @@ jobs:
         with:
           name: test-results
           path: test-results/
+      - uses: check-run-reporter/action@master
+        if: ${{ always() }}
+        env:
+          CHECK_RUN_REPORTER_LABEL: 'Unit Tests'
+          CHECK_RUN_REPORTER_REPORT: 'test-results/**/*.xml'
+          CHECK_RUN_REPORTER_TOKEN: ${{ secrets.CHECK_RUN_REPORTER_TOKEN }}
 
   codegen:
     name: Check changes to generated code
