@@ -14,8 +14,6 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/sync"
-
 	"github.com/argoproj/pkg/kube/cli"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -24,6 +22,7 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/engine"
+	"github.com/argoproj/gitops-engine/pkg/sync"
 	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	executil "github.com/argoproj/gitops-engine/pkg/utils/exec"
 	"github.com/argoproj/gitops-engine/pkg/utils/io"
@@ -130,15 +129,17 @@ func newCmd() *cobra.Command {
 			if namespaced {
 				namespaces = []string{namespace}
 			}
-			clusterCache := cache.NewClusterCache(config, cache.SetNamespaces(namespaces))
-			clusterCache.SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (info interface{}, cacheManifest bool) {
-				// store gc mark of every resource
-				gcMark := un.GetAnnotations()[annotationGCMark]
-				info = &resourceInfo{gcMark: un.GetAnnotations()[annotationGCMark]}
-				// cache resources that has that mark to improve performance
-				cacheManifest = gcMark != ""
-				return
-			})
+			clusterCache := cache.NewClusterCache(config,
+				cache.SetNamespaces(namespaces),
+				cache.SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (info interface{}, cacheManifest bool) {
+					// store gc mark of every resource
+					gcMark := un.GetAnnotations()[annotationGCMark]
+					info = &resourceInfo{gcMark: un.GetAnnotations()[annotationGCMark]}
+					// cache resources that has that mark to improve performance
+					cacheManifest = gcMark != ""
+					return
+				}),
+			)
 			gitOpsEngine := engine.NewEngine(config, clusterCache)
 			errors.CheckError(err)
 
