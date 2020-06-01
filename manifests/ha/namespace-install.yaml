@@ -614,6 +614,7 @@ spec:
                 message:
                   type: string
                 status:
+                  description: Represents resource health status
                   type: string
               type: object
             history:
@@ -1412,6 +1413,7 @@ spec:
                       message:
                         type: string
                       status:
+                        description: Represents resource health status
                         type: string
                     type: object
                   hook:
