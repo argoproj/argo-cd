@@ -2,17 +2,17 @@ package kube
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"os/exec"
 	"regexp"
-	"runtime/debug"
 	"strings"
-	"sync"
 
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/sync/errgroup"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -501,28 +501,20 @@ func (k *KubectlCmd) SetOnKubectlRun(onKubectlRun func(command string) (io.Close
 	k.OnKubectlRun = onKubectlRun
 }
 
-func RunAllAsync(count int, action func(i int) error) (err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			message := fmt.Sprintf("Recovered from panic: %+v\n%s", r, debug.Stack())
-			log.Error(message)
-			err = errors.New(message)
-		}
-	}()
-	var wg sync.WaitGroup
+func RunAllAsync(count int, action func(i int) error) error {
+	g, ctx := errgroup.WithContext(context.Background())
+loop:
 	for i := 0; i < count; i++ {
-		wg.Add(1)
-		go func(index int) {
-			defer wg.Done()
-			actionErr := action(index)
-			if actionErr != nil {
-				err = actionErr
-			}
-		}(i)
-		if err != nil {
-			break
+		index := i
+		g.Go(func() error {
+			return action(index)
+		})
+		select {
+		case <-ctx.Done():
+			// Something went wrong already, stop spawning tasks.
+			break loop
+		default:
 		}
 	}
-	wg.Wait()
-	return err
+	return g.Wait()
 }
