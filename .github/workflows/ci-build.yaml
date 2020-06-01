@@ -112,11 +112,12 @@ jobs:
           name: code-coverage
           path: coverage.out
       - name: Generate test results artifacts
+        if: ${{ always() }}
         uses: actions/upload-artifact@v2
         with:
           name: test-results
           path: test-results/
-      - uses: check-run-reporter/action@master
+      - uses: check-run-reporter/action@v1.1.0
         if: ${{ always() }}
         env:
           CHECK_RUN_REPORTER_LABEL: 'Unit Tests'
