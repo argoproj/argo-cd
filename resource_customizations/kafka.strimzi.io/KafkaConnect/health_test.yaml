@@ -1,0 +1,11 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "Waiting for Kafka Connect"
+  inputPath: testdata/progressing_noStatus.yaml
+- healthStatus:
+    status: Degraded
+  inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Healthy
+  inputPath: testdata/healthy.yaml
