@@ -93,6 +93,13 @@ func WithSkipHooks(skipHooks bool) SyncOpt {
 	}
 }
 
+// WithPrune specifies if resource pruning enabled
+func WithPrune(prune bool) SyncOpt {
+	return func(ctx *syncContext) {
+		ctx.prune = prune
+	}
+}
+
 // WithOperationSettings allows to set sync operation settings
 func WithOperationSettings(dryRun bool, prune bool, force bool, skipHooks bool) SyncOpt {
 	return func(ctx *syncContext) {

@@ -2,14 +2,19 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"text/tabwriter"
 	"time"
+
+	"github.com/argoproj/gitops-engine/pkg/sync"
 
 	"github.com/argoproj/pkg/kube/cli"
 	log "github.com/sirupsen/logrus"
@@ -25,9 +30,9 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 )
 
-func nothingManaged(_ *cache.Resource) bool {
-	return false
-}
+const (
+	annotationGCMark = "gitops-agent.argoproj.io/gc-mark"
+)
 
 func main() {
 	if err := newCmd().Execute(); err != nil {
@@ -36,12 +41,73 @@ func main() {
 	}
 }
 
+type resourceInfo struct {
+	gcMark string
+}
+
+type settings struct {
+	repoPath string
+	paths    []string
+}
+
+func (s *settings) getGCMark(key kube.ResourceKey) string {
+	h := sha256.New()
+	_, _ = h.Write([]byte(fmt.Sprintf("%s/%s", s.repoPath, strings.Join(s.paths, ","))))
+	_, _ = h.Write([]byte(strings.Join([]string{key.Group, key.Kind, key.Name}, "/")))
+	return "sha256." + base64.RawURLEncoding.EncodeToString(h.Sum(nil))
+}
+
+func (s *settings) parseManifests() ([]*unstructured.Unstructured, string, error) {
+	cmd := exec.Command("git", "rev-parse", "HEAD")
+	cmd.Dir = s.repoPath
+	revision, err := executil.Run(cmd)
+	if err != nil {
+		return nil, "", err
+	}
+	var res []*unstructured.Unstructured
+	for i := range s.paths {
+		if err := filepath.Walk(filepath.Join(s.repoPath, s.paths[i]), func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if info.IsDir() {
+				return nil
+			}
+			if ext := filepath.Ext(info.Name()); ext != ".json" && ext != ".yml" && ext != ".yaml" {
+				return nil
+			}
+			data, err := ioutil.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			items, err := kube.SplitYAML(string(data))
+			if err != nil {
+				return fmt.Errorf("failed to parse %s: %v", path, err)
+			}
+			res = append(res, items...)
+			return nil
+		}); err != nil {
+			return nil, "", err
+		}
+	}
+	for i := range res {
+		annotations := res[i].GetAnnotations()
+		if annotations == nil {
+			annotations = make(map[string]string)
+		}
+		annotations[annotationGCMark] = s.getGCMark(kube.GetResourceKey(res[i]))
+		res[i].SetAnnotations(annotations)
+	}
+	return res, revision, nil
+}
+
 func newCmd() *cobra.Command {
 	var (
 		clientConfig  clientcmd.ClientConfig
 		paths         []string
 		resyncSeconds int
 		port          int
+		prune         bool
 		namespace     string
 		namespaced    bool
 	)
@@ -52,7 +118,7 @@ func newCmd() *cobra.Command {
 				cmd.HelpFunc()(cmd, args)
 				os.Exit(1)
 			}
-			repoPath := args[0]
+			s := settings{args[0], paths}
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
 			if namespace == "" {
@@ -64,7 +130,16 @@ func newCmd() *cobra.Command {
 			if namespaced {
 				namespaces = []string{namespace}
 			}
-			gitOpsEngine := engine.NewEngine(config, cache.NewClusterCache(config, cache.SetNamespaces(namespaces)))
+			clusterCache := cache.NewClusterCache(config, cache.SetNamespaces(namespaces))
+			clusterCache.SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (info interface{}, cacheManifest bool) {
+				// store gc mark of every resource
+				gcMark := un.GetAnnotations()[annotationGCMark]
+				info = &resourceInfo{gcMark: un.GetAnnotations()[annotationGCMark]}
+				// cache resources that has that mark to improve performance
+				cacheManifest = gcMark != ""
+				return
+			})
+			gitOpsEngine := engine.NewEngine(config, clusterCache)
 			errors.CheckError(err)
 
 			closer, err := gitOpsEngine.Run()
@@ -90,13 +165,15 @@ func newCmd() *cobra.Command {
 			}()
 
 			for ; true; <-resync {
-				target, revision, err := parseManifests(repoPath, paths)
+				target, revision, err := s.parseManifests()
 				if err != nil {
 					log.Warnf("failed to parse target state: %v", err)
 					continue
 				}
 
-				result, err := gitOpsEngine.Sync(context.Background(), target, nothingManaged, revision, namespace)
+				result, err := gitOpsEngine.Sync(context.Background(), target, func(r *cache.Resource) bool {
+					return r.Info.(*resourceInfo).gcMark == s.getGCMark(r.ResourceKey())
+				}, revision, namespace, sync.WithPrune(prune))
 				if err != nil {
 					log.Warnf("failed to synchronize cluster state: %v", err)
 					continue
@@ -114,45 +191,10 @@ func newCmd() *cobra.Command {
 	cmd.Flags().StringArrayVar(&paths, "path", []string{"."}, "Directory path with-in repository")
 	cmd.Flags().IntVar(&resyncSeconds, "resync-seconds", 300, "Resync duration in seconds.")
 	cmd.Flags().IntVar(&port, "port", 9001, "Port number.")
+	cmd.Flags().BoolVar(&prune, "prune", true, "Enables resource pruning.")
 	cmd.Flags().BoolVar(&namespaced, "namespaced", false, "Switches agent into namespaced mode.")
 	cmd.Flags().StringVar(&namespace, "default-namespace", "",
 		"The namespace that should be used if resource namespace is not specified. "+
 			"By default resources are installed into the same namespace where gitops-agent is installed.")
 	return &cmd
-}
-
-func parseManifests(repoPath string, paths []string) ([]*unstructured.Unstructured, string, error) {
-	cmd := exec.Command("git", "rev-parse", "HEAD")
-	cmd.Dir = repoPath
-	revision, err := executil.Run(cmd)
-	if err != nil {
-		return nil, "", err
-	}
-	var res []*unstructured.Unstructured
-	for i := range paths {
-		if err := filepath.Walk(filepath.Join(repoPath, paths[i]), func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
-			if info.IsDir() {
-				return nil
-			}
-			if ext := filepath.Ext(info.Name()); ext != ".json" && ext != ".yml" && ext != ".yaml" {
-				return nil
-			}
-			data, err := ioutil.ReadFile(path)
-			if err != nil {
-				return err
-			}
-			items, err := kube.SplitYAML(string(data))
-			if err != nil {
-				return fmt.Errorf("failed to parse %s: %v", path, err)
-			}
-			res = append(res, items...)
-			return nil
-		}); err != nil {
-			return nil, "", err
-		}
-	}
-	return res, revision, nil
 }
