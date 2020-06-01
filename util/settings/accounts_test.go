@@ -17,6 +17,7 @@ func TestGetAccounts_NoAccountsConfigured(t *testing.T) {
 	_, settingsManager := fixtures(nil)
 	accounts, err := settingsManager.GetAccounts()
 	assert.NoError(t, err)
+	assert.True(t, false)
 
 	adminAccount, ok := accounts[common.ArgoCDAdminUsername]
 	assert.True(t, ok)

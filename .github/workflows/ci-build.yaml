@@ -111,6 +111,12 @@ jobs:
         with:
           name: code-coverage
           path: coverage.out
+      - uses: check-run-reporter/action@v1.1.0
+          if: ${{ always() }}
+          env:
+            CHECK_RUN_REPORTER_LABEL: 'Unit Tests'
+            CHECK_RUN_REPORTER_REPORT: 'test-results/**/*.xml'
+            CHECK_RUN_REPORTER_TOKEN: ${{ secrets.CHECK_RUN_REPORTER_TOKEN }}
       - name: Generate test results artifacts
         uses: actions/upload-artifact@v2
         with:
