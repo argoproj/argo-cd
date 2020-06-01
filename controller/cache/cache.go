@@ -216,20 +216,23 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		return nil, err
 	}
 
-	clusterCache = clustercache.NewClusterCache(cluster.RESTConfig(), clustercache.SetSettings(c.cacheSettings), clustercache.SetNamespaces(cluster.Namespaces))
-	clusterCache.SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (interface{}, bool) {
-		res := &ResourceInfo{}
-		populateNodeInfo(un, res)
-		res.Health, _ = health.GetResourceHealth(un, c.cacheSettings.ResourceHealthOverride)
-		appName := kube.GetAppInstanceLabel(un, c.appInstanceLabelKey)
-		if isRoot && appName != "" {
-			res.AppName = appName
-		}
+	clusterCache = clustercache.NewClusterCache(cluster.RESTConfig(),
+		clustercache.SetSettings(c.cacheSettings),
+		clustercache.SetNamespaces(cluster.Namespaces),
+		clustercache.SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (interface{}, bool) {
+			res := &ResourceInfo{}
+			populateNodeInfo(un, res)
+			res.Health, _ = health.GetResourceHealth(un, c.cacheSettings.ResourceHealthOverride)
+			appName := kube.GetAppInstanceLabel(un, c.appInstanceLabelKey)
+			if isRoot && appName != "" {
+				res.AppName = appName
+			}
 
-		// edge case. we do not label CRDs, so they miss the tracking label we inject. But we still
-		// want the full resource to be available in our cache (to diff), so we store all CRDs
-		return res, res.AppName != "" || un.GroupVersionKind().Kind == kube.CustomResourceDefinitionKind
-	})
+			// edge case. we do not label CRDs, so they miss the tracking label we inject. But we still
+			// want the full resource to be available in our cache (to diff), so we store all CRDs
+			return res, res.AppName != "" || un.GroupVersionKind().Kind == kube.CustomResourceDefinitionKind
+		}),
+	)
 
 	_ = clusterCache.OnResourceUpdated(func(newRes *clustercache.Resource, oldRes *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) {
 		toNotify := make(map[string]bool)

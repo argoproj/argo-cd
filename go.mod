@@ -41,7 +41,6 @@ require (
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/grpc-ecosystem/grpc-gateway v1.9.2
 	github.com/improbable-eng/grpc-web v0.0.0-20181111100011-16092bd1d58a
-	github.com/k0kubun/colorstring v0.0.0-20150214042306-9440f1994b88 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/malexdev/utfutil v0.0.0-20180510171754-00c8d4a8e7a8 // indirect
 	github.com/mwitkow/go-conntrack v0.0.0-20190716064945-2f068394615f // indirect
@@ -59,7 +58,6 @@ require (
 	github.com/stretchr/testify v1.5.1
 	github.com/vmihailenco/msgpack v3.3.1+incompatible
 	github.com/yudai/gojsondiff v1.0.1-0.20180504020246-0525c875b75c
-	github.com/yudai/pp v2.0.1+incompatible // indirect
 	github.com/yuin/gopher-lua v0.0.0-20190115140932-732aa6820ec4
 	golang.org/x/crypto v0.0.0-20190820162420-60c769a6c586
 	golang.org/x/net v0.0.0-20191004110552-13f9640d40b9
@@ -85,7 +83,7 @@ require (
 )
 
 replace (
-	github.com/argoproj/gitops-engine => github.com/argoproj/gitops-engine v0.1.1-0.20200529001831-99bd42d9a3ee
+	github.com/argoproj/gitops-engine => github.com/argoproj/gitops-engine v0.1.1-0.20200601171118-4bd4f29670ee
 	github.com/golang/protobuf => github.com/golang/protobuf v1.2.0
 	github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc-gateway v1.3.1
 	github.com/improbable-eng/grpc-web => github.com/improbable-eng/grpc-web v0.0.0-20181111100011-16092bd1d58a
