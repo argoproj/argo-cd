@@ -9,13 +9,17 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 )
 
+// Resource holds the information about Kubernetes resource, ownership references and optional information
 type Resource struct {
+	// ResourceVersion holds most recent observed resource version
 	ResourceVersion string
-	Ref             v1.ObjectReference
-	OwnerRefs       []metav1.OwnerReference
-	Info            interface{}
-
-	// available only for root application nodes
+	// Resource reference
+	Ref v1.ObjectReference
+	// References to resource owners
+	OwnerRefs []metav1.OwnerReference
+	// Optional additional information about the resource
+	Info interface{}
+	// Optional whole resource manifest
 	Resource *unstructured.Unstructured
 }
 

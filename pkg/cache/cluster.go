@@ -86,8 +86,6 @@ type ClusterCache interface {
 	GetManagedLiveObjs(targetObjs []*unstructured.Unstructured, isManaged func(r *Resource) bool) (map[kube.ResourceKey]*unstructured.Unstructured, error)
 	// GetClusterInfo returns cluster cache statistics
 	GetClusterInfo() ClusterInfo
-	// SetPopulateResourceInfoHandler sets callback that populates resource information in the cache
-	SetPopulateResourceInfoHandler(handler OnPopulateResourceInfoHandler)
 	// OnResourceUpdated register event handler that is executed every time when resource get's updated in the cache
 	OnResourceUpdated(handler OnResourceUpdatedHandler) Unsubscribe
 	// OnEvent register event handler that is executed every time when new K8S event received
@@ -138,13 +136,6 @@ type clusterCache struct {
 	populateResourceInfoHandler OnPopulateResourceInfoHandler
 	resourceUpdatedHandlers     map[uint64]OnResourceUpdatedHandler
 	eventHandlers               map[uint64]OnEventHandler
-}
-
-// SetPopulateResourceInfoHandler sets callback that populates resource information in the cache
-func (c *clusterCache) SetPopulateResourceInfoHandler(handler OnPopulateResourceInfoHandler) {
-	c.handlersLock.Lock()
-	defer c.handlersLock.Unlock()
-	c.populateResourceInfoHandler = handler
 }
 
 // OnResourceUpdated register event handler that is executed every time when resource get's updated in the cache

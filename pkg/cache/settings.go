@@ -39,6 +39,13 @@ func SetKubectl(kubectl kube.Kubectl) func(cache *clusterCache) {
 
 type UpdateSettingsFunc func(cache *clusterCache)
 
+// SetPopulateResourceInfoHandler updates handler that populates resource info
+func SetPopulateResourceInfoHandler(handler OnPopulateResourceInfoHandler) UpdateSettingsFunc {
+	return func(cache *clusterCache) {
+		cache.populateResourceInfoHandler = handler
+	}
+}
+
 // SetSettings updates caching settings
 func SetSettings(settings Settings) UpdateSettingsFunc {
 	return func(cache *clusterCache) {

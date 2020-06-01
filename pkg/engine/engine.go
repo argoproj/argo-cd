@@ -1,3 +1,12 @@
+/*
+The package provides high-level interface that leverages "pkg/cache", "pkg/sync", "pkg/health" and "pkg/diff" packages
+and "implements" GitOps.
+
+Example
+
+The https://github.com/argoproj/gitops-engine/tree/master/agent demonstrates how to use the engine.
+*/
+
 package engine
 
 import (
@@ -24,7 +33,9 @@ const (
 )
 
 type GitOpsEngine interface {
+	// Run initializes engine
 	Run() (io.Closer, error)
+	// Synchronizes resources in the cluster
 	Sync(ctx context.Context, resources []*unstructured.Unstructured, isManaged func(r *cache.Resource) bool, revision string, namespace string, opts ...sync.SyncOpt) ([]common.ResourceSyncResult, error)
 }
 
@@ -34,6 +45,7 @@ type gitOpsEngine struct {
 	kubectl kube.Kubectl
 }
 
+// NewEngine creates new instances of the GitOps engine
 func NewEngine(config *rest.Config, clusterCache cache.ClusterCache) GitOpsEngine {
 	return &gitOpsEngine{
 		config:  config,

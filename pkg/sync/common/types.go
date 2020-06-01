@@ -16,6 +16,13 @@ const (
 	AnnotationKeyHook = "argocd.argoproj.io/hook"
 	// AnnotationKeyHookDeletePolicy is the policy of deleting a hook
 	AnnotationKeyHookDeletePolicy = "argocd.argoproj.io/hook-delete-policy"
+
+	// Sync option that disables dry run in resource is missing in the cluster
+	SyncOptionSkipDryRunOnMissingResource = "SkipDryRunOnMissingResource=true"
+	// Sync option that disables resource pruning
+	SyncOptionDisablePrune = "Prune=false"
+	// Sync option that disables resource validation
+	SyncOptionsDisableValidation = "Validate=false"
 )
 
 type PermissionValidator func(un *unstructured.Unstructured, res *metav1.APIResource) error

@@ -1,9 +1,11 @@
 package cache
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
@@ -241,9 +243,9 @@ func TestGetChildren(t *testing.T) {
 
 func TestGetManagedLiveObjs(t *testing.T) {
 	cluster := newCluster(testPod, testRS, testDeploy)
-	cluster.SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (info interface{}, cacheManifest bool) {
+	cluster.Invalidate(SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (info interface{}, cacheManifest bool) {
 		return nil, true
-	})
+	}))
 
 	err := cluster.EnsureSynced()
 	assert.Nil(t, err)
@@ -397,4 +399,58 @@ func TestGetDuplicatedChildren(t *testing.T) {
 		assert.Equal(t, kube.ReplicaSetKind, children[0].Ref.Kind)
 		assert.Equal(t, testRS.GetName(), children[0].Ref.Name)
 	}
+}
+
+func ExampleNewClusterCache_inspectNamespaceResources() {
+	// kubernetes cluster config here
+	config := &rest.Config{}
+
+	clusterCache := NewClusterCache(config,
+		// cache default namespace only
+		SetNamespaces([]string{"default", "kube-system"}),
+		// configure custom logic to cache resources manifest and additional metadata
+		SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (info interface{}, cacheManifest bool) {
+			// if resource belongs to 'extensions' group then mark if with 'deprecated' label
+			if un.GroupVersionKind().Group == "extensions" {
+				info = []string{"deprecated"}
+			}
+			_, ok := un.GetLabels()["acme.io/my-label"]
+			// cache whole manifest if resource has label
+			cacheManifest = ok
+			return
+		}),
+	)
+	// Ensure cluster is synced before using it
+	if err := clusterCache.EnsureSynced(); err != nil {
+		panic(err)
+	}
+	// Iterate default namespace resources tree
+	for _, root := range clusterCache.GetNamespaceTopLevelResources("default") {
+		clusterCache.IterateHierarchy(root.ResourceKey(), func(resource *Resource, _ map[kube.ResourceKey]*Resource) {
+			println(fmt.Sprintf("resource: %s, info: %v", resource.Ref.String(), resource.Info))
+		})
+	}
+}
+
+func ExampleNewClusterCache_resourceUpdatedEvents() {
+	// kubernetes cluster config here
+	config := &rest.Config{}
+
+	clusterCache := NewClusterCache(config)
+	// Ensure cluster is synced before using it
+	if err := clusterCache.EnsureSynced(); err != nil {
+		panic(err)
+	}
+	unsubscribe := clusterCache.OnResourceUpdated(func(newRes *Resource, oldRes *Resource, _ map[kube.ResourceKey]*Resource) {
+		if newRes == nil {
+			println(fmt.Sprintf("%s deleted", oldRes.Ref.String()))
+		} else if oldRes == nil {
+			println(fmt.Sprintf("%s created", newRes.Ref.String()))
+		} else {
+			println(fmt.Sprintf("%s updated", newRes.Ref.String()))
+		}
+	})
+	defer unsubscribe()
+	// observe resource modifications for 1 minute
+	time.Sleep(time.Minute)
 }

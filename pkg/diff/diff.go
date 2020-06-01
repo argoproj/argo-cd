@@ -1,3 +1,7 @@
+/*
+The package provide functions that allows to compare set of Kubernetes resources using the logic equivalent to
+`kubectl diff`.
+*/
 package diff
 
 import (
@@ -27,18 +31,25 @@ import (
 	jsonutil "github.com/argoproj/gitops-engine/pkg/utils/json"
 )
 
+// Holds diffing settings
 type DiffOptions struct {
+	// If set to true then differences caused by aggregated roles in RBAC resources are ignored.
 	IgnoreAggregatedRoles bool `json:"ignoreAggregatedRoles,omitempty"`
 }
 
+// Holds diffing result of two resources
 type DiffResult struct {
-	// Deprecated: Use PredictedLive and NormalizedLive instead
-	Diff           gojsondiff.Diff
-	Modified       bool
-	PredictedLive  []byte
+	// Modified is set to true if resources are not matching
+	Modified bool
+	// Contains YAML representation of a live resource with applied normalizations
 	NormalizedLive []byte
+	// Contains "expected" YAML representation of a live resource
+	PredictedLive []byte
+	// Deprecated: Use PredictedLive and NormalizedLive instead
+	Diff gojsondiff.Diff
 }
 
+// Holds result of two resources sets comparison
 type DiffResultList struct {
 	Diffs    []DiffResult
 	Modified bool

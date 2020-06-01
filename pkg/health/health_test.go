@@ -1,3 +1,7 @@
+/*
+Package provides functionality that allows assessing the health state of a Kubernetes resource.
+*/
+
 package health
 
 import (

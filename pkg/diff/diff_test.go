@@ -723,3 +723,52 @@ spec:
 	assert.Equal(t, float64(0.2), requestsBefore["cpu"])
 	assert.Equal(t, "200m", requestsAfter["cpu"])
 }
+
+func ExampleDiff() {
+	expectedResource := unstructured.Unstructured{}
+	if err := yaml.Unmarshal([]byte(`
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-pod
+spec:
+  containers:
+  - image: nginx:1.7.9
+    name: nginx
+    resources:
+      requests:
+        cpu: 0.2
+`), &expectedResource); err != nil {
+		panic(err)
+	}
+
+	liveResource := unstructured.Unstructured{}
+	if err := yaml.Unmarshal([]byte(`
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-pod-123
+  creationTimestamp: "2020-03-30T21:34:59Z"
+  labels:
+    pod-template-hash: 84bf9649fd
+  name: argo-cd-cli-84bf9649fd-tm59q
+  resourceVersion: "233081332"
+  uid: 9a5ae31a-eed2-4f82-81fe-833799c54f99
+spec:
+  containers:
+  - image: nginx:1.7.9
+    name: nginx
+    resources:
+      requests:
+        cpu: 0.1
+`), &liveResource); err != nil {
+		panic(err)
+	}
+	diff, err := Diff(&expectedResource, &liveResource, GetNoopNormalizer(), GetDefaultDiffOptions())
+	if err != nil {
+		panic(err)
+	}
+	if diff.Modified {
+		println("Resources are different")
+	}
+}
