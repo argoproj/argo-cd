@@ -13,11 +13,6 @@ KUSTOMIZE_VERSION=${KUSTOMIZE_VERSION:-$kustomize3_version}
 # v3.3.0 = https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/v3.3.0/kustomize_v3.3.0_linux_amd64.tar.gz
 case $ARCHITECTURE in
   arm|arm64)
-    # Note that installing kustomize via Go is broken in version v3.5.5
-    # This is fixed in v3.6.1, more details in the github issue:
-    # https://github.com/kubernetes-sigs/kustomize/issues/2462
-    # TODO: Remove this once kustomize gets updated to v3.6.1 for linux
-    KUSTOMIZE_VERSION="3.6.1"
     BINNAME=kustomize
     GO111MODULE=on go get sigs.k8s.io/kustomize/kustomize/v3@v${KUSTOMIZE_VERSION}
     mv $GOPATH/bin/kustomize $BIN/$BINNAME
