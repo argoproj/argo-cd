@@ -1,0 +1,19 @@
+name: Create a release
+on:
+  push:
+    tags:
+      - 'release-v*'
+jobs:
+  prepare-release:
+    name: Prepare release assets
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Create release tag
+        env:
+          SOURCE_TAG: ${{ github.ref }}
+        run: |
+          echo "Creating release tag tag ${SOURCE_TAG}"
