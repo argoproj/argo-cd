@@ -178,7 +178,7 @@ argocd account can-i create clusters '*'
 
 Actions: %v
 Resources: %v
-`, rbacpolicy.Resources, rbacpolicy.Actions),
+`, rbacpolicy.Actions, rbacpolicy.Resources),
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 3 {
 				c.HelpFunc()(c, args)
