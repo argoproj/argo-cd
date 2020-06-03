@@ -1,21 +1,22 @@
 # GitOps Engine
+<div align="center">
 
-![logo](docs/img/Argo-Flux_logos.png)
+![image](https://user-images.githubusercontent.com/426437/82109570-f6c7ed80-96eb-11ea-849c-2bd5fe89b571.png)
 
-Two of the biggest GitOps projects are joining forces. [Argo CD](https://github.com/argoproj/argo-cd) and [Flux CD](https://github.com/fluxcd/flux) have been out there for years, making the lives of operators and organisations easier. Now the teams are building the best possible GitOps solution together. The first step on this journey is the GitOps Engine.
+</div>
 
-Argo and Flux already have similar sets of functionality, soon they will start sharing code using the GitOps Engine. The GitOps Engine will be responsible for the following functionality:
+Various GitOps operators address different use-cases and provide different user experiences but all have similar set of core features. The teams behind
+[Argo CD](https://github.com/argoproj/argo-cd) and [Flux CD](https://github.com/fluxcd/flux) have implemented a reusable library that implements core GitOps features:
 
+- Kubernetes resource cache ✅
+- Resources reconciliation ✅
+- Sync Planning ✅
 - Access to Git repositories
-- Kubernetes resource cache
 - Manifest Generation
-- Resources reconciliation
-- Sync Planning
-
-Over time, this might be useful to other projects too.
 
 ## Proposals, specifications and ideas
 
+Do you want to propose one more feature and want to enhance the existing one?
 Proposals and ideas are in markdown docs in the [`specs/`](specs/) directory.
 To create a new proposal, simply copy the spec [`template`](specs/template.md),
 name the file corresponding to the title of your proposal, and place it in the
@@ -46,10 +47,3 @@ We look forward to seeing you at our meetings and hearing about your feedback an
 ### Contributing to the effort
 
 At this stage we are interested in feedback, use-cases and help on the GitOps Engine.
-
-If you want to immediately kick the tires, you can try out using builds of either [Argo CD][argo-poc] or [Flux CD][flux-poc] powered by the GitOps Engine.
-
-[argo-poc]: https://github.com/argoproj/argo-cd/tree/gitops-engine-poc#what-is-gitops-engine-poc-branch
-[flux-poc]: https://github.com/fluxcd/flux/tree/gitops-engine-poc#what-is-gitops-engine-poc-branch
-[kube-slack]: https://slack.k8s.io/
-[gitops-slack]: https://kubernetes.slack.com/messages/gitops
