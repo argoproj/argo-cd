@@ -54,7 +54,7 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 			} else {
 				server = args[0]
 				tlsTestResult, err := grpc_util.TestTLS(server)
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 				if !tlsTestResult.TLS {
 					if !globalClientOpts.PlainText {
 						if !cli.AskToProceed("WARNING: server is not configured with TLS. Proceed (y/n)? ") {
@@ -101,12 +101,12 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 			} else {
 				ctx := context.Background()
 				httpClient, err := acdClient.HTTPClient()
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 				ctx = oidc.ClientContext(ctx, httpClient)
 				acdSet, err := setIf.Get(ctx, &settingspkg.SettingsQuery{})
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 				oauth2conf, provider, err := acdClient.OIDCConfig(ctx, acdSet)
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 				tokenString, refreshToken = oauth2Login(ctx, ssoPort, acdSet.GetOIDCConfig(), oauth2conf, provider)
 			}
 
@@ -115,12 +115,12 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 			}
 			claims := jwt.MapClaims{}
 			_, _, err := parser.ParseUnverified(tokenString, &claims)
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 
 			fmt.Printf("'%s' logged in successfully\n", userDisplayName(claims))
 			// login successful. Persist the config
 			localCfg, err := localconfig.ReadLocalConfig(globalClientOpts.ConfigPath)
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			if localCfg == nil {
 				localCfg = &localconfig.LocalConfig{}
 			}
@@ -146,7 +146,7 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 				Server: server,
 			})
 			err = localconfig.WriteLocalConfig(*localCfg, globalClientOpts.ConfigPath)
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			fmt.Printf("Context '%s' updated\n", ctxName)
 		},
 	}
@@ -173,7 +173,7 @@ func userDisplayName(claims jwt.MapClaims) string {
 func oauth2Login(ctx context.Context, port int, oidcSettings *settingspkg.OIDCConfig, oauth2conf *oauth2.Config, provider *oidc.Provider) (string, string) {
 	oauth2conf.RedirectURL = fmt.Sprintf("http://localhost:%d/auth/callback", port)
 	oidcConf, err := oidcutil.ParseConfig(provider)
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 	log.Debug("OIDC Configuration:")
 	log.Debugf("  supported_scopes: %v", oidcConf.ScopesSupported)
 	log.Debugf("  response_types_supported: %v", oidcConf.ResponseTypesSupported)
@@ -276,7 +276,7 @@ func oauth2Login(ctx context.Context, port int, oidcSettings *settingspkg.OIDCCo
 	fmt.Printf("Performing %s flow login: %s\n", grantType, url)
 	time.Sleep(1 * time.Second)
 	err = open.Start(url)
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 	go func() {
 		log.Debugf("Listen: %s", srv.Addr)
 		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
@@ -305,6 +305,6 @@ func passwordLogin(acdClient argocdclient.Client, username, password string) str
 		Password: password,
 	}
 	createdSession, err := sessionIf.Create(context.Background(), &sessionRequest)
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 	return createdSession.Token
 }

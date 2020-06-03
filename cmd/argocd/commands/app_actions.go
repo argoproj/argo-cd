@@ -62,7 +62,7 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 		defer io.Close(conn)
 		ctx := context.Background()
 		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName})
-		errors.CheckError(err)
+		errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 		filteredObjects := filterResources(command, resources.Items, group, kind, namespace, resourceName, true)
 		var availableActions []DisplayedAction
 		for i := range filteredObjects {
@@ -75,7 +75,7 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 				Group:        gvk.Group,
 				Kind:         gvk.Kind,
 			})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			for _, action := range availActionsForResource.Actions {
 				displayAction := DisplayedAction{
 					Group:    gvk.Group,
@@ -91,11 +91,11 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 		switch output {
 		case "yaml":
 			yamlBytes, err := yaml.Marshal(availableActions)
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			fmt.Println(string(yamlBytes))
 		case "json":
 			jsonBytes, err := json.MarshalIndent(availableActions, "", "  ")
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			fmt.Println(string(jsonBytes))
 		case "":
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
@@ -132,7 +132,7 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 	command.Flags().StringVar(&namespace, "namespace", "", "Namespace")
 	command.Flags().StringVar(&kind, "kind", "", "Kind")
 	command.Flags().StringVar(&group, "group", "", "Group")
-	errors.CheckError(command.MarkFlagRequired("kind"))
+	errors.CheckErrorWithCode(command.MarkFlagRequired("kind"), errors.ErrorCommandSpecific)
 	command.Flags().BoolVar(&all, "all", false, "Indicates whether to run the action on multiple matching resources")
 
 	command.Run = func(c *cobra.Command, args []string) {
@@ -147,7 +147,7 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 		defer io.Close(conn)
 		ctx := context.Background()
 		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName})
-		errors.CheckError(err)
+		errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 		filteredObjects := filterResources(command, resources.Items, group, kind, namespace, resourceName, all)
 		var resGroup = filteredObjects[0].GroupVersionKind().Group
 		for i := range filteredObjects[1:] {
@@ -168,7 +168,7 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 				Kind:         gvk.Kind,
 				Action:       actionName,
 			})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 		}
 	}
 	return command

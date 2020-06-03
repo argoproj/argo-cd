@@ -124,7 +124,7 @@ func (opts *settingsOpts) createSettingsManager() (*settings.SettingsManager, er
 	clientset := fake.NewSimpleClientset(argocdSecret, argocdCM)
 
 	manager := settings.NewSettingsManager(context.Background(), clientset, "default")
-	errors.CheckError(manager.ResyncInformers())
+	errors.CheckErrorWithCode(manager.ResyncInformers(), errors.ErrorAPIResponse)
 
 	return manager, nil
 }
@@ -309,7 +309,7 @@ argocd-util settings validate --argocd-cm-path ./argocd-cm.yaml
 argocd-util settings validate --group accounts --group plugins --load-cluster-settings`,
 		Run: func(c *cobra.Command, args []string) {
 			settingsManager, err := cmdCtx.createSettingsManager()
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 
 			if len(groups) == 0 {
 				groups = allGroups
@@ -363,16 +363,16 @@ func NewResourceOverridesCommand(cmdCtx commandContext) *cobra.Command {
 
 func executeResourceOverrideCommand(cmdCtx commandContext, args []string, callback func(res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride)) {
 	data, err := ioutil.ReadFile(args[0])
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 
 	res := unstructured.Unstructured{}
-	errors.CheckError(yaml.Unmarshal(data, &res))
+	errors.CheckErrorWithCode(yaml.Unmarshal(data, &res), errors.ErrorCommandSpecific)
 
 	settingsManager, err := cmdCtx.createSettingsManager()
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 
 	overrides, err := settingsManager.GetResourceOverrides()
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 	gvk := res.GroupVersionKind()
 	key := gvk.Kind
 	if gvk.Group != "" {
@@ -407,11 +407,11 @@ argocd-util settings resource-overrides ignore-differences ./deploy.yaml --argoc
 				}
 
 				normalizer, err := normalizers.NewIgnoreNormalizer(nil, overrides)
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 
 				normalizedRes := res.DeepCopy()
 				logs := collectLogs(func() {
-					errors.CheckError(normalizer.Normalize(normalizedRes))
+					errors.CheckErrorWithCode(normalizer.Normalize(normalizedRes), errors.ErrorCommandSpecific)
 				})
 				if logs != "" {
 					_, _ = fmt.Println(logs)
@@ -451,7 +451,7 @@ argocd-util settings resource-overrides health ./deploy.yaml --argocd-cm-path ./
 				}
 
 				resHealth, err := healthutil.GetResourceHealth(&res, lua.ResourceHealthOverrides(overrides))
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 
 				_, _ = fmt.Printf("STATUS: %s\n", resHealth.Status)
 				_, _ = fmt.Printf("MESSAGE: %s\n", resHealth.Message)
@@ -483,10 +483,10 @@ argocd-util settings resource-overrides action list /tmp/deploy.yaml --argocd-cm
 
 				luaVM := lua.VM{ResourceOverrides: overrides}
 				discoveryScript, err := luaVM.GetResourceActionDiscovery(&res)
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 
 				availableActions, err := luaVM.ExecuteResourceActionDiscovery(&res, discoveryScript)
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 				sort.Slice(availableActions, func(i, j int) bool {
 					return availableActions[i].Name < availableActions[j].Name
 				})
@@ -527,10 +527,10 @@ argocd-util settings resource-overrides action run /tmp/deploy.yaml restart --ar
 
 				luaVM := lua.VM{ResourceOverrides: overrides}
 				action, err := luaVM.GetResourceAction(&res, action)
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 
 				modifiedRes, err := luaVM.ExecuteResourceAction(&res, action.ActionLua)
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 
 				if reflect.DeepEqual(&res, modifiedRes) {
 					_, _ = fmt.Printf("No fields had been changed by action: \n%s\n", action.Name)

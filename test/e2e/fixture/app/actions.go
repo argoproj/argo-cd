@@ -104,9 +104,9 @@ func (a *Actions) CreateFromFile(handler func(app *Application)) *Actions {
 	handler(app)
 	data := grpc.MustMarshal(app)
 	tmpFile, err := ioutil.TempFile("", "")
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 	_, err = tmpFile.Write(data)
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 
 	a.runCli("app", "create", "-f", tmpFile.Name())
 	return a

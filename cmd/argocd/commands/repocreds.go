@@ -77,7 +77,7 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 					repo.SSHPrivateKey = string(keyData)
 				} else {
 					err := fmt.Errorf("--ssh-private-key-path is only supported for SSH repositories.")
-					errors.CheckError(err)
+					errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 				}
 			}
 
@@ -85,21 +85,21 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 			// specified together
 			if (tlsClientCertPath != "" && tlsClientCertKeyPath == "") || (tlsClientCertPath == "" && tlsClientCertKeyPath != "") {
 				err := fmt.Errorf("--tls-client-cert-path and --tls-client-cert-key-path must be specified together")
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			}
 
 			// Specifying tls-client-cert-path is only valid for HTTPS repositories
 			if tlsClientCertPath != "" {
 				if git.IsHTTPSURL(repo.URL) {
 					tlsCertData, err := ioutil.ReadFile(tlsClientCertPath)
-					errors.CheckError(err)
+					errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 					tlsCertKey, err := ioutil.ReadFile(tlsClientCertKeyPath)
-					errors.CheckError(err)
+					errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 					repo.TLSClientCertData = string(tlsCertData)
 					repo.TLSClientCertKey = string(tlsCertKey)
 				} else {
 					err := fmt.Errorf("--tls-client-cert-path is only supported for HTTPS repositories")
-					errors.CheckError(err)
+					errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 				}
 			}
 
@@ -118,7 +118,7 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 			}
 
 			createdRepo, err := repoIf.CreateRepositoryCredentials(context.Background(), &repoCreateReq)
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			fmt.Printf("repository credentials for '%s' added\n", createdRepo.URL)
 		},
 	}
@@ -145,7 +145,7 @@ func NewRepoCredsRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			defer io.Close(conn)
 			for _, repoURL := range args {
 				_, err := repoIf.DeleteRepositoryCredentials(context.Background(), &repocredspkg.RepoCredsDeleteRequest{Url: repoURL})
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			}
 		},
 	}
@@ -184,17 +184,17 @@ func NewRepoCredsListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 			conn, repoIf := argocdclient.NewClientOrDie(clientOpts).NewRepoCredsClientOrDie()
 			defer io.Close(conn)
 			repos, err := repoIf.ListRepositoryCredentials(context.Background(), &repocredspkg.RepoCredsQuery{})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			switch output {
 			case "yaml", "json":
 				err := PrintResourceList(repos.Items, output, false)
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			case "url":
 				printRepoCredsUrls(repos.Items)
 			case "wide", "":
 				printRepoCredsTable(repos.Items)
 			default:
-				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
+				errors.CheckErrorWithCode(fmt.Errorf("unknown output format: %s", output), errors.ErrorCommandSpecific)
 			}
 		},
 	}

@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/errors"
-	"github.com/dgrijalva/jwt-go"
+	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -37,7 +37,7 @@ func newTestAccountServer(ctx context.Context, opts ...func(cm *v1.ConfigMap, se
 
 func newTestAccountServerExt(ctx context.Context, enforceFn rbac.ClaimsEnforcerFunc, opts ...func(cm *v1.ConfigMap, secret *v1.Secret)) (*Server, *session.Server) {
 	bcrypt, err := password.HashPassword("oldpassword")
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 	cm := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-cm",

@@ -64,14 +64,14 @@ func newCommand() *cobra.Command {
 			cli.SetGLogLevel(glogLevel)
 
 			config, err := clientConfig.ClientConfig()
-			errors.CheckError(err)
-			errors.CheckError(v1alpha1.SetK8SConfigDefaults(config))
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
+			errors.CheckErrorWithCode(v1alpha1.SetK8SConfigDefaults(config), errors.ErrorCommandSpecific)
 
 			kubeClient := kubernetes.NewForConfigOrDie(config)
 			appClient := appclientset.NewForConfigOrDie(config)
 
 			namespace, _, err := clientConfig.Namespace()
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 
 			resyncDuration := time.Duration(appResyncPeriod) * time.Second
 			repoClientset := apiclient.NewRepoServerClientset(repoServerAddress, repoServerTimeoutSeconds)
@@ -79,7 +79,7 @@ func newCommand() *cobra.Command {
 			defer cancel()
 
 			cache, err := cacheSrc()
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 
 			settingsMgr := settings.NewSettingsManager(ctx, kubeClient, namespace)
 			kubectl := &kube.KubectlCmd{}
@@ -95,7 +95,7 @@ func newCommand() *cobra.Command {
 				time.Duration(selfHealTimeoutSeconds)*time.Second,
 				metricsPort,
 				kubectlParallelismLimit)
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			cacheutil.CollectMetrics(redisClient, appController.GetMetricsServer())
 
 			vers := common.GetVersion()

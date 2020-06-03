@@ -80,7 +80,7 @@ func PromptMessage(message, value string) string {
 		reader := bufio.NewReader(os.Stdin)
 		fmt.Print(message + ": ")
 		valueRaw, err := reader.ReadString('\n')
-		errors.CheckError(err)
+		errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 		value = strings.TrimSpace(valueRaw)
 	}
 	return value
@@ -91,7 +91,7 @@ func PromptPassword(password string) string {
 	for password == "" {
 		fmt.Print("Password: ")
 		passwordRaw, err := terminal.ReadPassword(int(os.Stdin.Fd()))
-		errors.CheckError(err)
+		errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 		password = string(passwordRaw)
 		fmt.Print("\n")
 	}
@@ -105,7 +105,7 @@ func AskToProceed(message string) bool {
 		fmt.Print(message)
 		reader := bufio.NewReader(os.Stdin)
 		proceedRaw, err := reader.ReadString('\n')
-		errors.CheckError(err)
+		errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 		switch strings.ToLower(strings.TrimSpace(proceedRaw)) {
 		case "y", "yes":
 			return true
@@ -154,7 +154,7 @@ func SetLogFormat(logFormat string) {
 // SetLogLevel parses and sets a logrus log level
 func SetLogLevel(logLevel string) {
 	level, err := log.ParseLevel(logLevel)
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 	log.SetLevel(level)
 }
 
@@ -167,10 +167,10 @@ func SetGLogLevel(glogLevel int) {
 
 func writeToTempFile(pattern string, data []byte) string {
 	f, err := ioutil.TempFile("", pattern)
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 	defer io.Close(f)
 	_, err = f.Write(data)
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 	return f.Name()
 }
 
@@ -236,12 +236,12 @@ func InteractiveEdit(filePattern string, data []byte, save func(input []byte) er
 		cmd.Stdin = os.Stdin
 
 		err := (term.TTY{In: os.Stdin, TryDev: true}).Safe(cmd.Run)
-		errors.CheckError(err)
+		errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 
 		updated, err := ioutil.ReadFile(tempFile)
-		errors.CheckError(err)
+		errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 		if string(updated) == "" || string(updated) == string(data) {
-			errors.CheckError(fmt.Errorf("Edit cancelled, no valid changes were saved."))
+			errors.CheckErrorWithCode(fmt.Errorf("Edit cancelled, no valid changes were saved."), errors.ErrorCommandSpecific)
 			break
 		} else {
 			data = stripComments(updated)

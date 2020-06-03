@@ -199,13 +199,13 @@ func CreateSecret(username, password string) string {
 
 func updateSettingConfigMap(updater func(cm *corev1.ConfigMap) error) {
 	cm, err := KubeClientset.CoreV1().ConfigMaps(ArgoCDNamespace).Get(common.ArgoCDConfigMapName, v1.GetOptions{})
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 	if cm.Data == nil {
 		cm.Data = make(map[string]string)
 	}
-	errors.CheckError(updater(cm))
+	errors.CheckErrorWithCode(updater(cm), errors.ErrorCommandSpecific)
 	_, err = KubeClientset.CoreV1().ConfigMaps(ArgoCDNamespace).Update(cm)
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 }
 
 func SetResourceOverrides(overrides map[string]v1alpha1.ResourceOverride) {
@@ -283,10 +283,10 @@ func SetRepos(repos ...settings.RepositoryCredentials) {
 
 func SetProjectSpec(project string, spec v1alpha1.AppProjectSpec) {
 	proj, err := AppClientset.ArgoprojV1alpha1().AppProjects(ArgoCDNamespace).Get(project, v1.GetOptions{})
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 	proj.Spec = spec
 	_, err = AppClientset.ArgoprojV1alpha1().AppProjects(ArgoCDNamespace).Update(proj)
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 }
 
 func EnsureCleanState(t *testing.T) {

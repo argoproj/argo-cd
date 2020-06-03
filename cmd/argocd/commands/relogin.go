@@ -33,12 +33,12 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 				os.Exit(1)
 			}
 			localCfg, err := localconfig.ReadLocalConfig(globalClientOpts.ConfigPath)
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			if localCfg == nil {
 				log.Fatalf("No context found. Login using `argocd login`")
 			}
 			configCtx, err := localCfg.ResolveContext(localCfg.CurrentContext)
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 
 			var tokenString string
 			var refreshToken string
@@ -52,7 +52,7 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 			}
 			acdClient := argocdclient.NewClientOrDie(&clientOpts)
 			claims, err := configCtx.User.Claims()
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			if claims.Issuer == session.SessionManagerClaimsIssuer {
 				fmt.Printf("Relogging in as '%s'\n", claims.Subject)
 				tokenString = passwordLogin(acdClient, claims.Subject, password)
@@ -62,12 +62,12 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 				defer argoio.Close(setConn)
 				ctx := context.Background()
 				httpClient, err := acdClient.HTTPClient()
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 				ctx = oidc.ClientContext(ctx, httpClient)
 				acdSet, err := setIf.Get(ctx, &settingspkg.SettingsQuery{})
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 				oauth2conf, provider, err := acdClient.OIDCConfig(ctx, acdSet)
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 				tokenString, refreshToken = oauth2Login(ctx, ssoPort, acdSet.GetOIDCConfig(), oauth2conf, provider)
 			}
 
@@ -77,7 +77,7 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 				RefreshToken: refreshToken,
 			})
 			err = localconfig.WriteLocalConfig(*localCfg, globalClientOpts.ConfigPath)
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			fmt.Printf("Context '%s' updated\n", localCfg.CurrentContext)
 		},
 	}

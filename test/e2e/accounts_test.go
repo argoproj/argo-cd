@@ -19,7 +19,7 @@ func TestCreateAndUseAccount(t *testing.T) {
 	EnsureCleanState(t)
 
 	output, err := RunCli("account", "list")
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 
 	assert.Equal(t, `NAME   ENABLED  CAPABILITIES
 admin  true     login`, output)
@@ -29,14 +29,14 @@ admin  true     login`, output)
 	})
 
 	output, err = RunCli("account", "list")
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 
 	assert.Equal(t, `NAME   ENABLED  CAPABILITIES
 admin  true     login
 test   true     login, apiKey`, output)
 
 	token, err := RunCli("account", "generate-token", "--account", "test")
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 
 	clientOpts := ArgoCDClientset.ClientOptions()
 	clientOpts.AuthToken = token

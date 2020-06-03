@@ -63,7 +63,7 @@ func NewVersionCmd(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				}
 
 				err := PrintResource(v, output)
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			case "wide", "short", "":
 				printClientVersion(&cv, short || (output == "short"))
 
@@ -87,7 +87,7 @@ func getServerVersion(options *argocdclient.ClientOptions) *version.VersionMessa
 	defer argoio.Close(conn)
 
 	v, err := versionIf.Version(context.Background(), &empty.Empty{})
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 
 	return v
 }

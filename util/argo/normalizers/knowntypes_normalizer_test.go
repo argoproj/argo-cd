@@ -44,7 +44,7 @@ spec:
 func mustUnmarshalYAML(yamlStr string) *unstructured.Unstructured {
 	un := &unstructured.Unstructured{}
 	err := yaml.Unmarshal([]byte(yamlStr), un)
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 	return un
 }
 

@@ -69,7 +69,7 @@ func NewAccountUpdatePasswordCommand(clientOpts *argocdclient.ClientOptions) *co
 			if userInfo.Iss == sessionutil.SessionManagerClaimsIssuer && currentPassword == "" {
 				fmt.Print("*** Enter current password: ")
 				password, err := terminal.ReadPassword(int(os.Stdin.Fd()))
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 				currentPassword = string(password)
 				fmt.Print("\n")
 			}
@@ -77,7 +77,7 @@ func NewAccountUpdatePasswordCommand(clientOpts *argocdclient.ClientOptions) *co
 			if newPassword == "" {
 				var err error
 				newPassword, err = cli.ReadAndConfirmPassword()
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			}
 
 			updatePasswordRequest := accountpkg.UpdatePasswordRequest{
@@ -88,24 +88,24 @@ func NewAccountUpdatePasswordCommand(clientOpts *argocdclient.ClientOptions) *co
 
 			ctx := context.Background()
 			_, err := usrIf.UpdatePassword(ctx, &updatePasswordRequest)
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			fmt.Printf("Password updated\n")
 
 			if account == "" || account == userInfo.Username {
 				// Get a new JWT token after updating the password
 				localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 				configCtx, err := localCfg.ResolveContext(clientOpts.Context)
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 				claims, err := configCtx.User.Claims()
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 				tokenString := passwordLogin(acdClient, claims.Subject, newPassword)
 				localCfg.UpsertUser(localconfig.User{
 					Name:      localCfg.CurrentContext,
 					AuthToken: tokenString,
 				})
 				err = localconfig.WriteLocalConfig(*localCfg, clientOpts.ConfigPath)
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 				fmt.Printf("Context '%s' updated\n", localCfg.CurrentContext)
 			}
 		},
@@ -135,16 +135,16 @@ func NewAccountGetUserInfoCommand(clientOpts *argocdclient.ClientOptions) *cobra
 
 			ctx := context.Background()
 			response, err := client.GetUserInfo(ctx, &session.GetUserInfoRequest{})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 
 			switch output {
 			case "yaml":
 				yamlBytes, err := yaml.Marshal(response)
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 				fmt.Println(string(yamlBytes))
 			case "json":
 				jsonBytes, err := json.MarshalIndent(response, "", "  ")
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 				fmt.Println(string(jsonBytes))
 			case "":
 				fmt.Printf("Logged In: %v\n", response.LoggedIn)
@@ -194,7 +194,7 @@ Resources: %v
 				Resource:    args[1],
 				Subresource: args[2],
 			})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			fmt.Println(response.Value)
 		},
 	}
@@ -231,17 +231,17 @@ func NewAccountListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 			ctx := context.Background()
 			response, err := client.ListAccounts(ctx, &accountpkg.ListAccountRequest{})
 
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			switch output {
 			case "yaml", "json":
 				err := PrintResourceList(response.Items, output, false)
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			case "name":
 				printAccountNames(response.Items)
 			case "wide", "":
 				printAccountsTable(response.Items)
 			default:
-				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
+				errors.CheckErrorWithCode(fmt.Errorf("unknown output format: %s", output), errors.ErrorCommandSpecific)
 			}
 		},
 	}
@@ -253,7 +253,7 @@ func getCurrentAccount(clientset argocdclient.Client) session.GetUserInfoRespons
 	conn, client := clientset.NewSessionClientOrDie()
 	defer io.Close(conn)
 	userInfo, err := client.GetUserInfo(context.Background(), &session.GetUserInfoRequest{})
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 	return *userInfo
 }
 
@@ -282,17 +282,17 @@ argocd account get --account <account-name>`,
 
 			acc, err := client.GetAccount(context.Background(), &accountpkg.GetAccountRequest{Name: account})
 
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			switch output {
 			case "yaml", "json":
 				err := PrintResourceList(acc, output, true)
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			case "name":
 				fmt.Println(acc.Name)
 			case "wide", "":
 				printAccountDetails(acc)
 			default:
-				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
+				errors.CheckErrorWithCode(fmt.Errorf("unknown output format: %s", output), errors.ErrorCommandSpecific)
 			}
 		},
 	}
@@ -350,13 +350,13 @@ argocd account generate-token --account <account-name>`,
 				account = getCurrentAccount(clientset).Username
 			}
 			expiresIn, err := timeutil.ParseDuration(expiresIn)
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			response, err := client.CreateToken(context.Background(), &accountpkg.CreateTokenRequest{
 				Name:      account,
 				ExpiresIn: int64(expiresIn.Seconds()),
 				Id:        id,
 			})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			fmt.Println(response.Token)
 		},
 	}
@@ -392,7 +392,7 @@ argocd account generate-token --account <account-name>`,
 				account = getCurrentAccount(clientset).Username
 			}
 			_, err := client.DeleteToken(context.Background(), &accountpkg.DeleteTokenRequest{Name: account, Id: id})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 		},
 	}
 	cmd.Flags().StringVarP(&account, "account", "a", "", "Account name. Defaults to the current account.")

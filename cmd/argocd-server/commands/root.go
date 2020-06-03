@@ -72,22 +72,22 @@ func NewCommand() *cobra.Command {
 			cli.SetGLogLevel(glogLevel)
 
 			config, err := clientConfig.ClientConfig()
-			errors.CheckError(err)
-			errors.CheckError(v1alpha1.SetK8SConfigDefaults(config))
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
+			errors.CheckErrorWithCode(v1alpha1.SetK8SConfigDefaults(config), ErrorAPIResponse)
 
 			namespace, _, err := clientConfig.Namespace()
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, ErrorAPIResponse)
 
 			tlsConfigCustomizer, err := tlsConfigCustomizerSrc()
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, ErrorAPIResponse)
 			cache, err := cacheSrc()
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, ErrorAPIResponse)
 
 			kubeclientset := kubernetes.NewForConfigOrDie(config)
 
 			appclientsetConfig, err := clientConfig.ClientConfig()
-			errors.CheckError(err)
-			errors.CheckError(v1alpha1.SetK8SConfigDefaults(appclientsetConfig))
+			errors.CheckErrorWithCode(err, ErrorAPIResponse)
+			errors.CheckErrorWithCode(v1alpha1.SetK8SConfigDefaults(appclientsetConfig), ErrorAPIResponse)
 
 			if failureRetryCount > 0 {
 				appclientsetConfig = kube.AddFailureRetryWrapper(appclientsetConfig, failureRetryCount, failureRetryPeriodMilliSeconds)

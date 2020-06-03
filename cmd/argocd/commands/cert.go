@@ -83,7 +83,7 @@ func NewCertAddTLSCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				certificateArray, err = certutil.ParseTLSCertificatesFromStream(os.Stdin)
 			}
 
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 
 			certificateList := make([]appsv1.RepositoryCertificate, 0)
 
@@ -94,7 +94,7 @@ func NewCertAddTLSCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				// server, so we decode the certificate into X509 structure before
 				// further processing it.
 				x509cert, err := certutil.DecodePEMCertificateToX509(entry)
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 
 				// TODO: We need a better way to detect duplicates sent in the stream,
 				// maybe by using fingerprints? For now, no two certs with the same
@@ -121,7 +121,7 @@ func NewCertAddTLSCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 					},
 					Upsert: upsert,
 				})
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 				fmt.Printf("Created entry with %d PEM certificates for repository server %s\n", len(certificates.Items), serverName)
 			} else {
 				fmt.Printf("No valid certificates have been detected in the stream.\n")
@@ -166,17 +166,17 @@ func NewCertAddSSHCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				err = fmt.Errorf("You need to specify --batch or specify --help for usage instructions")
 			}
 
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 
 			if len(sshKnownHostsLists) == 0 {
-				errors.CheckError(fmt.Errorf("No valid SSH known hosts data found."))
+				errors.CheckErrorWithCode(fmt.Errorf("No valid SSH known hosts data found."), errors.ErrorCommandSpecific)
 			}
 
 			for _, knownHostsEntry := range sshKnownHostsLists {
 				_, certSubType, certData, err := certutil.TokenizeSSHKnownHostsEntry(knownHostsEntry)
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 				hostnameList, _, err := certutil.KnownHostsLineToPublicKey(knownHostsEntry)
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 				// Each key could be valid for multiple hostnames
 				for _, hostname := range hostnameList {
 					certificate := appsv1.RepositoryCertificate{
@@ -194,7 +194,7 @@ func NewCertAddSSHCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				Certificates: certList,
 				Upsert:       upsert,
 			})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			fmt.Printf("Successfully created %d SSH known host entries\n", len(response.Items))
 		},
 	}
@@ -229,7 +229,7 @@ func NewCertRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			// accident.
 			if hostNamePattern == "*" {
 				err := fmt.Errorf("A single wildcard is not allowed as REPOSERVER name.")
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			}
 			certQuery = certificatepkg.RepositoryCertificateQuery{
 				HostNamePattern: hostNamePattern,
@@ -237,7 +237,7 @@ func NewCertRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				CertSubType:     certSubType,
 			}
 			removed, err := certIf.DeleteCertificate(context.Background(), &certQuery)
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			if len(removed.Items) > 0 {
 				for _, cert := range removed.Items {
 					fmt.Printf("Removed cert for '%s' of type '%s' (subtype '%s')\n", cert.ServerName, cert.CertType, cert.CertSubType)
@@ -277,16 +277,16 @@ func NewCertListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			conn, certIf := argocdclient.NewClientOrDie(clientOpts).NewCertClientOrDie()
 			defer io.Close(conn)
 			certificates, err := certIf.ListCertificates(context.Background(), &certificatepkg.RepositoryCertificateQuery{HostNamePattern: hostNamePattern, CertType: certType})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 
 			switch output {
 			case "yaml", "json":
 				err := PrintResourceList(certificates.Items, output, false)
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			case "wide", "":
 				printCertTable(certificates.Items, sortOrder)
 			default:
-				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
+				errors.CheckErrorWithCode(fmt.Errorf("unknown output format: %s", output), errors.ErrorCommandSpecific)
 			}
 
 		},

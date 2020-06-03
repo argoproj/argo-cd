@@ -32,19 +32,19 @@ var (
 
 func newServiceAccount() *corev1.ServiceAccount {
 	saBytes, err := ioutil.ReadFile("./testdata/argocd-manager-sa.yaml")
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 	var sa corev1.ServiceAccount
 	err = yaml.Unmarshal(saBytes, &sa)
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 	return &sa
 }
 
 func newServiceAccountSecret() *corev1.Secret {
 	secretBytes, err := ioutil.ReadFile("./testdata/argocd-manager-sa-token.yaml")
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 	var secret corev1.Secret
 	err = yaml.Unmarshal(secretBytes, &secret)
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 	return &secret
 }
 

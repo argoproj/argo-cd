@@ -1,6 +1,6 @@
 module github.com/argoproj/argo-cd
 
-go 1.14
+go 1.13
 
 require (
 	bou.ke/monkey v1.0.1
@@ -83,6 +83,8 @@ require (
 )
 
 replace (
+	github.com/argoproj/gitops-engine => /Users/darshanime/go/src/github.com/darshanime/gitops-engine
+	// github.com/argoproj/gitops-engine => /go/src/github.com/darshanime/gitops-engine
 	github.com/golang/protobuf => github.com/golang/protobuf v1.2.0
 	github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc-gateway v1.3.1
 	github.com/improbable-eng/grpc-web => github.com/improbable-eng/grpc-web v0.0.0-20181111100011-16092bd1d58a

@@ -144,7 +144,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				} else {
 					err = config.UnmarshalRemoteFile(fileURL, &app)
 				}
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 				if len(args) == 1 && args[0] != app.Name {
 					log.Fatalf("app name '%s' does not match app spec metadata.name '%s'", args[0], app.Name)
 				}
@@ -180,7 +180,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				Upsert:      &upsert,
 			}
 			created, err := appIf.Create(context.Background(), &appCreateRequest)
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			fmt.Printf("application '%s' created\n", created.ObjectMeta.Name)
 		},
 	}
@@ -199,7 +199,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 
 func setLabels(app *argoappv1.Application, labels []string) {
 	mapLabels, err := label.Parse(labels)
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 	app.SetLabels(mapLabels)
 }
 
@@ -251,19 +251,19 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			defer argoio.Close(conn)
 			appName := args[0]
 			app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName, Refresh: getRefreshType(refresh, hardRefresh)})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 
 			pConn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer argoio.Close(pConn)
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: app.Spec.Project})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 
 			windows := proj.Spec.SyncWindows.Matches(app)
 
 			switch output {
 			case "yaml", "json":
 				err := PrintResource(app, output)
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			case "wide", "":
 				aURL := appURL(acdClient, app.Name)
 				printAppSummaryTable(app, aURL, windows)
@@ -289,7 +289,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 					_ = w.Flush()
 				}
 			default:
-				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
+				errors.CheckErrorWithCode(fmt.Errorf("unknown output format: %s", output), errors.ErrorCommandSpecific)
 			}
 		},
 	}
@@ -466,7 +466,7 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			conn, appIf := argocdClient.NewApplicationClientOrDie()
 			defer argoio.Close(conn)
 			app, err := appIf.Get(ctx, &applicationpkg.ApplicationQuery{Name: &appName})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			visited := setAppSpecOptions(c.Flags(), &app.Spec, &appOpts)
 			if visited == 0 {
 				log.Error("Please set at least one option to update")
@@ -478,7 +478,7 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				Name: &app.Name,
 				Spec: app.Spec,
 			})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 		},
 	}
 	addAppFlags(command, &appOpts)
@@ -515,7 +515,7 @@ func setAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			} else {
 				data, err = config.ReadRemoteFile(appOpts.values)
 			}
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			setHelmOpt(&spec.Source, helmOpts{values: string(data)})
 		case "release-name":
 			setHelmOpt(&spec.Source, helmOpts{releaseName: appOpts.releaseName})
@@ -804,7 +804,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer argoio.Close(conn)
 			app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 
 			updated := false
 			if app.Spec.Source.Kustomize != nil {
@@ -895,7 +895,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 				Name: &app.Name,
 				Spec: app.Spec,
 			})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 		},
 	}
 	command.Flags().StringArrayVarP(&parameters, "parameter", "p", []string{}, "Unset a parameter override (e.g. -p guestbook=image)")
@@ -941,7 +941,7 @@ func getLocalObjects(app *argoappv1.Application, local, appLabelKey, kubeVersion
 	for i := range manifestStrings {
 		obj := unstructured.Unstructured{}
 		err := json.Unmarshal([]byte(manifestStrings[i]), &obj)
-		errors.CheckError(err)
+		errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 		objs[i] = &obj
 	}
 	return objs
@@ -959,7 +959,7 @@ func getLocalObjectsString(app *argoappv1.Application, local, appLabelKey, kubeV
 		KubeVersion:       kubeVersion,
 		Plugins:           configManagementPlugins,
 	}, true)
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 
 	return res.Manifests
 }
@@ -983,7 +983,7 @@ func groupLocalObjs(localObs []*unstructured.Unstructured, liveObjs []*unstructu
 		}
 	}
 	localObs, _, err := controller.DeduplicateTargetObjects(appNamespace, localObs, &resourceInfoProvider{namespacedByGk: namespacedByGk})
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 	objByKey := make(map[kube.ResourceKey]*unstructured.Unstructured)
 	for i := range localObs {
 		obj := localObs[i]
@@ -1017,11 +1017,11 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			defer argoio.Close(conn)
 			appName := args[0]
 			app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName, Refresh: getRefreshType(refresh, hardRefresh)})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			resources, err := appIf.ManagedResources(context.Background(), &applicationpkg.ResourcesQuery{ApplicationName: &appName})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			liveObjs, err := liveObjects(resources.Items)
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			items := make([]struct {
 				key    kube.ResourceKey
 				live   *unstructured.Unstructured
@@ -1031,18 +1031,18 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			conn, settingsIf := clientset.NewSettingsClientOrDie()
 			defer argoio.Close(conn)
 			argoSettings, err := settingsIf.Get(context.Background(), &settingspkg.SettingsQuery{})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 
 			if local != "" {
 				conn, clusterIf := clientset.NewClusterClientOrDie()
 				defer argoio.Close(conn)
 				cluster, err := clusterIf.Get(context.Background(), &clusterpkg.ClusterQuery{Server: app.Spec.Destination.Server})
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 				localObjs := groupLocalObjs(getLocalObjects(app, local, argoSettings.AppLabelKey, cluster.ServerVersion, argoSettings.KustomizeOptions, argoSettings.ConfigManagementPlugins), liveObjs, app.Spec.Destination.Namespace)
 				for _, res := range resources.Items {
 					var live = &unstructured.Unstructured{}
 					err := json.Unmarshal([]byte(res.NormalizedLiveState), &live)
-					errors.CheckError(err)
+					errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 
 					key := kube.ResourceKey{Name: res.Name, Namespace: res.Namespace, Group: res.Group, Kind: res.Kind}
 					if key.Kind == kube.SecretKind && key.Group == "" {
@@ -1053,7 +1053,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					if local, ok := localObjs[key]; ok || live != nil {
 						if local != nil && !kube.IsCRD(local) {
 							err = argokube.SetAppInstanceLabel(local, argoSettings.AppLabelKey, appName)
-							errors.CheckError(err)
+							errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 						}
 
 						items = append(items, struct {
@@ -1084,11 +1084,11 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					res := resources.Items[i]
 					var live = &unstructured.Unstructured{}
 					err := json.Unmarshal([]byte(res.NormalizedLiveState), &live)
-					errors.CheckError(err)
+					errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 
 					var target = &unstructured.Unstructured{}
 					err = json.Unmarshal([]byte(res.TargetState), &target)
-					errors.CheckError(err)
+					errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 
 					items = append(items, struct {
 						key    kube.ResourceKey
@@ -1113,10 +1113,10 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					overrides[k] = *val
 				}
 				normalizer, err := argo.NewDiffNormalizer(app.Spec.IgnoreDifferences, overrides)
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 
 				diffRes, err := diff.Diff(item.target, item.live, normalizer, diff.GetDefaultDiffOptions())
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 
 				if diffRes.Modified || item.target == nil || item.live == nil {
 					fmt.Printf("===== %s/%s %s/%s ======\n", item.key.Group, item.key.Kind, item.key.Namespace, item.key.Name)
@@ -1126,7 +1126,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 						target = &unstructured.Unstructured{}
 						live = item.live
 						err = json.Unmarshal(diffRes.PredictedLive, target)
-						errors.CheckError(err)
+						errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 					} else {
 						live = item.live
 						target = item.target
@@ -1171,7 +1171,7 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 					appDeleteReq.Cascade = &cascade
 				}
 				_, err := appIf.Delete(context.Background(), &appDeleteReq)
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			}
 		},
 	}
@@ -1236,7 +1236,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer argoio.Close(conn)
 			apps, err := appIf.List(context.Background(), &applicationpkg.ApplicationQuery{Selector: selector})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			appList := apps.Items
 			if len(projects) != 0 {
 				appList = argo.FilterByProjects(appList, projects)
@@ -1244,13 +1244,13 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			switch output {
 			case "yaml", "json":
 				err := PrintResourceList(appList, output, false)
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			case "name":
 				printApplicationNames(appList)
 			case "wide", "":
 				printApplicationTable(appList, &output)
 			default:
-				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
+				errors.CheckErrorWithCode(fmt.Errorf("unknown output format: %s", output), errors.ErrorCommandSpecific)
 			}
 		},
 	}
@@ -1374,14 +1374,14 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			defer argoio.Close(closer)
 			if selector != "" {
 				list, err := appIf.List(context.Background(), &applicationpkg.ApplicationQuery{Selector: selector})
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 				for _, i := range list.Items {
 					appNames = append(appNames, i.Name)
 				}
 			}
 			for _, appName := range appNames {
 				_, err := waitOnApplicationStatus(acdClient, appName, timeout, watchSync, watchHealth, watchOperations, watchSuspended, selectedResources)
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			}
 		},
 	}
@@ -1445,12 +1445,12 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			defer argoio.Close(conn)
 
 			selectedLabels, err := label.Parse(labels)
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 
 			appNames := args
 			if selector != "" {
 				list, err := appIf.List(context.Background(), &applicationpkg.ApplicationQuery{Selector: selector})
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 				// unlike list, we'd want to fail if nothing was found
 				if len(list.Items) == 0 {
 					log.Fatalf("no apps match selector %v", selector)
@@ -1477,7 +1477,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 					for _, mfst := range res.Manifests {
 						obj, err := argoappv1.UnmarshalToUnstructured(mfst)
-						errors.CheckError(err)
+						errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 						for key, selectedValue := range selectedLabels {
 							if objectValue, ok := obj.GetLabels()[key]; ok && selectedValue == objectValue {
 								gvk := obj.GroupVersionKind()
@@ -1499,21 +1499,21 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				var localObjsStrings []string
 				if local != "" {
 					app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName})
-					errors.CheckError(err)
+					errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 					if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil && !dryRun {
 						log.Fatal("Cannot use local sync when Automatic Sync Policy is enabled except with --dry-run")
 					}
 
-					errors.CheckError(err)
+					errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 					conn, settingsIf := acdClient.NewSettingsClientOrDie()
 					argoSettings, err := settingsIf.Get(context.Background(), &settingspkg.SettingsQuery{})
-					errors.CheckError(err)
+					errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 					argoio.Close(conn)
 
 					conn, clusterIf := acdClient.NewClusterClientOrDie()
 					defer argoio.Close(conn)
 					cluster, err := clusterIf.Get(context.Background(), &clusterpkg.ClusterQuery{Server: app.Spec.Destination.Server})
-					errors.CheckError(err)
+					errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 					argoio.Close(conn)
 					localObjsStrings = getLocalObjectsString(app, local, argoSettings.AppLabelKey, cluster.ServerVersion, argoSettings.KustomizeOptions, argoSettings.ConfigManagementPlugins)
 				}
@@ -1539,11 +1539,11 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				}
 				ctx := context.Background()
 				_, err := appIf.Sync(ctx, &syncReq)
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 
 				if !async {
 					app, err := waitOnApplicationStatus(acdClient, appName, timeout, false, false, true, false, selectedResources)
-					errors.CheckError(err)
+					errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 
 					if !dryRun {
 						if !app.Status.OperationState.Phase.Successful() {
@@ -1716,7 +1716,7 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 			conn, appClient := acdClient.NewApplicationClientOrDie()
 			refreshType := string(argoappv1.RefreshTypeNormal)
 			app, err = appClient.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName, Refresh: &refreshType})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			_ = conn.Close()
 		}
 
@@ -1750,7 +1750,7 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 	conn, appClient := acdClient.NewApplicationClientOrDie()
 	defer argoio.Close(conn)
 	app, err := appClient.Get(ctx, &applicationpkg.ApplicationQuery{Name: &appName})
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 
 	for appEvent := range appEventCh {
 		app = &appEvent.Application
@@ -1925,7 +1925,7 @@ func NewApplicationHistoryCommand(clientOpts *argocdclient.ClientOptions) *cobra
 			defer argoio.Close(conn)
 			appName := args[0]
 			app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			if output == "id" {
 				printApplicationHistoryIds(app.Status.History)
 			} else {
@@ -1953,13 +1953,13 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			}
 			appName := args[0]
 			depID, err := strconv.Atoi(args[1])
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			acdClient := argocdclient.NewClientOrDie(clientOpts)
 			conn, appIf := acdClient.NewApplicationClientOrDie()
 			defer argoio.Close(conn)
 			ctx := context.Background()
 			app, err := appIf.Get(ctx, &applicationpkg.ApplicationQuery{Name: &appName})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			var depInfo *argoappv1.RevisionHistory
 			for _, di := range app.Status.History {
 				if di.ID == int64(depID) {
@@ -1976,10 +1976,10 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 				ID:    int64(depID),
 				Prune: prune,
 			})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 
 			_, err = waitOnApplicationStatus(acdClient, appName, timeout, false, false, true, false, nil)
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 		},
 	}
 	command.Flags().BoolVar(&prune, "prune", false, "Allow deleting unexpected resources")
@@ -2032,7 +2032,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 			defer argoio.Close(conn)
 			ctx := context.Background()
 			resources, err := appIf.ManagedResources(context.Background(), &applicationpkg.ResourcesQuery{ApplicationName: &appName})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 
 			var unstructureds []*unstructured.Unstructured
 			switch source {
@@ -2043,20 +2043,20 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 						Revision: revision,
 					}
 					res, err := appIf.GetManifests(ctx, &q)
-					errors.CheckError(err)
+					errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 					for _, mfst := range res.Manifests {
 						obj, err := argoappv1.UnmarshalToUnstructured(mfst)
-						errors.CheckError(err)
+						errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 						unstructureds = append(unstructureds, obj)
 					}
 				} else {
 					targetObjs, err := targetObjects(resources.Items)
-					errors.CheckError(err)
+					errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 					unstructureds = targetObjs
 				}
 			case "live":
 				liveObjs, err := liveObjects(resources.Items)
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 				unstructureds = liveObjs
 			default:
 				log.Fatalf("Unknown source type '%s'", source)
@@ -2065,7 +2065,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 			for _, obj := range unstructureds {
 				fmt.Println("---")
 				yamlBytes, err := yaml.Marshal(obj)
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 				fmt.Printf("%s\n", yamlBytes)
 			}
 		},
@@ -2090,7 +2090,7 @@ func NewApplicationTerminateOpCommand(clientOpts *argocdclient.ClientOptions) *c
 			defer argoio.Close(conn)
 			ctx := context.Background()
 			_, err := appIf.TerminateOperation(ctx, &applicationpkg.OperationTerminateRequest{Name: &appName})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			fmt.Printf("Application '%s' operation terminating\n", appName)
 		},
 	}
@@ -2110,11 +2110,11 @@ func NewApplicationEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer argoio.Close(conn)
 			app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			appData, err := json.Marshal(app.Spec)
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			appData, err = yaml.JSONToYAML(appData)
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 
 			cli.InteractiveEdit(fmt.Sprintf("%s-*-edit.yaml", appName), appData, func(input []byte) error {
 				input, err = yaml.YAMLToJSON(input)
@@ -2164,10 +2164,10 @@ func NewApplicationPatchCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 				Patch:     patch,
 				PatchType: patchType,
 			})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 
 			yamlBytes, err := yaml.Marshal(patchedApp)
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 
 			fmt.Println(string(yamlBytes))
 		},
@@ -2180,7 +2180,7 @@ func NewApplicationPatchCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 
 func filterResources(command *cobra.Command, resources []*argoappv1.ResourceDiff, group, kind, namespace, resourceName string, all bool) []*unstructured.Unstructured {
 	liveObjs, err := liveObjects(resources)
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 	filteredObjects := make([]*unstructured.Unstructured, 0)
 	for i := range liveObjs {
 		obj := liveObjs[i]
@@ -2227,12 +2227,12 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 
 	command.Flags().StringVar(&patch, "patch", "", "Patch")
 	err := command.MarkFlagRequired("patch")
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 	command.Flags().StringVar(&patchType, "patch-type", string(types.MergePatchType), "Which Patching strategy to use: 'application/json-patch+json', 'application/merge-patch+json', or 'application/strategic-merge-patch+json'. Defaults to 'application/merge-patch+json'")
 	command.Flags().StringVar(&resourceName, "resource-name", "", "Name of resource")
 	command.Flags().StringVar(&kind, "kind", "", "Kind")
 	err = command.MarkFlagRequired("kind")
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 	command.Flags().StringVar(&group, "group", "", "Group")
 	command.Flags().StringVar(&namespace, "namespace", "", "Namespace")
 	command.Flags().BoolVar(&all, "all", false, "Indicates whether to patch multiple matching of resources")
@@ -2247,7 +2247,7 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 		defer argoio.Close(conn)
 		ctx := context.Background()
 		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName})
-		errors.CheckError(err)
+		errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 		objectsToPatch := filterResources(command, resources.Items, group, kind, namespace, resourceName, all)
 		for i := range objectsToPatch {
 			obj := objectsToPatch[i]
@@ -2262,7 +2262,7 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 				Patch:        patch,
 				PatchType:    patchType,
 			})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			log.Infof("Resource '%s' patched", obj.GetName())
 		}
 	}

@@ -56,22 +56,24 @@ func newCommand() *cobra.Command {
 			cli.SetLogLevel(logLevel)
 
 			tlsConfigCustomizer, err := tlsConfigCustomizerSrc()
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 
 			cache, err := cacheSrc()
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 
 			metricsServer := metrics.NewMetricsServer()
 			cacheutil.CollectMetrics(redisClient, metricsServer)
 			server, err := reposerver.NewServer(metricsServer, cache, tlsConfigCustomizer, parallelismLimit)
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 
 			grpc := server.CreateGRPC()
 			listener, err := net.Listen("tcp", fmt.Sprintf(":%d", listenPort))
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorConnectionFailure)
 
 			http.Handle("/metrics", metricsServer.GetHandler())
-			go func() { errors.CheckError(http.ListenAndServe(fmt.Sprintf(":%d", metricsPort), nil)) }()
+			go func() {
+				errors.CheckErrorWithCode(http.ListenAndServe(fmt.Sprintf(":%d", metricsPort), nil), errors.ErrorConnectionFailure)
+			}()
 
 			if gpg.IsGPGEnabled() {
 				log.Infof("Initializing GnuPG keyring at %s", common.GetGnuPGHomePath())
@@ -91,7 +93,7 @@ func newCommand() *cobra.Command {
 			stats.StartStatsTicker(10 * time.Minute)
 			stats.RegisterHeapDumper("memprofile")
 			err = grpc.Serve(listener)
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorConnectionFailure)
 			return nil
 		},
 	}

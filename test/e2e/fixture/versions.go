@@ -27,7 +27,7 @@ func (v Version) Format(format string) string {
 func GetVersions() *Versions {
 	output := errors.FailOnErr(Run(".", "kubectl", "version", "-o", "json")).(string)
 	version := &Versions{}
-	errors.CheckError(json.Unmarshal([]byte(output), version))
+	errors.CheckErrorWithCode(json.Unmarshal([]byte(output), version), errors.ErrorCommandSpecific)
 	return version
 }
 

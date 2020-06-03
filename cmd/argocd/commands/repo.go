@@ -94,7 +94,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 					repo.SSHPrivateKey = string(keyData)
 				} else {
 					err := fmt.Errorf("--ssh-private-key-path is only supported for SSH repositories.")
-					errors.CheckError(err)
+					errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 				}
 			}
 
@@ -102,21 +102,21 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			// specified together
 			if (tlsClientCertPath != "" && tlsClientCertKeyPath == "") || (tlsClientCertPath == "" && tlsClientCertKeyPath != "") {
 				err := fmt.Errorf("--tls-client-cert-path and --tls-client-cert-key-path must be specified together")
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			}
 
 			// Specifying tls-client-cert-path is only valid for HTTPS repositories
 			if tlsClientCertPath != "" {
 				if git.IsHTTPSURL(repo.Repo) {
 					tlsCertData, err := ioutil.ReadFile(tlsClientCertPath)
-					errors.CheckError(err)
+					errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 					tlsCertKey, err := ioutil.ReadFile(tlsClientCertKeyPath)
-					errors.CheckError(err)
+					errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 					repo.TLSClientCertData = string(tlsCertData)
 					repo.TLSClientCertKey = string(tlsCertKey)
 				} else {
 					err := fmt.Errorf("--tls-client-cert-path is only supported for HTTPS repositories")
-					errors.CheckError(err)
+					errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 				}
 			}
 
@@ -128,7 +128,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			repo.EnableLFS = enableLfs
 
 			if repo.Type == "helm" && repo.Name == "" {
-				errors.CheckError(fmt.Errorf("Must specify --name for repos of type 'helm'"))
+				errors.CheckErrorWithCode(fmt.Errorf("Must specify --name for repos of type 'helm'"), errors.ErrorCommandSpecific)
 			}
 
 			conn, repoIf := argocdclient.NewClientOrDie(clientOpts).NewRepoClientOrDie()
@@ -159,7 +159,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				Insecure:          repo.IsInsecure(),
 			}
 			_, err := repoIf.ValidateAccess(context.Background(), &repoAccessReq)
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 
 			repoCreateReq := repositorypkg.RepoCreateRequest{
 				Repo:   &repo,
@@ -167,7 +167,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			}
 
 			createdRepo, err := repoIf.Create(context.Background(), &repoCreateReq)
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			fmt.Printf("repository '%s' added\n", createdRepo.Repo)
 		},
 	}
@@ -199,7 +199,7 @@ func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			defer io.Close(conn)
 			for _, repoURL := range args {
 				_, err := repoIf.Delete(context.Background(), &repositorypkg.RepoQuery{Repo: repoURL})
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			}
 		},
 	}
@@ -252,21 +252,21 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				forceRefresh = true
 			default:
 				err := fmt.Errorf("--refresh must be one of: 'hard'")
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			}
 			repos, err := repoIf.List(context.Background(), &repositorypkg.RepoQuery{ForceRefresh: forceRefresh})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			switch output {
 			case "yaml", "json":
 				err := PrintResourceList(repos.Items, output, false)
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			case "url":
 				printRepoUrls(repos.Items)
 				// wide is the default
 			case "wide", "":
 				printRepoTable(repos.Items)
 			default:
-				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
+				errors.CheckErrorWithCode(fmt.Errorf("unknown output format: %s", output), errors.ErrorCommandSpecific)
 			}
 		},
 	}
@@ -301,21 +301,21 @@ func NewRepoGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				forceRefresh = true
 			default:
 				err := fmt.Errorf("--refresh must be one of: 'hard'")
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			}
 			repo, err := repoIf.Get(context.Background(), &repositorypkg.RepoQuery{Repo: repoURL, ForceRefresh: forceRefresh})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			switch output {
 			case "yaml", "json":
 				err := PrintResource(repo, output)
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			case "url":
 				fmt.Println(repo.Repo)
 				// wide is the default
 			case "wide", "":
 				printRepoTable(appsv1.Repositories{repo})
 			default:
-				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
+				errors.CheckErrorWithCode(fmt.Errorf("unknown output format: %s", output), errors.ErrorCommandSpecific)
 			}
 		},
 	}

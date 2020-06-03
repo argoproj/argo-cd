@@ -14,7 +14,7 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
-	"github.com/dustin/go-humanize"
+	humanize "github.com/dustin/go-humanize"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -166,7 +166,7 @@ func NewProjectCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 				} else {
 					err = config.UnmarshalRemoteFile(fileURL, &proj)
 				}
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 				if len(args) == 1 && args[0] != proj.Name {
 					log.Fatalf("project name '%s' does not match project spec metadata.name '%s'", args[0], proj.Name)
 				}
@@ -191,7 +191,7 @@ func NewProjectCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer argoio.Close(conn)
 			_, err := projIf.Create(context.Background(), &projectpkg.ProjectCreateRequest{Project: &proj, Upsert: upsert})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 		},
 	}
 	command.Flags().BoolVar(&upsert, "upsert", false, "Allows to override a project with the same name even if supplied project spec is different from existing spec")
@@ -222,7 +222,7 @@ func NewProjectSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			defer argoio.Close(conn)
 
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 
 			visited := 0
 			c.Flags().Visit(func(f *pflag.Flag) {
@@ -247,7 +247,7 @@ func NewProjectSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			}
 
 			_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 		},
 	}
 	addProjFlags(command, &opts)
@@ -346,7 +346,7 @@ func NewProjectAddDestinationCommand(clientOpts *argocdclient.ClientOptions) *co
 			defer argoio.Close(conn)
 
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 
 			for _, dest := range proj.Spec.Destinations {
 				if dest.Namespace == namespace && dest.Server == server {
@@ -355,7 +355,7 @@ func NewProjectAddDestinationCommand(clientOpts *argocdclient.ClientOptions) *co
 			}
 			proj.Spec.Destinations = append(proj.Spec.Destinations, v1alpha1.ApplicationDestination{Server: server, Namespace: namespace})
 			_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 		},
 	}
 	return command
@@ -378,7 +378,7 @@ func NewProjectRemoveDestinationCommand(clientOpts *argocdclient.ClientOptions) 
 			defer argoio.Close(conn)
 
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 
 			index := -1
 			for i, dest := range proj.Spec.Destinations {
@@ -392,7 +392,7 @@ func NewProjectRemoveDestinationCommand(clientOpts *argocdclient.ClientOptions) 
 			} else {
 				proj.Spec.Destinations = append(proj.Spec.Destinations[:index], proj.Spec.Destinations[index+1:]...)
 				_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			}
 		},
 	}
@@ -416,7 +416,7 @@ func NewProjectAddSourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 			defer argoio.Close(conn)
 
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 
 			for _, item := range proj.Spec.SourceRepos {
 				if item == "*" && item == url {
@@ -430,7 +430,7 @@ func NewProjectAddSourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 			}
 			proj.Spec.SourceRepos = append(proj.Spec.SourceRepos, url)
 			_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 		},
 	}
 	return command
@@ -451,11 +451,11 @@ func modifyClusterResourceCmd(cmdUse, cmdDesc string, clientOpts *argocdclient.C
 			defer argoio.Close(conn)
 
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 
 			if action(proj, group, kind) {
 				_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			}
 		},
 	}
@@ -478,14 +478,14 @@ func modifyNamespaceResourceCmd(cmdUse, cmdDesc string, clientOpts *argocdclient
 			defer argoio.Close(conn)
 
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			var useWhitelist = false
 			if list == "white" {
 				useWhitelist = true
 			}
 			if action(proj, group, kind, useWhitelist) {
 				_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			}
 		},
 	}
@@ -614,7 +614,7 @@ func NewProjectRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			defer argoio.Close(conn)
 
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 
 			index := -1
 			for i, item := range proj.Spec.SourceRepos {
@@ -628,7 +628,7 @@ func NewProjectRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			} else {
 				proj.Spec.SourceRepos = append(proj.Spec.SourceRepos[:index], proj.Spec.SourceRepos[index+1:]...)
 				_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			}
 		},
 	}
@@ -650,7 +650,7 @@ func NewProjectDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 			defer argoio.Close(conn)
 			for _, name := range args {
 				_, err := projIf.Delete(context.Background(), &projectpkg.ProjectQuery{Name: name})
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			}
 		},
 	}
@@ -686,17 +686,17 @@ func NewProjectListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer argoio.Close(conn)
 			projects, err := projIf.List(context.Background(), &projectpkg.ProjectQuery{})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			switch output {
 			case "yaml", "json":
 				err := PrintResourceList(projects.Items, output, false)
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			case "name":
 				printProjectNames(projects.Items)
 			case "wide", "":
 				printProjectTable(projects.Items)
 			default:
-				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
+				errors.CheckErrorWithCode(fmt.Errorf("unknown output format: %s", output), errors.ErrorCommandSpecific)
 			}
 		},
 	}
@@ -830,16 +830,16 @@ func NewProjectGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer argoio.Close(conn)
 			p, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 
 			switch output {
 			case "yaml", "json":
 				err := PrintResource(p, output)
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			case "wide", "":
 				printProject(p)
 			default:
-				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
+				errors.CheckErrorWithCode(fmt.Errorf("unknown output format: %s", output), errors.ErrorCommandSpecific)
 			}
 		},
 	}
@@ -860,11 +860,11 @@ func NewProjectEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer argoio.Close(conn)
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			projData, err := json.Marshal(proj.Spec)
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			projData, err = yaml.JSONToYAML(projData)
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 
 			cli.InteractiveEdit(fmt.Sprintf("%s-*-edit.yaml", projName), projData, func(input []byte) error {
 				input, err = yaml.YAMLToJSON(input)

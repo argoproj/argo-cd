@@ -91,48 +91,48 @@ func NewRunDexCommand() *cobra.Command {
 		Short: "Runs dex generating a config using settings from the Argo CD configmap and secret",
 		RunE: func(c *cobra.Command, args []string) error {
 			_, err := exec.LookPath("dex")
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			config, err := clientConfig.ClientConfig()
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			namespace, _, err := clientConfig.Namespace()
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			kubeClientset := kubernetes.NewForConfigOrDie(config)
 			settingsMgr := settings.NewSettingsManager(context.Background(), kubeClientset, namespace)
 			prevSettings, err := settingsMgr.GetSettings()
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			updateCh := make(chan *settings.ArgoCDSettings, 1)
 			settingsMgr.Subscribe(updateCh)
 
 			for {
 				var cmd *exec.Cmd
 				dexCfgBytes, err := dex.GenerateDexConfigYAML(prevSettings)
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 				if len(dexCfgBytes) == 0 {
 					log.Infof("dex is not configured")
 				} else {
 					err = ioutil.WriteFile("/tmp/dex.yaml", dexCfgBytes, 0644)
-					errors.CheckError(err)
+					errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 					log.Debug(redactor(string(dexCfgBytes)))
 					cmd = exec.Command("dex", "serve", "/tmp/dex.yaml")
 					cmd.Stdout = os.Stdout
 					cmd.Stderr = os.Stderr
 					err = cmd.Start()
-					errors.CheckError(err)
+					errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 				}
 
 				// loop until the dex config changes
 				for {
 					newSettings := <-updateCh
 					newDexCfgBytes, err := dex.GenerateDexConfigYAML(newSettings)
-					errors.CheckError(err)
+					errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 					if string(newDexCfgBytes) != string(dexCfgBytes) {
 						prevSettings = newSettings
 						log.Infof("dex config modified. restarting dex")
 						if cmd != nil && cmd.Process != nil {
 							err = cmd.Process.Signal(syscall.SIGTERM)
-							errors.CheckError(err)
+							errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 							_, err = cmd.Process.Wait()
-							errors.CheckError(err)
+							errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 						}
 						break
 					} else {
@@ -157,15 +157,15 @@ func NewGenDexConfigCommand() *cobra.Command {
 		Short: "Generates a dex config from Argo CD settings",
 		RunE: func(c *cobra.Command, args []string) error {
 			config, err := clientConfig.ClientConfig()
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			namespace, _, err := clientConfig.Namespace()
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			kubeClientset := kubernetes.NewForConfigOrDie(config)
 			settingsMgr := settings.NewSettingsManager(context.Background(), kubeClientset, namespace)
 			settings, err := settingsMgr.GetSettings()
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			dexCfgBytes, err := dex.GenerateDexConfigYAML(settings)
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			if len(dexCfgBytes) == 0 {
 				log.Infof("dex is not configured")
 				return nil
@@ -173,7 +173,7 @@ func NewGenDexConfigCommand() *cobra.Command {
 			if out == "" {
 				dexCfg := make(map[string]interface{})
 				err := yaml.Unmarshal(dexCfgBytes, &dexCfg)
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 				if staticClientsInterface, ok := dexCfg["staticClients"]; ok {
 					if staticClients, ok := staticClientsInterface.([]interface{}); ok {
 						for i := range staticClients {
@@ -190,13 +190,13 @@ func NewGenDexConfigCommand() *cobra.Command {
 						dexCfg["staticClients"] = staticClients
 					}
 				}
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 				maskedDexCfgBytes, err := yaml.Marshal(dexCfg)
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 				fmt.Print(string(maskedDexCfgBytes))
 			} else {
 				err = ioutil.WriteFile(out, dexCfgBytes, 0644)
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			}
 			return nil
 		},
@@ -223,12 +223,12 @@ func NewImportCommand() *cobra.Command {
 				os.Exit(1)
 			}
 			config, err := clientConfig.ClientConfig()
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			config.QPS = 100
 			config.Burst = 50
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			namespace, _, err := clientConfig.Namespace()
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			acdClients := newArgoCDClientsets(config, namespace)
 
 			var input []byte
@@ -237,7 +237,7 @@ func NewImportCommand() *cobra.Command {
 			} else {
 				input, err = ioutil.ReadFile(in)
 			}
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			var dryRunMsg string
 			if dryRun {
 				dryRunMsg = " (dry run)"
@@ -248,7 +248,7 @@ func NewImportCommand() *cobra.Command {
 			// in the backup
 			pruneObjects := make(map[kube.ResourceKey]unstructured.Unstructured)
 			configMaps, err := acdClients.configMaps.List(metav1.ListOptions{})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			// referencedSecrets holds any secrets referenced in the argocd-cm configmap. These
 			// secrets need to be imported too
 			var referencedSecrets map[string]bool
@@ -262,26 +262,26 @@ func NewImportCommand() *cobra.Command {
 			}
 
 			secrets, err := acdClients.secrets.List(metav1.ListOptions{})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			for _, secret := range secrets.Items {
 				if isArgoCDSecret(referencedSecrets, secret) {
 					pruneObjects[kube.ResourceKey{Group: "", Kind: "Secret", Name: secret.GetName()}] = secret
 				}
 			}
 			applications, err := acdClients.applications.List(metav1.ListOptions{})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			for _, app := range applications.Items {
 				pruneObjects[kube.ResourceKey{Group: "argoproj.io", Kind: "Application", Name: app.GetName()}] = app
 			}
 			projects, err := acdClients.projects.List(metav1.ListOptions{})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			for _, proj := range projects.Items {
 				pruneObjects[kube.ResourceKey{Group: "argoproj.io", Kind: "AppProject", Name: proj.GetName()}] = proj
 			}
 
 			// Create or replace existing object
 			backupObjects, err := kube.SplitYAML(string(input))
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			for _, bakObj := range backupObjects {
 				gvk := bakObj.GroupVersionKind()
 				key := kube.ResourceKey{Group: gvk.Group, Kind: gvk.Kind, Name: bakObj.GetName()}
@@ -301,7 +301,7 @@ func NewImportCommand() *cobra.Command {
 				if !exists {
 					if !dryRun {
 						_, err = dynClient.Create(bakObj, metav1.CreateOptions{})
-						errors.CheckError(err)
+						errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 					}
 					fmt.Printf("%s/%s %s created%s\n", gvk.Group, gvk.Kind, bakObj.GetName(), dryRunMsg)
 				} else if specsEqual(*bakObj, liveObj) {
@@ -310,7 +310,7 @@ func NewImportCommand() *cobra.Command {
 					if !dryRun {
 						newLive := updateLive(bakObj, &liveObj)
 						_, err = dynClient.Update(newLive, metav1.UpdateOptions{})
-						errors.CheckError(err)
+						errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 					}
 					fmt.Printf("%s/%s %s updated%s\n", gvk.Group, gvk.Kind, bakObj.GetName(), dryRunMsg)
 				}
@@ -332,7 +332,7 @@ func NewImportCommand() *cobra.Command {
 					}
 					if !dryRun {
 						err = dynClient.Delete(key.Name, &metav1.DeleteOptions{})
-						errors.CheckError(err)
+						errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 					}
 					fmt.Printf("%s/%s %s pruned%s\n", key.Group, key.Kind, key.Name, dryRunMsg)
 				} else {
@@ -358,7 +358,7 @@ type argoCDClientsets struct {
 
 func newArgoCDClientsets(config *rest.Config, namespace string) *argoCDClientsets {
 	dynamicIf, err := dynamic.NewForConfig(config)
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 	return &argoCDClientsets{
 		configMaps:   dynamicIf.Resource(configMapResource).Namespace(namespace),
 		secrets:      dynamicIf.Resource(secretResource).Namespace(namespace),
@@ -378,55 +378,55 @@ func NewExportCommand() *cobra.Command {
 		Short: "Export all Argo CD data to stdout (default) or a file",
 		Run: func(c *cobra.Command, args []string) {
 			config, err := clientConfig.ClientConfig()
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			namespace, _, err := clientConfig.Namespace()
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 
 			var writer io.Writer
 			if out == "-" {
 				writer = os.Stdout
 			} else {
 				f, err := os.Create(out)
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 				bw := bufio.NewWriter(f)
 				writer = bw
 				defer func() {
 					err = bw.Flush()
-					errors.CheckError(err)
+					errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 					err = f.Close()
-					errors.CheckError(err)
+					errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 				}()
 			}
 
 			acdClients := newArgoCDClientsets(config, namespace)
 			acdConfigMap, err := acdClients.configMaps.Get(common.ArgoCDConfigMapName, metav1.GetOptions{})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			export(writer, *acdConfigMap)
 			acdRBACConfigMap, err := acdClients.configMaps.Get(common.ArgoCDRBACConfigMapName, metav1.GetOptions{})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			export(writer, *acdRBACConfigMap)
 			acdKnownHostsConfigMap, err := acdClients.configMaps.Get(common.ArgoCDKnownHostsConfigMapName, metav1.GetOptions{})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			export(writer, *acdKnownHostsConfigMap)
 			acdTLSCertsConfigMap, err := acdClients.configMaps.Get(common.ArgoCDTLSCertsConfigMapName, metav1.GetOptions{})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			export(writer, *acdTLSCertsConfigMap)
 
 			referencedSecrets := getReferencedSecrets(*acdConfigMap)
 			secrets, err := acdClients.secrets.List(metav1.ListOptions{})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			for _, secret := range secrets.Items {
 				if isArgoCDSecret(referencedSecrets, secret) {
 					export(writer, secret)
 				}
 			}
 			projects, err := acdClients.projects.List(metav1.ListOptions{})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			for _, proj := range projects.Items {
 				export(writer, proj)
 			}
 			applications, err := acdClients.applications.List(metav1.ListOptions{})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			for _, app := range applications.Items {
 				export(writer, app)
 			}
@@ -444,14 +444,14 @@ func NewExportCommand() *cobra.Command {
 func getReferencedSecrets(un unstructured.Unstructured) map[string]bool {
 	var cm apiv1.ConfigMap
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &cm)
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 	referencedSecrets := make(map[string]bool)
 
 	// Referenced repository secrets
 	if reposRAW, ok := cm.Data["repositories"]; ok {
 		repos := make([]settings.Repository, 0)
 		err := yaml.Unmarshal([]byte(reposRAW), &repos)
-		errors.CheckError(err)
+		errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 		for _, cred := range repos {
 			if cred.PasswordSecret != nil {
 				referencedSecrets[cred.PasswordSecret.Name] = true
@@ -475,7 +475,7 @@ func getReferencedSecrets(un unstructured.Unstructured) map[string]bool {
 	if reposRAW, ok := cm.Data["repository.credentials"]; ok {
 		creds := make([]settings.RepositoryCredentials, 0)
 		err := yaml.Unmarshal([]byte(reposRAW), &creds)
-		errors.CheckError(err)
+		errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 		for _, cred := range creds {
 			if cred.PasswordSecret != nil {
 				referencedSecrets[cred.PasswordSecret.Name] = true
@@ -605,11 +605,11 @@ func export(w io.Writer, un unstructured.Unstructured) {
 	un.SetLabels(labels)
 	un.SetAnnotations(annotations)
 	data, err := yaml.Marshal(un.Object)
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 	_, err = w.Write(data)
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 	_, err = w.Write([]byte(yamlSeparator))
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 }
 
 // NewClusterConfig returns a new instance of `argocd-util kubeconfig` command
@@ -628,16 +628,16 @@ func NewClusterConfig() *cobra.Command {
 			serverUrl := args[0]
 			output := args[1]
 			conf, err := clientConfig.ClientConfig()
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			namespace, _, err := clientConfig.Namespace()
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			kubeclientset, err := kubernetes.NewForConfig(conf)
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 
 			cluster, err := db.NewDB(namespace, settings.NewSettingsManager(context.Background(), kubeclientset, namespace), kubeclientset).GetCluster(context.Background(), serverUrl)
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			err = kube.WriteKubeConfig(cluster.RawRestConfig(), namespace, output)
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 		},
 	}
 	clientConfig = cli.AddKubectlFlagsToCmd(command)
@@ -663,7 +663,7 @@ func iterateStringFields(obj interface{}, callback func(name string, val string)
 func redactor(dirtyString string) string {
 	config := make(map[string]interface{})
 	err := yaml.Unmarshal([]byte(dirtyString), &config)
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 	iterateStringFields(config, func(name string, val string) string {
 		if name == "clientSecret" || name == "secret" || name == "bindPW" {
 			return "********"
@@ -672,7 +672,7 @@ func redactor(dirtyString string) string {
 		}
 	})
 	data, err := yaml.Marshal(config)
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 	return string(data)
 }
 

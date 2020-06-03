@@ -135,13 +135,13 @@ func NewApplicationController(
 		appRefreshQueue:               workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "app_reconciliation_queue"),
 		appOperationQueue:             workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "app_operation_processing_queue"),
 		appComparisonTypeRefreshQueue: workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
-		db:                            db,
-		statusRefreshTimeout:          appResyncPeriod,
-		refreshRequestedApps:          make(map[string]CompareWith),
-		refreshRequestedAppsMutex:     &sync.Mutex{},
-		auditLogger:                   argo.NewAuditLogger(namespace, kubeClientset, "argocd-application-controller"),
-		settingsMgr:                   settingsMgr,
-		selfHealTimeout:               selfHealTimeout,
+		db:                        db,
+		statusRefreshTimeout:      appResyncPeriod,
+		refreshRequestedApps:      make(map[string]CompareWith),
+		refreshRequestedAppsMutex: &sync.Mutex{},
+		auditLogger:               argo.NewAuditLogger(namespace, kubeClientset, "argocd-application-controller"),
+		settingsMgr:               settingsMgr,
+		selfHealTimeout:           selfHealTimeout,
 	}
 	if kubectlParallelismLimit > 0 {
 		ctrl.kubectlSemaphore = semaphore.NewWeighted(kubectlParallelismLimit)
@@ -423,8 +423,8 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 		return
 	}
 
-	go func() { errors.CheckError(ctrl.stateCache.Run(ctx)) }()
-	go func() { errors.CheckError(ctrl.metricsServer.ListenAndServe()) }()
+	go func() { errors.CheckErrorWithCode(ctrl.stateCache.Run(ctx), errors.ErrorCommandSpecific) }()
+	go func() { errors.CheckErrorWithCode(ctrl.metricsServer.ListenAndServe(), errors.ErrorCommandSpecific) }()
 
 	for i := 0; i < statusProcessors; i++ {
 		go wait.Until(func() {

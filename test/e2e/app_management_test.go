@@ -416,7 +416,7 @@ func TestAppWithSecrets(t *testing.T) {
 			assetSecretDataHidden(t, res.Manifest)
 
 			manifests, err := client.GetManifests(context.Background(), &applicationpkg.ApplicationManifestQuery{Name: &app.Name})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 
 			for _, manifest := range manifests.Manifests {
 				assetSecretDataHidden(t, manifest)

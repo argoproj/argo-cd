@@ -18,7 +18,7 @@ import (
 func strToUnstructured(jsonStr string) *unstructured.Unstructured {
 	obj := make(map[string]interface{})
 	err := yaml.Unmarshal([]byte(jsonStr), &obj)
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 	return &unstructured.Unstructured{Object: obj}
 }
 

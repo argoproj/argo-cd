@@ -27,10 +27,10 @@ type IndividualTest struct {
 
 func getObj(path string) *unstructured.Unstructured {
 	yamlBytes, err := ioutil.ReadFile(path)
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 	obj := make(map[string]interface{})
 	err = yaml.Unmarshal(yamlBytes, &obj)
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 	return &unstructured.Unstructured{Object: obj}
 }
 
@@ -39,13 +39,13 @@ func TestLuaHealthScript(t *testing.T) {
 		if !strings.Contains(path, "health.lua") {
 			return nil
 		}
-		errors.CheckError(err)
+		errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 		dir := filepath.Dir(path)
 		yamlBytes, err := ioutil.ReadFile(dir + "/health_test.yaml")
-		errors.CheckError(err)
+		errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 		var resourceTest TestStructure
 		err = yaml.Unmarshal(yamlBytes, &resourceTest)
-		errors.CheckError(err)
+		errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 		for i := range resourceTest.Tests {
 			test := resourceTest.Tests[i]
 			t.Run(test.InputPath, func(t *testing.T) {
@@ -54,9 +54,9 @@ func TestLuaHealthScript(t *testing.T) {
 				}
 				obj := getObj(filepath.Join(dir, test.InputPath))
 				script, err := vm.GetHealthScript(obj)
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 				result, err := vm.ExecuteHealthLua(obj, script)
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 				assert.Equal(t, &test.HealthStatus, result)
 			})
 		}

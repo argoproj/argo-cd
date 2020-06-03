@@ -64,7 +64,7 @@ func getModification(modification string, resource string, scope string, permiss
 func saveProject(updated v1alpha1.AppProject, orig v1alpha1.AppProject, projectsIf appclient.AppProjectInterface, dryRun bool) error {
 	fmt.Printf("===== %s ======\n", updated.Name)
 	target, err := kube.ToUnstructured(&updated)
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 	live, err := kube.ToUnstructured(&orig)
 	if err != nil {
 		return err
@@ -119,20 +119,20 @@ func NewUpdatePolicyRuleCommand() *cobra.Command {
 			action := args[2]
 
 			config, err := clientConfig.ClientConfig()
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			config.QPS = 100
 			config.Burst = 50
 
 			namespace, _, err := clientConfig.Namespace()
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			appclients := appclientset.NewForConfigOrDie(config)
 
 			modification, err := getModification(modificationType, resource, scope, permission)
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			projIf := appclients.ArgoprojV1alpha1().AppProjects(namespace)
 
 			err = updateProjects(projIf, projectGlob, rolePattern, action, modification, dryRun)
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 		},
 	}
 	command.Flags().StringVar(&resource, "resource", "", "Resource e.g. 'applications'")

@@ -15,14 +15,14 @@ var (
 
 func mustToAbsPath(relativePath string) string {
 	res, err := filepath.Abs(relativePath)
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 	return res
 }
 
 // sets the current repo as the default SSH test repo
 func AddSSHRepo(insecure bool, credentials bool, repoURLType fixture.RepoURLType) {
 	keyPath, err := filepath.Abs("../fixture/testrepos/id_rsa")
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 	args := []string{"repo", "add", fixture.RepoURL(repoURLType)}
 	if credentials {
 		args = append(args, "--ssh-private-key-path", keyPath)
@@ -88,9 +88,9 @@ func AddHTTPSCredentialsUserPass() {
 // AddHTTPSRepoCredentialsTLSClientCert adds E2E  for HTTPS repos to context
 func AddHTTPSCredentialsTLSClientCert() {
 	certPath, err := filepath.Abs("../fixture/certs/argocd-test-client.crt")
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 	keyPath, err := filepath.Abs("../fixture/certs/argocd-test-client.key")
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 	args := []string{
 		"repocreds",
 		"add",
@@ -106,7 +106,7 @@ func AddHTTPSCredentialsTLSClientCert() {
 // AddSSHRepoCredentials adds E2E fixture credentials for SSH repos to context
 func AddSSHCredentials() {
 	keyPath, err := filepath.Abs("../fixture/testrepos/id_rsa")
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 	var repoURLType fixture.RepoURLType = fixture.RepoURLTypeSSH
 	args := []string{"repocreds", "add", fixture.RepoBaseURL(repoURLType), "--ssh-private-key-path", keyPath}
 	errors.FailOnErr(fixture.RunCli(args...))

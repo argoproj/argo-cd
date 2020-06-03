@@ -26,7 +26,7 @@ func NewLogoutCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comma
 			context := args[0]
 
 			localCfg, err := localconfig.ReadLocalConfig(globalClientOpts.ConfigPath)
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			if localCfg == nil {
 				log.Fatalf("Nothing to logout from")
 			}
@@ -41,7 +41,7 @@ func NewLogoutCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comma
 				log.Fatalf("Error in logging out: %s", err)
 			}
 			err = localconfig.WriteLocalConfig(*localCfg, globalClientOpts.ConfigPath)
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 
 			fmt.Printf("Logged out from '%s'\n", context)
 		},
