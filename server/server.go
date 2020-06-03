@@ -316,7 +316,7 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
 	go func() { a.checkServeErr("tcpm", tcpm.Serve()) }()
 	go func() { a.checkServeErr("metrics", metricsServ.ListenAndServe()) }()
 	if !cache.WaitForCacheSync(ctx.Done(), a.projInformer.HasSynced, a.appInformer.HasSynced) {
-		log.Fatal("Timed out waiting for project cache to sync")
+		errors.Fatal("Timed out waiting for project cache to sync")
 	}
 
 	a.stopCh = make(chan struct{})

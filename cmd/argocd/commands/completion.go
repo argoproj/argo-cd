@@ -224,7 +224,7 @@ variable.
 				os.Exit(errors.ErrorCommandSpecific)
 			}
 			if err := completion(os.Stdout); err != nil {
-				log.Fatal(err)
+				errors.Fatal(err)
 			}
 		},
 	}

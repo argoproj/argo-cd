@@ -16,7 +16,7 @@ func StartInformer(informer cache.SharedIndexInformer) context.CancelFunc {
 	ctx, cancel := context.WithCancel(context.Background())
 	go informer.Run(ctx.Done())
 	if !cache.WaitForCacheSync(ctx.Done(), informer.HasSynced) {
-		log.Fatal("Timed out waiting for informer cache to sync")
+		errors.Fatal("Timed out waiting for informer cache to sync")
 	}
 	return cancel
 }

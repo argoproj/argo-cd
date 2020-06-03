@@ -89,7 +89,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				if ok, _ := git.IsSSHURL(repo.Repo); ok {
 					keyData, err := ioutil.ReadFile(sshPrivateKeyPath)
 					if err != nil {
-						log.Fatal(err)
+						errors.Fatal(err)
 					}
 					repo.SSHPrivateKey = string(keyData)
 				} else {

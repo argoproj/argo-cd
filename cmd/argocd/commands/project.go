@@ -198,7 +198,7 @@ func NewProjectCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 	command.Flags().StringVarP(&fileURL, "file", "f", "", "Filename or URL to Kubernetes manifests for the project")
 	err := command.Flags().SetAnnotation("file", cobra.BashCompFilenameExt, []string{"json", "yaml", "yml"})
 	if err != nil {
-		log.Fatal(err)
+		errors.Fatal(err)
 	}
 	addProjFlags(command, &opts)
 	return command
@@ -350,7 +350,7 @@ func NewProjectAddDestinationCommand(clientOpts *argocdclient.ClientOptions) *co
 
 			for _, dest := range proj.Spec.Destinations {
 				if dest.Namespace == namespace && dest.Server == server {
-					log.Fatal("Specified destination is already defined in project")
+					errors.Fatal("Specified destination is already defined in project")
 				}
 			}
 			proj.Spec.Destinations = append(proj.Spec.Destinations, v1alpha1.ApplicationDestination{Server: server, Namespace: namespace})
@@ -388,7 +388,7 @@ func NewProjectRemoveDestinationCommand(clientOpts *argocdclient.ClientOptions) 
 				}
 			}
 			if index == -1 {
-				log.Fatal("Specified destination does not exist in project")
+				errors.Fatal("Specified destination does not exist in project")
 			} else {
 				proj.Spec.Destinations = append(proj.Spec.Destinations[:index], proj.Spec.Destinations[index+1:]...)
 				_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})

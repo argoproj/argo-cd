@@ -59,7 +59,7 @@ func NewContextCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				return
 			}
 			if _, err = localCfg.ResolveContext(ctxName); err != nil {
-				log.Fatal(err)
+				errors.Fatal(err)
 			}
 			prevCtx := localCfg.CurrentContext
 			localCfg.CurrentContext = ctxName

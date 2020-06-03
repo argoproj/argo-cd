@@ -390,7 +390,7 @@ func (c *client) redeemRefreshToken() (string, string, error) {
 func NewClientOrDie(opts *ClientOptions) Client {
 	client, err := NewClient(opts)
 	if err != nil {
-		log.Fatal(err)
+		errors.Fatal(err)
 	}
 	return client
 }

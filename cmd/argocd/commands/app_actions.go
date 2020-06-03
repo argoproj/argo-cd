@@ -152,7 +152,7 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 		var resGroup = filteredObjects[0].GroupVersionKind().Group
 		for i := range filteredObjects[1:] {
 			if filteredObjects[i].GroupVersionKind().Group != resGroup {
-				log.Fatal("Ambiguous resource group. Use flag --group to specify resource group explicitly.")
+				errors.Fatal("Ambiguous resource group. Use flag --group to specify resource group explicitly.")
 			}
 		}
 

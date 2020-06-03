@@ -82,7 +82,7 @@ func portForward(podSelector string, namespace string) (int, error) {
 	go func() {
 		err = forwarder.ForwardPorts()
 		if err != nil {
-			log.Fatal(err)
+			errors.Fatal(err)
 		}
 	}()
 	for range readyChan {

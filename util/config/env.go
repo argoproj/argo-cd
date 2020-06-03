@@ -14,7 +14,7 @@ var flags map[string]string
 func init() {
 	err := loadFlags()
 	if err != nil {
-		log.Fatal(err)
+		errors.Fatal(err)
 	}
 }
 

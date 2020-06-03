@@ -191,7 +191,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	// Only complete files with appropriate extension.
 	err := command.Flags().SetAnnotation("file", cobra.BashCompFilenameExt, []string{"json", "yaml", "yml"})
 	if err != nil {
-		log.Fatal(err)
+		errors.Fatal(err)
 	}
 	addAppFlags(command, &appOpts)
 	return command
@@ -590,13 +590,13 @@ func setAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 	})
 	if flags.Changed("auto-prune") {
 		if spec.SyncPolicy == nil || spec.SyncPolicy.Automated == nil {
-			log.Fatal("Cannot set --auto-prune: application not configured with automatic sync")
+			errors.Fatal("Cannot set --auto-prune: application not configured with automatic sync")
 		}
 		spec.SyncPolicy.Automated.Prune = appOpts.autoPrune
 	}
 	if flags.Changed("self-heal") {
 		if spec.SyncPolicy == nil || spec.SyncPolicy.Automated == nil {
-			log.Fatal("Cannot set --self-heal: application not configured with automatic sync")
+			errors.Fatal("Cannot set --self-heal: application not configured with automatic sync")
 		}
 		spec.SyncPolicy.Automated.SelfHeal = appOpts.selfHeal
 	}
@@ -663,21 +663,21 @@ func setHelmOpt(src *argoappv1.ApplicationSource, opts helmOpts) {
 	for _, text := range opts.helmSets {
 		p, err := argoappv1.NewHelmParameter(text, false)
 		if err != nil {
-			log.Fatal(err)
+			errors.Fatal(err)
 		}
 		src.Helm.AddParameter(*p)
 	}
 	for _, text := range opts.helmSetStrings {
 		p, err := argoappv1.NewHelmParameter(text, true)
 		if err != nil {
-			log.Fatal(err)
+			errors.Fatal(err)
 		}
 		src.Helm.AddParameter(*p)
 	}
 	for _, text := range opts.helmSetFiles {
 		p, err := argoappv1.NewHelmFileParameter(text)
 		if err != nil {
-			log.Fatal(err)
+			errors.Fatal(err)
 		}
 		src.Helm.AddFileParameter(*p)
 	}
@@ -1472,7 +1472,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 					res, err := appIf.GetManifests(ctx, &q)
 					if err != nil {
-						log.Fatal(err)
+						errors.Fatal(err)
 					}
 
 					for _, mfst := range res.Manifests {
@@ -1501,7 +1501,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName})
 					errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 					if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil && !dryRun {
-						log.Fatal("Cannot use local sync when Automatic Sync Policy is enabled except with --dry-run")
+						errors.Fatal("Cannot use local sync when Automatic Sync Policy is enabled except with --dry-run")
 					}
 
 					errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
@@ -2204,10 +2204,10 @@ func filterResources(command *cobra.Command, resources []*argoappv1.ResourceDiff
 		filteredObjects = append(filteredObjects, deepCopy)
 	}
 	if len(filteredObjects) == 0 {
-		log.Fatal("No matching resource found")
+		errors.Fatal("No matching resource found")
 	}
 	if len(filteredObjects) > 1 && !all {
-		log.Fatal("Multiple resources match inputs. Use the --all flag to patch multiple resources")
+		errors.Fatal("Multiple resources match inputs. Use the --all flag to patch multiple resources")
 	}
 	return filteredObjects
 }

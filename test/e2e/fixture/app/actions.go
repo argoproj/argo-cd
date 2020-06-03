@@ -94,7 +94,7 @@ func (a *Actions) CreateFromFile(handler func(app *Application)) *Actions {
 	}
 
 	if len(a.context.parameters) > 0 {
-		log.Fatal("Application parameters or json tlas are not supported")
+		errors.Fatal("Application parameters or json tlas are not supported")
 	}
 
 	if a.context.directoryRecurse {

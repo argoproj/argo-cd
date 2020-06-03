@@ -138,7 +138,7 @@ func newFakeLister(fakeAppYAMLs ...string) (context.CancelFunc, applister.Applic
 	appInformer := factory.Argoproj().V1alpha1().Applications().Informer()
 	go appInformer.Run(ctx.Done())
 	if !cache.WaitForCacheSync(ctx.Done(), appInformer.HasSynced) {
-		log.Fatal("Timed out waiting for caches to sync")
+		errors.Fatal("Timed out waiting for caches to sync")
 	}
 	return cancel, factory.Argoproj().V1alpha1().Applications().Lister()
 }

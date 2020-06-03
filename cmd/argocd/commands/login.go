@@ -285,7 +285,7 @@ func oauth2Login(ctx context.Context, port int, oidcSettings *settingspkg.OIDCCo
 	}()
 	errMsg := <-completionChan
 	if errMsg != "" {
-		log.Fatal(errMsg)
+		errors.Fatal(errMsg)
 	}
 	fmt.Printf("Authentication successful\n")
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
