@@ -72,7 +72,7 @@ func NewVersionCmd(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 					printServerVersion(sv, short || (output == "short"))
 				}
 			default:
-				log.Fatalf("unknown output format: %s", output)
+				errors.Fatalf("unknown output format: %s", output)
 			}
 		},
 	}

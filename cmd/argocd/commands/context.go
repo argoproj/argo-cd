@@ -112,7 +112,7 @@ func printArgoCDContexts(configPath string) {
 	localCfg, err := localconfig.ReadLocalConfig(configPath)
 	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 	if localCfg == nil {
-		log.Fatalf("No contexts defined in %s", configPath)
+		errors.Fatalf("No contexts defined in %s", configPath)
 	}
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	defer func() { _ = w.Flush() }()

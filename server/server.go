@@ -331,7 +331,7 @@ func (a *ArgoCDServer) checkServeErr(name string, err error) {
 			// a nil stopCh indicates a graceful shutdown
 			log.Infof("graceful shutdown %s: %v", name, err)
 		} else {
-			log.Fatalf("%s: %v", name, err)
+			errors.Fatalf("%s: %v", name, err)
 		}
 	} else {
 		log.Infof("graceful shutdown %s", name)

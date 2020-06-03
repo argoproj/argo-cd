@@ -271,7 +271,7 @@ func oauth2Login(ctx context.Context, port int, oidcSettings *settingspkg.OIDCCo
 	case oidcutil.GrantTypeImplicit:
 		url = oidcutil.ImplicitFlowURL(oauth2conf, stateNonce, opts...)
 	default:
-		log.Fatalf("Unsupported grant type: %v", grantType)
+		errors.Fatalf("Unsupported grant type: %v", grantType)
 	}
 	fmt.Printf("Performing %s flow login: %s\n", grantType, url)
 	time.Sleep(1 * time.Second)
@@ -280,7 +280,7 @@ func oauth2Login(ctx context.Context, port int, oidcSettings *settingspkg.OIDCCo
 	go func() {
 		log.Debugf("Listen: %s", srv.Addr)
 		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
-			log.Fatalf("Temporary HTTP server failed: %s", err)
+			errors.Fatalf("Temporary HTTP server failed: %s", err)
 		}
 	}()
 	errMsg := <-completionChan

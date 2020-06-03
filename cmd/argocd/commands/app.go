@@ -134,7 +134,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				reader := bufio.NewReader(os.Stdin)
 				err := config.UnmarshalReader(reader, &app)
 				if err != nil {
-					log.Fatalf("unable to read manifest from stdin: %v", err)
+					errors.Fatalf("unable to read manifest from stdin: %v", err)
 				}
 			} else if fileURL != "" {
 				// read uri
@@ -146,16 +146,16 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				}
 				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 				if len(args) == 1 && args[0] != app.Name {
-					log.Fatalf("app name '%s' does not match app spec metadata.name '%s'", args[0], app.Name)
+					errors.Fatalf("app name '%s' does not match app spec metadata.name '%s'", args[0], app.Name)
 				}
 				if appName != "" && appName != app.Name {
-					log.Fatalf("--name argument '%s' does not match app spec metadata.name '%s'", appName, app.Name)
+					errors.Fatalf("--name argument '%s' does not match app spec metadata.name '%s'", appName, app.Name)
 				}
 			} else {
 				// read arguments
 				if len(args) == 1 {
 					if appName != "" && appName != args[0] {
-						log.Fatalf("--name argument '%s' does not match app name %s", appName, args[0])
+						errors.Fatalf("--name argument '%s' does not match app name %s", appName, args[0])
 					}
 					appName = args[0]
 				}
@@ -568,7 +568,7 @@ func setAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 				}
 				spec.SyncPolicy.Automated = &argoappv1.SyncPolicyAutomated{}
 			default:
-				log.Fatalf("Invalid sync-policy: %s", appOpts.syncPolicy)
+				errors.Fatalf("Invalid sync-policy: %s", appOpts.syncPolicy)
 			}
 		case "sync-option":
 			if spec.SyncPolicy == nil {
@@ -845,7 +845,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 				for _, paramStr := range parameters {
 					parts := strings.SplitN(paramStr, "=", 2)
 					if len(parts) != 2 {
-						log.Fatalf("Expected parameter of the form: component=param. Received: %s", paramStr)
+						errors.Fatalf("Expected parameter of the form: component=param. Received: %s", paramStr)
 					}
 					overrides := app.Spec.Source.Ksonnet.Parameters
 					for i, override := range overrides {
@@ -1310,7 +1310,7 @@ func parseSelectedResources(resources []string) []argoappv1.SyncOperationResourc
 		for _, r := range resources {
 			fields := strings.Split(r, resourceFieldDelimiter)
 			if len(fields) != resourceFieldCount {
-				log.Fatalf("Resource should have GROUP%sKIND%sNAME, but instead got: %s", resourceFieldDelimiter, resourceFieldDelimiter, r)
+				errors.Fatalf("Resource should have GROUP%sKIND%sNAME, but instead got: %s", resourceFieldDelimiter, resourceFieldDelimiter, r)
 			}
 			name := fields[2]
 			namespace := ""
@@ -1453,7 +1453,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 				// unlike list, we'd want to fail if nothing was found
 				if len(list.Items) == 0 {
-					log.Fatalf("no apps match selector %v", selector)
+					errors.Fatalf("no apps match selector %v", selector)
 				}
 				for _, i := range list.Items {
 					appNames = append(appNames, i.Name)
@@ -1489,7 +1489,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					// If labels are provided and none are found return error only if specific resources were also not
 					// specified.
 					if len(resources) == 0 {
-						log.Fatalf("No matching resources found for labels: %v", labels)
+						errors.Fatalf("No matching resources found for labels: %v", labels)
 						return
 					}
 				}
@@ -1535,7 +1535,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					syncReq.Strategy = &argoappv1.SyncStrategy{Hook: &argoappv1.SyncStrategyHook{}}
 					syncReq.Strategy.Hook.Force = force
 				default:
-					log.Fatalf("Unknown sync strategy: '%s'", strategy)
+					errors.Fatalf("Unknown sync strategy: '%s'", strategy)
 				}
 				ctx := context.Background()
 				_, err := appIf.Sync(ctx, &syncReq)
@@ -1547,12 +1547,12 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 					if !dryRun {
 						if !app.Status.OperationState.Phase.Successful() {
-							log.Fatalf("Operation has completed with phase: %s", app.Status.OperationState.Phase)
+							errors.Fatalf("Operation has completed with phase: %s", app.Status.OperationState.Phase)
 						} else if len(selectedResources) == 0 && app.Status.Sync.Status != argoappv1.SyncStatusCodeSynced {
 							// Only get resources to be pruned if sync was application-wide and final status is not synced
 							pruningRequired := app.Status.OperationState.SyncResult.Resources.PruningRequired()
 							if pruningRequired > 0 {
-								log.Fatalf("%d resources require pruning", pruningRequired)
+								errors.Fatalf("%d resources require pruning", pruningRequired)
 							}
 						}
 					}
@@ -1851,7 +1851,7 @@ func setParameterOverrides(app *argoappv1.Application, parameters []string) {
 		for _, paramStr := range parameters {
 			parts := strings.SplitN(paramStr, "=", 3)
 			if len(parts) != 3 {
-				log.Fatalf("Expected ksonnet parameter of the form: component=param=value. Received: %s", paramStr)
+				errors.Fatalf("Expected ksonnet parameter of the form: component=param=value. Received: %s", paramStr)
 			}
 			newParam := argoappv1.KsonnetParameter{
 				Component: parts[0],
@@ -1883,7 +1883,7 @@ func setParameterOverrides(app *argoappv1.Application, parameters []string) {
 			app.Spec.Source.Helm.AddParameter(*newParam)
 		}
 	default:
-		log.Fatalf("Parameters can only be set against Ksonnet or Helm applications")
+		errors.Fatalf("Parameters can only be set against Ksonnet or Helm applications")
 	}
 }
 
@@ -1968,7 +1968,7 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 				}
 			}
 			if depInfo == nil {
-				log.Fatalf("Application '%s' does not have deployment id '%d' in history\n", app.ObjectMeta.Name, depID)
+				errors.Fatalf("Application '%s' does not have deployment id '%d' in history\n", app.ObjectMeta.Name, depID)
 			}
 
 			_, err = appIf.Rollback(ctx, &applicationpkg.ApplicationRollbackRequest{
@@ -2059,7 +2059,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 				errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 				unstructureds = liveObjs
 			default:
-				log.Fatalf("Unknown source type '%s'", source)
+				errors.Fatalf("Unknown source type '%s'", source)
 			}
 
 			for _, obj := range unstructureds {

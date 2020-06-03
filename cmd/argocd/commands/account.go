@@ -154,7 +154,7 @@ func NewAccountGetUserInfoCommand(clientOpts *argocdclient.ClientOptions) *cobra
 					fmt.Printf("Groups: %v\n", strings.Join(response.Groups, ","))
 				}
 			default:
-				log.Fatalf("Unknown output format: %s", output)
+				errors.Fatalf("Unknown output format: %s", output)
 			}
 		},
 	}

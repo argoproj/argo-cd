@@ -51,7 +51,7 @@ func (opts *projectOpts) GetDestinations() []v1alpha1.ApplicationDestination {
 	for _, destStr := range opts.destinations {
 		parts := strings.Split(destStr, ",")
 		if len(parts) != 2 {
-			log.Fatalf("Expected destination of the form: server,namespace. Received: %s", destStr)
+			errors.Fatalf("Expected destination of the form: server,namespace. Received: %s", destStr)
 		} else {
 			destinations = append(destinations, v1alpha1.ApplicationDestination{
 				Server:    parts[0],
@@ -156,7 +156,7 @@ func NewProjectCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 				reader := bufio.NewReader(os.Stdin)
 				err := config.UnmarshalReader(reader, &proj)
 				if err != nil {
-					log.Fatalf("unable to read manifest from stdin: %v", err)
+					errors.Fatalf("unable to read manifest from stdin: %v", err)
 				}
 			} else if fileURL != "" {
 				// read uri
@@ -168,7 +168,7 @@ func NewProjectCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 				}
 				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 				if len(args) == 1 && args[0] != proj.Name {
-					log.Fatalf("project name '%s' does not match project spec metadata.name '%s'", args[0], proj.Name)
+					errors.Fatalf("project name '%s' does not match project spec metadata.name '%s'", args[0], proj.Name)
 				}
 			} else {
 				// read arguments

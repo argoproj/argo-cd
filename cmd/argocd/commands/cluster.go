@@ -81,7 +81,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			contextName := args[0]
 			clstContext := config.Contexts[contextName]
 			if clstContext == nil {
-				log.Fatalf("Context %s does not exist in kubeconfig", contextName)
+				errors.Fatalf("Context %s does not exist in kubeconfig", contextName)
 			}
 
 			overrides := clientcmd.ConfigOverrides{
