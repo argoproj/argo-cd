@@ -33,7 +33,7 @@ func NewAccountCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		Short: "Manage account settings",
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
-			os.Exit(1)
+			os.Exit(errors.ErrorCommandSpecific)
 		},
 	}
 	command.AddCommand(NewAccountUpdatePasswordCommand(clientOpts))
@@ -58,7 +58,7 @@ func NewAccountUpdatePasswordCommand(clientOpts *argocdclient.ClientOptions) *co
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 0 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 			acdClient := argocdclient.NewClientOrDie(clientOpts)
 			conn, usrIf := acdClient.NewAccountClientOrDie()
@@ -127,7 +127,7 @@ func NewAccountGetUserInfoCommand(clientOpts *argocdclient.ClientOptions) *cobra
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 0 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 
 			conn, client := argocdclient.NewClientOrDie(clientOpts).NewSessionClientOrDie()
@@ -182,7 +182,7 @@ Resources: %v
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 3 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 
 			conn, client := argocdclient.NewClientOrDie(clientOpts).NewAccountClientOrDie()
@@ -381,7 +381,7 @@ argocd account generate-token --account <account-name>`,
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 			id := args[0]
 

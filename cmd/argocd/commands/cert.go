@@ -26,7 +26,7 @@ func NewCertCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		Short: "Manage repository certificates and SSH known hosts entries",
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
-			os.Exit(1)
+			os.Exit(errors.ErrorCommandSpecific)
 		},
 		Example: `  # Add a TLS certificate for cd.example.com to ArgoCD cert store from a file
   argocd cert add-tls --from ~/mycert.pem cd.example.com
@@ -69,7 +69,7 @@ func NewCertAddTLSCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 
 			var certificateArray []string
@@ -217,7 +217,7 @@ func NewCertRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) < 1 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 			conn, certIf := argocdclient.NewClientOrDie(clientOpts).NewCertClientOrDie()
 			defer io.Close(conn)
@@ -270,7 +270,7 @@ func NewCertListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				case "https":
 				default:
 					fmt.Println("cert-type must be either ssh or https")
-					os.Exit(1)
+					os.Exit(errors.ErrorCommandSpecific)
 				}
 			}
 

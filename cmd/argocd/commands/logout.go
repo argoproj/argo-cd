@@ -21,7 +21,7 @@ func NewLogoutCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comma
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 			context := args[0]
 

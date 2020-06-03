@@ -209,7 +209,7 @@ variable.
 		Run: func(cmd *cobra.Command, args []string) {
 			if len(args) != 1 {
 				cmd.HelpFunc()(cmd, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 			shell := args[0]
 			rootCommand := NewCommand()
@@ -221,7 +221,7 @@ variable.
 			completion, ok := availableCompletions[shell]
 			if !ok {
 				fmt.Printf("Invalid shell '%s'. The supported shells are bash and zsh.\n", shell)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 			if err := completion(os.Stdout); err != nil {
 				log.Fatal(err)

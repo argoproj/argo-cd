@@ -24,7 +24,7 @@ func NewProjectWindowsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 		Short: "Manage a project's sync windows",
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
-			os.Exit(1)
+			os.Exit(errors.ErrorCommandSpecific)
 		},
 	}
 	roleCommand.AddCommand(NewProjectWindowsDisableManualSyncCommand(clientOpts))
@@ -45,7 +45,7 @@ func NewProjectWindowsDisableManualSyncCommand(clientOpts *argocdclient.ClientOp
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 2 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 
 			projName := args[0]
@@ -80,7 +80,7 @@ func NewProjectWindowsEnableManualSyncCommand(clientOpts *argocdclient.ClientOpt
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 2 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 
 			projName := args[0]
@@ -123,7 +123,7 @@ func NewProjectWindowsAddWindowCommand(clientOpts *argocdclient.ClientOptions) *
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 			projName := args[0]
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
@@ -158,7 +158,7 @@ func NewProjectWindowsDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 2 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 
 			projName := args[0]
@@ -197,7 +197,7 @@ func NewProjectWindowsUpdateCommand(clientOpts *argocdclient.ClientOptions) *cob
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 2 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 
 			projName := args[0]
@@ -242,7 +242,7 @@ func NewProjectWindowsListCommand(clientOpts *argocdclient.ClientOptions) *cobra
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 			projName := args[0]
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()

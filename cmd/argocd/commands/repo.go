@@ -27,7 +27,7 @@ func NewRepoCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		Short: "Manage repository connection parameters",
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
-			os.Exit(1)
+			os.Exit(errors.ErrorCommandSpecific)
 		},
 	}
 
@@ -78,7 +78,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 
 			// Repository URL
@@ -193,7 +193,7 @@ func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 			conn, repoIf := argocdclient.NewClientOrDie(clientOpts).NewRepoClientOrDie()
 			defer io.Close(conn)
@@ -287,7 +287,7 @@ func NewRepoGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 
 			// Repository URL

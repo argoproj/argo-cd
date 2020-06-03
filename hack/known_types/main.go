@@ -15,7 +15,7 @@ import (
 
 func main() {
 	if err := newCommand().Execute(); err != nil {
-		os.Exit(1)
+		os.Exit(errors.ErrorCommandSpecific)
 	}
 }
 

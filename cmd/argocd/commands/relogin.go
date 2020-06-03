@@ -30,7 +30,7 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 0 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 			localCfg, err := localconfig.ReadLocalConfig(globalClientOpts.ConfigPath)
 			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)

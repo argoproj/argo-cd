@@ -46,7 +46,7 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 
 			if len(args) != 1 && !globalClientOpts.PortForward {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 
 			if globalClientOpts.PortForward {
@@ -58,14 +58,14 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 				if !tlsTestResult.TLS {
 					if !globalClientOpts.PlainText {
 						if !cli.AskToProceed("WARNING: server is not configured with TLS. Proceed (y/n)? ") {
-							os.Exit(1)
+							os.Exit(errors.ErrorCommandSpecific)
 						}
 						globalClientOpts.PlainText = true
 					}
 				} else if tlsTestResult.InsecureErr != nil {
 					if !globalClientOpts.Insecure {
 						if !cli.AskToProceed(fmt.Sprintf("WARNING: server certificate had error: %s. Proceed insecurely (y/n)? ", tlsTestResult.InsecureErr)) {
-							os.Exit(1)
+							os.Exit(errors.ErrorCommandSpecific)
 						}
 						globalClientOpts.Insecure = true
 					}

@@ -31,7 +31,7 @@ func NewClusterCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientc
 		Short: "Manage cluster credentials",
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
-			os.Exit(1)
+			os.Exit(errors.ErrorCommandSpecific)
 		},
 		Example: `  # List all known clusters in JSON format:
   argocd cluster list -o json
@@ -74,7 +74,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			if len(args) == 0 {
 				log.Error("Choose a context name from:")
 				printKubeContexts(configAccess)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 			config, err := configAccess.GetStartingConfig()
 			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
@@ -230,7 +230,7 @@ func NewClusterGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
 			defer io.Close(conn)
@@ -299,7 +299,7 @@ func NewClusterRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
 			defer io.Close(conn)
@@ -379,7 +379,7 @@ func NewClusterRotateAuthCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
 			defer io.Close(conn)

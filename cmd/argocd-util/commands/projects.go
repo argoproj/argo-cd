@@ -112,7 +112,7 @@ func NewUpdatePolicyRuleCommand() *cobra.Command {
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 3 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 			projectGlob := args[0]
 			modificationType := args[1]

@@ -31,7 +31,7 @@ func NewContextCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			if delete {
 				if len(args) == 0 {
 					c.HelpFunc()(c, args)
-					os.Exit(1)
+					os.Exit(errors.ErrorCommandSpecific)
 				}
 				err := deleteContext(args[0], clientOpts.ConfigPath)
 				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)

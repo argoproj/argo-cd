@@ -220,7 +220,7 @@ func NewImportCommand() *cobra.Command {
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 			config, err := clientConfig.ClientConfig()
 			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
@@ -623,7 +623,7 @@ func NewClusterConfig() *cobra.Command {
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 2 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 			serverUrl := args[0]
 			output := args[1]
@@ -679,6 +679,6 @@ func redactor(dirtyString string) string {
 func main() {
 	if err := NewCommand().Execute(); err != nil {
 		fmt.Println(err)
-		os.Exit(1)
+		os.Exit(errors.ErrorCommandSpecific)
 	}
 }

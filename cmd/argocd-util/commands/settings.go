@@ -396,7 +396,7 @@ argocd-util settings resource-overrides ignore-differences ./deploy.yaml --argoc
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) < 1 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 
 			executeResourceOverrideCommand(cmdCtx, args, func(res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride) {
@@ -440,7 +440,7 @@ argocd-util settings resource-overrides health ./deploy.yaml --argocd-cm-path ./
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) < 1 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 
 			executeResourceOverrideCommand(cmdCtx, args, func(res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride) {
@@ -471,7 +471,7 @@ argocd-util settings resource-overrides action list /tmp/deploy.yaml --argocd-cm
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) < 1 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 
 			executeResourceOverrideCommand(cmdCtx, args, func(res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride) {
@@ -514,7 +514,7 @@ argocd-util settings resource-overrides action run /tmp/deploy.yaml restart --ar
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) < 2 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 			action := args[1]
 

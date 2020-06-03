@@ -81,7 +81,7 @@ func NewProjectCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		Short: "Manage projects",
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
-			os.Exit(1)
+			os.Exit(errors.ErrorCommandSpecific)
 		},
 	}
 	command.AddCommand(NewProjectRoleCommand(clientOpts))
@@ -174,7 +174,7 @@ func NewProjectCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 				// read arguments
 				if len(args) == 0 {
 					c.HelpFunc()(c, args)
-					os.Exit(1)
+					os.Exit(errors.ErrorCommandSpecific)
 				}
 				projName := args[0]
 				proj = v1alpha1.AppProject{
@@ -215,7 +215,7 @@ func NewProjectSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 			projName := args[0]
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
@@ -243,7 +243,7 @@ func NewProjectSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			if visited == 0 {
 				log.Error("Please set at least one option to update")
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 
 			_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
@@ -337,7 +337,7 @@ func NewProjectAddDestinationCommand(clientOpts *argocdclient.ClientOptions) *co
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 3 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 			projName := args[0]
 			server := args[1]
@@ -369,7 +369,7 @@ func NewProjectRemoveDestinationCommand(clientOpts *argocdclient.ClientOptions) 
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 3 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 			projName := args[0]
 			server := args[1]
@@ -408,7 +408,7 @@ func NewProjectAddSourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 2 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 			projName := args[0]
 			url := args[1]
@@ -444,7 +444,7 @@ func modifyClusterResourceCmd(cmdUse, cmdDesc string, clientOpts *argocdclient.C
 
 			if len(args) != 3 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 			projName, group, kind := args[0], args[1], args[2]
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
@@ -471,7 +471,7 @@ func modifyNamespaceResourceCmd(cmdUse, cmdDesc string, clientOpts *argocdclient
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 3 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 			projName, group, kind := args[0], args[1], args[2]
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
@@ -606,7 +606,7 @@ func NewProjectRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *cobr
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 2 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 			projName := args[0]
 			url := args[1]
@@ -644,7 +644,7 @@ func NewProjectDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer argoio.Close(conn)
@@ -824,7 +824,7 @@ func NewProjectGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 			projName := args[0]
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
@@ -854,7 +854,7 @@ func NewProjectEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 			projName := args[0]
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()

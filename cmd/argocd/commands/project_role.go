@@ -28,7 +28,7 @@ func NewProjectRoleCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 		Short: "Manage a project's roles",
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
-			os.Exit(1)
+			os.Exit(errors.ErrorCommandSpecific)
 		},
 	}
 	roleCommand.AddCommand(NewProjectRoleListCommand(clientOpts))
@@ -55,7 +55,7 @@ func NewProjectRoleAddPolicyCommand(clientOpts *argocdclient.ClientOptions) *cob
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 2 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 			projName := args[0]
 			roleName := args[1]
@@ -90,7 +90,7 @@ func NewProjectRoleRemovePolicyCommand(clientOpts *argocdclient.ClientOptions) *
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 2 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 			projName := args[0]
 			roleName := args[1]
@@ -135,7 +135,7 @@ func NewProjectRoleCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 2 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 			projName := args[0]
 			roleName := args[1]
@@ -169,7 +169,7 @@ func NewProjectRoleDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 2 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 			projName := args[0]
 			roleName := args[1]
@@ -206,7 +206,7 @@ func NewProjectRoleCreateTokenCommand(clientOpts *argocdclient.ClientOptions) *c
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 2 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 			projName := args[0]
 			roleName := args[1]
@@ -232,7 +232,7 @@ func NewProjectRoleDeleteTokenCommand(clientOpts *argocdclient.ClientOptions) *c
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 3 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 			projName := args[0]
 			roleName := args[1]
@@ -277,7 +277,7 @@ func NewProjectRoleListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 			projName := args[0]
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
@@ -310,7 +310,7 @@ func NewProjectRoleGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 2 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 			projName := args[0]
 			roleName := args[1]
@@ -353,7 +353,7 @@ func NewProjectRoleAddGroupCommand(clientOpts *argocdclient.ClientOptions) *cobr
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 3 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 			projName, roleName, groupName := args[0], args[1], args[2]
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
@@ -382,7 +382,7 @@ func NewProjectRoleRemoveGroupCommand(clientOpts *argocdclient.ClientOptions) *c
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 3 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 			projName, roleName, groupName := args[0], args[1], args[2]
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()

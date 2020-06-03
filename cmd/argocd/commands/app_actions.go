@@ -33,7 +33,7 @@ func NewApplicationResourceActionsCommand(clientOpts *argocdclient.ClientOptions
 		Short: "Manage Resource actions",
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
-			os.Exit(1)
+			os.Exit(errors.ErrorCommandSpecific)
 		},
 	}
 	command.AddCommand(NewApplicationResourceActionsListCommand(clientOpts))
@@ -55,7 +55,7 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 	command.Run = func(c *cobra.Command, args []string) {
 		if len(args) != 1 {
 			c.HelpFunc()(c, args)
-			os.Exit(1)
+			os.Exit(errors.ErrorCommandSpecific)
 		}
 		appName := args[0]
 		conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
@@ -138,7 +138,7 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 	command.Run = func(c *cobra.Command, args []string) {
 		if len(args) != 2 {
 			c.HelpFunc()(c, args)
-			os.Exit(1)
+			os.Exit(errors.ErrorCommandSpecific)
 		}
 		appName := args[0]
 		actionName := args[1]
