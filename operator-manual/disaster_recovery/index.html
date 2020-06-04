@@ -1285,7 +1285,7 @@
 
 
 <p>Import from a backup:</p>
-<div class="codehilite"><pre><span></span><code>docker run -v ~/.kube:/home/argocd/.kube --rm argoproj/argocd:<span class="nv">$VERSION</span> argocd-util import - &lt; backup.yaml
+<div class="codehilite"><pre><span></span><code>docker run -i -v ~/.kube:/home/argocd/.kube --rm argoproj/argocd:<span class="nv">$VERSION</span> argocd-util import - &lt; backup.yaml
 </code></pre></div>
 
 
