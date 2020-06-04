@@ -64,10 +64,15 @@ func (c *Consequences) get() (*Application, error) {
 	return fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(c.context.name, v1.GetOptions{})
 }
 
-func (c *Consequences) resource(kind, name string) ResourceStatus {
+func (c *Consequences) resource(kind, name, namespace string) ResourceStatus {
 	for _, r := range c.app().Status.Resources {
 		if r.Kind == kind && r.Name == name {
-			return r
+			if namespace == "" {
+				return r
+			}
+			if namespace == r.Namespace {
+				return r
+			}
 		}
 	}
 	return ResourceStatus{

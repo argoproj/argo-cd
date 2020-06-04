@@ -76,9 +76,12 @@ spec:
                         type: string
                       name:
                         type: string
+                      namespace:
+                        type: string
                     required:
                     - kind
                     - name
+                    - namespace
                     type: object
                   type: array
                 revision:
@@ -889,9 +892,12 @@ spec:
                                 type: string
                               name:
                                 type: string
+                              namespace:
+                                type: string
                             required:
                             - kind
                             - name
+                            - namespace
                             type: object
                           type: array
                         revision:
