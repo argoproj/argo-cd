@@ -51,7 +51,7 @@ func TestSelectiveSyncWithoutNamespace(t *testing.T) {
 	selectedResourceNamespace := getNewNamespace(t)
 	Given(t).
 		Prune(true).
-		Path("guestbookWithNamespace").
+		Path("guestbook-with-namespace").
 		And(func() {
 			fixture.CreateNamespace(selectedResourceNamespace)
 		}).
@@ -71,7 +71,7 @@ func TestSelectiveSyncWithNamespace(t *testing.T) {
 	selectedResourceNamespace := getNewNamespace(t)
 	Given(t).
 		Prune(true).
-		Path("guestbookWithNamespace").
+		Path("guestbook-with-namespace").
 		And(func() {
 			fixture.CreateNamespace(selectedResourceNamespace)
 		}).
