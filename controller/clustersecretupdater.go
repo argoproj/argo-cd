@@ -4,13 +4,13 @@ import (
 	"context"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/cache"
+	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/controller/metrics"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube/cache"
-	log "github.com/sirupsen/logrus"
 )
 
 const (

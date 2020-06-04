@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	clustercache "github.com/argoproj/gitops-engine/pkg/utils/kube/cache"
+	clustercache "github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/client-go/kubernetes/fake"
 

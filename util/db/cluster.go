@@ -185,9 +185,7 @@ func (db *db) WatchClusters(ctx context.Context,
 		log.Info("clusterSecretInformer cancelled")
 	}()
 
-	select {
-	case <-ctx.Done():
-	}
+	<-ctx.Done()
 	return err
 }
 
