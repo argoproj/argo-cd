@@ -2,7 +2,10 @@ name: Integration tests
 on: 
   push:
     branches:
-      - 'master' 
+      - 'master'
+      - 'release-*'
+      - '!release-1.4'
+      - '!release-1.5'
   pull_request:
     branches:
       - 'master'

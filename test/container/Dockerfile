@@ -31,6 +31,7 @@ ENV GOROOT /usr/local/go
 ENV GOPATH /go
 
 # Install build and test dependencies
+ADD ./hack/tool-versions.sh .
 ADD ./hack/install.sh .
 ADD ./hack/installers installers
 
