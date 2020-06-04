@@ -426,13 +426,13 @@ func (_m *ArgoDB) UpdateRepositoryCredentials(ctx context.Context, r *v1alpha1.R
 	return r0, r1
 }
 
-// WatchClusters provides a mock function with given fields: ctx, callback
-func (_m *ArgoDB) WatchClusters(ctx context.Context, callback func(*db.ClusterEvent)) error {
-	ret := _m.Called(ctx, callback)
+// WatchClusters provides a mock function with given fields: ctx, handleAddEvent, handleModEvent, handleDeleteEvent
+func (_m *ArgoDB) WatchClusters(ctx context.Context, handleAddEvent func(*v1alpha1.Cluster), handleModEvent func(*v1alpha1.Cluster, *v1alpha1.Cluster), handleDeleteEvent func(string)) error {
+	ret := _m.Called(ctx, handleAddEvent, handleModEvent, handleDeleteEvent)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, func(*db.ClusterEvent)) error); ok {
-		r0 = rf(ctx, callback)
+	if rf, ok := ret.Get(0).(func(context.Context, func(*v1alpha1.Cluster), func(*v1alpha1.Cluster, *v1alpha1.Cluster), func(string)) error); ok {
+		r0 = rf(ctx, handleAddEvent, handleModEvent, handleDeleteEvent)
 	} else {
 		r0 = ret.Error(0)
 	}

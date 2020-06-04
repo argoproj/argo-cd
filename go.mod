@@ -56,11 +56,12 @@ require (
 	github.com/spf13/cobra v0.0.5
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.5.1
+	github.com/vektra/mockery v1.1.2 // indirect
 	github.com/vmihailenco/msgpack v3.3.1+incompatible
 	github.com/yudai/gojsondiff v1.0.1-0.20180504020246-0525c875b75c
 	github.com/yuin/gopher-lua v0.0.0-20190115140932-732aa6820ec4
-	golang.org/x/crypto v0.0.0-20190820162420-60c769a6c586
-	golang.org/x/net v0.0.0-20191004110552-13f9640d40b9
+	golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550
+	golang.org/x/net v0.0.0-20200226121028-0de0cce0169b
 	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45
 	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
 	gonum.org/v1/gonum v0.0.0-20190621125449-90b715451587 // indirect

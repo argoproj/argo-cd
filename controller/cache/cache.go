@@ -393,35 +393,57 @@ func (c *liveStateCache) Run(ctx context.Context) error {
 	go c.watchSettings(ctx)
 
 	kube.RetryUntilSucceed(func() error {
-		clusterEventCallback := func(event *db.ClusterEvent) {
-			c.lock.Lock()
-			cluster, ok := c.clusters[event.Cluster.Server]
-			if ok {
-				defer c.lock.Unlock()
-				if event.Type == watch.Deleted {
-					cluster.Invalidate()
-					delete(c.clusters, event.Cluster.Server)
-				} else if event.Type == watch.Modified {
-					cluster.Invalidate(clustercache.SetConfig(event.Cluster.RESTConfig()))
-				}
-			} else {
-				c.lock.Unlock()
-				if event.Type == watch.Added && isClusterHasApps(c.appInformer.GetStore().List(), event.Cluster) {
-					go func() {
-						// warm up cache for cluster with apps
-						_, _ = c.getSyncedCluster(event.Cluster.Server)
-					}()
-				}
-			}
-		}
-
-		return c.db.WatchClusters(ctx, clusterEventCallback)
-
+		return c.db.WatchClusters(ctx, c.handleAddEvent, c.handleModEvent, c.handleDeleteEvent)
 	}, "watch clusters", ctx, clustercache.ClusterRetryTimeout)
 
 	<-ctx.Done()
 	c.invalidate(c.cacheSettings, c.appInstanceLabelKey)
 	return nil
+}
+
+func (c *liveStateCache) handleAddEvent(cluster *appv1.Cluster) {
+	c.lock.Lock()
+	_, ok := c.clusters[cluster.Server]
+	c.lock.Unlock()
+	if !ok {
+		if isClusterHasApps(c.appInformer.GetStore().List(), cluster) {
+			go func() {
+				// warm up cache for cluster with apps
+				_, _ = c.getSyncedCluster(cluster.Server)
+			}()
+		}
+	}
+}
+
+func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *appv1.Cluster) {
+	var bToInvalidate bool
+	c.lock.Lock()
+	cluster, ok := c.clusters[newCluster.Server]
+	c.lock.Unlock()
+	if ok {
+		if oldCluster.Server != newCluster.Server {
+			bToInvalidate = true
+		}
+		if !reflect.DeepEqual(oldCluster.Config, newCluster.Config) {
+			bToInvalidate = true
+		}
+		if !reflect.DeepEqual(oldCluster.Namespaces, newCluster.Namespaces) {
+			bToInvalidate = true
+		}
+	}
+	if bToInvalidate {
+		cluster.Invalidate()
+	}
+}
+
+func (c *liveStateCache) handleDeleteEvent(clusterServer string) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	cluster, ok := c.clusters[clusterServer]
+	if ok {
+		cluster.Invalidate()
+		delete(c.clusters, clusterServer)
+	}
 }
 
 func (c *liveStateCache) GetClustersInfo() []clustercache.ClusterInfo {
