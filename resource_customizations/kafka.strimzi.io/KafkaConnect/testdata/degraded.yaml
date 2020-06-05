@@ -8,7 +8,7 @@ metadata:
   - foregroundDeletion
   generation: 25
   labels:
-    app.kubernetes.io/instance: dev-teal-kafka-connect
+    app.kubernetes.io/instance: kafka-connect
   name: kafka
   namespace: strimzi
   resourceVersion: "43088521"
@@ -97,7 +97,8 @@ spec:
 status:
   conditions:
   - lastTransitionTime: "2020-05-28T13:43:05.813Z"
-    status: "False"
-    type: Ready
+    status: "True"
+    type: NotReady
+    message: "Error"
   observedGeneration: 25
   url: http://kafka-connect-api.strimzi.svc:8083

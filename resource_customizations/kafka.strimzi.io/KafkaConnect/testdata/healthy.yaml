@@ -8,7 +8,7 @@ metadata:
   - foregroundDeletion
   generation: 25
   labels:
-    app.kubernetes.io/instance: dev-teal-kafka-connect
+    app.kubernetes.io/instance: kafka-connect
   name: kafka
   namespace: strimzi
   resourceVersion: "43088521"
