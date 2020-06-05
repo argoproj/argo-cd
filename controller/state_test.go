@@ -435,7 +435,8 @@ func Test_appStateManager_persistRevisionHistory(t *testing.T) {
 	addHistory()
 	assert.Len(t, app.Status.History, 9)
 
-	metav1NowTime := metav1.Time{time.Now()}
-	manager.persistRevisionHistory(app, "my-revision", argoappv1.ApplicationSource{}, metav1NowTime)
+	metav1NowTime := metav1.NewTime(time.Now())
+	err := manager.persistRevisionHistory(app, "my-revision", argoappv1.ApplicationSource{}, metav1NowTime)
+	assert.NoError(t, err)
 	assert.Equal(t, app.Status.History.LastRevisionHistory().DeployStartedAt, metav1NowTime)
 }
