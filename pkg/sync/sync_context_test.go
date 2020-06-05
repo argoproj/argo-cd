@@ -73,7 +73,7 @@ func TestSyncValidate(t *testing.T) {
 	syncCtx.Sync()
 
 	kubectl := syncCtx.kubectl.(*kubetest.MockKubectlCmd)
-	assert.False(t, kubectl.LastValidate)
+	assert.False(t, kubectl.GetLastValidate())
 }
 
 func TestSyncNotPermittedNamespace(t *testing.T) {
@@ -393,7 +393,7 @@ func TestSyncOptionValidate(t *testing.T) {
 			syncCtx.Sync()
 
 			kubectl, _ := syncCtx.kubectl.(*kubetest.MockKubectlCmd)
-			assert.Equal(t, tt.want, kubectl.LastValidate)
+			assert.Equal(t, tt.want, kubectl.GetLastValidate())
 		})
 	}
 }

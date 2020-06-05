@@ -1,6 +1,8 @@
 package kubetest
 
 import (
+	"sync"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -19,13 +21,27 @@ type KubectlOutput struct {
 }
 
 type MockKubectlCmd struct {
-	APIResources  []kube.APIResourceInfo
-	Commands      map[string]KubectlOutput
-	Events        chan watch.Event
-	LastValidate  bool
-	Version       string
-	DynamicClient dynamic.Interface
-	APIGroups     []metav1.APIGroup
+	APIResources     []kube.APIResourceInfo
+	Commands         map[string]KubectlOutput
+	Events           chan watch.Event
+	lastValidate     bool
+	Version          string
+	DynamicClient    dynamic.Interface
+	APIGroups        []metav1.APIGroup
+	lastValidateLock sync.RWMutex
+}
+
+func (k *MockKubectlCmd) SetLastValidate(validate bool) {
+	k.lastValidateLock.Lock()
+	k.lastValidate = validate
+	k.lastValidateLock.Unlock()
+}
+
+func (k *MockKubectlCmd) GetLastValidate() bool {
+	k.lastValidateLock.RLock()
+	validate := k.lastValidate
+	k.lastValidateLock.RUnlock()
+	return validate
 }
 
 func (k *MockKubectlCmd) NewDynamicClient(config *rest.Config) (dynamic.Interface, error) {
@@ -53,7 +69,7 @@ func (k *MockKubectlCmd) DeleteResource(config *rest.Config, gvk schema.GroupVer
 }
 
 func (k *MockKubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRun, force, validate bool) (string, error) {
-	k.LastValidate = validate
+	k.SetLastValidate(validate)
 	command, ok := k.Commands[obj.GetName()]
 	if !ok {
 		return "", nil
