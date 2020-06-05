@@ -627,6 +627,9 @@ spec:
                 description: RevisionHistory contains information relevant to an application
                   deployment
                 properties:
+                  deployStartedAt:
+                    format: date-time
+                    type: string
                   deployedAt:
                     format: date-time
                     type: string

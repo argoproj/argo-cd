@@ -399,7 +399,7 @@ func Test_appStateManager_persistRevisionHistory(t *testing.T) {
 		app.Spec.RevisionHistoryLimit = &i
 	}
 	addHistory := func() {
-		err := manager.persistRevisionHistory(app, "my-revision", argoappv1.ApplicationSource{})
+		err := manager.persistRevisionHistory(app, "my-revision", argoappv1.ApplicationSource{}, metav1.Time{})
 		assert.NoError(t, err)
 	}
 	addHistory()

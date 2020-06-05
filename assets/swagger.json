@@ -4460,6 +4460,9 @@
       "type": "object",
       "title": "RevisionHistory contains information relevant to an application deployment",
       "properties": {
+        "deployStartedAt": {
+          "$ref": "#/definitions/v1Time"
+        },
         "deployedAt": {
           "$ref": "#/definitions/v1Time"
         },

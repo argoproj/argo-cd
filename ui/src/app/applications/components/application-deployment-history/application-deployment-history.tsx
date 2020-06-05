@@ -39,6 +39,11 @@ export const ApplicationDeploymentHistory = ({
                         </div>
                         <div>
                             <br />
+                            <i className='fa fa-clock' /> Time to deploy:
+                            <Duration durationMs={moment(info.deployedAt).diff(moment(info.deployStartedAt)) / 1000} />
+                        </div>
+                        <div>
+                            <br />
                             Active for:
                             <br />
                             <Duration durationMs={info.durationMs} />

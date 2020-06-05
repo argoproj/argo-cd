@@ -445,6 +445,10 @@ type SyncOperationResource struct {
 // RevisionHistories is a array of history, oldest first and newest last
 type RevisionHistories []RevisionHistory
 
+func (in RevisionHistories) LastRevisionHistory() RevisionHistory {
+	return in[len(in)-1]
+}
+
 func (in RevisionHistories) Trunc(n int) RevisionHistories {
 	i := len(in) - n
 	if i > 0 {
@@ -670,10 +674,11 @@ func (r ResourceResults) PruningRequired() (num int) {
 
 // RevisionHistory contains information relevant to an application deployment
 type RevisionHistory struct {
-	Revision   string            `json:"revision" protobuf:"bytes,2,opt,name=revision"`
-	DeployedAt metav1.Time       `json:"deployedAt" protobuf:"bytes,4,opt,name=deployedAt"`
-	ID         int64             `json:"id" protobuf:"bytes,5,opt,name=id"`
-	Source     ApplicationSource `json:"source,omitempty" protobuf:"bytes,6,opt,name=source"`
+	Revision        string            `json:"revision" protobuf:"bytes,2,opt,name=revision"`
+	DeployedAt      metav1.Time       `json:"deployedAt" protobuf:"bytes,4,opt,name=deployedAt"`
+	ID              int64             `json:"id" protobuf:"bytes,5,opt,name=id"`
+	Source          ApplicationSource `json:"source,omitempty" protobuf:"bytes,6,opt,name=source"`
+	DeployStartedAt metav1.Time       `json:"deployStartedAt,omitempty" protobuf:"bytes,7,opt,name=deployStartedAt"`
 }
 
 // ApplicationWatchEvent contains information about application change.

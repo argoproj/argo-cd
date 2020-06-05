@@ -836,6 +836,8 @@ message RevisionHistory {
   optional int64 id = 5;
 
   optional ApplicationSource source = 6;
+
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time deployStartedAt = 7;
 }
 
 // data about a specific revision within a repo
