@@ -3,6 +3,7 @@ package controller
 import (
 	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -433,4 +434,8 @@ func Test_appStateManager_persistRevisionHistory(t *testing.T) {
 	setRevisionHistoryLimit(9)
 	addHistory()
 	assert.Len(t, app.Status.History, 9)
+
+	metav1NowTime := metav1.Time{time.Now()}
+	manager.persistRevisionHistory(app, "my-revision", argoappv1.ApplicationSource{}, metav1NowTime)
+	assert.Equal(t, app.Status.History.LastRevisionHistory().DeployStartedAt, metav1NowTime)
 }
