@@ -5,12 +5,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/argoproj/gitops-engine/pkg/health"
+	. "github.com/argoproj/gitops-engine/pkg/sync/common"
+
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
 	"github.com/argoproj/argo-cd/util/rand"
-	"github.com/argoproj/gitops-engine/pkg/health"
-	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 )
 
 // when you selectively sync, only selected resources should be synced, but the app will be out of sync
@@ -67,6 +68,7 @@ func TestSelectiveSyncWithoutNamespace(t *testing.T) {
 		Expect(ResourceHealthIs("Deployment", "guestbook-ui", "", health.HealthStatusHealthy))
 }
 
+//In selectedResource to sync, namespace is provided
 func TestSelectiveSyncWithNamespace(t *testing.T) {
 	selectedResourceNamespace := getNewNamespace(t)
 	Given(t).
