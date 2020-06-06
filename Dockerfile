@@ -75,7 +75,7 @@ RUN mkdir -p /app/config/tls
 # workaround ksonnet issue https://github.com/ksonnet/ksonnet/issues/298
 ENV USER=argocd
 
-USER argocd
+USER 999
 WORKDIR /home/argocd
 
 ####################################################################################################
