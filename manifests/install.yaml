@@ -2512,6 +2512,7 @@ spec:
           name: ssh-known-hosts
         - mountPath: /app/config/tls
           name: tls-certs
+      shareProcessNamespace: true
       volumes:
       - configMap:
           name: argocd-ssh-known-hosts-cm
