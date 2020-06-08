@@ -18,8 +18,6 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/google/shlex"
 	log "github.com/sirupsen/logrus"
-	"github.com/yudai/gojsondiff"
-	"github.com/yudai/gojsondiff/formatter"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -45,8 +43,6 @@ type DiffResult struct {
 	NormalizedLive []byte
 	// Contains "expected" YAML representation of a live resource
 	PredictedLive []byte
-	// Deprecated: Use PredictedLive and NormalizedLive instead
-	Diff gojsondiff.Diff
 }
 
 // Holds result of two resources sets comparison
@@ -102,18 +98,6 @@ func Diff(config, live *unstructured.Unstructured, normalizer Normalizer, option
 	return TwoWayDiff(config, live)
 }
 
-func getLegacyTwoWayDiff(config, live *unstructured.Unstructured) gojsondiff.Diff {
-	var configObj, liveObj map[string]interface{}
-	if config != nil {
-		config = removeNamespaceAnnotation(config)
-		configObj = config.Object
-	}
-	if live != nil {
-		liveObj = jsonutil.RemoveMapFields(configObj, live.Object)
-	}
-	return gojsondiff.New().CompareObjects(liveObj, configObj)
-}
-
 // TwoWayDiff performs a three-way diff and uses specified config as a recently applied config
 func TwoWayDiff(config, live *unstructured.Unstructured) (*DiffResult, error) {
 	if live != nil && config != nil {
@@ -123,13 +107,13 @@ func TwoWayDiff(config, live *unstructured.Unstructured) (*DiffResult, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &DiffResult{Modified: false, Diff: getLegacyTwoWayDiff(config, live), NormalizedLive: liveData, PredictedLive: []byte("null")}, nil
+		return &DiffResult{Modified: false, NormalizedLive: liveData, PredictedLive: []byte("null")}, nil
 	} else if config != nil {
 		predictedLiveData, err := json.Marshal(config.Object)
 		if err != nil {
 			return nil, err
 		}
-		return &DiffResult{Modified: true, NormalizedLive: []byte("null"), PredictedLive: predictedLiveData, Diff: getLegacyTwoWayDiff(config, live)}, nil
+		return &DiffResult{Modified: true, NormalizedLive: []byte("null"), PredictedLive: predictedLiveData}, nil
 	} else {
 		return nil, errors.New("both live and config are null objects")
 	}
@@ -184,8 +168,6 @@ func ThreeWayDiff(orig, config, live *unstructured.Unstructured) (*DiffResult, e
 		PredictedLive:  predictedLiveBytes,
 		NormalizedLive: liveBytes,
 		Modified:       string(predictedLiveBytes) != string(liveBytes),
-		// legacy diff for backward compatibility
-		Diff: gojsondiff.New().CompareObjects(live.Object, predictedLive.Object),
 	}
 	return &dr, nil
 }
@@ -310,15 +292,6 @@ func DiffArray(configArray, liveArray []*unstructured.Unstructured, normalizer N
 		}
 	}
 	return &diffResultList, nil
-}
-
-// JSONFormat returns the diff as a JSON string
-func (d *DiffResult) JSONFormat() (string, error) {
-	if !d.Diff.Modified() {
-		return "", nil
-	}
-	jsonFmt := formatter.NewDeltaFormatter()
-	return jsonFmt.Format(d.Diff)
 }
 
 func Normalize(un *unstructured.Unstructured, normalizer Normalizer, options DiffOptions) {
