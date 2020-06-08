@@ -27,6 +27,22 @@ import (
 	jsonutil "github.com/argoproj/argo-cd/util/json"
 )
 
+var (
+	emptyGoJSONDiff    = gojsondiff.New().CompareObjects(map[string]interface{}{}, map[string]interface{}{})
+	populateLegacyDiff = true
+)
+
+func SetPopulateLegacyDiff(val bool) {
+	populateLegacyDiff = val
+}
+
+func calcGoJsonDiff(left map[string]interface{}, right map[string]interface{}) gojsondiff.Diff {
+	if !populateLegacyDiff {
+		return emptyGoJSONDiff
+	}
+	return gojsondiff.New().CompareObjects(left, right)
+}
+
 type DiffResult struct {
 	// Deprecated: Use PredictedLive and NormalizedLive instead
 	Diff           gojsondiff.Diff
@@ -76,7 +92,7 @@ func getLegacyTwoWayDiff(config, live *unstructured.Unstructured) gojsondiff.Dif
 	if live != nil {
 		liveObj = jsonutil.RemoveMapFields(configObj, live.Object)
 	}
-	return gojsondiff.New().CompareObjects(liveObj, configObj)
+	return calcGoJsonDiff(liveObj, configObj)
 }
 
 // TwoWayDiff performs a three-way diff and uses specified config as a recently applied config
@@ -150,7 +166,7 @@ func ThreeWayDiff(orig, config, live *unstructured.Unstructured) (*DiffResult, e
 		NormalizedLive: liveBytes,
 		Modified:       string(predictedLiveBytes) != string(liveBytes),
 		// legacy diff for backward compatibility
-		Diff: gojsondiff.New().CompareObjects(live.Object, predictedLive.Object),
+		Diff: calcGoJsonDiff(live.Object, predictedLive.Object),
 	}
 	return &dr, nil
 }

@@ -27,6 +27,7 @@ import (
 	cacheutil "github.com/argoproj/argo-cd/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
 	"github.com/argoproj/argo-cd/util/cli"
+	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/settings"
 )
@@ -81,6 +82,8 @@ func newCommand() *cobra.Command {
 
 			settingsMgr := settings.NewSettingsManager(ctx, kubeClient, namespace)
 			kubectl := &kube.KubectlCmd{}
+			legacyDiffDisabled := os.Getenv("ARGOCD_ENABLE_LEGACY_DIFF") == "false"
+			diff.SetPopulateLegacyDiff(!legacyDiffDisabled)
 			appController, err := controller.NewApplicationController(
 				namespace,
 				settingsMgr,
