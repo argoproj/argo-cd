@@ -55,7 +55,7 @@ func TestSyncToUnsignedCommit(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationError)).
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		Expect(HealthIs(HealthStatusMissing))
+		Expect(HealthIs(health.HealthStatusMissing))
 }
 
 func TestSyncToSignedCommitWithoutKnownKey(t *testing.T) {
@@ -70,7 +70,7 @@ func TestSyncToSignedCommitWithoutKnownKey(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationError)).
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		Expect(HealthIs(HealthStatusMissing))
+		Expect(HealthIs(health.HealthStatusMissing))
 }
 
 func TestSyncToSignedCommitKeyWithKnownKey(t *testing.T) {
@@ -87,7 +87,7 @@ func TestSyncToSignedCommitKeyWithKnownKey(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(HealthIs(HealthStatusHealthy))
+		Expect(HealthIs(health.HealthStatusHealthy))
 }
 
 func TestAppCreation(t *testing.T) {
