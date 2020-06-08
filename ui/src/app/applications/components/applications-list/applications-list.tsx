@@ -5,7 +5,7 @@ import * as React from 'react';
 import {RouteComponentProps} from 'react-router';
 import {Observable} from 'rxjs';
 
-import {ClusterCtx, DataLoader, EmptyState, ObservableQuery, Page, Paginate, Query} from '../../../shared/components';
+import {ClusterCtx, DataLoader, EmptyState, ObservableQuery, Page, Paginate, Query, Spinner} from '../../../shared/components';
 import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {AppsListPreferences, AppsListViewType, services} from '../../../shared/services';
@@ -157,6 +157,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
     const syncAppsInput = tryJsonParse(query.get('syncApps'));
     const [createApi, setCreateApi] = React.useState(null);
     const clusters = React.useMemo(() => services.clusters.list(), []);
+    const [isAppCreatePending, setAppCreatePending] = React.useState(false);
 
     return (
         <ClusterCtx.Provider value={clusters}>
@@ -350,7 +351,8 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                             onClose={() => ctx.navigation.goto('.', {new: null})}
                             header={
                                 <div>
-                                    <button className='argo-button argo-button--base' onClick={() => createApi && createApi.submitForm(null)}>
+                                    <button className='argo-button argo-button--base' disabled={isAppCreatePending} onClick={() => createApi && createApi.submitForm(null)}>
+                                        <Spinner show={isAppCreatePending} style={{marginRight: '5px'}} />
                                         Create
                                     </button>{' '}
                                     <button onClick={() => ctx.navigation.goto('.', {new: null})} className='argo-button argo-button--base-o'>
@@ -364,6 +366,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                         setCreateApi(api);
                                     }}
                                     createApp={async app => {
+                                        setAppCreatePending(true);
                                         try {
                                             await services.applications.create(app);
                                             ctx.navigation.goto('.', {new: null});
@@ -372,6 +375,8 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                 content: <ErrorNotification title='Unable to create application' e={e} />,
                                                 type: NotificationType.Error
                                             });
+                                        } finally {
+                                            setAppCreatePending(false);
                                         }
                                     }}
                                     app={appInput}

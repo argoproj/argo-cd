@@ -18,7 +18,16 @@ export const ProjectEditPanel = (props: {nameReadonly?: boolean; defaultParams?:
         <Form
             onSubmit={props.submit}
             getApi={props.getApi}
-            defaultValues={{sourceRepos: [], destinations: [], roles: [], syncWindows: [], clusterResourceWhitelist: [], namespaceResourceBlacklist: [], ...props.defaultParams}}
+            defaultValues={{
+                sourceRepos: [],
+                destinations: [],
+                roles: [],
+                syncWindows: [],
+                clusterResourceWhitelist: [],
+                namespaceResourceBlacklist: [],
+                namespaceResourceWhitelist: [],
+                ...props.defaultParams
+            }}
             validateError={(params: ProjectParams) => ({
                 name: !params.name && 'Project name is required'
             })}
@@ -157,6 +166,37 @@ export const ProjectEditPanel = (props: {nameReadonly?: boolean; defaultParams?:
                         ))}
                         <a onClick={() => api.setValue('namespaceResourceBlacklist', api.values.namespaceResourceBlacklist.concat({group: '', kind: ''}))}>
                             blacklist new namespaced resource
+                        </a>
+                    </React.Fragment>
+
+                    <React.Fragment>
+                        <h4>Whitelisted Namespaced Resources</h4>
+                        <div>
+                            Namespace-scoped K8s API Groups and Kinds which are <strong>permitted</strong> to deploy
+                        </div>
+                        <div className='argo-table-list__head'>
+                            <div className='row'>
+                                <div className='columns small-5'>GROUP</div>
+                                <div className='columns small-5'>KIND</div>
+                            </div>
+                        </div>
+                        {(api.values.namespaceResourceWhitelist as Array<models.GroupKind>).map((_, i) => (
+                            <div key={i} className='argo-table-list__row'>
+                                <div className='row'>
+                                    <div className='columns small-5'>
+                                        <Text className='argo-field' field={['namespaceResourceWhitelist', i, 'group']} />
+                                    </div>
+                                    <div className='columns small-5'>
+                                        <Text className='argo-field' field={['namespaceResourceWhitelist', i, 'kind']} />
+                                    </div>
+                                    <div className='columns small-2'>
+                                        <i className='fa fa-times' onClick={() => api.setValue('namespaceResourceWhitelist', removeEl(api.values.namespaceResourceWhitelist, i))} />
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                        <a onClick={() => api.setValue('namespaceResourceWhitelist', api.values.namespaceResourceWhitelist.concat({group: '', kind: ''}))}>
+                            whitelist new namespaced resource
                         </a>
                     </React.Fragment>
 

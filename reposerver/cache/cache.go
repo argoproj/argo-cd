@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/go-redis/redis"
 	"github.com/spf13/cobra"
 
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -23,12 +24,12 @@ func NewCache(cache *cacheutil.Cache, repoCacheExpiration time.Duration) *Cache 
 	return &Cache{cache, repoCacheExpiration}
 }
 
-func AddCacheFlagsToCmd(cmd *cobra.Command) func() (*Cache, error) {
+func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) func() (*Cache, error) {
 	var repoCacheExpiration time.Duration
 
 	cmd.Flags().DurationVar(&repoCacheExpiration, "repo-cache-expiration", 24*time.Hour, "Cache expiration for repo state, incl. app lists, app details, manifest generation, revision meta-data")
 
-	repoFactory := cacheutil.AddCacheFlagsToCmd(cmd)
+	repoFactory := cacheutil.AddCacheFlagsToCmd(cmd, opts...)
 
 	return func() (*Cache, error) {
 		cache, err := repoFactory()

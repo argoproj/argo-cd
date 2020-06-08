@@ -15,6 +15,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/health"
+	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/robfig/cron"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -107,7 +109,7 @@ func (e Env) Environ() []string {
 	return environ
 }
 
-// does an operation similar to `envstubst` tool,
+// does an operation similar to `envsubst` tool,
 // but unlike envsubst it does not change missing names into empty string
 // see https://linux.die.net/man/1/envsubst
 func (e Env) Envsubst(s string) string {
@@ -305,12 +307,15 @@ type ApplicationSourceKustomize struct {
 	Images KustomizeImages `json:"images,omitempty" protobuf:"bytes,3,opt,name=images"`
 	// CommonLabels adds additional kustomize commonLabels
 	CommonLabels map[string]string `json:"commonLabels,omitempty" protobuf:"bytes,4,opt,name=commonLabels"`
+	// Version contains optional Kustomize version
+	Version string `json:"version,omitempty" protobuf:"bytes,5,opt,name=version"`
 }
 
 func (k *ApplicationSourceKustomize) IsZero() bool {
 	return k == nil ||
 		k.NamePrefix == "" &&
 			k.NameSuffix == "" &&
+			k.Version == "" &&
 			len(k.Images) == 0 &&
 			len(k.CommonLabels) == 0
 }
@@ -481,42 +486,12 @@ func (o *SyncOperation) IsApplyStrategy() bool {
 	return o.SyncStrategy != nil && o.SyncStrategy.Apply != nil
 }
 
-type OperationPhase string
-
-const (
-	OperationRunning     OperationPhase = "Running"
-	OperationTerminating OperationPhase = "Terminating"
-	OperationFailed      OperationPhase = "Failed"
-	OperationError       OperationPhase = "Error"
-	OperationSucceeded   OperationPhase = "Succeeded"
-)
-
-func (os OperationPhase) Completed() bool {
-	switch os {
-	case OperationFailed, OperationError, OperationSucceeded:
-		return true
-	}
-	return false
-}
-
-func (os OperationPhase) Running() bool {
-	return os == OperationRunning
-}
-
-func (os OperationPhase) Successful() bool {
-	return os == OperationSucceeded
-}
-
-func (os OperationPhase) Failed() bool {
-	return os == OperationFailed
-}
-
 // OperationState contains information about state of currently performing operation on application.
 type OperationState struct {
 	// Operation is the original requested operation
 	Operation Operation `json:"operation" protobuf:"bytes,1,opt,name=operation"`
 	// Phase is the current phase of the operation
-	Phase OperationPhase `json:"phase" protobuf:"bytes,2,opt,name=phase"`
+	Phase synccommon.OperationPhase `json:"phase" protobuf:"bytes,2,opt,name=phase"`
 	// Message hold any pertinent messages when attempting to perform operation (typically errors).
 	Message string `json:"message,omitempty" protobuf:"bytes,3,opt,name=message"`
 	// SyncResult is the result of a Sync operation
@@ -565,7 +540,7 @@ func (o SyncOptions) HasOption(option string) bool {
 type SyncPolicy struct {
 	// Automated will keep an application synced to the target revision
 	Automated *SyncPolicyAutomated `json:"automated,omitempty" protobuf:"bytes,1,opt,name=automated"`
-	// Options allow youe to specify whole app sync-options
+	// Options allow you to specify whole app sync-options
 	SyncOptions SyncOptions `json:"syncOptions,omitempty" protobuf:"bytes,2,opt,name=syncOptions"`
 }
 
@@ -617,41 +592,6 @@ type SyncStrategyHook struct {
 	SyncStrategyApply `json:",inline" protobuf:"bytes,1,opt,name=syncStrategyApply"`
 }
 
-type HookType string
-
-const (
-	HookTypePreSync  HookType = "PreSync"
-	HookTypeSync     HookType = "Sync"
-	HookTypePostSync HookType = "PostSync"
-	HookTypeSkip     HookType = "Skip"
-	HookTypeSyncFail HookType = "SyncFail"
-)
-
-func NewHookType(t string) (HookType, bool) {
-	return HookType(t),
-		t == string(HookTypePreSync) ||
-			t == string(HookTypeSync) ||
-			t == string(HookTypePostSync) ||
-			t == string(HookTypeSyncFail) ||
-			t == string(HookTypeSkip)
-
-}
-
-type HookDeletePolicy string
-
-const (
-	HookDeletePolicyHookSucceeded      HookDeletePolicy = "HookSucceeded"
-	HookDeletePolicyHookFailed         HookDeletePolicy = "HookFailed"
-	HookDeletePolicyBeforeHookCreation HookDeletePolicy = "BeforeHookCreation"
-)
-
-func NewHookDeletePolicy(p string) (HookDeletePolicy, bool) {
-	return HookDeletePolicy(p),
-		p == string(HookDeletePolicyHookSucceeded) ||
-			p == string(HookDeletePolicyHookFailed) ||
-			p == string(HookDeletePolicyBeforeHookCreation)
-}
-
 // data about a specific revision within a repo
 type RevisionMetadata struct {
 	// who authored this revision,
@@ -682,24 +622,6 @@ type SyncOperationResult struct {
 	Source ApplicationSource `json:"source,omitempty" protobuf:"bytes,3,opt,name=source"`
 }
 
-type ResultCode string
-
-const (
-	ResultCodeSynced       ResultCode = "Synced"
-	ResultCodeSyncFailed   ResultCode = "SyncFailed"
-	ResultCodePruned       ResultCode = "Pruned"
-	ResultCodePruneSkipped ResultCode = "PruneSkipped"
-)
-
-type SyncPhase = string
-
-const (
-	SyncPhasePreSync  = "PreSync"
-	SyncPhaseSync     = "Sync"
-	SyncPhasePostSync = "PostSync"
-	SyncPhaseSyncFail = "SyncFail"
-)
-
 // ResourceResult holds the operation result details of a specific resource
 type ResourceResult struct {
 	Group     string `json:"group" protobuf:"bytes,1,opt,name=group"`
@@ -708,16 +630,16 @@ type ResourceResult struct {
 	Namespace string `json:"namespace" protobuf:"bytes,4,opt,name=namespace"`
 	Name      string `json:"name" protobuf:"bytes,5,opt,name=name"`
 	// the final result of the sync, this is be empty if the resources is yet to be applied/pruned and is always zero-value for hooks
-	Status ResultCode `json:"status,omitempty" protobuf:"bytes,6,opt,name=status"`
+	Status synccommon.ResultCode `json:"status,omitempty" protobuf:"bytes,6,opt,name=status"`
 	// message for the last sync OR operation
 	Message string `json:"message,omitempty" protobuf:"bytes,7,opt,name=message"`
 	// the type of the hook, empty for non-hook resources
-	HookType HookType `json:"hookType,omitempty" protobuf:"bytes,8,opt,name=hookType"`
+	HookType synccommon.HookType `json:"hookType,omitempty" protobuf:"bytes,8,opt,name=hookType"`
 	// the state of any operation associated with this resource OR hook
 	// note: can contain values for non-hook resources
-	HookPhase OperationPhase `json:"hookPhase,omitempty" protobuf:"bytes,9,opt,name=hookPhase"`
+	HookPhase synccommon.OperationPhase `json:"hookPhase,omitempty" protobuf:"bytes,9,opt,name=hookPhase"`
 	// indicates the particular phase of the sync that this is for
-	SyncPhase SyncPhase `json:"syncPhase,omitempty" protobuf:"bytes,10,opt,name=syncPhase"`
+	SyncPhase synccommon.SyncPhase `json:"syncPhase,omitempty" protobuf:"bytes,10,opt,name=syncPhase"`
 }
 
 func (r *ResourceResult) GroupVersionKind() schema.GroupVersionKind {
@@ -730,16 +652,7 @@ func (r *ResourceResult) GroupVersionKind() schema.GroupVersionKind {
 
 type ResourceResults []*ResourceResult
 
-func (r ResourceResults) Filter(predicate func(r *ResourceResult) bool) ResourceResults {
-	results := ResourceResults{}
-	for _, res := range r {
-		if predicate(res) {
-			results = append(results, res)
-		}
-	}
-	return results
-}
-func (r ResourceResults) Find(group string, kind string, namespace string, name string, phase SyncPhase) (int, *ResourceResult) {
+func (r ResourceResults) Find(group string, kind string, namespace string, name string, phase synccommon.SyncPhase) (int, *ResourceResult) {
 	for i, res := range r {
 		if res.Group == group && res.Kind == kind && res.Namespace == namespace && res.Name == name && res.SyncPhase == phase {
 			return i, res
@@ -750,7 +663,7 @@ func (r ResourceResults) Find(group string, kind string, namespace string, name 
 
 func (r ResourceResults) PruningRequired() (num int) {
 	for _, res := range r {
-		if res.Status == ResultCodePruneSkipped {
+		if res.Status == synccommon.ResultCodePruneSkipped {
 			num++
 		}
 	}
@@ -853,20 +766,9 @@ type SyncStatus struct {
 }
 
 type HealthStatus struct {
-	Status  HealthStatusCode `json:"status,omitempty" protobuf:"bytes,1,opt,name=status"`
-	Message string           `json:"message,omitempty" protobuf:"bytes,2,opt,name=message"`
+	Status  health.HealthStatusCode `json:"status,omitempty" protobuf:"bytes,1,opt,name=status"`
+	Message string                  `json:"message,omitempty" protobuf:"bytes,2,opt,name=message"`
 }
-
-type HealthStatusCode = string
-
-const (
-	HealthStatusUnknown     HealthStatusCode = "Unknown"
-	HealthStatusProgressing HealthStatusCode = "Progressing"
-	HealthStatusHealthy     HealthStatusCode = "Healthy"
-	HealthStatusSuspended   HealthStatusCode = "Suspended"
-	HealthStatusDegraded    HealthStatusCode = "Degraded"
-	HealthStatusMissing     HealthStatusCode = "Missing"
-)
 
 // InfoItem contains human readable information about object
 type InfoItem struct {
@@ -1006,6 +908,7 @@ type ConnectionStatus = string
 const (
 	ConnectionStatusSuccessful = "Successful"
 	ConnectionStatusFailed     = "Failed"
+	ConnectionStatusUnknown    = "Unknown"
 )
 
 // ConnectionState contains information about remote resource connection state
@@ -1084,11 +987,18 @@ type TLSClientConfig struct {
 	CAData []byte `json:"caData,omitempty" protobuf:"bytes,5,opt,name=caData"`
 }
 
+// KnownTypeField contains mapping between CRD field and known Kubernetes type
+type KnownTypeField struct {
+	Field string `json:"field,omitempty" protobuf:"bytes,1,opt,name=field"`
+	Type  string `json:"type,omitempty" protobuf:"bytes,2,opt,name=type"`
+}
+
 // ResourceOverride holds configuration to customize resource diffing and health assessment
 type ResourceOverride struct {
-	HealthLua         string `json:"health.lua,omitempty" protobuf:"bytes,1,opt,name=healthLua"`
-	Actions           string `json:"actions,omitempty" protobuf:"bytes,3,opt,name=actions"`
-	IgnoreDifferences string `json:"ignoreDifferences,omitempty" protobuf:"bytes,2,opt,name=ignoreDifferences"`
+	HealthLua         string           `json:"health.lua,omitempty" protobuf:"bytes,1,opt,name=healthLua"`
+	Actions           string           `json:"actions,omitempty" protobuf:"bytes,3,opt,name=actions"`
+	IgnoreDifferences string           `json:"ignoreDifferences,omitempty" protobuf:"bytes,2,opt,name=ignoreDifferences"`
+	KnownTypeFields   []KnownTypeField `json:"knownTypeFields,omitempty" protobuf:"bytes,4,opt,name=knownTypeFields"`
 }
 
 func (o *ResourceOverride) GetActions() (ResourceActions, error) {
@@ -1242,11 +1152,12 @@ func (repo *Repository) GetGitCreds() git.Creds {
 
 func (repo *Repository) GetHelmCreds() helm.Creds {
 	return helm.Creds{
-		Username: repo.Username,
-		Password: repo.Password,
-		CAPath:   getCAPath(repo.Repo),
-		CertData: []byte(repo.TLSClientCertData),
-		KeyData:  []byte(repo.TLSClientCertKey),
+		Username:           repo.Username,
+		Password:           repo.Password,
+		CAPath:             getCAPath(repo.Repo),
+		CertData:           []byte(repo.TLSClientCertData),
+		KeyData:            []byte(repo.TLSClientCertKey),
+		InsecureSkipVerify: repo.Insecure,
 	}
 }
 
@@ -1379,18 +1290,46 @@ func (p *AppProject) GetRoleByName(name string) (*ProjectRole, int, error) {
 	return nil, -1, fmt.Errorf("role '%s' does not exist in project '%s'", name, p.Name)
 }
 
-// GetJWTToken looks up the index of a JWTToken in a project by the issue at time
-func (p *AppProject) GetJWTToken(roleName string, issuedAt int64) (*JWTToken, int, error) {
+// GetJWTToken looks up the index of a JWTToken in a project by id (new token), if not then by the issue at time (old token)
+func (p *AppProject) GetJWTToken(roleName string, issuedAt int64, id string) (*JWTToken, int, error) {
 	role, _, err := p.GetRoleByName(roleName)
 	if err != nil {
 		return nil, -1, err
 	}
-	for i, token := range role.JWTTokens {
-		if issuedAt == token.IssuedAt {
-			return &token, i, nil
+
+	if id != "" {
+		for i, token := range role.JWTTokens {
+			if id == token.ID {
+				return &token, i, nil
+			}
 		}
 	}
+
+	if issuedAt != -1 {
+		for i, token := range role.JWTTokens {
+			if issuedAt == token.IssuedAt {
+				return &token, i, nil
+			}
+		}
+	}
+
 	return nil, -1, fmt.Errorf("JWT token for role '%s' issued at '%d' does not exist in project '%s'", role.Name, issuedAt, p.Name)
+}
+
+func (p *AppProject) ValidateJWTTokenID(roleName string, id string) error {
+	role, _, err := p.GetRoleByName(roleName)
+	if err != nil {
+		return err
+	}
+	if id == "" {
+		return nil
+	}
+	for _, token := range role.JWTTokens {
+		if id == token.ID {
+			return status.Errorf(codes.InvalidArgument, "Token id '%s' has been used. ", id)
+		}
+	}
+	return nil
 }
 
 func (p *AppProject) ValidateProject() error {
@@ -1941,8 +1880,9 @@ type ProjectRole struct {
 
 // JWTToken holds the issuedAt and expiresAt values of a token
 type JWTToken struct {
-	IssuedAt  int64 `json:"iat" protobuf:"int64,1,opt,name=iat"`
-	ExpiresAt int64 `json:"exp,omitempty" protobuf:"int64,2,opt,name=exp"`
+	IssuedAt  int64  `json:"iat" protobuf:"int64,1,opt,name=iat"`
+	ExpiresAt int64  `json:"exp,omitempty" protobuf:"int64,2,opt,name=exp"`
+	ID        string `json:"id,omitempty" protobuf:"bytes,3,opt,name=id"`
 }
 
 // Command holds binary path and arguments list
@@ -1962,6 +1902,8 @@ type ConfigManagementPlugin struct {
 type KustomizeOptions struct {
 	// BuildOptions is a string of build parameters to use when calling `kustomize build`
 	BuildOptions string `protobuf:"bytes,1,opt,name=buildOptions"`
+	// BinaryPath holds optional path to kustomize binary
+	BinaryPath string `protobuf:"bytes,2,opt,name=binaryPath"`
 }
 
 // ProjectPoliciesString returns Casbin formated string of a project's policies for each role
@@ -2220,8 +2162,7 @@ func SetK8SConfigDefaults(config *rest.Config) error {
 	if err != nil {
 		return err
 	}
-	// set default tls config since we use it in a custom transport
-	config.TLSClientConfig = rest.TLSClientConfig{}
+
 	dial := (&net.Dialer{
 		Timeout:   30 * time.Second,
 		KeepAlive: 30 * time.Second,
@@ -2240,6 +2181,12 @@ func SetK8SConfigDefaults(config *rest.Config) error {
 	if err != nil {
 		return err
 	}
+
+	// set default tls config and remove auth/exec provides since we use it in a custom transport
+	config.TLSClientConfig = rest.TLSClientConfig{}
+	config.AuthProvider = nil
+	config.ExecProvider = nil
+
 	config.Transport = tr
 	return nil
 }

@@ -1,5 +1,11 @@
 # Private Repositories
 
+!!!note
+    Some Git hosters - notably GitLab and possibly on-premise GitLab instances as well - require you to
+    specify the `.git` suffix in the repository URL, otherwise they will send a HTTP 301 redirect to the
+    repository URL suffixed with `.git`. ArgoCD will **not** follow these redirects, so you have to
+    adapt your repository URL to be suffixed with `.git`.
+
 ## Credentials
 
 If application manifests are located in private repository then repository credentials have to be configured. Argo CD supports both HTTP and SSH Git credentials.
@@ -26,7 +32,7 @@ or UI:
 
     ![connect repo](../assets/repo-add-https.png)
 
-    *Note: username in screenshot is for illustration purposes only , we have no relationship to this GitHub account should it exists*
+    *Note: username in screenshot is for illustration purposes only , we have no relationship to this GitHub account should it exist.*
 
 1. Click `Connect` to test the connection and have the repository added 
 

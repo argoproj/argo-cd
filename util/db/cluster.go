@@ -2,22 +2,26 @@ package db
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"hash/fnv"
 	"net/url"
 	"reflect"
 	"strings"
+	"time"
 
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	apiv1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/watch"
+	informerv1 "k8s.io/client-go/informers/core/v1"
+	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/common"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -90,6 +94,18 @@ func (db *db) CreateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 		},
 	}
 	clusterSecret.Data = clusterToData(c)
+	if c.ConnectionState.ModifiedAt != nil {
+		clusterSecret.Annotations[common.AnnotationKeyModifiedAt] = c.ConnectionState.ModifiedAt.Format(time.RFC3339)
+	}
+	if c.ConnectionState.Message != "" {
+		clusterSecret.Annotations[common.AnnotationKeyMessage] = c.ConnectionState.Message
+	}
+	if c.ConnectionState.Status != "" {
+		clusterSecret.Annotations[common.AnnotationKeyStatus] = c.ConnectionState.Status
+	}
+	if c.ServerVersion != "" {
+		clusterSecret.Annotations[common.AnnotationKeyServerVersion] = c.ServerVersion
+	}
 	clusterSecret, err = db.kubeclientset.CoreV1().Secrets(db.ns).Create(clusterSecret)
 	if err != nil {
 		if apierr.IsAlreadyExists(err) {
@@ -106,70 +122,70 @@ type ClusterEvent struct {
 	Cluster *appv1.Cluster
 }
 
-// WatchClusters allow watching for cluster events
-func (db *db) WatchClusters(ctx context.Context, callback func(*ClusterEvent)) error {
-	listOpts := metav1.ListOptions{}
-	labelSelector := labels.NewSelector()
-	req, err := labels.NewRequirement(common.LabelKeySecretType, selection.Equals, []string{common.LabelValueSecretTypeCluster})
-	if err != nil {
-		return err
-	}
-	labelSelector = labelSelector.Add(*req)
-	listOpts.LabelSelector = labelSelector.String()
-	w, err := db.kubeclientset.CoreV1().Secrets(db.ns).Watch(listOpts)
-	if err != nil {
-		return err
-	}
-
+func (db *db) WatchClusters(ctx context.Context,
+	handleAddEvent func(cluster *appv1.Cluster),
+	handleModEvent func(oldCluster *appv1.Cluster, newCluster *appv1.Cluster),
+	handleDeleteEvent func(clusterServer string)) error {
 	localCls, err := db.GetCluster(ctx, common.KubernetesInternalAPIServerAddr)
 	if err != nil {
 		return err
 	}
+	handleAddEvent(localCls)
 
-	defer w.Stop()
-	watchErr := make(chan error)
-
-	// trigger callback with event for local cluster since it always considered added
-	callback(&ClusterEvent{Type: watch.Added, Cluster: localCls})
-
-	go func() {
-		for next := range w.ResultChan() {
-			secret, ok := next.Object.(*apiv1.Secret)
-			if !ok {
-				watchErr <- fmt.Errorf("failed to convert event object to secret")
-				return
-			}
-			cluster := secretToCluster(secret)
-
-			// change local cluster event to modified or deleted, since it cannot be re-added or deleted
-			if cluster.Server == common.KubernetesInternalAPIServerAddr {
-				if next.Type == watch.Deleted {
-					next.Type = watch.Modified
-					cluster = &localCluster
-				} else if next.Type == watch.Added {
-					if !reflect.DeepEqual(localCls.Config, cluster.Config) {
-						localCls = cluster
-						next.Type = watch.Modified
-					} else {
-						continue
+	clusterSecretListOptions := func(options *metav1.ListOptions) {
+		clusterLabelSelector := fields.ParseSelectorOrDie(common.LabelKeySecretType + "=" + common.LabelValueSecretTypeCluster)
+		options.LabelSelector = clusterLabelSelector.String()
+	}
+	clusterEventHandler := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			if secretObj, ok := obj.(*apiv1.Secret); ok {
+				cluster := secretToCluster(secretObj)
+				if cluster.Server == common.KubernetesInternalAPIServerAddr {
+					if reflect.DeepEqual(localCls.Config, cluster.Config) {
+						return
 					}
-				} else {
+					// change local cluster event to modified or deleted, since it cannot be re-added or deleted
+					handleModEvent(localCls, cluster)
 					localCls = cluster
+					return
+				}
+				handleAddEvent(cluster)
+			}
+		},
+		DeleteFunc: func(obj interface{}) {
+			if secretObj, ok := obj.(*apiv1.Secret); ok {
+				if string(secretObj.Data["server"]) == common.KubernetesInternalAPIServerAddr {
+					// change local cluster event to modified or deleted, since it cannot be re-added or deleted
+					handleModEvent(localCls, &localCluster)
+					localCls = &localCluster
+				} else {
+					handleDeleteEvent(string(secretObj.Data["server"]))
 				}
 			}
-
-			callback(&ClusterEvent{
-				Type:    next.Type,
-				Cluster: cluster,
-			})
-		}
-		watchErr <- errors.New("secret watch closed")
+		},
+		UpdateFunc: func(oldObj, newObj interface{}) {
+			if oldSecretObj, ok := oldObj.(*apiv1.Secret); ok {
+				if newSecretObj, ok := newObj.(*apiv1.Secret); ok {
+					oldCluster := secretToCluster(oldSecretObj)
+					newCluster := secretToCluster(newSecretObj)
+					if newCluster.Server == common.KubernetesInternalAPIServerAddr {
+						localCls = newCluster
+					}
+					handleModEvent(oldCluster, newCluster)
+				}
+			}
+		},
+	}
+	indexers := cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}
+	clusterSecretInformer := informerv1.NewFilteredSecretInformer(db.kubeclientset, db.ns, 3*time.Minute, indexers, clusterSecretListOptions)
+	clusterSecretInformer.AddEventHandler(clusterEventHandler)
+	log.Info("Starting clusterSecretInformer informers")
+	go func() {
+		clusterSecretInformer.Run(ctx.Done())
+		log.Info("clusterSecretInformer cancelled")
 	}()
 
-	select {
-	case err = <-watchErr:
-	case <-ctx.Done():
-	}
+	<-ctx.Done()
 	return err
 }
 
@@ -207,6 +223,26 @@ func (db *db) UpdateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 		return nil, err
 	}
 	clusterSecret.Data = clusterToData(c)
+	if c.ConnectionState.ModifiedAt != nil {
+		clusterSecret.Annotations[common.AnnotationKeyModifiedAt] = c.ConnectionState.ModifiedAt.Format(time.RFC3339)
+	} else {
+		delete(clusterSecret.Annotations, common.AnnotationKeyModifiedAt)
+	}
+	if c.ServerVersion != "" {
+		clusterSecret.Annotations[common.AnnotationKeyServerVersion] = c.ServerVersion
+	} else {
+		delete(clusterSecret.Annotations, common.AnnotationKeyServerVersion)
+	}
+	if c.ConnectionState.Message != "" {
+		clusterSecret.Annotations[common.AnnotationKeyMessage] = c.ConnectionState.Message
+	} else {
+		delete(clusterSecret.Annotations, common.AnnotationKeyMessage)
+	}
+	if c.ConnectionState.Status != "" {
+		clusterSecret.Annotations[common.AnnotationKeyStatus] = c.ConnectionState.Status
+	} else {
+		delete(clusterSecret.Annotations, common.AnnotationKeyStatus)
+	}
 	clusterSecret, err = db.kubeclientset.CoreV1().Secrets(db.ns).Update(clusterSecret)
 	if err != nil {
 		return nil, err
@@ -285,12 +321,24 @@ func secretToCluster(s *apiv1.Secret) *appv1.Cluster {
 			namespaces = append(namespaces, ns)
 		}
 	}
-
+	connectionState := appv1.ConnectionState{}
+	if v, found := s.Annotations[common.AnnotationKeyModifiedAt]; found {
+		time, err := time.Parse(time.RFC3339, v)
+		if err != nil {
+			log.Warnf("Error while parsing date : %v", err)
+		} else {
+			connectionState.ModifiedAt = &metav1.Time{Time: time}
+		}
+	}
+	connectionState.Status = s.Annotations[common.AnnotationKeyStatus]
+	connectionState.Message = s.Annotations[common.AnnotationKeyMessage]
 	cluster := appv1.Cluster{
-		Server:     string(s.Data["server"]),
-		Name:       string(s.Data["name"]),
-		Namespaces: namespaces,
-		Config:     config,
+		Server:          string(s.Data["server"]),
+		Name:            string(s.Data["name"]),
+		Namespaces:      namespaces,
+		Config:          config,
+		ServerVersion:   s.Annotations[common.AnnotationKeyServerVersion],
+		ConnectionState: connectionState,
 	}
 	return &cluster
 }

@@ -4,10 +4,14 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/go-redis/redis"
 	"github.com/spf13/cobra"
 
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	cacheutil "github.com/argoproj/argo-cd/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
+	"github.com/argoproj/argo-cd/util/oidc"
+	"github.com/argoproj/argo-cd/util/session"
 )
 
 var ErrCacheMiss = appstatecache.ErrCacheMiss
@@ -16,19 +20,16 @@ type Cache struct {
 	cache                           *appstatecache.Cache
 	connectionStatusCacheExpiration time.Duration
 	oidcCacheExpiration             time.Duration
+	loginAttemptsExpiration         time.Duration
 }
 
 func NewCache(
 	cache *appstatecache.Cache,
 	connectionStatusCacheExpiration time.Duration,
 	oidcCacheExpiration time.Duration,
+	loginAttemptsExpiration time.Duration,
 ) *Cache {
-	return &Cache{cache, connectionStatusCacheExpiration, oidcCacheExpiration}
-}
-
-type OIDCState struct {
-	// ReturnURL is the URL in which to redirect a user back to after completing an OAuth2 login
-	ReturnURL string `json:"returnURL"`
+	return &Cache{cache, connectionStatusCacheExpiration, oidcCacheExpiration, loginAttemptsExpiration}
 }
 
 type ClusterInfo struct {
@@ -36,14 +37,16 @@ type ClusterInfo struct {
 	Version string
 }
 
-func AddCacheFlagsToCmd(cmd *cobra.Command) func() (*Cache, error) {
+func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) func() (*Cache, error) {
 	var connectionStatusCacheExpiration time.Duration
 	var oidcCacheExpiration time.Duration
+	var loginAttemptsExpiration time.Duration
 
 	cmd.Flags().DurationVar(&connectionStatusCacheExpiration, "connection-status-cache-expiration", 1*time.Hour, "Cache expiration for cluster/repo connection status")
 	cmd.Flags().DurationVar(&oidcCacheExpiration, "oidc-cache-expiration", 3*time.Minute, "Cache expiration for OIDC state")
+	cmd.Flags().DurationVar(&loginAttemptsExpiration, "login-attempts-expiration", 24*time.Hour, "Cache expiration for failed login attempts")
 
-	fn := appstatecache.AddCacheFlagsToCmd(cmd)
+	fn := appstatecache.AddCacheFlagsToCmd(cmd, opts...)
 
 	return func() (*Cache, error) {
 		cache, err := fn()
@@ -51,7 +54,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command) func() (*Cache, error) {
 			return nil, err
 		}
 
-		return NewCache(cache, connectionStatusCacheExpiration, oidcCacheExpiration), nil
+		return NewCache(cache, connectionStatusCacheExpiration, oidcCacheExpiration, loginAttemptsExpiration), nil
 	}
 }
 
@@ -61,6 +64,14 @@ func (c *Cache) GetAppResourcesTree(appName string, res *appv1.ApplicationTree) 
 
 func (c *Cache) GetAppManagedResources(appName string, res *[]*appv1.ResourceDiff) error {
 	return c.cache.GetAppManagedResources(appName, res)
+}
+
+func (c *Cache) GetLoginAttempts(attempts *map[string]session.LoginAttempts) error {
+	return c.cache.GetItem("session|login.attempts", attempts)
+}
+
+func (c *Cache) SetLoginAttempts(attempts map[string]session.LoginAttempts) error {
+	return c.cache.SetItem("session|login.attempts", attempts, c.loginAttemptsExpiration, attempts == nil)
 }
 
 func clusterConnectionStateKey(server string) string {
@@ -95,12 +106,16 @@ func oidcStateKey(key string) string {
 	return fmt.Sprintf("oidc|%s", key)
 }
 
-func (c *Cache) GetOIDCState(key string) (*OIDCState, error) {
-	res := OIDCState{}
+func (c *Cache) GetOIDCState(key string) (*oidc.OIDCState, error) {
+	res := oidc.OIDCState{}
 	err := c.cache.GetItem(oidcStateKey(key), &res)
 	return &res, err
 }
 
-func (c *Cache) SetOIDCState(key string, state *OIDCState) error {
+func (c *Cache) SetOIDCState(key string, state *oidc.OIDCState) error {
 	return c.cache.SetItem(oidcStateKey(key), state, c.oidcCacheExpiration, state == nil)
+}
+
+func (c *Cache) GetCache() *cacheutil.Cache {
+	return c.cache.Cache
 }

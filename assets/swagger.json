@@ -187,7 +187,7 @@
           "ApplicationService"
         ],
         "summary": "List returns list of applications",
-        "operationId": "List",
+        "operationId": "ListMixin8",
         "parameters": [
           {
             "type": "string",
@@ -237,7 +237,7 @@
           "ApplicationService"
         ],
         "summary": "Create creates an application",
-        "operationId": "Create",
+        "operationId": "CreateMixin8",
         "parameters": [
           {
             "name": "body",
@@ -264,7 +264,7 @@
           "ApplicationService"
         ],
         "summary": "Update updates an application",
-        "operationId": "Update",
+        "operationId": "UpdateMixin8",
         "parameters": [
           {
             "type": "string",
@@ -395,7 +395,7 @@
           "ApplicationService"
         ],
         "summary": "Get returns an application by name",
-        "operationId": "Get",
+        "operationId": "GetMixin8",
         "parameters": [
           {
             "type": "string",
@@ -445,7 +445,7 @@
           "ApplicationService"
         ],
         "summary": "Delete deletes an application",
-        "operationId": "Delete",
+        "operationId": "DeleteMixin8",
         "parameters": [
           {
             "type": "string",
@@ -1084,7 +1084,7 @@
           "ClusterService"
         ],
         "summary": "List returns list of clusters",
-        "operationId": "ListMixin5",
+        "operationId": "List",
         "parameters": [
           {
             "type": "string",
@@ -1106,7 +1106,7 @@
           "ClusterService"
         ],
         "summary": "Create creates a cluster",
-        "operationId": "CreateMixin5",
+        "operationId": "Create",
         "parameters": [
           {
             "name": "body",
@@ -1133,7 +1133,7 @@
           "ClusterService"
         ],
         "summary": "Update updates a cluster",
-        "operationId": "UpdateMixin5",
+        "operationId": "Update",
         "parameters": [
           {
             "type": "string",
@@ -1166,7 +1166,7 @@
           "ClusterService"
         ],
         "summary": "Get returns a cluster by server address",
-        "operationId": "GetMixin5",
+        "operationId": "GetMixin2",
         "parameters": [
           {
             "type": "string",
@@ -1189,7 +1189,7 @@
           "ClusterService"
         ],
         "summary": "Delete deletes a cluster",
-        "operationId": "DeleteMixin5",
+        "operationId": "Delete",
         "parameters": [
           {
             "type": "string",
@@ -1787,6 +1787,36 @@
       }
     },
     "/api/v1/repositories/{repo}": {
+      "get": {
+        "tags": [
+          "RepositoryService"
+        ],
+        "summary": "Get returns a repository or its credentials",
+        "operationId": "GetMixin3",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "repo",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "boolean",
+            "format": "boolean",
+            "description": "Whether to force a cache refresh on repo's connection state.",
+            "name": "forceRefresh",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Repository"
+            }
+          }
+        }
+      },
       "delete": {
         "tags": [
           "RepositoryService"
@@ -2003,7 +2033,7 @@
           "SettingsService"
         ],
         "summary": "Get returns Argo CD settings",
-        "operationId": "GetMixin8",
+        "operationId": "Get",
         "responses": {
           "200": {
             "description": "(empty)",
@@ -2135,6 +2165,9 @@
           "type": "string",
           "format": "int64",
           "title": "expiresIn represents a duration in seconds"
+        },
+        "id": {
+          "type": "string"
         },
         "name": {
           "type": "string"
@@ -2437,6 +2470,12 @@
         "appLabelKey": {
           "type": "string"
         },
+        "configManagementPlugins": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ConfigManagementPlugin"
+          }
+        },
         "dexConfig": {
           "$ref": "#/definitions/clusterDexConfig"
         },
@@ -2448,6 +2487,12 @@
         },
         "kustomizeOptions": {
           "$ref": "#/definitions/v1alpha1KustomizeOptions"
+        },
+        "kustomizeVersions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         },
         "oidcConfig": {
           "$ref": "#/definitions/clusterOIDCConfig"
@@ -2543,6 +2588,9 @@
           "format": "int64",
           "title": "expiresIn represents a duration in seconds"
         },
+        "id": {
+          "type": "string"
+        },
         "project": {
           "type": "string"
         },
@@ -2581,7 +2629,7 @@
     },
     "repocredsRepoCredsResponse": {
       "type": "object",
-      "title": "RepoCredsResponse is a resonse to most repository credentials requests"
+      "title": "RepoCredsResponse is a response to most repository credentials requests"
     },
     "repositoryAppInfo": {
       "type": "object",
@@ -2685,7 +2733,7 @@
           "$ref": "#/definitions/repositoryKsonnetEnvironmentDestination"
         },
         "k8sVersion": {
-          "description": "KubernetesVersion is the kubernetes version the targetted cluster is running on.",
+          "description": "KubernetesVersion is the kubernetes version the targeted cluster is running on.",
           "type": "string"
         },
         "name": {
@@ -3538,6 +3586,10 @@
         "nameSuffix": {
           "type": "string",
           "title": "NameSuffix is a suffix appended to resources for kustomize apps"
+        },
+        "version": {
+          "type": "string",
+          "title": "Version contains optional Kustomize version"
         }
       }
     },
@@ -3759,6 +3811,24 @@
         }
       }
     },
+    "v1alpha1Command": {
+      "type": "object",
+      "title": "Command holds binary path and arguments list",
+      "properties": {
+        "args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "command": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "v1alpha1ComparedTo": {
       "type": "object",
       "title": "ComparedTo contains application source and target which was used for resources comparison",
@@ -3768,6 +3838,21 @@
         },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
+        }
+      }
+    },
+    "v1alpha1ConfigManagementPlugin": {
+      "type": "object",
+      "title": "ConfigManagementPlugin contains config management plugin configuration",
+      "properties": {
+        "generate": {
+          "$ref": "#/definitions/v1alpha1Command"
+        },
+        "init": {
+          "$ref": "#/definitions/v1alpha1Command"
+        },
+        "name": {
+          "type": "string"
         }
       }
     },
@@ -3924,6 +4009,9 @@
         "iat": {
           "type": "string",
           "format": "int64"
+        },
+        "id": {
+          "type": "string"
         }
       }
     },
@@ -3939,6 +4027,18 @@
           "type": "string"
         },
         "value": {
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1KnownTypeField": {
+      "type": "object",
+      "title": "KnownTypeField contains mapping between CRD field and known Kubernetes type",
+      "properties": {
+        "field": {
+          "type": "string"
+        },
+        "type": {
           "type": "string"
         }
       }
@@ -3962,6 +4062,10 @@
       "type": "object",
       "title": "KustomizeOptions are options for kustomize to use when building manifests",
       "properties": {
+        "binaryPath": {
+          "type": "string",
+          "title": "BinaryPath holds optional path to kustomize binary"
+        },
         "buildOptions": {
           "type": "string",
           "title": "BuildOptions is a string of build parameters to use when calling `kustomize build`"
@@ -4417,6 +4521,12 @@
         },
         "ignoreDifferences": {
           "type": "string"
+        },
+        "knownTypeFields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1KnownTypeField"
+          }
         }
       }
     },
@@ -4668,7 +4778,7 @@
         },
         "syncOptions": {
           "type": "array",
-          "title": "Options allow youe to specify whole app sync-options",
+          "title": "Options allow you to specify whole app sync-options",
           "items": {
             "type": "string"
           }

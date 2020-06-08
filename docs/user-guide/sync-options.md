@@ -36,5 +36,24 @@ metadata:
     argocd.argoproj.io/sync-options: Validate=false
 ```
 
-If you want to exclude a whole class of objects globally, consider setting `resource.customizations` in [system level configuation](../user-guide/diffing.md#system-level-configuration). 
+If you want to exclude a whole class of objects globally, consider setting `resource.customizations` in [system level configuration](../user-guide/diffing.md#system-level-configuration). 
     
+## Skip Dry Run for new custom resources types
+
+>v1.6
+
+When syncing a custom resource which is not yet known to the cluster, there are generally two options:
+
+1) The CRD manifest is part of the same sync. Then ArgoCD will automatically skip the dry run, the CRD will be applied and the resource can be created.
+2) In some cases the CRD is not part of the sync, but it could be created in another way, e.g. by a controller in the cluster. An example is [gatekeeper](https://github.com/open-policy-agent/gatekeeper),
+which creates CRDs in response to user defined `ConstraintTemplates`. ArgoCD cannot find the CRD in the sync and will fail with the error `the server could not find the requested resource`.
+
+To skip the dry run for missing resource types, use the following annotation:
+
+```yaml
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+```
+
+The dry run will still be executed if the CRD is already present in the cluster.

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/argoproj/gitops-engine/pkg/health"
+	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 	v1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -72,7 +74,7 @@ func NoConditions() Expectation {
 	}
 }
 
-func HealthIs(expected HealthStatusCode) Expectation {
+func HealthIs(expected health.HealthStatusCode) Expectation {
 	return func(c *Consequences) (state, string) {
 		actual := c.app().Status.Health.Status
 		return simple(actual == expected, fmt.Sprintf("health to should %s, is %s", expected, actual))
@@ -86,7 +88,7 @@ func ResourceSyncStatusIs(kind, resource string, expected SyncStatusCode) Expect
 	}
 }
 
-func ResourceHealthIs(kind, resource string, expected HealthStatusCode) Expectation {
+func ResourceHealthIs(kind, resource string, expected health.HealthStatusCode) Expectation {
 	return func(c *Consequences) (state, string) {
 		actual := c.resource(kind, resource).Health.Status
 		return simple(actual == expected, fmt.Sprintf("resource '%s/%s' health should be %s, is %s", kind, resource, expected, actual))
@@ -141,7 +143,7 @@ func Pod(predicate func(p v1.Pod) bool) Expectation {
 				return succeeded, fmt.Sprintf("pod predicate matched pod named '%s'", pod.GetName())
 			}
 		}
-		return pending, fmt.Sprintf("pod predicate does not match pods")
+		return pending, "pod predicate does not match pods"
 	}
 }
 
@@ -156,7 +158,7 @@ func NotPod(predicate func(p v1.Pod) bool) Expectation {
 				return pending, fmt.Sprintf("pod predicate matched pod named '%s'", pod.GetName())
 			}
 		}
-		return succeeded, fmt.Sprintf("pod predicate did not match any pod")
+		return succeeded, "pod predicate did not match any pod"
 	}
 }
 

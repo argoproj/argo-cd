@@ -5,12 +5,19 @@ for initial configuration and then switch to local users or configure SSO integr
 
 ## Local users/accounts (v1.5)
 
-The local users/accounts feature serving to main use-cases:
+The local users/accounts feature serves two main use-cases:
 
 * Auth tokens for Argo CD management automation. It is possible to configure an API account with limited permissions and generate an authentication token.
 Such token can be used to automatically create applications, projects etc.
 * Additional users for a very small team when SSO integration is overkill. The local users don't provide advanced features such as groups,
 login history etc. So if you need such features it is strongly recommended to use SSO.
+
+!!! warning "Make sure to read about security limitations related to local users in [security considerations](../../security_considerations.md) document"
+
+!!! note
+    When you create local users, each of those users will need additional [RBAC rules](../rbac.md) set up, otherwise they will fall back to the default policy specified by `policy.default` field of the `argocd-rbac-cm` ConfigMap.
+
+The maximum length of a local account's username is 32.
 
 ### Create new user
 
@@ -35,6 +42,7 @@ data:
 ```
 
 Each user might have two capabilities:
+
 * apiKey - allows generating authentication tokens for API access
 * login - allows to login using UI
 
@@ -82,6 +90,25 @@ argocd account update-password \
 # if flag --account is omitted then Argo CD generates token for current user
 argocd account generate-token --account <username> 
 ```
+
+### Failed logins rate limiting
+
+Argo CD rejects login attempts after too many failed in order to prevent password brute-forcing.
+The following environments variables are available to control throttling settings:
+
+* `ARGOCD_SESSION_MAX_FAIL_COUNT`: Maximum number of failed logins before Argo CD starts
+rejecting login attempts. Default: 5.
+
+* `ARGOCD_SESSION_FAILURE_WINDOW_SECONDS`: Number of seconds for the failure window.
+Default: 300 (5 minutes). If this is set to 0, the failure window is
+disabled and the login attempts gets rejected after 10 consecutive logon failures,
+regardless of the time frame they happened.
+
+* `ARGOCD_SESSION_MAX_CACHE_SIZE`: Maximum number of entries allowed in the
+cache. Default: 1000
+
+* `ARGOCD_MAX_CONCURRENT_LOGIN_REQUESTS_COUNT`: Limits max number of concurrent login requests.
+If set to 0 then limit is disabled. Default: 50. 
 
 ## SSO
 

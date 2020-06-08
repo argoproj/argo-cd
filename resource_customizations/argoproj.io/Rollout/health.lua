@@ -25,6 +25,17 @@ function checkReplicasStatus(obj)
   return nil
 end
 
+-- In Argo Rollouts v0.8 we depreciate .status.canary.stableRS for .status.stableRS this func grabs the correct one
+function getStableRS(obj)
+    if obj.status.stableRS ~= nil then
+        return obj.status.stableRS
+    end
+    if obj.status.canary ~= nil then
+            return obj.status.canary.stableRS
+    end
+    return ""
+end
+
 function getNumberValueOrDefault(field)
   if field ~= nil then
     return field
@@ -87,7 +98,7 @@ if obj.status ~= nil then
       return hs
     end
     if obj.spec.strategy.canary ~= nil then
-      currentRSIsStable = obj.status.canary.stableRS == obj.status.currentPodHash
+      currentRSIsStable = getStableRS(obj) == obj.status.currentPodHash
       if obj.spec.strategy.canary.steps ~= nil and table.getn(obj.spec.strategy.canary.steps) > 0 then
         stepCount = table.getn(obj.spec.strategy.canary.steps)
         if obj.status.currentStepIndex ~= nil then

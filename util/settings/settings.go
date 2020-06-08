@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	apiv1 "k8s.io/api/core/v1"
@@ -100,6 +101,39 @@ type HelmRepoCredentials struct {
 	PasswordSecret *apiv1.SecretKeySelector `json:"passwordSecret,omitempty"`
 	CertSecret     *apiv1.SecretKeySelector `json:"certSecret,omitempty"`
 	KeySecret      *apiv1.SecretKeySelector `json:"keySecret,omitempty"`
+}
+
+// KustomizeVersion holds information about additional Kustomize version
+type KustomizeVersion struct {
+	// Name holds Kustomize version name
+	Name string
+	// Name holds corresponding binary path
+	Path string
+}
+
+// KustomizeSettings holds kustomize settings
+type KustomizeSettings struct {
+	BuildOptions string
+	Versions     []KustomizeVersion
+}
+
+func (ks *KustomizeSettings) GetOptions(source v1alpha1.ApplicationSource) (*v1alpha1.KustomizeOptions, error) {
+	binaryPath := ""
+	if source.Kustomize != nil && source.Kustomize.Version != "" {
+		for _, ver := range ks.Versions {
+			if ver.Name == source.Kustomize.Version {
+				binaryPath = ver.Path
+				break
+			}
+		}
+		if binaryPath == "" {
+			return nil, fmt.Errorf("kustomize version %s is not registered", source.Kustomize.Version)
+		}
+	}
+	return &v1alpha1.KustomizeOptions{
+		BuildOptions: ks.BuildOptions,
+		BinaryPath:   binaryPath,
+	}, nil
 }
 
 // Credentials for accessing a Git repository
@@ -195,8 +229,12 @@ const (
 	configManagementPluginsKey = "configManagementPlugins"
 	// kustomizeBuildOptionsKey is a string of kustomize build parameters
 	kustomizeBuildOptionsKey = "kustomize.buildOptions"
+	// kustomizeVersionKeyPrefix is a kustomize version key prefix
+	kustomizeVersionKeyPrefix = "kustomize.version"
 	// anonymousUserEnabledKey is the key which enables or disables anonymous user
 	anonymousUserEnabledKey = "users.anonymous.enabled"
+	// diffOptions is the key where diff options are configured
+	resourceCompareOptionsKey = "resource.compareoptions"
 )
 
 // SettingsManager holds config info for a new manager with which to access Kubernetes ConfigMaps.
@@ -304,8 +342,13 @@ func (mgr *SettingsManager) updateConfigMap(callback func(*apiv1.ConfigMap) erro
 		_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Update(argoCDCM)
 	}
 
+	if err != nil {
+		return err
+	}
+
 	mgr.invalidateCache()
-	return err
+
+	return mgr.ResyncInformers()
 }
 
 func (mgr *SettingsManager) getConfigMap() (*apiv1.ConfigMap, error) {
@@ -408,16 +451,46 @@ func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.Resource
 	return resourceOverrides, nil
 }
 
-// GetKustomizeBuildOptions loads the kustomize build options from argocd-cm ConfigMap
-func (mgr *SettingsManager) GetKustomizeBuildOptions() (string, error) {
+// GetResourceCompareOptions loads the resource compare options settings from the ConfigMap
+func (mgr *SettingsManager) GetResourceCompareOptions() (diff.DiffOptions, error) {
+	// We have a sane set of default diff options
+	diffOptions := diff.GetDefaultDiffOptions()
+
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		return "", err
+		return diffOptions, err
 	}
+
+	if value, ok := argoCDCM.Data[resourceCompareOptionsKey]; ok {
+		err := yaml.Unmarshal([]byte(value), &diffOptions)
+		if err != nil {
+			return diffOptions, err
+		}
+	}
+
+	return diffOptions, nil
+}
+
+// GetKustomizeSettings loads the kustomize settings from argocd-cm ConfigMap
+func (mgr *SettingsManager) GetKustomizeSettings() (*KustomizeSettings, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return nil, err
+	}
+	settings := &KustomizeSettings{}
 	if value, ok := argoCDCM.Data[kustomizeBuildOptionsKey]; ok {
-		return value, nil
+		settings.BuildOptions = value
 	}
-	return "", nil
+	for k, v := range argoCDCM.Data {
+		if !strings.HasPrefix(k, kustomizeVersionKeyPrefix) {
+			continue
+		}
+		settings.Versions = append(settings.Versions, KustomizeVersion{
+			Name: k[len(kustomizeVersionKeyPrefix)+1:],
+			Path: v,
+		})
+	}
+	return settings, nil
 }
 
 // DEPRECATED. Helm repository credentials are now managed using RepoCredentials
@@ -871,8 +944,7 @@ func (a *ArgoCDSettings) IsDexConfigured() bool {
 	if a.URL == "" {
 		return false
 	}
-	var dexCfg map[string]interface{}
-	err := yaml.Unmarshal([]byte(a.DexConfig), &dexCfg)
+	dexCfg, err := UnmarshalDexConfig(a.DexConfig)
 	if err != nil {
 		log.Warn("invalid dex yaml config")
 		return false
@@ -880,18 +952,29 @@ func (a *ArgoCDSettings) IsDexConfigured() bool {
 	return len(dexCfg) > 0
 }
 
+func UnmarshalDexConfig(config string) (map[string]interface{}, error) {
+	var dexCfg map[string]interface{}
+	err := yaml.Unmarshal([]byte(config), &dexCfg)
+	return dexCfg, err
+}
+
 func (a *ArgoCDSettings) OIDCConfig() *OIDCConfig {
 	if a.OIDCConfigRAW == "" {
 		return nil
 	}
-	var oidcConfig OIDCConfig
-	err := yaml.Unmarshal([]byte(a.OIDCConfigRAW), &oidcConfig)
+	oidcConfig, err := UnmarshalOIDCConfig(a.OIDCConfigRAW)
 	if err != nil {
 		log.Warnf("invalid oidc config: %v", err)
 		return nil
 	}
 	oidcConfig.ClientSecret = ReplaceStringSecret(oidcConfig.ClientSecret, a.Secrets)
 	return &oidcConfig
+}
+
+func UnmarshalOIDCConfig(config string) (OIDCConfig, error) {
+	var oidcConfig OIDCConfig
+	err := yaml.Unmarshal([]byte(config), &oidcConfig)
+	return oidcConfig, err
 }
 
 // TLSConfig returns a tls.Config with the configured certificates
@@ -996,10 +1079,15 @@ func (mgr *SettingsManager) notifySubscribers(newSettings *ArgoCDSettings) {
 	mgr.mutex.Lock()
 	defer mgr.mutex.Unlock()
 	if len(mgr.subscribers) > 0 {
-		log.Infof("Notifying %d settings subscribers: %v", len(mgr.subscribers), mgr.subscribers)
-		for _, sub := range mgr.subscribers {
-			sub <- newSettings
-		}
+		subscribers := make([]chan<- *ArgoCDSettings, len(mgr.subscribers))
+		copy(subscribers, mgr.subscribers)
+		// make sure subscribes are notified in a separate thread to avoid potential deadlock
+		go func() {
+			log.Infof("Notifying %d settings subscribers: %v", len(subscribers), subscribers)
+			for _, sub := range subscribers {
+				sub <- newSettings
+			}
+		}()
 	}
 }
 

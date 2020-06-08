@@ -11,6 +11,8 @@ import (
 	"reflect"
 	"syscall"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/errors"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -24,12 +26,11 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
+	"github.com/argoproj/argo-cd/cmd/argocd-util/commands"
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/dex"
-	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/settings"
 
 	// load the gcp plugin (required to authenticate against GKE clusters).
@@ -55,7 +56,8 @@ var (
 // NewCommand returns a new instance of an argocd command
 func NewCommand() *cobra.Command {
 	var (
-		logLevel string
+		logFormat string
+		logLevel  string
 	)
 
 	var command = &cobra.Command{
@@ -72,8 +74,10 @@ func NewCommand() *cobra.Command {
 	command.AddCommand(NewImportCommand())
 	command.AddCommand(NewExportCommand())
 	command.AddCommand(NewClusterConfig())
-	command.AddCommand(NewProjectsCommand())
+	command.AddCommand(commands.NewProjectsCommand())
+	command.AddCommand(commands.NewSettingsCommand())
 
+	command.Flags().StringVar(&logFormat, "logformat", "text", "Set the logging format. One of: text|json")
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	return command
 }
@@ -632,7 +636,7 @@ func NewClusterConfig() *cobra.Command {
 
 			cluster, err := db.NewDB(namespace, settings.NewSettingsManager(context.Background(), kubeclientset, namespace), kubeclientset).GetCluster(context.Background(), serverUrl)
 			errors.CheckError(err)
-			err = kube.WriteKubeConfig(cluster.RESTConfig(), namespace, output)
+			err = kube.WriteKubeConfig(cluster.RawRestConfig(), namespace, output)
 			errors.CheckError(err)
 		},
 	}

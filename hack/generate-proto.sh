@@ -17,8 +17,13 @@ jq --version
 PROJECT_ROOT=$(cd $(dirname ${BASH_SOURCE})/..; pwd)
 CODEGEN_PKG=${CODEGEN_PKG:-$(cd ${PROJECT_ROOT}; ls -d -1 ./vendor/k8s.io/code-generator 2>/dev/null || echo ../code-generator)}
 PATH="${PROJECT_ROOT}/dist:${PATH}"
+MOD_ROOT=${GOPATH}/pkg/mod
 
-# protbuf tooling required to build .proto files from go annotations from k8s-like api types
+. ${PROJECT_ROOT}/hack/versions.sh
+
+export GO111MODULE=off
+
+# protobuf tooling required to build .proto files from go annotations from k8s-like api types
 go build -i -o dist/go-to-protobuf ./vendor/k8s.io/code-generator/cmd/go-to-protobuf
 go build -i -o dist/protoc-gen-gogo ./vendor/k8s.io/code-generator/cmd/go-to-protobuf/protoc-gen-gogo
 
@@ -37,7 +42,8 @@ APIMACHINERY_PKGS=(
     k8s.io/apimachinery/pkg/apis/meta/v1
     k8s.io/api/core/v1
 )
-go-to-protobuf \
+
+${PROJECT_ROOT}/dist/go-to-protobuf \
     --go-header-file=${PROJECT_ROOT}/hack/custom-boilerplate.go.txt \
     --packages=$(IFS=, ; echo "${PACKAGES[*]}") \
     --apimachinery-packages=$(IFS=, ; echo "${APIMACHINERY_PKGS[*]}") \
@@ -65,7 +71,7 @@ go build -i -o dist/protoc-gen-swagger ./vendor/github.com/grpc-ecosystem/grpc-g
 # Generate server/<service>/(<service>.pb.go|<service>.pb.gw.go)
 PROTO_FILES=$(find $PROJECT_ROOT \( -name "*.proto" -and -path '*/server/*' -or -path '*/reposerver/*' -and -name "*.proto" \) | sort)
 for i in ${PROTO_FILES}; do
-    GOOGLE_PROTO_API_PATH=${PROJECT_ROOT}/vendor/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis
+    GOOGLE_PROTO_API_PATH=${MOD_ROOT}/github.com/grpc-ecosystem/grpc-gateway@${grpc_gateway_version}/third_party/googleapis
     GOGO_PROTOBUF_PATH=${PROJECT_ROOT}/vendor/github.com/gogo/protobuf
     protoc \
         -I${PROJECT_ROOT} \

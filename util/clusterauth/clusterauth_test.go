@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"testing"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -12,8 +13,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
-
-	"github.com/argoproj/argo-cd/errors"
 )
 
 const (
@@ -53,6 +52,135 @@ func TestParseServiceAccountToken(t *testing.T) {
 	claims, err := ParseServiceAccountToken(testToken)
 	assert.NoError(t, err)
 	assert.Equal(t, testClaims, *claims)
+}
+
+func TestCreateServiceAccount(t *testing.T) {
+	ns := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "kube-system",
+		},
+	}
+	sa := &corev1.ServiceAccount{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "ServiceAccount",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "argocd-manager",
+			Namespace: "kube-system",
+		},
+	}
+
+	t.Run("New SA", func(t *testing.T) {
+		cs := fake.NewSimpleClientset(ns)
+		err := CreateServiceAccount(cs, "argocd-manager", "kube-system")
+		assert.NoError(t, err)
+		rsa, err := cs.CoreV1().ServiceAccounts("kube-system").Get("argocd-manager", metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.NotNil(t, rsa)
+	})
+
+	t.Run("SA exists already", func(t *testing.T) {
+		cs := fake.NewSimpleClientset(ns, sa)
+		err := CreateServiceAccount(cs, "argocd-manager", "kube-system")
+		assert.NoError(t, err)
+		rsa, err := cs.CoreV1().ServiceAccounts("kube-system").Get("argocd-manager", metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.NotNil(t, rsa)
+	})
+
+	t.Run("Invalid name", func(t *testing.T) {
+		cs := fake.NewSimpleClientset(ns)
+		err := CreateServiceAccount(cs, "", "kube-system")
+		assert.NoError(t, err)
+		rsa, err := cs.CoreV1().ServiceAccounts("kube-system").Get("argocd-manager", metav1.GetOptions{})
+		assert.Error(t, err)
+		assert.Nil(t, rsa)
+	})
+
+	t.Run("Invalid namespace", func(t *testing.T) {
+		cs := fake.NewSimpleClientset()
+		err := CreateServiceAccount(cs, "argocd-manager", "invalid")
+		assert.NoError(t, err)
+		rsa, err := cs.CoreV1().ServiceAccounts("invalid").Get("argocd-manager", metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.NotNil(t, rsa)
+	})
+}
+
+func TestInstallClusterManagerRBAC(t *testing.T) {
+	ns := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test",
+		},
+	}
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "sa-secret",
+			Namespace: "test",
+		},
+		Type: corev1.SecretTypeServiceAccountToken,
+		Data: map[string][]byte{
+			"token": []byte("foobar"),
+		},
+	}
+	sa := &corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      ArgoCDManagerServiceAccount,
+			Namespace: "test",
+		},
+		Secrets: []corev1.ObjectReference{
+			corev1.ObjectReference{
+				Kind:            secret.GetObjectKind().GroupVersionKind().Kind,
+				APIVersion:      secret.APIVersion,
+				Name:            secret.GetName(),
+				Namespace:       secret.GetNamespace(),
+				UID:             secret.GetUID(),
+				ResourceVersion: secret.GetResourceVersion(),
+			},
+		},
+	}
+
+	t.Run("Cluster Scope - Success", func(t *testing.T) {
+		cs := fake.NewSimpleClientset(ns, secret, sa)
+		token, err := InstallClusterManagerRBAC(cs, "test", nil)
+		assert.NoError(t, err)
+		assert.Equal(t, "foobar", token)
+	})
+
+	t.Run("Cluster Scope - Missing data in secret", func(t *testing.T) {
+		nsecret := secret.DeepCopy()
+		nsecret.Data = make(map[string][]byte)
+		cs := fake.NewSimpleClientset(ns, nsecret, sa)
+		token, err := InstallClusterManagerRBAC(cs, "test", nil)
+		assert.Error(t, err)
+		assert.Empty(t, token)
+	})
+
+	t.Run("Namespace Scope - Success", func(t *testing.T) {
+		cs := fake.NewSimpleClientset(ns, secret, sa)
+		token, err := InstallClusterManagerRBAC(cs, "test", []string{"nsa"})
+		assert.NoError(t, err)
+		assert.Equal(t, "foobar", token)
+	})
+
+	t.Run("Namespace Scope - Missing data in secret", func(t *testing.T) {
+		nsecret := secret.DeepCopy()
+		nsecret.Data = make(map[string][]byte)
+		cs := fake.NewSimpleClientset(ns, nsecret, sa)
+		token, err := InstallClusterManagerRBAC(cs, "test", []string{"nsa"})
+		assert.Error(t, err)
+		assert.Empty(t, token)
+	})
+
+}
+
+func TestUninstallClusterManagerRBAC(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		cs := fake.NewSimpleClientset(newServiceAccountSecret())
+		err := UninstallClusterManagerRBAC(cs)
+		assert.NoError(t, err)
+	})
 }
 
 func TestGenerateNewClusterManagerSecret(t *testing.T) {

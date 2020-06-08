@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/errors"
+	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh/terminal"
@@ -21,8 +23,6 @@ import (
 	"k8s.io/kubectl/pkg/util/term"
 
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/errors"
-	"github.com/argoproj/argo-cd/util"
 )
 
 // NewVersionCmd returns a new `version` command to be used as a sub-command to root
@@ -30,7 +30,7 @@ func NewVersionCmd(cliName string) *cobra.Command {
 	var short bool
 	versionCmd := cobra.Command{
 		Use:   "version",
-		Short: fmt.Sprintf("Print version information"),
+		Short: "Print version information",
 		Run: func(cmd *cobra.Command, args []string) {
 			version := common.GetVersion()
 			fmt.Printf("%s: %s\n", cliName, version)
@@ -137,14 +137,25 @@ func ReadAndConfirmPassword() (string, error) {
 	}
 }
 
+// SetLogFormat sets a logrus log format
+func SetLogFormat(logFormat string) {
+	switch strings.ToLower(logFormat) {
+	case "json":
+		log.SetFormatter(&log.JSONFormatter{})
+	case "text":
+		if os.Getenv("FORCE_LOG_COLORS") == "1" {
+			log.SetFormatter(&log.TextFormatter{ForceColors: true})
+		}
+	default:
+		log.Fatalf("Unknown log format '%s'", logFormat)
+	}
+}
+
 // SetLogLevel parses and sets a logrus log level
 func SetLogLevel(logLevel string) {
 	level, err := log.ParseLevel(logLevel)
 	errors.CheckError(err)
 	log.SetLevel(level)
-	if os.Getenv("FORCE_LOG_COLORS") == "1" {
-		log.SetFormatter(&log.TextFormatter{ForceColors: true})
-	}
 }
 
 // SetGLogLevel set the glog level for the k8s go-client
@@ -157,7 +168,7 @@ func SetGLogLevel(glogLevel int) {
 func writeToTempFile(pattern string, data []byte) string {
 	f, err := ioutil.TempFile("", pattern)
 	errors.CheckError(err)
-	defer util.Close(f)
+	defer io.Close(f)
 	_, err = f.Write(data)
 	errors.CheckError(err)
 	return f.Name()

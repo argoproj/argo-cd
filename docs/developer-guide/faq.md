@@ -51,6 +51,15 @@ A second common case for this is, when you modified any of the auto generated as
 
 Generally, this step runs `codegen` and compares the outcome against the Git branch it has checked out. If there are differences, the step will fail.
 
+### Why does the lint step fail?
+
+The lint step is most likely to fail for two reasons:
+
+* The `golangci-lint` process was OOM killed by CircleCI. This happens sometimes, and is annoying. This is indicated by a `Killed.` message in the CircleCI output.
+  If this is the case, please re-trigger the CI process as described above and see if it runs through.
+
+* Your code failed to lint correctly, or modifications were performed by the `golangci-lint` process. You should run `make lint` on your local branch and fix all the issues.
+
 ### Why does the test or e2e steps fail?
 
 You should check for the cause of the failure on the CircleCI web site, as described above. This will give you the name of the test that has failed, and details about why. If your test are passing locally (using the virtualized toolchain), chances are that the test might be flaky and will pass the next time it is run. Please retrigger the CI pipeline as described above and see if the test step now passes.

@@ -10,6 +10,7 @@ export interface ProjectParams {
     roles: models.ProjectRole[];
     clusterResourceWhitelist: models.GroupKind[];
     namespaceResourceBlacklist: models.GroupKind[];
+    namespaceResourceWhitelist: models.GroupKind[];
     orphanedResourcesEnabled: boolean;
     orphanedResourcesWarn: boolean;
     syncWindows: models.SyncWindow[];
@@ -78,6 +79,7 @@ function paramsToProj(params: ProjectParams) {
             syncWindows: params.syncWindows,
             clusterResourceWhitelist: params.clusterResourceWhitelist,
             namespaceResourceBlacklist: params.namespaceResourceBlacklist,
+            namespaceResourceWhitelist: params.namespaceResourceWhitelist,
             orphanedResources: (params.orphanedResourcesEnabled && {warn: !!params.orphanedResourcesWarn}) || null
         }
     };

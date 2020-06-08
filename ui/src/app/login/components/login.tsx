@@ -18,6 +18,7 @@ export interface LoginForm {
 interface State {
     authSettings: AuthSettings;
     loginError: string;
+    loginInProgress: boolean;
     returnUrl: string;
     ssoLoginError: string;
 }
@@ -36,7 +37,7 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
 
     constructor(props: RouteComponentProps<{}>) {
         super(props);
-        this.state = {authSettings: null, loginError: null, returnUrl: null, ssoLoginError: null};
+        this.state = {authSettings: null, loginError: null, returnUrl: null, ssoLoginError: null, loginInProgress: false};
     }
 
     public async componentDidMount() {
@@ -93,7 +94,7 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
                                         {this.state.loginError && <div className='argo-form-row__error-msg'>{this.state.loginError}</div>}
                                     </div>
                                     <div className='login__form-row'>
-                                        <button className='argo-button argo-button--full-width argo-button--xlg' type='submit'>
+                                        <button disabled={this.state.loginInProgress} className='argo-button argo-button--full-width argo-button--xlg' type='submit'>
                                             Sign In
                                         </button>
                                     </div>
@@ -116,9 +117,10 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
 
     private async login(username: string, password: string, returnURL: string) {
         try {
-            this.setState({loginError: ''});
+            this.setState({loginError: '', loginInProgress: true});
             this.appContext.apis.navigation.goto('.', {sso_error: null});
             await services.users.login(username, password);
+            this.setState({loginInProgress: false});
             if (returnURL) {
                 const url = new URL(returnURL);
                 this.appContext.apis.navigation.goto(url.pathname + url.search);
@@ -126,7 +128,7 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
                 this.appContext.apis.navigation.goto('/applications');
             }
         } catch (e) {
-            this.setState({loginError: e.response.body.error});
+            this.setState({loginError: e.response.body.error, loginInProgress: false});
         }
     }
 

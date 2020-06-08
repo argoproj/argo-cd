@@ -54,15 +54,15 @@ func TestEnforceProjectToken(t *testing.T) {
 	roleName := "testRole"
 	subFormat := "proj:%s:%s"
 	policyTemplate := "p, %s, applications, get, %s/%s, %s"
-
 	defaultObject := "*"
 	defaultEffect := "allow"
 	defaultTestObject := fmt.Sprintf("%s/%s", projectName, "test")
 	defaultIssuedAt := int64(1)
 	defaultSub := fmt.Sprintf(subFormat, projectName, roleName)
 	defaultPolicy := fmt.Sprintf(policyTemplate, defaultSub, projectName, defaultObject, defaultEffect)
+	defaultId := "testId"
 
-	role := v1alpha1.ProjectRole{Name: roleName, Policies: []string{defaultPolicy}, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: defaultIssuedAt}}}
+	role := v1alpha1.ProjectRole{Name: roleName, Policies: []string{defaultPolicy}, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: defaultIssuedAt}, {ID: defaultId}}}
 	existingProj := v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: projectName, Namespace: test.FakeArgoCDNamespace},
 		Spec: v1alpha1.AppProjectSpec{
@@ -128,6 +128,23 @@ func TestEnforceProjectToken(t *testing.T) {
 		denyObject := fmt.Sprintf("%s/%s", projectName, denyApp)
 		assert.True(t, s.enf.Enforce(claims, "applications", "get", allowedObject))
 		assert.False(t, s.enf.Enforce(claims, "applications", "get", denyObject))
+	})
+
+	t.Run("TestEnforceProjectTokenWithIdSuccessful", func(t *testing.T) {
+		s := NewServer(context.Background(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj)})
+		cancel := test.StartInformer(s.projInformer)
+		defer cancel()
+		claims := jwt.MapClaims{"sub": defaultSub, "jti": defaultId}
+		assert.True(t, s.enf.Enforce(claims, "projects", "get", existingProj.ObjectMeta.Name))
+		assert.True(t, s.enf.Enforce(claims, "applications", "get", defaultTestObject))
+	})
+
+	t.Run("TestEnforceProjectTokenWithInvalidIdFailure", func(t *testing.T) {
+		s := NewServer(context.Background(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj)})
+		invalidId := "invalidId"
+		claims := jwt.MapClaims{"sub": defaultSub, "jti": defaultId}
+		res := s.enf.Enforce(claims, "applications", "get", invalidId)
+		assert.False(t, res)
 	})
 }
 
@@ -293,7 +310,6 @@ func TestRevokedToken(t *testing.T) {
 	roleName := "testRole"
 	subFormat := "proj:%s:%s"
 	policyTemplate := "p, %s, applications, get, %s/%s, %s"
-
 	defaultObject := "*"
 	defaultEffect := "allow"
 	defaultTestObject := fmt.Sprintf("%s/%s", projectName, "test")

@@ -126,7 +126,7 @@ class PolicyWrapper extends React.Component<PolicyProps, any> {
                     <input
                         className='argo-field'
                         list='permission'
-                        value={this.getPermision()}
+                        value={this.getPermission()}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                             this.setPermission(e.target.value);
                         }}
@@ -175,7 +175,7 @@ class PolicyWrapper extends React.Component<PolicyProps, any> {
         this.props.fieldApi.setValue(fields.join());
     }
 
-    private getPermision(): string {
+    private getPermission(): string {
         const fields = (this.props.fieldApi.getValue() as string).split(',');
         if (fields.length !== 6) {
             return '';

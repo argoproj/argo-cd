@@ -95,7 +95,7 @@ spec:
     spec:
       containers:
       - name: slack-notification
-        image: appropriate/curl
+        image: curlimages/curl
         command:
           - "curl"
           - "-X"
@@ -120,7 +120,7 @@ spec:
     spec:
       containers:
       - name: slack-notification
-        image: appropriate/curl
+        image: curlimages/curl
         command: 
           - "curl"
           - "-X"

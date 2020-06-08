@@ -10,7 +10,7 @@ If you want to to submit a PR, please read this document carefully, as it contai
 
 As is the case with the development process, this document is under constant change. If you notice any error, or if you think this document is out-of-date, or if you think it is missing something: Feel free to submit a PR or submit a bug to our GitHub issue tracker.
 
-If you need guidance with submitting a PR, or have any other questions regarding development of ArgoCD, do not hestitate to [join our Slack](https://argoproj.github.io/community/join-slack) and get in touch with us in the `#argo-dev` channel!
+If you need guidance with submitting a PR, or have any other questions regarding development of ArgoCD, do not hesitate to [join our Slack](https://argoproj.github.io/community/join-slack) and get in touch with us in the `#argo-dev` channel!
 
 ## Before you start
 
@@ -23,7 +23,7 @@ The Docker version must be fairly recent, and support multi-stage builds. You sh
 
 * Obviously, you will need a `git` client for pulling source code and pushing back your changes.
 
-* Last but not least, you will need a Go SDK and related tools (such as GNU `make`) installed and working on your development environment.
+* Last but not least, you will need a Go SDK and related tools (such as GNU `make`) installed and working on your development environment. The minimum required Go version for building ArgoCD is **v1.14.0**.
 
 * We will assume that your Go workspace is at `~/go`
 
@@ -34,7 +34,7 @@ The Docker version must be fairly recent, and support multi-stage builds. You sh
 
 When you submit a PR against ArgoCD's GitHub repository, a couple of CI checks will be run automatically to ensure your changes will build fine and meet certain quality standards. Your contribution needs to pass those checks in order to be merged into the repository.
 
-In general, it might be benefical to only submit a PR for an existing issue. Especially for larger changes, an Enhancement Proposal should exist before.
+In general, it might be beneficial to only submit a PR for an existing issue. Especially for larger changes, an Enhancement Proposal should exist before.
 
 !!!note
 
@@ -46,7 +46,7 @@ The following read will help you to submit a PR that meets the standards of our 
 
 ### Title of the PR
 
-Please use a meaningful and consise title for your PR. This will help us to pick PRs for review quickly, and the PR title will also end up in the Changelog.
+Please use a meaningful and concise title for your PR. This will help us to pick PRs for review quickly, and the PR title will also end up in the Changelog.
 
 We use the [Semantic PR title checker](https://github.com/zeke/semantic-pull-requests) to categorize your PR into one of the following categories:
 
@@ -77,6 +77,7 @@ After you have submitted your PR, and whenever you push new commits to that bran
 * Run the unit tests (`make test`)
 * Run the End-to-End tests (`make test-e2e`)
 * Build and lint the UI code (`make ui`)
+* Build the `argocd` CLI (`make cli`)
 
 If any of these tests in the CI pipeline fail, it means that some of your contribution is considered faulty (or a test might be flaky, see below).
 
@@ -161,11 +162,14 @@ When you have developed and possibly manually tested the code you want to contri
 
 ### Pull in all build dependencies
 
-As build dependencies change over time, you have to synchronize your development environment with the current specification. In order to pull in all required depencies, issue:
+As build dependencies change over time, you have to synchronize your development environment with the current specification. In order to pull in all required dependencies, issue:
 
-* `make dep`
-* `make dep-ensure`
 * `make dep-ui`
+
+ArgoCD recently migrated to Go modules. Usually, dependencies will be downloaded on build time, but the Makefile provides two targets to download and vendor all dependencies:
+
+* `make mod-download` will download all required Go modules and
+* `make mod-vendor` will vendor those dependencies into the ArgoCD source tree
 
 ### Generate API glue code and other assets
 
@@ -198,6 +202,11 @@ The Linter might make some automatic changes to your code, such as indentation f
 * Finally, after the Linter reports no errors anymore, run `git status` or `git diff` to check for any changes made automatically by Lint
 * If there were automatic changes, commit them to your local branch
 
+If you touched UI code, you should also run the Yarn linter on it:
+
+* Run `make lint-ui`
+* Fix any of the errors reported by it
+
 ## Setting up a local toolchain
 
 For development, you can either use the fully virtualized toolchain provided as Docker images, or you can set up the toolchain on your local development machine. Due to the dynamic nature of requirements, you might want to stay with the virtualized environment.
@@ -207,7 +216,7 @@ For development, you can either use the fully virtualized toolchain provided as 
 !!!note
     The installations instructions are valid for Linux hosts only. Mac instructions will follow shortly.
 
-For installing the tools required to build and test ArgoCD on your local system, we provide convinient installer scripts. By default, they will install binaries to `/usr/local/bin` on your system, which might require `root` privileges.
+For installing the tools required to build and test ArgoCD on your local system, we provide convenient installer scripts. By default, they will install binaries to `/usr/local/bin` on your system, which might require `root` privileges.
 
 You can change the target location by setting the `BIN` environment before running the installer scripts. For example, you can install the binaries into `~/go/bin` (which should then be the first component in your `PATH` environment, i.e. `export PATH=~/go/bin:$PATH`):
 
@@ -224,8 +233,8 @@ Additionally, you have to install at least the following tools via your OS's pac
 
 You need to pull in all required Go dependencies. To do so, run
 
-* `make dep-ensure-local`
-* `make dep-local`
+* `make mod-download-local`
+* `make mod-vendor-local`
 
 ### Test your build toolchain
 

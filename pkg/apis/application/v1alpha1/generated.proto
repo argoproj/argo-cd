@@ -209,6 +209,9 @@ message ApplicationSourceKustomize {
 
   // CommonLabels adds additional kustomize commonLabels
   map<string, string> commonLabels = 4;
+
+  // Version contains optional Kustomize version
+  optional string version = 5;
 }
 
 // ApplicationSourcePlugin holds config management plugin specific options
@@ -472,6 +475,8 @@ message JWTToken {
   optional int64 iat = 1;
 
   optional int64 exp = 2;
+
+  optional string id = 3;
 }
 
 // JsonnetVar is a jsonnet variable
@@ -481,6 +486,13 @@ message JsonnetVar {
   optional string value = 2;
 
   optional bool code = 3;
+}
+
+// KnownTypeField contains mapping between CRD field and known Kubernetes type
+message KnownTypeField {
+  optional string field = 1;
+
+  optional string type = 2;
 }
 
 // KsonnetParameter is a ksonnet component parameter
@@ -496,6 +508,9 @@ message KsonnetParameter {
 message KustomizeOptions {
   // BuildOptions is a string of build parameters to use when calling `kustomize build`
   optional string buildOptions = 1;
+
+  // BinaryPath holds optional path to kustomize binary
+  optional string binaryPath = 2;
 }
 
 // Operation contains requested operation parameters.
@@ -774,6 +789,8 @@ message ResourceOverride {
   optional string actions = 3;
 
   optional string ignoreDifferences = 2;
+
+  repeated KnownTypeField knownTypeFields = 4;
 }
 
 // ResourceRef includes fields which unique identify resource
@@ -937,7 +954,7 @@ message SyncPolicy {
   // Automated will keep an application synced to the target revision
   optional SyncPolicyAutomated automated = 1;
 
-  // Options allow youe to specify whole app sync-options
+  // Options allow you to specify whole app sync-options
   repeated string syncOptions = 2;
 }
 

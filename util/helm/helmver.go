@@ -22,13 +22,15 @@ var (
 	}
 	// HelmV3 represents helm V3 specific settings
 	HelmV3 = HelmVer{
-		binaryName:              "helm",
-		templateNameArg:         "--name-template",
-		kubeVersionSupported:    false,
-		showCommand:             "show",
-		pullCommand:             "pull",
-		initSupported:           false,
-		getPostTemplateCallback: cleanupChartLockFile,
+		binaryName:                  "helm",
+		templateNameArg:             "--name-template",
+		kubeVersionSupported:        false,
+		showCommand:                 "show",
+		pullCommand:                 "pull",
+		initSupported:               false,
+		getPostTemplateCallback:     cleanupChartLockFile,
+		additionalTemplateArgs:      []string{"--include-crds"},
+		insecureSkipVerifySupported: true,
 	}
 )
 
@@ -75,11 +77,13 @@ func getHelmVersion(chartPath string) (*HelmVer, error) {
 
 // HelmVer contains Helm version specific settings such as helm binary and command names
 type HelmVer struct {
-	binaryName              string
-	initSupported           bool
-	templateNameArg         string
-	showCommand             string
-	pullCommand             string
-	kubeVersionSupported    bool
-	getPostTemplateCallback func(chartPath string) (func(), error)
+	binaryName                  string
+	initSupported               bool
+	templateNameArg             string
+	showCommand                 string
+	pullCommand                 string
+	kubeVersionSupported        bool
+	getPostTemplateCallback     func(chartPath string) (func(), error)
+	additionalTemplateArgs      []string
+	insecureSkipVerifySupported bool
 }

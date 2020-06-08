@@ -133,6 +133,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                             sourceRepos: proj.spec.sourceRepos || [],
                                                             clusterResourceWhitelist: proj.spec.clusterResourceWhitelist || [],
                                                             namespaceResourceBlacklist: proj.spec.namespaceResourceBlacklist || [],
+                                                            namespaceResourceWhitelist: proj.spec.namespaceResourceWhitelist || [],
                                                             roles: proj.spec.roles || [],
                                                             syncWindows: proj.spec.syncWindows || [],
                                                             orphanedResourcesEnabled: !!proj.spec.orphanedResources,
@@ -559,6 +560,30 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                             </div>
                         </div>
                         {(proj.spec.namespaceResourceBlacklist || []).map(res => (
+                            <div className='argo-table-list__row' key={`${res.group}/${res.kind}`}>
+                                <div className='row'>
+                                    <div className='columns small-3'>{res.group}</div>
+                                    <div className='columns small-6'>{res.kind}</div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )) || (
+                    <div className='white-box'>
+                        <p>All namespaced-scoped resources are permitted to deploy</p>
+                    </div>
+                )}
+
+                <h4>Whitelisted namespaced resources {helpTip('Namespace-scoped K8s API Groups and Kinds which are permitted to deploy')}</h4>
+                {((proj.spec.namespaceResourceWhitelist || []).length > 0 && (
+                    <div className='argo-table-list'>
+                        <div className='argo-table-list__head'>
+                            <div className='row'>
+                                <div className='columns small-3'>GROUP</div>
+                                <div className='columns small-6'>KIND</div>
+                            </div>
+                        </div>
+                        {(proj.spec.namespaceResourceWhitelist || []).map(res => (
                             <div className='argo-table-list__row' key={`${res.group}/${res.kind}`}>
                                 <div className='row'>
                                     <div className='columns small-3'>{res.group}</div>

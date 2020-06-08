@@ -53,7 +53,7 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
                                 i++;
                                 setProgress({
                                     percentage: i / selectedApps.length,
-                                    title: `${i} of ${selectedApps.length} apps synced`
+                                    title: `${i} of ${selectedApps.length} apps now syncing`
                                 });
                             }
                             setProgress({percentage: 100, title: 'Complete'});

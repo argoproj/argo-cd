@@ -232,6 +232,9 @@ spec:
                           description: NameSuffix is a suffix appended to resources
                             for kustomize apps
                           type: string
+                        version:
+                          description: Version contains optional Kustomize version
+                          type: string
                       type: object
                     path:
                       description: Path is a directory path within the Git repository
@@ -516,6 +519,9 @@ spec:
                       description: NameSuffix is a suffix appended to resources for
                         kustomize apps
                       type: string
+                    version:
+                      description: Version contains optional Kustomize version
+                      type: string
                   type: object
                 path:
                   description: Path is a directory path within the Git repository
@@ -567,7 +573,7 @@ spec:
                       type: boolean
                   type: object
                 syncOptions:
-                  description: Options allow youe to specify whole app sync-options
+                  description: Options allow you to specify whole app sync-options
                   items:
                     type: string
                   type: array
@@ -608,6 +614,7 @@ spec:
                 message:
                   type: string
                 status:
+                  description: Represents resource health status
                   type: string
               type: object
             history:
@@ -774,6 +781,9 @@ spec:
                           nameSuffix:
                             description: NameSuffix is a suffix appended to resources
                               for kustomize apps
+                            type: string
+                          version:
+                            description: Version contains optional Kustomize version
                             type: string
                         type: object
                       path:
@@ -1047,6 +1057,10 @@ spec:
                                 nameSuffix:
                                   description: NameSuffix is a suffix appended to
                                     resources for kustomize apps
+                                  type: string
+                                version:
+                                  description: Version contains optional Kustomize
+                                    version
                                   type: string
                               type: object
                             path:
@@ -1334,6 +1348,9 @@ spec:
                               description: NameSuffix is a suffix appended to resources
                                 for kustomize apps
                               type: string
+                            version:
+                              description: Version contains optional Kustomize version
+                              type: string
                           type: object
                         path:
                           description: Path is a directory path within the Git repository
@@ -1396,6 +1413,7 @@ spec:
                       message:
                         type: string
                       status:
+                        description: Represents resource health status
                         type: string
                     type: object
                   hook:
@@ -1607,6 +1625,9 @@ spec:
                               description: NameSuffix is a suffix appended to resources
                                 for kustomize apps
                               type: string
+                            version:
+                              description: Version contains optional Kustomize version
+                              type: string
                           type: object
                         path:
                           description: Path is a directory path within the Git repository
@@ -1817,6 +1838,8 @@ spec:
                         iat:
                           format: int64
                           type: integer
+                        id:
+                          type: string
                       required:
                       - iat
                       type: object
@@ -2161,6 +2184,10 @@ spec:
     port: 5557
     protocol: TCP
     targetPort: 5557
+  - name: metrics
+    port: 5558
+    protocol: TCP
+    targetPort: 5558
   selector:
     app.kubernetes.io/name: argocd-dex-server
 ---
@@ -2322,12 +2349,13 @@ spec:
       - command:
         - /shared/argocd-util
         - rundex
-        image: quay.io/dexidp/dex:v2.21.0
+        image: quay.io/dexidp/dex:v2.22.0
         imagePullPolicy: Always
         name: dex
         ports:
         - containerPort: 5556
         - containerPort: 5557
+        - containerPort: 5558
         volumeMounts:
         - mountPath: /shared
           name: static-files

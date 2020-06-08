@@ -1,16 +1,15 @@
 package version
 
 import (
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/golang/protobuf/ptypes/empty"
 	"golang.org/x/net/context"
 
-	"github.com/argoproj/argo-cd/util/helm"
-	"github.com/argoproj/argo-cd/util/kube"
-	"github.com/argoproj/argo-cd/util/kustomize"
-
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apiclient/version"
+	"github.com/argoproj/argo-cd/util/helm"
 	ksutil "github.com/argoproj/argo-cd/util/ksonnet"
+	"github.com/argoproj/argo-cd/util/kustomize"
 )
 
 type Server struct {

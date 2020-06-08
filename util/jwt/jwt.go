@@ -58,6 +58,15 @@ func GetScopeValues(claims jwtgo.MapClaims, scopes []string) []string {
 	return groups
 }
 
+func GetID(m jwtgo.MapClaims) (string, error) {
+	if jtiIf, ok := m["jti"]; ok {
+		if jti, ok := jtiIf.(string); ok {
+			return jti, nil
+		}
+	}
+	return "", fmt.Errorf("jti '%v' is not a string", m["jti"])
+}
+
 // GetIssuedAt returns the issued at as an int64
 func GetIssuedAt(m jwtgo.MapClaims) (int64, error) {
 	switch iat := m["iat"].(type) {
@@ -81,14 +90,13 @@ func Claims(in interface{}) jwtgo.Claims {
 }
 
 // IsMember returns whether or not the user's claims is a member of any of the groups
-func IsMember(claims jwtgo.Claims, groups []string) bool {
+func IsMember(claims jwtgo.Claims, groups []string, scopes []string) bool {
 	mapClaims, err := MapClaims(claims)
 	if err != nil {
 		return false
 	}
-	// TODO: groups is hard-wired but we should really be honoring the 'scopes' section in argocd-rbac-cm.
 	// O(n^2) loop
-	for _, userGroup := range GetGroups(mapClaims) {
+	for _, userGroup := range GetGroups(mapClaims, scopes) {
 		for _, group := range groups {
 			if userGroup == group {
 				return true
@@ -98,6 +106,6 @@ func IsMember(claims jwtgo.Claims, groups []string) bool {
 	return false
 }
 
-func GetGroups(mapClaims jwtgo.MapClaims) []string {
-	return GetScopeValues(mapClaims, []string{"groups"})
+func GetGroups(mapClaims jwtgo.MapClaims, scopes []string) []string {
+	return GetScopeValues(mapClaims, scopes)
 }

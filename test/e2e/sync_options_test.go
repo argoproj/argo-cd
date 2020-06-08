@@ -4,7 +4,8 @@ import (
 	"os"
 	"testing"
 
-	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	. "github.com/argoproj/gitops-engine/pkg/sync/common"
+
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
 )
 

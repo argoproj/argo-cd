@@ -10,18 +10,18 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/errors"
+	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	timeutil "github.com/argoproj/pkg/time"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh/terminal"
 
-	"github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	accountpkg "github.com/argoproj/argo-cd/pkg/apiclient/account"
 	"github.com/argoproj/argo-cd/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/localconfig"
 	sessionutil "github.com/argoproj/argo-cd/util/session"
@@ -62,7 +62,7 @@ func NewAccountUpdatePasswordCommand(clientOpts *argocdclient.ClientOptions) *co
 			}
 			acdClient := argocdclient.NewClientOrDie(clientOpts)
 			conn, usrIf := acdClient.NewAccountClientOrDie()
-			defer util.Close(conn)
+			defer io.Close(conn)
 
 			userInfo := getCurrentAccount(acdClient)
 
@@ -131,7 +131,7 @@ func NewAccountGetUserInfoCommand(clientOpts *argocdclient.ClientOptions) *cobra
 			}
 
 			conn, client := argocdclient.NewClientOrDie(clientOpts).NewSessionClientOrDie()
-			defer util.Close(conn)
+			defer io.Close(conn)
 
 			ctx := context.Background()
 			response, err := client.GetUserInfo(ctx, &session.GetUserInfoRequest{})
@@ -174,11 +174,11 @@ argocd account can-i sync applications '*'
 argocd account can-i update projects 'default'
 
 # Can I create a cluster?
-argocd account can-i create cluster '*'
+argocd account can-i create clusters '*'
 
 Actions: %v
 Resources: %v
-`, rbacpolicy.Resources, rbacpolicy.Actions),
+`, rbacpolicy.Actions, rbacpolicy.Resources),
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 3 {
 				c.HelpFunc()(c, args)
@@ -186,7 +186,7 @@ Resources: %v
 			}
 
 			conn, client := argocdclient.NewClientOrDie(clientOpts).NewAccountClientOrDie()
-			defer util.Close(conn)
+			defer io.Close(conn)
 
 			ctx := context.Background()
 			response, err := client.CanI(ctx, &accountpkg.CanIRequest{
@@ -226,7 +226,7 @@ func NewAccountListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 		Run: func(c *cobra.Command, args []string) {
 
 			conn, client := argocdclient.NewClientOrDie(clientOpts).NewAccountClientOrDie()
-			defer util.Close(conn)
+			defer io.Close(conn)
 
 			ctx := context.Background()
 			response, err := client.ListAccounts(ctx, &accountpkg.ListAccountRequest{})
@@ -251,7 +251,7 @@ func NewAccountListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 
 func getCurrentAccount(clientset argocdclient.Client) session.GetUserInfoResponse {
 	conn, client := clientset.NewSessionClientOrDie()
-	defer util.Close(conn)
+	defer io.Close(conn)
 	userInfo, err := client.GetUserInfo(context.Background(), &session.GetUserInfoRequest{})
 	errors.CheckError(err)
 	return *userInfo
@@ -278,7 +278,7 @@ argocd account get --account <account-name>`,
 			}
 
 			conn, client := clientset.NewAccountClientOrDie()
-			defer util.Close(conn)
+			defer io.Close(conn)
 
 			acc, err := client.GetAccount(context.Background(), &accountpkg.GetAccountRequest{Name: account})
 
@@ -331,6 +331,7 @@ func NewAccountGenerateTokenCommand(clientOpts *argocdclient.ClientOptions) *cob
 	var (
 		account   string
 		expiresIn string
+		id        string
 	)
 	cmd := &cobra.Command{
 		Use:   "generate-token",
@@ -344,7 +345,7 @@ argocd account generate-token --account <account-name>`,
 
 			clientset := argocdclient.NewClientOrDie(clientOpts)
 			conn, client := clientset.NewAccountClientOrDie()
-			defer util.Close(conn)
+			defer io.Close(conn)
 			if account == "" {
 				account = getCurrentAccount(clientset).Username
 			}
@@ -353,6 +354,7 @@ argocd account generate-token --account <account-name>`,
 			response, err := client.CreateToken(context.Background(), &accountpkg.CreateTokenRequest{
 				Name:      account,
 				ExpiresIn: int64(expiresIn.Seconds()),
+				Id:        id,
 			})
 			errors.CheckError(err)
 			fmt.Println(response.Token)
@@ -360,6 +362,7 @@ argocd account generate-token --account <account-name>`,
 	}
 	cmd.Flags().StringVarP(&account, "account", "a", "", "Account name. Defaults to the current account.")
 	cmd.Flags().StringVarP(&expiresIn, "expires-in", "e", "0s", "Duration before the token will expire. (Default: No expiration)")
+	cmd.Flags().StringVar(&id, "id", "", "Optional token id. Fallback to uuid if not value specified.")
 	return cmd
 }
 
@@ -384,7 +387,7 @@ argocd account generate-token --account <account-name>`,
 
 			clientset := argocdclient.NewClientOrDie(clientOpts)
 			conn, client := clientset.NewAccountClientOrDie()
-			defer util.Close(conn)
+			defer io.Close(conn)
 			if account == "" {
 				account = getCurrentAccount(clientset).Username
 			}

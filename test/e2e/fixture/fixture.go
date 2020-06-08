@@ -11,23 +11,24 @@ import (
 	"testing"
 	"time"
 
+	. "github.com/argoproj/gitops-engine/pkg/utils/errors"
+	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/argoproj/pkg/errors"
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/argoproj/argo-cd/common"
-	. "github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	sessionpkg "github.com/argoproj/argo-cd/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/util"
 	grpcutil "github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/rand"
 	"github.com/argoproj/argo-cd/util/settings"
@@ -53,6 +54,7 @@ var (
 	deploymentNamespace string
 	name                string
 	KubeClientset       kubernetes.Interface
+	DynamicClientset    dynamic.Interface
 	AppClientset        appclientset.Interface
 	ArgoCDClientset     argocdclient.Client
 	apiServerAddress    string
@@ -97,6 +99,7 @@ func init() {
 	config := getKubeConfig("", clientcmd.ConfigOverrides{})
 	AppClientset = appclientset.NewForConfigOrDie(config)
 	KubeClientset = kubernetes.NewForConfigOrDie(config)
+	DynamicClientset = dynamic.NewForConfigOrDie(config)
 	apiServerAddress = os.Getenv(argocdclient.EnvArgoCDServer)
 	if apiServerAddress == "" {
 		apiServerAddress = defaultApiServer
@@ -110,7 +113,7 @@ func init() {
 
 	closer, client, err := ArgoCDClientset.NewSessionClient()
 	CheckError(err)
-	defer util.Close(closer)
+	defer io.Close(closer)
 
 	sessionResponse, err := client.Create(context.Background(), &sessionpkg.SessionCreateRequest{Username: "admin", Password: adminPassword})
 	CheckError(err)

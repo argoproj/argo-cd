@@ -2,7 +2,6 @@ package helm
 
 import (
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -10,8 +9,8 @@ import (
 	"path/filepath"
 	"regexp"
 
-	"github.com/argoproj/argo-cd/util"
-	executil "github.com/argoproj/argo-cd/util/exec"
+	executil "github.com/argoproj/gitops-engine/pkg/utils/exec"
+	"github.com/argoproj/gitops-engine/pkg/utils/io"
 )
 
 // A thin wrapper around the "helm" command, adding logging and error translation.
@@ -19,6 +18,7 @@ type Cmd struct {
 	HelmVer
 	helmHome string
 	WorkDir  string
+	IsLocal  bool
 }
 
 func NewCmd(workDir string) (*Cmd, error) {
@@ -46,11 +46,13 @@ func (c Cmd) run(args ...string) (string, error) {
 	cmd := exec.Command(c.binaryName, args...)
 	cmd.Dir = c.WorkDir
 	cmd.Env = os.Environ()
-	cmd.Env = append(cmd.Env,
-		fmt.Sprintf("XDG_CACHE_HOME=%s/cache", c.helmHome),
-		fmt.Sprintf("XDG_CONFIG_HOME=%s/config", c.helmHome),
-		fmt.Sprintf("XDG_DATA_HOME=%s/data", c.helmHome),
-		fmt.Sprintf("HELM_HOME=%s", c.helmHome))
+	if !c.IsLocal {
+		cmd.Env = append(cmd.Env,
+			fmt.Sprintf("XDG_CACHE_HOME=%s/cache", c.helmHome),
+			fmt.Sprintf("XDG_CONFIG_HOME=%s/config", c.helmHome),
+			fmt.Sprintf("XDG_DATA_HOME=%s/data", c.helmHome),
+			fmt.Sprintf("HELM_HOME=%s", c.helmHome))
+	}
 	return executil.RunWithRedactor(cmd, redactor)
 }
 
@@ -80,6 +82,10 @@ func (c *Cmd) RepoAdd(name string, url string, opts Creds) (string, error) {
 
 	if opts.CAPath != "" {
 		args = append(args, "--ca-file", opts.CAPath)
+	}
+
+	if opts.InsecureSkipVerify && c.insecureSkipVerifySupported {
+		args = append(args, "--insecure-skip-tls-verify")
 	}
 
 	if len(opts.CertData) > 0 {
@@ -121,7 +127,7 @@ func writeToTmp(data []byte) (string, io.Closer, error) {
 		_ = os.RemoveAll(file.Name())
 		return "", nil, err
 	}
-	return file.Name(), util.NewCloser(func() error {
+	return file.Name(), io.NewCloser(func() error {
 		return os.RemoveAll(file.Name())
 	}), nil
 }
@@ -146,7 +152,7 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds) (
 		if err != nil {
 			return "", err
 		}
-		defer util.Close(closer)
+		defer io.Close(closer)
 		args = append(args, "--cert-file", filePath)
 	}
 	if len(creds.KeyData) > 0 {
@@ -154,7 +160,7 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds) (
 		if err != nil {
 			return "", err
 		}
-		defer util.Close(closer)
+		defer io.Close(closer)
 		args = append(args, "--key-file", filePath)
 	}
 
@@ -220,6 +226,9 @@ func (c *Cmd) template(chartPath string, opts *TemplateOpts) (string, error) {
 	}
 	for _, v := range opts.APIVersions {
 		args = append(args, "--api-versions", v)
+	}
+	if c.HelmVer.additionalTemplateArgs != nil {
+		args = append(args, c.HelmVer.additionalTemplateArgs...)
 	}
 
 	return c.run(args...)

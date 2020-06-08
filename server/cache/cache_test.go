@@ -10,6 +10,7 @@ import (
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	cacheutil "github.com/argoproj/argo-cd/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
+	"github.com/argoproj/argo-cd/util/oidc"
 )
 
 type fixtures struct {
@@ -22,6 +23,7 @@ func newFixtures() *fixtures {
 			cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Hour)),
 			1*time.Minute,
 		),
+		1*time.Minute,
 		1*time.Minute,
 		1*time.Minute,
 	)}
@@ -67,7 +69,7 @@ func TestCache_GetOIDCState(t *testing.T) {
 	_, err := cache.GetOIDCState("my-key")
 	assert.Equal(t, ErrCacheMiss, err)
 	// populate cache
-	err = cache.SetOIDCState("my-key", &OIDCState{ReturnURL: "my-return-url"})
+	err = cache.SetOIDCState("my-key", &oidc.OIDCState{ReturnURL: "my-return-url"})
 	assert.NoError(t, err)
 	//cache miss
 	_, err = cache.GetOIDCState("other-key")
@@ -75,7 +77,7 @@ func TestCache_GetOIDCState(t *testing.T) {
 	// cache hit
 	value, err := cache.GetOIDCState("my-key")
 	assert.NoError(t, err)
-	assert.Equal(t, &OIDCState{ReturnURL: "my-return-url"}, value)
+	assert.Equal(t, &oidc.OIDCState{ReturnURL: "my-return-url"}, value)
 }
 
 func TestAddCacheFlagsToCmd(t *testing.T) {

@@ -8,10 +8,10 @@ import (
 	"path"
 	"strings"
 
+	executil "github.com/argoproj/gitops-engine/pkg/utils/exec"
 	"github.com/ghodss/yaml"
 
 	"github.com/argoproj/argo-cd/util/config"
-	executil "github.com/argoproj/argo-cd/util/exec"
 )
 
 type HelmRepository struct {
@@ -35,11 +35,13 @@ type Helm interface {
 }
 
 // NewHelmApp create a new wrapper to run commands on the `helm` command-line tool.
-func NewHelmApp(workDir string, repos []HelmRepository) (Helm, error) {
+func NewHelmApp(workDir string, repos []HelmRepository, isLocal bool) (Helm, error) {
 	cmd, err := NewCmd(workDir)
 	if err != nil {
 		return nil, err
 	}
+	cmd.IsLocal = isLocal
+
 	return &helm{repos: repos, cmd: *cmd}, nil
 }
 

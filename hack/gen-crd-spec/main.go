@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application"
-	"github.com/argoproj/argo-cd/util/kube"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/ghodss/yaml"
 	extensionsobj "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -45,14 +45,16 @@ func getCustomResourceDefinitions() map[string]*extensionsobj.CustomResourceDefi
 
 		// We need to completely remove validation of problematic fields such as creationTimestamp,
 		// which get marshalled to `null`, but are typed as as a `string` during Open API validation
-		removeValidataion(un, "metadata.creationTimestamp")
+		removeValidation(un, "metadata.creationTimestamp")
 
 		crd := toCRD(un)
 		crd.Labels = map[string]string{
 			"app.kubernetes.io/name":    crd.Name,
 			"app.kubernetes.io/part-of": "argocd",
 		}
+		delete(crd.Annotations, "controller-gen.kubebuilder.io/version")
 		crd.Spec.Scope = "Namespaced"
+		crd.Spec.PreserveUnknownFields = nil
 		crds[crd.Name] = crd
 	}
 	return crds
@@ -65,7 +67,7 @@ func deleteFile(path string) {
 	checkErr(os.Remove(path))
 }
 
-func removeValidataion(un *unstructured.Unstructured, path string) {
+func removeValidation(un *unstructured.Unstructured, path string) {
 	schemaPath := []string{"spec", "validation", "openAPIV3Schema"}
 	for _, part := range strings.Split(path, ".") {
 		schemaPath = append(schemaPath, "properties", part)

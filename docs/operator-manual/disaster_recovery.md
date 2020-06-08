@@ -21,7 +21,7 @@ docker run -v ~/.kube:/home/argocd/.kube --rm argoproj/argocd:$VERSION argocd-ut
 Import from a backup:
 
 ```bash
-docker run -v ~/.kube:/home/argocd/.kube --rm argoproj/argocd:$VERSION argocd-util import - < backup.yaml
+docker run -i -v ~/.kube:/home/argocd/.kube --rm argoproj/argocd:$VERSION argocd-util import - < backup.yaml
 ```
 
 !!! note

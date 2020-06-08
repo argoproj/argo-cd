@@ -1,6 +1,6 @@
 # Security
 
-Argo CD has undergone rigourous internal security reviews and penetration testing to satisfy [PCI
+Argo CD has undergone rigorous internal security reviews and penetration testing to satisfy [PCI
 compliance](https://www.pcisecuritystandards.org) requirements. The following are some security
 topics and implementation details of Argo CD.
 
@@ -17,7 +17,7 @@ in one of the following ways:
 
 2. For Single Sign-On users, the user completes an OAuth2 login flow to the configured OIDC identity
    provider (either delegated through the bundled Dex provider, or directly to a self-managed OIDC
-   provider). This JWT is signed & issued by the IDP, and expiration and revokation is handled by
+   provider). This JWT is signed & issued by the IDP, and expiration and revocation is handled by
    the provider. Dex tokens expire after 24 hours.
 
 3. Automation tokens are generated for a project using the `/api/v1/projects/{project}/roles/{role}/token`
@@ -60,7 +60,7 @@ The information is used to reconstruct a REST config and kubeconfig to the clust
 services.
 
 To rotate the bearer token used by Argo CD, the token can be deleted (e.g. using kubectl) which
-causes kuberentes to generate a new secret with a new bearer token. The new token can be re-inputted
+causes kubernetes to generate a new secret with a new bearer token. The new token can be re-inputted
 to Argo CD by re-running `argocd cluster add`. Run the following commands against the *_managed_*
 cluster:
 
@@ -83,7 +83,7 @@ argocd cluster rm https://your-kubernetes-cluster-addr
 <!-- markdownlint-disable MD027 -->
 > NOTE: for AWS EKS clusters, [aws-iam-authenticator](https://github.com/kubernetes-sigs/aws-iam-authenticator)
   is used to authenticate to the external cluster, which uses IAM roles in lieu of locally stored
-  tokens, so token rotation is not needed, and revokation is handled through IAM.
+  tokens, so token rotation is not needed, and revocation is handled through IAM.
 <!-- markdownlint-enable MD027 -->
 
 ## Cluster RBAC
@@ -153,11 +153,3 @@ Payloads from webhook events are considered untrusted. Argo CD only examines the
 the involved applications of the webhook event (e.g. which repo was modified), then refreshes
 the related application for reconciliation. This refresh is the same refresh which occurs regularly
 at three minute intervals, just fast-tracked by the webhook event.
-
-## Reporting Vulnerabilities
-
-Please report security vulnerabilities by e-mailing:
-
-* [Jesse_Suen@intuit.com](mailto:Jesse_Suen@intuit.com)
-* [Alexander_Matyushentsev@intuit.com](mailto:Alexander_Matyushentsev@intuit.com)
-* [Edward_Lee@intuit.com](mailto:Edward_Lee@intuit.com)

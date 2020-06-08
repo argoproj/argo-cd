@@ -12,6 +12,11 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver"
+	"github.com/argoproj/gitops-engine/pkg/diff"
+	"github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/gitops-engine/pkg/utils/io"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/gitops-engine/pkg/utils/text"
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -41,10 +46,8 @@ import (
 	"github.com/argoproj/argo-cd/util/argo"
 	argoutil "github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/helm"
-	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/lua"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/session"
@@ -195,7 +198,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 	if err != nil {
 		return nil, err
 	}
-	defer util.Close(conn)
+	defer io.Close(conn)
 	revision := a.Spec.Source.TargetRevision
 	if q.Revision != "" {
 		revision = q.Revision
@@ -214,18 +217,24 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		return nil, err
 	}
 	// If source is Kustomize add build options
-	buildOptions, err := s.settingsMgr.GetKustomizeBuildOptions()
+	kustomizeSettings, err := s.settingsMgr.GetKustomizeSettings()
 	if err != nil {
 		return nil, err
 	}
-	kustomizeOptions := appv1.KustomizeOptions{
-		BuildOptions: buildOptions,
+	kustomizeOptions, err := kustomizeSettings.GetOptions(a.Spec.Source)
+	if err != nil {
+		return nil, err
 	}
 	cluster, err := s.db.GetCluster(context.Background(), a.Spec.Destination.Server)
 	if err != nil {
 		return nil, err
 	}
-	cluster.ServerVersion, err = s.kubectl.GetServerVersion(cluster.RESTConfig())
+	config := cluster.RESTConfig()
+	cluster.ServerVersion, err = s.kubectl.GetServerVersion(config)
+	if err != nil {
+		return nil, err
+	}
+	apiGroups, err := s.kubectl.GetAPIGroups(config)
 	if err != nil {
 		return nil, err
 	}
@@ -238,8 +247,9 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		ApplicationSource: &a.Spec.Source,
 		Repos:             helmRepos,
 		Plugins:           plugins,
-		KustomizeOptions:  &kustomizeOptions,
+		KustomizeOptions:  kustomizeOptions,
 		KubeVersion:       cluster.ServerVersion,
+		ApiVersions:       argo.APIGroupsToVersions(apiGroups),
 	})
 	if err != nil {
 		return nil, err
@@ -664,19 +674,21 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 		}
 	}
 
-	buildOptions, err := s.settingsMgr.GetKustomizeBuildOptions()
+	// If source is Kustomize add build options
+	kustomizeSettings, err := s.settingsMgr.GetKustomizeSettings()
 	if err != nil {
 		return err
 	}
-	kustomizeOptions := appv1.KustomizeOptions{
-		BuildOptions: buildOptions,
+	kustomizeOptions, err := kustomizeSettings.GetOptions(app.Spec.Source)
+	if err != nil {
+		return err
 	}
 	plugins, err := s.plugins()
 	if err != nil {
 		return err
 	}
 
-	conditions, err := argo.ValidateRepo(ctx, app, s.repoClientset, s.db, &kustomizeOptions, plugins, s.kubectl)
+	conditions, err := argo.ValidateRepo(ctx, app, s.repoClientset, s.db, kustomizeOptions, plugins, s.kubectl)
 	if err != nil {
 		return err
 	}
@@ -832,7 +844,7 @@ func (s *Server) PatchResource(ctx context.Context, q *application.ApplicationRe
 	}, nil
 }
 
-// DeleteResource deletes a specificed resource
+// DeleteResource deletes a specified resource
 func (s *Server) DeleteResource(ctx context.Context, q *application.ApplicationResourceDeleteRequest) (*application.ApplicationResponse, error) {
 	resourceRequest := &application.ApplicationResourceRequest{
 		Name:         q.Name,
@@ -889,7 +901,7 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 	if err != nil {
 		return nil, err
 	}
-	defer util.Close(conn)
+	defer io.Close(conn)
 	return repoClient.GetRevisionMetadata(ctx, &apiclient.RepoServerRevisionMetadataRequest{Repo: repo, Revision: q.GetRevision()})
 }
 
@@ -964,7 +976,7 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 		return err
 	}
 	logCtx := log.WithField("application", q.Name)
-	defer util.Close(stream)
+	defer io.Close(stream)
 	done := make(chan bool)
 	gracefulExit := false
 	go func() {
@@ -1043,7 +1055,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionOverride, appRBACName(*a)); err != nil {
 			return nil, err
 		}
-		if a.Spec.SyncPolicy != nil {
+		if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.Automated != nil {
 			return nil, status.Error(codes.FailedPrecondition, "Cannot use local sync when Automatic Sync Policy is enabled")
 		}
 	}
@@ -1051,7 +1063,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		return nil, status.Errorf(codes.FailedPrecondition, "application is deleting")
 	}
 	if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.Automated != nil {
-		if syncReq.Revision != "" && syncReq.Revision != util.FirstNonEmpty(a.Spec.Source.TargetRevision, "HEAD") {
+		if syncReq.Revision != "" && syncReq.Revision != text.FirstNonEmpty(a.Spec.Source.TargetRevision, "HEAD") {
 			return nil, status.Errorf(codes.FailedPrecondition, "Cannot sync to %s: auto-sync currently set to %s", syncReq.Revision, a.Spec.Source.TargetRevision)
 		}
 	}
@@ -1215,7 +1227,7 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *application.
 		if a.Operation == nil || a.Status.OperationState == nil {
 			return nil, status.Errorf(codes.InvalidArgument, "Unable to terminate operation. No operation is in progress")
 		}
-		a.Status.OperationState.Phase = appv1.OperationTerminating
+		a.Status.OperationState.Phase = common.OperationTerminating
 		updated, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(a)
 		if err == nil {
 			s.waitSync(updated)
@@ -1383,10 +1395,6 @@ func (s *Server) GetApplicationSyncWindows(ctx context.Context, q *application.A
 	}
 
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)); err != nil {
-		return nil, err
-	}
-
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionGet, a.Spec.Project); err != nil {
 		return nil, err
 	}
 

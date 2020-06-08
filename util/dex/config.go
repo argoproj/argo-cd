@@ -32,6 +32,9 @@ func GenerateDexConfigYAML(settings *settings.ArgoCDSettings) ([]byte, error) {
 	dexCfg["grpc"] = map[string]interface{}{
 		"addr": "0.0.0.0:5557",
 	}
+	dexCfg["telemetry"] = map[string]interface{}{
+		"http": "0.0.0.0:5558",
+	}
 	dexCfg["oauth2"] = map[string]interface{}{
 		"skipApprovalScreen": true,
 	}

@@ -12,11 +12,12 @@ import (
 	"regexp"
 	"strings"
 
-	executil "github.com/argoproj/argo-cd/util/exec"
-	"github.com/argoproj/argo-cd/util/security"
-
 	"github.com/Masterminds/semver"
 	"github.com/TomOnTime/utfutil"
+	executil "github.com/argoproj/gitops-engine/pkg/utils/exec"
+	"github.com/argoproj/gitops-engine/pkg/utils/io"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	textutils "github.com/argoproj/gitops-engine/pkg/utils/text"
 	"github.com/ghodss/yaml"
 	"github.com/google/go-jsonnet"
 	log "github.com/sirupsen/logrus"
@@ -39,8 +40,9 @@ import (
 	"github.com/argoproj/argo-cd/util/gpg"
 	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/ksonnet"
-	"github.com/argoproj/argo-cd/util/kube"
+	argokube "github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/kustomize"
+	"github.com/argoproj/argo-cd/util/security"
 	"github.com/argoproj/argo-cd/util/text"
 )
 
@@ -90,7 +92,7 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 	s.repoLock.Lock(gitClient.Root())
 	defer s.repoLock.Unlock(gitClient.Root())
 
-	commitSHA, err = checkoutRevision(gitClient, commitSHA)
+	_, err = checkoutRevision(gitClient, commitSHA, log.WithField("repo", q.Repo.Repo))
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +128,7 @@ func (s *Service) runRepoOperation(
 	var helmClient helm.Client
 	var err error
 	var signature string
-	revision = util.FirstNonEmpty(revision, source.TargetRevision)
+	revision = textutils.FirstNonEmpty(revision, source.TargetRevision)
 	if source.IsHelm() {
 		helmClient, revision, err = s.newHelmClientResolveRevision(repo, revision, source.Chart)
 		if err != nil {
@@ -169,7 +171,7 @@ func (s *Service) runRepoOperation(
 		if err != nil {
 			return err
 		}
-		defer util.Close(closer)
+		defer io.Close(closer)
 		return operation(chartPath, chartPath, revision, "")
 	} else {
 		s.repoLock.Lock(gitClient.Root())
@@ -178,7 +180,7 @@ func (s *Service) runRepoOperation(
 		if !settings.noCache && getCached(revision) {
 			return nil
 		}
-		revision, err = checkoutRevision(gitClient, revision)
+		_, err = checkoutRevision(gitClient, revision, log.WithField("repo", repo.Repo))
 		if err != nil {
 			return err
 		}
@@ -214,7 +216,7 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	}
 	err := s.runRepoOperation(ctx, q.Revision, q.Repo, q.ApplicationSource, q.VerifySignature, getCached, func(appPath, repoRoot, revision, verifyResult string) error {
 		var err error
-		res, err = GenerateManifests(appPath, repoRoot, revision, q)
+		res, err = GenerateManifests(appPath, repoRoot, revision, q, false)
 		if err != nil {
 			return err
 		}
@@ -237,7 +239,7 @@ func getHelmRepos(repositories []*v1alpha1.Repository) []helm.HelmRepository {
 	return repos
 }
 
-func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest) ([]*unstructured.Unstructured, error) {
+func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool) ([]*unstructured.Unstructured, error) {
 	templateOpts := &helm.TemplateOpts{
 		Name:        q.AppLabelValue,
 		Namespace:   q.Namespace,
@@ -319,7 +321,8 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 	for i, j := range templateOpts.SetFile {
 		templateOpts.SetFile[i] = env.Envsubst(j)
 	}
-	h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos))
+	h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos), isLocal)
+
 	if err != nil {
 		return nil, err
 	}
@@ -346,7 +349,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 }
 
 // GenerateManifests generates manifests from a path
-func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
+func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.ManifestRequest, isLocal bool) (*apiclient.ManifestResponse, error) {
 	var targetObjs []*unstructured.Unstructured
 	var dest *v1alpha1.ApplicationDestination
 
@@ -364,9 +367,13 @@ func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.Manifest
 	case v1alpha1.ApplicationSourceTypeKsonnet:
 		targetObjs, dest, err = ksShow(q.AppLabelKey, appPath, q.ApplicationSource.Ksonnet)
 	case v1alpha1.ApplicationSourceTypeHelm:
-		targetObjs, err = helmTemplate(appPath, repoRoot, env, q)
+		targetObjs, err = helmTemplate(appPath, repoRoot, env, q, isLocal)
 	case v1alpha1.ApplicationSourceTypeKustomize:
-		k := kustomize.NewKustomizeApp(appPath, q.Repo.GetGitCreds(), repoURL)
+		kustomizeBinary := ""
+		if q.KustomizeOptions != nil {
+			kustomizeBinary = q.KustomizeOptions.BinaryPath
+		}
+		k := kustomize.NewKustomizeApp(appPath, q.Repo.GetGitCreds(), repoURL, kustomizeBinary)
 		targetObjs, _, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions)
 	case v1alpha1.ApplicationSourceTypePlugin:
 		targetObjs, err = runConfigManagementPlugin(appPath, env, q, q.Repo.GetGitCreds())
@@ -404,7 +411,7 @@ func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.Manifest
 
 		for _, target := range targets {
 			if q.AppLabelKey != "" && q.AppLabelValue != "" && !kube.IsCRD(target) {
-				err = kube.SetAppInstanceLabel(target, q.AppLabelKey, q.AppLabelValue)
+				err = argokube.SetAppInstanceLabel(target, q.AppLabelKey, q.AppLabelValue)
 				if err != nil {
 					return nil, err
 				}
@@ -543,7 +550,7 @@ func findManifests(appPath string, env *v1alpha1.Env, directory v1alpha1.Applica
 			vm.Importer(&jsonnet.FileImporter{
 				JPaths: []string{appPath},
 			})
-			jsonStr, err := vm.EvaluateSnippet(f.Name(), string(out))
+			jsonStr, err := vm.EvaluateSnippet(path, string(out))
 			if err != nil {
 				return status.Errorf(codes.FailedPrecondition, "Failed to evaluate jsonnet %q: %v", f.Name(), err)
 			}
@@ -643,6 +650,8 @@ func runConfigManagementPlugin(appPath string, envVars *v1alpha1.Env, q *apiclie
 		env = append(env, environ...)
 	}
 	env = append(env, q.ApplicationSource.Plugin.Env.Environ()...)
+	env = append(env, "KUBE_VERSION="+q.KubeVersion)
+	env = append(env, "KUBE_API_VERSIONS="+strings.Join(q.ApiVersions, ","))
 	if plugin.Init != nil {
 		_, err := runCommand(*plugin.Init, appPath, env)
 		if err != nil {
@@ -721,7 +730,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 					res.Helm.ValueFiles = append(res.Helm.ValueFiles, fName)
 				}
 			}
-			h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos))
+			h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos), false)
 			if err != nil {
 				return err
 			}
@@ -757,7 +766,11 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 			}
 		case v1alpha1.ApplicationSourceTypeKustomize:
 			res.Kustomize = &apiclient.KustomizeAppSpec{}
-			k := kustomize.NewKustomizeApp(appPath, q.Repo.GetGitCreds(), q.Repo.Repo)
+			kustomizeBinary := ""
+			if q.KustomizeOptions != nil {
+				kustomizeBinary = q.KustomizeOptions.BinaryPath
+			}
+			k := kustomize.NewKustomizeApp(appPath, q.Repo.GetGitCreds(), q.Repo.Repo, kustomizeBinary)
 			_, images, err := k.Build(nil, q.KustomizeOptions)
 			if err != nil {
 				return err
@@ -798,7 +811,7 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 	s.repoLock.Lock(gitClient.Root())
 	defer s.repoLock.Unlock(gitClient.Root())
 
-	_, err = checkoutRevision(gitClient, q.Revision)
+	_, err = checkoutRevision(gitClient, q.Revision, log.WithField("repo", q.Repo.Repo))
 	if err != nil {
 		return nil, err
 	}
@@ -896,7 +909,8 @@ func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revisi
 
 // checkoutRevision is a convenience function to initialize a repo, fetch, and checkout a revision
 // Returns the 40 character commit SHA after the checkout has been performed
-func checkoutRevision(gitClient git.Client, commitSHA string) (string, error) {
+// nolint:unparam
+func checkoutRevision(gitClient git.Client, commitSHA string, logEntry *log.Entry) (string, error) {
 	err := gitClient.Init()
 	if err != nil {
 		return "", status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
@@ -909,7 +923,11 @@ func checkoutRevision(gitClient git.Client, commitSHA string) (string, error) {
 	if err != nil {
 		return "", status.Errorf(codes.Internal, "Failed to checkout %s: %v", commitSHA, err)
 	}
-	return gitClient.CommitSHA()
+	sha, err := gitClient.CommitSHA()
+	if err == nil && git.IsCommitSHA(commitSHA) && sha != commitSHA {
+		logEntry.Warnf("'git checkout %s' has switched repo to unexpected commit: %s", commitSHA, sha)
+	}
+	return sha, err
 }
 
 func (s *Service) GetHelmCharts(ctx context.Context, q *apiclient.HelmChartsRequest) (*apiclient.HelmChartsResponse, error) {

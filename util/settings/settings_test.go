@@ -7,6 +7,7 @@ import (
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 
+	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -65,7 +66,7 @@ func TestSaveRepositories(t *testing.T) {
 	assert.ElementsMatch(t, repos, []Repository{{URL: "http://foo"}})
 }
 
-func TestSaveRepositoresNoConfigMap(t *testing.T) {
+func TestSaveRepositoriesNoConfigMap(t *testing.T) {
 	kubeClient := fake.NewSimpleClientset()
 	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
 
@@ -158,22 +159,92 @@ func TestGetResourceOverrides(t *testing.T) {
 	}, webHookOverrides)
 }
 
+func TestGetResourceCompareOptions(t *testing.T) {
+	// ignoreAggregatedRules is true
+	{
+		_, settingsManager := fixtures(map[string]string{
+			"resource.compareoptions": "ignoreAggregatedRoles: true",
+		})
+		compareOptions, err := settingsManager.GetResourceCompareOptions()
+		assert.NoError(t, err)
+		assert.True(t, compareOptions.IgnoreAggregatedRoles)
+	}
+
+	// ignoreAggregatedRules is false
+	{
+		_, settingsManager := fixtures(map[string]string{
+			"resource.compareoptions": "ignoreAggregatedRoles: false",
+		})
+		compareOptions, err := settingsManager.GetResourceCompareOptions()
+		assert.NoError(t, err)
+		assert.False(t, compareOptions.IgnoreAggregatedRoles)
+	}
+
+	// The empty resource.compareoptions should result in default being returned
+	{
+		_, settingsManager := fixtures(map[string]string{
+			"resource.compareoptions": "",
+		})
+		compareOptions, err := settingsManager.GetResourceCompareOptions()
+		defaultOptions := diff.GetDefaultDiffOptions()
+		assert.NoError(t, err)
+		assert.Equal(t, defaultOptions.IgnoreAggregatedRoles, compareOptions.IgnoreAggregatedRoles)
+	}
+
+	// resource.compareoptions not defined - should result in default being returned
+	{
+		_, settingsManager := fixtures(map[string]string{})
+		compareOptions, err := settingsManager.GetResourceCompareOptions()
+		defaultOptions := diff.GetDefaultDiffOptions()
+		assert.NoError(t, err)
+		assert.Equal(t, defaultOptions.IgnoreAggregatedRoles, compareOptions.IgnoreAggregatedRoles)
+	}
+}
+
 func TestSettingsManager_GetKustomizeBuildOptions(t *testing.T) {
 	t.Run("Empty", func(t *testing.T) {
 		_, settingsManager := fixtures(map[string]string{})
 
-		options, err := settingsManager.GetKustomizeBuildOptions()
+		settings, err := settingsManager.GetKustomizeSettings()
 
 		assert.NoError(t, err)
-		assert.Empty(t, options)
+		assert.Empty(t, settings.BuildOptions)
+		assert.Empty(t, settings.Versions)
 	})
 	t.Run("Set", func(t *testing.T) {
-		_, settingsManager := fixtures(map[string]string{"kustomize.buildOptions": "foo"})
+		_, settingsManager := fixtures(map[string]string{
+			"kustomize.buildOptions":   "foo",
+			"kustomize.version.v3.2.1": "somePath",
+		})
 
-		options, err := settingsManager.GetKustomizeBuildOptions()
+		options, err := settingsManager.GetKustomizeSettings()
 
 		assert.NoError(t, err)
-		assert.Equal(t, "foo", options)
+		assert.Equal(t, "foo", options.BuildOptions)
+		assert.Equal(t, []KustomizeVersion{{Name: "v3.2.1", Path: "somePath"}}, options.Versions)
+	})
+}
+
+func TestKustomizeSettings_GetOptions(t *testing.T) {
+	settings := KustomizeSettings{Versions: []KustomizeVersion{
+		{Name: "v1", Path: "path_v1"},
+		{Name: "v2", Path: "path_v2"},
+		{Name: "v3", Path: "path_v3"},
+	}}
+
+	t.Run("VersionDoesNotExist", func(t *testing.T) {
+		_, err := settings.GetOptions(v1alpha1.ApplicationSource{
+			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v4"}})
+		assert.Error(t, err)
+	})
+
+	t.Run("VersionExists", func(t *testing.T) {
+		ver, err := settings.GetOptions(v1alpha1.ApplicationSource{
+			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v2"}})
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Equal(t, "path_v2", ver.BinaryPath)
 	})
 }
 

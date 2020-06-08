@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/argoproj/argo-cd/util/kube"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
@@ -23,7 +23,7 @@ func template(h Helm, opts *TemplateOpts) ([]*unstructured.Unstructured, error) 
 }
 
 func TestHelmTemplateParams(t *testing.T) {
-	h, err := NewHelmApp("./testdata/minio", []HelmRepository{})
+	h, err := NewHelmApp("./testdata/minio", []HelmRepository{}, false)
 	assert.NoError(t, err)
 	opts := TemplateOpts{
 		Name: "test",
@@ -52,7 +52,7 @@ func TestHelmTemplateParams(t *testing.T) {
 }
 
 func TestHelmTemplateValues(t *testing.T) {
-	h, err := NewHelmApp("./testdata/redis", []HelmRepository{})
+	h, err := NewHelmApp("./testdata/redis", []HelmRepository{}, false)
 	assert.NoError(t, err)
 	opts := TemplateOpts{
 		Name:   "test",
@@ -73,7 +73,7 @@ func TestHelmTemplateValues(t *testing.T) {
 }
 
 func TestHelmGetParams(t *testing.T) {
-	h, err := NewHelmApp("./testdata/redis", nil)
+	h, err := NewHelmApp("./testdata/redis", nil, false)
 	assert.NoError(t, err)
 	params, err := h.GetParameters([]string{})
 	assert.Nil(t, err)
@@ -83,7 +83,7 @@ func TestHelmGetParams(t *testing.T) {
 }
 
 func TestHelmGetParamsValueFiles(t *testing.T) {
-	h, err := NewHelmApp("./testdata/redis", nil)
+	h, err := NewHelmApp("./testdata/redis", nil, false)
 	assert.NoError(t, err)
 	params, err := h.GetParameters([]string{"values-production.yaml"})
 	assert.Nil(t, err)
@@ -103,7 +103,7 @@ func TestHelmDependencyBuild(t *testing.T) {
 			}
 			clean()
 			defer clean()
-			h, err := NewHelmApp(fmt.Sprintf("./testdata/%s", chart), nil)
+			h, err := NewHelmApp(fmt.Sprintf("./testdata/%s", chart), nil, false)
 			assert.NoError(t, err)
 			err = h.Init()
 			assert.NoError(t, err)
@@ -118,7 +118,7 @@ func TestHelmDependencyBuild(t *testing.T) {
 }
 
 func TestHelmTemplateReleaseNameOverwrite(t *testing.T) {
-	h, err := NewHelmApp("./testdata/redis", nil)
+	h, err := NewHelmApp("./testdata/redis", nil, false)
 	assert.NoError(t, err)
 
 	objs, err := template(h, &TemplateOpts{Name: "my-release"})
@@ -136,7 +136,7 @@ func TestHelmTemplateReleaseNameOverwrite(t *testing.T) {
 }
 
 func TestHelmTemplateReleaseName(t *testing.T) {
-	h, err := NewHelmApp("./testdata/redis", nil)
+	h, err := NewHelmApp("./testdata/redis", nil, false)
 	assert.NoError(t, err)
 	objs, err := template(h, &TemplateOpts{Name: "test"})
 	assert.Nil(t, err)
@@ -195,7 +195,7 @@ func Test_flatVals(t *testing.T) {
 }
 
 func TestAPIVersions(t *testing.T) {
-	h, err := NewHelmApp("./testdata/api-versions", nil)
+	h, err := NewHelmApp("./testdata/api-versions", nil, false)
 	if !assert.NoError(t, err) {
 		return
 	}

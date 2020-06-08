@@ -72,6 +72,10 @@ func (p *RBACPolicyEnforcer) SetScopes(scopes []string) {
 	p.scopes = scopes
 }
 
+func (p *RBACPolicyEnforcer) GetScopes() []string {
+	return p.scopes
+}
+
 func IsProjectSubject(subject string) bool {
 	return strings.HasPrefix(subject, "proj:")
 }
@@ -159,11 +163,17 @@ func (p *RBACPolicyEnforcer) enforceProjectToken(subject string, claims jwt.MapC
 		// this should never happen (we generated a project token for a different project)
 		return false
 	}
-	iat, err := jwtutil.GetIssuedAt(claims)
-	if err != nil {
-		return false
+
+	var iat int64 = -1
+	jti, err := jwtutil.GetID(claims)
+	if err != nil || jti == "" {
+		iat, err = jwtutil.GetIssuedAt(claims)
+		if err != nil {
+			return false
+		}
 	}
-	_, _, err = proj.GetJWTToken(roleName, iat)
+
+	_, _, err = proj.GetJWTToken(roleName, iat, jti)
 	if err != nil {
 		// if we get here the token is still valid, but has been revoked (no longer exists in the project)
 		return false

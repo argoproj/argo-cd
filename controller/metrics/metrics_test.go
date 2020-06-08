@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -227,11 +228,11 @@ argocd_app_sync_total{dest_server="https://localhost:6443",name="my-app",namespa
 `
 
 	fakeApp := newFakeApp(fakeApp)
-	metricsServ.IncSync(fakeApp, &argoappv1.OperationState{Phase: argoappv1.OperationRunning})
-	metricsServ.IncSync(fakeApp, &argoappv1.OperationState{Phase: argoappv1.OperationFailed})
-	metricsServ.IncSync(fakeApp, &argoappv1.OperationState{Phase: argoappv1.OperationError})
-	metricsServ.IncSync(fakeApp, &argoappv1.OperationState{Phase: argoappv1.OperationSucceeded})
-	metricsServ.IncSync(fakeApp, &argoappv1.OperationState{Phase: argoappv1.OperationSucceeded})
+	metricsServ.IncSync(fakeApp, &argoappv1.OperationState{Phase: common.OperationRunning})
+	metricsServ.IncSync(fakeApp, &argoappv1.OperationState{Phase: common.OperationFailed})
+	metricsServ.IncSync(fakeApp, &argoappv1.OperationState{Phase: common.OperationError})
+	metricsServ.IncSync(fakeApp, &argoappv1.OperationState{Phase: common.OperationSucceeded})
+	metricsServ.IncSync(fakeApp, &argoappv1.OperationState{Phase: common.OperationSucceeded})
 
 	req, err := http.NewRequest("GET", "/metrics", nil)
 	assert.NoError(t, err)

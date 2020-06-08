@@ -10,12 +10,12 @@ import (
 	"time"
 
 	"bou.ke/monkey"
+	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/lua"
 )
 
@@ -67,7 +67,9 @@ func TestLuaResourceActionsScript(t *testing.T) {
 				assert.NoError(t, err)
 				result, err := vm.ExecuteResourceActionDiscovery(obj, discoveryLua)
 				assert.NoError(t, err)
-				assert.Equal(t, test.Result, result)
+				for i := range result {
+					assert.Contains(t, test.Result, result[i])
+				}
 			})
 		}
 		for i := range resourceTest.ActionTests {
@@ -92,7 +94,7 @@ func TestLuaResourceActionsScript(t *testing.T) {
 				assert.NoError(t, err)
 				expectedObj := getObj(filepath.Join(dir, test.ExpectedOutputPath))
 				// Ideally, we would use a assert.Equal to detect the difference, but the Lua VM returns a object with float64 instead of the original int32.  As a result, the assert.Equal is never true despite that the change has been applied.
-				diffResult, err := diff.Diff(expectedObj, result, testNormalizer{})
+				diffResult, err := diff.Diff(expectedObj, result, testNormalizer{}, diff.GetDefaultDiffOptions())
 				assert.NoError(t, err)
 				if diffResult.Modified {
 					t.Error("Output does not match input:")

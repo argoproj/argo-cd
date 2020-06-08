@@ -180,6 +180,7 @@ export interface ApplicationSourceKustomize {
     namePrefix: string;
     nameSuffix: string;
     images: string[];
+    version: string;
 }
 
 export interface ApplicationSourceKsonnet {
@@ -395,6 +396,7 @@ export interface AuthSettings {
     };
     plugins: Plugin[];
     userLoginsDisabled: boolean;
+    kustomizeVersions: string[];
 }
 
 export interface UserInfo {
@@ -577,6 +579,7 @@ export interface ProjectRole {
 export interface JwtToken {
     iat: number;
     exp: number;
+    id: string;
 }
 
 export interface GroupKind {
@@ -591,6 +594,7 @@ export interface ProjectSpec {
     roles: ProjectRole[];
     clusterResourceWhitelist: GroupKind[];
     namespaceResourceBlacklist: GroupKind[];
+    namespaceResourceWhitelist: GroupKind[];
     orphanedResources?: {warn?: boolean};
     syncWindows?: SyncWindows;
 }

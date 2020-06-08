@@ -71,7 +71,7 @@ func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRe
 		if err != nil {
 			return nil, err
 		}
-		if time.Now().Sub(iat) > common.ChangePasswordSSOTokenMaxAge {
+		if time.Since(iat) > common.ChangePasswordSSOTokenMaxAge {
 			return nil, errors.New("SSO token is too old. Please use 'argocd relogin' to get a new token.")
 		}
 	}
@@ -180,19 +180,26 @@ func (s *Server) CreateToken(ctx context.Context, r *account.CreateTokenRequest)
 		return nil, err
 	}
 
+	id := r.Id
+	if id == "" {
+		uniqueId, err := uuid.NewRandom()
+		if err != nil {
+			return nil, err
+		}
+		id = uniqueId.String()
+	}
+
 	var tokenString string
 	err := s.settingsMgr.UpdateAccount(r.Name, func(account *settings.Account) error {
+		if account.TokenIndex(id) > -1 {
+			return fmt.Errorf("account already has token with id '%s'", id)
+		}
 		if !account.HasCapability(settings.AccountCapabilityApiKey) {
 			return fmt.Errorf("account '%s' does not have %s capability", r.Name, settings.AccountCapabilityApiKey)
 		}
 
-		var err error
-		uniqueId, err := uuid.NewRandom()
-		if err != nil {
-			return err
-		}
-		id := uniqueId.String()
 		now := time.Now()
+		var err error
 		tokenString, err = s.sessionMgr.Create(r.Name, r.ExpiresIn, id)
 		if err != nil {
 			return err
@@ -225,7 +232,7 @@ func (s *Server) DeleteToken(ctx context.Context, r *account.DeleteTokenRequest)
 			account.Tokens = append(account.Tokens[:index], account.Tokens[index+1:]...)
 			return nil
 		}
-		return status.Errorf(codes.NotFound, "token with id '%s'does not exist", r.Id)
+		return status.Errorf(codes.NotFound, "token with id '%s' does not exist", r.Id)
 	})
 	if err != nil {
 		return nil, err

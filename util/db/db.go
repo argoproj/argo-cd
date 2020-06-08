@@ -15,8 +15,11 @@ type ArgoDB interface {
 	ListClusters(ctx context.Context) (*appv1.ClusterList, error)
 	// CreateCluster creates a cluster
 	CreateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Cluster, error)
-	// WatchClusters allow watching for cluster events
-	WatchClusters(ctx context.Context, callback func(*ClusterEvent)) error
+	// WatchClusters allow watching for cluster informer
+	WatchClusters(ctx context.Context,
+		handleAddEvent func(cluster *appv1.Cluster),
+		handleModEvent func(oldCluster *appv1.Cluster, newCluster *appv1.Cluster),
+		handleDeleteEvent func(clusterServer string)) error
 	// Get returns a cluster from a query
 	GetCluster(ctx context.Context, server string) (*appv1.Cluster, error)
 	// UpdateCluster updates a cluster
@@ -47,7 +50,7 @@ type ArgoDB interface {
 	// DeleteRepoCredentials deletes a repository credential set from config
 	DeleteRepositoryCredentials(ctx context.Context, name string) error
 
-	// ListRepoCerticifates lists all configured certificates
+	// ListRepoCertificates lists all configured certificates
 	ListRepoCertificates(ctx context.Context, selector *CertificateListSelector) (*appv1.RepositoryCertificateList, error)
 	// CreateRepoCertificate creates a new certificate entry
 	CreateRepoCertificate(ctx context.Context, certificate *appv1.RepositoryCertificateList, upsert bool) (*appv1.RepositoryCertificateList, error)

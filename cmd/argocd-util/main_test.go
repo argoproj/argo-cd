@@ -27,6 +27,8 @@ connectors:
   type: ldap
 grpc:
   addr: 0.0.0.0:5557
+telemetry:
+  http: 0.0.0.0:5558
 issuer: https://argocd.example.com/api/dex
 oauth2:
   skipApprovalScreen: true
@@ -81,6 +83,8 @@ staticClients:
   - http://localhost
 storage:
   type: memory
+telemetry:
+  http: 0.0.0.0:5558
 web:
   http: 0.0.0.0:5556
 `

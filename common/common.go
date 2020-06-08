@@ -107,14 +107,7 @@ const (
 
 	// AnnotationCompareOptions is a comma-separated list of options for comparison
 	AnnotationCompareOptions = "argocd.argoproj.io/compare-options"
-	// AnnotationSyncOptions is a comma-separated list of options for syncing
-	AnnotationSyncOptions = "argocd.argoproj.io/sync-options"
-	// AnnotationSyncWave indicates which wave of the sync the resource or hook should be in
-	AnnotationSyncWave = "argocd.argoproj.io/sync-wave"
-	// AnnotationKeyHook contains the hook type of a resource
-	AnnotationKeyHook = "argocd.argoproj.io/hook"
-	// AnnotationKeyHookDeletePolicy is the policy of deleting a hook
-	AnnotationKeyHookDeletePolicy = "argocd.argoproj.io/hook-delete-policy"
+
 	// AnnotationKeyRefresh is the annotation key which indicates that app needs to be refreshed. Removed by application controller after app is refreshed.
 	// Might take values 'normal'/'hard'. Value 'hard' means manifest cache and target cluster state cache should be invalidated before refresh.
 	AnnotationKeyRefresh = "argocd.argoproj.io/refresh"
@@ -124,6 +117,15 @@ const (
 	AnnotationValueManagedByArgoCD = "argocd.argoproj.io"
 	// ResourcesFinalizerName the finalizer value which we inject to finalize deletion of an application
 	ResourcesFinalizerName = "resources-finalizer.argocd.argoproj.io"
+
+	// AnnotationKeyModifiedAt is the annotation key which indicates when cluster is synced
+	AnnotationKeyModifiedAt = "modifiedAt"
+	// AnnotationKeyModifiedAt is the annotation key which indicates cluster server version
+	AnnotationKeyServerVersion = "serverVersion"
+	// AnnotationMessage is the annotation key which contains message
+	AnnotationKeyMessage = "message"
+	// AnnotationStatus is the annotation key which contains status
+	AnnotationKeyStatus = "status"
 )
 
 // Environment variables for tuning and debugging Argo CD
@@ -155,7 +157,7 @@ const (
 	// MinClientVersion is the minimum client version that can interface with this API server.
 	// When introducing breaking changes to the API or datastructures, this number should be bumped.
 	// The value here may be lower than the current value in VERSION
-	MinClientVersion = "1.3.0"
+	MinClientVersion = "1.4.0"
 	// CacheVersion is a objects version cached using util/cache/cache.go.
 	// Number should be bumped in case of backward incompatible change to make sure cache is invalidated after upgrade.
 	CacheVersion = "1.0.0"

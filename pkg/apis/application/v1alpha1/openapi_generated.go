@@ -51,6 +51,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.InfoItem":                         schema_pkg_apis_application_v1alpha1_InfoItem(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.JWTToken":                         schema_pkg_apis_application_v1alpha1_JWTToken(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.JsonnetVar":                       schema_pkg_apis_application_v1alpha1_JsonnetVar(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.KnownTypeField":                   schema_pkg_apis_application_v1alpha1_KnownTypeField(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.KsonnetParameter":                 schema_pkg_apis_application_v1alpha1_KsonnetParameter(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.KustomizeOptions":                 schema_pkg_apis_application_v1alpha1_KustomizeOptions(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Operation":                        schema_pkg_apis_application_v1alpha1_Operation(ref),
@@ -793,6 +794,13 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref common.
 									},
 								},
 							},
+						},
+					},
+					"version": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Version contains optional Kustomize version",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 				},
@@ -1684,6 +1692,12 @@ func schema_pkg_apis_application_v1alpha1_JWTToken(ref common.ReferenceCallback)
 							Format: "int64",
 						},
 					},
+					"id": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
 				},
 				Required: []string{"iat"},
 			},
@@ -1718,6 +1732,31 @@ func schema_pkg_apis_application_v1alpha1_JsonnetVar(ref common.ReferenceCallbac
 					},
 				},
 				Required: []string{"name", "value"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_KnownTypeField(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "KnownTypeField contains mapping between CRD field and known Kubernetes type",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"field": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"type": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
 			},
 		},
 	}
@@ -1769,8 +1808,15 @@ func schema_pkg_apis_application_v1alpha1_KustomizeOptions(ref common.ReferenceC
 							Format:      "",
 						},
 					},
+					"BinaryPath": {
+						SchemaProps: spec.SchemaProps{
+							Description: "BinaryPath holds optional path to kustomize binary",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
-				Required: []string{"BuildOptions"},
+				Required: []string{"BuildOptions", "BinaryPath"},
 			},
 		},
 	}
@@ -2754,9 +2800,23 @@ func schema_pkg_apis_application_v1alpha1_ResourceOverride(ref common.ReferenceC
 							Format: "",
 						},
 					},
+					"knownTypeFields": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.KnownTypeField"),
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.KnownTypeField"},
 	}
 }
 
@@ -3250,7 +3310,7 @@ func schema_pkg_apis_application_v1alpha1_SyncPolicy(ref common.ReferenceCallbac
 					},
 					"syncOptions": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Options allow youe to specify whole app sync-options",
+							Description: "Options allow you to specify whole app sync-options",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{

@@ -4,9 +4,12 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 
-	"github.com/dgrijalva/jwt-go"
+	"github.com/google/uuid"
+
+	jwt "github.com/dgrijalva/jwt-go"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	v1 "k8s.io/api/core/v1"
@@ -36,6 +39,7 @@ const (
 type Server struct {
 	ns            string
 	enf           *rbac.Enforcer
+	policyEnf     *rbacpolicy.RBACPolicyEnforcer
 	appclientset  appclientset.Interface
 	kubeclientset kubernetes.Interface
 	auditLogger   *argo.AuditLogger
@@ -44,9 +48,9 @@ type Server struct {
 }
 
 // NewServer returns a new instance of the Project service
-func NewServer(ns string, kubeclientset kubernetes.Interface, appclientset appclientset.Interface, enf *rbac.Enforcer, projectLock *util.KeyLock, sessionMgr *session.SessionManager) *Server {
+func NewServer(ns string, kubeclientset kubernetes.Interface, appclientset appclientset.Interface, enf *rbac.Enforcer, projectLock *util.KeyLock, sessionMgr *session.SessionManager, policyEnf *rbacpolicy.RBACPolicyEnforcer) *Server {
 	auditLogger := argo.NewAuditLogger(ns, kubeclientset, "argocd-server")
-	return &Server{enf: enf, appclientset: appclientset, kubeclientset: kubeclientset, ns: ns, projectLock: projectLock, auditLogger: auditLogger, sessionMgr: sessionMgr}
+	return &Server{enf: enf, policyEnf: policyEnf, appclientset: appclientset, kubeclientset: kubeclientset, ns: ns, projectLock: projectLock, auditLogger: auditLogger, sessionMgr: sessionMgr}
 }
 
 func validateProject(proj *v1alpha1.AppProject) error {
@@ -80,12 +84,20 @@ func (s *Server) CreateToken(ctx context.Context, q *project.ProjectTokenCreateR
 		return nil, status.Errorf(codes.NotFound, "project '%s' does not have role '%s'", q.Project, q.Role)
 	}
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionUpdate, q.Project); err != nil {
-		if !jwtutil.IsMember(jwtutil.Claims(ctx.Value("claims")), role.Groups) {
+		if !jwtutil.IsMember(jwtutil.Claims(ctx.Value("claims")), role.Groups, s.policyEnf.GetScopes()) {
 			return nil, err
 		}
 	}
-	tokenName := fmt.Sprintf(JWTTokenSubFormat, q.Project, q.Role)
-	jwtToken, err := s.sessionMgr.Create(tokenName, q.ExpiresIn, "")
+	id := q.Id
+	if err := prj.ValidateJWTTokenID(q.Role, q.Id); err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
+	if id == "" {
+		uniqueId, _ := uuid.NewRandom()
+		id = uniqueId.String()
+	}
+	subject := fmt.Sprintf(JWTTokenSubFormat, q.Project, q.Role)
+	jwtToken, err := s.sessionMgr.Create(subject, q.ExpiresIn, id)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -99,8 +111,9 @@ func (s *Server) CreateToken(ctx context.Context, q *project.ProjectTokenCreateR
 	}
 	issuedAt := claims.IssuedAt
 	expiresAt := claims.ExpiresAt
+	id = claims.Id
 
-	prj.Spec.Roles[index].JWTTokens = append(prj.Spec.Roles[index].JWTTokens, v1alpha1.JWTToken{IssuedAt: issuedAt, ExpiresAt: expiresAt})
+	prj.Spec.Roles[index].JWTTokens = append(prj.Spec.Roles[index].JWTTokens, v1alpha1.JWTToken{IssuedAt: issuedAt, ExpiresAt: expiresAt, ID: id})
 	_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(prj)
 	if err != nil {
 		return nil, err
@@ -129,11 +142,11 @@ func (s *Server) DeleteToken(ctx context.Context, q *project.ProjectTokenDeleteR
 		return &project.EmptyResponse{}, nil
 	}
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionUpdate, q.Project); err != nil {
-		if !jwtutil.IsMember(jwtutil.Claims(ctx.Value("claims")), role.Groups) {
+		if !jwtutil.IsMember(jwtutil.Claims(ctx.Value("claims")), role.Groups, s.policyEnf.GetScopes()) {
 			return nil, err
 		}
 	}
-	_, jwtTokenIndex, err := prj.GetJWTToken(q.Role, q.Iat)
+	_, jwtTokenIndex, err := prj.GetJWTToken(q.Role, q.Iat, q.Id)
 	if err != nil {
 		return &project.EmptyResponse{}, nil
 	}
@@ -203,7 +216,20 @@ func (s *Server) Get(ctx context.Context, q *project.ProjectQuery) (*v1alpha1.Ap
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionGet, q.Name); err != nil {
 		return nil, err
 	}
-	return s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Name, metav1.GetOptions{})
+	proj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	for i, role := range proj.Spec.Roles {
+		for j, token := range role.JWTTokens {
+			if token.ID == "" {
+				token.ID = strconv.FormatInt(token.IssuedAt, 10)
+				role.JWTTokens[j] = token
+			}
+		}
+		proj.Spec.Roles[i] = role
+	}
+	return proj, err
 }
 
 // Update updates a project

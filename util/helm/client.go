@@ -17,11 +17,12 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver"
+	executil "github.com/argoproj/gitops-engine/pkg/utils/exec"
+	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 
 	"github.com/argoproj/argo-cd/util"
-	executil "github.com/argoproj/argo-cd/util/exec"
 )
 
 var (
@@ -29,16 +30,17 @@ var (
 )
 
 type Creds struct {
-	Username string
-	Password string
-	CAPath   string
-	CertData []byte
-	KeyData  []byte
+	Username           string
+	Password           string
+	CAPath             string
+	CertData           []byte
+	KeyData            []byte
+	InsecureSkipVerify bool
 }
 
 type Client interface {
 	CleanChartCache(chart string, version *semver.Version) error
-	ExtractChart(chart string, version *semver.Version) (string, util.Closer, error)
+	ExtractChart(chart string, version *semver.Version) (string, io.Closer, error)
 	GetIndex() (*Index, error)
 }
 
@@ -88,7 +90,7 @@ func (c *nativeHelmChart) CleanChartCache(chart string, version *semver.Version)
 	return os.RemoveAll(c.getChartPath(chart, version))
 }
 
-func (c *nativeHelmChart) ExtractChart(chart string, version *semver.Version) (string, util.Closer, error) {
+func (c *nativeHelmChart) ExtractChart(chart string, version *semver.Version) (string, io.Closer, error) {
 	err := c.ensureHelmChartRepoPath()
 	if err != nil {
 		return "", nil, err
@@ -151,7 +153,7 @@ func (c *nativeHelmChart) ExtractChart(chart string, version *semver.Version) (s
 		_ = os.RemoveAll(tempDir)
 		return "", nil, err
 	}
-	return path.Join(tempDir, chart), util.NewCloser(func() error {
+	return path.Join(tempDir, chart), io.NewCloser(func() error {
 		return os.RemoveAll(tempDir)
 	}), nil
 }
@@ -213,7 +215,7 @@ func (c *nativeHelmChart) loadRepoIndex() ([]byte, error) {
 }
 
 func newTLSConfig(creds Creds) (*tls.Config, error) {
-	tlsConfig := &tls.Config{InsecureSkipVerify: false}
+	tlsConfig := &tls.Config{InsecureSkipVerify: creds.InsecureSkipVerify}
 
 	if creds.CAPath != "" {
 		caData, err := ioutil.ReadFile(creds.CAPath)
@@ -233,6 +235,7 @@ func newTLSConfig(creds Creds) (*tls.Config, error) {
 		}
 		tlsConfig.Certificates = []tls.Certificate{cert}
 	}
+	// nolint:staticcheck
 	tlsConfig.BuildNameToCertificate()
 
 	return tlsConfig, nil

@@ -12,6 +12,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/diff"
+	"github.com/argoproj/gitops-engine/pkg/health"
+	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/gitops-engine/pkg/utils/errors"
+	"github.com/argoproj/gitops-engine/pkg/utils/io"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
 	v1 "k8s.io/api/core/v1"
@@ -31,7 +37,6 @@ import (
 	"github.com/argoproj/argo-cd/common"
 	statecache "github.com/argoproj/argo-cd/controller/cache"
 	"github.com/argoproj/argo-cd/controller/metrics"
-	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/pkg/apis/application"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
@@ -39,12 +44,9 @@ import (
 	"github.com/argoproj/argo-cd/pkg/client/informers/externalversions/application/v1alpha1"
 	applisters "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
 	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
 	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/argo-cd/util/diff"
-	"github.com/argoproj/argo-cd/util/kube"
 	settings_util "github.com/argoproj/argo-cd/util/settings"
 )
 
@@ -167,7 +169,11 @@ func NewApplicationController(
 	return &ctrl, nil
 }
 
-func (ctrl *ApplicationController) onKubectlRun(command string) (util.Closer, error) {
+func (ctrl *ApplicationController) GetMetricsServer() *metrics.MetricsServer {
+	return ctrl.metricsServer
+}
+
+func (ctrl *ApplicationController) onKubectlRun(command string) (io.Closer, error) {
 	ctrl.metricsServer.IncKubectlExec(command)
 	if ctrl.kubectlSemaphore != nil {
 		if err := ctrl.kubectlSemaphore.Acquire(context.Background(), 1); err != nil {
@@ -175,7 +181,7 @@ func (ctrl *ApplicationController) onKubectlRun(command string) (util.Closer, er
 		}
 		ctrl.metricsServer.IncKubectlExecPending(command)
 	}
-	return util.NewCloser(func() error {
+	return io.NewCloser(func() error {
 		if ctrl.kubectlSemaphore != nil {
 			ctrl.kubectlSemaphore.Release(1)
 			ctrl.metricsServer.DecKubectlExecPending(command)
@@ -359,7 +365,11 @@ func (ctrl *ApplicationController) managedResources(comparisonResult *comparison
 			if err != nil {
 				return nil, err
 			}
-			resDiffPtr, err := diff.Diff(target, live, comparisonResult.diffNormalizer)
+			compareOptions, err := ctrl.settingsMgr.GetResourceCompareOptions()
+			if err != nil {
+				return nil, err
+			}
+			resDiffPtr, err := diff.Diff(target, live, comparisonResult.diffNormalizer, compareOptions)
 			if err != nil {
 				return nil, err
 			}
@@ -406,6 +416,8 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 	defer ctrl.appOperationQueue.ShutDown()
 
 	ctrl.metricsServer.RegisterClustersInfoSource(ctx, ctrl.stateCache)
+	ctrl.RegisterClusterSecretUpdater(ctx)
+
 	go ctrl.appInformer.Run(ctx.Done())
 	go ctrl.projInformer.Run(ctx.Done())
 
@@ -539,7 +551,7 @@ func (ctrl *ApplicationController) processAppComparisonTypeQueueItem() (processN
 	return
 }
 
-// shouldbeDeleted returns whether a given resource obj should be deleted on cascade delete of application app
+// shouldBeDeleted returns whether a given resource obj should be deleted on cascade delete of application app
 func (ctrl *ApplicationController) shouldBeDeleted(app *appv1.Application, obj *unstructured.Unstructured) bool {
 	return !kube.IsCRD(obj) && !isSelfReferencedApp(app, kube.GetObjectRef(obj))
 }
@@ -592,7 +604,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	}
 	config := metrics.AddMetricsTransportWrapper(ctrl.metricsServer, app, cluster.RESTConfig())
 
-	err = util.RunAllAsync(len(objs), func(i int) error {
+	err = kube.RunAllAsync(len(objs), func(i int) error {
 		obj := objs[i]
 		return ctrl.kubectl.DeleteResource(config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), false)
 	})
@@ -662,7 +674,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	defer func() {
 		if r := recover(); r != nil {
 			logCtx.Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
-			state.Phase = appv1.OperationError
+			state.Phase = synccommon.OperationError
 			if rerr, ok := r.(error); ok {
 				state.Message = rerr.Error()
 			} else {
@@ -689,20 +701,20 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		state = app.Status.OperationState.DeepCopy()
 		logCtx.Infof("Resuming in-progress operation. phase: %s, message: %s", state.Phase, state.Message)
 	} else {
-		state = &appv1.OperationState{Phase: appv1.OperationRunning, Operation: *app.Operation, StartedAt: metav1.Now()}
+		state = &appv1.OperationState{Phase: synccommon.OperationRunning, Operation: *app.Operation, StartedAt: metav1.Now()}
 		ctrl.setOperationState(app, state)
 		logCtx.Infof("Initialized new operation: %v", *app.Operation)
 	}
 
 	ctrl.appStateManager.SyncAppState(app, state)
 
-	if state.Phase == appv1.OperationRunning {
+	if state.Phase == synccommon.OperationRunning {
 		// It's possible for an app to be terminated while we were operating on it. We do not want
 		// to clobber the Terminated state with Running. Get the latest app state to check for this.
 		freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(ctrl.namespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
 		if err == nil {
-			if freshApp.Status.OperationState != nil && freshApp.Status.OperationState.Phase == appv1.OperationTerminating {
-				state.Phase = appv1.OperationTerminating
+			if freshApp.Status.OperationState != nil && freshApp.Status.OperationState.Phase == synccommon.OperationTerminating {
+				state.Phase = synccommon.OperationTerminating
 				state.Message = "operation is terminating"
 				// after this, we will get requeued to the workqueue, but next time the
 				// SyncAppState will operate in a Terminating phase, allowing the worker to perform
@@ -725,7 +737,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 }
 
 func (ctrl *ApplicationController) setOperationState(app *appv1.Application, state *appv1.OperationState) {
-	util.RetryUntilSucceed(func() error {
+	kube.RetryUntilSucceed(func() error {
 		if state.Phase == "" {
 			// expose any bugs where we neglect to set phase
 			panic("no phase was set")
@@ -869,7 +881,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	project, hasErrors := ctrl.refreshAppConditions(app)
 	if hasErrors {
 		app.Status.Sync.Status = appv1.SyncStatusCodeUnknown
-		app.Status.Health.Status = appv1.HealthStatusUnknown
+		app.Status.Health.Status = health.HealthStatusUnknown
 		ctrl.persistAppStatus(origApp, &app.Status)
 		return
 	}
@@ -958,7 +970,7 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 		reason = "spec.destination differs"
 	} else if requested, level := ctrl.isRefreshRequested(app.Name); requested {
 		compareWith = level
-		reason = fmt.Sprintf("controller refresh requested")
+		reason = "controller refresh requested"
 	}
 
 	if reason != "" {
@@ -1151,7 +1163,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 
 // alreadyAttemptedSync returns whether or not the most recent sync was performed against the
 // commitSHA and with the same app source config which are currently set in the app
-func alreadyAttemptedSync(app *appv1.Application, commitSHA string) (bool, appv1.OperationPhase) {
+func alreadyAttemptedSync(app *appv1.Application, commitSHA string) (bool, synccommon.OperationPhase) {
 	if app.Status.OperationState == nil || app.Status.OperationState.Operation.Sync == nil || app.Status.OperationState.SyncResult == nil {
 		return false, ""
 	}
@@ -1242,6 +1254,11 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 		},
 	})
 	return informer, lister, err
+}
+
+func (ctrl *ApplicationController) RegisterClusterSecretUpdater(ctx context.Context) {
+	updater := &clusterSecretUpdater{infoSource: ctrl.stateCache, db: ctrl.db}
+	go updater.Run(ctx)
 }
 
 func isOperationInProgress(app *appv1.Application) bool {
