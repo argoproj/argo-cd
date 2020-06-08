@@ -11,6 +11,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/sync/semaphore"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -30,6 +31,34 @@ const (
 	watchResourcesRetryTimeout = 1 * time.Second
 	ClusterRetryTimeout        = 10 * time.Second
 )
+
+var (
+	// listSemaphore is used to limit the number of concurrent k8s list queries.
+	// Global limit is required to avoid memory spikes during cache initialization.
+	// The default limit of 50 is chosen based on experiments.
+	listSemaphore = semaphore.NewWeighted(50)
+)
+
+// SetMaxConcurrentList set maximum number of concurrent K8S list calls.
+// If set to 0 then no limit is enforced.
+// Note: method is not thread safe. Use it during initialization before executing ClusterCache.EnsureSynced method.
+func SetMaxConcurrentList(val int64) {
+	if val > 0 {
+		listSemaphore = semaphore.NewWeighted(val)
+	} else {
+		listSemaphore = nil
+	}
+}
+
+func list(resClient dynamic.ResourceInterface, opts metav1.ListOptions) (*unstructured.UnstructuredList, error) {
+	if listSemaphore != nil {
+		if err := listSemaphore.Acquire(context.Background(), 1); err != nil {
+			return nil, err
+		}
+		defer listSemaphore.Release(1)
+	}
+	return resClient.List(opts)
+}
 
 type apiMeta struct {
 	namespaced      bool
@@ -393,7 +422,7 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 		err = runSynced(&c.lock, func() error {
 			if info.resourceVersion == "" {
 				listPager := pager.New(func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
-					res, err := resClient.List(opts)
+					res, err := list(resClient, opts)
 					if err == nil {
 						info.resourceVersion = res.GetResourceVersion()
 					}
@@ -536,7 +565,7 @@ func (c *clusterCache) sync() (err error) {
 		return c.processApi(client, api, func(resClient dynamic.ResourceInterface, ns string) error {
 
 			listPager := pager.New(func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
-				res, err := resClient.List(opts)
+				res, err := list(resClient, opts)
 				if err == nil {
 					lock.Lock()
 					info.resourceVersion = res.GetResourceVersion()
