@@ -4558,6 +4558,9 @@
         },
         "name": {
           "type": "string"
+        },
+        "namespace": {
+          "type": "string"
         }
       }
     },

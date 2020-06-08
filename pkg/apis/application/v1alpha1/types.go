@@ -436,9 +436,10 @@ type Operation struct {
 
 // SyncOperationResource contains resources to sync.
 type SyncOperationResource struct {
-	Group string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
-	Kind  string `json:"kind" protobuf:"bytes,2,opt,name=kind"`
-	Name  string `json:"name" protobuf:"bytes,3,opt,name=name"`
+	Group     string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
+	Kind      string `json:"kind" protobuf:"bytes,2,opt,name=kind"`
+	Name      string `json:"name" protobuf:"bytes,3,opt,name=name"`
+	Namespace string `json:"namespace" protobuf:"bytes,4,opt,name=namespace"`
 }
 
 // RevisionHistories is a array of history, oldest first and newest last
@@ -452,9 +453,9 @@ func (in RevisionHistories) Trunc(n int) RevisionHistories {
 	return in
 }
 
-// HasIdentity determines whether a sync operation is identified by a manifest.
-func (r SyncOperationResource) HasIdentity(name string, gvk schema.GroupVersionKind) bool {
-	if name == r.Name && gvk.Kind == r.Kind && gvk.Group == r.Group {
+// HasIdentity determines whether a sync operation is identified by a manifest
+func (r SyncOperationResource) HasIdentity(name string, namespace string, gvk schema.GroupVersionKind) bool {
+	if name == r.Name && gvk.Kind == r.Kind && gvk.Group == r.Group && (r.Namespace == "" || namespace == r.Namespace) {
 		return true
 	}
 	return false
