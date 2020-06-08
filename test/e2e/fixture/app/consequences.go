@@ -66,13 +66,8 @@ func (c *Consequences) get() (*Application, error) {
 
 func (c *Consequences) resource(kind, name, namespace string) ResourceStatus {
 	for _, r := range c.app().Status.Resources {
-		if r.Kind == kind && r.Name == name {
-			if namespace == "" {
-				return r
-			}
-			if namespace == r.Namespace {
-				return r
-			}
+		if r.Kind == kind && r.Name == name && (namespace == "" || namespace == r.Namespace) {
+			return r
 		}
 	}
 	return ResourceStatus{
