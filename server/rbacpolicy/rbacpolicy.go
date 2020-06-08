@@ -20,6 +20,7 @@ const (
 	ResourceRepositories = "repositories"
 	ResourceCertificates = "certificates"
 	ResourceAccounts     = "accounts"
+	ResourceGPGKeys      = "gpgkeys"
 
 	// please add new items to Actions
 	ActionGet      = "get"
