@@ -2,7 +2,6 @@ package db
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -203,139 +202,12 @@ func Test_ListConfiguredGPGPublicKeys(t *testing.T) {
 	}
 }
 
-// func Test_InitializeGPGKeyRing(t *testing.T) {
-// 	defer os.Setenv("GNUPGHOME", "")
-
-// 	// Good case
-// 	{
-// 		clientset := getGPGKeysClientset(gpgCMMultiGoodPubkey)
-// 		settings := settings.NewSettingsManager(context.Background(), clientset, testNamespace)
-// 		db := NewDB(testNamespace, settings, clientset)
-
-// 		path, err := ioutil.TempDir("", "gpg-unittest")
-// 		if err != nil {
-// 			panic(err.Error())
-// 		}
-// 		defer os.RemoveAll(path)
-// 		os.Setenv("GNUPGHOME", path)
-// 		n, err := db.InitializeGPGKeyRing(context.Background())
-// 		assert.NoError(t, err)
-// 		assert.Len(t, n, 2)
-// 		assert.Contains(t, n, "F7842A5CEAA9C0B1")
-// 		assert.Contains(t, n, "FDC79815400D88A9")
-// 	}
-
-// 	// Bad case - unreachable GNUPGHOME
-// 	{
-// 		clientset := getGPGKeysClientset(gpgCMMultiGoodPubkey)
-// 		settings := settings.NewSettingsManager(context.Background(), clientset, testNamespace)
-// 		db := NewDB(testNamespace, settings, clientset)
-
-// 		path := "/some/where/non/existing"
-// 		os.Setenv("GNUPGHOME", path)
-// 		n, err := db.InitializeGPGKeyRing(context.Background())
-// 		assert.Error(t, err)
-// 		assert.Len(t, n, 0)
-// 	}
-
-// 	// Bad case - bad permissions on GNUPGHOME
-// 	{
-// 		clientset := getGPGKeysClientset(gpgCMMultiGoodPubkey)
-// 		settings := settings.NewSettingsManager(context.Background(), clientset, testNamespace)
-// 		db := NewDB(testNamespace, settings, clientset)
-
-// 		path, err := ioutil.TempDir("", "gpg-unittest")
-// 		if err != nil {
-// 			panic(err.Error())
-// 		}
-// 		defer os.RemoveAll(path)
-// 		os.Setenv("GNUPGHOME", path)
-// 		err = os.Chmod(path, 0100)
-// 		if err != nil {
-// 			panic(err.Error())
-// 		}
-// 		n, err := db.InitializeGPGKeyRing(context.Background())
-// 		assert.Error(t, err)
-// 		assert.Len(t, n, 0)
-// 	}
-
-// 	// Bad case - double initialization
-// 	{
-// 		clientset := getGPGKeysClientset(gpgCMMultiGoodPubkey)
-// 		settings := settings.NewSettingsManager(context.Background(), clientset, testNamespace)
-// 		db := NewDB(testNamespace, settings, clientset)
-
-// 		path, err := ioutil.TempDir("", "gpg-unittest")
-// 		if err != nil {
-// 			panic(err.Error())
-// 		}
-// 		defer os.RemoveAll(path)
-// 		os.Setenv("GNUPGHOME", path)
-
-// 		n, err := db.InitializeGPGKeyRing(context.Background())
-// 		assert.NoError(t, err)
-// 		assert.Len(t, n, 2)
-
-// 		n, err = db.InitializeGPGKeyRing(context.Background())
-// 		assert.Error(t, err)
-// 		assert.Len(t, n, 0)
-// 	}
-// }
-
-// func Test_ListInstalledGPGPublicKeys(t *testing.T) {
-// 	defer os.Setenv("GNUPGHOME", "")
-// 	// Good case
-// 	{
-// 		clientset := getGPGKeysClientset(gpgCMMultiGoodPubkey)
-// 		settings := settings.NewSettingsManager(context.Background(), clientset, testNamespace)
-// 		db := NewDB(testNamespace, settings, clientset)
-
-// 		path, err := ioutil.TempDir("", "gpg-unittest")
-// 		if err != nil {
-// 			panic(err.Error())
-// 		}
-// 		defer os.RemoveAll(path)
-// 		os.Setenv("GNUPGHOME", path)
-// 		n, err := db.InitializeGPGKeyRing(context.Background())
-// 		assert.NoError(t, err)
-// 		assert.Len(t, n, 2)
-
-// 		n, err = db.ListInstalledGPGPublicKeys(context.Background())
-// 		assert.NoError(t, err)
-// 		assert.Contains(t, n, "F7842A5CEAA9C0B1")
-// 		assert.Contains(t, n, "FDC79815400D88A9")
-// 	}
-
-// 	// Bad case - not initialized
-// 	{
-// 		clientset := getGPGKeysClientset(gpgCMMultiGoodPubkey)
-// 		settings := settings.NewSettingsManager(context.Background(), clientset, testNamespace)
-// 		db := NewDB(testNamespace, settings, clientset)
-
-// 		path := "/some/where/non/existing"
-// 		os.Setenv("GNUPGHOME", path)
-// 		n, err := db.ListInstalledGPGPublicKeys(context.Background())
-// 		assert.Error(t, err)
-// 		assert.Len(t, n, 0)
-// 	}
-// }
-
 func Test_AddGPGPublicKey(t *testing.T) {
-	defer os.Setenv("GNUPGHOME", "")
 	// Good case
 	{
 		clientset := getGPGKeysClientset(gpgCMEmpty)
 		settings := settings.NewSettingsManager(context.Background(), clientset, testNamespace)
 		db := NewDB(testNamespace, settings, clientset)
-
-		path, err := ioutil.TempDir("", "gpg-unittest")
-		if err != nil {
-			panic(err.Error())
-		}
-		defer os.RemoveAll(path)
-		os.Setenv("GNUPGHOME", path)
-		// _, err = db.InitializeGPGKeyRing(context.Background())
-		// assert.NoError(t, err)
 
 		// Key should be added
 		new, skipped, err := db.AddGPGPublicKey(context.Background(), test.MustLoadFileToString("../gpg/testdata/github.asc"))
@@ -392,17 +264,8 @@ func Test_DeleteGPGPublicKey(t *testing.T) {
 		settings := settings.NewSettingsManager(context.Background(), clientset, testNamespace)
 		db := NewDB(testNamespace, settings, clientset)
 
-		path, err := ioutil.TempDir("", "gpg-unittest")
-		if err != nil {
-			panic(err.Error())
-		}
-		defer os.RemoveAll(path)
-		os.Setenv("GNUPGHOME", path)
-		// _, err = db.InitializeGPGKeyRing(context.Background())
-		// assert.NoError(t, err)
-
 		// Key should be removed
-		err = db.DeleteGPGPublicKey(context.Background(), "FDC79815400D88A9")
+		err := db.DeleteGPGPublicKey(context.Background(), "FDC79815400D88A9")
 		assert.NoError(t, err)
 
 		// Key should not exist anymore, therefore can't be deleted again
@@ -434,107 +297,8 @@ func Test_DeleteGPGPublicKey(t *testing.T) {
 		settings := settings.NewSettingsManager(context.Background(), clientset, testNamespace)
 		db := NewDB(testNamespace, settings, clientset)
 
-		path, err := ioutil.TempDir("", "gpg-unittest")
-		if err != nil {
-			panic(err.Error())
-		}
-		defer os.RemoveAll(path)
-		os.Setenv("GNUPGHOME", path)
-		// _, err = db.InitializeGPGKeyRing(context.Background())
-		// assert.NoError(t, err)
-
 		// Key should be removed
-		err = db.DeleteGPGPublicKey(context.Background(), "F7842A5CEAA9C0B1")
+		err := db.DeleteGPGPublicKey(context.Background(), "F7842A5CEAA9C0B1")
 		assert.Error(t, err)
 	}
 }
-
-// func Test_SynchronizeGPGPublicKeys(t *testing.T) {
-// 	// Good case
-// 	{
-// 		clientset := getGPGKeysClientset(gpgCMEmpty)
-// 		s := settings.NewSettingsManager(context.Background(), clientset, testNamespace)
-// 		db := NewDB(testNamespace, s, clientset)
-
-// 		path, err := ioutil.TempDir("", "gpg-unittest")
-// 		if err != nil {
-// 			panic(err.Error())
-// 		}
-// 		defer os.RemoveAll(path)
-// 		os.Setenv("GNUPGHOME", path)
-// 		n, err := db.InitializeGPGKeyRing(context.Background())
-// 		assert.NoError(t, err)
-// 		assert.Len(t, n, 0)
-
-// 		// Emulate an updated ConfigMap
-// 		clientset = getGPGKeysClientset(gpgCMMultiGoodPubkey)
-// 		s = settings.NewSettingsManager(context.Background(), clientset, testNamespace)
-// 		db = NewDB(testNamespace, s, clientset)
-
-// 		err = db.SynchronizeGPGPublicKeys(context.Background())
-// 		assert.NoError(t, err)
-
-// 		n, err = db.ListInstalledGPGPublicKeys(context.Background())
-// 		assert.NoError(t, err)
-// 		assert.Len(t, n, 2)
-// 		assert.Contains(t, n, "FDC79815400D88A9")
-// 		assert.Contains(t, n, "F7842A5CEAA9C0B1")
-
-// 		// Emulate another new update on the ConfigMap
-// 		clientset = getGPGKeysClientset(gpgCMSingleGoodPubkey)
-// 		s = settings.NewSettingsManager(context.Background(), clientset, testNamespace)
-// 		db = NewDB(testNamespace, s, clientset)
-
-// 		err = db.SynchronizeGPGPublicKeys(context.Background())
-// 		assert.NoError(t, err)
-
-// 		n, err = db.ListInstalledGPGPublicKeys(context.Background())
-// 		assert.NoError(t, err)
-// 		assert.Len(t, n, 1)
-// 		assert.Contains(t, n, "4AEE18F83AFDEB23")
-// 	}
-// }
-
-// // Only one process at a time is allowed to synchronize, test the locks
-// func Test_SynchronizeGPGPublicKeys_Multi(t *testing.T) {
-// 	{
-// 		clientset := getGPGKeysClientset(gpgCMMultiGoodPubkey)
-// 		settings := settings.NewSettingsManager(context.Background(), clientset, testNamespace)
-// 		db := NewDB(testNamespace, settings, clientset)
-
-// 		path, err := ioutil.TempDir("", "gpg-unittest")
-// 		if err != nil {
-// 			panic(err.Error())
-// 		}
-// 		defer os.RemoveAll(path)
-// 		os.Setenv("GNUPGHOME", path)
-// 		n, err := db.InitializeGPGKeyRing(context.Background())
-// 		assert.NoError(t, err)
-// 		assert.Len(t, n, 2)
-
-// 		numProcesses := 2
-
-// 		errArr := make([]error, numProcesses+1)
-// 		var wg sync.WaitGroup
-// 		for i := 0; i < numProcesses; i++ {
-// 			wg.Add(1)
-// 			go func(idx int) {
-// 				defer wg.Done()
-// 				errArr[idx] = db.SynchronizeGPGPublicKeys(context.Background())
-// 			}(i)
-// 		}
-
-// 		wg.Wait()
-
-// 		numErrors := 0
-// 		for _, e := range errArr {
-// 			if e != nil {
-// 				numErrors += 1
-// 			}
-// 		}
-
-// 		// Only one process should have performed the sync
-// 		assert.Equal(t, numProcesses-1, numErrors)
-// 	}
-
-// }

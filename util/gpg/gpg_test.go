@@ -33,7 +33,7 @@ func initTempDir() string {
 		panic(err.Error())
 	}
 	fmt.Printf("-> Using %s as GNUPGHOME\n", p)
-	os.Setenv("GNUPGHOME", p)
+	os.Setenv(common.EnvGnuPGHome, p)
 	return p
 }
 
@@ -70,7 +70,7 @@ func Test_GPG_InitializeGnuPG(t *testing.T) {
 	assert.NoError(t, err)
 	defer os.Remove(f.Name())
 
-	os.Setenv("GNUPGHOME", f.Name())
+	os.Setenv(common.EnvGnuPGHome, f.Name())
 	err = InitializeGnuPG()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "does not point to a directory")
@@ -86,7 +86,7 @@ func Test_GPG_InitializeGnuPG(t *testing.T) {
 	if err != nil {
 		panic(err.Error())
 	}
-	os.Setenv("GNUPGHOME", fp)
+	os.Setenv(common.EnvGnuPGHome, fp)
 	err = InitializeGnuPG()
 	assert.Error(t, err)
 	// Restore permissions so path can be deleted
@@ -102,7 +102,7 @@ func Test_GPG_InitializeGnuPG(t *testing.T) {
 	if err != nil {
 		panic(err.Error())
 	}
-	os.Setenv("GNUPGHOME", p)
+	os.Setenv(common.EnvGnuPGHome, p)
 	err = InitializeGnuPG()
 	assert.Error(t, err)
 
@@ -422,12 +422,12 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 
 func Test_GetGnuPGHomePath(t *testing.T) {
 	{
-		os.Setenv("GNUPGHOME", "")
+		os.Setenv(common.EnvGnuPGHome, "")
 		p := common.GetGnuPGHomePath()
 		assert.Equal(t, common.DefaultGnuPgHomePath, p)
 	}
 	{
-		os.Setenv("GNUPGHOME", "/tmp/gpghome")
+		os.Setenv(common.EnvGnuPGHome, "/tmp/gpghome")
 		p := common.GetGnuPGHomePath()
 		assert.Equal(t, "/tmp/gpghome", p)
 	}

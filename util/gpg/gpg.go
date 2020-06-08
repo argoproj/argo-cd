@@ -144,8 +144,8 @@ const MaxVerificationLinesToParse = 40
 
 // Helper function to append GNUPGHOME for a command execution environment
 func getGPGEnviron() []string {
-	if h := os.Getenv("GNUPGHOME"); h != "" {
-		return append(os.Environ(), common.GetGnuPGHomePath())
+	if h := os.Getenv(common.EnvGnuPGHome); h != "" {
+		return append(os.Environ(), fmt.Sprintf("GNUPGHOME=%s", common.GetGnuPGHomePath()))
 	}
 	return os.Environ()
 }
@@ -180,24 +180,24 @@ func InitializeGnuPG() error {
 
 	gnuPgHome := common.GetGnuPGHomePath()
 
-	// We only operate if GNUPGHOME is set
+	// We only operate if ARGOCD_GNUPGHOME is set
 	if gnuPgHome == "" {
-		return fmt.Errorf("GNUPGHOME is not set; refusing to initialize")
+		return fmt.Errorf("%s is not set; refusing to initialize", common.EnvGnuPGHome)
 	}
 
-	// Directory set in GNUPGHOME must exist and has to be a directory
+	// Directory set in ARGOCD_GNUPGHOME must exist and has to be a directory
 	st, err := os.Stat(gnuPgHome)
 	if err != nil {
 		return err
 	}
 
 	if !st.IsDir() {
-		return fmt.Errorf("GNUPGHOME does not point to a directory")
+		return fmt.Errorf("%s ('%s') does not point to a directory", common.EnvGnuPGHome, gnuPgHome)
 	}
 
 	// Check for sane permissions as well (GPG will issue a warning otherwise)
 	if st.Mode().Perm() != 0700 {
-		return fmt.Errorf("GNUPGHOME at '%s' has too wide permissions, must be 0700", gnuPgHome)
+		return fmt.Errorf("%s at '%s' has too wide permissions, must be 0700", common.EnvGnuPGHome, gnuPgHome)
 	}
 
 	_, err = os.Stat(path.Join(gnuPgHome, "trustdb.gpg"))
@@ -207,7 +207,7 @@ func InitializeGnuPG() error {
 		}
 	} else {
 		// We can't initialize a second time
-		return fmt.Errorf("GNUPGHOME at %s already initialized, can't initialize again.", gnuPgHome)
+		return fmt.Errorf("%s at %s already initialized, can't initialize again.", common.EnvGnuPGHome, gnuPgHome)
 	}
 
 	f, err := ioutil.TempFile("", "gpg-key-recipe")
@@ -311,9 +311,9 @@ func ValidatePGPKeys(keyFile string) (map[string]*appsv1.GnuPGPublicKey, error) 
 	defer os.RemoveAll(tempHome)
 
 	// Remember original GNUPGHOME, then set it to temp directory
-	oldGPGHome := os.Getenv("GNUPGHOME")
-	defer os.Setenv("GNUPGHOME", oldGPGHome)
-	os.Setenv("GNUPGHOME", tempHome)
+	oldGPGHome := os.Getenv(common.EnvGnuPGHome)
+	defer os.Setenv(common.EnvGnuPGHome, oldGPGHome)
+	os.Setenv(common.EnvGnuPGHome, tempHome)
 
 	// Import they keys to our temporary keyring...
 	_, err = ImportPGPKeys(keyFile)

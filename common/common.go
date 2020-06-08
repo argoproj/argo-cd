@@ -151,6 +151,8 @@ const (
 	EnvK8sClientBurst = "ARGOCD_K8S_CLIENT_BURST"
 	// EnvK8sClientMaxIdleConnections is the number of max idle connections in K8s REST client HTTP transport (default: 500)
 	EnvK8sClientMaxIdleConnections = "ARGOCD_K8S_CLIENT_MAX_IDLE_CONNECTIONS"
+	// EnvGnuPGHome is the path to ArgoCD's GnuPG keyring for signature verification
+	EnvGnuPGHome = "ARGOCD_GNUPGHOME"
 )
 
 const (
@@ -165,7 +167,7 @@ const (
 
 // GetGnuPGHomePath retrieves the path to use for GnuPG home directory, which is either taken from GNUPGHOME environment or a default value
 func GetGnuPGHomePath() string {
-	if gnuPgHome := os.Getenv("GNUPGHOME"); gnuPgHome == "" {
+	if gnuPgHome := os.Getenv(EnvGnuPGHome); gnuPgHome == "" {
 		return DefaultGnuPgHomePath
 	} else {
 		return gnuPgHome

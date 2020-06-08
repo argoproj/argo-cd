@@ -351,6 +351,8 @@ func EnsureCleanState(t *testing.T) {
 	FailOnErr(Run("", "chmod", "0700", TmpDir+"/gpg"))
 	prevGnuPGHome := os.Getenv("GNUPGHOME")
 	os.Setenv("GNUPGHOME", TmpDir+"/gpg")
+	// nolint:errcheck
+	Run("", "pkill", "-9", "gpg-agent")
 	FailOnErr(Run("", "gpg", "--import", "../fixture/gpg/signingkey.asc"))
 	os.Setenv("GNUPGHOME", prevGnuPGHome)
 
