@@ -1,0 +1,122 @@
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"install.istio.io/v1alpha1","kind":"IstioOperator","metadata":{"annotations":{},"labels":{"argocd.argoproj.io/instance":"istio-default"},"name":"istio-control-plane","namespace":"istio-system"},"spec":{"addonComponents":{"grafana":{"enabled":false},"istiocoredns":{"enabled":true},"kiali":{"enabled":false},"prometheus":{"enabled":false},"tracing":{"enabled":false}},"components":{"base":{"enabled":true},"citadel":{"enabled":false},"cni":{"enabled":false,"namespace":"kube-system"},"egressGateways":[{"enabled":false,"name":"egress"}],"galley":{"enabled":false},"ingressGateways":[{"enabled":true,"k8s":{"replicaCount":1},"name":"ingress-gateway"}],"nodeAgent":{"enabled":false},"pilot":{"enabled":true,"k8s":{"env":[{"name":"POD_NAME","valueFrom":{"fieldRef":{"apiVersion":"v1","fieldPath":"metadata.name"}}},{"name":"POD_NAMESPACE","valueFrom":{"fieldRef":{"apiVersion":"v1","fieldPath":"metadata.namespace"}}},{"name":"GODEBUG","value":"http2server=0"},{"name":"PILOT_TRACE_SAMPLING","value":"100"},{"name":"CONFIG_NAMESPACE","value":"istio-system"}],"replicaCount":1,"resources":{"requests":{"memory":"512Mi"}}}},"sidecarInjector":{"enabled":false}},"hub":"docker.io/istio","namespace":"istio-system","tag":"1.5.1","values":{"cni":{"excludeNamespaces":["istio-system","kube-system","2269-prometheus","2269-jaeger","2269-kiali"]},"global":{"controlPlaneSecurityEnabled":false,"defaultResources":{"requests":{"cpu":"51m","memory":"128Mi"}},"disablePolicyChecks":false,"enableHelmTest":false,"istioNamespace":"istio-system","mtls":{"auto":false,"enabled":false},"outboundTrafficPolicy":{"mode":"ALLOW_ANY"},"priorityClassName":"srp-critical","tracer":{"zipkin":{"address":"jaeger-collector.2269-jaeger:9411"}}},"istiocoredns":{"coreDNSImage":"coredns/coredns","coreDNSPluginImage":"istio/coredns-plugin:0.2-istio-1.1","coreDNSTag":"1.6.2","enabled":true},"sidecarInjectorWebhook":{"enableNamespacesByDefault":true}}}}
+  creationTimestamp: "2020-06-04T17:46:57Z"
+  finalizers:
+  - istio-finalizer.install.istio.io
+  generation: 1
+  labels:
+    argocd.argoproj.io/instance: istio-default
+  name: istio-control-plane
+  namespace: istio-system
+  resourceVersion: "270068"
+  selfLink: /apis/install.istio.io/v1alpha1/namespaces/istio-system/istiooperators/istio-control-plane
+  uid: d4ff8619-f3b0-4fb3-8bdb-a44ff44a401a
+spec:
+  addonComponents:
+    grafana:
+      enabled: false
+    istiocoredns:
+      enabled: true
+    kiali:
+      enabled: false
+    prometheus:
+      enabled: false
+    tracing:
+      enabled: false
+  components:
+    base:
+      enabled: true
+    citadel:
+      enabled: false
+    cni:
+      enabled: false
+      namespace: kube-system
+    egressGateways:
+    - enabled: false
+      name: egress
+    galley:
+      enabled: false
+    ingressGateways:
+    - enabled: true
+      k8s:
+        replicaCount: 1
+      name: ingress-gateway
+    nodeAgent:
+      enabled: false
+    pilot:
+      enabled: true
+      k8s:
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        - name: GODEBUG
+          value: http2server=0
+        - name: PILOT_TRACE_SAMPLING
+          value: "100"
+        - name: CONFIG_NAMESPACE
+          value: istio-system
+        replicaCount: 1
+        resources:
+          requests:
+            memory: 512Mi
+    sidecarInjector:
+      enabled: false
+  hub: docker.io/istio
+  namespace: istio-system
+  tag: 1.5.1
+  values:
+    cni:
+      excludeNamespaces:
+      - istio-system
+      - kube-system
+      - 2269-prometheus
+      - 2269-jaeger
+      - 2269-kiali
+    global:
+      controlPlaneSecurityEnabled: false
+      defaultResources:
+        requests:
+          cpu: 51m
+          memory: 128Mi
+      disablePolicyChecks: false
+      enableHelmTest: false
+      istioNamespace: istio-system
+      mtls:
+        auto: false
+        enabled: false
+      outboundTrafficPolicy:
+        mode: ALLOW_ANY
+      priorityClassName: srp-critical
+      tracer:
+        zipkin:
+          address: jaeger-collector.2269-jaeger:9411
+    istiocoredns:
+      coreDNSImage: coredns/coredns
+      coreDNSPluginImage: istio/coredns-plugin:0.2-istio-1.1
+      coreDNSTag: 1.6.2
+      enabled: true
+    sidecarInjectorWebhook:
+      enableNamespacesByDefault: true
+status:
+  componentStatus:
+    AddonComponents:
+      status: HEALTHY
+    Base:
+      status: HEALTHY
+    IngressGateways:
+      status: HEALTHY
+    Pilot:
+      status: HEALTHY
+  status: HEALTHY
