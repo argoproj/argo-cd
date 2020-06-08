@@ -42,8 +42,8 @@ func testHookSuccessful(t *testing.T, hookType HookType) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(ResourceSyncStatusIs("Pod", "pod", "", SyncStatusCodeSynced)).
-		Expect(ResourceHealthIs("Pod", "pod", "", health.HealthStatusHealthy)).
+		Expect(ResourceSyncStatusIs("Pod", "pod", SyncStatusCodeSynced)).
+		Expect(ResourceHealthIs("Pod", "pod", health.HealthStatusHealthy)).
 		Expect(ResourceResultNumbering(2)).
 		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "hook", Message: "pod/hook created", HookType: hookType, HookPhase: OperationSucceeded, SyncPhase: SyncPhase(hookType)}))
 }
@@ -82,7 +82,7 @@ func TestPreSyncHookFailure(t *testing.T) {
 		// if a pre-sync hook fails, we should not start the main sync
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		Expect(ResourceResultNumbering(1)).
-		Expect(ResourceSyncStatusIs("Pod", "pod", "", SyncStatusCodeOutOfSync))
+		Expect(ResourceSyncStatusIs("Pod", "pod", SyncStatusCodeOutOfSync))
 }
 
 // make sure that if sync fails, we fail the app and we did create the pod
@@ -100,7 +100,7 @@ func TestSyncHookFailure(t *testing.T) {
 		// even thought the hook failed, we expect the pod to be in sync
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(ResourceResultNumbering(2)).
-		Expect(ResourceSyncStatusIs("Pod", "pod", "", SyncStatusCodeSynced))
+		Expect(ResourceSyncStatusIs("Pod", "pod", SyncStatusCodeSynced))
 }
 
 // make sure that if the deployments fails, we still get success and synced
@@ -131,7 +131,7 @@ func TestPostSyncHookFailure(t *testing.T) {
 		Expect(OperationPhaseIs(OperationFailed)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(ResourceResultNumbering(2)).
-		Expect(ResourceSyncStatusIs("Pod", "pod", "", SyncStatusCodeSynced))
+		Expect(ResourceSyncStatusIs("Pod", "pod", SyncStatusCodeSynced))
 }
 
 // make sure that if the pod fails, we do not run the post-sync hook
@@ -148,8 +148,8 @@ func TestPostSyncHookPodFailure(t *testing.T) {
 		Then().
 		// TODO - I feel like this should be a failure, not success
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(ResourceSyncStatusIs("Pod", "pod", "", SyncStatusCodeSynced)).
-		Expect(ResourceHealthIs("Pod", "pod", "", health.HealthStatusDegraded)).
+		Expect(ResourceSyncStatusIs("Pod", "pod", SyncStatusCodeSynced)).
+		Expect(ResourceHealthIs("Pod", "pod", health.HealthStatusDegraded)).
 		Expect(ResourceResultNumbering(1)).
 		Expect(NotPod(func(p v1.Pod) bool { return p.Name == "hook" }))
 }

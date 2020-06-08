@@ -779,7 +779,7 @@ func TestSyncOptionPruneFalse(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		Expect(ResourceSyncStatusIs("Pod", "pod-1", "", SyncStatusCodeOutOfSync))
+		Expect(ResourceSyncStatusIs("Pod", "pod-1", SyncStatusCodeOutOfSync))
 }
 
 // make sure that if we have an invalid manifest, we can add it if we disable validation, we get a server error rather than a client error

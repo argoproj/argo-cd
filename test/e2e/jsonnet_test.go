@@ -112,6 +112,6 @@ func TestJsonnetNestedDirWithImports(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(ResourceSyncStatusIs("Namespace", "hello-world", "", SyncStatusCodeSynced)).
-		Expect(ResourceSyncStatusIs("Namespace", "hello-root", "", SyncStatusCodeSynced))
+		Expect(ResourceSyncStatusIs("Namespace", "hello-world", SyncStatusCodeSynced)).
+		Expect(ResourceSyncStatusIs("Namespace", "hello-root", SyncStatusCodeSynced))
 }

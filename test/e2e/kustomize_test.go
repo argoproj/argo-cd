@@ -127,7 +127,7 @@ func TestKustomizeSSHRemoteBase(t *testing.T) {
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(ResourceSyncStatusIs("ConfigMap", "my-map", "", SyncStatusCodeSynced))
+		Expect(ResourceSyncStatusIs("ConfigMap", "my-map", SyncStatusCodeSynced))
 }
 
 // make sure we can create an app which has a SSH remote base

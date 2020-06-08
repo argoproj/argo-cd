@@ -196,11 +196,6 @@ func CreateSecret(username, password string) string {
 	return secretName
 }
 
-// creates a namespace
-func CreateNamespace(namespace string) string {
-	FailOnErr(Run("", "kubectl", "create", "namespace", namespace))
-	return namespace
-}
 func updateSettingConfigMap(updater func(cm *corev1.ConfigMap) error) {
 	cm, err := KubeClientset.CoreV1().ConfigMaps(ArgoCDNamespace).Get(common.ArgoCDConfigMapName, v1.GetOptions{})
 	errors.CheckError(err)

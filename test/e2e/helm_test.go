@@ -396,7 +396,7 @@ func TestHelm3CRD(t *testing.T) {
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(ResourceSyncStatusIs("CustomResourceDefinition", "crontabs.stable.example.com", "", SyncStatusCodeSynced))
+		Expect(ResourceSyncStatusIs("CustomResourceDefinition", "crontabs.stable.example.com", SyncStatusCodeSynced))
 }
 
 func TestHelmRepoDiffLocal(t *testing.T) {

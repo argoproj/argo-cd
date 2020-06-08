@@ -24,16 +24,16 @@ func TestFixingDegradedApp(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		Expect(HealthIs(health.HealthStatusMissing)).
 		Expect(ResourceResultNumbering(1)).
-		Expect(ResourceSyncStatusIs("Pod", "pod-1", "", SyncStatusCodeSynced)).
-		Expect(ResourceHealthIs("Pod", "pod-1", "", health.HealthStatusDegraded)).
-		Expect(ResourceSyncStatusIs("Pod", "pod-2", "", SyncStatusCodeOutOfSync)).
-		Expect(ResourceHealthIs("Pod", "pod-2", "", health.HealthStatusMissing)).
+		Expect(ResourceSyncStatusIs("Pod", "pod-1", SyncStatusCodeSynced)).
+		Expect(ResourceHealthIs("Pod", "pod-1", health.HealthStatusDegraded)).
+		Expect(ResourceSyncStatusIs("Pod", "pod-2", SyncStatusCodeOutOfSync)).
+		Expect(ResourceHealthIs("Pod", "pod-2", health.HealthStatusMissing)).
 		When().
 		PatchFile("pod-1.yaml", `[{"op": "replace", "path": "/spec/containers/0/image", "value": "nginx:1.17.4-alpine"}]`).
 		// need to force a refresh here
 		Refresh(RefreshTypeNormal).
 		Then().
-		Expect(ResourceSyncStatusIs("Pod", "pod-1", "", SyncStatusCodeOutOfSync)).
+		Expect(ResourceSyncStatusIs("Pod", "pod-1", SyncStatusCodeOutOfSync)).
 		When().
 		Sync().
 		Then().
@@ -41,10 +41,10 @@ func TestFixingDegradedApp(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		Expect(HealthIs(health.HealthStatusMissing)).
 		Expect(ResourceResultNumbering(1)).
-		Expect(ResourceSyncStatusIs("Pod", "pod-1", "", SyncStatusCodeSynced)).
-		Expect(ResourceHealthIs("Pod", "pod-1", "", health.HealthStatusHealthy)).
-		Expect(ResourceSyncStatusIs("Pod", "pod-2", "", SyncStatusCodeOutOfSync)).
-		Expect(ResourceHealthIs("Pod", "pod-2", "", health.HealthStatusMissing)).
+		Expect(ResourceSyncStatusIs("Pod", "pod-1", SyncStatusCodeSynced)).
+		Expect(ResourceHealthIs("Pod", "pod-1", health.HealthStatusHealthy)).
+		Expect(ResourceSyncStatusIs("Pod", "pod-2", SyncStatusCodeOutOfSync)).
+		Expect(ResourceHealthIs("Pod", "pod-2", health.HealthStatusMissing)).
 		When().
 		Sync().
 		Then().
@@ -52,10 +52,10 @@ func TestFixingDegradedApp(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		Expect(ResourceResultNumbering(2)).
-		Expect(ResourceSyncStatusIs("Pod", "pod-1", "", SyncStatusCodeSynced)).
-		Expect(ResourceHealthIs("Pod", "pod-1", "", health.HealthStatusHealthy)).
-		Expect(ResourceSyncStatusIs("Pod", "pod-2", "", SyncStatusCodeSynced)).
-		Expect(ResourceHealthIs("Pod", "pod-2", "", health.HealthStatusHealthy))
+		Expect(ResourceSyncStatusIs("Pod", "pod-1", SyncStatusCodeSynced)).
+		Expect(ResourceHealthIs("Pod", "pod-1", health.HealthStatusHealthy)).
+		Expect(ResourceSyncStatusIs("Pod", "pod-2", SyncStatusCodeSynced)).
+		Expect(ResourceHealthIs("Pod", "pod-2", health.HealthStatusHealthy))
 }
 
 func TestOneProgressingDeploymentIsSucceededAndSynced(t *testing.T) {

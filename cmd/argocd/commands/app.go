@@ -1301,7 +1301,7 @@ func parseSelectedResources(resources []string) []argoappv1.SyncOperationResourc
 			if strings.Contains(fields[2], resourceFieldNamespaceDelimiter) {
 				nameFields := strings.Split(fields[2], resourceFieldNamespaceDelimiter)
 				if len(nameFields) != resourceFieldNameWithNamespaceCount {
-					log.Fatalf("Resource with namesapce should have GROUP%sKIND%sNAMESPACE%sNAME, but instead got: %s", resourceFieldDelimiter, resourceFieldDelimiter, resourceFieldNamespaceDelimiter, r)
+					log.Fatalf("Resource with namespace should have GROUP%sKIND%sNAMESPACE%sNAME, but instead got: %s", resourceFieldDelimiter, resourceFieldDelimiter, resourceFieldNamespaceDelimiter, r)
 				}
 				namespace = nameFields[0]
 				name = nameFields[1]

@@ -455,10 +455,7 @@ func (in RevisionHistories) Trunc(n int) RevisionHistories {
 
 // HasIdentity determines whether a sync operation is identified by a manifest
 func (r SyncOperationResource) HasIdentity(name string, namespace string, gvk schema.GroupVersionKind) bool {
-	if name == r.Name && gvk.Kind == r.Kind && gvk.Group == r.Group {
-		if r.Namespace != "" {
-			return namespace == r.Namespace
-		}
+	if name == r.Name && gvk.Kind == r.Kind && gvk.Group == r.Group && (r.Namespace == "" || namespace == r.Namespace) {
 		return true
 	}
 	return false
