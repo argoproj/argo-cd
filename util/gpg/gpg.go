@@ -14,7 +14,7 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	executil "github.com/argoproj/argo-cd/util/exec"
+	executil "github.com/argoproj/gitops-engine/pkg/utils/exec"
 )
 
 // Regular expression to match public key beginning

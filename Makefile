@@ -332,7 +332,7 @@ test-e2e:
 .PHONY: test-e2e-local
 test-e2e-local: cli
 	# NO_PROXY ensures all tests don't go out through a proxy if one is configured on the test system
-  export GO111MODULE=off
+	export GO111MODULE=off
 	ARGOCD_GPG_ENABLED=true NO_PROXY=* ./hack/test.sh -timeout 15m -v ./test/e2e
 
 # Spawns a shell in the test server container for debugging purposes
