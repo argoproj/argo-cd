@@ -193,6 +193,9 @@ func DeduplicateTargetObjects(
 	targetByKey := make(map[kubeutil.ResourceKey][]*unstructured.Unstructured)
 	for i := range objs {
 		obj := objs[i]
+		if obj == nil {
+			continue
+		}
 		isNamespaced := kubeutil.IsNamespacedOrUnknown(infoProvider, obj.GroupVersionKind().GroupKind())
 		if !isNamespaced {
 			obj.SetNamespace("")
