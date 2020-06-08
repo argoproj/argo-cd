@@ -82,7 +82,7 @@ func newCommand() *cobra.Command {
 
 			settingsMgr := settings.NewSettingsManager(ctx, kubeClient, namespace)
 			kubectl := &kube.KubectlCmd{}
-			legacyDiffDisabled := os.Getenv("ARGOCD_POPULATE_LEGACY_DIFF") == "false"
+			legacyDiffDisabled := os.Getenv("ARGOCD_ENABLE_LEGACY_DIFF") == "false"
 			diff.SetPopulateLegacyDiff(!legacyDiffDisabled)
 			appController, err := controller.NewApplicationController(
 				namespace,
