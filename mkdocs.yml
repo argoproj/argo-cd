@@ -8,6 +8,7 @@ theme:
   font:
     text: 'Work Sans'
   logo: 'assets/logo.png'
+  favicon: 'assets/favicon.png'
 google_analytics:
 - 'UA-105170809-2'
 - 'auto'
