@@ -13,7 +13,6 @@ import (
 func TestFixingDegradedApp(t *testing.T) {
 	Given(t).
 		Path("sync-waves").
-		Timeout(30).
 		When().
 		IgnoreErrors().
 		Create().
