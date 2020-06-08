@@ -15,7 +15,6 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	kubeutil "github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
-	"github.com/yudai/gojsondiff"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -387,12 +386,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		if i < len(diffResults.Diffs) {
 			diffResult = diffResults.Diffs[i]
 		} else {
-			diffResult = diff.DiffResult{
-				Diff:           gojsondiff.New().CompareObjects(map[string]interface{}{}, map[string]interface{}{}),
-				Modified:       false,
-				NormalizedLive: []byte("{}"),
-				PredictedLive:  []byte("{}"),
-			}
+			diffResult = diff.DiffResult{Modified: false, NormalizedLive: []byte("{}"), PredictedLive: []byte("{}")}
 		}
 		if resState.Hook || ignore.Ignore(obj) {
 			// For resource hooks, don't store sync status, and do not affect overall sync status

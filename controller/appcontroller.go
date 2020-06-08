@@ -395,11 +395,6 @@ func (ctrl *ApplicationController) managedResources(comparisonResult *comparison
 		} else {
 			item.TargetState = "null"
 		}
-		jsonDiff, err := resDiff.JSONFormat()
-		if err != nil {
-			return nil, err
-		}
-		item.Diff = jsonDiff
 		item.PredictedLiveState = string(resDiff.PredictedLive)
 		item.NormalizedLiveState = string(resDiff.NormalizedLive)
 
