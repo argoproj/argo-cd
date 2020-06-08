@@ -1,0 +1,13 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "1: DependenciesInstalled | True\n2: DeploymentsAvailable | True\n3: InstallSucceeded | True\n4: Ready | Unknown\n"
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Degraded
+    message: "1: DependenciesInstalled | True\n2: DeploymentsAvailable | True\n3: InstallSucceeded | True\n4: Ready | randomstatus\n"
+  inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Healthy
+    message: "KnativeServing is healthy."
+  inputPath: testdata/healthy.yaml
