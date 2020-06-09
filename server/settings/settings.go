@@ -15,6 +15,7 @@ import (
 type Server struct {
 	mgr           *settings.SettingsManager
 	authenticator Authenticator
+	disableAuth   bool
 }
 
 type Authenticator interface {
@@ -22,8 +23,8 @@ type Authenticator interface {
 }
 
 // NewServer returns a new instance of the Settings service
-func NewServer(mgr *settings.SettingsManager, authenticator Authenticator) *Server {
-	return &Server{mgr: mgr, authenticator: authenticator}
+func NewServer(mgr *settings.SettingsManager, authenticator Authenticator, disableAuth bool) *Server {
+	return &Server{mgr: mgr, authenticator: authenticator, disableAuth: disableAuth}
 }
 
 // Get returns Argo CD settings
@@ -99,7 +100,7 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 		KustomizeVersions:  kustomizeVersions,
 	}
 
-	if sessionmgr.LoggedIn(ctx) || s.mgr.DisableAuth {
+	if sessionmgr.LoggedIn(ctx) || s.disableAuth {
 		configManagementPlugins, err := s.mgr.GetConfigManagementPlugins()
 		if err != nil {
 			return nil, err
