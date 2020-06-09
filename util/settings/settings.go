@@ -251,6 +251,7 @@ type SettingsManager struct {
 	initContextCancel func()
 	reposCache        []Repository
 	repoCredsCache    []RepositoryCredentials
+	DisableAuth       bool
 }
 
 type incompleteSettingsError struct {

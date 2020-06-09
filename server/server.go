@@ -191,6 +191,7 @@ func initializeDefaultProject(opts ArgoCDServerOpts) error {
 // NewServer returns a new instance of the Argo CD API server
 func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 	settingsMgr := settings_util.NewSettingsManager(ctx, opts.KubeClientset, opts.Namespace)
+	settingsMgr.DisableAuth = opts.DisableAuth
 	settings, err := settingsMgr.InitializeSettings(opts.Insecure)
 	errors.CheckError(err)
 	err = initializeDefaultProject(opts)

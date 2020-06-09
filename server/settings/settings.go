@@ -99,7 +99,7 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 		KustomizeVersions:  kustomizeVersions,
 	}
 
-	if sessionmgr.LoggedIn(ctx) {
+	if sessionmgr.LoggedIn(ctx) || s.mgr.DisableAuth {
 		configManagementPlugins, err := s.mgr.GetConfigManagementPlugins()
 		if err != nil {
 			return nil, err
