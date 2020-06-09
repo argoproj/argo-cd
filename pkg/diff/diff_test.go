@@ -18,8 +18,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-
-	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 )
 
 var (
@@ -56,16 +54,22 @@ func toUnstructured(obj interface{}) (*unstructured.Unstructured, error) {
 
 func mustToUnstructured(obj interface{}) *unstructured.Unstructured {
 	un, err := toUnstructured(obj)
-	errors.CheckError(err)
+	if err != nil {
+		panic(err)
+	}
 	return un
 }
 
 func unmarshalFile(path string) *unstructured.Unstructured {
 	data, err := ioutil.ReadFile(path)
-	errors.CheckError(err)
+	if err != nil {
+		panic(err)
+	}
 	var un unstructured.Unstructured
 	err = json.Unmarshal(data, &un.Object)
-	errors.CheckError(err)
+	if err != nil {
+		panic(err)
+	}
 	return &un
 }
 

@@ -18,7 +18,6 @@ import (
 	"k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/rest"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
 )
@@ -26,7 +25,9 @@ import (
 func strToUnstructured(jsonStr string) *unstructured.Unstructured {
 	obj := make(map[string]interface{})
 	err := yaml.Unmarshal([]byte(jsonStr), &obj)
-	errors.CheckError(err)
+	if err != nil {
+		panic(err)
+	}
 	return &unstructured.Unstructured{Object: obj}
 }
 

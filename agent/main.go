@@ -119,10 +119,10 @@ func newCmd() *cobra.Command {
 			}
 			s := settings{args[0], paths}
 			config, err := clientConfig.ClientConfig()
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			if namespace == "" {
 				namespace, _, err = clientConfig.Namespace()
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			}
 
 			var namespaces []string
@@ -141,10 +141,10 @@ func newCmd() *cobra.Command {
 				}),
 			)
 			gitOpsEngine := engine.NewEngine(config, clusterCache)
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 
 			closer, err := gitOpsEngine.Run()
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 
 			defer io.Close(closer)
 
@@ -162,7 +162,7 @@ func newCmd() *cobra.Command {
 				resync <- true
 			})
 			go func() {
-				errors.CheckError(http.ListenAndServe(fmt.Sprintf("0.0.0.0:%d", port), nil))
+				errors.CheckErrorWithCode(http.ListenAndServe(fmt.Sprintf("0.0.0.0:%d", port), nil), errors.ErrorCommandSpecific)
 			}()
 
 			for ; true; <-resync {
