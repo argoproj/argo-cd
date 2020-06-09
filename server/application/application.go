@@ -522,7 +522,7 @@ func (s *Server) Patch(ctx context.Context, q *application.ApplicationPatchReque
 // Delete removes an application and all associated resources
 func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteRequest) (*application.ApplicationResponse, error) {
 	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
-	if err != nil && !apierr.IsNotFound(err) {
+	if err != nil {
 		return nil, err
 	}
 
@@ -565,7 +565,7 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 	}
 
 	err = s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Delete(*q.Name, &metav1.DeleteOptions{})
-	if err != nil && !apierr.IsNotFound(err) {
+	if err != nil {
 		return nil, err
 	}
 	s.logAppEvent(a, ctx, argo.EventReasonResourceDeleted, "deleted application")
