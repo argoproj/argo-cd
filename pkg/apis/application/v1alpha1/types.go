@@ -21,7 +21,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v2"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -674,11 +674,15 @@ func (r ResourceResults) PruningRequired() (num int) {
 
 // RevisionHistory contains information relevant to an application deployment
 type RevisionHistory struct {
-	Revision        string            `json:"revision" protobuf:"bytes,2,opt,name=revision"`
-	DeployedAt      metav1.Time       `json:"deployedAt" protobuf:"bytes,4,opt,name=deployedAt"`
-	ID              int64             `json:"id" protobuf:"bytes,5,opt,name=id"`
-	Source          ApplicationSource `json:"source,omitempty" protobuf:"bytes,6,opt,name=source"`
-	DeployStartedAt metav1.Time       `json:"deployStartedAt,omitempty" protobuf:"bytes,7,opt,name=deployStartedAt"`
+	// Revision holds the revision of the sync
+	Revision string `json:"revision" protobuf:"bytes,2,opt,name=revision"`
+	// DeployedAt holds the time the deployment completed
+	DeployedAt metav1.Time `json:"deployedAt" protobuf:"bytes,4,opt,name=deployedAt"`
+	// ID is an auto incrementing identifier of the RevisionHistory
+	ID     int64             `json:"id" protobuf:"bytes,5,opt,name=id"`
+	Source ApplicationSource `json:"source,omitempty" protobuf:"bytes,6,opt,name=source"`
+	// DeployStartedAt holds the time the deployment started
+	DeployStartedAt metav1.Time `json:"deployStartedAt,omitempty" protobuf:"bytes,7,opt,name=deployStartedAt"`
 }
 
 // ApplicationWatchEvent contains information about application change.
