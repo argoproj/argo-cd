@@ -92,7 +92,7 @@ fi
 
 # We need different git comment char than '#', because markdown makes extensive
 # use of '#' - we chose ';' for our operation.
-origToken=$(git config core.commentChar)
+origToken=$(git config core.commentChar || echo '#')
 echo ">> Saving original Git comment char '${origToken}' and setting it to ';' for this run"
 if ! git config core.commentChar ';'; then
 	echo "!! Could not set git config commentChar ';'" >&2
