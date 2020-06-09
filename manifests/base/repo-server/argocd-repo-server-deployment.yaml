@@ -43,7 +43,6 @@ spec:
           mountPath: /app/config/ssh
         - name: tls-certs
           mountPath: /app/config/tls
-      shareProcessNamespace: true
       volumes:
         - name: ssh-known-hosts
           configMap:
