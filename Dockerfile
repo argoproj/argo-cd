@@ -50,7 +50,7 @@ RUN groupadd -g 999 argocd && \
     chmod g=u /home/argocd && \
     chmod g=u /etc/passwd && \
     apt-get update && \
-    apt-get install -y git git-lfs python3-pip && \
+    apt-get install -y git git-lfs python3-pip tini && \
     apt-get clean && \
     pip3 install awscli==1.17.7 && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
