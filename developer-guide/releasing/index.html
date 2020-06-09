@@ -1150,8 +1150,63 @@
     <ul class="md-nav__list" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#verify" title="Verify" class="md-nav__link">
-    Verify
+  <a href="#automated-release-procedure" title="Automated release procedure" class="md-nav__link">
+    Automated release procedure
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#verifying-automated-release" title="Verifying automated release" class="md-nav__link">
+    Verifying automated release
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#if-something-went-wrong" title="If something went wrong" class="md-nav__link">
+    If something went wrong
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#post-process-manual-steps" title="Post-process manual steps" class="md-nav__link">
+    Post-process manual steps
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#manual-releasing" title="Manual releasing" class="md-nav__link">
+    Manual releasing
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#update-brew-formulae-manual" title="Update brew formulae (manual)" class="md-nav__link">
+    Update brew formulae (manual)
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#update-stable-tag-manual" title="Update stable tag (manual)" class="md-nav__link">
+    Update stable tag (manual)
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verify-release" title="Verify release" class="md-nav__link">
+    Verify release
   </a>
   
 </li>
@@ -1289,8 +1344,63 @@
     <ul class="md-nav__list" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#verify" title="Verify" class="md-nav__link">
-    Verify
+  <a href="#automated-release-procedure" title="Automated release procedure" class="md-nav__link">
+    Automated release procedure
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#verifying-automated-release" title="Verifying automated release" class="md-nav__link">
+    Verifying automated release
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#if-something-went-wrong" title="If something went wrong" class="md-nav__link">
+    If something went wrong
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#post-process-manual-steps" title="Post-process manual steps" class="md-nav__link">
+    Post-process manual steps
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#manual-releasing" title="Manual releasing" class="md-nav__link">
+    Manual releasing
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#update-brew-formulae-manual" title="Update brew formulae (manual)" class="md-nav__link">
+    Update brew formulae (manual)
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#update-stable-tag-manual" title="Update stable tag (manual)" class="md-nav__link">
+    Update stable tag (manual)
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verify-release" title="Verify release" class="md-nav__link">
+    Verify release
   </a>
   
 </li>
@@ -1315,6 +1425,140 @@
                 
                 
                 <h1 id="releasing">Releasing<a class="headerlink" href="#releasing" title="Permanent link">&para;</a></h1>
+<h2 id="automated-release-procedure">Automated release procedure<a class="headerlink" href="#automated-release-procedure" title="Permanent link">&para;</a></h2>
+<p>Starting from <code>release-1.6</code> branch, ArgoCD can be released in automatic fashion
+using GitHub actions. The release process takes about 20 minutes, sometimes a
+little less, depending on the performance of GitHub actions runners.</p>
+<p>The target release branch must already exist in GitHub repository. If you for
+example want to create a release <code>v1.7.0</code>, the corresponding release branch
+<code>release-1.7</code> needs to exist, otherwise the release cannot be build. Also,
+the trigger tag should always be created in the release branch, checked out
+in your local repository clone.</p>
+<p>Before triggering the release automation, the <code>CHANGELOG.md</code> should be updated
+with the latest information, and this change should be commited and pushed to
+the GitHub repository to the release branch. Afterwards, the automation can be
+triggered.</p>
+<p><strong>Manual steps before release creation:</strong></p>
+<ul>
+<li>Update <code>CHANGELOG.md</code> with changes for this release</li>
+<li>Commit &amp; push changes to <code>CHANGELOG.md</code></li>
+<li>Prepare release notes (save to some file, or copy from Changelog)</li>
+</ul>
+<p><strong>The automation will perform the following steps:</strong></p>
+<ul>
+<li>Update <code>VERSION</code> file in release branch</li>
+<li>Update manifests with image tags of new version in release branch</li>
+<li>Build the Docker image and push to Docker Hub</li>
+<li>Create release tag in the GitHub repository</li>
+<li>Create GitHub release and attach the required assets to it (CLI binaries, ...)</li>
+</ul>
+<p>Finally, it will the remove trigger tag from repository again.</p>
+<p>Automation supports both, GA and pre-releases. The automation is triggered by
+pushing a tag to the repository. The tag must be in one of the following formats
+to trigger the GH workflow:</p>
+<ul>
+<li>GA: <code>release-v&lt;MAJOR&gt;.&lt;MINOR&gt;.&lt;PATCH&gt;</code></li>
+<li>Pre-release: <code>release-v&lt;MAJOR&gt;.&lt;MINOR&gt;.&lt;PATCH&gt;-rc&lt;RC#&gt;</code></li>
+</ul>
+<p>The tag must be an annotated tag, and it must contain the release notes in the
+commit message. Please note that Markdown uses <code>#</code> character for formatting, but
+Git uses it as comment char. To solve this, temporarily switch Git comment char
+to something else, the <code>;</code> character is recommended.</p>
+<p>For example, considering you have configured the Git remote for repository to
+<code>github.com/argoproj/argo-cd</code> to be named <code>upstream</code> and are in your locally
+checked out repo:</p>
+<div class="codehilite"><pre><span></span><code>git config core.commentChar <span class="s1">&#39;;&#39;</span>
+git tag -a -F /path/to/release-notes.txt release-v1.6.0-rc2
+git push upstream release-v1.6.0-rc2
+git tag -d release-v1.6.0-rc2
+git config core.commentChar <span class="s1">&#39;#&#39;</span>
+</code></pre></div>
+
+
+<p>For convenience, there is a shell script in the tree that ensures all the
+pre-requisites are met and that the trigger is well-formed before pushing
+it to the GitHub repo.</p>
+<p>In summary, the modifications it does are:</p>
+<ul>
+<li>Create annotated trigger tag in your local repository</li>
+<li>Push tag to GitHub repository to trigger workflow</li>
+<li>Remove trigger tag from your local repository</li>
+</ul>
+<p>The script can be found at <code>hacks/trigger-release.sh</code> and is used as follows:</p>
+<div class="codehilite"><pre><span></span><code>./hacks/trigger-release.sh &lt;version&gt; &lt;remote name&gt; <span class="o">[</span>&lt;release notes path&gt;<span class="o">]</span>
+</code></pre></div>
+
+
+<p>The <code>&lt;version&gt;</code> identifier needs to be specified <strong>without</strong> the <code>release-</code>
+prefix, so just specify it as <code>v1.6.0-rc2</code> for example. The <code>&lt;remote name&gt;</code>
+specifies the name of the remote used to push to the GitHub repository. </p>
+<p>If you omit the <code>&lt;release notes path&gt;</code>, an editor will pop-up asking you to
+enter the tag's annotation so you can paste the release notes, save and exit.
+It will also take care of temporarily configuring the <code>core.commentChar</code> and
+setting it back to its original state.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>It is strongly recommended to use this script to trigger the workflow
+instead of manually pushing a tag to the repository.</p>
+</div>
+<p>Once the trigger tag is pushed to the repo, the GitHub workflow will start
+execution. You can follow its progress under <code>Actions</code> tab, the name of the
+action is <code>Create release</code>. Don't get confused by the name of the running
+workflow, it will be the commit message of the latest commit to <code>master</code>
+branch, this is a limitation of GH actions.</p>
+<p>The workflow performs necessary checks so that the release can be sucessfully
+build before the build actually starts. It will error when one of the
+prerequisites is not met, or if the release cannot be build (i.e. already
+exists, release notes invalid, etc etc). You can see a summary of what has
+failed in the job's overview page, and more detailed errors in the output
+of the step that has failed.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>You cannot perform more than one release on the same release branch at the
+same time. For example, both <code>v1.6.0</code> and <code>v1.6.1</code> would operate on the
+<code>release-1.6</code> branch. If you submit <code>v1.6.1</code> while <code>v1.6.0</code> is still
+executing, the release automation will not execute. You have to either
+cancel <code>v1.6.0</code> before submitting <code>v1.6.1</code> or wait until it has finished.
+You can execute releases on different release branches simultaneously, for
+example <code>v1.6.0</code> and <code>v1.7.0-rc1</code>, without problems.</p>
+</div>
+<h3 id="verifying-automated-release">Verifying automated release<a class="headerlink" href="#verifying-automated-release" title="Permanent link">&para;</a></h3>
+<p>After the automatic release creation has finished, you should perform manual
+checks to see if the release came out correctly:</p>
+<ul>
+<li>Check status &amp; output of the GitHub action</li>
+<li>Check <a href="https://github.com/argoproj/argo-cd/releases">https://github.com/argoproj/argo-cd/releases</a>
+  to see if release has been correctly created, and if all required assets
+  are attached.</li>
+<li>Check whether the image has been published on DockerHub correctly</li>
+</ul>
+<h3 id="if-something-went-wrong">If something went wrong<a class="headerlink" href="#if-something-went-wrong" title="Permanent link">&para;</a></h3>
+<p>If something went wrong, damage should be limited. Depending on the steps that
+have been performed, you will need to manually clean up.</p>
+<ul>
+<li>Delete release tag (i.e. <code>v1.6.0-rc2</code>) created on GitHub repository. This
+  will immediately set release (if created) to <code>draft</code> status, invisible for
+  general public.</li>
+<li>Delete the draft release (if created) from <code>Releases</code> page on GitHub</li>
+<li>If Docker image has been pushed to DockerHub, delete it</li>
+<li>If commits have been performed to the release branch, revert them. Paths that could have been commited to are:<ul>
+<li><code>VERSION</code></li>
+<li><code>manifests/*</code></li>
+</ul>
+</li>
+</ul>
+<h3 id="post-process-manual-steps">Post-process manual steps<a class="headerlink" href="#post-process-manual-steps" title="Permanent link">&para;</a></h3>
+<p>For now, the only manual steps left are to</p>
+<ul>
+<li>update brew formulae for ArgoCD CLI on Mac if release is GA</li>
+<li>update stable tag in GitHub repository to point to new release (if appropriate)</li>
+</ul>
+<p>These will be automated as well in the future.</p>
+<h2 id="manual-releasing">Manual releasing<a class="headerlink" href="#manual-releasing" title="Permanent link">&para;</a></h2>
+<p>Automatic release process does not interfere with manual release process, since
+the trigger tag does not match a normal release tag. If you prefer to perform,
+manual release or if automatic release is for some reason broken, these are the
+steps:</p>
 <p>Make sure you are logged into Docker Hub:</p>
 <div class="codehilite"><pre><span></span><code>docker login
 </code></pre></div>
@@ -1352,17 +1596,13 @@ git push <span class="nv">$REPO</span> <span class="nv">$VERSION</span>
 </code></pre></div>
 
 
-<p>If GA, update <code>stable</code> tag:</p>
-<div class="codehilite"><pre><span></span><code>git tag stable --force <span class="o">&amp;&amp;</span> git push <span class="nv">$REPO</span> stable --force
-</code></pre></div>
-
-
 <p>Update <a href="https://github.com/argoproj/argo-cd/releases">Github releases</a> with:</p>
 <ul>
 <li>Getting started (copy from previous release)</li>
 <li>Changelog</li>
 <li>Binaries (e.g. <code>dist/argocd-darwin-amd64</code>).</li>
 </ul>
+<h2 id="update-brew-formulae-manual">Update brew formulae (manual)<a class="headerlink" href="#update-brew-formulae-manual" title="Permanent link">&para;</a></h2>
 <p>If GA, update Brew formula:</p>
 <div class="codehilite"><pre><span></span><code>git clone git@github.com:argoproj/homebrew-tap.git
 <span class="nb">cd</span> homebrew-tap
@@ -1372,7 +1612,13 @@ git push
 </code></pre></div>
 
 
-<h3 id="verify">Verify<a class="headerlink" href="#verify" title="Permanent link">&para;</a></h3>
+<h2 id="update-stable-tag-manual">Update stable tag (manual)<a class="headerlink" href="#update-stable-tag-manual" title="Permanent link">&para;</a></h2>
+<p>If GA, update <code>stable</code> tag:</p>
+<div class="codehilite"><pre><span></span><code>git tag stable --force <span class="o">&amp;&amp;</span> git push <span class="nv">$REPO</span> stable --force
+</code></pre></div>
+
+
+<h2 id="verify-release">Verify release<a class="headerlink" href="#verify-release" title="Permanent link">&para;</a></h2>
 <p>Locally:</p>
 <div class="codehilite"><pre><span></span><code>kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/<span class="nv">$VERSION</span>/manifests/install.yaml
 </code></pre></div>
