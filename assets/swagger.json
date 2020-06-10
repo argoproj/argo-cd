@@ -2174,6 +2174,12 @@
           "type": "boolean",
           "format": "boolean"
         },
+        "infos": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1Info"
+          }
+        },
         "manifests": {
           "type": "array",
           "items": {
@@ -3902,6 +3908,12 @@
       "description": "Operation contains requested operation parameters.",
       "type": "object",
       "properties": {
+        "info": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1Info"
+          }
+        },
         "initiatedBy": {
           "$ref": "#/definitions/v1alpha1OperationInitiator"
         },

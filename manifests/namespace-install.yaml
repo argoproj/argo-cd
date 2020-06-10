@@ -36,6 +36,18 @@ spec:
         operation:
           description: Operation contains requested operation parameters.
           properties:
+            info:
+              items:
+                properties:
+                  name:
+                    type: string
+                  value:
+                    type: string
+                required:
+                - name
+                - value
+                type: object
+              type: array
             initiatedBy:
               description: OperationInitiator holds information about the operation
                 initiator
@@ -850,6 +862,18 @@ spec:
                 operation:
                   description: Operation is the original requested operation
                   properties:
+                    info:
+                      items:
+                        properties:
+                          name:
+                            type: string
+                          value:
+                            type: string
+                        required:
+                        - name
+                        - value
+                        type: object
+                      type: array
                     initiatedBy:
                       description: OperationInitiator holds information about the
                         operation initiator

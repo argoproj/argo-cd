@@ -1011,6 +1011,17 @@ func (in *Operation) DeepCopyInto(out *Operation) {
 		(*in).DeepCopyInto(*out)
 	}
 	out.InitiatedBy = in.InitiatedBy
+	if in.Info != nil {
+		in, out := &in.Info, &out.Info
+		*out = make([]*Info, len(*in))
+		for i := range *in {
+			if (*in)[i] != nil {
+				in, out := &(*in)[i], &(*out)[i]
+				*out = new(Info)
+				**out = **in
+			}
+		}
+	}
 	return
 }
 
