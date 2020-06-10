@@ -81,7 +81,6 @@ spec:
                     required:
                     - kind
                     - name
-                    - namespace
                     type: object
                   type: array
                 revision:
@@ -897,7 +896,6 @@ spec:
                             required:
                             - kind
                             - name
-                            - namespace
                             type: object
                           type: array
                         revision:
