@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=debian:10-slim
+ARG BASE_IMAGE=debian:10.4-slim
 ####################################################################################################
 # Builder image
 # Initial stage which pulls prepares build dependencies and CLI tooling we need for our final image
