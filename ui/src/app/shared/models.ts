@@ -244,6 +244,7 @@ export interface RevisionHistory {
     id: number;
     revision: string;
     source: ApplicationSource;
+    deployStartedAt: models.Time;
     deployedAt: models.Time;
 }
 
