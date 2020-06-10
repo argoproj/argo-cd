@@ -829,13 +829,19 @@ message ResourceStatus {
 
 // RevisionHistory contains information relevant to an application deployment
 message RevisionHistory {
+  // Revision holds the revision of the sync
   optional string revision = 2;
 
+  // DeployedAt holds the time the deployment completed
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time deployedAt = 4;
 
+  // ID is an auto incrementing identifier of the RevisionHistory
   optional int64 id = 5;
 
   optional ApplicationSource source = 6;
+
+  // DeployStartedAt holds the time the deployment started
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time deployStartedAt = 7;
 }
 
 // data about a specific revision within a repo

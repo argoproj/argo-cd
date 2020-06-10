@@ -1598,6 +1598,7 @@ func (in *RevisionHistory) DeepCopyInto(out *RevisionHistory) {
 	*out = *in
 	in.DeployedAt.DeepCopyInto(&out.DeployedAt)
 	in.Source.DeepCopyInto(&out.Source)
+	in.DeployStartedAt.DeepCopyInto(&out.DeployStartedAt)
 	return
 }
 

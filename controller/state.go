@@ -476,16 +476,17 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	return &compRes
 }
 
-func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource) error {
+func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource, startedAt metav1.Time) error {
 	var nextID int64
 	if len(app.Status.History) > 0 {
-		nextID = app.Status.History[len(app.Status.History)-1].ID + 1
+		nextID = app.Status.History.LastRevisionHistory().ID + 1
 	}
 	app.Status.History = append(app.Status.History, v1alpha1.RevisionHistory{
-		Revision:   revision,
-		DeployedAt: metav1.NewTime(time.Now().UTC()),
-		ID:         nextID,
-		Source:     source,
+		Revision:        revision,
+		DeployedAt:      metav1.NewTime(time.Now().UTC()),
+		DeployStartedAt: startedAt,
+		ID:              nextID,
+		Source:          source,
 	})
 
 	app.Status.History = app.Status.History.Trunc(app.Spec.GetRevisionHistoryLimit())
