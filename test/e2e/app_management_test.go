@@ -1057,3 +1057,25 @@ func TestNotPermittedResources(t *testing.T) {
 	FailOnErr(KubeClientset.NetworkingV1beta1().Ingresses(ArgoCDNamespace).Get("sample-ingress", metav1.GetOptions{}))
 	FailOnErr(KubeClientset.CoreV1().Services(DeploymentNamespace()).Get("guestbook-ui", metav1.GetOptions{}))
 }
+
+func TestSyncWithInfos(t *testing.T) {
+	expectedInfo := make([]*Info, 2)
+	expectedInfo[0] = &Info{Name: "name1", Value: "val1"}
+	expectedInfo[1] = &Info{Name: "name2", Value: "val2"}
+
+	Given(t).
+		Path(guestbookPath).
+		When().
+		Create().
+		Then().
+		And(func(app *Application) {
+			_, err := RunCli("app", "sync", app.Name,
+				"--info", fmt.Sprintf("%s=%s", expectedInfo[0].Name, expectedInfo[0].Value),
+				"--info", fmt.Sprintf("%s=%s", expectedInfo[1].Name, expectedInfo[1].Value))
+			assert.NoError(t, err)
+		}).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			assert.ElementsMatch(t, app.Status.OperationState.Operation.Info, expectedInfo)
+		})
+}
