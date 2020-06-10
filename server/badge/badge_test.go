@@ -110,6 +110,22 @@ func TestHandlerRevisionIsEnabledNoOperationState(t *testing.T) {
 	assert.NotContains(t, response, "(aa29b85)")
 }
 
+func TestHandlerRevisionIsEnabledShortCommitSHA(t *testing.T) {
+	app := testApp.DeepCopy()
+	app.Status.OperationState.SyncResult.Revision = "abc"
+
+	settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(&argoCDCm, &argoCDSecret), "default")
+	handler := NewHandler(appclientset.NewSimpleClientset(app), settingsMgr, "default")
+	req, err := http.NewRequest("GET", "/api/badge?name=testApp&revision=true", nil)
+	assert.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	response := rr.Body.String()
+	assert.Contains(t, response, "(abc)")
+}
+
 func TestHandlerFeatureIsDisabled(t *testing.T) {
 
 	argoCDCmDisabled := argoCDCm.DeepCopy()
