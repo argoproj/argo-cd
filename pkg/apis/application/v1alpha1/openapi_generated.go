@@ -1734,11 +1734,23 @@ func schema_pkg_apis_application_v1alpha1_Operation(ref common.ReferenceCallback
 							Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.OperationInitiator"),
 						},
 					},
+					"info": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Info"),
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.OperationInitiator", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncOperation"},
+			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Info", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.OperationInitiator", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncOperation"},
 	}
 }
 

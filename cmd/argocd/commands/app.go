@@ -203,6 +203,18 @@ func setLabels(app *argoappv1.Application, labels []string) {
 	app.SetLabels(mapLabels)
 }
 
+func getInfos(infos []string) []*argoappv1.Info {
+	mapInfos, err := label.Parse(infos)
+	errors.CheckError(err)
+	sliceInfos := make([]*argoappv1.Info, len(mapInfos))
+	i := 0
+	for key, element := range mapInfos {
+		sliceInfos[i] = &argoappv1.Info{Name: key, Value: element}
+		i++
+	}
+	return sliceInfos
+}
+
 func getRefreshType(refresh bool, hardRefresh bool) *string {
 	if hardRefresh {
 		refreshType := string(argoappv1.RefreshTypeHard)
@@ -1388,6 +1400,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		force     bool
 		async     bool
 		local     string
+		infos     []string
 	)
 	var command = &cobra.Command{
 		Use:   "sync [APPNAME... | -l selector]",
@@ -1495,6 +1508,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					Resources: selectedResources,
 					Prune:     prune,
 					Manifests: localObjsStrings,
+					Infos:     getInfos(infos),
 				}
 				switch strategy {
 				case "apply":
@@ -1540,6 +1554,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&force, "force", false, "Use a force apply")
 	command.Flags().BoolVar(&async, "async", false, "Do not wait for application to sync before continuing")
 	command.Flags().StringVar(&local, "local", "", "Path to a local directory. When this flag is present no git queries will be made")
+	command.Flags().StringArrayVar(&infos, "info", []string{}, "A list of key-value pairs during sync process. These infos will be persisted in app.")
 	return command
 }
 
