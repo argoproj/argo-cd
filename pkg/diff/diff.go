@@ -24,7 +24,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/jsonmergepatch"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/kubernetes/pkg/apis/core"
 
 	jsonutil "github.com/argoproj/gitops-engine/pkg/utils/json"
 )
@@ -262,7 +261,7 @@ func GetLastAppliedConfigAnnotation(live *unstructured.Unstructured) *unstructur
 	var obj unstructured.Unstructured
 	err := json.Unmarshal([]byte(lastAppliedStr), &obj)
 	if err != nil {
-		log.Warnf("Failed to unmarshal %s in %s", core.LastAppliedConfigAnnotation, live.GetName())
+		log.Warnf("Failed to unmarshal %s in %s", corev1.LastAppliedConfigAnnotation, live.GetName())
 		return nil
 	}
 	return &obj
@@ -485,7 +484,7 @@ func HideSecretData(target *unstructured.Unstructured, live *unstructured.Unstru
 		if err != nil {
 			return nil, nil, err
 		}
-		annotations[core.LastAppliedConfigAnnotation] = string(lastAppliedData)
+		annotations[corev1.LastAppliedConfigAnnotation] = string(lastAppliedData)
 		live.SetAnnotations(annotations)
 	}
 	return target, live, nil
