@@ -3120,7 +3120,7 @@ func schema_pkg_apis_application_v1alpha1_SyncOperationResource(ref common.Refer
 						},
 					},
 				},
-				Required: []string{"kind", "name", "namespace"},
+				Required: []string{"kind", "name"},
 			},
 		},
 	}

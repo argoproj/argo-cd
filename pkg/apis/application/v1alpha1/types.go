@@ -439,7 +439,7 @@ type SyncOperationResource struct {
 	Group     string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
 	Kind      string `json:"kind" protobuf:"bytes,2,opt,name=kind"`
 	Name      string `json:"name" protobuf:"bytes,3,opt,name=name"`
-	Namespace string `json:"namespace" protobuf:"bytes,4,opt,name=namespace"`
+	Namespace string `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
 }
 
 // RevisionHistories is a array of history, oldest first and newest last
