@@ -123,7 +123,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		badge = svgWidthPattern.ReplaceAllString(badge, fmt.Sprintf(`<svg width="%d" $2`, svgWidthWithRevision))
 		badge = displayNonePattern.ReplaceAllString(badge, `display="inline"`)
 		badge = revisionRectColorPattern.ReplaceAllString(badge, fmt.Sprintf(`id="revisionRect" fill="%s" $2`, rightColorString))
-		badge = replaceFirstGroupSubMatch(revisionTextPattern, badge, fmt.Sprintf("(%s)", revision[:7]))
+		shortRevision := revision
+		if len(shortRevision) > 7 {
+			shortRevision = shortRevision[:7]
+		}
+		badge = replaceFirstGroupSubMatch(revisionTextPattern, badge, fmt.Sprintf("(%s)", shortRevision))
 	}
 
 	w.Header().Set("Content-Type", "image/svg+xml")
