@@ -21,7 +21,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v2"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -436,13 +436,18 @@ type Operation struct {
 
 // SyncOperationResource contains resources to sync.
 type SyncOperationResource struct {
-	Group string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
-	Kind  string `json:"kind" protobuf:"bytes,2,opt,name=kind"`
-	Name  string `json:"name" protobuf:"bytes,3,opt,name=name"`
+	Group     string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
+	Kind      string `json:"kind" protobuf:"bytes,2,opt,name=kind"`
+	Name      string `json:"name" protobuf:"bytes,3,opt,name=name"`
+	Namespace string `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
 }
 
 // RevisionHistories is a array of history, oldest first and newest last
 type RevisionHistories []RevisionHistory
+
+func (in RevisionHistories) LastRevisionHistory() RevisionHistory {
+	return in[len(in)-1]
+}
 
 func (in RevisionHistories) Trunc(n int) RevisionHistories {
 	i := len(in) - n
@@ -452,9 +457,9 @@ func (in RevisionHistories) Trunc(n int) RevisionHistories {
 	return in
 }
 
-// HasIdentity determines whether a sync operation is identified by a manifest.
-func (r SyncOperationResource) HasIdentity(name string, gvk schema.GroupVersionKind) bool {
-	if name == r.Name && gvk.Kind == r.Kind && gvk.Group == r.Group {
+// HasIdentity determines whether a sync operation is identified by a manifest
+func (r SyncOperationResource) HasIdentity(name string, namespace string, gvk schema.GroupVersionKind) bool {
+	if name == r.Name && gvk.Kind == r.Kind && gvk.Group == r.Group && (r.Namespace == "" || namespace == r.Namespace) {
 		return true
 	}
 	return false
@@ -672,10 +677,15 @@ func (r ResourceResults) PruningRequired() (num int) {
 
 // RevisionHistory contains information relevant to an application deployment
 type RevisionHistory struct {
-	Revision   string            `json:"revision" protobuf:"bytes,2,opt,name=revision"`
-	DeployedAt metav1.Time       `json:"deployedAt" protobuf:"bytes,4,opt,name=deployedAt"`
-	ID         int64             `json:"id" protobuf:"bytes,5,opt,name=id"`
-	Source     ApplicationSource `json:"source,omitempty" protobuf:"bytes,6,opt,name=source"`
+	// Revision holds the revision of the sync
+	Revision string `json:"revision" protobuf:"bytes,2,opt,name=revision"`
+	// DeployedAt holds the time the deployment completed
+	DeployedAt metav1.Time `json:"deployedAt" protobuf:"bytes,4,opt,name=deployedAt"`
+	// ID is an auto incrementing identifier of the RevisionHistory
+	ID     int64             `json:"id" protobuf:"bytes,5,opt,name=id"`
+	Source ApplicationSource `json:"source,omitempty" protobuf:"bytes,6,opt,name=source"`
+	// DeployStartedAt holds the time the deployment started
+	DeployStartedAt metav1.Time `json:"deployStartedAt,omitempty" protobuf:"bytes,7,opt,name=deployStartedAt"`
 }
 
 // ApplicationWatchEvent contains information about application change.

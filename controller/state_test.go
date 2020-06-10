@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -401,7 +402,7 @@ func Test_appStateManager_persistRevisionHistory(t *testing.T) {
 		app.Spec.RevisionHistoryLimit = &i
 	}
 	addHistory := func() {
-		err := manager.persistRevisionHistory(app, "my-revision", argoappv1.ApplicationSource{})
+		err := manager.persistRevisionHistory(app, "my-revision", argoappv1.ApplicationSource{}, metav1.Time{})
 		assert.NoError(t, err)
 	}
 	addHistory()
@@ -435,6 +436,11 @@ func Test_appStateManager_persistRevisionHistory(t *testing.T) {
 	setRevisionHistoryLimit(9)
 	addHistory()
 	assert.Len(t, app.Status.History, 9)
+
+	metav1NowTime := metav1.NewTime(time.Now())
+	err := manager.persistRevisionHistory(app, "my-revision", argoappv1.ApplicationSource{}, metav1NowTime)
+	assert.NoError(t, err)
+	assert.Equal(t, app.Status.History.LastRevisionHistory().DeployStartedAt, metav1NowTime)
 }
 
 // helper function to read contents of a file to string

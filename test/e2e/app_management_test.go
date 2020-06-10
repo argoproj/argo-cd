@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"os"
 	"path"
+	"reflect"
 	"regexp"
 	"strings"
 	"testing"
@@ -730,6 +731,26 @@ func TestNoLocalSyncWithAutosyncEnabled(t *testing.T) {
 
 			_, err = RunCli("app", "sync", app.Name, "--local", guestbookPathLocal)
 			assert.Error(t, err)
+		})
+}
+
+func TestLocalSyncDryRunWithAutosyncEnabled(t *testing.T) {
+	Given(t).
+		Path(guestbookPath).
+		When().
+		Create().
+		Sync().
+		Then().
+		And(func(app *Application) {
+			_, err := RunCli("app", "set", app.Name, "--sync-policy", "automated")
+			assert.NoError(t, err)
+
+			appBefore := app.DeepCopy()
+			_, err = RunCli("app", "sync", app.Name, "--dry-run", "--local", guestbookPathLocal)
+			assert.NoError(t, err)
+
+			appAfter := app.DeepCopy()
+			assert.True(t, reflect.DeepEqual(appBefore, appAfter))
 		})
 }
 

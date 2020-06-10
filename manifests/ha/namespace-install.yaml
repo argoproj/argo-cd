@@ -76,6 +76,8 @@ spec:
                         type: string
                       name:
                         type: string
+                      namespace:
+                        type: string
                     required:
                     - kind
                     - name
@@ -624,13 +626,20 @@ spec:
                 description: RevisionHistory contains information relevant to an application
                   deployment
                 properties:
+                  deployStartedAt:
+                    description: DeployStartedAt holds the time the deployment started
+                    format: date-time
+                    type: string
                   deployedAt:
+                    description: DeployedAt holds the time the deployment completed
                     format: date-time
                     type: string
                   id:
+                    description: ID is an auto incrementing identifier of the RevisionHistory
                     format: int64
                     type: integer
                   revision:
+                    description: Revision holds the revision of the sync
                     type: string
                   source:
                     description: ApplicationSource contains information about github
@@ -888,6 +897,8 @@ spec:
                               kind:
                                 type: string
                               name:
+                                type: string
+                              namespace:
                                 type: string
                             required:
                             - kind

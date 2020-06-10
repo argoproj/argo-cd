@@ -8,7 +8,7 @@ require (
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
 	github.com/alicebob/gopher-json v0.0.0-20180125190556-5a6b3ba71ee6 // indirect
 	github.com/alicebob/miniredis v2.5.0+incompatible
-	github.com/argoproj/gitops-engine v0.0.0-00010101000000-000000000000
+	github.com/argoproj/gitops-engine v0.1.2
 	github.com/argoproj/pkg v0.0.0-20200319004004-f46beff7cd54
 	github.com/bsm/redislock v0.4.3
 	github.com/casbin/casbin v1.9.1
@@ -58,7 +58,6 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.5.1
 	github.com/vmihailenco/msgpack v3.3.1+incompatible
-	github.com/yudai/gojsondiff v1.0.1-0.20180504020246-0525c875b75c
 	github.com/yuin/gopher-lua v0.0.0-20190115140932-732aa6820ec4
 	golang.org/x/crypto v0.0.0-20190820162420-60c769a6c586
 	golang.org/x/net v0.0.0-20191004110552-13f9640d40b9
@@ -84,7 +83,6 @@ require (
 )
 
 replace (
-	github.com/argoproj/gitops-engine => github.com/argoproj/gitops-engine v0.1.1-0.20200601171118-4bd4f29670ee
 	github.com/golang/protobuf => github.com/golang/protobuf v1.2.0
 	github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc-gateway v1.3.1
 	github.com/improbable-eng/grpc-web => github.com/improbable-eng/grpc-web v0.0.0-20181111100011-16092bd1d58a

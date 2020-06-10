@@ -16,12 +16,14 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	v1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
 	k8scache "k8s.io/client-go/tools/cache"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apiclient/application"
@@ -306,6 +308,17 @@ func TestDeleteApp(t *testing.T) {
 	assert.Nil(t, err)
 	assert.False(t, patched)
 	assert.True(t, deleted)
+}
+
+func TestDeleteApp_InvalidName(t *testing.T) {
+	appServer := newTestAppServer()
+	_, err := appServer.Delete(context.Background(), &application.ApplicationDeleteRequest{
+		Name: pointer.StringPtr("foo"),
+	})
+	if !assert.Error(t, err) {
+		return
+	}
+	assert.True(t, apierrors.IsNotFound(err))
 }
 
 func TestSyncAndTerminate(t *testing.T) {

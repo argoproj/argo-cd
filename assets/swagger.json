@@ -4634,15 +4634,20 @@
       "type": "object",
       "title": "RevisionHistory contains information relevant to an application deployment",
       "properties": {
+        "deployStartedAt": {
+          "$ref": "#/definitions/v1Time"
+        },
         "deployedAt": {
           "$ref": "#/definitions/v1Time"
         },
         "id": {
           "type": "string",
-          "format": "int64"
+          "format": "int64",
+          "title": "ID is an auto incrementing identifier of the RevisionHistory"
         },
         "revision": {
-          "type": "string"
+          "type": "string",
+          "title": "Revision holds the revision of the sync"
         },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
@@ -4745,6 +4750,9 @@
           "type": "string"
         },
         "name": {
+          "type": "string"
+        },
+        "namespace": {
           "type": "string"
         }
       }

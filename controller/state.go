@@ -15,7 +15,6 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	kubeutil "github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
-	"github.com/yudai/gojsondiff"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -407,12 +406,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		if i < len(diffResults.Diffs) {
 			diffResult = diffResults.Diffs[i]
 		} else {
-			diffResult = diff.DiffResult{
-				Diff:           gojsondiff.New().CompareObjects(map[string]interface{}{}, map[string]interface{}{}),
-				Modified:       false,
-				NormalizedLive: []byte("{}"),
-				PredictedLive:  []byte("{}"),
-			}
+			diffResult = diff.DiffResult{Modified: false, NormalizedLive: []byte("{}"), PredictedLive: []byte("{}")}
 		}
 		if resState.Hook || ignore.Ignore(obj) {
 			// For resource hooks, don't store sync status, and do not affect overall sync status
@@ -540,16 +534,17 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	return &compRes
 }
 
-func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource) error {
+func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource, startedAt metav1.Time) error {
 	var nextID int64
 	if len(app.Status.History) > 0 {
-		nextID = app.Status.History[len(app.Status.History)-1].ID + 1
+		nextID = app.Status.History.LastRevisionHistory().ID + 1
 	}
 	app.Status.History = append(app.Status.History, v1alpha1.RevisionHistory{
-		Revision:   revision,
-		DeployedAt: metav1.NewTime(time.Now().UTC()),
-		ID:         nextID,
-		Source:     source,
+		Revision:        revision,
+		DeployedAt:      metav1.NewTime(time.Now().UTC()),
+		DeployStartedAt: startedAt,
+		ID:              nextID,
+		Source:          source,
 	})
 
 	app.Status.History = app.Status.History.Trunc(app.Spec.GetRevisionHistoryLimit())

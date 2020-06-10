@@ -140,7 +140,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		sync.WithOperationSettings(syncOp.DryRun, syncOp.Prune, syncOp.SyncStrategy.Force(), syncOp.IsApplyStrategy() || len(syncOp.Resources) > 0),
 		sync.WithInitialState(state.Phase, state.Message, initialResourcesRes),
 		sync.WithResourcesFilter(func(key kube.ResourceKey, target *unstructured.Unstructured, live *unstructured.Unstructured) bool {
-			return len(syncOp.Resources) == 0 || argo.ContainsSyncResource(key.Name, schema.GroupVersionKind{Kind: key.Kind, Group: key.Group}, syncOp.Resources)
+			return len(syncOp.Resources) == 0 || argo.ContainsSyncResource(key.Name, key.Namespace, schema.GroupVersionKind{Kind: key.Kind, Group: key.Group}, syncOp.Resources)
 		}),
 		sync.WithManifestValidation(!syncOp.SyncOptions.HasOption("Validate=false")),
 	)
@@ -178,7 +178,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	logEntry.WithField("duration", time.Since(start)).Info("sync/terminate complete")
 
 	if !syncOp.DryRun && len(syncOp.Resources) == 0 && state.Phase.Successful() {
-		err := m.persistRevisionHistory(app, compareResult.syncStatus.Revision, source)
+		err := m.persistRevisionHistory(app, compareResult.syncStatus.Revision, source, state.StartedAt)
 		if err != nil {
 			state.Phase = common.OperationError
 			state.Message = fmt.Sprintf("failed to record sync to history: %v", err)

@@ -336,8 +336,8 @@ func EnsureCleanState(t *testing.T) {
 	// random id - unique across test runs
 	postFix := "-" + strings.ToLower(rand.RandString(5))
 	id = t.Name() + postFix
-	name = dnsFriendly(t.Name(), "")
-	deploymentNamespace = dnsFriendly(fmt.Sprintf("argocd-e2e-%s", t.Name()), postFix)
+	name = DnsFriendly(t.Name(), "")
+	deploymentNamespace = DnsFriendly(fmt.Sprintf("argocd-e2e-%s", t.Name()), postFix)
 
 	// create tmp dir
 	FailOnErr(Run("", "mkdir", "-p", TmpDir))

@@ -522,7 +522,7 @@ func (s *Server) Patch(ctx context.Context, q *application.ApplicationPatchReque
 // Delete removes an application and all associated resources
 func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteRequest) (*application.ApplicationResponse, error) {
 	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
-	if err != nil && !apierr.IsNotFound(err) {
+	if err != nil {
 		return nil, err
 	}
 
@@ -565,7 +565,7 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 	}
 
 	err = s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Delete(*q.Name, &metav1.DeleteOptions{})
-	if err != nil && !apierr.IsNotFound(err) {
+	if err != nil {
 		return nil, err
 	}
 	s.logAppEvent(a, ctx, argo.EventReasonResourceDeleted, "deleted application")
@@ -1055,8 +1055,8 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionOverride, appRBACName(*a)); err != nil {
 			return nil, err
 		}
-		if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.Automated != nil {
-			return nil, status.Error(codes.FailedPrecondition, "Cannot use local sync when Automatic Sync Policy is enabled")
+		if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.Automated != nil && !syncReq.DryRun {
+			return nil, status.Error(codes.FailedPrecondition, "Cannot use local sync when Automatic Sync Policy is enabled unless for dry run")
 		}
 	}
 	if a.DeletionTimestamp != nil {

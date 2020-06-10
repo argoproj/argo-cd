@@ -1281,8 +1281,10 @@ func formatConditionsSummary(app argoappv1.Application) string {
 }
 
 const (
-	resourceFieldDelimiter = ":"
-	resourceFieldCount     = 3
+	resourceFieldDelimiter              = ":"
+	resourceFieldCount                  = 3
+	resourceFieldNamespaceDelimiter     = "/"
+	resourceFieldNameWithNamespaceCount = 2
 )
 
 func parseSelectedResources(resources []string) []argoappv1.SyncOperationResource {
@@ -1294,10 +1296,21 @@ func parseSelectedResources(resources []string) []argoappv1.SyncOperationResourc
 			if len(fields) != resourceFieldCount {
 				log.Fatalf("Resource should have GROUP%sKIND%sNAME, but instead got: %s", resourceFieldDelimiter, resourceFieldDelimiter, r)
 			}
+			name := fields[2]
+			namespace := ""
+			if strings.Contains(fields[2], resourceFieldNamespaceDelimiter) {
+				nameFields := strings.Split(fields[2], resourceFieldNamespaceDelimiter)
+				if len(nameFields) != resourceFieldNameWithNamespaceCount {
+					log.Fatalf("Resource with namespace should have GROUP%sKIND%sNAMESPACE%sNAME, but instead got: %s", resourceFieldDelimiter, resourceFieldDelimiter, resourceFieldNamespaceDelimiter, r)
+				}
+				namespace = nameFields[0]
+				name = nameFields[1]
+			}
 			rsrc := argoappv1.SyncOperationResource{
-				Group: fields[0],
-				Kind:  fields[1],
-				Name:  fields[2],
+				Group:     fields[0],
+				Kind:      fields[1],
+				Name:      name,
+				Namespace: namespace,
 			}
 			selectedResources = append(selectedResources, rsrc)
 		}
@@ -1470,8 +1483,8 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				if local != "" {
 					app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName})
 					errors.CheckError(err)
-					if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil {
-						log.Fatal("Cannot use local sync when Automatic Sync Policy is enabled")
+					if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil && !dryRun {
+						log.Fatal("Cannot use local sync when Automatic Sync Policy is enabled except with --dry-run")
 					}
 
 					errors.CheckError(err)
@@ -1630,7 +1643,7 @@ func getResourceStates(app *argoappv1.Application, selectedResources []argoappv1
 	if len(selectedResources) > 0 {
 		for i := len(states) - 1; i >= 0; i-- {
 			res := states[i]
-			if !argo.ContainsSyncResource(res.Name, schema.GroupVersionKind{Group: res.Group, Kind: res.Kind}, selectedResources) {
+			if !argo.ContainsSyncResource(res.Name, res.Namespace, schema.GroupVersionKind{Group: res.Group, Kind: res.Kind}, selectedResources) {
 				states = append(states[:i], states[i+1:]...)
 			}
 		}
