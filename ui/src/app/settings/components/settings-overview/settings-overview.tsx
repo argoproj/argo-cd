@@ -18,6 +18,11 @@ const settings = [
         path: './certs'
     },
     {
+        title: 'GnuPG keys',
+        description: 'Configure public GPG keys for commit verification',
+        path: './gpgkeys'
+    },
+    {
         title: 'Clusters',
         description: 'Configure connected Kubernetes clusters',
         path: './clusters'

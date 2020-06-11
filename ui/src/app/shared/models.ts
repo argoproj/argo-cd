@@ -669,3 +669,13 @@ export interface Account {
     capabilities: string[];
     tokens: Token[];
 }
+
+export interface GnuPGPublicKey {
+    keyID?: string;
+    fingerprint?: string;
+    subType?: string;
+    owner?: string;
+    keyData?: string;
+}
+
+export interface GnuPGPublicKeyList extends ItemsList<GnuPGPublicKey> {}
