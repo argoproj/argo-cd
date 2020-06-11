@@ -19,7 +19,7 @@ const settings = [
     },
     {
         title: 'GnuPG keys',
-        description: 'Configure public GPG keys for commit verification',
+        description: 'Configure GnuPG public keys for commit verification',
         path: './gpgkeys'
     },
     {
