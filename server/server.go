@@ -465,6 +465,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 		"/cluster.ClusterService/Update":                          true,
 		"/session.SessionService/Create":                          true,
 		"/account.AccountService/UpdatePassword":                  true,
+		"/gpgkey.GPGKeyService/CreateGnuPGPublicKey":              true,
 		"/repository.RepositoryService/Create":                    true,
 		"/repository.RepositoryService/Update":                    true,
 		"/repository.RepositoryService/CreateRepository":          true,
@@ -631,6 +632,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	mustRegisterGWHandler(projectpkg.RegisterProjectServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(accountpkg.RegisterAccountServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(certificatepkg.RegisterCertificateServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
+	mustRegisterGWHandler(gpgkeypkg.RegisterGPGKeyServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 
 	// Swagger UI
 	swagger.ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui", a.RootPath)
