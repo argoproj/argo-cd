@@ -81,7 +81,7 @@ func (s *Server) CreateGnuPGPublicKey(ctx context.Context, q *gpgkeypkg.GnuPGPub
 		return nil, err
 	}
 
-	added, skipped, err := s.db.AddGPGPublicKey(ctx, q.Publickey)
+	added, skipped, err := s.db.AddGPGPublicKey(ctx, q.Publickey.KeyData)
 	if err != nil {
 		return nil, err
 	}

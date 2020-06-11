@@ -116,7 +116,7 @@ func NewGPGAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			}
 			conn, gpgIf := argocdclient.NewClientOrDie(clientOpts).NewGPGKeyClientOrDie()
 			defer argoio.Close(conn)
-			resp, err := gpgIf.CreateGnuPGPublicKey(context.Background(), &gpgkeypkg.GnuPGPublicKeyCreateRequest{Publickey: string(keyData)})
+			resp, err := gpgIf.CreateGnuPGPublicKey(context.Background(), &gpgkeypkg.GnuPGPublicKeyCreateRequest{Publickey: &appsv1.GnuPGPublicKey{KeyData: string(keyData)}})
 			errors.CheckError(err)
 			fmt.Printf("Created %d key(s) from input file", len(resp.Created.Items))
 			if len(resp.Skipped) > 0 {

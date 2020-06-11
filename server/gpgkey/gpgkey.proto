@@ -19,7 +19,7 @@ message GnuPGPublicKeyQuery {
 // Request to create one or more public keys on the server
 message GnuPGPublicKeyCreateRequest {
   // Raw key data of the GPG key(s) to create
-  string publickey = 1;
+  github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.GnuPGPublicKey publickey = 1;
   // Whether to upsert already existing public keys
   bool upsert = 2;
 }
@@ -57,6 +57,6 @@ service GPGKeyService {
 
   // Delete specified GPG public key from the server's configuration
   rpc DeleteGnuPGPublicKey(GnuPGPublicKeyQuery) returns (GnuPGPublicKeyResponse) {
-    option (google.api.http).delete = "/api/v1/gpgkeys/{keyID}";
+    option (google.api.http).delete = "/api/v1/gpgkeys";
   }
 }

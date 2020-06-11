@@ -93,26 +93,16 @@ func request_GPGKeyService_CreateGnuPGPublicKey_0(ctx context.Context, marshaler
 
 }
 
+var (
+	filter_GPGKeyService_DeleteGnuPGPublicKey_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
+)
+
 func request_GPGKeyService_DeleteGnuPGPublicKey_0(ctx context.Context, marshaler runtime.Marshaler, client GPGKeyServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq GnuPGPublicKeyQuery
 	var metadata runtime.ServerMetadata
 
-	var (
-		val string
-		ok  bool
-		err error
-		_   = err
-	)
-
-	val, ok = pathParams["keyID"]
-	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "keyID")
-	}
-
-	protoReq.KeyID, err = runtime.String(val)
-
-	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "keyID", err)
+	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_GPGKeyService_DeleteGnuPGPublicKey_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
 	msg, err := client.DeleteGnuPGPublicKey(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
@@ -284,7 +274,7 @@ var (
 
 	pattern_GPGKeyService_CreateGnuPGPublicKey_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "gpgkeys"}, ""))
 
-	pattern_GPGKeyService_DeleteGnuPGPublicKey_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "gpgkeys", "keyID"}, ""))
+	pattern_GPGKeyService_DeleteGnuPGPublicKey_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "gpgkeys"}, ""))
 )
 
 var (

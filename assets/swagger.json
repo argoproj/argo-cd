@@ -1269,7 +1269,7 @@
             "in": "body",
             "required": true,
             "schema": {
-              "type": "string"
+              "$ref": "#/definitions/v1alpha1GnuPGPublicKey"
             }
           }
         ],
@@ -1278,6 +1278,21 @@
             "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/gpgkeyGnuPGPublicKeyCreateResponse"
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "GPGKeyService"
+        ],
+        "summary": "Delete specified GPG public key from the server's configuration",
+        "operationId": "DeleteGnuPGPublicKey",
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/gpgkeyGnuPGPublicKeyResponse"
             }
           }
         }
@@ -1303,29 +1318,6 @@
             "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/v1alpha1GnuPGPublicKey"
-            }
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "GPGKeyService"
-        ],
-        "summary": "Delete specified GPG public key from the server's configuration",
-        "operationId": "DeleteGnuPGPublicKey",
-        "parameters": [
-          {
-            "type": "string",
-            "name": "keyID",
-            "in": "path",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "(empty)",
-            "schema": {
-              "$ref": "#/definitions/gpgkeyGnuPGPublicKeyResponse"
             }
           }
         }
