@@ -317,7 +317,7 @@ jobs:
         run: |
           docker pull quay.io/dexidp/dex:v2.22.0
           docker pull argoproj/argo-cd-ci-builder:v1.0.0
-          docker pull redis:5.0.3-alpine
+          docker pull redis:5.0.8-alpine
       - name: Run E2E server and wait for it being available
         timeout-minutes: 30
         run: |
