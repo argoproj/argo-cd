@@ -37,7 +37,7 @@ export class GpgKeysList extends React.Component<RouteComponentProps<any>> {
                             {
                                 title: 'Add GnuPG key',
                                 action: () => (this.showAddGnuPGKey = true)
-                            },
+                            }
                         ]
                     }
                 }}>
@@ -60,9 +60,7 @@ export class GpgKeysList extends React.Component<RouteComponentProps<any>> {
                                                     <div className='columns small-3'>
                                                         <i className='fa fa-key' /> {gpgkey.keyID}
                                                     </div>
-                                                    <div className='columns small-3'>
-                                                        {gpgkey.subType}
-                                                    </div>
+                                                    <div className='columns small-3'>{gpgkey.subType}</div>
                                                     <div className='columns small-6'>
                                                         {gpgkey.owner}
                                                         <DropDownMenu
@@ -114,10 +112,10 @@ export class GpgKeysList extends React.Component<RouteComponentProps<any>> {
                         onSubmit={params => this.addGnuPGPublicKey({keyData: params.keyData})}
                         getApi={api => (this.formApi = api)}
                         preSubmit={(params: NewGnuPGPublicKeyParams) => ({
-                            keyData: params.keyData,
+                            keyData: params.keyData
                         })}
                         validateError={(params: NewGnuPGPublicKeyParams) => ({
-                            keyData: !params.keyData && 'Key data is required',
+                            keyData: !params.keyData && 'Key data is required'
                         })}>
                         {formApi => (
                             <form onSubmit={formApi.submitForm} role='form' className='gpgkeys-list width-control' encType='multipart/form-data'>
@@ -138,7 +136,7 @@ export class GpgKeysList extends React.Component<RouteComponentProps<any>> {
 
     private async addGnuPGPublicKey(params: NewGnuPGPublicKeyParams) {
         try {
-            await services.gpgkeys.create({keyData: params.keyData})
+            await services.gpgkeys.create({keyData: params.keyData});
             this.showAddGnuPGKey = false;
             this.loader.reload();
         } catch (e) {
@@ -152,7 +150,7 @@ export class GpgKeysList extends React.Component<RouteComponentProps<any>> {
     private async removeKey(keyId: string) {
         const confirmed = await this.appContext.apis.popup.confirm('Remove GPG public key', 'Are you sure you want to remove GPG key with ID ' + keyId + '?');
         if (confirmed) {
-            await services.gpgkeys.delete(keyId)
+            await services.gpgkeys.delete(keyId);
             this.loader.reload();
         }
     }
