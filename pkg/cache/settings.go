@@ -30,14 +30,14 @@ type Settings struct {
 	ResourcesFilter kube.ResourceFilter
 }
 
+type UpdateSettingsFunc func(cache *clusterCache)
+
 // SetKubectl allows to override kubectl wrapper implementation
-func SetKubectl(kubectl kube.Kubectl) func(cache *clusterCache) {
+func SetKubectl(kubectl kube.Kubectl) UpdateSettingsFunc {
 	return func(cache *clusterCache) {
 		cache.kubectl = kubectl
 	}
 }
-
-type UpdateSettingsFunc func(cache *clusterCache)
 
 // SetPopulateResourceInfoHandler updates handler that populates resource info
 func SetPopulateResourceInfoHandler(handler OnPopulateResourceInfoHandler) UpdateSettingsFunc {

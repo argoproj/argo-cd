@@ -122,7 +122,7 @@ type ClusterCache interface {
 }
 
 // NewClusterCache creates new instance of cluster cache
-func NewClusterCache(config *rest.Config, opts ...func(cache *clusterCache)) *clusterCache {
+func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) *clusterCache {
 	cache := &clusterCache{
 		settings:                Settings{ResourceHealthOverride: &noopSettings{}, ResourcesFilter: &noopSettings{}},
 		apisMeta:                make(map[schema.GroupKind]*apiMeta),
