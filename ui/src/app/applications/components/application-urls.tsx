@@ -2,6 +2,7 @@ import {DropDownMenu} from 'argo-ui';
 import * as React from 'react';
 
 export const ApplicationURLs = ({urls}: {urls: string[]}) => {
+    (urls || []).sort();
     return (
         ((urls || []).length > 0 && (
             <span>
