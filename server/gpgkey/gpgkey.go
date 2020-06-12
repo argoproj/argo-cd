@@ -2,6 +2,7 @@ package gpgkey
 
 import (
 	"fmt"
+	"strings"
 
 	"golang.org/x/net/context"
 
@@ -79,6 +80,11 @@ func (s *Server) GetGnuPGPublicKey(ctx context.Context, q *gpgkeypkg.GnuPGPublic
 func (s *Server) CreateGnuPGPublicKey(ctx context.Context, q *gpgkeypkg.GnuPGPublicKeyCreateRequest) (*gpgkeypkg.GnuPGPublicKeyCreateResponse, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceGPGKeys, rbacpolicy.ActionCreate, ""); err != nil {
 		return nil, err
+	}
+
+	keyData := strings.TrimSpace(q.Publickey.KeyData)
+	if keyData == "" || !strings.HasPrefix(keyData, "-----BEGIN PGP PUBLIC KEY BLOCK-----") || !strings.HasSuffix(keyData, "-----END PGP PUBLIC KEY BLOCK-----") {
+		return nil, fmt.Errorf("Key data submitted does not seem to be a valid GnuPG public key block")
 	}
 
 	added, skipped, err := s.db.AddGPGPublicKey(ctx, q.Publickey.KeyData)
