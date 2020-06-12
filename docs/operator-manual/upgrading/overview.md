@@ -10,7 +10,7 @@ Argo CD uses the semver versioning and ensures that following rules:
 * The patch release does not introduce any breaking changes. So if you are upgrading from v1.5.1 to v1.5.3
  there should be no special instructions to follow.
 * The minor release might introduce minor changes with a workaround. If you are upgrading from v1.3.0 to v1.5.2
-please make sure to check upgrading details in  both [v1.3 to v1.4](./1.4-1.5.md)  and  [v1.4 to v1.5](./1.4-1.5.md)
+please make sure to check upgrading details in  both [v1.3 to v1.4](./1.3-1.4.md)  and  [v1.4 to v1.5](./1.4-1.5.md)
  upgrading instructions.
  * The major release introduces backward incompatible behavior changes. It is recommended to take a backup of
  Argo CD settings using disaster recovery [guide](../disaster_recovery.md).
@@ -38,6 +38,7 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/<v
 <hr/>
 
 * [v1.4 to v1.5](./1.4-1.5.md) 
-* [v1.3 to v1.4](./1.4-1.5.md) 
-* [v1.2 to v1.1](./1.4-1.5.md) 
-* [v1.1 to v1.0](./1.4-1.5.md) 
+* [v1.3 to v1.4](./1.3-1.4.md) 
+* [v1.2 to v1.3](./1.2-1.3.md)
+* [v1.1 to v1.2](./1.1-1.2.md) 
+* [v1.0 to v1.1](./1.0-1.1.md) 
