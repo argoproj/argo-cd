@@ -40,6 +40,8 @@ type LiveStateCache interface {
 	Run(ctx context.Context) error
 	// Returns information about monitored clusters
 	GetClustersInfo() []clustercache.ClusterInfo
+	// Init must be executed before cache can be used
+	Init() error
 }
 
 type ObjectUpdatedHandler = func(managedByApp map[string]bool, ref v1.ObjectReference)
@@ -391,14 +393,17 @@ func (c *liveStateCache) watchSettings(ctx context.Context) {
 	close(updateCh)
 }
 
-// Run watches for resource changes annotated with application label on all registered clusters and schedule corresponding app refresh.
-func (c *liveStateCache) Run(ctx context.Context) error {
+func (c *liveStateCache) Init() error {
 	cacheSettings, err := c.loadCacheSettings()
 	if err != nil {
 		return err
 	}
 	c.cacheSettings = *cacheSettings
+	return nil
+}
 
+// Run watches for resource changes annotated with application label on all registered clusters and schedule corresponding app refresh.
+func (c *liveStateCache) Run(ctx context.Context) error {
 	go c.watchSettings(ctx)
 
 	kube.RetryUntilSucceed(func() error {

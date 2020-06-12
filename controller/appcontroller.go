@@ -414,6 +414,8 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 	go ctrl.appInformer.Run(ctx.Done())
 	go ctrl.projInformer.Run(ctx.Done())
 
+	errors.CheckError(ctrl.stateCache.Init())
+
 	if !cache.WaitForCacheSync(ctx.Done(), ctrl.appInformer.HasSynced, ctrl.projInformer.HasSynced) {
 		log.Error("Timed out waiting for caches to sync")
 		return
