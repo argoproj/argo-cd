@@ -518,6 +518,8 @@ message Operation {
   optional SyncOperation sync = 1;
 
   optional OperationInitiator initiatedBy = 2;
+
+  repeated Info info = 3;
 }
 
 // OperationInitiator holds information about the operation initiator

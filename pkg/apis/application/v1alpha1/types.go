@@ -432,6 +432,7 @@ type OperationInitiator struct {
 type Operation struct {
 	Sync        *SyncOperation     `json:"sync,omitempty" protobuf:"bytes,1,opt,name=sync"`
 	InitiatedBy OperationInitiator `json:"initiatedBy,omitempty" protobuf:"bytes,2,opt,name=initiatedBy"`
+	Info        []*Info            `json:"info,omitempty" protobuf:"bytes,3,name=info"`
 }
 
 // SyncOperationResource contains resources to sync.
