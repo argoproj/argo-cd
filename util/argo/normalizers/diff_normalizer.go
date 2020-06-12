@@ -6,7 +6,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -76,7 +76,13 @@ func NewIgnoreNormalizer(ignore []v1alpha1.ResourceIgnoreDifferences, overrides 
 func (n *ignoreNormalizer) Normalize(un *unstructured.Unstructured) error {
 	matched := make([]normalizerPatch, 0)
 	for _, patch := range n.patches {
+		if patch.groupKind.Group == "" && patch.groupKind.Kind == "" {
+			matched = append(matched, patch)
+			continue
+		}
+
 		groupKind := un.GroupVersionKind().GroupKind()
+
 		if groupKind == patch.groupKind &&
 			(patch.name == "" || patch.name == un.GetName()) &&
 			(patch.namespace == "" || patch.namespace == un.GetNamespace()) {

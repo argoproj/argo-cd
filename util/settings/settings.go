@@ -447,7 +447,7 @@ func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.Resource
 			return nil, err
 		}
 	}
-
+	resourceOverrides["/"] = v1alpha1.ResourceOverride{IgnoreDifferences: "jsonPointers:\n- /status"}
 	return resourceOverrides, nil
 }
 
