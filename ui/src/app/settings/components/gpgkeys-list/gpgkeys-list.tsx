@@ -135,7 +135,7 @@ export class GpgKeysList extends React.Component<RouteComponentProps<any>> {
     }
 
     private validateKeyInputfield(data: string): boolean {
-        if (data == null || data == '') {
+        if (data == null || data === '') {
             return false;
         }
         const str = data.trim();
@@ -158,8 +158,8 @@ export class GpgKeysList extends React.Component<RouteComponentProps<any>> {
         try {
             if (!this.validateKeyInputfield(params.keyData)) {
                 throw {
-                    name: "Invalid key exception",
-                    message: "Invalid GnuPG key data found - must be ASCII armored"
+                    name: 'Invalid key exception',
+                    message: 'Invalid GnuPG key data found - must be ASCII armored'
                 };
             }
             await services.gpgkeys.create({keyData: params.keyData});
