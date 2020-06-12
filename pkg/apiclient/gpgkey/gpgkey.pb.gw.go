@@ -29,23 +29,23 @@ var _ = runtime.String
 var _ = utilities.NewDoubleArray
 
 var (
-	filter_GPGKeyService_ListGnuPGPublicKeys_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
+	filter_GPGKeyService_List_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
 )
 
-func request_GPGKeyService_ListGnuPGPublicKeys_0(ctx context.Context, marshaler runtime.Marshaler, client GPGKeyServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_GPGKeyService_List_0(ctx context.Context, marshaler runtime.Marshaler, client GPGKeyServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq GnuPGPublicKeyQuery
 	var metadata runtime.ServerMetadata
 
-	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_GPGKeyService_ListGnuPGPublicKeys_0); err != nil {
+	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_GPGKeyService_List_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
-	msg, err := client.ListGnuPGPublicKeys(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	msg, err := client.List(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
 
 }
 
-func request_GPGKeyService_GetGnuPGPublicKey_0(ctx context.Context, marshaler runtime.Marshaler, client GPGKeyServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_GPGKeyService_Get_0(ctx context.Context, marshaler runtime.Marshaler, client GPGKeyServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq GnuPGPublicKeyQuery
 	var metadata runtime.ServerMetadata
 
@@ -67,16 +67,16 @@ func request_GPGKeyService_GetGnuPGPublicKey_0(ctx context.Context, marshaler ru
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "keyID", err)
 	}
 
-	msg, err := client.GetGnuPGPublicKey(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	msg, err := client.Get(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
 
 }
 
 var (
-	filter_GPGKeyService_CreateGnuPGPublicKey_0 = &utilities.DoubleArray{Encoding: map[string]int{"publickey": 0}, Base: []int{1, 1, 0}, Check: []int{0, 1, 2}}
+	filter_GPGKeyService_Create_0 = &utilities.DoubleArray{Encoding: map[string]int{"publickey": 0}, Base: []int{1, 1, 0}, Check: []int{0, 1, 2}}
 )
 
-func request_GPGKeyService_CreateGnuPGPublicKey_0(ctx context.Context, marshaler runtime.Marshaler, client GPGKeyServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_GPGKeyService_Create_0(ctx context.Context, marshaler runtime.Marshaler, client GPGKeyServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq GnuPGPublicKeyCreateRequest
 	var metadata runtime.ServerMetadata
 
@@ -84,28 +84,28 @@ func request_GPGKeyService_CreateGnuPGPublicKey_0(ctx context.Context, marshaler
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
-	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_GPGKeyService_CreateGnuPGPublicKey_0); err != nil {
+	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_GPGKeyService_Create_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
-	msg, err := client.CreateGnuPGPublicKey(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	msg, err := client.Create(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
 
 }
 
 var (
-	filter_GPGKeyService_DeleteGnuPGPublicKey_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
+	filter_GPGKeyService_Delete_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
 )
 
-func request_GPGKeyService_DeleteGnuPGPublicKey_0(ctx context.Context, marshaler runtime.Marshaler, client GPGKeyServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_GPGKeyService_Delete_0(ctx context.Context, marshaler runtime.Marshaler, client GPGKeyServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq GnuPGPublicKeyQuery
 	var metadata runtime.ServerMetadata
 
-	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_GPGKeyService_DeleteGnuPGPublicKey_0); err != nil {
+	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_GPGKeyService_Delete_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
-	msg, err := client.DeleteGnuPGPublicKey(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	msg, err := client.Delete(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
 
 }
@@ -148,7 +148,7 @@ func RegisterGPGKeyServiceHandler(ctx context.Context, mux *runtime.ServeMux, co
 // "GPGKeyServiceClient" to call the correct interceptors.
 func RegisterGPGKeyServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux, client GPGKeyServiceClient) error {
 
-	mux.Handle("GET", pattern_GPGKeyService_ListGnuPGPublicKeys_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("GET", pattern_GPGKeyService_List_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		if cn, ok := w.(http.CloseNotifier); ok {
@@ -166,18 +166,18 @@ func RegisterGPGKeyServiceHandlerClient(ctx context.Context, mux *runtime.ServeM
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_GPGKeyService_ListGnuPGPublicKeys_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_GPGKeyService_List_0(rctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_GPGKeyService_ListGnuPGPublicKeys_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_GPGKeyService_List_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
-	mux.Handle("GET", pattern_GPGKeyService_GetGnuPGPublicKey_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("GET", pattern_GPGKeyService_Get_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		if cn, ok := w.(http.CloseNotifier); ok {
@@ -195,18 +195,18 @@ func RegisterGPGKeyServiceHandlerClient(ctx context.Context, mux *runtime.ServeM
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_GPGKeyService_GetGnuPGPublicKey_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_GPGKeyService_Get_0(rctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_GPGKeyService_GetGnuPGPublicKey_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_GPGKeyService_Get_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
-	mux.Handle("POST", pattern_GPGKeyService_CreateGnuPGPublicKey_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("POST", pattern_GPGKeyService_Create_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		if cn, ok := w.(http.CloseNotifier); ok {
@@ -224,18 +224,18 @@ func RegisterGPGKeyServiceHandlerClient(ctx context.Context, mux *runtime.ServeM
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_GPGKeyService_CreateGnuPGPublicKey_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_GPGKeyService_Create_0(rctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_GPGKeyService_CreateGnuPGPublicKey_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_GPGKeyService_Create_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
-	mux.Handle("DELETE", pattern_GPGKeyService_DeleteGnuPGPublicKey_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("DELETE", pattern_GPGKeyService_Delete_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		if cn, ok := w.(http.CloseNotifier); ok {
@@ -253,14 +253,14 @@ func RegisterGPGKeyServiceHandlerClient(ctx context.Context, mux *runtime.ServeM
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_GPGKeyService_DeleteGnuPGPublicKey_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_GPGKeyService_Delete_0(rctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_GPGKeyService_DeleteGnuPGPublicKey_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_GPGKeyService_Delete_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -268,21 +268,21 @@ func RegisterGPGKeyServiceHandlerClient(ctx context.Context, mux *runtime.ServeM
 }
 
 var (
-	pattern_GPGKeyService_ListGnuPGPublicKeys_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "gpgkeys"}, ""))
+	pattern_GPGKeyService_List_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "gpgkeys"}, ""))
 
-	pattern_GPGKeyService_GetGnuPGPublicKey_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "gpgkeys", "keyID"}, ""))
+	pattern_GPGKeyService_Get_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "gpgkeys", "keyID"}, ""))
 
-	pattern_GPGKeyService_CreateGnuPGPublicKey_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "gpgkeys"}, ""))
+	pattern_GPGKeyService_Create_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "gpgkeys"}, ""))
 
-	pattern_GPGKeyService_DeleteGnuPGPublicKey_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "gpgkeys"}, ""))
+	pattern_GPGKeyService_Delete_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "gpgkeys"}, ""))
 )
 
 var (
-	forward_GPGKeyService_ListGnuPGPublicKeys_0 = runtime.ForwardResponseMessage
+	forward_GPGKeyService_List_0 = runtime.ForwardResponseMessage
 
-	forward_GPGKeyService_GetGnuPGPublicKey_0 = runtime.ForwardResponseMessage
+	forward_GPGKeyService_Get_0 = runtime.ForwardResponseMessage
 
-	forward_GPGKeyService_CreateGnuPGPublicKey_0 = runtime.ForwardResponseMessage
+	forward_GPGKeyService_Create_0 = runtime.ForwardResponseMessage
 
-	forward_GPGKeyService_DeleteGnuPGPublicKey_0 = runtime.ForwardResponseMessage
+	forward_GPGKeyService_Delete_0 = runtime.ForwardResponseMessage
 )

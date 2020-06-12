@@ -46,7 +46,7 @@ func NewGPGListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		Run: func(c *cobra.Command, args []string) {
 			conn, gpgIf := argocdclient.NewClientOrDie(clientOpts).NewGPGKeyClientOrDie()
 			defer argoio.Close(conn)
-			keys, err := gpgIf.ListGnuPGPublicKeys(context.Background(), &gpgkeypkg.GnuPGPublicKeyQuery{})
+			keys, err := gpgIf.List(context.Background(), &gpgkeypkg.GnuPGPublicKeyQuery{})
 			errors.CheckError(err)
 			switch output {
 			case "yaml", "json":
@@ -77,7 +77,7 @@ func NewGPGGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			}
 			conn, gpgIf := argocdclient.NewClientOrDie(clientOpts).NewGPGKeyClientOrDie()
 			defer argoio.Close(conn)
-			key, err := gpgIf.GetGnuPGPublicKey(context.Background(), &gpgkeypkg.GnuPGPublicKeyQuery{KeyID: args[0]})
+			key, err := gpgIf.Get(context.Background(), &gpgkeypkg.GnuPGPublicKeyQuery{KeyID: args[0]})
 			errors.CheckError(err)
 			switch output {
 			case "yaml", "json":
@@ -116,7 +116,7 @@ func NewGPGAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			}
 			conn, gpgIf := argocdclient.NewClientOrDie(clientOpts).NewGPGKeyClientOrDie()
 			defer argoio.Close(conn)
-			resp, err := gpgIf.CreateGnuPGPublicKey(context.Background(), &gpgkeypkg.GnuPGPublicKeyCreateRequest{Publickey: &appsv1.GnuPGPublicKey{KeyData: string(keyData)}})
+			resp, err := gpgIf.Create(context.Background(), &gpgkeypkg.GnuPGPublicKeyCreateRequest{Publickey: &appsv1.GnuPGPublicKey{KeyData: string(keyData)}})
 			errors.CheckError(err)
 			fmt.Printf("Created %d key(s) from input file", len(resp.Created.Items))
 			if len(resp.Skipped) > 0 {
@@ -141,7 +141,7 @@ func NewGPGDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 			}
 			conn, gpgIf := argocdclient.NewClientOrDie(clientOpts).NewGPGKeyClientOrDie()
 			defer argoio.Close(conn)
-			_, err := gpgIf.DeleteGnuPGPublicKey(context.Background(), &gpgkeypkg.GnuPGPublicKeyQuery{KeyID: args[0]})
+			_, err := gpgIf.Delete(context.Background(), &gpgkeypkg.GnuPGPublicKeyQuery{KeyID: args[0]})
 			errors.CheckError(err)
 			fmt.Printf("Deleted key with key ID %s\n", args[0])
 		},

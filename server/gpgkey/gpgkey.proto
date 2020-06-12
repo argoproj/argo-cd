@@ -38,17 +38,17 @@ message GnuPGPublicKeyResponse {}
 // GPGKeyService implements API for managing GPG public keys on the server
 service GPGKeyService {
   // List all available repository certificates
-  rpc ListGnuPGPublicKeys(GnuPGPublicKeyQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.GnuPGPublicKeyList) {
+  rpc List(GnuPGPublicKeyQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.GnuPGPublicKeyList) {
     option (google.api.http).get = "/api/v1/gpgkeys";
   }
 
   // Get information about specified GPG public key from the server
-  rpc GetGnuPGPublicKey(GnuPGPublicKeyQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.GnuPGPublicKey) {
+  rpc Get(GnuPGPublicKeyQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.GnuPGPublicKey) {
     option (google.api.http).get = "/api/v1/gpgkeys/{keyID}";
   }
 
   // Create one or more GPG public keys in the server's configuration
-  rpc CreateGnuPGPublicKey(GnuPGPublicKeyCreateRequest) returns (GnuPGPublicKeyCreateResponse) {
+  rpc Create(GnuPGPublicKeyCreateRequest) returns (GnuPGPublicKeyCreateResponse) {
     option (google.api.http) = {
       post: "/api/v1/gpgkeys"
       body: "publickey"
@@ -56,7 +56,7 @@ service GPGKeyService {
   }
 
   // Delete specified GPG public key from the server's configuration
-  rpc DeleteGnuPGPublicKey(GnuPGPublicKeyQuery) returns (GnuPGPublicKeyResponse) {
+  rpc Delete(GnuPGPublicKeyQuery) returns (GnuPGPublicKeyResponse) {
     option (google.api.http).delete = "/api/v1/gpgkeys";
   }
 }

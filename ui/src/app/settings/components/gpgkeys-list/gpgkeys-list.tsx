@@ -134,8 +134,34 @@ export class GpgKeysList extends React.Component<RouteComponentProps<any>> {
         this.formApi.resetAll();
     }
 
+    private validateKeyInputfield(data: string): boolean {
+        if (data == null || data == '') {
+            return false;
+        }
+        const str = data.trim();
+        const startNeedle = '-----BEGIN PGP PUBLIC KEY BLOCK-----\n';
+        const endNeedle = '\n-----END PGP PUBLIC KEY BLOCK-----';
+
+        if (str.length < startNeedle.length + endNeedle.length) {
+            return false;
+        }
+        if (!str.startsWith(startNeedle)) {
+            return false;
+        }
+        if (!str.endsWith(endNeedle)) {
+            return false;
+        }
+        return true;
+    }
+
     private async addGnuPGPublicKey(params: NewGnuPGPublicKeyParams) {
         try {
+            if (!this.validateKeyInputfield(params.keyData)) {
+                throw {
+                    name: "Invalid key exception",
+                    message: "Invalid GnuPG key data found - must be ASCII armored"
+                };
+            }
             await services.gpgkeys.create({keyData: params.keyData});
             this.showAddGnuPGKey = false;
             this.loader.reload();

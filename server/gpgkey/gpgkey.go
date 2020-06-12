@@ -36,7 +36,7 @@ func NewServer(
 }
 
 // ListGnuPGPublicKeys returns a list of GnuPG public keys in the configuration
-func (s *Server) ListGnuPGPublicKeys(ctx context.Context, q *gpgkeypkg.GnuPGPublicKeyQuery) (*appsv1.GnuPGPublicKeyList, error) {
+func (s *Server) List(ctx context.Context, q *gpgkeypkg.GnuPGPublicKeyQuery) (*appsv1.GnuPGPublicKeyList, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceGPGKeys, rbacpolicy.ActionGet, ""); err != nil {
 		return nil, err
 	}
@@ -54,7 +54,7 @@ func (s *Server) ListGnuPGPublicKeys(ctx context.Context, q *gpgkeypkg.GnuPGPubl
 }
 
 // GetGnuPGPublicKey retrieves a single GPG public key from the configuration
-func (s *Server) GetGnuPGPublicKey(ctx context.Context, q *gpgkeypkg.GnuPGPublicKeyQuery) (*appsv1.GnuPGPublicKey, error) {
+func (s *Server) Get(ctx context.Context, q *gpgkeypkg.GnuPGPublicKeyQuery) (*appsv1.GnuPGPublicKey, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceGPGKeys, rbacpolicy.ActionGet, ""); err != nil {
 		return nil, err
 	}
@@ -77,14 +77,14 @@ func (s *Server) GetGnuPGPublicKey(ctx context.Context, q *gpgkeypkg.GnuPGPublic
 }
 
 // CreateGnuPGPublicKey adds one or more GPG public keys to the server's configuration
-func (s *Server) CreateGnuPGPublicKey(ctx context.Context, q *gpgkeypkg.GnuPGPublicKeyCreateRequest) (*gpgkeypkg.GnuPGPublicKeyCreateResponse, error) {
+func (s *Server) Create(ctx context.Context, q *gpgkeypkg.GnuPGPublicKeyCreateRequest) (*gpgkeypkg.GnuPGPublicKeyCreateResponse, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceGPGKeys, rbacpolicy.ActionCreate, ""); err != nil {
 		return nil, err
 	}
 
 	keyData := strings.TrimSpace(q.Publickey.KeyData)
-	if keyData == "" || !strings.HasPrefix(keyData, "-----BEGIN PGP PUBLIC KEY BLOCK-----") || !strings.HasSuffix(keyData, "-----END PGP PUBLIC KEY BLOCK-----") {
-		return nil, fmt.Errorf("Key data submitted does not seem to be a valid GnuPG public key block")
+	if keyData == "" {
+		return nil, fmt.Errorf("Submitted key data is empty")
 	}
 
 	added, skipped, err := s.db.AddGPGPublicKey(ctx, q.Publickey.KeyData)
@@ -106,7 +106,7 @@ func (s *Server) CreateGnuPGPublicKey(ctx context.Context, q *gpgkeypkg.GnuPGPub
 }
 
 // DeleteGnuPGPublicKey removes a single GPG public key from the server's configuration
-func (s *Server) DeleteGnuPGPublicKey(ctx context.Context, q *gpgkeypkg.GnuPGPublicKeyQuery) (*gpgkeypkg.GnuPGPublicKeyResponse, error) {
+func (s *Server) Delete(ctx context.Context, q *gpgkeypkg.GnuPGPublicKeyQuery) (*gpgkeypkg.GnuPGPublicKeyResponse, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceGPGKeys, rbacpolicy.ActionDelete, ""); err != nil {
 		return nil, err
 	}

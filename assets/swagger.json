@@ -1239,7 +1239,7 @@
           "GPGKeyService"
         ],
         "summary": "List all available repository certificates",
-        "operationId": "ListGnuPGPublicKeys",
+        "operationId": "ListMixin2",
         "parameters": [
           {
             "type": "string",
@@ -1262,7 +1262,7 @@
           "GPGKeyService"
         ],
         "summary": "Create one or more GPG public keys in the server's configuration",
-        "operationId": "CreateGnuPGPublicKey",
+        "operationId": "CreateMixin2",
         "parameters": [
           {
             "name": "body",
@@ -1287,7 +1287,7 @@
           "GPGKeyService"
         ],
         "summary": "Delete specified GPG public key from the server's configuration",
-        "operationId": "DeleteGnuPGPublicKey",
+        "operationId": "DeleteMixin2",
         "responses": {
           "200": {
             "description": "(empty)",
@@ -1304,7 +1304,7 @@
           "GPGKeyService"
         ],
         "summary": "Get information about specified GPG public key from the server",
-        "operationId": "GetGnuPGPublicKey",
+        "operationId": "GetMixin2",
         "parameters": [
           {
             "type": "string",
