@@ -1,0 +1,13 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "SparkApplication is Pending Rerun"
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Degraded
+    message: "Job Failed"
+  inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Healthy
+    message: "SparkApplication is in RunningState"
+  inputPath: testdata/healthy.yaml
