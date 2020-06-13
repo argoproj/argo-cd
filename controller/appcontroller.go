@@ -18,6 +18,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
 	v1 "k8s.io/api/core/v1"
@@ -102,6 +103,7 @@ type ApplicationController struct {
 	refreshRequestedAppsMutex     *sync.Mutex
 	metricsServer                 *metrics.MetricsServer
 	kubectlSemaphore              *semaphore.Weighted
+	ignoreStatus                  bool
 }
 
 type ApplicationControllerConfig struct {
@@ -122,6 +124,7 @@ func NewApplicationController(
 	selfHealTimeout time.Duration,
 	metricsPort int,
 	kubectlParallelismLimit int64,
+	ignoreStatus bool,
 ) (*ApplicationController, error) {
 	log.Infof("appResyncPeriod=%v", appResyncPeriod)
 	db := db.NewDB(namespace, settingsMgr, kubeClientset)
@@ -142,6 +145,7 @@ func NewApplicationController(
 		auditLogger:                   argo.NewAuditLogger(namespace, kubeClientset, "argocd-application-controller"),
 		settingsMgr:                   settingsMgr,
 		selfHealTimeout:               selfHealTimeout,
+		ignoreStatus:                  ignoreStatus,
 	}
 	if kubectlParallelismLimit > 0 {
 		ctrl.kubectlSemaphore = semaphore.NewWeighted(kubectlParallelismLimit)
@@ -426,6 +430,13 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 	go func() { errors.CheckError(ctrl.stateCache.Run(ctx)) }()
 	go func() { errors.CheckError(ctrl.metricsServer.ListenAndServe()) }()
 
+	if ctrl.ignoreStatus {
+		log.Debug("Ignoring status field globally")
+		if err := ctrl.updateArgoCDConfigMap(); err != nil {
+			log.Warnf("Could not update argocd-cm for ignoring status - %s", err.Error())
+		}
+	}
+
 	for i := 0; i < statusProcessors; i++ {
 		go wait.Until(func() {
 			for ctrl.processAppRefreshQueueItem() {
@@ -445,6 +456,46 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 		}
 	}, time.Second, ctx.Done())
 	<-ctx.Done()
+}
+
+func (ctrl *ApplicationController) updateArgoCDConfigMap() error {
+	argoCDCM, err := ctrl.kubeClientset.CoreV1().ConfigMaps(ctrl.namespace).Get(common.ArgoCDConfigMapName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	if argoCDCM.Data == nil {
+		argoCDCM.Data = make(map[string]string)
+	}
+
+	resourceOverrides := map[string]appv1.ResourceOverride{}
+	if value, ok := argoCDCM.Data["resource.customizations"]; ok {
+		err := yaml.Unmarshal([]byte(value), &resourceOverrides)
+		if err != nil {
+			return err
+		}
+	}
+
+	if _, ok := resourceOverrides["/"]; !ok {
+		resourceOverrides["/"] = appv1.ResourceOverride{IgnoreDifferences: "jsonPointers:\n- /status"}
+	}
+
+	val, err := yaml.Marshal(resourceOverrides)
+	if err != nil {
+		return err
+	}
+
+	argoCDCMDataJSON, err := json.Marshal(struct {
+		Data map[string]string `json:"data,omitempty"`
+	}{
+		Data: map[string]string{"resource.customizations": string(val)},
+	})
+	if err != nil {
+		return err
+	}
+
+	_, err = ctrl.kubeClientset.CoreV1().ConfigMaps(ctrl.namespace).Patch(common.ArgoCDConfigMapName, types.StrategicMergePatchType, argoCDCMDataJSON)
+	return err
 }
 
 func (ctrl *ApplicationController) requestAppRefresh(appName string, compareWith *CompareWith, after *time.Duration) {

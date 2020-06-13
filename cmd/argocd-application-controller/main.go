@@ -52,6 +52,7 @@ func newCommand() *cobra.Command {
 		glogLevel                int
 		metricsPort              int
 		kubectlParallelismLimit  int64
+		ignoreStatus             bool
 		cacheSrc                 func() (*appstatecache.Cache, error)
 		redisClient              *redis.Client
 	)
@@ -94,7 +95,8 @@ func newCommand() *cobra.Command {
 				resyncDuration,
 				time.Duration(selfHealTimeoutSeconds)*time.Second,
 				metricsPort,
-				kubectlParallelismLimit)
+				kubectlParallelismLimit,
+				ignoreStatus)
 			errors.CheckError(err)
 			cacheutil.CollectMetrics(redisClient, appController.GetMetricsServer())
 
@@ -123,6 +125,7 @@ func newCommand() *cobra.Command {
 	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortArgoCDMetrics, "Start metrics server on given port")
 	command.Flags().IntVar(&selfHealTimeoutSeconds, "self-heal-timeout-seconds", 5, "Specifies timeout between application self heal attempts")
 	command.Flags().Int64Var(&kubectlParallelismLimit, "kubectl-parallelism-limit", 20, "Number of allowed concurrent kubectl fork/execs. Any value less the 1 means no limit.")
+	command.Flags().BoolVar(&ignoreStatus, "ignore-status", true, "Ignore status globally")
 	cacheSrc = appstatecache.AddCacheFlagsToCmd(&command, func(client *redis.Client) {
 		redisClient = client
 	})

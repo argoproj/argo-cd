@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -46,6 +47,7 @@ type fakeData struct {
 	managedLiveObjs     map[kube.ResourceKey]*unstructured.Unstructured
 	namespacedResources map[kube.ResourceKey]namespacedResource
 	configMapData       map[string]string
+	configMap           *v1.ConfigMap
 }
 
 func newFakeController(data *fakeData) *ApplicationController {
@@ -98,7 +100,7 @@ func newFakeController(data *fakeData) *ApplicationController {
 		time.Minute,
 		time.Minute,
 		common.DefaultPortArgoCDMetrics,
-		0,
+		0, true,
 	)
 	if err != nil {
 		panic(err)
@@ -268,13 +270,138 @@ func createFakeApp(testApp string) *argoappv1.Application {
 	return &app
 }
 
-func newFakeCM() map[string]interface{} {
-	var cm map[string]interface{}
-	err := yaml.Unmarshal([]byte(fakeStrayResource), &cm)
+func newFakeCM(rawData string) *v1.ConfigMap {
+	var cm *v1.ConfigMap
+	err := yaml.Unmarshal([]byte(rawData), &cm)
 	if err != nil {
 		panic(err)
 	}
 	return cm
+}
+
+func TestUpdateArgoCDConfigMap(t *testing.T) {
+	tests := []struct {
+		description string
+		originalCM  string
+		modifiedCM  string
+		err         bool
+	}{
+		{
+			description: "add key to ingore status if resource.customizations key is not present",
+			originalCM: `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ` + common.ArgoCDConfigMapName + `
+  namespace: ` + test.FakeArgoCDNamespace + `
+  labels:
+    app.kubernetes.io/instance: my-app
+data:
+  foo: bar`,
+			modifiedCM: `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ` + common.ArgoCDConfigMapName + `
+  namespace: ` + test.FakeArgoCDNamespace + `
+  labels:
+    app.kubernetes.io/instance: my-app
+data:
+  foo: bar
+  resource.customizations: |
+    /:
+      ignoreDifferences: |-
+        jsonPointers:
+        - /status
+`,
+			err: false,
+		},
+		{
+			description: "add key to ignore status if resource.customizations key is present",
+			originalCM: `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ` + common.ArgoCDConfigMapName + `
+  namespace: ` + test.FakeArgoCDNamespace + `
+  labels:
+    app.kubernetes.io/instance: my-app
+data:
+  resource.customizations: |
+    apiextensions.k8s.io/CustomResourceDefinition:
+      ignoreDifferences: |
+        jsonPointers:
+        - /status`,
+			modifiedCM: `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ` + common.ArgoCDConfigMapName + `
+  namespace: ` + test.FakeArgoCDNamespace + `
+  labels:
+    app.kubernetes.io/instance: my-app
+data:
+  resource.customizations: |
+    /:
+      ignoreDifferences: |-
+        jsonPointers:
+        - /status
+    apiextensions.k8s.io/CustomResourceDefinition:
+      ignoreDifferences: |-
+        jsonPointers:
+        - /status
+`,
+			err: false,
+		},
+		{
+			description: "no op add if resource.customizations key has ignore status present",
+			originalCM: `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ` + common.ArgoCDConfigMapName + `
+  namespace: ` + test.FakeArgoCDNamespace + `
+  labels:
+    app.kubernetes.io/instance: my-app
+data:
+  resource.customizations: |
+    /:
+      ignoreDifferences: |-
+        jsonPointers:
+        - /status`,
+			modifiedCM: `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ` + common.ArgoCDConfigMapName + `
+  namespace: ` + test.FakeArgoCDNamespace + `
+  labels:
+    app.kubernetes.io/instance: my-app
+data:
+  resource.customizations: |
+    /:
+      ignoreDifferences: |-
+        jsonPointers:
+        - /status
+`,
+			err: false,
+		},
+	}
+
+	for _, tc := range tests {
+		var err error
+		cm := newFakeCM(tc.originalCM)
+		ctrl := newFakeController(&fakeData{configMap: cm})
+		err = ctrl.kubeClientset.CoreV1().ConfigMaps(test.FakeArgoCDNamespace).Delete(common.ArgoCDConfigMapName, &metav1.DeleteOptions{})
+		assert.NoError(t, err)
+
+		_, err = ctrl.kubeClientset.CoreV1().ConfigMaps(test.FakeArgoCDNamespace).Create(cm)
+		assert.NoError(t, err)
+
+		argoCDCM, err := ctrl.kubeClientset.CoreV1().ConfigMaps(test.FakeArgoCDNamespace).Get(common.ArgoCDConfigMapName, metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.Equal(t, newFakeCM(tc.originalCM).Data, argoCDCM.Data)
+
+		err = ctrl.updateArgoCDConfigMap()
+		assert.Equal(t, tc.err, err != nil)
+		argoCDCM, err = ctrl.kubeClientset.CoreV1().ConfigMaps(test.FakeArgoCDNamespace).Get(common.ArgoCDConfigMapName, metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.Equal(t, newFakeCM(tc.modifiedCM).Data, argoCDCM.Data)
+	}
 }
 
 func TestAutoSync(t *testing.T) {
@@ -558,7 +685,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
 		app.Spec.Project = "restricted"
 		appObj := kube.MustToUnstructured(&app)
-		cm := newFakeCM()
+		cm := newFakeCM(fakeStrayResource)
 		strayObj := kube.MustToUnstructured(&cm)
 		ctrl := newFakeController(&fakeData{
 			apps: []runtime.Object{app, &defaultProj, &restrictedProj},
