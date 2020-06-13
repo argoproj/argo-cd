@@ -5,7 +5,11 @@ import (
 	"testing"
 
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/gitops-engine/pkg/utils/errors"
+	"k8s.io/apimachinery/pkg/types"
 
+	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
 )
 
@@ -40,4 +44,36 @@ func TestSyncOptionsValidateTrue(t *testing.T) {
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationFailed))
+}
+
+func TestSyncWithStatusIgnored(t *testing.T) {
+	Given(t).
+		Path(guestbookPath).
+		When().
+		And(func() {
+			fixture.SetResourceOverrides(map[string]ResourceOverride{
+				"/": {
+					IgnoreDifferences: "jsonPointers:\n- /status",
+				},
+			})
+		}).
+		CreateFromFile(func(app *Application) {
+			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{SelfHeal: true}}
+		}).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		// app should remain synced if git change detected
+		When().
+		PatchFile("guestbook-ui-deployment.yaml", `[{ "op": "add", "path": "/status", "value": { "observedGeneration": 1 }}]`).
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		// app should remain synced if k8s change detected
+		When().
+		And(func() {
+			errors.FailOnErr(fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Patch(
+				"guestbook-ui", types.JSONPatchType, []byte(`[{ "op": "replace", "path": "/status/observedGeneration", "value": 2 }]`)))
+		}).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
