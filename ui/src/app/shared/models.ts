@@ -588,6 +588,10 @@ export interface GroupKind {
     kind: string;
 }
 
+export interface ProjectSignatureKey {
+    keyID: string;
+}
+
 export interface ProjectSpec {
     sourceRepos: string[];
     destinations: ApplicationDestination[];
@@ -596,6 +600,7 @@ export interface ProjectSpec {
     clusterResourceWhitelist: GroupKind[];
     namespaceResourceBlacklist: GroupKind[];
     namespaceResourceWhitelist: GroupKind[];
+    signatureKeys: ProjectSignatureKey[];
     orphanedResources?: {warn?: boolean};
     syncWindows?: SyncWindows;
 }
