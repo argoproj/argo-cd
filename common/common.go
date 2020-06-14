@@ -52,7 +52,7 @@ const (
 	// Default name for the SSH known hosts file
 	DefaultSSHKnownHostsName = "ssh_known_hosts"
 	// Default path to GnuPG home directory
-	DefaultGnuPgHomePath = "/app/config/gpg"
+	DefaultGnuPgHomePath = "/app/config/gpg/keys"
 )
 
 // Argo CD application related constants
