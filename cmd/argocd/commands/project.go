@@ -91,6 +91,8 @@ func NewProjectCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command.AddCommand(NewProjectListCommand(clientOpts))
 	command.AddCommand(NewProjectSetCommand(clientOpts))
 	command.AddCommand(NewProjectEditCommand(clientOpts))
+	command.AddCommand(NewProjectAddSignatureKeyCommand(clientOpts))
+	command.AddCommand(NewProjectRemoveSignatureKeyCommand(clientOpts))
 	command.AddCommand(NewProjectAddDestinationCommand(clientOpts))
 	command.AddCommand(NewProjectRemoveDestinationCommand(clientOpts))
 	command.AddCommand(NewProjectAddSourceCommand(clientOpts))
@@ -249,6 +251,81 @@ func NewProjectSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 		},
 	}
 	addProjFlags(command, &opts)
+	return command
+}
+
+// NewProjectAddSignatureKeyCommand returns a new instance of an `argocd proj add-destination` command
+func NewProjectAddSignatureKeyCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var command = &cobra.Command{
+		Use:   "add-signature-key PROJECT KEY-ID",
+		Short: "Add GnuPG signature key to project",
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 2 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			projName := args[0]
+			signatureKey := args[1]
+
+			if !gpg.IsShortKeyID(signatureKey) && !gpg.IsLongKeyID(signatureKey) {
+				log.Fatalf("%s is not a valid GnuPG key ID", signatureKey)
+			}
+
+			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
+			defer argoio.Close(conn)
+
+			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
+			errors.CheckError(err)
+
+			for _, key := range proj.Spec.SignatureKeys {
+				if key.KeyID == signatureKey {
+					log.Fatal("Specified signature key is already defined in project")
+				}
+			}
+			proj.Spec.SignatureKeys = append(proj.Spec.SignatureKeys, v1alpha1.SignatureKey{KeyID: signatureKey})
+			_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
+			errors.CheckError(err)
+		},
+	}
+	return command
+}
+
+// NewProjectRemoveDestinationCommand returns a new instance of an `argocd proj remove-destination` command
+func NewProjectRemoveSignatureKeyCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var command = &cobra.Command{
+		Use:   "remove-signature-key PROJECT KEY-ID",
+		Short: "Remove GnuPG signature key from project",
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 2 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			projName := args[0]
+			signatureKey := args[1]
+
+			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
+			defer argoio.Close(conn)
+
+			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
+			errors.CheckError(err)
+
+			index := -1
+			for i, key := range proj.Spec.SignatureKeys {
+				if key.KeyID == signatureKey {
+					index = i
+					break
+				}
+			}
+			if index == -1 {
+				log.Fatal("Specified signature key is not configured for project")
+			} else {
+				proj.Spec.SignatureKeys = append(proj.Spec.SignatureKeys[:index], proj.Spec.SignatureKeys[index+1:]...)
+				_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
+				errors.CheckError(err)
+			}
+		},
+	}
+
 	return command
 }
 
