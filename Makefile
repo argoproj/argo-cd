@@ -161,6 +161,8 @@ codegen:
 
 .PHONY: cli
 cli: clean-debug
+	rm -f ${DIST_DIR}/${CLI_NAME}
+	mkdir -p ${DIST_DIR}
 	CGO_ENABLED=0 ${PACKR_CMD} build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${CLI_NAME} ./cmd/argocd
 
 .PHONY: cli-docker
