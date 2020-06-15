@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/common"
@@ -23,6 +25,43 @@ func Test_serverToSecretName(t *testing.T) {
 	name, err := serverToSecretName("http://foo")
 	assert.NoError(t, err)
 	assert.Equal(t, "cluster-foo-752281925", name)
+}
+
+func TestUpdateCluster(t *testing.T) {
+	kubeclientset := fake.NewSimpleClientset(&v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "mycluster",
+			Namespace: fakeNamespace,
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+			},
+		},
+		Data: map[string][]byte{
+			"server": []byte("http://mycluster"),
+			"config": []byte("{}"),
+		},
+	})
+	settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
+	db := NewDB(fakeNamespace, settingsManager, kubeclientset)
+	_, err := db.UpdateCluster(context.Background(), &v1alpha1.Cluster{
+		Name:   "test",
+		Server: "http://mycluster",
+		ConnectionState: v1alpha1.ConnectionState{
+			Status:  v1alpha1.ConnectionStatusFailed,
+			Message: "test message",
+		},
+	})
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	secret, err := kubeclientset.CoreV1().Secrets(fakeNamespace).Get("mycluster", metav1.GetOptions{})
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	assert.Equal(t, secret.Annotations["status"], v1alpha1.ConnectionStatusFailed)
+	assert.Equal(t, secret.Annotations["message"], "test message")
 }
 
 func TestWatchClustersNoClustersRegistered(t *testing.T) {
