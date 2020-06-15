@@ -3,12 +3,13 @@ package oidc
 import (
 	"encoding/json"
 	"io/ioutil"
+	"net/http/httptest"
 	"net/url"
 	"testing"
 
-	"golang.org/x/oauth2"
-
+	gooidc "github.com/coreos/go-oidc"
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/oauth2"
 
 	"github.com/argoproj/argo-cd/server/settings/oidc"
 )
@@ -64,4 +65,34 @@ func TestIDTokenClaims(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, "{\"id_token\":{\"groups\":{\"essential\":true}}}", values.Get("claims"))
+}
+
+type fakeProvider struct {
+}
+
+func (p *fakeProvider) Endpoint() (*oauth2.Endpoint, error) {
+	return &oauth2.Endpoint{}, nil
+}
+
+func (p *fakeProvider) ParseConfig() (*OIDCConfiguration, error) {
+	return nil, nil
+}
+
+func (p *fakeProvider) Verify(_, _ string) (*gooidc.IDToken, error) {
+	return nil, nil
+}
+
+func TestHandleCallback(t *testing.T) {
+	app := ClientApp{provider: &fakeProvider{}}
+
+	req := httptest.NewRequest("GET", "http://example.com/foo", nil)
+	req.Form = url.Values{
+		"error":             []string{"login-failed"},
+		"error_description": []string{"<script>alert('hello')</script>"},
+	}
+	w := httptest.NewRecorder()
+
+	app.HandleCallback(w, req)
+
+	assert.Equal(t, "login-failed: &lt;script&gt;alert(&#39;hello&#39;)&lt;/script&gt;\n", w.Body.String())
 }
