@@ -221,7 +221,7 @@ export const ProjectEditPanel = (props: {nameReadonly?: boolean; defaultParams?:
                                         </div>
                                     </div>
                                 ))}
-                                <a onClick={() => api.setValue('signatureKeys', api.values.signatureKeys.concat(gpgkeys[0]))}>add source</a>
+                                <a onClick={() => api.setValue('signatureKeys', api.values.signatureKeys.concat(gpgkeys[0]))}>add GnuPG key ID</a>
                             </React.Fragment>
                         )}
                     </DataLoader>
