@@ -50,6 +50,9 @@ declarative setup.
     trust models, and it is not necessary (nor possible) to sign the public keys
     you are going to import into ArgoCD.
 
+Users wanting to manage the GnuPG public key configuration require the RBAC
+permissions for `gpgkeys` resources.
+
 ### Manage public keys using the CLI
 
 To configure GnuPG public keys using the CLI, use the `argocd gpg` command.
