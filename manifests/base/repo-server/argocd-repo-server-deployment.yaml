@@ -18,6 +18,11 @@ spec:
       automountServiceAccountToken: false
       containers:
       - name: argocd-repo-server
+        env:
+        - name: ARGOCD_GPG_ENABLED
+          value: "true"
+        - name: ARGOCD_GNUPGHOME_HOME
+          value: "/app/config/gpg/keys"
         image: argoproj/argocd:latest
         imagePullPolicy: Always
         command:
@@ -43,6 +48,8 @@ spec:
           mountPath: /app/config/ssh
         - name: tls-certs
           mountPath: /app/config/tls
+        - name: gpg-keys
+          mountPath: /app/config/gpg/source
       volumes:
         - name: ssh-known-hosts
           configMap:
@@ -50,3 +57,6 @@ spec:
         - name: tls-certs
           configMap:
             name: argocd-tls-certs-cm
+        - name: gpg-keys
+          configMap:
+            name: argocd-gpg-keys-cm
