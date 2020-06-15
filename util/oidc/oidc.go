@@ -3,6 +3,7 @@ package oidc
 import (
 	"encoding/json"
 	"fmt"
+	"html"
 	"html/template"
 	"net"
 	"net/http"
@@ -223,7 +224,8 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Infof("Callback: %s", r.URL)
 	if errMsg := r.FormValue("error"); errMsg != "" {
-		http.Error(w, errMsg+": "+r.FormValue("error_description"), http.StatusBadRequest)
+		errorDesc := r.FormValue("error_description")
+		http.Error(w, html.EscapeString(errMsg)+": "+html.EscapeString(errorDesc), http.StatusBadRequest)
 		return
 	}
 	code := r.FormValue("code")
