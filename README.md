@@ -38,6 +38,9 @@ If you are as excited about GitOps and one common engine for it as much as we ar
 
 Find us on the [#gitops channel][gitops-slack] on Kubernetes Slack (get an [invite here][kube-slack]).
 
+[gitops-slack]: https://kubernetes.slack.com/archives/CBT6N1ASG
+[kube-slack]: https://slack.k8s.io/
+
 ### Meetings
 
 The developer team meets regularly, every 1st and 3rd Tuesday of the month, [16:00 UTC](http://time.unitarium.com/utc/16). Instructions, agenda and minutes can be found in [the meeting doc](https://docs.google.com/document/d/17AEZgv6yVuD4HS7_oNPiMKmS7Q6vjkhk6jH0YCELpRk/edit#). The meetings will be recorded and added to this [Youtube playlist](https://www.youtube.com/playlist?list=PLbx4FZ4kOKnvSQP394o5UdF9wL7FaQd-R).
