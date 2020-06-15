@@ -11,28 +11,36 @@ if test "$1" = ""; then
 fi
 
 REVISION="$1"
+TYPE=
 
 # Figure out we have an annotated tag or a commit SHA
-if git describe "${REVISION}" >/dev/null 2>&1; then
+if git describe --exact-match "${REVISION}" >/dev/null 2>&1; then
 	IFS=''
+	TYPE=tag
 	OUTPUT=$(git verify-tag "$REVISION" 2>&1)
 	RET=$?
 else
 	IFS=''
+	TYPE=commit
 	OUTPUT=$(git verify-commit "$REVISION" 2>&1)
 	RET=$?
 fi
 
 case "$RET" in
 0)
-	echo $OUTPUT
+	echo "$OUTPUT"
 	;;
 1)
-	echo $OUTPUT
+	# git verify-tag emits error messages if no signature is found on tag,
+	# which we don't want in the output.
+	if test "$TYPE" = "tag" -a "${OUTPUT%%:*}" = "error"; then
+		OUTPUT=""
+	fi
+	echo "$OUTPUT"
 	RET=0
 	;;
 *)
-	echo $OUTPUT >&2
+	echo "$OUTPUT" >&2
 	;;
 esac
 exit $RET
