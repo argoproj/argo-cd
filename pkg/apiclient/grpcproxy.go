@@ -2,7 +2,6 @@ package apiclient
 
 import (
 	"bytes"
-	"crypto/tls"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -78,13 +77,23 @@ func (c *client) executeRequest(fullMethodName string, msg []byte, md metadata.M
 	}
 	req.Header.Set("content-type", "application/grpc-web+proto")
 
-	client := &http.Client{Transport: &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: c.Insecure},
-	}}
+	client := &http.Client{}
+	if !c.PlainText {
+		tlsConfig, err := c.tlsConfig()
+		if err != nil {
+			return nil, err
+		}
+		client.Transport = &http.Transport{
+			TLSClientConfig: tlsConfig,
+		}
+	}
 
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("%s %s failed with status code %d", req.Method, req.URL, resp.StatusCode)
 	}
 	var code codes.Code
 	if statusStr := resp.Header.Get("Grpc-Status"); statusStr != "" {
