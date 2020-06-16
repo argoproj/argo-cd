@@ -20,6 +20,9 @@ environment variable `ARGOCD_GPG_ENABLED` to `"false"` in the pod templates of
 the `argocd-server`, `argocd-repo-server` and `argocd-application-controller`
 deployment manifests.
 
+Verification of GnuPG signatures is only supported with Git repositories. It is
+not possible using Helm repositories.
+
 !!!note "A few words about trust"
     ArgoCD uses a very simple trust model for the keys you import: Once the key
     is imported, ArgoCD will trust it. ArgoCD does not support more complex
