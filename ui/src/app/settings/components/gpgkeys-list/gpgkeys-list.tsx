@@ -60,7 +60,7 @@ export class GpgKeysList extends React.Component<RouteComponentProps<any>> {
                                                     <div className='columns small-3'>
                                                         <i className='fa fa-key' /> {gpgkey.keyID}
                                                     </div>
-                                                    <div className='columns small-3'>{gpgkey.subType}</div>
+                                                    <div className='columns small-3'>{gpgkey.subType.toUpperCase()}</div>
                                                     <div className='columns small-6'>
                                                         {gpgkey.owner}
                                                         <DropDownMenu
