@@ -252,6 +252,17 @@ spec:
 
 ## Troubleshooting
 
+### Disabling the feature
+
+The GnuPG feature can be completely disabled if desired. In order to disable it,
+set the environment variable `ARGOCD_GPG_ENABLED` to `false` for the pod
+templates of the `argocd-server`, `argocd-repo-server` and
+ `argocd-application-controller` deployments.
+
+After the pods have been restarted, the GnuPG feature is disabled.
+
+### GnuPG key ring
+
 The GnuPG key ring used for signature verification is maintained within the
 pods of `argocd-repo-server`. The keys in the keyring are synchronized to the
 configuration stored in the `argocd-gpg-keys-cm` ConfigMap resource, which is

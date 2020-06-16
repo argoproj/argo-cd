@@ -265,7 +265,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 
 	// When signature keys are defined in the project spec, we need to verify the signature on the Git revision
 	verifySignature := false
-	if project.Spec.SignatureKeys != nil && len(project.Spec.SignatureKeys) > 0 {
+	if project.Spec.SignatureKeys != nil && len(project.Spec.SignatureKeys) > 0 && gpg.IsGPGEnabled() {
 		verifySignature = true
 	}
 
