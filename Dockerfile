@@ -52,7 +52,7 @@ RUN groupadd -g 999 argocd && \
     apt-get update && \
     apt-get install -y git git-lfs python3-pip tini && \
     apt-get clean && \
-    pip3 install awscli==1.17.7 && \
+    pip3 install awscli==1.18.80 && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 COPY hack/git-ask-pass.sh /usr/local/bin/git-ask-pass.sh
