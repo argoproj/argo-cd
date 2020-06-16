@@ -686,7 +686,7 @@ type RevisionHistory struct {
 	ID     int64             `json:"id" protobuf:"bytes,5,opt,name=id"`
 	Source ApplicationSource `json:"source,omitempty" protobuf:"bytes,6,opt,name=source"`
 	// DeployStartedAt holds the time the deployment started
-	DeployStartedAt metav1.Time `json:"deployStartedAt,omitempty" protobuf:"bytes,7,opt,name=deployStartedAt"`
+	DeployStartedAt *metav1.Time `json:"deployStartedAt,omitempty" protobuf:"bytes,7,opt,name=deployStartedAt"`
 }
 
 // ApplicationWatchEvent contains information about application change.

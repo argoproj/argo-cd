@@ -140,6 +140,20 @@ func (_m *LiveStateCache) GetVersionsInfo(serverURL string) (string, []v1.APIGro
 	return r0, r1, r2
 }
 
+// Init provides a mock function with given fields:
+func (_m *LiveStateCache) Init() error {
+	ret := _m.Called()
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func() error); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // IsNamespaced provides a mock function with given fields: server, gk
 func (_m *LiveStateCache) IsNamespaced(server string, gk schema.GroupKind) (bool, error) {
 	ret := _m.Called(server, gk)

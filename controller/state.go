@@ -542,7 +542,7 @@ func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revi
 	app.Status.History = append(app.Status.History, v1alpha1.RevisionHistory{
 		Revision:        revision,
 		DeployedAt:      metav1.NewTime(time.Now().UTC()),
-		DeployStartedAt: startedAt,
+		DeployStartedAt: &startedAt,
 		ID:              nextID,
 		Source:          source,
 	})

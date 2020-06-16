@@ -440,7 +440,7 @@ func Test_appStateManager_persistRevisionHistory(t *testing.T) {
 	metav1NowTime := metav1.NewTime(time.Now())
 	err := manager.persistRevisionHistory(app, "my-revision", argoappv1.ApplicationSource{}, metav1NowTime)
 	assert.NoError(t, err)
-	assert.Equal(t, app.Status.History.LastRevisionHistory().DeployStartedAt, metav1NowTime)
+	assert.Equal(t, app.Status.History.LastRevisionHistory().DeployStartedAt, &metav1NowTime)
 }
 
 // helper function to read contents of a file to string

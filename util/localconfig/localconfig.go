@@ -46,6 +46,10 @@ type Server struct {
 	// CACertificateAuthorityData is the base64 string of a PEM encoded certificate
 	// TODO: not yet implemented
 	CACertificateAuthorityData string `json:"certificate-authority-data,omitempty"`
+	// ClientCertificateData is the base64 string of a PEM encoded certificate used to authenticate the client
+	ClientCertificateData string `json:"client-certificate-data,omitempty"`
+	// ClientCertificateKeyData is the base64 string of a PEM encoded private key of the client certificate
+	ClientCertificateKeyData string `json:"client-certificate-key-data,omitempty"`
 	// PlainText indicates to connect with TLS disabled
 	PlainText bool `json:"plain-text,omitempty"`
 }
