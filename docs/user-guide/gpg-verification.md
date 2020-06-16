@@ -20,6 +20,27 @@ environment variable `ARGOCD_GPG_ENABLED` to `"false"` in the pod templates of
 the `argocd-server`, `argocd-repo-server` and `argocd-application-controller`
 deployment manifests.
 
+!!!note "A few words about trust"
+    ArgoCD uses a very simple trust model for the keys you import: Once the key
+    is imported, ArgoCD will trust it. ArgoCD does not support more complex
+    trust models, and it is not necessary (nor possible) to sign the public keys
+    you are going to import into ArgoCD.
+
+## Signature verification targets
+
+If signature verification is enforced, ArgoCD will verify the signature using
+following strategy:
+
+* If `target revision` is a pointer to a commit object (i.e. a branch name, the
+  name of a reference such as `HEAD` or a commit SHA), ArgoCD will perform the
+  signature verification on the commit object the name points to, i.e. a commit.
+
+* If `target revision` resolves to a tag and the tag is a lightweight tag, the
+  behaviour is same as if `target revision` would be a pointer to a commit
+  object. However, if the tag is annotated, the target revision will point to
+  a *tag* object and thus, the signature verification is performed on the tag
+  object, i.e. the tag itself must be signed (using `git tag -s`).
+
 ## Enforcing signature verification
 
 To configure enforcing of signature verification, the following steps must be
@@ -32,11 +53,9 @@ Once you have configured one or more keys to be required for verification for
 a given project, enforcement is active for all applications associated with
 this project.
 
-!!!note
-    After you have imported a GnuPG key, it may take a while until the key is
-    propagated within the cluster, even if listed as configured. If you still
-    cannot sync to commits signed by the already imported key, please see the
-    troubleshooting section below.
+!!!warning
+    If signature verification is enforced, you will not be able to sync from
+    local sources (i.e. `argocd app sync --local`) anymore.
 
 ## Importing GnuPG public keys
 
@@ -44,11 +63,11 @@ You can configure the GnuPG public keys that ArgoCD will use for verification
 of commit signatures using either the CLI, the web UI or configuring it using
 declarative setup.
 
-!!!note "A few words about trust"
-    ArgoCD uses a very simple trust model for the keys you import: Once the key
-    is imported, ArgoCD will trust it. ArgoCD does not support more complex
-    trust models, and it is not necessary (nor possible) to sign the public keys
-    you are going to import into ArgoCD.
+!!!note
+    After you have imported a GnuPG key, it may take a while until the key is
+    propagated within the cluster, even if listed as configured. If you still
+    cannot sync to commits signed by the already imported key, please see the
+    troubleshooting section below.
 
 Users wanting to manage the GnuPG public key configuration require the RBAC
 permissions for `gpgkeys` resources.
@@ -133,7 +152,8 @@ key would look like follows:
 ## Configuring a project to enforce signature verification
 
 Once you have imported the GnuPG keys to ArgoCD, you must now configure the
-project to verify the signatures with the imported keys.
+project to enforce the verification of commit signatures with the imported
+keys.
 
 ### Configuring using the CLI
 
