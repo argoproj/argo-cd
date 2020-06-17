@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"hash/fnv"
 	"net/url"
-	"reflect"
 	"strings"
+	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -32,7 +32,40 @@ var (
 		Server:          common.KubernetesInternalAPIServerAddr,
 		ConnectionState: appv1.ConnectionState{Status: appv1.ConnectionStatusSuccessful},
 	}
+	initLocalCluster sync.Once
 )
+
+const (
+	// annotationKeyModifiedAt is the annotation key which indicates when cluster is synced
+	annotationKeyModifiedAt = "modifiedAt"
+	// annotationKeyModifiedAt is the annotation key which indicates cluster server version
+	annotationKeyServerVersion = "serverVersion"
+	// annotationMessage is the annotation key which contains message
+	annotationKeyMessage = "message"
+	// annotationStatus is the annotation key which contains status
+	annotationKeyStatus = "status"
+	// annotationKeyCacheInfo is the annotation key which contains JSON serialized cache info
+	annotationKeyCacheInfo = "cacheInfo"
+)
+
+func (db *db) getLocalCluster() *appv1.Cluster {
+	initLocalCluster.Do(func() {
+		info, err := db.kubeclientset.Discovery().ServerVersion()
+		if err == nil {
+			localCluster.ServerVersion = fmt.Sprintf("%s.%s", info.Major, info.Minor)
+			localCluster.ConnectionState = appv1.ConnectionState{Status: appv1.ConnectionStatusSuccessful}
+		} else {
+			localCluster.ConnectionState = appv1.ConnectionState{
+				Status:  appv1.ConnectionStatusFailed,
+				Message: err.Error(),
+			}
+		}
+	})
+	cluster := localCluster.DeepCopy()
+	now := metav1.Now()
+	cluster.ConnectionState.ModifiedAt = &now
+	return cluster
+}
 
 func (db *db) listClusterSecrets() ([]*apiv1.Secret, error) {
 	labelSelector := labels.NewSelector()
@@ -71,7 +104,7 @@ func (db *db) ListClusters(ctx context.Context) (*appv1.ClusterList, error) {
 		}
 	}
 	if !hasInClusterCredentials {
-		clusterList.Items = append(clusterList.Items, localCluster)
+		clusterList.Items = append(clusterList.Items, *db.getLocalCluster())
 	}
 	return &clusterList, nil
 }
@@ -93,18 +126,9 @@ func (db *db) CreateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 			},
 		},
 	}
-	clusterSecret.Data = clusterToData(c)
-	if c.ConnectionState.ModifiedAt != nil {
-		clusterSecret.Annotations[common.AnnotationKeyModifiedAt] = c.ConnectionState.ModifiedAt.Format(time.RFC3339)
-	}
-	if c.ConnectionState.Message != "" {
-		clusterSecret.Annotations[common.AnnotationKeyMessage] = c.ConnectionState.Message
-	}
-	if c.ConnectionState.Status != "" {
-		clusterSecret.Annotations[common.AnnotationKeyStatus] = c.ConnectionState.Status
-	}
-	if c.ServerVersion != "" {
-		clusterSecret.Annotations[common.AnnotationKeyServerVersion] = c.ServerVersion
+
+	if err = clusterToSecret(c, clusterSecret); err != nil {
+		return nil, err
 	}
 	clusterSecret, err = db.kubeclientset.CoreV1().Secrets(db.ns).Create(clusterSecret)
 	if err != nil {
@@ -131,7 +155,6 @@ func (db *db) WatchClusters(ctx context.Context,
 		return err
 	}
 	handleAddEvent(localCls)
-
 	clusterSecretListOptions := func(options *metav1.ListOptions) {
 		clusterLabelSelector := fields.ParseSelectorOrDie(common.LabelKeySecretType + "=" + common.LabelValueSecretTypeCluster)
 		options.LabelSelector = clusterLabelSelector.String()
@@ -141,9 +164,6 @@ func (db *db) WatchClusters(ctx context.Context,
 			if secretObj, ok := obj.(*apiv1.Secret); ok {
 				cluster := secretToCluster(secretObj)
 				if cluster.Server == common.KubernetesInternalAPIServerAddr {
-					if reflect.DeepEqual(localCls.Config, cluster.Config) {
-						return
-					}
 					// change local cluster event to modified or deleted, since it cannot be re-added or deleted
 					handleModEvent(localCls, cluster)
 					localCls = cluster
@@ -156,8 +176,8 @@ func (db *db) WatchClusters(ctx context.Context,
 			if secretObj, ok := obj.(*apiv1.Secret); ok {
 				if string(secretObj.Data["server"]) == common.KubernetesInternalAPIServerAddr {
 					// change local cluster event to modified or deleted, since it cannot be re-added or deleted
-					handleModEvent(localCls, &localCluster)
-					localCls = &localCluster
+					handleModEvent(localCls, db.getLocalCluster())
+					localCls = db.getLocalCluster()
 				} else {
 					handleDeleteEvent(string(secretObj.Data["server"]))
 				}
@@ -207,7 +227,7 @@ func (db *db) GetCluster(ctx context.Context, server string) (*appv1.Cluster, er
 	clusterSecret, err := db.getClusterSecret(server)
 	if err != nil {
 		if errorStatus, ok := status.FromError(err); ok && errorStatus.Code() == codes.NotFound && server == common.KubernetesInternalAPIServerAddr {
-			return &localCluster, nil
+			return db.getLocalCluster(), nil
 		} else {
 			return nil, err
 		}
@@ -221,30 +241,10 @@ func (db *db) UpdateCluster(_ context.Context, c *appv1.Cluster) (*appv1.Cluster
 	if err != nil {
 		return nil, err
 	}
-	clusterSecret.Data = clusterToData(c)
-	if clusterSecret.Annotations == nil {
-		clusterSecret.Annotations = make(map[string]string)
+	if err := clusterToSecret(c, clusterSecret); err != nil {
+		return nil, err
 	}
-	if c.ConnectionState.ModifiedAt != nil {
-		clusterSecret.Annotations[common.AnnotationKeyModifiedAt] = c.ConnectionState.ModifiedAt.Format(time.RFC3339)
-	} else {
-		delete(clusterSecret.Annotations, common.AnnotationKeyModifiedAt)
-	}
-	if c.ServerVersion != "" {
-		clusterSecret.Annotations[common.AnnotationKeyServerVersion] = c.ServerVersion
-	} else {
-		delete(clusterSecret.Annotations, common.AnnotationKeyServerVersion)
-	}
-	if c.ConnectionState.Message != "" {
-		clusterSecret.Annotations[common.AnnotationKeyMessage] = c.ConnectionState.Message
-	} else {
-		delete(clusterSecret.Annotations, common.AnnotationKeyMessage)
-	}
-	if c.ConnectionState.Status != "" {
-		clusterSecret.Annotations[common.AnnotationKeyStatus] = c.ConnectionState.Status
-	} else {
-		delete(clusterSecret.Annotations, common.AnnotationKeyStatus)
-	}
+
 	clusterSecret, err = db.kubeclientset.CoreV1().Secrets(db.ns).Update(clusterSecret)
 	if err != nil {
 		return nil, err
@@ -291,7 +291,7 @@ func serverToSecretName(server string) (string, error) {
 }
 
 // clusterToData converts a cluster object to string data for serialization to a secret
-func clusterToData(c *appv1.Cluster) map[string][]byte {
+func clusterToSecret(c *appv1.Cluster, secret *apiv1.Secret) error {
 	data := make(map[string][]byte)
 	data["server"] = []byte(c.Server)
 	if c.Name == "" {
@@ -304,13 +304,48 @@ func clusterToData(c *appv1.Cluster) map[string][]byte {
 	}
 	configBytes, err := json.Marshal(c.Config)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	data["config"] = configBytes
-	return data
+	secret.Data = data
+
+	if secret.Annotations == nil {
+		secret.Annotations = make(map[string]string)
+	}
+	if c.ConnectionState.ModifiedAt != nil {
+		secret.Annotations[annotationKeyModifiedAt] = c.ConnectionState.ModifiedAt.Format(time.RFC3339)
+	} else {
+		delete(secret.Annotations, annotationKeyModifiedAt)
+	}
+	if c.ServerVersion != "" {
+		secret.Annotations[annotationKeyServerVersion] = c.ServerVersion
+	} else {
+		delete(secret.Annotations, annotationKeyServerVersion)
+	}
+	if c.ConnectionState.Message != "" {
+		secret.Annotations[annotationKeyMessage] = c.ConnectionState.Message
+	} else {
+		delete(secret.Annotations, annotationKeyMessage)
+	}
+	if c.ConnectionState.Status != "" {
+		secret.Annotations[annotationKeyStatus] = c.ConnectionState.Status
+	} else {
+		delete(secret.Annotations, annotationKeyStatus)
+	}
+	if c.CacheInfo != (appv1.ClusterCacheInfo{}) {
+		if cacheInfoJSON, err := json.Marshal(c.CacheInfo); err != nil {
+			return err
+		} else {
+			secret.Annotations[annotationKeyCacheInfo] = string(cacheInfoJSON)
+		}
+	} else {
+		delete(secret.Annotations, annotationKeyCacheInfo)
+	}
+
+	return nil
 }
 
-// secretToCluster converts a secret into a repository object
+// secretToCluster converts a secret into a Cluster object
 func secretToCluster(s *apiv1.Secret) *appv1.Cluster {
 	var config appv1.ClusterConfig
 	err := json.Unmarshal(s.Data["config"], &config)
@@ -324,7 +359,7 @@ func secretToCluster(s *apiv1.Secret) *appv1.Cluster {
 		}
 	}
 	connectionState := appv1.ConnectionState{}
-	if v, found := s.Annotations[common.AnnotationKeyModifiedAt]; found {
+	if v, found := s.Annotations[annotationKeyModifiedAt]; found {
 		time, err := time.Parse(time.RFC3339, v)
 		if err != nil {
 			log.Warnf("Error while parsing date : %v", err)
@@ -332,15 +367,22 @@ func secretToCluster(s *apiv1.Secret) *appv1.Cluster {
 			connectionState.ModifiedAt = &metav1.Time{Time: time}
 		}
 	}
-	connectionState.Status = s.Annotations[common.AnnotationKeyStatus]
-	connectionState.Message = s.Annotations[common.AnnotationKeyMessage]
+	connectionState.Status = s.Annotations[annotationKeyStatus]
+	connectionState.Message = s.Annotations[annotationKeyMessage]
+	var cacheInfo appv1.ClusterCacheInfo
+	if cacheInfoJSON := s.Annotations[annotationKeyCacheInfo]; cacheInfoJSON != "" {
+		if err := json.Unmarshal([]byte(cacheInfoJSON), &cacheInfo); err != nil {
+			log.Warnf("Failed to unmarshal cache info: %v", err)
+		}
+	}
 	cluster := appv1.Cluster{
 		Server:          string(s.Data["server"]),
 		Name:            string(s.Data["name"]),
 		Namespaces:      namespaces,
 		Config:          config,
-		ServerVersion:   s.Annotations[common.AnnotationKeyServerVersion],
+		ServerVersion:   s.Annotations[annotationKeyServerVersion],
 		ConnectionState: connectionState,
+		CacheInfo:       cacheInfo,
 	}
 	return &cluster
 }

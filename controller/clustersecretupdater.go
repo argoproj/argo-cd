@@ -23,14 +23,15 @@ type clusterSecretUpdater struct {
 }
 
 func (c *clusterSecretUpdater) Run(ctx context.Context) {
-	tick := time.Tick(secretUpdateInterval)
+	ticker := time.NewTicker(secretUpdateInterval)
 	for {
 		select {
 		case <-ctx.Done():
+			ticker.Stop()
 			break
-		case <-tick:
+		case <-ticker.C:
 			for _, info := range c.infoSource.GetClustersInfo() {
-				err := updateClusterFromClusterCache(c.db, &info)
+				err := updateClusterConnectionState(c.db, &info)
 				if err != nil {
 					continue
 				}
@@ -39,67 +40,30 @@ func (c *clusterSecretUpdater) Run(ctx context.Context) {
 	}
 }
 
-func updateClusterFromClusterCache(db db.ArgoDB, info *cache.ClusterInfo) error {
+func updateClusterConnectionState(db db.ArgoDB, info *cache.ClusterInfo) error {
 	cluster, err := db.GetCluster(context.Background(), info.Server)
 	if err != nil {
 		return err
 	}
-	toUpdate := false
-	if info.K8SVersion != cluster.ServerVersion {
-		cluster.ServerVersion = info.K8SVersion
-		toUpdate = true
-	}
+	now := metav1.Now()
+	cluster.ServerVersion = info.K8SVersion
+	cluster.ConnectionState.ModifiedAt = &now
+	cluster.ConnectionState.Message = ""
 	if info.LastCacheSyncTime == nil {
-		if cluster.ConnectionState.ModifiedAt != nil {
-			cluster.ConnectionState.ModifiedAt = nil
-			toUpdate = true
-		}
+		cluster.ConnectionState.Status = appv1.ConnectionStatusUnknown
+	} else if info.SyncError == nil {
+		cluster.ConnectionState.Status = appv1.ConnectionStatusSuccessful
+		syncTime := metav1.NewTime(*info.LastCacheSyncTime)
+		cluster.CacheInfo.LastCacheSyncTime = &syncTime
+		cluster.CacheInfo.APIsCount = int64(info.APIsCount)
+		cluster.CacheInfo.ResourcesCount = int64(info.ResourcesCount)
 	} else {
-		if cluster.ConnectionState.ModifiedAt == nil {
-			cluster.ConnectionState.ModifiedAt = &metav1.Time{Time: *info.LastCacheSyncTime}
-			toUpdate = true
-		} else {
-			if cluster.ConnectionState.ModifiedAt.Format(time.RFC3339) != (*info.LastCacheSyncTime).Format(time.RFC3339) {
-				cluster.ConnectionState.ModifiedAt = &metav1.Time{Time: *info.LastCacheSyncTime}
-				toUpdate = true
-			}
-		}
+		cluster.ConnectionState.Status = appv1.ConnectionStatusFailed
+		cluster.ConnectionState.Message = info.SyncError.Error()
 	}
-	if info.SyncError == nil {
-		if cluster.ConnectionState.Message != "" {
-			cluster.ConnectionState.Message = ""
-			toUpdate = true
-		}
-	} else {
-		if info.SyncError.Error() != cluster.ConnectionState.Message {
-			cluster.ConnectionState.Message = info.SyncError.Error()
-			toUpdate = true
-		}
+	if _, err := db.UpdateCluster(context.Background(), cluster); err != nil {
+		log.Warnf("Unable to update Cluster %s: %v", cluster.Server, err)
 	}
-	connectionStatus := getConnectionStatus(info)
-	if connectionStatus != cluster.ConnectionState.Status {
-		cluster.ConnectionState.Status = connectionStatus
-		toUpdate = true
-	}
-	if toUpdate {
-		_, err := db.UpdateCluster(context.Background(), cluster)
-		if err != nil {
-			log.Warnf("Unable to update Cluster %s: %v", cluster.Server, err)
-		}
-	}
-	return err
-}
 
-func getConnectionStatus(info *cache.ClusterInfo) appv1.ConnectionStatus {
-	var connectionStatus appv1.ConnectionStatus
-	if info.LastCacheSyncTime == nil {
-		connectionStatus = appv1.ConnectionStatusUnknown
-	} else {
-		if info.SyncError == nil {
-			connectionStatus = appv1.ConnectionStatusSuccessful
-		} else {
-			connectionStatus = appv1.ConnectionStatusFailed
-		}
-	}
-	return connectionStatus
+	return err
 }

@@ -21,6 +21,10 @@ import (
 	"github.com/argoproj/argo-cd/util/rbac"
 )
 
+const (
+	clusterStateMaxAge = 45 * time.Second
+)
+
 // Server provides a Cluster service
 type Server struct {
 	db      db.ArgoDB
@@ -72,6 +76,7 @@ func (s *Server) Create(ctx context.Context, q *cluster.ClusterCreateRequest) (*
 		Status:     appv1.ConnectionStatusSuccessful,
 		ModifiedAt: &v1.Time{Time: time.Now()},
 	}
+	c.CacheInfo = appv1.ClusterCacheInfo{}
 	clust, err := s.db.CreateCluster(ctx, c)
 	if status.Convert(err).Code() == codes.AlreadyExists {
 		// act idempotent if existing spec matches new spec
@@ -81,7 +86,8 @@ func (s *Server) Create(ctx context.Context, q *cluster.ClusterCreateRequest) (*
 		}
 
 		// cluster ConnectionState may differ, so make consistent before testing
-		existing.ConnectionState = c.ConnectionState
+		c.ConnectionState = existing.ConnectionState
+		c.CacheInfo = existing.CacheInfo
 		if reflect.DeepEqual(existing, c) {
 			clust, err = existing, nil
 		} else if q.Upsert {
@@ -142,6 +148,11 @@ func (s *Server) Update(ctx context.Context, q *cluster.ClusterUpdateRequest) (*
 	if err != nil {
 		return nil, err
 	}
+	q.Cluster.ConnectionState = appv1.ConnectionState{
+		Status:     appv1.ConnectionStatusSuccessful,
+		ModifiedAt: &v1.Time{Time: time.Now()},
+	}
+	q.Cluster.CacheInfo = appv1.ClusterCacheInfo{}
 	clust, err := s.db.UpdateCluster(ctx, q.Cluster)
 	return redact(clust), err
 }
@@ -192,6 +203,11 @@ func (s *Server) RotateAuth(ctx context.Context, q *cluster.ClusterQuery) (*clus
 	if err != nil {
 		return nil, err
 	}
+	clust.ConnectionState = appv1.ConnectionState{
+		Status:     appv1.ConnectionStatusSuccessful,
+		ModifiedAt: &v1.Time{Time: time.Now()},
+	}
+	clust.CacheInfo = appv1.ClusterCacheInfo{}
 	_, err = s.db.UpdateCluster(ctx, clust)
 	if err != nil {
 		return nil, err
@@ -211,5 +227,27 @@ func redact(clust *appv1.Cluster) *appv1.Cluster {
 	clust.Config.Password = ""
 	clust.Config.BearerToken = ""
 	clust.Config.TLSClientConfig.KeyData = nil
+	if clust.ConnectionState.ModifiedAt == nil || time.Since(clust.ConnectionState.ModifiedAt.Time) > clusterStateMaxAge {
+		clust.ConnectionState.Status = appv1.ConnectionStatusUnknown
+		clust.ConnectionState.Message = "The controller has not refreshed state for too long."
+	}
 	return clust
+}
+
+// InvalidateCache invalidates cluster cache
+func (s *Server) InvalidateCache(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Cluster, error) {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionUpdate, q.Server); err != nil {
+		return nil, err
+	}
+	cls, err := s.db.GetCluster(ctx, q.Server)
+	if err != nil {
+		return nil, err
+	}
+	now := v1.Now()
+	cls.CacheInfo.RefreshRequestedAt = &now
+	cls, err = s.db.UpdateCluster(ctx, cls)
+	if err != nil {
+		return nil, err
+	}
+	return redact(cls), nil
 }

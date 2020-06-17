@@ -948,6 +948,19 @@ type Cluster struct {
 	ServerVersion string `json:"serverVersion,omitempty" protobuf:"bytes,5,opt,name=serverVersion"`
 	// Holds list of namespaces which are accessible in that cluster. Cluster level resources would be ignored if namespace list if not empty.
 	Namespaces []string `json:"namespaces,omitempty" protobuf:"bytes,6,opt,name=namespaces"`
+	// Holds information about cluster cache
+	CacheInfo ClusterCacheInfo `json:"cacheInfo,omitempty" protobuf:"bytes,7,opt,name=cacheInfo"`
+}
+
+type ClusterCacheInfo struct {
+	// ResourcesCount holds number of observed Kubernetes resources
+	ResourcesCount int64 `json:"resourcesCount,omitempty" protobuf:"bytes,1,opt,name=resourcesCount"`
+	// APIsCount holds number of observed Kubernetes API count
+	APIsCount int64 `json:"apisCount,omitempty" protobuf:"bytes,2,opt,name=apisCount"`
+	// LastCacheSyncTime holds time of most recent cache synchronization
+	LastCacheSyncTime *metav1.Time `json:"lastCacheSyncTime,omitempty" protobuf:"bytes,3,opt,name=lastCacheSyncTime"`
+	// RefreshRequestedAt holds time when cluster cache refresh has been requested
+	RefreshRequestedAt *metav1.Time `json:"refreshRequestedAt,omitempty" protobuf:"bytes,4,opt,name=refreshRequestedAt"`
 }
 
 // ClusterList is a collection of Clusters.

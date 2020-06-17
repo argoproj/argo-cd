@@ -48,8 +48,8 @@ func TestClusterSecretUpdater(t *testing.T) {
 			SyncError:         test.SyncError,
 		}
 
-		err = updateClusterFromClusterCache(db, info)
-		assert.NoError(t, err, "Invoking updateClusterFromClusterCache failed.")
+		err = updateClusterConnectionState(db, info)
+		assert.NoError(t, err, "Invoking updateClusterConnectionState failed.")
 
 		cluster, err = db.GetCluster(ctx, cluster.Server)
 		assert.NoError(t, err)

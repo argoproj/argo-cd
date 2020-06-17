@@ -439,24 +439,36 @@ func (c *liveStateCache) handleAddEvent(cluster *appv1.Cluster) {
 }
 
 func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *appv1.Cluster) {
-	var bToInvalidate bool
 	c.lock.Lock()
 	cluster, ok := c.clusters[newCluster.Server]
 	c.lock.Unlock()
 	if ok {
+		var shouldInvalidate bool
+
 		if oldCluster.Server != newCluster.Server {
-			bToInvalidate = true
+			shouldInvalidate = true
 		}
 		if !reflect.DeepEqual(oldCluster.Config, newCluster.Config) {
-			bToInvalidate = true
+			shouldInvalidate = true
 		}
 		if !reflect.DeepEqual(oldCluster.Namespaces, newCluster.Namespaces) {
-			bToInvalidate = true
+			shouldInvalidate = true
+		}
+		if newCluster.CacheInfo.RefreshRequestedAt != nil &&
+			newCluster.ConnectionState.ModifiedAt != nil &&
+			newCluster.ConnectionState.ModifiedAt.Before(newCluster.CacheInfo.RefreshRequestedAt) {
+			shouldInvalidate = true
+		}
+
+		if shouldInvalidate {
+			cluster.Invalidate()
+			go func() {
+				// warm up cluster cache
+				_ = cluster.EnsureSynced()
+			}()
 		}
 	}
-	if bToInvalidate {
-		cluster.Invalidate()
-	}
+
 }
 
 func (c *liveStateCache) handleDeleteEvent(clusterServer string) {

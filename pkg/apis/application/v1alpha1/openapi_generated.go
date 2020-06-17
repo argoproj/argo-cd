@@ -34,6 +34,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationTree":                  schema_pkg_apis_application_v1alpha1_ApplicationTree(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationWatchEvent":            schema_pkg_apis_application_v1alpha1_ApplicationWatchEvent(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Cluster":                          schema_pkg_apis_application_v1alpha1_Cluster(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ClusterCacheInfo":                 schema_pkg_apis_application_v1alpha1_ClusterCacheInfo(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ClusterConfig":                    schema_pkg_apis_application_v1alpha1_ClusterConfig(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ClusterList":                      schema_pkg_apis_application_v1alpha1_ClusterList(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Command":                          schema_pkg_apis_application_v1alpha1_Command(ref),
@@ -1175,12 +1176,58 @@ func schema_pkg_apis_application_v1alpha1_Cluster(ref common.ReferenceCallback) 
 							},
 						},
 					},
+					"cacheInfo": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Holds information about cluster cache",
+							Ref:         ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ClusterCacheInfo"),
+						},
+					},
 				},
 				Required: []string{"server", "name", "config"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ClusterConfig", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ConnectionState"},
+			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ClusterCacheInfo", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ClusterConfig", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ConnectionState"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_ClusterCacheInfo(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"resourcesCount": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ResourcesCount holds number of observed Kubernetes resources",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"apisCount": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIsCount holds number of observed Kubernetes API count",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"lastCacheSyncTime": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LastCacheSyncTime holds time of most recent cache synchronization",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"refreshRequestedAt": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RefreshRequestedAt holds time when cluster cache refresh has been requested",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 

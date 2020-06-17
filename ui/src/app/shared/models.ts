@@ -450,8 +450,22 @@ export interface RepoCredsList extends ItemsList<RepoCreds> {}
 export interface Cluster {
     name: string;
     server: string;
+    namespaces?: [];
     connectionState: ConnectionState;
     serverVersion: string;
+    cacheInfo?: ClusterCacheInfo;
+    config?: {
+        awsAuthConfig?: {
+            clusterName: string;
+        };
+    };
+}
+
+export interface ClusterCacheInfo {
+    resourcesCount: number;
+    apisCount: number;
+    lastCacheSyncTime: models.Time;
+    refreshRequestedAt: models.Time;
 }
 
 export interface ClusterList extends ItemsList<Cluster> {}

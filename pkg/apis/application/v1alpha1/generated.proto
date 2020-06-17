@@ -325,6 +325,23 @@ message Cluster {
 
   // Holds list of namespaces which are accessible in that cluster. Cluster level resources would be ignored if namespace list if not empty.
   repeated string namespaces = 6;
+
+  // Holds information about cluster cache
+  optional ClusterCacheInfo cacheInfo = 7;
+}
+
+message ClusterCacheInfo {
+  // ResourcesCount holds number of observed Kubernetes resources
+  optional int64 resourcesCount = 1;
+
+  // APIsCount holds number of observed Kubernetes API count
+  optional int64 apisCount = 2;
+
+  // LastCacheSyncTime holds time of most recent cache synchronization
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time lastCacheSyncTime = 3;
+
+  // RefreshRequestedAt holds time when cluster cache refresh has been requested
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time refreshRequestedAt = 4;
 }
 
 // ClusterConfig is the configuration attributes. This structure is subset of the go-client
