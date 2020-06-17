@@ -89,6 +89,8 @@ type ClientOptions struct {
 	PlainText            bool
 	Insecure             bool
 	CertFile             string
+	ClientCertFile       string
+	ClientCertKeyFile    string
 	AuthToken            string
 	ConfigPath           string
 	Context              string
@@ -105,6 +107,7 @@ type client struct {
 	PlainText       bool
 	Insecure        bool
 	CertPEMData     []byte
+	ClientCert      *tls.Certificate
 	AuthToken       string
 	RefreshToken    string
 	UserAgent       string
@@ -139,6 +142,23 @@ func NewClient(opts *ClientOptions) (Client, error) {
 				if err != nil {
 					return nil, err
 				}
+			}
+			if configCtx.Server.ClientCertificateData != "" && configCtx.Server.ClientCertificateKeyData != "" {
+				clientCertData, err := base64.StdEncoding.DecodeString(configCtx.Server.ClientCertificateData)
+				if err != nil {
+					return nil, err
+				}
+				clientCertKeyData, err := base64.StdEncoding.DecodeString(configCtx.Server.ClientCertificateKeyData)
+				if err != nil {
+					return nil, err
+				}
+				clientCert, err := tls.X509KeyPair(clientCertData, clientCertKeyData)
+				if err != nil {
+					return nil, err
+				}
+				c.ClientCert = &clientCert
+			} else if configCtx.Server.ClientCertificateData != "" || configCtx.Server.ClientCertificateKeyData != "" {
+				return nil, errors.New("ClientCertificateData and ClientCertificateKeyData must always be specified together")
 			}
 			c.PlainText = configCtx.Server.PlainText
 			c.Insecure = configCtx.Server.Insecure
@@ -191,6 +211,16 @@ func NewClient(opts *ClientOptions) (Client, error) {
 			return nil, err
 		}
 		c.CertPEMData = b
+	}
+	// Override client certificate data if specified from CLI flag
+	if opts.ClientCertFile != "" && opts.ClientCertKeyFile != "" {
+		clientCert, err := tls.LoadX509KeyPair(opts.ClientCertFile, opts.ClientCertKeyFile)
+		if err != nil {
+			return nil, err
+		}
+		c.ClientCert = &clientCert
+	} else if opts.ClientCertFile != "" || opts.ClientCertKeyFile != "" {
+		return nil, errors.New("--client-crt and --client-crt-key must always be specified together")
 	}
 	// Override insecure/plaintext options if specified from CLI
 	if opts.PlainText {
@@ -442,6 +472,9 @@ func (c *client) tlsConfig() (*tls.Config, error) {
 			return nil, fmt.Errorf("credentials: failed to append certificates")
 		}
 		tlsConfig.RootCAs = cp
+	}
+	if c.ClientCert != nil {
+		tlsConfig.Certificates = append(tlsConfig.Certificates, *c.ClientCert)
 	}
 	if c.Insecure {
 		tlsConfig.InsecureSkipVerify = true

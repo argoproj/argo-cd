@@ -119,7 +119,7 @@ There are two ways that SSO can be configured:
   organizations and teams to OIDC groups claims).
 
 * [Existing OIDC provider](#existing-oidc-provider) - use this if you already have an OIDC provider which you are using (e.g.
-  [Okta](okta.md), [OneLogin](onelogin.md), [Auth0](auth0.md), [Microsoft](microsoft.md)), where you manage your users, groups, and memberships.
+  [Okta](okta.md), [OneLogin](onelogin.md), [Auth0](auth0.md), [Microsoft](microsoft.md), [Keycloak](keycloak.md)), where you manage your users, groups, and memberships.
 
 ## Dex
 

@@ -200,7 +200,6 @@ func (db *db) getClusterSecret(server string) (*apiv1.Secret, error) {
 		}
 	}
 	return nil, status.Errorf(codes.NotFound, "cluster %q not found", server)
-
 }
 
 // GetCluster returns a cluster from a query
@@ -217,12 +216,15 @@ func (db *db) GetCluster(ctx context.Context, server string) (*appv1.Cluster, er
 }
 
 // UpdateCluster updates a cluster
-func (db *db) UpdateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Cluster, error) {
+func (db *db) UpdateCluster(_ context.Context, c *appv1.Cluster) (*appv1.Cluster, error) {
 	clusterSecret, err := db.getClusterSecret(c.Server)
 	if err != nil {
 		return nil, err
 	}
 	clusterSecret.Data = clusterToData(c)
+	if clusterSecret.Annotations == nil {
+		clusterSecret.Annotations = make(map[string]string)
+	}
 	if c.ConnectionState.ModifiedAt != nil {
 		clusterSecret.Annotations[common.AnnotationKeyModifiedAt] = c.ConnectionState.ModifiedAt.Format(time.RFC3339)
 	} else {
