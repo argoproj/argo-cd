@@ -844,6 +844,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#helm-plugins" title="Helm plugins" class="md-nav__link">
+    Helm plugins
+  </a>
+  
+</li>
+      
       
       
       
@@ -1403,6 +1410,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#helm-plugins" title="Helm plugins" class="md-nav__link">
+    Helm plugins
+  </a>
+  
+</li>
+      
       
       
       
@@ -1594,6 +1608,38 @@ value, in the values.yaml such that the value is stable between each comparison.
         <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">app</span>
           <span class="nt">value</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">$ARGOCD_APP_NAME</span>
 </code></pre></div>
+
+
+<h2 id="helm-plugins">Helm plugins<a class="headerlink" href="#helm-plugins" title="Permanent link">&para;</a></h2>
+<blockquote>
+<p>v1.5</p>
+</blockquote>
+<p>Argo CD is un-opinionated on what cloud provider you use and what kind of Helm plugins you are using that's why there is no any plugins delivered with ArgoCD image.</p>
+<p>But sometimes it happens you would like to use custom plugin. One of the cases is that you would like to use Google Cloud Storage or Amazon S3 storage to save the Helm charts, for example: https://github.com/hayorov/helm-gcs where you can use <code>gs://</code> protocol for Helm chart repository access.</p>
+<p>In order to do that you have to prepare your own ArgoCD image with installed plugins.</p>
+<p>Example <code>Dockerfile</code>:</p>
+<div class="codehilite"><pre><span></span><code>FROM argoproj/argocd:v1.5.7
+
+USER root
+RUN apt-get update <span class="err">&amp;&amp;</span> \
+    apt-get install -y \
+        curl <span class="err">&amp;&amp;</span> \
+    apt-get clean <span class="err">&amp;&amp;</span> \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+USER argocd
+
+ARG GCS_PLUGIN_VERSION=&quot;0.3.5&quot;
+ARG GCS_PLUGIN_REPO=&quot;https://github.com/hayorov/helm-gcs.git&quot;
+
+RUN helm plugin install <span class="cp">${</span><span class="n">GCS_PLUGIN_REPO</span><span class="cp">}</span> --version <span class="cp">${</span><span class="n">GCS_PLUGIN_VERSION</span><span class="cp">}</span>
+
+ENV HELM_PLUGINS=&quot;/home/argocd/.local/share/helm/plugins/&quot;
+</code></pre></div>
+
+
+<p>You have to remember about <code>HELM_PLUGINS</code> environment property - this is required to works plugins correctly.</p>
+<p>After that you have to use your custom image for ArgoCD installation.</p>
                 
                   
                 
