@@ -3173,6 +3173,9 @@
         },
         "spec": {
           "$ref": "#/definitions/v1alpha1AppProjectSpec"
+        },
+        "status": {
+          "$ref": "#/definitions/v1alpha1AppprojStatus"
         }
       }
     },
@@ -3619,6 +3622,18 @@
         }
       }
     },
+    "v1alpha1AppprojStatus": {
+      "type": "object",
+      "title": "AppprojStatus contains information about appproj",
+      "properties": {
+        "jwtTokenMap": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/v1alpha1JWTTokens"
+          }
+        }
+      }
+    },
     "v1alpha1Cluster": {
       "type": "object",
       "title": "Cluster is the definition of a cluster resource",
@@ -3844,6 +3859,17 @@
         },
         "id": {
           "type": "string"
+        }
+      }
+    },
+    "v1alpha1JWTTokens": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1JWTToken"
+          }
         }
       }
     },

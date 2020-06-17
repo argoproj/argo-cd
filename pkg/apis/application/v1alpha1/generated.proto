@@ -36,6 +36,8 @@ message AppProject {
   optional k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
 
   optional AppProjectSpec spec = 2;
+
+  optional AppprojStatus status = 3;
 }
 
 // AppProjectList is list of AppProject resources
@@ -300,6 +302,11 @@ message ApplicationWatchEvent {
   optional Application application = 2;
 }
 
+// AppprojStatus contains information about appproj
+message AppprojStatus {
+  map<string, JWTTokens> jwtTokenMap = 1;
+}
+
 // Cluster is the definition of a cluster resource
 message Cluster {
   // Server is the API server URL of the Kubernetes cluster
@@ -446,6 +453,10 @@ message JWTToken {
   optional int64 exp = 2;
 
   optional string id = 3;
+}
+
+message JWTTokens {
+  repeated JWTToken items = 1;
 }
 
 // JsonnetVar is a jsonnet variable

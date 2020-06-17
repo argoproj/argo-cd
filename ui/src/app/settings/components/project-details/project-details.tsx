@@ -212,6 +212,10 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                             role:
                                                                 params.get('newRole') === null && proj.spec.roles !== undefined
                                                                     ? proj.spec.roles.find(x => params.get('editRole') === x.name)
+                                                                    : undefined,
+                                                            jwtTokens:
+                                                                params.get('newRole') === null && proj.spec.roles !== undefined && proj.status.jwtTokenMap !== undefined
+                                                                    ? proj.status.jwtTokenMap[params.get('editRole')].items
                                                                     : undefined
                                                         }}
                                                         getApi={(api: FormApi) => (this.projectRoleFormApi = api)}

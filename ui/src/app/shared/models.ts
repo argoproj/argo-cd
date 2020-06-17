@@ -364,6 +364,13 @@ export interface ApplicationStatus {
     summary?: ApplicationSummary;
 }
 
+export interface JwtTokens {
+    items: JwtToken[];
+}
+export interface AppprojStatus {
+    jwtTokenMap: {[name: string]: JwtTokens};
+}
+
 export interface LogEntry {
     content: string;
     timeStamp: models.Time;
@@ -616,6 +623,7 @@ export interface Project {
     kind?: string;
     metadata: models.ObjectMeta;
     spec: ProjectSpec;
+    status: AppprojStatus;
 }
 
 export type ProjectList = ItemsList<Project>;

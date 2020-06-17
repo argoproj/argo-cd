@@ -33,6 +33,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSummary":               schema_pkg_apis_application_v1alpha1_ApplicationSummary(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationTree":                  schema_pkg_apis_application_v1alpha1_ApplicationTree(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationWatchEvent":            schema_pkg_apis_application_v1alpha1_ApplicationWatchEvent(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.AppprojStatus":                    schema_pkg_apis_application_v1alpha1_AppprojStatus(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Cluster":                          schema_pkg_apis_application_v1alpha1_Cluster(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ClusterConfig":                    schema_pkg_apis_application_v1alpha1_ClusterConfig(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ClusterList":                      schema_pkg_apis_application_v1alpha1_ClusterList(ref),
@@ -48,6 +49,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Info":                             schema_pkg_apis_application_v1alpha1_Info(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.InfoItem":                         schema_pkg_apis_application_v1alpha1_InfoItem(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.JWTToken":                         schema_pkg_apis_application_v1alpha1_JWTToken(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.JWTTokens":                        schema_pkg_apis_application_v1alpha1_JWTTokens(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.JsonnetVar":                       schema_pkg_apis_application_v1alpha1_JsonnetVar(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.KnownTypeField":                   schema_pkg_apis_application_v1alpha1_KnownTypeField(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.KsonnetParameter":                 schema_pkg_apis_application_v1alpha1_KsonnetParameter(ref),
@@ -150,12 +152,17 @@ func schema_pkg_apis_application_v1alpha1_AppProject(ref common.ReferenceCallbac
 							Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.AppProjectSpec"),
 						},
 					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.AppprojStatus"),
+						},
+					},
 				},
 				Required: []string{"metadata", "spec"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.AppProjectSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.AppProjectSpec", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.AppprojStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
@@ -1098,6 +1105,34 @@ func schema_pkg_apis_application_v1alpha1_ApplicationWatchEvent(ref common.Refer
 	}
 }
 
+func schema_pkg_apis_application_v1alpha1_AppprojStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "AppprojStatus contains information about appproj",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"jwtTokenMap": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.JWTTokens"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.JWTTokens"},
+	}
+}
+
 func schema_pkg_apis_application_v1alpha1_Cluster(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -1597,6 +1632,32 @@ func schema_pkg_apis_application_v1alpha1_JWTToken(ref common.ReferenceCallback)
 				Required: []string{"iat"},
 			},
 		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_JWTTokens(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.JWTToken"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.JWTToken"},
 	}
 }
 

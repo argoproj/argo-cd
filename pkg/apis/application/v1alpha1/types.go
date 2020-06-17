@@ -420,6 +420,15 @@ type ApplicationStatus struct {
 	Summary    ApplicationSummary    `json:"summary,omitempty" protobuf:"bytes,10,opt,name=summary"`
 }
 
+type JWTTokens struct {
+	Items []JWTToken `json:"items,omitempty" protobuf:"bytes,1,opt,name=items"`
+}
+
+// AppprojStatus contains information about appproj
+type AppprojStatus struct {
+	JWTTokenMap map[string]JWTTokens `json:"jwtTokenMap,omitempty" protobuf:"bytes,1,opt,name=jwtTokenMap"`
+}
+
 // OperationInitiator holds information about the operation initiator
 type OperationInitiator struct {
 	// Name of a user who started operation.
@@ -1264,6 +1273,7 @@ type AppProject struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
 	Spec              AppProjectSpec `json:"spec" protobuf:"bytes,2,opt,name=spec"`
+	Status            AppprojStatus  `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
 }
 
 // GetRoleByName returns the role in a project by the name with its index
@@ -1277,7 +1287,8 @@ func (p *AppProject) GetRoleByName(name string) (*ProjectRole, int, error) {
 }
 
 // GetJWTToken looks up the index of a JWTToken in a project by id (new token), if not then by the issue at time (old token)
-func (p *AppProject) GetJWTToken(roleName string, issuedAt int64, id string) (*JWTToken, int, error) {
+func (p *AppProject) GetJWTTokenFromSpec(roleName string, issuedAt int64, id string) (*JWTToken, int, error) {
+	// This is for backward compatibility. In the oder version, JWTTokens are stored under spec.role
 	role, _, err := p.GetRoleByName(roleName)
 	if err != nil {
 		return nil, -1, err
@@ -1300,6 +1311,29 @@ func (p *AppProject) GetJWTToken(roleName string, issuedAt int64, id string) (*J
 	}
 
 	return nil, -1, fmt.Errorf("JWT token for role '%s' issued at '%d' does not exist in project '%s'", role.Name, issuedAt, p.Name)
+}
+
+// GetJWTToken looks up the index of a JWTToken in a project by id (new token), if not then by the issue at time (old token)
+func (p *AppProject) GetJWTToken(roleName string, issuedAt int64, id string) (*JWTToken, int, error) {
+	// This is for newer version, JWTTokens are stored under status
+	if id != "" {
+		for i, token := range p.Status.JWTTokenMap[roleName].Items {
+			if id == token.ID {
+				return &token, i, nil
+			}
+		}
+
+	}
+
+	if issuedAt != -1 {
+		for i, token := range p.Status.JWTTokenMap[roleName].Items {
+			if issuedAt == token.IssuedAt {
+				return &token, i, nil
+			}
+		}
+	}
+
+	return nil, -1, fmt.Errorf("JWT token for role '%s' issued at '%d' does not exist in project '%s'", roleName, issuedAt, p.Name)
 }
 
 func (p *AppProject) ValidateJWTTokenID(roleName string, id string) error {

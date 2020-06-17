@@ -113,7 +113,19 @@ func (s *Server) CreateToken(ctx context.Context, q *project.ProjectTokenCreateR
 	expiresAt := claims.ExpiresAt
 	id = claims.Id
 
+	//For backward compatibility
 	prj.Spec.Roles[index].JWTTokens = append(prj.Spec.Roles[index].JWTTokens, v1alpha1.JWTToken{IssuedAt: issuedAt, ExpiresAt: expiresAt, ID: id})
+
+	//New location for storing JWTToken
+	items := append(prj.Status.JWTTokenMap[q.Role].Items, v1alpha1.JWTToken{IssuedAt: issuedAt, ExpiresAt: expiresAt, ID: id})
+	if _, found := prj.Status.JWTTokenMap[q.Role]; found {
+		prj.Status.JWTTokenMap[q.Role] = v1alpha1.JWTTokens{Items: items}
+	} else {
+		tokensMap := make(map[string]v1alpha1.JWTTokens)
+		tokensMap[q.Role] = v1alpha1.JWTTokens{Items: items}
+		prj.Status.JWTTokenMap = tokensMap
+	}
+
 	_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(prj)
 	if err != nil {
 		return nil, err
@@ -146,12 +158,23 @@ func (s *Server) DeleteToken(ctx context.Context, q *project.ProjectTokenDeleteR
 			return nil, err
 		}
 	}
-	_, jwtTokenIndex, err := prj.GetJWTToken(q.Role, q.Iat, q.Id)
+
+	// For backward compatibility
+	_, jwtTokenIndex, err := prj.GetJWTTokenFromSpec(q.Role, q.Iat, q.Id)
 	if err != nil {
 		return &project.EmptyResponse{}, nil
 	}
 	prj.Spec.Roles[roleIndex].JWTTokens[jwtTokenIndex] = prj.Spec.Roles[roleIndex].JWTTokens[len(prj.Spec.Roles[roleIndex].JWTTokens)-1]
 	prj.Spec.Roles[roleIndex].JWTTokens = prj.Spec.Roles[roleIndex].JWTTokens[:len(prj.Spec.Roles[roleIndex].JWTTokens)-1]
+
+	//New location for storing JWTToken
+	_, jwtTokenIndex, err = prj.GetJWTToken(q.Role, q.Iat, q.Id)
+	if err != nil {
+		return &project.EmptyResponse{}, nil
+	}
+	prj.Status.JWTTokenMap[q.Role].Items[jwtTokenIndex] = prj.Status.JWTTokenMap[q.Role].Items[len(prj.Status.JWTTokenMap[q.Role].Items)-1]
+	prj.Status.JWTTokenMap[q.Role] = v1alpha1.JWTTokens{Items: prj.Status.JWTTokenMap[q.Role].Items[:len(prj.Status.JWTTokenMap[q.Role].Items)-1]}
+
 	_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(prj)
 	if err != nil {
 		return nil, err
@@ -228,6 +251,16 @@ func (s *Server) Get(ctx context.Context, q *project.ProjectQuery) (*v1alpha1.Ap
 			}
 		}
 		proj.Spec.Roles[i] = role
+	}
+
+	for role, roleTokenEntry := range proj.Status.JWTTokenMap {
+		for j, token := range roleTokenEntry.Items {
+			if token.ID == "" {
+				token.ID = strconv.FormatInt(token.IssuedAt, 10)
+				roleTokenEntry.Items[j] = token
+			}
+		}
+		proj.Status.JWTTokenMap[role] = roleTokenEntry
 	}
 	return proj, err
 }
@@ -399,4 +432,32 @@ func (s *Server) GetSyncWindowsState(ctx context.Context, q *project.SyncWindows
 	}
 
 	return res, nil
+}
+
+func (s *Server) NormalizeProj() {
+	ctx := context.Background()
+	projList, err := s.List(ctx, &project.ProjectQuery{})
+	if err != nil {
+		return
+	}
+
+	for _, proj := range projList.Items {
+		if proj.Status.JWTTokenMap == nil {
+			roleTokenMap := make(map[string]v1alpha1.JWTTokens)
+			roles := proj.Spec.Roles
+			for _, role := range roles {
+				if role.JWTTokens != nil && len(role.JWTTokens) > 0 {
+					roleTokenMap[role.Name] = v1alpha1.JWTTokens{Items: role.JWTTokens}
+				}
+			}
+			if len(roleTokenMap) > 0 {
+				proj.Status.JWTTokenMap = roleTokenMap
+				res, err := s.Update(ctx, &project.ProjectUpdateRequest{Project: &proj})
+				if err != nil {
+					s.logEvent(res, ctx, argo.EventReasonResourceUpdated, "normalize Project")
+				}
+			}
+		}
+	}
+
 }
