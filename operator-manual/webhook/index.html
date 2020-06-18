@@ -1390,6 +1390,10 @@ URL configured in the Git provider should use the <code>/api/webhook</code> endp
 (e.g. [https://argocd.example.com/api/webhook]). If you wish to use a shared secret, input an
 arbitrary value in the secret. This value will be used when configuring the webhook in the next step.</p>
 <p><img alt="Add Webhook" src="../../assets/webhook-config.png" title="Add Webhook" /></p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>When creating the webhook in Github, the "Content type" needs to be set to "application/json". The default value "application/x-www-form-urlencoded" is not supported by the library used to handle the hooks</p>
+</div>
 <h3 id="2-configure-argo-cd-with-the-webhook-secret-optional">2. Configure Argo CD With The WebHook Secret (Optional)<a class="headerlink" href="#2-configure-argo-cd-with-the-webhook-secret-optional" title="Permanent link">&para;</a></h3>
 <p>Configuring a webhook shared secret is optional, since Argo CD will still refresh applications
 related to the Git repository, even with unauthenticated webhook events. This is safe to do since
