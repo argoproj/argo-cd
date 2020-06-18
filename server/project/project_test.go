@@ -650,6 +650,24 @@ p, role:admin, projects, update, *, allow`)
 		_, err := projectServer.GetSyncWindowsState(ctx, &project.SyncWindowsQuery{Name: projectWithSyncWindows.Name})
 		assert.EqualError(t, err, "rpc error: code = PermissionDenied desc = permission denied: projects, get, test")
 	})
+
+	t.Run("TestNormalizeProj", func(t *testing.T) {
+		sessionMgr := session.NewSessionManager(settingsMgr, "", session.NewInMemoryUserStateStorage())
+		projectWithRole := existingProj.DeepCopy()
+
+		roleName := "roleName"
+		role := v1alpha1.ProjectRole{Name: roleName, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: 1}}}
+		projectWithRole.Spec.Roles = append(projectWithRole.Spec.Roles, role)
+
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithRole), enforcer, util.NewKeyLock(), sessionMgr, nil)
+		projectServer.NormalizeProj()
+
+		appList, err := projectServer.appclientset.ArgoprojV1alpha1().AppProjects(projectWithRole.Namespace).List(v1.ListOptions{})
+		assert.NoError(t, err)
+		assert.Len(t, appList.Items[0].Status.JWTTokenMap[roleName].Items, 1)
+		assert.Equal(t, appList.Items[0].Status.JWTTokenMap[roleName].Items[0].IssuedAt, int64(1))
+
+	})
 }
 
 func newEnforcer(kubeclientset *fake.Clientset) *rbac.Enforcer {

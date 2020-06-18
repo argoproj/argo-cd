@@ -314,4 +314,15 @@ func TestUseJWTToken(t *testing.T) {
 		_, err = fixture.RunCli("proj", "role", "add-policy", projectName, roleName, "-a", action, "-o", "*", "-p", "allow")
 		assert.NoError(t, err)
 	}
+
+	newProj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Get(projectName, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.NotNil(t, newProj.Status.JWTTokenMap)
+	assert.Len(t, newProj.Status.JWTTokenMap, 1)
+	assert.NotNil(t, newProj.Status.JWTTokenMap[roleName])
+	assert.Len(t, newProj.Status.JWTTokenMap[roleName].Items, 1)
+
+	_, err = fixture.RunCli("proj", "role", "delete-token", projectName, roleName)
+	assert.NoError(t, err)
+
 }
