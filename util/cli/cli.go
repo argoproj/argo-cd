@@ -147,7 +147,7 @@ func SetLogFormat(logFormat string) {
 			log.SetFormatter(&log.TextFormatter{ForceColors: true})
 		}
 	default:
-		errors.Fatalf("Unknown log format '%s'", logFormat)
+		errors.CheckErrorWithCode(fmt.Errorf("Unknown log format '%s'", logFormat), errors.ErrorCommandSpecific)
 	}
 }
 

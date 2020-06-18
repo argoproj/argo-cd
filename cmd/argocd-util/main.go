@@ -328,11 +328,10 @@ func NewImportCommand() *cobra.Command {
 					case "Application":
 						dynClient = acdClients.applications
 					default:
-						errors.Fatalf("Unexpected kind '%s' in prune list", key.Kind)
+						errors.CheckErrorWithCode(fmt.Errorf("Unexpected kind '%s' in prune list", key.Kind), errors.ErrorAPIResponse)
 					}
 					if !dryRun {
-						err = dynClient.Delete(key.Name, &metav1.DeleteOptions{})
-						errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
+						errors.CheckErrorWithCode(dynClient.Delete(key.Name, &metav1.DeleteOptions{}), errors.ErrorAPIResponse)
 					}
 					fmt.Printf("%s/%s %s pruned%s\n", key.Group, key.Kind, key.Name, dryRunMsg)
 				} else {

@@ -58,9 +58,8 @@ func NewContextCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				fmt.Printf("Already at context '%s'\n", localCfg.CurrentContext)
 				return
 			}
-			if _, err = localCfg.ResolveContext(ctxName); err != nil {
-				errors.Fatal(err)
-			}
+			_, err = localCfg.ResolveContext(ctxName)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			prevCtx := localCfg.CurrentContext
 			localCfg.CurrentContext = ctxName
 
@@ -112,7 +111,7 @@ func printArgoCDContexts(configPath string) {
 	localCfg, err := localconfig.ReadLocalConfig(configPath)
 	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 	if localCfg == nil {
-		errors.Fatalf("No contexts defined in %s", configPath)
+		errors.CheckErrorWithCode(fmt.Errorf("No contexts defined in %s", configPath), errors.ErrorCommandSpecific)
 	}
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	defer func() { _ = w.Flush() }()

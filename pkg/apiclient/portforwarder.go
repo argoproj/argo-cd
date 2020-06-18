@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"os"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/argoproj/gitops-engine/pkg/utils/io"
-	"github.com/pkg/errors"
+	pkgErrors "github.com/pkg/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -59,7 +59,7 @@ func portForward(podSelector string, namespace string) (int, error) {
 
 	transport, upgrader, err := spdy.RoundTripperFor(config)
 	if err != nil {
-		return -1, errors.Wrap(err, "Could not create round tripper")
+		return -1, pkgErrors.Wrap(err, "Could not create round tripper")
 	}
 	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, "POST", url)
 
@@ -80,10 +80,7 @@ func portForward(podSelector string, namespace string) (int, error) {
 	}
 
 	go func() {
-		err = forwarder.ForwardPorts()
-		if err != nil {
-			errors.Fatal(err)
-		}
+		errors.CheckErrorWithCode(forwarder.ForwardPorts(), errors.ErrorCommandSpecific)
 	}()
 	for range readyChan {
 	}

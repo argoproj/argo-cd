@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/pkg/errors"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"

@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -16,7 +16,7 @@ func StartInformer(informer cache.SharedIndexInformer) context.CancelFunc {
 	ctx, cancel := context.WithCancel(context.Background())
 	go informer.Run(ctx.Done())
 	if !cache.WaitForCacheSync(ctx.Done(), informer.HasSynced) {
-		errors.Fatal("Timed out waiting for informer cache to sync")
+		errors.CheckErrorWithCode(fmt.Errorf("Timed out waiting for informer cache to sync"), errors.ErrorCommandSpecific)
 	}
 	return cancel
 }

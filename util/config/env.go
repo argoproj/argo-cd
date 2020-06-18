@@ -1,7 +1,7 @@
 package config
 
 import (
-	goerr "errors"
+	"fmt"
 	"os"
 	"strings"
 
@@ -37,7 +37,7 @@ func loadFlags() error {
 			flags[key] = opt
 			key = ""
 		} else {
-			return goerr.New("ARGOCD_OPTS invalid at '" + opt + "'")
+			return fmt.Errorf("ARGOCD_OPTS invalid at '" + opt + "'")
 		}
 	}
 	if key != "" {

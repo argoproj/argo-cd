@@ -7,8 +7,7 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
-	"github.com/coreos/go-oidc"
-	log "github.com/sirupsen/logrus"
+	oidc "github.com/coreos/go-oidc"
 	"github.com/spf13/cobra"
 
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
@@ -35,7 +34,7 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 			localCfg, err := localconfig.ReadLocalConfig(globalClientOpts.ConfigPath)
 			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			if localCfg == nil {
-				errors.Fatalf("No context found. Login using `argocd login`")
+				errors.CheckErrorWithCode(fmt.Errorf("No context found. Login using `argocd login`"), errors.ErrorCommandSpecific)
 			}
 			configCtx, err := localCfg.ResolveContext(localCfg.CurrentContext)
 			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)

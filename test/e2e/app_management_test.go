@@ -18,7 +18,6 @@ import (
 	. "github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
@@ -416,7 +415,7 @@ func TestAppWithSecrets(t *testing.T) {
 			assetSecretDataHidden(t, res.Manifest)
 
 			manifests, err := client.GetManifests(context.Background(), &applicationpkg.ApplicationManifestQuery{Name: &app.Name})
-			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
+			CheckErrorWithCode(err, ErrorAPIResponse)
 
 			for _, manifest := range manifests.Manifests {
 				assetSecretDataHidden(t, manifest)

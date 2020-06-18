@@ -213,9 +213,7 @@ func NewProjectWindowsUpdateCommand(clientOpts *argocdclient.ClientOptions) *cob
 			for i, window := range proj.Spec.SyncWindows {
 				if id == i {
 					err := window.Update(schedule, duration, applications, namespaces, clusters)
-					if err != nil {
-						errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
-					}
+					errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 				}
 			}
 

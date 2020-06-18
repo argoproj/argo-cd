@@ -11,8 +11,8 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/argoproj/gitops-engine/pkg/utils/io"
-	"github.com/coreos/go-oidc"
-	"github.com/dgrijalva/jwt-go"
+	oidc "github.com/coreos/go-oidc"
+	jwt "github.com/dgrijalva/jwt-go"
 	log "github.com/sirupsen/logrus"
 	"github.com/skratchdot/open-golang/open"
 	"github.com/spf13/cobra"
@@ -271,7 +271,7 @@ func oauth2Login(ctx context.Context, port int, oidcSettings *settingspkg.OIDCCo
 	case oidcutil.GrantTypeImplicit:
 		url = oidcutil.ImplicitFlowURL(oauth2conf, stateNonce, opts...)
 	default:
-		errors.Fatalf("Unsupported grant type: %v", grantType)
+		errors.Fatalf(errors.ErrorCommandSpecific, "Unsupported grant type: %v", grantType)
 	}
 	fmt.Printf("Performing %s flow login: %s\n", grantType, url)
 	time.Sleep(1 * time.Second)
@@ -280,12 +280,12 @@ func oauth2Login(ctx context.Context, port int, oidcSettings *settingspkg.OIDCCo
 	go func() {
 		log.Debugf("Listen: %s", srv.Addr)
 		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
-			errors.Fatalf("Temporary HTTP server failed: %s", err)
+			errors.Fatalf(errors.ErrorCommandSpecific, "Temporary HTTP server failed: %s", err)
 		}
 	}()
 	errMsg := <-completionChan
 	if errMsg != "" {
-		errors.Fatal(errMsg)
+		errors.Fatal(errors.ErrorCommandSpecific, errMsg)
 	}
 	fmt.Printf("Authentication successful\n")
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)

@@ -9,7 +9,6 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/argoproj/gitops-engine/pkg/utils/io"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
@@ -71,9 +70,7 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 			if sshPrivateKeyPath != "" {
 				if ok, _ := git.IsSSHURL(repo.URL); ok {
 					keyData, err := ioutil.ReadFile(sshPrivateKeyPath)
-					if err != nil {
-						errors.Fatal(err)
-					}
+					errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 					repo.SSHPrivateKey = string(keyData)
 				} else {
 					err := fmt.Errorf("--ssh-private-key-path is only supported for SSH repositories.")

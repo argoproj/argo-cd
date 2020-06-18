@@ -134,7 +134,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				reader := bufio.NewReader(os.Stdin)
 				err := config.UnmarshalReader(reader, &app)
 				if err != nil {
-					errors.Fatalf("unable to read manifest from stdin: %v", err)
+					errors.CheckErrorWithCode(fmt.Errorf("unable to read manifest from stdin: %v", err), errors.ErrorCommandSpecific)
 				}
 			} else if fileURL != "" {
 				// read uri
@@ -146,16 +146,16 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				}
 				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 				if len(args) == 1 && args[0] != app.Name {
-					errors.Fatalf("app name '%s' does not match app spec metadata.name '%s'", args[0], app.Name)
+					errors.CheckErrorWithCode(fmt.Errorf("app name '%s' does not match app spec metadata.name '%s'", args[0], app.Name), errors.ErrorCommandSpecific)
 				}
 				if appName != "" && appName != app.Name {
-					errors.Fatalf("--name argument '%s' does not match app spec metadata.name '%s'", appName, app.Name)
+					errors.CheckErrorWithCode(fmt.Errorf("--name argument '%s' does not match app spec metadata.name '%s'", appName, app.Name), errors.ErrorCommandSpecific)
 				}
 			} else {
 				// read arguments
 				if len(args) == 1 {
 					if appName != "" && appName != args[0] {
-						errors.Fatalf("--name argument '%s' does not match app name %s", appName, args[0])
+						errors.CheckErrorWithCode(fmt.Errorf("--name argument '%s' does not match app name %s", appName, args[0]), errors.ErrorCommandSpecific)
 					}
 					appName = args[0]
 				}
@@ -190,9 +190,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	command.Flags().StringArrayVarP(&labels, "label", "l", []string{}, "Labels to apply to the app")
 	// Only complete files with appropriate extension.
 	err := command.Flags().SetAnnotation("file", cobra.BashCompFilenameExt, []string{"json", "yaml", "yml"})
-	if err != nil {
-		errors.Fatal(err)
-	}
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 	addAppFlags(command, &appOpts)
 	return command
 }
@@ -205,7 +203,7 @@ func setLabels(app *argoappv1.Application, labels []string) {
 
 func getInfos(infos []string) []*argoappv1.Info {
 	mapInfos, err := label.Parse(infos)
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 	sliceInfos := make([]*argoappv1.Info, len(mapInfos))
 	i := 0
 	for key, element := range mapInfos {
@@ -568,7 +566,7 @@ func setAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 				}
 				spec.SyncPolicy.Automated = &argoappv1.SyncPolicyAutomated{}
 			default:
-				errors.Fatalf("Invalid sync-policy: %s", appOpts.syncPolicy)
+				errors.CheckErrorWithCode(fmt.Errorf("Invalid sync-policy: %s", appOpts.syncPolicy), errors.ErrorCommandSpecific)
 			}
 		case "sync-option":
 			if spec.SyncPolicy == nil {
@@ -590,13 +588,13 @@ func setAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 	})
 	if flags.Changed("auto-prune") {
 		if spec.SyncPolicy == nil || spec.SyncPolicy.Automated == nil {
-			errors.Fatal("Cannot set --auto-prune: application not configured with automatic sync")
+			errors.CheckErrorWithCode(fmt.Errorf("Cannot set --auto-prune: application not configured with automatic sync"), errors.ErrorCommandSpecific)
 		}
 		spec.SyncPolicy.Automated.Prune = appOpts.autoPrune
 	}
 	if flags.Changed("self-heal") {
 		if spec.SyncPolicy == nil || spec.SyncPolicy.Automated == nil {
-			errors.Fatal("Cannot set --self-heal: application not configured with automatic sync")
+			errors.CheckErrorWithCode(fmt.Errorf("Cannot set --self-heal: application not configured with automatic sync"), errors.ErrorCommandSpecific)
 		}
 		spec.SyncPolicy.Automated.SelfHeal = appOpts.selfHeal
 	}
@@ -662,23 +660,17 @@ func setHelmOpt(src *argoappv1.ApplicationSource, opts helmOpts) {
 	}
 	for _, text := range opts.helmSets {
 		p, err := argoappv1.NewHelmParameter(text, false)
-		if err != nil {
-			errors.Fatal(err)
-		}
+		errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 		src.Helm.AddParameter(*p)
 	}
 	for _, text := range opts.helmSetStrings {
 		p, err := argoappv1.NewHelmParameter(text, true)
-		if err != nil {
-			errors.Fatal(err)
-		}
+		errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 		src.Helm.AddParameter(*p)
 	}
 	for _, text := range opts.helmSetFiles {
 		p, err := argoappv1.NewHelmFileParameter(text)
-		if err != nil {
-			errors.Fatal(err)
-		}
+		errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 		src.Helm.AddFileParameter(*p)
 	}
 	if src.Helm.IsZero() {
@@ -845,7 +837,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 				for _, paramStr := range parameters {
 					parts := strings.SplitN(paramStr, "=", 2)
 					if len(parts) != 2 {
-						errors.Fatalf("Expected parameter of the form: component=param. Received: %s", paramStr)
+						errors.CheckErrorWithCode(fmt.Errorf("Expected parameter of the form: component=param. Received: %s", paramStr), errors.ErrorCommandSpecific)
 					}
 					overrides := app.Spec.Source.Ksonnet.Parameters
 					for i, override := range overrides {
@@ -1310,14 +1302,14 @@ func parseSelectedResources(resources []string) []argoappv1.SyncOperationResourc
 		for _, r := range resources {
 			fields := strings.Split(r, resourceFieldDelimiter)
 			if len(fields) != resourceFieldCount {
-				errors.Fatalf("Resource should have GROUP%sKIND%sNAME, but instead got: %s", resourceFieldDelimiter, resourceFieldDelimiter, r)
+				errors.CheckErrorWithCode(fmt.Errorf("Resource should have GROUP%sKIND%sNAME, but instead got: %s", resourceFieldDelimiter, resourceFieldDelimiter, r), errors.ErrorCommandSpecific)
 			}
 			name := fields[2]
 			namespace := ""
 			if strings.Contains(fields[2], resourceFieldNamespaceDelimiter) {
 				nameFields := strings.Split(fields[2], resourceFieldNamespaceDelimiter)
 				if len(nameFields) != resourceFieldNameWithNamespaceCount {
-					log.Fatalf("Resource with namespace should have GROUP%sKIND%sNAMESPACE%sNAME, but instead got: %s", resourceFieldDelimiter, resourceFieldDelimiter, resourceFieldNamespaceDelimiter, r)
+					errors.CheckErrorWithCode(fmt.Errorf("Resource with namespace should have GROUP%sKIND%sNAMESPACE%sNAME, but instead got: %s", resourceFieldDelimiter, resourceFieldDelimiter, resourceFieldNamespaceDelimiter, r), errors.ErrorCommandSpecific)
 				}
 				namespace = nameFields[0]
 				name = nameFields[1]
@@ -1453,7 +1445,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 				// unlike list, we'd want to fail if nothing was found
 				if len(list.Items) == 0 {
-					errors.Fatalf("no apps match selector %v", selector)
+					errors.CheckErrorWithCode(fmt.Errorf("no apps match selector %v", selector), errors.ErrorCommandSpecific)
 				}
 				for _, i := range list.Items {
 					appNames = append(appNames, i.Name)
@@ -1471,9 +1463,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					}
 
 					res, err := appIf.GetManifests(ctx, &q)
-					if err != nil {
-						errors.Fatal(err)
-					}
+					errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 
 					for _, mfst := range res.Manifests {
 						obj, err := argoappv1.UnmarshalToUnstructured(mfst)
@@ -1489,8 +1479,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					// If labels are provided and none are found return error only if specific resources were also not
 					// specified.
 					if len(resources) == 0 {
-						errors.Fatalf("No matching resources found for labels: %v", labels)
-						return
+						errors.CheckErrorWithCode(fmt.Errorf("No matching resources found for labels: %v", labels), errors.ErrorCommandSpecific)
 					}
 				}
 
@@ -1501,7 +1490,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName})
 					errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 					if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil && !dryRun {
-						errors.Fatal("Cannot use local sync when Automatic Sync Policy is enabled except with --dry-run")
+						errors.CheckErrorWithCode(fmt.Errorf("Cannot use local sync when Automatic Sync Policy is enabled except with --dry-run"), errors.ErrorCommandSpecific)
 					}
 
 					errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
@@ -1535,7 +1524,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					syncReq.Strategy = &argoappv1.SyncStrategy{Hook: &argoappv1.SyncStrategyHook{}}
 					syncReq.Strategy.Hook.Force = force
 				default:
-					errors.Fatalf("Unknown sync strategy: '%s'", strategy)
+					errors.CheckErrorWithCode(fmt.Errorf("Unknown sync strategy: '%s'", strategy), errors.ErrorCommandSpecific)
 				}
 				ctx := context.Background()
 				_, err := appIf.Sync(ctx, &syncReq)
@@ -1547,12 +1536,12 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 					if !dryRun {
 						if !app.Status.OperationState.Phase.Successful() {
-							errors.Fatalf("Operation has completed with phase: %s", app.Status.OperationState.Phase)
+							errors.CheckErrorWithCode(fmt.Errorf("Operation has completed with phase: %s", app.Status.OperationState.Phase), errors.ErrorCommandSpecific)
 						} else if len(selectedResources) == 0 && app.Status.Sync.Status != argoappv1.SyncStatusCodeSynced {
 							// Only get resources to be pruned if sync was application-wide and final status is not synced
 							pruningRequired := app.Status.OperationState.SyncResult.Resources.PruningRequired()
 							if pruningRequired > 0 {
-								errors.Fatalf("%d resources require pruning", pruningRequired)
+								errors.CheckErrorWithCode(fmt.Errorf("%d resources require pruning", pruningRequired), errors.ErrorCommandSpecific)
 							}
 						}
 					}
@@ -1851,7 +1840,7 @@ func setParameterOverrides(app *argoappv1.Application, parameters []string) {
 		for _, paramStr := range parameters {
 			parts := strings.SplitN(paramStr, "=", 3)
 			if len(parts) != 3 {
-				errors.Fatalf("Expected ksonnet parameter of the form: component=param=value. Received: %s", paramStr)
+				errors.CheckErrorWithCode(fmt.Errorf("Expected ksonnet parameter of the form: component=param=value. Received: %s", paramStr), errors.ErrorCommandSpecific)
 			}
 			newParam := argoappv1.KsonnetParameter{
 				Component: parts[0],
@@ -1883,7 +1872,7 @@ func setParameterOverrides(app *argoappv1.Application, parameters []string) {
 			app.Spec.Source.Helm.AddParameter(*newParam)
 		}
 	default:
-		errors.Fatalf("Parameters can only be set against Ksonnet or Helm applications")
+		errors.CheckErrorWithCode(fmt.Errorf("Parameters can only be set against Ksonnet or Helm applications"), errors.ErrorCommandSpecific)
 	}
 }
 
@@ -1968,7 +1957,7 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 				}
 			}
 			if depInfo == nil {
-				errors.Fatalf("Application '%s' does not have deployment id '%d' in history\n", app.ObjectMeta.Name, depID)
+				errors.CheckErrorWithCode(fmt.Errorf("Application '%s' does not have deployment id '%d' in history\n", app.ObjectMeta.Name, depID), errors.ErrorCommandSpecific)
 			}
 
 			_, err = appIf.Rollback(ctx, &applicationpkg.ApplicationRollbackRequest{
@@ -2059,7 +2048,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 				errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 				unstructureds = liveObjs
 			default:
-				errors.Fatalf("Unknown source type '%s'", source)
+				errors.CheckErrorWithCode(fmt.Errorf("Unknown source type '%s'", source), errors.ErrorCommandSpecific)
 			}
 
 			for _, obj := range unstructureds {
@@ -2204,10 +2193,10 @@ func filterResources(command *cobra.Command, resources []*argoappv1.ResourceDiff
 		filteredObjects = append(filteredObjects, deepCopy)
 	}
 	if len(filteredObjects) == 0 {
-		errors.Fatal("No matching resource found")
+		errors.CheckErrorWithCode(fmt.Errorf("No matching resource found"), errors.ErrorCommandSpecific)
 	}
 	if len(filteredObjects) > 1 && !all {
-		errors.Fatal("Multiple resources match inputs. Use the --all flag to patch multiple resources")
+		errors.CheckErrorWithCode(fmt.Errorf("Multiple resources match inputs. Use the --all flag to patch multiple resources"), errors.ErrorCommandSpecific)
 	}
 	return filteredObjects
 }

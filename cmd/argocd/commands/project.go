@@ -51,7 +51,7 @@ func (opts *projectOpts) GetDestinations() []v1alpha1.ApplicationDestination {
 	for _, destStr := range opts.destinations {
 		parts := strings.Split(destStr, ",")
 		if len(parts) != 2 {
-			errors.Fatalf("Expected destination of the form: server,namespace. Received: %s", destStr)
+			errors.CheckErrorWithCode(fmt.Errorf("Expected destination of the form: server,namespace. Received: %s", destStr), errors.ErrorCommandSpecific)
 		} else {
 			destinations = append(destinations, v1alpha1.ApplicationDestination{
 				Server:    parts[0],
@@ -156,7 +156,7 @@ func NewProjectCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 				reader := bufio.NewReader(os.Stdin)
 				err := config.UnmarshalReader(reader, &proj)
 				if err != nil {
-					errors.Fatalf("unable to read manifest from stdin: %v", err)
+					errors.Fatalf(errors.ErrorCommandSpecific, "unable to read manifest from stdin: %v", err)
 				}
 			} else if fileURL != "" {
 				// read uri
@@ -168,7 +168,7 @@ func NewProjectCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 				}
 				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 				if len(args) == 1 && args[0] != proj.Name {
-					errors.Fatalf("project name '%s' does not match project spec metadata.name '%s'", args[0], proj.Name)
+					errors.Fatalf(errors.ErrorCommandSpecific, "project name '%s' does not match project spec metadata.name '%s'", args[0], proj.Name)
 				}
 			} else {
 				// read arguments
@@ -197,9 +197,7 @@ func NewProjectCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 	command.Flags().BoolVar(&upsert, "upsert", false, "Allows to override a project with the same name even if supplied project spec is different from existing spec")
 	command.Flags().StringVarP(&fileURL, "file", "f", "", "Filename or URL to Kubernetes manifests for the project")
 	err := command.Flags().SetAnnotation("file", cobra.BashCompFilenameExt, []string{"json", "yaml", "yml"})
-	if err != nil {
-		errors.Fatal(err)
-	}
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 	addProjFlags(command, &opts)
 	return command
 }
@@ -350,7 +348,7 @@ func NewProjectAddDestinationCommand(clientOpts *argocdclient.ClientOptions) *co
 
 			for _, dest := range proj.Spec.Destinations {
 				if dest.Namespace == namespace && dest.Server == server {
-					errors.Fatal("Specified destination is already defined in project")
+					errors.Fatal(errors.ErrorCommandSpecific, "Specified destination is already defined in project")
 				}
 			}
 			proj.Spec.Destinations = append(proj.Spec.Destinations, v1alpha1.ApplicationDestination{Server: server, Namespace: namespace})
@@ -388,7 +386,7 @@ func NewProjectRemoveDestinationCommand(clientOpts *argocdclient.ClientOptions) 
 				}
 			}
 			if index == -1 {
-				errors.Fatal("Specified destination does not exist in project")
+				errors.Fatal(errors.ErrorCommandSpecific, "Specified destination does not exist in project")
 			} else {
 				proj.Spec.Destinations = append(proj.Spec.Destinations[:index], proj.Spec.Destinations[index+1:]...)
 				_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})

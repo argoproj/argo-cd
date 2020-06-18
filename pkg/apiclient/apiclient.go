@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -15,9 +14,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
-	"github.com/coreos/go-oidc"
-	"github.com/dgrijalva/jwt-go"
+	oidc "github.com/coreos/go-oidc"
+	jwt "github.com/dgrijalva/jwt-go"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 	"google.golang.org/grpc"
@@ -161,7 +161,7 @@ func NewClient(opts *ClientOptions) (Client, error) {
 				}
 				c.ClientCert = &clientCert
 			} else if configCtx.Server.ClientCertificateData != "" || configCtx.Server.ClientCertificateKeyData != "" {
-				return nil, errors.New("ClientCertificateData and ClientCertificateKeyData must always be specified together")
+				return nil, fmt.Errorf("ClientCertificateData and ClientCertificateKeyData must always be specified together")
 			}
 			c.PlainText = configCtx.Server.PlainText
 			c.Insecure = configCtx.Server.Insecure
@@ -194,7 +194,7 @@ func NewClient(opts *ClientOptions) (Client, error) {
 	}
 	// Make sure we got the server address and auth token from somewhere
 	if c.ServerAddr == "" {
-		return nil, errors.New("Argo CD server address unspecified")
+		return nil, fmt.Errorf("Argo CD server address unspecified")
 	}
 	if parts := strings.Split(c.ServerAddr, ":"); len(parts) == 1 {
 		// If port is unspecified, assume the most likely port
@@ -223,7 +223,7 @@ func NewClient(opts *ClientOptions) (Client, error) {
 		}
 		c.ClientCert = &clientCert
 	} else if opts.ClientCertFile != "" || opts.ClientCertKeyFile != "" {
-		return nil, errors.New("--client-crt and --client-crt-key must always be specified together")
+		return nil, fmt.Errorf("--client-crt and --client-crt-key must always be specified together")
 	}
 	// Override insecure/plaintext options if specified from CLI
 	if opts.PlainText {
@@ -380,7 +380,7 @@ func (c *client) redeemRefreshToken() (string, string, error) {
 	}
 	rawIDToken, ok := token.Extra("id_token").(string)
 	if !ok {
-		return "", "", errors.New("no id_token in token response")
+		return "", "", fmt.Errorf("no id_token in token response")
 	}
 	refreshToken, _ := token.Extra("refresh_token").(string)
 	return rawIDToken, refreshToken, nil
@@ -389,9 +389,7 @@ func (c *client) redeemRefreshToken() (string, string, error) {
 // NewClientOrDie creates a new API client from a set of config options, or fails fatally if the new client creation fails.
 func NewClientOrDie(opts *ClientOptions) Client {
 	client, err := NewClient(opts)
-	if err != nil {
-		errors.Fatal(err)
-	}
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 	return client
 }
 
@@ -506,7 +504,7 @@ func (c *client) NewRepoClient() (io.Closer, repositorypkg.RepositoryServiceClie
 func (c *client) NewRepoClientOrDie() (io.Closer, repositorypkg.RepositoryServiceClient) {
 	conn, repoIf, err := c.NewRepoClient()
 	if err != nil {
-		errors.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
+		errors.Fatalf(errors.ErrorConnectionFailure, "Failed to establish connection to %s: %v", c.ServerAddr, err)
 	}
 	return conn, repoIf
 }
@@ -523,7 +521,7 @@ func (c *client) NewRepoCredsClient() (io.Closer, repocredspkg.RepoCredsServiceC
 func (c *client) NewRepoCredsClientOrDie() (io.Closer, repocredspkg.RepoCredsServiceClient) {
 	conn, repoIf, err := c.NewRepoCredsClient()
 	if err != nil {
-		errors.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
+		errors.Fatalf(errors.ErrorConnectionFailure, "Failed to establish connection to %s: %v", c.ServerAddr, err)
 	}
 	return conn, repoIf
 }
@@ -540,7 +538,7 @@ func (c *client) NewCertClient() (io.Closer, certificatepkg.CertificateServiceCl
 func (c *client) NewCertClientOrDie() (io.Closer, certificatepkg.CertificateServiceClient) {
 	conn, certIf, err := c.NewCertClient()
 	if err != nil {
-		errors.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
+		errors.Fatalf(errors.ErrorConnectionFailure, "Failed to establish connection to %s: %v", c.ServerAddr, err)
 	}
 	return conn, certIf
 }
@@ -557,7 +555,7 @@ func (c *client) NewClusterClient() (io.Closer, clusterpkg.ClusterServiceClient,
 func (c *client) NewClusterClientOrDie() (io.Closer, clusterpkg.ClusterServiceClient) {
 	conn, clusterIf, err := c.NewClusterClient()
 	if err != nil {
-		errors.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
+		errors.Fatalf(errors.ErrorConnectionFailure, "Failed to establish connection to %s: %v", c.ServerAddr, err)
 	}
 	return conn, clusterIf
 }
@@ -591,7 +589,7 @@ func (c *client) NewApplicationClient() (io.Closer, applicationpkg.ApplicationSe
 func (c *client) NewApplicationClientOrDie() (io.Closer, applicationpkg.ApplicationServiceClient) {
 	conn, repoIf, err := c.NewApplicationClient()
 	if err != nil {
-		errors.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
+		errors.Fatalf(errors.ErrorConnectionFailure, "Failed to establish connection to %s: %v", c.ServerAddr, err)
 	}
 	return conn, repoIf
 }
@@ -608,7 +606,7 @@ func (c *client) NewSessionClient() (io.Closer, sessionpkg.SessionServiceClient,
 func (c *client) NewSessionClientOrDie() (io.Closer, sessionpkg.SessionServiceClient) {
 	conn, sessionIf, err := c.NewSessionClient()
 	if err != nil {
-		errors.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
+		errors.Fatalf(errors.ErrorConnectionFailure, "Failed to establish connection to %s: %v", c.ServerAddr, err)
 	}
 	return conn, sessionIf
 }
@@ -625,7 +623,7 @@ func (c *client) NewSettingsClient() (io.Closer, settingspkg.SettingsServiceClie
 func (c *client) NewSettingsClientOrDie() (io.Closer, settingspkg.SettingsServiceClient) {
 	conn, setIf, err := c.NewSettingsClient()
 	if err != nil {
-		errors.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
+		errors.Fatalf(errors.ErrorConnectionFailure, "Failed to establish connection to %s: %v", c.ServerAddr, err)
 	}
 	return conn, setIf
 }
@@ -642,7 +640,7 @@ func (c *client) NewVersionClient() (io.Closer, versionpkg.VersionServiceClient,
 func (c *client) NewVersionClientOrDie() (io.Closer, versionpkg.VersionServiceClient) {
 	conn, versionIf, err := c.NewVersionClient()
 	if err != nil {
-		errors.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
+		errors.Fatalf(errors.ErrorConnectionFailure, "Failed to establish connection to %s: %v", c.ServerAddr, err)
 	}
 	return conn, versionIf
 }
@@ -659,7 +657,7 @@ func (c *client) NewProjectClient() (io.Closer, projectpkg.ProjectServiceClient,
 func (c *client) NewProjectClientOrDie() (io.Closer, projectpkg.ProjectServiceClient) {
 	conn, projIf, err := c.NewProjectClient()
 	if err != nil {
-		errors.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
+		errors.Fatalf(errors.ErrorConnectionFailure, "Failed to establish connection to %s: %v", c.ServerAddr, err)
 	}
 	return conn, projIf
 }
@@ -676,7 +674,7 @@ func (c *client) NewAccountClient() (io.Closer, accountpkg.AccountServiceClient,
 func (c *client) NewAccountClientOrDie() (io.Closer, accountpkg.AccountServiceClient) {
 	conn, usrIf, err := c.NewAccountClient()
 	if err != nil {
-		errors.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
+		errors.Fatalf(errors.ErrorConnectionFailure, "Failed to establish connection to %s: %v", c.ServerAddr, err)
 	}
 	return conn, usrIf
 }

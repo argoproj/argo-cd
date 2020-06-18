@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/errors"
@@ -72,7 +71,7 @@ func NewVersionCmd(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 					printServerVersion(sv, short || (output == "short"))
 				}
 			default:
-				errors.Fatalf("unknown output format: %s", output)
+				errors.CheckErrorWithCode(fmt.Errorf("unknown output format: %s", output), errors.ErrorCommandSpecific)
 			}
 		},
 	}

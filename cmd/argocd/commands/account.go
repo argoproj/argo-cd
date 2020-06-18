@@ -14,7 +14,6 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	timeutil "github.com/argoproj/pkg/time"
 	"github.com/ghodss/yaml"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh/terminal"
 
@@ -154,7 +153,7 @@ func NewAccountGetUserInfoCommand(clientOpts *argocdclient.ClientOptions) *cobra
 					fmt.Printf("Groups: %v\n", strings.Join(response.Groups, ","))
 				}
 			default:
-				errors.Fatalf("Unknown output format: %s", output)
+				errors.CheckErrorWithCode(fmt.Errorf("Unknown output format: %s", output), errors.ErrorCommandSpecific)
 			}
 		},
 	}

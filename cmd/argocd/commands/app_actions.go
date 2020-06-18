@@ -11,7 +11,6 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/ghodss/yaml"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
@@ -152,7 +151,7 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 		var resGroup = filteredObjects[0].GroupVersionKind().Group
 		for i := range filteredObjects[1:] {
 			if filteredObjects[i].GroupVersionKind().Group != resGroup {
-				errors.Fatal("Ambiguous resource group. Use flag --group to specify resource group explicitly.")
+				errors.CheckErrorWithCode(fmt.Errorf("Ambiguous resource group. Use flag --group to specify resource group explicitly."), errors.ErrorCommandSpecific)
 			}
 		}
 

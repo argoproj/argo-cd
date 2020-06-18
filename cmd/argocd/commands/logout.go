@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/errors"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
@@ -28,17 +27,17 @@ func NewLogoutCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comma
 			localCfg, err := localconfig.ReadLocalConfig(globalClientOpts.ConfigPath)
 			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			if localCfg == nil {
-				errors.Fatalf("Nothing to logout from")
+				errors.CheckErrorWithCode(fmt.Errorf("Nothing to logout from"), errors.ErrorCommandSpecific)
 			}
 
 			ok := localCfg.RemoveToken(context)
 			if !ok {
-				errors.Fatalf("Context %s does not exist", context)
+				errors.CheckErrorWithCode(fmt.Errorf("Context %s does not exist", context), errors.ErrorCommandSpecific)
 			}
 
 			err = localconfig.ValidateLocalConfig(*localCfg)
 			if err != nil {
-				errors.Fatalf("Error in logging out: %s", err)
+				errors.CheckErrorWithCode(fmt.Errorf("Error in logging out: %s", err), errors.ErrorCommandSpecific)
 			}
 			err = localconfig.WriteLocalConfig(*localCfg, globalClientOpts.ConfigPath)
 			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)

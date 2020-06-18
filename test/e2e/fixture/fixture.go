@@ -13,7 +13,6 @@ import (
 
 	. "github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/argoproj/gitops-engine/pkg/utils/io"
-	"github.com/argoproj/pkg/errors"
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
@@ -199,13 +198,13 @@ func CreateSecret(username, password string) string {
 
 func updateSettingConfigMap(updater func(cm *corev1.ConfigMap) error) {
 	cm, err := KubeClientset.CoreV1().ConfigMaps(ArgoCDNamespace).Get(common.ArgoCDConfigMapName, v1.GetOptions{})
-	errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
+	CheckErrorWithCode(err, ErrorAPIResponse)
 	if cm.Data == nil {
 		cm.Data = make(map[string]string)
 	}
-	errors.CheckErrorWithCode(updater(cm), errors.ErrorCommandSpecific)
+	CheckErrorWithCode(updater(cm), ErrorCommandSpecific)
 	_, err = KubeClientset.CoreV1().ConfigMaps(ArgoCDNamespace).Update(cm)
-	errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
+	CheckErrorWithCode(err, ErrorAPIResponse)
 }
 
 func SetResourceOverrides(overrides map[string]v1alpha1.ResourceOverride) {
@@ -283,10 +282,10 @@ func SetRepos(repos ...settings.RepositoryCredentials) {
 
 func SetProjectSpec(project string, spec v1alpha1.AppProjectSpec) {
 	proj, err := AppClientset.ArgoprojV1alpha1().AppProjects(ArgoCDNamespace).Get(project, v1.GetOptions{})
-	errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
+	CheckErrorWithCode(err, ErrorAPIResponse)
 	proj.Spec = spec
 	_, err = AppClientset.ArgoprojV1alpha1().AppProjects(ArgoCDNamespace).Update(proj)
-	errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
+	CheckErrorWithCode(err, ErrorAPIResponse)
 }
 
 func EnsureCleanState(t *testing.T) {

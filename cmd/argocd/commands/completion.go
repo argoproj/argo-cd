@@ -5,7 +5,7 @@ import (
 	"io"
 	"os"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -223,9 +223,7 @@ variable.
 				fmt.Printf("Invalid shell '%s'. The supported shells are bash and zsh.\n", shell)
 				os.Exit(errors.ErrorCommandSpecific)
 			}
-			if err := completion(os.Stdout); err != nil {
-				errors.Fatal(err)
-			}
+			errors.CheckErrorWithCode(completion(os.Stdout), errors.ErrorCommandSpecific)
 		},
 	}
 

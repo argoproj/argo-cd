@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/errors"
-	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -94,7 +93,7 @@ func (a *Actions) CreateFromFile(handler func(app *Application)) *Actions {
 	}
 
 	if len(a.context.parameters) > 0 {
-		errors.Fatal("Application parameters or json tlas are not supported")
+		errors.Fatal(errors.ErrorCommandSpecific, "Application parameters or json tlas are not supported")
 	}
 
 	if a.context.directoryRecurse {
