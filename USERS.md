@@ -68,3 +68,4 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [MTN Group](https://www.mtn.com/)
 1. [Moengage](https://www.moengage.com/)
 1. [LexisNexis](https://www.lexisnexis.com/)
+1. [PayPay](https://paypay.ne.jp/)
