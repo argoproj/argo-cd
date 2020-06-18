@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.6.1 (2020-06-18)
+
+- fix: User unable to generate project token even if account has appropriate permissions (#3804)
+
 ## v1.6.0 (2020-06-16)
 
 [1.6 Release blog post](https://blog.argoproj.io/argo-cd-v1-6-democratizing-gitops-with-gitops-engine-5a17cfc87d62)
