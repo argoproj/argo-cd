@@ -161,25 +161,28 @@ func (s *Server) DeleteToken(ctx context.Context, q *project.ProjectTokenDeleteR
 
 	// For backward compatibility
 	_, jwtTokenIndex, err := prj.GetJWTTokenFromSpec(q.Role, q.Iat, q.Id)
-	if err != nil {
-		return &project.EmptyResponse{}, nil
+	bUpdate := false
+	if err == nil {
+		prj.Spec.Roles[roleIndex].JWTTokens[jwtTokenIndex] = prj.Spec.Roles[roleIndex].JWTTokens[len(prj.Spec.Roles[roleIndex].JWTTokens)-1]
+		prj.Spec.Roles[roleIndex].JWTTokens = prj.Spec.Roles[roleIndex].JWTTokens[:len(prj.Spec.Roles[roleIndex].JWTTokens)-1]
+		bUpdate = true
 	}
-	prj.Spec.Roles[roleIndex].JWTTokens[jwtTokenIndex] = prj.Spec.Roles[roleIndex].JWTTokens[len(prj.Spec.Roles[roleIndex].JWTTokens)-1]
-	prj.Spec.Roles[roleIndex].JWTTokens = prj.Spec.Roles[roleIndex].JWTTokens[:len(prj.Spec.Roles[roleIndex].JWTTokens)-1]
 
 	//New location for storing JWTToken
 	_, jwtTokenIndex, err = prj.GetJWTToken(q.Role, q.Iat, q.Id)
-	if err != nil {
-		return &project.EmptyResponse{}, nil
+	if err == nil {
+		prj.Status.JWTTokenMap[q.Role].Items[jwtTokenIndex] = prj.Status.JWTTokenMap[q.Role].Items[len(prj.Status.JWTTokenMap[q.Role].Items)-1]
+		prj.Status.JWTTokenMap[q.Role] = v1alpha1.JWTTokens{Items: prj.Status.JWTTokenMap[q.Role].Items[:len(prj.Status.JWTTokenMap[q.Role].Items)-1]}
+		bUpdate = true
 	}
-	prj.Status.JWTTokenMap[q.Role].Items[jwtTokenIndex] = prj.Status.JWTTokenMap[q.Role].Items[len(prj.Status.JWTTokenMap[q.Role].Items)-1]
-	prj.Status.JWTTokenMap[q.Role] = v1alpha1.JWTTokens{Items: prj.Status.JWTTokenMap[q.Role].Items[:len(prj.Status.JWTTokenMap[q.Role].Items)-1]}
 
-	_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(prj)
-	if err != nil {
-		return nil, err
+	if bUpdate {
+		_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(prj)
+		if err != nil {
+			return nil, err
+		}
+		s.logEvent(prj, ctx, argo.EventReasonResourceDeleted, "deleted token")
 	}
-	s.logEvent(prj, ctx, argo.EventReasonResourceDeleted, "deleted token")
 	return &project.EmptyResponse{}, nil
 }
 
