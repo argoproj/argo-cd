@@ -322,7 +322,7 @@ func TestUseJWTToken(t *testing.T) {
 	assert.NotNil(t, newProj.Status.JWTTokenMap[roleName])
 	assert.Len(t, newProj.Status.JWTTokenMap[roleName].Items, 1)
 
-	_, err = fixture.RunCli("proj", "role", "delete-token", projectName, roleName)
+	_, err = fixture.RunCli("proj", "role", "delete-token", projectName, roleName, "1")
 	assert.NoError(t, err)
 
 }
