@@ -455,12 +455,13 @@ func (s *Server) NormalizeProj() {
 			}
 			if len(roleTokenMap) > 0 {
 				proj.Status.JWTTokenMap = roleTokenMap
-				res, err := s.Update(ctx, &project.ProjectUpdateRequest{Project: &proj})
-				if err != nil {
-					s.logEvent(res, ctx, argo.EventReasonResourceUpdated, "normalize Project")
+				for i := 0; i < 3; i++ {
+					_, err := s.Update(ctx, &project.ProjectUpdateRequest{Project: &proj})
+					if err != nil {
+						break
+					}
 				}
 			}
 		}
 	}
-
 }
