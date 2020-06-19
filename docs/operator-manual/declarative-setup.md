@@ -1,6 +1,6 @@
 # Declarative Setup
 
-Argo CD applications, projects and settings can be defined declaratively using Kubernetes manifests.
+Argo CD applications, projects and settings can be defined declaratively using Kubernetes manifests. These can be updated using `kubectl apply`, without needing to touch the `argocd` command-line tool.
 
 ## Quick Reference
 
@@ -46,7 +46,7 @@ spec:
     namespace: guestbook
 ```
 
-See [application.yaml](application.yaml) for additional fields
+See [application.yaml](application.yaml) for additional fields. As long as you have completed the first step of [Getting Started](../getting_started.md#1-install-argo-cd), you can already apply this with `kubectl apply -n argocd -f application.yaml` and Argo CD will start deploying the guestbook application.
 
 !!! note
     The namespace must match the namespace of your Argo cd, typically this is `argocd`.

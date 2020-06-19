@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - master
+  pull_request:
+    branches:
+      - 'master'
 
 jobs:
   deploy:
@@ -20,6 +23,7 @@ jobs:
           mkdocs build
           mkdir ./site/.circleci && echo '{version: 2, jobs: {build: {branches: {ignore: gh-pages}}}}' > ./site/.circleci/config.yml
       - name: deploy
+        if: ${{ github.event_name == 'push' }}
         uses: peaceiris/actions-gh-pages@v2.5.0
         env:
           PERSONAL_TOKEN: ${{ secrets.PERSONAL_TOKEN }}

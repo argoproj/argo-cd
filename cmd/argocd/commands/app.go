@@ -553,11 +553,6 @@ func setAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			setJsonnetOptExtVar(&spec.Source, appOpts.jsonnetExtVarCode, true)
 		case "sync-policy":
 			switch appOpts.syncPolicy {
-			case "automated":
-				if spec.SyncPolicy == nil {
-					spec.SyncPolicy = &argoappv1.SyncPolicy{}
-				}
-				spec.SyncPolicy.Automated = &argoappv1.SyncPolicyAutomated{}
 			case "none":
 				if spec.SyncPolicy != nil {
 					spec.SyncPolicy.Automated = nil
@@ -565,6 +560,11 @@ func setAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 				if spec.SyncPolicy.IsZero() {
 					spec.SyncPolicy = nil
 				}
+			case "automated", "automatic", "auto":
+				if spec.SyncPolicy == nil {
+					spec.SyncPolicy = &argoappv1.SyncPolicy{}
+				}
+				spec.SyncPolicy.Automated = &argoappv1.SyncPolicyAutomated{}
 			default:
 				log.Fatalf("Invalid sync-policy: %s", appOpts.syncPolicy)
 			}
@@ -752,7 +752,7 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().StringArrayVar(&opts.helmSetStrings, "helm-set-string", []string{}, "Helm set STRING values on the command line (can be repeated to set several values: --helm-set-string key1=val1 --helm-set-string key2=val2)")
 	command.Flags().StringArrayVar(&opts.helmSetFiles, "helm-set-file", []string{}, "Helm set values from respective files specified via the command line (can be repeated to set several values: --helm-set-file key1=path1 --helm-set-file key2=path2)")
 	command.Flags().StringVar(&opts.project, "project", "", "Application project name")
-	command.Flags().StringVar(&opts.syncPolicy, "sync-policy", "", "Set the sync policy (one of: automated, none)")
+	command.Flags().StringVar(&opts.syncPolicy, "sync-policy", "", "Set the sync policy (one of: none, automated (aliases of automated: auto, automatic))")
 	command.Flags().StringArrayVar(&opts.syncOptions, "sync-option", []string{}, "Add or remove a sync options, e.g add `Prune=false`. Remove using `!` prefix, e.g. `!Prune=false`")
 	command.Flags().BoolVar(&opts.autoPrune, "auto-prune", false, "Set automatic pruning when sync is automated")
 	command.Flags().BoolVar(&opts.selfHeal, "self-heal", false, "Set self healing when sync is automated")

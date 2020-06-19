@@ -90,6 +90,14 @@ func Test_setAppSpecOptions(t *testing.T) {
 		assert.NoError(t, f.SetFlag("sync-policy", "automated"))
 		assert.NotNil(t, f.spec.SyncPolicy.Automated)
 
+		f.spec.SyncPolicy = nil
+		assert.NoError(t, f.SetFlag("sync-policy", "automatic"))
+		assert.NotNil(t, f.spec.SyncPolicy.Automated)
+
+		f.spec.SyncPolicy = nil
+		assert.NoError(t, f.SetFlag("sync-policy", "auto"))
+		assert.NotNil(t, f.spec.SyncPolicy.Automated)
+
 		assert.NoError(t, f.SetFlag("sync-policy", "none"))
 		assert.Nil(t, f.spec.SyncPolicy)
 	})

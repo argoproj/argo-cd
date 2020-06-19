@@ -1,5 +1,78 @@
 # Changelog
 
+## v1.6.1 (2020-06-18)
+
+- fix: User unable to generate project token even if account has appropriate permissions (#3804)
+
+## v1.6.0 (2020-06-16)
+
+[1.6 Release blog post](https://blog.argoproj.io/argo-cd-v1-6-democratizing-gitops-with-gitops-engine-5a17cfc87d62)
+
+### GitOps Engine
+
+As part of 1.6 release, the core Argo CD functionality has been moved into [GitOps Engine](https://github.com/argoproj/gitops-engine).
+GitOps Engine is a reusable library that empowers you to quickly build specialized tools that implement specific GitOps
+use cases, such as bootstrapping a Kubernetes cluster, or decentralized management of namespaces.
+
+#### Enhancements
+
+- feat: upgrade kustomize to v3.6.1 version (#3696)
+- feat: Add build support for ARM images (#3554)
+- feat: CLI: Allow setting Helm values literal (#3601) (#3646)
+- feat: argocd-util settings resource-overrides list-actions (#3616)
+- feat: adding failure retry (#3548)
+- feat: Implement GKE ManagedCertificate CRD health checks (#3600)
+- feat: Introduce diff normalizer knobs and allow for ignoring aggregated cluster roles (#2382) (#3076)
+- feat: Implement Crossplane CRD health checks (#3581)
+- feat: Adding deploy time and duration label (#3563)
+- feat: support delete cluster from UI (#3555)
+- feat: add button loading status for time-consuming operations (#3559)
+- feat: Add --logformat switch to API server, repository server and controller (#3408)
+- feat: Add a Get Repo command to see if Argo CD has a repo (#3523)
+- feat: Allow selecting TLS ciphers on server (#3524)
+- feat: Support additional metadata in Application sync operation (#3747)
+- feat: upgrade redis to 5.0.8-alpine (#3783)
+
+#### Bug Fixes
+
+- fix: settings manager should invalidate cache after updating repositories/repository credentials (#3672)
+- fix: Allow unsetting the last remaining values file (#3644) (#3645)
+- fix: Read cert data from kubeconfig during cluster addition and use if present (#3655) (#3667)
+- fix: oidc should set samesite cookie (#3632)
+- fix: Allow underscores in hostnames in certificate module (#3596)
+- fix: apply scopes from argocd-rbac-cm to project jwt group searches (#3508)
+- fix: fix nil pointer dereference error after cluster deletion (#3634)
+- fix: Prevent possible nil pointer dereference when getting Helm client (#3613)
+- fix: Allow CLI version command to succeed without server connection (#3049) (#3550)
+- fix: Fix login with port forwarding (#3574)
+- fix: use 'git show-ref' to both retrieve and store generated manifests (#3578)
+- fix: enable redis retries; add redis request duration metric (#3575)
+- fix: Disable keep-alive for HTTPS connection to Git (#3531)
+- fix: use uid instead of named user in Dockerfile (#3108)
+
+#### Other
+
+- refactoring: Gitops engine (#3066)
+
+## v1.5.8 (2020-06-16)
+
+- fix: upgrade awscli version (#3774)
+- fix: html encode login error/description before rendering it (#3773)
+- fix: oidc should set samesite cookie (#3632)
+- fix: avoid panic in badge handler (#3741)
+
+## v1.5.7 (2020-06-09)
+
+The 1.5.7 patch release resolves issue #3719 . The ARGOCD_ENABLE_LEGACY_DIFF=true should be added to argocd-application-controller deployment.
+
+- fix: application with EnvoyFilter causes high memory/CPU usage (#3719)
+
+## v1.5.6 (2020-06-02)
+
+- feat: Upgrade kustomize to 3.6.1
+- fix: Prevent possible nil pointer dereference when getting Helm client (#3613)
+- fix: avoid deadlock in settings manager (#3637)
+
 ## v1.5.5 (2020-05-16)
 
 - feat: add Rollout restart action (#3557)

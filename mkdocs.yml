@@ -33,6 +33,7 @@ nav:
       - operator-manual/user-management/microsoft.md
       - operator-manual/user-management/okta.md
       - operator-manual/user-management/onelogin.md
+      - operator-manual/user-management/keycloak.md
       - operator-manual/rbac.md
     - operator-manual/security.md
     - operator-manual/cluster-bootstrapping.md
@@ -47,10 +48,12 @@ nav:
     - operator-manual/troubleshooting.md
     - Upgrading:
         - operator-manual/upgrading/overview.md
+        - operator-manual/upgrading/1.5-1.6.md
         - operator-manual/upgrading/1.4-1.5.md
         - operator-manual/upgrading/1.3-1.4.md
         - operator-manual/upgrading/1.2-1.3.md
         - operator-manual/upgrading/1.1-1.2.md
+        - operator-manual/upgrading/1.0-1.1.md
   - User Guide:
     - user-guide/index.md
     - user-guide/application_sources.md
