@@ -32,4 +32,4 @@ report() {
 
 trap 'report' EXIT
 
-go test $TEST_FLAGS -failfast $* 2>&1 | tee $TEST_RESULTS/test.out
+go test $TEST_FLAGS $* 2>&1 | tee $TEST_RESULTS/test.out
