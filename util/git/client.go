@@ -444,10 +444,7 @@ func (m *nativeGitClient) RevisionMetadata(revision string) (*RevisionMetadata, 
 func (m *nativeGitClient) VerifyCommitSignature(revision string) (string, error) {
 	out, err := m.runGnuPGWrapper("git-verify-wrapper.sh", revision)
 	if err != nil {
-		// When the commit is not signed,
-		if !strings.Contains(err.Error(), "failed exit status 1") || out != "" {
-			return "", err
-		}
+		return "", err
 	}
 	return out, nil
 }
