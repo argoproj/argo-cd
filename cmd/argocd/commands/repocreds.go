@@ -191,7 +191,7 @@ func NewRepoCredsListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 			case "wide", "":
 				printRepoCredsTable(repos.Items)
 			default:
-				errors.CheckErrorWithCode(fmt.Errorf("unknown output format: %s", output), errors.ErrorCommandSpecific)
+				errors.Fatalf(errors.ErrorCommandSpecific, "unknown output format: %s", output)
 			}
 		},
 	}

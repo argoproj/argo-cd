@@ -316,7 +316,7 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
 	go func() { a.checkServeErr("tcpm", tcpm.Serve()) }()
 	go func() { a.checkServeErr("metrics", metricsServ.ListenAndServe()) }()
 	if !cache.WaitForCacheSync(ctx.Done(), a.projInformer.HasSynced, a.appInformer.HasSynced) {
-		errors.CheckErrorWithCode(fmt.Errorf("Timed out waiting for project cache to sync"), errors.ErrorCommandSpecific)
+		errors.Fatal(errors.ErrorCommandSpecific, "Timed out waiting for project cache to sync")
 	}
 
 	a.stopCh = make(chan struct{})
@@ -331,7 +331,7 @@ func (a *ArgoCDServer) checkServeErr(name string, err error) {
 			// a nil stopCh indicates a graceful shutdown
 			log.Infof("graceful shutdown %s: %v", name, err)
 		} else {
-			errors.CheckErrorWithCode(fmt.Errorf("%s: %v", name, err), errors.ErrorCommandSpecific)
+			errors.Fatalf(errors.ErrorCommandSpecific, "%s: %v", name, err)
 		}
 	} else {
 		log.Infof("graceful shutdown %s", name)

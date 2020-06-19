@@ -147,7 +147,7 @@ func SetLogFormat(logFormat string) {
 			log.SetFormatter(&log.TextFormatter{ForceColors: true})
 		}
 	default:
-		errors.CheckErrorWithCode(fmt.Errorf("Unknown log format '%s'", logFormat), errors.ErrorCommandSpecific)
+		errors.Fatalf(errors.ErrorCommandSpecific, "Unknown log format '%s'", logFormat)
 	}
 }
 
@@ -241,7 +241,7 @@ func InteractiveEdit(filePattern string, data []byte, save func(input []byte) er
 		updated, err := ioutil.ReadFile(tempFile)
 		errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 		if string(updated) == "" || string(updated) == string(data) {
-			errors.CheckErrorWithCode(fmt.Errorf("Edit cancelled, no valid changes were saved."), errors.ErrorCommandSpecific)
+			errors.Fatal(errors.ErrorCommandSpecific, "Edit cancelled, no valid changes were saved.")
 			break
 		} else {
 			data = stripComments(updated)

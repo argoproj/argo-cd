@@ -12,10 +12,7 @@ import (
 var flags map[string]string
 
 func init() {
-	err := loadFlags()
-	if err != nil {
-		errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
-	}
+	errors.CheckErrorWithCode(loadFlags(), errors.ErrorCommandSpecific)
 }
 
 func loadFlags() error {

@@ -27,17 +27,17 @@ func NewLogoutCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comma
 			localCfg, err := localconfig.ReadLocalConfig(globalClientOpts.ConfigPath)
 			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			if localCfg == nil {
-				errors.CheckErrorWithCode(fmt.Errorf("Nothing to logout from"), errors.ErrorCommandSpecific)
+				errors.Fatal(errors.ErrorCommandSpecific, "Nothing to logout from")
 			}
 
 			ok := localCfg.RemoveToken(context)
 			if !ok {
-				errors.CheckErrorWithCode(fmt.Errorf("Context %s does not exist", context), errors.ErrorCommandSpecific)
+				errors.Fatalf(errors.ErrorCommandSpecific, "Context %s does not exist", context)
 			}
 
 			err = localconfig.ValidateLocalConfig(*localCfg)
 			if err != nil {
-				errors.CheckErrorWithCode(fmt.Errorf("Error in logging out: %s", err), errors.ErrorCommandSpecific)
+				errors.Fatalf(errors.ErrorCommandSpecific, "Error in logging out: %s", err)
 			}
 			err = localconfig.WriteLocalConfig(*localCfg, globalClientOpts.ConfigPath)
 			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)

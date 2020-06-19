@@ -51,7 +51,7 @@ func (opts *projectOpts) GetDestinations() []v1alpha1.ApplicationDestination {
 	for _, destStr := range opts.destinations {
 		parts := strings.Split(destStr, ",")
 		if len(parts) != 2 {
-			errors.CheckErrorWithCode(fmt.Errorf("Expected destination of the form: server,namespace. Received: %s", destStr), errors.ErrorCommandSpecific)
+			errors.Fatalf(errors.ErrorCommandSpecific, "Expected destination of the form: server,namespace. Received: %s", destStr)
 		} else {
 			destinations = append(destinations, v1alpha1.ApplicationDestination{
 				Server:    parts[0],
@@ -694,7 +694,7 @@ func NewProjectListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 			case "wide", "":
 				printProjectTable(projects.Items)
 			default:
-				errors.CheckErrorWithCode(fmt.Errorf("unknown output format: %s", output), errors.ErrorCommandSpecific)
+				errors.Fatalf(errors.ErrorCommandSpecific, "unknown output format: %s", output)
 			}
 		},
 	}
@@ -837,7 +837,7 @@ func NewProjectGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			case "wide", "":
 				printProject(p)
 			default:
-				errors.CheckErrorWithCode(fmt.Errorf("unknown output format: %s", output), errors.ErrorCommandSpecific)
+				errors.Fatalf(errors.ErrorCommandSpecific, "unknown output format: %s", output)
 			}
 		},
 	}

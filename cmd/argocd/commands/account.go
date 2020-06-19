@@ -153,7 +153,7 @@ func NewAccountGetUserInfoCommand(clientOpts *argocdclient.ClientOptions) *cobra
 					fmt.Printf("Groups: %v\n", strings.Join(response.Groups, ","))
 				}
 			default:
-				errors.CheckErrorWithCode(fmt.Errorf("Unknown output format: %s", output), errors.ErrorCommandSpecific)
+				errors.Fatalf(errors.ErrorCommandSpecific, "Unknown output format: %s", output)
 			}
 		},
 	}
@@ -240,7 +240,7 @@ func NewAccountListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 			case "wide", "":
 				printAccountsTable(response.Items)
 			default:
-				errors.CheckErrorWithCode(fmt.Errorf("unknown output format: %s", output), errors.ErrorCommandSpecific)
+				errors.Fatalf(errors.ErrorCommandSpecific, "Unknown output format: %s", output)
 			}
 		},
 	}
@@ -291,7 +291,7 @@ argocd account get --account <account-name>`,
 			case "wide", "":
 				printAccountDetails(acc)
 			default:
-				errors.CheckErrorWithCode(fmt.Errorf("unknown output format: %s", output), errors.ErrorCommandSpecific)
+				errors.Fatalf(errors.ErrorCommandSpecific, "Unknown output format: %s", output)
 			}
 		},
 	}

@@ -255,7 +255,7 @@ func NewProjectWindowsListCommand(clientOpts *argocdclient.ClientOptions) *cobra
 			case "wide", "":
 				printSyncWindows(proj)
 			default:
-				errors.CheckErrorWithCode(fmt.Errorf("unknown output format: %s", output), errors.ErrorCommandSpecific)
+				errors.Fatalf(errors.ErrorCommandSpecific, "unknown output format: %s", output)
 			}
 		},
 	}

@@ -169,7 +169,7 @@ func NewCertAddSSHCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 
 			if len(sshKnownHostsLists) == 0 {
-				errors.CheckErrorWithCode(fmt.Errorf("No valid SSH known hosts data found."), errors.ErrorCommandSpecific)
+				errors.Fatalf(errors.ErrorCommandSpecific, "No valid SSH known hosts data found.")
 			}
 
 			for _, knownHostsEntry := range sshKnownHostsLists {
@@ -286,7 +286,7 @@ func NewCertListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			case "wide", "":
 				printCertTable(certificates.Items, sortOrder)
 			default:
-				errors.CheckErrorWithCode(fmt.Errorf("unknown output format: %s", output), errors.ErrorCommandSpecific)
+				errors.Fatalf(errors.ErrorCommandSpecific, "unknown output format: %s", output)
 			}
 
 		},

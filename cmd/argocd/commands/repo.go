@@ -125,7 +125,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			repo.EnableLFS = enableLfs
 
 			if repo.Type == "helm" && repo.Name == "" {
-				errors.CheckErrorWithCode(fmt.Errorf("Must specify --name for repos of type 'helm'"), errors.ErrorCommandSpecific)
+				errors.Fatalf(errors.ErrorCommandSpecific, "Must specify --name for repos of type 'helm'")
 			}
 
 			conn, repoIf := argocdclient.NewClientOrDie(clientOpts).NewRepoClientOrDie()
@@ -263,7 +263,7 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			case "wide", "":
 				printRepoTable(repos.Items)
 			default:
-				errors.CheckErrorWithCode(fmt.Errorf("unknown output format: %s", output), errors.ErrorCommandSpecific)
+				errors.Fatalf(errors.ErrorCommandSpecific, "unknown output format: %s", output)
 			}
 		},
 	}
@@ -312,7 +312,7 @@ func NewRepoGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			case "wide", "":
 				printRepoTable(appsv1.Repositories{repo})
 			default:
-				errors.CheckErrorWithCode(fmt.Errorf("unknown output format: %s", output), errors.ErrorCommandSpecific)
+				errors.Fatalf(errors.ErrorCommandSpecific, "unknown output format: %s", output)
 			}
 		},
 	}

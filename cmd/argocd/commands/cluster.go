@@ -81,7 +81,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			contextName := args[0]
 			clstContext := config.Contexts[contextName]
 			if clstContext == nil {
-				errors.CheckErrorWithCode(fmt.Errorf("Context %s does not exist in kubeconfig", contextName), errors.ErrorCommandSpecific)
+				errors.Fatalf(errors.ErrorCommandSpecific, "Context %s does not exist in kubeconfig", contextName)
 			}
 
 			overrides := clientcmd.ConfigOverrides{
@@ -249,7 +249,7 @@ func NewClusterGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			case "server":
 				printClusterServers(clusters)
 			default:
-				errors.CheckErrorWithCode(fmt.Errorf("unknown output format: %s", output), errors.ErrorCommandSpecific)
+				errors.Fatalf(errors.ErrorCommandSpecific, "unknown output format: %s", output)
 			}
 		},
 	}
@@ -362,7 +362,7 @@ func NewClusterListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 			case "wide", "":
 				printClusterTable(clusters.Items)
 			default:
-				errors.CheckErrorWithCode(fmt.Errorf("unknown output format: %s", output), errors.ErrorCommandSpecific)
+				errors.Fatalf(errors.ErrorCommandSpecific, "unknown output format: %s", output)
 			}
 		},
 	}
