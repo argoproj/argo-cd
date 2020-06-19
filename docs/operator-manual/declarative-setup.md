@@ -46,7 +46,7 @@ spec:
     namespace: guestbook
 ```
 
-See [application.yaml](application.yaml) for additional fields. As long as you have completed the first step of [Getting Started](getting_started.md#1-install-argo-cd), you can already apply this with `kubectl apply -n argocd -f application.yaml` and Argo CD will start deploying the guestbook application.
+See [application.yaml](application.yaml) for additional fields. As long as you have completed the first step of [Getting Started](../getting_started.md#1-install-argo-cd), you can already apply this with `kubectl apply -n argocd -f application.yaml` and Argo CD will start deploying the guestbook application.
 
 !!! note
     The namespace must match the namespace of your Argo cd, typically this is `argocd`.
