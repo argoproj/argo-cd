@@ -287,7 +287,7 @@ func ValidateDestination(ctx context.Context, dest *argoappv1.ApplicationDestina
 			}
 			dest.SetInferredServer(server)
 		} else {
-			if !dest.IsServerInferred {
+			if !dest.IsServerInferred() {
 				return &argoappv1.ApplicationCondition{
 					Type:    argoappv1.ApplicationConditionInvalidSpecError,
 					Message: fmt.Sprintf("application destination can't have both name and server defined: %s %s", dest.Name, dest.Server),

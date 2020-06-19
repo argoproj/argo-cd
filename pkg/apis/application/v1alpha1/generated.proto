@@ -113,8 +113,6 @@ message ApplicationDestination {
 
   // Name of the destination cluster which can be used instead of server (url) field
   optional string name = 3;
-
-  optional bool isServerInferred = 4;
 }
 
 // ApplicationList is list of Application resources
