@@ -858,6 +858,18 @@
   </li>
 
         
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../upgrading/1.0-1.1/" title="v1.0 to 1.1" class="md-nav__link">
+      v1.0 to 1.1
+    </a>
+  </li>
+
+        
       </ul>
     </nav>
   </li>
@@ -1571,7 +1583,7 @@
                 
                 
                 <h1 id="declarative-setup">Declarative Setup<a class="headerlink" href="#declarative-setup" title="Permanent link">&para;</a></h1>
-<p>Argo CD applications, projects and settings can be defined declaratively using Kubernetes manifests.</p>
+<p>Argo CD applications, projects and settings can be defined declaratively using Kubernetes manifests. These can be updated using <code>kubectl apply</code>, without needing to touch the <code>argocd</code> command-line tool.</p>
 <h2 id="quick-reference">Quick Reference<a class="headerlink" href="#quick-reference" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -1657,7 +1669,7 @@ in an environment. It is defined by two key pieces of information:</p>
 </code></pre></div>
 
 
-<p>See <a href="../application.yaml">application.yaml</a> for additional fields</p>
+<p>See <a href="../application.yaml">application.yaml</a> for additional fields. As long as you have completed the first step of <a href="../../getting_started/#1-install-argo-cd">Getting Started</a>, you can already apply this with <code>kubectl apply -n argocd -f application.yaml</code> and Argo CD will start deploying the guestbook application.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>The namespace must match the namespace of your Argo cd, typically this is <code>argocd</code>.</p>
