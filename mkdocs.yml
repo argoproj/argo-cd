@@ -53,6 +53,7 @@ nav:
         - operator-manual/upgrading/1.3-1.4.md
         - operator-manual/upgrading/1.2-1.3.md
         - operator-manual/upgrading/1.1-1.2.md
+        - operator-manual/upgrading/1.0-1.1.md
   - User Guide:
     - user-guide/index.md
     - user-guide/application_sources.md
