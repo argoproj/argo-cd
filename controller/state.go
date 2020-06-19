@@ -244,6 +244,50 @@ func (m *appStateManager) getComparisonSettings(app *appv1.Application) (string,
 	return appLabelKey, resourceOverrides, diffNormalizer, resFilter, nil
 }
 
+// verifyGnuPGSignature verifies the result of a GnuPG operation for a given git
+// revision.
+func verifyGnuPGSignature(revision string, project *appv1.AppProject, manifestInfo *apiclient.ManifestResponse) []appv1.ApplicationCondition {
+	now := metav1.Now()
+	conditions := make([]appv1.ApplicationCondition, 0)
+	// We need to have some data in the verificatin result to parse, otherwise there was no signature
+	if manifestInfo.VerifyResult != "" {
+		verifyResult, err := gpg.ParseGitCommitVerification(manifestInfo.VerifyResult)
+		if err != nil {
+			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
+			log.Errorf("Error while verifying git commit for revision %s: %s", revision, err.Error())
+		} else {
+			switch verifyResult.Result {
+			case gpg.VerifyResultGood:
+				// This is the only case we allow to sync to, but we need to make sure signing key is allowed
+				validKey := false
+				for _, k := range project.Spec.SignatureKeys {
+					if gpg.KeyID(k.KeyID) == gpg.KeyID(verifyResult.KeyID) && gpg.KeyID(k.KeyID) != "" {
+						validKey = true
+						break
+					}
+				}
+				if !validKey {
+					msg := fmt.Sprintf("Found good signature made with %s key %s, but this key is not allowed in AppProject",
+						verifyResult.Cipher, verifyResult.KeyID)
+					conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
+				}
+			case gpg.VerifyResultInvalid:
+				msg := fmt.Sprintf("Found signature made with %s key %s, but verification result was invalid: '%s'",
+					verifyResult.Cipher, verifyResult.KeyID, verifyResult.Message)
+				conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
+			default:
+				msg := fmt.Sprintf("Could not verify commit signature on revision '%s', check logs for more information.", revision)
+				conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
+			}
+		}
+	} else {
+		msg := fmt.Sprintf("Target revision %s in Git is not signed, but a signature is required", revision)
+		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
+	}
+
+	return conditions
+}
+
 // CompareAppState compares application git state to the live app state, using the specified
 // revision and supplied source. If revision or overrides are empty, then compares against
 // revision and overrides in the app spec.
@@ -475,41 +519,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	// in the manifest info received from the repository server. We now need to form our oppinion about the result
 	// and stop processing if we do not agree about the outcome.
 	if gpg.IsGPGEnabled() && verifySignature && manifestInfo != nil {
-		// We need to have some data in the verificatin result to parse, otherwise there was no signature
-		if manifestInfo.VerifyResult != "" {
-			verifyResult, err := gpg.ParseGitCommitVerification(manifestInfo.VerifyResult)
-			if err != nil {
-				conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
-				log.Errorf("Error while verifying git commit for revision %s: %s", revision, err.Error())
-			} else {
-				switch verifyResult.Result {
-				case gpg.VerifyResultGood:
-					// This is the only case we allow to sync to, but we need to make sure signing key is allowed
-					validKey := false
-					for _, k := range project.Spec.SignatureKeys {
-						if gpg.KeyID(k.KeyID) == gpg.KeyID(verifyResult.KeyID) && gpg.KeyID(k.KeyID) != "" {
-							validKey = true
-							break
-						}
-					}
-					if !validKey {
-						msg := fmt.Sprintf("Found good signature made with %s key %s, but this key is not allowed in AppProject",
-							verifyResult.Cipher, verifyResult.KeyID)
-						conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
-					}
-				case gpg.VerifyResultInvalid:
-					msg := fmt.Sprintf("Found signature made with %s key %s, but verification result was invalid: '%s'",
-						verifyResult.Cipher, verifyResult.KeyID, verifyResult.Message)
-					conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
-				default:
-					msg := fmt.Sprintf("Could not verify commit signature on revision '%s', check logs for more information.", revision)
-					conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
-				}
-			}
-		} else {
-			msg := fmt.Sprintf("Target revision %s in Git is not signed, but a signature is required", revision)
-			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
-		}
+		conditions = append(conditions, verifyGnuPGSignature(revision, project, manifestInfo)...)
 	}
 
 	compRes := comparisonResult{
