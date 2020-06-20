@@ -196,9 +196,35 @@ spec:
     server: https://cluster-api.com
 `
 
+const fakeAppWithDestName = `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: test-app
+  namespace: default
+spec:
+  source:
+    path: some/path
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+    targetRevision: HEAD
+    ksonnet:
+      environment: default
+  destination:
+    namespace: ` + test.FakeDestNamespace + `
+    name: fake-cluster
+`
+
+func newTestAppWithDestName(opts ...func(app *appsv1.Application)) *appsv1.Application {
+	return createTestApp(fakeAppWithDestName, opts...)
+}
+
 func newTestApp(opts ...func(app *appsv1.Application)) *appsv1.Application {
+	return createTestApp(fakeApp, opts...)
+}
+
+func createTestApp(testApp string, opts ...func(app *appsv1.Application)) *appsv1.Application {
 	var app appsv1.Application
-	err := yaml.Unmarshal([]byte(fakeApp), &app)
+	err := yaml.Unmarshal([]byte(testApp), &app)
 	if err != nil {
 		panic(err)
 	}
@@ -238,6 +264,18 @@ func TestCreateApp(t *testing.T) {
 	assert.NotNil(t, app)
 	assert.NotNil(t, app.Spec)
 	assert.Equal(t, app.Spec.Project, "default")
+}
+
+func TestCreateAppWithDestName(t *testing.T) {
+	appServer := newTestAppServer()
+	testApp := newTestAppWithDestName()
+	createReq := application.ApplicationCreateRequest{
+		Application: *testApp,
+	}
+	app, err := appServer.Create(context.Background(), &createReq)
+	assert.NoError(t, err)
+	assert.NotNil(t, app)
+	assert.Equal(t, app.Spec.Destination.Server, "https://cluster-api.com")
 }
 
 func TestUpdateApp(t *testing.T) {

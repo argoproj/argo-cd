@@ -402,6 +402,11 @@ type ApplicationDestination struct {
 	Server string `json:"server,omitempty" protobuf:"bytes,1,opt,name=server"`
 	// Namespace overrides the environment namespace value in the ksonnet app.yaml
 	Namespace string `json:"namespace,omitempty" protobuf:"bytes,2,opt,name=namespace"`
+	// Name of the destination cluster which can be used instead of server (url) field
+	Name string `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
+
+	// nolint:govet
+	isServerInferred bool `json:"-"`
 }
 
 // ApplicationStatus contains information about application sync, health status
@@ -2248,4 +2253,23 @@ func (r ResourceDiff) LiveObject() (*unstructured.Unstructured, error) {
 
 func (r ResourceDiff) TargetObject() (*unstructured.Unstructured, error) {
 	return UnmarshalToUnstructured(r.TargetState)
+}
+
+func (d *ApplicationDestination) SetInferredServer(server string) {
+	d.isServerInferred = true
+	d.Server = server
+}
+
+func (d *ApplicationDestination) IsServerInferred() bool {
+	return d.isServerInferred
+}
+
+func (d *ApplicationDestination) MarshalJSON() ([]byte, error) {
+	type Alias ApplicationDestination
+	dest := d
+	if d.isServerInferred {
+		dest = dest.DeepCopy()
+		dest.Server = ""
+	}
+	return json.Marshal(&struct{ *Alias }{Alias: (*Alias)(dest)})
 }

@@ -504,6 +504,10 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 		log.Warnf("Key '%s' in index is not an application", appKey)
 		return
 	}
+	if destCond := argo.ValidateDestination(context.Background(), &app.Spec.Destination, ctrl.db); destCond != nil {
+		ctrl.setAppCondition(app, *destCond)
+		ctrl.auditLogger.LogAppEvent(app, argo.EventInfo{Reason: argo.EventReasonStatusRefreshed, Type: v1.EventTypeWarning}, destCond.Message)
+	}
 	if app.Operation != nil {
 		ctrl.processRequestedAppOperation(app)
 	} else if app.DeletionTimestamp != nil && app.CascadedDeletion() {
@@ -829,6 +833,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	if !needRefresh {
 		return
 	}
+	argo.ValidateDestination(context.Background(), &origApp.Spec.Destination, ctrl.db)
 
 	app := origApp.DeepCopy()
 	logCtx := log.WithFields(log.Fields{"application": app.Name})
@@ -993,6 +998,10 @@ func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) 
 			})
 		}
 	} else {
+		destCondition := argo.ValidateDestination(context.Background(), &app.Spec.Destination, ctrl.db)
+		if destCondition != nil {
+			errorConditions = append(errorConditions, *destCondition)
+		}
 		specConditions, err := argo.ValidatePermissions(context.Background(), &app.Spec, proj, ctrl.db)
 		if err != nil {
 			errorConditions = append(errorConditions, appv1.ApplicationCondition{

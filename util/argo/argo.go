@@ -266,6 +266,38 @@ func enrichSpec(spec *argoappv1.ApplicationSpec, appDetails *apiclient.RepoAppDe
 	}
 }
 
+// ValidateDestination checks:
+// if we used destination name we infer the server url
+// if we used both name and server then we return an invalid spec error
+func ValidateDestination(ctx context.Context, dest *argoappv1.ApplicationDestination, db db.ArgoDB) *argoappv1.ApplicationCondition {
+	if dest.Name != "" {
+		if dest.Server == "" {
+			server, err := getDestinationServer(ctx, db, dest.Name)
+			if err != nil {
+				return &argoappv1.ApplicationCondition{
+					Type:    argoappv1.ApplicationConditionInvalidSpecError,
+					Message: fmt.Sprintf("unable to find destination server: %v", err),
+				}
+			}
+			if server == "" {
+				return &argoappv1.ApplicationCondition{
+					Type:    argoappv1.ApplicationConditionInvalidSpecError,
+					Message: fmt.Sprintf("application references destination cluster %s which does not exist", dest.Name),
+				}
+			}
+			dest.SetInferredServer(server)
+		} else {
+			if !dest.IsServerInferred() {
+				return &argoappv1.ApplicationCondition{
+					Type:    argoappv1.ApplicationConditionInvalidSpecError,
+					Message: fmt.Sprintf("application destination can't have both name and server defined: %s %s", dest.Name, dest.Server),
+				}
+			}
+		}
+	}
+	return nil
+}
+
 // ValidatePermissions ensures that the referenced cluster has been added to Argo CD and the app source repo and destination namespace/cluster are permitted in app project
 func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, proj *argoappv1.AppProject, db db.ArgoDB) ([]argoappv1.ApplicationCondition, error) {
 	conditions := make([]argoappv1.ApplicationCondition, 0)
@@ -295,7 +327,7 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 		if !proj.IsDestinationPermitted(spec.Destination) {
 			conditions = append(conditions, argoappv1.ApplicationCondition{
 				Type:    argoappv1.ApplicationConditionInvalidSpecError,
-				Message: fmt.Sprintf("application destination %v is not permitted in project '%s'", spec.Destination, spec.Project),
+				Message: fmt.Sprintf("application destination {%s %s} is not permitted in project '%s'", spec.Destination.Server, spec.Destination.Namespace, spec.Project),
 			})
 		}
 		// Ensure the k8s cluster the app is referencing, is configured in Argo CD
@@ -446,4 +478,23 @@ func NormalizeApplicationSpec(spec *argoappv1.ApplicationSpec) *argoappv1.Applic
 		spec.Source.Directory = nil
 	}
 	return spec
+}
+
+func getDestinationServer(ctx context.Context, db db.ArgoDB, clusterName string) (string, error) {
+	clusterList, err := db.ListClusters(ctx)
+	if err != nil {
+		return "", err
+	}
+	var servers []string
+	for _, c := range clusterList.Items {
+		if c.Name == clusterName {
+			servers = append(servers, c.Server)
+		}
+	}
+	if len(servers) > 1 {
+		return "", fmt.Errorf("there are %d clusters with the same name: %v", len(servers), servers)
+	} else if len(servers) == 0 {
+		return "", fmt.Errorf("there are no clusters with this name: %s", clusterName)
+	}
+	return servers[0], nil
 }

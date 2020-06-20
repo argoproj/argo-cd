@@ -98,11 +98,39 @@ func (s *Server) Get(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Clust
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionGet, q.Server); err != nil {
 		return nil, err
 	}
-	c, err := s.db.GetCluster(ctx, q.Server)
+
+	c, err := s.getCluster(ctx, q)
 	if err != nil {
 		return nil, err
 	}
 	return redact(c), nil
+}
+
+func (s *Server) getCluster(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Cluster, error) {
+
+	if q.Server != "" {
+		c, err := s.db.GetCluster(ctx, q.Server)
+		if err != nil {
+			return nil, err
+		}
+		return c, nil
+	}
+
+	//we only get the name when we specify Name in ApplicationDestination and next
+	//we want to find the server in order to populate ApplicationDestination.Server
+	if q.Name != "" {
+		clusterList, err := s.db.ListClusters(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, c := range clusterList.Items {
+			if c.Name == q.Name {
+				return &c, nil
+			}
+		}
+	}
+
+	return nil, nil
 }
 
 // Update updates a cluster
