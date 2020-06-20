@@ -157,6 +157,64 @@ func TestGetResourceOverrides(t *testing.T) {
 	assert.Equal(t, v1alpha1.ResourceOverride{
 		IgnoreDifferences: "jsonPointers:\n- /webhooks/0/clientConfig/caBundle",
 	}, webHookOverrides)
+
+	// by default, crd status should be ignored
+	crdOverrides := overrides["apiextensions.k8s.io/CustomResourceDefinition"]
+	assert.NotNil(t, crdOverrides)
+	assert.Equal(t, v1alpha1.ResourceOverride{
+		IgnoreDifferences: "jsonPointers:\n- /status",
+	}, crdOverrides)
+
+	// with value all, status of all objects should be ignored
+	_, settingsManager = fixtures(map[string]string{
+		"resource.compareoptions": `
+    ignoreResourceStatusField: all`,
+	})
+	overrides, err = settingsManager.GetResourceOverrides()
+	assert.NoError(t, err)
+
+	globalOverrides := overrides["/"]
+	assert.NotNil(t, globalOverrides)
+	assert.Equal(t, v1alpha1.ResourceOverride{
+		IgnoreDifferences: "jsonPointers:\n- /status",
+	}, globalOverrides)
+
+	// with value crd, status of crd objects should be ignored
+	_, settingsManager = fixtures(map[string]string{
+		"resource.compareoptions": `
+    ignoreResourceStatusField: crd`,
+	})
+	overrides, err = settingsManager.GetResourceOverrides()
+	assert.NoError(t, err)
+
+	crdOverrides = overrides["apiextensions.k8s.io/CustomResourceDefinition"]
+	assert.NotNil(t, crdOverrides)
+	assert.Equal(t, v1alpha1.ResourceOverride{
+		IgnoreDifferences: "jsonPointers:\n- /status",
+	}, crdOverrides)
+
+	// with incorrect value, status of crd objects should be ignored
+	_, settingsManager = fixtures(map[string]string{
+		"resource.compareoptions": `
+    ignoreResourceStatusField: foobar`,
+	})
+	overrides, err = settingsManager.GetResourceOverrides()
+	assert.NoError(t, err)
+
+	crdOverrides = overrides["apiextensions.k8s.io/CustomResourceDefinition"]
+	assert.NotNil(t, crdOverrides)
+	assert.Equal(t, v1alpha1.ResourceOverride{
+		IgnoreDifferences: "jsonPointers:\n- /status",
+	}, crdOverrides)
+
+	// with value off, status of no objects should be ignored
+	_, settingsManager := fixtures(map[string]string{
+		"resource.compareoptions": `
+    ignoreResourceStatusField: off`,
+	})
+	overrides, err = settingsManager.GetResourceOverrides()
+	assert.NoError(t, err)
+	assert.Equal(t, 0, len(overrides))
 }
 
 func TestGetResourceCompareOptions(t *testing.T) {

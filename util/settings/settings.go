@@ -447,6 +447,28 @@ func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.Resource
 			return nil, err
 		}
 	}
+
+	var diffOptions diff.DiffOptions
+	if value, ok := argoCDCM.Data[resourceCompareOptionsKey]; ok {
+		err := yaml.Unmarshal([]byte(value), &diffOptions)
+		if err != nil {
+			return nil, err
+		}
+	}
+	switch diffOptions.IgnoreResourceStatusField {
+	case "", "crd":
+		resourceOverrides["apiextensions.k8s.io/CustomResourceDefinition"] = v1alpha1.ResourceOverride{IgnoreDifferences: "jsonPointers:\n- /status"}
+		log.Info("Ignore status for CustomResourceDefinitions")
+	case "all":
+		resourceOverrides["/"] = v1alpha1.ResourceOverride{IgnoreDifferences: "jsonPointers:\n- /status"}
+		log.Info("Ignore status for all objects")
+	case "off":
+		log.Info("Not ignore status for any object")
+	default:
+		resourceOverrides["apiextensions.k8s.io/CustomResourceDefinition"] = v1alpha1.ResourceOverride{IgnoreDifferences: "jsonPointers:\n- /status"}
+		log.Warn("Unrecognized value for ignoreResourceStatusField, ignore status for CustomResourceDefinitions")
+	}
+
 	return resourceOverrides, nil
 }
 
