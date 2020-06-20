@@ -405,7 +405,7 @@ type ApplicationDestination struct {
 	// Name of the destination cluster which can be used instead of server (url) field
 	Name string `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
 
-	IsServerInferred bool `json:"isServerInferred,omitempty" protobuf:"varint,4,opt,name=isServerInferred"`
+	isServerInferred bool `json:"-"`
 }
 
 // ApplicationStatus contains information about application sync, health status
@@ -2255,14 +2255,18 @@ func (r ResourceDiff) TargetObject() (*unstructured.Unstructured, error) {
 }
 
 func (d *ApplicationDestination) SetInferredServer(server string) {
-	d.IsServerInferred = true
+	d.isServerInferred = true
 	d.Server = server
+}
+
+func (d *ApplicationDestination) IsServerInferred() bool {
+	return d.isServerInferred
 }
 
 func (d *ApplicationDestination) MarshalJSON() ([]byte, error) {
 	type Alias ApplicationDestination
 	dest := d
-	if d.IsServerInferred {
+	if d.isServerInferred {
 		dest = dest.DeepCopy()
 		dest.Server = ""
 	}

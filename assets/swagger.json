@@ -3302,10 +3302,6 @@
       "type": "object",
       "title": "ApplicationDestination contains deployment destination information",
       "properties": {
-        "isServerInferred": {
-          "type": "boolean",
-          "format": "boolean"
-        },
         "name": {
           "type": "string",
           "title": "Name of the destination cluster which can be used instead of server (url) field"

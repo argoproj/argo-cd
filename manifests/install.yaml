@@ -328,8 +328,6 @@ spec:
               description: Destination overrides the kubernetes server and namespace
                 defined in the environment ksonnet app.yaml
               properties:
-                isServerInferred:
-                  type: boolean
                 name:
                   description: Name of the destination cluster which can be used instead
                     of server (url) field
@@ -1503,8 +1501,6 @@ spec:
                       description: ApplicationDestination contains deployment destination
                         information
                       properties:
-                        isServerInferred:
-                          type: boolean
                         name:
                           description: Name of the destination cluster which can be
                             used instead of server (url) field
@@ -1804,8 +1800,6 @@ spec:
                 description: ApplicationDestination contains deployment destination
                   information
                 properties:
-                  isServerInferred:
-                    type: boolean
                   name:
                     description: Name of the destination cluster which can be used
                       instead of server (url) field
