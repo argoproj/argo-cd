@@ -405,6 +405,7 @@ type ApplicationDestination struct {
 	// Name of the destination cluster which can be used instead of server (url) field
 	Name string `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
 
+	// nolint:govet
 	isServerInferred bool `json:"-"`
 }
 
