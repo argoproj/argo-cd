@@ -12,7 +12,8 @@ import (
 var flags map[string]string
 
 func init() {
-	errors.CheckErrorWithCode(loadFlags(), errors.ErrorCommandSpecific)
+	err := loadFlags()
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 }
 
 func loadFlags() error {

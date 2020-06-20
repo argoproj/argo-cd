@@ -1,6 +1,6 @@
 module github.com/argoproj/argo-cd
 
-go 1.13
+go 1.14
 
 require (
 	bou.ke/monkey v1.0.1
@@ -8,7 +8,7 @@ require (
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
 	github.com/alicebob/gopher-json v0.0.0-20180125190556-5a6b3ba71ee6 // indirect
 	github.com/alicebob/miniredis v2.5.0+incompatible
-	github.com/argoproj/gitops-engine v0.1.3-0.20200615214904-fb2ec1384572
+	github.com/argoproj/gitops-engine v0.1.3-0.20200620112536-6657adfcfde4
 	github.com/argoproj/pkg v0.0.0-20200319004004-f46beff7cd54
 	github.com/bsm/redislock v0.4.3
 	github.com/casbin/casbin v1.9.1

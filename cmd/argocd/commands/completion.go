@@ -223,7 +223,8 @@ variable.
 				fmt.Printf("Invalid shell '%s'. The supported shells are bash and zsh.\n", shell)
 				os.Exit(errors.ErrorCommandSpecific)
 			}
-			errors.CheckErrorWithCode(completion(os.Stdout), errors.ErrorCommandSpecific)
+			err := completion(os.Stdout)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 		},
 	}
 

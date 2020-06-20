@@ -72,7 +72,7 @@ func newCommand() *cobra.Command {
 
 			http.Handle("/metrics", metricsServer.GetHandler())
 			go func() {
-				errors.CheckErrorWithCode(http.ListenAndServe(fmt.Sprintf(":%d", metricsPort), nil), errors.ErrorConnectionFailure)
+				errors.CheckErrorWithCode(http.ListenAndServe(fmt.Sprintf(":%d", metricsPort), nil), errors.ErrorCommandSpecific)
 			}()
 
 			if gpg.IsGPGEnabled() {

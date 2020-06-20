@@ -182,7 +182,8 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 			}
 		}))
 	go func() {
-		errors.CheckErrorWithCode(proxySrv.Serve(ln), errors.ErrorConnectionFailure)
+		err := proxySrv.Serve(ln)
+		errors.CheckErrorWithCode(err, errors.ErrorConnectionFailure)
 	}()
 	return proxySrv, ln, nil
 }

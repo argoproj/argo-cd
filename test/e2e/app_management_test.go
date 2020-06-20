@@ -1045,7 +1045,7 @@ func TestNotPermittedResources(t *testing.T) {
 	}
 	defer func() {
 		log.Infof("Ingress 'sample-ingress' deleted from %s", ArgoCDNamespace)
-		CheckError(KubeClientset.NetworkingV1beta1().Ingresses(ArgoCDNamespace).Delete("sample-ingress", &metav1.DeleteOptions{}))
+		CheckErrorWithCode(KubeClientset.NetworkingV1beta1().Ingresses(ArgoCDNamespace).Delete("sample-ingress", &metav1.DeleteOptions{}), ErrorCommandSpecific)
 	}()
 
 	svc := &v1.Service{

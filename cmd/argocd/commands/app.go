@@ -1480,6 +1480,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					// specified.
 					if len(resources) == 0 {
 						errors.Fatalf(errors.ErrorCommandSpecific, "No matching resources found for labels: %v", labels)
+						return
 					}
 				}
 

@@ -311,7 +311,7 @@ func TestHookBeforeHookCreation(t *testing.T) {
 		And(func(_ *Application) {
 			var err error
 			creationTimestamp1, err = getCreationTimestamp()
-			CheckError(err)
+			CheckErrorWithCode(err, ErrorCommandSpecific)
 			assert.NotEmpty(t, creationTimestamp1)
 			// pause to ensure that timestamp will change
 			time.Sleep(2 * time.Second)
@@ -326,7 +326,7 @@ func TestHookBeforeHookCreation(t *testing.T) {
 		Expect(Pod(func(p v1.Pod) bool { return p.Name == "hook" })).
 		And(func(_ *Application) {
 			creationTimestamp2, err := getCreationTimestamp()
-			CheckError(err)
+			CheckErrorWithCode(err, ErrorCommandSpecific)
 			assert.NotEmpty(t, creationTimestamp2)
 			assert.NotEqual(t, creationTimestamp1, creationTimestamp2)
 		})

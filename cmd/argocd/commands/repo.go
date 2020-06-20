@@ -125,7 +125,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			repo.EnableLFS = enableLfs
 
 			if repo.Type == "helm" && repo.Name == "" {
-				errors.Fatalf(errors.ErrorCommandSpecific, "Must specify --name for repos of type 'helm'")
+				errors.Fatal(errors.ErrorCommandSpecific, "Must specify --name for repos of type 'helm'")
 			}
 
 			conn, repoIf := argocdclient.NewClientOrDie(clientOpts).NewRepoClientOrDie()
