@@ -395,8 +395,13 @@ start-local: mod-vendor-local
 	# check we can connect to Docker to start Redis
 	killall goreman || true
 	kubectl create ns argocd || true
+	rm -rf /tmp/argocd-local
+	mkdir -p /tmp/argocd-local
+	mkdir -p /tmp/argocd-local/gpg/keys && chmod 0700 /tmp/argocd-local/gpg/keys
+	mkdir -p /tmp/argocd-local/gpg/source
 	ARGOCD_ZJWT_FEATURE_FLAG=always \
 	ARGOCD_IN_CI=false \
+	ARGOCD_GPG_ENABLED=true \
 	ARGOCD_E2E_TEST=false \
 		goreman -f $(ARGOCD_PROCFILE) start ${ARGOCD_START}
 
