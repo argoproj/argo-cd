@@ -1649,7 +1649,7 @@
 in an environment. It is defined by two key pieces of information:</p>
 <ul>
 <li><code>source</code> reference to the desired state in Git (repository, revision, path, environment)</li>
-<li><code>destination</code> reference to the target cluster and namespace.</li>
+<li><code>destination</code> reference to the target cluster and namespace. For the cluster one of server or name can be used, but not both (which will result in an error). Behind the hood when the server is missing, it is being calculated based on the name and then the server is used for any operations.</li>
 </ul>
 <p>A minimal Application spec is as follows:</p>
 <div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
@@ -1693,7 +1693,7 @@ This allows you to declaratively manage a group of app that can be deployed and 
 It is defined by the following key pieces of information:</p>
 <ul>
 <li><code>sourceRepos</code> reference to the repositories that applications within the project can pull manifests from.</li>
-<li><code>destinations</code> reference to clusters and namespaces that applications within the project can deploy into.</li>
+<li><code>destinations</code> reference to clusters and namespaces that applications within the project can deploy into (don't use the name field, only server is being matched).</li>
 <li><code>roles</code> list of entities with definitions of their access to resources within the project.</li>
 </ul>
 <p>An example spec is as follows:</p>
