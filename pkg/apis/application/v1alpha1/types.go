@@ -404,8 +404,8 @@ type ApplicationDestination struct {
 	Namespace string `json:"namespace,omitempty" protobuf:"bytes,2,opt,name=namespace"`
 	// Name of the destination cluster which can be used instead of server (url) field
 	Name string `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
-
-	isServerInferred bool `json:"-"`
+	// +k8s:openapi-gen=false
+	isServerInferred bool
 }
 
 // ApplicationStatus contains information about application sync, health status
