@@ -19,11 +19,25 @@ const (
 	ErrorGeneric = 20
 )
 
+// CheckError logs a fatal message and exits with ErrorGeneric if err is not nil
+func CheckError(err error) {
+	if err != nil {
+		Fatal(ErrorGeneric, err)
+	}
+}
+
 // CheckErrorWithCode is a convenience function to exit if an error is non-nil and exit if it was
 func CheckErrorWithCode(err error, exitcode int) {
 	if err != nil {
 		Fatal(exitcode, err)
 	}
+}
+
+// FailOnErr panics if there is an error. It returns the first value so you can use it if you cast it:
+// text := FailOrErr(Foo)).(string)
+func FailOnErr(v interface{}, err error) interface{} {
+	CheckError(err)
+	return v
 }
 
 // Fatal is a wrapper for logrus.Fatal() to exit with custom code
@@ -42,16 +56,4 @@ func Fatalf(exitcode int, format string, args ...interface{}) {
 	}
 	log.RegisterExitHandler(exitfunc)
 	log.Fatalf(format, args...)
-}
-
-// CheckError logs a fatal message and exits with ErrorGeneric if err is not nil
-func CheckError(err error) {
-	Fatal(ErrorGeneric, err)
-}
-
-// FailOnErr panics if there is an error. It returns the first value so you can use it if you cast it:
-// text := FailOrErr(Foo)).(string)
-func FailOnErr(v interface{}, err error) interface{} {
-	CheckError(err)
-	return v
 }
