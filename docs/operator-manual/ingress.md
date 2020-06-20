@@ -26,6 +26,7 @@ apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
   name: argocd-server-ingress
+  namespace: argocd
   annotations:
     kubernetes.io/ingress.class: nginx
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
@@ -88,6 +89,7 @@ apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
   name: argocd-server-http-ingress
+  namespace: argocd
   annotations:
     kubernetes.io/ingress.class: "nginx"
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
@@ -112,6 +114,7 @@ apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
   name: argocd-server-grpc-ingress
+  namespace: argocd
   annotations:
     kubernetes.io/ingress.class: "nginx"
     nginx.ingress.kubernetes.io/backend-protocol: "GRPC"
@@ -165,6 +168,7 @@ apiVersion: traefik.containo.us/v1alpha1
 kind: IngressRoute
 metadata:
   name: argocd-server-ingress
+  namespace: argocd
 spec:
   entryPoints:
     - websecure
