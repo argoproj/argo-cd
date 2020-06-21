@@ -144,10 +144,7 @@ const MaxVerificationLinesToParse = 40
 
 // Helper function to append GNUPGHOME for a command execution environment
 func getGPGEnviron() []string {
-	if h := os.Getenv(common.EnvGnuPGHome); h != "" {
-		return append(os.Environ(), fmt.Sprintf("GNUPGHOME=%s", common.GetGnuPGHomePath()))
-	}
-	return os.Environ()
+	return append(os.Environ(), fmt.Sprintf("GNUPGHOME=%s", common.GetGnuPGHomePath()))
 }
 
 // Helper function to write some data to a temp file and return its path
@@ -168,10 +165,10 @@ func writeKeyToFile(keyData string) (string, error) {
 
 // IsGPGEnabled returns true if GPG feature is enabled
 func IsGPGEnabled() bool {
-	if en := os.Getenv("ARGOCD_GPG_ENABLED"); en != "" && strings.ToLower(en) != "false" && strings.ToLower(en) != "no" {
-		return true
+	if en := os.Getenv("ARGOCD_GPG_ENABLED"); strings.ToLower(en) == "false" || strings.ToLower(en) == "no" {
+		return false
 	}
-	return false
+	return true
 }
 
 // InitializePGP will initialize a GnuPG working directory and also create a
