@@ -529,6 +529,8 @@ func setAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			spec.Source.Directory = &argoappv1.ApplicationSourceDirectory{Recurse: appOpts.directoryRecurse}
 		case "config-management-plugin":
 			spec.Source.Plugin = &argoappv1.ApplicationSourcePlugin{Name: appOpts.configManagementPlugin}
+		case "dest-name":
+			spec.Destination.Name = appOpts.destName
 		case "dest-server":
 			spec.Destination.Server = appOpts.destServer
 		case "dest-namespace":
@@ -709,6 +711,7 @@ type appOptions struct {
 	env                    string
 	revision               string
 	revisionHistoryLimit   int
+	destName               string
 	destServer             string
 	destNamespace          string
 	parameters             []string
@@ -743,6 +746,7 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().StringVar(&opts.revision, "revision", "", "The tracking source branch, tag, commit or Helm chart version the application will sync to")
 	command.Flags().IntVar(&opts.revisionHistoryLimit, "revision-history-limit", common.RevisionHistoryLimit, "How many items to keep in revision history")
 	command.Flags().StringVar(&opts.destServer, "dest-server", "", "K8s cluster URL (e.g. https://kubernetes.default.svc)")
+	command.Flags().StringVar(&opts.destName, "dest-name", "", "K8s cluster Name (e.g. minikube)")
 	command.Flags().StringVar(&opts.destNamespace, "dest-namespace", "", "K8s target namespace (overrides the namespace specified in the ksonnet app.yaml)")
 	command.Flags().StringArrayVarP(&opts.parameters, "parameter", "p", []string{}, "set a parameter override (e.g. -p guestbook=image=example/guestbook:latest)")
 	command.Flags().StringArrayVar(&opts.valuesFiles, "values", []string{}, "Helm values file(s) to use")

@@ -47,7 +47,7 @@ argocd proj add-source <PROJECT> <REPO>
 argocd proj remove-source <PROJECT> <REPO>
 ```
 
-Permitted destination clusters and namespaces are managed with the commands:
+Permitted destination clusters and namespaces are managed with the commands (for clusters always provide server, the name is not used for matching):
 
 ```bash
 argocd proj add-destination <PROJECT> <CLUSTER>,<NAMESPACE>

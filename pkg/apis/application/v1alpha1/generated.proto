@@ -113,6 +113,9 @@ message ApplicationDestination {
 
   // Namespace overrides the environment namespace value in the ksonnet app.yaml
   optional string namespace = 2;
+
+  // Name of the destination cluster which can be used instead of server (url) field
+  optional string name = 3;
 }
 
 // ApplicationList is list of Application resources
