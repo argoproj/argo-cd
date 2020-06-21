@@ -2343,9 +2343,6 @@ spec:
         - "20"
         - --operation-processors
         - "10"
-        env:
-        - name: ARGOCD_GPG_ENABLED
-          value: "true"
         image: argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
@@ -2466,11 +2463,6 @@ spec:
         - argocd-repo-server
         - --redis
         - argocd-redis:6379
-        env:
-        - name: ARGOCD_GPG_ENABLED
-          value: "true"
-        - name: ARGOCD_GNUPGHOME_HOME
-          value: /app/config/gpg/keys
         image: argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
@@ -2527,9 +2519,6 @@ spec:
         - argocd-server
         - --staticassets
         - /shared/app
-        env:
-        - name: ARGOCD_GPG_ENABLED
-          value: "true"
         image: argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:

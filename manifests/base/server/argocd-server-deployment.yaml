@@ -18,9 +18,6 @@ spec:
       serviceAccountName: argocd-server
       containers:
       - name: argocd-server
-        env:
-        - name: ARGOCD_GPG_ENABLED
-          value: "true"
         image: argoproj/argocd:latest
         imagePullPolicy: Always
         command: [argocd-server, --staticassets, /shared/app]
