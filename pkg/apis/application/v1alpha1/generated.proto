@@ -74,6 +74,9 @@ message AppProjectSpec {
 
   // NamespaceResourceWhitelist contains list of whitelisted namespace level resources
   repeated k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind namespaceResourceWhitelist = 9;
+
+  // List of PGP key IDs that commits to be synced to must be signed with
+  repeated SignatureKey signatureKeys = 10;
 }
 
 // Application is a definition of Application resource.
@@ -398,6 +401,34 @@ message EnvEntry {
 
   // the value
   optional string value = 2;
+}
+
+// GnuPGPublicKey is a representation of a GnuPG public key
+message GnuPGPublicKey {
+  // KeyID in hexadecimal string format
+  optional string keyID = 1;
+
+  // Fingerprint of the key
+  optional string fingerprint = 2;
+
+  // Owner identification
+  optional string owner = 3;
+
+  // Trust level
+  optional string trust = 4;
+
+  // Key sub type (e.g. rsa4096)
+  optional string subType = 5;
+
+  // Key data
+  optional string keyData = 6;
+}
+
+// GnuPGPublicKeyList is a collection of GnuPGPublicKey objects
+message GnuPGPublicKeyList {
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+
+  repeated GnuPGPublicKey items = 2;
 }
 
 message HealthStatus {
@@ -867,6 +898,16 @@ message RevisionMetadata {
   // probably the commit message,
   // this is truncated to the first newline or 64 characters (which ever comes first)
   optional string message = 4;
+
+  // If revision was signed with GPG, and signature verification is enabled,
+  // this contains a hint on the signer
+  optional string signatureInfo = 5;
+}
+
+// SignatureKey is the specification of a key required to verify commit signatures with
+message SignatureKey {
+  // The ID of the key in hexadecimal notation
+  optional string keyID = 1;
 }
 
 // SyncOperation contains sync operation details.

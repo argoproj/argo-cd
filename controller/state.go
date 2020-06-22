@@ -30,6 +30,7 @@ import (
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/db"
+	"github.com/argoproj/argo-cd/util/gpg"
 	argohealth "github.com/argoproj/argo-cd/util/health"
 	"github.com/argoproj/argo-cd/util/settings"
 	"github.com/argoproj/argo-cd/util/stats"
@@ -93,7 +94,7 @@ type appStateManager struct {
 	namespace      string
 }
 
-func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1.ApplicationSource, appLabelKey, revision string, noCache bool) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
+func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1.ApplicationSource, appLabelKey, revision string, noCache, verifySignature bool) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
 	ts := stats.NewTimingStats()
 	helmRepos, err := m.db.ListHelmRepositories(context.Background())
 	if err != nil {
@@ -152,6 +153,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		KustomizeOptions:  kustomizeOptions,
 		KubeVersion:       serverVersion,
 		ApiVersions:       argo.APIGroupsToVersions(apiGroups),
+		VerifySignature:   verifySignature,
 	})
 	if err != nil {
 		return nil, nil, err
@@ -242,6 +244,50 @@ func (m *appStateManager) getComparisonSettings(app *appv1.Application) (string,
 	return appLabelKey, resourceOverrides, diffNormalizer, resFilter, nil
 }
 
+// verifyGnuPGSignature verifies the result of a GnuPG operation for a given git
+// revision.
+func verifyGnuPGSignature(revision string, project *appv1.AppProject, manifestInfo *apiclient.ManifestResponse) []appv1.ApplicationCondition {
+	now := metav1.Now()
+	conditions := make([]appv1.ApplicationCondition, 0)
+	// We need to have some data in the verificatin result to parse, otherwise there was no signature
+	if manifestInfo.VerifyResult != "" {
+		verifyResult, err := gpg.ParseGitCommitVerification(manifestInfo.VerifyResult)
+		if err != nil {
+			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
+			log.Errorf("Error while verifying git commit for revision %s: %s", revision, err.Error())
+		} else {
+			switch verifyResult.Result {
+			case gpg.VerifyResultGood:
+				// This is the only case we allow to sync to, but we need to make sure signing key is allowed
+				validKey := false
+				for _, k := range project.Spec.SignatureKeys {
+					if gpg.KeyID(k.KeyID) == gpg.KeyID(verifyResult.KeyID) && gpg.KeyID(k.KeyID) != "" {
+						validKey = true
+						break
+					}
+				}
+				if !validKey {
+					msg := fmt.Sprintf("Found good signature made with %s key %s, but this key is not allowed in AppProject",
+						verifyResult.Cipher, verifyResult.KeyID)
+					conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
+				}
+			case gpg.VerifyResultInvalid:
+				msg := fmt.Sprintf("Found signature made with %s key %s, but verification result was invalid: '%s'",
+					verifyResult.Cipher, verifyResult.KeyID, verifyResult.Message)
+				conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
+			default:
+				msg := fmt.Sprintf("Could not verify commit signature on revision '%s', check logs for more information.", revision)
+				conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
+			}
+		}
+	} else {
+		msg := fmt.Sprintf("Target revision %s in Git is not signed, but a signature is required", revision)
+		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
+	}
+
+	return conditions
+}
+
 // CompareAppState compares application git state to the live app state, using the specified
 // revision and supplied source. If revision or overrides are empty, then compares against
 // revision and overrides in the app spec.
@@ -261,6 +307,12 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		}
 	}
 
+	// When signature keys are defined in the project spec, we need to verify the signature on the Git revision
+	verifySignature := false
+	if project.Spec.SignatureKeys != nil && len(project.Spec.SignatureKeys) > 0 && gpg.IsGPGEnabled() {
+		verifySignature = true
+	}
+
 	// do best effort loading live and target state to present as much information about app state as possible
 	failedToLoadObjs := false
 	conditions := make([]v1alpha1.ApplicationCondition, 0)
@@ -273,18 +325,27 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	now := metav1.Now()
 
 	if len(localManifests) == 0 {
-		targetObjs, manifestInfo, err = m.getRepoObjs(app, source, appLabelKey, revision, noCache)
+		targetObjs, manifestInfo, err = m.getRepoObjs(app, source, appLabelKey, revision, noCache, verifySignature)
 		if err != nil {
 			targetObjs = make([]*unstructured.Unstructured, 0)
 			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
 			failedToLoadObjs = true
 		}
 	} else {
-		targetObjs, err = unmarshalManifests(localManifests)
-		if err != nil {
+		// Prevent applying local manifests for now when signature verification is enabled
+		// This is also enforced on API level, but as a last resort, we also enforce it here
+		if gpg.IsGPGEnabled() && verifySignature {
+			msg := "Cannot use local manifests when signature verification is required"
 			targetObjs = make([]*unstructured.Unstructured, 0)
-			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
+			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
 			failedToLoadObjs = true
+		} else {
+			targetObjs, err = unmarshalManifests(localManifests)
+			if err != nil {
+				targetObjs = make([]*unstructured.Unstructured, 0)
+				conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
+				failedToLoadObjs = true
+			}
 		}
 		manifestInfo = nil
 	}
@@ -452,6 +513,13 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 
 	if err != nil {
 		conditions = append(conditions, appv1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
+	}
+
+	// Git has already performed the signature verification via its GPG interface, and the result is available
+	// in the manifest info received from the repository server. We now need to form our oppinion about the result
+	// and stop processing if we do not agree about the outcome.
+	if gpg.IsGPGEnabled() && verifySignature && manifestInfo != nil {
+		conditions = append(conditions, verifyGnuPGSignature(revision, project, manifestInfo)...)
 	}
 
 	compRes := comparisonResult{

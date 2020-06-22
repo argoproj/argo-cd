@@ -1070,6 +1070,12 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 	if a.Spec.SyncPolicy != nil {
 		syncOptions = a.Spec.SyncPolicy.SyncOptions
 	}
+
+	// We cannot use local manifests if we're only allowed to sync to signed commits
+	if syncReq.Manifests != nil && len(proj.Spec.SignatureKeys) > 0 {
+		return nil, status.Errorf(codes.FailedPrecondition, "Cannot use local sync when signature keys are required.")
+	}
+
 	op := appv1.Operation{
 		Sync: &appv1.SyncOperation{
 			Revision:     revision,

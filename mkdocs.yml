@@ -65,6 +65,7 @@ nav:
     - user-guide/tool_detection.md
     - user-guide/projects.md
     - user-guide/private-repositories.md
+    - GnuPG verification: user-guide/gpg-verification.md
     - user-guide/auto_sync.md
     - user-guide/diffing.md
     - user-guide/orphaned-resources.md

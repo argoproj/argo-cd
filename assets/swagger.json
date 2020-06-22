@@ -124,7 +124,7 @@
         "tags": [
           "AccountService"
         ],
-        "operationId": "CreateTokenMixin9",
+        "operationId": "CreateTokenMixin10",
         "parameters": [
           {
             "type": "string",
@@ -156,7 +156,7 @@
         "tags": [
           "AccountService"
         ],
-        "operationId": "DeleteTokenMixin9",
+        "operationId": "DeleteTokenMixin10",
         "parameters": [
           {
             "type": "string",
@@ -187,7 +187,7 @@
           "ApplicationService"
         ],
         "summary": "List returns list of applications",
-        "operationId": "ListMixin8",
+        "operationId": "List",
         "parameters": [
           {
             "type": "string",
@@ -237,7 +237,7 @@
           "ApplicationService"
         ],
         "summary": "Create creates an application",
-        "operationId": "CreateMixin8",
+        "operationId": "Create",
         "parameters": [
           {
             "name": "body",
@@ -264,7 +264,7 @@
           "ApplicationService"
         ],
         "summary": "Update updates an application",
-        "operationId": "UpdateMixin8",
+        "operationId": "Update",
         "parameters": [
           {
             "type": "string",
@@ -395,7 +395,7 @@
           "ApplicationService"
         ],
         "summary": "Get returns an application by name",
-        "operationId": "GetMixin8",
+        "operationId": "GetMixin1",
         "parameters": [
           {
             "type": "string",
@@ -445,7 +445,7 @@
           "ApplicationService"
         ],
         "summary": "Delete deletes an application",
-        "operationId": "DeleteMixin8",
+        "operationId": "Delete",
         "parameters": [
           {
             "type": "string",
@@ -1084,7 +1084,7 @@
           "ClusterService"
         ],
         "summary": "List returns list of clusters",
-        "operationId": "List",
+        "operationId": "ListMixin5",
         "parameters": [
           {
             "type": "string",
@@ -1111,7 +1111,7 @@
           "ClusterService"
         ],
         "summary": "Create creates a cluster",
-        "operationId": "Create",
+        "operationId": "CreateMixin5",
         "parameters": [
           {
             "name": "body",
@@ -1138,7 +1138,7 @@
           "ClusterService"
         ],
         "summary": "Update updates a cluster",
-        "operationId": "Update",
+        "operationId": "UpdateMixin5",
         "parameters": [
           {
             "type": "string",
@@ -1171,7 +1171,7 @@
           "ClusterService"
         ],
         "summary": "Get returns a cluster by server address",
-        "operationId": "GetMixin2",
+        "operationId": "GetMixin5",
         "parameters": [
           {
             "type": "string",
@@ -1199,7 +1199,7 @@
           "ClusterService"
         ],
         "summary": "Delete deletes a cluster",
-        "operationId": "Delete",
+        "operationId": "DeleteMixin5",
         "parameters": [
           {
             "type": "string",
@@ -1238,6 +1238,96 @@
             "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/clusterClusterResponse"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/gpgkeys": {
+      "get": {
+        "tags": [
+          "GPGKeyService"
+        ],
+        "summary": "List all available repository certificates",
+        "operationId": "ListMixin2",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "The GPG key ID to query for.",
+            "name": "keyID",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1GnuPGPublicKeyList"
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "GPGKeyService"
+        ],
+        "summary": "Create one or more GPG public keys in the server's configuration",
+        "operationId": "CreateMixin2",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1alpha1GnuPGPublicKey"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/gpgkeyGnuPGPublicKeyCreateResponse"
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "GPGKeyService"
+        ],
+        "summary": "Delete specified GPG public key from the server's configuration",
+        "operationId": "DeleteMixin2",
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/gpgkeyGnuPGPublicKeyResponse"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/gpgkeys/{keyID}": {
+      "get": {
+        "tags": [
+          "GPGKeyService"
+        ],
+        "summary": "Get information about specified GPG public key from the server",
+        "operationId": "GetMixin2",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "keyID",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1GnuPGPublicKey"
             }
           }
         }
@@ -1704,7 +1794,7 @@
           "RepositoryService"
         ],
         "summary": "Get returns a repository or its credentials",
-        "operationId": "GetMixin3",
+        "operationId": "Get",
         "parameters": [
           {
             "type": "string",
@@ -1886,7 +1976,7 @@
           "SessionService"
         ],
         "summary": "Create a new JWT for authentication and set a cookie if using HTTP.",
-        "operationId": "CreateMixin10",
+        "operationId": "CreateMixin11",
         "parameters": [
           {
             "name": "body",
@@ -1911,7 +2001,7 @@
           "SessionService"
         ],
         "summary": "Delete an existing JWT cookie if using HTTP.",
-        "operationId": "DeleteMixin10",
+        "operationId": "DeleteMixin11",
         "responses": {
           "200": {
             "description": "(empty)",
@@ -1945,7 +2035,7 @@
           "SettingsService"
         ],
         "summary": "Get returns Argo CD settings",
-        "operationId": "Get",
+        "operationId": "GetMixin8",
         "responses": {
           "200": {
             "description": "(empty)",
@@ -2440,6 +2530,26 @@
         }
       }
     },
+    "gpgkeyGnuPGPublicKeyCreateResponse": {
+      "type": "object",
+      "title": "Response to a public key creation request",
+      "properties": {
+        "created": {
+          "$ref": "#/definitions/v1alpha1GnuPGPublicKeyList"
+        },
+        "skipped": {
+          "type": "array",
+          "title": "List of key IDs that haven been skipped because they already exist on the server",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "gpgkeyGnuPGPublicKeyResponse": {
+      "type": "object",
+      "title": "Generic (empty) response for GPG public key CRUD requests"
+    },
     "oidcClaim": {
       "type": "object",
       "properties": {
@@ -2687,6 +2797,10 @@
         },
         "sourceType": {
           "type": "string"
+        },
+        "verifyResult": {
+          "type": "string",
+          "title": "Raw response of git verify-commit operation (always the empty string for Helm)"
         }
       }
     },
@@ -3247,6 +3361,13 @@
             "$ref": "#/definitions/v1alpha1ProjectRole"
           }
         },
+        "signatureKeys": {
+          "type": "array",
+          "title": "List of PGP key IDs that commits to be synced to must be signed with",
+          "items": {
+            "$ref": "#/definitions/v1alpha1SignatureKey"
+          }
+        },
         "sourceRepos": {
           "type": "array",
           "title": "SourceRepos contains list of repository URLs which can be used for deployment",
@@ -3772,6 +3893,51 @@
         "value": {
           "type": "string",
           "title": "the value"
+        }
+      }
+    },
+    "v1alpha1GnuPGPublicKey": {
+      "type": "object",
+      "title": "GnuPGPublicKey is a representation of a GnuPG public key",
+      "properties": {
+        "fingerprint": {
+          "type": "string",
+          "title": "Fingerprint of the key"
+        },
+        "keyData": {
+          "type": "string",
+          "title": "Key data"
+        },
+        "keyID": {
+          "type": "string",
+          "title": "KeyID in hexadecimal string format"
+        },
+        "owner": {
+          "type": "string",
+          "title": "Owner identification"
+        },
+        "subType": {
+          "type": "string",
+          "title": "Key sub type (e.g. rsa4096)"
+        },
+        "trust": {
+          "type": "string",
+          "title": "Trust level"
+        }
+      }
+    },
+    "v1alpha1GnuPGPublicKeyList": {
+      "type": "object",
+      "title": "GnuPGPublicKeyList is a collection of GnuPGPublicKey objects",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1GnuPGPublicKey"
+          }
+        },
+        "metadata": {
+          "$ref": "#/definitions/v1ListMeta"
         }
       }
     },
@@ -4521,12 +4687,26 @@
           "type": "string",
           "title": "the message associated with the revision,\nprobably the commit message,\nthis is truncated to the first newline or 64 characters (which ever comes first)"
         },
+        "signatureInfo": {
+          "type": "string",
+          "title": "If revision was signed with GPG, and signature verification is enabled,\nthis contains a hint on the signer"
+        },
         "tags": {
           "type": "array",
           "title": "tags on the revision,\nnote - tags can move from one revision to another",
           "items": {
             "type": "string"
           }
+        }
+      }
+    },
+    "v1alpha1SignatureKey": {
+      "type": "object",
+      "title": "SignatureKey is the specification of a key required to verify commit signatures with",
+      "properties": {
+        "keyID": {
+          "type": "string",
+          "title": "The ID of the key in hexadecimal notation"
         }
       }
     },

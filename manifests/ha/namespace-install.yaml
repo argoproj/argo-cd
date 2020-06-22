@@ -1904,6 +1904,20 @@ spec:
                 - name
                 type: object
               type: array
+            signatureKeys:
+              description: List of PGP key IDs that commits to be synced to must be
+                signed with
+              items:
+                description: SignatureKey is the specification of a key required to
+                  verify commit signatures with
+                properties:
+                  keyID:
+                    description: The ID of the key in hexadecimal notation
+                    type: string
+                required:
+                - keyID
+                type: object
+              type: array
             sourceRepos:
               description: SourceRepos contains list of repository URLs which can
                 be used for deployment
@@ -2456,6 +2470,14 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   labels:
+    app.kubernetes.io/name: argocd-gpg-keys-cm
+    app.kubernetes.io/part-of: argocd
+  name: argocd-gpg-keys-cm
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
     app.kubernetes.io/name: argocd-rbac-cm
     app.kubernetes.io/part-of: argocd
   name: argocd-rbac-cm
@@ -2960,6 +2982,8 @@ spec:
           name: ssh-known-hosts
         - mountPath: /app/config/tls
           name: tls-certs
+        - mountPath: /app/config/gpg/source
+          name: gpg-keys
       volumes:
       - configMap:
           name: argocd-ssh-known-hosts-cm
@@ -2967,6 +2991,9 @@ spec:
       - configMap:
           name: argocd-tls-certs-cm
         name: tls-certs
+      - configMap:
+          name: argocd-gpg-keys-cm
+        name: gpg-keys
 ---
 apiVersion: apps/v1
 kind: Deployment

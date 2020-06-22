@@ -76,6 +76,7 @@ const (
 	RepoURLTypeHelm                 = "helm"
 	GitUsername                     = "admin"
 	GitPassword                     = "password"
+	GpgGoodKeyID                    = "D56C4FCA57A46444"
 )
 
 // getKubeConfig creates new kubernetes client config using specified config path and config overrides variables
@@ -319,6 +320,16 @@ func EnsureCleanState(t *testing.T) {
 		ClusterResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
 	})
 
+	// Create seperate project for testing gpg signature verification
+	FailOnErr(RunCli("proj", "create", "gpg"))
+	SetProjectSpec("gpg", v1alpha1.AppProjectSpec{
+		OrphanedResources:        nil,
+		SourceRepos:              []string{"*"},
+		Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
+		ClusterResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
+		SignatureKeys:            []v1alpha1.SignatureKey{{KeyID: GpgGoodKeyID}},
+	})
+
 	// remove tmp dir
 	CheckError(os.RemoveAll(TmpDir))
 
@@ -334,6 +345,21 @@ func EnsureCleanState(t *testing.T) {
 	// create TLS and SSH certificate directories
 	FailOnErr(Run("", "mkdir", "-p", TmpDir+"/app/config/tls"))
 	FailOnErr(Run("", "mkdir", "-p", TmpDir+"/app/config/ssh"))
+
+	// For signing during the tests
+	FailOnErr(Run("", "mkdir", "-p", TmpDir+"/gpg"))
+	FailOnErr(Run("", "chmod", "0700", TmpDir+"/gpg"))
+	prevGnuPGHome := os.Getenv("GNUPGHOME")
+	os.Setenv("GNUPGHOME", TmpDir+"/gpg")
+	// nolint:errcheck
+	Run("", "pkill", "-9", "gpg-agent")
+	FailOnErr(Run("", "gpg", "--import", "../fixture/gpg/signingkey.asc"))
+	os.Setenv("GNUPGHOME", prevGnuPGHome)
+
+	// recreate GPG directories
+	FailOnErr(Run("", "mkdir", "-p", TmpDir+"/app/config/gpg/source"))
+	FailOnErr(Run("", "mkdir", "-p", TmpDir+"/app/config/gpg/keys"))
+	FailOnErr(Run("", "chmod", "0700", TmpDir+"/app/config/gpg/keys"))
 
 	// set-up tmp repo, must have unique name
 	FailOnErr(Run("", "cp", "-Rf", "testdata", repoDirectory()))
@@ -416,6 +442,18 @@ func AddFile(path, contents string) {
 	FailOnErr(Run(repoDirectory(), "git", "diff"))
 	FailOnErr(Run(repoDirectory(), "git", "add", "."))
 	FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "add file"))
+}
+
+func AddSignedFile(path, contents string) {
+	log.WithFields(log.Fields{"path": path}).Info("adding")
+
+	CheckError(ioutil.WriteFile(filepath.Join(repoDirectory(), path), []byte(contents), 0644))
+	prevGnuPGHome := os.Getenv("GNUPGHOME")
+	os.Setenv("GNUPGHOME", TmpDir+"/gpg")
+	FailOnErr(Run(repoDirectory(), "git", "diff"))
+	FailOnErr(Run(repoDirectory(), "git", "add", "."))
+	FailOnErr(Run(repoDirectory(), "git", "-c", fmt.Sprintf("user.signingkey=%s", GpgGoodKeyID), "commit", "-S", "-am", "add file"))
+	os.Setenv("GNUPGHOME", prevGnuPGHome)
 }
 
 // create the resource by creating using "kubectl apply", with bonus templating

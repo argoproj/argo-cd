@@ -29,7 +29,12 @@ import (
 	helmmocks "github.com/argoproj/argo-cd/util/helm/mocks"
 )
 
-func newServiceWithMocks(root string) (*Service, *gitmocks.Client) {
+const testSignature = `gpg: Signature made Wed Feb 26 23:22:34 2020 CET
+gpg:                using RSA key 4AEE18F83AFDEB23
+gpg: Good signature from "GitHub (web-flow commit signing) <noreply@github.com>" [ultimate]
+`
+
+func newServiceWithMocks(root string, signed bool) (*Service, *gitmocks.Client) {
 	service := NewService(metrics.NewMetricsServer(), cache.NewCache(
 		cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Minute)),
 		1*time.Minute,
@@ -46,6 +51,11 @@ func newServiceWithMocks(root string) (*Service, *gitmocks.Client) {
 	gitClient.On("LsRemote", mock.Anything).Return(mock.Anything, nil)
 	gitClient.On("CommitSHA").Return(mock.Anything, nil)
 	gitClient.On("Root").Return(root)
+	if signed {
+		gitClient.On("VerifyCommitSignature", mock.Anything).Return(testSignature, nil)
+	} else {
+		gitClient.On("VerifyCommitSignature", mock.Anything).Return("", nil)
+	}
 
 	chart := "my-chart"
 	version := semver.MustParse("1.1.0")
@@ -65,7 +75,12 @@ func newServiceWithMocks(root string) (*Service, *gitmocks.Client) {
 }
 
 func newService(root string) *Service {
-	service, _ := newServiceWithMocks(root)
+	service, _ := newServiceWithMocks(root, false)
+	return service
+}
+
+func newServiceWithSignature(root string) *Service {
+	service, _ := newServiceWithMocks(root, true)
 	return service
 }
 
@@ -76,7 +91,7 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src}
 
 	// update this value if we add/remove manifests
-	const countOfManifests = 25
+	const countOfManifests = 26
 
 	res1, err := service.GenerateManifest(context.Background(), &q)
 
@@ -107,7 +122,7 @@ func TestHelmManifestFromChartRepo(t *testing.T) {
 }
 
 func TestGenerateManifestsUseExactRevision(t *testing.T) {
-	service, gitClient := newServiceWithMocks(".")
+	service, gitClient := newServiceWithMocks(".", false)
 
 	src := argoappv1.ApplicationSource{Path: "./testdata/recurse", Directory: &argoappv1.ApplicationSourceDirectory{Recurse: true}}
 
@@ -568,7 +583,7 @@ func TestGetHelmCharts(t *testing.T) {
 }
 
 func TestGetRevisionMetadata(t *testing.T) {
-	service, gitClient := newServiceWithMocks("../..")
+	service, gitClient := newServiceWithMocks("../..", false)
 	now := time.Now()
 
 	gitClient.On("RevisionMetadata", mock.Anything).Return(&git.RevisionMetadata{
@@ -589,6 +604,53 @@ func TestGetRevisionMetadata(t *testing.T) {
 	assert.Equal(t, "author", res.Author)
 	assert.EqualValues(t, []string{"tag1", "tag2"}, res.Tags)
 
+}
+
+func TestGetSignatureVerificationResult(t *testing.T) {
+	// Commit with signature and verification requested
+	{
+		service := newServiceWithSignature("../..")
+
+		src := argoappv1.ApplicationSource{Path: "manifests/base"}
+		q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src, VerifySignature: true}
+
+		res, err := service.GenerateManifest(context.Background(), &q)
+		assert.NoError(t, err)
+		assert.Equal(t, testSignature, res.VerifyResult)
+	}
+	// Commit with signature and verification not requested
+	{
+		service := newServiceWithSignature("../..")
+
+		src := argoappv1.ApplicationSource{Path: "manifests/base"}
+		q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src}
+
+		res, err := service.GenerateManifest(context.Background(), &q)
+		assert.NoError(t, err)
+		assert.Empty(t, res.VerifyResult)
+	}
+	// Commit without signature and verification requested
+	{
+		service := newService("../..")
+
+		src := argoappv1.ApplicationSource{Path: "manifests/base"}
+		q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src, VerifySignature: true}
+
+		res, err := service.GenerateManifest(context.Background(), &q)
+		assert.NoError(t, err)
+		assert.Empty(t, res.VerifyResult)
+	}
+	// Commit without signature and verification not requested
+	{
+		service := newService("../..")
+
+		src := argoappv1.ApplicationSource{Path: "manifests/base"}
+		q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src, VerifySignature: true}
+
+		res, err := service.GenerateManifest(context.Background(), &q)
+		assert.NoError(t, err)
+		assert.Empty(t, res.VerifyResult)
+	}
 }
 
 func Test_newEnv(t *testing.T) {

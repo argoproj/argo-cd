@@ -1,0 +1,62 @@
+syntax = "proto3";
+option go_package = "github.com/argoproj/argo-cd/pkg/apiclient/gpgkey";
+
+// GPG public key service
+//
+// GPG public key API performs CRUD actions against GnuPGPublicKey resources
+package gpgkey;
+
+import "gogoproto/gogo.proto";
+import "google/api/annotations.proto";
+import "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1/generated.proto";
+
+// Message to query the server for configured GPG public keys
+message GnuPGPublicKeyQuery {
+  // The GPG key ID to query for
+  string keyID = 1;
+}
+
+// Request to create one or more public keys on the server
+message GnuPGPublicKeyCreateRequest {
+  // Raw key data of the GPG key(s) to create
+  github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.GnuPGPublicKey publickey = 1;
+  // Whether to upsert already existing public keys
+  bool upsert = 2;
+}
+
+// Response to a public key creation request
+message GnuPGPublicKeyCreateResponse {
+  // List of GPG public keys that have been created
+  github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.GnuPGPublicKeyList created = 1;
+  // List of key IDs that haven been skipped because they already exist on the server
+  repeated string skipped = 2;
+}
+
+// Generic (empty) response for GPG public key CRUD requests
+message GnuPGPublicKeyResponse {}
+
+// GPGKeyService implements API for managing GPG public keys on the server
+service GPGKeyService {
+  // List all available repository certificates
+  rpc List(GnuPGPublicKeyQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.GnuPGPublicKeyList) {
+    option (google.api.http).get = "/api/v1/gpgkeys";
+  }
+
+  // Get information about specified GPG public key from the server
+  rpc Get(GnuPGPublicKeyQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.GnuPGPublicKey) {
+    option (google.api.http).get = "/api/v1/gpgkeys/{keyID}";
+  }
+
+  // Create one or more GPG public keys in the server's configuration
+  rpc Create(GnuPGPublicKeyCreateRequest) returns (GnuPGPublicKeyCreateResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/gpgkeys"
+      body: "publickey"
+    };
+  }
+
+  // Delete specified GPG public key from the server's configuration
+  rpc Delete(GnuPGPublicKeyQuery) returns (GnuPGPublicKeyResponse) {
+    option (google.api.http).delete = "/api/v1/gpgkeys";
+  }
+}

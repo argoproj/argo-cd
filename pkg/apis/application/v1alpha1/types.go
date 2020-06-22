@@ -618,6 +618,9 @@ type RevisionMetadata struct {
 	// probably the commit message,
 	// this is truncated to the first newline or 64 characters (which ever comes first)
 	Message string `json:"message,omitempty" protobuf:"bytes,4,opt,name=message"`
+	// If revision was signed with GPG, and signature verification is enabled,
+	// this contains a hint on the signer
+	SignatureInfo string `json:"signatureInfo,omitempty" protobuf:"bytes,5,opt,name=signatureInfo"`
 }
 
 // SyncOperationResult represent result of sync operation
@@ -1247,6 +1250,28 @@ type RepositoryCertificateList struct {
 	Items []RepositoryCertificate `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
 
+// GnuPGPublicKey is a representation of a GnuPG public key
+type GnuPGPublicKey struct {
+	// KeyID in hexadecimal string format
+	KeyID string `json:"keyID" protobuf:"bytes,1,opt,name=keyID"`
+	// Fingerprint of the key
+	Fingerprint string `json:"fingerprint,omitempty" protobuf:"bytes,2,opt,name=fingerprint"`
+	// Owner identification
+	Owner string `json:"owner,omitempty" protobuf:"bytes,3,opt,name=owner"`
+	// Trust level
+	Trust string `json:"trust,omitempty" protobuf:"bytes,4,opt,name=trust"`
+	// Key sub type (e.g. rsa4096)
+	SubType string `json:"subType,omitempty" protobuf:"bytes,5,opt,name=subType"`
+	// Key data
+	KeyData string `json:"keyData,omitempty" protobuf:"bytes,6,opt,name=keyData"`
+}
+
+// GnuPGPublicKeyList is a collection of GnuPGPublicKey objects
+type GnuPGPublicKeyList struct {
+	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
+	Items           []GnuPGPublicKey `json:"items" protobuf:"bytes,2,rep,name=items"`
+}
+
 // AppProjectList is list of AppProject resources
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type AppProjectList struct {
@@ -1540,6 +1565,12 @@ func (s *OrphanedResourcesMonitorSettings) IsWarn() bool {
 	return s.Warn == nil || *s.Warn
 }
 
+// SignatureKey is the specification of a key required to verify commit signatures with
+type SignatureKey struct {
+	// The ID of the key in hexadecimal notation
+	KeyID string `json:"keyID" protobuf:"bytes,1,name=keyID"`
+}
+
 // AppProjectSpec is the specification of an AppProject
 type AppProjectSpec struct {
 	// SourceRepos contains list of repository URLs which can be used for deployment
@@ -1560,6 +1591,8 @@ type AppProjectSpec struct {
 	SyncWindows SyncWindows `json:"syncWindows,omitempty" protobuf:"bytes,8,opt,name=syncWindows"`
 	// NamespaceResourceWhitelist contains list of whitelisted namespace level resources
 	NamespaceResourceWhitelist []metav1.GroupKind `json:"namespaceResourceWhitelist,omitempty" protobuf:"bytes,9,opt,name=namespaceResourceWhitelist"`
+	// List of PGP key IDs that commits to be synced to must be signed with
+	SignatureKeys []SignatureKey `json:"signatureKeys,omitempty" protobuf:"bytes,10,opt,name=signatureKeys"`
 }
 
 // SyncWindows is a collection of sync windows in this project

@@ -80,6 +80,7 @@ export interface RevisionMetadata {
     date: models.Time;
     tags?: string[];
     message?: string;
+    signatureInfo?: string;
 }
 
 export interface SyncOperationResult {
@@ -587,6 +588,10 @@ export interface GroupKind {
     kind: string;
 }
 
+export interface ProjectSignatureKey {
+    keyID: string;
+}
+
 export interface ProjectSpec {
     sourceRepos: string[];
     destinations: ApplicationDestination[];
@@ -595,6 +600,7 @@ export interface ProjectSpec {
     clusterResourceWhitelist: GroupKind[];
     namespaceResourceBlacklist: GroupKind[];
     namespaceResourceWhitelist: GroupKind[];
+    signatureKeys: ProjectSignatureKey[];
     orphanedResources?: {warn?: boolean};
     syncWindows?: SyncWindows;
 }
@@ -668,3 +674,13 @@ export interface Account {
     capabilities: string[];
     tokens: Token[];
 }
+
+export interface GnuPGPublicKey {
+    keyID?: string;
+    fingerprint?: string;
+    subType?: string;
+    owner?: string;
+    keyData?: string;
+}
+
+export interface GnuPGPublicKeyList extends ItemsList<GnuPGPublicKey> {}

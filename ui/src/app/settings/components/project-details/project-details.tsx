@@ -136,6 +136,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                             namespaceResourceWhitelist: proj.spec.namespaceResourceWhitelist || [],
                                                             roles: proj.spec.roles || [],
                                                             syncWindows: proj.spec.syncWindows || [],
+                                                            signatureKeys: proj.spec.signatureKeys || [],
                                                             orphanedResourcesEnabled: !!proj.spec.orphanedResources,
                                                             orphanedResourcesWarn:
                                                                 proj.spec.orphanedResources && (proj.spec.orphanedResources.warn === undefined || proj.spec.orphanedResources.warn)
@@ -595,6 +596,28 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                 )) || (
                     <div className='white-box'>
                         <p>All namespaced-scoped resources are permitted to deploy</p>
+                    </div>
+                )}
+
+                <h4>Required signature keys {helpTip('IDs of GnuPG keys that commits must be signed with in order to be allowed to sync to')}</h4>
+                {((proj.spec.signatureKeys || []).length > 0 && (
+                    <div className='argo-table-list'>
+                        <div className='argo-table-list__head'>
+                            <div className='row'>
+                                <div className='columns small-9'>KEY ID</div>
+                            </div>
+                        </div>
+                        {(proj.spec.signatureKeys || []).map(res => (
+                            <div className='argo-table-list__row' key={`${res.keyID}`}>
+                                <div className='row'>
+                                    <div className='columns small-9'>{res.keyID}</div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )) || (
+                    <div className='white-box'>
+                        <p>Commit signatures are not required</p>
                     </div>
                 )}
 

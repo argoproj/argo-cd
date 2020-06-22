@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -61,10 +62,33 @@ func newCommand() *cobra.Command {
 					log.Warnf("Failed to create directory: %v", err)
 					return
 				}
-				for name, data := range cm.Data {
-					err := ioutil.WriteFile(path.Join(destPath, name), []byte(data), 0644)
+				// Remove files that do not exist in ConfigMap anymore
+				err = filepath.Walk(destPath, func(path string, info os.FileInfo, err error) error {
+					if info.IsDir() {
+						return nil
+					}
 					if err != nil {
-						log.Warnf("Failed to create file: %v", err)
+						log.Warnf("Error walking path %s: %v", path, err)
+					}
+					p := filepath.Base(path)
+					if _, ok := cm.Data[p]; !ok {
+						log.Infof("Removing file '%s'", path)
+						err := os.Remove(path)
+						if err != nil {
+							log.Warnf("Failed to remove file %s: %v", path, err)
+						}
+					}
+					return nil
+				})
+				if err != nil {
+					log.Fatalf("Error: %v", err)
+				}
+				// Create or update files that are specified in ConfigMap
+				for name, data := range cm.Data {
+					p := path.Join(destPath, name)
+					err := ioutil.WriteFile(p, []byte(data), 0644)
+					if err != nil {
+						log.Warnf("Failed to create file %s: %v", p, err)
 					}
 				}
 			}

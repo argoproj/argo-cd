@@ -31,6 +31,7 @@ import (
 	applicationpkg "github.com/argoproj/argo-cd/pkg/apiclient/application"
 	certificatepkg "github.com/argoproj/argo-cd/pkg/apiclient/certificate"
 	clusterpkg "github.com/argoproj/argo-cd/pkg/apiclient/cluster"
+	gpgkeypkg "github.com/argoproj/argo-cd/pkg/apiclient/gpgkey"
 	projectpkg "github.com/argoproj/argo-cd/pkg/apiclient/project"
 	repocredspkg "github.com/argoproj/argo-cd/pkg/apiclient/repocreds"
 	repositorypkg "github.com/argoproj/argo-cd/pkg/apiclient/repository"
@@ -68,6 +69,8 @@ type Client interface {
 	NewCertClientOrDie() (io.Closer, certificatepkg.CertificateServiceClient)
 	NewClusterClient() (io.Closer, clusterpkg.ClusterServiceClient, error)
 	NewClusterClientOrDie() (io.Closer, clusterpkg.ClusterServiceClient)
+	NewGPGKeyClient() (io.Closer, gpgkeypkg.GPGKeyServiceClient, error)
+	NewGPGKeyClientOrDie() (io.Closer, gpgkeypkg.GPGKeyServiceClient)
 	NewApplicationClient() (io.Closer, applicationpkg.ApplicationServiceClient, error)
 	NewApplicationClientOrDie() (io.Closer, applicationpkg.ApplicationServiceClient)
 	NewSessionClient() (io.Closer, sessionpkg.SessionServiceClient, error)
@@ -557,6 +560,23 @@ func (c *client) NewClusterClientOrDie() (io.Closer, clusterpkg.ClusterServiceCl
 		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
 	}
 	return conn, clusterIf
+}
+
+func (c *client) NewGPGKeyClient() (io.Closer, gpgkeypkg.GPGKeyServiceClient, error) {
+	conn, closer, err := c.newConn()
+	if err != nil {
+		return nil, nil, err
+	}
+	gpgkeyIf := gpgkeypkg.NewGPGKeyServiceClient(conn)
+	return closer, gpgkeyIf, nil
+}
+
+func (c *client) NewGPGKeyClientOrDie() (io.Closer, gpgkeypkg.GPGKeyServiceClient) {
+	conn, gpgkeyIf, err := c.NewGPGKeyClient()
+	if err != nil {
+		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
+	}
+	return conn, gpgkeyIf
 }
 
 func (c *client) NewApplicationClient() (io.Closer, applicationpkg.ApplicationServiceClient, error) {
