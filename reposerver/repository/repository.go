@@ -546,10 +546,7 @@ func findManifests(appPath string, env *v1alpha1.Env, directory v1alpha1.Applica
 			}
 			objs = append(objs, &obj)
 		} else if strings.HasSuffix(f.Name(), ".jsonnet") {
-			vm := makeJsonnetVm(directory.Jsonnet, env)
-			vm.Importer(&jsonnet.FileImporter{
-				JPaths: []string{appPath},
-			})
+			vm := makeJsonnetVm(appPath, directory.Jsonnet, env)
 			jsonStr, err := vm.EvaluateSnippet(path, string(out))
 			if err != nil {
 				return status.Errorf(codes.FailedPrecondition, "Failed to evaluate jsonnet %q: %v", f.Name(), err)
@@ -590,7 +587,7 @@ func findManifests(appPath string, env *v1alpha1.Env, directory v1alpha1.Applica
 	return objs, nil
 }
 
-func makeJsonnetVm(sourceJsonnet v1alpha1.ApplicationSourceJsonnet, env *v1alpha1.Env) *jsonnet.VM {
+func makeJsonnetVm(appPath string, sourceJsonnet v1alpha1.ApplicationSourceJsonnet, env *v1alpha1.Env) *jsonnet.VM {
 	vm := jsonnet.MakeVM()
 	for i, j := range sourceJsonnet.TLAs {
 		sourceJsonnet.TLAs[i].Value = env.Envsubst(j.Value)
@@ -612,6 +609,10 @@ func makeJsonnetVm(sourceJsonnet v1alpha1.ApplicationSourceJsonnet, env *v1alpha
 			vm.ExtVar(extVar.Name, extVar.Value)
 		}
 	}
+
+	vm.Importer(&jsonnet.FileImporter{
+		JPaths: append(sourceJsonnet.Libs, appPath),
+	})
 
 	return vm
 }
