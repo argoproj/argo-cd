@@ -76,6 +76,9 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	}
 
 	compareResult := m.CompareAppState(app, proj, revision, source, false, syncOp.Manifests)
+	// We now have a concrete commit SHA. Save this in the sync result revision so that we remember
+	// what we should be syncing to when resuming operations.
+	syncRes.Revision = compareResult.syncStatus.Revision
 
 	// If there are any comparison or spec errors error conditions do not perform the operation
 	if errConditions := app.Status.GetConditions(map[v1alpha1.ApplicationConditionType]bool{
@@ -86,10 +89,6 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		state.Message = argo.FormatAppConditions(errConditions)
 		return
 	}
-
-	// We now have a concrete commit SHA. Save this in the sync result revision so that we remember
-	// what we should be syncing to when resuming operations.
-	syncRes.Revision = compareResult.syncStatus.Revision
 
 	clst, err := m.db.GetCluster(context.Background(), app.Spec.Destination.Server)
 	if err != nil {
