@@ -35,19 +35,6 @@ var (
 	initLocalCluster sync.Once
 )
 
-const (
-	// annotationKeyModifiedAt is the annotation key which indicates when cluster is synced
-	annotationKeyModifiedAt = "modifiedAt"
-	// annotationKeyModifiedAt is the annotation key which indicates cluster server version
-	annotationKeyServerVersion = "serverVersion"
-	// annotationMessage is the annotation key which contains message
-	annotationKeyMessage = "message"
-	// annotationStatus is the annotation key which contains status
-	annotationKeyStatus = "status"
-	// annotationKeyCacheInfo is the annotation key which contains JSON serialized cache info
-	annotationKeyCacheInfo = "cacheInfo"
-)
-
 func (db *db) getLocalCluster() *appv1.Cluster {
 	initLocalCluster.Do(func() {
 		info, err := db.kubeclientset.Discovery().ServerVersion()
@@ -236,9 +223,12 @@ func (db *db) GetCluster(ctx context.Context, server string) (*appv1.Cluster, er
 }
 
 // UpdateCluster updates a cluster
-func (db *db) UpdateCluster(_ context.Context, c *appv1.Cluster) (*appv1.Cluster, error) {
+func (db *db) UpdateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Cluster, error) {
 	clusterSecret, err := db.getClusterSecret(c.Server)
 	if err != nil {
+		if status.Code(err) == codes.NotFound {
+			return db.CreateCluster(ctx, c)
+		}
 		return nil, err
 	}
 	if err := clusterToSecret(c, clusterSecret); err != nil {
@@ -312,36 +302,11 @@ func clusterToSecret(c *appv1.Cluster, secret *apiv1.Secret) error {
 	if secret.Annotations == nil {
 		secret.Annotations = make(map[string]string)
 	}
-	if c.ConnectionState.ModifiedAt != nil {
-		secret.Annotations[annotationKeyModifiedAt] = c.ConnectionState.ModifiedAt.Format(time.RFC3339)
+	if c.RefreshRequestedAt != nil {
+		secret.Annotations[common.AnnotationKeyRefresh] = c.RefreshRequestedAt.Format(time.RFC3339)
 	} else {
-		delete(secret.Annotations, annotationKeyModifiedAt)
+		delete(secret.Annotations, common.AnnotationKeyRefresh)
 	}
-	if c.ServerVersion != "" {
-		secret.Annotations[annotationKeyServerVersion] = c.ServerVersion
-	} else {
-		delete(secret.Annotations, annotationKeyServerVersion)
-	}
-	if c.ConnectionState.Message != "" {
-		secret.Annotations[annotationKeyMessage] = c.ConnectionState.Message
-	} else {
-		delete(secret.Annotations, annotationKeyMessage)
-	}
-	if c.ConnectionState.Status != "" {
-		secret.Annotations[annotationKeyStatus] = c.ConnectionState.Status
-	} else {
-		delete(secret.Annotations, annotationKeyStatus)
-	}
-	if c.CacheInfo != (appv1.ClusterCacheInfo{}) {
-		if cacheInfoJSON, err := json.Marshal(c.CacheInfo); err != nil {
-			return err
-		} else {
-			secret.Annotations[annotationKeyCacheInfo] = string(cacheInfoJSON)
-		}
-	} else {
-		delete(secret.Annotations, annotationKeyCacheInfo)
-	}
-
 	return nil
 }
 
@@ -358,31 +323,21 @@ func secretToCluster(s *apiv1.Secret) *appv1.Cluster {
 			namespaces = append(namespaces, ns)
 		}
 	}
-	connectionState := appv1.ConnectionState{}
-	if v, found := s.Annotations[annotationKeyModifiedAt]; found {
-		time, err := time.Parse(time.RFC3339, v)
+	var refreshRequestedAt *metav1.Time
+	if v, found := s.Annotations[common.AnnotationKeyRefresh]; found {
+		requestedAt, err := time.Parse(time.RFC3339, v)
 		if err != nil {
-			log.Warnf("Error while parsing date : %v", err)
+			log.Warnf("Error while parsing date: %v", err)
 		} else {
-			connectionState.ModifiedAt = &metav1.Time{Time: time}
-		}
-	}
-	connectionState.Status = s.Annotations[annotationKeyStatus]
-	connectionState.Message = s.Annotations[annotationKeyMessage]
-	var cacheInfo appv1.ClusterCacheInfo
-	if cacheInfoJSON := s.Annotations[annotationKeyCacheInfo]; cacheInfoJSON != "" {
-		if err := json.Unmarshal([]byte(cacheInfoJSON), &cacheInfo); err != nil {
-			log.Warnf("Failed to unmarshal cache info: %v", err)
+			refreshRequestedAt = &metav1.Time{Time: requestedAt}
 		}
 	}
 	cluster := appv1.Cluster{
-		Server:          string(s.Data["server"]),
-		Name:            string(s.Data["name"]),
-		Namespaces:      namespaces,
-		Config:          config,
-		ServerVersion:   s.Annotations[annotationKeyServerVersion],
-		ConnectionState: connectionState,
-		CacheInfo:       cacheInfo,
+		Server:             string(s.Data["server"]),
+		Name:               string(s.Data["name"]),
+		Namespaces:         namespaces,
+		Config:             config,
+		RefreshRequestedAt: refreshRequestedAt,
 	}
 	return &cluster
 }

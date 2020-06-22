@@ -454,9 +454,9 @@ func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *a
 		if !reflect.DeepEqual(oldCluster.Namespaces, newCluster.Namespaces) {
 			shouldInvalidate = true
 		}
-		if newCluster.CacheInfo.RefreshRequestedAt != nil &&
-			newCluster.ConnectionState.ModifiedAt != nil &&
-			newCluster.ConnectionState.ModifiedAt.Before(newCluster.CacheInfo.RefreshRequestedAt) {
+		if newCluster.RefreshRequestedAt != nil &&
+			cluster.GetClusterInfo().LastCacheSyncTime != nil &&
+			cluster.GetClusterInfo().LastCacheSyncTime.Before(newCluster.RefreshRequestedAt.Time) {
 			shouldInvalidate = true
 		}
 
@@ -485,8 +485,10 @@ func (c *liveStateCache) GetClustersInfo() []clustercache.ClusterInfo {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 	res := make([]clustercache.ClusterInfo, 0)
-	for _, info := range c.clusters {
-		res = append(res, info.GetClusterInfo())
+	for server, info := range c.clusters {
+		info := info.GetClusterInfo()
+		info.Server = server
+		res = append(res, info)
 	}
 	return res
 }

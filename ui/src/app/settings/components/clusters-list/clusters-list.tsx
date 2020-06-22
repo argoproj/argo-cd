@@ -39,9 +39,9 @@ export const ClustersList = (props: RouteComponentProps<{}>) => {
                                                                 <i className='icon argo-icon-hosts' /> {clusterName(cluster.name)}
                                                             </div>
                                                             <div className='columns small-5'>{cluster.server}</div>
-                                                            <div className='columns small-2'>{cluster.serverVersion}</div>
+                                                            <div className='columns small-2'>{cluster.info.serverVersion}</div>
                                                             <div className='columns small-2'>
-                                                                <ConnectionStateIcon state={cluster.connectionState} /> {cluster.connectionState.status}
+                                                                <ConnectionStateIcon state={cluster.info.connectionState} /> {cluster.info.connectionState.status}
                                                                 <DropDownMenu
                                                                     anchor={() => (
                                                                         <button className='argo-button argo-button--light argo-button--lg argo-button--short'>

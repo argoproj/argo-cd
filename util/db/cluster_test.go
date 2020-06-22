@@ -41,13 +41,11 @@ func TestUpdateCluster(t *testing.T) {
 	})
 	settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
 	db := NewDB(fakeNamespace, settingsManager, kubeclientset)
+	requestedAt := metav1.Now()
 	_, err := db.UpdateCluster(context.Background(), &v1alpha1.Cluster{
-		Name:   "test",
-		Server: "http://mycluster",
-		ConnectionState: v1alpha1.ConnectionState{
-			Status:  v1alpha1.ConnectionStatusFailed,
-			Message: "test message",
-		},
+		Name:               "test",
+		Server:             "http://mycluster",
+		RefreshRequestedAt: &requestedAt,
 	})
 	if !assert.NoError(t, err) {
 		return
@@ -58,8 +56,7 @@ func TestUpdateCluster(t *testing.T) {
 		return
 	}
 
-	assert.Equal(t, secret.Annotations["status"], v1alpha1.ConnectionStatusFailed)
-	assert.Equal(t, secret.Annotations["message"], "test message")
+	assert.Equal(t, secret.Annotations[common.AnnotationKeyRefresh], requestedAt.Format(time.RFC3339))
 }
 
 func TestWatchClusters_CreateRemoveCluster(t *testing.T) {

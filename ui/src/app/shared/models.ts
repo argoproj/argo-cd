@@ -451,13 +451,17 @@ export interface Cluster {
     name: string;
     server: string;
     namespaces?: [];
-    connectionState: ConnectionState;
-    serverVersion: string;
-    cacheInfo?: ClusterCacheInfo;
+    refreshRequestedAt?: models.Time;
     config?: {
         awsAuthConfig?: {
             clusterName: string;
         };
+    };
+    info?: {
+        applicationsCount: number;
+        serverVersion: string;
+        connectionState: ConnectionState;
+        cacheInfo: ClusterCacheInfo;
     };
 }
 
@@ -465,7 +469,6 @@ export interface ClusterCacheInfo {
     resourcesCount: number;
     apisCount: number;
     lastCacheSyncTime: models.Time;
-    refreshRequestedAt: models.Time;
 }
 
 export interface ClusterList extends ItemsList<Cluster> {}

@@ -3783,14 +3783,14 @@
       "type": "object",
       "title": "Cluster is the definition of a cluster resource",
       "properties": {
-        "cacheInfo": {
-          "$ref": "#/definitions/v1alpha1ClusterCacheInfo"
-        },
         "config": {
           "$ref": "#/definitions/v1alpha1ClusterConfig"
         },
         "connectionState": {
           "$ref": "#/definitions/v1alpha1ConnectionState"
+        },
+        "info": {
+          "$ref": "#/definitions/v1alpha1ClusterInfo"
         },
         "name": {
           "type": "string",
@@ -3803,13 +3803,16 @@
             "type": "string"
           }
         },
+        "refreshRequestedAt": {
+          "$ref": "#/definitions/v1Time"
+        },
         "server": {
           "type": "string",
           "title": "Server is the API server URL of the Kubernetes cluster"
         },
         "serverVersion": {
           "type": "string",
-          "title": "The server version"
+          "title": "DEPRECATED: use Info.ServerVersion field instead.\nThe server version"
         }
       }
     },
@@ -3822,9 +3825,6 @@
           "title": "APIsCount holds number of observed Kubernetes API count"
         },
         "lastCacheSyncTime": {
-          "$ref": "#/definitions/v1Time"
-        },
-        "refreshRequestedAt": {
           "$ref": "#/definitions/v1Time"
         },
         "resourcesCount": {
@@ -3854,6 +3854,24 @@
         "username": {
           "type": "string",
           "title": "Server requires Basic authentication"
+        }
+      }
+    },
+    "v1alpha1ClusterInfo": {
+      "type": "object",
+      "properties": {
+        "applicationsCount": {
+          "type": "string",
+          "format": "int64"
+        },
+        "cacheInfo": {
+          "$ref": "#/definitions/v1alpha1ClusterCacheInfo"
+        },
+        "connectionState": {
+          "$ref": "#/definitions/v1alpha1ConnectionState"
+        },
+        "serverVersion": {
+          "type": "string"
         }
       }
     },

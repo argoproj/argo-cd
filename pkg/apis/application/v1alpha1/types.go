@@ -942,14 +942,38 @@ type Cluster struct {
 	Name string `json:"name" protobuf:"bytes,2,opt,name=name"`
 	// Config holds cluster information for connecting to a cluster
 	Config ClusterConfig `json:"config" protobuf:"bytes,3,opt,name=config"`
+	// DEPRECATED: use Info.ConnectionState field instead.
 	// ConnectionState contains information about cluster connection state
 	ConnectionState ConnectionState `json:"connectionState,omitempty" protobuf:"bytes,4,opt,name=connectionState"`
+	// DEPRECATED: use Info.ServerVersion field instead.
 	// The server version
 	ServerVersion string `json:"serverVersion,omitempty" protobuf:"bytes,5,opt,name=serverVersion"`
 	// Holds list of namespaces which are accessible in that cluster. Cluster level resources would be ignored if namespace list if not empty.
 	Namespaces []string `json:"namespaces,omitempty" protobuf:"bytes,6,opt,name=namespaces"`
+	// RefreshRequestedAt holds time when cluster cache refresh has been requested
+	RefreshRequestedAt *metav1.Time `json:"refreshRequestedAt,omitempty" protobuf:"bytes,7,opt,name=refreshRequestedAt"`
 	// Holds information about cluster cache
-	CacheInfo ClusterCacheInfo `json:"cacheInfo,omitempty" protobuf:"bytes,7,opt,name=cacheInfo"`
+	Info ClusterInfo `json:"info,omitempty" protobuf:"bytes,8,opt,name=info"`
+}
+
+func (c *Cluster) Equals(other *Cluster) bool {
+	if c.Server != other.Server {
+		return false
+	}
+	if c.Name != other.Name {
+		return false
+	}
+	if strings.Join(c.Namespaces, ",") != strings.Join(other.Namespaces, ",") {
+		return false
+	}
+	return reflect.DeepEqual(c.Config, other.Config)
+}
+
+type ClusterInfo struct {
+	ConnectionState   ConnectionState  `json:"connectionState,omitempty" protobuf:"bytes,1,opt,name=connectionState"`
+	ServerVersion     string           `json:"serverVersion,omitempty" protobuf:"bytes,2,opt,name=serverVersion"`
+	CacheInfo         ClusterCacheInfo `json:"cacheInfo,omitempty" protobuf:"bytes,3,opt,name=cacheInfo"`
+	ApplicationsCount int64            `json:"applicationsCount" protobuf:"bytes,4,opt,name=applicationsCount"`
 }
 
 type ClusterCacheInfo struct {
@@ -959,8 +983,6 @@ type ClusterCacheInfo struct {
 	APIsCount int64 `json:"apisCount,omitempty" protobuf:"bytes,2,opt,name=apisCount"`
 	// LastCacheSyncTime holds time of most recent cache synchronization
 	LastCacheSyncTime *metav1.Time `json:"lastCacheSyncTime,omitempty" protobuf:"bytes,3,opt,name=lastCacheSyncTime"`
-	// RefreshRequestedAt holds time when cluster cache refresh has been requested
-	RefreshRequestedAt *metav1.Time `json:"refreshRequestedAt,omitempty" protobuf:"bytes,4,opt,name=refreshRequestedAt"`
 }
 
 // ClusterList is a collection of Clusters.
