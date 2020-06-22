@@ -623,9 +623,8 @@ func TestValidateDestination(t *testing.T) {
 			Namespace: "default",
 		}
 
-		appCond := ValidateDestination(context.Background(), &dest, nil)
-		assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, appCond.Type)
-		assert.Equal(t, "application destination can't have both name and server defined: minikube https://127.0.0.1:6443", appCond.Message)
+		err := ValidateDestination(context.Background(), &dest, nil)
+		assert.Equal(t, "application destination can't have both name and server defined: minikube https://127.0.0.1:6443", err.Error())
 		assert.False(t, dest.IsServerInferred())
 	})
 
@@ -637,9 +636,8 @@ func TestValidateDestination(t *testing.T) {
 		db := &dbmocks.ArgoDB{}
 		db.On("ListClusters", context.Background()).Return(nil, fmt.Errorf("an error occured"))
 
-		appCond := ValidateDestination(context.Background(), &dest, db)
-		assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, appCond.Type)
-		assert.Equal(t, "unable to find destination server: an error occured", appCond.Message)
+		err := ValidateDestination(context.Background(), &dest, db)
+		assert.Equal(t, "unable to find destination server: an error occured", err.Error())
 		assert.False(t, dest.IsServerInferred())
 	})
 
@@ -658,9 +656,8 @@ func TestValidateDestination(t *testing.T) {
 			},
 		}, nil)
 
-		appCond := ValidateDestination(context.Background(), &dest, db)
-		assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, appCond.Type)
-		assert.Equal(t, "unable to find destination server: there are no clusters with this name: minikube", appCond.Message)
+		err := ValidateDestination(context.Background(), &dest, db)
+		assert.Equal(t, "unable to find destination server: there are no clusters with this name: minikube", err.Error())
 		assert.False(t, dest.IsServerInferred())
 	})
 
@@ -683,9 +680,8 @@ func TestValidateDestination(t *testing.T) {
 			},
 		}, nil)
 
-		appCond := ValidateDestination(context.Background(), &dest, db)
-		assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, appCond.Type)
-		assert.Equal(t, "unable to find destination server: there are 2 clusters with the same name: [https://127.0.0.1:2443 https://127.0.0.1:8443]", appCond.Message)
+		err := ValidateDestination(context.Background(), &dest, db)
+		assert.Equal(t, "unable to find destination server: there are 2 clusters with the same name: [https://127.0.0.1:2443 https://127.0.0.1:8443]", err.Error())
 		assert.False(t, dest.IsServerInferred())
 	})
 

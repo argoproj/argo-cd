@@ -269,29 +269,20 @@ func enrichSpec(spec *argoappv1.ApplicationSpec, appDetails *apiclient.RepoAppDe
 // ValidateDestination checks:
 // if we used destination name we infer the server url
 // if we used both name and server then we return an invalid spec error
-func ValidateDestination(ctx context.Context, dest *argoappv1.ApplicationDestination, db db.ArgoDB) *argoappv1.ApplicationCondition {
+func ValidateDestination(ctx context.Context, dest *argoappv1.ApplicationDestination, db db.ArgoDB) error {
 	if dest.Name != "" {
 		if dest.Server == "" {
 			server, err := getDestinationServer(ctx, db, dest.Name)
 			if err != nil {
-				return &argoappv1.ApplicationCondition{
-					Type:    argoappv1.ApplicationConditionInvalidSpecError,
-					Message: fmt.Sprintf("unable to find destination server: %v", err),
-				}
+				return fmt.Errorf("unable to find destination server: %v", err)
 			}
 			if server == "" {
-				return &argoappv1.ApplicationCondition{
-					Type:    argoappv1.ApplicationConditionInvalidSpecError,
-					Message: fmt.Sprintf("application references destination cluster %s which does not exist", dest.Name),
-				}
+				return fmt.Errorf("application references destination cluster %s which does not exist", dest.Name)
 			}
 			dest.SetInferredServer(server)
 		} else {
 			if !dest.IsServerInferred() {
-				return &argoappv1.ApplicationCondition{
-					Type:    argoappv1.ApplicationConditionInvalidSpecError,
-					Message: fmt.Sprintf("application destination can't have both name and server defined: %s %s", dest.Name, dest.Server),
-				}
+				return fmt.Errorf("application destination can't have both name and server defined: %s %s", dest.Name, dest.Server)
 			}
 		}
 	}

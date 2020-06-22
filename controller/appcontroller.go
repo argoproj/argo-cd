@@ -504,10 +504,6 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 		log.Warnf("Key '%s' in index is not an application", appKey)
 		return
 	}
-	if destCond := argo.ValidateDestination(context.Background(), &app.Spec.Destination, ctrl.db); destCond != nil {
-		ctrl.setAppCondition(app, *destCond)
-		ctrl.auditLogger.LogAppEvent(app, argo.EventInfo{Reason: argo.EventReasonStatusRefreshed, Type: v1.EventTypeWarning}, destCond.Message)
-	}
 	if app.Operation != nil {
 		ctrl.processRequestedAppOperation(app)
 	} else if app.DeletionTimestamp != nil && app.CascadedDeletion() {
@@ -707,7 +703,12 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		logCtx.Infof("Initialized new operation: %v", *app.Operation)
 	}
 
-	ctrl.appStateManager.SyncAppState(app, state)
+	if err := argo.ValidateDestination(context.Background(), &app.Spec.Destination, ctrl.db); err != nil {
+		state.Phase = synccommon.OperationFailed
+		state.Message = err.Error()
+	} else {
+		ctrl.appStateManager.SyncAppState(app, state)
+	}
 
 	if state.Phase == synccommon.OperationRunning {
 		// It's possible for an app to be terminated while we were operating on it. We do not want
@@ -828,12 +829,12 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		log.Warnf("Key '%s' in index is not an application", appKey)
 		return
 	}
+	origApp = origApp.DeepCopy()
 	needRefresh, refreshType, comparisonLevel := ctrl.needRefreshAppStatus(origApp, ctrl.statusRefreshTimeout)
 
 	if !needRefresh {
 		return
 	}
-	argo.ValidateDestination(context.Background(), &origApp.Spec.Destination, ctrl.db)
 
 	app := origApp.DeepCopy()
 	logCtx := log.WithFields(log.Fields{"application": app.Name})
@@ -845,6 +846,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 			"time_ms":        reconcileDuration.Milliseconds(),
 			"level":          comparisonLevel,
 			"dest-server":    origApp.Spec.Destination.Server,
+			"dest-name":      origApp.Spec.Destination.Name,
 			"dest-namespace": origApp.Spec.Destination.Namespace,
 		}).Info("Reconciliation completed")
 	}()
@@ -998,10 +1000,13 @@ func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) 
 			})
 		}
 	} else {
-		destCondition := argo.ValidateDestination(context.Background(), &app.Spec.Destination, ctrl.db)
-		if destCondition != nil {
-			errorConditions = append(errorConditions, *destCondition)
+		if err := argo.ValidateDestination(context.Background(), &app.Spec.Destination, ctrl.db); err != nil {
+			errorConditions = append(errorConditions, appv1.ApplicationCondition{
+				Message: err.Error(),
+				Type:    appv1.ApplicationConditionInvalidSpecError,
+			})
 		}
+
 		specConditions, err := argo.ValidatePermissions(context.Background(), &app.Spec, proj, ctrl.db)
 		if err != nil {
 			errorConditions = append(errorConditions, appv1.ApplicationCondition{
