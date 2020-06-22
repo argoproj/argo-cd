@@ -1,5 +1,5 @@
+local service = import 'nested/service.libsonnet';
 local params = import 'params.libsonnet';
-local service = import 'nested/service.libsonnet'
 
 function(tlaString, tlaCode)
   [

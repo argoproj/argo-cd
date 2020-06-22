@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -382,7 +383,7 @@ func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.Manifest
 		if directory = q.ApplicationSource.Directory; directory == nil {
 			directory = &v1alpha1.ApplicationSourceDirectory{}
 		}
-		targetObjs, err = findManifests(appPath, env, *directory)
+		targetObjs, err = findManifests(appPath, repoRoot, env, *directory)
 	}
 	if err != nil {
 		return nil, err
@@ -517,7 +518,7 @@ func ksShow(appLabelKey, appPath string, ksonnetOpts *v1alpha1.ApplicationSource
 var manifestFile = regexp.MustCompile(`^.*\.(yaml|yml|json|jsonnet)$`)
 
 // findManifests looks at all yaml files in a directory and unmarshals them into a list of unstructured objects
-func findManifests(appPath string, env *v1alpha1.Env, directory v1alpha1.ApplicationSourceDirectory) ([]*unstructured.Unstructured, error) {
+func findManifests(appPath string, repoRoot string, env *v1alpha1.Env, directory v1alpha1.ApplicationSourceDirectory) ([]*unstructured.Unstructured, error) {
 	var objs []*unstructured.Unstructured
 	err := filepath.Walk(appPath, func(path string, f os.FileInfo, err error) error {
 		if err != nil {
@@ -546,7 +547,7 @@ func findManifests(appPath string, env *v1alpha1.Env, directory v1alpha1.Applica
 			}
 			objs = append(objs, &obj)
 		} else if strings.HasSuffix(f.Name(), ".jsonnet") {
-			vm := makeJsonnetVm(appPath, directory.Jsonnet, env)
+			vm := makeJsonnetVm(appPath, repoRoot, directory.Jsonnet, env)
 			jsonStr, err := vm.EvaluateSnippet(path, string(out))
 			if err != nil {
 				return status.Errorf(codes.FailedPrecondition, "Failed to evaluate jsonnet %q: %v", f.Name(), err)
@@ -587,7 +588,7 @@ func findManifests(appPath string, env *v1alpha1.Env, directory v1alpha1.Applica
 	return objs, nil
 }
 
-func makeJsonnetVm(appPath string, sourceJsonnet v1alpha1.ApplicationSourceJsonnet, env *v1alpha1.Env) *jsonnet.VM {
+func makeJsonnetVm(appPath string, repoRoot string, sourceJsonnet v1alpha1.ApplicationSourceJsonnet, env *v1alpha1.Env) *jsonnet.VM {
 	vm := jsonnet.MakeVM()
 	for i, j := range sourceJsonnet.TLAs {
 		sourceJsonnet.TLAs[i].Value = env.Envsubst(j.Value)
@@ -610,8 +611,14 @@ func makeJsonnetVm(appPath string, sourceJsonnet v1alpha1.ApplicationSourceJsonn
 		}
 	}
 
+	// Jsonnet Imports relative to the repository path
+	jpaths := []string{appPath}
+	for _, p := range sourceJsonnet.Libs {
+		jpaths = append(jpaths, path.Join(repoRoot, p))
+	}
+
 	vm.Importer(&jsonnet.FileImporter{
-		JPaths: append(sourceJsonnet.Libs, appPath),
+		JPaths: jpaths,
 	})
 
 	return vm
