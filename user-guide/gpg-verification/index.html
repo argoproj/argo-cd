@@ -36,7 +36,7 @@
     
     
       
-        <title>Automated Sync Policy - Argo CD - Declarative GitOps CD for Kubernetes</title>
+        <title>GnuPG verification - Argo CD - Declarative GitOps CD for Kubernetes</title>
       
     
     
@@ -127,7 +127,7 @@
     <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
     <label class="md-overlay" data-md-component="overlay" for="__drawer"></label>
     
-      <a href="#automated-sync-policy" tabindex="1" class="md-skip">
+      <a href="#gnupg-signature-verifcation" tabindex="1" class="md-skip">
         Skip to content
       </a>
     
@@ -152,7 +152,7 @@
               Argo CD - Declarative GitOps CD for Kubernetes
             </span>
             <span class="md-header-nav__topic">
-              Automated Sync Policy
+              GnuPG verification
             </span>
           
         </div>
@@ -869,18 +869,6 @@
           
           
 
-
-  <li class="md-nav__item">
-    <a href="../gpg-verification/" title="GnuPG verification" class="md-nav__link">
-      GnuPG verification
-    </a>
-  </li>
-
-        
-          
-          
-          
-
   
 
 
@@ -892,11 +880,11 @@
     
     
       <label class="md-nav__link md-nav__link--active" for="__toc">
-        Automated Sync Policy
+        GnuPG verification
       </label>
     
-    <a href="./" title="Automated Sync Policy" class="md-nav__link md-nav__link--active">
-      Automated Sync Policy
+    <a href="./" title="GnuPG verification" class="md-nav__link md-nav__link--active">
+      GnuPG verification
     </a>
     
       
@@ -910,23 +898,186 @@
     <ul class="md-nav__list" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#automatic-pruning" title="Automatic Pruning" class="md-nav__link">
-    Automatic Pruning
+  <a href="#overview" title="Overview" class="md-nav__link">
+    Overview
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#automatic-self-healing" title="Automatic Self-Healing" class="md-nav__link">
-    Automatic Self-Healing
+  <a href="#signature-verification-targets" title="Signature verification targets" class="md-nav__link">
+    Signature verification targets
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#automated-sync-semantics" title="Automated Sync Semantics" class="md-nav__link">
-    Automated Sync Semantics
+  <a href="#enforcing-signature-verification" title="Enforcing signature verification" class="md-nav__link">
+    Enforcing signature verification
   </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#importing-gnupg-public-keys" title="Importing GnuPG public keys" class="md-nav__link">
+    Importing GnuPG public keys
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#manage-public-keys-using-the-cli" title="Manage public keys using the CLI" class="md-nav__link">
+    Manage public keys using the CLI
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#listing-all-configured-keys" title="Listing all configured keys" class="md-nav__link">
+    Listing all configured keys
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#show-information-about-a-certain-key" title="Show information about a certain key" class="md-nav__link">
+    Show information about a certain key
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#importing-a-key" title="Importing a key" class="md-nav__link">
+    Importing a key
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#removing-a-key-from-configuration" title="Removing a key from configuration" class="md-nav__link">
+    Removing a key from configuration
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#manage-public-keys-using-the-web-ui" title="Manage public keys using the Web UI" class="md-nav__link">
+    Manage public keys using the Web UI
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#manage-public-keys-in-declarative-setup" title="Manage public keys in declarative setup" class="md-nav__link">
+    Manage public keys in declarative setup
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuring-a-project-to-enforce-signature-verification" title="Configuring a project to enforce signature verification" class="md-nav__link">
+    Configuring a project to enforce signature verification
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#configuring-using-the-cli" title="Configuring using the CLI" class="md-nav__link">
+    Configuring using the CLI
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#adding-a-key-id-to-list-of-allowed-keys" title="Adding a key ID to list of allowed keys" class="md-nav__link">
+    Adding a key ID to list of allowed keys
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#removing-a-key-id-from-the-list-of-allowed-keys" title="Removing a key ID from the list of allowed keys" class="md-nav__link">
+    Removing a key ID from the list of allowed keys
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#showing-allowed-key-ids-for-a-project" title="Showing allowed key IDs for a project" class="md-nav__link">
+    Showing allowed key IDs for a project
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#override-list-of-key-ids" title="Override list of key IDs" class="md-nav__link">
+    Override list of key IDs
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configure-using-the-web-ui" title="Configure using the Web UI" class="md-nav__link">
+    Configure using the Web UI
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configure-using-declarative-setup" title="Configure using declarative setup" class="md-nav__link">
+    Configure using declarative setup
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" title="Troubleshooting" class="md-nav__link">
+    Troubleshooting
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#disabling-the-feature" title="Disabling the feature" class="md-nav__link">
+    Disabling the feature
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#gnupg-key-ring" title="GnuPG key ring" class="md-nav__link">
+    GnuPG key ring
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -938,6 +1089,18 @@
   
 </nav>
     
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../auto_sync/" title="Automated Sync Policy" class="md-nav__link">
+      Automated Sync Policy
+    </a>
   </li>
 
         
@@ -1351,23 +1514,186 @@
     <ul class="md-nav__list" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#automatic-pruning" title="Automatic Pruning" class="md-nav__link">
-    Automatic Pruning
+  <a href="#overview" title="Overview" class="md-nav__link">
+    Overview
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#automatic-self-healing" title="Automatic Self-Healing" class="md-nav__link">
-    Automatic Self-Healing
+  <a href="#signature-verification-targets" title="Signature verification targets" class="md-nav__link">
+    Signature verification targets
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#automated-sync-semantics" title="Automated Sync Semantics" class="md-nav__link">
-    Automated Sync Semantics
+  <a href="#enforcing-signature-verification" title="Enforcing signature verification" class="md-nav__link">
+    Enforcing signature verification
   </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#importing-gnupg-public-keys" title="Importing GnuPG public keys" class="md-nav__link">
+    Importing GnuPG public keys
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#manage-public-keys-using-the-cli" title="Manage public keys using the CLI" class="md-nav__link">
+    Manage public keys using the CLI
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#listing-all-configured-keys" title="Listing all configured keys" class="md-nav__link">
+    Listing all configured keys
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#show-information-about-a-certain-key" title="Show information about a certain key" class="md-nav__link">
+    Show information about a certain key
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#importing-a-key" title="Importing a key" class="md-nav__link">
+    Importing a key
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#removing-a-key-from-configuration" title="Removing a key from configuration" class="md-nav__link">
+    Removing a key from configuration
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#manage-public-keys-using-the-web-ui" title="Manage public keys using the Web UI" class="md-nav__link">
+    Manage public keys using the Web UI
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#manage-public-keys-in-declarative-setup" title="Manage public keys in declarative setup" class="md-nav__link">
+    Manage public keys in declarative setup
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuring-a-project-to-enforce-signature-verification" title="Configuring a project to enforce signature verification" class="md-nav__link">
+    Configuring a project to enforce signature verification
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#configuring-using-the-cli" title="Configuring using the CLI" class="md-nav__link">
+    Configuring using the CLI
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#adding-a-key-id-to-list-of-allowed-keys" title="Adding a key ID to list of allowed keys" class="md-nav__link">
+    Adding a key ID to list of allowed keys
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#removing-a-key-id-from-the-list-of-allowed-keys" title="Removing a key ID from the list of allowed keys" class="md-nav__link">
+    Removing a key ID from the list of allowed keys
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#showing-allowed-key-ids-for-a-project" title="Showing allowed key IDs for a project" class="md-nav__link">
+    Showing allowed key IDs for a project
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#override-list-of-key-ids" title="Override list of key IDs" class="md-nav__link">
+    Override list of key IDs
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configure-using-the-web-ui" title="Configure using the Web UI" class="md-nav__link">
+    Configure using the Web UI
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configure-using-declarative-setup" title="Configure using declarative setup" class="md-nav__link">
+    Configure using declarative setup
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" title="Troubleshooting" class="md-nav__link">
+    Troubleshooting
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#disabling-the-feature" title="Disabling the feature" class="md-nav__link">
+    Disabling the feature
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#gnupg-key-ring" title="GnuPG key ring" class="md-nav__link">
+    GnuPG key ring
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1387,77 +1713,268 @@
             <article class="md-content__inner md-typeset">
               
                 
-                  <a href="https://github.com/argoproj/argo-cd/edit/master/docs/user-guide/auto_sync.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
+                  <a href="https://github.com/argoproj/argo-cd/edit/master/docs/user-guide/gpg-verification.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
                 
                 
-                <h1 id="automated-sync-policy">Automated Sync Policy<a class="headerlink" href="#automated-sync-policy" title="Permanent link">&para;</a></h1>
-<p>Argo CD has the ability to automatically sync an application when it detects differences between
-the desired manifests in Git, and the live state in the cluster. A benefit of automatic sync is that
-CI/CD pipelines no longer need direct access to the Argo CD API server to perform the deployment.
-Instead, the pipeline makes a commit and push to the Git repository with the changes to the
-manifests in the tracking Git repo.</p>
-<p>To configure automated sync run:</p>
-<div class="codehilite"><pre><span></span><code>argocd app <span class="nb">set</span> &lt;APPNAME&gt; --sync-policy automated
-</code></pre></div>
-
-
-<p>Alternatively, if creating the application an application manifest, specify a syncPolicy with an
-<code>automated</code> policy.</p>
-<div class="codehilite"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
-  <span class="nt">syncPolicy</span><span class="p">:</span>
-    <span class="nt">automated</span><span class="p">:</span> <span class="p p-Indicator">{}</span>
-</code></pre></div>
-
-
-<h2 id="automatic-pruning">Automatic Pruning<a class="headerlink" href="#automatic-pruning" title="Permanent link">&para;</a></h2>
-<p>By default (and as a safety mechanism), automated sync will not delete resources when Argo CD detects
-the resource is no longer defined in Git. To prune the resources, a manual sync can always be
-performed (with pruning checked). Pruning can also be enabled to happen automatically as part of the
-automated sync by running:</p>
-<div class="codehilite"><pre><span></span><code>argocd app <span class="nb">set</span> &lt;APPNAME&gt; --auto-prune
-</code></pre></div>
-
-
-<p>Or by setting the prune option to true in the automated sync policy:</p>
-<div class="codehilite"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
-  <span class="nt">syncPolicy</span><span class="p">:</span>
-    <span class="nt">automated</span><span class="p">:</span>
-      <span class="nt">prune</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">true</span>
-</code></pre></div>
-
-
-<h2 id="automatic-self-healing">Automatic Self-Healing<a class="headerlink" href="#automatic-self-healing" title="Permanent link">&para;</a></h2>
-<p>By default, changes that are made to the live cluster will not trigger automated sync. To enable automatic sync 
-when the live cluster's state deviates from the state defined in Git, run:</p>
-<div class="codehilite"><pre><span></span><code>argocd app <span class="nb">set</span> &lt;APPNAME&gt; --self-heal
-</code></pre></div>
-
-
-<p>Or by setting the self heal option to true in the automated sync policy:</p>
-<div class="codehilite"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
-  <span class="nt">syncPolicy</span><span class="p">:</span>
-    <span class="nt">automated</span><span class="p">:</span>
-      <span class="nt">selfHeal</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">true</span>
-</code></pre></div>
-
-
-<h2 id="automated-sync-semantics">Automated Sync Semantics<a class="headerlink" href="#automated-sync-semantics" title="Permanent link">&para;</a></h2>
+                <h1 id="gnupg-signature-verifcation">GnuPG signature verifcation<a class="headerlink" href="#gnupg-signature-verifcation" title="Permanent link">&para;</a></h1>
+<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
+<p>As of v1.7 it is possible to configure ArgoCD to only sync against commits
+that are signed in Git using GnuPG. Signature verification is configured on
+project level.</p>
+<p>If a project is configured to enforce signature verification, all applications
+associated with this project must have the commits in the source repositories
+signed with a GnuPG public key known to ArgoCD. ArgoCD will refuse to sync to
+any revision that does not have a valid signature made by one of the configured
+keys. The controller will emit a <code>ResourceComparison</code> error if it tries to sync
+to a revision that is either not signed, or is signed by an unknown or not
+allowed public key.</p>
+<p>By default, signature verification is enabled but not enforced. If you wish to
+completely disable the GnuPG functionality in ArgoCD, you have to set the
+environment variable <code>ARGOCD_GPG_ENABLED</code> to <code>"false"</code> in the pod templates of
+the <code>argocd-server</code>, <code>argocd-repo-server</code> and <code>argocd-application-controller</code>
+deployment manifests.</p>
+<p>Verification of GnuPG signatures is only supported with Git repositories. It is
+not possible using Helm repositories.</p>
+<div class="admonition note">
+<p class="admonition-title">A few words about trust</p>
+<p>ArgoCD uses a very simple trust model for the keys you import: Once the key
+is imported, ArgoCD will trust it. ArgoCD does not support more complex
+trust models, and it is not necessary (nor possible) to sign the public keys
+you are going to import into ArgoCD.</p>
+</div>
+<h2 id="signature-verification-targets">Signature verification targets<a class="headerlink" href="#signature-verification-targets" title="Permanent link">&para;</a></h2>
+<p>If signature verification is enforced, ArgoCD will verify the signature using
+following strategy:</p>
 <ul>
-<li>An automated sync will only be performed if the application is OutOfSync. Applications in a
-  Synced or error state will not attempt automated sync.</li>
-<li>Automated sync will only attempt one synchronization per unique combination of commit SHA1 and
-  application parameters. If the most recent successful sync in the history was already performed
-  against the same commit-SHA and parameters, a second sync will not be attempted, unless <code>selfHeal</code> flag is set to true.</li>
-<li>If <code>selfHeal</code> flag is set to true then sync will be attempted again after self heal timeout (5 seconds by default)
-which is controlled by <code>--self-heal-timeout-seconds</code> flag of <code>argocd-application-controller</code> deployment.</li>
 <li>
-<p>Automatic sync will not reattempt a sync if the previous sync attempt against the same commit-SHA
-  and parameters had failed.</p>
+<p>If <code>target revision</code> is a pointer to a commit object (i.e. a branch name, the
+  name of a reference such as <code>HEAD</code> or a commit SHA), ArgoCD will perform the
+  signature verification on the commit object the name points to, i.e. a commit.</p>
 </li>
 <li>
-<p>Rollback cannot be performed against an application with automated sync enabled.</p>
+<p>If <code>target revision</code> resolves to a tag and the tag is a lightweight tag, the
+  behaviour is same as if <code>target revision</code> would be a pointer to a commit
+  object. However, if the tag is annotated, the target revision will point to
+  a <em>tag</em> object and thus, the signature verification is performed on the tag
+  object, i.e. the tag itself must be signed (using <code>git tag -s</code>).</p>
 </li>
 </ul>
+<h2 id="enforcing-signature-verification">Enforcing signature verification<a class="headerlink" href="#enforcing-signature-verification" title="Permanent link">&para;</a></h2>
+<p>To configure enforcing of signature verification, the following steps must be
+performed:</p>
+<ul>
+<li>Import the GnuPG public key(s) used for signing commits in ArgoCD</li>
+<li>Configure a project to enforce signature verification for given keys</li>
+</ul>
+<p>Once you have configured one or more keys to be required for verification for
+a given project, enforcement is active for all applications associated with
+this project.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>If signature verification is enforced, you will not be able to sync from
+local sources (i.e. <code>argocd app sync --local</code>) anymore.</p>
+</div>
+<h2 id="importing-gnupg-public-keys">Importing GnuPG public keys<a class="headerlink" href="#importing-gnupg-public-keys" title="Permanent link">&para;</a></h2>
+<p>You can configure the GnuPG public keys that ArgoCD will use for verification
+of commit signatures using either the CLI, the web UI or configuring it using
+declarative setup.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>After you have imported a GnuPG key, it may take a while until the key is
+propagated within the cluster, even if listed as configured. If you still
+cannot sync to commits signed by the already imported key, please see the
+troubleshooting section below.</p>
+</div>
+<p>Users wanting to manage the GnuPG public key configuration require the RBAC
+permissions for <code>gpgkeys</code> resources.</p>
+<h3 id="manage-public-keys-using-the-cli">Manage public keys using the CLI<a class="headerlink" href="#manage-public-keys-using-the-cli" title="Permanent link">&para;</a></h3>
+<p>To configure GnuPG public keys using the CLI, use the <code>argocd gpg</code> command.</p>
+<h4 id="listing-all-configured-keys">Listing all configured keys<a class="headerlink" href="#listing-all-configured-keys" title="Permanent link">&para;</a></h4>
+<p>To list all configured keys known to ArgoCD, use the <code>argocd gpg list</code>
+sub-command:</p>
+<div class="codehilite"><pre><span></span><code>argocd gpg list
+</code></pre></div>
+
+
+<h4 id="show-information-about-a-certain-key">Show information about a certain key<a class="headerlink" href="#show-information-about-a-certain-key" title="Permanent link">&para;</a></h4>
+<p>To get information about a specific key, use the <code>argocd gpg get</code> sub-command:</p>
+<div class="codehilite"><pre><span></span><code>argocd gpg get &lt;key-id&gt;
+</code></pre></div>
+
+
+<h4 id="importing-a-key">Importing a key<a class="headerlink" href="#importing-a-key" title="Permanent link">&para;</a></h4>
+<p>To import a new key to ArgoCD, use the <code>argocd gpg add</code> sub-command:</p>
+<div class="codehilite"><pre><span></span><code>argocd gpg add --from &lt;path-to-key&gt;
+</code></pre></div>
+
+
+<p>The key to be imported can be either in binary or ASCII-armored format.</p>
+<h4 id="removing-a-key-from-configuration">Removing a key from configuration<a class="headerlink" href="#removing-a-key-from-configuration" title="Permanent link">&para;</a></h4>
+<p>To remove a previously configured key from the configuration, use the
+<code>argocd gpg rm</code> sub-command:</p>
+<div class="codehilite"><pre><span></span><code>argocd gpg rm &lt;key-id&gt;
+</code></pre></div>
+
+
+<h3 id="manage-public-keys-using-the-web-ui">Manage public keys using the Web UI<a class="headerlink" href="#manage-public-keys-using-the-web-ui" title="Permanent link">&para;</a></h3>
+<p>Basic key management functionality for listing, importing and removing GnuPG
+public keys is implemented in the Web UI. You can find the configuration
+module from the <strong>Settings</strong> page in the <strong>GnuPG keys</strong> module.</p>
+<p>Please note that when you configure keys using the Web UI, the key must be
+imported in ASCII armored format for now.</p>
+<h3 id="manage-public-keys-in-declarative-setup">Manage public keys in declarative setup<a class="headerlink" href="#manage-public-keys-in-declarative-setup" title="Permanent link">&para;</a></h3>
+<p>ArgoCD stores public keys internally in the <code>argocd-gpg-keys-cm</code> ConfigMap
+resource, with the public GnuPG key's ID as its name and the ASCII armored
+key data as string value, i.e. the entry for the GitHub's web-flow signing
+key would look like follows:</p>
+<div class="codehilite"><pre><span></span><code><span class="nt">4AEE18F83AFDEB23</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+    <span class="no">-----BEGIN PGP PUBLIC KEY BLOCK-----</span>
+
+    <span class="no">mQENBFmUaEEBCACzXTDt6ZnyaVtueZASBzgnAmK13q9Urgch+sKYeIhdymjuMQta</span>
+    <span class="no">x15OklctmrZtqre5kwPUosG3/B2/ikuPYElcHgGPL4uL5Em6S5C/oozfkYzhwRrT</span>
+    <span class="no">SQzvYjsE4I34To4UdE9KA97wrQjGoz2Bx72WDLyWwctD3DKQtYeHXswXXtXwKfjQ</span>
+    <span class="no">7Fy4+Bf5IPh76dA8NJ6UtjjLIDlKqdxLW4atHe6xWFaJ+XdLUtsAroZcXBeWDCPa</span>
+    <span class="no">buXCDscJcLJRKZVc62gOZXXtPfoHqvUPp3nuLA4YjH9bphbrMWMf810Wxz9JTd3v</span>
+    <span class="no">yWgGqNY0zbBqeZoGv+TuExlRHT8ASGFS9SVDABEBAAG0NUdpdEh1YiAod2ViLWZs</span>
+    <span class="no">b3cgY29tbWl0IHNpZ25pbmcpIDxub3JlcGx5QGdpdGh1Yi5jb20+iQEiBBMBCAAW</span>
+    <span class="no">BQJZlGhBCRBK7hj4Ov3rIwIbAwIZAQAAmQEH/iATWFmi2oxlBh3wAsySNCNV4IPf</span>
+    <span class="no">DDMeh6j80WT7cgoX7V7xqJOxrfrqPEthQ3hgHIm7b5MPQlUr2q+UPL22t/I+ESF6</span>
+    <span class="no">9b0QWLFSMJbMSk+BXkvSjH9q8jAO0986/pShPV5DU2sMxnx4LfLfHNhTzjXKokws</span>
+    <span class="no">+8ptJ8uhMNIDXfXuzkZHIxoXk3rNcjDN5c5X+sK8UBRH092BIJWCOfaQt7v7wig5</span>
+    <span class="no">4Ra28pM9GbHKXVNxmdLpCFyzvyMuCmINYYADsC848QQFFwnd4EQnupo6QvhEVx1O</span>
+    <span class="no">j7wDwvuH5dCrLuLwtwXaQh0onG4583p0LGms2Mf5F+Ick6o/4peOlBoZz48=</span>
+    <span class="no">=Bvzs</span>
+    <span class="no">-----END PGP PUBLIC KEY BLOCK-----</span>
+</code></pre></div>
+
+
+<h2 id="configuring-a-project-to-enforce-signature-verification">Configuring a project to enforce signature verification<a class="headerlink" href="#configuring-a-project-to-enforce-signature-verification" title="Permanent link">&para;</a></h2>
+<p>Once you have imported the GnuPG keys to ArgoCD, you must now configure the
+project to enforce the verification of commit signatures with the imported
+keys.</p>
+<h3 id="configuring-using-the-cli">Configuring using the CLI<a class="headerlink" href="#configuring-using-the-cli" title="Permanent link">&para;</a></h3>
+<h4 id="adding-a-key-id-to-list-of-allowed-keys">Adding a key ID to list of allowed keys<a class="headerlink" href="#adding-a-key-id-to-list-of-allowed-keys" title="Permanent link">&para;</a></h4>
+<p>To add a key ID to the list of allowed GnuPG keys for a project, you can use
+the <code>argocd proj add-signature-key</code> command, i.e. the following command would
+add the key ID <code>4AEE18F83AFDEB23</code> to the project named <code>myproj</code>:</p>
+<div class="codehilite"><pre><span></span><code>argocd proj add-signature-key myproj 4AEE18F83AFDEB23
+</code></pre></div>
+
+
+<h4 id="removing-a-key-id-from-the-list-of-allowed-keys">Removing a key ID from the list of allowed keys<a class="headerlink" href="#removing-a-key-id-from-the-list-of-allowed-keys" title="Permanent link">&para;</a></h4>
+<p>Similarily, you can remove a key ID from the list of allowed GnuPG keys for a
+project using the <code>argocd proj remove-signature-key</code> command, i.e. to remove
+the key added above from project <code>myproj</code>, use the command:</p>
+<div class="codehilite"><pre><span></span><code>argocd proj remove-signature-key myproj 4AEE18F83AFDEB23
+</code></pre></div>
+
+
+<h4 id="showing-allowed-key-ids-for-a-project">Showing allowed key IDs for a project<a class="headerlink" href="#showing-allowed-key-ids-for-a-project" title="Permanent link">&para;</a></h4>
+<p>To see which key IDs are allowed for a given project, you can inspect the
+output of the <code>argocd proj get</code> command, i.e for a project named <code>gpg</code>:</p>
+<div class="codehilite"><pre><span></span><code>$ argocd proj get gpg
+Name:                             gpg
+Description:                      GnuPG verification
+Destinations:                     *,*
+Repositories:                     *
+Whitelisted Cluster Resources:    */*
+Blacklisted Namespaced Resources: &lt;none&gt;
+Signature keys:                   4AEE18F83AFDEB23, 07E34825A909B250
+Orphaned Resources:               disabled
+</code></pre></div>
+
+
+<h4 id="override-list-of-key-ids">Override list of key IDs<a class="headerlink" href="#override-list-of-key-ids" title="Permanent link">&para;</a></h4>
+<p>You can also explicitly set the currently allowed keys with one or more new keys
+using the <code>argocd proj set</code> command in combination with the <code>--signature-keys</code>
+flag, which you can use to specify a comma separated list of allowed key IDs:</p>
+<div class="codehilite"><pre><span></span><code>argocd proj <span class="nb">set</span> myproj --signature-keys 4AEE18F83AFDEB23,07E34825A909B250
+</code></pre></div>
+
+
+<p>The <code>--signature-keys</code> flag can also be used on project creation, i.e. the
+<code>argocd proj create</code> command.</p>
+<h3 id="configure-using-the-web-ui">Configure using the Web UI<a class="headerlink" href="#configure-using-the-web-ui" title="Permanent link">&para;</a></h3>
+<p>You can configure the GnuPG key IDs required for signature verification using
+the web UI, in the Project configuration. Navigate to the <strong>Settings</strong> page
+and select the <strong>Projects</strong> module, then click on the project you want to
+configure.</p>
+<p>From the project's details page, click <strong>Edit</strong> and find the
+<strong>Required signature keys</strong> section, where you can add or remove the key IDs
+for signature verification. After you have modified your project, click
+<strong>Update</strong> to save the changes.</p>
+<h3 id="configure-using-declarative-setup">Configure using declarative setup<a class="headerlink" href="#configure-using-declarative-setup" title="Permanent link">&para;</a></h3>
+<p>You can specify the key IDs required for signature verification in the project
+manifest within the <code>signatureKeys</code> section, i.e:</p>
+<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">AppProject</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">gpg</span>
+  <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">clusterResourceWhitelist</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">group</span><span class="p">:</span> <span class="s">&#39;*&#39;</span>
+    <span class="nt">kind</span><span class="p">:</span> <span class="s">&#39;*&#39;</span>
+  <span class="nt">description</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">GnuPG verification</span>
+  <span class="nt">destinations</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">namespace</span><span class="p">:</span> <span class="s">&#39;*&#39;</span>
+    <span class="nt">server</span><span class="p">:</span> <span class="s">&#39;*&#39;</span>
+  <span class="nt">namespaceResourceWhitelist</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">group</span><span class="p">:</span> <span class="s">&#39;*&#39;</span>
+    <span class="nt">kind</span><span class="p">:</span> <span class="s">&#39;*&#39;</span>
+  <span class="nt">signatureKeys</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">keyID</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">4AEE18F83AFDEB23</span>
+  <span class="nt">sourceRepos</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="s">&#39;*&#39;</span>
+</code></pre></div>
+
+
+<p><code>signatureKeys</code> is an array of <code>SignatureKey</code> objects, whose only property is
+<code>keyID</code> at the moment.</p>
+<h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
+<h3 id="disabling-the-feature">Disabling the feature<a class="headerlink" href="#disabling-the-feature" title="Permanent link">&para;</a></h3>
+<p>The GnuPG feature can be completely disabled if desired. In order to disable it,
+set the environment variable <code>ARGOCD_GPG_ENABLED</code> to <code>false</code> for the pod
+templates of the <code>argocd-server</code>, <code>argocd-repo-server</code> and
+ <code>argocd-application-controller</code> deployments.</p>
+<p>After the pods have been restarted, the GnuPG feature is disabled.</p>
+<h3 id="gnupg-key-ring">GnuPG key ring<a class="headerlink" href="#gnupg-key-ring" title="Permanent link">&para;</a></h3>
+<p>The GnuPG key ring used for signature verification is maintained within the
+pods of <code>argocd-repo-server</code>. The keys in the keyring are synchronized to the
+configuration stored in the <code>argocd-gpg-keys-cm</code> ConfigMap resource, which is
+volume-mounted to the <code>argocd-repo-server</code> pods.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The GnuPG key ring in the pods is transient and gets recreated from the
+configuration on each restart of the pods. You should never add or remove
+keys manually to the key ring, because your changes will be lost. Also,
+any of the private keys found in the key ring are transient and will be
+regenerated upon each restart. The private key is only used to build the
+trust DB for the running pod.</p>
+</div>
+<p>To check whether the keys are actually in sync, you can <code>kubectl exec</code> into the
+repository server's pods and inspect the key ring, which is located at path
+<code>/app/config/gpg/keys</code></p>
+<div class="codehilite"><pre><span></span><code>$ kubectl <span class="nb">exec</span> -it argocd-repo-server-7d6bdfdf6d-hzqkg bash
+argocd@argocd-repo-server-7d6bdfdf6d-hzqkg:~$ <span class="nv">GNUPGHOME</span><span class="o">=</span>/app/config/gpg/keys gpg --list-keys
+/app/config/gpg/keys/pubring.kbx
+--------------------------------
+pub   rsa2048 <span class="m">2020</span>-06-15 <span class="o">[</span>SC<span class="o">]</span> <span class="o">[</span>expires: <span class="m">2020</span>-12-12<span class="o">]</span>
+      D48F075D818A813C436914BC9324F0D2144753B1
+uid           <span class="o">[</span>ultimate<span class="o">]</span> Anon Ymous <span class="o">(</span>ArgoCD key signing key<span class="o">)</span> &lt;noreply@argoproj.io&gt;
+
+pub   rsa2048 <span class="m">2017</span>-08-16 <span class="o">[</span>SC<span class="o">]</span>
+      5DE3E0509C47EA3CF04A42D34AEE18F83AFDEB23
+uid           <span class="o">[</span>ultimate<span class="o">]</span> GitHub <span class="o">(</span>web-flow commit signing<span class="o">)</span> &lt;noreply@github.com&gt;
+
+argocd@argocd-repo-server-7d6bdfdf6d-hzqkg:~$
+</code></pre></div>
+
+
+<p>If the key ring stays out of sync with your configuration after you have added
+or removed keys for a longer period of time, you might want to restart your
+<code>argocd-repo-server</code> pods. If such a problem persists, please consider raising
+a bug report.</p>
                 
                   
                 
@@ -1478,7 +1995,7 @@ which is controlled by <code>--self-heal-timeout-seconds</code> flag of <code>ar
     <div class="md-footer-nav">
       <nav class="md-footer-nav__inner md-grid">
         
-          <a href="../gpg-verification/" title="GnuPG verification" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
+          <a href="../private-repositories/" title="Private Repositories" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
             <div class="md-flex__cell md-flex__cell--shrink">
               <i class="md-icon md-icon--arrow-back md-footer-nav__button"></i>
             </div>
@@ -1487,19 +2004,19 @@ which is controlled by <code>--self-heal-timeout-seconds</code> flag of <code>ar
                 <span class="md-footer-nav__direction">
                   Previous
                 </span>
-                GnuPG verification
+                Private Repositories
               </span>
             </div>
           </a>
         
         
-          <a href="../diffing/" title="Diffing Customization" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
+          <a href="../auto_sync/" title="Automated Sync Policy" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
             <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
               <span class="md-flex__ellipsis">
                 <span class="md-footer-nav__direction">
                   Next
                 </span>
-                Diffing Customization
+                Automated Sync Policy
               </span>
             </div>
             <div class="md-flex__cell md-flex__cell--shrink">
