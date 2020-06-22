@@ -129,6 +129,11 @@ spec:
                                 - value
                                 type: object
                               type: array
+                            libs:
+                              description: Additional library search dirs
+                              items:
+                                type: string
+                              type: array
                             tlas:
                               description: TLAS is a list of Jsonnet Top-level Arguments
                               items:
@@ -421,6 +426,11 @@ spec:
                             - value
                             type: object
                           type: array
+                        libs:
+                          description: Additional library search dirs
+                          items:
+                            type: string
+                          type: array
                         tlas:
                           description: TLAS is a list of Jsonnet Top-level Arguments
                           items:
@@ -686,6 +696,11 @@ spec:
                                   - name
                                   - value
                                   type: object
+                                type: array
+                              libs:
+                                description: Additional library search dirs
+                                items:
+                                  type: string
                                 type: array
                               tlas:
                                 description: TLAS is a list of Jsonnet Top-level Arguments
@@ -969,6 +984,11 @@ spec:
                                         - name
                                         - value
                                         type: object
+                                      type: array
+                                    libs:
+                                      description: Additional library search dirs
+                                      items:
+                                        type: string
                                       type: array
                                     tlas:
                                       description: TLAS is a list of Jsonnet Top-level
@@ -1264,6 +1284,11 @@ spec:
                                     - value
                                     type: object
                                   type: array
+                                libs:
+                                  description: Additional library search dirs
+                                  items:
+                                    type: string
+                                  type: array
                                 tlas:
                                   description: TLAS is a list of Jsonnet Top-level
                                     Arguments
@@ -1544,6 +1569,11 @@ spec:
                                     - name
                                     - value
                                     type: object
+                                  type: array
+                                libs:
+                                  description: Additional library search dirs
+                                  items:
+                                    type: string
                                   type: array
                                 tlas:
                                   description: TLAS is a list of Jsonnet Top-level
