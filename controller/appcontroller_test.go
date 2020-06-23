@@ -144,7 +144,7 @@ data:
   # {"bearerToken":"fake","tlsClientConfig":{"insecure":true},"awsAuthConfig":null}
   config: eyJiZWFyZXJUb2tlbiI6ImZha2UiLCJ0bHNDbGllbnRDb25maWciOnsiaW5zZWN1cmUiOnRydWV9LCJhd3NBdXRoQ29uZmlnIjpudWxsfQ==
   # minikube
-  name: aHR0cHM6Ly9sb2NhbGhvc3Q6NjQ0Mw==
+  name: bWluaWt1YmU=
   # https://localhost:6443
   server: aHR0cHM6Ly9sb2NhbGhvc3Q6NjQ0Mw==
 kind: Secret
@@ -197,6 +197,45 @@ status:
         repoURL: https://github.com/argoproj/argocd-example-apps.git
 `
 
+var fakeAppWithDestName = `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  uid: "123"
+  name: my-app
+  namespace: ` + test.FakeArgoCDNamespace + `
+spec:
+  destination:
+    namespace: ` + test.FakeDestNamespace + `
+    name: minikube
+  project: default
+  source:
+    path: some/path
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+  syncPolicy:
+    automated: {}
+`
+
+var fakeAppWithDestMismatch = `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  uid: "123"
+  name: my-app
+  namespace: ` + test.FakeArgoCDNamespace + `
+spec:
+  destination:
+    namespace: ` + test.FakeDestNamespace + `
+    name: another-cluster
+    server: https://localhost:6443
+  project: default
+  source:
+    path: some/path
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+  syncPolicy:
+    automated: {}
+`
+
 var fakeStrayResource = `
 apiVersion: v1
 kind: ConfigMap
@@ -209,8 +248,20 @@ data:
 `
 
 func newFakeApp() *argoappv1.Application {
+	return createFakeApp(fakeApp)
+}
+
+func newFakeAppWithDestMismatch() *argoappv1.Application {
+	return createFakeApp(fakeAppWithDestMismatch)
+}
+
+func newFakeAppWithDestName() *argoappv1.Application {
+	return createFakeApp(fakeAppWithDestName)
+}
+
+func createFakeApp(testApp string) *argoappv1.Application {
 	var app argoappv1.Application
-	err := yaml.Unmarshal([]byte(fakeApp), &app)
+	err := yaml.Unmarshal([]byte(testApp), &app)
 	if err != nil {
 		panic(err)
 	}
@@ -805,6 +856,26 @@ func TestRefreshAppConditions(t *testing.T) {
 		assert.Len(t, app.Status.Conditions, 1)
 		assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, app.Status.Conditions[0].Type)
 		assert.Equal(t, "Application referencing project wrong project which does not exist", app.Status.Conditions[0].Message)
+	})
+
+	t.Run("NoErrorConditionsWithDestNameOnly", func(t *testing.T) {
+		app := newFakeAppWithDestName()
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}})
+
+		_, hasErrors := ctrl.refreshAppConditions(app)
+		assert.False(t, hasErrors)
+		assert.Len(t, app.Status.Conditions, 0)
+	})
+
+	t.Run("ErrorOnBothDestNameAndServer", func(t *testing.T) {
+		app := newFakeAppWithDestMismatch()
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}})
+
+		_, hasErrors := ctrl.refreshAppConditions(app)
+		assert.True(t, hasErrors)
+		assert.Len(t, app.Status.Conditions, 1)
+		assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, app.Status.Conditions[0].Type)
+		assert.Equal(t, "application destination can't have both name and server defined: another-cluster https://localhost:6443", app.Status.Conditions[0].Message)
 	})
 }
 

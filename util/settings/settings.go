@@ -891,6 +891,27 @@ func (mgr *SettingsManager) SaveTLSCertificateData(ctx context.Context, tlsCerti
 	return mgr.ResyncInformers()
 }
 
+func (mgr *SettingsManager) SaveGPGPublicKeyData(ctx context.Context, gpgPublicKeys map[string]string) error {
+	err := mgr.ensureSynced(false)
+	if err != nil {
+		return err
+	}
+
+	keysCM, err := mgr.GetConfigMapByName(common.ArgoCDGPGKeysConfigMapName)
+	if err != nil {
+		return err
+	}
+
+	keysCM.Data = gpgPublicKeys
+	_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Update(keysCM)
+	if err != nil {
+		return err
+	}
+
+	return mgr.ResyncInformers()
+
+}
+
 // NewSettingsManager generates a new SettingsManager pointer and returns it
 func NewSettingsManager(ctx context.Context, clientset kubernetes.Interface, namespace string) *SettingsManager {
 

@@ -76,6 +76,9 @@ message AppProjectSpec {
 
   // NamespaceResourceWhitelist contains list of whitelisted namespace level resources
   repeated k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind namespaceResourceWhitelist = 9;
+
+  // List of PGP key IDs that commits to be synced to must be signed with
+  repeated SignatureKey signatureKeys = 10;
 }
 
 // AppProjectStatus contains information about appproj
@@ -117,6 +120,9 @@ message ApplicationDestination {
 
   // Namespace overrides the environment namespace value in the ksonnet app.yaml
   optional string namespace = 2;
+
+  // Name of the destination cluster which can be used instead of server (url) field
+  optional string name = 3;
 }
 
 // ApplicationList is list of Application resources
@@ -318,14 +324,33 @@ message Cluster {
   // Config holds cluster information for connecting to a cluster
   optional ClusterConfig config = 3;
 
+  // DEPRECATED: use Info.ConnectionState field instead.
   // ConnectionState contains information about cluster connection state
   optional ConnectionState connectionState = 4;
 
+  // DEPRECATED: use Info.ServerVersion field instead.
   // The server version
   optional string serverVersion = 5;
 
   // Holds list of namespaces which are accessible in that cluster. Cluster level resources would be ignored if namespace list if not empty.
   repeated string namespaces = 6;
+
+  // RefreshRequestedAt holds time when cluster cache refresh has been requested
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time refreshRequestedAt = 7;
+
+  // Holds information about cluster cache
+  optional ClusterInfo info = 8;
+}
+
+message ClusterCacheInfo {
+  // ResourcesCount holds number of observed Kubernetes resources
+  optional int64 resourcesCount = 1;
+
+  // APIsCount holds number of observed Kubernetes API count
+  optional int64 apisCount = 2;
+
+  // LastCacheSyncTime holds time of most recent cache synchronization
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time lastCacheSyncTime = 3;
 }
 
 // ClusterConfig is the configuration attributes. This structure is subset of the go-client
@@ -346,6 +371,16 @@ message ClusterConfig {
 
   // AWSAuthConfig contains IAM authentication configuration
   optional AWSAuthConfig awsAuthConfig = 5;
+}
+
+message ClusterInfo {
+  optional ConnectionState connectionState = 1;
+
+  optional string serverVersion = 2;
+
+  optional ClusterCacheInfo cacheInfo = 3;
+
+  optional int64 applicationsCount = 4;
 }
 
 // ClusterList is a collection of Clusters.
@@ -402,6 +437,34 @@ message EnvEntry {
 
   // the value
   optional string value = 2;
+}
+
+// GnuPGPublicKey is a representation of a GnuPG public key
+message GnuPGPublicKey {
+  // KeyID in hexadecimal string format
+  optional string keyID = 1;
+
+  // Fingerprint of the key
+  optional string fingerprint = 2;
+
+  // Owner identification
+  optional string owner = 3;
+
+  // Trust level
+  optional string trust = 4;
+
+  // Key sub type (e.g. rsa4096)
+  optional string subType = 5;
+
+  // Key data
+  optional string keyData = 6;
+}
+
+// GnuPGPublicKeyList is a collection of GnuPGPublicKey objects
+message GnuPGPublicKeyList {
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+
+  repeated GnuPGPublicKey items = 2;
 }
 
 message HealthStatus {
@@ -875,6 +938,16 @@ message RevisionMetadata {
   // probably the commit message,
   // this is truncated to the first newline or 64 characters (which ever comes first)
   optional string message = 4;
+
+  // If revision was signed with GPG, and signature verification is enabled,
+  // this contains a hint on the signer
+  optional string signatureInfo = 5;
+}
+
+// SignatureKey is the specification of a key required to verify commit signatures with
+message SignatureKey {
+  // The ID of the key in hexadecimal notation
+  optional string keyID = 1;
 }
 
 // SyncOperation contains sync operation details.

@@ -2,6 +2,8 @@ package controller
 
 import (
 	"encoding/json"
+	"io/ioutil"
+	"os"
 	"testing"
 	"time"
 
@@ -439,4 +441,281 @@ func Test_appStateManager_persistRevisionHistory(t *testing.T) {
 	err := manager.persistRevisionHistory(app, "my-revision", argoappv1.ApplicationSource{}, metav1NowTime)
 	assert.NoError(t, err)
 	assert.Equal(t, app.Status.History.LastRevisionHistory().DeployStartedAt, &metav1NowTime)
+}
+
+// helper function to read contents of a file to string
+// panics on error
+func mustReadFile(path string) string {
+	b, err := ioutil.ReadFile(path)
+	if err != nil {
+		panic(err.Error())
+	}
+	return string(b)
+}
+
+var signedProj = argoappv1.AppProject{
+	ObjectMeta: metav1.ObjectMeta{
+		Name:      "default",
+		Namespace: test.FakeArgoCDNamespace,
+	},
+	Spec: argoappv1.AppProjectSpec{
+		SourceRepos: []string{"*"},
+		Destinations: []argoappv1.ApplicationDestination{
+			{
+				Server:    "*",
+				Namespace: "*",
+			},
+		},
+		SignatureKeys: []argoappv1.SignatureKey{
+			{
+				KeyID: "4AEE18F83AFDEB23",
+			},
+		},
+	},
+}
+
+func TestSignedResponseNoSignatureRequired(t *testing.T) {
+	oldval := os.Getenv("ARGOCD_GPG_ENABLED")
+	os.Setenv("ARGOCD_GPG_ENABLED", "true")
+	defer os.Setenv("ARGOCD_GPG_ENABLED", oldval)
+	// We have a good signature response, but project does not require signed commits
+	{
+		app := newFakeApp()
+		data := fakeData{
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests:    []string{},
+				Namespace:    test.FakeDestNamespace,
+				Server:       test.FakeClusterURL,
+				Revision:     "abc123",
+				VerifyResult: mustReadFile("../util/gpg/testdata/good_signature.txt"),
+			},
+			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+		}
+		ctrl := newFakeController(&data)
+		compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, nil)
+		assert.NotNil(t, compRes)
+		assert.NotNil(t, compRes.syncStatus)
+		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
+		assert.Len(t, compRes.resources, 0)
+		assert.Len(t, compRes.managedResources, 0)
+		assert.Len(t, app.Status.Conditions, 0)
+	}
+	// We have a bad signature response, but project does not require signed commits
+	{
+		app := newFakeApp()
+		data := fakeData{
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests:    []string{},
+				Namespace:    test.FakeDestNamespace,
+				Server:       test.FakeClusterURL,
+				Revision:     "abc123",
+				VerifyResult: mustReadFile("../util/gpg/testdata/bad_signature_bad.txt"),
+			},
+			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+		}
+		ctrl := newFakeController(&data)
+		compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, nil)
+		assert.NotNil(t, compRes)
+		assert.NotNil(t, compRes.syncStatus)
+		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
+		assert.Len(t, compRes.resources, 0)
+		assert.Len(t, compRes.managedResources, 0)
+		assert.Len(t, app.Status.Conditions, 0)
+	}
+}
+
+func TestSignedResponseSignatureRequired(t *testing.T) {
+	oldval := os.Getenv("ARGOCD_GPG_ENABLED")
+	os.Setenv("ARGOCD_GPG_ENABLED", "true")
+	defer os.Setenv("ARGOCD_GPG_ENABLED", oldval)
+
+	// We have a good signature response, valid key, and signing is required - sync!
+	{
+		app := newFakeApp()
+		data := fakeData{
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests:    []string{},
+				Namespace:    test.FakeDestNamespace,
+				Server:       test.FakeClusterURL,
+				Revision:     "abc123",
+				VerifyResult: mustReadFile("../util/gpg/testdata/good_signature.txt"),
+			},
+			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+		}
+		ctrl := newFakeController(&data)
+		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, "", app.Spec.Source, false, nil)
+		assert.NotNil(t, compRes)
+		assert.NotNil(t, compRes.syncStatus)
+		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
+		assert.Len(t, compRes.resources, 0)
+		assert.Len(t, compRes.managedResources, 0)
+		assert.Len(t, app.Status.Conditions, 0)
+	}
+	// We have a bad signature response and signing is required - do not sync
+	{
+		app := newFakeApp()
+		data := fakeData{
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests:    []string{},
+				Namespace:    test.FakeDestNamespace,
+				Server:       test.FakeClusterURL,
+				Revision:     "abc123",
+				VerifyResult: mustReadFile("../util/gpg/testdata/bad_signature_bad.txt"),
+			},
+			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+		}
+		ctrl := newFakeController(&data)
+		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, "abc123", app.Spec.Source, false, nil)
+		assert.NotNil(t, compRes)
+		assert.NotNil(t, compRes.syncStatus)
+		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
+		assert.Len(t, compRes.resources, 0)
+		assert.Len(t, compRes.managedResources, 0)
+		assert.Len(t, app.Status.Conditions, 1)
+	}
+	// We have a malformed signature response and signing is required - do not sync
+	{
+		app := newFakeApp()
+		data := fakeData{
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests:    []string{},
+				Namespace:    test.FakeDestNamespace,
+				Server:       test.FakeClusterURL,
+				Revision:     "abc123",
+				VerifyResult: mustReadFile("../util/gpg/testdata/bad_signature_malformed1.txt"),
+			},
+			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+		}
+		ctrl := newFakeController(&data)
+		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, "abc123", app.Spec.Source, false, nil)
+		assert.NotNil(t, compRes)
+		assert.NotNil(t, compRes.syncStatus)
+		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
+		assert.Len(t, compRes.resources, 0)
+		assert.Len(t, compRes.managedResources, 0)
+		assert.Len(t, app.Status.Conditions, 1)
+	}
+	// We have no signature response (no signature made) and signing is required - do not sync
+	{
+		app := newFakeApp()
+		data := fakeData{
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests:    []string{},
+				Namespace:    test.FakeDestNamespace,
+				Server:       test.FakeClusterURL,
+				Revision:     "abc123",
+				VerifyResult: "",
+			},
+			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+		}
+		ctrl := newFakeController(&data)
+		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, "abc123", app.Spec.Source, false, nil)
+		assert.NotNil(t, compRes)
+		assert.NotNil(t, compRes.syncStatus)
+		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
+		assert.Len(t, compRes.resources, 0)
+		assert.Len(t, compRes.managedResources, 0)
+		assert.Len(t, app.Status.Conditions, 1)
+	}
+
+	// We have a good signature and signing is required, but key is not allowed - do not sync
+	{
+		app := newFakeApp()
+		data := fakeData{
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests:    []string{},
+				Namespace:    test.FakeDestNamespace,
+				Server:       test.FakeClusterURL,
+				Revision:     "abc123",
+				VerifyResult: mustReadFile("../util/gpg/testdata/good_signature.txt"),
+			},
+			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+		}
+		ctrl := newFakeController(&data)
+		testProj := signedProj
+		testProj.Spec.SignatureKeys[0].KeyID = "4AEE18F83AFDEB24"
+		compRes := ctrl.appStateManager.CompareAppState(app, &testProj, "abc123", app.Spec.Source, false, nil)
+		assert.NotNil(t, compRes)
+		assert.NotNil(t, compRes.syncStatus)
+		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
+		assert.Len(t, compRes.resources, 0)
+		assert.Len(t, compRes.managedResources, 0)
+		assert.Len(t, app.Status.Conditions, 1)
+		assert.Contains(t, app.Status.Conditions[0].Message, "key is not allowed")
+	}
+	// Signature required and local manifests supplied - do not sync
+	{
+		app := newFakeApp()
+		data := fakeData{
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests:    []string{},
+				Namespace:    test.FakeDestNamespace,
+				Server:       test.FakeClusterURL,
+				Revision:     "abc123",
+				VerifyResult: "",
+			},
+			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+		}
+		// it doesn't matter for our test whether local manifests are valid
+		localManifests := []string{"foobar"}
+		ctrl := newFakeController(&data)
+		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, "abc123", app.Spec.Source, false, localManifests)
+		assert.NotNil(t, compRes)
+		assert.NotNil(t, compRes.syncStatus)
+		assert.Equal(t, argoappv1.SyncStatusCodeUnknown, compRes.syncStatus.Status)
+		assert.Len(t, compRes.resources, 0)
+		assert.Len(t, compRes.managedResources, 0)
+		assert.Len(t, app.Status.Conditions, 1)
+		assert.Contains(t, app.Status.Conditions[0].Message, "Cannot use local manifests")
+	}
+
+	os.Setenv("ARGOCD_GPG_ENABLED", "false")
+	// We have a bad signature response and signing would be required, but GPG subsystem is disabled - sync
+	{
+		app := newFakeApp()
+		data := fakeData{
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests:    []string{},
+				Namespace:    test.FakeDestNamespace,
+				Server:       test.FakeClusterURL,
+				Revision:     "abc123",
+				VerifyResult: mustReadFile("../util/gpg/testdata/bad_signature_bad.txt"),
+			},
+			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+		}
+		ctrl := newFakeController(&data)
+		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, "abc123", app.Spec.Source, false, nil)
+		assert.NotNil(t, compRes)
+		assert.NotNil(t, compRes.syncStatus)
+		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
+		assert.Len(t, compRes.resources, 0)
+		assert.Len(t, compRes.managedResources, 0)
+		assert.Len(t, app.Status.Conditions, 0)
+	}
+
+	// Signature required and local manifests supplied and GPG subystem is disabled - sync
+	{
+		app := newFakeApp()
+		data := fakeData{
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests:    []string{},
+				Namespace:    test.FakeDestNamespace,
+				Server:       test.FakeClusterURL,
+				Revision:     "abc123",
+				VerifyResult: "",
+			},
+			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+		}
+		// it doesn't matter for our test whether local manifests are valid
+		localManifests := []string{""}
+		ctrl := newFakeController(&data)
+		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, "abc123", app.Spec.Source, false, localManifests)
+		assert.NotNil(t, compRes)
+		assert.NotNil(t, compRes.syncStatus)
+		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
+		assert.Len(t, compRes.resources, 0)
+		assert.Len(t, compRes.managedResources, 0)
+		assert.Len(t, app.Status.Conditions, 0)
+	}
+
 }

@@ -66,6 +66,10 @@ spec:
                 description: ApplicationDestination contains deployment destination
                   information
                 properties:
+                  name:
+                    description: Name of the destination cluster which can be used
+                      instead of server (url) field
+                    type: string
                   namespace:
                     description: Namespace overrides the environment namespace value
                       in the ksonnet app.yaml
@@ -164,6 +168,20 @@ spec:
                     type: array
                 required:
                 - name
+                type: object
+              type: array
+            signatureKeys:
+              description: List of PGP key IDs that commits to be synced to must be
+                signed with
+              items:
+                description: SignatureKey is the specification of a key required to
+                  verify commit signatures with
+                properties:
+                  keyID:
+                    description: The ID of the key in hexadecimal notation
+                    type: string
+                required:
+                - keyID
                 type: object
               type: array
             sourceRepos:

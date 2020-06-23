@@ -23,6 +23,8 @@ message ManifestRequest {
     github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.KustomizeOptions kustomizeOptions = 13;
     string kubeVersion = 14;
     repeated string apiVersions = 15;
+    // Request to verify the signature when generating the manifests (only for Git repositories)
+    bool verifySignature = 16;
 }
 
 message ManifestResponse {
@@ -32,6 +34,8 @@ message ManifestResponse {
     // resolved revision
     string revision = 4;
     string sourceType = 6;
+    // Raw response of git verify-commit operation (always the empty string for Helm)
+    string verifyResult = 7;
 }
 
 // ListAppsRequest requests a repository directory structure

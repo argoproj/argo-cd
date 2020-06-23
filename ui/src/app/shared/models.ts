@@ -80,6 +80,7 @@ export interface RevisionMetadata {
     date: models.Time;
     tags?: string[];
     message?: string;
+    signatureInfo?: string;
 }
 
 export interface SyncOperationResult {
@@ -456,8 +457,25 @@ export interface RepoCredsList extends ItemsList<RepoCreds> {}
 export interface Cluster {
     name: string;
     server: string;
-    connectionState: ConnectionState;
-    serverVersion: string;
+    namespaces?: [];
+    refreshRequestedAt?: models.Time;
+    config?: {
+        awsAuthConfig?: {
+            clusterName: string;
+        };
+    };
+    info?: {
+        applicationsCount: number;
+        serverVersion: string;
+        connectionState: ConnectionState;
+        cacheInfo: ClusterCacheInfo;
+    };
+}
+
+export interface ClusterCacheInfo {
+    resourcesCount: number;
+    apisCount: number;
+    lastCacheSyncTime: models.Time;
 }
 
 export interface ClusterList extends ItemsList<Cluster> {}
@@ -594,6 +612,10 @@ export interface GroupKind {
     kind: string;
 }
 
+export interface ProjectSignatureKey {
+    keyID: string;
+}
+
 export interface ProjectSpec {
     sourceRepos: string[];
     destinations: ApplicationDestination[];
@@ -602,6 +624,7 @@ export interface ProjectSpec {
     clusterResourceWhitelist: GroupKind[];
     namespaceResourceBlacklist: GroupKind[];
     namespaceResourceWhitelist: GroupKind[];
+    signatureKeys: ProjectSignatureKey[];
     orphanedResources?: {warn?: boolean};
     syncWindows?: SyncWindows;
 }
@@ -676,3 +699,13 @@ export interface Account {
     capabilities: string[];
     tokens: Token[];
 }
+
+export interface GnuPGPublicKey {
+    keyID?: string;
+    fingerprint?: string;
+    subType?: string;
+    owner?: string;
+    keyData?: string;
+}
+
+export interface GnuPGPublicKeyList extends ItemsList<GnuPGPublicKey> {}

@@ -59,6 +59,13 @@ type ArgoDB interface {
 
 	// ListHelmRepositories lists repositories
 	ListHelmRepositories(ctx context.Context) ([]*appv1.Repository, error)
+
+	// ListConfiguredGPGPublicKeys returns all GPG public key IDs that are configured
+	ListConfiguredGPGPublicKeys(ctx context.Context) (map[string]*appv1.GnuPGPublicKey, error)
+	// AddGPGPublicKey adds one ore more GPG public keys to the configuration
+	AddGPGPublicKey(ctx context.Context, keyData string) (map[string]*appv1.GnuPGPublicKey, []string, error)
+	// DeleteGPGPublicKey removes a GPG public key from the configuration
+	DeleteGPGPublicKey(ctx context.Context, keyID string) error
 }
 
 type db struct {

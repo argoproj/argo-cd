@@ -28,12 +28,14 @@ import (
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/git"
+	"github.com/argoproj/argo-cd/util/gpg"
 )
 
 type projectOpts struct {
 	description              string
 	destinations             []string
 	sources                  []string
+	signatureKeys            []string
 	orphanedResourcesEnabled bool
 	orphanedResourcesWarn    bool
 }
@@ -60,6 +62,18 @@ func (opts *projectOpts) GetDestinations() []v1alpha1.ApplicationDestination {
 	return destinations
 }
 
+// TODO: Get configured keys and emit warning when a key is specified that is not configured
+func (opts *projectOpts) GetSignatureKeys() []v1alpha1.SignatureKey {
+	signatureKeys := make([]v1alpha1.SignatureKey, 0)
+	for _, keyStr := range opts.signatureKeys {
+		if !gpg.IsShortKeyID(keyStr) && !gpg.IsLongKeyID(keyStr) {
+			log.Fatalf("'%s' is not a valid GnuPG key ID", keyStr)
+		}
+		signatureKeys = append(signatureKeys, v1alpha1.SignatureKey{KeyID: gpg.KeyID(keyStr)})
+	}
+	return signatureKeys
+}
+
 // NewProjectCommand returns a new instance of an `argocd proj` command
 func NewProjectCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
@@ -77,6 +91,8 @@ func NewProjectCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command.AddCommand(NewProjectListCommand(clientOpts))
 	command.AddCommand(NewProjectSetCommand(clientOpts))
 	command.AddCommand(NewProjectEditCommand(clientOpts))
+	command.AddCommand(NewProjectAddSignatureKeyCommand(clientOpts))
+	command.AddCommand(NewProjectRemoveSignatureKeyCommand(clientOpts))
 	command.AddCommand(NewProjectAddDestinationCommand(clientOpts))
 	command.AddCommand(NewProjectRemoveDestinationCommand(clientOpts))
 	command.AddCommand(NewProjectAddSourceCommand(clientOpts))
@@ -94,6 +110,7 @@ func addProjFlags(command *cobra.Command, opts *projectOpts) {
 	command.Flags().StringArrayVarP(&opts.destinations, "dest", "d", []string{},
 		"Permitted destination server and namespace (e.g. https://192.168.99.100:8443,default)")
 	command.Flags().StringArrayVarP(&opts.sources, "src", "s", []string{}, "Permitted source repository URL")
+	command.Flags().StringSliceVar(&opts.signatureKeys, "signature-keys", []string{}, "GnuPG public key IDs for commit signature verification")
 	command.Flags().BoolVar(&opts.orphanedResourcesEnabled, "orphaned-resources", false, "Enables orphaned resources monitoring")
 	command.Flags().BoolVar(&opts.orphanedResourcesWarn, "orphaned-resources-warn", false, "Specifies if applications should be a warning condition when orphaned resources detected")
 }
@@ -133,6 +150,7 @@ func NewProjectCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 		Short: "Create a project",
 		Run: func(c *cobra.Command, args []string) {
 			var proj v1alpha1.AppProject
+			fmt.Printf("EE: %d/%v\n", len(opts.signatureKeys), opts.signatureKeys)
 			if fileURL == "-" {
 				// read stdin
 				reader := bufio.NewReader(os.Stdin)
@@ -165,6 +183,7 @@ func NewProjectCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 						Description:       opts.description,
 						Destinations:      opts.GetDestinations(),
 						SourceRepos:       opts.sources,
+						SignatureKeys:     opts.GetSignatureKeys(),
 						OrphanedResources: getOrphanedResourcesSettings(c, opts),
 					},
 				}
@@ -215,6 +234,8 @@ func NewProjectSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 					proj.Spec.Destinations = opts.GetDestinations()
 				case "src":
 					proj.Spec.SourceRepos = opts.sources
+				case "signature-keys":
+					proj.Spec.SignatureKeys = opts.GetSignatureKeys()
 				case "orphaned-resources", "orphaned-resources-warn":
 					proj.Spec.OrphanedResources = getOrphanedResourcesSettings(c, opts)
 				}
@@ -230,6 +251,81 @@ func NewProjectSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 		},
 	}
 	addProjFlags(command, &opts)
+	return command
+}
+
+// NewProjectAddSignatureKeyCommand returns a new instance of an `argocd proj add-destination` command
+func NewProjectAddSignatureKeyCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var command = &cobra.Command{
+		Use:   "add-signature-key PROJECT KEY-ID",
+		Short: "Add GnuPG signature key to project",
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 2 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			projName := args[0]
+			signatureKey := args[1]
+
+			if !gpg.IsShortKeyID(signatureKey) && !gpg.IsLongKeyID(signatureKey) {
+				log.Fatalf("%s is not a valid GnuPG key ID", signatureKey)
+			}
+
+			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
+			defer argoio.Close(conn)
+
+			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
+			errors.CheckError(err)
+
+			for _, key := range proj.Spec.SignatureKeys {
+				if key.KeyID == signatureKey {
+					log.Fatal("Specified signature key is already defined in project")
+				}
+			}
+			proj.Spec.SignatureKeys = append(proj.Spec.SignatureKeys, v1alpha1.SignatureKey{KeyID: signatureKey})
+			_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
+			errors.CheckError(err)
+		},
+	}
+	return command
+}
+
+// NewProjectRemoveDestinationCommand returns a new instance of an `argocd proj remove-destination` command
+func NewProjectRemoveSignatureKeyCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var command = &cobra.Command{
+		Use:   "remove-signature-key PROJECT KEY-ID",
+		Short: "Remove GnuPG signature key from project",
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 2 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			projName := args[0]
+			signatureKey := args[1]
+
+			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
+			defer argoio.Close(conn)
+
+			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
+			errors.CheckError(err)
+
+			index := -1
+			for i, key := range proj.Spec.SignatureKeys {
+				if key.KeyID == signatureKey {
+					index = i
+					break
+				}
+			}
+			if index == -1 {
+				log.Fatal("Specified signature key is not configured for project")
+			} else {
+				proj.Spec.SignatureKeys = append(proj.Spec.SignatureKeys[:index], proj.Spec.SignatureKeys[index+1:]...)
+				_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
+				errors.CheckError(err)
+			}
+		},
+	}
+
 	return command
 }
 
@@ -571,7 +667,7 @@ func printProjectNames(projects []v1alpha1.AppProject) {
 // Print table of project info
 func printProjectTable(projects []v1alpha1.AppProject) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(w, "NAME\tDESCRIPTION\tDESTINATIONS\tSOURCES\tCLUSTER-RESOURCE-WHITELIST\tNAMESPACE-RESOURCE-BLACKLIST\tORPHANED-RESOURCES\n")
+	fmt.Fprintf(w, "NAME\tDESCRIPTION\tDESTINATIONS\tSOURCES\tCLUSTER-RESOURCE-WHITELIST\tNAMESPACE-RESOURCE-BLACKLIST\tSIGNATURE-KEYS\tORPHANED-RESOURCES\n")
 	for _, p := range projects {
 		printProjectLine(w, &p)
 	}
@@ -616,7 +712,7 @@ func formatOrphanedResources(p *v1alpha1.AppProject) string {
 }
 
 func printProjectLine(w io.Writer, p *v1alpha1.AppProject) {
-	var destinations, sourceRepos, clusterWhitelist, namespaceBlacklist string
+	var destinations, sourceRepos, clusterWhitelist, namespaceBlacklist, signatureKeys string
 	switch len(p.Spec.Destinations) {
 	case 0:
 		destinations = "<none>"
@@ -647,7 +743,13 @@ func printProjectLine(w io.Writer, p *v1alpha1.AppProject) {
 	default:
 		namespaceBlacklist = fmt.Sprintf("%d resources", len(p.Spec.NamespaceResourceBlacklist))
 	}
-	fmt.Fprintf(w, "%s\t%s\t%v\t%v\t%v\t%v\t%v\n", p.Name, p.Spec.Description, destinations, sourceRepos, clusterWhitelist, namespaceBlacklist, formatOrphanedResources(p))
+	switch len(p.Spec.SignatureKeys) {
+	case 0:
+		signatureKeys = "<none>"
+	default:
+		signatureKeys = fmt.Sprintf("%d key(s)", len(p.Spec.SignatureKeys))
+	}
+	fmt.Fprintf(w, "%s\t%s\t%v\t%v\t%v\t%v\t%v\t%v\n", p.Name, p.Spec.Description, destinations, sourceRepos, clusterWhitelist, namespaceBlacklist, signatureKeys, formatOrphanedResources(p))
 }
 
 func printProject(p *v1alpha1.AppProject) {
@@ -695,6 +797,18 @@ func printProject(p *v1alpha1.AppProject) {
 	for i := 1; i < len(p.Spec.NamespaceResourceBlacklist); i++ {
 		fmt.Printf(printProjFmtStr, "", fmt.Sprintf("%s/%s", p.Spec.NamespaceResourceBlacklist[i].Group, p.Spec.NamespaceResourceBlacklist[i].Kind))
 	}
+
+	// Print required signature keys
+	signatureKeysStr := "<none>"
+	if len(p.Spec.SignatureKeys) > 0 {
+		kids := make([]string, 0)
+		for _, key := range p.Spec.SignatureKeys {
+			kids = append(kids, key.KeyID)
+		}
+		signatureKeysStr = strings.Join(kids, ", ")
+	}
+	fmt.Printf(printProjFmtStr, "Signature keys:", signatureKeysStr)
+
 	fmt.Printf(printProjFmtStr, "Orphaned Resources:", formatOrphanedResources(p))
 
 }

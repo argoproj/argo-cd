@@ -25,6 +25,7 @@ const (
 	ArgoCDKnownHostsConfigMapName = "argocd-ssh-known-hosts-cm"
 	// Contains TLS certificate data for connecting repositories. Will get mounted as volume to pods
 	ArgoCDTLSCertsConfigMapName = "argocd-tls-certs-cm"
+	ArgoCDGPGKeysConfigMapName  = "argocd-gpg-keys-cm"
 )
 
 // Some default configurables
@@ -50,6 +51,8 @@ const (
 	DefaultPathSSHConfig = "/app/config/ssh"
 	// Default name for the SSH known hosts file
 	DefaultSSHKnownHostsName = "ssh_known_hosts"
+	// Default path to GnuPG home directory
+	DefaultGnuPgHomePath = "/app/config/gpg/keys"
 )
 
 // Argo CD application related constants
@@ -114,15 +117,6 @@ const (
 	AnnotationValueManagedByArgoCD = "argocd.argoproj.io"
 	// ResourcesFinalizerName the finalizer value which we inject to finalize deletion of an application
 	ResourcesFinalizerName = "resources-finalizer.argocd.argoproj.io"
-
-	// AnnotationKeyModifiedAt is the annotation key which indicates when cluster is synced
-	AnnotationKeyModifiedAt = "modifiedAt"
-	// AnnotationKeyModifiedAt is the annotation key which indicates cluster server version
-	AnnotationKeyServerVersion = "serverVersion"
-	// AnnotationMessage is the annotation key which contains message
-	AnnotationKeyMessage = "message"
-	// AnnotationStatus is the annotation key which contains status
-	AnnotationKeyStatus = "status"
 )
 
 // Environment variables for tuning and debugging Argo CD
@@ -148,6 +142,8 @@ const (
 	EnvK8sClientBurst = "ARGOCD_K8S_CLIENT_BURST"
 	// EnvK8sClientMaxIdleConnections is the number of max idle connections in K8s REST client HTTP transport (default: 500)
 	EnvK8sClientMaxIdleConnections = "ARGOCD_K8S_CLIENT_MAX_IDLE_CONNECTIONS"
+	// EnvGnuPGHome is the path to ArgoCD's GnuPG keyring for signature verification
+	EnvGnuPGHome = "ARGOCD_GNUPGHOME"
 )
 
 const (
@@ -159,6 +155,15 @@ const (
 	// Number should be bumped in case of backward incompatible change to make sure cache is invalidated after upgrade.
 	CacheVersion = "1.0.0"
 )
+
+// GetGnuPGHomePath retrieves the path to use for GnuPG home directory, which is either taken from GNUPGHOME environment or a default value
+func GetGnuPGHomePath() string {
+	if gnuPgHome := os.Getenv(EnvGnuPGHome); gnuPgHome == "" {
+		return DefaultGnuPgHomePath
+	} else {
+		return gnuPgHome
+	}
+}
 
 var (
 	// K8sClientConfigQPS controls the QPS to be used in K8s REST client configs

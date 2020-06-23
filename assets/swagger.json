@@ -124,7 +124,7 @@
         "tags": [
           "AccountService"
         ],
-        "operationId": "CreateTokenMixin9",
+        "operationId": "CreateTokenMixin10",
         "parameters": [
           {
             "type": "string",
@@ -156,7 +156,7 @@
         "tags": [
           "AccountService"
         ],
-        "operationId": "DeleteTokenMixin9",
+        "operationId": "DeleteTokenMixin10",
         "parameters": [
           {
             "type": "string",
@@ -187,7 +187,7 @@
           "ApplicationService"
         ],
         "summary": "List returns list of applications",
-        "operationId": "ListMixin8",
+        "operationId": "ListMixin9",
         "parameters": [
           {
             "type": "string",
@@ -237,7 +237,7 @@
           "ApplicationService"
         ],
         "summary": "Create creates an application",
-        "operationId": "CreateMixin8",
+        "operationId": "CreateMixin9",
         "parameters": [
           {
             "name": "body",
@@ -264,7 +264,7 @@
           "ApplicationService"
         ],
         "summary": "Update updates an application",
-        "operationId": "UpdateMixin8",
+        "operationId": "UpdateMixin9",
         "parameters": [
           {
             "type": "string",
@@ -395,7 +395,7 @@
           "ApplicationService"
         ],
         "summary": "Get returns an application by name",
-        "operationId": "GetMixin8",
+        "operationId": "GetMixin9",
         "parameters": [
           {
             "type": "string",
@@ -445,7 +445,7 @@
           "ApplicationService"
         ],
         "summary": "Delete deletes an application",
-        "operationId": "DeleteMixin8",
+        "operationId": "DeleteMixin9",
         "parameters": [
           {
             "type": "string",
@@ -1090,6 +1090,11 @@
             "type": "string",
             "name": "server",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "name",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1173,6 +1178,11 @@
             "name": "server",
             "in": "path",
             "required": true
+          },
+          {
+            "type": "string",
+            "name": "name",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1208,12 +1218,37 @@
         }
       }
     },
+    "/api/v1/clusters/{server}/invalidate-cache": {
+      "post": {
+        "tags": [
+          "ClusterService"
+        ],
+        "summary": "InvalidateCache invalidates cluster cache",
+        "operationId": "InvalidateCache",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "server",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Cluster"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/clusters/{server}/rotate-auth": {
       "post": {
         "tags": [
           "ClusterService"
         ],
-        "summary": "RotateAuth returns a cluster by server address",
+        "summary": "RotateAuth rotates the bearer token used for a cluster",
         "operationId": "RotateAuth",
         "parameters": [
           {
@@ -1228,6 +1263,96 @@
             "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/clusterClusterResponse"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/gpgkeys": {
+      "get": {
+        "tags": [
+          "GPGKeyService"
+        ],
+        "summary": "List all available repository certificates",
+        "operationId": "ListMixin7",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "The GPG key ID to query for.",
+            "name": "keyID",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1GnuPGPublicKeyList"
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "GPGKeyService"
+        ],
+        "summary": "Create one or more GPG public keys in the server's configuration",
+        "operationId": "CreateMixin7",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1alpha1GnuPGPublicKey"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/gpgkeyGnuPGPublicKeyCreateResponse"
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "GPGKeyService"
+        ],
+        "summary": "Delete specified GPG public key from the server's configuration",
+        "operationId": "DeleteMixin7",
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/gpgkeyGnuPGPublicKeyResponse"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/gpgkeys/{keyID}": {
+      "get": {
+        "tags": [
+          "GPGKeyService"
+        ],
+        "summary": "Get information about specified GPG public key from the server",
+        "operationId": "GetMixin7",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "keyID",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1GnuPGPublicKey"
             }
           }
         }
@@ -1876,7 +2001,7 @@
           "SessionService"
         ],
         "summary": "Create a new JWT for authentication and set a cookie if using HTTP.",
-        "operationId": "CreateMixin10",
+        "operationId": "CreateMixin11",
         "parameters": [
           {
             "name": "body",
@@ -1901,7 +2026,7 @@
           "SessionService"
         ],
         "summary": "Delete an existing JWT cookie if using HTTP.",
-        "operationId": "DeleteMixin10",
+        "operationId": "DeleteMixin11",
         "responses": {
           "200": {
             "description": "(empty)",
@@ -2430,6 +2555,26 @@
         }
       }
     },
+    "gpgkeyGnuPGPublicKeyCreateResponse": {
+      "type": "object",
+      "title": "Response to a public key creation request",
+      "properties": {
+        "created": {
+          "$ref": "#/definitions/v1alpha1GnuPGPublicKeyList"
+        },
+        "skipped": {
+          "type": "array",
+          "title": "List of key IDs that haven been skipped because they already exist on the server",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "gpgkeyGnuPGPublicKeyResponse": {
+      "type": "object",
+      "title": "Generic (empty) response for GPG public key CRUD requests"
+    },
     "oidcClaim": {
       "type": "object",
       "properties": {
@@ -2677,6 +2822,10 @@
         },
         "sourceType": {
           "type": "string"
+        },
+        "verifyResult": {
+          "type": "string",
+          "title": "Raw response of git verify-commit operation (always the empty string for Helm)"
         }
       }
     },
@@ -3240,6 +3389,13 @@
             "$ref": "#/definitions/v1alpha1ProjectRole"
           }
         },
+        "signatureKeys": {
+          "type": "array",
+          "title": "List of PGP key IDs that commits to be synced to must be signed with",
+          "items": {
+            "$ref": "#/definitions/v1alpha1SignatureKey"
+          }
+        },
         "sourceRepos": {
           "type": "array",
           "title": "SourceRepos contains list of repository URLs which can be used for deployment",
@@ -3307,6 +3463,10 @@
       "type": "object",
       "title": "ApplicationDestination contains deployment destination information",
       "properties": {
+        "name": {
+          "type": "string",
+          "title": "Name of the destination cluster which can be used instead of server (url) field"
+        },
         "namespace": {
           "type": "string",
           "title": "Namespace overrides the environment namespace value in the ksonnet app.yaml"
@@ -3644,6 +3804,9 @@
         "connectionState": {
           "$ref": "#/definitions/v1alpha1ConnectionState"
         },
+        "info": {
+          "$ref": "#/definitions/v1alpha1ClusterInfo"
+        },
         "name": {
           "type": "string",
           "title": "Name of the cluster. If omitted, will use the server address"
@@ -3655,13 +3818,34 @@
             "type": "string"
           }
         },
+        "refreshRequestedAt": {
+          "$ref": "#/definitions/v1Time"
+        },
         "server": {
           "type": "string",
           "title": "Server is the API server URL of the Kubernetes cluster"
         },
         "serverVersion": {
           "type": "string",
-          "title": "The server version"
+          "title": "DEPRECATED: use Info.ServerVersion field instead.\nThe server version"
+        }
+      }
+    },
+    "v1alpha1ClusterCacheInfo": {
+      "type": "object",
+      "properties": {
+        "apisCount": {
+          "type": "string",
+          "format": "int64",
+          "title": "APIsCount holds number of observed Kubernetes API count"
+        },
+        "lastCacheSyncTime": {
+          "$ref": "#/definitions/v1Time"
+        },
+        "resourcesCount": {
+          "type": "string",
+          "format": "int64",
+          "title": "ResourcesCount holds number of observed Kubernetes resources"
         }
       }
     },
@@ -3685,6 +3869,24 @@
         "username": {
           "type": "string",
           "title": "Server requires Basic authentication"
+        }
+      }
+    },
+    "v1alpha1ClusterInfo": {
+      "type": "object",
+      "properties": {
+        "applicationsCount": {
+          "type": "string",
+          "format": "int64"
+        },
+        "cacheInfo": {
+          "$ref": "#/definitions/v1alpha1ClusterCacheInfo"
+        },
+        "connectionState": {
+          "$ref": "#/definitions/v1alpha1ConnectionState"
+        },
+        "serverVersion": {
+          "type": "string"
         }
       }
     },
@@ -3773,6 +3975,51 @@
         "value": {
           "type": "string",
           "title": "the value"
+        }
+      }
+    },
+    "v1alpha1GnuPGPublicKey": {
+      "type": "object",
+      "title": "GnuPGPublicKey is a representation of a GnuPG public key",
+      "properties": {
+        "fingerprint": {
+          "type": "string",
+          "title": "Fingerprint of the key"
+        },
+        "keyData": {
+          "type": "string",
+          "title": "Key data"
+        },
+        "keyID": {
+          "type": "string",
+          "title": "KeyID in hexadecimal string format"
+        },
+        "owner": {
+          "type": "string",
+          "title": "Owner identification"
+        },
+        "subType": {
+          "type": "string",
+          "title": "Key sub type (e.g. rsa4096)"
+        },
+        "trust": {
+          "type": "string",
+          "title": "Trust level"
+        }
+      }
+    },
+    "v1alpha1GnuPGPublicKeyList": {
+      "type": "object",
+      "title": "GnuPGPublicKeyList is a collection of GnuPGPublicKey objects",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1GnuPGPublicKey"
+          }
+        },
+        "metadata": {
+          "$ref": "#/definitions/v1ListMeta"
         }
       }
     },
@@ -4533,12 +4780,26 @@
           "type": "string",
           "title": "the message associated with the revision,\nprobably the commit message,\nthis is truncated to the first newline or 64 characters (which ever comes first)"
         },
+        "signatureInfo": {
+          "type": "string",
+          "title": "If revision was signed with GPG, and signature verification is enabled,\nthis contains a hint on the signer"
+        },
         "tags": {
           "type": "array",
           "title": "tags on the revision,\nnote - tags can move from one revision to another",
           "items": {
             "type": "string"
           }
+        }
+      }
+    },
+    "v1alpha1SignatureKey": {
+      "type": "object",
+      "title": "SignatureKey is the specification of a key required to verify commit signatures with",
+      "properties": {
+        "keyID": {
+          "type": "string",
+          "title": "The ID of the key in hexadecimal notation"
         }
       }
     },

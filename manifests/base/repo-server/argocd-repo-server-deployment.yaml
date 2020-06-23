@@ -43,6 +43,8 @@ spec:
           mountPath: /app/config/ssh
         - name: tls-certs
           mountPath: /app/config/tls
+        - name: gpg-keys
+          mountPath: /app/config/gpg/source
       volumes:
         - name: ssh-known-hosts
           configMap:
@@ -50,3 +52,6 @@ spec:
         - name: tls-certs
           configMap:
             name: argocd-tls-certs-cm
+        - name: gpg-keys
+          configMap:
+            name: argocd-gpg-keys-cm

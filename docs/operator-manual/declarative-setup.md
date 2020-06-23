@@ -1,6 +1,6 @@
 # Declarative Setup
 
-Argo CD applications, projects and settings can be defined declaratively using Kubernetes manifests.
+Argo CD applications, projects and settings can be defined declaratively using Kubernetes manifests. These can be updated using `kubectl apply`, without needing to touch the `argocd` command-line tool.
 
 ## Quick Reference
 
@@ -25,7 +25,7 @@ The Application CRD is the Kubernetes resource object representing a deployed ap
 in an environment. It is defined by two key pieces of information:
 
 * `source` reference to the desired state in Git (repository, revision, path, environment)
-* `destination` reference to the target cluster and namespace.
+* `destination` reference to the target cluster and namespace. For the cluster one of server or name can be used, but not both (which will result in an error). Behind the hood when the server is missing, it is being calculated based on the name and then the server is used for any operations.
 
 A minimal Application spec is as follows:
 
@@ -46,7 +46,7 @@ spec:
     namespace: guestbook
 ```
 
-See [application.yaml](application.yaml) for additional fields
+See [application.yaml](application.yaml) for additional fields. As long as you have completed the first step of [Getting Started](../getting_started.md#1-install-argo-cd), you can already apply this with `kubectl apply -n argocd -f application.yaml` and Argo CD will start deploying the guestbook application.
 
 !!! note
     The namespace must match the namespace of your Argo cd, typically this is `argocd`.
@@ -73,7 +73,7 @@ The AppProject CRD is the Kubernetes resource object representing a logical grou
 It is defined by the following key pieces of information:
 
 * `sourceRepos` reference to the repositories that applications within the project can pull manifests from.
-* `destinations` reference to clusters and namespaces that applications within the project can deploy into.
+* `destinations` reference to clusters and namespaces that applications within the project can deploy into (don't use the name field, only server is being matched).
 * `roles` list of entities with definitions of their access to resources within the project.
 
 An example spec is as follows:

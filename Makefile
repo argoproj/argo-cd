@@ -98,6 +98,8 @@ IMAGE_NAMESPACE?=
 STATIC_BUILD?=true
 # build development images
 DEV_IMAGE?=false
+ARGOCD_GPG_ENABLED?=true
+ARGOCD_E2E_APISERVER_PORT?=8080
 
 override LDFLAGS += \
   -X ${PACKAGE}.version=${VERSION} \
@@ -159,6 +161,8 @@ codegen:
 
 .PHONY: cli
 cli: clean-debug
+	rm -f ${DIST_DIR}/${CLI_NAME}
+	mkdir -p ${DIST_DIR}
 	CGO_ENABLED=0 ${PACKR_CMD} build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${CLI_NAME} ./cmd/argocd
 
 .PHONY: cli-docker
@@ -331,7 +335,7 @@ test-e2e:
 test-e2e-local: cli
 	# NO_PROXY ensures all tests don't go out through a proxy if one is configured on the test system
 	export GO111MODULE=off
-	NO_PROXY=* ./hack/test.sh -timeout 15m -v ./test/e2e
+	ARGOCD_GPG_ENABLED=true NO_PROXY=* ./hack/test.sh -timeout 15m -v ./test/e2e
 
 # Spawns a shell in the test server container for debugging purposes
 debug-test-server:
@@ -354,9 +358,17 @@ start-e2e-local:
 	kubectl create ns argocd-e2e || true
 	kubectl config set-context --current --namespace=argocd-e2e
 	kustomize build test/manifests/base | kubectl apply -f -
+	# Create GPG keys and source directories
+	if test -d /tmp/argo-e2e/app/config/gpg; then rm -rf /tmp/argo-e2e/app/config/gpg/*; fi
+	mkdir -p /tmp/argo-e2e/app/config/gpg/keys && chmod 0700 /tmp/argo-e2e/app/config/gpg/keys
+	mkdir -p /tmp/argo-e2e/app/config/gpg/source && chmod 0700 /tmp/argo-e2e/app/config/gpg/source
+	if test "$(USER_ID)" != ""; then chown -R "$(USER_ID)" /tmp/argo-e2e; fi
 	# set paths for locally managed ssh known hosts and tls certs data
 	ARGOCD_SSH_DATA_PATH=/tmp/argo-e2e/app/config/ssh \
 	ARGOCD_TLS_DATA_PATH=/tmp/argo-e2e/app/config/tls \
+	ARGOCD_GPG_DATA_PATH=/tmp/argo-e2e/app/config/gpg/source \
+	ARGOCD_GNUPGHOME=/tmp/argo-e2e/app/config/gpg/keys \
+	ARGOCD_GPG_ENABLED=true \
 	ARGOCD_E2E_DISABLE_AUTH=false \
 	ARGOCD_ZJWT_FEATURE_FLAG=always \
 	ARGOCD_IN_CI=$(ARGOCD_IN_CI) \
@@ -383,18 +395,23 @@ start-local: mod-vendor-local
 	# check we can connect to Docker to start Redis
 	killall goreman || true
 	kubectl create ns argocd || true
+	rm -rf /tmp/argocd-local
+	mkdir -p /tmp/argocd-local
+	mkdir -p /tmp/argocd-local/gpg/keys && chmod 0700 /tmp/argocd-local/gpg/keys
+	mkdir -p /tmp/argocd-local/gpg/source
 	ARGOCD_ZJWT_FEATURE_FLAG=always \
 	ARGOCD_IN_CI=false \
+	ARGOCD_GPG_ENABLED=true \
 	ARGOCD_E2E_TEST=false \
 		goreman -f $(ARGOCD_PROCFILE) start ${ARGOCD_START}
 
 # Runs pre-commit validation with the virtualized toolchain
 .PHONY: pre-commit
-pre-commit: dep-ensure codegen build lint test
+pre-commit: codegen build lint test
 
 # Runs pre-commit validation with the local toolchain
 .PHONY: pre-commit-local
-pre-commit-local: dep-ensure-local codegen-local build-local lint-local test-local
+pre-commit-local: codegen-local build-local lint-local test-local
 
 .PHONY: release-precheck
 release-precheck: manifests

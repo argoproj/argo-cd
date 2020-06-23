@@ -13,6 +13,10 @@ import (
 
 var ErrCacheMiss = cacheutil.ErrCacheMiss
 
+const (
+	clusterInfoCacheExpiration = 1 * time.Minute
+)
+
 type Cache struct {
 	Cache                   *cacheutil.Cache
 	appStateCacheExpiration time.Duration
@@ -63,6 +67,10 @@ func appResourcesTreeKey(appName string) string {
 	return fmt.Sprintf("app|resources-tree|%s", appName)
 }
 
+func clusterInfoKey(server string) string {
+	return fmt.Sprintf("cluster|info|%s", server)
+}
+
 func (c *Cache) GetAppResourcesTree(appName string, res *appv1.ApplicationTree) error {
 	err := c.GetItem(appResourcesTreeKey(appName), &res)
 	return err
@@ -70,4 +78,13 @@ func (c *Cache) GetAppResourcesTree(appName string, res *appv1.ApplicationTree) 
 
 func (c *Cache) SetAppResourcesTree(appName string, resourcesTree *appv1.ApplicationTree) error {
 	return c.SetItem(appResourcesTreeKey(appName), resourcesTree, c.appStateCacheExpiration, resourcesTree == nil)
+}
+
+func (c *Cache) SetClusterInfo(server string, info *appv1.ClusterInfo) error {
+	return c.SetItem(clusterInfoKey(server), info, clusterInfoCacheExpiration, info == nil)
+}
+
+func (c *Cache) GetClusterInfo(server string, res *appv1.ClusterInfo) error {
+	err := c.GetItem(clusterInfoKey(server), &res)
+	return err
 }

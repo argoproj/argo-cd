@@ -703,7 +703,12 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		logCtx.Infof("Initialized new operation: %v", *app.Operation)
 	}
 
-	ctrl.appStateManager.SyncAppState(app, state)
+	if err := argo.ValidateDestination(context.Background(), &app.Spec.Destination, ctrl.db); err != nil {
+		state.Phase = synccommon.OperationFailed
+		state.Message = err.Error()
+	} else {
+		ctrl.appStateManager.SyncAppState(app, state)
+	}
 
 	if state.Phase == synccommon.OperationRunning {
 		// It's possible for an app to be terminated while we were operating on it. We do not want
@@ -824,6 +829,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		log.Warnf("Key '%s' in index is not an application", appKey)
 		return
 	}
+	origApp = origApp.DeepCopy()
 	needRefresh, refreshType, comparisonLevel := ctrl.needRefreshAppStatus(origApp, ctrl.statusRefreshTimeout)
 
 	if !needRefresh {
@@ -840,6 +846,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 			"time_ms":        reconcileDuration.Milliseconds(),
 			"level":          comparisonLevel,
 			"dest-server":    origApp.Spec.Destination.Server,
+			"dest-name":      origApp.Spec.Destination.Name,
 			"dest-namespace": origApp.Spec.Destination.Namespace,
 		}).Info("Reconciliation completed")
 	}()
@@ -993,6 +1000,13 @@ func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) 
 			})
 		}
 	} else {
+		if err := argo.ValidateDestination(context.Background(), &app.Spec.Destination, ctrl.db); err != nil {
+			errorConditions = append(errorConditions, appv1.ApplicationCondition{
+				Message: err.Error(),
+				Type:    appv1.ApplicationConditionInvalidSpecError,
+			})
+		}
+
 		specConditions, err := argo.ValidatePermissions(context.Background(), &app.Spec, proj, ctrl.db)
 		if err != nil {
 			errorConditions = append(errorConditions, appv1.ApplicationCondition{
@@ -1254,7 +1268,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 }
 
 func (ctrl *ApplicationController) RegisterClusterSecretUpdater(ctx context.Context) {
-	updater := &clusterSecretUpdater{infoSource: ctrl.stateCache, db: ctrl.db}
+	updater := NewClusterInfoUpdater(ctrl.stateCache, ctrl.db, ctrl.appLister.Applications(ctrl.namespace), ctrl.cache)
 	go updater.Run(ctx)
 }
 

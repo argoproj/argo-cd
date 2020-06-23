@@ -112,3 +112,19 @@ p, cam, applications, %s/argoproj.io/Rollout/resume, my-proj/*, allow
 	claims = jwt.MapClaims{"sub": "eve"}
 	assert.False(t, enf.Enforce(claims, "applications", ActionAction+"/argoproj.io/Rollout/resume", "my-proj/my-app"))
 }
+
+func TestGetScopes_DefaultScopes(t *testing.T) {
+	rbacEnforcer := NewRBACPolicyEnforcer(nil, nil)
+
+	scopes := rbacEnforcer.GetScopes()
+	assert.Equal(t, scopes, defaultScopes)
+}
+
+func TestGetScopes_CustomScopes(t *testing.T) {
+	rbacEnforcer := NewRBACPolicyEnforcer(nil, nil)
+	customScopes := []string{"custom"}
+	rbacEnforcer.SetScopes(customScopes)
+
+	scopes := rbacEnforcer.GetScopes()
+	assert.Equal(t, scopes, customScopes)
+}

@@ -37,6 +37,7 @@ import (
 	"github.com/argoproj/argo-cd/util/app/discovery"
 	argopath "github.com/argoproj/argo-cd/util/app/path"
 	"github.com/argoproj/argo-cd/util/git"
+	"github.com/argoproj/argo-cd/util/gpg"
 	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/ksonnet"
 	argokube "github.com/argoproj/argo-cd/util/kube"
@@ -118,13 +119,15 @@ func (s *Service) runRepoOperation(
 	revision string,
 	repo *v1alpha1.Repository,
 	source *v1alpha1.ApplicationSource,
+	verifyCommit bool,
 	getCached func(revision string) bool,
-	operation func(appPath, repoRoot, revision string) error,
+	operation func(appPath, repoRoot, revision, verifyResult string) error,
 	settings operationSettings) error {
 
 	var gitClient git.Client
 	var helmClient helm.Client
 	var err error
+	var signature string
 	revision = textutils.FirstNonEmpty(revision, source.TargetRevision)
 	if source.IsHelm() {
 		helmClient, revision, err = s.newHelmClientResolveRevision(repo, revision, source.Chart)
@@ -169,7 +172,7 @@ func (s *Service) runRepoOperation(
 			return err
 		}
 		defer io.Close(closer)
-		return operation(chartPath, chartPath, revision)
+		return operation(chartPath, chartPath, revision, "")
 	} else {
 		s.repoLock.Lock(gitClient.Root())
 		defer s.repoLock.Unlock(gitClient.Root())
@@ -181,11 +184,17 @@ func (s *Service) runRepoOperation(
 		if err != nil {
 			return err
 		}
+		if verifyCommit {
+			signature, err = gitClient.VerifyCommitSignature(revision)
+			if err != nil {
+				return err
+			}
+		}
 		appPath, err := argopath.Path(gitClient.Root(), source.Path)
 		if err != nil {
 			return err
 		}
-		return operation(appPath, gitClient.Root(), revision)
+		return operation(appPath, gitClient.Root(), revision, signature)
 	}
 }
 
@@ -205,13 +214,14 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 		}
 		return false
 	}
-	err := s.runRepoOperation(ctx, q.Revision, q.Repo, q.ApplicationSource, getCached, func(appPath, repoRoot, revision string) error {
+	err := s.runRepoOperation(ctx, q.Revision, q.Repo, q.ApplicationSource, q.VerifySignature, getCached, func(appPath, repoRoot, revision, verifyResult string) error {
 		var err error
 		res, err = GenerateManifests(appPath, repoRoot, revision, q, false)
 		if err != nil {
 			return err
 		}
 		res.Revision = revision
+		res.VerifyResult = verifyResult
 		err = s.cache.SetManifests(revision, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, &res)
 		if err != nil {
 			log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), revision, err)
@@ -672,7 +682,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 		return false
 	}
 
-	err := s.runRepoOperation(ctx, q.Source.TargetRevision, q.Repo, q.Source, getCached, func(appPath, repoRoot, revision string) error {
+	err := s.runRepoOperation(ctx, q.Source.TargetRevision, q.Repo, q.Source, false, getCached, func(appPath, repoRoot, revision, verifyResult string) error {
 		appSourceType, err := GetAppSourceType(q.Source, appPath)
 		if err != nil {
 			return err
@@ -810,9 +820,31 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 	if err != nil {
 		return nil, err
 	}
+
+	// Run gpg verify-commit on the revision
+	signatureInfo := ""
+	if gpg.IsGPGEnabled() {
+		cs, err := gitClient.VerifyCommitSignature(q.Revision)
+		if err != nil {
+			log.Debugf("Could not verify commit signature: %v", err)
+			return nil, err
+		}
+
+		if cs != "" {
+			vr, err := gpg.ParseGitCommitVerification(cs)
+			if err != nil {
+				log.Debugf("Could not parse commit verification: %v", err)
+				return nil, err
+			}
+			signatureInfo = fmt.Sprintf("%s signature from %s key %s", vr.Result, vr.Cipher, gpg.KeyID(vr.KeyID))
+		} else {
+			signatureInfo = "Revision is not signed."
+		}
+	}
+
 	// discard anything after the first new line and then truncate to 64 chars
 	message := text.Trunc(strings.SplitN(m.Message, "\n", 2)[0], 64)
-	metadata = &v1alpha1.RevisionMetadata{Author: m.Author, Date: metav1.Time{Time: m.Date}, Tags: m.Tags, Message: message}
+	metadata = &v1alpha1.RevisionMetadata{Author: m.Author, Date: metav1.Time{Time: m.Date}, Tags: m.Tags, Message: message, SignatureInfo: signatureInfo}
 	_ = s.cache.SetRevisionMetadata(q.Repo.Repo, q.Revision, metadata)
 	return metadata, nil
 }

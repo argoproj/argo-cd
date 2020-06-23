@@ -34,10 +34,8 @@ async function getCluster(clusters: Promise<models.Cluster[]>, server: string): 
     }
     if (!cluster) {
         cluster = {
-            connectionState: null,
             name: server,
-            server,
-            serverVersion: null
+            server
         };
     }
     return cluster;

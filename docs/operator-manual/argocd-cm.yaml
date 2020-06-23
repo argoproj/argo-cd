@@ -193,6 +193,10 @@ data:
       clusters:
       - "*.local"
 
+  # if ignoreAggregatedRoles set to true then differences caused by aggregated roles in RBAC resources are ignored.
+  resource.compareoptions: |
+    ignoreAggregatedRoles: true
+
   # Configuration to add a config management plugin.
   configManagementPlugins: |
     - name: kasane

@@ -26,6 +26,7 @@ export const ProjectEditPanel = (props: {nameReadonly?: boolean; defaultParams?:
                 clusterResourceWhitelist: [],
                 namespaceResourceBlacklist: [],
                 namespaceResourceWhitelist: [],
+                signatureKeys: [],
                 ...props.defaultParams
             }}
             validateError={(params: ProjectParams) => ({
@@ -199,6 +200,31 @@ export const ProjectEditPanel = (props: {nameReadonly?: boolean; defaultParams?:
                             whitelist new namespaced resource
                         </a>
                     </React.Fragment>
+
+                    <DataLoader load={() => services.gpgkeys.list().then(gpgkeys => gpgkeys.map(gpgkey => gpgkey.keyID))}>
+                        {gpgkeys => (
+                            <React.Fragment>
+                                <h4>Required signature keys</h4>
+                                <div>GnuPG key IDs which commits to be synced to must be signed with</div>
+                                {(api.values.signatureKeys as Array<string>).map((_, i) => (
+                                    <div key={i} className='row project-edit-panel__form-row'>
+                                        <div className='columns small-12'>
+                                            <FormField
+                                                formApi={api}
+                                                field={`signatureKeys[${i}].keyID`}
+                                                component={AutocompleteField}
+                                                componentProps={{
+                                                    items: gpgkeys
+                                                }}
+                                            />
+                                            <i className='fa fa-times' onClick={() => api.setValue('signatureKeys', removeEl(api.values.signatureKeys, i))} />
+                                        </div>
+                                    </div>
+                                ))}
+                                <a onClick={() => api.setValue('signatureKeys', api.values.signatureKeys.concat(gpgkeys[0]))}>add GnuPG key ID</a>
+                            </React.Fragment>
+                        )}
+                    </DataLoader>
 
                     <React.Fragment>
                         <h4>Orphaned Resource Monitoring</h4>

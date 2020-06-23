@@ -225,15 +225,16 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 	if err != nil {
 		return nil, err
 	}
-	cluster, err := s.db.GetCluster(context.Background(), a.Spec.Destination.Server)
+	config, err := s.getApplicationClusterConfig(ctx, a)
 	if err != nil {
 		return nil, err
 	}
-	config := cluster.RESTConfig()
-	cluster.ServerVersion, err = s.kubectl.GetServerVersion(config)
+
+	serverVersion, err := s.kubectl.GetServerVersion(config)
 	if err != nil {
 		return nil, err
 	}
+
 	apiGroups, err := s.kubectl.GetAPIGroups(config)
 	if err != nil {
 		return nil, err
@@ -248,7 +249,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		Repos:             helmRepos,
 		Plugins:           plugins,
 		KustomizeOptions:  kustomizeOptions,
-		KubeVersion:       cluster.ServerVersion,
+		KubeVersion:       serverVersion,
 		ApiVersions:       argo.APIGroupsToVersions(apiGroups),
 	})
 	if err != nil {
@@ -334,7 +335,7 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *application.Applicat
 	} else {
 		namespace = q.ResourceNamespace
 		var config *rest.Config
-		config, err = s.getApplicationClusterConfig(*q.Name)
+		config, err = s.getApplicationClusterConfig(ctx, a)
 		if err != nil {
 			return nil, err
 		}
@@ -688,6 +689,10 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 		return err
 	}
 
+	if err := argo.ValidateDestination(ctx, &app.Spec.Destination, s.db); err != nil {
+		return status.Errorf(codes.InvalidArgument, "application destination spec is invalid: %s", err.Error())
+	}
+
 	conditions, err := argo.ValidateRepo(ctx, app, s.repoClientset, s.db, kustomizeOptions, plugins, s.kubectl)
 	if err != nil {
 		return err
@@ -708,12 +713,11 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 	return nil
 }
 
-func (s *Server) getApplicationClusterConfig(applicationName string) (*rest.Config, error) {
-	server, _, err := s.getApplicationDestination(applicationName)
-	if err != nil {
+func (s *Server) getApplicationClusterConfig(ctx context.Context, a *appv1.Application) (*rest.Config, error) {
+	if err := argo.ValidateDestination(ctx, &a.Spec.Destination, s.db); err != nil {
 		return nil, err
 	}
-	clst, err := s.db.GetCluster(context.Background(), server)
+	clst, err := s.db.GetCluster(ctx, a.Spec.Destination.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -770,7 +774,7 @@ func (s *Server) getAppResource(ctx context.Context, action string, q *applicati
 	if found == nil {
 		return nil, nil, nil, status.Errorf(codes.InvalidArgument, "%s %s %s not found as part of application %s", q.Kind, q.Group, q.ResourceName, *q.Name)
 	}
-	config, err := s.getApplicationClusterConfig(*q.Name)
+	config, err := s.getApplicationClusterConfig(ctx, a)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -1019,15 +1023,6 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 	return nil
 }
 
-func (s *Server) getApplicationDestination(name string) (string, string, error) {
-	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(name, metav1.GetOptions{})
-	if err != nil {
-		return "", "", err
-	}
-	server, namespace := a.Spec.Destination.Server, a.Spec.Destination.Namespace
-	return server, namespace, nil
-}
-
 // Sync syncs an application to its target state
 func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncRequest) (*appv1.Application, error) {
 	appIf := s.appclientset.ArgoprojV1alpha1().Applications(s.ns)
@@ -1075,6 +1070,12 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 	if a.Spec.SyncPolicy != nil {
 		syncOptions = a.Spec.SyncPolicy.SyncOptions
 	}
+
+	// We cannot use local manifests if we're only allowed to sync to signed commits
+	if syncReq.Manifests != nil && len(proj.Spec.SignatureKeys) > 0 {
+		return nil, status.Errorf(codes.FailedPrecondition, "Cannot use local sync when signature keys are required.")
+	}
+
 	op := appv1.Operation{
 		Sync: &appv1.SyncOperation{
 			Revision:     revision,

@@ -23,6 +23,8 @@ export const RevisionMetadataPanel = (props: {appName: string; type: string; rev
                                     <br />
                                 </span>
                             )}
+                            {m.signatureInfo}
+                            <br />
                             {m.message}
                         </span>
                     }
@@ -31,7 +33,7 @@ export const RevisionMetadataPanel = (props: {appName: string; type: string; rev
                     <div className='application-status-panel__item-name'>
                         {m.author && (
                             <React.Fragment>
-                                Authored by {m.author}
+                                Authored by {m.author} - {m.signatureInfo}
                                 <br />
                             </React.Fragment>
                         )}

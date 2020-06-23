@@ -20,7 +20,7 @@ export const ClustersList = (props: RouteComponentProps<{}>) => {
                                     load={() => services.clusters.list().then(clusters => clusters.sort((first, second) => first.name.localeCompare(second.name)))}>
                                     {(clusters: models.Cluster[]) =>
                                         (clusters.length > 0 && (
-                                            <div className='argo-table-list'>
+                                            <div className='argo-table-list argo-table-list--clickable'>
                                                 <div className='argo-table-list__head'>
                                                     <div className='row'>
                                                         <div className='columns small-3'>NAME</div>
@@ -30,15 +30,18 @@ export const ClustersList = (props: RouteComponentProps<{}>) => {
                                                     </div>
                                                 </div>
                                                 {clusters.map(cluster => (
-                                                    <div className='argo-table-list__row' key={cluster.server}>
+                                                    <div
+                                                        className='argo-table-list__row'
+                                                        key={cluster.server}
+                                                        onClick={() => ctx.navigation.goto(`./${encodeURIComponent(cluster.server)}`)}>
                                                         <div className='row'>
                                                             <div className='columns small-3'>
                                                                 <i className='icon argo-icon-hosts' /> {clusterName(cluster.name)}
                                                             </div>
                                                             <div className='columns small-5'>{cluster.server}</div>
-                                                            <div className='columns small-2'>{cluster.serverVersion}</div>
+                                                            <div className='columns small-2'>{cluster.info.serverVersion}</div>
                                                             <div className='columns small-2'>
-                                                                <ConnectionStateIcon state={cluster.connectionState} /> {cluster.connectionState.status}
+                                                                <ConnectionStateIcon state={cluster.info.connectionState} /> {cluster.info.connectionState.status}
                                                                 <DropDownMenu
                                                                     anchor={() => (
                                                                         <button className='argo-button argo-button--light argo-button--lg argo-button--short'>

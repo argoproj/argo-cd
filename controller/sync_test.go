@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"os"
 	"testing"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -99,4 +100,44 @@ func TestPersistRevisionHistoryRollback(t *testing.T) {
 	assert.Equal(t, 1, len(updatedApp.Status.History))
 	assert.Equal(t, source, updatedApp.Status.History[0].Source)
 	assert.Equal(t, "abc123", updatedApp.Status.History[0].Revision)
+}
+
+func TestSyncComparisonError(t *testing.T) {
+	app := newFakeApp()
+	app.Status.OperationState = nil
+	app.Status.History = nil
+
+	defaultProject := &v1alpha1.AppProject{
+		ObjectMeta: v1.ObjectMeta{
+			Namespace: test.FakeArgoCDNamespace,
+			Name:      "default",
+		},
+		Spec: v1alpha1.AppProjectSpec{
+			SignatureKeys: []v1alpha1.SignatureKey{{KeyID: "test"}},
+		},
+	}
+	data := fakeData{
+		apps: []runtime.Object{app, defaultProject},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests:    []string{},
+			Namespace:    test.FakeDestNamespace,
+			Server:       test.FakeClusterURL,
+			Revision:     "abc123",
+			VerifyResult: "something went wrong",
+		},
+		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+	}
+	ctrl := newFakeController(&data)
+
+	// Sync with source unspecified
+	opState := &v1alpha1.OperationState{Operation: v1alpha1.Operation{
+		Sync: &v1alpha1.SyncOperation{},
+	}}
+	os.Setenv("ARGOCD_GPG_ENABLED", "true")
+	defer os.Setenv("ARGOCD_GPG_ENABLED", "false")
+	ctrl.appStateManager.SyncAppState(app, opState)
+
+	conditions := app.Status.GetConditions(map[v1alpha1.ApplicationConditionType]bool{v1alpha1.ApplicationConditionComparisonError: true})
+	assert.NotEmpty(t, conditions)
+	assert.Equal(t, "abc123", opState.SyncResult.Revision)
 }
