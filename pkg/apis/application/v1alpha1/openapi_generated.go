@@ -34,7 +34,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationTree":                  schema_pkg_apis_application_v1alpha1_ApplicationTree(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationWatchEvent":            schema_pkg_apis_application_v1alpha1_ApplicationWatchEvent(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Cluster":                          schema_pkg_apis_application_v1alpha1_Cluster(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ClusterCacheInfo":                 schema_pkg_apis_application_v1alpha1_ClusterCacheInfo(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ClusterConfig":                    schema_pkg_apis_application_v1alpha1_ClusterConfig(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ClusterInfo":                      schema_pkg_apis_application_v1alpha1_ClusterInfo(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ClusterList":                      schema_pkg_apis_application_v1alpha1_ClusterList(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Command":                          schema_pkg_apis_application_v1alpha1_Command(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ComparedTo":                       schema_pkg_apis_application_v1alpha1_ComparedTo(ref),
@@ -1150,13 +1152,13 @@ func schema_pkg_apis_application_v1alpha1_Cluster(ref common.ReferenceCallback) 
 					},
 					"connectionState": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ConnectionState contains information about cluster connection state",
+							Description: "DEPRECATED: use Info.ConnectionState field instead. ConnectionState contains information about cluster connection state",
 							Ref:         ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ConnectionState"),
 						},
 					},
 					"serverVersion": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The server version",
+							Description: "DEPRECATED: use Info.ServerVersion field instead. The server version",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1175,12 +1177,58 @@ func schema_pkg_apis_application_v1alpha1_Cluster(ref common.ReferenceCallback) 
 							},
 						},
 					},
+					"refreshRequestedAt": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RefreshRequestedAt holds time when cluster cache refresh has been requested",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"info": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Holds information about cluster cache",
+							Ref:         ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ClusterInfo"),
+						},
+					},
 				},
 				Required: []string{"server", "name", "config"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ClusterConfig", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ConnectionState"},
+			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ClusterConfig", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ClusterInfo", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ConnectionState", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_ClusterCacheInfo(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"resourcesCount": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ResourcesCount holds number of observed Kubernetes resources",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"apisCount": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIsCount holds number of observed Kubernetes API count",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"lastCacheSyncTime": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LastCacheSyncTime holds time of most recent cache synchronization",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 
@@ -1229,6 +1277,43 @@ func schema_pkg_apis_application_v1alpha1_ClusterConfig(ref common.ReferenceCall
 		},
 		Dependencies: []string{
 			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.AWSAuthConfig", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.TLSClientConfig"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_ClusterInfo(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"connectionState": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ConnectionState"),
+						},
+					},
+					"serverVersion": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"cacheInfo": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ClusterCacheInfo"),
+						},
+					},
+					"applicationsCount": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int64",
+						},
+					},
+				},
+				Required: []string{"applicationsCount"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ClusterCacheInfo", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ConnectionState"},
 	}
 }
 

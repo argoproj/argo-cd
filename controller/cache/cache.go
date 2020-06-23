@@ -439,24 +439,36 @@ func (c *liveStateCache) handleAddEvent(cluster *appv1.Cluster) {
 }
 
 func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *appv1.Cluster) {
-	var bToInvalidate bool
 	c.lock.Lock()
 	cluster, ok := c.clusters[newCluster.Server]
 	c.lock.Unlock()
 	if ok {
+		var shouldInvalidate bool
+
 		if oldCluster.Server != newCluster.Server {
-			bToInvalidate = true
+			shouldInvalidate = true
 		}
 		if !reflect.DeepEqual(oldCluster.Config, newCluster.Config) {
-			bToInvalidate = true
+			shouldInvalidate = true
 		}
 		if !reflect.DeepEqual(oldCluster.Namespaces, newCluster.Namespaces) {
-			bToInvalidate = true
+			shouldInvalidate = true
+		}
+		if newCluster.RefreshRequestedAt != nil &&
+			cluster.GetClusterInfo().LastCacheSyncTime != nil &&
+			cluster.GetClusterInfo().LastCacheSyncTime.Before(newCluster.RefreshRequestedAt.Time) {
+			shouldInvalidate = true
+		}
+
+		if shouldInvalidate {
+			cluster.Invalidate()
+			go func() {
+				// warm up cluster cache
+				_ = cluster.EnsureSynced()
+			}()
 		}
 	}
-	if bToInvalidate {
-		cluster.Invalidate()
-	}
+
 }
 
 func (c *liveStateCache) handleDeleteEvent(clusterServer string) {
@@ -473,8 +485,10 @@ func (c *liveStateCache) GetClustersInfo() []clustercache.ClusterInfo {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 	res := make([]clustercache.ClusterInfo, 0)
-	for _, info := range c.clusters {
-		res = append(res, info.GetClusterInfo())
+	for server, info := range c.clusters {
+		info := info.GetClusterInfo()
+		info.Server = server
+		res = append(res, info)
 	}
 	return res
 }

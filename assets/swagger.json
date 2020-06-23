@@ -187,7 +187,7 @@
           "ApplicationService"
         ],
         "summary": "List returns list of applications",
-        "operationId": "List",
+        "operationId": "ListMixin9",
         "parameters": [
           {
             "type": "string",
@@ -237,7 +237,7 @@
           "ApplicationService"
         ],
         "summary": "Create creates an application",
-        "operationId": "Create",
+        "operationId": "CreateMixin9",
         "parameters": [
           {
             "name": "body",
@@ -264,7 +264,7 @@
           "ApplicationService"
         ],
         "summary": "Update updates an application",
-        "operationId": "Update",
+        "operationId": "UpdateMixin9",
         "parameters": [
           {
             "type": "string",
@@ -395,7 +395,7 @@
           "ApplicationService"
         ],
         "summary": "Get returns an application by name",
-        "operationId": "GetMixin1",
+        "operationId": "GetMixin9",
         "parameters": [
           {
             "type": "string",
@@ -445,7 +445,7 @@
           "ApplicationService"
         ],
         "summary": "Delete deletes an application",
-        "operationId": "Delete",
+        "operationId": "DeleteMixin9",
         "parameters": [
           {
             "type": "string",
@@ -1084,7 +1084,7 @@
           "ClusterService"
         ],
         "summary": "List returns list of clusters",
-        "operationId": "ListMixin5",
+        "operationId": "List",
         "parameters": [
           {
             "type": "string",
@@ -1111,7 +1111,7 @@
           "ClusterService"
         ],
         "summary": "Create creates a cluster",
-        "operationId": "CreateMixin5",
+        "operationId": "Create",
         "parameters": [
           {
             "name": "body",
@@ -1138,7 +1138,7 @@
           "ClusterService"
         ],
         "summary": "Update updates a cluster",
-        "operationId": "UpdateMixin5",
+        "operationId": "Update",
         "parameters": [
           {
             "type": "string",
@@ -1171,7 +1171,7 @@
           "ClusterService"
         ],
         "summary": "Get returns a cluster by server address",
-        "operationId": "GetMixin5",
+        "operationId": "GetMixin2",
         "parameters": [
           {
             "type": "string",
@@ -1199,7 +1199,7 @@
           "ClusterService"
         ],
         "summary": "Delete deletes a cluster",
-        "operationId": "DeleteMixin5",
+        "operationId": "Delete",
         "parameters": [
           {
             "type": "string",
@@ -1218,12 +1218,37 @@
         }
       }
     },
+    "/api/v1/clusters/{server}/invalidate-cache": {
+      "post": {
+        "tags": [
+          "ClusterService"
+        ],
+        "summary": "InvalidateCache invalidates cluster cache",
+        "operationId": "InvalidateCache",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "server",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Cluster"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/clusters/{server}/rotate-auth": {
       "post": {
         "tags": [
           "ClusterService"
         ],
-        "summary": "RotateAuth returns a cluster by server address",
+        "summary": "RotateAuth rotates the bearer token used for a cluster",
         "operationId": "RotateAuth",
         "parameters": [
           {
@@ -1249,7 +1274,7 @@
           "GPGKeyService"
         ],
         "summary": "List all available repository certificates",
-        "operationId": "ListMixin2",
+        "operationId": "ListMixin7",
         "parameters": [
           {
             "type": "string",
@@ -1272,7 +1297,7 @@
           "GPGKeyService"
         ],
         "summary": "Create one or more GPG public keys in the server's configuration",
-        "operationId": "CreateMixin2",
+        "operationId": "CreateMixin7",
         "parameters": [
           {
             "name": "body",
@@ -1297,7 +1322,7 @@
           "GPGKeyService"
         ],
         "summary": "Delete specified GPG public key from the server's configuration",
-        "operationId": "DeleteMixin2",
+        "operationId": "DeleteMixin7",
         "responses": {
           "200": {
             "description": "(empty)",
@@ -1314,7 +1339,7 @@
           "GPGKeyService"
         ],
         "summary": "Get information about specified GPG public key from the server",
-        "operationId": "GetMixin2",
+        "operationId": "GetMixin7",
         "parameters": [
           {
             "type": "string",
@@ -1794,7 +1819,7 @@
           "RepositoryService"
         ],
         "summary": "Get returns a repository or its credentials",
-        "operationId": "Get",
+        "operationId": "GetMixin3",
         "parameters": [
           {
             "type": "string",
@@ -2035,7 +2060,7 @@
           "SettingsService"
         ],
         "summary": "Get returns Argo CD settings",
-        "operationId": "GetMixin8",
+        "operationId": "Get",
         "responses": {
           "200": {
             "description": "(empty)",
@@ -3764,6 +3789,9 @@
         "connectionState": {
           "$ref": "#/definitions/v1alpha1ConnectionState"
         },
+        "info": {
+          "$ref": "#/definitions/v1alpha1ClusterInfo"
+        },
         "name": {
           "type": "string",
           "title": "Name of the cluster. If omitted, will use the server address"
@@ -3775,13 +3803,34 @@
             "type": "string"
           }
         },
+        "refreshRequestedAt": {
+          "$ref": "#/definitions/v1Time"
+        },
         "server": {
           "type": "string",
           "title": "Server is the API server URL of the Kubernetes cluster"
         },
         "serverVersion": {
           "type": "string",
-          "title": "The server version"
+          "title": "DEPRECATED: use Info.ServerVersion field instead.\nThe server version"
+        }
+      }
+    },
+    "v1alpha1ClusterCacheInfo": {
+      "type": "object",
+      "properties": {
+        "apisCount": {
+          "type": "string",
+          "format": "int64",
+          "title": "APIsCount holds number of observed Kubernetes API count"
+        },
+        "lastCacheSyncTime": {
+          "$ref": "#/definitions/v1Time"
+        },
+        "resourcesCount": {
+          "type": "string",
+          "format": "int64",
+          "title": "ResourcesCount holds number of observed Kubernetes resources"
         }
       }
     },
@@ -3805,6 +3854,24 @@
         "username": {
           "type": "string",
           "title": "Server requires Basic authentication"
+        }
+      }
+    },
+    "v1alpha1ClusterInfo": {
+      "type": "object",
+      "properties": {
+        "applicationsCount": {
+          "type": "string",
+          "format": "int64"
+        },
+        "cacheInfo": {
+          "$ref": "#/definitions/v1alpha1ClusterCacheInfo"
+        },
+        "connectionState": {
+          "$ref": "#/definitions/v1alpha1ConnectionState"
+        },
+        "serverVersion": {
+          "type": "string"
         }
       }
     },

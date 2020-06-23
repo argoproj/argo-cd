@@ -1268,7 +1268,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 }
 
 func (ctrl *ApplicationController) RegisterClusterSecretUpdater(ctx context.Context) {
-	updater := &clusterSecretUpdater{infoSource: ctrl.stateCache, db: ctrl.db}
+	updater := NewClusterInfoUpdater(ctrl.stateCache, ctrl.db, ctrl.appLister.Applications(ctrl.namespace), ctrl.cache)
 	go updater.Run(ctx)
 }
 
