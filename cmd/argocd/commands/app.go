@@ -706,7 +706,7 @@ func setJsonnetOptExtVar(src *argoappv1.ApplicationSource, jsonnetExtVar []strin
 		src.Directory.Jsonnet.ExtVars = append(src.Directory.Jsonnet.ExtVars, argoappv1.NewJsonnetVar(j, code))
 	}
 }
-func setJsonnetOptJPath(src *argoappv1.ApplicationSource, libs []string) {
+func setJsonnetOptLibs(src *argoappv1.ApplicationSource, libs []string) {
 	if src.Directory == nil {
 		src.Directory = &argoappv1.ApplicationSourceDirectory{}
 	}
