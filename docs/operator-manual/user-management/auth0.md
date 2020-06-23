@@ -8,6 +8,7 @@ User-definitions in Auth0 is out of scope for this guide. Add them directly in A
 ## Registering the app with Auth0
 
 Follow the [register app](https://auth0.com/docs/dashboard/guides/applications/register-app-spa) instructions to create the argocd app in Auth0. In the app definition:
+
 * Take note of the _clientId_ and _clientSecret_ values.
 * Register login url as https://your.argoingress.address/login
 * Set allowed callback url to https://your.argoingress.address/auth/callback
