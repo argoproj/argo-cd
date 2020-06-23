@@ -317,9 +317,6 @@ func TestUseJWTToken(t *testing.T) {
 
 	newProj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Get(projectName, metav1.GetOptions{})
 	assert.NoError(t, err)
-	assert.NotNil(t, newProj.Status.JWTTokensByRole)
-	assert.Len(t, newProj.Status.JWTTokensByRole, 1)
-	assert.NotNil(t, newProj.Status.JWTTokensByRole[roleName])
 	assert.Len(t, newProj.Status.JWTTokensByRole[roleName].Items, 1)
 	assert.ElementsMatch(t, newProj.Status.JWTTokensByRole[roleName].Items, newProj.Spec.Roles[0].JWTTokens)
 
