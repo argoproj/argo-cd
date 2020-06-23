@@ -627,6 +627,9 @@ type RevisionMetadata struct {
 	// probably the commit message,
 	// this is truncated to the first newline or 64 characters (which ever comes first)
 	Message string `json:"message,omitempty" protobuf:"bytes,4,opt,name=message"`
+	// If revision was signed with GPG, and signature verification is enabled,
+	// this contains a hint on the signer
+	SignatureInfo string `json:"signatureInfo,omitempty" protobuf:"bytes,5,opt,name=signatureInfo"`
 }
 
 // SyncOperationResult represent result of sync operation
@@ -948,12 +951,47 @@ type Cluster struct {
 	Name string `json:"name" protobuf:"bytes,2,opt,name=name"`
 	// Config holds cluster information for connecting to a cluster
 	Config ClusterConfig `json:"config" protobuf:"bytes,3,opt,name=config"`
+	// DEPRECATED: use Info.ConnectionState field instead.
 	// ConnectionState contains information about cluster connection state
 	ConnectionState ConnectionState `json:"connectionState,omitempty" protobuf:"bytes,4,opt,name=connectionState"`
+	// DEPRECATED: use Info.ServerVersion field instead.
 	// The server version
 	ServerVersion string `json:"serverVersion,omitempty" protobuf:"bytes,5,opt,name=serverVersion"`
 	// Holds list of namespaces which are accessible in that cluster. Cluster level resources would be ignored if namespace list if not empty.
 	Namespaces []string `json:"namespaces,omitempty" protobuf:"bytes,6,opt,name=namespaces"`
+	// RefreshRequestedAt holds time when cluster cache refresh has been requested
+	RefreshRequestedAt *metav1.Time `json:"refreshRequestedAt,omitempty" protobuf:"bytes,7,opt,name=refreshRequestedAt"`
+	// Holds information about cluster cache
+	Info ClusterInfo `json:"info,omitempty" protobuf:"bytes,8,opt,name=info"`
+}
+
+func (c *Cluster) Equals(other *Cluster) bool {
+	if c.Server != other.Server {
+		return false
+	}
+	if c.Name != other.Name {
+		return false
+	}
+	if strings.Join(c.Namespaces, ",") != strings.Join(other.Namespaces, ",") {
+		return false
+	}
+	return reflect.DeepEqual(c.Config, other.Config)
+}
+
+type ClusterInfo struct {
+	ConnectionState   ConnectionState  `json:"connectionState,omitempty" protobuf:"bytes,1,opt,name=connectionState"`
+	ServerVersion     string           `json:"serverVersion,omitempty" protobuf:"bytes,2,opt,name=serverVersion"`
+	CacheInfo         ClusterCacheInfo `json:"cacheInfo,omitempty" protobuf:"bytes,3,opt,name=cacheInfo"`
+	ApplicationsCount int64            `json:"applicationsCount" protobuf:"bytes,4,opt,name=applicationsCount"`
+}
+
+type ClusterCacheInfo struct {
+	// ResourcesCount holds number of observed Kubernetes resources
+	ResourcesCount int64 `json:"resourcesCount,omitempty" protobuf:"bytes,1,opt,name=resourcesCount"`
+	// APIsCount holds number of observed Kubernetes API count
+	APIsCount int64 `json:"apisCount,omitempty" protobuf:"bytes,2,opt,name=apisCount"`
+	// LastCacheSyncTime holds time of most recent cache synchronization
+	LastCacheSyncTime *metav1.Time `json:"lastCacheSyncTime,omitempty" protobuf:"bytes,3,opt,name=lastCacheSyncTime"`
 }
 
 // ClusterList is a collection of Clusters.
@@ -1254,6 +1292,28 @@ type RepositoryCertificateList struct {
 	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
 	// List of certificates to be processed
 	Items []RepositoryCertificate `json:"items" protobuf:"bytes,2,rep,name=items"`
+}
+
+// GnuPGPublicKey is a representation of a GnuPG public key
+type GnuPGPublicKey struct {
+	// KeyID in hexadecimal string format
+	KeyID string `json:"keyID" protobuf:"bytes,1,opt,name=keyID"`
+	// Fingerprint of the key
+	Fingerprint string `json:"fingerprint,omitempty" protobuf:"bytes,2,opt,name=fingerprint"`
+	// Owner identification
+	Owner string `json:"owner,omitempty" protobuf:"bytes,3,opt,name=owner"`
+	// Trust level
+	Trust string `json:"trust,omitempty" protobuf:"bytes,4,opt,name=trust"`
+	// Key sub type (e.g. rsa4096)
+	SubType string `json:"subType,omitempty" protobuf:"bytes,5,opt,name=subType"`
+	// Key data
+	KeyData string `json:"keyData,omitempty" protobuf:"bytes,6,opt,name=keyData"`
+}
+
+// GnuPGPublicKeyList is a collection of GnuPGPublicKey objects
+type GnuPGPublicKeyList struct {
+	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
+	Items           []GnuPGPublicKey `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
 
 // AppProjectList is list of AppProject resources
@@ -1574,6 +1634,12 @@ func (s *OrphanedResourcesMonitorSettings) IsWarn() bool {
 	return s.Warn == nil || *s.Warn
 }
 
+// SignatureKey is the specification of a key required to verify commit signatures with
+type SignatureKey struct {
+	// The ID of the key in hexadecimal notation
+	KeyID string `json:"keyID" protobuf:"bytes,1,name=keyID"`
+}
+
 // AppProjectSpec is the specification of an AppProject
 type AppProjectSpec struct {
 	// SourceRepos contains list of repository URLs which can be used for deployment
@@ -1594,6 +1660,8 @@ type AppProjectSpec struct {
 	SyncWindows SyncWindows `json:"syncWindows,omitempty" protobuf:"bytes,8,opt,name=syncWindows"`
 	// NamespaceResourceWhitelist contains list of whitelisted namespace level resources
 	NamespaceResourceWhitelist []metav1.GroupKind `json:"namespaceResourceWhitelist,omitempty" protobuf:"bytes,9,opt,name=namespaceResourceWhitelist"`
+	// List of PGP key IDs that commits to be synced to must be signed with
+	SignatureKeys []SignatureKey `json:"signatureKeys,omitempty" protobuf:"bytes,10,opt,name=signatureKeys"`
 }
 
 // SyncWindows is a collection of sync windows in this project
