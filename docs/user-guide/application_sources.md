@@ -14,6 +14,7 @@ Argo CD supports several different ways in which Kubernetes manifests can be def
 Argo CD also supports uploading local manifests directly. Since this is an anti-pattern of the
 GitOps paradigm, this should only be done for development purposes. A user with an `override` permission is required
 to upload manifests locally (typically an admin). All of the different Kubernetes deployment tools above are supported.
+It is required for the local manifests to be located in a checked out git repository.
 To upload a local application:
 
 ```bash
