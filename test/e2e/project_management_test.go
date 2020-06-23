@@ -317,12 +317,17 @@ func TestUseJWTToken(t *testing.T) {
 
 	newProj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Get(projectName, metav1.GetOptions{})
 	assert.NoError(t, err)
-	assert.NotNil(t, newProj.Status.JWTTokenMap)
-	assert.Len(t, newProj.Status.JWTTokenMap, 1)
-	assert.NotNil(t, newProj.Status.JWTTokenMap[roleName])
-	assert.Len(t, newProj.Status.JWTTokenMap[roleName].Items, 1)
+	assert.NotNil(t, newProj.Status.JWTTokensByRole)
+	assert.Len(t, newProj.Status.JWTTokensByRole, 1)
+	assert.NotNil(t, newProj.Status.JWTTokensByRole[roleName])
+	assert.Len(t, newProj.Status.JWTTokensByRole[roleName].Items, 1)
+	assert.ElementsMatch(t, newProj.Status.JWTTokensByRole[roleName].Items, newProj.Spec.Roles[0].JWTTokens)
 
-	_, err = fixture.RunCli("proj", "role", "delete-token", projectName, roleName, "1")
+	_, err = fixture.RunCli("proj", "role", "delete-token", projectName, roleName, strconv.FormatInt((newProj.Status.JWTTokensByRole[roleName].Items[0].IssuedAt), 10))
 	assert.NoError(t, err)
+	newProj, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Get(projectName, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Nil(t, newProj.Status.JWTTokensByRole[roleName].Items)
+	assert.Nil(t, newProj.Spec.Roles[0].JWTTokens)
 
 }

@@ -424,9 +424,9 @@ type JWTTokens struct {
 	Items []JWTToken `json:"items,omitempty" protobuf:"bytes,1,opt,name=items"`
 }
 
-// AppprojStatus contains information about appproj
-type AppprojStatus struct {
-	JWTTokenMap map[string]JWTTokens `json:"jwtTokenMap,omitempty" protobuf:"bytes,1,opt,name=jwtTokenMap"`
+// AppProjectStatus contains information about appproj
+type AppProjectStatus struct {
+	JWTTokensByRole map[string]JWTTokens `json:"jWTTokensByRole,omitempty" protobuf:"bytes,1,opt,name=jWTTokensByRole"`
 }
 
 // OperationInitiator holds information about the operation initiator
@@ -1272,8 +1272,8 @@ type AppProjectList struct {
 type AppProject struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
-	Spec              AppProjectSpec `json:"spec" protobuf:"bytes,2,opt,name=spec"`
-	Status            AppprojStatus  `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
+	Spec              AppProjectSpec   `json:"spec" protobuf:"bytes,2,opt,name=spec"`
+	Status            AppProjectStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
 }
 
 // GetRoleByName returns the role in a project by the name with its index
@@ -1317,7 +1317,7 @@ func (p *AppProject) GetJWTTokenFromSpec(roleName string, issuedAt int64, id str
 func (p *AppProject) GetJWTToken(roleName string, issuedAt int64, id string) (*JWTToken, int, error) {
 	// This is for newer version, JWTTokens are stored under status
 	if id != "" {
-		for i, token := range p.Status.JWTTokenMap[roleName].Items {
+		for i, token := range p.Status.JWTTokensByRole[roleName].Items {
 			if id == token.ID {
 				return &token, i, nil
 			}
@@ -1326,7 +1326,7 @@ func (p *AppProject) GetJWTToken(roleName string, issuedAt int64, id string) (*J
 	}
 
 	if issuedAt != -1 {
-		for i, token := range p.Status.JWTTokenMap[roleName].Items {
+		for i, token := range p.Status.JWTTokensByRole[roleName].Items {
 			if issuedAt == token.IssuedAt {
 				return &token, i, nil
 			}
@@ -2282,4 +2282,67 @@ func (r ResourceDiff) LiveObject() (*unstructured.Unstructured, error) {
 
 func (r ResourceDiff) TargetObject() (*unstructured.Unstructured, error) {
 	return UnmarshalToUnstructured(r.TargetState)
+}
+
+func (proj *AppProject) NormalizeJWTTokens() {
+	for i, role := range proj.Spec.Roles {
+		for j, token := range role.JWTTokens {
+			if token.ID == "" {
+				token.ID = strconv.FormatInt(token.IssuedAt, 10)
+				role.JWTTokens[j] = token
+			}
+		}
+		proj.Spec.Roles[i] = role
+	}
+
+	for _, roleTokenEntry := range proj.Status.JWTTokensByRole {
+		for j, token := range roleTokenEntry.Items {
+			if token.ID == "" {
+				token.ID = strconv.FormatInt(token.IssuedAt, 10)
+				roleTokenEntry.Items[j] = token
+			}
+		}
+	}
+
+	syncJWTTokenBetweenStatusAndSpec(proj)
+}
+
+func syncJWTTokenBetweenStatusAndSpec(proj *AppProject) {
+	for roleIndex, role := range proj.Spec.Roles {
+		tokensInSpec := role.JWTTokens
+		tokensInStatus := []JWTToken{}
+		if proj.Status.JWTTokensByRole == nil {
+			tokensByRole := make(map[string]JWTTokens)
+			proj.Status.JWTTokensByRole = tokensByRole
+		} else {
+			tokensInStatus = proj.Status.JWTTokensByRole[role.Name].Items
+		}
+		tokens := jWTTokensCombine(tokensInStatus, tokensInSpec)
+		proj.Spec.Roles[roleIndex].JWTTokens = tokens
+		proj.Status.JWTTokensByRole[role.Name] = JWTTokens{Items: tokens}
+	}
+}
+
+func jWTTokensCombine(tokens1 []JWTToken, tokens2 []JWTToken) []JWTToken {
+	tokens := []JWTToken{}
+	for _, token := range tokens1 {
+		if !jWTTokenContains(tokens, token) {
+			tokens = append(tokens, token)
+		}
+	}
+	for _, token := range tokens2 {
+		if !jWTTokenContains(tokens, token) {
+			tokens = append(tokens, token)
+		}
+	}
+	return tokens
+}
+
+func jWTTokenContains(s []JWTToken, e JWTToken) bool {
+	for _, a := range s {
+		if a.ID == e.ID {
+			return true
+		}
+	}
+	return false
 }

@@ -16,8 +16,8 @@ import (
 )
 
 func newFakeProj() *argoappv1.AppProject {
-	jwtTokenMap := make(map[string]argoappv1.JWTTokens)
-	jwtTokenMap["my-role"] = argoappv1.JWTTokens{Items: []argoappv1.JWTToken{{IssuedAt: 1234}}}
+	jwtTokenByRole := make(map[string]argoappv1.JWTTokens)
+	jwtTokenByRole["my-role"] = argoappv1.JWTTokens{Items: []argoappv1.JWTToken{{IssuedAt: 1234}}}
 
 	return &argoappv1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{
@@ -42,7 +42,7 @@ func newFakeProj() *argoappv1.AppProject {
 				},
 			},
 		},
-		Status: argoappv1.AppprojStatus{JWTTokenMap: jwtTokenMap},
+		Status: argoappv1.AppProjectStatus{JWTTokensByRole: jwtTokenByRole},
 	}
 }
 

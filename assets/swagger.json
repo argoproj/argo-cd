@@ -3175,7 +3175,7 @@
           "$ref": "#/definitions/v1alpha1AppProjectSpec"
         },
         "status": {
-          "$ref": "#/definitions/v1alpha1AppprojStatus"
+          "$ref": "#/definitions/v1alpha1AppProjectStatus"
         }
       }
     },
@@ -3252,6 +3252,18 @@
           "title": "SyncWindows controls when syncs can be run for apps in this project",
           "items": {
             "$ref": "#/definitions/v1alpha1SyncWindow"
+          }
+        }
+      }
+    },
+    "v1alpha1AppProjectStatus": {
+      "type": "object",
+      "title": "AppProjectStatus contains information about appproj",
+      "properties": {
+        "jWTTokensByRole": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/v1alpha1JWTTokens"
           }
         }
       }
@@ -3619,18 +3631,6 @@
         },
         "type": {
           "type": "string"
-        }
-      }
-    },
-    "v1alpha1AppprojStatus": {
-      "type": "object",
-      "title": "AppprojStatus contains information about appproj",
-      "properties": {
-        "jwtTokenMap": {
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/v1alpha1JWTTokens"
-          }
         }
       }
     },

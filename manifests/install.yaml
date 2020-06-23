@@ -1942,9 +1942,9 @@ spec:
               type: array
           type: object
         status:
-          description: AppprojStatus contains information about appproj
+          description: AppProjectStatus contains information about appproj
           properties:
-            jwtTokenMap:
+            jWTTokensByRole:
               additionalProperties:
                 properties:
                   items:

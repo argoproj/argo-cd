@@ -37,7 +37,7 @@ message AppProject {
 
   optional AppProjectSpec spec = 2;
 
-  optional AppprojStatus status = 3;
+  optional AppProjectStatus status = 3;
 }
 
 // AppProjectList is list of AppProject resources
@@ -76,6 +76,11 @@ message AppProjectSpec {
 
   // NamespaceResourceWhitelist contains list of whitelisted namespace level resources
   repeated k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind namespaceResourceWhitelist = 9;
+}
+
+// AppProjectStatus contains information about appproj
+message AppProjectStatus {
+  map<string, JWTTokens> jWTTokensByRole = 1;
 }
 
 // Application is a definition of Application resource.
@@ -300,11 +305,6 @@ message ApplicationWatchEvent {
   //  * If Type is Error: *api.Status is recommended; other types may make sense
   //    depending on context.
   optional Application application = 2;
-}
-
-// AppprojStatus contains information about appproj
-message AppprojStatus {
-  map<string, JWTTokens> jwtTokenMap = 1;
 }
 
 // Cluster is the definition of a cluster resource

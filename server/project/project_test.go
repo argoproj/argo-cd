@@ -73,18 +73,17 @@ func TestProjectServer(t *testing.T) {
 	t.Run("TestNormalizeProj", func(t *testing.T) {
 		sessionMgr := session.NewSessionManager(settingsMgr, "", session.NewInMemoryUserStateStorage())
 		projectWithRole := existingProj.DeepCopy()
-
 		roleName := "roleName"
-		role := v1alpha1.ProjectRole{Name: roleName, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: 1}}}
-		projectWithRole.Spec.Roles = append(projectWithRole.Spec.Roles, role)
+		role1 := v1alpha1.ProjectRole{Name: roleName, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: 1}}}
+		projectWithRole.Spec.Roles = append(projectWithRole.Spec.Roles, role1)
 
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithRole), enforcer, util.NewKeyLock(), sessionMgr, nil)
-		projectServer.NormalizeProj()
+		projectServer.NormalizeProjs()
 
 		appList, err := projectServer.appclientset.ArgoprojV1alpha1().AppProjects(projectWithRole.Namespace).List(v1.ListOptions{})
 		assert.NoError(t, err)
-		assert.Len(t, appList.Items[0].Status.JWTTokenMap[roleName].Items, 1)
-		assert.Equal(t, appList.Items[0].Status.JWTTokenMap[roleName].Items[0].IssuedAt, int64(1))
+		assert.Equal(t, appList.Items[0].Status.JWTTokensByRole[roleName].Items[0].IssuedAt, int64(1))
+		assert.ElementsMatch(t, appList.Items[0].Status.JWTTokensByRole[roleName].Items, appList.Items[0].Spec.Roles[0].JWTTokens)
 
 	})
 

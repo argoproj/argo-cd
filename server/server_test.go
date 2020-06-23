@@ -64,15 +64,15 @@ func TestEnforceProjectToken(t *testing.T) {
 
 	role := v1alpha1.ProjectRole{Name: roleName, Policies: []string{defaultPolicy}, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: defaultIssuedAt}, {ID: defaultId}}}
 
-	jwtTokenMap := make(map[string]v1alpha1.JWTTokens)
-	jwtTokenMap[roleName] = v1alpha1.JWTTokens{Items: []v1alpha1.JWTToken{{IssuedAt: defaultIssuedAt}, {ID: defaultId}}}
+	jwtTokenByRole := make(map[string]v1alpha1.JWTTokens)
+	jwtTokenByRole[roleName] = v1alpha1.JWTTokens{Items: []v1alpha1.JWTToken{{IssuedAt: defaultIssuedAt}, {ID: defaultId}}}
 
 	existingProj := v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: projectName, Namespace: test.FakeArgoCDNamespace},
 		Spec: v1alpha1.AppProjectSpec{
 			Roles: []v1alpha1.ProjectRole{role},
 		},
-		Status: v1alpha1.AppprojStatus{JWTTokenMap: jwtTokenMap},
+		Status: v1alpha1.AppProjectStatus{JWTTokensByRole: jwtTokenByRole},
 	}
 	cm := test.NewFakeConfigMap()
 	secret := test.NewFakeSecret()
@@ -324,8 +324,8 @@ func TestRevokedToken(t *testing.T) {
 	defaultPolicy := fmt.Sprintf(policyTemplate, defaultSub, projectName, defaultObject, defaultEffect)
 	kubeclientset := fake.NewSimpleClientset(test.NewFakeConfigMap(), test.NewFakeSecret())
 
-	jwtTokenMap := make(map[string]v1alpha1.JWTTokens)
-	jwtTokenMap[roleName] = v1alpha1.JWTTokens{Items: []v1alpha1.JWTToken{{IssuedAt: defaultIssuedAt}}}
+	jwtTokenByRole := make(map[string]v1alpha1.JWTTokens)
+	jwtTokenByRole[roleName] = v1alpha1.JWTTokens{Items: []v1alpha1.JWTToken{{IssuedAt: defaultIssuedAt}}}
 
 	existingProj := v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{
@@ -345,8 +345,8 @@ func TestRevokedToken(t *testing.T) {
 				},
 			},
 		},
-		Status: v1alpha1.AppprojStatus{
-			JWTTokenMap: jwtTokenMap,
+		Status: v1alpha1.AppProjectStatus{
+			JWTTokensByRole: jwtTokenByRole,
 		},
 	}
 
@@ -358,7 +358,7 @@ func TestRevokedToken(t *testing.T) {
 	assert.True(t, s.enf.Enforce(claims, "applications", "get", defaultTestObject))
 	// Now revoke the token by deleting the token
 	existingProj.Spec.Roles[0].JWTTokens = nil
-	existingProj.Status.JWTTokenMap = nil
+	existingProj.Status.JWTTokensByRole = nil
 	_, _ = s.AppClientset.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Update(&existingProj)
 	time.Sleep(200 * time.Millisecond) // this lets the informer get synced
 	assert.False(t, s.enf.Enforce(claims, "projects", "get", existingProj.ObjectMeta.Name))

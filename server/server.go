@@ -528,7 +528,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	// Register reflection service on gRPC server.
 	reflection.Register(grpcS)
 	grpc_prometheus.Register(grpcS)
-	projectService.NormalizeProj()
+	projectService.NormalizeProjs()
 	return grpcS
 }
 
