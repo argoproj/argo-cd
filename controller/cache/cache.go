@@ -18,6 +18,7 @@ import (
 
 	"github.com/argoproj/argo-cd/controller/metrics"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/lua"
 	"github.com/argoproj/argo-cd/util/settings"
@@ -351,9 +352,17 @@ func (c *liveStateCache) GetVersionsInfo(serverURL string) (string, []metav1.API
 	return clusterInfo.GetServerVersion(), clusterInfo.GetAPIGroups(), nil
 }
 
-func isClusterHasApps(apps []interface{}, cluster *appv1.Cluster) bool {
+func (c *liveStateCache) isClusterHasApps(apps []interface{}, cluster *appv1.Cluster) bool {
 	for _, obj := range apps {
-		if app, ok := obj.(*appv1.Application); ok && app.Spec.Destination.Server == cluster.Server {
+		app, ok := obj.(*appv1.Application)
+		if !ok {
+			continue
+		}
+		err := argo.ValidateDestination(context.Background(), &app.Spec.Destination, c.db)
+		if err != nil {
+			continue
+		}
+		if app.Spec.Destination.Server == cluster.Server {
 			return true
 		}
 	}
@@ -420,7 +429,7 @@ func (c *liveStateCache) handleAddEvent(cluster *appv1.Cluster) {
 	_, ok := c.clusters[cluster.Server]
 	c.lock.Unlock()
 	if !ok {
-		if isClusterHasApps(c.appInformer.GetStore().List(), cluster) {
+		if c.isClusterHasApps(c.appInformer.GetStore().List(), cluster) {
 			go func() {
 				// warm up cache for cluster with apps
 				_, _ = c.getSyncedCluster(cluster.Server)
@@ -430,24 +439,36 @@ func (c *liveStateCache) handleAddEvent(cluster *appv1.Cluster) {
 }
 
 func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *appv1.Cluster) {
-	var bToInvalidate bool
 	c.lock.Lock()
 	cluster, ok := c.clusters[newCluster.Server]
 	c.lock.Unlock()
 	if ok {
+		var shouldInvalidate bool
+
 		if oldCluster.Server != newCluster.Server {
-			bToInvalidate = true
+			shouldInvalidate = true
 		}
 		if !reflect.DeepEqual(oldCluster.Config, newCluster.Config) {
-			bToInvalidate = true
+			shouldInvalidate = true
 		}
 		if !reflect.DeepEqual(oldCluster.Namespaces, newCluster.Namespaces) {
-			bToInvalidate = true
+			shouldInvalidate = true
+		}
+		if newCluster.RefreshRequestedAt != nil &&
+			cluster.GetClusterInfo().LastCacheSyncTime != nil &&
+			cluster.GetClusterInfo().LastCacheSyncTime.Before(newCluster.RefreshRequestedAt.Time) {
+			shouldInvalidate = true
+		}
+
+		if shouldInvalidate {
+			cluster.Invalidate()
+			go func() {
+				// warm up cluster cache
+				_ = cluster.EnsureSynced()
+			}()
 		}
 	}
-	if bToInvalidate {
-		cluster.Invalidate()
-	}
+
 }
 
 func (c *liveStateCache) handleDeleteEvent(clusterServer string) {
@@ -464,8 +485,10 @@ func (c *liveStateCache) GetClustersInfo() []clustercache.ClusterInfo {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 	res := make([]clustercache.ClusterInfo, 0)
-	for _, info := range c.clusters {
-		res = append(res, info.GetClusterInfo())
+	for server, info := range c.clusters {
+		info := info.GetClusterInfo()
+		info.Server = server
+		res = append(res, info)
 	}
 	return res
 }

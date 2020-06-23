@@ -29,23 +29,6 @@ func newFixtures() *fixtures {
 	)}
 }
 
-func TestCache_GetClusterConnectionState(t *testing.T) {
-	cache := newFixtures().Cache
-	// cache miss
-	_, err := cache.GetClusterInfo("my-server")
-	assert.Equal(t, ErrCacheMiss, err)
-	// populate cache
-	err = cache.SetClusterInfo("my-server", &ClusterInfo{ConnectionState: ConnectionState{Status: "my-state"}})
-	assert.NoError(t, err)
-	// cache miss
-	_, err = cache.GetClusterInfo("other-server")
-	assert.Equal(t, ErrCacheMiss, err)
-	// cache hit
-	value, err := cache.GetClusterInfo("my-server")
-	assert.NoError(t, err)
-	assert.Equal(t, ClusterInfo{ConnectionState: ConnectionState{Status: "my-state"}}, value)
-}
-
 func TestCache_GetRepoConnectionState(t *testing.T) {
 	cache := newFixtures().Cache
 	// cache miss

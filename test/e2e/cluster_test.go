@@ -19,14 +19,14 @@ https://kubernetes.default.svc        %v     Successful  `, GetVersions().Server
 
 func TestClusterGet(t *testing.T) {
 	output := FailOnErr(RunCli("cluster", "get", "https://kubernetes.default.svc")).(string)
-	assert.Equal(t, fmt.Sprintf(`config:
-  tlsClientConfig:
-    insecure: false
-connectionState:
-  attemptedAt: null
-  message: ""
-  status: Successful
-name: ""
+
+	assert.Contains(t, output, fmt.Sprintf(`
 server: https://kubernetes.default.svc
-serverVersion: "%v"`, GetVersions().ServerVersion), output)
+serverVersion: "%v"`, GetVersions().ServerVersion))
+
+	assert.Contains(t, output, `config:
+  tlsClientConfig:
+    insecure: false`)
+
+	assert.Contains(t, output, `status: Successful`)
 }

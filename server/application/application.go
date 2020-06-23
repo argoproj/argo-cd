@@ -689,8 +689,8 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 		return err
 	}
 
-	if cond := argo.ValidateDestination(ctx, &app.Spec.Destination, s.db); cond != nil {
-		return status.Errorf(codes.InvalidArgument, "application destination spec is invalid: %s", argo.FormatAppConditions([]appv1.ApplicationCondition{*cond}))
+	if err := argo.ValidateDestination(ctx, &app.Spec.Destination, s.db); err != nil {
+		return status.Errorf(codes.InvalidArgument, "application destination spec is invalid: %s", err.Error())
 	}
 
 	conditions, err := argo.ValidateRepo(ctx, app, s.repoClientset, s.db, kustomizeOptions, plugins, s.kubectl)
@@ -714,8 +714,8 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 }
 
 func (s *Server) getApplicationClusterConfig(ctx context.Context, a *appv1.Application) (*rest.Config, error) {
-	if condition := argo.ValidateDestination(ctx, &a.Spec.Destination, s.db); condition != nil {
-		return nil, errors.New(condition.Message)
+	if err := argo.ValidateDestination(ctx, &a.Spec.Destination, s.db); err != nil {
+		return nil, err
 	}
 	clst, err := s.db.GetCluster(ctx, a.Spec.Destination.Server)
 	if err != nil {

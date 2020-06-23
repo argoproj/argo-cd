@@ -117,15 +117,6 @@ const (
 	AnnotationValueManagedByArgoCD = "argocd.argoproj.io"
 	// ResourcesFinalizerName the finalizer value which we inject to finalize deletion of an application
 	ResourcesFinalizerName = "resources-finalizer.argocd.argoproj.io"
-
-	// AnnotationKeyModifiedAt is the annotation key which indicates when cluster is synced
-	AnnotationKeyModifiedAt = "modifiedAt"
-	// AnnotationKeyModifiedAt is the annotation key which indicates cluster server version
-	AnnotationKeyServerVersion = "serverVersion"
-	// AnnotationMessage is the annotation key which contains message
-	AnnotationKeyMessage = "message"
-	// AnnotationStatus is the annotation key which contains status
-	AnnotationKeyStatus = "status"
 )
 
 // Environment variables for tuning and debugging Argo CD

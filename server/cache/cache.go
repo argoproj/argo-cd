@@ -32,11 +32,6 @@ func NewCache(
 	return &Cache{cache, connectionStatusCacheExpiration, oidcCacheExpiration, loginAttemptsExpiration}
 }
 
-type ClusterInfo struct {
-	appv1.ConnectionState
-	Version string
-}
-
 func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) func() (*Cache, error) {
 	var connectionStatusCacheExpiration time.Duration
 	var oidcCacheExpiration time.Duration
@@ -74,16 +69,6 @@ func (c *Cache) SetLoginAttempts(attempts map[string]session.LoginAttempts) erro
 	return c.cache.SetItem("session|login.attempts", attempts, c.loginAttemptsExpiration, attempts == nil)
 }
 
-func clusterConnectionStateKey(server string) string {
-	return fmt.Sprintf("cluster|%s|connection-state", server)
-}
-
-func (c *Cache) GetClusterInfo(server string) (ClusterInfo, error) {
-	res := ClusterInfo{}
-	err := c.cache.GetItem(clusterConnectionStateKey(server), &res)
-	return res, err
-}
-
 func (c *Cache) SetRepoConnectionState(repo string, state *appv1.ConnectionState) error {
 	return c.cache.SetItem(repoConnectionStateKey(repo), &state, c.connectionStatusCacheExpiration, state == nil)
 }
@@ -98,8 +83,12 @@ func (c *Cache) GetRepoConnectionState(repo string) (appv1.ConnectionState, erro
 	return res, err
 }
 
-func (c *Cache) SetClusterInfo(server string, state *ClusterInfo) error {
-	return c.cache.SetItem(clusterConnectionStateKey(server), &state, c.connectionStatusCacheExpiration, state == nil)
+func (c *Cache) GetClusterInfo(server string, res *appv1.ClusterInfo) error {
+	return c.cache.GetClusterInfo(server, res)
+}
+
+func (c *Cache) SetClusterInfo(server string, res *appv1.ClusterInfo) error {
+	return c.cache.SetClusterInfo(server, res)
 }
 
 func oidcStateKey(key string) string {

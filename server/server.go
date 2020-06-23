@@ -100,14 +100,10 @@ import (
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
 )
 
-const (
-	maxConcurrentLoginRequestsCountEnv = "ARGOCD_MAX_CONCURRENT_LOGIN_REQUESTS_COUNT"
-)
+const maxConcurrentLoginRequestsCountEnv = "ARGOCD_MAX_CONCURRENT_LOGIN_REQUESTS_COUNT"
 
-var (
-	// ErrNoSession indicates no auth token was supplied as part of a request
-	ErrNoSession = status.Errorf(codes.Unauthenticated, "no session information")
-)
+// ErrNoSession indicates no auth token was supplied as part of a request
+var ErrNoSession = status.Errorf(codes.Unauthenticated, "no session information")
 
 var noCacheHeaders = map[string]string{
 	"Expires":         time.Unix(0, 0).Format(time.RFC1123),
@@ -452,6 +448,8 @@ func (a *ArgoCDServer) useTLS() bool {
 }
 
 func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
+	grpc_prometheus.EnableHandlingTimeHistogram()
+
 	sOpts := []grpc.ServerOption{
 		// Set the both send and receive the bytes limit to be 100MB
 		// The proper way to achieve high performance is to have pagination

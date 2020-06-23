@@ -4,6 +4,7 @@ import {Redirect, Route, RouteComponentProps, Switch} from 'react-router';
 import {AccountDetails} from './account-details/account-details';
 import {AccountsList} from './accounts-list/accounts-list';
 import {CertsList} from './certs-list/certs-list';
+import {ClusterDetails} from './cluster-details/cluster-details';
 import {ClustersList} from './clusters-list/clusters-list';
 import {GpgKeysList} from './gpgkeys-list/gpgkeys-list';
 import {ProjectDetails} from './project-details/project-details';
@@ -18,6 +19,7 @@ export const SettingsContainer = (props: RouteComponentProps<any>) => (
         <Route exact={true} path={`${props.match.path}/certs`} component={CertsList} />
         <Route exact={true} path={`${props.match.path}/gpgkeys`} component={GpgKeysList} />
         <Route exact={true} path={`${props.match.path}/clusters`} component={ClustersList} />
+        <Route exact={true} path={`${props.match.path}/clusters/:server`} component={ClusterDetails} />
         <Route exact={true} path={`${props.match.path}/projects`} component={ProjectsList} />
         <Route exact={true} path={`${props.match.path}/projects/:name`} component={ProjectDetails} />
         <Route exact={true} path={`${props.match.path}/accounts`} component={AccountsList} />
