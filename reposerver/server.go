@@ -14,6 +14,7 @@ import (
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -41,7 +42,6 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 		Organization: "Argo CD",
 		IsCA:         true,
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -49,9 +49,11 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 	tlsConfig := &tls.Config{Certificates: []tls.Certificate{*cert}}
 	tlsConfCustomizer(tlsConfig)
 
+	grpc_prometheus.EnableHandlingTimeHistogram()
+
 	serverLog := log.NewEntry(log.StandardLogger())
-	streamInterceptors := []grpc.StreamServerInterceptor{grpc_logrus.StreamServerInterceptor(serverLog), grpc_util.PanicLoggerStreamServerInterceptor(serverLog)}
-	unaryInterceptors := []grpc.UnaryServerInterceptor{grpc_logrus.UnaryServerInterceptor(serverLog), grpc_util.PanicLoggerUnaryServerInterceptor(serverLog)}
+	streamInterceptors := []grpc.StreamServerInterceptor{grpc_logrus.StreamServerInterceptor(serverLog), grpc_prometheus.StreamServerInterceptor, grpc_util.PanicLoggerStreamServerInterceptor(serverLog)}
+	unaryInterceptors := []grpc.UnaryServerInterceptor{grpc_logrus.UnaryServerInterceptor(serverLog), grpc_prometheus.UnaryServerInterceptor, grpc_util.PanicLoggerUnaryServerInterceptor(serverLog)}
 
 	return &ArgoCDRepoServer{
 		log:              serverLog,
