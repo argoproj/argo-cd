@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net/url"
 	"os"
+	"os/exec"
 	"reflect"
 	"sort"
 	"strconv"
@@ -553,6 +554,8 @@ func setAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			setJsonnetOptExtVar(&spec.Source, appOpts.jsonnetExtVarStr, false)
 		case "jsonnet-ext-var-code":
 			setJsonnetOptExtVar(&spec.Source, appOpts.jsonnetExtVarCode, true)
+		case "jsonnet-libs":
+			setJsonnetOptLibs(&spec.Source, appOpts.jsonnetLibs)
 		case "sync-policy":
 			switch appOpts.syncPolicy {
 			case "none":
@@ -703,6 +706,12 @@ func setJsonnetOptExtVar(src *argoappv1.ApplicationSource, jsonnetExtVar []strin
 		src.Directory.Jsonnet.ExtVars = append(src.Directory.Jsonnet.ExtVars, argoappv1.NewJsonnetVar(j, code))
 	}
 }
+func setJsonnetOptJPath(src *argoappv1.ApplicationSource, libs []string) {
+	if src.Directory == nil {
+		src.Directory = &argoappv1.ApplicationSourceDirectory{}
+	}
+	src.Directory.Jsonnet.Libs = append(src.Directory.Jsonnet.Libs, libs...)
+}
 
 type appOptions struct {
 	repoURL                string
@@ -734,6 +743,7 @@ type appOptions struct {
 	jsonnetTlaCode         []string
 	jsonnetExtVarStr       []string
 	jsonnetExtVarCode      []string
+	jsonnetLibs            []string
 	kustomizeImages        []string
 	kustomizeVersion       string
 }
@@ -769,6 +779,7 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().StringArrayVar(&opts.jsonnetTlaCode, "jsonnet-tla-code", []string{}, "Jsonnet top level code arguments")
 	command.Flags().StringArrayVar(&opts.jsonnetExtVarStr, "jsonnet-ext-var-str", []string{}, "Jsonnet string ext var")
 	command.Flags().StringArrayVar(&opts.jsonnetExtVarCode, "jsonnet-ext-var-code", []string{}, "Jsonnet ext var")
+	command.Flags().StringArrayVar(&opts.jsonnetLibs, "jsonnet-libs", []string{}, "Additional jsonnet libs (prefixed by repoRoot)")
 	command.Flags().StringArrayVar(&opts.kustomizeImages, "kustomize-image", []string{}, "Kustomize images (e.g. --kustomize-image node:8.15.0 --kustomize-image mysql=mariadb,alpine@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d)")
 }
 
@@ -949,7 +960,13 @@ func getLocalObjects(app *argoappv1.Application, local, appLabelKey, kubeVersion
 
 func getLocalObjectsString(app *argoappv1.Application, local, appLabelKey, kubeVersion string, kustomizeOptions *argoappv1.KustomizeOptions,
 	configManagementPlugins []*argoappv1.ConfigManagementPlugin) []string {
-	res, err := repository.GenerateManifests(local, "/", app.Spec.Source.TargetRevision, &repoapiclient.ManifestRequest{
+
+	// Get repository root using git
+	repoRootBytes, err := exec.Command("git", "rev-parse", "--show-toplevel").Output()
+	errors.CheckError(err)
+	repoRoot := strings.TrimSpace(string(repoRootBytes))
+
+	res, err := repository.GenerateManifests(local, repoRoot, app.Spec.Source.TargetRevision, &repoapiclient.ManifestRequest{
 		Repo:              &argoappv1.Repository{Repo: app.Spec.Source.RepoURL},
 		AppLabelKey:       appLabelKey,
 		AppLabelValue:     app.Name,
