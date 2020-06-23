@@ -8,9 +8,9 @@ import (
 	"io/ioutil"
 	"testing"
 
-	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"sigs.k8s.io/yaml"
 )
 
 func assertAppHealth(t *testing.T, yamlPath string, expectedStatus HealthStatusCode) {

@@ -15,7 +15,6 @@ import (
 	"reflect"
 
 	jsonpatch "github.com/evanphx/json-patch"
-	"github.com/ghodss/yaml"
 	"github.com/google/shlex"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -24,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/jsonmergepatch"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/client-go/kubernetes/scheme"
+	"sigs.k8s.io/yaml"
 
 	jsonutil "github.com/argoproj/gitops-engine/pkg/utils/json"
 )

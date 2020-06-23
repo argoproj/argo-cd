@@ -5,7 +5,7 @@ go 1.13
 require (
 	github.com/argoproj/pkg v0.0.0-20200102163130-2dd1f3f6b4de
 	github.com/evanphx/json-patch v4.2.0+incompatible
-	github.com/ghodss/yaml v1.0.0
+	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
 	github.com/k0kubun/colorstring v0.0.0-20150214042306-9440f1994b88 // indirect
 	github.com/pkg/errors v0.9.1
@@ -17,7 +17,6 @@ require (
 	github.com/yudai/golcs v0.0.0-20170316035057-ecda9a501e82 // indirect
 	github.com/yudai/pp v2.0.1+incompatible // indirect
 	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
-	gopkg.in/yaml.v2 v2.2.8 // indirect
 	k8s.io/api v0.16.6
 	k8s.io/apiextensions-apiserver v0.16.6
 	k8s.io/apimachinery v0.16.6
@@ -26,6 +25,7 @@ require (
 	k8s.io/kube-aggregator v0.16.6
 	k8s.io/kubectl v0.16.6
 	k8s.io/kubernetes v1.16.6
+	sigs.k8s.io/yaml v1.2.0
 )
 
 replace (

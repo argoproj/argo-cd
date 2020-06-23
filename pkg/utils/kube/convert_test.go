@@ -5,9 +5,9 @@ import (
 
 	testingutils "github.com/argoproj/gitops-engine/pkg/utils/testing"
 
-	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/yaml"
 )
 
 type testcase struct {
