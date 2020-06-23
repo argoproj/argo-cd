@@ -547,7 +547,10 @@ func findManifests(appPath string, repoRoot string, env *v1alpha1.Env, directory
 			}
 			objs = append(objs, &obj)
 		} else if strings.HasSuffix(f.Name(), ".jsonnet") {
-			vm := makeJsonnetVm(appPath, repoRoot, directory.Jsonnet, env)
+			vm, err := makeJsonnetVm(appPath, repoRoot, directory.Jsonnet, env)
+			if err != nil {
+				return err
+			}
 			jsonStr, err := vm.EvaluateSnippet(path, string(out))
 			if err != nil {
 				return status.Errorf(codes.FailedPrecondition, "Failed to evaluate jsonnet %q: %v", f.Name(), err)
@@ -588,7 +591,8 @@ func findManifests(appPath string, repoRoot string, env *v1alpha1.Env, directory
 	return objs, nil
 }
 
-func makeJsonnetVm(appPath string, repoRoot string, sourceJsonnet v1alpha1.ApplicationSourceJsonnet, env *v1alpha1.Env) *jsonnet.VM {
+func makeJsonnetVm(appPath string, repoRoot string, sourceJsonnet v1alpha1.ApplicationSourceJsonnet, env *v1alpha1.Env) (*jsonnet.VM, error) {
+
 	vm := jsonnet.MakeVM()
 	for i, j := range sourceJsonnet.TLAs {
 		sourceJsonnet.TLAs[i].Value = env.Envsubst(j.Value)
@@ -614,14 +618,18 @@ func makeJsonnetVm(appPath string, repoRoot string, sourceJsonnet v1alpha1.Appli
 	// Jsonnet Imports relative to the repository path
 	jpaths := []string{appPath}
 	for _, p := range sourceJsonnet.Libs {
-		jpaths = append(jpaths, path.Join(repoRoot, p))
+		jpath := path.Join(repoRoot, p)
+		if !strings.HasPrefix(jpath, repoRoot) {
+			return nil, status.Errorf(codes.FailedPrecondition, "%s: referenced library points outside the repository", p)
+		}
+		jpaths = append(jpaths, jpath)
 	}
 
 	vm.Importer(&jsonnet.FileImporter{
 		JPaths: jpaths,
 	})
 
-	return vm
+	return vm, nil
 }
 
 func runCommand(command v1alpha1.Command, path string, env []string) (string, error) {
