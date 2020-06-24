@@ -34,3 +34,12 @@ func (j *JSONMarshaler) NewEncoder(w io.Writer) gwruntime.Encoder {
 func (j *JSONMarshaler) Unmarshal(data []byte, v interface{}) error {
 	return json.Unmarshal(data, v)
 }
+
+// MustMarshal is a convenience function to marshal an object successfully or panic
+func MustMarshal(v interface{}) []byte {
+	bytes, err := json.Marshal(v)
+	if err != nil {
+		panic(err)
+	}
+	return bytes
+}
