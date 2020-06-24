@@ -47,7 +47,7 @@ var (
 	descAppInfo = prometheus.NewDesc(
 		"argocd_app_info",
 		"Information about application.",
-		append(descAppDefaultLabels, "repo", "dest_server", "dest_namespace", "sync_status", "health_status", "operation"),
+		append(descAppDefaultLabels, "repo", "dest_server", "dest_namespace", "sync_status", "health_status", "operation", "sha"),
 		nil,
 	)
 	// DEPRECATED
@@ -297,7 +297,7 @@ func collectApps(ch chan<- prometheus.Metric, app *argoappv1.Application) {
 		healthStatus = health.HealthStatusUnknown
 	}
 
-	addGauge(descAppInfo, 1, git.NormalizeGitURL(app.Spec.Source.RepoURL), app.Spec.Destination.Server, app.Spec.Destination.Namespace, string(syncStatus), string(healthStatus), operation)
+	addGauge(descAppInfo, 1, git.NormalizeGitURL(app.Spec.Source.RepoURL), app.Spec.Destination.Server, app.Spec.Destination.Namespace, string(syncStatus), string(healthStatus), operation, app.Status.OperationState.Operation.Sync.Revision)
 
 	// Deprecated controller metrics
 	if os.Getenv(EnvVarLegacyControllerMetrics) == "true" {
