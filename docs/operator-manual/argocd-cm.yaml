@@ -42,6 +42,14 @@ data:
           - name: your-github-org
             teams:
             - red-team
+    # It is possible to provide custom static client for dex if you want to reuse it
+    # with other services
+    # staticClients:
+    # - id: argo-workflow
+    #   name: Argo Workflow
+    #   redirectURIs:
+    #     - https://argo/oauth2/callback
+    #   secret: $secretReference
 
   # OIDC configuration as an alternative to dex (optional).
   oidc.config: |
@@ -170,7 +178,7 @@ data:
               return obj
 
   # Configuration to completely ignore entire classes of resource group/kinds (optional).
-  # Excluding high-volume resources improves performance and memory usage, and reduces load and 
+  # Excluding high-volume resources improves performance and memory usage, and reduces load and
   # bandwidth to the Kubernetes API server.
   # These are globs, so a "*" will match all values.
   # If you omit groups/kinds/clusters then they will match all groups/kind/clusters.
