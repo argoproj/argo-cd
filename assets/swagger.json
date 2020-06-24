@@ -3416,7 +3416,7 @@
       "type": "object",
       "title": "AppProjectStatus contains information about appproj",
       "properties": {
-        "jWTTokensByRole": {
+        "jwtTokensByRole": {
           "type": "object",
           "additionalProperties": {
             "$ref": "#/definitions/v1alpha1JWTTokens"

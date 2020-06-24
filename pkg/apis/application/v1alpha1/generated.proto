@@ -83,7 +83,7 @@ message AppProjectSpec {
 
 // AppProjectStatus contains information about appproj
 message AppProjectStatus {
-  map<string, JWTTokens> jWTTokensByRole = 1;
+  map<string, JWTTokens> jwtTokensByRole = 1;
 }
 
 // Application is a definition of Application resource.

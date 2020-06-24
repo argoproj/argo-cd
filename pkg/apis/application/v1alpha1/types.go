@@ -431,7 +431,7 @@ type JWTTokens struct {
 
 // AppProjectStatus contains information about appproj
 type AppProjectStatus struct {
-	JWTTokensByRole map[string]JWTTokens `json:"jWTTokensByRole,omitempty" protobuf:"bytes,1,opt,name=jWTTokensByRole"`
+	JWTTokensByRole map[string]JWTTokens `json:"jwtTokensByRole,omitempty" protobuf:"bytes,1,opt,name=jwtTokensByRole"`
 }
 
 // OperationInitiator holds information about the operation initiator
@@ -1399,6 +1399,26 @@ func (p *AppProject) GetJWTToken(roleName string, issuedAt int64, id string) (*J
 	}
 
 	return nil, -1, fmt.Errorf("JWT token for role '%s' issued at '%d' does not exist in project '%s'", roleName, issuedAt, p.Name)
+}
+
+func (p AppProject) RemoveJWTToken(roleIndex int, issuedAt int64, id string) error {
+	roleName := p.Spec.Roles[roleIndex].Name
+	// For backward compatibility
+	_, jwtTokenIndex, err := p.GetJWTTokenFromSpec(roleName, issuedAt, id)
+	if err != nil {
+		return err
+	}
+	p.Spec.Roles[roleIndex].JWTTokens[jwtTokenIndex] = p.Spec.Roles[roleIndex].JWTTokens[len(p.Spec.Roles[roleIndex].JWTTokens)-1]
+	p.Spec.Roles[roleIndex].JWTTokens = p.Spec.Roles[roleIndex].JWTTokens[:len(p.Spec.Roles[roleIndex].JWTTokens)-1]
+
+	// New location for storing JWTToken
+	_, jwtTokenIndex, err = p.GetJWTToken(roleName, issuedAt, id)
+	if err != nil {
+		return err
+	}
+	p.Status.JWTTokensByRole[roleName].Items[jwtTokenIndex] = p.Status.JWTTokensByRole[roleName].Items[len(p.Status.JWTTokensByRole[roleName].Items)-1]
+	p.Status.JWTTokensByRole[roleName] = JWTTokens{Items: p.Status.JWTTokensByRole[roleName].Items[:len(p.Status.JWTTokensByRole[roleName].Items)-1]}
+	return nil
 }
 
 func (p *AppProject) ValidateJWTTokenID(roleName string, id string) error {
@@ -2409,32 +2429,21 @@ func syncJWTTokenBetweenStatusAndSpec(proj *AppProject) {
 		} else {
 			tokensInStatus = proj.Status.JWTTokensByRole[role.Name].Items
 		}
-		tokens := jWTTokensCombine(tokensInStatus, tokensInSpec)
+		tokens := jwtTokensCombine(tokensInStatus, tokensInSpec)
 		proj.Spec.Roles[roleIndex].JWTTokens = tokens
 		proj.Status.JWTTokensByRole[role.Name] = JWTTokens{Items: tokens}
 	}
 }
 
-func jWTTokensCombine(tokens1 []JWTToken, tokens2 []JWTToken) []JWTToken {
-	tokens := []JWTToken{}
-	for _, token := range tokens1 {
-		if !jWTTokenContains(tokens, token) {
-			tokens = append(tokens, token)
-		}
+func jwtTokensCombine(tokens1 []JWTToken, tokens2 []JWTToken) []JWTToken {
+	tokensMap := make(map[string]JWTToken)
+	for _, token := range append(tokens1, tokens2...) {
+		tokensMap[token.ID] = token
 	}
-	for _, token := range tokens2 {
-		if !jWTTokenContains(tokens, token) {
-			tokens = append(tokens, token)
-		}
+
+	tokens := []JWTToken{}
+	for _, v := range tokensMap {
+		tokens = append(tokens, v)
 	}
 	return tokens
-}
-
-func jWTTokenContains(s []JWTToken, e JWTToken) bool {
-	for _, a := range s {
-		if a.ID == e.ID {
-			return true
-		}
-	}
-	return false
 }

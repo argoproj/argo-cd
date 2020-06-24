@@ -3,7 +3,6 @@ import * as React from 'react';
 import {Form, FormApi, Text} from 'react-form';
 
 import * as models from '../../../shared/models';
-import {JwtToken} from '../../../shared/models';
 import {CreateJWTTokenParams, DeleteJWTTokenParams, ProjectRoleParams} from '../../../shared/services';
 import {ProjectRoleGroupsEdit} from '../project-role-groups-edit/project-role-groups-edit';
 import {ProjectRoleJWTTokens} from '../project-role-jwt-tokens/project-role-jwt-tokens';
@@ -14,7 +13,7 @@ interface ProjectRoleDefaultParams {
     role?: models.ProjectRole;
     newRole: boolean;
     deleteRole: boolean;
-    jwtTokens: JwtToken[];
+    jwtTokens: models.JwtToken[];
 }
 
 interface ProjectRoleEditPanelProps {

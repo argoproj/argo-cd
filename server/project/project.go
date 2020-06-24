@@ -158,24 +158,8 @@ func (s *Server) DeleteToken(ctx context.Context, q *project.ProjectTokenDeleteR
 		}
 	}
 
-	// For backward compatibility
-	_, jwtTokenIndex, err := prj.GetJWTTokenFromSpec(q.Role, q.Iat, q.Id)
-	bUpdate := false
+	err = prj.RemoveJWTToken(roleIndex, q.Iat, q.Id)
 	if err == nil {
-		prj.Spec.Roles[roleIndex].JWTTokens[jwtTokenIndex] = prj.Spec.Roles[roleIndex].JWTTokens[len(prj.Spec.Roles[roleIndex].JWTTokens)-1]
-		prj.Spec.Roles[roleIndex].JWTTokens = prj.Spec.Roles[roleIndex].JWTTokens[:len(prj.Spec.Roles[roleIndex].JWTTokens)-1]
-		bUpdate = true
-	}
-
-	//New location for storing JWTToken
-	_, jwtTokenIndex, err = prj.GetJWTToken(q.Role, q.Iat, q.Id)
-	if err == nil {
-		prj.Status.JWTTokensByRole[q.Role].Items[jwtTokenIndex] = prj.Status.JWTTokensByRole[q.Role].Items[len(prj.Status.JWTTokensByRole[q.Role].Items)-1]
-		prj.Status.JWTTokensByRole[q.Role] = v1alpha1.JWTTokens{Items: prj.Status.JWTTokensByRole[q.Role].Items[:len(prj.Status.JWTTokensByRole[q.Role].Items)-1]}
-		bUpdate = true
-	}
-
-	if bUpdate {
 		_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(prj)
 		if err != nil {
 			return nil, err
@@ -429,6 +413,9 @@ func (s *Server) NormalizeProjs() {
 		for i := 0; i < 3; i++ {
 			_, err := s.Update(ctx, &project.ProjectUpdateRequest{Project: &proj})
 			if err == nil {
+				break
+			}
+			if !apierr.IsConflict(err) {
 				break
 			}
 		}

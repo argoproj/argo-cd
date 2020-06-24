@@ -597,7 +597,6 @@ export interface ProjectRole {
     description: string;
     policies: string[];
     name: string;
-    jwtTokens: JwtToken[];
     groups: string[];
 }
 

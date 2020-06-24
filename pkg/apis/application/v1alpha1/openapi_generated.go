@@ -358,7 +358,7 @@ func schema_pkg_apis_application_v1alpha1_AppProjectStatus(ref common.ReferenceC
 				Description: "AppProjectStatus contains information about appproj",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"jWTTokensByRole": {
+					"jwtTokensByRole": {
 						SchemaProps: spec.SchemaProps{
 							Type: []string{"object"},
 							AdditionalProperties: &spec.SchemaOrBool{

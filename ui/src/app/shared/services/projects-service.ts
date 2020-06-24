@@ -64,7 +64,6 @@ function paramsToProjRole(params: ProjectRoleParams): models.ProjectRole {
         name: params.roleName,
         description: params.description,
         policies: newPolicies,
-        jwtTokens: params.jwtTokens,
         groups: params.groups
     };
 }

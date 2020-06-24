@@ -1970,7 +1970,7 @@ spec:
         status:
           description: AppProjectStatus contains information about appproj
           properties:
-            jWTTokensByRole:
+            jwtTokensByRole:
               additionalProperties:
                 properties:
                   items:
