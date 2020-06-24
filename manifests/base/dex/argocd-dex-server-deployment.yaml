@@ -5,6 +5,8 @@ metadata:
     app.kubernetes.io/name: argocd-dex-server
     app.kubernetes.io/part-of: argocd
     app.kubernetes.io/component: dex-server
+    app: argocd-dex-server
+    version: v2.22.0
   name: argocd-dex-server
 spec:
   selector:
@@ -14,6 +16,8 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: argocd-dex-server
+        app: argocd-dex-server
+        version: v2.22.0
     spec:
       serviceAccountName: argocd-dex-server
       initContainers:

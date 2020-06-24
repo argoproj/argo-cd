@@ -5,6 +5,7 @@ metadata:
     app.kubernetes.io/name: argocd-server
     app.kubernetes.io/part-of: argocd
     app.kubernetes.io/component: server
+    app: argocd-server
   name: argocd-server
 spec:
   selector:
@@ -14,6 +15,7 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: argocd-server
+        app: argocd-server
     spec:
       serviceAccountName: argocd-server
       containers:

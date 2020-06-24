@@ -13,3 +13,7 @@ images:
 - name: argoproj/argocd
   newName: argoproj/argocd
   newTag: latest
+
+patchesStrategicMerge:
+- version_label_patches.yaml
+

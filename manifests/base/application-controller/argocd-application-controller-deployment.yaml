@@ -5,6 +5,7 @@ metadata:
     app.kubernetes.io/name: argocd-application-controller
     app.kubernetes.io/part-of: argocd
     app.kubernetes.io/component: application-controller
+    app: argocd-application-controller
   name: argocd-application-controller
 spec:
   strategy:
@@ -16,6 +17,7 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: argocd-application-controller
+        app: argocd-application-controller
     spec:
       containers:
       - command:

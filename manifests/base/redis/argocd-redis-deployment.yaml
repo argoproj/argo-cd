@@ -5,6 +5,8 @@ metadata:
     app.kubernetes.io/name: argocd-redis
     app.kubernetes.io/part-of: argocd
     app.kubernetes.io/component: redis
+    app: argocd-redis
+    version: v5.0.8
   name: argocd-redis
 spec:
   selector:
@@ -14,6 +16,8 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: argocd-redis
+        app: argocd-redis
+        version: v5.0.8
     spec:
       containers:
       - name: redis

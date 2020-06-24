@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-server
+  labels:
+    version: v1.7.0
+spec:
+  template:
+    metadata:
+      labels:
+        version: v1.7.0
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-repo-server
+  labels:
+    version: v1.7.0
+spec:
+  template:
+    metadata:
+      labels:
+        version: v1.7.0
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-application-controller
+  labels:
+    version: v1.7.0
+spec:
+  template:
+    metadata:
+      labels:
+        version: v1.7.0
