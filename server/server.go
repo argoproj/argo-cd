@@ -18,7 +18,6 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/argoproj/gitops-engine/pkg/utils/io"
-	jsonutil "github.com/argoproj/gitops-engine/pkg/utils/json"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/go-redis/redis"
@@ -616,7 +615,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	// golang/protobuf. Which does not support types such as time.Time. gogo/protobuf does support
 	// time.Time, but does not support custom UnmarshalJSON() and MarshalJSON() methods. Therefore
 	// we use our own Marshaler
-	gwMuxOpts := runtime.WithMarshalerOption(runtime.MIMEWildcard, new(jsonutil.JSONMarshaler))
+	gwMuxOpts := runtime.WithMarshalerOption(runtime.MIMEWildcard, new(grpc_util.JSONMarshaler))
 	gwCookieOpts := runtime.WithForwardResponseOption(a.translateGrpcCookieHeader)
 	gwmux := runtime.NewServeMux(gwMuxOpts, gwCookieOpts)
 	mux.Handle("/api/", gwmux)
