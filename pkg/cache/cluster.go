@@ -640,8 +640,8 @@ func (c *clusterCache) GetNamespaceTopLevelResources(namespace string) map[kube.
 
 // IterateHierarchy iterates resource tree starting from the specified top level resource and executes callback for each resource in the tree
 func (c *clusterCache) IterateHierarchy(key kube.ResourceKey, action func(resource *Resource, namespaceResources map[kube.ResourceKey]*Resource)) {
-	c.lock.Lock()
-	defer c.lock.Unlock()
+	c.lock.RLock()
+	defer c.lock.RUnlock()
 	if res, ok := c.resources[key]; ok {
 		nsNodes := c.nsIndex[key.Namespace]
 		action(res, nsNodes)
