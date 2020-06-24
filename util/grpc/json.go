@@ -34,4 +34,3 @@ func (j *JSONMarshaler) NewEncoder(w io.Writer) gwruntime.Encoder {
 func (j *JSONMarshaler) Unmarshal(data []byte, v interface{}) error {
 	return json.Unmarshal(data, v)
 }
-
