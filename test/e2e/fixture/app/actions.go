@@ -5,12 +5,12 @@ import (
 	"io/ioutil"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/errors"
-	"github.com/argoproj/gitops-engine/pkg/utils/json"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/util/grpc"
 )
 
 // this implements the "when" part of given/when/then
@@ -102,7 +102,7 @@ func (a *Actions) CreateFromFile(handler func(app *Application)) *Actions {
 	}
 
 	handler(app)
-	data := json.MustMarshal(app)
+	data := grpc.MustMarshal(app)
 	tmpFile, err := ioutil.TempFile("", "")
 	errors.CheckError(err)
 	_, err = tmpFile.Write(data)
