@@ -6,11 +6,9 @@ import (
 	"reflect"
 	"strings"
 
-	log "github.com/sirupsen/logrus"
-
-	"github.com/google/uuid"
-
 	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/google/uuid"
+	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	v1 "k8s.io/api/core/v1"
