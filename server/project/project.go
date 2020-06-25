@@ -4,12 +4,11 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-	"strconv"
 	"strings"
 
-	"github.com/google/uuid"
-
 	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/google/uuid"
+	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	v1 "k8s.io/api/core/v1"
@@ -79,7 +78,7 @@ func (s *Server) CreateToken(ctx context.Context, q *project.ProjectTokenCreateR
 	s.projectLock.Lock(q.Project)
 	defer s.projectLock.Unlock(q.Project)
 
-	role, index, err := prj.GetRoleByName(q.Role)
+	role, _, err := prj.GetRoleByName(q.Role)
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "project '%s' does not have role '%s'", q.Project, q.Role)
 	}
@@ -113,7 +112,17 @@ func (s *Server) CreateToken(ctx context.Context, q *project.ProjectTokenCreateR
 	expiresAt := claims.ExpiresAt
 	id = claims.Id
 
-	prj.Spec.Roles[index].JWTTokens = append(prj.Spec.Roles[index].JWTTokens, v1alpha1.JWTToken{IssuedAt: issuedAt, ExpiresAt: expiresAt, ID: id})
+	items := append(prj.Status.JWTTokensByRole[q.Role].Items, v1alpha1.JWTToken{IssuedAt: issuedAt, ExpiresAt: expiresAt, ID: id})
+	if _, found := prj.Status.JWTTokensByRole[q.Role]; found {
+		prj.Status.JWTTokensByRole[q.Role] = v1alpha1.JWTTokens{Items: items}
+	} else {
+		tokensMap := make(map[string]v1alpha1.JWTTokens)
+		tokensMap[q.Role] = v1alpha1.JWTTokens{Items: items}
+		prj.Status.JWTTokensByRole = tokensMap
+	}
+
+	prj.NormalizeJWTTokens()
+
 	_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(prj)
 	if err != nil {
 		return nil, err
@@ -146,17 +155,18 @@ func (s *Server) DeleteToken(ctx context.Context, q *project.ProjectTokenDeleteR
 			return nil, err
 		}
 	}
-	_, jwtTokenIndex, err := prj.GetJWTToken(q.Role, q.Iat, q.Id)
+
+	err = prj.RemoveJWTToken(roleIndex, q.Iat, q.Id)
 	if err != nil {
 		return &project.EmptyResponse{}, nil
 	}
-	prj.Spec.Roles[roleIndex].JWTTokens[jwtTokenIndex] = prj.Spec.Roles[roleIndex].JWTTokens[len(prj.Spec.Roles[roleIndex].JWTTokens)-1]
-	prj.Spec.Roles[roleIndex].JWTTokens = prj.Spec.Roles[roleIndex].JWTTokens[:len(prj.Spec.Roles[roleIndex].JWTTokens)-1]
+
 	_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(prj)
 	if err != nil {
 		return nil, err
 	}
 	s.logEvent(prj, ctx, argo.EventReasonResourceDeleted, "deleted token")
+
 	return &project.EmptyResponse{}, nil
 }
 
@@ -220,15 +230,7 @@ func (s *Server) Get(ctx context.Context, q *project.ProjectQuery) (*v1alpha1.Ap
 	if err != nil {
 		return nil, err
 	}
-	for i, role := range proj.Spec.Roles {
-		for j, token := range role.JWTTokens {
-			if token.ID == "" {
-				token.ID = strconv.FormatInt(token.IssuedAt, 10)
-				role.JWTTokens[j] = token
-			}
-		}
-		proj.Spec.Roles[i] = role
-	}
+	proj.NormalizeJWTTokens()
 	return proj, err
 }
 
@@ -238,6 +240,7 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 		return nil, err
 	}
 	q.Project.NormalizePolicies()
+	q.Project.NormalizeJWTTokens()
 	err := validateProject(q.Project)
 	if err != nil {
 		return nil, err
@@ -399,4 +402,31 @@ func (s *Server) GetSyncWindowsState(ctx context.Context, q *project.SyncWindows
 	}
 
 	return res, nil
+}
+
+func (s *Server) NormalizeProjs() {
+	ctx := context.Background()
+	projList, err := s.List(ctx, &project.ProjectQuery{})
+	if err != nil {
+		return
+	}
+	for _, proj := range projList.Items {
+		if proj.NormalizeJWTTokens() {
+			// if !apierr.IsConflict(err), retry 3 times
+			for i := 0; i < 3; i++ {
+				_, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(&proj)
+				if err == nil {
+					log.Info(fmt.Sprintf("Successfully Normalized project %s.", proj.Name))
+					break
+				}
+				if !apierr.IsConflict(err) {
+					log.Warn(fmt.Sprintf("Failed Normalize project %s", proj.Name))
+					break
+				}
+				if i == 2 {
+					log.Warn(fmt.Sprintf("Failed Normalize project %s", proj.Name))
+				}
+			}
+		}
+	}
 }
