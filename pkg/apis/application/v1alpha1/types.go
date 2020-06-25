@@ -2444,7 +2444,7 @@ func syncJWTTokenBetweenStatusAndSpec(proj *AppProject) bool {
 			return proj.Spec.Roles[roleIndex].JWTTokens[i].IssuedAt > proj.Spec.Roles[roleIndex].JWTTokens[j].IssuedAt
 		})
 		sort.Slice(proj.Status.JWTTokensByRole[role.Name].Items, func(i, j int) bool {
-			return proj.Status.JWTTokensByRole[role.Name].Items[i].IssuedAt > proj.Status.JWTTokensByRole[role.Name].Items[i].IssuedAt
+			return proj.Status.JWTTokensByRole[role.Name].Items[i].IssuedAt > proj.Status.JWTTokensByRole[role.Name].Items[j].IssuedAt
 		})
 		if !cmp.Equal(tokens, proj.Spec.Roles[roleIndex].JWTTokens) || !cmp.Equal(tokens, proj.Status.JWTTokensByRole[role.Name].Items) {
 			needSync = true
