@@ -266,7 +266,7 @@ func NewProjectAddSignatureKeyCommand(clientOpts *argocdclient.ClientOptions) *c
 			signatureKey := args[1]
 
 			if !gpg.IsShortKeyID(signatureKey) && !gpg.IsLongKeyID(signatureKey) {
-				log.Fatalf("%s is not a valid GnuPG key ID", signatureKey)
+				errors.Fatalf(errors.ErrorCommandSpecific, "%s is not a valid GnuPG key ID", signatureKey)
 			}
 
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
@@ -277,7 +277,7 @@ func NewProjectAddSignatureKeyCommand(clientOpts *argocdclient.ClientOptions) *c
 
 			for _, key := range proj.Spec.SignatureKeys {
 				if key.KeyID == signatureKey {
-					log.Fatal("Specified signature key is already defined in project")
+					errors.Fatal(errors.ErrorCommandSpecific, "Specified signature key is already defined in project")
 				}
 			}
 			proj.Spec.SignatureKeys = append(proj.Spec.SignatureKeys, v1alpha1.SignatureKey{KeyID: signatureKey})
@@ -315,7 +315,7 @@ func NewProjectRemoveSignatureKeyCommand(clientOpts *argocdclient.ClientOptions)
 				}
 			}
 			if index == -1 {
-				log.Fatal("Specified signature key is not configured for project")
+				errors.Fatal(errors.ErrorCommandSpecific, "Specified signature key is not configured for project")
 			} else {
 				proj.Spec.SignatureKeys = append(proj.Spec.SignatureKeys[:index], proj.Spec.SignatureKeys[index+1:]...)
 				_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})

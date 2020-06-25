@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
@@ -19,7 +20,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/argoproj/argo-cd/util/cli"
-	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 
 	// load the gcp plugin (required to authenticate against GKE clusters).
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -42,7 +42,7 @@ func newCommand() *cobra.Command {
 			for _, cm := range configMaps {
 				parts := strings.Split(cm, "=")
 				if len(parts) != 2 {
-					log.Fatal("--configmap value should be include config map name and the path separated by '='")
+					errors.Fatal(errors.ErrorCommandSpecific, "--configmap value should be include config map name and the path separated by '='")
 				}
 				log.Infof("Saving %s to %s", parts[0], parts[1])
 				cmNameToPath[parts[0]] = parts[1]
