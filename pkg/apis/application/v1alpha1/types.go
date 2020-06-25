@@ -2440,6 +2440,12 @@ func syncJWTTokenBetweenStatusAndSpec(proj *AppProject) bool {
 		}
 		tokens := jwtTokensCombine(tokensInStatus, tokensInSpec)
 
+		sort.Slice(proj.Spec.Roles[roleIndex].JWTTokens, func(i, j int) bool {
+			return proj.Spec.Roles[roleIndex].JWTTokens[i].IssuedAt > proj.Spec.Roles[roleIndex].JWTTokens[j].IssuedAt
+		})
+		sort.Slice(proj.Status.JWTTokensByRole[role.Name].Items, func(i, j int) bool {
+			return proj.Status.JWTTokensByRole[role.Name].Items[i].IssuedAt > proj.Status.JWTTokensByRole[role.Name].Items[i].IssuedAt
+		})
 		if !cmp.Equal(tokens, proj.Spec.Roles[roleIndex].JWTTokens) || !cmp.Equal(tokens, proj.Status.JWTTokensByRole[role.Name].Items) {
 			needSync = true
 		}
@@ -2461,5 +2467,9 @@ func jwtTokensCombine(tokens1 []JWTToken, tokens2 []JWTToken) []JWTToken {
 	for _, v := range tokensMap {
 		tokens = append(tokens, v)
 	}
+
+	sort.Slice(tokens, func(i, j int) bool {
+		return tokens[i].IssuedAt > tokens[j].IssuedAt
+	})
 	return tokens
 }

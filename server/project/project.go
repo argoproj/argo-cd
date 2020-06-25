@@ -78,7 +78,7 @@ func (s *Server) CreateToken(ctx context.Context, q *project.ProjectTokenCreateR
 	s.projectLock.Lock(q.Project)
 	defer s.projectLock.Unlock(q.Project)
 
-	role, index, err := prj.GetRoleByName(q.Role)
+	role, _, err := prj.GetRoleByName(q.Role)
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "project '%s' does not have role '%s'", q.Project, q.Role)
 	}
@@ -112,10 +112,6 @@ func (s *Server) CreateToken(ctx context.Context, q *project.ProjectTokenCreateR
 	expiresAt := claims.ExpiresAt
 	id = claims.Id
 
-	//For backward compatibility
-	prj.Spec.Roles[index].JWTTokens = append(prj.Spec.Roles[index].JWTTokens, v1alpha1.JWTToken{IssuedAt: issuedAt, ExpiresAt: expiresAt, ID: id})
-
-	//New location for storing JWTToken
 	items := append(prj.Status.JWTTokensByRole[q.Role].Items, v1alpha1.JWTToken{IssuedAt: issuedAt, ExpiresAt: expiresAt, ID: id})
 	if _, found := prj.Status.JWTTokensByRole[q.Role]; found {
 		prj.Status.JWTTokensByRole[q.Role] = v1alpha1.JWTTokens{Items: items}
@@ -124,6 +120,8 @@ func (s *Server) CreateToken(ctx context.Context, q *project.ProjectTokenCreateR
 		tokensMap[q.Role] = v1alpha1.JWTTokens{Items: items}
 		prj.Status.JWTTokensByRole = tokensMap
 	}
+
+	prj.NormalizeJWTTokens()
 
 	_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(prj)
 	if err != nil {
