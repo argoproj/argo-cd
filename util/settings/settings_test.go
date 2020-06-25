@@ -141,6 +141,9 @@ func TestGetAppInstanceLabelKey(t *testing.T) {
 }
 
 func TestGetResourceOverrides(t *testing.T) {
+	ignoreStatus := v1alpha1.ResourceOverride{IgnoreDifferences: "jsonPointers:\n- /status"}
+	crdGK := "apiextensions.k8s.io/CustomResourceDefinition"
+
 	_, settingsManager := fixtures(map[string]string{
 		"resource.customizations": `
     admissionregistration.k8s.io/MutatingWebhookConfiguration:
@@ -159,11 +162,9 @@ func TestGetResourceOverrides(t *testing.T) {
 	}, webHookOverrides)
 
 	// by default, crd status should be ignored
-	crdOverrides := overrides["apiextensions.k8s.io/CustomResourceDefinition"]
+	crdOverrides := overrides[crdGK]
 	assert.NotNil(t, crdOverrides)
-	assert.Equal(t, v1alpha1.ResourceOverride{
-		IgnoreDifferences: "jsonPointers:\n- /status",
-	}, crdOverrides)
+	assert.Equal(t, ignoreStatus, crdOverrides)
 
 	// with value all, status of all objects should be ignored
 	_, settingsManager = fixtures(map[string]string{
@@ -175,9 +176,7 @@ func TestGetResourceOverrides(t *testing.T) {
 
 	globalOverrides := overrides["/"]
 	assert.NotNil(t, globalOverrides)
-	assert.Equal(t, v1alpha1.ResourceOverride{
-		IgnoreDifferences: "jsonPointers:\n- /status",
-	}, globalOverrides)
+	assert.Equal(t, ignoreStatus, globalOverrides)
 
 	// with value crd, status of crd objects should be ignored
 	_, settingsManager = fixtures(map[string]string{
@@ -187,11 +186,9 @@ func TestGetResourceOverrides(t *testing.T) {
 	overrides, err = settingsManager.GetResourceOverrides()
 	assert.NoError(t, err)
 
-	crdOverrides = overrides["apiextensions.k8s.io/CustomResourceDefinition"]
+	crdOverrides = overrides[crdGK]
 	assert.NotNil(t, crdOverrides)
-	assert.Equal(t, v1alpha1.ResourceOverride{
-		IgnoreDifferences: "jsonPointers:\n- /status",
-	}, crdOverrides)
+	assert.Equal(t, ignoreStatus, crdOverrides)
 
 	// with incorrect value, status of crd objects should be ignored
 	_, settingsManager = fixtures(map[string]string{
@@ -201,14 +198,13 @@ func TestGetResourceOverrides(t *testing.T) {
 	overrides, err = settingsManager.GetResourceOverrides()
 	assert.NoError(t, err)
 
-	crdOverrides = overrides["apiextensions.k8s.io/CustomResourceDefinition"]
-	assert.NotNil(t, crdOverrides)
-	assert.Equal(t, v1alpha1.ResourceOverride{
-		IgnoreDifferences: "jsonPointers:\n- /status",
-	}, crdOverrides)
+	defaultOverrides := overrides[crdGK]
+	assert.NotNil(t, defaultOverrides)
+	assert.Equal(t, ignoreStatus, defaultOverrides)
+	assert.Equal(t, ignoreStatus, defaultOverrides)
 
 	// with value off, status of no objects should be ignored
-	_, settingsManager := fixtures(map[string]string{
+	_, settingsManager = fixtures(map[string]string{
 		"resource.compareoptions": `
     ignoreResourceStatusField: off`,
 	})

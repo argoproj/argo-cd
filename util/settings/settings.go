@@ -257,6 +257,24 @@ type incompleteSettingsError struct {
 	message string
 }
 
+type IgnoreStatus string
+
+const (
+	// IgnoreResourceStatusInCRD ignores status changes for all CRDs
+	IgnoreResourceStatusInCRD IgnoreStatus = "crd"
+	// IgnoreResourceStatusInAll ignores status changes for all resources
+	IgnoreResourceStatusInAll IgnoreStatus = "all"
+	// IgnoreResourceStatusInNone ignores status changes for no resources
+	IgnoreResourceStatusInNone IgnoreStatus = "off"
+)
+
+type ArgoCDDiffOptions struct {
+	diff.DiffOptions
+
+	// If set to true then differences caused by status are ignored.
+	IgnoreResourceStatusField IgnoreStatus `json:"ignoreResourceStatusField,omitempty"`
+}
+
 func (e *incompleteSettingsError) Error() string {
 	return e.message
 }
@@ -448,25 +466,29 @@ func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.Resource
 		}
 	}
 
-	var diffOptions diff.DiffOptions
+	var diffOptions ArgoCDDiffOptions
 	if value, ok := argoCDCM.Data[resourceCompareOptionsKey]; ok {
 		err := yaml.Unmarshal([]byte(value), &diffOptions)
 		if err != nil {
 			return nil, err
 		}
 	}
+
+	ignoreStatus := v1alpha1.ResourceOverride{IgnoreDifferences: "jsonPointers:\n- /status"}
+	crdGK := "apiextensions.k8s.io/CustomResourceDefinition"
+
 	switch diffOptions.IgnoreResourceStatusField {
 	case "", "crd":
-		resourceOverrides["apiextensions.k8s.io/CustomResourceDefinition"] = v1alpha1.ResourceOverride{IgnoreDifferences: "jsonPointers:\n- /status"}
+		resourceOverrides[crdGK] = ignoreStatus
 		log.Info("Ignore status for CustomResourceDefinitions")
 	case "all":
-		resourceOverrides["/"] = v1alpha1.ResourceOverride{IgnoreDifferences: "jsonPointers:\n- /status"}
+		resourceOverrides["/"] = ignoreStatus
 		log.Info("Ignore status for all objects")
-	case "off":
+	case "off", "false":
 		log.Info("Not ignore status for any object")
 	default:
-		resourceOverrides["apiextensions.k8s.io/CustomResourceDefinition"] = v1alpha1.ResourceOverride{IgnoreDifferences: "jsonPointers:\n- /status"}
-		log.Warn("Unrecognized value for ignoreResourceStatusField, ignore status for CustomResourceDefinitions")
+		resourceOverrides[crdGK] = ignoreStatus
+		log.Warnf("Unrecognized value for ignoreResourceStatusField - %s, ignore status for CustomResourceDefinitions", diffOptions.IgnoreResourceStatusField)
 	}
 
 	return resourceOverrides, nil
