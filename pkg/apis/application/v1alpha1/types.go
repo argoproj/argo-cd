@@ -1405,21 +1405,26 @@ func (p *AppProject) GetJWTToken(roleName string, issuedAt int64, id string) (*J
 func (p AppProject) RemoveJWTToken(roleIndex int, issuedAt int64, id string) error {
 	roleName := p.Spec.Roles[roleIndex].Name
 	// For backward compatibility
-	_, jwtTokenIndex, err := p.GetJWTTokenFromSpec(roleName, issuedAt, id)
-	if err != nil {
-		return err
+	_, jwtTokenIndex, err1 := p.GetJWTTokenFromSpec(roleName, issuedAt, id)
+	if err1 == nil {
+		p.Spec.Roles[roleIndex].JWTTokens[jwtTokenIndex] = p.Spec.Roles[roleIndex].JWTTokens[len(p.Spec.Roles[roleIndex].JWTTokens)-1]
+		p.Spec.Roles[roleIndex].JWTTokens = p.Spec.Roles[roleIndex].JWTTokens[:len(p.Spec.Roles[roleIndex].JWTTokens)-1]
 	}
-	p.Spec.Roles[roleIndex].JWTTokens[jwtTokenIndex] = p.Spec.Roles[roleIndex].JWTTokens[len(p.Spec.Roles[roleIndex].JWTTokens)-1]
-	p.Spec.Roles[roleIndex].JWTTokens = p.Spec.Roles[roleIndex].JWTTokens[:len(p.Spec.Roles[roleIndex].JWTTokens)-1]
 
 	// New location for storing JWTToken
-	_, jwtTokenIndex, err = p.GetJWTToken(roleName, issuedAt, id)
-	if err != nil {
-		return err
+	_, jwtTokenIndex, err2 := p.GetJWTToken(roleName, issuedAt, id)
+	if err2 == nil {
+		p.Status.JWTTokensByRole[roleName].Items[jwtTokenIndex] = p.Status.JWTTokensByRole[roleName].Items[len(p.Status.JWTTokensByRole[roleName].Items)-1]
+		p.Status.JWTTokensByRole[roleName] = JWTTokens{Items: p.Status.JWTTokensByRole[roleName].Items[:len(p.Status.JWTTokensByRole[roleName].Items)-1]}
 	}
-	p.Status.JWTTokensByRole[roleName].Items[jwtTokenIndex] = p.Status.JWTTokensByRole[roleName].Items[len(p.Status.JWTTokensByRole[roleName].Items)-1]
-	p.Status.JWTTokensByRole[roleName] = JWTTokens{Items: p.Status.JWTTokensByRole[roleName].Items[:len(p.Status.JWTTokensByRole[roleName].Items)-1]}
-	return nil
+
+	if err1 != nil || err2 != nil {
+		//If we find this token from either places, we can say there are no error
+		return nil
+	} else {
+		//If we could not locate this taken from both places, we can return any of the errors
+		return err2
+	}
 }
 
 func (p *AppProject) ValidateJWTTokenID(roleName string, id string) error {

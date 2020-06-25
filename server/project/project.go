@@ -158,7 +158,10 @@ func (s *Server) DeleteToken(ctx context.Context, q *project.ProjectTokenDeleteR
 		}
 	}
 
-	prj.RemoveJWTToken(roleIndex, q.Iat, q.Id)
+	err = prj.RemoveJWTToken(roleIndex, q.Iat, q.Id)
+	if err != nil {
+		return &project.EmptyResponse{}, nil
+	}
 
 	_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(prj)
 	if err != nil {
