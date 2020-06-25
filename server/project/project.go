@@ -425,7 +425,7 @@ func (s *Server) NormalizeProjs() {
 					log.Warn(fmt.Sprintf("Failed Normalize project %s", proj.Name))
 					break
 				}
-				if i == 3 {
+				if i == 2 {
 					log.Warn(fmt.Sprintf("Failed Normalize project %s", proj.Name))
 				}
 			}
