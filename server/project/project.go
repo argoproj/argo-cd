@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"strings"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/google/uuid"
 
 	jwt "github.com/dgrijalva/jwt-go"
@@ -413,17 +415,17 @@ func (s *Server) NormalizeProjs() {
 		if proj.NormalizeJWTTokens() {
 			// if !apierr.IsConflict(err), retry 3 times
 			for i := 0; i < 3; i++ {
-				res, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(&proj)
+				_, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(&proj)
 				if err == nil {
-					s.logEvent(res, ctx, argo.EventReasonResourceUpdated, fmt.Sprintf("Successfully Normalized project %s.", proj.Name))
+					log.Info(fmt.Sprintf("Successfully Normalized project %s.", proj.Name))
 					break
 				}
 				if !apierr.IsConflict(err) {
-					s.logEvent(res, ctx, argo.EventReasonResourceUpdated, fmt.Sprintf("Failed Normalize project %s", proj.Name))
+					log.Warn(fmt.Sprintf("Failed Normalize project %s", proj.Name))
 					break
 				}
 				if i == 3 {
-					s.logEvent(res, ctx, argo.EventReasonResourceUpdated, fmt.Sprintf("Failed Normalize project %s", proj.Name))
+					log.Warn(fmt.Sprintf("Failed Normalize project %s", proj.Name))
 				}
 			}
 		}
