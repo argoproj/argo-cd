@@ -158,14 +158,14 @@ func (s *Server) DeleteToken(ctx context.Context, q *project.ProjectTokenDeleteR
 		}
 	}
 
-	err = prj.RemoveJWTToken(roleIndex, q.Iat, q.Id)
-	if err == nil {
-		_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(prj)
-		if err != nil {
-			return nil, err
-		}
-		s.logEvent(prj, ctx, argo.EventReasonResourceDeleted, "deleted token")
+	prj.RemoveJWTToken(roleIndex, q.Iat, q.Id)
+
+	_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(prj)
+	if err != nil {
+		return nil, err
 	}
+	s.logEvent(prj, ctx, argo.EventReasonResourceDeleted, "deleted token")
+
 	return &project.EmptyResponse{}, nil
 }
 

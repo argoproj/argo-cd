@@ -2418,7 +2418,8 @@ func (proj *AppProject) NormalizeJWTTokens() bool {
 			}
 		}
 	}
-	return needNormalize || syncJWTTokenBetweenStatusAndSpec(proj)
+	needSync := syncJWTTokenBetweenStatusAndSpec(proj)
+	return needNormalize || needSync
 }
 
 func syncJWTTokenBetweenStatusAndSpec(proj *AppProject) bool {
