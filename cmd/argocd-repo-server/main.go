@@ -78,14 +78,16 @@ func newCommand() *cobra.Command {
 			if gpg.IsGPGEnabled() {
 				log.Infof("Initializing GnuPG keyring at %s", common.GetGnuPGHomePath())
 				err = gpg.InitializeGnuPG()
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 
 				log.Infof("Populating GnuPG keyring with keys from %s", getGnuPGSourcePath())
 				added, removed, err := gpg.SyncKeyRingFromDirectory(getGnuPGSourcePath())
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 				log.Infof("Loaded %d (and removed %d) keys from keyring", len(added), len(removed))
 
-				go func() { errors.CheckError(reposerver.StartGPGWatcher(getGnuPGSourcePath())) }()
+				go func() {
+					errors.CheckErrorWithCode(reposerver.StartGPGWatcher(getGnuPGSourcePath()), errors.ErrorCommandSpecific)
+				}()
 			}
 
 			log.Infof("argocd-repo-server %s serving on %s", common.GetVersion(), listener.Addr())

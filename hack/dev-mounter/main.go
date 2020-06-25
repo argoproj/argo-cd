@@ -35,9 +35,9 @@ func newCommand() *cobra.Command {
 	var command = cobra.Command{
 		Run: func(cmd *cobra.Command, args []string) {
 			config, err := clientConfig.ClientConfig()
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			ns, _, err := clientConfig.Namespace()
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			cmNameToPath := make(map[string]string)
 			for _, cm := range configMaps {
 				parts := strings.Split(cm, "=")
