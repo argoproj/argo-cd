@@ -12,7 +12,7 @@ import (
 
 	"github.com/casbin/casbin"
 	"github.com/casbin/casbin/model"
-	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/dgrijalva/jwt-go"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -20,7 +20,7 @@ import (
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
-	v1 "k8s.io/client-go/informers/core/v1"
+	"k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 )
@@ -37,7 +37,7 @@ const (
 // * is backed by a kubernetes config map
 // * has a predefined RBAC model
 // * supports a built-in policy
-// * supports a user-defined policy
+// * supports a user-defined bolicy
 // * supports a custom JWT claims enforce function
 type Enforcer struct {
 	*casbin.Enforcer
@@ -96,6 +96,16 @@ func (e *Enforcer) EnforceErr(rvals ...interface{}) error {
 			rvalsStrs := make([]string, len(rvals)-1)
 			for i, rval := range rvals[1:] {
 				rvalsStrs[i] = fmt.Sprintf("%s", rval)
+			}
+			switch s := rvals[0].(type) {
+				case jwt.Claims:
+					claims := s.(*jwt.StandardClaims)
+					if claims.Subject != "" {
+						rvalsStrs = append(rvalsStrs, fmt.Sprintf("sub: %s", claims.Subject))
+					}
+					if claims.IssuedAt != 0 {
+						rvalsStrs = append(rvalsStrs, fmt.Sprintf("iat: %d", claims.IssuedAt))
+					}
 			}
 			errMsg = fmt.Sprintf("%s: %s", errMsg, strings.Join(rvalsStrs, ", "))
 		}
