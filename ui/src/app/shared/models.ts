@@ -369,7 +369,7 @@ export interface JwtTokens {
     items: JwtToken[];
 }
 export interface AppProjectStatus {
-    jWTTokensByRole: {[name: string]: JwtTokens};
+    jwtTokensByRole: {[name: string]: JwtTokens};
 }
 
 export interface LogEntry {
