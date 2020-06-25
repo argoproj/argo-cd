@@ -845,10 +845,16 @@ func (t *ApplicationTree) GetSummary() ApplicationSummary {
 	for url := range urlsSet {
 		urls = append(urls, url)
 	}
+	sort.Slice(urls, func(i, j int) bool {
+		return urls[i] < urls[j]
+	})
 	images := make([]string, 0)
 	for image := range imagesSet {
 		images = append(images, image)
 	}
+	sort.Slice(images, func(i, j int) bool {
+		return images[i] < images[j]
+	})
 	return ApplicationSummary{ExternalURLs: urls, Images: images}
 }
 
