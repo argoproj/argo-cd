@@ -1418,11 +1418,11 @@ func (p AppProject) RemoveJWTToken(roleIndex int, issuedAt int64, id string) err
 		p.Status.JWTTokensByRole[roleName] = JWTTokens{Items: p.Status.JWTTokensByRole[roleName].Items[:len(p.Status.JWTTokensByRole[roleName].Items)-1]}
 	}
 
-	if err1 != nil || err2 != nil {
+	if err1 == nil || err2 == nil {
 		//If we find this token from either places, we can say there are no error
 		return nil
 	} else {
-		//If we could not locate this taken from both places, we can return any of the errors
+		//If we could not locate this taken from either places, we can return any of the errors
 		return err2
 	}
 }
