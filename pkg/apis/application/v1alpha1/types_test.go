@@ -1656,7 +1656,7 @@ func TestProjectNormalize(t *testing.T) {
 	thirdIssuedAt := secondIssuedAt + 1
 	fourthIssuedAt := thirdIssuedAt + 1
 
-	testTokens := []JWTToken{{IssuedAt: issuedAt}, {IssuedAt: secondIssuedAt}}
+	testTokens := []JWTToken{{ID: "1", IssuedAt: issuedAt}, {ID: "2", IssuedAt: secondIssuedAt}}
 	tokensByRole := make(map[string]JWTTokens)
 	tokensByRole["test-role"] = JWTTokens{Items: testTokens}
 
@@ -1664,31 +1664,36 @@ func TestProjectNormalize(t *testing.T) {
 
 	t.Run("EmptyRolesToken", func(t *testing.T) {
 		p := AppProject{Spec: AppProjectSpec{}}
-		p.NormalizeJWTTokens()
+		needUpdate := p.NormalizeJWTTokens()
+		assert.False(t, needUpdate)
 		assert.Nil(t, p.Spec.Roles)
 		assert.Nil(t, p.Status.JWTTokensByRole)
 	})
 	t.Run("SpecRolesToken-StatusRolesTokenEmpty", func(t *testing.T) {
 		p := AppProject{Spec: AppProjectSpec{Roles: []ProjectRole{{Name: "test-role", JWTTokens: testTokens}}}}
-		p.NormalizeJWTTokens()
+		needUpdate := p.NormalizeJWTTokens()
+		assert.True(t, needUpdate)
 		assert.ElementsMatch(t, p.Spec.Roles[0].JWTTokens, p.Status.JWTTokensByRole["test-role"].Items)
 	})
 	t.Run("SpecRolesEmpty-StatusRolesToken", func(t *testing.T) {
 		p := AppProject{Spec: AppProjectSpec{Roles: []ProjectRole{{Name: "test-role"}}},
 			Status: AppProjectStatus{JWTTokensByRole: tokensByRole}}
-		p.NormalizeJWTTokens()
+		needUpdate := p.NormalizeJWTTokens()
+		assert.True(t, needUpdate)
 		assert.ElementsMatch(t, p.Spec.Roles[0].JWTTokens, p.Status.JWTTokensByRole["test-role"].Items)
 	})
 	t.Run("SpecRolesToken-StatusRolesToken-Same", func(t *testing.T) {
 		p := AppProject{Spec: AppProjectSpec{Roles: []ProjectRole{{Name: "test-role", JWTTokens: testTokens}}},
 			Status: AppProjectStatus{JWTTokensByRole: tokensByRole}}
-		p.NormalizeJWTTokens()
+		needUpdate := p.NormalizeJWTTokens()
+		assert.False(t, needUpdate)
 		assert.ElementsMatch(t, p.Spec.Roles[0].JWTTokens, p.Status.JWTTokensByRole["test-role"].Items)
 	})
 	t.Run("SpecRolesToken-StatusRolesToken-DifferentToken", func(t *testing.T) {
 		p := AppProject{Spec: AppProjectSpec{Roles: []ProjectRole{{Name: "test-role", JWTTokens: testTokens2}}},
 			Status: AppProjectStatus{JWTTokensByRole: tokensByRole}}
-		p.NormalizeJWTTokens()
+		needUpdate := p.NormalizeJWTTokens()
+		assert.True(t, needUpdate)
 		assert.ElementsMatch(t, p.Spec.Roles[0].JWTTokens, p.Status.JWTTokensByRole["test-role"].Items)
 	})
 	t.Run("SpecRolesToken-StatusRolesToken-DifferentRole", func(t *testing.T) {
@@ -1698,7 +1703,8 @@ func TestProjectNormalize(t *testing.T) {
 			{Name: "test-role1", JWTTokens: jwtTokens1},
 			{Name: "test-role2"}}},
 			Status: AppProjectStatus{JWTTokensByRole: tokensByRole}}
-		p.NormalizeJWTTokens()
+		needUpdate := p.NormalizeJWTTokens()
+		assert.True(t, needUpdate)
 		assert.ElementsMatch(t, p.Spec.Roles[0].JWTTokens, p.Status.JWTTokensByRole["test-role"].Items)
 		assert.ElementsMatch(t, p.Spec.Roles[1].JWTTokens, p.Status.JWTTokensByRole["test-role1"].Items)
 		assert.ElementsMatch(t, p.Spec.Roles[2].JWTTokens, p.Status.JWTTokensByRole["test-role2"].Items)

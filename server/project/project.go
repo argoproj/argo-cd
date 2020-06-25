@@ -410,13 +410,21 @@ func (s *Server) NormalizeProjs() {
 		return
 	}
 	for _, proj := range projList.Items {
-		for i := 0; i < 3; i++ {
-			_, err := s.Update(ctx, &project.ProjectUpdateRequest{Project: &proj})
-			if err == nil {
-				break
-			}
-			if !apierr.IsConflict(err) {
-				break
+		if proj.NormalizeJWTTokens() {
+			// if !apierr.IsConflict(err), retry 3 times
+			for i := 0; i < 3; i++ {
+				res, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(&proj)
+				if err == nil {
+					s.logEvent(res, ctx, argo.EventReasonResourceUpdated, fmt.Sprintf("Successfully Normalized project %s.", proj.Name))
+					break
+				}
+				if !apierr.IsConflict(err) {
+					s.logEvent(res, ctx, argo.EventReasonResourceUpdated, fmt.Sprintf("Failed Normalize project %s", proj.Name))
+					break
+				}
+				if i == 3 {
+					s.logEvent(res, ctx, argo.EventReasonResourceUpdated, fmt.Sprintf("Failed Normalize project %s", proj.Name))
+				}
 			}
 		}
 	}
