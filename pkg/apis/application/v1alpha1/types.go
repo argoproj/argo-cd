@@ -15,10 +15,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
-
 	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/google/go-cmp/cmp"
 	"github.com/robfig/cron"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -2399,13 +2398,13 @@ func (d *ApplicationDestination) MarshalJSON() ([]byte, error) {
 }
 
 func (proj *AppProject) NormalizeJWTTokens() bool {
-	needUpdate := false
+	needNormalize := false
 	for i, role := range proj.Spec.Roles {
 		for j, token := range role.JWTTokens {
 			if token.ID == "" {
 				token.ID = strconv.FormatInt(token.IssuedAt, 10)
 				role.JWTTokens[j] = token
-				needUpdate = true
+				needNormalize = true
 			}
 		}
 		proj.Spec.Roles[i] = role
@@ -2415,15 +2414,15 @@ func (proj *AppProject) NormalizeJWTTokens() bool {
 			if token.ID == "" {
 				token.ID = strconv.FormatInt(token.IssuedAt, 10)
 				roleTokenEntry.Items[j] = token
-				needUpdate = true
+				needNormalize = true
 			}
 		}
 	}
-	return needUpdate || syncJWTTokenBetweenStatusAndSpec(proj)
+	return needNormalize || syncJWTTokenBetweenStatusAndSpec(proj)
 }
 
 func syncJWTTokenBetweenStatusAndSpec(proj *AppProject) bool {
-	needUpdate := false
+	needSync := false
 	for roleIndex, role := range proj.Spec.Roles {
 		tokensInSpec := role.JWTTokens
 		tokensInStatus := []JWTToken{}
@@ -2436,14 +2435,14 @@ func syncJWTTokenBetweenStatusAndSpec(proj *AppProject) bool {
 		tokens := jwtTokensCombine(tokensInStatus, tokensInSpec)
 
 		if !cmp.Equal(tokens, proj.Spec.Roles[roleIndex].JWTTokens) || !cmp.Equal(tokens, proj.Status.JWTTokensByRole[role.Name].Items) {
-			needUpdate = true
+			needSync = true
 		}
 
 		proj.Spec.Roles[roleIndex].JWTTokens = tokens
 		proj.Status.JWTTokensByRole[role.Name] = JWTTokens{Items: tokens}
 
 	}
-	return needUpdate
+	return needSync
 }
 
 func jwtTokensCombine(tokens1 []JWTToken, tokens2 []JWTToken) []JWTToken {
