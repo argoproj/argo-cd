@@ -260,7 +260,7 @@ func NewProjectAddSignatureKeyCommand(clientOpts *argocdclient.ClientOptions) *c
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 2 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 			projName := args[0]
 			signatureKey := args[1]
@@ -296,7 +296,7 @@ func NewProjectRemoveSignatureKeyCommand(clientOpts *argocdclient.ClientOptions)
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 2 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 			projName := args[0]
 			signatureKey := args[1]

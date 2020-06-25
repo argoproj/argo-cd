@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -143,7 +144,7 @@ func getTLSConfigCustomizer(minVersionStr, maxVersionStr, tlsCiphersStr string) 
 		for _, s := range tls.CipherSuites() {
 			fmt.Printf("* %s (TLS versions: %s)\n", tls.CipherSuiteName(s.ID), strings.Join(tlsVersionsToStr(s.SupportedVersions), ", "))
 		}
-		os.Exit(0)
+		os.Exit(errors.ErrorCommandSpecific)
 	}
 
 	var cipherSuites []uint16
@@ -198,7 +199,7 @@ func pemBlockForKey(priv interface{}) *pem.Block {
 		b, err := x509.MarshalECPrivateKey(k)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Unable to marshal ECDSA private key: %v", err)
-			os.Exit(2)
+			os.Exit(errors.ErrorCommandSpecific)
 		}
 		return &pem.Block{Type: "EC PRIVATE KEY", Bytes: b}
 	default:

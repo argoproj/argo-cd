@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
@@ -20,6 +19,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/argoproj/argo-cd/util/cli"
+	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 
 	// load the gcp plugin (required to authenticate against GKE clusters).
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -113,6 +113,6 @@ func newCommand() *cobra.Command {
 func main() {
 	if err := newCommand().Execute(); err != nil {
 		fmt.Println(err)
-		os.Exit(1)
+		os.Exit(errors.ErrorCommandSpecific)
 	}
 }

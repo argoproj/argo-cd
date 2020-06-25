@@ -1001,7 +1001,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
-				os.Exit(2)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 
 			clientset := argocdclient.NewClientOrDie(clientOpts)

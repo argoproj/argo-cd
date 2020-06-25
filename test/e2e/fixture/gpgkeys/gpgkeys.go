@@ -28,4 +28,5 @@ func DeleteGPGPublicKey() {
 	args := []string{"gpg", "rm", fixture.GpgGoodKeyID}
 	errors.FailOnErr(fixture.RunCli(args...))
 	errors.CheckErrorWithCode(os.Remove(fmt.Sprintf("%s/app/config/gpg/source/%s", fixture.TmpDir, fixture.GpgGoodKeyID)), errors.ErrorCommandSpecific)
+	os.Exit(
 }

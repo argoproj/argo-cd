@@ -24,7 +24,7 @@ func NewGPGCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		Short: "Manage GPG keys used for signature verification",
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
-			os.Exit(1)
+			os.Exit(errors.ErrorCommandSpecific)
 		},
 		Example: ``,
 	}
