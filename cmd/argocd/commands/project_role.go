@@ -333,8 +333,8 @@ func NewProjectRoleGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 			fmt.Fprintf(w, "ID\tISSUED-AT\tEXPIRES-AT\n")
 			if proj.Status.JWTTokensByRole != nil {
-				if _, ok := proj.Status.JWTTokensByRole[roleName]; ok {
-					for _, token := range proj.Status.JWTTokensByRole[roleName].Items {
+				if tokens, ok := proj.Status.JWTTokensByRole[roleName]; ok {
+					for _, token := range tokens.Items {
 						expiresAt := "<none>"
 						if token.ExpiresAt > 0 {
 							expiresAt = humanizeTimestamp(token.ExpiresAt)
