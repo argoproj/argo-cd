@@ -2308,100 +2308,17 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		tailLines    int64
 		namespace    string
 		resourceName string
-		nodes        []argoappv1.ResourceNode
-		wg           sync.WaitGroup
 	)
 	var command = &cobra.Command{
 		Use:   "logs APPNAME",
 		Short: "Show logs for a pod in an application",
 		Run: func(c *cobra.Command, args []string) {
-			if len(args) == 0 {
-				c.HelpFunc()(c, args)
-				os.Exit(1)
-			}
-			logPrinter := log.New()
-			logPrinter.SetFormatter(&podLogFormatter{})
-
-			acdClient := argocdclient.NewClientOrDie(clientOpts)
-			conn, appIf := acdClient.NewApplicationClientOrDie()
-			defer util.Close(conn)
-			appName := args[0]
-
-			appResourceTree, err := appIf.ResourceTree(
-				context.Background(),
-				&applicationpkg.ResourcesQuery{
-					ApplicationName: &appName,
-				},
-			)
-
-			errors.CheckError(err)
-
-			for _, node := range appResourceTree.Nodes {
-				// We only care about Pods here
-				if node.Kind == "Pod" {
-					for _, parent := range node.ParentRefs {
-						if parent.Namespace != namespace {
-							log.WithFields(log.Fields{
-								"requestedNamespace": namespace,
-								"actualNamespace":    parent.Namespace,
-								"podName":            node.Name,
-							}).Debugln("ignoring pod, as it is not part of the requested namespace")
-							continue
-						}
-						// We check the _start_ of the ParentRef because replication
-						// controllers are named like `deployment-name-01234deadbeef`
-						// while daemonsets are just `deployment-name`
-						if strings.HasPrefix(parent.Name, resourceName) {
-							log.Debugf("adding %s to log tailer", node.Name)
-							nodes = append(nodes, node)
-						}
-					}
-				}
-			}
-
-			if len(nodes) == 0 {
-				log.Fatalf("Unable to find any pods owned by resources like %s", resourceName)
-			}
-
-			for _, node := range nodes {
-				wg.Add(1)
-				go func(node argoappv1.ResourceNode, wg *sync.WaitGroup) {
-					podLogs, err := appIf.PodLogs(
-						context.Background(),
-						&applicationpkg.ApplicationPodLogsQuery{
-							Name:      &appName,
-							PodName:   &node.Name,
-							Namespace: namespace,
-							Follow:    follow,
-							TailLines: tailLines,
-						},
-					)
-					errors.CheckError(err)
-					for {
-						logEntry, err := podLogs.Recv()
-
-						// io.EOF signals that the stream has closed
-						if err == io.EOF {
-							break
-						}
-
-						errors.CheckError(err)
-
-						logPrinter.WithFields(
-							log.Fields{
-								"podName": node.Name,
-							},
-						).Info(logEntry.Content)
-					}
-					wg.Done()
-				}(node, &wg)
-			}
-			wg.Wait()
+			showApplicationPodLogs(c, args, clientOpts)
 		},
 	}
 	command.Flags().BoolVarP(&follow, "follow", "f", false, "Follow log entries. Interrupt to cancel")
 	command.Flags().Int64VarP(&tailLines, "tail-lines", "l", 100, "Number of lines to show")
-	command.Flags().StringVarP(&resourceName, "resource-name", "r", "", "Name of the resource to get logs for")
+	command.Flags().StringVarP(&resourceName, "resource-name", "r", "", "Name of the resource to get logs for. Usually a deployment, job, etc. Matches like a prefix.")
 	err := command.MarkFlagRequired("resource-name")
 	// MarkFlagRequired weirdly returns an error...
 	// https://github.com/spf13/pflag/blob/master/flag.go#L497
@@ -2414,4 +2331,115 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		log.Fatalf("unable to set flag namespace: %s", err)
 	}
 	return command
+}
+
+func showApplicationPodLogs(c *cobra.Command, args []string, clientOpts *argocdclient.ClientOptions) {
+	var (
+		wg    sync.WaitGroup
+		nodes []argoappv1.ResourceNode
+	)
+
+	namespace, err := c.Flags().GetString("namespace")
+	if err != nil {
+		log.Fatalf("unable to get namespace from command: %v", err)
+	}
+
+	follow, err := c.Flags().GetBool("follow")
+	if err != nil {
+		log.Fatalf("unable to get follow boolean from command: %v", err)
+	}
+
+	tailLines, err := c.Flags().GetInt64("tail-lines")
+	if err != nil {
+		log.Fatalf("unable to get number of lines to tail from command: %v", err)
+	}
+
+	resourceName, err := c.Flags().GetString("resource-name")
+	if err != nil {
+		log.Fatalf("unable to get resource name from command: %v", err)
+	}
+
+	if len(args) == 0 {
+		c.HelpFunc()(c, args)
+		os.Exit(1)
+	}
+
+	logPrinter := log.New()
+	logPrinter.SetFormatter(&podLogFormatter{})
+
+	acdClient := argocdclient.NewClientOrDie(clientOpts)
+	conn, appIf := acdClient.NewApplicationClientOrDie()
+	defer util.Close(conn)
+	appName := args[0]
+
+	appResourceTree, err := appIf.ResourceTree(
+		context.Background(),
+		&applicationpkg.ResourcesQuery{
+			ApplicationName: &appName,
+		},
+	)
+
+	errors.CheckError(err)
+
+	for _, node := range appResourceTree.Nodes {
+		// We only care about Pods here
+		if node.Kind == "Pod" {
+			for _, parent := range node.ParentRefs {
+				if parent.Namespace != namespace {
+					log.WithFields(log.Fields{
+						"requestedNamespace": namespace,
+						"actualNamespace":    parent.Namespace,
+						"podName":            node.Name,
+					}).Debugln("ignoring pod, as it is not part of the requested namespace")
+					continue
+				}
+				// We check the _start_ of the ParentRef because replication
+				// controllers are named like `deployment-name-01234deadbeef`
+				// while daemonsets are just `deployment-name`
+				if strings.HasPrefix(parent.Name, resourceName) {
+					log.Debugf("adding %s to log tailer", node.Name)
+					nodes = append(nodes, node)
+				}
+			}
+		}
+	}
+
+	if len(nodes) == 0 {
+		log.Fatalf("Unable to find any pods owned by resources starting with %s", resourceName)
+	}
+
+	for _, node := range nodes {
+		wg.Add(1)
+		go func(node argoappv1.ResourceNode, wg *sync.WaitGroup) {
+			podLogs, err := appIf.PodLogs(
+				context.Background(),
+				&applicationpkg.ApplicationPodLogsQuery{
+					Name:      &appName,
+					PodName:   &node.Name,
+					Namespace: namespace,
+					Follow:    follow,
+					TailLines: tailLines,
+				},
+			)
+			errors.CheckError(err)
+			for {
+				logEntry, err := podLogs.Recv()
+
+				// io.EOF signals that the stream has closed
+				if err == io.EOF {
+					break
+				}
+
+				errors.CheckError(err)
+
+				logPrinter.WithFields(
+					log.Fields{
+						"podName": node.Name,
+					},
+				).Info(logEntry.Content)
+			}
+			wg.Done()
+		}(node, &wg)
+	}
+	wg.Wait()
 }
