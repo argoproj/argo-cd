@@ -2,7 +2,6 @@ package commands
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -27,7 +26,6 @@ import (
 	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/ghodss/yaml"
-	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -2273,32 +2271,6 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 	}
 
 	return command
-}
-
-// used to format the output of when tailing pod logs
-type podLogFormatter struct{}
-
-// takes a log entry from PodLogs(), and makes it readable
-func (plf *podLogFormatter) Format(entry *logrus.Entry) ([]byte, error) {
-	var b *bytes.Buffer
-
-	if entry.Buffer != nil {
-		b = entry.Buffer
-	} else {
-		b = &bytes.Buffer{}
-	}
-
-	b.WriteByte('[')
-	b.WriteString(fmt.Sprintf("%v", entry.Data["podName"]))
-	b.WriteByte(']')
-	b.WriteByte(' ')
-	if entry.Message != "" {
-		b.WriteString(" - ")
-		b.WriteString(entry.Message)
-	}
-	b.WriteByte('\n')
-
-	return b.Bytes(), nil
 }
 
 // NewApplicationLogsCommand returns a new instance of an `argocd app logs` command
