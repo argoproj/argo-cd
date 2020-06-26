@@ -98,14 +98,14 @@ func (e *Enforcer) EnforceErr(rvals ...interface{}) error {
 				rvalsStrs[i] = fmt.Sprintf("%s", rval)
 			}
 			switch s := rvals[0].(type) {
-				case jwt.Claims:
-					claims := s.(*jwt.StandardClaims)
-					if claims.Subject != "" {
-						rvalsStrs = append(rvalsStrs, fmt.Sprintf("sub: %s", claims.Subject))
-					}
-					if claims.IssuedAt != 0 {
-						rvalsStrs = append(rvalsStrs, fmt.Sprintf("iat: %d", claims.IssuedAt))
-					}
+			case jwt.Claims:
+				claims := s.(*jwt.StandardClaims)
+				if claims.Subject != "" {
+					rvalsStrs = append(rvalsStrs, fmt.Sprintf("sub: %s", claims.Subject))
+				}
+				if claims.IssuedAt != 0  {
+					rvalsStrs = append(rvalsStrs, fmt.Sprintf("iat: %d", claims.IssuedAt))
+				}
 			}
 			errMsg = fmt.Sprintf("%s: %s", errMsg, strings.Join(rvalsStrs, ", "))
 		}
