@@ -28,14 +28,14 @@ func TestSetApplicationHealth(t *testing.T) {
 	err = yaml.Unmarshal(yamlBytes, &runningPod)
 	assert.Nil(t, err)
 
-	resources := []appv1.ResourceStatus{
-		{
+	resources := []*appv1.ResourceStatus{
+		&appv1.ResourceStatus{
 			Group:   "",
 			Version: "v1",
 			Kind:    "Pod",
 			Name:    runningPod.GetName(),
 		},
-		{
+		&appv1.ResourceStatus{
 			Group:   "batch",
 			Version: "v1",
 			Kind:    "Job",
@@ -58,7 +58,7 @@ func TestSetApplicationHealth(t *testing.T) {
 }
 
 func TestAppOfAppsHealth(t *testing.T) {
-	newAppLiveObj := func(name string, status health.HealthStatusCode) (*unstructured.Unstructured, appv1.ResourceStatus) {
+	newAppLiveObj := func(name string, status health.HealthStatusCode) (*unstructured.Unstructured, *appv1.ResourceStatus) {
 		app := appv1.Application{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "foo",
@@ -73,7 +73,7 @@ func TestAppOfAppsHealth(t *testing.T) {
 				},
 			},
 		}
-		resStatus := appv1.ResourceStatus{
+		resStatus := &appv1.ResourceStatus{
 			Group:   "argoproj.io",
 			Version: "v1alpha1",
 			Kind:    "Application",
@@ -89,7 +89,7 @@ func TestAppOfAppsHealth(t *testing.T) {
 
 	// verify missing child app does not affect app health
 	{
-		missingAndHealthyStatuses := []appv1.ResourceStatus{missingStatus, healthyStatus}
+		missingAndHealthyStatuses := []*appv1.ResourceStatus{missingStatus, healthyStatus}
 		missingAndHealthyLiveObjects := []*unstructured.Unstructured{missingApp, healthyApp}
 		healthStatus, err := SetApplicationHealth(missingAndHealthyStatuses, missingAndHealthyLiveObjects, nil, noFilter)
 		assert.NoError(t, err)
@@ -98,7 +98,7 @@ func TestAppOfAppsHealth(t *testing.T) {
 
 	// verify unknown child app does not affect app health
 	{
-		unknownAndHealthyStatuses := []appv1.ResourceStatus{unknownStatus, healthyStatus}
+		unknownAndHealthyStatuses := []*appv1.ResourceStatus{unknownStatus, healthyStatus}
 		unknownAndHealthyLiveObjects := []*unstructured.Unstructured{unknownApp, healthyApp}
 		healthStatus, err := SetApplicationHealth(unknownAndHealthyStatuses, unknownAndHealthyLiveObjects, nil, noFilter)
 		assert.NoError(t, err)
@@ -107,11 +107,11 @@ func TestAppOfAppsHealth(t *testing.T) {
 
 	// verify degraded does affect
 	{
-		degradedAndHealthyStatuses := []appv1.ResourceStatus{degradedStatus, healthyStatus}
+		degradedAndHealthyStatuses := []*appv1.ResourceStatus{degradedStatus, healthyStatus}
 		degradedAndHealthyLiveObjects := []*unstructured.Unstructured{degradedApp, healthyApp}
 		healthStatus, err := SetApplicationHealth(degradedAndHealthyStatuses, degradedAndHealthyLiveObjects, nil, noFilter)
 		assert.NoError(t, err)
-		assert.Equal(t, health.HealthStatusDegraded, healthStatus.Status)
+		assert.Equal(t, health.HealthStatusHealthy, healthStatus.Status)
 	}
 
 }

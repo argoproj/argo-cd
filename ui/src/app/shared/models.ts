@@ -24,8 +24,8 @@ export interface SyncOperationResource {
 }
 
 export interface SyncStrategy {
-    apply: {force?: boolean} | null;
-    hook: {force?: boolean} | null;
+    apply?: {force?: boolean};
+    hook?: {force?: boolean};
 }
 
 export interface SyncOperation {
@@ -142,6 +142,16 @@ export interface ApplicationDestination {
      * Namespace overrides the environment namespace value in the ksonnet app.yaml
      */
     namespace: string;
+    /**
+     * Name of the destination cluster which can be used instead of server (url) field
+     */
+    name: string;
+}
+
+export interface OrphanedResource {
+    group: string;
+    kind: string;
+    name: string;
 }
 
 export interface ApplicationSource {
@@ -315,6 +325,7 @@ export interface ResourceNode extends ResourceRef {
     networkingInfo?: ResourceNetworkingInfo;
     images?: string[];
     resourceVersion: string;
+    createdAt?: models.Time;
 }
 
 export interface ApplicationTree {
@@ -375,6 +386,7 @@ export interface AppProjectStatus {
 export interface LogEntry {
     content: string;
     timeStamp: models.Time;
+    last: boolean;
 }
 
 // describes plugin settings
@@ -405,6 +417,7 @@ export interface AuthSettings {
     plugins: Plugin[];
     userLoginsDisabled: boolean;
     kustomizeVersions: string[];
+    uiCssURL: string;
 }
 
 export interface UserInfo {
@@ -463,6 +476,9 @@ export interface Cluster {
         awsAuthConfig?: {
             clusterName: string;
         };
+        execProviderConfig?: {
+            command: string;
+        };
     };
     info?: {
         applicationsCount: number;
@@ -514,6 +530,11 @@ export interface RepoAppDetails {
     kustomize?: KustomizeAppSpec;
     plugin?: PluginAppSpec;
     directory?: {};
+}
+
+export interface RefsInfo {
+    branches: string[];
+    tags: string[];
 }
 
 export interface AppInfo {
@@ -621,10 +642,11 @@ export interface ProjectSpec {
     description: string;
     roles: ProjectRole[];
     clusterResourceWhitelist: GroupKind[];
+    clusterResourceBlacklist: GroupKind[];
     namespaceResourceBlacklist: GroupKind[];
     namespaceResourceWhitelist: GroupKind[];
     signatureKeys: ProjectSignatureKey[];
-    orphanedResources?: {warn?: boolean};
+    orphanedResources?: {warn?: boolean; ignore: OrphanedResource[]};
     syncWindows?: SyncWindows;
 }
 
@@ -684,6 +706,15 @@ export interface ApplicationSyncWindowState {
 
 export interface VersionMessage {
     Version: string;
+    BuildDate: string;
+    GoVersion: string;
+    Compiler: string;
+    Platform: string;
+    KsonnetVersion: string;
+    KustomizeVersion: string;
+    HelmVersion: string;
+    KubectlVersion: string;
+    JsonnetVersion: string;
 }
 
 export interface Token {
@@ -708,3 +739,79 @@ export interface GnuPGPublicKey {
 }
 
 export interface GnuPGPublicKeyList extends ItemsList<GnuPGPublicKey> {}
+
+// https://kubernetes.io/docs/reference/kubectl/overview/#resource-types
+
+export const ResourceKinds = [
+    '*',
+    'Binding',
+    'ComponentStatus',
+    'ConfigMap',
+    'Endpoints',
+    'LimitRange',
+    'Namespace',
+    'Node',
+    'PersistentVolumeClaim',
+    'PersistentVolume',
+    'Pod',
+    'PodTemplate',
+    'ReplicationController',
+    'ResourceQuota',
+    'Secret',
+    'ServiceAccount',
+    'Service',
+    'MutatingWebhookConfiguration',
+    'ValidatingWebhookConfiguration',
+    'CustomResourceDefinition',
+    'APIService',
+    'ControllerRevision',
+    'DaemonSet',
+    'Deployment',
+    'ReplicaSet',
+    'StatefulSet',
+    'TokenReview',
+    'LocalSubjectAccessReview',
+    'SelfSubjectAccessReview',
+    'SelfSubjectRulesReview',
+    'SubjectAccessReview',
+    'HorizontalPodAutoscaler',
+    'CronJob',
+    'Job',
+    'CertificateSigningRequest',
+    'Lease',
+    'Event',
+    'Ingress',
+    'NetworkPolicy',
+    'PodDisruptionBudget',
+    'ClusterRoleBinding',
+    'ClusterRole',
+    'RoleBinding',
+    'Role',
+    'PriorityClass',
+    'CSIDriver',
+    'CSINode',
+    'StorageClass',
+    'Volume'
+];
+
+export const Groups = [
+    'admissionregistration.k8s.io',
+    'apiextensions.k8s.io',
+    'apiregistration.k8s.io',
+    'apps',
+    'authentication.k8s.io',
+    'authorization.k8s.io',
+    'autoscaling',
+    'batch',
+    'certificates.k8s.io',
+    'coordination.k8s.io',
+    'events.k8s.io',
+    'extensions',
+    'networking.k8s.io',
+    'node.k8s.io',
+    'policy',
+    'rbac.authorization.k8s.io',
+    'scheduling.k8s.io',
+    'stable.example.com',
+    'storage.k8s.io'
+];

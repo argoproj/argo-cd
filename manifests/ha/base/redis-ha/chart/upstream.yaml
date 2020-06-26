@@ -5,7 +5,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: argocd-redis-ha-configmap
-  namespace: default
+  namespace: argocd
   labels:
     heritage: Tiller
     release: argocd
@@ -268,7 +268,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: argocd-redis-ha
-  namespace: default
+  namespace: argocd
   labels:
     heritage: Tiller
     release: argocd
@@ -282,7 +282,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: argocd-redis-ha-haproxy
-  namespace: default
+  namespace: argocd
   labels:
     heritage: Tiller
     release: argocd
@@ -296,7 +296,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: argocd-redis-ha
-  namespace: default
+  namespace: argocd
   labels:
     heritage: Tiller
     release: argocd
@@ -317,7 +317,7 @@ kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: argocd-redis-ha
-  namespace: default
+  namespace: argocd
   labels:
     heritage: Tiller
     release: argocd
@@ -339,7 +339,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: argocd-redis-ha-announce-0
-  namespace: default
+  namespace: argocd
   labels:
     app: redis-ha
     heritage: "Tiller"
@@ -368,7 +368,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: argocd-redis-ha-announce-1
-  namespace: default
+  namespace: argocd
   labels:
     app: redis-ha
     heritage: "Tiller"
@@ -397,7 +397,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: argocd-redis-ha-announce-2
-  namespace: default
+  namespace: argocd
   labels:
     app: redis-ha
     heritage: "Tiller"
@@ -428,7 +428,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: argocd-redis-ha
-  namespace: default
+  namespace: argocd
   labels:
     app: redis-ha
     heritage: "Tiller"
@@ -457,7 +457,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: argocd-redis-ha-haproxy
-  namespace: default
+  namespace: argocd
   labels:
     app: redis-ha
     heritage: "Tiller"
@@ -483,7 +483,7 @@ kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: argocd-redis-ha-haproxy
-  namespace: default
+  namespace: argocd
   labels:
     app: redis-ha
     heritage: "Tiller"
@@ -595,7 +595,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: argocd-redis-ha-server
-  namespace: default
+  namespace: argocd
   labels:
     argocd-redis-ha: replica
     app: redis-ha
@@ -647,7 +647,7 @@ spec:
       serviceAccountName: argocd-redis-ha
       initContainers:
       - name: config-init
-        image: redis:5.0.8-alpine
+        image: redis:5.0.10-alpine
         imagePullPolicy: IfNotPresent
         resources:
           {}
@@ -674,7 +674,7 @@ spec:
           mountPath: /data
       containers:
       - name: redis
-        image: redis:5.0.8-alpine
+        image: redis:5.0.10-alpine
         imagePullPolicy: IfNotPresent
         command:
         - redis-server
@@ -694,7 +694,7 @@ spec:
         - mountPath: /data
           name: data
       - name: sentinel
-        image: redis:5.0.8-alpine
+        image: redis:5.0.10-alpine
         imagePullPolicy: IfNotPresent
         command:
           - redis-sentinel

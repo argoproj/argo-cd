@@ -9,13 +9,20 @@ export class ClustersService {
             .then(list => list.items || []);
     }
 
-    public get(url: string): Promise<models.Cluster> {
-        return requests.get(`/clusters/${encodeURIComponent(url)}`).then(res => res.body as models.Cluster);
+    public get(url: string, name: string): Promise<models.Cluster> {
+        let queryName = '';
+        if (url === undefined) {
+            url = '';
+            queryName = `?name=${name}`;
+        }
+        const requestUrl = `/clusters/${encodeURIComponent(url)}` + queryName;
+        return requests.get(requestUrl).then(res => res.body as models.Cluster);
     }
 
-    public update(cluster: models.Cluster): Promise<models.Cluster> {
+    public update(cluster: models.Cluster, ...paths: string[]): Promise<models.Cluster> {
         return requests
             .put(`/clusters/${encodeURIComponent(cluster.server)}`)
+            .query({updatedPaths: paths})
             .send(cluster)
             .then(res => res.body as models.Cluster);
     }

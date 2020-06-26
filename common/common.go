@@ -55,6 +55,12 @@ const (
 	DefaultGnuPgHomePath = "/app/config/gpg/keys"
 )
 
+const (
+	DefaultSyncRetryDuration    = 5 * time.Second
+	DefaultSyncRetryMaxDuration = 3 * time.Minute
+	DefaultSyncRetryFactor      = int64(2)
+)
+
 // Argo CD application related constants
 const (
 	// KubernetesInternalAPIServerAddr is address of the k8s API server when accessing internal to the cluster
@@ -117,6 +123,22 @@ const (
 	AnnotationValueManagedByArgoCD = "argocd.argoproj.io"
 	// ResourcesFinalizerName the finalizer value which we inject to finalize deletion of an application
 	ResourcesFinalizerName = "resources-finalizer.argocd.argoproj.io"
+
+	// AnnotationKeyManifestGeneratePaths is an annotation that contains a list of semicolon-separated paths in the
+	// manifests repository that affects the manifest generation. Paths might be either relative or absolute. The
+	// absolute path means an absolute path within the repository and the relative path is relative to the application
+	// source path within the repository.
+	AnnotationKeyManifestGeneratePaths = "argocd.argoproj.io/manifest-generate-paths"
+
+	// AnnotationKeyLinkPrefix tells the UI to add an external link icon to the application node
+	// that links to the value given in the annotation.
+	// The annotation key must be followed by a unique identifier. Ex: link.argocd.argoproj.io/dashboard
+	// It's valid to have multiple annotations that match the prefix.
+	// Values can simply be a url or they can have
+	// an optional link title separated by a "|"
+	// Ex: "http://grafana.example.com/d/yu5UH4MMz/deployments"
+	// Ex: "Go to Dashboard|http://grafana.example.com/d/yu5UH4MMz/deployments"
+	AnnotationKeyLinkPrefix = "link.argocd.argoproj.io/"
 )
 
 // Environment variables for tuning and debugging Argo CD
@@ -140,10 +162,24 @@ const (
 	EnvK8sClientQPS = "ARGOCD_K8S_CLIENT_QPS"
 	// EnvK8sClientBurst is the burst value used for the kubernetes client (default: twice the client QPS)
 	EnvK8sClientBurst = "ARGOCD_K8S_CLIENT_BURST"
+	// EnvClusterCacheResyncDuration is the env variable that holds cluster cache re-sync duration
+	EnvClusterCacheResyncDuration = "ARGOCD_CLUSTER_CACHE_RESYNC_DURATION"
 	// EnvK8sClientMaxIdleConnections is the number of max idle connections in K8s REST client HTTP transport (default: 500)
 	EnvK8sClientMaxIdleConnections = "ARGOCD_K8S_CLIENT_MAX_IDLE_CONNECTIONS"
 	// EnvGnuPGHome is the path to ArgoCD's GnuPG keyring for signature verification
 	EnvGnuPGHome = "ARGOCD_GNUPGHOME"
+	// EnvWatchAPIBufferSize is the buffer size used to transfer K8S watch events to watch API consumer
+	EnvWatchAPIBufferSize = "ARGOCD_WATCH_API_BUFFER_SIZE"
+	// EnvPauseGenerationAfterFailedAttempts will pause manifest generation after the specified number of failed generation attempts
+	EnvPauseGenerationAfterFailedAttempts = "ARGOCD_PAUSE_GEN_AFTER_FAILED_ATTEMPTS"
+	// EnvPauseGenerationMinutes pauses manifest generation for the specified number of minutes, after sufficient manifest generation failures
+	EnvPauseGenerationMinutes = "ARGOCD_PAUSE_GEN_MINUTES"
+	// EnvPauseGenerationRequests pauses manifest generation for the specified number of requests, after sufficient manifest generation failures
+	EnvPauseGenerationRequests = "ARGOCD_PAUSE_GEN_REQUESTS"
+	// EnvControllerReplicas is the number of controller replicas
+	EnvControllerReplicas = "ARGOCD_CONTROLLER_REPLICAS"
+	// EnvControllerShard is the shard number that should be handled by controller
+	EnvControllerShard = "ARGOCD_CONTROLLER_SHARD"
 )
 
 const (
@@ -153,7 +189,7 @@ const (
 	MinClientVersion = "1.4.0"
 	// CacheVersion is a objects version cached using util/cache/cache.go.
 	// Number should be bumped in case of backward incompatible change to make sure cache is invalidated after upgrade.
-	CacheVersion = "1.0.0"
+	CacheVersion = "1.8.1"
 )
 
 // GetGnuPGHomePath retrieves the path to use for GnuPG home directory, which is either taken from GNUPGHOME environment or a default value
@@ -172,6 +208,8 @@ var (
 	K8sClientConfigBurst int = 100
 	// K8sMaxIdleConnections controls the number of max idle connections in K8s REST client HTTP transport
 	K8sMaxIdleConnections = 500
+	// K8sMaxIdleConnections controls the duration of cluster cache refresh
+	K8SClusterResyncDuration = 12 * time.Hour
 )
 
 func init() {
@@ -191,6 +229,11 @@ func init() {
 	if envMaxConn := os.Getenv(EnvK8sClientMaxIdleConnections); envMaxConn != "" {
 		if maxConn, err := strconv.Atoi(envMaxConn); err != nil {
 			K8sMaxIdleConnections = maxConn
+		}
+	}
+	if clusterResyncDurationStr := os.Getenv(EnvClusterCacheResyncDuration); clusterResyncDurationStr != "" {
+		if duration, err := time.ParseDuration(clusterResyncDurationStr); err == nil {
+			K8SClusterResyncDuration = duration
 		}
 	}
 }

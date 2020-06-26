@@ -1,6 +1,7 @@
 package settings
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -69,6 +70,27 @@ func TestGetAccount(t *testing.T) {
 	})
 }
 
+func TestGetAccount_WithInvalidToken(t *testing.T) {
+	_, settingsManager := fixtures(map[string]string{
+		"accounts.user1":       "apiKey",
+		"accounts.invaliduser": "apiKey",
+		"accounts.user2":       "apiKey",
+	},
+		func(secret *v1.Secret) {
+			secret.Data["accounts.user1.tokens"] = []byte(`[{"id":"1","iat":158378932,"exp":1583789194}]`)
+		},
+		func(secret *v1.Secret) {
+			secret.Data["accounts.invaliduser.tokens"] = []byte("Invalid token")
+		},
+		func(secret *v1.Secret) {
+			secret.Data["accounts.user2.tokens"] = []byte(`[{"id":"2","iat":1583789194,"exp":1583784545}]`)
+		},
+	)
+
+	_, err := settingsManager.GetAccounts()
+	assert.NoError(t, err)
+}
+
 func TestGetAdminAccount(t *testing.T) {
 	mTime := time.Now().Format(time.RFC3339)
 	_, settingsManager := fixtures(nil, func(secret *v1.Secret) {
@@ -130,13 +152,13 @@ func TestAddAccount_AccountAdded(t *testing.T) {
 	err := settingsManager.AddAccount("test", addedAccount)
 	assert.NoError(t, err)
 
-	cm, err := clientset.CoreV1().ConfigMaps("default").Get(common.ArgoCDConfigMapName, metav1.GetOptions{})
+	cm, err := clientset.CoreV1().ConfigMaps("default").Get(context.Background(), common.ArgoCDConfigMapName, metav1.GetOptions{})
 	assert.NoError(t, err)
 
 	assert.Equal(t, cm.Data["accounts.test"], "login")
 	assert.Equal(t, cm.Data["accounts.test.enabled"], "false")
 
-	secret, err := clientset.CoreV1().Secrets("default").Get(common.ArgoCDSecretName, metav1.GetOptions{})
+	secret, err := clientset.CoreV1().Secrets("default").Get(context.Background(), common.ArgoCDSecretName, metav1.GetOptions{})
 	assert.NoError(t, err)
 
 	assert.Equal(t, "hash", string(secret.Data["accounts.test.password"]))
@@ -170,13 +192,13 @@ func TestUpdateAccount_SuccessfullyUpdated(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	cm, err := clientset.CoreV1().ConfigMaps("default").Get(common.ArgoCDConfigMapName, metav1.GetOptions{})
+	cm, err := clientset.CoreV1().ConfigMaps("default").Get(context.Background(), common.ArgoCDConfigMapName, metav1.GetOptions{})
 	assert.NoError(t, err)
 
 	assert.Equal(t, cm.Data["accounts.test"], "login")
 	assert.Equal(t, cm.Data["accounts.test.enabled"], "false")
 
-	secret, err := clientset.CoreV1().Secrets("default").Get(common.ArgoCDSecretName, metav1.GetOptions{})
+	secret, err := clientset.CoreV1().Secrets("default").Get(context.Background(), common.ArgoCDSecretName, metav1.GetOptions{})
 	assert.NoError(t, err)
 
 	assert.Equal(t, "hash", string(secret.Data["accounts.test.password"]))
@@ -195,7 +217,7 @@ func TestUpdateAccount_UpdateAdminPassword(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	secret, err := clientset.CoreV1().Secrets("default").Get(common.ArgoCDSecretName, metav1.GetOptions{})
+	secret, err := clientset.CoreV1().Secrets("default").Get(context.Background(), common.ArgoCDSecretName, metav1.GetOptions{})
 	assert.NoError(t, err)
 
 	assert.Equal(t, "newPassword", string(secret.Data["admin.password"]))

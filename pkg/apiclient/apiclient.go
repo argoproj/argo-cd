@@ -15,7 +15,6 @@ import (
 	"sync"
 	"time"
 
-	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/coreos/go-oidc"
 	"github.com/dgrijalva/jwt-go"
 	log "github.com/sirupsen/logrus"
@@ -41,6 +40,8 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
+	argoio "github.com/argoproj/argo-cd/util/io"
+	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/localconfig"
 	oidcutil "github.com/argoproj/argo-cd/util/oidc"
 	tls_util "github.com/argoproj/argo-cd/util/tls"
@@ -83,7 +84,7 @@ type Client interface {
 	NewProjectClientOrDie() (io.Closer, projectpkg.ProjectServiceClient)
 	NewAccountClient() (io.Closer, accountpkg.AccountServiceClient, error)
 	NewAccountClientOrDie() (io.Closer, accountpkg.AccountServiceClient)
-	WatchApplicationWithRetry(ctx context.Context, appName string) chan *argoappv1.ApplicationWatchEvent
+	WatchApplicationWithRetry(ctx context.Context, appName string, revision string) chan *argoappv1.ApplicationWatchEvent
 }
 
 // ClientOptions hold address, security, and other settings for the API client.
@@ -182,7 +183,7 @@ func NewClient(opts *ClientOptions) (Client, error) {
 		c.ServerAddr = serverFromEnv
 	}
 	if opts.PortForward || opts.PortForwardNamespace != "" {
-		port, err := portForward("app.kubernetes.io/name=argocd-server", opts.PortForwardNamespace)
+		port, err := kube.PortForward("app.kubernetes.io/name=argocd-server", 8080, opts.PortForwardNamespace)
 		if err != nil {
 			return nil, err
 		}
@@ -683,7 +684,7 @@ func (c *client) NewAccountClientOrDie() (io.Closer, accountpkg.AccountServiceCl
 
 // WatchApplicationWithRetry returns a channel of watch events for an application, retrying the
 // watch upon errors. Closes the returned channel when the context is cancelled.
-func (c *client) WatchApplicationWithRetry(ctx context.Context, appName string) chan *argoappv1.ApplicationWatchEvent {
+func (c *client) WatchApplicationWithRetry(ctx context.Context, appName string, revision string) chan *argoappv1.ApplicationWatchEvent {
 	appEventsCh := make(chan *argoappv1.ApplicationWatchEvent)
 	cancelled := false
 	go func() {
@@ -692,7 +693,7 @@ func (c *client) WatchApplicationWithRetry(ctx context.Context, appName string) 
 			conn, appIf, err := c.NewApplicationClient()
 			if err == nil {
 				var wc applicationpkg.ApplicationService_WatchClient
-				wc, err = appIf.Watch(ctx, &applicationpkg.ApplicationQuery{Name: &appName})
+				wc, err = appIf.Watch(ctx, &applicationpkg.ApplicationQuery{Name: &appName, ResourceVersion: revision})
 				if err == nil {
 					for {
 						var appEvent *v1alpha1.ApplicationWatchEvent
@@ -700,6 +701,7 @@ func (c *client) WatchApplicationWithRetry(ctx context.Context, appName string) 
 						if err != nil {
 							break
 						}
+						revision = appEvent.Application.ResourceVersion
 						appEventsCh <- appEvent
 					}
 				}
@@ -708,9 +710,6 @@ func (c *client) WatchApplicationWithRetry(ctx context.Context, appName string) 
 				if isCanceledContextErr(err) {
 					cancelled = true
 				} else {
-					if err != io.EOF {
-						log.Warnf("watch err: %v", err)
-					}
 					time.Sleep(1 * time.Second)
 				}
 			}

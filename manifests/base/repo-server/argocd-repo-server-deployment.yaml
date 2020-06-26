@@ -33,11 +33,6 @@ spec:
             port: 8081
           initialDelaySeconds: 5
           periodSeconds: 10
-        livenessProbe:
-          tcpSocket:
-            port: 8081
-          initialDelaySeconds: 5
-          periodSeconds: 10
         volumeMounts:
         - name: ssh-known-hosts
           mountPath: /app/config/ssh
@@ -45,6 +40,8 @@ spec:
           mountPath: /app/config/tls
         - name: gpg-keys
           mountPath: /app/config/gpg/source
+        - name: gpg-keyring
+          mountPath: /app/config/gpg/keys
       volumes:
         - name: ssh-known-hosts
           configMap:
@@ -55,3 +52,5 @@ spec:
         - name: gpg-keys
           configMap:
             name: argocd-gpg-keys-cm
+        - name: gpg-keyring
+          emptyDir: {}

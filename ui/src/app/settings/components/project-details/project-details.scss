@@ -1,0 +1,39 @@
+@import 'node_modules/argo-ui/src/styles/config';
+
+.project-details {
+    .white-box__details-row .fa-times {
+        position: absolute;
+        top: 1em;
+        right: 0;
+        cursor: pointer;
+    }
+
+    .select.argo-field {
+        padding: 0;
+    }
+
+    .white-box {
+        .help-tip {
+            color: $argo-color-gray-6;
+        }
+    }
+
+    &__list-title {
+        margin-top: 1em;
+        text-transform: uppercase;
+
+        &:first-of-type {
+            margin-top: 0;
+        }
+    }
+
+    .select__option {
+        line-height: 1.5;
+    }
+
+    .white-box__details {
+        .argo-button--short {
+            margin-top: 1em;
+        }
+    }
+}

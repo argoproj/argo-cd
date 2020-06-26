@@ -6,7 +6,8 @@ import (
 	"reflect"
 	"strings"
 
-	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/argoproj/pkg/sync"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -16,17 +17,19 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apiclient/project"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
+	listersv1alpha1 "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
 	jwtutil "github.com/argoproj/argo-cd/util/jwt"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/session"
+	"github.com/argoproj/argo-cd/util/settings"
 )
 
 const (
@@ -42,14 +45,18 @@ type Server struct {
 	appclientset  appclientset.Interface
 	kubeclientset kubernetes.Interface
 	auditLogger   *argo.AuditLogger
-	projectLock   *util.KeyLock
+	projectLock   sync.KeyLock
 	sessionMgr    *session.SessionManager
+	projInformer  cache.SharedIndexInformer
+	settingsMgr   *settings.SettingsManager
 }
 
 // NewServer returns a new instance of the Project service
-func NewServer(ns string, kubeclientset kubernetes.Interface, appclientset appclientset.Interface, enf *rbac.Enforcer, projectLock *util.KeyLock, sessionMgr *session.SessionManager, policyEnf *rbacpolicy.RBACPolicyEnforcer) *Server {
+func NewServer(ns string, kubeclientset kubernetes.Interface, appclientset appclientset.Interface, enf *rbac.Enforcer, projectLock sync.KeyLock, sessionMgr *session.SessionManager, policyEnf *rbacpolicy.RBACPolicyEnforcer,
+	projInformer cache.SharedIndexInformer, settingsMgr *settings.SettingsManager) *Server {
 	auditLogger := argo.NewAuditLogger(ns, kubeclientset, "argocd-server")
-	return &Server{enf: enf, policyEnf: policyEnf, appclientset: appclientset, kubeclientset: kubeclientset, ns: ns, projectLock: projectLock, auditLogger: auditLogger, sessionMgr: sessionMgr}
+	return &Server{enf: enf, policyEnf: policyEnf, appclientset: appclientset, kubeclientset: kubeclientset, ns: ns, projectLock: projectLock, auditLogger: auditLogger, sessionMgr: sessionMgr,
+		projInformer: projInformer, settingsMgr: settingsMgr}
 }
 
 func validateProject(proj *v1alpha1.AppProject) error {
@@ -66,7 +73,7 @@ func validateProject(proj *v1alpha1.AppProject) error {
 
 // CreateToken creates a new token to access a project
 func (s *Server) CreateToken(ctx context.Context, q *project.ProjectTokenCreateRequest) (*project.ProjectTokenResponse, error) {
-	prj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Project, metav1.GetOptions{})
+	prj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(ctx, q.Project, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +130,7 @@ func (s *Server) CreateToken(ctx context.Context, q *project.ProjectTokenCreateR
 
 	prj.NormalizeJWTTokens()
 
-	_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(prj)
+	_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(ctx, prj, metav1.UpdateOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +141,7 @@ func (s *Server) CreateToken(ctx context.Context, q *project.ProjectTokenCreateR
 
 // DeleteToken deletes a token in a project
 func (s *Server) DeleteToken(ctx context.Context, q *project.ProjectTokenDeleteRequest) (*project.EmptyResponse, error) {
-	prj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Project, metav1.GetOptions{})
+	prj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(ctx, q.Project, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -161,7 +168,7 @@ func (s *Server) DeleteToken(ctx context.Context, q *project.ProjectTokenDeleteR
 		return &project.EmptyResponse{}, nil
 	}
 
-	_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(prj)
+	_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(ctx, prj, metav1.UpdateOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -170,7 +177,7 @@ func (s *Server) DeleteToken(ctx context.Context, q *project.ProjectTokenDeleteR
 	return &project.EmptyResponse{}, nil
 }
 
-// Create a new project.
+// Create a new project
 func (s *Server) Create(ctx context.Context, q *project.ProjectCreateRequest) (*v1alpha1.AppProject, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionCreate, q.Project.Name); err != nil {
 		return nil, err
@@ -180,9 +187,9 @@ func (s *Server) Create(ctx context.Context, q *project.ProjectCreateRequest) (*
 	if err != nil {
 		return nil, err
 	}
-	res, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Create(q.Project)
+	res, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Create(ctx, q.Project, metav1.CreateOptions{})
 	if apierr.IsAlreadyExists(err) {
-		existing, getErr := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Project.Name, metav1.GetOptions{})
+		existing, getErr := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(ctx, q.Project.Name, metav1.GetOptions{})
 		if getErr != nil {
 			return nil, status.Errorf(codes.Internal, "unable to check existing project details: %v", getErr)
 		}
@@ -191,7 +198,7 @@ func (s *Server) Create(ctx context.Context, q *project.ProjectCreateRequest) (*
 				return nil, err
 			}
 			existing.Spec = q.GetProject().Spec
-			res, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(existing)
+			res, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(ctx, existing, metav1.UpdateOptions{})
 		} else {
 			if !reflect.DeepEqual(existing.Spec, q.GetProject().Spec) {
 				return nil, status.Errorf(codes.InvalidArgument, "existing project spec is different, use upsert flag to force update")
@@ -207,7 +214,7 @@ func (s *Server) Create(ctx context.Context, q *project.ProjectCreateRequest) (*
 
 // List returns list of projects
 func (s *Server) List(ctx context.Context, q *project.ProjectQuery) (*v1alpha1.AppProjectList, error) {
-	list, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).List(metav1.ListOptions{})
+	list, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).List(ctx, metav1.ListOptions{})
 	if list != nil {
 		newItems := make([]v1alpha1.AppProject, 0)
 		for i := range list.Items {
@@ -226,12 +233,26 @@ func (s *Server) Get(ctx context.Context, q *project.ProjectQuery) (*v1alpha1.Ap
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionGet, q.Name); err != nil {
 		return nil, err
 	}
-	proj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Name, metav1.GetOptions{})
+	proj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(ctx, q.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
 	proj.NormalizeJWTTokens()
 	return proj, err
+}
+
+// GetGlobalProjects returns global projects
+func (s *Server) GetGlobalProjects(ctx context.Context, q *project.ProjectQuery) (*project.GlobalProjectsResponse, error) {
+	projOrig, err := s.Get(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+
+	globalProjects := argo.GetGlobalProjects(projOrig, listersv1alpha1.NewAppProjectLister(s.projInformer.GetIndexer()), s.settingsMgr)
+
+	res := &project.GlobalProjectsResponse{}
+	res.Items = globalProjects
+	return res, nil
 }
 
 // Update updates a project
@@ -248,7 +269,7 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 	s.projectLock.Lock(q.Project.Name)
 	defer s.projectLock.Unlock(q.Project.Name)
 
-	oldProj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Project.Name, metav1.GetOptions{})
+	oldProj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(ctx, q.Project.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -266,8 +287,10 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 	}
 
 	clusterResourceWhitelistsEqual := reflect.DeepEqual(q.Project.Spec.ClusterResourceWhitelist, oldProj.Spec.ClusterResourceWhitelist)
+	clusterResourceBlacklistsEqual := reflect.DeepEqual(q.Project.Spec.ClusterResourceBlacklist, oldProj.Spec.ClusterResourceBlacklist)
 	namespacesResourceBlacklistsEqual := reflect.DeepEqual(q.Project.Spec.NamespaceResourceBlacklist, oldProj.Spec.NamespaceResourceBlacklist)
-	if !clusterResourceWhitelistsEqual || !namespacesResourceBlacklistsEqual {
+	namespacesResourceWhitelistsEqual := reflect.DeepEqual(q.Project.Spec.NamespaceResourceWhitelist, oldProj.Spec.NamespaceResourceWhitelist)
+	if !clusterResourceWhitelistsEqual || !clusterResourceBlacklistsEqual || !namespacesResourceBlacklistsEqual || !namespacesResourceWhitelistsEqual {
 		for _, cluster := range q.Project.Spec.DestinationClusters() {
 			if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionUpdate, cluster); err != nil {
 				return nil, err
@@ -275,7 +298,7 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 		}
 	}
 
-	appsList, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).List(metav1.ListOptions{})
+	appsList, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -317,7 +340,7 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 		return nil, status.Errorf(codes.InvalidArgument, "as a result of project update %s", strings.Join(parts, " and "))
 	}
 
-	res, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(q.Project)
+	res, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(ctx, q.Project, metav1.UpdateOptions{})
 	if err == nil {
 		s.logEvent(res, ctx, argo.EventReasonResourceUpdated, "updated project")
 	}
@@ -336,12 +359,12 @@ func (s *Server) Delete(ctx context.Context, q *project.ProjectQuery) (*project.
 	s.projectLock.Lock(q.Name)
 	defer s.projectLock.Unlock(q.Name)
 
-	p, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Name, metav1.GetOptions{})
+	p, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(ctx, q.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
 
-	appsList, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).List(metav1.ListOptions{})
+	appsList, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -349,7 +372,7 @@ func (s *Server) Delete(ctx context.Context, q *project.ProjectQuery) (*project.
 	if len(apps) > 0 {
 		return nil, status.Errorf(codes.InvalidArgument, "project is referenced by %d applications", len(apps))
 	}
-	err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Delete(q.Name, &metav1.DeleteOptions{})
+	err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Delete(ctx, q.Name, metav1.DeleteOptions{})
 	if err == nil {
 		s.logEvent(p, ctx, argo.EventReasonResourceDeleted, "deleted project")
 	}
@@ -360,7 +383,7 @@ func (s *Server) ListEvents(ctx context.Context, q *project.ProjectQuery) (*v1.E
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionGet, q.Name); err != nil {
 		return nil, err
 	}
-	proj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Name, metav1.GetOptions{})
+	proj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(ctx, q.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -369,7 +392,7 @@ func (s *Server) ListEvents(ctx context.Context, q *project.ProjectQuery) (*v1.E
 		"involvedObject.uid":       string(proj.UID),
 		"involvedObject.namespace": proj.Namespace,
 	}).String()
-	return s.kubeclientset.CoreV1().Events(s.ns).List(metav1.ListOptions{FieldSelector: fieldSelector})
+	return s.kubeclientset.CoreV1().Events(s.ns).List(ctx, metav1.ListOptions{FieldSelector: fieldSelector})
 }
 
 func (s *Server) logEvent(a *v1alpha1.AppProject, ctx context.Context, reason string, action string) {
@@ -386,7 +409,7 @@ func (s *Server) GetSyncWindowsState(ctx context.Context, q *project.SyncWindows
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionGet, q.Name); err != nil {
 		return nil, err
 	}
-	proj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Name, metav1.GetOptions{})
+	proj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(ctx, q.Name, metav1.GetOptions{})
 
 	if err != nil {
 		return nil, err
@@ -404,29 +427,35 @@ func (s *Server) GetSyncWindowsState(ctx context.Context, q *project.SyncWindows
 	return res, nil
 }
 
-func (s *Server) NormalizeProjs() {
-	ctx := context.Background()
-	projList, err := s.List(ctx, &project.ProjectQuery{})
+func (s *Server) NormalizeProjs() error {
+	projList, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).List(context.Background(), metav1.ListOptions{})
 	if err != nil {
-		return
+		return status.Errorf(codes.Internal, "Error retrieving project list: %s", err.Error())
 	}
 	for _, proj := range projList.Items {
-		if proj.NormalizeJWTTokens() {
-			// if !apierr.IsConflict(err), retry 3 times
-			for i := 0; i < 3; i++ {
-				_, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(&proj)
+		for i := 0; i < 3; i++ {
+			if proj.NormalizeJWTTokens() {
+				_, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(context.Background(), &proj, metav1.UpdateOptions{})
 				if err == nil {
-					log.Info(fmt.Sprintf("Successfully Normalized project %s.", proj.Name))
+					log.Info(fmt.Sprintf("Successfully normalized project %s.", proj.Name))
 					break
 				}
 				if !apierr.IsConflict(err) {
-					log.Warn(fmt.Sprintf("Failed Normalize project %s", proj.Name))
+					log.Warn(fmt.Sprintf("Failed normalize project %s", proj.Name))
 					break
 				}
-				if i == 2 {
-					log.Warn(fmt.Sprintf("Failed Normalize project %s", proj.Name))
+				projGet, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(context.Background(), proj.Name, metav1.GetOptions{})
+				if err != nil {
+					return status.Errorf(codes.Internal, "Error retrieving project: %s", err.Error())
 				}
+				proj = *projGet
+				if i == 2 {
+					return status.Errorf(codes.Internal, "Failed normalize project %s", proj.Name)
+				}
+			} else {
+				break
 			}
 		}
 	}
+	return nil
 }

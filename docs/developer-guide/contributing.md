@@ -6,7 +6,7 @@ We want to make contributing to ArgoCD as simple and smooth as possible.
 
 This guide shall help you in setting up your build & test environment, so that you can start developing and testing bug fixes and feature enhancements without having to make too much effort in setting up a local toolchain.
 
-If you want to to submit a PR, please read this document carefully, as it contains important information guiding you through our PR quality gates.
+If you want to submit a PR, please read this document carefully, as it contains important information guiding you through our PR quality gates.
 
 As is the case with the development process, this document is under constant change. If you notice any error, or if you think this document is out-of-date, or if you think it is missing something: Feel free to submit a PR or submit a bug to our GitHub issue tracker.
 
@@ -76,7 +76,7 @@ After you have submitted your PR, and whenever you push new commits to that bran
 * Run a Go linter on the code (`make lint`)
 * Run the unit tests (`make test`)
 * Run the End-to-End tests (`make test-e2e`)
-* Build and lint the UI code (`make ui`)
+* Build and lint the UI code (`make lint-ui`)
 * Build the `argocd` CLI (`make cli`)
 
 If any of these tests in the CI pipeline fail, it means that some of your contribution is considered faulty (or a test might be flaky, see below).
@@ -155,6 +155,36 @@ make: *** [Makefile:386: verify-kube-connect] Error 1
 ```
 
 you should edit your `~/.kube/config` and modify the `server` option to point to your correct K8s API (as described above).
+
+### Using k3d
+
+[k3d](https://github.com/rancher/k3d) is a lightweight wrapper to run [k3s](https://github.com/rancher/k3s), a minimal Kubernetes distribution, in docker. Because it's running in a docker container, you're dealing with docker's internal networking rules when using k3d. A typical Kubernetes cluster running on your local machine is part of the same network that you're on so you can access it using **kubectl**. However, a Kubernetes cluster running within a docker container (in this case, the one launched by make) cannot access 0.0.0.0 from inside the container itself, when 0.0.0.0 is a network resource outside the container itself (and/or the container's network). This is the cost of a fully self-contained, disposable Kubernetes cluster. The following steps should help with a successful `make verify-kube-connect` execution.
+
+1. Find your host IP by executing `ifconfig` on Mac/Linux and `ipconfig` on Windows. For most users, the following command works to find the IP address.
+
+For Mac:
+```
+IP=`ifconfig en0 | grep inet | grep -v inet6 | awk '{print $2}'`
+echo $IP
+```
+
+For Linux:
+```
+IP=`ifconfig eth0 | grep inet | grep -v inet6 | awk '{print $2}'`
+echo $IP
+```
+
+Keep in mind that this IP is dynamically assigned by the router so if your router restarts for any reason, your IP might change.
+
+2. Edit your ~/.kube/config and replace 0.0.0.0 with the above IP address.
+
+3. Execute a `kubectl version` to make sure you can still connect to the Kubernetes API server via this new IP. Run `make verify-kube-connect` and check if it works.
+
+4. Finally, so that you don't have to keep updating your kube-config whenever you spin up a new k3d cluster, add `--api-port $IP:6550` to your **k3d cluster create** command, where $IP is the value from step 1. An example command is provided here.
+
+```
+k3d cluster create my-cluster --wait --k3s-server-arg '--disable=traefik' --api-port $IP:6550 -p 443:443@loadbalancer
+```
 
 ## The development cycle
 

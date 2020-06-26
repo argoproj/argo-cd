@@ -79,6 +79,9 @@ message AppProjectSpec {
 
   // List of PGP key IDs that commits to be synced to must be signed with
   repeated SignatureKey signatureKeys = 10;
+
+  // ClusterResourceBlacklist contains list of blacklisted cluster level resources
+  repeated k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind clusterResourceBlacklist = 11;
 }
 
 // AppProjectStatus contains information about appproj
@@ -91,6 +94,9 @@ message AppProjectStatus {
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:resource:path=applications,shortName=app;apps
+// +kubebuilder:printcolumn:name="Sync Status",type=string,JSONPath=`.status.sync.status`
+// +kubebuilder:printcolumn:name="Health Status",type=string,JSONPath=`.status.health.status`
+// +kubebuilder:printcolumn:name="Revision",type=string,JSONPath=`.status.sync.revision`,priority=10
 message Application {
   optional k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
 
@@ -168,6 +174,8 @@ message ApplicationSourceDirectory {
   optional bool recurse = 1;
 
   optional ApplicationSourceJsonnet jsonnet = 2;
+
+  optional string exclude = 3;
 }
 
 // ApplicationSourceHelm holds helm specific options
@@ -186,6 +194,9 @@ message ApplicationSourceHelm {
 
   // FileParameters are file parameters to the helm template
   repeated HelmFileParameter fileParameters = 5;
+
+  // Version is the Helm version to use for templating with
+  optional string version = 6;
 }
 
 // ApplicationSourceJsonnet holds jsonnet specific options
@@ -195,6 +206,9 @@ message ApplicationSourceJsonnet {
 
   // TLAS is a list of Jsonnet Top-level Arguments
   repeated JsonnetVar tlas = 2;
+
+  // Additional library search dirs
+  repeated string libs = 3;
 }
 
 // ApplicationSourceKsonnet holds ksonnet specific options
@@ -222,6 +236,9 @@ message ApplicationSourceKustomize {
 
   // Version contains optional Kustomize version
   optional string version = 5;
+
+  // CommonAnnotations adds additional kustomize commonAnnotations
+  map<string, string> commonAnnotations = 6;
 }
 
 // ApplicationSourcePlugin holds config management plugin specific options
@@ -277,6 +294,7 @@ message ApplicationStatus {
   optional OperationState operationState = 7;
 
   // ObservedAt indicates when the application state was updated without querying latest git state
+  // Deprecated: controller no longer updates ObservedAt field
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time observedAt = 8;
 
   optional string sourceType = 9;
@@ -313,6 +331,18 @@ message ApplicationWatchEvent {
   optional Application application = 2;
 }
 
+// Backoff is a backoff strategy to use within retryStrategy
+message Backoff {
+  // Duration is the amount to back off. Default unit is seconds, but could also be a duration (e.g. "2m", "1h")
+  optional string duration = 1;
+
+  // Factor is a factor to multiply the base duration after each failed retry
+  optional int64 factor = 2;
+
+  // MaxDuration is the maximum amount of time allowed for the backoff strategy
+  optional string maxDuration = 3;
+}
+
 // Cluster is the definition of a cluster resource
 message Cluster {
   // Server is the API server URL of the Kubernetes cluster
@@ -332,7 +362,7 @@ message Cluster {
   // The server version
   optional string serverVersion = 5;
 
-  // Holds list of namespaces which are accessible in that cluster. Cluster level resources would be ignored if namespace list if not empty.
+  // Holds list of namespaces which are accessible in that cluster. Cluster level resources would be ignored if namespace list is not empty.
   repeated string namespaces = 6;
 
   // RefreshRequestedAt holds time when cluster cache refresh has been requested
@@ -340,6 +370,9 @@ message Cluster {
 
   // Holds information about cluster cache
   optional ClusterInfo info = 8;
+
+  // Shard contains optional shard number. Calculated on the fly by the application controller if not specified.
+  optional int64 shard = 9;
 }
 
 message ClusterCacheInfo {
@@ -371,6 +404,9 @@ message ClusterConfig {
 
   // AWSAuthConfig contains IAM authentication configuration
   optional AWSAuthConfig awsAuthConfig = 5;
+
+  // ExecProviderConfig contains configuration for an exec provider
+  optional ExecProviderConfig execProviderConfig = 6;
 }
 
 message ClusterInfo {
@@ -437,6 +473,25 @@ message EnvEntry {
 
   // the value
   optional string value = 2;
+}
+
+// ExecProviderConfig is config used to call an external command to perform cluster authentication
+// See: https://godoc.org/k8s.io/client-go/tools/clientcmd/api#ExecConfig
+message ExecProviderConfig {
+  // Command to execute
+  optional string command = 1;
+
+  // Arguments to pass to the command when executing it
+  repeated string args = 2;
+
+  // Env defines additional environment variables to expose to the process
+  map<string, string> env = 3;
+
+  // Preferred input version of the ExecInfo
+  optional string apiVersion = 4;
+
+  // This text is shown to the user when the executable doesn't seem to be present
+  optional string installHint = 5;
 }
 
 // GnuPGPublicKey is a representation of a GnuPG public key
@@ -563,6 +618,9 @@ message Operation {
   optional OperationInitiator initiatedBy = 2;
 
   repeated Info info = 3;
+
+  // Retry controls failed sync retry behavior
+  optional RetryStrategy retry = 4;
 }
 
 // OperationInitiator holds information about the operation initiator
@@ -593,12 +651,29 @@ message OperationState {
 
   // FinishedAt contains time of operation completion
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time finishedAt = 7;
+
+  // RetryCount contains time of operation retries
+  optional int64 retryCount = 8;
+}
+
+message OrphanedResourceKey {
+  optional string group = 1;
+
+  optional string kind = 2;
+
+  optional string name = 3;
 }
 
 // OrphanedResourcesMonitorSettings holds settings of orphaned resources monitoring
 message OrphanedResourcesMonitorSettings {
   // Warn indicates if warning condition should be created for apps which have orphaned resources
   optional bool warn = 1;
+
+  repeated OrphanedResourceKey ignore = 2;
+}
+
+message OverrideIgnoreDiff {
+  repeated string jSONPointers = 1;
 }
 
 // ProjectRole represents a role that has access to a project
@@ -689,6 +764,9 @@ message Repository {
 
   // Whether credentials were inherited from a credential set
   optional bool inheritedCreds = 13;
+
+  // Whether helm-oci support should be enabled for this repo
+  optional bool enableOCI = 14;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate
@@ -825,6 +903,8 @@ message ResourceNode {
   repeated string images = 6;
 
   optional HealthStatus health = 7;
+
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time createdAt = 8;
 }
 
 // ResourceOverride holds configuration to customize resource diffing and health assessment
@@ -833,7 +913,7 @@ message ResourceOverride {
 
   optional string actions = 3;
 
-  optional string ignoreDifferences = 2;
+  optional OverrideIgnoreDiff ignoreDifferences = 2;
 
   repeated KnownTypeField knownTypeFields = 4;
 }
@@ -901,6 +981,14 @@ message ResourceStatus {
   optional bool hook = 8;
 
   optional bool requiresPruning = 9;
+}
+
+message RetryStrategy {
+  // Limit is the maximum number of attempts when retrying a container
+  optional int64 limit = 1;
+
+  // Backoff is a backoff strategy
+  optional Backoff backoff = 2;
 }
 
 // RevisionHistory contains information relevant to an application deployment
@@ -1009,6 +1097,9 @@ message SyncPolicy {
 
   // Options allow you to specify whole app sync-options
   repeated string syncOptions = 2;
+
+  // Retry controls failed sync retry behavior
+  optional RetryStrategy retry = 3;
 }
 
 // SyncPolicyAutomated controls the behavior of an automated sync
@@ -1018,6 +1109,9 @@ message SyncPolicyAutomated {
 
   // SelfHeal enables auto-syncing if  (default: false)
   optional bool selfHeal = 2;
+
+  // AllowEmpty allows apps have zero live resources (default: false)
+  optional bool allowEmpty = 3;
 }
 
 // SyncStatus is a comparison result of application spec and deployed application.
@@ -1031,7 +1125,7 @@ message SyncStatus {
 
 // SyncStrategy controls the manner in which a sync is performed
 message SyncStrategy {
-  // Apply wil perform a `kubectl apply` to perform the sync.
+  // Apply will perform a `kubectl apply` to perform the sync.
   optional SyncStrategyApply apply = 1;
 
   // Hook will submit any referenced resources to perform the sync. This is the default strategy

@@ -39,7 +39,7 @@ func TestClusterSecretUpdater(t *testing.T) {
 
 	kubeclientset := fake.NewSimpleClientset()
 	appclientset := appsfake.NewSimpleClientset()
-	appInfomer := appinformers.NewApplicationInformer(appclientset, "", time.Minute, cache.Indexers{})
+	appInformer := appinformers.NewApplicationInformer(appclientset, "", time.Minute, cache.Indexers{})
 	settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
 	argoDB := db.NewDB(fakeNamespace, settingsManager, kubeclientset)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -57,8 +57,8 @@ func TestClusterSecretUpdater(t *testing.T) {
 			SyncError:         test.SyncError,
 		}
 
-		lister := applisters.NewApplicationLister(appInfomer.GetIndexer()).Applications(fakeNamespace)
-		updater := NewClusterInfoUpdater(nil, argoDB, lister, appCache)
+		lister := applisters.NewApplicationLister(appInformer.GetIndexer()).Applications(fakeNamespace)
+		updater := NewClusterInfoUpdater(nil, argoDB, lister, appCache, nil)
 
 		err = updater.updateClusterInfo(*cluster, info)
 		assert.NoError(t, err, "Invoking updateClusterInfo failed.")

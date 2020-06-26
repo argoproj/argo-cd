@@ -39,7 +39,6 @@ export const Help = () => (
                             <a className='argo-button argo-button--base' href='/swagger-ui'>
                                 Open the API docs
                             </a>
-                            .
                         </div>
                     </div>
                 </div>

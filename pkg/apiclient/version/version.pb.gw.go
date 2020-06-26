@@ -9,25 +9,28 @@ It translates gRPC into RESTful JSON APIs.
 package version
 
 import (
+	"context"
 	"io"
 	"net/http"
 
+	"github.com/golang/protobuf/descriptor"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/grpc-ecosystem/grpc-gateway/utilities"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/grpclog"
 	"google.golang.org/grpc/status"
 )
 
+// Suppress "imported and not used" errors
 var _ codes.Code
 var _ io.Reader
 var _ status.Status
 var _ = runtime.String
 var _ = utilities.NewDoubleArray
+var _ = descriptor.ForMessage
 
 func request_VersionService_Version_0(ctx context.Context, marshaler runtime.Marshaler, client VersionServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq empty.Empty
@@ -36,6 +39,43 @@ func request_VersionService_Version_0(ctx context.Context, marshaler runtime.Mar
 	msg, err := client.Version(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
 
+}
+
+func local_request_VersionService_Version_0(ctx context.Context, marshaler runtime.Marshaler, server VersionServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq empty.Empty
+	var metadata runtime.ServerMetadata
+
+	msg, err := server.Version(ctx, &protoReq)
+	return msg, metadata, err
+
+}
+
+// RegisterVersionServiceHandlerServer registers the http handlers for service VersionService to "mux".
+// UnaryRPC     :call VersionServiceServer directly.
+// StreamingRPC :currently unsupported pending https://github.com/grpc/grpc-go/issues/906.
+func RegisterVersionServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux, server VersionServiceServer) error {
+
+	mux.Handle("GET", pattern_VersionService_Version_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := local_request_VersionService_Version_0(rctx, inboundMarshaler, server, req, pathParams)
+		ctx = runtime.NewServerMetadataContext(ctx, md)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_VersionService_Version_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
+	return nil
 }
 
 // RegisterVersionServiceHandlerFromEndpoint is same as RegisterVersionServiceHandler but
@@ -48,14 +88,14 @@ func RegisterVersionServiceHandlerFromEndpoint(ctx context.Context, mux *runtime
 	defer func() {
 		if err != nil {
 			if cerr := conn.Close(); cerr != nil {
-				grpclog.Printf("Failed to close conn to %s: %v", endpoint, cerr)
+				grpclog.Infof("Failed to close conn to %s: %v", endpoint, cerr)
 			}
 			return
 		}
 		go func() {
 			<-ctx.Done()
 			if cerr := conn.Close(); cerr != nil {
-				grpclog.Printf("Failed to close conn to %s: %v", endpoint, cerr)
+				grpclog.Infof("Failed to close conn to %s: %v", endpoint, cerr)
 			}
 		}()
 	}()
@@ -69,8 +109,8 @@ func RegisterVersionServiceHandler(ctx context.Context, mux *runtime.ServeMux, c
 	return RegisterVersionServiceHandlerClient(ctx, mux, NewVersionServiceClient(conn))
 }
 
-// RegisterVersionServiceHandler registers the http handlers for service VersionService to "mux".
-// The handlers forward requests to the grpc endpoint over the given implementation of "VersionServiceClient".
+// RegisterVersionServiceHandlerClient registers the http handlers for service VersionService
+// to "mux". The handlers forward requests to the grpc endpoint over the given implementation of "VersionServiceClient".
 // Note: the gRPC framework executes interceptors within the gRPC handler. If the passed in "VersionServiceClient"
 // doesn't go through the normal gRPC flow (creating a gRPC client etc.) then it will be up to the passed in
 // "VersionServiceClient" to call the correct interceptors.
@@ -79,15 +119,6 @@ func RegisterVersionServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 	mux.Handle("GET", pattern_VersionService_Version_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
-		if cn, ok := w.(http.CloseNotifier); ok {
-			go func(done <-chan struct{}, closed <-chan bool) {
-				select {
-				case <-done:
-				case <-closed:
-					cancel()
-				}
-			}(ctx.Done(), cn.CloseNotify())
-		}
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		rctx, err := runtime.AnnotateContext(ctx, mux, req)
 		if err != nil {
@@ -109,7 +140,7 @@ func RegisterVersionServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 }
 
 var (
-	pattern_VersionService_Version_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"api", "version"}, ""))
+	pattern_VersionService_Version_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"api", "version"}, "", runtime.AssumeColonVerbOpt(true)))
 )
 
 var (

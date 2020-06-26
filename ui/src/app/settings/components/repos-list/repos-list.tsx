@@ -5,6 +5,7 @@ import {Form, FormApi, Text, TextArea} from 'react-form';
 import {RouteComponentProps} from 'react-router';
 
 import {CheckboxField, ConnectionStateIcon, DataLoader, EmptyState, ErrorNotification, Page, Repo} from '../../../shared/components';
+import {Spinner} from '../../../shared/components';
 import {AppContext} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -45,7 +46,7 @@ interface NewHTTPSRepoCredsParams {
     tlsClientCertKey: string;
 }
 
-export class ReposList extends React.Component<RouteComponentProps<any>> {
+export class ReposList extends React.Component<RouteComponentProps<any>, {connecting: boolean}> {
     public static contextTypes = {
         router: PropTypes.object,
         apis: PropTypes.object,
@@ -57,6 +58,11 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
     private credsTemplate: boolean;
     private repoLoader: DataLoader;
     private credsLoader: DataLoader;
+
+    constructor(props: RouteComponentProps<any>) {
+        super(props);
+        this.state = {connecting: false};
+    }
 
     public render() {
         return (
@@ -202,6 +208,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                                     this.credsTemplate = false;
                                     this.formApiHTTPS.submitForm(null);
                                 }}>
+                                <Spinner show={this.state.connecting} style={{marginRight: '5px'}} />
                                 Connect
                             </button>{' '}
                             <button
@@ -280,6 +287,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                                     this.credsTemplate = false;
                                     this.formApiSSH.submitForm(null);
                                 }}>
+                                <Spinner show={this.state.connecting} style={{marginRight: '5px'}} />
                                 Connect
                             </button>{' '}
                             <button
@@ -374,6 +382,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
         if (this.credsTemplate) {
             this.createSSHCreds({url: params.url, sshPrivateKey: params.sshPrivateKey});
         } else {
+            this.setState({connecting: true});
             try {
                 await services.repos.createSSH(params);
                 this.repoLoader.reload();
@@ -383,6 +392,8 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                     content: <ErrorNotification title='Unable to connect SSH repository' e={e} />,
                     type: NotificationType.Error
                 });
+            } finally {
+                this.setState({connecting: false});
             }
         }
     }
@@ -398,6 +409,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                 tlsClientCertKey: params.tlsClientCertKey
             });
         } else {
+            this.setState({connecting: true});
             try {
                 await services.repos.createHTTPS(params);
                 this.repoLoader.reload();
@@ -407,6 +419,8 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                     content: <ErrorNotification title='Unable to connect HTTPS repository' e={e} />,
                     type: NotificationType.Error
                 });
+            } finally {
+                this.setState({connecting: false});
             }
         }
     }

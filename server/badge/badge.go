@@ -1,6 +1,7 @@
 package badge
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -11,6 +12,7 @@ import (
 
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/assets"
 	"github.com/argoproj/argo-cd/util/settings"
 )
@@ -74,7 +76,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	//Sample url: http://localhost:8080/api/badge?name=123
 	if name, ok := r.URL.Query()["name"]; ok && enabled {
-		if app, err := h.appClientset.ArgoprojV1alpha1().Applications(h.namespace).Get(name[0], v1.GetOptions{}); err == nil {
+		if app, err := h.appClientset.ArgoprojV1alpha1().Applications(h.namespace).Get(context.Background(), name[0], v1.GetOptions{}); err == nil {
 			health = app.Status.Health.Status
 			status = app.Status.Sync.Status
 			if app.Status.OperationState != nil && app.Status.OperationState.SyncResult != nil {
@@ -84,7 +86,26 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			notFound = true
 		}
 	}
-
+	//Sample url: http://localhost:8080/api/badge?project=default
+	if projects, ok := r.URL.Query()["project"]; ok && enabled {
+		if apps, err := h.appClientset.ArgoprojV1alpha1().Applications(h.namespace).List(context.Background(), v1.ListOptions{}); err == nil {
+			applicationSet := argo.FilterByProjects(apps.Items, projects)
+			for _, a := range applicationSet {
+				if a.Status.Sync.Status != appv1.SyncStatusCodeSynced {
+					status = appv1.SyncStatusCodeOutOfSync
+				}
+				if a.Status.Health.Status != healthutil.HealthStatusHealthy {
+					health = healthutil.HealthStatusDegraded
+				}
+			}
+			if health != healthutil.HealthStatusDegraded && len(applicationSet) > 0 {
+				health = healthutil.HealthStatusHealthy
+			}
+			if status != appv1.SyncStatusCodeOutOfSync && len(applicationSet) > 0 {
+				status = appv1.SyncStatusCodeSynced
+			}
+		}
+	}
 	//Sample url: http://localhost:8080/api/badge?name=123&revision=true
 	if _, ok := r.URL.Query()["revision"]; ok && enabled {
 		revisionEnabled = true

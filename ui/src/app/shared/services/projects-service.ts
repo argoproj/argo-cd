@@ -2,21 +2,6 @@ import requests from './requests';
 
 import * as models from '../models';
 
-export interface ProjectParams {
-    name: string;
-    description: string;
-    sourceRepos: string[];
-    destinations: models.ApplicationDestination[];
-    roles: models.ProjectRole[];
-    clusterResourceWhitelist: models.GroupKind[];
-    namespaceResourceBlacklist: models.GroupKind[];
-    namespaceResourceWhitelist: models.GroupKind[];
-    signatureKeys: models.ProjectSignatureKey[];
-    orphanedResourcesEnabled: boolean;
-    orphanedResourcesWarn: boolean;
-    syncWindows: models.SyncWindow[];
-}
-
 export interface CreateJWTTokenParams {
     project: string;
     role: string;
@@ -68,28 +53,11 @@ function paramsToProjRole(params: ProjectRoleParams): models.ProjectRole {
     };
 }
 
-function paramsToProj(params: ProjectParams) {
-    return {
-        metadata: {name: params.name},
-        spec: {
-            description: params.description,
-            sourceRepos: params.sourceRepos,
-            destinations: params.destinations,
-            roles: params.roles,
-            syncWindows: params.syncWindows,
-            clusterResourceWhitelist: params.clusterResourceWhitelist,
-            namespaceResourceBlacklist: params.namespaceResourceBlacklist,
-            namespaceResourceWhitelist: params.namespaceResourceWhitelist,
-            signatureKeys: params.signatureKeys,
-            orphanedResources: (params.orphanedResourcesEnabled && {warn: !!params.orphanedResourcesWarn}) || null
-        }
-    };
-}
-
 export class ProjectsService {
-    public list(): Promise<models.Project[]> {
+    public list(...fields: string[]): Promise<models.Project[]> {
         return requests
             .get('/projects')
+            .query({fields: fields.join(',')})
             .then(res => res.body as models.ProjectList)
             .then(list => list.items || []);
     }
@@ -98,23 +66,25 @@ export class ProjectsService {
         return requests.get(`/projects/${name}`).then(res => res.body as models.Project);
     }
 
+    public getGlobalProjects(name: string): Promise<models.Project[]> {
+        return requests.get(`/projects/${name}/globalprojects`).then(res => res.body.items as models.Project[]);
+    }
+
     public delete(name: string): Promise<boolean> {
         return requests.delete(`/projects/${name}`).then(() => true);
     }
 
-    public create(params: ProjectParams): Promise<models.Project> {
+    public create(project: models.Project): Promise<models.Project> {
         return requests
             .post('/projects')
-            .send({project: paramsToProj(params)})
+            .send({project})
             .then(res => res.body as models.Project);
     }
 
-    public async update(params: ProjectParams): Promise<models.Project> {
-        const proj = await this.get(params.name);
-        const update = paramsToProj(params);
+    public async update(project: models.Project): Promise<models.Project> {
         return requests
-            .put(`/projects/${params.name}`)
-            .send({project: {...proj, spec: update.spec}})
+            .put(`/projects/${project.metadata.name}`)
+            .send({project})
             .then(res => res.body as models.Project);
     }
 

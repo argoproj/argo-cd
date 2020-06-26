@@ -35,12 +35,6 @@ spec:
             port: 8080
           initialDelaySeconds: 3
           periodSeconds: 30
-        livenessProbe:
-          httpGet:
-            path: /healthz
-            port: 8080
-          initialDelaySeconds: 3
-          periodSeconds: 30
       volumes:
       - emptyDir: {}
         name: static-files

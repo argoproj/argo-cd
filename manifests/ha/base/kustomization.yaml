@@ -5,17 +5,17 @@ kind: Kustomization
 patchesStrategicMerge:
 - overlays/argocd-repo-server-deployment.yaml
 - overlays/argocd-server-deployment.yaml
-- overlays/argocd-application-controller-deployment.yaml
+- overlays/argocd-application-controller-statefulset.yaml
 
-bases:
+
+images:
+- name: argoproj/argocd
+  newName: argoproj/argocd
+  newTag: latest
+resources:
 - ../../base/application-controller
 - ../../base/dex
 - ../../base/repo-server
 - ../../base/server
 - ../../base/config
 - ./redis-ha
-
-images:
-- name: argoproj/argocd
-  newName: argoproj/argocd
-  newTag: latest

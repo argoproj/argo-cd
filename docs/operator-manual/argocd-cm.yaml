@@ -42,6 +42,14 @@ data:
           - name: your-github-org
             teams:
             - red-team
+    # It is possible to provide custom static client for dex if you want to reuse it
+    # with other services
+    # staticClients:
+    # - id: argo-workflow
+    #   name: Argo Workflow
+    #   redirectURIs:
+    #     - https://argo/oauth2/callback
+    #   secret: $secretReference
 
   # OIDC configuration as an alternative to dex (optional).
   oidc.config: |
@@ -170,7 +178,7 @@ data:
               return obj
 
   # Configuration to completely ignore entire classes of resource group/kinds (optional).
-  # Excluding high-volume resources improves performance and memory usage, and reduces load and 
+  # Excluding high-volume resources improves performance and memory usage, and reduces load and
   # bandwidth to the Kubernetes API server.
   # These are globs, so a "*" will match all values.
   # If you omit groups/kinds/clusters then they will match all groups/kind/clusters.
@@ -193,9 +201,15 @@ data:
       clusters:
       - "*.local"
 
-  # if ignoreAggregatedRoles set to true then differences caused by aggregated roles in RBAC resources are ignored.
   resource.compareoptions: |
+    # if ignoreAggregatedRoles set to true then differences caused by aggregated roles in RBAC resources are ignored.
     ignoreAggregatedRoles: true
+
+    # disables status field diffing in specified resource types
+    # 'crd' - CustomResourceDefinitions (default)
+    # 'all' - all resources
+    # 'none' - disabled
+    ignoreResourceStatusField: crd
 
   # Configuration to add a config management plugin.
   configManagementPlugins: |
@@ -225,3 +239,13 @@ data:
   accounts.alice: apiKey, login
   # disables user. User is enabled by default
   accounts.alice.enabled: "false"
+
+  # The location of optional user-defined CSS that is loaded at runtime.
+  # Local CSS Files:
+  # - If the supplied path is to a file mounted on the argocd-server container, that file should be mounted 
+  #   within a subdirectory of the existing "/shared/app" directory (e.g. "/shared/app/custom").  Otherwise,
+  #   the file will likely fail to be imported by the browser with an "incorrect MIME type" error.
+  # - The path should be specified relative to the "/shared/app" directory; not as an absolute path.
+  # Remote CSS Files:
+  # - Files may also be loaded from remote locations via fully qualified URLs.
+  ui.cssurl: "./custom/my-styles.css"

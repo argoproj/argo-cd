@@ -9,6 +9,7 @@ import (
 	"github.com/argoproj/pkg/errors"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
@@ -63,10 +64,96 @@ var (
             serviceName: helm-guestbook
             servicePort: https
           path: /
+    tls:
+    - host: helm-guestbook.com
+    secretName: my-tls-secret
   status:
     loadBalancer:
       ingress:
       - ip: 107.178.210.11`)
+
+	testIngressWildCardPath = strToUnstructured(`
+  apiVersion: extensions/v1beta1
+  kind: Ingress
+  metadata:
+    name: helm-guestbook
+    namespace: default
+    uid: "4"
+  spec:
+    backend:
+      serviceName: not-found-service
+      servicePort: 443
+    rules:
+    - host: helm-guestbook.com
+      http:
+        paths:
+        - backend:
+            serviceName: helm-guestbook
+            servicePort: 443
+          path: /*
+        - backend:
+            serviceName: helm-guestbook
+            servicePort: https
+          path: /*
+    tls:
+    - host: helm-guestbook.com
+    secretName: my-tls-secret
+  status:
+    loadBalancer:
+      ingress:
+      - ip: 107.178.210.11`)
+
+	testIngressWithoutTls = strToUnstructured(`
+  apiVersion: extensions/v1beta1
+  kind: Ingress
+  metadata:
+    name: helm-guestbook
+    namespace: default
+    uid: "4"
+  spec:
+    backend:
+      serviceName: not-found-service
+      servicePort: 443
+    rules:
+    - host: helm-guestbook.com
+      http:
+        paths:
+        - backend:
+            serviceName: helm-guestbook
+            servicePort: 443
+          path: /
+        - backend:
+            serviceName: helm-guestbook
+            servicePort: https
+          path: /
+  status:
+    loadBalancer:
+      ingress:
+      - ip: 107.178.210.11`)
+
+	testIstioVirtualService = strToUnstructured(`
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: hello-world
+  namespace: demo
+spec:
+  http:
+    - match:
+        - uri:
+            prefix: "/1"
+      route:
+        - destination:
+            host: service_full.demo.svc.cluster.local
+        - destination:
+            host: service_namespace.namespace
+    - match:
+        - uri:
+            prefix: "/2"
+      route:
+        - destination:
+            host: service
+`)
 )
 
 func TestGetPodInfo(t *testing.T) {
@@ -104,6 +191,29 @@ func TestGetServiceInfo(t *testing.T) {
 	}, info.NetworkingInfo)
 }
 
+func TestGetIstioVirtualServiceInfo(t *testing.T) {
+	info := &ResourceInfo{}
+	populateNodeInfo(testIstioVirtualService, info)
+	assert.Equal(t, 0, len(info.Info))
+	require.NotNil(t, info.NetworkingInfo)
+	require.NotNil(t, info.NetworkingInfo.TargetRefs)
+	assert.Contains(t, info.NetworkingInfo.TargetRefs, v1alpha1.ResourceRef{
+		Kind:      kube.ServiceKind,
+		Name:      "service_full",
+		Namespace: "demo",
+	})
+	assert.Contains(t, info.NetworkingInfo.TargetRefs, v1alpha1.ResourceRef{
+		Kind:      kube.ServiceKind,
+		Name:      "service_namespace",
+		Namespace: "namespace",
+	})
+	assert.Contains(t, info.NetworkingInfo.TargetRefs, v1alpha1.ResourceRef{
+		Kind:      kube.ServiceKind,
+		Name:      "service",
+		Namespace: "demo",
+	})
+}
+
 func TestGetIngressInfo(t *testing.T) {
 	info := &ResourceInfo{}
 	populateNodeInfo(testIngress, info)
@@ -128,6 +238,54 @@ func TestGetIngressInfo(t *testing.T) {
 	}, info.NetworkingInfo)
 }
 
+func TestGetIngressInfoWildCardPath(t *testing.T) {
+	info := &ResourceInfo{}
+	populateNodeInfo(testIngressWildCardPath, info)
+	assert.Equal(t, 0, len(info.Info))
+	sort.Slice(info.NetworkingInfo.TargetRefs, func(i, j int) bool {
+		return strings.Compare(info.NetworkingInfo.TargetRefs[j].Name, info.NetworkingInfo.TargetRefs[i].Name) < 0
+	})
+	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
+		Ingress: []v1.LoadBalancerIngress{{IP: "107.178.210.11"}},
+		TargetRefs: []v1alpha1.ResourceRef{{
+			Namespace: "default",
+			Group:     "",
+			Kind:      kube.ServiceKind,
+			Name:      "not-found-service",
+		}, {
+			Namespace: "default",
+			Group:     "",
+			Kind:      kube.ServiceKind,
+			Name:      "helm-guestbook",
+		}},
+		ExternalURLs: []string{"https://helm-guestbook.com/"},
+	}, info.NetworkingInfo)
+}
+
+func TestGetIngressInfoWithoutTls(t *testing.T) {
+	info := &ResourceInfo{}
+	populateNodeInfo(testIngressWithoutTls, info)
+	assert.Equal(t, 0, len(info.Info))
+	sort.Slice(info.NetworkingInfo.TargetRefs, func(i, j int) bool {
+		return strings.Compare(info.NetworkingInfo.TargetRefs[j].Name, info.NetworkingInfo.TargetRefs[i].Name) < 0
+	})
+	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
+		Ingress: []v1.LoadBalancerIngress{{IP: "107.178.210.11"}},
+		TargetRefs: []v1alpha1.ResourceRef{{
+			Namespace: "default",
+			Group:     "",
+			Kind:      kube.ServiceKind,
+			Name:      "not-found-service",
+		}, {
+			Namespace: "default",
+			Group:     "",
+			Kind:      kube.ServiceKind,
+			Name:      "helm-guestbook",
+		}},
+		ExternalURLs: []string{"http://helm-guestbook.com/"},
+	}, info.NetworkingInfo)
+}
+
 func TestGetIngressInfoNoHost(t *testing.T) {
 	ingress := strToUnstructured(`
   apiVersion: extensions/v1beta1
@@ -143,6 +301,8 @@ func TestGetIngressInfoNoHost(t *testing.T) {
             serviceName: helm-guestbook
             servicePort: 443
           path: /
+    tls:
+    - secretName: my-tls
   status:
     loadBalancer:
       ingress:
@@ -177,6 +337,8 @@ func TestExternalUrlWithSubPath(t *testing.T) {
             serviceName: helm-guestbook
             servicePort: 443
           path: /my/sub/path/
+    tls:
+    - secretName: my-tls
   status:
     loadBalancer:
       ingress:
@@ -211,6 +373,8 @@ func TestExternalUrlWithMultipleSubPaths(t *testing.T) {
         - backend:
             serviceName: helm-guestbook-3
             servicePort: 443
+    tls:
+    - secretName: my-tls
   status:
     loadBalancer:
       ingress:
@@ -239,6 +403,8 @@ func TestExternalUrlWithNoSubPath(t *testing.T) {
         - backend:
             serviceName: helm-guestbook
             servicePort: 443
+    tls:
+    - secretName: my-tls
   status:
     loadBalancer:
       ingress:
@@ -265,6 +431,8 @@ func TestExternalUrlWithNetworkingApi(t *testing.T) {
         - backend:
             serviceName: helm-guestbook
             servicePort: 443
+    tls:
+    - secretName: my-tls
   status:
     loadBalancer:
       ingress:

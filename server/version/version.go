@@ -1,8 +1,16 @@
 package version
 
 import (
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"errors"
+	"fmt"
+	"os/exec"
+	"regexp"
+	"strings"
+
+	"github.com/argoproj/gitops-engine/pkg/utils/tracing"
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/google/go-jsonnet"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 
 	"github.com/argoproj/argo-cd/common"
@@ -10,6 +18,7 @@ import (
 	"github.com/argoproj/argo-cd/util/helm"
 	ksutil "github.com/argoproj/argo-cd/util/ksonnet"
 	"github.com/argoproj/argo-cd/util/kustomize"
+	"github.com/argoproj/argo-cd/util/log"
 )
 
 type Server struct {
@@ -17,6 +26,28 @@ type Server struct {
 	kustomizeVersion string
 	helmVersion      string
 	kubectlVersion   string
+	jsonnetVersion   string
+}
+
+func getVersion() (string, error) {
+	span := tracing.NewLoggingTracer(log.NewLogrusLogger(logrus.New())).StartSpan("Version")
+	defer span.Finish()
+	cmd := exec.Command("kubectl", "version", "--client")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("could not get kubectl version: %s", err)
+	}
+
+	re := regexp.MustCompile(`GitVersion:"([a-zA-Z0-9\.\-]+)"`)
+	matches := re.FindStringSubmatch(string(out))
+	if len(matches) != 2 {
+		return "", errors.New("could not get kubectl version")
+	}
+	version := matches[1]
+	if version[0] != 'v' {
+		version = "v" + version
+	}
+	return strings.TrimSpace(version), nil
 }
 
 // Version returns the version of the API server
@@ -31,16 +62,15 @@ func (s *Server) Version(context.Context, *empty.Empty) (*version.VersionMessage
 		}
 	}
 	if s.kustomizeVersion == "" {
-		kustomizeVersion, err := kustomize.Version()
+		kustomizeVersion, err := kustomize.Version(true)
 		if err == nil {
 			s.kustomizeVersion = kustomizeVersion
 		} else {
 			s.kustomizeVersion = err.Error()
 		}
-
 	}
 	if s.helmVersion == "" {
-		helmVersion, err := helm.Version()
+		helmVersion, err := helm.Version(true)
 		if err == nil {
 			s.helmVersion = helmVersion
 		} else {
@@ -48,13 +78,14 @@ func (s *Server) Version(context.Context, *empty.Empty) (*version.VersionMessage
 		}
 	}
 	if s.kubectlVersion == "" {
-		kubectlVersion, err := kube.Version()
+		kubectlVersion, err := getVersion()
 		if err == nil {
 			s.kubectlVersion = kubectlVersion
 		} else {
 			s.kubectlVersion = err.Error()
 		}
 	}
+	s.jsonnetVersion = jsonnet.Version()
 	return &version.VersionMessage{
 		Version:          vers.Version,
 		BuildDate:        vers.BuildDate,
@@ -68,6 +99,7 @@ func (s *Server) Version(context.Context, *empty.Empty) (*version.VersionMessage
 		KustomizeVersion: s.kustomizeVersion,
 		HelmVersion:      s.helmVersion,
 		KubectlVersion:   s.kubectlVersion,
+		JsonnetVersion:   s.jsonnetVersion,
 	}, nil
 }
 

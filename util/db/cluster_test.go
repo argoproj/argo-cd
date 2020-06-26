@@ -25,6 +25,46 @@ func Test_serverToSecretName(t *testing.T) {
 	assert.Equal(t, "cluster-foo-752281925", name)
 }
 
+func Test_secretToCluster(t *testing.T) {
+	secret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "mycluster",
+			Namespace: fakeNamespace,
+		},
+		Data: map[string][]byte{
+			"name":   []byte("test"),
+			"server": []byte("http://mycluster"),
+			"config": []byte("{\"username\":\"foo\"}"),
+		},
+	}
+	cluster := secretToCluster(secret)
+	assert.Equal(t, *cluster, v1alpha1.Cluster{
+		Name:   "test",
+		Server: "http://mycluster",
+		Config: v1alpha1.ClusterConfig{
+			Username: "foo",
+		},
+	})
+}
+
+func Test_secretToCluster_NoConfig(t *testing.T) {
+	secret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "mycluster",
+			Namespace: fakeNamespace,
+		},
+		Data: map[string][]byte{
+			"name":   []byte("test"),
+			"server": []byte("http://mycluster"),
+		},
+	}
+	cluster := secretToCluster(secret)
+	assert.Equal(t, *cluster, v1alpha1.Cluster{
+		Name:   "test",
+		Server: "http://mycluster",
+	})
+}
+
 func TestUpdateCluster(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset(&v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -51,7 +91,7 @@ func TestUpdateCluster(t *testing.T) {
 		return
 	}
 
-	secret, err := kubeclientset.CoreV1().Secrets(fakeNamespace).Get("mycluster", metav1.GetOptions{})
+	secret, err := kubeclientset.CoreV1().Secrets(fakeNamespace).Get(context.Background(), "mycluster", metav1.GetOptions{})
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -59,62 +99,23 @@ func TestUpdateCluster(t *testing.T) {
 	assert.Equal(t, secret.Annotations[common.AnnotationKeyRefresh], requestedAt.Format(time.RFC3339))
 }
 
-func TestWatchClusters_CreateRemoveCluster(t *testing.T) {
-	kubeclientset := fake.NewSimpleClientset()
-	settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
-	db := NewDB(fakeNamespace, settingsManager, kubeclientset)
-	runWatchTest(t, db, []func(old *v1alpha1.Cluster, new *v1alpha1.Cluster){
-		func(old *v1alpha1.Cluster, new *v1alpha1.Cluster) {
-			assert.Nil(t, old)
-			assert.Equal(t, new.Server, common.KubernetesInternalAPIServerAddr)
-
-			_, err := db.CreateCluster(context.Background(), &v1alpha1.Cluster{
-				Server: "https://minikube",
-				Name:   "minikube",
-			})
-			assert.NoError(t, err)
+func TestDeleteUnknownCluster(t *testing.T) {
+	kubeclientset := fake.NewSimpleClientset(&v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "mycluster",
+			Namespace: fakeNamespace,
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+			},
 		},
-		func(old *v1alpha1.Cluster, new *v1alpha1.Cluster) {
-			assert.Nil(t, old)
-			assert.Equal(t, new.Server, "https://minikube")
-			assert.Equal(t, new.Name, "minikube")
-
-			assert.NoError(t, db.DeleteCluster(context.Background(), "https://minikube"))
-		},
-		func(old *v1alpha1.Cluster, new *v1alpha1.Cluster) {
-			assert.Nil(t, new)
-			assert.Equal(t, old.Server, "https://minikube")
+		Data: map[string][]byte{
+			"server": []byte("http://mycluster"),
+			"name":   []byte("mycluster"),
 		},
 	})
-}
-
-func TestWatchClusters_LocalClusterModifications(t *testing.T) {
-	kubeclientset := fake.NewSimpleClientset()
 	settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
 	db := NewDB(fakeNamespace, settingsManager, kubeclientset)
-	runWatchTest(t, db, []func(old *v1alpha1.Cluster, new *v1alpha1.Cluster){
-		func(old *v1alpha1.Cluster, new *v1alpha1.Cluster) {
-			assert.Nil(t, old)
-			assert.Equal(t, new.Server, common.KubernetesInternalAPIServerAddr)
-
-			_, err := db.CreateCluster(context.Background(), &v1alpha1.Cluster{
-				Server: common.KubernetesInternalAPIServerAddr,
-				Name:   "some name",
-			})
-			assert.NoError(t, err)
-		},
-		func(old *v1alpha1.Cluster, new *v1alpha1.Cluster) {
-			assert.NotNil(t, old)
-			assert.Equal(t, new.Server, common.KubernetesInternalAPIServerAddr)
-			assert.Equal(t, new.Name, "some name")
-
-			assert.NoError(t, db.DeleteCluster(context.Background(), common.KubernetesInternalAPIServerAddr))
-		},
-		func(old *v1alpha1.Cluster, new *v1alpha1.Cluster) {
-			assert.Equal(t, new.Server, common.KubernetesInternalAPIServerAddr)
-			assert.Equal(t, new.Name, "")
-		},
-	})
+	assert.EqualError(t, db.DeleteCluster(context.Background(), "http://unknown"), `rpc error: code = NotFound desc = cluster "http://unknown" not found`)
 }
 
 func runWatchTest(t *testing.T, db ArgoDB, actions []func(old *v1alpha1.Cluster, new *v1alpha1.Cluster)) {

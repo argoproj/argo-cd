@@ -3,6 +3,7 @@ package v1alpha1
 import (
 	"encoding/json"
 	"fmt"
+	math "math"
 	"net"
 	"net/http"
 	"net/url"
@@ -17,12 +18,12 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/ghodss/yaml"
 	"github.com/google/go-cmp/cmp"
 	"github.com/robfig/cron"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	yaml "gopkg.in/yaml.v2"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -36,6 +37,7 @@ import (
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/util/cert"
 	"github.com/argoproj/argo-cd/util/git"
+	"github.com/argoproj/argo-cd/util/glob"
 	"github.com/argoproj/argo-cd/util/helm"
 )
 
@@ -44,6 +46,9 @@ import (
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:resource:path=applications,shortName=app;apps
+// +kubebuilder:printcolumn:name="Sync Status",type=string,JSONPath=`.status.sync.status`
+// +kubebuilder:printcolumn:name="Health Status",type=string,JSONPath=`.status.health.status`
+// +kubebuilder:printcolumn:name="Revision",type=string,JSONPath=`.status.sync.revision`,priority=10
 type Application struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
@@ -144,8 +149,31 @@ type ApplicationSource struct {
 	Chart string `json:"chart,omitempty" protobuf:"bytes,12,opt,name=chart"`
 }
 
+// AllowsConcurrentProcessing returns true if given application source can be processed concurrently
+func (a *ApplicationSource) AllowsConcurrentProcessing() bool {
+	switch {
+	// Kustomize with parameters requires changing kustomization.yaml file
+	case a.Kustomize != nil:
+		return a.Kustomize.AllowsConcurrentProcessing()
+	// Kustomize with parameters requires changing params.libsonnet file
+	case a.Ksonnet != nil:
+		return a.Ksonnet.AllowsConcurrentProcessing()
+	}
+	return true
+}
+
 func (a *ApplicationSource) IsHelm() bool {
 	return a.Chart != ""
+}
+
+func (a *ApplicationSource) IsHelmOci() bool {
+	if a.Chart == "" {
+		return false
+	}
+	if _, _, ok := helm.IsHelmOci(a.Chart); ok {
+		return true
+	}
+	return false
 }
 
 func (a *ApplicationSource) IsZero() bool {
@@ -189,6 +217,8 @@ type ApplicationSourceHelm struct {
 	Values string `json:"values,omitempty" protobuf:"bytes,4,opt,name=values"`
 	// FileParameters are file parameters to the helm template
 	FileParameters []HelmFileParameter `json:"fileParameters,omitempty" protobuf:"bytes,5,opt,name=fileParameters"`
+	// Version is the Helm version to use for templating with
+	Version string `json:"version,omitempty" protobuf:"bytes,6,opt,name=version"`
 }
 
 // HelmParameter is a parameter to a helm template
@@ -263,7 +293,7 @@ func (in *ApplicationSourceHelm) AddFileParameter(p HelmFileParameter) {
 }
 
 func (h *ApplicationSourceHelm) IsZero() bool {
-	return h == nil || (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0 && len(h.FileParameters) == 0 && h.Values == ""
+	return h == nil || (h.Version == "") && (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0 && len(h.FileParameters) == 0 && h.Values == ""
 }
 
 type KustomizeImage string
@@ -310,6 +340,15 @@ type ApplicationSourceKustomize struct {
 	CommonLabels map[string]string `json:"commonLabels,omitempty" protobuf:"bytes,4,opt,name=commonLabels"`
 	// Version contains optional Kustomize version
 	Version string `json:"version,omitempty" protobuf:"bytes,5,opt,name=version"`
+	// CommonAnnotations adds additional kustomize commonAnnotations
+	CommonAnnotations map[string]string `json:"commonAnnotations,omitempty" protobuf:"bytes,6,opt,name=commonAnnotations"`
+}
+
+func (k *ApplicationSourceKustomize) AllowsConcurrentProcessing() bool {
+	return len(k.Images) == 0 &&
+		len(k.CommonLabels) == 0 &&
+		k.NamePrefix == "" &&
+		k.NameSuffix == ""
 }
 
 func (k *ApplicationSourceKustomize) IsZero() bool {
@@ -318,7 +357,8 @@ func (k *ApplicationSourceKustomize) IsZero() bool {
 			k.NameSuffix == "" &&
 			k.Version == "" &&
 			len(k.Images) == 0 &&
-			len(k.CommonLabels) == 0
+			len(k.CommonLabels) == 0 &&
+			len(k.CommonAnnotations) == 0
 }
 
 // either updates or adds the images
@@ -353,10 +393,12 @@ type ApplicationSourceJsonnet struct {
 	ExtVars []JsonnetVar `json:"extVars,omitempty" protobuf:"bytes,1,opt,name=extVars"`
 	// TLAS is a list of Jsonnet Top-level Arguments
 	TLAs []JsonnetVar `json:"tlas,omitempty" protobuf:"bytes,2,opt,name=tlas"`
+	// Additional library search dirs
+	Libs []string `json:"libs,omitempty" protobuf:"bytes,3,opt,name=libs"`
 }
 
 func (j *ApplicationSourceJsonnet) IsZero() bool {
-	return j == nil || len(j.ExtVars) == 0 && len(j.TLAs) == 0
+	return j == nil || len(j.ExtVars) == 0 && len(j.TLAs) == 0 && len(j.Libs) == 0
 }
 
 // ApplicationSourceKsonnet holds ksonnet specific options
@@ -374,6 +416,10 @@ type KsonnetParameter struct {
 	Value     string `json:"value" protobuf:"bytes,3,opt,name=value"`
 }
 
+func (k *ApplicationSourceKsonnet) AllowsConcurrentProcessing() bool {
+	return len(k.Parameters) == 0
+}
+
 func (k *ApplicationSourceKsonnet) IsZero() bool {
 	return k == nil || k.Environment == "" && len(k.Parameters) == 0
 }
@@ -381,6 +427,7 @@ func (k *ApplicationSourceKsonnet) IsZero() bool {
 type ApplicationSourceDirectory struct {
 	Recurse bool                     `json:"recurse,omitempty" protobuf:"bytes,1,opt,name=recurse"`
 	Jsonnet ApplicationSourceJsonnet `json:"jsonnet,omitempty" protobuf:"bytes,2,opt,name=jsonnet"`
+	Exclude string                   `json:"exclude,omitempty" protobuf:"bytes,3,opt,name=exclude"`
 }
 
 func (d *ApplicationSourceDirectory) IsZero() bool {
@@ -421,6 +468,7 @@ type ApplicationStatus struct {
 	ReconciledAt   *metav1.Time    `json:"reconciledAt,omitempty" protobuf:"bytes,6,opt,name=reconciledAt"`
 	OperationState *OperationState `json:"operationState,omitempty" protobuf:"bytes,7,opt,name=operationState"`
 	// ObservedAt indicates when the application state was updated without querying latest git state
+	// Deprecated: controller no longer updates ObservedAt field
 	ObservedAt *metav1.Time          `json:"observedAt,omitempty" protobuf:"bytes,8,opt,name=observedAt"`
 	SourceType ApplicationSourceType `json:"sourceType,omitempty" protobuf:"bytes,9,opt,name=sourceType"`
 	Summary    ApplicationSummary    `json:"summary,omitempty" protobuf:"bytes,10,opt,name=summary"`
@@ -448,6 +496,15 @@ type Operation struct {
 	Sync        *SyncOperation     `json:"sync,omitempty" protobuf:"bytes,1,opt,name=sync"`
 	InitiatedBy OperationInitiator `json:"initiatedBy,omitempty" protobuf:"bytes,2,opt,name=initiatedBy"`
 	Info        []*Info            `json:"info,omitempty" protobuf:"bytes,3,name=info"`
+	// Retry controls failed sync retry behavior
+	Retry RetryStrategy `json:"retry,omitempty" protobuf:"bytes,4,opt,name=retry"`
+}
+
+func (o *Operation) DryRun() bool {
+	if o.Sync != nil {
+		return o.Sync.DryRun
+	}
+	return false
 }
 
 // SyncOperationResource contains resources to sync.
@@ -521,6 +578,8 @@ type OperationState struct {
 	StartedAt metav1.Time `json:"startedAt" protobuf:"bytes,6,opt,name=startedAt"`
 	// FinishedAt contains time of operation completion
 	FinishedAt *metav1.Time `json:"finishedAt,omitempty" protobuf:"bytes,7,opt,name=finishedAt"`
+	// RetryCount contains time of operation retries
+	RetryCount int64 `json:"retryCount,omitempty" protobuf:"bytes,8,opt,name=retryCount"`
 }
 
 type Info struct {
@@ -563,10 +622,73 @@ type SyncPolicy struct {
 	Automated *SyncPolicyAutomated `json:"automated,omitempty" protobuf:"bytes,1,opt,name=automated"`
 	// Options allow you to specify whole app sync-options
 	SyncOptions SyncOptions `json:"syncOptions,omitempty" protobuf:"bytes,2,opt,name=syncOptions"`
+	// Retry controls failed sync retry behavior
+	Retry *RetryStrategy `json:"retry,omitempty" protobuf:"bytes,3,opt,name=retry"`
 }
 
 func (p *SyncPolicy) IsZero() bool {
 	return p == nil || (p.Automated == nil && len(p.SyncOptions) == 0)
+}
+
+type RetryStrategy struct {
+	// Limit is the maximum number of attempts when retrying a container
+	Limit int64 `json:"limit,omitempty" protobuf:"bytes,1,opt,name=limit"`
+
+	// Backoff is a backoff strategy
+	Backoff *Backoff `json:"backoff,omitempty" protobuf:"bytes,2,opt,name=backoff,casttype=Backoff"`
+}
+
+func parseStringToDuration(durationString string) (time.Duration, error) {
+	var suspendDuration time.Duration
+	// If no units are attached, treat as seconds
+	if val, err := strconv.Atoi(durationString); err == nil {
+		suspendDuration = time.Duration(val) * time.Second
+	} else if duration, err := time.ParseDuration(durationString); err == nil {
+		suspendDuration = duration
+	} else {
+		return 0, fmt.Errorf("unable to parse %s as a duration", durationString)
+	}
+	return suspendDuration, nil
+}
+
+func (r *RetryStrategy) NextRetryAt(lastAttempt time.Time, retryCounts int64) (time.Time, error) {
+	maxDuration := common.DefaultSyncRetryMaxDuration
+	duration := common.DefaultSyncRetryDuration
+	factor := common.DefaultSyncRetryFactor
+	var err error
+	if r.Backoff != nil {
+		if r.Backoff.Duration != "" {
+			if duration, err = parseStringToDuration(r.Backoff.Duration); err != nil {
+				return time.Time{}, err
+			}
+		}
+		if r.Backoff.MaxDuration != "" {
+			if maxDuration, err = parseStringToDuration(r.Backoff.MaxDuration); err != nil {
+				return time.Time{}, err
+			}
+		}
+		if r.Backoff.Factor != nil {
+			factor = *r.Backoff.Factor
+		}
+
+	}
+	// Formula: timeToWait = duration * factor^retry_number
+	// Note that timeToWait should equal to duration for the first retry attempt.
+	timeToWait := duration * time.Duration(math.Pow(float64(factor), float64(retryCounts)))
+	if maxDuration > 0 {
+		timeToWait = time.Duration(math.Min(float64(maxDuration), float64(timeToWait)))
+	}
+	return lastAttempt.Add(timeToWait), nil
+}
+
+// Backoff is a backoff strategy to use within retryStrategy
+type Backoff struct {
+	// Duration is the amount to back off. Default unit is seconds, but could also be a duration (e.g. "2m", "1h")
+	Duration string `json:"duration,omitempty" protobuf:"bytes,1,opt,name=duration"`
+	// Factor is a factor to multiply the base duration after each failed retry
+	Factor *int64 `json:"factor,omitempty" protobuf:"bytes,2,name=factor"`
+	// MaxDuration is the maximum amount of time allowed for the backoff strategy
+	MaxDuration string `json:"maxDuration,omitempty" protobuf:"bytes,3,opt,name=maxDuration"`
 }
 
 // SyncPolicyAutomated controls the behavior of an automated sync
@@ -575,11 +697,13 @@ type SyncPolicyAutomated struct {
 	Prune bool `json:"prune,omitempty" protobuf:"bytes,1,opt,name=prune"`
 	// SelfHeal enables auto-syncing if  (default: false)
 	SelfHeal bool `json:"selfHeal,omitempty" protobuf:"bytes,2,opt,name=selfHeal"`
+	// AllowEmpty allows apps have zero live resources (default: false)
+	AllowEmpty bool `json:"allowEmpty,omitempty" protobuf:"bytes,3,opt,name=allowEmpty"`
 }
 
 // SyncStrategy controls the manner in which a sync is performed
 type SyncStrategy struct {
-	// Apply wil perform a `kubectl apply` to perform the sync.
+	// Apply will perform a `kubectl apply` to perform the sync.
 	Apply *SyncStrategyApply `json:"apply,omitempty" protobuf:"bytes,1,opt,name=apply"`
 	// Hook will submit any referenced resources to perform the sync. This is the default strategy
 	Hook *SyncStrategyHook `json:"hook,omitempty" protobuf:"bytes,2,opt,name=hook"`
@@ -887,6 +1011,7 @@ type ResourceNode struct {
 	ResourceVersion string                  `json:"resourceVersion,omitempty" protobuf:"bytes,5,opt,name=resourceVersion"`
 	Images          []string                `json:"images,omitempty" protobuf:"bytes,6,opt,name=images"`
 	Health          *HealthStatus           `json:"health,omitempty" protobuf:"bytes,7,opt,name=health"`
+	CreatedAt       *metav1.Time            `json:"createdAt,omitempty" protobuf:"bytes,8,opt,name=createdAt"`
 }
 
 func (n *ResourceNode) GroupKindVersion() schema.GroupVersionKind {
@@ -952,6 +1077,8 @@ type ConnectionState struct {
 
 // Cluster is the definition of a cluster resource
 type Cluster struct {
+	// ID is an internal field cluster identifier. Not exposed via API.
+	ID string `json:"-"`
 	// Server is the API server URL of the Kubernetes cluster
 	Server string `json:"server" protobuf:"bytes,1,opt,name=server"`
 	// Name of the cluster. If omitted, will use the server address
@@ -964,12 +1091,14 @@ type Cluster struct {
 	// DEPRECATED: use Info.ServerVersion field instead.
 	// The server version
 	ServerVersion string `json:"serverVersion,omitempty" protobuf:"bytes,5,opt,name=serverVersion"`
-	// Holds list of namespaces which are accessible in that cluster. Cluster level resources would be ignored if namespace list if not empty.
+	// Holds list of namespaces which are accessible in that cluster. Cluster level resources would be ignored if namespace list is not empty.
 	Namespaces []string `json:"namespaces,omitempty" protobuf:"bytes,6,opt,name=namespaces"`
 	// RefreshRequestedAt holds time when cluster cache refresh has been requested
 	RefreshRequestedAt *metav1.Time `json:"refreshRequestedAt,omitempty" protobuf:"bytes,7,opt,name=refreshRequestedAt"`
 	// Holds information about cluster cache
 	Info ClusterInfo `json:"info,omitempty" protobuf:"bytes,8,opt,name=info"`
+	// Shard contains optional shard number. Calculated on the fly by the application controller if not specified.
+	Shard *int64 `json:"shard,omitempty" protobuf:"bytes,9,opt,name=shard"`
 }
 
 func (c *Cluster) Equals(other *Cluster) bool {
@@ -980,6 +1109,17 @@ func (c *Cluster) Equals(other *Cluster) bool {
 		return false
 	}
 	if strings.Join(c.Namespaces, ",") != strings.Join(other.Namespaces, ",") {
+		return false
+	}
+	var shard int64 = -1
+	if c.Shard != nil {
+		shard = *c.Shard
+	}
+	var otherShard int64 = -1
+	if other.Shard != nil {
+		otherShard = *other.Shard
+	}
+	if shard != otherShard {
 		return false
 	}
 	return reflect.DeepEqual(c.Config, other.Config)
@@ -1016,6 +1156,25 @@ type AWSAuthConfig struct {
 	RoleARN string `json:"roleARN,omitempty" protobuf:"bytes,2,opt,name=roleARN"`
 }
 
+// ExecProviderConfig is config used to call an external command to perform cluster authentication
+// See: https://godoc.org/k8s.io/client-go/tools/clientcmd/api#ExecConfig
+type ExecProviderConfig struct {
+	// Command to execute
+	Command string `json:"command,omitempty" protobuf:"bytes,1,opt,name=command"`
+
+	// Arguments to pass to the command when executing it
+	Args []string `json:"args,omitempty" protobuf:"bytes,2,rep,name=args"`
+
+	// Env defines additional environment variables to expose to the process
+	Env map[string]string `json:"env,omitempty" protobuf:"bytes,3,opt,name=env"`
+
+	// Preferred input version of the ExecInfo
+	APIVersion string `json:"apiVersion,omitempty" protobuf:"bytes,4,opt,name=apiVersion"`
+
+	// This text is shown to the user when the executable doesn't seem to be present
+	InstallHint string `json:"installHint,omitempty" protobuf:"bytes,5,opt,name=installHint"`
+}
+
 // ClusterConfig is the configuration attributes. This structure is subset of the go-client
 // rest.Config with annotations added for marshalling.
 type ClusterConfig struct {
@@ -1033,6 +1192,9 @@ type ClusterConfig struct {
 
 	// AWSAuthConfig contains IAM authentication configuration
 	AWSAuthConfig *AWSAuthConfig `json:"awsAuthConfig,omitempty" protobuf:"bytes,5,opt,name=awsAuthConfig"`
+
+	// ExecProviderConfig contains configuration for an exec provider
+	ExecProviderConfig *ExecProviderConfig `json:"execProviderConfig,omitempty" protobuf:"bytes,6,opt,name=execProviderConfig"`
 }
 
 // TLSClientConfig contains settings to enable transport layer security
@@ -1060,12 +1222,43 @@ type KnownTypeField struct {
 	Type  string `json:"type,omitempty" protobuf:"bytes,2,opt,name=type"`
 }
 
+type OverrideIgnoreDiff struct {
+	JSONPointers []string `json:"jsonPointers" protobuf:"bytes,1,rep,name=jSONPointers"`
+}
+
+type rawResourceOverride struct {
+	HealthLua         string           `json:"health.lua,omitempty"`
+	Actions           string           `json:"actions,omitempty"`
+	IgnoreDifferences string           `json:"ignoreDifferences,omitempty"`
+	KnownTypeFields   []KnownTypeField `json:"knownTypeFields,omitempty"`
+}
+
 // ResourceOverride holds configuration to customize resource diffing and health assessment
 type ResourceOverride struct {
-	HealthLua         string           `json:"health.lua,omitempty" protobuf:"bytes,1,opt,name=healthLua"`
-	Actions           string           `json:"actions,omitempty" protobuf:"bytes,3,opt,name=actions"`
-	IgnoreDifferences string           `json:"ignoreDifferences,omitempty" protobuf:"bytes,2,opt,name=ignoreDifferences"`
-	KnownTypeFields   []KnownTypeField `json:"knownTypeFields,omitempty" protobuf:"bytes,4,opt,name=knownTypeFields"`
+	HealthLua         string             `protobuf:"bytes,1,opt,name=healthLua"`
+	Actions           string             `protobuf:"bytes,3,opt,name=actions"`
+	IgnoreDifferences OverrideIgnoreDiff `protobuf:"bytes,2,opt,name=ignoreDifferences"`
+	KnownTypeFields   []KnownTypeField   `protobuf:"bytes,4,opt,name=knownTypeFields"`
+}
+
+func (s *ResourceOverride) UnmarshalJSON(data []byte) error {
+	raw := &rawResourceOverride{}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	s.KnownTypeFields = raw.KnownTypeFields
+	s.HealthLua = raw.HealthLua
+	s.Actions = raw.Actions
+	return yaml.Unmarshal([]byte(raw.IgnoreDifferences), &s.IgnoreDifferences)
+}
+
+func (s ResourceOverride) MarshalJSON() ([]byte, error) {
+	ignoreDifferencesData, err := yaml.Marshal(s.IgnoreDifferences)
+	if err != nil {
+		return nil, err
+	}
+	raw := &rawResourceOverride{s.HealthLua, s.Actions, string(ignoreDifferencesData), s.KnownTypeFields}
+	return json.Marshal(raw)
 }
 
 func (o *ResourceOverride) GetActions() (ResourceActions, error) {
@@ -1146,6 +1339,8 @@ type Repository struct {
 	Name string `json:"name,omitempty" protobuf:"bytes,12,opt,name=name"`
 	// Whether credentials were inherited from a credential set
 	InheritedCreds bool `json:"inheritedCreds,omitempty" protobuf:"bytes,13,opt,name=inheritedCreds"`
+	// Whether helm-oci support should be enabled for this repo
+	EnableOCI bool `json:"enableOCI,omitempty" protobuf:"bytes,14,opt,name=enableOCI"`
 }
 
 // IsInsecure returns true if receiver has been configured to skip server verification
@@ -1659,7 +1854,14 @@ func (p *AppProject) normalizePolicy(policy string) string {
 // OrphanedResourcesMonitorSettings holds settings of orphaned resources monitoring
 type OrphanedResourcesMonitorSettings struct {
 	// Warn indicates if warning condition should be created for apps which have orphaned resources
-	Warn *bool `json:"warn,omitempty" protobuf:"bytes,1,name=warn"`
+	Warn   *bool                 `json:"warn,omitempty" protobuf:"bytes,1,name=warn"`
+	Ignore []OrphanedResourceKey `json:"ignore,omitempty" protobuf:"bytes,2,opt,name=ignore"`
+}
+
+type OrphanedResourceKey struct {
+	Group string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
+	Kind  string `json:"kind,omitempty" protobuf:"bytes,2,opt,name=kind"`
+	Name  string `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
 }
 
 func (s *OrphanedResourcesMonitorSettings) IsWarn() bool {
@@ -1694,6 +1896,8 @@ type AppProjectSpec struct {
 	NamespaceResourceWhitelist []metav1.GroupKind `json:"namespaceResourceWhitelist,omitempty" protobuf:"bytes,9,opt,name=namespaceResourceWhitelist"`
 	// List of PGP key IDs that commits to be synced to must be signed with
 	SignatureKeys []SignatureKey `json:"signatureKeys,omitempty" protobuf:"bytes,10,opt,name=signatureKeys"`
+	// ClusterResourceBlacklist contains list of blacklisted cluster level resources
+	ClusterResourceBlacklist []metav1.GroupKind `json:"clusterResourceBlacklist,omitempty" protobuf:"bytes,11,opt,name=clusterResourceBlacklist"`
 }
 
 // SyncWindows is a collection of sync windows in this project
@@ -1722,15 +1926,23 @@ func (s *SyncWindows) HasWindows() bool {
 }
 
 func (s *SyncWindows) Active() *SyncWindows {
+	return s.active(time.Now())
+}
+
+func (s *SyncWindows) active(currentTime time.Time) *SyncWindows {
+
+	// If SyncWindows.Active() is called outside of a UTC locale, it should be
+	// first converted to UTC before we scan through the SyncWindows.
+	currentTime = currentTime.In(time.UTC)
+
 	if s.HasWindows() {
 		var active SyncWindows
 		specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
 		for _, w := range *s {
 			schedule, _ := specParser.Parse(w.Schedule)
 			duration, _ := time.ParseDuration(w.Duration)
-			now := time.Now()
-			nextWindow := schedule.Next(now.Add(-duration))
-			if nextWindow.Before(now) {
+			nextWindow := schedule.Next(currentTime.Add(-duration))
+			if nextWindow.Before(currentTime) {
 				active = append(active, w)
 			}
 		}
@@ -1742,6 +1954,15 @@ func (s *SyncWindows) Active() *SyncWindows {
 }
 
 func (s *SyncWindows) InactiveAllows() *SyncWindows {
+	return s.inactiveAllows(time.Now())
+}
+
+func (s *SyncWindows) inactiveAllows(currentTime time.Time) *SyncWindows {
+
+	// If SyncWindows.InactiveAllows() is called outside of a UTC locale, it should be
+	// first converted to UTC before we scan through the SyncWindows.
+	currentTime = currentTime.In(time.UTC)
+
 	if s.HasWindows() {
 		var inactive SyncWindows
 		specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
@@ -1749,9 +1970,8 @@ func (s *SyncWindows) InactiveAllows() *SyncWindows {
 			if w.Kind == "allow" {
 				schedule, sErr := specParser.Parse(w.Schedule)
 				duration, dErr := time.ParseDuration(w.Duration)
-				now := time.Now()
-				nextWindow := schedule.Next(now.Add(-duration))
-				if !nextWindow.Before(now) && sErr == nil && dErr == nil {
+				nextWindow := schedule.Next(currentTime.Add(-duration))
+				if !nextWindow.Before(currentTime) && sErr == nil && dErr == nil {
 					inactive = append(inactive, w)
 				}
 			}
@@ -1921,12 +2141,21 @@ func (w *SyncWindows) manualEnabled() bool {
 }
 
 func (w SyncWindow) Active() bool {
+	return w.active(time.Now())
+}
+
+func (w SyncWindow) active(currentTime time.Time) bool {
+
+	// If SyncWindow.Active() is called outside of a UTC locale, it should be
+	// first converted to UTC before search
+	currentTime = currentTime.UTC()
+
 	specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
 	schedule, _ := specParser.Parse(w.Schedule)
 	duration, _ := time.ParseDuration(w.Duration)
-	now := time.Now()
-	nextWindow := schedule.Next(now.Add(-duration))
-	return nextWindow.Before(now)
+
+	nextWindow := schedule.Next(currentTime.Add(-duration))
+	return nextWindow.Before(currentTime)
 }
 
 func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []string) error {
@@ -2037,18 +2266,9 @@ func (proj *AppProject) ProjectPoliciesString() string {
 	return strings.Join(policies, "\n")
 }
 
-func (app *Application) getFinalizerIndex(name string) int {
-	for i, finalizer := range app.Finalizers {
-		if finalizer == name {
-			return i
-		}
-	}
-	return -1
-}
-
 // CascadedDeletion indicates if resources finalizer is set and controller should delete app resources before deleting app
 func (app *Application) CascadedDeletion() bool {
-	return app.getFinalizerIndex(common.ResourcesFinalizerName) > -1
+	return getFinalizerIndex(app.ObjectMeta, common.ResourcesFinalizerName) > -1
 }
 
 func (app *Application) IsRefreshRequested() (RefreshType, bool) {
@@ -2072,15 +2292,7 @@ func (app *Application) IsRefreshRequested() (RefreshType, bool) {
 
 // SetCascadedDeletion sets or remove resources finalizer
 func (app *Application) SetCascadedDeletion(prune bool) {
-	index := app.getFinalizerIndex(common.ResourcesFinalizerName)
-	if prune != (index > -1) {
-		if index > -1 {
-			app.Finalizers[index] = app.Finalizers[len(app.Finalizers)-1]
-			app.Finalizers = app.Finalizers[:len(app.Finalizers)-1]
-		} else {
-			app.Finalizers = append(app.Finalizers, common.ResourcesFinalizerName)
-		}
-	}
+	setFinalizer(&app.ObjectMeta, common.ResourcesFinalizerName, prune)
 }
 
 // SetConditions updates the application status conditions for a subset of evaluated types.
@@ -2219,14 +2431,18 @@ func isResourceInList(res metav1.GroupKind, list []metav1.GroupKind) bool {
 
 // IsGroupKindPermitted validates if the given resource group/kind is permitted to be deployed in the project
 func (proj AppProject) IsGroupKindPermitted(gk schema.GroupKind, namespaced bool) bool {
+	var isWhiteListed, isBlackListed bool
 	res := metav1.GroupKind{Group: gk.Group, Kind: gk.Kind}
+
 	if namespaced {
-		isWhiteListed := len(proj.Spec.NamespaceResourceWhitelist) == 0 || isResourceInList(res, proj.Spec.NamespaceResourceWhitelist)
-		isBlackListed := isResourceInList(res, proj.Spec.NamespaceResourceBlacklist)
+		isWhiteListed = len(proj.Spec.NamespaceResourceWhitelist) == 0 || isResourceInList(res, proj.Spec.NamespaceResourceWhitelist)
+		isBlackListed = isResourceInList(res, proj.Spec.NamespaceResourceBlacklist)
 		return isWhiteListed && !isBlackListed
-	} else {
-		return isResourceInList(res, proj.Spec.ClusterResourceWhitelist)
 	}
+
+	isWhiteListed = len(proj.Spec.ClusterResourceWhitelist) == 0 || isResourceInList(res, proj.Spec.ClusterResourceWhitelist)
+	isBlackListed = isResourceInList(res, proj.Spec.ClusterResourceBlacklist)
+	return isWhiteListed && !isBlackListed
 }
 
 func (proj AppProject) IsLiveResourcePermitted(un *unstructured.Unstructured, server string) bool {
@@ -2239,14 +2455,42 @@ func (proj AppProject) IsLiveResourcePermitted(un *unstructured.Unstructured, se
 	return true
 }
 
-func globMatch(pattern string, val string) bool {
+// getFinalizerIndex returns finalizer index in the list of object finalizers or -1 if finalizer does not exist
+func getFinalizerIndex(meta metav1.ObjectMeta, name string) int {
+	for i, finalizer := range meta.Finalizers {
+		if finalizer == name {
+			return i
+		}
+	}
+	return -1
+}
+
+// setFinalizer adds or removes finalizer with the specified name
+func setFinalizer(meta *metav1.ObjectMeta, name string, exist bool) {
+	index := getFinalizerIndex(*meta, name)
+	if exist != (index > -1) {
+		if index > -1 {
+			meta.Finalizers[index] = meta.Finalizers[len(meta.Finalizers)-1]
+			meta.Finalizers = meta.Finalizers[:len(meta.Finalizers)-1]
+		} else {
+			meta.Finalizers = append(meta.Finalizers, name)
+		}
+	}
+}
+
+func (proj AppProject) HasFinalizer() bool {
+	return getFinalizerIndex(proj.ObjectMeta, common.ResourcesFinalizerName) > -1
+}
+
+func (proj *AppProject) RemoveFinalizer() {
+	setFinalizer(&proj.ObjectMeta, common.ResourcesFinalizerName, false)
+}
+
+func globMatch(pattern string, val string, separators ...rune) bool {
 	if pattern == "*" {
 		return true
 	}
-	if ok, err := filepath.Match(pattern, val); ok && err == nil {
-		return true
-	}
-	return false
+	return glob.Match(pattern, val, separators...)
 }
 
 // IsSourcePermitted validates if the provided application's source is a one of the allowed sources for the project.
@@ -2254,7 +2498,7 @@ func (proj AppProject) IsSourcePermitted(src ApplicationSource) bool {
 	srcNormalized := git.NormalizeGitURL(src.RepoURL)
 	for _, repoURL := range proj.Spec.SourceRepos {
 		normalized := git.NormalizeGitURL(repoURL)
-		if globMatch(normalized, srcNormalized) {
+		if globMatch(normalized, srcNormalized, '/') {
 			return true
 		}
 	}
@@ -2341,6 +2585,27 @@ func (c *Cluster) RawRestConfig() *rest.Config {
 					APIVersion: "client.authentication.k8s.io/v1alpha1",
 					Command:    "aws",
 					Args:       args,
+				},
+			}
+		} else if c.Config.ExecProviderConfig != nil {
+			var env []api.ExecEnvVar
+			if c.Config.ExecProviderConfig.Env != nil {
+				for key, value := range c.Config.ExecProviderConfig.Env {
+					env = append(env, api.ExecEnvVar{
+						Name:  key,
+						Value: value,
+					})
+				}
+			}
+			config = &rest.Config{
+				Host:            c.Server,
+				TLSClientConfig: tlsClientConfig,
+				ExecProvider: &api.ExecConfig{
+					APIVersion:  c.Config.ExecProviderConfig.APIVersion,
+					Command:     c.Config.ExecProviderConfig.Command,
+					Args:        c.Config.ExecProviderConfig.Args,
+					Env:         env,
+					InstallHint: c.Config.ExecProviderConfig.InstallHint,
 				},
 			}
 		} else {
@@ -2469,7 +2734,7 @@ func jwtTokensCombine(tokens1 []JWTToken, tokens2 []JWTToken) []JWTToken {
 		tokensMap[token.ID] = token
 	}
 
-	tokens := []JWTToken{}
+	var tokens []JWTToken
 	for _, v := range tokensMap {
 		tokens = append(tokens, v)
 	}

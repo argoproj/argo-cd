@@ -51,6 +51,16 @@ See [application.yaml](application.yaml) for additional fields. As long as you h
 !!! note
     The namespace must match the namespace of your Argo cd, typically this is `argocd`.
 
+!!! note
+    When creating an application from a Helm repository, the `chart` attribute must be specified instead of the `path` attribute within `spec.source`.
+
+```yaml
+spec:
+  source:
+    repoURL: https://argoproj.github.io/argo-helm
+    chart: argo
+```
+
 !!! warning
     By default, deleting an application will not perform a cascade delete, thereby deleting its resources. You must add the finalizer if you want this behaviour - which you may well not want.
 
@@ -84,6 +94,9 @@ kind: AppProject
 metadata:
   name: my-project
   namespace: argocd
+  # Finalizer that ensures that project is not deleted until it is not referenced by any application
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
 spec:
   description: Example Project
   # Allow manifests to deploy from any Git repos
@@ -216,9 +229,13 @@ data:
       usernameSecret:
         name: my-secret
         key: username
+    - url: git@github.com:argoproj-labs
+      sshPrivateKeySecret:
+        name: my-secret
+        key: sshPrivateKey
 ```
 
-Argo CD will only use the credentials if you omit `usernameSecret`, `passwordSecret`, and `sshPrivateKeySecret` fields (`insecureIgnoreHostKey` is ignored).
+Argo CD will only use the credentials if you omit `usernameSecret`, `passwordSecret`, and `sshPrivateKeySecret` fields (`insecureIgnoreHostKey` is ignored) or if your repository is not listed in `repositories`.
 
 A credential may be match if it's URL is the prefix of the repository's URL. The means that credentials may match, e.g in the above example both [https://github.com/argoproj](https://github.com/argoproj) and [https://github.com](https://github.com) would match. Argo CD selects the first one that matches.
 
@@ -424,6 +441,7 @@ The secret data must include following fields:
 
 * `name` - cluster name
 * `server` - cluster api server url
+* `namespaces` - optional comma-separated list of namespaces which are accessible in that cluster. Cluster level resources would be ignored if namespace list is not empty.
 * `config` - JSON representation of following data structure:
 
 ```yaml
@@ -436,6 +454,18 @@ bearerToken: string
 awsAuthConfig:
     clusterName: string
     roleARN: string
+# Configure external command to supply client credentials
+# See https://godoc.org/k8s.io/client-go/tools/clientcmd/api#ExecConfig
+execProviderConfig:
+    command: string
+    args: [
+      string
+    ]
+    env: {
+      key: value
+    }
+    apiVersion: string
+    installHint: string
 # Transport layer security configuration settings
 tlsClientConfig:
     # PEM-encoded bytes (typically read from a client certificate file).
@@ -451,6 +481,8 @@ tlsClientConfig:
     # server is used.
     serverName: string
 ```
+
+Note that if you specify a command to run under `execProviderConfig`, that command must be available in the ArgoCD image. See [BYOI (Build Your Own Image)](custom_tools.md#byoi-build-your-own-image).
 
 Cluster secret example:
 

@@ -29,8 +29,7 @@ You should now be able to run `argocd` commands.
 ### Homebrew
 
 ```bash
-brew tap argoproj/tap
-brew install argoproj/tap/argocd
+brew install argocd
 ```
 
 ### Download With Curl
@@ -54,3 +53,27 @@ chmod +x /usr/local/bin/argocd
 ```
 
 After finishing either of the instructions above, you should now be able to run `argocd` commands.
+
+
+## Windows
+
+### Download With Powershell: Invoke-WebRequest
+
+You can view the latest version of Argo CD at the link above or run the following command to grab the version:
+
+```powershell
+$version = (Invoke-RestMethod https://api.github.com/repos/argoproj/argo-cd/releases/latest).tag_name
+```
+
+Replace `$version` in the command below with the version of Argo CD you would like to download:
+
+```powershell
+$url = "https://github.com/argoproj/argo-cd/releases/download/" + $version + "/argocd-windows-amd64.exe"
+$output = "argocd.exe"
+
+Invoke-WebRequest -Uri $url -OutFile $output
+```
+Also please note you will probably need to move the file into your PATH.
+
+
+After finishing the instructions above, you should now be able to run `argocd` commands.

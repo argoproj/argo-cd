@@ -5,6 +5,7 @@ import * as React from 'react';
 import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 
+import {Cluster} from '../../../shared/components';
 import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';
 import {OperationState} from '../utils';
@@ -34,17 +35,21 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                         <ApplicationURLs urls={app.status.summary.externalURLs} />
                                     </div>
                                     <div className='row'>
-                                        <div className='columns small-3'>
+                                        <div className='columns small-12'>
                                             <i className={'icon argo-icon-' + (app.spec.source.chart != null ? 'helm' : 'git')} />
+                                            <span className='applications-list__title'>{app.metadata.name}</span>
                                         </div>
-                                        <div className='columns applications-list__title'>{app.metadata.name}</div>
                                     </div>
                                     <div className='row'>
-                                        <div className='columns small-3'>Project:</div>
+                                        <div className='columns small-3' title='Project:'>
+                                            Project:
+                                        </div>
                                         <div className='columns small-9'>{app.spec.project}</div>
                                     </div>
                                     <div className='row'>
-                                        <div className='columns small-3'>Labels:</div>
+                                        <div className='columns small-3' title='Labels:'>
+                                            Labels:
+                                        </div>
                                         <div className='columns small-9'>
                                             <Tooltip
                                                 content={
@@ -67,8 +72,10 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                         </div>
                                     </div>
                                     <div className='row'>
-                                        <div className='columns small-3'>Status:</div>
-                                        <div className='columns small-9'>
+                                        <div className='columns small-3' title='Status:'>
+                                            Status:
+                                        </div>
+                                        <div className='columns small-9' qe-id='applications-tiles-health-status'>
                                             <AppUtils.HealthStatusIcon state={app.status.health} /> {app.status.health.status}
                                             &nbsp;
                                             <AppUtils.ComparisonStatusIcon status={app.status.sync.status} /> {app.status.sync.status}
@@ -77,7 +84,9 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                         </div>
                                     </div>
                                     <div className='row'>
-                                        <div className='columns small-3'>Repository:</div>
+                                        <div className='columns small-3' title='Repository:'>
+                                            Repository:
+                                        </div>
                                         <div className='columns small-9'>
                                             <Tooltip content={app.spec.source.repoURL}>
                                                 <span>{app.spec.source.repoURL}</span>
@@ -85,33 +94,46 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                         </div>
                                     </div>
                                     <div className='row'>
-                                        <div className='columns small-3'>Target Revision:</div>
+                                        <div className='columns small-3' title='Target Revision:'>
+                                            Target Revision:
+                                        </div>
                                         <div className='columns small-9'>{app.spec.source.targetRevision}</div>
                                     </div>
                                     {app.spec.source.path && (
                                         <div className='row'>
-                                            <div className='columns small-3'>Path:</div>
+                                            <div className='columns small-3' title='Path:'>
+                                                Path:
+                                            </div>
                                             <div className='columns small-9'>{app.spec.source.path}</div>
                                         </div>
                                     )}
                                     {app.spec.source.chart && (
                                         <div className='row'>
-                                            <div className='columns small-3'>Chart:</div>
+                                            <div className='columns small-3' title='Chart:'>
+                                                Chart:
+                                            </div>
                                             <div className='columns small-9'>{app.spec.source.chart}</div>
                                         </div>
                                     )}
                                     <div className='row'>
-                                        <div className='columns small-3'>Destination:</div>
-                                        <div className='columns small-9'>{app.spec.destination.server}</div>
+                                        <div className='columns small-3' title='Destination:'>
+                                            Destination:
+                                        </div>
+                                        <div className='columns small-9'>
+                                            <Cluster server={app.spec.destination.server} name={app.spec.destination.name} />
+                                        </div>
                                     </div>
                                     <div className='row'>
-                                        <div className='columns small-3'>Namespace:</div>
+                                        <div className='columns small-3' title='Namespace:'>
+                                            Namespace:
+                                        </div>
                                         <div className='columns small-9'>{app.spec.destination.namespace}</div>
                                     </div>
                                     <div className='row'>
                                         <div className='columns applications-list__entry--actions'>
                                             <a
                                                 className='argo-button argo-button--base'
+                                                qe-id='applications-tiles-button-sync'
                                                 onClick={e => {
                                                     e.stopPropagation();
                                                     syncApplication(app.metadata.name);
@@ -121,6 +143,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                             &nbsp;
                                             <a
                                                 className='argo-button argo-button--base'
+                                                qe-id='applications-tiles-button-refresh'
                                                 {...AppUtils.refreshLinkAttrs(app)}
                                                 onClick={e => {
                                                     e.stopPropagation();
@@ -132,6 +155,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                             &nbsp;
                                             <a
                                                 className='argo-button argo-button--base'
+                                                qe-id='applications-tiles-button-delete'
                                                 onClick={e => {
                                                     e.stopPropagation();
                                                     deleteApplication(app.metadata.name);

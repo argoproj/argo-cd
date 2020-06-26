@@ -12,7 +12,6 @@ import (
 	hookutil "github.com/argoproj/gitops-engine/pkg/sync/hook"
 	"github.com/argoproj/gitops-engine/pkg/sync/ignore"
 	resourceutil "github.com/argoproj/gitops-engine/pkg/sync/resource"
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	kubeutil "github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,6 +31,7 @@ import (
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/gpg"
 	argohealth "github.com/argoproj/argo-cd/util/health"
+	"github.com/argoproj/argo-cd/util/io"
 	"github.com/argoproj/argo-cd/util/settings"
 	"github.com/argoproj/argo-cd/util/stats"
 )
@@ -55,12 +55,18 @@ type managedResource struct {
 	Hook      bool
 }
 
-func GetLiveObjs(res []managedResource) []*unstructured.Unstructured {
-	objs := make([]*unstructured.Unstructured, len(res))
-	for i := range res {
-		objs[i] = res[i].Live
+func GetLiveObjsForApplicationHealth(resources []managedResource, statuses []appv1.ResourceStatus) ([]*appv1.ResourceStatus, []*unstructured.Unstructured) {
+	liveObjs := make([]*unstructured.Unstructured, 0)
+	resStatuses := make([]*appv1.ResourceStatus, 0)
+	for i, resource := range resources {
+		if resource.Target != nil && hookutil.Skip(resource.Target) {
+			continue
+		}
+
+		liveObjs = append(liveObjs, resource.Live)
+		resStatuses = append(resStatuses, &statuses[i])
 	}
-	return objs
+	return resStatuses, liveObjs
 }
 
 // AppStateManager defines methods which allow to compare application spec and actual application state.
@@ -79,6 +85,14 @@ type comparisonResult struct {
 	appSourceType        v1alpha1.ApplicationSourceType
 	// timings maps phases of comparison to the duration it took to complete (for statistical purposes)
 	timings map[string]time.Duration
+}
+
+func (res *comparisonResult) GetSyncStatus() *v1alpha1.SyncStatus {
+	return res.syncStatus
+}
+
+func (res *comparisonResult) GetHealthStatus() *v1alpha1.HealthStatus {
+	return res.healthStatus
 }
 
 // appStateManager allows to compare applications to git
@@ -205,6 +219,9 @@ func DeduplicateTargetObjects(
 			obj.SetNamespace(namespace)
 		}
 		key := kubeutil.GetResourceKey(obj)
+		if key.Name == "" && obj.GetGenerateName() != "" {
+			key.Name = fmt.Sprintf("%s%d", obj.GetGenerateName(), i)
+		}
 		targetByKey[key] = append(targetByKey[key], obj)
 	}
 	conditions := make([]v1alpha1.ApplicationCondition, 0)
@@ -249,7 +266,7 @@ func (m *appStateManager) getComparisonSettings(app *appv1.Application) (string,
 func verifyGnuPGSignature(revision string, project *appv1.AppProject, manifestInfo *apiclient.ManifestResponse) []appv1.ApplicationCondition {
 	now := metav1.Now()
 	conditions := make([]appv1.ApplicationCondition, 0)
-	// We need to have some data in the verificatin result to parse, otherwise there was no signature
+	// We need to have some data in the verification result to parse, otherwise there was no signature
 	if manifestInfo.VerifyResult != "" {
 		verifyResult, err := gpg.ParseGitCommitVerification(manifestInfo.VerifyResult)
 		if err != nil {
@@ -396,7 +413,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 			if appInstanceName != "" && appInstanceName != app.Name {
 				conditions = append(conditions, v1alpha1.ApplicationCondition{
 					Type:               v1alpha1.ApplicationConditionSharedResourceWarning,
-					Message:            fmt.Sprintf("%s/%s is part of a different application: %s", liveObj.GetKind(), liveObj.GetName(), appInstanceName),
+					Message:            fmt.Sprintf("%s/%s is part of applications %s and %s", liveObj.GetKind(), liveObj.GetName(), app.Name, appInstanceName),
 					LastTransitionTime: &now,
 				})
 			}
@@ -409,12 +426,15 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	compareOptions, err := m.settingsMgr.GetResourceCompareOptions()
 	if err != nil {
 		log.Warnf("Could not get compare options from ConfigMap (assuming defaults): %v", err)
-		compareOptions = diff.GetDefaultDiffOptions()
+		compareOptions = settings.GetDefaultDiffOptions()
 	}
 
 	logCtx.Debugf("built managed objects list")
 	// Do the actual comparison
-	diffResults, err := diff.DiffArray(reconciliation.Target, reconciliation.Live, diffNormalizer, compareOptions)
+	diffResults, err := diff.DiffArray(
+		reconciliation.Target, reconciliation.Live,
+		diff.WithNormalizer(diffNormalizer),
+		diff.IgnoreAggregatedRoles(compareOptions.IgnoreAggregatedRoles))
 	if err != nil {
 		diffResults = &diff.DiffResultList{}
 		failedToLoadObjs = true
@@ -452,8 +472,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		} else {
 			diffResult = diff.DiffResult{Modified: false, NormalizedLive: []byte("{}"), PredictedLive: []byte("{}")}
 		}
-		if resState.Hook || ignore.Ignore(obj) {
-			// For resource hooks, don't store sync status, and do not affect overall sync status
+		if resState.Hook || ignore.Ignore(obj) || (targetObj != nil && hookutil.Skip(targetObj)) {
+			// For resource hooks or skipped resources, don't store sync status, and do not affect overall sync status
 		} else if diffResult.Modified || targetObj == nil || liveObj == nil {
 			// Set resource state to OutOfSync since one of the following is true:
 			// * target and live resource are different
@@ -472,6 +492,10 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		isNamespaced, err := m.liveStateCache.IsNamespaced(app.Spec.Destination.Server, gvk.GroupKind())
 		if !project.IsGroupKindPermitted(gvk.GroupKind(), isNamespaced && err == nil) {
 			resState.Status = v1alpha1.SyncStatusCodeUnknown
+		}
+
+		if isNamespaced && obj.GetNamespace() == "" {
+			conditions = append(conditions, appv1.ApplicationCondition{Type: v1alpha1.ApplicationConditionInvalidSpecError, Message: fmt.Sprintf("Namespace for %s %s is missing.", obj.GetName(), gvk.String()), LastTransitionTime: &now})
 		}
 
 		// we can't say anything about the status if we were unable to get the target objects
@@ -507,7 +531,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	}
 	ts.AddCheckpoint("sync_ms")
 
-	healthStatus, err := argohealth.SetApplicationHealth(resourceSummaries, GetLiveObjs(managedResources), resourceOverrides, func(obj *unstructured.Unstructured) bool {
+	resSumForAppHealth, liveObjsForAppHealth := GetLiveObjsForApplicationHealth(managedResources, resourceSummaries)
+	healthStatus, err := argohealth.SetApplicationHealth(resSumForAppHealth, liveObjsForAppHealth, resourceOverrides, func(obj *unstructured.Unstructured) bool {
 		return !isSelfReferencedApp(app, kubeutil.GetObjectRef(obj))
 	})
 
@@ -516,7 +541,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	}
 
 	// Git has already performed the signature verification via its GPG interface, and the result is available
-	// in the manifest info received from the repository server. We now need to form our oppinion about the result
+	// in the manifest info received from the repository server. We now need to form our opinion about the result
 	// and stop processing if we do not agree about the outcome.
 	if gpg.IsGPGEnabled() && verifySignature && manifestInfo != nil {
 		conditions = append(conditions, verifyGnuPGSignature(revision, project, manifestInfo)...)
@@ -567,7 +592,7 @@ func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revi
 	if err != nil {
 		return err
 	}
-	_, err = m.appclientset.ArgoprojV1alpha1().Applications(m.namespace).Patch(app.Name, types.MergePatchType, patch)
+	_, err = m.appclientset.ArgoprojV1alpha1().Applications(m.namespace).Patch(context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
 	return err
 }
 

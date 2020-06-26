@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -22,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	informerv1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-cd/common"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -29,6 +31,7 @@ import (
 
 var (
 	localCluster = appv1.Cluster{
+		Name:            "in-cluster",
 		Server:          common.KubernetesInternalAPIServerAddr,
 		ConnectionState: appv1.ConnectionState{Status: appv1.ConnectionStatusSuccessful},
 	}
@@ -117,7 +120,7 @@ func (db *db) CreateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 	if err = clusterToSecret(c, clusterSecret); err != nil {
 		return nil, err
 	}
-	clusterSecret, err = db.kubeclientset.CoreV1().Secrets(db.ns).Create(clusterSecret)
+	clusterSecret, err = db.kubeclientset.CoreV1().Secrets(db.ns).Create(ctx, clusterSecret, metav1.CreateOptions{})
 	if err != nil {
 		if apierr.IsAlreadyExists(err) {
 			return nil, status.Errorf(codes.AlreadyExists, "cluster %q already exists", c.Server)
@@ -202,7 +205,7 @@ func (db *db) getClusterSecret(server string) (*apiv1.Secret, error) {
 		return nil, err
 	}
 	for _, clusterSecret := range clusterSecrets {
-		if secretToCluster(clusterSecret).Server == server {
+		if secretToCluster(clusterSecret).Server == strings.TrimRight(server, "/") {
 			return clusterSecret, nil
 		}
 	}
@@ -235,7 +238,7 @@ func (db *db) UpdateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 		return nil, err
 	}
 
-	clusterSecret, err = db.kubeclientset.CoreV1().Secrets(db.ns).Update(clusterSecret)
+	clusterSecret, err = db.kubeclientset.CoreV1().Secrets(db.ns).Update(ctx, clusterSecret, metav1.UpdateOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -246,20 +249,16 @@ func (db *db) UpdateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 func (db *db) DeleteCluster(ctx context.Context, server string) error {
 	secret, err := db.getClusterSecret(server)
 	if err != nil {
-		if errorStatus, ok := status.FromError(err); ok && errorStatus.Code() == codes.NotFound {
-			return nil
-		} else {
-			return err
-		}
+		return err
 	}
 
 	canDelete := secret.Annotations != nil && secret.Annotations[common.AnnotationKeyManagedBy] == common.AnnotationValueManagedByArgoCD
 
 	if canDelete {
-		err = db.kubeclientset.CoreV1().Secrets(db.ns).Delete(secret.Name, &metav1.DeleteOptions{})
+		err = db.kubeclientset.CoreV1().Secrets(db.ns).Delete(ctx, secret.Name, metav1.DeleteOptions{})
 	} else {
 		delete(secret.Labels, common.LabelKeySecretType)
-		_, err = db.kubeclientset.CoreV1().Secrets(db.ns).Update(secret)
+		_, err = db.kubeclientset.CoreV1().Secrets(db.ns).Update(ctx, secret, metav1.UpdateOptions{})
 	}
 	if err != nil {
 		return err
@@ -283,7 +282,7 @@ func serverToSecretName(server string) (string, error) {
 // clusterToData converts a cluster object to string data for serialization to a secret
 func clusterToSecret(c *appv1.Cluster, secret *apiv1.Secret) error {
 	data := make(map[string][]byte)
-	data["server"] = []byte(c.Server)
+	data["server"] = []byte(strings.TrimRight(c.Server, "/"))
 	if c.Name == "" {
 		data["name"] = []byte(c.Server)
 	} else {
@@ -297,6 +296,9 @@ func clusterToSecret(c *appv1.Cluster, secret *apiv1.Secret) error {
 		return err
 	}
 	data["config"] = configBytes
+	if c.Shard != nil {
+		data["shard"] = []byte(strconv.Itoa(int(*c.Shard)))
+	}
 	secret.Data = data
 
 	if secret.Annotations == nil {
@@ -313,10 +315,13 @@ func clusterToSecret(c *appv1.Cluster, secret *apiv1.Secret) error {
 // secretToCluster converts a secret into a Cluster object
 func secretToCluster(s *apiv1.Secret) *appv1.Cluster {
 	var config appv1.ClusterConfig
-	err := json.Unmarshal(s.Data["config"], &config)
-	if err != nil {
-		panic(err)
+	if len(s.Data["config"]) > 0 {
+		err := json.Unmarshal(s.Data["config"], &config)
+		if err != nil {
+			panic(err)
+		}
 	}
+
 	var namespaces []string
 	for _, ns := range strings.Split(string(s.Data["namespaces"]), ",") {
 		if ns = strings.TrimSpace(ns); ns != "" {
@@ -327,17 +332,27 @@ func secretToCluster(s *apiv1.Secret) *appv1.Cluster {
 	if v, found := s.Annotations[common.AnnotationKeyRefresh]; found {
 		requestedAt, err := time.Parse(time.RFC3339, v)
 		if err != nil {
-			log.Warnf("Error while parsing date: %v", err)
+			log.Warnf("Error while parsing date in cluster secret '%s': %v", s.Name, err)
 		} else {
 			refreshRequestedAt = &metav1.Time{Time: requestedAt}
 		}
 	}
+	var shard *int64
+	if shardStr := s.Data["shard"]; shardStr != nil {
+		if val, err := strconv.Atoi(string(shardStr)); err != nil {
+			log.Warnf("Error while parsing shard in cluster secret '%s': %v", s.Name, err)
+		} else {
+			shard = pointer.Int64Ptr(int64(val))
+		}
+	}
 	cluster := appv1.Cluster{
-		Server:             string(s.Data["server"]),
+		ID:                 string(s.UID),
+		Server:             strings.TrimRight(string(s.Data["server"]), "/"),
 		Name:               string(s.Data["name"]),
 		Namespaces:         namespaces,
 		Config:             config,
 		RefreshRequestedAt: refreshRequestedAt,
+		Shard:              shard,
 	}
 	return &cluster
 }

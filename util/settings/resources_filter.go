@@ -64,13 +64,23 @@ func (rf *ResourcesFilter) isExcludedResource(apiGroup, kind, cluster string) bo
 // +-------------+-------------+-------------+
 //
 func (rf *ResourcesFilter) IsExcludedResource(apiGroup, kind, cluster string) bool {
-	if len(rf.ResourceInclusions) > 0 {
-		if rf.isIncludedResource(apiGroup, kind, cluster) {
-			return rf.isExcludedResource(apiGroup, kind, cluster)
-		} else {
+	// if excluded, do not allow
+	if rf.isExcludedResource(apiGroup, kind, cluster) {
+		return true
+	}
+
+	// if included, do allow
+	if rf.isIncludedResource(apiGroup, kind, cluster) {
+		return false
+	}
+
+	// if inclusion rules defined for cluster, default is not allow
+	for _, includedResource := range rf.ResourceInclusions {
+		if includedResource.MatchCluster(cluster) {
 			return true
 		}
-	} else {
-		return rf.isExcludedResource(apiGroup, kind, cluster)
 	}
+
+	// if no inclusion rules defined for cluster, default is allow
+	return false
 }

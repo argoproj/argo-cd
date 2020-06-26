@@ -4,13 +4,13 @@ import (
 	"testing"
 
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
-	. "github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
+	. "github.com/argoproj/argo-cd/util/errors"
 )
 
 func TestJsonnetAppliedCorrectly(t *testing.T) {
@@ -24,7 +24,7 @@ func TestJsonnetAppliedCorrectly(t *testing.T) {
 		And(func(app *Application) {
 			manifests, err := RunCli("app", "manifests", app.Name, "--source", "live")
 			assert.NoError(t, err)
-			resources, err := kube.SplitYAML(manifests)
+			resources, err := kube.SplitYAML([]byte(manifests))
 			assert.NoError(t, err)
 
 			index := -1
@@ -54,7 +54,7 @@ func TestJsonnetTlaParameterAppliedCorrectly(t *testing.T) {
 		And(func(app *Application) {
 			manifests, err := RunCli("app", "manifests", app.Name, "--source", "live")
 			assert.NoError(t, err)
-			resources, err := kube.SplitYAML(manifests)
+			resources, err := kube.SplitYAML([]byte(manifests))
 			assert.NoError(t, err)
 
 			index := -1

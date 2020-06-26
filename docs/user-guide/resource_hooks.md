@@ -12,7 +12,7 @@ Kubernetes rolling update strategy.
 
 ## Usage
 
-Hooks are simply Kubernetes manifests inside your Argo CD Application annotated with `argocd.argoproj.io/hook`, e.g.:
+Hooks are simply Kubernetes manifests tracked in the source repository of your Argo CD Application annotated with `argocd.argoproj.io/hook`, e.g.:
 
 ```yaml
 apiVersion: batch/v1
@@ -33,10 +33,10 @@ The following hooks are defined:
 
 | Hook | Description |
 |------|-------------|
-| `PreSync` | Executes prior to the apply of the manifests. |
-| `Sync`  | Executes after all `PreSync` hooks completed and were successful, at the same time as the apply of the manifests. |
-| `Skip` | Indicates to Argo CD to skip the apply of the manifest. |
-| `PostSync` | Executes after all `Sync` hooks completed and were successful, a successful apply, and all resources in a `Healthy` state. |
+| `PreSync` | Executes prior to the application of the manifests. |
+| `Sync`  | Executes after all `PreSync` hooks completed and were successful, at the same time as the application of the manifests. |
+| `Skip` | Indicates to Argo CD to skip the application of the manifest. |
+| `PostSync` | Executes after all `Sync` hooks completed and were successful, a successful application, and all resources in a `Healthy` state. |
 | `SyncFail` | Executes when the sync operation fails. _Available starting in v1.2_ |
 
 ### Generate Name
