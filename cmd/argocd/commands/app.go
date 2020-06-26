@@ -2297,7 +2297,7 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	if err != nil {
 		log.Fatalf("unable to set flag resource-name: %s", err)
 	}
-	command.Flags().StringVarP(&namespace, "namespace", "n", "", "Namespace the pod lives in")
+	command.Flags().StringVarP(&namespace, "namespace", "n", "", "The namespace scope for this CLI request")
 	err = command.MarkFlagRequired("namespace")
 	if err != nil {
 		log.Fatalf("unable to set flag namespace: %s", err)
