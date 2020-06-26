@@ -103,7 +103,7 @@ func (e *Enforcer) EnforceErr(rvals ...interface{}) error {
 				if claims.Subject != "" {
 					rvalsStrs = append(rvalsStrs, fmt.Sprintf("sub: %s", claims.Subject))
 				}
-				if claims.IssuedAt != 0  {
+				if claims.IssuedAt != 0 {
 					rvalsStrs = append(rvalsStrs, fmt.Sprintf("iat: %d", claims.IssuedAt))
 				}
 			}
