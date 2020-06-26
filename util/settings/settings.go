@@ -968,6 +968,7 @@ func (a *ArgoCDSettings) OIDCConfig() *OIDCConfig {
 		return nil
 	}
 	oidcConfig.ClientSecret = ReplaceStringSecret(oidcConfig.ClientSecret, a.Secrets)
+	oidcConfig.ClientID = ReplaceStringSecret(oidcConfig.ClientID, a.Secrets)
 	return &oidcConfig
 }
 
