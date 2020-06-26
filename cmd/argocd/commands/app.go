@@ -2288,9 +2288,9 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			showApplicationPodLogs(c, args, clientOpts)
 		},
 	}
-	command.Flags().BoolVarP(&follow, "follow", "f", false, "Follow log entries. Interrupt to cancel")
-	command.Flags().Int64VarP(&tailLines, "tail-lines", "l", 100, "Number of lines to show")
-	command.Flags().StringVarP(&resourceName, "resource-name", "r", "", "Name of the resource to get logs for. Usually a deployment, job, etc. Matches like a prefix.")
+	command.Flags().BoolVarP(&follow, "follow", "f", false, "Specify if logs should be streamed")
+	command.Flags().Int64VarP(&tailLines, "tail", "l", 100, "Number of lines to show")
+	command.Flags().StringVarP(&resourceName, "resource-name", "r", "", "Name of the resource to get logs for. Usually a deployment, job, etc. Matches like a prefix")
 	err := command.MarkFlagRequired("resource-name")
 	// MarkFlagRequired weirdly returns an error...
 	// https://github.com/spf13/pflag/blob/master/flag.go#L497
@@ -2312,24 +2312,16 @@ func showApplicationPodLogs(c *cobra.Command, args []string, clientOpts *argocdc
 	)
 
 	namespace, err := c.Flags().GetString("namespace")
-	if err != nil {
-		log.Fatalf("unable to get namespace from command: %v", err)
-	}
+	errors.CheckError(err)
 
 	follow, err := c.Flags().GetBool("follow")
-	if err != nil {
-		log.Fatalf("unable to get follow boolean from command: %v", err)
-	}
+	errors.CheckError(err)
 
-	tailLines, err := c.Flags().GetInt64("tail-lines")
-	if err != nil {
-		log.Fatalf("unable to get number of lines to tail from command: %v", err)
-	}
+	tailLines, err := c.Flags().GetInt64("tail")
+	errors.CheckError(err)
 
 	resourceName, err := c.Flags().GetString("resource-name")
-	if err != nil {
-		log.Fatalf("unable to get resource name from command: %v", err)
-	}
+	errors.CheckError(err)
 
 	if len(args) == 0 {
 		c.HelpFunc()(c, args)
