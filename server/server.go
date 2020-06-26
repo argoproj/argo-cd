@@ -2,8 +2,10 @@ package server
 
 import (
 	"context"
+	"crypto/sha256"
 	"crypto/tls"
 	"fmt"
+	_io "io"
 	"io/ioutil"
 	"math"
 	"net"
@@ -693,13 +695,35 @@ func newRedirectServer(port int, rootPath string) *http.Server {
 	}
 }
 
+func computeChecksum(path string) ([]byte, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	hasher := sha256.New()
+	if _, err = _io.Copy(hasher, file); err != nil {
+		return nil, err
+	}
+
+	return hasher.Sum(nil), nil
+}
+
 // registerDownloadHandlers registers HTTP handlers to support downloads directly from the API server
 // (e.g. argocd CLI)
 func registerDownloadHandlers(mux *http.ServeMux, base string) {
+	var checksums string
 	linuxPath, err := exec.LookPath("argocd")
 	if err != nil {
 		log.Warnf("argocd not in PATH")
 	} else {
+		linuxChecksum, err := computeChecksum(linuxPath)
+		if err != nil {
+			log.Warnf("argocd checksum computation failed: %s", err)
+		} else {
+			checksums += fmt.Sprintf("%x argocd-linux-amd64\n", linuxChecksum)
+		}
 		mux.HandleFunc(base+"/argocd-linux-amd64", func(w http.ResponseWriter, r *http.Request) {
 			http.ServeFile(w, r, linuxPath)
 		})
@@ -708,6 +732,12 @@ func registerDownloadHandlers(mux *http.ServeMux, base string) {
 	if err != nil {
 		log.Warnf("argocd-darwin-amd64 not in PATH")
 	} else {
+		darwinChecksum, err := computeChecksum(darwinPath)
+		if err != nil {
+			log.Warnf("argocd-darwin-amd64 checksum computation failed: %s", err)
+		} else {
+			checksums += fmt.Sprintf("%x argocd-darwin-amd64\n", darwinChecksum)
+		}
 		mux.HandleFunc(base+"/argocd-darwin-amd64", func(w http.ResponseWriter, r *http.Request) {
 			http.ServeFile(w, r, darwinPath)
 		})
@@ -716,10 +746,22 @@ func registerDownloadHandlers(mux *http.ServeMux, base string) {
 	if err != nil {
 		log.Warnf("argocd-windows-amd64.exe not in PATH")
 	} else {
+		windowsChecksum, err := computeChecksum(windowsPath)
+		if err != nil {
+			log.Warnf("argocd-windows-amd64.exe checksum computation failed: %s", err)
+		} else {
+			checksums += fmt.Sprintf("%x argocd-windows-amd64.exe\n", windowsChecksum)
+		}
 		mux.HandleFunc(base+"/argocd-windows-amd64.exe", func(w http.ResponseWriter, r *http.Request) {
 			http.ServeFile(w, r, windowsPath)
 		})
 	}
+	mux.HandleFunc(base+"/sha256sums.txt", func(w http.ResponseWriter, r *http.Request) {
+		_, err := _io.WriteString(w, checksums)
+		if err != nil {
+			log.Warnf("failed to write checksums to http response: %s", err)
+		}
+	})
 }
 
 func indexFilePath(srcPath string, baseHRef string) (string, error) {
