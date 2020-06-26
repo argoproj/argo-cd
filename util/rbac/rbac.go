@@ -12,7 +12,7 @@ import (
 
 	"github.com/casbin/casbin"
 	"github.com/casbin/casbin/model"
-	"github.com/dgrijalva/jwt-go"
+	jwt "github.com/dgrijalva/jwt-go"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -20,7 +20,7 @@ import (
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/client-go/informers/core/v1"
+	v1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 )
@@ -37,7 +37,7 @@ const (
 // * is backed by a kubernetes config map
 // * has a predefined RBAC model
 // * supports a built-in policy
-// * supports a user-defined bolicy
+// * supports a user-defined policy
 // * supports a custom JWT claims enforce function
 type Enforcer struct {
 	*casbin.Enforcer
