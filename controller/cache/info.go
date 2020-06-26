@@ -2,6 +2,7 @@ package cache
 
 import (
 	"fmt"
+	"regexp"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
@@ -36,6 +37,12 @@ func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 			populateIngressInfo(un, res)
 			return
 		}
+	case "getambassador.io":
+		switch gvk.Kind {
+		case "Mapping":
+			populateAmbassador(un, res)
+			return
+		}
 	}
 }
 
@@ -64,6 +71,37 @@ func populateServiceInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 		ingress = getIngress(un)
 	}
 	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetLabels: targetLabels, Ingress: ingress}
+}
+
+func populateAmbassador(un *unstructured.Unstructured, res *ResourceInfo) {
+	targetsMap := make(map[v1alpha1.ResourceRef]bool)
+	if service, ok, err := unstructured.NestedString(un.Object, "spec", "service"); ok && err == nil {
+		// https://www.getambassador.io/docs/latest/topics/using/intro-mappings/#services
+		var mappingExp = regexp.MustCompile(`((?P<scheme>[a-z]+)(://))?(?P<service>[a-zA-Z\-]+)(.(?P<namespace>[a-zA-Z\-]+))?(:(?P<port>[0-9]+))?`)
+		match := mappingExp.FindStringSubmatch(service)
+		result := make(map[string]string)
+		for i, name := range mappingExp.SubexpNames() {
+			if i != 0 && name != "" {
+				result[name] = match[i]
+			}
+		}
+		namespace := un.GetNamespace()
+		if _, ok := result["namespace"]; ok {
+			namespace = result["namespace"]
+		}
+		//service := regexp.MustCompile("[.:]").Split(backend, -1)
+		targetsMap[v1alpha1.ResourceRef{
+			Group:     "",
+			Kind:      kube.ServiceKind,
+			Namespace: namespace,
+			Name:      result["service"],
+		}] = true
+	}
+	targets := make([]v1alpha1.ResourceRef, 0)
+	for target := range targetsMap {
+		targets = append(targets, target)
+	}
+	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetRefs: targets}
 }
 
 func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
