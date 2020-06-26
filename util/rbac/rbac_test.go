@@ -410,5 +410,5 @@ func TestEnforceErrorMessage(t *testing.T) {
 	ctx = context.WithValue(context.Background(), "claims", &jwt.StandardClaims{Subject: "proj:default:admin", IssuedAt: 1593035962})
 	err = enf.EnforceErr(ctx.Value("claims"), "project")
 	assert.Error(t, err)
-	assert.Equal(t, "rpc error: code = PermissionDenied desc = permission denied: project, sub: proj:default:admin, iat: 1593035962", err.Error())
+	assert.Equal(t, "rpc error: code = PermissionDenied desc = permission denied: project, sub: proj:default:admin, iat: 2020-06-24T14:59:22-07:00", err.Error())
 }

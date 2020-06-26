@@ -104,7 +104,7 @@ func (e *Enforcer) EnforceErr(rvals ...interface{}) error {
 					rvalsStrs = append(rvalsStrs, fmt.Sprintf("sub: %s", claims.Subject))
 				}
 				if claims.IssuedAt != 0 {
-					rvalsStrs = append(rvalsStrs, fmt.Sprintf("iat: %d", claims.IssuedAt))
+					rvalsStrs = append(rvalsStrs, fmt.Sprintf("iat: %s", time.Unix(claims.IssuedAt, 0).Format(time.RFC3339)))
 				}
 			}
 			errMsg = fmt.Sprintf("%s: %s", errMsg, strings.Join(rvalsStrs, ", "))
