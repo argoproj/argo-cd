@@ -15,6 +15,8 @@ import (
 	"github.com/argoproj/argo-cd/util/resource"
 )
 
+var ambassadorIngress = make([]v1.LoadBalancerIngress, 0)
+
 func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	gvk := un.GroupVersionKind()
 	revision := resource.GetRevision(un)
@@ -47,21 +49,26 @@ func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 }
 
 func getIngress(un *unstructured.Unstructured) []v1.LoadBalancerIngress {
-	ingress, ok, err := unstructured.NestedSlice(un.Object, "status", "loadBalancer", "ingress")
-	if !ok || err != nil {
-		return nil
-	}
-	res := make([]v1.LoadBalancerIngress, 0)
-	for _, item := range ingress {
-		if lbIngress, ok := item.(map[string]interface{}); ok {
-			if hostname := lbIngress["hostname"]; hostname != nil {
-				res = append(res, v1.LoadBalancerIngress{Hostname: fmt.Sprintf("%s", hostname)})
-			} else if ip := lbIngress["ip"]; ip != nil {
-				res = append(res, v1.LoadBalancerIngress{IP: fmt.Sprintf("%s", ip)})
+	// check for external-dns hostname
+	hostname, ok, err := unstructured.NestedString(un.Object, "metadata", "annotations", "external-dns.alpha.kubernetes.io/hostname")
+	if !ok || err != nil || hostname == "" {
+		ingress, ok, err := unstructured.NestedSlice(un.Object, "status", "loadBalancer", "ingress")
+		if !ok || err != nil {
+			return nil
+		}
+		res := make([]v1.LoadBalancerIngress, 0)
+		for _, item := range ingress {
+			if lbIngress, ok := item.(map[string]interface{}); ok {
+				if hostname := lbIngress["hostname"]; hostname != nil {
+					res = append(res, v1.LoadBalancerIngress{Hostname: fmt.Sprintf("%s", hostname)})
+				} else if ip := lbIngress["ip"]; ip != nil {
+					res = append(res, v1.LoadBalancerIngress{IP: fmt.Sprintf("%s", ip)})
+				}
 			}
 		}
+		return res
 	}
-	return res
+	return []v1.LoadBalancerIngress{{Hostname: fmt.Sprintf("%s", hostname)}}
 }
 
 func populateServiceInfo(un *unstructured.Unstructured, res *ResourceInfo) {
@@ -69,39 +76,38 @@ func populateServiceInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	ingress := make([]v1.LoadBalancerIngress, 0)
 	if serviceType, ok, err := unstructured.NestedString(un.Object, "spec", "type"); ok && err == nil && serviceType == string(v1.ServiceTypeLoadBalancer) {
 		ingress = getIngress(un)
+
+		// check if service manages ambassador
+		if instance, ok, err := unstructured.NestedString(un.Object, "metadata", "labels", "app.kubernetes.io/instance"); ok && err == nil && instance == "ambassador-server" {
+			ambassadorIngress = ingress
+		}
 	}
 	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetLabels: targetLabels, Ingress: ingress}
 }
 
 func populateAmbassador(un *unstructured.Unstructured, res *ResourceInfo) {
-	targetsMap := make(map[v1alpha1.ResourceRef]bool)
-	if service, ok, err := unstructured.NestedString(un.Object, "spec", "service"); ok && err == nil {
+	if spec, ok, err := unstructured.NestedMap(un.Object, "spec"); ok && err == nil {
 		// https://www.getambassador.io/docs/latest/topics/using/intro-mappings/#services
 		var mappingExp = regexp.MustCompile(`((?P<scheme>[a-z]+)(://))?(?P<service>[a-zA-Z\-]+)(.(?P<namespace>[a-zA-Z\-]+))?(:(?P<port>[0-9]+))?`)
-		match := mappingExp.FindStringSubmatch(service)
+		match := mappingExp.FindStringSubmatch(fmt.Sprintf("%s", spec["service"]))
 		result := make(map[string]string)
 		for i, name := range mappingExp.SubexpNames() {
 			if i != 0 && name != "" {
 				result[name] = match[i]
 			}
 		}
-		namespace := un.GetNamespace()
-		if _, ok := result["namespace"]; ok {
-			namespace = result["namespace"]
+
+		namespace, ok := result["namespace"]
+		if !ok {
+			namespace = un.GetNamespace()
 		}
-		//service := regexp.MustCompile("[.:]").Split(backend, -1)
-		targetsMap[v1alpha1.ResourceRef{
-			Group:     "",
-			Kind:      kube.ServiceKind,
-			Namespace: namespace,
-			Name:      result["service"],
-		}] = true
+
+		res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetRefs: []v1alpha1.ResourceRef{
+			{Group: "",
+				Kind:      kube.ServiceKind,
+				Namespace: namespace,
+				Name:      result["service"]}}, Ingress: ambassadorIngress, ExternalURLs: []string{fmt.Sprintf("%s/%s", ambassadorIngress[0].Hostname, spec["prefix"])}}
 	}
-	targets := make([]v1alpha1.ResourceRef, 0)
-	for target := range targetsMap {
-		targets = append(targets, target)
-	}
-	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetRefs: targets}
 }
 
 func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
