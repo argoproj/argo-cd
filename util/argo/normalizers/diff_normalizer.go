@@ -76,7 +76,7 @@ func NewIgnoreNormalizer(ignore []v1alpha1.ResourceIgnoreDifferences, overrides 
 func (n *ignoreNormalizer) Normalize(un *unstructured.Unstructured) error {
 	matched := make([]normalizerPatch, 0)
 	for _, patch := range n.patches {
-		if patch.groupKind.Group == "" && patch.groupKind.Kind == "" {
+		if patch.groupKind.Group == "*" && patch.groupKind.Kind == "*" {
 			matched = append(matched, patch)
 			continue
 		}

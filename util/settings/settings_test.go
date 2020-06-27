@@ -174,7 +174,7 @@ func TestGetResourceOverrides(t *testing.T) {
 	overrides, err = settingsManager.GetResourceOverrides()
 	assert.NoError(t, err)
 
-	globalOverrides := overrides["/"]
+	globalOverrides := overrides["*/*"]
 	assert.NotNil(t, globalOverrides)
 	assert.Equal(t, ignoreStatus, globalOverrides)
 

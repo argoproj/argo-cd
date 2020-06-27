@@ -474,39 +474,34 @@ func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.Resource
 		}
 	}
 
-	ignoreStatus := v1alpha1.ResourceOverride{IgnoreDifferences: "jsonPointers:\n- /status"}
 	crdGK := "apiextensions.k8s.io/CustomResourceDefinition"
 
 	switch diffOptions.IgnoreResourceStatusField {
 	case "", "crd":
-		if val, ok := resourceOverrides[crdGK]; ok {
-			resourceOverrides[crdGK] = v1alpha1.ResourceOverride{IgnoreDifferences: val.IgnoreDifferences + "\n- /status"}
-		} else {
-			resourceOverrides[crdGK] = ignoreStatus
-		}
+		addStatusOverrideToGK(resourceOverrides, crdGK)
 		log.Info("Ignore status for CustomResourceDefinitions")
 
 	case "all":
-		if val, ok := resourceOverrides[crdGK]; ok {
-			resourceOverrides["/"] = v1alpha1.ResourceOverride{IgnoreDifferences: val.IgnoreDifferences + "\n- /status"}
-		} else {
-			resourceOverrides["/"] = ignoreStatus
-		}
+		addStatusOverrideToGK(resourceOverrides, "*/*")
 		log.Info("Ignore status for all objects")
 
 	case "off", "false":
-		log.Info("Not ignore status for any object")
+		log.Info("Not ignoring status for any object")
 
 	default:
-		if val, ok := resourceOverrides[crdGK]; ok {
-			resourceOverrides[crdGK] = v1alpha1.ResourceOverride{IgnoreDifferences: val.IgnoreDifferences + "\n- /status"}
-		} else {
-			resourceOverrides[crdGK] = ignoreStatus
-		}
+		addStatusOverrideToGK(resourceOverrides, crdGK)
 		log.Warnf("Unrecognized value for ignoreResourceStatusField - %s, ignore status for CustomResourceDefinitions", diffOptions.IgnoreResourceStatusField)
 	}
 
 	return resourceOverrides, nil
+}
+
+func addStatusOverrideToGK(resourceOverrides map[string]v1alpha1.ResourceOverride, groupKind string) {
+	if val, ok := resourceOverrides[groupKind]; ok {
+		resourceOverrides[groupKind] = v1alpha1.ResourceOverride{IgnoreDifferences: val.IgnoreDifferences + "\n- /status"}
+	} else {
+		resourceOverrides[groupKind] = v1alpha1.ResourceOverride{IgnoreDifferences: "jsonPointers:\n- /status"}
+	}
 }
 
 // GetResourceCompareOptions loads the resource compare options settings from the ConfigMap
