@@ -182,13 +182,19 @@ func TestGetResourceOverrides(t *testing.T) {
 	_, settingsManager = fixtures(map[string]string{
 		"resource.compareoptions": `
     ignoreResourceStatusField: crd`,
+
+		"resource.customizations": `
+    apiextensions.k8s.io/CustomResourceDefinition:
+      ignoreDifferences: |
+        jsonPointers:
+        - /webhooks/0/clientConfig/caBundle`,
 	})
 	overrides, err = settingsManager.GetResourceOverrides()
 	assert.NoError(t, err)
 
 	crdOverrides = overrides[crdGK]
 	assert.NotNil(t, crdOverrides)
-	assert.Equal(t, ignoreStatus, crdOverrides)
+	assert.Equal(t, v1alpha1.ResourceOverride{IgnoreDifferences: "jsonPointers:\n- /webhooks/0/clientConfig/caBundle\n- /status"}, crdOverrides)
 
 	// with incorrect value, status of crd objects should be ignored
 	_, settingsManager = fixtures(map[string]string{

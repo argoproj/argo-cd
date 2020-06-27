@@ -479,15 +479,30 @@ func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.Resource
 
 	switch diffOptions.IgnoreResourceStatusField {
 	case "", "crd":
-		resourceOverrides[crdGK] = ignoreStatus
+		if val, ok := resourceOverrides[crdGK]; ok {
+			resourceOverrides[crdGK] = v1alpha1.ResourceOverride{IgnoreDifferences: val.IgnoreDifferences + "\n- /status"}
+		} else {
+			resourceOverrides[crdGK] = ignoreStatus
+		}
 		log.Info("Ignore status for CustomResourceDefinitions")
+
 	case "all":
-		resourceOverrides["/"] = ignoreStatus
+		if val, ok := resourceOverrides[crdGK]; ok {
+			resourceOverrides["/"] = v1alpha1.ResourceOverride{IgnoreDifferences: val.IgnoreDifferences + "\n- /status"}
+		} else {
+			resourceOverrides["/"] = ignoreStatus
+		}
 		log.Info("Ignore status for all objects")
+
 	case "off", "false":
 		log.Info("Not ignore status for any object")
+
 	default:
-		resourceOverrides[crdGK] = ignoreStatus
+		if val, ok := resourceOverrides[crdGK]; ok {
+			resourceOverrides[crdGK] = v1alpha1.ResourceOverride{IgnoreDifferences: val.IgnoreDifferences + "\n- /status"}
+		} else {
+			resourceOverrides[crdGK] = ignoreStatus
+		}
 		log.Warnf("Unrecognized value for ignoreResourceStatusField - %s, ignore status for CustomResourceDefinitions", diffOptions.IgnoreResourceStatusField)
 	}
 
