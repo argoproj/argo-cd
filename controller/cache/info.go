@@ -68,7 +68,7 @@ func getIngress(un *unstructured.Unstructured) []v1.LoadBalancerIngress {
 		}
 		return res
 	}
-	return []v1.LoadBalancerIngress{{Hostname: fmt.Sprintf("%s", hostname)}}
+	return []v1.LoadBalancerIngress{{Hostname: hostname}}
 }
 
 func populateServiceInfo(un *unstructured.Unstructured, res *ResourceInfo) {
