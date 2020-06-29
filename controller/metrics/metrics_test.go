@@ -285,4 +285,3 @@ argocd_app_reconcile_count{dest_server="https://localhost:6443",namespace="argoc
 	log.Println(body)
 	assertMetricsPrinted(t, appReconcileMetrics, body)
 }
-

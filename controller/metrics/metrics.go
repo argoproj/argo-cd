@@ -322,4 +322,3 @@ func collectApps(ch chan<- prometheus.Metric, app *argoappv1.Application) {
 		addGauge(descAppHealthStatus, boolFloat64(healthStatus == health.HealthStatusMissing), string(health.HealthStatusMissing))
 	}
 }
-
