@@ -23,6 +23,8 @@ import (
 	v1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+	jwtgo "github.com/argoproj/argo-cd/util/jwt"
+	jwtutil "github.com/argoproj/argo-cd/util/jwt"
 )
 
 const (
@@ -99,13 +101,23 @@ func (e *Enforcer) EnforceErr(rvals ...interface{}) error {
 			}
 			switch s := rvals[0].(type) {
 			case jwt.Claims:
-				claims := s.(*jwt.StandardClaims)
-				if claims.Subject != "" {
-					rvalsStrs = append(rvalsStrs, fmt.Sprintf("sub: %s", claims.Subject))
+				claims, err :=jwtgo.MapClaims(s)
+				if err != nil {
+					break
 				}
-				if claims.IssuedAt != 0 {
-					rvalsStrs = append(rvalsStrs, fmt.Sprintf("iat: %s", time.Unix(claims.IssuedAt, 0).Format(time.RFC3339)))
+				sub := jwtutil.GetField(claims, "sub")
+				if sub != ""{
+					rvalsStrs = append(rvalsStrs, fmt.Sprintf("sub: %s", sub))
 				}
+				iatField, ok := claims["iat"]
+				if !ok {
+					break
+				}
+				iat := iatField.(float64)
+				if !ok {
+					break
+				}
+				rvalsStrs = append(rvalsStrs, fmt.Sprintf("iat: %s", time.Unix(int64(iat), 0).Format(time.RFC3339)))
 			}
 			errMsg = fmt.Sprintf("%s: %s", errMsg, strings.Join(rvalsStrs, ", "))
 		}
