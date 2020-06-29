@@ -1,21 +1,19 @@
 package config
 
 import (
-	"errors"
+	"fmt"
 	"os"
 	"strings"
 
-	"github.com/kballard/go-shellquote"
-	log "github.com/sirupsen/logrus"
+	"github.com/argoproj/gitops-engine/pkg/utils/errors"
+	shellquote "github.com/kballard/go-shellquote"
 )
 
 var flags map[string]string
 
 func init() {
 	err := loadFlags()
-	if err != nil {
-		log.Fatal(err)
-	}
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 }
 
 func loadFlags() error {
@@ -37,7 +35,7 @@ func loadFlags() error {
 			flags[key] = opt
 			key = ""
 		} else {
-			return errors.New("ARGOCD_OPTS invalid at '" + opt + "'")
+			return fmt.Errorf("ARGOCD_OPTS invalid at '" + opt + "'")
 		}
 	}
 	if key != "" {

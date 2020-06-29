@@ -26,15 +26,15 @@ func NewContextCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		Run: func(c *cobra.Command, args []string) {
 
 			localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 
 			if delete {
 				if len(args) == 0 {
 					c.HelpFunc()(c, args)
-					os.Exit(1)
+					os.Exit(errors.ErrorCommandSpecific)
 				}
 				err := deleteContext(args[0], clientOpts.ConfigPath)
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 				return
 			}
 
@@ -46,28 +46,27 @@ func NewContextCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			ctxName := args[0]
 
 			argoCDDir, err := localconfig.DefaultConfigDir()
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			prevCtxFile := path.Join(argoCDDir, ".prev-ctx")
 
 			if ctxName == "-" {
 				prevCtxBytes, err := ioutil.ReadFile(prevCtxFile)
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 				ctxName = string(prevCtxBytes)
 			}
 			if localCfg.CurrentContext == ctxName {
 				fmt.Printf("Already at context '%s'\n", localCfg.CurrentContext)
 				return
 			}
-			if _, err = localCfg.ResolveContext(ctxName); err != nil {
-				log.Fatal(err)
-			}
+			_, err = localCfg.ResolveContext(ctxName)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			prevCtx := localCfg.CurrentContext
 			localCfg.CurrentContext = ctxName
 
 			err = localconfig.WriteLocalConfig(*localCfg, clientOpts.ConfigPath)
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			err = ioutil.WriteFile(prevCtxFile, []byte(prevCtx), 0644)
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			fmt.Printf("Switched to context '%s'\n", localCfg.CurrentContext)
 		},
 	}
@@ -78,7 +77,7 @@ func NewContextCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 func deleteContext(context, configPath string) error {
 
 	localCfg, err := localconfig.ReadLocalConfig(configPath)
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 	if localCfg == nil {
 		return fmt.Errorf("Nothing to logout from")
 	}
@@ -92,7 +91,7 @@ func deleteContext(context, configPath string) error {
 
 	if localCfg.IsEmpty() {
 		err = localconfig.DeleteLocalConfig(configPath)
-		errors.CheckError(err)
+		errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 	} else {
 		if localCfg.CurrentContext == context {
 			localCfg.CurrentContext = ""
@@ -102,7 +101,7 @@ func deleteContext(context, configPath string) error {
 			return fmt.Errorf("Error in logging out")
 		}
 		err = localconfig.WriteLocalConfig(*localCfg, configPath)
-		errors.CheckError(err)
+		errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 	}
 	fmt.Printf("Context '%s' deleted\n", context)
 	return nil
@@ -110,15 +109,15 @@ func deleteContext(context, configPath string) error {
 
 func printArgoCDContexts(configPath string) {
 	localCfg, err := localconfig.ReadLocalConfig(configPath)
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 	if localCfg == nil {
-		log.Fatalf("No contexts defined in %s", configPath)
+		errors.Fatalf(errors.ErrorCommandSpecific, "No contexts defined in %s", configPath)
 	}
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	defer func() { _ = w.Flush() }()
 	columnNames := []string{"CURRENT", "NAME", "SERVER"}
 	_, err = fmt.Fprintf(w, "%s\n", strings.Join(columnNames, "\t"))
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 
 	for _, contextRef := range localCfg.Contexts {
 		context, err := localCfg.ResolveContext(contextRef.Name)
@@ -130,6 +129,6 @@ func printArgoCDContexts(configPath string) {
 			prefix = "*"
 		}
 		_, err = fmt.Fprintf(w, "%s\t%s\t%s\n", prefix, context.Name, context.Server.Server)
-		errors.CheckError(err)
+		errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 	}
 }

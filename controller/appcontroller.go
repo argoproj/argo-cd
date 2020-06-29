@@ -416,15 +416,16 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 	go ctrl.appInformer.Run(ctx.Done())
 	go ctrl.projInformer.Run(ctx.Done())
 
-	errors.CheckError(ctrl.stateCache.Init())
+	err := ctrl.stateCache.Init()
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 
 	if !cache.WaitForCacheSync(ctx.Done(), ctrl.appInformer.HasSynced, ctrl.projInformer.HasSynced) {
 		log.Error("Timed out waiting for caches to sync")
 		return
 	}
 
-	go func() { errors.CheckError(ctrl.stateCache.Run(ctx)) }()
-	go func() { errors.CheckError(ctrl.metricsServer.ListenAndServe()) }()
+	go func() { errors.CheckErrorWithCode(ctrl.stateCache.Run(ctx), errors.ErrorCommandSpecific) }()
+	go func() { errors.CheckErrorWithCode(ctrl.metricsServer.ListenAndServe(), errors.ErrorCommandSpecific) }()
 
 	for i := 0; i < statusProcessors; i++ {
 		go wait.Until(func() {

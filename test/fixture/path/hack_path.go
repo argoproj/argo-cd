@@ -20,8 +20,8 @@ func (h AddBinDirToPath) Close() {
 func NewBinDirToPath() AddBinDirToPath {
 	originalPath := os.Getenv("PATH")
 	binDir, err := filepath.Abs("../../hack")
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 	err = os.Setenv("PATH", fmt.Sprintf("%s:%s", originalPath, binDir))
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 	return AddBinDirToPath{originalPath}
 }

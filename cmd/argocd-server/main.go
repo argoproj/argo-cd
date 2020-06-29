@@ -13,5 +13,5 @@ import (
 
 func main() {
 	err := commands.NewCommand().Execute()
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 }

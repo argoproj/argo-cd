@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	argocderrors "github.com/argoproj/gitops-engine/pkg/utils/errors"
+	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -183,7 +183,7 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 		}))
 	go func() {
 		err := proxySrv.Serve(ln)
-		argocderrors.CheckError(err)
+		errors.CheckErrorWithCode(err, errors.ErrorConnectionFailure)
 	}()
 	return proxySrv, ln, nil
 }

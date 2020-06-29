@@ -8,7 +8,7 @@ require (
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
 	github.com/alicebob/gopher-json v0.0.0-20180125190556-5a6b3ba71ee6 // indirect
 	github.com/alicebob/miniredis v2.5.0+incompatible
-	github.com/argoproj/gitops-engine v0.1.3-0.20200624184852-ce9616ad10da
+	github.com/argoproj/gitops-engine v0.1.3-0.20200620112536-6657adfcfde4
 	github.com/argoproj/pkg v0.0.0-20200319004004-f46beff7cd54
 	github.com/bsm/redislock v0.4.3
 	github.com/casbin/casbin v1.9.1
@@ -83,6 +83,8 @@ require (
 )
 
 replace (
+	// github.com/argoproj/gitops-engine => /Users/darshanime/go/src/github.com/darshanime/gitops-engine
+	// github.com/argoproj/gitops-engine => /go/src/github.com/darshanime/gitops-engine
 	github.com/golang/protobuf => github.com/golang/protobuf v1.2.0
 	github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc-gateway v1.3.1
 	github.com/improbable-eng/grpc-web => github.com/improbable-eng/grpc-web v0.0.0-20181111100011-16092bd1d58a

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/pkg/errors"
+	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
@@ -35,14 +35,14 @@ func newCommand() *cobra.Command {
 	var command = cobra.Command{
 		Run: func(cmd *cobra.Command, args []string) {
 			config, err := clientConfig.ClientConfig()
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			ns, _, err := clientConfig.Namespace()
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			cmNameToPath := make(map[string]string)
 			for _, cm := range configMaps {
 				parts := strings.Split(cm, "=")
 				if len(parts) != 2 {
-					log.Fatal("--configmap value should be include config map name and the path separated by '='")
+					errors.Fatal(errors.ErrorCommandSpecific, "--configmap value should be include config map name and the path separated by '='")
 				}
 				log.Infof("Saving %s to %s", parts[0], parts[1])
 				cmNameToPath[parts[0]] = parts[1]
@@ -113,6 +113,6 @@ func newCommand() *cobra.Command {
 func main() {
 	if err := newCommand().Execute(); err != nil {
 		fmt.Println(err)
-		os.Exit(1)
+		os.Exit(errors.ErrorCommandSpecific)
 	}
 }

@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/argoproj/gitops-engine/pkg/utils/io"
-	"github.com/argoproj/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -19,7 +19,7 @@ func TestCreateAndUseAccount(t *testing.T) {
 	EnsureCleanState(t)
 
 	output, err := RunCli("account", "list")
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 
 	assert.Equal(t, `NAME   ENABLED  CAPABILITIES
 admin  true     login`, output)
@@ -29,14 +29,14 @@ admin  true     login`, output)
 	})
 
 	output, err = RunCli("account", "list")
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 
 	assert.Equal(t, `NAME   ENABLED  CAPABILITIES
 admin  true     login
 test   true     login, apiKey`, output)
 
 	token, err := RunCli("account", "generate-token", "--account", "test")
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 
 	clientOpts := ArgoCDClientset.ClientOptions()
 	clientOpts.AuthToken = token

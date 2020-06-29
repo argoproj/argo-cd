@@ -13,7 +13,6 @@ import (
 
 	. "github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/argoproj/gitops-engine/pkg/utils/io"
-	"github.com/argoproj/pkg/errors"
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
@@ -86,7 +85,7 @@ func getKubeConfig(configPath string, overrides clientcmd.ConfigOverrides) *rest
 	clientConfig := clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, &overrides, os.Stdin)
 
 	restConfig, err := clientConfig.ClientConfig()
-	CheckError(err)
+	CheckErrorWithCode(err, ErrorCommandSpecific)
 	return restConfig
 }
 
@@ -104,19 +103,18 @@ func init() {
 	if apiServerAddress == "" {
 		apiServerAddress = defaultApiServer
 	}
-
 	tlsTestResult, err := grpcutil.TestTLS(apiServerAddress)
-	CheckError(err)
+	CheckErrorWithCode(err, ErrorCommandSpecific)
 
 	ArgoCDClientset, err = argocdclient.NewClient(&argocdclient.ClientOptions{Insecure: true, ServerAddr: apiServerAddress, PlainText: !tlsTestResult.TLS})
-	CheckError(err)
+	CheckErrorWithCode(err, ErrorCommandSpecific)
 
 	closer, client, err := ArgoCDClientset.NewSessionClient()
-	CheckError(err)
+	CheckErrorWithCode(err, ErrorCommandSpecific)
 	defer io.Close(closer)
 
 	sessionResponse, err := client.Create(context.Background(), &sessionpkg.SessionCreateRequest{Username: "admin", Password: adminPassword})
-	CheckError(err)
+	CheckErrorWithCode(err, ErrorCommandSpecific)
 
 	ArgoCDClientset, err = argocdclient.NewClient(&argocdclient.ClientOptions{
 		Insecure:   true,
@@ -124,7 +122,7 @@ func init() {
 		AuthToken:  sessionResponse.Token,
 		PlainText:  !tlsTestResult.TLS,
 	})
-	CheckError(err)
+	CheckErrorWithCode(err, ErrorCommandSpecific)
 
 	token = sessionResponse.Token
 	plainText = !tlsTestResult.TLS
@@ -199,13 +197,13 @@ func CreateSecret(username, password string) string {
 
 func updateSettingConfigMap(updater func(cm *corev1.ConfigMap) error) {
 	cm, err := KubeClientset.CoreV1().ConfigMaps(ArgoCDNamespace).Get(common.ArgoCDConfigMapName, v1.GetOptions{})
-	errors.CheckError(err)
+	CheckErrorWithCode(err, ErrorAPIResponse)
 	if cm.Data == nil {
 		cm.Data = make(map[string]string)
 	}
-	errors.CheckError(updater(cm))
+	CheckErrorWithCode(updater(cm), ErrorCommandSpecific)
 	_, err = KubeClientset.CoreV1().ConfigMaps(ArgoCDNamespace).Update(cm)
-	errors.CheckError(err)
+	CheckErrorWithCode(err, ErrorAPIResponse)
 }
 
 func SetResourceOverrides(overrides map[string]v1alpha1.ResourceOverride) {
@@ -283,10 +281,10 @@ func SetRepos(repos ...settings.RepositoryCredentials) {
 
 func SetProjectSpec(project string, spec v1alpha1.AppProjectSpec) {
 	proj, err := AppClientset.ArgoprojV1alpha1().AppProjects(ArgoCDNamespace).Get(project, v1.GetOptions{})
-	errors.CheckError(err)
+	CheckErrorWithCode(err, ErrorAPIResponse)
 	proj.Spec = spec
 	_, err = AppClientset.ArgoprojV1alpha1().AppProjects(ArgoCDNamespace).Update(proj)
-	errors.CheckError(err)
+	CheckErrorWithCode(err, ErrorAPIResponse)
 }
 
 func EnsureCleanState(t *testing.T) {
@@ -296,13 +294,13 @@ func EnsureCleanState(t *testing.T) {
 	policy := v1.DeletePropagationBackground
 	// delete resources
 	// kubectl delete apps --all
-	CheckError(AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).DeleteCollection(&v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{}))
+	CheckErrorWithCode(AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).DeleteCollection(&v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{}), ErrorCommandSpecific)
 	// kubectl delete appprojects --field-selector metadata.name!=default
-	CheckError(AppClientset.ArgoprojV1alpha1().AppProjects(ArgoCDNamespace).DeleteCollection(
-		&v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{FieldSelector: "metadata.name!=default"}))
+	CheckErrorWithCode(AppClientset.ArgoprojV1alpha1().AppProjects(ArgoCDNamespace).DeleteCollection(
+		&v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{FieldSelector: "metadata.name!=default"}), ErrorCommandSpecific)
 	// kubectl delete secrets -l e2e.argoproj.io=true
-	CheckError(KubeClientset.CoreV1().Secrets(ArgoCDNamespace).DeleteCollection(
-		&v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{LabelSelector: testingLabel + "=true"}))
+	CheckErrorWithCode(KubeClientset.CoreV1().Secrets(ArgoCDNamespace).DeleteCollection(
+		&v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{LabelSelector: testingLabel + "=true"}), ErrorCommandSpecific)
 
 	FailOnErr(Run("", "kubectl", "delete", "ns", "-l", testingLabel+"=true", "--field-selector", "status.phase=Active", "--wait=false"))
 	FailOnErr(Run("", "kubectl", "delete", "crd", "-l", testingLabel+"=true", "--wait=false"))
@@ -331,7 +329,7 @@ func EnsureCleanState(t *testing.T) {
 	})
 
 	// remove tmp dir
-	CheckError(os.RemoveAll(TmpDir))
+	CheckErrorWithCode(os.RemoveAll(TmpDir), ErrorCommandSpecific)
 
 	// random id - unique across test runs
 	postFix := "-" + strings.ToLower(rand.RandString(5))
@@ -395,30 +393,30 @@ func Patch(path string, jsonPatch string) {
 
 	filename := filepath.Join(repoDirectory(), path)
 	bytes, err := ioutil.ReadFile(filename)
-	CheckError(err)
+	CheckErrorWithCode(err, ErrorCommandSpecific)
 
 	patch, err := jsonpatch.DecodePatch([]byte(jsonPatch))
-	CheckError(err)
+	CheckErrorWithCode(err, ErrorCommandSpecific)
 
 	isYaml := strings.HasSuffix(filename, ".yaml")
 	if isYaml {
 		log.Info("converting YAML to JSON")
 		bytes, err = yaml.YAMLToJSON(bytes)
-		CheckError(err)
+		CheckErrorWithCode(err, ErrorCommandSpecific)
 	}
 
 	log.WithFields(log.Fields{"bytes": string(bytes)}).Info("JSON")
 
 	bytes, err = patch.Apply(bytes)
-	CheckError(err)
+	CheckErrorWithCode(err, ErrorCommandSpecific)
 
 	if isYaml {
 		log.Info("converting JSON back to YAML")
 		bytes, err = yaml.JSONToYAML(bytes)
-		CheckError(err)
+		CheckErrorWithCode(err, ErrorCommandSpecific)
 	}
 
-	CheckError(ioutil.WriteFile(filename, bytes, 0644))
+	CheckErrorWithCode(ioutil.WriteFile(filename, bytes, 0644), ErrorCommandSpecific)
 	FailOnErr(Run(repoDirectory(), "git", "diff"))
 	FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "patch"))
 }
@@ -427,7 +425,7 @@ func Delete(path string) {
 
 	log.WithFields(log.Fields{"path": path}).Info("deleting")
 
-	CheckError(os.Remove(filepath.Join(repoDirectory(), path)))
+	CheckErrorWithCode(os.Remove(filepath.Join(repoDirectory(), path)), ErrorCommandSpecific)
 
 	FailOnErr(Run(repoDirectory(), "git", "diff"))
 	FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "delete"))
@@ -437,7 +435,7 @@ func AddFile(path, contents string) {
 
 	log.WithFields(log.Fields{"path": path}).Info("adding")
 
-	CheckError(ioutil.WriteFile(filepath.Join(repoDirectory(), path), []byte(contents), 0644))
+	CheckErrorWithCode(ioutil.WriteFile(filepath.Join(repoDirectory(), path), []byte(contents), 0644), ErrorCommandSpecific)
 
 	FailOnErr(Run(repoDirectory(), "git", "diff"))
 	FailOnErr(Run(repoDirectory(), "git", "add", "."))
@@ -460,12 +458,12 @@ func AddSignedFile(path, contents string) {
 func Declarative(filename string, values interface{}) (string, error) {
 
 	bytes, err := ioutil.ReadFile(path.Join("testdata", filename))
-	CheckError(err)
+	CheckErrorWithCode(err, ErrorCommandSpecific)
 
 	tmpFile, err := ioutil.TempFile("", "")
-	CheckError(err)
+	CheckErrorWithCode(err, ErrorCommandSpecific)
 	_, err = tmpFile.WriteString(Tmpl(string(bytes), values))
-	CheckError(err)
+	CheckErrorWithCode(err, ErrorCommandSpecific)
 
 	return Run("", "kubectl", "-n", ArgoCDNamespace, "apply", "-f", tmpFile.Name())
 }

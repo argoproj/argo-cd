@@ -11,7 +11,6 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/ghodss/yaml"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
@@ -33,7 +32,7 @@ func NewApplicationResourceActionsCommand(clientOpts *argocdclient.ClientOptions
 		Short: "Manage Resource actions",
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
-			os.Exit(1)
+			os.Exit(errors.ErrorCommandSpecific)
 		},
 	}
 	command.AddCommand(NewApplicationResourceActionsListCommand(clientOpts))
@@ -55,14 +54,14 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 	command.Run = func(c *cobra.Command, args []string) {
 		if len(args) != 1 {
 			c.HelpFunc()(c, args)
-			os.Exit(1)
+			os.Exit(errors.ErrorCommandSpecific)
 		}
 		appName := args[0]
 		conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 		defer io.Close(conn)
 		ctx := context.Background()
 		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName})
-		errors.CheckError(err)
+		errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 		filteredObjects := filterResources(command, resources.Items, group, kind, namespace, resourceName, true)
 		var availableActions []DisplayedAction
 		for i := range filteredObjects {
@@ -75,7 +74,7 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 				Group:        gvk.Group,
 				Kind:         gvk.Kind,
 			})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			for _, action := range availActionsForResource.Actions {
 				displayAction := DisplayedAction{
 					Group:    gvk.Group,
@@ -91,11 +90,11 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 		switch output {
 		case "yaml":
 			yamlBytes, err := yaml.Marshal(availableActions)
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			fmt.Println(string(yamlBytes))
 		case "json":
 			jsonBytes, err := json.MarshalIndent(availableActions, "", "  ")
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			fmt.Println(string(jsonBytes))
 		case "":
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
@@ -132,13 +131,13 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 	command.Flags().StringVar(&namespace, "namespace", "", "Namespace")
 	command.Flags().StringVar(&kind, "kind", "", "Kind")
 	command.Flags().StringVar(&group, "group", "", "Group")
-	errors.CheckError(command.MarkFlagRequired("kind"))
+	errors.CheckErrorWithCode(command.MarkFlagRequired("kind"), errors.ErrorCommandSpecific)
 	command.Flags().BoolVar(&all, "all", false, "Indicates whether to run the action on multiple matching resources")
 
 	command.Run = func(c *cobra.Command, args []string) {
 		if len(args) != 2 {
 			c.HelpFunc()(c, args)
-			os.Exit(1)
+			os.Exit(errors.ErrorCommandSpecific)
 		}
 		appName := args[0]
 		actionName := args[1]
@@ -147,12 +146,12 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 		defer io.Close(conn)
 		ctx := context.Background()
 		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName})
-		errors.CheckError(err)
+		errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 		filteredObjects := filterResources(command, resources.Items, group, kind, namespace, resourceName, all)
 		var resGroup = filteredObjects[0].GroupVersionKind().Group
 		for i := range filteredObjects[1:] {
 			if filteredObjects[i].GroupVersionKind().Group != resGroup {
-				log.Fatal("Ambiguous resource group. Use flag --group to specify resource group explicitly.")
+				errors.Fatal(errors.ErrorCommandSpecific, "Ambiguous resource group. Use flag --group to specify resource group explicitly.")
 			}
 		}
 
@@ -168,7 +167,7 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 				Kind:         gvk.Kind,
 				Action:       actionName,
 			})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 		}
 	}
 	return command

@@ -56,7 +56,7 @@ func (c *Consequences) When() *Actions {
 
 func (c *Consequences) app() *Application {
 	app, err := c.get()
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 	return app
 }
 

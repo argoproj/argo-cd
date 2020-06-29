@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/errors"
@@ -63,7 +62,7 @@ func NewVersionCmd(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				}
 
 				err := PrintResource(v, output)
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			case "wide", "short", "":
 				printClientVersion(&cv, short || (output == "short"))
 
@@ -72,7 +71,7 @@ func NewVersionCmd(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 					printServerVersion(sv, short || (output == "short"))
 				}
 			default:
-				log.Fatalf("unknown output format: %s", output)
+				errors.Fatalf(errors.ErrorCommandSpecific, "unknown output format: %s", output)
 			}
 		},
 	}
@@ -87,7 +86,7 @@ func getServerVersion(options *argocdclient.ClientOptions) *version.VersionMessa
 	defer argoio.Close(conn)
 
 	v, err := versionIf.Version(context.Background(), &empty.Empty{})
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 
 	return v
 }

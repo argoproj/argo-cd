@@ -23,7 +23,7 @@ var messageRe = regexp.MustCompile(`<p>(.*)([\s\S]*?)<\/p>`)
 // also be /api/dex (e.g. issuer: https://argocd.example.com/api/dex)
 func NewDexHTTPReverseProxy(serverAddr string, baseHRef string) func(writer http.ResponseWriter, request *http.Request) {
 	target, err := url.Parse(serverAddr)
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 	target.Path = baseHRef
 	proxy := httputil.NewSingleHostReverseProxy(target)
 	proxy.ModifyResponse = func(resp *http.Response) error {

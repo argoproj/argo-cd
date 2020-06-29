@@ -56,34 +56,38 @@ func newCommand() *cobra.Command {
 			cli.SetLogLevel(logLevel)
 
 			tlsConfigCustomizer, err := tlsConfigCustomizerSrc()
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 
 			cache, err := cacheSrc()
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 
 			metricsServer := metrics.NewMetricsServer()
 			cacheutil.CollectMetrics(redisClient, metricsServer)
 			server, err := reposerver.NewServer(metricsServer, cache, tlsConfigCustomizer, parallelismLimit)
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 
 			grpc := server.CreateGRPC()
 			listener, err := net.Listen("tcp", fmt.Sprintf(":%d", listenPort))
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorConnectionFailure)
 
 			http.Handle("/metrics", metricsServer.GetHandler())
-			go func() { errors.CheckError(http.ListenAndServe(fmt.Sprintf(":%d", metricsPort), nil)) }()
+			go func() {
+				errors.CheckErrorWithCode(http.ListenAndServe(fmt.Sprintf(":%d", metricsPort), nil), errors.ErrorCommandSpecific)
+			}()
 
 			if gpg.IsGPGEnabled() {
 				log.Infof("Initializing GnuPG keyring at %s", common.GetGnuPGHomePath())
 				err = gpg.InitializeGnuPG()
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 
 				log.Infof("Populating GnuPG keyring with keys from %s", getGnuPGSourcePath())
 				added, removed, err := gpg.SyncKeyRingFromDirectory(getGnuPGSourcePath())
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 				log.Infof("Loaded %d (and removed %d) keys from keyring", len(added), len(removed))
 
-				go func() { errors.CheckError(reposerver.StartGPGWatcher(getGnuPGSourcePath())) }()
+				go func() {
+					errors.CheckErrorWithCode(reposerver.StartGPGWatcher(getGnuPGSourcePath()), errors.ErrorCommandSpecific)
+				}()
 			}
 
 			log.Infof("argocd-repo-server %s serving on %s", common.GetVersion(), listener.Addr())
@@ -91,7 +95,7 @@ func newCommand() *cobra.Command {
 			stats.StartStatsTicker(10 * time.Minute)
 			stats.RegisterHeapDumper("memprofile")
 			err = grpc.Serve(listener)
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorConnectionFailure)
 			return nil
 		},
 	}
@@ -111,6 +115,6 @@ func newCommand() *cobra.Command {
 func main() {
 	if err := newCommand().Execute(); err != nil {
 		fmt.Println(err)
-		os.Exit(1)
+		os.Exit(errors.ErrorCommandSpecific)
 	}
 }

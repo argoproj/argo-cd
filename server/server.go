@@ -189,9 +189,9 @@ func initializeDefaultProject(opts ArgoCDServerOpts) error {
 func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 	settingsMgr := settings_util.NewSettingsManager(ctx, opts.KubeClientset, opts.Namespace)
 	settings, err := settingsMgr.InitializeSettings(opts.Insecure)
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 	err = initializeDefaultProject(opts)
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 
 	sessionMgr := util_session.NewSessionManager(settingsMgr, opts.DexServerAddr, opts.Cache)
 
@@ -205,7 +205,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 	enf := rbac.NewEnforcer(opts.KubeClientset, opts.Namespace, common.ArgoCDRBACConfigMapName, nil)
 	enf.EnableEnforce(!opts.DisableAuth)
 	err = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 	enf.EnableLog(os.Getenv(common.EnvVarRBACDebug) == "1")
 
 	policyEnf := rbacpolicy.NewRBACPolicyEnforcer(enf, projLister)
@@ -268,7 +268,7 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
 		}
 		return true, nil
 	})
-	errors.CheckError(realErr)
+	errors.CheckErrorWithCode(realErr, errors.ErrorCommandSpecific)
 
 	// Cmux is used to support servicing gRPC and HTTP1.1+JSON on the same port
 	tcpm := cmux.New(conn)
@@ -316,12 +316,12 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
 	go func() { a.checkServeErr("tcpm", tcpm.Serve()) }()
 	go func() { a.checkServeErr("metrics", metricsServ.ListenAndServe()) }()
 	if !cache.WaitForCacheSync(ctx.Done(), a.projInformer.HasSynced, a.appInformer.HasSynced) {
-		log.Fatal("Timed out waiting for project cache to sync")
+		errors.Fatal(errors.ErrorCommandSpecific, "Timed out waiting for project cache to sync")
 	}
 
 	a.stopCh = make(chan struct{})
 	<-a.stopCh
-	errors.CheckError(conn.Close())
+	errors.CheckErrorWithCode(conn.Close(), errors.ErrorCommandSpecific)
 }
 
 // checkServeErr checks the error from a .Serve() call to decide if it was a graceful shutdown
@@ -331,7 +331,7 @@ func (a *ArgoCDServer) checkServeErr(name string, err error) {
 			// a nil stopCh indicates a graceful shutdown
 			log.Infof("graceful shutdown %s: %v", name, err)
 		} else {
-			log.Fatalf("%s: %v", name, err)
+			errors.Fatalf(errors.ErrorCommandSpecific, "%s: %v", name, err)
 		}
 	} else {
 		log.Infof("graceful shutdown %s", name)
@@ -357,7 +357,7 @@ func (a *ArgoCDServer) watchSettings() {
 	prevURL := a.settings.URL
 	prevOIDCConfig := a.settings.OIDCConfigRAW
 	prevDexCfgBytes, err := dex.GenerateDexConfigYAML(a.settings)
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 	prevGitHubSecret := a.settings.WebhookGitHubSecret
 	prevGitLabSecret := a.settings.WebhookGitLabSecret
 	prevBitbucketUUID := a.settings.WebhookBitbucketUUID
@@ -372,7 +372,7 @@ func (a *ArgoCDServer) watchSettings() {
 		newSettings := <-updateCh
 		a.settings = newSettings
 		newDexCfgBytes, err := dex.GenerateDexConfigYAML(a.settings)
-		errors.CheckError(err)
+		errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 		if string(newDexCfgBytes) != string(prevDexCfgBytes) {
 			log.Infof("dex config modified. restarting")
 			break
@@ -436,7 +436,7 @@ func (a *ArgoCDServer) rbacPolicyLoader(ctx context.Context) {
 		a.policyEnforcer.SetScopes(scopes)
 		return nil
 	})
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 }
 
 func (a *ArgoCDServer) useTLS() bool {
@@ -669,7 +669,7 @@ func (a *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
 		tlsConfig.InsecureSkipVerify = true
 	}
 	a.ssoClientApp, err = oidc.NewClientApp(a.settings, a.Cache, a.DexServerAddr, a.BaseHRef)
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 	mux.HandleFunc(common.LoginEndpoint, a.ssoClientApp.HandleLogin)
 	mux.HandleFunc(common.CallbackEndpoint, a.ssoClientApp.HandleCallback)
 }

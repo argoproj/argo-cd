@@ -31,7 +31,7 @@ func NewClusterCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientc
 		Short: "Manage cluster credentials",
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
-			os.Exit(1)
+			os.Exit(errors.ErrorCommandSpecific)
 		},
 		Example: `  # List all known clusters in JSON format:
   argocd cluster list -o json
@@ -74,14 +74,14 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			if len(args) == 0 {
 				log.Error("Choose a context name from:")
 				printKubeContexts(configAccess)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 			config, err := configAccess.GetStartingConfig()
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			contextName := args[0]
 			clstContext := config.Contexts[contextName]
 			if clstContext == nil {
-				log.Fatalf("Context %s does not exist in kubeconfig", contextName)
+				errors.Fatalf(errors.ErrorCommandSpecific, "Context %s does not exist in kubeconfig", contextName)
 			}
 
 			overrides := clientcmd.ConfigOverrides{
@@ -89,7 +89,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			}
 			clientConfig := clientcmd.NewDefaultClientConfig(*config, &overrides)
 			conf, err := clientConfig.ClientConfig()
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 
 			managerBearerToken := ""
 			var awsAuthConf *argoappv1.AWSAuthConfig
@@ -101,13 +101,13 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			} else {
 				// Install RBAC resources for managing the cluster
 				clientset, err := kubernetes.NewForConfig(conf)
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 				if serviceAccount != "" {
 					managerBearerToken, err = clusterauth.GetServiceAccountBearerToken(clientset, systemNamespace, serviceAccount)
 				} else {
 					managerBearerToken, err = clusterauth.InstallClusterManagerRBAC(clientset, systemNamespace, namespaces)
 				}
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			}
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
 			defer io.Close(conn)
@@ -120,7 +120,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 				Upsert:  upsert,
 			}
 			_, err = clusterIf.Create(context.Background(), &clstCreateReq)
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			fmt.Printf("Cluster '%s' added\n", clst.Server)
 		},
 	}
@@ -137,12 +137,12 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 
 func printKubeContexts(ca clientcmd.ConfigAccess) {
 	config, err := ca.GetStartingConfig()
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	defer func() { _ = w.Flush() }()
 	columnNames := []string{"CURRENT", "NAME", "CLUSTER", "SERVER"}
 	_, err = fmt.Fprintf(w, "%s\n", strings.Join(columnNames, "\t"))
-	errors.CheckError(err)
+	errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 
 	// sort names so output is deterministic
 	contextNames := make([]string, 0)
@@ -170,7 +170,7 @@ func printKubeContexts(ca clientcmd.ConfigAccess) {
 			prefix = "*"
 		}
 		_, err := fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", prefix, name, context.Cluster, cluster.Server)
-		errors.CheckError(err)
+		errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 	}
 }
 
@@ -184,17 +184,17 @@ func newCluster(name string, namespaces []string, conf *rest.Config, managerBear
 	}
 	if len(conf.TLSClientConfig.CAData) == 0 && conf.TLSClientConfig.CAFile != "" {
 		data, err := ioutil.ReadFile(conf.TLSClientConfig.CAFile)
-		errors.CheckError(err)
+		errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 		tlsClientConfig.CAData = data
 	}
 	if len(conf.TLSClientConfig.CertData) == 0 && conf.TLSClientConfig.CertFile != "" {
 		data, err := ioutil.ReadFile(conf.TLSClientConfig.CertFile)
-		errors.CheckError(err)
+		errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 		tlsClientConfig.CertData = data
 	}
 	if len(conf.TLSClientConfig.KeyData) == 0 && conf.TLSClientConfig.KeyFile != "" {
 		data, err := ioutil.ReadFile(conf.TLSClientConfig.KeyFile)
-		errors.CheckError(err)
+		errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 		tlsClientConfig.KeyData = data
 	}
 
@@ -230,26 +230,26 @@ func NewClusterGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
 			defer io.Close(conn)
 			clusters := make([]argoappv1.Cluster, 0)
 			for _, clusterName := range args {
 				clst, err := clusterIf.Get(context.Background(), &clusterpkg.ClusterQuery{Server: clusterName})
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 				clusters = append(clusters, *clst)
 			}
 			switch output {
 			case "yaml", "json":
 				err := PrintResourceList(clusters, output, true)
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			case "wide", "":
 				printClusterDetails(clusters)
 			case "server":
 				printClusterServers(clusters)
 			default:
-				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
+				errors.Fatalf(errors.ErrorCommandSpecific, "unknown output format: %s", output)
 			}
 		},
 	}
@@ -299,20 +299,20 @@ func NewClusterRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
 			defer io.Close(conn)
 
 			// clientset, err := kubernetes.NewForConfig(conf)
-			// errors.CheckError(err)
+			// errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 
 			for _, clusterName := range args {
 				// TODO(jessesuen): find the right context and remove manager RBAC artifacts
 				// err := clusterauth.UninstallClusterManagerRBAC(clientset)
-				// errors.CheckError(err)
+				// errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 				_, err := clusterIf.Delete(context.Background(), &clusterpkg.ClusterQuery{Server: clusterName})
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			}
 		},
 	}
@@ -352,17 +352,17 @@ func NewClusterListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
 			defer io.Close(conn)
 			clusters, err := clusterIf.List(context.Background(), &clusterpkg.ClusterQuery{})
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			switch output {
 			case "yaml", "json":
 				err := PrintResourceList(clusters.Items, output, false)
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			case "server":
 				printClusterServers(clusters.Items)
 			case "wide", "":
 				printClusterTable(clusters.Items)
 			default:
-				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
+				errors.Fatalf(errors.ErrorCommandSpecific, "unknown output format: %s", output)
 			}
 		},
 	}
@@ -379,7 +379,7 @@ func NewClusterRotateAuthCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
 			defer io.Close(conn)
@@ -387,7 +387,7 @@ func NewClusterRotateAuthCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				Server: args[0],
 			}
 			_, err := clusterIf.RotateAuth(context.Background(), &clusterQuery)
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			fmt.Printf("Cluster '%s' rotated auth\n", clusterQuery.Server)
 		},
 	}

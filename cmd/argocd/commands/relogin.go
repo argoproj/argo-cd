@@ -7,8 +7,7 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
-	"github.com/coreos/go-oidc"
-	log "github.com/sirupsen/logrus"
+	oidc "github.com/coreos/go-oidc"
 	"github.com/spf13/cobra"
 
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
@@ -30,15 +29,15 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 0 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(errors.ErrorCommandSpecific)
 			}
 			localCfg, err := localconfig.ReadLocalConfig(globalClientOpts.ConfigPath)
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			if localCfg == nil {
-				log.Fatalf("No context found. Login using `argocd login`")
+				errors.Fatal(errors.ErrorCommandSpecific, "No context found. Login using `argocd login`")
 			}
 			configCtx, err := localCfg.ResolveContext(localCfg.CurrentContext)
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 
 			var tokenString string
 			var refreshToken string
@@ -52,7 +51,7 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 			}
 			acdClient := argocdclient.NewClientOrDie(&clientOpts)
 			claims, err := configCtx.User.Claims()
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 			if claims.Issuer == session.SessionManagerClaimsIssuer {
 				fmt.Printf("Relogging in as '%s'\n", claims.Subject)
 				tokenString = passwordLogin(acdClient, claims.Subject, password)
@@ -62,12 +61,12 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 				defer argoio.Close(setConn)
 				ctx := context.Background()
 				httpClient, err := acdClient.HTTPClient()
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 				ctx = oidc.ClientContext(ctx, httpClient)
 				acdSet, err := setIf.Get(ctx, &settingspkg.SettingsQuery{})
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 				oauth2conf, provider, err := acdClient.OIDCConfig(ctx, acdSet)
-				errors.CheckError(err)
+				errors.CheckErrorWithCode(err, errors.ErrorAPIResponse)
 				tokenString, refreshToken = oauth2Login(ctx, ssoPort, acdSet.GetOIDCConfig(), oauth2conf, provider)
 			}
 
@@ -77,7 +76,7 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 				RefreshToken: refreshToken,
 			})
 			err = localconfig.WriteLocalConfig(*localCfg, globalClientOpts.ConfigPath)
-			errors.CheckError(err)
+			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
 			fmt.Printf("Context '%s' updated\n", localCfg.CurrentContext)
 		},
 	}
