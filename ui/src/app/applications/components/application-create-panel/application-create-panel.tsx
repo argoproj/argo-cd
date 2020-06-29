@@ -157,8 +157,7 @@ export const ApplicationCreatePanel = (props: {
                                         'spec.source.targetRevision': !a.spec.source.targetRevision && a.spec.source.hasOwnProperty('chart') && 'Version is required',
                                         'spec.source.path': !a.spec.source.path && !a.spec.source.chart && 'Path is required',
                                         'spec.source.chart': !a.spec.source.path && !a.spec.source.chart && 'Chart is required',
-                                        'spec.destination.server': !a.spec.destination.server && 'Cluster is required',
-                                        'spec.destination.namespace': !a.spec.destination.namespace && 'Namespace is required'
+                                        'spec.destination.server': !a.spec.destination.server && 'Cluster is required'
                                     })}
                                     defaultValues={app}
                                     formDidUpdate={state => props.onAppChanged(state.values as any)}

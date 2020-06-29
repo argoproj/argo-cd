@@ -328,8 +328,7 @@ Default is 10.
                 save={props.updateApp}
                 validate={input => ({
                     'spec.project': !input.spec.project && 'Project name is required',
-                    'spec.destination.server': !input.spec.destination.server && 'Cluster is required',
-                    'spec.destination.namespace': !input.spec.destination.namespace && 'Namespace is required'
+                    'spec.destination.server': !input.spec.destination.server && 'Cluster is required'
                 })}
                 values={app}
                 title={app.metadata.name.toLocaleUpperCase()}
