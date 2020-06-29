@@ -9,9 +9,8 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-cd/util/assets"
-
-	. "github.com/argoproj/argo-cd/util/jwt"
 	jwtutil "github.com/argoproj/argo-cd/util/jwt"
+
 	"github.com/casbin/casbin"
 	"github.com/casbin/casbin/model"
 	jwt "github.com/dgrijalva/jwt-go"
@@ -101,12 +100,12 @@ func (e *Enforcer) EnforceErr(rvals ...interface{}) error {
 			}
 			switch s := rvals[0].(type) {
 			case jwt.Claims:
-				claims, err := MapClaims(s)
+				claims, err := jwtutil.MapClaims(s)
 				if err != nil {
 					break
 				}
 				sub := jwtutil.GetField(claims, "sub")
-				if sub != ""{
+				if sub != "" {
 					rvalsStrs = append(rvalsStrs, fmt.Sprintf("sub: %s", sub))
 				}
 				iatField, ok := claims["iat"]

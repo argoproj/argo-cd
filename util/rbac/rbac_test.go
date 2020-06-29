@@ -2,6 +2,7 @@ package rbac
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -408,12 +409,13 @@ func TestEnforceErrorMessage(t *testing.T) {
 	assert.Equal(t, "rpc error: code = PermissionDenied desc = permission denied: project, sub: proj:default:admin", err.Error())
 
 	iat := time.Unix(int64(1593035962), 0).Format(time.RFC3339)
+	exp := fmt.Sprintf("rpc error: code = PermissionDenied desc = permission denied: project, sub: proj:default:admin, iat:  %s", iat)
 	ctx = context.WithValue(context.Background(), "claims", &jwt.StandardClaims{Subject: "proj:default:admin", IssuedAt: 1593035962})
 	err = enf.EnforceErr(ctx.Value("claims"), "project")
 	assert.Error(t, err)
-	assert.Equal(t, "rpc error: code = PermissionDenied desc = permission denied: project, sub: proj:default:admin, iat: " + iat, err.Error())
+	assert.Equal(t, exp, err.Error())
 
-	ctx = context.WithValue(context.Background(), "claims", &jwt.StandardClaims{ExpiresAt:1})
+	ctx = context.WithValue(context.Background(), "claims", &jwt.StandardClaims{ExpiresAt: 1})
 	err = enf.EnforceErr(ctx.Value("claims"), "project")
 	assert.Error(t, err)
 	assert.Equal(t, "rpc error: code = PermissionDenied desc = permission denied: project", err.Error())
