@@ -10,6 +10,8 @@ import (
 
 	"github.com/argoproj/argo-cd/util/assets"
 
+	. "github.com/argoproj/argo-cd/util/jwt"
+	jwtutil "github.com/argoproj/argo-cd/util/jwt"
 	"github.com/casbin/casbin"
 	"github.com/casbin/casbin/model"
 	jwt "github.com/dgrijalva/jwt-go"
@@ -23,8 +25,6 @@ import (
 	v1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
-	jwtgo "github.com/argoproj/argo-cd/util/jwt"
-	jwtutil "github.com/argoproj/argo-cd/util/jwt"
 )
 
 const (
@@ -101,7 +101,7 @@ func (e *Enforcer) EnforceErr(rvals ...interface{}) error {
 			}
 			switch s := rvals[0].(type) {
 			case jwt.Claims:
-				claims, err :=jwtgo.MapClaims(s)
+				claims, err := MapClaims(s)
 				if err != nil {
 					break
 				}
