@@ -30,7 +30,7 @@ import (
 )
 
 const (
-	errDestinationMissing = "Destination server and/or namespace missing from app spec"
+	errDestinationMissing = "Destination server missing from app spec"
 )
 
 // FormatAppConditions returns string representation of give app condition list
@@ -314,7 +314,7 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 		})
 	}
 
-	if spec.Destination.Server != "" && spec.Destination.Namespace != "" {
+	if spec.Destination.Server != "" {
 		if !proj.IsDestinationPermitted(spec.Destination) {
 			conditions = append(conditions, argoappv1.ApplicationCondition{
 				Type:    argoappv1.ApplicationConditionInvalidSpecError,
@@ -333,7 +333,7 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 				return nil, err
 			}
 		}
-	} else {
+	} else if spec.Destination.Server == "" {
 		conditions = append(conditions, argoappv1.ApplicationCondition{Type: argoappv1.ApplicationConditionInvalidSpecError, Message: errDestinationMissing})
 	}
 	return conditions, nil
@@ -369,7 +369,7 @@ func verifyGenerateManifests(
 ) []argoappv1.ApplicationCondition {
 	spec := &app.Spec
 	var conditions []argoappv1.ApplicationCondition
-	if spec.Destination.Server == "" || spec.Destination.Namespace == "" {
+	if spec.Destination.Server == "" {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
 			Message: errDestinationMissing,

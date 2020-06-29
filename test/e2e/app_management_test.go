@@ -41,8 +41,10 @@ import (
 )
 
 const (
-	guestbookPath      = "guestbook"
-	guestbookPathLocal = "./testdata/guestbook_local"
+	guestbookPath          = "guestbook"
+	guestbookPathLocal     = "./testdata/guestbook_local"
+	globalWithNoNameSpace  = "global-with-no-namesapce"
+	guestbookWithNamespace = "guestbook-with-namespace"
 )
 
 func TestSyncToUnsignedCommit(t *testing.T) {
@@ -1123,5 +1125,77 @@ func TestSyncWithInfos(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			assert.ElementsMatch(t, app.Status.OperationState.Operation.Info, expectedInfo)
+		})
+}
+
+//Given: argocd app create does not provide --dest-namespace
+//       Manifest contains resource console which does not require namespace
+//Expect: no app.Status.Conditions
+func TestCreateAppWithNoNameSpaceForGlobalResourse(t *testing.T) {
+	Given(t).
+		Path(globalWithNoNameSpace).
+		When().
+		CreateWithNoNameSpace().
+		Then().
+		And(func(app *Application) {
+			time.Sleep(500 * time.Millisecond)
+			app, err := AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Get(app.Name, metav1.GetOptions{})
+			assert.NoError(t, err)
+			assert.Len(t, app.Status.Conditions, 0)
+		})
+}
+
+//Given: argocd app create does not provide --dest-namespace
+//       Manifest contains resource deployment, and service which requires namespace
+//       Deployment and service do not have namespace in manifest
+//Expect: app.Status.Conditions for deployment ans service which does not have namespace in manifest
+func TestCreateAppWithNoNameSpaceWhenRequired(t *testing.T) {
+	Given(t).
+		Path(guestbookPath).
+		When().
+		CreateWithNoNameSpace().
+		Then().
+		And(func(app *Application) {
+			var updatedApp *Application
+			for i := 0; i < 3; i++ {
+				obj, err := AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Get(app.Name, metav1.GetOptions{})
+				assert.NoError(t, err)
+				updatedApp = obj
+				if len(updatedApp.Status.Conditions) > 0 {
+					break
+				}
+				time.Sleep(500 * time.Millisecond)
+			}
+			assert.Len(t, updatedApp.Status.Conditions, 2)
+			assert.Equal(t, updatedApp.Status.Conditions[0].Type, ApplicationConditionInvalidSpecError)
+			assert.Equal(t, updatedApp.Status.Conditions[1].Type, ApplicationConditionInvalidSpecError)
+		})
+}
+
+//Given: argocd app create does not provide --dest-namespace
+//       Manifest contains resource deployment, and service which requires namespace
+//       Some deployment and service has namespace in manifest
+//       Some deployment and service does not have namespace in manifest
+//Expect: app.Status.Conditions for deployment ans service which does not have namespace in manifest
+func TestCreateAppWithNoNameSpaceWhenRequired2(t *testing.T) {
+	Given(t).
+		Path(guestbookWithNamespace).
+		When().
+		CreateWithNoNameSpace().
+		Then().
+		And(func(app *Application) {
+			var updatedApp *Application
+			for i := 0; i < 3; i++ {
+				obj, err := AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Get(app.Name, metav1.GetOptions{})
+				assert.NoError(t, err)
+				updatedApp = obj
+				if len(updatedApp.Status.Conditions) > 0 {
+					break
+				}
+				time.Sleep(500 * time.Millisecond)
+			}
+			assert.Len(t, updatedApp.Status.Conditions, 2)
+			assert.Equal(t, updatedApp.Status.Conditions[0].Type, ApplicationConditionInvalidSpecError)
+			assert.Equal(t, updatedApp.Status.Conditions[1].Type, ApplicationConditionInvalidSpecError)
 		})
 }
