@@ -1176,7 +1176,7 @@ func TestCreateAppWithNoNameSpaceWhenRequired(t *testing.T) {
 //       Manifest contains resource deployment, and service which requires namespace
 //       Some deployment and service has namespace in manifest
 //       Some deployment and service does not have namespace in manifest
-//Expect: app.Status.Conditions for deployment ans service which does not have namespace in manifest
+//Expect: app.Status.Conditions for deployment and service which does not have namespace in manifest
 func TestCreateAppWithNoNameSpaceWhenRequired2(t *testing.T) {
 	Given(t).
 		Path(guestbookWithNamespace).
