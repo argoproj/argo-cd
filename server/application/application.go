@@ -32,6 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-cd/pkg/apiclient/application"
@@ -56,18 +57,19 @@ import (
 
 // Server provides a Application service
 type Server struct {
-	ns            string
-	kubeclientset kubernetes.Interface
-	appclientset  appclientset.Interface
-	appLister     applisters.ApplicationNamespaceLister
-	repoClientset apiclient.Clientset
-	kubectl       kube.Kubectl
-	db            db.ArgoDB
-	enf           *rbac.Enforcer
-	projectLock   *util.KeyLock
-	auditLogger   *argo.AuditLogger
-	settingsMgr   *settings.SettingsManager
-	cache         *servercache.Cache
+	ns             string
+	kubeclientset  kubernetes.Interface
+	appclientset   appclientset.Interface
+	appLister      applisters.ApplicationNamespaceLister
+	appBroadcaster *broadcasterHandler
+	repoClientset  apiclient.Clientset
+	kubectl        kube.Kubectl
+	db             db.ArgoDB
+	enf            *rbac.Enforcer
+	projectLock    *util.KeyLock
+	auditLogger    *argo.AuditLogger
+	settingsMgr    *settings.SettingsManager
+	cache          *servercache.Cache
 }
 
 // NewServer returns a new instance of the Application service
@@ -76,6 +78,7 @@ func NewServer(
 	kubeclientset kubernetes.Interface,
 	appclientset appclientset.Interface,
 	appLister applisters.ApplicationNamespaceLister,
+	appInformer cache.SharedIndexInformer,
 	repoClientset apiclient.Clientset,
 	cache *servercache.Cache,
 	kubectl kube.Kubectl,
@@ -84,20 +87,22 @@ func NewServer(
 	projectLock *util.KeyLock,
 	settingsMgr *settings.SettingsManager,
 ) application.ApplicationServiceServer {
-
+	appBroadcaster := &broadcasterHandler{}
+	appInformer.AddEventHandler(appBroadcaster)
 	return &Server{
-		ns:            namespace,
-		appclientset:  appclientset,
-		appLister:     appLister,
-		kubeclientset: kubeclientset,
-		cache:         cache,
-		db:            db,
-		repoClientset: repoClientset,
-		kubectl:       kubectl,
-		enf:           enf,
-		projectLock:   projectLock,
-		auditLogger:   argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
-		settingsMgr:   settingsMgr,
+		ns:             namespace,
+		appclientset:   appclientset,
+		appLister:      appLister,
+		appBroadcaster: appBroadcaster,
+		kubeclientset:  kubeclientset,
+		cache:          cache,
+		db:             db,
+		repoClientset:  repoClientset,
+		kubectl:        kubectl,
+		enf:            enf,
+		projectLock:    projectLock,
+		auditLogger:    argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
+		settingsMgr:    settingsMgr,
 	}
 }
 
@@ -282,7 +287,10 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 	// We must use a client Get instead of an informer Get, because it's common to call Get immediately
 	// following a Watch (which is not yet powered by an informer), and the Get must reflect what was
 	// previously seen by the client.
-	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
+	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(q.GetName(), metav1.GetOptions{
+		ResourceVersion: q.ResourceVersion,
+	})
+
 	if err != nil {
 		return nil, err
 	}
@@ -579,12 +587,31 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 		logCtx = logCtx.WithField("application", *q.Name)
 	}
 	claims := ws.Context().Value("claims")
+	selector, err := labels.Parse(q.Selector)
+	if err != nil {
+		return err
+	}
+	minVersion := 0
+	if q.ResourceVersion != "" {
+		if minVersion, err = strconv.Atoi(q.ResourceVersion); err != nil {
+			minVersion = 0
+		}
+	}
+
 	// sendIfPermitted is a helper to send the application to the client's streaming channel if the
 	// caller has RBAC privileges permissions to view it
-	sendIfPermitted := func(a appv1.Application, eventType watch.EventType) error {
+	sendIfPermitted := func(a appv1.Application, eventType watch.EventType) {
+		if appVersion, err := strconv.Atoi(a.ResourceVersion); err == nil && appVersion < minVersion {
+			return
+		}
+		matchedEvent := q.GetName() == "" || a.Name == q.GetName() && selector.Matches(labels.Set(a.Labels))
+		if !matchedEvent {
+			return
+		}
+
 		if !s.enf.Enforce(claims, rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(a)) {
 			// do not emit apps user does not have accessing
-			return nil
+			return
 		}
 		err := ws.Send(&appv1.ApplicationWatchEvent{
 			Type:        eventType,
@@ -592,58 +619,28 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 		})
 		if err != nil {
 			logCtx.Warnf("Unable to send stream message: %v", err)
-			return err
+			return
 		}
-		return nil
 	}
 
-	listOpts := metav1.ListOptions{LabelSelector: q.Selector}
-	if q.Name != nil && *q.Name != "" {
-		listOpts.FieldSelector = fmt.Sprintf("metadata.name=%s", *q.Name)
-	}
-	listOpts.ResourceVersion = q.ResourceVersion
-	if listOpts.ResourceVersion == "" {
-		// If resourceVersion is not supplied, we need to get latest version of the apps by first
-		// making a list request, which we then supply to the watch request. We always need to
-		// supply a resourceVersion to watch requests since without it, the return values may return
-		// stale data. See: https://github.com/argoproj/argo-cd/issues/1605
-		appsList, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).List(listOpts)
-		if err != nil {
-			return err
-		}
-		for _, a := range appsList.Items {
-			err = sendIfPermitted(a, watch.Modified)
-			if err != nil {
-				return err
-			}
-		}
-		listOpts.ResourceVersion = appsList.ResourceVersion
-	}
-
-	w, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Watch(listOpts)
+	events := make(chan *appv1.ApplicationWatchEvent)
+	apps, err := s.appLister.List(selector)
 	if err != nil {
 		return err
 	}
-	defer w.Stop()
-	done := make(chan bool)
-	go func() {
-		for next := range w.ResultChan() {
-			a, ok := next.Object.(*appv1.Application)
-			if ok {
-				_ = sendIfPermitted(*a, next.Type)
-			} else {
-				break
-			}
-		}
-		logCtx.Info("k8s application watch event channel closed")
-		close(done)
-	}()
-	select {
-	case <-ws.Context().Done():
-		logCtx.Info("client watch grpc context closed")
-	case <-done:
+	for i := range apps {
+		sendIfPermitted(*apps[i], watch.Added)
 	}
-	return nil
+	unsubscribe := s.appBroadcaster.Subscribe(events)
+	defer unsubscribe()
+	for {
+		select {
+		case event := <-events:
+			sendIfPermitted(event.Application, event.Type)
+		case <-ws.Context().Done():
+			return nil
+		}
+	}
 }
 
 func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Application) error {
@@ -879,7 +876,7 @@ func (s *Server) DeleteResource(ctx context.Context, q *application.ApplicationR
 }
 
 func (s *Server) ResourceTree(ctx context.Context, q *application.ResourcesQuery) (*appv1.ApplicationTree, error) {
-	a, err := s.appLister.Get(*q.ApplicationName)
+	a, err := s.appLister.Get(q.GetApplicationName())
 	if err != nil {
 		return nil, err
 	}
