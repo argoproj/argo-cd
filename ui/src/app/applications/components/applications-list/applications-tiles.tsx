@@ -34,10 +34,10 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                         <ApplicationURLs urls={app.status.summary.externalURLs} />
                                     </div>
                                     <div className='row'>
-                                        <div className='columns small-3'>
+                                        <div className='columns small-12'>
                                             <i className={'icon argo-icon-' + (app.spec.source.chart != null ? 'helm' : 'git')} />
+                                            <span className='applications-list__title'>{app.metadata.name}</span>
                                         </div>
-                                        <div className='columns applications-list__title'>{app.metadata.name}</div>
                                     </div>
                                     <div className='row'>
                                         <div className='columns small-3'>Project:</div>
