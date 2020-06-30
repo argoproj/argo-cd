@@ -188,11 +188,17 @@ func TestCompareAppStateDuplicatedNamespacedResources(t *testing.T) {
 	obj2 := NewPod()
 	obj3 := NewPod()
 	obj3.SetNamespace("kube-system")
+	obj4 := NewPod()
+	obj4.SetGenerateName("my-pod")
+	obj4.SetName("")
+	obj5 := NewPod()
+	obj5.SetName("")
+	obj5.SetGenerateName("my-pod")
 
 	app := newFakeApp()
 	data := fakeData{
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{toJSON(t, obj1), toJSON(t, obj2), toJSON(t, obj3)},
+			Manifests: []string{toJSON(t, obj1), toJSON(t, obj2), toJSON(t, obj3), toJSON(t, obj4), toJSON(t, obj5)},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -210,7 +216,7 @@ func TestCompareAppStateDuplicatedNamespacedResources(t *testing.T) {
 	assert.NotNil(t, app.Status.Conditions[0].LastTransitionTime)
 	assert.Equal(t, argoappv1.ApplicationConditionRepeatedResourceWarning, app.Status.Conditions[0].Type)
 	assert.Equal(t, "Resource /Pod/fake-dest-ns/my-pod appeared 2 times among application resources.", app.Status.Conditions[0].Message)
-	assert.Equal(t, 2, len(compRes.resources))
+	assert.Equal(t, 4, len(compRes.resources))
 }
 
 var defaultProj = argoappv1.AppProject{
