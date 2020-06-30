@@ -6,7 +6,7 @@ func removeFields(config, live interface{}) interface{} {
 	case map[string]interface{}:
 		return RemoveMapFields(c, live.(map[string]interface{}))
 	case []interface{}:
-		return removeListFields(c, live.([]interface{}))
+		return RemoveListFields(c, live.([]interface{}))
 	default:
 		return live
 	}
@@ -28,7 +28,7 @@ func RemoveMapFields(config, live map[string]interface{}) map[string]interface{}
 	return result
 }
 
-func removeListFields(config, live []interface{}) []interface{} {
+func RemoveListFields(config, live []interface{}) []interface{} {
 	// If live is longer than config, then the extra elements at the end of the
 	// list will be returned as-is so they appear in the diff.
 	result := make([]interface{}, 0, len(live))

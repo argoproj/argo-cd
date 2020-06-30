@@ -365,6 +365,20 @@ func TestThreeWayDiffExample2(t *testing.T) {
 	log.Println(ascii)
 }
 
+// Tests a real world example
+func TestThreeWayDiffExample3(t *testing.T) {
+	configUn := unmarshalFile("testdata/elasticsearch-config.json")
+	liveUn := unmarshalFile("testdata/elasticsearch-live.json")
+
+	dr := diff(t, configUn, liveUn, GetDefaultDiffOptions())
+	assert.False(t, dr.Modified)
+	ascii, err := printDiff(dr, liveUn)
+	assert.Nil(t, err)
+	if ascii != "" {
+		log.Println(ascii)
+	}
+}
+
 // TestThreeWayDiffExample2WithDifference is same as TestThreeWayDiffExample2 but with differences
 func TestThreeWayDiffExample2WithDifference(t *testing.T) {
 	configUn := unmarshalFile("testdata/elasticsearch-config.json")

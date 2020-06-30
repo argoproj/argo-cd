@@ -118,18 +118,30 @@ func TwoWayDiff(config, live *unstructured.Unstructured) (*DiffResult, error) {
 	}
 }
 
+// Workaround for https://github.com/kubernetes/kubernetes/issues/74819.
+// The volumeClaimTemplates field does not support merge strategy. Unfortunately we cannot even inject proper
+// strategic merge patch metadata because merge key is `matadata.name` but `strategicpatch` package does not
+// nested merge keys. So the only option is poor man merge patch using `volumeClaimTemplates` index as a merge key.
+func statefulSetWorkaround(orig, live *unstructured.Unstructured) {
+	origTemplate, ok, err := unstructured.NestedSlice(orig.Object, "spec", "volumeClaimTemplates")
+	if !ok || err != nil {
+		return
+	}
+
+	liveTemplate, ok, err := unstructured.NestedSlice(live.Object, "spec", "volumeClaimTemplates")
+	if !ok || err != nil {
+		return
+	}
+
+	_ = unstructured.SetNestedField(live.Object, jsonutil.RemoveListFields(origTemplate, liveTemplate), "spec", "volumeClaimTemplates")
+}
+
 // ThreeWayDiff performs a diff with the understanding of how to incorporate the
 // last-applied-configuration annotation in the diff.
 // Inputs are assumed to be stripped of type information
 func ThreeWayDiff(orig, config, live *unstructured.Unstructured) (*DiffResult, error) {
 	orig = removeNamespaceAnnotation(orig)
 	config = removeNamespaceAnnotation(config)
-
-	// Remove defaulted fields from the live object.
-	// This subtracts any extra fields in the live object which are not present in last-applied-configuration.
-	// This is needed to perform a fair comparison when we send the objects to gojsondiff
-	// TODO: Remove line below to fix https://github.com/argoproj/argo-cd/issues/2865 and add special case for StatefulSet
-	live = &unstructured.Unstructured{Object: jsonutil.RemoveMapFields(orig.Object, live.Object)}
 
 	// 1. calculate a 3-way merge patch
 	patchBytes, versionedObject, err := threeWayMergePatch(orig, config, live)
@@ -223,11 +235,18 @@ func threeWayMergePatch(orig, config, live *unstructured.Unstructured) ([]byte, 
 	if err != nil {
 		return nil, nil, err
 	}
-	liveBytes, err := json.Marshal(live.Object)
-	if err != nil {
-		return nil, nil, err
-	}
+
 	if versionedObject, err := scheme.Scheme.New(orig.GroupVersionKind()); err == nil {
+		gk := orig.GroupVersionKind().GroupKind()
+		if (gk.Group == "apps" || gk.Group == "extensions") && gk.Kind == "StatefulSet" {
+			statefulSetWorkaround(orig, live)
+		}
+
+		liveBytes, err := json.Marshal(live.Object)
+		if err != nil {
+			return nil, nil, err
+		}
+
 		lookupPatchMeta, err := strategicpatch.NewPatchMetaFromStruct(versionedObject)
 		if err != nil {
 			return nil, nil, err
@@ -238,6 +257,15 @@ func threeWayMergePatch(orig, config, live *unstructured.Unstructured) ([]byte, 
 		}
 		return patch, versionedObject, nil
 	} else {
+		// Remove defaulted fields from the live object.
+		// This subtracts any extra fields in the live object which are not present in last-applied-configuration.
+		live = &unstructured.Unstructured{Object: jsonutil.RemoveMapFields(orig.Object, live.Object)}
+
+		liveBytes, err := json.Marshal(live.Object)
+		if err != nil {
+			return nil, nil, err
+		}
+
 		patch, err := jsonmergepatch.CreateThreeWayJSONMergePatch(origBytes, configBytes, liveBytes)
 		if err != nil {
 			return nil, nil, err
