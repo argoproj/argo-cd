@@ -112,7 +112,7 @@ func (e *Enforcer) EnforceErr(rvals ...interface{}) error {
 				if !ok {
 					break
 				}
-				iat := iatField.(float64)
+				iat, ok := iatField.(float64)
 				if !ok {
 					break
 				}
