@@ -78,7 +78,8 @@ func TestProjectServer(t *testing.T) {
 		projectWithRole.Spec.Roles = append(projectWithRole.Spec.Roles, role1)
 
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithRole), enforcer, util.NewKeyLock(), sessionMgr, nil)
-		projectServer.NormalizeProjs()
+		err := projectServer.NormalizeProjs()
+		assert.NoError(t, err)
 
 		appList, err := projectServer.appclientset.ArgoprojV1alpha1().AppProjects(projectWithRole.Namespace).List(v1.ListOptions{})
 		assert.NoError(t, err)
