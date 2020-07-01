@@ -17,6 +17,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Commonbond](https://commonbond.co/)
 1. [CyberAgent](https://www.cyberagent.co.jp/en/)
 1. [Cybozu](https://cybozu-global.com)
+1. [D2iQ](https://www.d2iq.com)
 1. [EDF Renewables](https://www.edf-re.com/)
 1. [Electronic Arts Inc. ](https://www.ea.com)
 1. [Elium](https://www.elium.com)

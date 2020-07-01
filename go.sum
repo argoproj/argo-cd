@@ -53,8 +53,8 @@ github.com/anmitsu/go-shlex v0.0.0-20161002113705-648efa622239/go.mod h1:2FmKhYU
 github.com/argoproj/gitops-engine v0.1.3-0.20200624184852-ce9616ad10da h1:dPzchrZaO8C4yhnosaX9ZltOCAwqAZUzfovIqbrrprI=
 github.com/argoproj/gitops-engine v0.1.3-0.20200624184852-ce9616ad10da/go.mod h1:Wz/VrkZzWx4Hdsyl/i1woG1wrsiiLqlDHfqgl4FPais=
 github.com/argoproj/pkg v0.0.0-20200102163130-2dd1f3f6b4de/go.mod h1:2EZ44RG/CcgtPTwrRR0apOc7oU6UIw8GjCUJWZ8X3bM=
-github.com/argoproj/pkg v0.0.0-20200319004004-f46beff7cd54 h1:hDn02iEkh5EUl4TJfOo6AI9uSgh0vt/qh66ODuQl/YE=
-github.com/argoproj/pkg v0.0.0-20200319004004-f46beff7cd54/go.mod h1:2EZ44RG/CcgtPTwrRR0apOc7oU6UIw8GjCUJWZ8X3bM=
+github.com/argoproj/pkg v0.0.0-20200624215116-23e74cb168fe h1:HjTM7H8Z+J1xt340LNpH9q4jc8pXeqzkC8QKIjQphp4=
+github.com/argoproj/pkg v0.0.0-20200624215116-23e74cb168fe/go.mod h1:2EZ44RG/CcgtPTwrRR0apOc7oU6UIw8GjCUJWZ8X3bM=
 github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e/go.mod h1:3U/XgcO3hCbHZ8TKRvWD2dDTCfh9M9ya+I9JpbB7O8o=
 github.com/armon/consul-api v0.0.0-20180202201655-eb2c6b5be1b6/go.mod h1:grANhF5doyWs3UAsr3K4I6qtAmlQcZDesFNEHPZAzj8=
 github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5 h1:0CwZNZbxp69SHPdPJAN/hZIm0C4OItdklCFmMRWYpio=

@@ -161,7 +161,7 @@ func TestValidatePermissionsEmptyDestination(t *testing.T) {
 		},
 	}, nil)
 	assert.NoError(t, err)
-	assert.ElementsMatch(t, conditions, []argoappv1.ApplicationCondition{{Type: argoappv1.ApplicationConditionInvalidSpecError, Message: "Destination server and/or namespace missing from app spec"}})
+	assert.ElementsMatch(t, conditions, []argoappv1.ApplicationCondition{{Type: argoappv1.ApplicationConditionInvalidSpecError, Message: "Destination server missing from app spec"}})
 }
 
 func TestValidateChartWithoutRevision(t *testing.T) {
