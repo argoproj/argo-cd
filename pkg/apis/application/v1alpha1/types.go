@@ -1387,6 +1387,8 @@ func (p *AppProject) GetJWTTokenFromSpec(roleName string, issuedAt int64, id str
 
 // GetJWTToken looks up the index of a JWTToken in a project by id (new token), if not then by the issue at time (old token)
 func (p *AppProject) GetJWTToken(roleName string, issuedAt int64, id string) (*JWTToken, int, error) {
+	p.NormalizeJWTTokens()
+
 	// This is for newer version, JWTTokens are stored under status
 	if id != "" {
 		for i, token := range p.Status.JWTTokensByRole[roleName].Items {
