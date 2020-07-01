@@ -20,6 +20,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.AppProjectStatus":                 schema_pkg_apis_application_v1alpha1_AppProjectStatus(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Application":                      schema_pkg_apis_application_v1alpha1_Application(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationCondition":             schema_pkg_apis_application_v1alpha1_ApplicationCondition(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationDependency":            schema_pkg_apis_application_v1alpha1_ApplicationDependency(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationDestination":           schema_pkg_apis_application_v1alpha1_ApplicationDestination(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationList":                  schema_pkg_apis_application_v1alpha1_ApplicationList(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSource":                schema_pkg_apis_application_v1alpha1_ApplicationSource(ref),
@@ -462,6 +463,27 @@ func schema_pkg_apis_application_v1alpha1_ApplicationCondition(ref common.Refere
 		},
 		Dependencies: []string{
 			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_ApplicationDependency(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ApplicationDependency describes an application dependency requirement",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"applicationName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ApplicationName is the name of the required or dependent application",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"applicationName"},
+			},
+		},
 	}
 }
 
@@ -951,12 +973,25 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSpec(ref common.ReferenceCa
 							Format:      "int64",
 						},
 					},
+					"requires": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DependsOn specifies a list of applications this application is dependent upon",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationDependency"),
+									},
+								},
+							},
+						},
+					},
 				},
 				Required: []string{"source", "destination", "project"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationDestination", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSource", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Info", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceIgnoreDifferences", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncPolicy"},
+			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationDependency", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationDestination", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSource", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Info", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceIgnoreDifferences", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncPolicy"},
 	}
 }
 
@@ -1039,6 +1074,20 @@ func schema_pkg_apis_application_v1alpha1_ApplicationStatus(ref common.Reference
 					"summary": {
 						SchemaProps: spec.SchemaProps{
 							Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSummary"),
+						},
+					},
+					"waitsFor": {
+						SchemaProps: spec.SchemaProps{
+							Description: "WaitsFor is a list of application names this application is waiting for before starting sync operation",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Type:   []string{"string"},
+										Format: "",
+									},
+								},
+							},
 						},
 					},
 				},

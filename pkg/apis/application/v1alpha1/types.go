@@ -72,6 +72,14 @@ type ApplicationSpec struct {
 	// Increasing will increase the space used to store the history, so we do not recommend increasing it.
 	// Default is 10.
 	RevisionHistoryLimit *int64 `json:"revisionHistoryLimit,omitempty" protobuf:"bytes,7,name=revisionHistoryLimit"`
+	// DependsOn specifies a list of applications this application is dependent upon
+	DependsOn []ApplicationDependency `json:"requires,omitempty" protobuf:"bytes,8,name=requires"`
+}
+
+// ApplicationDependency describes an application dependency requirement
+type ApplicationDependency struct {
+	// ApplicationName is the name of the required or dependent application
+	ApplicationName string `json:"applicationName" protobuf:"bytes,1,opt,name=applicationName"`
 }
 
 // ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.
@@ -424,6 +432,8 @@ type ApplicationStatus struct {
 	ObservedAt *metav1.Time          `json:"observedAt,omitempty" protobuf:"bytes,8,opt,name=observedAt"`
 	SourceType ApplicationSourceType `json:"sourceType,omitempty" protobuf:"bytes,9,opt,name=sourceType"`
 	Summary    ApplicationSummary    `json:"summary,omitempty" protobuf:"bytes,10,opt,name=summary"`
+	// WaitsFor is a list of application names this application is waiting for before starting sync operation
+	WaitsFor []string `json:"waitsFor,omitempty" protobuf:"bytes,11,opt,name=waitsFor"`
 }
 
 type JWTTokens struct {
@@ -1809,6 +1819,10 @@ func (s *AppProjectSpec) DeleteWindow(id int) error {
 		return fmt.Errorf("window with id '%s' not found", strconv.Itoa(id))
 	}
 	return nil
+}
+
+func (app *Application) IsAutoSync() bool {
+	return !app.Spec.SyncPolicy.IsZero()
 }
 
 func (w *SyncWindows) Matches(app *Application) *SyncWindows {

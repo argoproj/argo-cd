@@ -13,10 +13,12 @@ API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/appli
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ApplicationSourceJsonnet,ExtVars
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ApplicationSourceJsonnet,TLAs
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ApplicationSourceKsonnet,Parameters
+API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ApplicationSpec,DependsOn
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ApplicationSpec,IgnoreDifferences
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ApplicationSpec,Info
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ApplicationStatus,Conditions
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ApplicationStatus,Resources
+API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ApplicationStatus,WaitsFor
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ApplicationSummary,ExternalURLs
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ApplicationSummary,Images
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ApplicationTree,Nodes
@@ -54,6 +56,7 @@ API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/appli
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,TLSClientConfig,CertData
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,TLSClientConfig,KeyData
 API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ApplicationSourceJsonnet,TLAs
+API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ApplicationSpec,DependsOn
 API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ClusterCacheInfo,APIsCount
 API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ConnectionState,ModifiedAt
 API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,JWTToken,ExpiresAt

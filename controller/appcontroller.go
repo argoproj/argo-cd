@@ -735,6 +735,11 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		} else {
 			logCtx.Warnf("Fails to requeue application: %v", err)
 		}
+	} else {
+		// As long as we wait for dependencies, trigger a refresh to see if dependencies have synced and start our own sync
+		if len(app.Status.WaitsFor) > 0 {
+			ctrl.requestAppRefresh(app.Name, CompareWithLatest.Pointer(), nil)
+		}
 	}
 }
 
@@ -751,6 +756,7 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 		patch := map[string]interface{}{
 			"status": map[string]interface{}{
 				"operationState": state,
+				"waitsFor":       app.Status.WaitsFor,
 			},
 		}
 		if state.Phase.Completed() {
@@ -944,6 +950,23 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	return
 }
 
+// Returns true if controller should request an application refresh when the
+// application
+func (ctrl *ApplicationController) refreshForDependencies(source string, deps []string) bool {
+	allDepsReady := true
+	for _, appName := range deps {
+		obj, exists, err := ctrl.appInformer.GetIndexer().GetByKey(ctrl.namespace + "/" + appName)
+		if exists && err == nil {
+			if app, ok := obj.(*appv1.Application); ok {
+				if app.Status.Health.Status != health.HealthStatusHealthy || app.Status.Sync.Status != appv1.SyncStatusCodeSynced {
+					allDepsReady = false
+				}
+			}
+		}
+	}
+	return allDepsReady
+}
+
 // needRefreshAppStatus answers if application status needs to be refreshed.
 // Returns true if application never been compared, has changed or comparison result has expired.
 // Additionally returns whether full refresh was requested or not.
@@ -972,6 +995,9 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 		reason = "spec.source differs"
 	} else if !app.Spec.Destination.Equals(app.Status.Sync.ComparedTo.Destination) {
 		reason = "spec.destination differs"
+	} else if len(app.Status.WaitsFor) > 0 && ctrl.refreshForDependencies(app.Name, app.Status.WaitsFor) {
+		compareWith = CompareWithRecent
+		reason = "refresh while waiting for dependency to complete"
 	} else if requested, level := ctrl.isRefreshRequested(app.Name); requested {
 		compareWith = level
 		reason = "controller refresh requested"
@@ -1088,7 +1114,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		return nil
 	}
 	logCtx := log.WithFields(log.Fields{"application": app.Name})
-	if app.Operation != nil {
+	if app.Operation != nil && len(app.Status.WaitsFor) == 0 {
 		logCtx.Infof("Skipping auto-sync: another operation is in progress")
 		return nil
 	}

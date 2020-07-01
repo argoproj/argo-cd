@@ -383,6 +383,21 @@ spec:
               description: Project is a application project name. Empty name means
                 that application belongs to 'default' project.
               type: string
+            requires:
+              description: DependsOn specifies a list of applications this application
+                is dependent upon
+              items:
+                description: ApplicationDependency describes an application dependency
+                  requirement
+                properties:
+                  applicationName:
+                    description: ApplicationName is the name of the required or dependent
+                      application
+                    type: string
+                required:
+                - applicationName
+                type: object
+              type: array
             revisionHistoryLimit:
               description: This limits this number of items kept in the apps revision
                 history. This should only be changed in exceptional circumstances.
@@ -1720,6 +1735,12 @@ spec:
               required:
               - status
               type: object
+            waitsFor:
+              description: WaitsFor is a list of application names this application
+                is waiting for before starting sync operation
+              items:
+                type: string
+              type: array
           type: object
       required:
       - metadata

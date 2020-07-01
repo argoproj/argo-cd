@@ -187,7 +187,7 @@
           "ApplicationService"
         ],
         "summary": "List returns list of applications",
-        "operationId": "ListMixin9",
+        "operationId": "List",
         "parameters": [
           {
             "type": "string",
@@ -237,7 +237,7 @@
           "ApplicationService"
         ],
         "summary": "Create creates an application",
-        "operationId": "CreateMixin9",
+        "operationId": "Create",
         "parameters": [
           {
             "name": "body",
@@ -264,7 +264,7 @@
           "ApplicationService"
         ],
         "summary": "Update updates an application",
-        "operationId": "UpdateMixin9",
+        "operationId": "Update",
         "parameters": [
           {
             "type": "string",
@@ -395,7 +395,7 @@
           "ApplicationService"
         ],
         "summary": "Get returns an application by name",
-        "operationId": "GetMixin9",
+        "operationId": "GetMixin1",
         "parameters": [
           {
             "type": "string",
@@ -445,7 +445,7 @@
           "ApplicationService"
         ],
         "summary": "Delete deletes an application",
-        "operationId": "DeleteMixin9",
+        "operationId": "Delete",
         "parameters": [
           {
             "type": "string",
@@ -1084,7 +1084,7 @@
           "ClusterService"
         ],
         "summary": "List returns list of clusters",
-        "operationId": "List",
+        "operationId": "ListMixin5",
         "parameters": [
           {
             "type": "string",
@@ -1111,7 +1111,7 @@
           "ClusterService"
         ],
         "summary": "Create creates a cluster",
-        "operationId": "Create",
+        "operationId": "CreateMixin5",
         "parameters": [
           {
             "name": "body",
@@ -1138,7 +1138,7 @@
           "ClusterService"
         ],
         "summary": "Update updates a cluster",
-        "operationId": "Update",
+        "operationId": "UpdateMixin5",
         "parameters": [
           {
             "type": "string",
@@ -1171,7 +1171,7 @@
           "ClusterService"
         ],
         "summary": "Get returns a cluster by server address",
-        "operationId": "GetMixin2",
+        "operationId": "GetMixin5",
         "parameters": [
           {
             "type": "string",
@@ -1199,7 +1199,7 @@
           "ClusterService"
         ],
         "summary": "Delete deletes a cluster",
-        "operationId": "Delete",
+        "operationId": "DeleteMixin5",
         "parameters": [
           {
             "type": "string",
@@ -1274,7 +1274,7 @@
           "GPGKeyService"
         ],
         "summary": "List all available repository certificates",
-        "operationId": "ListMixin7",
+        "operationId": "ListMixin2",
         "parameters": [
           {
             "type": "string",
@@ -1297,7 +1297,7 @@
           "GPGKeyService"
         ],
         "summary": "Create one or more GPG public keys in the server's configuration",
-        "operationId": "CreateMixin7",
+        "operationId": "CreateMixin2",
         "parameters": [
           {
             "name": "body",
@@ -1322,7 +1322,7 @@
           "GPGKeyService"
         ],
         "summary": "Delete specified GPG public key from the server's configuration",
-        "operationId": "DeleteMixin7",
+        "operationId": "DeleteMixin2",
         "responses": {
           "200": {
             "description": "(empty)",
@@ -1339,7 +1339,7 @@
           "GPGKeyService"
         ],
         "summary": "Get information about specified GPG public key from the server",
-        "operationId": "GetMixin7",
+        "operationId": "GetMixin2",
         "parameters": [
           {
             "type": "string",
@@ -1819,7 +1819,7 @@
           "RepositoryService"
         ],
         "summary": "Get returns a repository or its credentials",
-        "operationId": "GetMixin3",
+        "operationId": "Get",
         "parameters": [
           {
             "type": "string",
@@ -2060,7 +2060,7 @@
           "SettingsService"
         ],
         "summary": "Get returns Argo CD settings",
-        "operationId": "Get",
+        "operationId": "GetMixin8",
         "responses": {
           "200": {
             "description": "(empty)",
@@ -3459,6 +3459,16 @@
         }
       }
     },
+    "v1alpha1ApplicationDependency": {
+      "type": "object",
+      "title": "ApplicationDependency describes an application dependency requirement",
+      "properties": {
+        "applicationName": {
+          "type": "string",
+          "title": "ApplicationName is the name of the required or dependent application"
+        }
+      }
+    },
     "v1alpha1ApplicationDestination": {
       "type": "object",
       "title": "ApplicationDestination contains deployment destination information",
@@ -3685,6 +3695,13 @@
           "description": "Project is a application project name. Empty name means that application belongs to 'default' project.",
           "type": "string"
         },
+        "requires": {
+          "type": "array",
+          "title": "DependsOn specifies a list of applications this application is dependent upon",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationDependency"
+          }
+        },
         "revisionHistoryLimit": {
           "description": "This limits this number of items kept in the apps revision history.\nThis should only be changed in exceptional circumstances.\nSetting to zero will store no history. This will reduce storage used.\nIncreasing will increase the space used to store the history, so we do not recommend increasing it.\nDefault is 10.",
           "type": "string",
@@ -3740,6 +3757,13 @@
         },
         "sync": {
           "$ref": "#/definitions/v1alpha1SyncStatus"
+        },
+        "waitsFor": {
+          "type": "array",
+          "title": "WaitsFor is a list of application names this application is waiting for before starting sync operation",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
