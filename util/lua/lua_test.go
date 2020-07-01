@@ -5,13 +5,13 @@ import (
 	"testing"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
-	"github.com/argoproj/gitops-engine/pkg/utils/json"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	lua "github.com/yuin/gopher-lua"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/grpc"
 )
 
 const objJSON = `
@@ -167,7 +167,7 @@ func TestGetResourceActionWithOverride(t *testing.T) {
 	vm := VM{
 		ResourceOverrides: map[string]appv1.ResourceOverride{
 			"argoproj.io/Rollout": {
-				Actions: string(json.MustMarshal(appv1.ResourceActions{
+				Actions: string(grpc.MustMarshal(appv1.ResourceActions{
 					Definitions: []appv1.ResourceActionDefinition{
 						test,
 					},
@@ -202,7 +202,7 @@ func TestGetResourceActionDiscoveryWithOverride(t *testing.T) {
 	vm := VM{
 		ResourceOverrides: map[string]appv1.ResourceOverride{
 			"argoproj.io/Rollout": {
-				Actions: string(json.MustMarshal(appv1.ResourceActions{
+				Actions: string(grpc.MustMarshal(appv1.ResourceActions{
 					ActionDiscoveryLua: validDiscoveryLua,
 				})),
 			},

@@ -18,7 +18,6 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/argoproj/gitops-engine/pkg/utils/io"
-	jsonutil "github.com/argoproj/gitops-engine/pkg/utils/json"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/go-redis/redis"
@@ -511,7 +510,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	}
 	sessionService := session.NewServer(a.sessionMgr, a, a.policyEnforcer, loginRateLimiter)
 	projectLock := util.NewKeyLock()
-	applicationService := application.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.appLister, a.RepoClientset, a.Cache, kubectl, db, a.enf, projectLock, a.settingsMgr)
+	applicationService := application.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.appLister, a.appInformer, a.RepoClientset, a.Cache, kubectl, db, a.enf, projectLock, a.settingsMgr)
 	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr, a.policyEnforcer)
 	settingsService := settings.NewServer(a.settingsMgr, a, a.DisableAuth)
 	accountService := account.NewServer(a.sessionMgr, a.settingsMgr, a.enf)
@@ -531,6 +530,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	// Register reflection service on gRPC server.
 	reflection.Register(grpcS)
 	grpc_prometheus.Register(grpcS)
+	projectService.NormalizeProjs()
 	return grpcS
 }
 
@@ -616,7 +616,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	// golang/protobuf. Which does not support types such as time.Time. gogo/protobuf does support
 	// time.Time, but does not support custom UnmarshalJSON() and MarshalJSON() methods. Therefore
 	// we use our own Marshaler
-	gwMuxOpts := runtime.WithMarshalerOption(runtime.MIMEWildcard, new(jsonutil.JSONMarshaler))
+	gwMuxOpts := runtime.WithMarshalerOption(runtime.MIMEWildcard, new(grpc_util.JSONMarshaler))
 	gwCookieOpts := runtime.WithForwardResponseOption(a.translateGrpcCookieHeader)
 	gwmux := runtime.NewServeMux(gwMuxOpts, gwCookieOpts)
 	mux.Handle("/api/", gwmux)

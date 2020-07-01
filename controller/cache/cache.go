@@ -482,11 +482,16 @@ func (c *liveStateCache) handleDeleteEvent(clusterServer string) {
 }
 
 func (c *liveStateCache) GetClustersInfo() []clustercache.ClusterInfo {
+	clusters := make(map[string]clustercache.ClusterCache)
 	c.lock.RLock()
-	defer c.lock.RUnlock()
+	for k := range c.clusters {
+		clusters[k] = c.clusters[k]
+	}
+	c.lock.RUnlock()
+
 	res := make([]clustercache.ClusterInfo, 0)
-	for server, info := range c.clusters {
-		info := info.GetClusterInfo()
+	for server, c := range clusters {
+		info := c.GetClusterInfo()
 		info.Server = server
 		res = append(res, info)
 	}

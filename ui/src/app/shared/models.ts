@@ -365,6 +365,13 @@ export interface ApplicationStatus {
     summary?: ApplicationSummary;
 }
 
+export interface JwtTokens {
+    items: JwtToken[];
+}
+export interface AppProjectStatus {
+    jwtTokensByRole: {[name: string]: JwtTokens};
+}
+
 export interface LogEntry {
     content: string;
     timeStamp: models.Time;
@@ -590,7 +597,6 @@ export interface ProjectRole {
     description: string;
     policies: string[];
     name: string;
-    jwtTokens: JwtToken[];
     groups: string[];
 }
 
@@ -639,6 +645,7 @@ export interface Project {
     kind?: string;
     metadata: models.ObjectMeta;
     spec: ProjectSpec;
+    status: AppProjectStatus;
 }
 
 export type ProjectList = ItemsList<Project>;

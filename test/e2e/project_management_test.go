@@ -307,6 +307,10 @@ func TestUseJWTToken(t *testing.T) {
 	_, err = fixture.RunCli("proj", "role", "create", projectName, roleName)
 	assert.NoError(t, err)
 
+	roleGetResult, err := fixture.RunCli("proj", "role", "get", projectName, roleName)
+	assert.NoError(t, err)
+	assert.True(t, strings.HasSuffix(roleGetResult, "ID  ISSUED-AT  EXPIRES-AT"))
+
 	_, err = fixture.RunCli("proj", "role", "create-token", projectName, roleName)
 	assert.NoError(t, err)
 
@@ -314,4 +318,21 @@ func TestUseJWTToken(t *testing.T) {
 		_, err = fixture.RunCli("proj", "role", "add-policy", projectName, roleName, "-a", action, "-o", "*", "-p", "allow")
 		assert.NoError(t, err)
 	}
+
+	newProj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Get(projectName, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Len(t, newProj.Status.JWTTokensByRole[roleName].Items, 1)
+	assert.ElementsMatch(t, newProj.Status.JWTTokensByRole[roleName].Items, newProj.Spec.Roles[0].JWTTokens)
+
+	roleGetResult, err = fixture.RunCli("proj", "role", "get", projectName, roleName)
+	assert.NoError(t, err)
+	assert.True(t, strings.Contains(roleGetResult, strconv.FormatInt((newProj.Status.JWTTokensByRole[roleName].Items[0].IssuedAt), 10)))
+
+	_, err = fixture.RunCli("proj", "role", "delete-token", projectName, roleName, strconv.FormatInt((newProj.Status.JWTTokensByRole[roleName].Items[0].IssuedAt), 10))
+	assert.NoError(t, err)
+	newProj, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Get(projectName, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Nil(t, newProj.Status.JWTTokensByRole[roleName].Items)
+	assert.Nil(t, newProj.Spec.Roles[0].JWTTokens)
+
 }

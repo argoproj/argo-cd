@@ -8,8 +8,8 @@ require (
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
 	github.com/alicebob/gopher-json v0.0.0-20180125190556-5a6b3ba71ee6 // indirect
 	github.com/alicebob/miniredis v2.5.0+incompatible
-	github.com/argoproj/gitops-engine v0.1.2
-	github.com/argoproj/pkg v0.0.0-20200319004004-f46beff7cd54
+	github.com/argoproj/gitops-engine v0.1.3-0.20200624184852-ce9616ad10da
+	github.com/argoproj/pkg v0.0.0-20200624215116-23e74cb168fe
 	github.com/bsm/redislock v0.4.3
 	github.com/casbin/casbin v1.9.1
 	github.com/chai2010/gettext-go v0.0.0-20170215093142-bf70f2a70fb1 // indirect
@@ -33,7 +33,7 @@ require (
 	github.com/golang/protobuf v1.3.1
 	github.com/gomodule/redigo v2.0.0+incompatible // indirect
 	github.com/google/btree v1.0.0 // indirect
-	github.com/google/go-cmp v0.3.1 // indirect
+	github.com/google/go-cmp v0.3.1
 	github.com/google/go-jsonnet v0.16.0
 	github.com/google/uuid v1.1.1
 	github.com/googleapis/gnostic v0.1.0 // indirect
