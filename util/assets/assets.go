@@ -1,6 +1,10 @@
 package assets
 
 import (
+	"fmt"
+	"io/ioutil"
+	"os"
+
 	"github.com/gobuffalo/packr"
 )
 
@@ -18,8 +22,20 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	ModelConf, err = box.MustString("model.conf")
-	if err != nil {
+	// Possible upgrade - use viper to specify file location rather than hardcoded here and helmchart.
+	if _, err := os.Stat("/etc/assets/model.conf"); err == nil {
+		model, err := ioutil.ReadFile("/etc/assets/model.conf")
+		if err != nil {
+			fmt.Println("File reading error", err)
+			return
+		}
+		ModelConf = string(model)
+	} else if os.IsNotExist(err) {
+		ModelConf, err = box.MustString("model.conf")
+		if err != nil {
+			panic(err)
+		}
+	} else {
 		panic(err)
 	}
 	SwaggerJSON, err = box.MustString("swagger.json")
