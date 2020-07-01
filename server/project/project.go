@@ -405,8 +405,7 @@ func (s *Server) GetSyncWindowsState(ctx context.Context, q *project.SyncWindows
 }
 
 func (s *Server) NormalizeProjs() {
-	ctx := context.Background()
-	projList, err := s.List(ctx, &project.ProjectQuery{})
+	projList, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).List(metav1.ListOptions{})
 	if err != nil {
 		return
 	}
