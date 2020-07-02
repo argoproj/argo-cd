@@ -8,3 +8,6 @@ resources:
 - argocd-server-sa.yaml
 - argocd-server-service.yaml
 - argocd-server-metrics.yaml
+patchesStrategicMerge:
+- overlays/version_label_patch.yaml
+

@@ -8,7 +8,7 @@ metadata:
   name: argocd-metrics
 spec:
   ports:
-  - name: metrics
+  - name: http-argocdacmetrics
     protocol: TCP
     port: 8082
     targetPort: 8082

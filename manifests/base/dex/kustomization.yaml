@@ -7,3 +7,5 @@ resources:
 - argocd-dex-server-rolebinding.yaml
 - argocd-dex-server-sa.yaml
 - argocd-dex-server-service.yaml
+patchesStrategicMerge:
+- overlays/version_label_patch.yaml

@@ -176,3 +176,31 @@ patchesJson6902:
     kind: StatefulSet
     name: argocd-redis-ha-server
   path: overlays/remove-namespace.yaml
+
+# update port names for istio
+- target:
+    version: v1
+    kind: Service
+    name: argocd-redis-ha-announce-0
+  path: overlays/modify-portname.yaml
+- target:
+    version: v1
+    kind: Service
+    name: argocd-redis-ha-announce-1
+  path: overlays/modify-portname.yaml
+- target:
+    version: v1
+    kind: Service
+    name: argocd-redis-ha-announce-2
+  path: overlays/modify-portname.yaml
+- target:
+    version: v1
+    kind: Service
+    name: argocd-redis-ha
+  path: overlays/modify-portname.yaml
+- target:
+    version: v1
+    kind: Service
+    name: argocd-redis-ha-haproxy
+  path: overlays/modify-portname-haproxy.yaml
+

@@ -2333,15 +2333,15 @@ metadata:
   name: argocd-dex-server
 spec:
   ports:
-  - name: http
+  - name: http-argocddex
     port: 5556
     protocol: TCP
     targetPort: 5556
-  - name: grpc
+  - name: grpc-argocddex
     port: 5557
     protocol: TCP
     targetPort: 5557
-  - name: metrics
+  - name: http-argocddexmetrics
     port: 5558
     protocol: TCP
     targetPort: 5558
@@ -2358,7 +2358,7 @@ metadata:
   name: argocd-metrics
 spec:
   ports:
-  - name: metrics
+  - name: http-argocdacmetrics
     port: 8082
     protocol: TCP
     targetPort: 8082
@@ -2391,11 +2391,11 @@ metadata:
   name: argocd-repo-server
 spec:
   ports:
-  - name: server
+  - name: https-argocdreposerver
     port: 8081
     protocol: TCP
     targetPort: 8081
-  - name: metrics
+  - name: http-argocdreposervermetrics
     port: 8084
     protocol: TCP
     targetPort: 8084
@@ -2407,15 +2407,19 @@ kind: Service
 metadata:
   labels:
     app.kubernetes.io/component: server
-    app.kubernetes.io/name: argocd-server-metrics
+    app.kubernetes.io/name: argocd-server
     app.kubernetes.io/part-of: argocd
-  name: argocd-server-metrics
+  name: argocd-server
 spec:
   ports:
-  - name: metrics
-    port: 8083
+  - name: tcp-argocdserver
+    port: 80
     protocol: TCP
-    targetPort: 8083
+    targetPort: 8080
+  - name: tcp-argocdservertls
+    port: 443
+    protocol: TCP
+    targetPort: 8080
   selector:
     app.kubernetes.io/name: argocd-server
 ---
@@ -2424,19 +2428,15 @@ kind: Service
 metadata:
   labels:
     app.kubernetes.io/component: server
-    app.kubernetes.io/name: argocd-server
+    app.kubernetes.io/name: argocd-server-metrics
     app.kubernetes.io/part-of: argocd
-  name: argocd-server
+  name: argocd-server-metrics
 spec:
   ports:
-  - name: http
-    port: 80
+  - name: http-argocdservermetrics
+    port: 8083
     protocol: TCP
-    targetPort: 8080
-  - name: https
-    port: 443
-    protocol: TCP
-    targetPort: 8080
+    targetPort: 8083
   selector:
     app.kubernetes.io/name: argocd-server
 ---
@@ -2447,6 +2447,7 @@ metadata:
     app.kubernetes.io/component: application-controller
     app.kubernetes.io/name: argocd-application-controller
     app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/version: v1.7.0
   name: argocd-application-controller
 spec:
   selector:
@@ -2458,6 +2459,7 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: argocd-application-controller
+        app.kubernetes.io/version: v1.7.0
     spec:
       containers:
       - command:
@@ -2492,6 +2494,7 @@ metadata:
     app.kubernetes.io/component: dex-server
     app.kubernetes.io/name: argocd-dex-server
     app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/version: v1.7.0
   name: argocd-dex-server
 spec:
   selector:
@@ -2501,6 +2504,7 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: argocd-dex-server
+        app.kubernetes.io/version: v1.7.0
     spec:
       containers:
       - command:
@@ -2540,6 +2544,7 @@ metadata:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis
     app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/version: v1.7.0
   name: argocd-redis
 spec:
   selector:
@@ -2549,6 +2554,7 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: argocd-redis
+        app.kubernetes.io/version: v1.7.0
     spec:
       containers:
       - args:
@@ -2569,6 +2575,7 @@ metadata:
     app.kubernetes.io/component: repo-server
     app.kubernetes.io/name: argocd-repo-server
     app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/version: v1.7.0
   name: argocd-repo-server
 spec:
   selector:
@@ -2578,6 +2585,7 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: argocd-repo-server
+        app.kubernetes.io/version: v1.7.0
     spec:
       automountServiceAccountToken: false
       containers:
@@ -2627,6 +2635,7 @@ metadata:
     app.kubernetes.io/component: server
     app.kubernetes.io/name: argocd-server
     app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/version: v1.7.0
   name: argocd-server
 spec:
   selector:
@@ -2636,6 +2645,7 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: argocd-server
+        app.kubernetes.io/version: v1.7.0
     spec:
       containers:
       - command:

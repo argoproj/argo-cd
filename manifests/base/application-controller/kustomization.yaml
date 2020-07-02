@@ -7,3 +7,6 @@ resources:
 - argocd-application-controller-rolebinding.yaml
 - argocd-application-controller-deployment.yaml
 - argocd-metrics.yaml
+patchesStrategicMerge:
+- overlays/version_label_patch.yaml
+
