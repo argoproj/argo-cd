@@ -53,7 +53,7 @@ func TestSyncWithStatusIgnored(t *testing.T) {
 		And(func() {
 			fixture.SetResourceOverrides(map[string]ResourceOverride{
 				"/": {
-					IgnoreDifferences: "jsonPointers:\n- /status",
+					IgnoreDifferences: OverrideIgnoreDiff{JSONPointers: []string{"/status"}},
 				},
 			})
 		}).
