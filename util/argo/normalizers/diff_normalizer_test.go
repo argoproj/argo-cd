@@ -55,7 +55,7 @@ func TestNormalizeNoMatchedGroupKinds(t *testing.T) {
 func TestNormalizeMatchedResourceOverrides(t *testing.T) {
 	normalizer, err := NewIgnoreNormalizer([]v1alpha1.ResourceIgnoreDifferences{}, map[string]v1alpha1.ResourceOverride{
 		"apps/Deployment": {
-			IgnoreDifferences: `jsonPointers: ["/spec/template/spec/containers"]`,
+			IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{JSONPointers: []string{"/spec/template/spec/containers"}},
 		},
 	})
 
@@ -95,10 +95,10 @@ spec:
 func TestNormalizeMissingJsonPointer(t *testing.T) {
 	normalizer, err := NewIgnoreNormalizer([]v1alpha1.ResourceIgnoreDifferences{}, map[string]v1alpha1.ResourceOverride{
 		"apps/Deployment": {
-			IgnoreDifferences: `jsonPointers: ["/garbage"]`,
+			IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{JSONPointers: []string{"/garbage"}},
 		},
 		"apiextensions.k8s.io/CustomResourceDefinition": {
-			IgnoreDifferences: `jsonPointers: ["/spec/additionalPrinterColumns/0/priority"]`,
+			IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{JSONPointers: []string{"/spec/additionalPrinterColumns/0/priority"}},
 		},
 	})
 	assert.NoError(t, err)

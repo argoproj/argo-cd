@@ -498,9 +498,12 @@ func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.Resource
 
 func addStatusOverrideToGK(resourceOverrides map[string]v1alpha1.ResourceOverride, groupKind string) {
 	if val, ok := resourceOverrides[groupKind]; ok {
-		resourceOverrides[groupKind] = v1alpha1.ResourceOverride{IgnoreDifferences: val.IgnoreDifferences + "\n- /status"}
+		val.IgnoreDifferences.JSONPointers = append(val.IgnoreDifferences.JSONPointers, "/status")
+		resourceOverrides[groupKind] = val
 	} else {
-		resourceOverrides[groupKind] = v1alpha1.ResourceOverride{IgnoreDifferences: "jsonPointers:\n- /status"}
+		resourceOverrides[groupKind] = v1alpha1.ResourceOverride{
+			IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{JSONPointers: []string{"/status"}},
+		}
 	}
 }
 

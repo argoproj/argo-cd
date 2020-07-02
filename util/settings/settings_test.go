@@ -141,7 +141,9 @@ func TestGetAppInstanceLabelKey(t *testing.T) {
 }
 
 func TestGetResourceOverrides(t *testing.T) {
-	ignoreStatus := v1alpha1.ResourceOverride{IgnoreDifferences: "jsonPointers:\n- /status"}
+	ignoreStatus := v1alpha1.ResourceOverride{IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
+		JSONPointers: []string{"/status"},
+	}}
 	crdGK := "apiextensions.k8s.io/CustomResourceDefinition"
 
 	_, settingsManager := fixtures(map[string]string{
@@ -158,7 +160,7 @@ func TestGetResourceOverrides(t *testing.T) {
 	assert.NotNil(t, webHookOverrides)
 
 	assert.Equal(t, v1alpha1.ResourceOverride{
-		IgnoreDifferences: "jsonPointers:\n- /webhooks/0/clientConfig/caBundle",
+		IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{JSONPointers: []string{"/webhooks/0/clientConfig/caBundle"}},
 	}, webHookOverrides)
 
 	// by default, crd status should be ignored
@@ -194,7 +196,7 @@ func TestGetResourceOverrides(t *testing.T) {
 
 	crdOverrides = overrides[crdGK]
 	assert.NotNil(t, crdOverrides)
-	assert.Equal(t, v1alpha1.ResourceOverride{IgnoreDifferences: "jsonPointers:\n- /webhooks/0/clientConfig/caBundle\n- /status"}, crdOverrides)
+	assert.Equal(t, v1alpha1.ResourceOverride{IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{JSONPointers: []string{"/webhooks/0/clientConfig/caBundle", "/status"}}}, crdOverrides)
 
 	// with incorrect value, status of crd objects should be ignored
 	_, settingsManager = fixtures(map[string]string{

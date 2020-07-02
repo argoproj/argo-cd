@@ -6,7 +6,6 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
-	yaml "gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -24,10 +23,6 @@ type ignoreNormalizer struct {
 	patches []normalizerPatch
 }
 
-type overrideIgnoreDiff struct {
-	JSONPointers []string `yaml:"jsonPointers"`
-}
-
 // NewIgnoreNormalizer creates diff normalizer which removes ignored fields according to given application spec and resource overrides
 func NewIgnoreNormalizer(ignore []v1alpha1.ResourceIgnoreDifferences, overrides map[string]v1alpha1.ResourceOverride) (diff.Normalizer, error) {
 	for key, override := range overrides {
@@ -35,17 +30,11 @@ func NewIgnoreNormalizer(ignore []v1alpha1.ResourceIgnoreDifferences, overrides 
 		if err != nil {
 			log.Warn(err)
 		}
-		if override.IgnoreDifferences != "" {
-			ignoreSettings := overrideIgnoreDiff{}
-			err := yaml.Unmarshal([]byte(override.IgnoreDifferences), &ignoreSettings)
-			if err != nil {
-				return nil, err
-			}
-
+		if len(override.IgnoreDifferences.JSONPointers) > 0 {
 			ignore = append(ignore, v1alpha1.ResourceIgnoreDifferences{
 				Group:        group,
 				Kind:         kind,
-				JSONPointers: ignoreSettings.JSONPointers,
+				JSONPointers: override.IgnoreDifferences.JSONPointers,
 			})
 		}
 	}
