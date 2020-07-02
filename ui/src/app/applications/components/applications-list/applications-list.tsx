@@ -25,7 +25,6 @@ const APP_FIELDS = [
     'metadata.name',
     'metadata.annotations',
     'metadata.labels',
-    'metadata.resourceVersion',
     'metadata.creationTimestamp',
     'metadata.deletionTimestamp',
     'spec',
@@ -47,9 +46,6 @@ function loadApplications(): Observable<models.Application[]> {
                 .watch(null, {fields: APP_WATCH_FIELDS})
                 .map(appChange => {
                     const index = applications.findIndex(item => item.metadata.name === appChange.application.metadata.name);
-                    if (index > -1 && appChange.application.metadata.resourceVersion === applications[index].metadata.resourceVersion) {
-                        return {applications, updated: false};
-                    }
                     switch (appChange.type) {
                         case 'DELETED':
                             if (index > -1) {
