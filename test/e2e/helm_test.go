@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -396,7 +397,7 @@ func TestHelm3CRD(t *testing.T) {
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(ResourceSyncStatusIs("CustomResourceDefinition", "crontabs.stable.example.com", SyncStatusCodeSynced))
+		Expect(ResourceSyncStatusIs("CustomResourceDefinition", "testcrontabs.test.example.com", SyncStatusCodeSynced))
 }
 
 func TestHelmRepoDiffLocal(t *testing.T) {
@@ -429,4 +430,31 @@ func TestHelmRepoDiffLocal(t *testing.T) {
 			diffOutput := FailOnErr(RunCli("app", "diff", app.Name, "--local", "testdata/helm")).(string)
 			assert.Empty(t, diffOutput)
 		})
+}
+
+func TestHelm3CRDCRHealthCheck(t *testing.T) {
+	Given(t).
+		Path("helm3-crd").
+		When().
+		And(func() {
+			SetResourceOverrides(map[string]ResourceOverride{
+				"test.example.com/TestCronTab": {
+					HealthLua: `print ("lua: TestCronTab")
+					hs = {}
+					hs.status = "Degraded"
+					hs.message = "Done checking health for TestCronTab"
+					return hs`,
+				},
+			})
+		}).
+		Create().
+		And(func() {
+			time.Sleep(500 * time.Millisecond)
+		}).
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(ResourceSyncStatusIs("CustomResourceDefinition", "testcrontabs.test.example.com", SyncStatusCodeSynced)).
+		Expect(ResourceSyncStatusIs("TestCronTab", "test-crontab", SyncStatusCodeSynced)).
+		Expect(ResourceHealthIs("TestCronTab", "test-crontab", health.HealthStatusDegraded))
 }

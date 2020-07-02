@@ -1,0 +1,7 @@
+apiVersion: test.example.com/v1
+kind: TestCronTab
+metadata:
+  name: test-crontab
+spec:
+  destination:
+    server: https://kubernetes.default.svc
