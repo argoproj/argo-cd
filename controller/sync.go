@@ -3,12 +3,15 @@ package controller
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync/atomic"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/sync"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	mapset "github.com/deckarep/golang-set"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -23,6 +26,80 @@ import (
 )
 
 var syncIdPrefix uint64 = 0
+
+type ApplicationGraph []v1alpha1.Application
+
+func (g ApplicationGraph) String() []string {
+	ret := make([]string, 0)
+	for _, app := range g {
+		ret = append(ret, app.Name)
+	}
+	return ret
+}
+
+// Resolves the dependency graph
+func (m *appStateManager) resolveDependencies(app *v1alpha1.Application) (ApplicationGraph, error) {
+	g, err := m.appclientset.ArgoprojV1alpha1().Applications(app.Namespace).List(v1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	graph := g.Items
+	// A map containing the node names and the actual node object
+	nodeNames := make(map[string]v1alpha1.Application)
+
+	// A map containing the nodes and their dependencies
+	nodeDependencies := make(map[string]mapset.Set)
+
+	// Populate the maps
+	for _, app := range graph {
+		nodeNames[app.Name] = app
+
+		dependencySet := mapset.NewSet()
+		for _, dep := range app.Spec.DependsOn {
+			dependencySet.Add(dep.ApplicationName)
+		}
+		nodeDependencies[app.Name] = dependencySet
+	}
+
+	// Iteratively find and remove nodes from the graph which have no dependencies.
+	// If at some point there are still nodes in the graph and we cannot find
+	// nodes without dependencies, that means we have a circular dependency
+	var resolved ApplicationGraph
+	for len(nodeDependencies) != 0 {
+		// Get all nodes from the graph which have no dependencies
+		readySet := mapset.NewSet()
+		for name, deps := range nodeDependencies {
+			if deps.Cardinality() == 0 {
+				readySet.Add(name)
+			}
+		}
+
+		// If there aren't any ready nodes, then we have a cicular dependency
+		if readySet.Cardinality() == 0 {
+			var g ApplicationGraph
+			for name := range nodeDependencies {
+				g = append(g, nodeNames[name])
+			}
+
+			return g, fmt.Errorf("Circular dependency found")
+		}
+
+		// Remove the ready nodes and add them to the resolved graph
+		for name := range readySet.Iter() {
+			delete(nodeDependencies, name.(string))
+			resolved = append(resolved, nodeNames[name.(string)])
+		}
+
+		// Also make sure to remove the ready nodes from the
+		// remaining node dependencies as well
+		for name, deps := range nodeDependencies {
+			diff := deps.Difference(readySet)
+			nodeDependencies[name] = diff
+		}
+	}
+
+	return resolved, nil
+}
 
 func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState) {
 	// Sync requests might be requested with ambiguous revisions (e.g. master, HEAD, v1.2.3).
@@ -104,6 +181,42 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	if err != nil {
 		state.Phase = common.OperationError
 		state.Message = fmt.Sprintf("Failed to load resource overrides: %v", err)
+		return
+	}
+
+	// Resolve all dependencies - refuse to sync any application if we found a circular dependency
+	if len(app.Spec.DependsOn) > 0 {
+		deps, err := m.resolveDependencies(app)
+		log.Debugf("Deps: %v", deps)
+		if err != nil {
+			state.Phase = common.OperationRunning
+			state.Message = fmt.Sprintf("Error: %s: %s", err.Error(), strings.Join(deps.String(), ", "))
+			app.Status.WaitsFor = deps.String()
+			return
+		}
+	}
+
+	waitsFor := make([]string, 0)
+	// Check whether our application has dependencies defined
+	for _, reqSpec := range app.Spec.DependsOn {
+		reqApp, err := m.appclientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(reqSpec.ApplicationName, v1.GetOptions{})
+		// Dependency needs to be defined
+		if err != nil {
+			waitsFor = append(waitsFor, reqApp.Name)
+			continue
+		}
+		// Dependency needs to be synced & healthy
+		if reqApp.Status.Health.Status != health.HealthStatusHealthy || reqApp.Status.Sync.Status != v1alpha1.SyncStatusCodeSynced {
+			waitsFor = append(waitsFor, reqApp.Name)
+		}
+	}
+
+	// If we wait for other applications to become synced & healthy, we set state
+	// to running and return.
+	app.Status.WaitsFor = waitsFor
+	if len(waitsFor) > 0 {
+		state.Phase = common.OperationRunning
+		state.Message = fmt.Sprintf("Waiting for dependencies: %s", strings.Join(waitsFor, ", "))
 		return
 	}
 

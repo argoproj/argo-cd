@@ -14,6 +14,7 @@ require (
 	github.com/casbin/casbin v1.9.1
 	github.com/chai2010/gettext-go v0.0.0-20170215093142-bf70f2a70fb1 // indirect
 	github.com/coreos/go-oidc v2.1.0+incompatible
+	github.com/deckarep/golang-set v1.7.1
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/docker/docker v1.6.0-rc5 // indirect
 	github.com/docker/spdystream v0.0.0-20181023171402-6480d4af844c // indirect
