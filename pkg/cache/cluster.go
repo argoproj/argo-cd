@@ -730,7 +730,7 @@ func (c *clusterCache) GetManagedLiveObjs(targetObjs []*unstructured.Unstructure
 			converted, err := c.kubectl.ConvertToVersion(managedObj, targetObj.GroupVersionKind().Group, targetObj.GroupVersionKind().Version)
 			if err != nil {
 				// fallback to loading resource from kubernetes if conversion fails
-				log.Warnf("Failed to convert resource: %v", err)
+				log.Debugf("Failed to convert resource: %v", err)
 				managedObj, err = c.kubectl.GetResource(c.config, targetObj.GroupVersionKind(), managedObj.GetName(), managedObj.GetNamespace())
 				if err != nil {
 					if errors.IsNotFound(err) {
