@@ -58,13 +58,13 @@ type appReconcileResult struct {
 }
 
 type reconcileResults struct {
-	Items []appReconcileResult `json:"applications"`
+	Applications []appReconcileResult `json:"applications"`
 }
 
 func (r *reconcileResults) getAppsMap() map[string]appReconcileResult {
 	res := map[string]appReconcileResult{}
-	for i := range r.Items {
-		res[r.Items[i].Name] = r.Items[i]
+	for i := range r.Applications {
+		res[r.Applications[i].Name] = r.Applications[i]
 	}
 	return res
 }
@@ -82,9 +82,14 @@ func NewDiffReconcileResults() *cobra.Command {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
+
 			path1 := args[0]
 			path2 := args[1]
-			errors.CheckError(diffReconcileResults(path1, path2))
+			var res1 reconcileResults
+			var res2 reconcileResults
+			errors.CheckError(config.UnmarshalLocalFile(path1, &res1))
+			errors.CheckError(config.UnmarshalLocalFile(path2, &res2))
+			errors.CheckError(diffReconcileResults(res1, res2))
 		},
 	}
 
@@ -104,17 +109,14 @@ func toUnstructured(val interface{}) (*unstructured.Unstructured, error) {
 	return &unstructured.Unstructured{Object: res}, nil
 }
 
-func diffReconcileResults(path1 string, path2 string) error {
-	var res1 reconcileResults
-	if err := config.UnmarshalLocalFile(path1, &res1); err != nil {
-		return err
-	}
+type diffPair struct {
+	name   string
+	first  *unstructured.Unstructured
+	second *unstructured.Unstructured
+}
 
-	var res2 reconcileResults
-	if err := config.UnmarshalLocalFile(path2, &res2); err != nil {
-		return err
-	}
-
+func diffReconcileResults(res1 reconcileResults, res2 reconcileResults) error {
+	var pairs []diffPair
 	resMap1 := res1.getAppsMap()
 	resMap2 := res2.getAppsMap()
 	for k, v := range resMap1 {
@@ -131,17 +133,20 @@ func diffReconcileResults(path1 string, path2 string) error {
 			}
 			delete(resMap2, k)
 		}
-		printLine(k)
-		_ = diff.PrintDiff(k, firstUn, secondUn)
+		pairs = append(pairs, diffPair{name: k, first: firstUn, second: secondUn})
 	}
 	for k, v := range resMap2 {
 		secondUn, err := toUnstructured(v)
 		if err != nil {
 			return err
 		}
-		printLine(k)
-		_ = diff.PrintDiff(k, nil, secondUn)
+		pairs = append(pairs, diffPair{name: k, first: nil, second: secondUn})
 	}
+	for _, item := range pairs {
+		printLine(item.name)
+		_ = diff.PrintDiff(item.name, item.first, item.second)
+	}
+
 	return nil
 }
 
@@ -192,7 +197,7 @@ func NewReconcileCommand() *cobra.Command {
 				result, err = getReconcileResults(appClientset, namespace, selector)
 			}
 
-			errors.CheckError(saveToFile(err, outputFormat, reconcileResults{Items: result}, outputPath))
+			errors.CheckError(saveToFile(err, outputFormat, reconcileResults{Applications: result}, outputPath))
 		},
 	}
 	clientConfig = cli.AddKubectlFlagsToCmd(command)

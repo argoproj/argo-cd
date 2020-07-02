@@ -117,3 +117,66 @@ func TestGetReconcileResults_Refresh(t *testing.T) {
 	assert.Equal(t, result[0].Health.Status, health.HealthStatusMissing)
 	assert.Equal(t, result[0].Sync.Status, v1alpha1.SyncStatusCodeOutOfSync)
 }
+
+func TestDiffReconcileResults_NoDifferences(t *testing.T) {
+	logs, err := captureStdout(func() {
+		assert.NoError(t, diffReconcileResults(
+			reconcileResults{Applications: []appReconcileResult{{
+				Name: "app1",
+				Sync: &v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeOutOfSync},
+			}}},
+			reconcileResults{Applications: []appReconcileResult{{
+				Name: "app1",
+				Sync: &v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeOutOfSync},
+			}}},
+		))
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, "app1\n", logs)
+}
+
+func TestDiffReconcileResults_DifferentApps(t *testing.T) {
+	logs, err := captureStdout(func() {
+		assert.NoError(t, diffReconcileResults(
+			reconcileResults{Applications: []appReconcileResult{{
+				Name: "app1",
+				Sync: &v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeOutOfSync},
+			}, {
+				Name: "app2",
+				Sync: &v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeOutOfSync},
+			}}},
+			reconcileResults{Applications: []appReconcileResult{{
+				Name: "app1",
+				Sync: &v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeOutOfSync},
+			}, {
+				Name: "app3",
+				Sync: &v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeOutOfSync},
+			}}},
+		))
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, `app1
+app2
+1,9d0
+< conditions: null
+< health: null
+< name: app2
+< sync:
+<   comparedTo:
+<     destination: {}
+<     source:
+<       repoURL: ""
+<   status: OutOfSync
+app3
+0a1,9
+> conditions: null
+> health: null
+> name: app3
+> sync:
+>   comparedTo:
+>     destination: {}
+>     source:
+>       repoURL: ""
+>   status: OutOfSync
+`, logs)
+}
