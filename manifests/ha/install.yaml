@@ -324,6 +324,21 @@ spec:
             link to repository with application definition and additional parameters
             link definition revision.
           properties:
+            dependsOn:
+              description: DependsOn specifies a list of applications this application
+                is dependent upon
+              items:
+                description: ApplicationDependency describes an application dependency
+                  requirement
+                properties:
+                  applicationName:
+                    description: ApplicationName is the name of the required or dependent
+                      application
+                    type: string
+                required:
+                - applicationName
+                type: object
+              type: array
             destination:
               description: Destination overrides the kubernetes server and namespace
                 defined in the environment ksonnet app.yaml
@@ -384,21 +399,6 @@ spec:
               description: Project is a application project name. Empty name means
                 that application belongs to 'default' project.
               type: string
-            requires:
-              description: DependsOn specifies a list of applications this application
-                is dependent upon
-              items:
-                description: ApplicationDependency describes an application dependency
-                  requirement
-                properties:
-                  applicationName:
-                    description: ApplicationName is the name of the required or dependent
-                      application
-                    type: string
-                required:
-                - applicationName
-                type: object
-              type: array
             revisionHistoryLimit:
               description: This limits this number of items kept in the apps revision
                 history. This should only be changed in exceptional circumstances.

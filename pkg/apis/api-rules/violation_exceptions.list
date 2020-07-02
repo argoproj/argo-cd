@@ -56,7 +56,6 @@ API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/appli
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,TLSClientConfig,CertData
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,TLSClientConfig,KeyData
 API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ApplicationSourceJsonnet,TLAs
-API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ApplicationSpec,DependsOn
 API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ClusterCacheInfo,APIsCount
 API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ConnectionState,ModifiedAt
 API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,JWTToken,ExpiresAt

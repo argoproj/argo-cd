@@ -265,7 +265,7 @@ message ApplicationSpec {
   optional int64 revisionHistoryLimit = 7;
 
   // DependsOn specifies a list of applications this application is dependent upon
-  repeated ApplicationDependency requires = 8;
+  repeated ApplicationDependency dependsOn = 8;
 }
 
 // ApplicationStatus contains information about application sync, health status

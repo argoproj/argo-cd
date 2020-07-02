@@ -73,7 +73,7 @@ type ApplicationSpec struct {
 	// Default is 10.
 	RevisionHistoryLimit *int64 `json:"revisionHistoryLimit,omitempty" protobuf:"bytes,7,name=revisionHistoryLimit"`
 	// DependsOn specifies a list of applications this application is dependent upon
-	DependsOn []ApplicationDependency `json:"requires,omitempty" protobuf:"bytes,8,name=requires"`
+	DependsOn []ApplicationDependency `json:"dependsOn,omitempty" protobuf:"bytes,8,name=dependsOn"`
 }
 
 // ApplicationDependency describes an application dependency requirement

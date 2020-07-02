@@ -3674,6 +3674,13 @@
       "description": "ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision.",
       "type": "object",
       "properties": {
+        "dependsOn": {
+          "type": "array",
+          "title": "DependsOn specifies a list of applications this application is dependent upon",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationDependency"
+          }
+        },
         "destination": {
           "$ref": "#/definitions/v1alpha1ApplicationDestination"
         },
@@ -3694,13 +3701,6 @@
         "project": {
           "description": "Project is a application project name. Empty name means that application belongs to 'default' project.",
           "type": "string"
-        },
-        "requires": {
-          "type": "array",
-          "title": "DependsOn specifies a list of applications this application is dependent upon",
-          "items": {
-            "$ref": "#/definitions/v1alpha1ApplicationDependency"
-          }
         },
         "revisionHistoryLimit": {
           "description": "This limits this number of items kept in the apps revision history.\nThis should only be changed in exceptional circumstances.\nSetting to zero will store no history. This will reduce storage used.\nIncreasing will increase the space used to store the history, so we do not recommend increasing it.\nDefault is 10.",

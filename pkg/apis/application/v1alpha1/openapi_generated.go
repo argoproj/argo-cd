@@ -973,7 +973,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSpec(ref common.ReferenceCa
 							Format:      "int64",
 						},
 					},
-					"requires": {
+					"dependsOn": {
 						SchemaProps: spec.SchemaProps{
 							Description: "DependsOn specifies a list of applications this application is dependent upon",
 							Type:        []string{"array"},
