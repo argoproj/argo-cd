@@ -412,23 +412,23 @@ func (s *Server) NormalizeProjs() error {
 	for _, proj := range projList.Items {
 		// if !apierr.IsConflict(err), retry 3 times
 		for i := 0; i < 3; i++ {
-			projGet, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(proj.Name, metav1.GetOptions{})
-			if err != nil {
-				return status.Errorf(codes.Internal, "Error retrieving project: %s", err.Error())
-			}
-
-			if projGet.NormalizeJWTTokens() {
-				_, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(projGet)
+			if proj.NormalizeJWTTokens() {
+				_, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(&proj)
 				if err == nil {
-					log.Info(fmt.Sprintf("Successfully normalized project %s.", projGet.Name))
+					log.Info(fmt.Sprintf("Successfully normalized project %s.", proj.Name))
 					break
 				}
 				if !apierr.IsConflict(err) {
-					log.Warn(fmt.Sprintf("Failed normalize project %s", projGet.Name))
+					log.Warn(fmt.Sprintf("Failed normalize project %s", proj.Name))
 					break
 				}
+				projGet, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(proj.Name, metav1.GetOptions{})
+				if err != nil {
+					return status.Errorf(codes.Internal, "Error retrieving project: %s", err.Error())
+				}
+				proj = *projGet
 				if i == 2 {
-					return status.Errorf(codes.Internal, "Failed normalize project %s", projGet.Name)
+					return status.Errorf(codes.Internal, "Failed normalize project %s", proj.Name)
 				}
 			}
 		}
