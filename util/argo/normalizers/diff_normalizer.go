@@ -5,6 +5,7 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	jsonpatch "github.com/evanphx/json-patch"
+	"github.com/gobwas/glob"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -61,18 +62,23 @@ func NewIgnoreNormalizer(ignore []v1alpha1.ResourceIgnoreDifferences, overrides 
 	return &ignoreNormalizer{patches: patches}, nil
 }
 
+func match(pattern, text string) bool {
+	compiledGlob, err := glob.Compile(pattern)
+	if err != nil {
+		log.Warnf("failed to compile pattern %s due to error %v", pattern, err)
+		return false
+	}
+	return compiledGlob.Match(text)
+}
+
 // Normalize removes fields from supplied resource using json paths from matching items of specified resources ignored differences list
 func (n *ignoreNormalizer) Normalize(un *unstructured.Unstructured) error {
 	matched := make([]normalizerPatch, 0)
 	for _, patch := range n.patches {
-		if patch.groupKind.Group == "*" && patch.groupKind.Kind == "*" {
-			matched = append(matched, patch)
-			continue
-		}
-
 		groupKind := un.GroupVersionKind().GroupKind()
 
-		if groupKind == patch.groupKind &&
+		if match(patch.groupKind.Group, groupKind.Group) &&
+			match(patch.groupKind.Kind, groupKind.Kind) &&
 			(patch.name == "" || patch.name == un.GetName()) &&
 			(patch.namespace == "" || patch.namespace == un.GetNamespace()) {
 

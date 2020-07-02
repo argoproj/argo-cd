@@ -115,3 +115,25 @@ func TestNormalizeMissingJsonPointer(t *testing.T) {
 	err = normalizer.Normalize(&crd)
 	assert.NoError(t, err)
 }
+
+func TestNormalizeGlobMatch(t *testing.T) {
+	normalizer, err := NewIgnoreNormalizer([]v1alpha1.ResourceIgnoreDifferences{}, map[string]v1alpha1.ResourceOverride{
+		"*/*": {
+			IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{JSONPointers: []string{"/spec/template/spec/containers"}},
+		},
+	})
+
+	assert.Nil(t, err)
+
+	deployment := test.NewDeployment()
+
+	_, has, err := unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
+	assert.Nil(t, err)
+	assert.True(t, has)
+
+	err = normalizer.Normalize(deployment)
+	assert.Nil(t, err)
+	_, has, err = unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
+	assert.Nil(t, err)
+	assert.False(t, has)
+}
