@@ -58,8 +58,7 @@ func newFakeController(data *fakeData) *ApplicationController {
 	// Mock out call to GenerateManifest
 	mockRepoClient := mockrepoclient.RepoServerServiceClient{}
 	mockRepoClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(data.manifestResponse, nil)
-	mockRepoClientset := mockrepoclient.Clientset{}
-	mockRepoClientset.On("NewRepoServerClient").Return(&fakeCloser{}, &mockRepoClient, nil)
+	mockRepoClientset := mockrepoclient.Clientset{RepoServerServiceClient: &mockRepoClient}
 
 	secret := corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -133,10 +132,6 @@ func newFakeController(data *fakeData) *ApplicationController {
 	}).Return(nil)
 	return ctrl
 }
-
-type fakeCloser struct{}
-
-func (f *fakeCloser) Close() error { return nil }
 
 var fakeCluster = `
 apiVersion: v1

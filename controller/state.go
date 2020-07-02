@@ -81,6 +81,14 @@ type comparisonResult struct {
 	timings map[string]time.Duration
 }
 
+func (res *comparisonResult) GetSyncStatus() *v1alpha1.SyncStatus {
+	return res.syncStatus
+}
+
+func (res *comparisonResult) GetHealthStatus() *v1alpha1.HealthStatus {
+	return res.healthStatus
+}
+
 // appStateManager allows to compare applications to git
 type appStateManager struct {
 	metricsServer  *metrics.MetricsServer
