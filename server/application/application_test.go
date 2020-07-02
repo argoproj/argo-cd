@@ -167,6 +167,7 @@ func newTestAppServer(objects ...runtime.Object) *Server {
 		kubeclientset,
 		fakeAppsClientset,
 		factory.Argoproj().V1alpha1().Applications().Lister().Applications(testNamespace),
+		appInformer,
 		mockRepoClient,
 		nil,
 		&kubetest.MockKubectlCmd{},

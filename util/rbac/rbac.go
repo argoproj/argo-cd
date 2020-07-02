@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-cd/util/assets"
+	jwtutil "github.com/argoproj/argo-cd/util/jwt"
 
 	"github.com/casbin/casbin"
 	"github.com/casbin/casbin/model"
@@ -96,6 +97,26 @@ func (e *Enforcer) EnforceErr(rvals ...interface{}) error {
 			rvalsStrs := make([]string, len(rvals)-1)
 			for i, rval := range rvals[1:] {
 				rvalsStrs[i] = fmt.Sprintf("%s", rval)
+			}
+			switch s := rvals[0].(type) {
+			case jwt.Claims:
+				claims, err := jwtutil.MapClaims(s)
+				if err != nil {
+					break
+				}
+				sub := jwtutil.GetField(claims, "sub")
+				if sub != "" {
+					rvalsStrs = append(rvalsStrs, fmt.Sprintf("sub: %s", sub))
+				}
+				iatField, ok := claims["iat"]
+				if !ok {
+					break
+				}
+				iat, ok := iatField.(float64)
+				if !ok {
+					break
+				}
+				rvalsStrs = append(rvalsStrs, fmt.Sprintf("iat: %s", time.Unix(int64(iat), 0).Format(time.RFC3339)))
 			}
 			errMsg = fmt.Sprintf("%s: %s", errMsg, strings.Join(rvalsStrs, ", "))
 		}

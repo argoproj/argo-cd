@@ -1746,11 +1746,11 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 	_, _ = fmt.Fprintf(w, waitFormatString, "TIMESTAMP", "GROUP", "KIND", "NAMESPACE", "NAME", "STATUS", "HEALTH", "HOOK", "MESSAGE")
 
 	prevStates := make(map[string]*resourceState)
-	appEventCh := acdClient.WatchApplicationWithRetry(ctx, appName)
 	conn, appClient := acdClient.NewApplicationClientOrDie()
 	defer argoio.Close(conn)
 	app, err := appClient.Get(ctx, &applicationpkg.ApplicationQuery{Name: &appName})
 	errors.CheckError(err)
+	appEventCh := acdClient.WatchApplicationWithRetry(ctx, appName, app.ResourceVersion)
 
 	for appEvent := range appEventCh {
 		app = &appEvent.Application
