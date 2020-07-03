@@ -114,6 +114,19 @@ spec:
                 - kind
                 type: object
               type: array
+            orphanedResourceWhitelist:
+              description: OrphanedResourceKeyWhitelist contains list of whitelisted
+                orphaned resources
+              items:
+                properties:
+                  group:
+                    type: string
+                  kind:
+                    type: string
+                  name:
+                    type: string
+                type: object
+              type: array
             orphanedResources:
               description: OrphanedResources specifies if controller should monitor
                 orphaned resources of apps in this project

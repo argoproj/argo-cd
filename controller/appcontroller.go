@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"path/filepath"
 	"reflect"
 	"runtime/debug"
 	"strconv"
@@ -215,7 +216,7 @@ func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]b
 				}
 				// exclude resource unless it is permitted in the app project. If project is not permitted then it is not controlled by the user and there is no point showing the warning.
 				if proj, err := ctrl.getAppProj(app); err == nil && proj.IsGroupKindPermitted(ref.GroupVersionKind().GroupKind(), true) &&
-					!isKnownOrphanedResourceExclusion(kube.NewResourceKey(ref.GroupVersionKind().Group, ref.GroupVersionKind().Kind, ref.Namespace, ref.Name)) {
+					!isKnownOrphanedResourceExclusion(kube.NewResourceKey(ref.GroupVersionKind().Group, ref.GroupVersionKind().Kind, ref.Namespace, ref.Name), proj) {
 
 					managedByApp[app.Name] = false
 				}
@@ -254,12 +255,25 @@ func (ctrl *ApplicationController) setAppManagedResources(a *appv1.Application, 
 }
 
 // returns true of given resources exist in the namespace by default and not managed by the user
-func isKnownOrphanedResourceExclusion(key kube.ResourceKey) bool {
+func isKnownOrphanedResourceExclusion(key kube.ResourceKey, proj *appv1.AppProject) bool {
 	if key.Namespace == "default" && key.Group == "" && key.Kind == kube.ServiceKind && key.Name == "kubernetes" {
 		return true
 	}
 	if key.Group == "" && key.Kind == kube.ServiceAccountKind && key.Name == "default" {
 		return true
+	}
+	list := proj.Spec.OrphanedResourceWhitelist
+	for _, item := range list {
+		ok, err := filepath.Match(item.Kind, key.Kind)
+		if ok && err == nil {
+			ok, err = filepath.Match(item.Group, key.Group)
+			if ok && err == nil {
+				ok, err = filepath.Match(item.Name, key.Name)
+				if ok && err == nil {
+					return true
+				}
+			}
+		}
 	}
 	return false
 }
@@ -316,7 +330,7 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 	}
 	orphanedNodes := make([]appv1.ResourceNode, 0)
 	for k := range orphanedNodesMap {
-		if k.Namespace != "" && proj.IsGroupKindPermitted(k.GroupKind(), true) && !isKnownOrphanedResourceExclusion(k) {
+		if k.Namespace != "" && proj.IsGroupKindPermitted(k.GroupKind(), true) && !isKnownOrphanedResourceExclusion(k, proj) {
 			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.Server, k, func(child appv1.ResourceNode, appName string) {
 				belongToAnotherApp := false
 				if appName != "" {

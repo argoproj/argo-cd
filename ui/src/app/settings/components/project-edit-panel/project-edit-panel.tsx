@@ -26,6 +26,7 @@ export const ProjectEditPanel = (props: {nameReadonly?: boolean; defaultParams?:
                 clusterResourceWhitelist: [],
                 namespaceResourceBlacklist: [],
                 namespaceResourceWhitelist: [],
+                orphanedResourceWhitelist: [],
                 signatureKeys: [],
                 ...props.defaultParams
             }}
@@ -181,7 +182,7 @@ export const ProjectEditPanel = (props: {nameReadonly?: boolean; defaultParams?:
                                 <div className='columns small-5'>KIND</div>
                             </div>
                         </div>
-                        {(api.values.namespaceResourceWhitelist as Array<models.GroupKind>).map((_, i) => (
+                        {(api.values.namespaceResourceWhitelist as Array<models.OrphanedResource>).map((_, i) => (
                             <div key={i} className='argo-table-list__row'>
                                 <div className='row'>
                                     <div className='columns small-5'>
@@ -201,6 +202,40 @@ export const ProjectEditPanel = (props: {nameReadonly?: boolean; defaultParams?:
                         </a>
                     </React.Fragment>
 
+                    <React.Fragment>
+                        <h4>Whitelisted Orphaned Resources</h4>
+                        <div>
+                            Namespace-scoped K8s API Groups, Kinds, and App Names which are <strong>permitted</strong> to be orphan
+                        </div>
+                        <div className='argo-table-list__head'>
+                            <div className='row'>
+                                <div className='columns small-3'>GROUP</div>
+                                <div className='columns small-3'>KIND</div>
+                                <div className='columns small-4'>NAME</div>
+                            </div>
+                        </div>
+                        {(api.values.orphanedResourceWhitelist as Array<models.OrphanedResource>).map((_, i) => (
+                            <div key={i} className='argo-table-list__row'>
+                                <div className='row'>
+                                    <div className='columns small-3'>
+                                        <Text className='argo-field' field={['orphanedResourceWhitelist', i, 'group']} />
+                                    </div>
+                                    <div className='columns small-3'>
+                                        <Text className='argo-field' field={['orphanedResourceWhitelist', i, 'kind']} />
+                                    </div>
+                                    <div className='columns small-4'>
+                                        <Text className='argo-field' field={['orphanedResourceWhitelist', i, 'name']} />
+                                    </div>
+                                    <div className='columns small-2'>
+                                        <i className='fa fa-times' onClick={() => api.setValue('orphanedResourceWhitelist', removeEl(api.values.orphanedResourceWhitelist, i))} />
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                        <a onClick={() => api.setValue('orphanedResourceWhitelist', api.values.orphanedResourceWhitelist.concat({group: '', kind: '', name: ''}))}>
+                            whitelist new orphaned resource
+                        </a>
+                    </React.Fragment>
                     <DataLoader load={() => services.gpgkeys.list().then(gpgkeys => gpgkeys.map(gpgkey => gpgkey.keyID))}>
                         {gpgkeys => (
                             <React.Fragment>

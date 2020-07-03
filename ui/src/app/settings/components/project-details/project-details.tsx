@@ -134,6 +134,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                             clusterResourceWhitelist: proj.spec.clusterResourceWhitelist || [],
                                                             namespaceResourceBlacklist: proj.spec.namespaceResourceBlacklist || [],
                                                             namespaceResourceWhitelist: proj.spec.namespaceResourceWhitelist || [],
+                                                            orphanedResourceWhitelist: proj.spec.orphanedResourceWhitelist || [],
                                                             roles: proj.spec.roles || [],
                                                             syncWindows: proj.spec.syncWindows || [],
                                                             signatureKeys: proj.spec.signatureKeys || [],
@@ -600,6 +601,32 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                 )) || (
                     <div className='white-box'>
                         <p>All namespaced-scoped resources are permitted to deploy</p>
+                    </div>
+                )}
+
+                <h4>Whitelisted orphaned resources {helpTip('Orphaned-scoped K8s API Groups, Kinds, and Names which are permitted to be orphaned')}</h4>
+                {((proj.spec.orphanedResourceWhitelist || []).length > 0 && (
+                    <div className='argo-table-list'>
+                        <div className='argo-table-list__head'>
+                            <div className='row'>
+                                <div className='columns small-3'>GROUP</div>
+                                <div className='columns small-3'>KIND</div>
+                                <div className='columns small-3'>NAME</div>
+                            </div>
+                        </div>
+                        {(proj.spec.orphanedResourceWhitelist || []).map(res => (
+                            <div className='argo-table-list__row' key={`${res.group}/${res.kind}/${res.name}`}>
+                                <div className='row'>
+                                    <div className='columns small-3'>{res.group}</div>
+                                    <div className='columns small-3'>{res.kind}</div>
+                                    <div className='columns small-3'>{res.name}</div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )) || (
+                    <div className='white-box'>
+                        <p>All Orphaned-scoped resources are permitted to be orphaned</p>
                     </div>
                 )}
 

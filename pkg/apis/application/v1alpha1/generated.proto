@@ -79,6 +79,9 @@ message AppProjectSpec {
 
   // List of PGP key IDs that commits to be synced to must be signed with
   repeated SignatureKey signatureKeys = 10;
+
+  // OrphanedResourceKeyWhitelist contains list of whitelisted orphaned resources
+  repeated OrphanedResourceKey orphanedResourceWhitelist = 11;
 }
 
 // AppProjectStatus contains information about appproj
@@ -593,6 +596,14 @@ message OperationState {
 
   // FinishedAt contains time of operation completion
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time finishedAt = 7;
+}
+
+message OrphanedResourceKey {
+  optional string group = 1;
+
+  optional string kind = 2;
+
+  optional string name = 3;
 }
 
 // OrphanedResourcesMonitorSettings holds settings of orphaned resources monitoring
