@@ -489,7 +489,9 @@ func TestResourceDiffing(t *testing.T) {
 			assert.Contains(t, diffOutput, fmt.Sprintf("===== apps/Deployment %s/guestbook-ui ======", DeploymentNamespace()))
 		}).
 		Given().
-		ResourceOverrides(map[string]ResourceOverride{"apps/Deployment": {IgnoreDifferences: ` jsonPointers: ["/spec/template/spec/containers/0/image"]`}}).
+		ResourceOverrides(map[string]ResourceOverride{"apps/Deployment": {
+			IgnoreDifferences: OverrideIgnoreDiff{JSONPointers: []string{"/spec/template/spec/containers/0/image"}},
+		}}).
 		When().
 		Refresh(RefreshTypeNormal).
 		Then().

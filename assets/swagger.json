@@ -4268,6 +4268,17 @@
         }
       }
     },
+    "v1alpha1OverrideIgnoreDiff": {
+      "type": "object",
+      "properties": {
+        "jSONPointers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "v1alpha1ProjectRole": {
       "type": "object",
       "title": "ProjectRole represents a role that has access to a project",
@@ -4652,7 +4663,7 @@
           "type": "string"
         },
         "ignoreDifferences": {
-          "type": "string"
+          "$ref": "#/definitions/v1alpha1OverrideIgnoreDiff"
         },
         "knownTypeFields": {
           "type": "array",

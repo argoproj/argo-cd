@@ -612,6 +612,10 @@ message OrphanedResourcesMonitorSettings {
   optional bool warn = 1;
 }
 
+message OverrideIgnoreDiff {
+  repeated string jSONPointers = 1;
+}
+
 // ProjectRole represents a role that has access to a project
 message ProjectRole {
   // Name is a name for this role
@@ -844,7 +848,7 @@ message ResourceOverride {
 
   optional string actions = 3;
 
-  optional string ignoreDifferences = 2;
+  optional OverrideIgnoreDiff ignoreDifferences = 2;
 
   repeated KnownTypeField knownTypeFields = 4;
 }
