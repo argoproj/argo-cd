@@ -17,12 +17,12 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/ghodss/yaml"
 	"github.com/google/go-cmp/cmp"
 	"github.com/robfig/cron"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	yaml "gopkg.in/yaml.v2"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -1061,7 +1061,7 @@ type KnownTypeField struct {
 }
 
 type OverrideIgnoreDiff struct {
-	JSONPointers []string `yaml:"jsonPointers" protobuf:"bytes,1,rep,name=jSONPointers"`
+	JSONPointers []string `json:"jsonPointers" protobuf:"bytes,1,rep,name=jSONPointers"`
 }
 
 type rawResourceOverride struct {
@@ -1090,7 +1090,7 @@ func (s *ResourceOverride) UnmarshalJSON(data []byte) error {
 	return yaml.Unmarshal([]byte(raw.IgnoreDifferences), &s.IgnoreDifferences)
 }
 
-func (s *ResourceOverride) MarshalJSON() ([]byte, error) {
+func (s ResourceOverride) MarshalJSON() ([]byte, error) {
 	ignoreDifferencesData, err := yaml.Marshal(s.IgnoreDifferences)
 	if err != nil {
 		return nil, err
