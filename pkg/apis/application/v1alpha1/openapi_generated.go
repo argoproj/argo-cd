@@ -2121,7 +2121,7 @@ func schema_pkg_apis_application_v1alpha1_OverrideIgnoreDiff(ref common.Referenc
 			SchemaProps: spec.SchemaProps{
 				Type: []string{"object"},
 				Properties: map[string]spec.Schema{
-					"JSONPointers": {
+					"jsonPointers": {
 						SchemaProps: spec.SchemaProps{
 							Type: []string{"array"},
 							Items: &spec.SchemaOrArray{
@@ -2135,7 +2135,7 @@ func schema_pkg_apis_application_v1alpha1_OverrideIgnoreDiff(ref common.Referenc
 						},
 					},
 				},
-				Required: []string{"JSONPointers"},
+				Required: []string{"jsonPointers"},
 			},
 		},
 	}
