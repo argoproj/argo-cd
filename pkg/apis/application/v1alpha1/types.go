@@ -17,12 +17,12 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/ghodss/yaml"
 	"github.com/google/go-cmp/cmp"
 	"github.com/robfig/cron"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	yaml "gopkg.in/yaml.v2"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -1060,12 +1060,43 @@ type KnownTypeField struct {
 	Type  string `json:"type,omitempty" protobuf:"bytes,2,opt,name=type"`
 }
 
+type OverrideIgnoreDiff struct {
+	JSONPointers []string `json:"jsonPointers" protobuf:"bytes,1,rep,name=jSONPointers"`
+}
+
+type rawResourceOverride struct {
+	HealthLua         string           `json:"health.lua,omitempty"`
+	Actions           string           `json:"actions,omitempty"`
+	IgnoreDifferences string           `json:"ignoreDifferences,omitempty"`
+	KnownTypeFields   []KnownTypeField `json:"knownTypeFields,omitempty"`
+}
+
 // ResourceOverride holds configuration to customize resource diffing and health assessment
 type ResourceOverride struct {
-	HealthLua         string           `json:"health.lua,omitempty" protobuf:"bytes,1,opt,name=healthLua"`
-	Actions           string           `json:"actions,omitempty" protobuf:"bytes,3,opt,name=actions"`
-	IgnoreDifferences string           `json:"ignoreDifferences,omitempty" protobuf:"bytes,2,opt,name=ignoreDifferences"`
-	KnownTypeFields   []KnownTypeField `json:"knownTypeFields,omitempty" protobuf:"bytes,4,opt,name=knownTypeFields"`
+	HealthLua         string             `protobuf:"bytes,1,opt,name=healthLua"`
+	Actions           string             `protobuf:"bytes,3,opt,name=actions"`
+	IgnoreDifferences OverrideIgnoreDiff `protobuf:"bytes,2,opt,name=ignoreDifferences"`
+	KnownTypeFields   []KnownTypeField   `protobuf:"bytes,4,opt,name=knownTypeFields"`
+}
+
+func (s *ResourceOverride) UnmarshalJSON(data []byte) error {
+	raw := &rawResourceOverride{}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	s.KnownTypeFields = raw.KnownTypeFields
+	s.HealthLua = raw.HealthLua
+	s.Actions = raw.Actions
+	return yaml.Unmarshal([]byte(raw.IgnoreDifferences), &s.IgnoreDifferences)
+}
+
+func (s ResourceOverride) MarshalJSON() ([]byte, error) {
+	ignoreDifferencesData, err := yaml.Marshal(s.IgnoreDifferences)
+	if err != nil {
+		return nil, err
+	}
+	raw := &rawResourceOverride{s.HealthLua, s.Actions, string(ignoreDifferencesData), s.KnownTypeFields}
+	return json.Marshal(raw)
 }
 
 func (o *ResourceOverride) GetActions() (ResourceActions, error) {
