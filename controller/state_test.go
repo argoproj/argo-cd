@@ -719,3 +719,21 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 	}
 
 }
+
+func TestComparisonResult_GetHealthStatus(t *testing.T) {
+	status := &argoappv1.HealthStatus{Status: health.HealthStatusMissing}
+	res := comparisonResult{
+		healthStatus: status,
+	}
+
+	assert.Equal(t, status, res.GetHealthStatus())
+}
+
+func TestComparisonResult_GetSyncStatus(t *testing.T) {
+	status := &argoappv1.SyncStatus{Status: argoappv1.SyncStatusCodeOutOfSync}
+	res := comparisonResult{
+		syncStatus: status,
+	}
+
+	assert.Equal(t, status, res.GetSyncStatus())
+}

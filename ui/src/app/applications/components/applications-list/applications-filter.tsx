@@ -108,7 +108,7 @@ export class ApplicationsFilter extends React.Component<ApplicationsFilterProps,
             <div className={classNames('applications-list__filters-container', {'applications-list__filters-container--expanded': this.state.expanded})}>
                 <i
                     onClick={() => this.setState({expanded: !this.state.expanded})}
-                    className={classNames('fa applications-list__filters-expander', {'fa-chevron-up': !this.state.expanded, 'fa-chevron-down': this.state.expanded})}
+                    className={classNames('fa applications-list__filters-expander', {'fa-chevron-up': this.state.expanded, 'fa-chevron-down': !this.state.expanded})}
                 />
                 <p className='applications-list__filters-container-title'>Filter By:</p>
                 <div className='row'>

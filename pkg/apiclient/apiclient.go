@@ -15,6 +15,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/argoproj/argo-cd/util/kube"
+
 	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/coreos/go-oidc"
 	"github.com/dgrijalva/jwt-go"
@@ -182,7 +184,7 @@ func NewClient(opts *ClientOptions) (Client, error) {
 		c.ServerAddr = serverFromEnv
 	}
 	if opts.PortForward || opts.PortForwardNamespace != "" {
-		port, err := portForward("app.kubernetes.io/name=argocd-server", opts.PortForwardNamespace)
+		port, err := kube.PortForward("app.kubernetes.io/name=argocd-server", 8080, opts.PortForwardNamespace)
 		if err != nil {
 			return nil, err
 		}
