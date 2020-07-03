@@ -1380,7 +1380,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				}
 			}
 			for _, appName := range appNames {
-				_, err := waitOnApplicationStatus(acdClient, appName, timeout, watchSync, watchHealth, watchOperations, watchSuspended, selectedResources)
+				_, err := waitOnApplicationStatus(acdClient, appName, timeout, watchSync, watchHealth, watchOperations, watchSuspended, selectedResources, false)
 				errors.CheckError(err)
 			}
 		},
@@ -1542,7 +1542,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				errors.CheckError(err)
 
 				if !async {
-					app, err := waitOnApplicationStatus(acdClient, appName, timeout, false, false, true, false, selectedResources)
+					app, err := waitOnApplicationStatus(acdClient, appName, timeout, false, false, true, false, selectedResources, dryRun)
 					errors.CheckError(err)
 
 					if !dryRun {
@@ -1701,7 +1701,7 @@ func checkResourceStatus(watchSync bool, watchHealth bool, watchOperation bool, 
 
 const waitFormatString = "%s\t%5s\t%10s\t%10s\t%20s\t%8s\t%7s\t%10s\t%s\n"
 
-func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout uint, watchSync bool, watchHealth bool, watchOperation bool, watchSuspended bool, selectedResources []argoappv1.SyncOperationResource) (*argoappv1.Application, error) {
+func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout uint, watchSync bool, watchHealth bool, watchOperation bool, watchSuspended bool, selectedResources []argoappv1.SyncOperationResource, dryRun bool) (*argoappv1.Application, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -1760,7 +1760,9 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 		if app.Operation != nil {
 			// if it just got requested
 			operationInProgress = true
-			refresh = true
+			if !dryRun {
+				refresh = true
+			}
 		} else if app.Status.OperationState != nil {
 			if app.Status.OperationState.FinishedAt == nil {
 				// if it is not finished yet
@@ -1978,7 +1980,7 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			})
 			errors.CheckError(err)
 
-			_, err = waitOnApplicationStatus(acdClient, appName, timeout, false, false, true, false, nil)
+			_, err = waitOnApplicationStatus(acdClient, appName, timeout, false, false, true, false, nil, false)
 			errors.CheckError(err)
 		},
 	}
