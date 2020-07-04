@@ -116,7 +116,7 @@ RUN go mod download
 
 # Perform the build
 COPY . .
-RUN make cli server controller repo-server argocd-util
+RUN make cli-local server controller repo-server argocd-util
 
 ARG BUILD_ALL_CLIS=true
 RUN if [ "$BUILD_ALL_CLIS" = "true" ] ; then \
