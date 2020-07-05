@@ -104,6 +104,32 @@ func TestGetServiceInfo(t *testing.T) {
 	}, info.NetworkingInfo)
 }
 
+func TestGetServiceInfoWithHostname(t *testing.T) {
+	service := strToUnstructured(`
+  apiVersion: v1
+  kind: Service
+  metadata:
+    annotations:
+       external-dns.alpha.kubernetes.io/hostname: helm-guestbook.com
+    name: helm-guestbook
+    namespace: default
+  spec:
+    selector:
+      app: guestbook
+    type: LoadBalancer
+  status:
+    loadBalancer:
+      ingress:
+      - hostname: localhost`)
+
+	info := &ResourceInfo{}
+	populateNodeInfo(service, info)
+	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
+		Ingress:      []v1.LoadBalancerIngress{{Hostname: "helm-guestbook.com"}},
+		TargetLabels: map[string]string{"app": "guestbook"}},
+		info.NetworkingInfo)
+}
+
 func TestGetIngressInfo(t *testing.T) {
 	info := &ResourceInfo{}
 	populateNodeInfo(testIngress, info)
@@ -275,4 +301,52 @@ func TestExternalUrlWithNetworkingApi(t *testing.T) {
 
 	expectedExternalUrls := []string{"https://107.178.210.11"}
 	assert.Equal(t, expectedExternalUrls, info.NetworkingInfo.ExternalURLs)
+}
+
+func TestAmbassadorMappingWithNamespace(t *testing.T) {
+	mapping := strToUnstructured(`
+  apiVersion: getambassador.io/v1
+  kind: Mapping
+  metadata:
+    name: helm-guestbook
+    namespace: default
+  spec:
+    service: helm-guestbook.test
+    prefix: /guestbook/`)
+
+	info := &ResourceInfo{}
+	populateNodeInfo(mapping, info)
+
+	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
+		TargetRefs: []v1alpha1.ResourceRef{{
+			Namespace: "test",
+			Group:     "",
+			Kind:      kube.ServiceKind,
+			Name:      "helm-guestbook",
+		}},
+	}, info.NetworkingInfo)
+}
+
+func TestAmbassadorMappingWithoutNamespace(t *testing.T) {
+	mapping := strToUnstructured(`
+  apiVersion: getambassador.io/v1
+  kind: Mapping
+  metadata:
+    name: helm-guestbook
+    namespace: default
+  spec:
+    service: helm-guestbook
+    prefix: /guestbook/`)
+
+	info := &ResourceInfo{}
+	populateNodeInfo(mapping, info)
+
+	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
+		TargetRefs: []v1alpha1.ResourceRef{{
+			Namespace: "default",
+			Group:     "",
+			Kind:      kube.ServiceKind,
+			Name:      "helm-guestbook",
+		}},
+	}, info.NetworkingInfo)
 }

@@ -15,14 +15,13 @@ import (
 	"github.com/argoproj/argo-cd/util/resource"
 )
 
-var ambassadorIngress = make([]v1.LoadBalancerIngress, 0)
-
 func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	gvk := un.GroupVersionKind()
 	revision := resource.GetRevision(un)
 	if revision > 0 {
 		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Revision", Value: fmt.Sprintf("Rev:%v", revision)})
 	}
+
 	switch gvk.Group {
 	case "":
 		switch gvk.Kind {
@@ -76,11 +75,6 @@ func populateServiceInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	ingress := make([]v1.LoadBalancerIngress, 0)
 	if serviceType, ok, err := unstructured.NestedString(un.Object, "spec", "type"); ok && err == nil && serviceType == string(v1.ServiceTypeLoadBalancer) {
 		ingress = getIngress(un)
-
-		// check if service manages ambassador
-		if instance, ok, err := unstructured.NestedString(un.Object, "metadata", "labels", "app.kubernetes.io/instance"); ok && err == nil && instance == "ambassador-server" {
-			ambassadorIngress = ingress
-		}
 	}
 	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetLabels: targetLabels, Ingress: ingress}
 }
@@ -92,21 +86,25 @@ func populateAmbassador(un *unstructured.Unstructured, res *ResourceInfo) {
 		match := mappingExp.FindStringSubmatch(fmt.Sprintf("%s", spec["service"]))
 		result := make(map[string]string)
 		for i, name := range mappingExp.SubexpNames() {
-			if i != 0 && name != "" {
+			if i != 0 && name != "" && match[i] != "" {
 				result[name] = match[i]
 			}
 		}
 
+		// default to object namespace
 		namespace, ok := result["namespace"]
 		if !ok {
 			namespace = un.GetNamespace()
 		}
 
-		res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetRefs: []v1alpha1.ResourceRef{
+		// ingress info is not know until cluster is fully synced
+		networkInfo := &v1alpha1.ResourceNetworkingInfo{TargetRefs: []v1alpha1.ResourceRef{
 			{Group: "",
 				Kind:      kube.ServiceKind,
 				Namespace: namespace,
-				Name:      result["service"]}}, Ingress: ambassadorIngress, ExternalURLs: []string{fmt.Sprintf("%s/%s", ambassadorIngress[0].Hostname, spec["prefix"])}}
+				Name:      result["service"]}}}
+
+		res.NetworkingInfo = networkInfo
 	}
 }
 
