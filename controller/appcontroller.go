@@ -262,6 +262,7 @@ func isKnownOrphanedResourceExclusion(key kube.ResourceKey, proj *appv1.AppProje
 	if key.Group == "" && key.Kind == kube.ServiceAccountKind && key.Name == "default" {
 		return true
 	}
+
 	list := proj.Spec.OrphanedResourceWhitelist
 	for _, item := range list {
 		ok, err := filepath.Match(item.Kind, key.Kind)
