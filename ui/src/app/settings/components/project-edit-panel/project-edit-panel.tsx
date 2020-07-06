@@ -182,7 +182,7 @@ export const ProjectEditPanel = (props: {nameReadonly?: boolean; defaultParams?:
                                 <div className='columns small-5'>KIND</div>
                             </div>
                         </div>
-                        {(api.values.namespaceResourceWhitelist as Array<models.OrphanedResource>).map((_, i) => (
+                        {(api.values.namespaceResourceWhitelist as Array<models.GroupKind>).map((_, i) => (
                             <div key={i} className='argo-table-list__row'>
                                 <div className='row'>
                                     <div className='columns small-5'>
