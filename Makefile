@@ -3,6 +3,9 @@ CURRENT_DIR=$(shell pwd)
 DIST_DIR=${CURRENT_DIR}/dist
 CLI_NAME=argocd
 
+HOST_OS:=$(shell go env GOOS)
+HOST_ARCH:=$(shell go env GOARCH)
+
 VERSION=$(shell cat ${CURRENT_DIR}/VERSION)
 BUILD_DATE=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
 GIT_COMMIT=$(shell git rev-parse HEAD)
@@ -160,7 +163,11 @@ codegen:
 	$(call run-in-test-client,make codegen-local)
 
 .PHONY: cli
-cli: clean-debug
+cli:
+	$(call run-in-test-client, GOOS=${HOST_OS} GOARCH=${HOST_ARCH} make cli-local)
+
+.PHONY: cli-local
+cli-local: clean-debug
 	rm -f ${DIST_DIR}/${CLI_NAME}
 	mkdir -p ${DIST_DIR}
 	CGO_ENABLED=0 ${PACKR_CMD} build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${CLI_NAME} ./cmd/argocd
@@ -332,7 +339,7 @@ test-e2e:
 
 # Run the E2E test suite (local version)
 .PHONY: test-e2e-local
-test-e2e-local: cli
+test-e2e-local: cli-local
 	# NO_PROXY ensures all tests don't go out through a proxy if one is configured on the test system
 	export GO111MODULE=off
 	ARGOCD_GPG_ENABLED=true NO_PROXY=* ./hack/test.sh -timeout 15m -v ./test/e2e

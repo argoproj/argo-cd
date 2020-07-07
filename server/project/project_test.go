@@ -70,6 +70,24 @@ func TestProjectServer(t *testing.T) {
 
 	policyTemplate := "p, proj:%s:%s, applications, %s, %s/%s, %s"
 
+	t.Run("TestNormalizeProj", func(t *testing.T) {
+		sessionMgr := session.NewSessionManager(settingsMgr, "", session.NewInMemoryUserStateStorage())
+		projectWithRole := existingProj.DeepCopy()
+		roleName := "roleName"
+		role1 := v1alpha1.ProjectRole{Name: roleName, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: 1}}}
+		projectWithRole.Spec.Roles = append(projectWithRole.Spec.Roles, role1)
+
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithRole), enforcer, util.NewKeyLock(), sessionMgr, nil)
+		err := projectServer.NormalizeProjs()
+		assert.NoError(t, err)
+
+		appList, err := projectServer.appclientset.ArgoprojV1alpha1().AppProjects(projectWithRole.Namespace).List(v1.ListOptions{})
+		assert.NoError(t, err)
+		assert.Equal(t, appList.Items[0].Status.JWTTokensByRole[roleName].Items[0].IssuedAt, int64(1))
+		assert.ElementsMatch(t, appList.Items[0].Status.JWTTokensByRole[roleName].Items, appList.Items[0].Spec.Roles[0].JWTTokens)
+
+	})
+
 	t.Run("TestClusterUpdateDenied", func(t *testing.T) {
 
 		enforcer.SetDefaultRole("role:projects")
@@ -650,6 +668,7 @@ p, role:admin, projects, update, *, allow`)
 		_, err := projectServer.GetSyncWindowsState(ctx, &project.SyncWindowsQuery{Name: projectWithSyncWindows.Name})
 		assert.EqualError(t, err, "rpc error: code = PermissionDenied desc = permission denied: projects, get, test")
 	})
+
 }
 
 func newEnforcer(kubeclientset *fake.Clientset) *rbac.Enforcer {

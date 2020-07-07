@@ -81,6 +81,14 @@ type comparisonResult struct {
 	timings map[string]time.Duration
 }
 
+func (res *comparisonResult) GetSyncStatus() *v1alpha1.SyncStatus {
+	return res.syncStatus
+}
+
+func (res *comparisonResult) GetHealthStatus() *v1alpha1.HealthStatus {
+	return res.healthStatus
+}
+
 // appStateManager allows to compare applications to git
 type appStateManager struct {
 	metricsServer  *metrics.MetricsServer
@@ -472,6 +480,10 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		isNamespaced, err := m.liveStateCache.IsNamespaced(app.Spec.Destination.Server, gvk.GroupKind())
 		if !project.IsGroupKindPermitted(gvk.GroupKind(), isNamespaced && err == nil) {
 			resState.Status = v1alpha1.SyncStatusCodeUnknown
+		}
+
+		if isNamespaced && obj.GetNamespace() == "" {
+			conditions = append(conditions, appv1.ApplicationCondition{Type: v1alpha1.ApplicationConditionInvalidSpecError, Message: fmt.Sprintf("Namespace for %s %s is missing.", obj.GetName(), gvk.String()), LastTransitionTime: &now})
 		}
 
 		// we can't say anything about the status if we were unable to get the target objects

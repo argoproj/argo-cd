@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -161,7 +160,7 @@ func TestValidatePermissionsEmptyDestination(t *testing.T) {
 		},
 	}, nil)
 	assert.NoError(t, err)
-	assert.ElementsMatch(t, conditions, []argoappv1.ApplicationCondition{{Type: argoappv1.ApplicationConditionInvalidSpecError, Message: "Destination server and/or namespace missing from app spec"}})
+	assert.ElementsMatch(t, conditions, []argoappv1.ApplicationCondition{{Type: argoappv1.ApplicationConditionInvalidSpecError, Message: "Destination server missing from app spec"}})
 }
 
 func TestValidateChartWithoutRevision(t *testing.T) {
@@ -260,8 +259,7 @@ func TestValidateRepo(t *testing.T) {
 		KustomizeOptions: kustomizeOptions,
 	}).Return(&apiclient.RepoAppDetailsResponse{}, nil)
 
-	repoClientSet := &mocks.Clientset{}
-	repoClientSet.On("NewRepoServerClient").Return(io.NopCloser, repoClient, nil)
+	repoClientSet := &mocks.Clientset{RepoServerServiceClient: repoClient}
 
 	db := &dbmocks.ArgoDB{}
 

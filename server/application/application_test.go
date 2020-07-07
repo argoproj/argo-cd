@@ -47,12 +47,6 @@ const (
 	fakeRepoURL   = "https://git.com/repo.git"
 )
 
-type fakeCloser struct{}
-
-func (f fakeCloser) Close() error {
-	return nil
-}
-
 func fakeRepo() *appsv1.Repository {
 	return &appsv1.Repository{
 		Repo: fakeRepoURL,
@@ -107,8 +101,7 @@ func newTestAppServer(objects ...runtime.Object) *Server {
 	mockRepoServiceClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(&apiclient.ManifestResponse{}, nil)
 	mockRepoServiceClient.On("GetAppDetails", mock.Anything, mock.Anything).Return(&apiclient.RepoAppDetailsResponse{}, nil)
 
-	mockRepoClient := &mocks.Clientset{}
-	mockRepoClient.On("NewRepoServerClient").Return(&fakeCloser{}, &mockRepoServiceClient, nil)
+	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mockRepoServiceClient}
 
 	defaultProj := &appsv1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "default"},
@@ -167,6 +160,7 @@ func newTestAppServer(objects ...runtime.Object) *Server {
 		kubeclientset,
 		fakeAppsClientset,
 		factory.Argoproj().V1alpha1().Applications().Lister().Applications(testNamespace),
+		appInformer,
 		mockRepoClient,
 		nil,
 		&kubetest.MockKubectlCmd{},

@@ -15,6 +15,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/argoproj/argo-cd/util/kube"
+
 	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/coreos/go-oidc"
 	"github.com/dgrijalva/jwt-go"
@@ -83,7 +85,7 @@ type Client interface {
 	NewProjectClientOrDie() (io.Closer, projectpkg.ProjectServiceClient)
 	NewAccountClient() (io.Closer, accountpkg.AccountServiceClient, error)
 	NewAccountClientOrDie() (io.Closer, accountpkg.AccountServiceClient)
-	WatchApplicationWithRetry(ctx context.Context, appName string) chan *argoappv1.ApplicationWatchEvent
+	WatchApplicationWithRetry(ctx context.Context, appName string, revision string) chan *argoappv1.ApplicationWatchEvent
 }
 
 // ClientOptions hold address, security, and other settings for the API client.
@@ -182,7 +184,7 @@ func NewClient(opts *ClientOptions) (Client, error) {
 		c.ServerAddr = serverFromEnv
 	}
 	if opts.PortForward || opts.PortForwardNamespace != "" {
-		port, err := portForward("app.kubernetes.io/name=argocd-server", opts.PortForwardNamespace)
+		port, err := kube.PortForward("app.kubernetes.io/name=argocd-server", 8080, opts.PortForwardNamespace)
 		if err != nil {
 			return nil, err
 		}
@@ -683,7 +685,7 @@ func (c *client) NewAccountClientOrDie() (io.Closer, accountpkg.AccountServiceCl
 
 // WatchApplicationWithRetry returns a channel of watch events for an application, retrying the
 // watch upon errors. Closes the returned channel when the context is cancelled.
-func (c *client) WatchApplicationWithRetry(ctx context.Context, appName string) chan *argoappv1.ApplicationWatchEvent {
+func (c *client) WatchApplicationWithRetry(ctx context.Context, appName string, revision string) chan *argoappv1.ApplicationWatchEvent {
 	appEventsCh := make(chan *argoappv1.ApplicationWatchEvent)
 	cancelled := false
 	go func() {
