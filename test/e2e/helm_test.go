@@ -432,6 +432,17 @@ func TestHelmRepoDiffLocal(t *testing.T) {
 		})
 }
 
+/*
+data:
+  resource.customizations: |-
+    test.example.com/TestCronTab:
+      health.lua: |
+        print ("lua: TestCronTab")
+        hs = {}
+        hs.status = "Degraded"
+        hs.message = "Done checking health for TestCronTab"
+        return hs
+*/
 func TestHelm3CRDCRHealthCheck(t *testing.T) {
 	Given(t).
 		Path("helm3-crd").
