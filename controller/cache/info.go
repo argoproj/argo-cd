@@ -81,9 +81,7 @@ func populateServiceInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 		urls := make([]string, 0)
 		// process exposed ports (only 80/http or 443/https)
 		if ports, ok, err := unstructured.NestedSlice(un.Object, "spec", "ports"); ok && err == nil {
-			fmt.Println("In service ", un.GetName(), " in namespace ", un.GetNamespace())
 			for i := range ports {
-				fmt.Printf("PortSpec %+v", ports[i])
 				portSpec, ok := ports[i].(map[string]interface{})
 				if !ok {
 					continue
