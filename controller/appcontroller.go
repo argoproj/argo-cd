@@ -48,6 +48,7 @@ import (
 	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
 	"github.com/argoproj/argo-cd/util/db"
 	settings_util "github.com/argoproj/argo-cd/util/settings"
+	clustercache "github.com/argoproj/gitops-engine/pkg/cache"
 )
 
 const (
@@ -307,6 +308,32 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 			})
 		} else {
 			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.Server, kube.GetResourceKey(live), func(child appv1.ResourceNode, appName string) {
+				// late binding for networkInfo
+				if class, ok, err := unstructured.NestedString(live.Object, "metadata", "annotations", "argocd.argoproj.io/ingress"); ok && err == nil {
+					cache, err := ctrl.stateCache.GetClusterCache(a.Spec.Destination.Server)
+					if err == nil {
+						// get resource
+						resource, ok, err := cache.GetManagedObject(kube.ResourceKey{Group: "", Kind: "Service", Namespace: "default", Name: class}, func(r *clustercache.Resource) bool {
+							return true
+						})
+						if ok && err == nil {
+							info, _ := resource.Info.(*statecache.ResourceInfo)
+							child.NetworkingInfo.Ingress = info.NetworkingInfo.Ingress
+							fmt.Printf("Child %+v\n", child.NetworkingInfo)
+							fmt.Printf("Child %+v\n", info.NetworkingInfo)
+							// compose externalURLs
+							urls := make([]string, 0)
+							for _, ingressURL := range info.NetworkingInfo.ExternalURLs {
+								for _, appURL := range child.NetworkingInfo.ExternalURLs {
+									fmt.Println("Creating external URL with ", ingressURL, " and app URL", appURL)
+									urls = append(urls, fmt.Sprintf("%s%s", ingressURL, appURL))
+								}
+
+							}
+							child.NetworkingInfo.ExternalURLs = urls
+						}
+					}
+				}
 				nodes = append(nodes, child)
 			})
 			if err != nil {

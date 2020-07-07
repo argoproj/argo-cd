@@ -73,10 +73,51 @@ func getIngress(un *unstructured.Unstructured) []v1.LoadBalancerIngress {
 func populateServiceInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	targetLabels, _, _ := unstructured.NestedStringMap(un.Object, "spec", "selector")
 	ingress := make([]v1.LoadBalancerIngress, 0)
+	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetLabels: targetLabels}
 	if serviceType, ok, err := unstructured.NestedString(un.Object, "spec", "type"); ok && err == nil && serviceType == string(v1.ServiceTypeLoadBalancer) {
 		ingress = getIngress(un)
+		host := text.FirstNonEmpty(ingress[0].Hostname, ingress[0].IP)
+
+		urls := make([]string, 0)
+		// process exposed ports (only 80/http or 443/https)
+		if ports, ok, err := unstructured.NestedSlice(un.Object, "spec", "ports"); ok && err == nil {
+			fmt.Println("In service ", un.GetName(), " in namespace ", un.GetNamespace())
+			for i := range ports {
+				fmt.Printf("PortSpec %+v", ports[i])
+				portSpec, ok := ports[i].(map[string]interface{})
+				if !ok {
+					continue
+				}
+
+				stringPort := ""
+				switch typedPort := portSpec["port"].(type) {
+				case int64:
+					stringPort = fmt.Sprintf("%d", typedPort)
+				case float64:
+					stringPort = fmt.Sprintf("%d", int64(typedPort))
+				case string:
+					stringPort = typedPort
+				default:
+					stringPort = fmt.Sprintf("%v", portSpec["port"])
+				}
+				switch stringPort {
+				case "80":
+					urls = append(urls, fmt.Sprintf("http://%s", host))
+				case "443":
+					urls = append(urls, fmt.Sprintf("https://%s", host))
+				default:
+					urls = append(urls, fmt.Sprintf("http://%s:%s", host, stringPort))
+				}
+
+				// port name (http or https)
+				//if portSpec["name"] == "http" || portSpec["name"] == "https" {
+				//	urls = append(urls, fmt.Sprintf("%s://%s:%s", portSpec["name"], host, stringPort))
+				//}
+			}
+		}
+		res.NetworkingInfo.Ingress = ingress
+		res.NetworkingInfo.ExternalURLs = urls
 	}
-	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetLabels: targetLabels, Ingress: ingress}
 }
 
 func populateAmbassador(un *unstructured.Unstructured, res *ResourceInfo) {
@@ -97,12 +138,12 @@ func populateAmbassador(un *unstructured.Unstructured, res *ResourceInfo) {
 			namespace = un.GetNamespace()
 		}
 
-		// ingress info is not know until cluster is fully synced
+		// full ExternalURLs is not known at this time. Will be updated on render
 		networkInfo := &v1alpha1.ResourceNetworkingInfo{TargetRefs: []v1alpha1.ResourceRef{
 			{Group: "",
 				Kind:      kube.ServiceKind,
 				Namespace: namespace,
-				Name:      result["service"]}}}
+				Name:      result["service"]}}, ExternalURLs: []string{spec["prefix"].(string)}}
 
 		res.NetworkingInfo = networkInfo
 	}
