@@ -19,3 +19,7 @@ tests:
     status: Healthy
     message: "Succeeded --- Canary analysis completed successfully, promotion finished."
   inputPath: testdata/succeeded.yaml  
+- healthStatus:
+    status: Healthy
+    message: "Initialized --- Installation successful."
+  inputPath: testdata/initialized.yaml  
