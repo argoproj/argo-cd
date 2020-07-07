@@ -17,7 +17,8 @@ if obj.status ~= nil then
       obj.status.phase == "Finalising" or
       obj.status.phase == "Promoting" ) then             
     hs.status = "Progressing"
-  elseif obj.status.phase == "Succeeded" then
+  elseif ( obj.status.phase == "Succeeded" or 
+      obj.status.phase == "Initialized" ) then
     hs.status = "Healthy"
   else
     hs.status = "Unknown"
