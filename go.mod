@@ -83,6 +83,7 @@ require (
 )
 
 replace (
+	github.com/argoproj/gitops-engine => github.com/cyrus-mc/gitops-engine v0.1.3-0.20200707195537-70feb96c7b97
 	github.com/golang/protobuf => github.com/golang/protobuf v1.2.0
 	github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc-gateway v1.3.1
 	github.com/improbable-eng/grpc-web => github.com/improbable-eng/grpc-web v0.0.0-20181111100011-16092bd1d58a

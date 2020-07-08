@@ -307,6 +307,26 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 			})
 		} else {
 			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.Server, kube.GetResourceKey(live), func(child appv1.ResourceNode, appName string) {
+				// late binding for networkInfo
+				if class, ok, err := unstructured.NestedString(live.Object, "metadata", "annotations", "argocd.argoproj.io/ingress"); ok && err == nil {
+					cache, err := ctrl.stateCache.GetClusterCache(a.Spec.Destination.Server)
+					if err == nil {
+						// get managed resource
+						resource, ok, err := cache.GetManagedObject(kube.ResourceKey{Group: "", Kind: "Service", Namespace: "default", Name: class})
+						if ok && err == nil {
+							info, _ := resource.Info.(*statecache.ResourceInfo)
+							child.NetworkingInfo.Ingress = info.NetworkingInfo.Ingress
+
+							// update ExternalURLs with ingress.[Hostname|IP]
+							for _, ingressURL := range info.NetworkingInfo.ExternalURLs {
+								for i, appURL := range child.NetworkingInfo.ExternalURLs {
+									child.NetworkingInfo.ExternalURLs[i] = fmt.Sprintf("%s%s", ingressURL, appURL)
+								}
+
+							}
+						}
+					}
+				}
 				nodes = append(nodes, child)
 			})
 			if err != nil {

@@ -2,6 +2,7 @@ package cache
 
 import (
 	"fmt"
+	"regexp"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
@@ -20,6 +21,7 @@ func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	if revision > 0 {
 		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Revision", Value: fmt.Sprintf("Rev:%v", revision)})
 	}
+
 	switch gvk.Group {
 	case "":
 		switch gvk.Kind {
@@ -36,34 +38,113 @@ func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 			populateIngressInfo(un, res)
 			return
 		}
+	case "getambassador.io":
+		switch gvk.Kind {
+		case "Mapping":
+			populateAmbassador(un, res)
+			return
+		}
 	}
 }
 
 func getIngress(un *unstructured.Unstructured) []v1.LoadBalancerIngress {
-	ingress, ok, err := unstructured.NestedSlice(un.Object, "status", "loadBalancer", "ingress")
-	if !ok || err != nil {
-		return nil
-	}
-	res := make([]v1.LoadBalancerIngress, 0)
-	for _, item := range ingress {
-		if lbIngress, ok := item.(map[string]interface{}); ok {
-			if hostname := lbIngress["hostname"]; hostname != nil {
-				res = append(res, v1.LoadBalancerIngress{Hostname: fmt.Sprintf("%s", hostname)})
-			} else if ip := lbIngress["ip"]; ip != nil {
-				res = append(res, v1.LoadBalancerIngress{IP: fmt.Sprintf("%s", ip)})
+	// check for external-dns hostname
+	hostname, ok, err := unstructured.NestedString(un.Object, "metadata", "annotations", "external-dns.alpha.kubernetes.io/hostname")
+	if !ok || err != nil || hostname == "" {
+		ingress, ok, err := unstructured.NestedSlice(un.Object, "status", "loadBalancer", "ingress")
+		if !ok || err != nil {
+			return nil
+		}
+		res := make([]v1.LoadBalancerIngress, 0)
+		for _, item := range ingress {
+			if lbIngress, ok := item.(map[string]interface{}); ok {
+				if hostname := lbIngress["hostname"]; hostname != nil {
+					res = append(res, v1.LoadBalancerIngress{Hostname: fmt.Sprintf("%s", hostname)})
+				} else if ip := lbIngress["ip"]; ip != nil {
+					res = append(res, v1.LoadBalancerIngress{IP: fmt.Sprintf("%s", ip)})
+				}
 			}
 		}
+		return res
 	}
-	return res
+	return []v1.LoadBalancerIngress{{Hostname: hostname}}
 }
 
 func populateServiceInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	targetLabels, _, _ := unstructured.NestedStringMap(un.Object, "spec", "selector")
 	ingress := make([]v1.LoadBalancerIngress, 0)
+	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetLabels: targetLabels}
 	if serviceType, ok, err := unstructured.NestedString(un.Object, "spec", "type"); ok && err == nil && serviceType == string(v1.ServiceTypeLoadBalancer) {
 		ingress = getIngress(un)
+		host := text.FirstNonEmpty(ingress[0].Hostname, ingress[0].IP)
+
+		urls := make([]string, 0)
+		// process exposed ports (only 80/http or 443/https)
+		if ports, ok, err := unstructured.NestedSlice(un.Object, "spec", "ports"); ok && err == nil {
+			for i := range ports {
+				portSpec, ok := ports[i].(map[string]interface{})
+				if !ok {
+					continue
+				}
+
+				stringPort := ""
+				switch typedPort := portSpec["port"].(type) {
+				case int64:
+					stringPort = fmt.Sprintf("%d", typedPort)
+				case float64:
+					stringPort = fmt.Sprintf("%d", int64(typedPort))
+				case string:
+					stringPort = typedPort
+				default:
+					stringPort = fmt.Sprintf("%v", portSpec["port"])
+				}
+				switch stringPort {
+				case "80":
+					urls = append(urls, fmt.Sprintf("http://%s", host))
+				case "443":
+					urls = append(urls, fmt.Sprintf("https://%s", host))
+				default:
+					urls = append(urls, fmt.Sprintf("http://%s:%s", host, stringPort))
+				}
+
+				// port name (http or https)
+				//if portSpec["name"] == "http" || portSpec["name"] == "https" {
+				//	urls = append(urls, fmt.Sprintf("%s://%s:%s", portSpec["name"], host, stringPort))
+				//}
+			}
+		}
+		res.NetworkingInfo.Ingress = ingress
+		res.NetworkingInfo.ExternalURLs = urls
 	}
-	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetLabels: targetLabels, Ingress: ingress}
+}
+
+func populateAmbassador(un *unstructured.Unstructured, res *ResourceInfo) {
+	if spec, ok, err := unstructured.NestedMap(un.Object, "spec"); ok && err == nil {
+		// https://www.getambassador.io/docs/latest/topics/using/intro-mappings/#services
+		var mappingExp = regexp.MustCompile(`((?P<scheme>[a-z]+)(://))?(?P<service>[a-zA-Z\-]+)(.(?P<namespace>[a-zA-Z\-]+))?(:(?P<port>[0-9]+))?`)
+		match := mappingExp.FindStringSubmatch(fmt.Sprintf("%s", spec["service"]))
+		result := make(map[string]string)
+		for i, name := range mappingExp.SubexpNames() {
+			if i != 0 && name != "" && match[i] != "" {
+				result[name] = match[i]
+			}
+		}
+
+		// default to object namespace
+		namespace, ok := result["namespace"]
+		if !ok {
+			namespace = un.GetNamespace()
+		}
+
+		// full ExternalURLs is not known at this time. Will be updated on render
+		networkInfo := &v1alpha1.ResourceNetworkingInfo{TargetRefs: []v1alpha1.ResourceRef{
+			{Group: "",
+				Kind:      kube.ServiceKind,
+				Namespace: namespace,
+				Name:      result["service"]}}, ExternalURLs: []string{spec["prefix"].(string)}}
+
+		res.NetworkingInfo = networkInfo
+	}
 }
 
 func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
