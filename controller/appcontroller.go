@@ -32,7 +32,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 
 	// make sure to register workqueue prometheus metrics
-	_ "k8s.io/kubernetes/pkg/util/workqueue/prometheus"
+	_ "k8s.io/component-base/metrics/prometheus/workqueue"
 
 	"github.com/argoproj/argo-cd/common"
 	statecache "github.com/argoproj/argo-cd/controller/cache"
