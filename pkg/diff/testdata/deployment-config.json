@@ -2,7 +2,11 @@
   "apiVersion": "apps/v1",
   "kind": "Deployment",
   "metadata": {
-    "name": "guestbook-ui"
+    "labels": {
+      "app.kubernetes.io/instance": "guestbook"
+    },
+    "name": "guestbook-ui",
+    "namespace": "default"
   },
   "spec": {
     "replicas": 1,
@@ -11,6 +15,9 @@
       "matchLabels": {
         "app": "guestbook-ui"
       }
+    },
+    "strategy": {
+      "type": "RollingUpdate"
     },
     "template": {
       "metadata": {

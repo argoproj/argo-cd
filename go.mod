@@ -6,16 +6,12 @@ require (
 	github.com/argoproj/pkg v0.0.0-20200102163130-2dd1f3f6b4de
 	github.com/evanphx/json-patch v4.2.0+incompatible
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
-	github.com/k0kubun/colorstring v0.0.0-20150214042306-9440f1994b88 // indirect
 	github.com/pkg/errors v0.9.1
-	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/sirupsen/logrus v1.4.2
 	github.com/spf13/cobra v0.0.5
 	github.com/stretchr/testify v1.4.0
-	github.com/yudai/gojsondiff v1.0.1-0.20180504020246-0525c875b75c
-	github.com/yudai/golcs v0.0.0-20170316035057-ecda9a501e82 // indirect
-	github.com/yudai/pp v2.0.1+incompatible // indirect
 	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
+	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	k8s.io/api v1.17.8
 	k8s.io/apiextensions-apiserver v1.17.8
 	k8s.io/apimachinery v1.17.8

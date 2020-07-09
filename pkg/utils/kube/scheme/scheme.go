@@ -1,6 +1,8 @@
-package kube
+package scheme
 
 import (
+	"k8s.io/kubernetes/pkg/api/legacyscheme"
+
 	_ "k8s.io/kubernetes/pkg/apis/apps/install"
 	_ "k8s.io/kubernetes/pkg/apis/authentication/install"
 	_ "k8s.io/kubernetes/pkg/apis/authorization/install"
@@ -17,3 +19,5 @@ import (
 	_ "k8s.io/kubernetes/pkg/apis/settings/install"
 	_ "k8s.io/kubernetes/pkg/apis/storage/install"
 )
+
+var Scheme = legacyscheme.Scheme

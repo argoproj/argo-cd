@@ -26,6 +26,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	jsonutil "github.com/argoproj/gitops-engine/pkg/utils/json"
+	kubescheme "github.com/argoproj/gitops-engine/pkg/utils/kube/scheme"
 )
 
 // Holds diffing settings
@@ -118,22 +119,43 @@ func TwoWayDiff(config, live *unstructured.Unstructured) (*DiffResult, error) {
 	}
 }
 
-// Workaround for https://github.com/kubernetes/kubernetes/issues/74819.
-// The volumeClaimTemplates field does not support merge strategy. Unfortunately we cannot even inject proper
-// strategic merge patch metadata because merge key is `matadata.name` but `strategicpatch` package does not
-// nested merge keys. So the only option is poor man merge patch using `volumeClaimTemplates` index as a merge key.
-func statefulSetWorkaround(orig, live *unstructured.Unstructured) {
-	origTemplate, ok, err := unstructured.NestedSlice(orig.Object, "spec", "volumeClaimTemplates")
-	if !ok || err != nil {
-		return
+// applyPatch executes kubernetes server side patch:
+// uses corresponding data structure, applies appropriate defaults and executes strategic merge patch
+func applyPatch(liveBytes []byte, patchBytes []byte, newVersionedObject func() (runtime.Object, error)) ([]byte, []byte, error) {
+	predictedLive, err := newVersionedObject()
+	if err != nil {
+		return nil, nil, err
+	}
+	predictedLiveBytes, err := strategicpatch.StrategicMergePatch(liveBytes, patchBytes, predictedLive)
+	if err != nil {
+		return nil, nil, err
 	}
 
-	liveTemplate, ok, err := unstructured.NestedSlice(live.Object, "spec", "volumeClaimTemplates")
-	if !ok || err != nil {
-		return
+	err = json.Unmarshal(predictedLiveBytes, &predictedLive)
+	if err != nil {
+		return nil, nil, err
+	}
+	kubescheme.Scheme.Default(predictedLive)
+
+	predictedLiveBytes, err = json.Marshal(predictedLive)
+	if err != nil {
+		return nil, nil, err
 	}
 
-	_ = unstructured.SetNestedField(live.Object, jsonutil.RemoveListFields(origTemplate, liveTemplate), "spec", "volumeClaimTemplates")
+	live, err := newVersionedObject()
+	if err != nil {
+		return nil, nil, err
+	}
+	err = json.Unmarshal(liveBytes, live)
+	if err != nil {
+		return nil, nil, err
+	}
+	kubescheme.Scheme.Default(live)
+	liveBytes, err = json.Marshal(live)
+	if err != nil {
+		return nil, nil, err
+	}
+	return liveBytes, predictedLiveBytes, nil
 }
 
 // ThreeWayDiff performs a diff with the understanding of how to incorporate the
@@ -144,7 +166,7 @@ func ThreeWayDiff(orig, config, live *unstructured.Unstructured) (*DiffResult, e
 	config = removeNamespaceAnnotation(config)
 
 	// 1. calculate a 3-way merge patch
-	patchBytes, versionedObject, err := threeWayMergePatch(orig, config, live)
+	patchBytes, newVersionedObject, err := threeWayMergePatch(orig, config, live)
 	if err != nil {
 		return nil, err
 	}
@@ -156,8 +178,8 @@ func ThreeWayDiff(orig, config, live *unstructured.Unstructured) (*DiffResult, e
 	}
 
 	var predictedLiveBytes []byte
-	if versionedObject != nil {
-		predictedLiveBytes, err = strategicpatch.StrategicMergePatch(liveBytes, patchBytes, versionedObject)
+	if newVersionedObject != nil {
+		liveBytes, predictedLiveBytes, err = applyPatch(liveBytes, patchBytes, newVersionedObject)
 		if err != nil {
 			return nil, err
 		}
@@ -226,7 +248,7 @@ func removeNamespaceAnnotation(orig *unstructured.Unstructured) *unstructured.Un
 	return orig
 }
 
-func threeWayMergePatch(orig, config, live *unstructured.Unstructured) ([]byte, runtime.Object, error) {
+func threeWayMergePatch(orig, config, live *unstructured.Unstructured) ([]byte, func() (runtime.Object, error), error) {
 	origBytes, err := json.Marshal(orig.Object)
 	if err != nil {
 		return nil, nil, err
@@ -237,11 +259,6 @@ func threeWayMergePatch(orig, config, live *unstructured.Unstructured) ([]byte, 
 	}
 
 	if versionedObject, err := scheme.Scheme.New(orig.GroupVersionKind()); err == nil {
-		gk := orig.GroupVersionKind().GroupKind()
-		if (gk.Group == "apps" || gk.Group == "extensions") && gk.Kind == "StatefulSet" {
-			statefulSetWorkaround(orig, live)
-		}
-
 		liveBytes, err := json.Marshal(live.Object)
 		if err != nil {
 			return nil, nil, err
@@ -255,7 +272,10 @@ func threeWayMergePatch(orig, config, live *unstructured.Unstructured) ([]byte, 
 		if err != nil {
 			return nil, nil, err
 		}
-		return patch, versionedObject, nil
+		newVersionedObject := func() (runtime.Object, error) {
+			return scheme.Scheme.New(orig.GroupVersionKind())
+		}
+		return patch, newVersionedObject, nil
 	} else {
 		// Remove defaulted fields from the live object.
 		// This subtracts any extra fields in the live object which are not present in last-applied-configuration.
@@ -325,10 +345,6 @@ func Normalize(un *unstructured.Unstructured, normalizer Normalizer, options Dif
 	if un == nil {
 		return
 	}
-
-	// creationTimestamp is sometimes set to null in the config when exported (e.g. SealedSecrets)
-	// Removing the field allows a cleaner diff.
-	unstructured.RemoveNestedField(un.Object, "metadata", "creationTimestamp")
 
 	gvk := un.GroupVersionKind()
 	if gvk.Group == "" && gvk.Kind == "Secret" {

@@ -4,12 +4,13 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
+	"os"
 	"strings"
 	"testing"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/io"
+
 	"github.com/stretchr/testify/assert"
-	"github.com/yudai/gojsondiff"
-	"github.com/yudai/gojsondiff/formatter"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
@@ -20,28 +21,42 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-var (
-	formatOpts = formatter.AsciiFormatterConfig{
-		Coloring: false,
-	}
-)
-
-func printDiff(result *DiffResult, left *unstructured.Unstructured) (string, error) {
-	leftData, err := json.Marshal(left)
+func captureStdout(callback func()) (string, error) {
+	oldStdout := os.Stdout
+	oldStderr := os.Stderr
+	r, w, err := os.Pipe()
 	if err != nil {
 		return "", err
 	}
+	os.Stdout = w
+	defer func() {
+		os.Stdout = oldStdout
+		os.Stderr = oldStderr
+	}()
 
-	diff, err := gojsondiff.New().Compare(leftData, result.PredictedLive)
+	callback()
+	io.Close(w)
+
+	data, err := ioutil.ReadAll(r)
+
 	if err != nil {
 		return "", err
 	}
-	if !diff.Modified() {
-		return "", nil
-	}
+	return string(data), err
+}
 
-	asciiFmt := formatter.NewAsciiFormatter(left.Object, formatOpts)
-	return asciiFmt.Format(diff)
+func printDiff(result *DiffResult) (string, error) {
+	var live unstructured.Unstructured
+	if err := json.Unmarshal(result.NormalizedLive, &live); err != nil {
+		return "", err
+	}
+	var target unstructured.Unstructured
+	if err := json.Unmarshal(result.PredictedLive, &target); err != nil {
+		return "", err
+	}
+	return captureStdout(func() {
+		_ = PrintDiff("diff", &live, &target)
+	})
 }
 
 func toUnstructured(obj interface{}) (*unstructured.Unstructured, error) {
@@ -127,7 +142,7 @@ func TestDiff(t *testing.T) {
 
 	diffRes := diff(t, leftUn, leftUn, GetDefaultDiffOptions())
 	assert.False(t, diffRes.Modified)
-	ascii, err := printDiff(diffRes, leftUn)
+	ascii, err := printDiff(diffRes)
 	assert.Nil(t, err)
 	if ascii != "" {
 		log.Println(ascii)
@@ -229,7 +244,7 @@ func TestThreeWayDiff(t *testing.T) {
 	liveUn := mustToUnstructured(liveDep)
 	res := diff(t, configUn, liveUn, GetDefaultDiffOptions())
 	if !assert.False(t, res.Modified) {
-		ascii, err := printDiff(res, liveUn)
+		ascii, err := printDiff(res)
 		assert.Nil(t, err)
 		log.Println(ascii)
 	}
@@ -243,7 +258,7 @@ func TestThreeWayDiff(t *testing.T) {
 	liveUn = mustToUnstructured(liveDep)
 	res = diff(t, configUn, liveUn, GetDefaultDiffOptions())
 	if !assert.False(t, res.Modified) {
-		ascii, err := printDiff(res, liveUn)
+		ascii, err := printDiff(res)
 		assert.Nil(t, err)
 		log.Println(ascii)
 	}
@@ -264,7 +279,7 @@ func TestThreeWayDiff(t *testing.T) {
 	configUn = mustToUnstructured(configDep)
 	liveUn = mustToUnstructured(liveDep)
 	res = diff(t, configUn, liveUn, GetDefaultDiffOptions())
-	ascii, err := printDiff(res, liveUn)
+	ascii, err := printDiff(res)
 	assert.Nil(t, err)
 	if ascii != "" {
 		log.Println(ascii)
@@ -323,7 +338,7 @@ func TestThreeWayDiffExample1(t *testing.T) {
 	assert.Nil(t, err)
 	dr := diff(t, &configUn, &liveUn, GetDefaultDiffOptions())
 	assert.False(t, dr.Modified)
-	ascii, err := printDiff(dr, &liveUn)
+	ascii, err := printDiff(dr)
 	assert.Nil(t, err)
 	if ascii != "" {
 		log.Println(ascii)
@@ -339,7 +354,7 @@ func TestDiffOptionIgnoreAggregateRoles(t *testing.T) {
 		liveUn := unmarshalFile("testdata/aggr-clusterrole-live.json")
 		dr := diff(t, configUn, liveUn, DiffOptions{IgnoreAggregatedRoles: true})
 		assert.False(t, dr.Modified)
-		ascii, err := printDiff(dr, liveUn)
+		ascii, err := printDiff(dr)
 		assert.Nil(t, err)
 		log.Println(ascii)
 	}
@@ -349,7 +364,7 @@ func TestDiffOptionIgnoreAggregateRoles(t *testing.T) {
 		liveUn := unmarshalFile("testdata/aggr-clusterrole-live.json")
 		dr := diff(t, configUn, liveUn, DiffOptions{IgnoreAggregatedRoles: false})
 		assert.True(t, dr.Modified)
-		ascii, err := printDiff(dr, liveUn)
+		ascii, err := printDiff(dr)
 		assert.Nil(t, err)
 		log.Println(ascii)
 	}
@@ -360,19 +375,19 @@ func TestThreeWayDiffExample2(t *testing.T) {
 	liveUn := unmarshalFile("testdata/elasticsearch-live.json")
 	dr := diff(t, configUn, liveUn, GetDefaultDiffOptions())
 	assert.False(t, dr.Modified)
-	ascii, err := printDiff(dr, liveUn)
+	ascii, err := printDiff(dr)
 	assert.Nil(t, err)
 	log.Println(ascii)
 }
 
 // Tests a real world example
 func TestThreeWayDiffExample3(t *testing.T) {
-	configUn := unmarshalFile("testdata/elasticsearch-config.json")
-	liveUn := unmarshalFile("testdata/elasticsearch-live.json")
+	configUn := unmarshalFile("testdata/deployment-config.json")
+	liveUn := unmarshalFile("testdata/deployment-live.json")
 
 	dr := diff(t, configUn, liveUn, GetDefaultDiffOptions())
 	assert.False(t, dr.Modified)
-	ascii, err := printDiff(dr, liveUn)
+	ascii, err := printDiff(dr)
 	assert.Nil(t, err)
 	if ascii != "" {
 		log.Println(ascii)
@@ -394,7 +409,7 @@ func TestThreeWayDiffExample2WithDifference(t *testing.T) {
 
 	dr := diff(t, configUn, liveUn, GetDefaultDiffOptions())
 	assert.True(t, dr.Modified)
-	ascii, err := printDiff(dr, liveUn)
+	ascii, err := printDiff(dr)
 	assert.Nil(t, err)
 	log.Println(ascii)
 
@@ -403,16 +418,16 @@ func TestThreeWayDiffExample2WithDifference(t *testing.T) {
 	showsExtra := 0
 	showsChanged := 0
 	for _, line := range strings.Split(ascii, "\n") {
-		if strings.HasPrefix(line, `+      "foo": "bar"`) {
+		if strings.HasPrefix(line, `>     foo: bar`) {
 			showsMissing++
 		}
-		if strings.HasPrefix(line, `-      "release": "elasticsearch4"`) {
+		if strings.HasPrefix(line, `<     release: elasticsearch4`) {
 			showsExtra++
 		}
-		if strings.HasPrefix(line, `+      "chart": "elasticsearch-1.7.1"`) {
+		if strings.HasPrefix(line, `>     chart: elasticsearch-1.7.1`) {
 			showsChanged++
 		}
-		if strings.HasPrefix(line, `-      "chart": "elasticsearch-1.7.0"`) {
+		if strings.HasPrefix(line, `<     chart: elasticsearch-1.7.0`) {
 			showsChanged++
 		}
 	}
@@ -426,7 +441,7 @@ func TestThreeWayDiffExplicitNamespace(t *testing.T) {
 	liveUn := unmarshalFile("testdata/spinnaker-sa-live.json")
 	dr := diff(t, configUn, liveUn, GetDefaultDiffOptions())
 	assert.False(t, dr.Modified)
-	ascii, err := printDiff(dr, liveUn)
+	ascii, err := printDiff(dr)
 	assert.Nil(t, err)
 	log.Println(ascii)
 }
@@ -527,7 +542,7 @@ func TestSecretStringData(t *testing.T) {
 
 	dr := diff(t, &configUn, &liveUn, GetDefaultDiffOptions())
 	if !assert.False(t, dr.Modified) {
-		ascii, err := printDiff(dr, &liveUn)
+		ascii, err := printDiff(dr)
 		assert.Nil(t, err)
 		log.Println(ascii)
 	}
@@ -578,7 +593,7 @@ func TestNullSecretData(t *testing.T) {
 	liveUn := unmarshalFile("testdata/wordpress-live.json")
 	dr := diff(t, configUn, liveUn, GetDefaultDiffOptions())
 	if !assert.False(t, dr.Modified) {
-		ascii, err := printDiff(dr, liveUn)
+		ascii, err := printDiff(dr)
 		assert.Nil(t, err)
 		log.Println(ascii)
 	}
@@ -591,13 +606,13 @@ func TestRedactedSecretData(t *testing.T) {
 	liveUn := unmarshalFile("testdata/wordpress-live.json")
 	configData := configUn.Object["data"].(map[string]interface{})
 	liveData := liveUn.Object["data"].(map[string]interface{})
-	configData["wordpress-password"] = "***"
-	configData["smtp-password"] = "***"
-	liveData["wordpress-password"] = "******"
-	liveData["smtp-password"] = "******"
+	configData["wordpress-password"] = "++++++++"
+	configData["smtp-password"] = "++++++++"
+	liveData["wordpress-password"] = "++++++++++++"
+	liveData["smtp-password"] = "++++++++++++"
 	dr := diff(t, configUn, liveUn, GetDefaultDiffOptions())
 	if !assert.True(t, dr.Modified) {
-		ascii, err := printDiff(dr, liveUn)
+		ascii, err := printDiff(dr)
 		assert.Nil(t, err)
 		log.Println(ascii)
 	}
@@ -608,7 +623,7 @@ func TestNullRoleRule(t *testing.T) {
 	liveUn := unmarshalFile("testdata/grafana-clusterrole-live.json")
 	dr := diff(t, configUn, liveUn, GetDefaultDiffOptions())
 	if !assert.False(t, dr.Modified) {
-		ascii, err := printDiff(dr, liveUn)
+		ascii, err := printDiff(dr)
 		assert.Nil(t, err)
 		log.Println(ascii)
 	}
@@ -619,7 +634,7 @@ func TestNullCreationTimestamp(t *testing.T) {
 	liveUn := unmarshalFile("testdata/sealedsecret-live.json")
 	dr := diff(t, configUn, liveUn, GetDefaultDiffOptions())
 	if !assert.False(t, dr.Modified) {
-		ascii, err := printDiff(dr, liveUn)
+		ascii, err := printDiff(dr)
 		assert.Nil(t, err)
 		log.Println(ascii)
 	}
