@@ -152,12 +152,11 @@ jobs:
       - name: Initialize local Helm
         run: |
           helm2 init --client-only
-      - name: Checkout code
-        uses: actions/checkout@v2
       - name: Run codegen
         run: |
           set -x
           export GOPATH=$(go env GOPATH)
+          git checkout -- go.mod go.sum
           make codegen-local
         working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
       - name: Check nothing has changed

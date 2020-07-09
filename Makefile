@@ -274,10 +274,8 @@ mod-vendor:
 
 .PHONY: mod-vendor-local
 mod-vendor-local: mod-download-local
-	git status
-	cat go.mod
 	go mod graph
-	go mod vendor -v
+	go mod vendor
 
 # Deprecated - replace by install-local-tools
 .PHONY: install-lint-tools
