@@ -553,6 +553,7 @@ func TestBeforeHookCreation(t *testing.T) {
 	_, _, resources := syncCtx.GetState()
 	assert.Len(t, resources, 1)
 	assert.Empty(t, resources[0].Message)
+	assert.Equal(t, "waiting for completion of hook /Pod/my-pod", syncCtx.message)
 }
 
 func TestRunSyncFailHooksFailed(t *testing.T) {
@@ -643,4 +644,28 @@ func Test_syncContext_hasCRDOfGroupKind(t *testing.T) {
 	// hook
 	assert.False(t, (&syncContext{hooks: []*unstructured.Unstructured{NewCRD()}}).hasCRDOfGroupKind("", ""))
 	assert.True(t, (&syncContext{hooks: []*unstructured.Unstructured{NewCRD()}}).hasCRDOfGroupKind("argoproj.io", "TestCrd"))
+}
+
+func Test_setRunningPhase_healthyState(t *testing.T) {
+	sc := syncContext{log: log.WithFields(log.Fields{"application": "fake-app"})}
+
+	sc.setRunningPhase([]*syncTask{{targetObj: NewPod()}, {targetObj: NewPod()}, {targetObj: NewPod()}}, false)
+
+	assert.Equal(t, "waiting for healthy state of /Pod/my-pod and 2 more resources", sc.message)
+}
+
+func Test_setRunningPhase_runningHooks(t *testing.T) {
+	sc := syncContext{log: log.WithFields(log.Fields{"application": "fake-app"})}
+
+	sc.setRunningPhase([]*syncTask{{targetObj: newHook(synccommon.HookTypeSyncFail)}}, false)
+
+	assert.Equal(t, "waiting for completion of hook /Pod/my-pod", sc.message)
+}
+
+func Test_setRunningPhase_pendingDeletion(t *testing.T) {
+	sc := syncContext{log: log.WithFields(log.Fields{"application": "fake-app"})}
+
+	sc.setRunningPhase([]*syncTask{{targetObj: NewPod()}, {targetObj: NewPod()}, {targetObj: NewPod()}}, true)
+
+	assert.Equal(t, "waiting for deletion of /Pod/my-pod and 2 more resources", sc.message)
 }

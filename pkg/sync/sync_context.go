@@ -243,6 +243,27 @@ type syncContext struct {
 	lock sync.Mutex
 }
 
+func (sc *syncContext) setRunningPhase(tasks []*syncTask, isPendingDeletion bool) {
+	if len(tasks) > 0 {
+		firstTask := tasks[0]
+		waitingFor := "completion of hook"
+		andMore := "hooks"
+		if !firstTask.isHook() {
+			waitingFor = "healthy state of"
+			andMore = "resources"
+		}
+		if isPendingDeletion {
+			waitingFor = "deletion of"
+		}
+		message := fmt.Sprintf("waiting for %s %s/%s/%s",
+			waitingFor, firstTask.group(), firstTask.kind(), firstTask.name())
+		if moreTasks := len(tasks) - 1; moreTasks > 0 {
+			message = fmt.Sprintf("%s and %d more %s", message, moreTasks, andMore)
+		}
+		sc.setOperationPhase(common.OperationRunning, message)
+	}
+}
+
 // sync has performs the actual apply or hook based sync
 func (sc *syncContext) Sync() {
 	sc.log.WithFields(log.Fields{"skipHooks": sc.skipHooks, "started": sc.started()}).Info("syncing")
@@ -314,8 +335,9 @@ func (sc *syncContext) Sync() {
 	// or (b) there are any running hooks,
 	// then wait...
 	multiStep := tasks.multiStep()
-	if tasks.Any(func(t *syncTask) bool { return (multiStep || t.isHook()) && t.running() }) {
-		sc.setOperationPhase(common.OperationRunning, "one or more tasks are running")
+	runningTasks := tasks.Filter(func(t *syncTask) bool { return (multiStep || t.isHook()) && t.running() })
+	if runningTasks.Len() > 0 {
+		sc.setRunningPhase(runningTasks, false)
 		return
 	}
 
@@ -346,7 +368,7 @@ func (sc *syncContext) Sync() {
 	// if it is the last phase/wave and the only remaining tasks are non-hooks, the we are successful
 	// EVEN if those objects subsequently degraded
 	// This handles the common case where neither hooks or waves are used and a sync equates to simply an (asynchronous) kubectl apply of manifests, which succeeds immediately.
-	complete := !tasks.Any(func(t *syncTask) bool { return t.phase != phase || wave != t.wave() || t.isHook() })
+	remainingTasks := tasks.Filter(func(t *syncTask) bool { return t.phase != phase || wave != t.wave() || t.isHook() })
 
 	sc.log.WithFields(log.Fields{"phase": phase, "wave": wave, "tasks": tasks, "syncFailTasks": syncFailTasks}).Debug("filtering tasks in correct phase and wave")
 	tasks = tasks.Filter(func(t *syncTask) bool { return t.phase == phase && t.wave() == wave })
@@ -359,9 +381,15 @@ func (sc *syncContext) Sync() {
 	case failed:
 		sc.setOperationFailed(syncFailTasks, "one or more objects failed to apply")
 	case successful:
-		if complete {
+		if remainingTasks.Len() == 0 {
 			sc.setOperationPhase(common.OperationSucceeded, "successfully synced (all tasks run)")
+		} else {
+			sc.setRunningPhase(remainingTasks, false)
 		}
+	default:
+		sc.setRunningPhase(tasks.Filter(func(task *syncTask) bool {
+			return task.needsDeleting()
+		}), true)
 	}
 }
 
