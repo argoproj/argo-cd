@@ -141,7 +141,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                             orphanedResourcesWarn:
                                                                 proj.spec.orphanedResources && (proj.spec.orphanedResources.warn === undefined || proj.spec.orphanedResources.warn),
                                                             orphanedResourceIgnoreList:
-                                                                proj.spec.orphanedResources && proj.spec.orphanedResources.ignoreList ? proj.spec.orphanedResources.ignoreList : []
+                                                                proj.spec.orphanedResources && proj.spec.orphanedResources.ignore ? proj.spec.orphanedResources.ignore : []
                                                         }}
                                                         getApi={api => (this.projectFormApi = api)}
                                                         submit={async projParams => {
@@ -643,7 +643,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                 </div>
 
                 <h4>Orphaned resources ignore list {helpTip('Resources that ArgoCD should not report them as orphaned')}</h4>
-                {(((proj.spec.orphanedResources && proj.spec.orphanedResources.ignoreList) || []).length > 0 && (
+                {(((proj.spec.orphanedResources && proj.spec.orphanedResources.ignore) || []).length > 0 && (
                     <div className='argo-table-list'>
                         <div className='argo-table-list__head'>
                             <div className='row'>
@@ -652,7 +652,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                 <div className='columns small-3'>NAME</div>
                             </div>
                         </div>
-                        {((proj.spec.orphanedResources && proj.spec.orphanedResources.ignoreList) || []).map(res => (
+                        {((proj.spec.orphanedResources && proj.spec.orphanedResources.ignore) || []).map(res => (
                             <div className='argo-table-list__row' key={`${res.group}/${res.kind}/${res.name}`}>
                                 <div className='row'>
                                     <div className='columns small-3'>{res.group}</div>

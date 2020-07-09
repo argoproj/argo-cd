@@ -82,7 +82,7 @@ function paramsToProj(params: ProjectParams) {
             namespaceResourceBlacklist: params.namespaceResourceBlacklist,
             namespaceResourceWhitelist: params.namespaceResourceWhitelist,
             signatureKeys: params.signatureKeys,
-            orphanedResources: (params.orphanedResourcesEnabled && {warn: !!params.orphanedResourcesWarn, ignoreList: params.orphanedResourceIgnoreList}) || null
+            orphanedResources: (params.orphanedResourcesEnabled && {warn: !!params.orphanedResourcesWarn, ignore: params.orphanedResourceIgnoreList}) || null
         }
     };
 }

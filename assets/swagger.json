@@ -4208,20 +4208,6 @@
         }
       }
     },
-    "v1alpha1Ignore": {
-      "type": "object",
-      "properties": {
-        "group": {
-          "type": "string"
-        },
-        "kind": {
-          "type": "string"
-        },
-        "name": {
-          "type": "string"
-        }
-      }
-    },
     "v1alpha1Info": {
       "type": "object",
       "properties": {
@@ -4391,14 +4377,28 @@
         }
       }
     },
+    "v1alpha1OrphanedResourceKey": {
+      "type": "object",
+      "properties": {
+        "group": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    },
     "v1alpha1OrphanedResourcesMonitorSettings": {
       "type": "object",
       "title": "OrphanedResourcesMonitorSettings holds settings of orphaned resources monitoring",
       "properties": {
-        "ignoreList": {
+        "ignore": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/v1alpha1Ignore"
+            "$ref": "#/definitions/v1alpha1OrphanedResourceKey"
           }
         },
         "warn": {

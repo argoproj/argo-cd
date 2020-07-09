@@ -1690,11 +1690,11 @@ func (p *AppProject) normalizePolicy(policy string) string {
 // OrphanedResourcesMonitorSettings holds settings of orphaned resources monitoring
 type OrphanedResourcesMonitorSettings struct {
 	// Warn indicates if warning condition should be created for apps which have orphaned resources
-	Warn       *bool    `json:"warn,omitempty" protobuf:"bytes,1,name=warn"`
-	IgnoreList []Ignore `json:"ignoreList,omitempty" protobuf:"bytes,2,opt,name=ignoreList"`
+	Warn   *bool                 `json:"warn,omitempty" protobuf:"bytes,1,name=warn"`
+	Ignore []OrphanedResourceKey `json:"ignore,omitempty" protobuf:"bytes,2,opt,name=ignore"`
 }
 
-type Ignore struct {
+type OrphanedResourceKey struct {
 	Group string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
 	Kind  string `json:"kind,omitempty" protobuf:"bytes,2,opt,name=kind"`
 	Name  string `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
