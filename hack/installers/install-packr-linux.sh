@@ -6,11 +6,10 @@ set -eux -o pipefail
 PACKR_VERSION=${packr_version}
 case $ARCHITECTURE in
   arm|arm64)
-    set +o pipefail
+    # Clone the repository in $GOPATH/src/github.com/gobuffalo/packr
     go get -u github.com/gobuffalo/packr
-    set -o pipefail
     cd $GOPATH/src/github.com/gobuffalo/packr && git checkout tags/v$PACKR_VERSION
-    cd $GOPATH/src/github.com/gobuffalo/packr && make install
+    cd $GOPATH/src/github.com/gobuffalo/packr && CGO_ENABLED=0 make install
     mv $GOPATH/bin/packr $BIN/packr
     ;;
   *)
