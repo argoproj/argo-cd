@@ -629,9 +629,8 @@ export interface ProjectSpec {
     clusterResourceWhitelist: GroupKind[];
     namespaceResourceBlacklist: GroupKind[];
     namespaceResourceWhitelist: GroupKind[];
-    orphanedResourceWhitelist: OrphanedResource[];
     signatureKeys: ProjectSignatureKey[];
-    orphanedResources?: {warn?: boolean};
+    orphanedResources?: {warn?: boolean; ignoreList: OrphanedResource[]};
     syncWindows?: SyncWindows;
 }
 

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"path/filepath"
 	"reflect"
 	"runtime/debug"
 	"strconv"
@@ -49,6 +48,8 @@ import (
 	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
 	"github.com/argoproj/argo-cd/util/db"
 	settings_util "github.com/argoproj/argo-cd/util/settings"
+
+	"github.com/gobwas/glob"
 )
 
 const (
@@ -262,21 +263,26 @@ func isKnownOrphanedResourceExclusion(key kube.ResourceKey, proj *appv1.AppProje
 	if key.Group == "" && key.Kind == kube.ServiceAccountKind && key.Name == "default" {
 		return true
 	}
-
-	list := proj.Spec.OrphanedResourceWhitelist
+	list := proj.Spec.OrphanedResources.IgnoreList
 	for _, item := range list {
-		ok, err := filepath.Match(item.Kind, key.Kind)
-		if ok && err == nil {
-			ok, err = filepath.Match(item.Group, key.Group)
-			if ok && err == nil {
-				ok, err = filepath.Match(item.Name, key.Name)
-				if ok && err == nil {
+		if item.Kind == "" || match(item.Kind, key.Kind) {
+			if match(item.Group, key.Group) {
+				if item.Name == "" || match(item.Name, key.Name) {
 					return true
 				}
 			}
 		}
 	}
 	return false
+}
+
+func match(pattern, text string) bool {
+	compiledGlob, err := glob.Compile(pattern)
+	if err != nil {
+		log.Warnf("failed to compile pattern %s due to error %v", pattern, err)
+		return false
+	}
+	return compiledGlob.Match(text)
 }
 
 func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managedResources []*appv1.ResourceDiff) (*appv1.ApplicationTree, error) {

@@ -1030,10 +1030,30 @@ func TestOrphanedResource(t *testing.T) {
 		Expect(Condition(ApplicationConditionOrphanedResourceWarning, "Application has 1 orphaned resources")).
 		Given().
 		ProjectSpec(AppProjectSpec{
-			SourceRepos:               []string{"*"},
-			Destinations:              []ApplicationDestination{{Namespace: "*", Server: "*"}},
-			OrphanedResources:         &OrphanedResourcesMonitorSettings{Warn: pointer.BoolPtr(true)},
-			OrphanedResourceWhitelist: []OrphanedResourceKey{{Kind: "ConfigMap", Name: "orphaned-configmap"}},
+			SourceRepos:       []string{"*"},
+			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
+			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.BoolPtr(true), IgnoreList: []Ignore{{Group: "Test", Kind: "ConfigMap"}}},
+		}).
+		When().
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(Condition(ApplicationConditionOrphanedResourceWarning, "Application has 1 orphaned resources")).
+		Given().
+		ProjectSpec(AppProjectSpec{
+			SourceRepos:       []string{"*"},
+			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
+			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.BoolPtr(true), IgnoreList: []Ignore{{Kind: "ConfigMap"}}},
+		}).
+		When().
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(NoConditions()).
+		Given().
+		ProjectSpec(AppProjectSpec{
+			SourceRepos:       []string{"*"},
+			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
+			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.BoolPtr(true), IgnoreList: []Ignore{{Kind: "ConfigMap", Name: "orphaned-configmap"}}},
 		}).
 		When().
 		Refresh(RefreshTypeNormal).

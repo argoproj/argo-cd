@@ -180,7 +180,10 @@ func (s *Server) Create(ctx context.Context, q *project.ProjectCreateRequest) (*
 	if err != nil {
 		return nil, err
 	}
+	println("pass 1")
 	res, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Create(q.Project)
+	println("pass 2")
+	println(res.Name)
 	if apierr.IsAlreadyExists(err) {
 		existing, getErr := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Project.Name, metav1.GetOptions{})
 		if getErr != nil {
@@ -268,8 +271,7 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 	clusterResourceWhitelistsEqual := reflect.DeepEqual(q.Project.Spec.ClusterResourceWhitelist, oldProj.Spec.ClusterResourceWhitelist)
 	namespacesResourceBlacklistsEqual := reflect.DeepEqual(q.Project.Spec.NamespaceResourceBlacklist, oldProj.Spec.NamespaceResourceBlacklist)
 	namespacesResourceWhitelistsEqual := reflect.DeepEqual(q.Project.Spec.NamespaceResourceWhitelist, oldProj.Spec.NamespaceResourceWhitelist)
-	orphanedResourceWhitelist := reflect.DeepEqual(q.Project.Spec.OrphanedResourceWhitelist, oldProj.Spec.OrphanedResourceWhitelist)
-	if !clusterResourceWhitelistsEqual || !namespacesResourceBlacklistsEqual || !namespacesResourceWhitelistsEqual || !orphanedResourceWhitelist {
+	if !clusterResourceWhitelistsEqual || !namespacesResourceBlacklistsEqual || !namespacesResourceWhitelistsEqual {
 		for _, cluster := range q.Project.Spec.DestinationClusters() {
 			if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionUpdate, cluster); err != nil {
 				return nil, err

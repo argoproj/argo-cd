@@ -3379,13 +3379,6 @@
             "$ref": "#/definitions/v1GroupKind"
           }
         },
-        "orphanedResourceWhitelist": {
-          "type": "array",
-          "title": "OrphanedResourceKeyWhitelist contains list of whitelisted orphaned resources",
-          "items": {
-            "$ref": "#/definitions/v1alpha1OrphanedResourceKey"
-          }
-        },
         "orphanedResources": {
           "$ref": "#/definitions/v1alpha1OrphanedResourcesMonitorSettings"
         },
@@ -4074,6 +4067,20 @@
         }
       }
     },
+    "v1alpha1Ignore": {
+      "type": "object",
+      "properties": {
+        "group": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    },
     "v1alpha1Info": {
       "type": "object",
       "properties": {
@@ -4243,24 +4250,16 @@
         }
       }
     },
-    "v1alpha1OrphanedResourceKey": {
-      "type": "object",
-      "properties": {
-        "group": {
-          "type": "string"
-        },
-        "kind": {
-          "type": "string"
-        },
-        "name": {
-          "type": "string"
-        }
-      }
-    },
     "v1alpha1OrphanedResourcesMonitorSettings": {
       "type": "object",
       "title": "OrphanedResourcesMonitorSettings holds settings of orphaned resources monitoring",
       "properties": {
+        "ignoreList": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1Ignore"
+          }
+        },
         "warn": {
           "type": "boolean",
           "format": "boolean",

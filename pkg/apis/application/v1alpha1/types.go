@@ -1690,7 +1690,14 @@ func (p *AppProject) normalizePolicy(policy string) string {
 // OrphanedResourcesMonitorSettings holds settings of orphaned resources monitoring
 type OrphanedResourcesMonitorSettings struct {
 	// Warn indicates if warning condition should be created for apps which have orphaned resources
-	Warn *bool `json:"warn,omitempty" protobuf:"bytes,1,name=warn"`
+	Warn       *bool    `json:"warn,omitempty" protobuf:"bytes,1,name=warn"`
+	IgnoreList []Ignore `json:"ignoreList,omitempty" protobuf:"bytes,2,opt,name=ignoreList"`
+}
+
+type Ignore struct {
+	Group string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
+	Kind  string `json:"kind,omitempty" protobuf:"bytes,2,opt,name=kind"`
+	Name  string `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
 }
 
 func (s *OrphanedResourcesMonitorSettings) IsWarn() bool {
@@ -1725,14 +1732,6 @@ type AppProjectSpec struct {
 	NamespaceResourceWhitelist []metav1.GroupKind `json:"namespaceResourceWhitelist,omitempty" protobuf:"bytes,9,opt,name=namespaceResourceWhitelist"`
 	// List of PGP key IDs that commits to be synced to must be signed with
 	SignatureKeys []SignatureKey `json:"signatureKeys,omitempty" protobuf:"bytes,10,opt,name=signatureKeys"`
-	// OrphanedResourceKeyWhitelist contains list of whitelisted orphaned resources
-	OrphanedResourceWhitelist []OrphanedResourceKey `json:"orphanedResourceWhitelist,omitempty" protobuf:"bytes,11,opt,name=orphanedResourceWhitelist"`
-}
-
-type OrphanedResourceKey struct {
-	Group string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
-	Kind  string `json:"kind,omitempty" protobuf:"bytes,2,opt,name=kind"`
-	Name  string `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
 }
 
 // SyncWindows is a collection of sync windows in this project

@@ -79,9 +79,6 @@ message AppProjectSpec {
 
   // List of PGP key IDs that commits to be synced to must be signed with
   repeated SignatureKey signatureKeys = 10;
-
-  // OrphanedResourceKeyWhitelist contains list of whitelisted orphaned resources
-  repeated OrphanedResourceKey orphanedResourceWhitelist = 11;
 }
 
 // AppProjectStatus contains information about appproj
@@ -497,6 +494,14 @@ message HelmParameter {
   optional bool forceString = 3;
 }
 
+message Ignore {
+  optional string group = 1;
+
+  optional string kind = 2;
+
+  optional string name = 3;
+}
+
 message Info {
   optional string name = 1;
 
@@ -598,18 +603,12 @@ message OperationState {
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time finishedAt = 7;
 }
 
-message OrphanedResourceKey {
-  optional string group = 1;
-
-  optional string kind = 2;
-
-  optional string name = 3;
-}
-
 // OrphanedResourcesMonitorSettings holds settings of orphaned resources monitoring
 message OrphanedResourcesMonitorSettings {
   // Warn indicates if warning condition should be created for apps which have orphaned resources
   optional bool warn = 1;
+
+  repeated Ignore ignoreList = 2;
 }
 
 message OverrideIgnoreDiff {
