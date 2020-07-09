@@ -630,7 +630,7 @@ export interface ProjectSpec {
     namespaceResourceBlacklist: GroupKind[];
     namespaceResourceWhitelist: GroupKind[];
     signatureKeys: ProjectSignatureKey[];
-    orphanedResources?: {warn?: boolean; ignoreList: OrphanedResource[]};
+    orphanedResources?: {warn?: boolean; ignore: OrphanedResource[]};
     syncWindows?: SyncWindows;
 }
 

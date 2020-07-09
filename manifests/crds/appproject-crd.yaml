@@ -95,7 +95,7 @@ spec:
             orphanedResources:
               description: OrphanedResources specifies if controller should monitor orphaned resources of apps in this project
               properties:
-                ignoreList:
+                ignore:
                   items:
                     properties:
                       group:
