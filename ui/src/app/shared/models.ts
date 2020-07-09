@@ -144,6 +144,12 @@ export interface ApplicationDestination {
     namespace: string;
 }
 
+export interface OrphanedResource {
+    group: string;
+    kind: string;
+    name: string;
+}
+
 export interface ApplicationSource {
     targetRevision: string;
     /**
@@ -624,7 +630,7 @@ export interface ProjectSpec {
     namespaceResourceBlacklist: GroupKind[];
     namespaceResourceWhitelist: GroupKind[];
     signatureKeys: ProjectSignatureKey[];
-    orphanedResources?: {warn?: boolean};
+    orphanedResources?: {warn?: boolean; ignore: OrphanedResource[]};
     syncWindows?: SyncWindows;
 }
 

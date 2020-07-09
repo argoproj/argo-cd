@@ -26,6 +26,7 @@ export const ProjectEditPanel = (props: {nameReadonly?: boolean; defaultParams?:
                 clusterResourceWhitelist: [],
                 namespaceResourceBlacklist: [],
                 namespaceResourceWhitelist: [],
+                orphanedResourceIgnoreList: [],
                 signatureKeys: [],
                 ...props.defaultParams
             }}
@@ -232,6 +233,46 @@ export const ProjectEditPanel = (props: {nameReadonly?: boolean; defaultParams?:
                         <FormField formApi={api} label='Enabled' field='orphanedResourcesEnabled' component={CheckboxField} />
                         {api.values.orphanedResourcesEnabled && <FormField formApi={api} label='Warn' field='orphanedResourcesWarn' component={CheckboxField} />}
                     </React.Fragment>
+
+                    {api.values.orphanedResourcesEnabled && (
+                        <React.Fragment>
+                            <h4>Orphaned Resources Ignore List</h4>
+                            <div>
+                                Define resources that ArgoCD should <strong>not</strong> report them as orphaned
+                            </div>
+                            <div className='argo-table-list__head'>
+                                <div className='row'>
+                                    <div className='columns small-3'>GROUP</div>
+                                    <div className='columns small-3'>KIND</div>
+                                    <div className='columns small-4'>NAME</div>
+                                </div>
+                            </div>
+                            {(api.values.orphanedResourceIgnoreList as Array<models.OrphanedResource>).map((_, i) => (
+                                <div key={i} className='argo-table-list__row'>
+                                    <div className='row'>
+                                        <div className='columns small-3'>
+                                            <Text className='argo-field' field={['orphanedResourceIgnoreList', i, 'group']} />
+                                        </div>
+                                        <div className='columns small-3'>
+                                            <Text className='argo-field' field={['orphanedResourceIgnoreList', i, 'kind']} />
+                                        </div>
+                                        <div className='columns small-4'>
+                                            <Text className='argo-field' field={['orphanedResourceIgnoreList', i, 'name']} />
+                                        </div>
+                                        <div className='columns small-2'>
+                                            <i
+                                                className='fa fa-times'
+                                                onClick={() => api.setValue('orphanedResourceIgnoreList', removeEl(api.values.orphanedResourceIgnoreList, i))}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                            <a onClick={() => api.setValue('orphanedResourceIgnoreList', api.values.orphanedResourceIgnoreList.concat({group: '', kind: '', name: ''}))}>
+                                add new resource to orphaned ignore list
+                            </a>
+                        </React.Fragment>
+                    )}
                 </form>
             )}
         </Form>

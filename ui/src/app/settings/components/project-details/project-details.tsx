@@ -139,7 +139,9 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                             signatureKeys: proj.spec.signatureKeys || [],
                                                             orphanedResourcesEnabled: !!proj.spec.orphanedResources,
                                                             orphanedResourcesWarn:
-                                                                proj.spec.orphanedResources && (proj.spec.orphanedResources.warn === undefined || proj.spec.orphanedResources.warn)
+                                                                proj.spec.orphanedResources && (proj.spec.orphanedResources.warn === undefined || proj.spec.orphanedResources.warn),
+                                                            orphanedResourceIgnoreList:
+                                                                proj.spec.orphanedResources && proj.spec.orphanedResources.ignore ? proj.spec.orphanedResources.ignore : []
                                                         }}
                                                         getApi={api => (this.projectFormApi = api)}
                                                         submit={async projParams => {
@@ -625,7 +627,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                     </div>
                 )}
 
-                <h4>Orphaned Resource Monitoring {helpTip('Enables monitoring of top level resources in the application target namespace')}</h4>
+                <h4>Orphaned resource monitoring {helpTip('Enables monitoring of top level resources in the application target namespace')}</h4>
 
                 <div className='white-box'>
                     <div className='white-box__details'>
@@ -639,6 +641,32 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                         )) || <p>Orphan resources monitoring is disabled</p>}
                     </div>
                 </div>
+
+                <h4>Orphaned resources ignore list {helpTip('Resources that ArgoCD should not report them as orphaned')}</h4>
+                {(((proj.spec.orphanedResources && proj.spec.orphanedResources.ignore) || []).length > 0 && (
+                    <div className='argo-table-list'>
+                        <div className='argo-table-list__head'>
+                            <div className='row'>
+                                <div className='columns small-3'>GROUP</div>
+                                <div className='columns small-3'>KIND</div>
+                                <div className='columns small-3'>NAME</div>
+                            </div>
+                        </div>
+                        {((proj.spec.orphanedResources && proj.spec.orphanedResources.ignore) || []).map(res => (
+                            <div className='argo-table-list__row' key={`${res.group}/${res.kind}/${res.name}`}>
+                                <div className='row'>
+                                    <div className='columns small-3'>{res.group}</div>
+                                    <div className='columns small-3'>{res.kind}</div>
+                                    <div className='columns small-3'>{res.name}</div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )) || (
+                    <div className='white-box'>
+                        <p> Resources that ArgoCD should not report them as orphaned</p>
+                    </div>
+                )}
             </div>
         );
     }
