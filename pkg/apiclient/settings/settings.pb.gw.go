@@ -9,13 +9,13 @@ It translates gRPC into RESTful JSON APIs.
 package settings
 
 import (
+	"context"
 	"io"
 	"net/http"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/grpc-ecosystem/grpc-gateway/utilities"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/grpclog"
@@ -47,14 +47,14 @@ func RegisterSettingsServiceHandlerFromEndpoint(ctx context.Context, mux *runtim
 	defer func() {
 		if err != nil {
 			if cerr := conn.Close(); cerr != nil {
-				grpclog.Printf("Failed to close conn to %s: %v", endpoint, cerr)
+				grpclog.Infof("Failed to close conn to %s: %v", endpoint, cerr)
 			}
 			return
 		}
 		go func() {
 			<-ctx.Done()
 			if cerr := conn.Close(); cerr != nil {
-				grpclog.Printf("Failed to close conn to %s: %v", endpoint, cerr)
+				grpclog.Infof("Failed to close conn to %s: %v", endpoint, cerr)
 			}
 		}()
 	}()
@@ -68,8 +68,8 @@ func RegisterSettingsServiceHandler(ctx context.Context, mux *runtime.ServeMux, 
 	return RegisterSettingsServiceHandlerClient(ctx, mux, NewSettingsServiceClient(conn))
 }
 
-// RegisterSettingsServiceHandler registers the http handlers for service SettingsService to "mux".
-// The handlers forward requests to the grpc endpoint over the given implementation of "SettingsServiceClient".
+// RegisterSettingsServiceHandlerClient registers the http handlers for service SettingsService
+// to "mux". The handlers forward requests to the grpc endpoint over the given implementation of "SettingsServiceClient".
 // Note: the gRPC framework executes interceptors within the gRPC handler. If the passed in "SettingsServiceClient"
 // doesn't go through the normal gRPC flow (creating a gRPC client etc.) then it will be up to the passed in
 // "SettingsServiceClient" to call the correct interceptors.
@@ -78,15 +78,6 @@ func RegisterSettingsServiceHandlerClient(ctx context.Context, mux *runtime.Serv
 	mux.Handle("GET", pattern_SettingsService_Get_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
-		if cn, ok := w.(http.CloseNotifier); ok {
-			go func(done <-chan struct{}, closed <-chan bool) {
-				select {
-				case <-done:
-				case <-closed:
-					cancel()
-				}
-			}(ctx.Done(), cn.CloseNotify())
-		}
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		rctx, err := runtime.AnnotateContext(ctx, mux, req)
 		if err != nil {
@@ -108,7 +99,7 @@ func RegisterSettingsServiceHandlerClient(ctx context.Context, mux *runtime.Serv
 }
 
 var (
-	pattern_SettingsService_Get_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "settings"}, ""))
+	pattern_SettingsService_Get_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "settings"}, "", runtime.AssumeColonVerbOpt(true)))
 )
 
 var (
