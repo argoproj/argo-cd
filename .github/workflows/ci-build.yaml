@@ -140,7 +140,7 @@ jobs:
         uses: actions/checkout@v2
       - name: Download & vendor dependencies
         run: |
-          # We need to vendor go modules for codegen yet
+          # We need to vendor go modules for codegen yet.
           go mod download
           go mod vendor -v
         working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
