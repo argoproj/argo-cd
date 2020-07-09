@@ -274,7 +274,6 @@ mod-vendor:
 
 .PHONY: mod-vendor-local
 mod-vendor-local: mod-download-local
-	go mod graph
 	go mod vendor
 
 # Deprecated - replace by install-local-tools
