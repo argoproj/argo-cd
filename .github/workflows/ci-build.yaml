@@ -124,8 +124,6 @@ jobs:
     name: Check changes to generated code
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
       - name: Setup Golang
         uses: actions/setup-go@v1
         with:
@@ -138,6 +136,8 @@ jobs:
         run: echo "::add-path::/usr/local/bin"
       - name: Add ~/go/bin to PATH
         run: echo "::add-path::/home/runner/go/bin"
+      - name: Checkout code
+        uses: actions/checkout@v2
       - name: Download & vendor dependencies
         run: |
           # We need to vendor go modules for codegen yet
