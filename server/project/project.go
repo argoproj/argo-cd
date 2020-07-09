@@ -180,10 +180,7 @@ func (s *Server) Create(ctx context.Context, q *project.ProjectCreateRequest) (*
 	if err != nil {
 		return nil, err
 	}
-	println("pass 1")
 	res, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Create(q.Project)
-	println("pass 2")
-	println(res.Name)
 	if apierr.IsAlreadyExists(err) {
 		existing, getErr := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Project.Name, metav1.GetOptions{})
 		if getErr != nil {
