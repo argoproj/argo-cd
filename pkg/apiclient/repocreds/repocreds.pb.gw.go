@@ -9,13 +9,13 @@ It translates gRPC into RESTful JSON APIs.
 package repocreds
 
 import (
+	"context"
 	"io"
 	"net/http"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/grpc-ecosystem/grpc-gateway/utilities"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/grpclog"
@@ -36,7 +36,10 @@ func request_RepoCredsService_ListRepositoryCredentials_0(ctx context.Context, m
 	var protoReq RepoCredsQuery
 	var metadata runtime.ServerMetadata
 
-	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_RepoCredsService_ListRepositoryCredentials_0); err != nil {
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_RepoCredsService_ListRepositoryCredentials_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -53,11 +56,18 @@ func request_RepoCredsService_CreateRepositoryCredentials_0(ctx context.Context,
 	var protoReq RepoCredsCreateRequest
 	var metadata runtime.ServerMetadata
 
-	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq.Creds); err != nil {
+	newReader, berr := utilities.IOReaderFactory(req.Body)
+	if berr != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
+	}
+	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq.Creds); err != nil && err != io.EOF {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
-	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_RepoCredsService_CreateRepositoryCredentials_0); err != nil {
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_RepoCredsService_CreateRepositoryCredentials_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -70,7 +80,11 @@ func request_RepoCredsService_UpdateRepositoryCredentials_0(ctx context.Context,
 	var protoReq RepoCredsUpdateRequest
 	var metadata runtime.ServerMetadata
 
-	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq.Creds); err != nil {
+	newReader, berr := utilities.IOReaderFactory(req.Body)
+	if berr != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
+	}
+	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq.Creds); err != nil && err != io.EOF {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -134,14 +148,14 @@ func RegisterRepoCredsServiceHandlerFromEndpoint(ctx context.Context, mux *runti
 	defer func() {
 		if err != nil {
 			if cerr := conn.Close(); cerr != nil {
-				grpclog.Printf("Failed to close conn to %s: %v", endpoint, cerr)
+				grpclog.Infof("Failed to close conn to %s: %v", endpoint, cerr)
 			}
 			return
 		}
 		go func() {
 			<-ctx.Done()
 			if cerr := conn.Close(); cerr != nil {
-				grpclog.Printf("Failed to close conn to %s: %v", endpoint, cerr)
+				grpclog.Infof("Failed to close conn to %s: %v", endpoint, cerr)
 			}
 		}()
 	}()
@@ -155,8 +169,8 @@ func RegisterRepoCredsServiceHandler(ctx context.Context, mux *runtime.ServeMux,
 	return RegisterRepoCredsServiceHandlerClient(ctx, mux, NewRepoCredsServiceClient(conn))
 }
 
-// RegisterRepoCredsServiceHandler registers the http handlers for service RepoCredsService to "mux".
-// The handlers forward requests to the grpc endpoint over the given implementation of "RepoCredsServiceClient".
+// RegisterRepoCredsServiceHandlerClient registers the http handlers for service RepoCredsService
+// to "mux". The handlers forward requests to the grpc endpoint over the given implementation of "RepoCredsServiceClient".
 // Note: the gRPC framework executes interceptors within the gRPC handler. If the passed in "RepoCredsServiceClient"
 // doesn't go through the normal gRPC flow (creating a gRPC client etc.) then it will be up to the passed in
 // "RepoCredsServiceClient" to call the correct interceptors.
@@ -165,15 +179,6 @@ func RegisterRepoCredsServiceHandlerClient(ctx context.Context, mux *runtime.Ser
 	mux.Handle("GET", pattern_RepoCredsService_ListRepositoryCredentials_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
-		if cn, ok := w.(http.CloseNotifier); ok {
-			go func(done <-chan struct{}, closed <-chan bool) {
-				select {
-				case <-done:
-				case <-closed:
-					cancel()
-				}
-			}(ctx.Done(), cn.CloseNotify())
-		}
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		rctx, err := runtime.AnnotateContext(ctx, mux, req)
 		if err != nil {
@@ -194,15 +199,6 @@ func RegisterRepoCredsServiceHandlerClient(ctx context.Context, mux *runtime.Ser
 	mux.Handle("POST", pattern_RepoCredsService_CreateRepositoryCredentials_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
-		if cn, ok := w.(http.CloseNotifier); ok {
-			go func(done <-chan struct{}, closed <-chan bool) {
-				select {
-				case <-done:
-				case <-closed:
-					cancel()
-				}
-			}(ctx.Done(), cn.CloseNotify())
-		}
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		rctx, err := runtime.AnnotateContext(ctx, mux, req)
 		if err != nil {
@@ -223,15 +219,6 @@ func RegisterRepoCredsServiceHandlerClient(ctx context.Context, mux *runtime.Ser
 	mux.Handle("PUT", pattern_RepoCredsService_UpdateRepositoryCredentials_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
-		if cn, ok := w.(http.CloseNotifier); ok {
-			go func(done <-chan struct{}, closed <-chan bool) {
-				select {
-				case <-done:
-				case <-closed:
-					cancel()
-				}
-			}(ctx.Done(), cn.CloseNotify())
-		}
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		rctx, err := runtime.AnnotateContext(ctx, mux, req)
 		if err != nil {
@@ -252,15 +239,6 @@ func RegisterRepoCredsServiceHandlerClient(ctx context.Context, mux *runtime.Ser
 	mux.Handle("DELETE", pattern_RepoCredsService_DeleteRepositoryCredentials_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
-		if cn, ok := w.(http.CloseNotifier); ok {
-			go func(done <-chan struct{}, closed <-chan bool) {
-				select {
-				case <-done:
-				case <-closed:
-					cancel()
-				}
-			}(ctx.Done(), cn.CloseNotify())
-		}
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		rctx, err := runtime.AnnotateContext(ctx, mux, req)
 		if err != nil {
@@ -282,13 +260,13 @@ func RegisterRepoCredsServiceHandlerClient(ctx context.Context, mux *runtime.Ser
 }
 
 var (
-	pattern_RepoCredsService_ListRepositoryCredentials_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "repocreds"}, ""))
+	pattern_RepoCredsService_ListRepositoryCredentials_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "repocreds"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_RepoCredsService_CreateRepositoryCredentials_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "repocreds"}, ""))
+	pattern_RepoCredsService_CreateRepositoryCredentials_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "repocreds"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_RepoCredsService_UpdateRepositoryCredentials_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "repocreds", "creds.url"}, ""))
+	pattern_RepoCredsService_UpdateRepositoryCredentials_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "repocreds", "creds.url"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_RepoCredsService_DeleteRepositoryCredentials_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "repocreds", "url"}, ""))
+	pattern_RepoCredsService_DeleteRepositoryCredentials_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "repocreds", "url"}, "", runtime.AssumeColonVerbOpt(true)))
 )
 
 var (

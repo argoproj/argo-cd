@@ -598,10 +598,24 @@ message OperationState {
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time finishedAt = 7;
 }
 
+message OrphanedResourceKey {
+  optional string group = 1;
+
+  optional string kind = 2;
+
+  optional string name = 3;
+}
+
 // OrphanedResourcesMonitorSettings holds settings of orphaned resources monitoring
 message OrphanedResourcesMonitorSettings {
   // Warn indicates if warning condition should be created for apps which have orphaned resources
   optional bool warn = 1;
+
+  repeated OrphanedResourceKey ignore = 2;
+}
+
+message OverrideIgnoreDiff {
+  repeated string jSONPointers = 1;
 }
 
 // ProjectRole represents a role that has access to a project
@@ -836,7 +850,7 @@ message ResourceOverride {
 
   optional string actions = 3;
 
-  optional string ignoreDifferences = 2;
+  optional OverrideIgnoreDiff ignoreDifferences = 2;
 
   repeated KnownTypeField knownTypeFields = 4;
 }

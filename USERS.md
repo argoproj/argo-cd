@@ -24,6 +24,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [END.](https://www.endclothing.com/)
 1. [Fave](https://myfave.com)
 1. [Future PLC](https://www.futureplc.com/)
+1. [Garner](https://www.garnercorp.com)
 1. [GMETRI](https://gmetri.com/)
 1. [Greenpass](https://www.greenpass.com.br/)
 1. [Healy](https://www.healyworld.net)

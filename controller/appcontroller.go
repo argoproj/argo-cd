@@ -32,7 +32,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 
 	// make sure to register workqueue prometheus metrics
-	_ "k8s.io/kubernetes/pkg/util/workqueue/prometheus"
+	_ "k8s.io/component-base/metrics/prometheus/workqueue"
 
 	"github.com/argoproj/argo-cd/common"
 	statecache "github.com/argoproj/argo-cd/controller/cache"
@@ -48,6 +48,8 @@ import (
 	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
 	"github.com/argoproj/argo-cd/util/db"
 	settings_util "github.com/argoproj/argo-cd/util/settings"
+
+	"github.com/gobwas/glob"
 )
 
 const (
@@ -215,7 +217,7 @@ func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]b
 				}
 				// exclude resource unless it is permitted in the app project. If project is not permitted then it is not controlled by the user and there is no point showing the warning.
 				if proj, err := ctrl.getAppProj(app); err == nil && proj.IsGroupKindPermitted(ref.GroupVersionKind().GroupKind(), true) &&
-					!isKnownOrphanedResourceExclusion(kube.NewResourceKey(ref.GroupVersionKind().Group, ref.GroupVersionKind().Kind, ref.Namespace, ref.Name)) {
+					!isKnownOrphanedResourceExclusion(kube.NewResourceKey(ref.GroupVersionKind().Group, ref.GroupVersionKind().Kind, ref.Namespace, ref.Name), proj) {
 
 					managedByApp[app.Name] = false
 				}
@@ -254,14 +256,33 @@ func (ctrl *ApplicationController) setAppManagedResources(a *appv1.Application, 
 }
 
 // returns true of given resources exist in the namespace by default and not managed by the user
-func isKnownOrphanedResourceExclusion(key kube.ResourceKey) bool {
+func isKnownOrphanedResourceExclusion(key kube.ResourceKey, proj *appv1.AppProject) bool {
 	if key.Namespace == "default" && key.Group == "" && key.Kind == kube.ServiceKind && key.Name == "kubernetes" {
 		return true
 	}
 	if key.Group == "" && key.Kind == kube.ServiceAccountKind && key.Name == "default" {
 		return true
 	}
+	list := proj.Spec.OrphanedResources.Ignore
+	for _, item := range list {
+		if item.Kind == "" || match(item.Kind, key.Kind) {
+			if match(item.Group, key.Group) {
+				if item.Name == "" || match(item.Name, key.Name) {
+					return true
+				}
+			}
+		}
+	}
 	return false
+}
+
+func match(pattern, text string) bool {
+	compiledGlob, err := glob.Compile(pattern)
+	if err != nil {
+		log.Warnf("failed to compile pattern %s due to error %v", pattern, err)
+		return false
+	}
+	return compiledGlob.Match(text)
 }
 
 func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managedResources []*appv1.ResourceDiff) (*appv1.ApplicationTree, error) {
@@ -316,7 +337,7 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 	}
 	orphanedNodes := make([]appv1.ResourceNode, 0)
 	for k := range orphanedNodesMap {
-		if k.Namespace != "" && proj.IsGroupKindPermitted(k.GroupKind(), true) && !isKnownOrphanedResourceExclusion(k) {
+		if k.Namespace != "" && proj.IsGroupKindPermitted(k.GroupKind(), true) && !isKnownOrphanedResourceExclusion(k, proj) {
 			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.Server, k, func(child appv1.ResourceNode, appName string) {
 				belongToAnotherApp := false
 				if appName != "" {
@@ -726,7 +747,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	}
 
 	ctrl.setOperationState(app, state)
-	if state.Phase.Completed() {
+	if state.Phase.Completed() && !app.Operation.Sync.DryRun {
 		// if we just completed an operation, force a refresh so that UI will report up-to-date
 		// sync/health information
 		if _, err := cache.MetaNamespaceKeyFunc(app); err == nil {

@@ -1,4 +1,4 @@
-package apiclient
+package kube
 
 import (
 	"bytes"
@@ -18,7 +18,7 @@ import (
 	"k8s.io/client-go/transport/spdy"
 )
 
-func portForward(podSelector string, namespace string) (int, error) {
+func PortForward(podSelector string, targetPort int, namespace string) (int, error) {
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig
 	overrides := clientcmd.ConfigOverrides{}
@@ -48,7 +48,7 @@ func portForward(podSelector string, namespace string) (int, error) {
 	}
 
 	if len(pods.Items) == 0 {
-		return -1, fmt.Errorf("cannot find argocd-server pod")
+		return -1, fmt.Errorf("cannot find %s pod", podSelector)
 	}
 
 	url := clientSet.CoreV1().RESTClient().Post().
@@ -74,7 +74,7 @@ func portForward(podSelector string, namespace string) (int, error) {
 	port := ln.Addr().(*net.TCPAddr).Port
 	io.Close(ln)
 
-	forwarder, err := portforward.New(dialer, []string{fmt.Sprintf("%d:8080", port)}, context.Background().Done(), readyChan, out, errOut)
+	forwarder, err := portforward.New(dialer, []string{fmt.Sprintf("%d:%d", port, targetPort)}, context.Background().Done(), readyChan, out, errOut)
 	if err != nil {
 		return -1, err
 	}

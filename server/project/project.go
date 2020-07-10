@@ -267,7 +267,8 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 
 	clusterResourceWhitelistsEqual := reflect.DeepEqual(q.Project.Spec.ClusterResourceWhitelist, oldProj.Spec.ClusterResourceWhitelist)
 	namespacesResourceBlacklistsEqual := reflect.DeepEqual(q.Project.Spec.NamespaceResourceBlacklist, oldProj.Spec.NamespaceResourceBlacklist)
-	if !clusterResourceWhitelistsEqual || !namespacesResourceBlacklistsEqual {
+	namespacesResourceWhitelistsEqual := reflect.DeepEqual(q.Project.Spec.NamespaceResourceWhitelist, oldProj.Spec.NamespaceResourceWhitelist)
+	if !clusterResourceWhitelistsEqual || !namespacesResourceBlacklistsEqual || !namespacesResourceWhitelistsEqual {
 		for _, cluster := range q.Project.Spec.DestinationClusters() {
 			if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionUpdate, cluster); err != nil {
 				return nil, err
@@ -404,29 +405,34 @@ func (s *Server) GetSyncWindowsState(ctx context.Context, q *project.SyncWindows
 	return res, nil
 }
 
-func (s *Server) NormalizeProjs() {
-	ctx := context.Background()
-	projList, err := s.List(ctx, &project.ProjectQuery{})
+func (s *Server) NormalizeProjs() error {
+	projList, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).List(metav1.ListOptions{})
 	if err != nil {
-		return
+		return status.Errorf(codes.Internal, "Error retrieving project list: %s", err.Error())
 	}
 	for _, proj := range projList.Items {
-		if proj.NormalizeJWTTokens() {
-			// if !apierr.IsConflict(err), retry 3 times
-			for i := 0; i < 3; i++ {
+		// if !apierr.IsConflict(err), retry 3 times
+		for i := 0; i < 3; i++ {
+			if proj.NormalizeJWTTokens() {
 				_, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(&proj)
 				if err == nil {
-					log.Info(fmt.Sprintf("Successfully Normalized project %s.", proj.Name))
+					log.Info(fmt.Sprintf("Successfully normalized project %s.", proj.Name))
 					break
 				}
 				if !apierr.IsConflict(err) {
-					log.Warn(fmt.Sprintf("Failed Normalize project %s", proj.Name))
+					log.Warn(fmt.Sprintf("Failed normalize project %s", proj.Name))
 					break
 				}
+				projGet, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(proj.Name, metav1.GetOptions{})
+				if err != nil {
+					return status.Errorf(codes.Internal, "Error retrieving project: %s", err.Error())
+				}
+				proj = *projGet
 				if i == 2 {
-					log.Warn(fmt.Sprintf("Failed Normalize project %s", proj.Name))
+					return status.Errorf(codes.Internal, "Failed normalize project %s", proj.Name)
 				}
 			}
 		}
 	}
+	return nil
 }

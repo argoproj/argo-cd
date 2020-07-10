@@ -257,6 +257,24 @@ type incompleteSettingsError struct {
 	message string
 }
 
+type IgnoreStatus string
+
+const (
+	// IgnoreResourceStatusInCRD ignores status changes for all CRDs
+	IgnoreResourceStatusInCRD IgnoreStatus = "crd"
+	// IgnoreResourceStatusInAll ignores status changes for all resources
+	IgnoreResourceStatusInAll IgnoreStatus = "all"
+	// IgnoreResourceStatusInNone ignores status changes for no resources
+	IgnoreResourceStatusInNone IgnoreStatus = "off"
+)
+
+type ArgoCDDiffOptions struct {
+	diff.DiffOptions
+
+	// If set to true then differences caused by status are ignored.
+	IgnoreResourceStatusField IgnoreStatus `json:"ignoreResourceStatusField,omitempty"`
+}
+
 func (e *incompleteSettingsError) Error() string {
 	return e.message
 }
@@ -448,7 +466,45 @@ func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.Resource
 		}
 	}
 
+	var diffOptions ArgoCDDiffOptions
+	if value, ok := argoCDCM.Data[resourceCompareOptionsKey]; ok {
+		err := yaml.Unmarshal([]byte(value), &diffOptions)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	crdGK := "apiextensions.k8s.io/CustomResourceDefinition"
+
+	switch diffOptions.IgnoreResourceStatusField {
+	case "", "crd":
+		addStatusOverrideToGK(resourceOverrides, crdGK)
+		log.Info("Ignore status for CustomResourceDefinitions")
+
+	case "all":
+		addStatusOverrideToGK(resourceOverrides, "*/*")
+		log.Info("Ignore status for all objects")
+
+	case "off", "false":
+		log.Info("Not ignoring status for any object")
+
+	default:
+		addStatusOverrideToGK(resourceOverrides, crdGK)
+		log.Warnf("Unrecognized value for ignoreResourceStatusField - %s, ignore status for CustomResourceDefinitions", diffOptions.IgnoreResourceStatusField)
+	}
+
 	return resourceOverrides, nil
+}
+
+func addStatusOverrideToGK(resourceOverrides map[string]v1alpha1.ResourceOverride, groupKind string) {
+	if val, ok := resourceOverrides[groupKind]; ok {
+		val.IgnoreDifferences.JSONPointers = append(val.IgnoreDifferences.JSONPointers, "/status")
+		resourceOverrides[groupKind] = val
+	} else {
+		resourceOverrides[groupKind] = v1alpha1.ResourceOverride{
+			IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{JSONPointers: []string{"/status"}},
+		}
+	}
 }
 
 // GetResourceCompareOptions loads the resource compare options settings from the ConfigMap
@@ -968,6 +1024,7 @@ func (a *ArgoCDSettings) OIDCConfig() *OIDCConfig {
 		return nil
 	}
 	oidcConfig.ClientSecret = ReplaceStringSecret(oidcConfig.ClientSecret, a.Secrets)
+	oidcConfig.ClientID = ReplaceStringSecret(oidcConfig.ClientID, a.Secrets)
 	return &oidcConfig
 }
 
