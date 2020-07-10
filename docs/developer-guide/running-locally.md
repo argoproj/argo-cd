@@ -113,5 +113,5 @@ to build a new set of installation manifests which include your specific image r
 The final step is to push the manifests to your cluster, so it will pull and run your image:
 
 ```bash
-kubectl -n argocd --force -f manifests/install.yaml
+kubectl apply -n argocd --force -f manifests/install.yaml
 ```
