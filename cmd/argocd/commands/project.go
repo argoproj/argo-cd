@@ -102,6 +102,8 @@ func NewProjectCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command.AddCommand(NewProjectAllowNamespaceResourceCommand(clientOpts))
 	command.AddCommand(NewProjectDenyNamespaceResourceCommand(clientOpts))
 	command.AddCommand(NewProjectWindowsCommand(clientOpts))
+	command.AddCommand(NewProjectAddOrphanedIgnoreCommand(clientOpts))
+	command.AddCommand(NewProjectRemoveOrphanedIgnoreCommand(clientOpts))
 	return command
 }
 
@@ -254,7 +256,7 @@ func NewProjectSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 	return command
 }
 
-// NewProjectAddSignatureKeyCommand returns a new instance of an `argocd proj add-destination` command
+// NewProjectAddSignatureKeyCommand returns a new instance of an `argocd proj add-signature-key` command
 func NewProjectAddSignatureKeyCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "add-signature-key PROJECT KEY-ID",
@@ -290,7 +292,7 @@ func NewProjectAddSignatureKeyCommand(clientOpts *argocdclient.ClientOptions) *c
 	return command
 }
 
-// NewProjectRemoveDestinationCommand returns a new instance of an `argocd proj remove-destination` command
+// NewProjectRemoveSignatureKeyCommand returns a new instance of an `argocd proj remove-signature-key` command
 func NewProjectRemoveSignatureKeyCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "remove-signature-key PROJECT KEY-ID",
@@ -391,6 +393,91 @@ func NewProjectRemoveDestinationCommand(clientOpts *argocdclient.ClientOptions) 
 				log.Fatal("Specified destination does not exist in project")
 			} else {
 				proj.Spec.Destinations = append(proj.Spec.Destinations[:index], proj.Spec.Destinations[index+1:]...)
+				_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
+				errors.CheckError(err)
+			}
+		},
+	}
+
+	return command
+}
+
+// NewProjectAddOrphanedIgnoreCommand returns a new instance of an `argocd proj add-orphaned-ignore` command
+func NewProjectAddOrphanedIgnoreCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var command = &cobra.Command{
+		Use:   "add-orphaned-ignore PROJECT GROUP KIND NAME",
+		Short: "Add a resource to orphaned ignore list",
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 4 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			projName := args[0]
+			group := args[1]
+			kind := args[2]
+			name := args[3]
+			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
+			defer argoio.Close(conn)
+
+			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
+			errors.CheckError(err)
+
+			if proj.Spec.OrphanedResources == nil {
+				settings := v1alpha1.OrphanedResourcesMonitorSettings{}
+				settings.Ignore = []v1alpha1.OrphanedResourceKey{{Group: group, Kind: kind, Name: name}}
+				proj.Spec.OrphanedResources = &settings
+			} else {
+				for _, ignore := range proj.Spec.OrphanedResources.Ignore {
+					if ignore.Group == group && ignore.Kind == kind && ignore.Name == name {
+						log.Fatal("Specified resource is already defined in the orphaned ignore list of project")
+						return
+					}
+				}
+				proj.Spec.OrphanedResources.Ignore = append(proj.Spec.OrphanedResources.Ignore, v1alpha1.OrphanedResourceKey{Group: group, Kind: kind, Name: name})
+			}
+			_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
+			errors.CheckError(err)
+		},
+	}
+	return command
+}
+
+// NewProjectRemoveOrphanedIgnoreCommand returns a new instance of an `argocd proj remove-orphaned-ignore` command
+func NewProjectRemoveOrphanedIgnoreCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var command = &cobra.Command{
+		Use:   "remove-orphaned-ignore PROJECT GROUP KIND NAME",
+		Short: "Remove a resource from orphaned ignore list",
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 4 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			projName := args[0]
+			group := args[1]
+			kind := args[2]
+			name := args[3]
+			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
+			defer argoio.Close(conn)
+
+			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
+			errors.CheckError(err)
+
+			if proj.Spec.OrphanedResources == nil {
+				log.Fatal("Specified resource does not exist in the orphaned ignore list of project")
+				return
+			}
+
+			index := -1
+			for i, ignore := range proj.Spec.OrphanedResources.Ignore {
+				if ignore.Group == group && ignore.Kind == kind && ignore.Name == name {
+					index = i
+					break
+				}
+			}
+			if index == -1 {
+				log.Fatal("Specified resource does not exist in the orphaned ignore of project")
+			} else {
+				proj.Spec.OrphanedResources.Ignore = append(proj.Spec.OrphanedResources.Ignore[:index], proj.Spec.OrphanedResources.Ignore[index+1:]...)
 				_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
 				errors.CheckError(err)
 			}
