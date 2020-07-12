@@ -17,6 +17,8 @@ type Resource struct {
 	Ref v1.ObjectReference
 	// References to resource owners
 	OwnerRefs []metav1.OwnerReference
+	// Optional creation timestamp of the resource
+	CreationTimestamp *metav1.Time
 	// Optional additional information about the resource
 	Info interface{}
 	// Optional whole resource manifest

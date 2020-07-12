@@ -32,11 +32,13 @@ func strToUnstructured(jsonStr string) *unstructured.Unstructured {
 }
 
 var (
-	testPod = strToUnstructured(`
+	testCreationTime, _ = time.Parse(time.RFC3339, "2018-09-20T06:47:27Z")
+	testPod             = strToUnstructured(fmt.Sprintf(`
   apiVersion: v1
   kind: Pod
   metadata:
     uid: "1"
+    creationTimestamp: "%s"
     name: helm-guestbook-pod
     namespace: default
     ownerReferences:
@@ -44,13 +46,14 @@ var (
       kind: ReplicaSet
       name: helm-guestbook-rs
       uid: "2"
-    resourceVersion: "123"`)
+    resourceVersion: "123"`, testCreationTime.UTC().Format(time.RFC3339)))
 
-	testRS = strToUnstructured(`
+	testRS = strToUnstructured(fmt.Sprintf(`
   apiVersion: apps/v1
   kind: ReplicaSet
   metadata:
     uid: "2"
+    creationTimestamp: "%s"
     name: helm-guestbook-rs
     namespace: default
     annotations:
@@ -60,20 +63,21 @@ var (
       kind: Deployment
       name: helm-guestbook
       uid: "3"
-    resourceVersion: "123"`)
+    resourceVersion: "123"`, testCreationTime.UTC().Format(time.RFC3339)))
 
-	testDeploy = strToUnstructured(`
+	testDeploy = strToUnstructured(fmt.Sprintf(`
   apiVersion: apps/v1
   kind: Deployment
   metadata:
     labels:
       app.kubernetes.io/instance: helm-guestbook
     uid: "3"
+    creationTimestamp: "%s"
     name: helm-guestbook
     namespace: default
-    resourceVersion: "123"`)
+    resourceVersion: "123"`, testCreationTime.UTC().Format(time.RFC3339)))
 
-	testService = strToUnstructured(`
+	testService = strToUnstructured(fmt.Sprintf(`
   apiVersion: v1
   kind: Service
   metadata:
@@ -81,6 +85,7 @@ var (
     namespace: default
     resourceVersion: "123"
     uid: "4"
+    creationTimestamp: "%s"
   spec:
     selector:
       app: guestbook
@@ -88,7 +93,7 @@ var (
   status:
     loadBalancer:
       ingress:
-      - hostname: localhost`)
+      - hostname: localhost`, testCreationTime.UTC().Format(time.RFC3339)))
 )
 
 func newCluster(objs ...*unstructured.Unstructured) *clusterCache {
@@ -226,6 +231,9 @@ func TestGetChildren(t *testing.T) {
 			UID:        "2",
 		}},
 		ResourceVersion: "123",
+		CreationTimestamp: &metav1.Time{
+			Time: testCreationTime.Local(),
+		},
 	}}, rsChildren)
 	deployChildren := getChildren(cluster, testDeploy)
 
@@ -239,6 +247,9 @@ func TestGetChildren(t *testing.T) {
 		},
 		ResourceVersion: "123",
 		OwnerRefs:       []metav1.OwnerReference{{APIVersion: "apps/v1beta1", Kind: "Deployment", Name: "helm-guestbook", UID: "3"}},
+		CreationTimestamp: &metav1.Time{
+			Time: testCreationTime.Local(),
+		},
 	}}, rsChildren...), deployChildren)
 }
 
@@ -283,7 +294,6 @@ func TestProcessNewChildEvent(t *testing.T) {
 	cluster := newCluster(testPod, testRS, testDeploy)
 	err := cluster.EnsureSynced()
 	assert.Nil(t, err)
-
 	newPod := strToUnstructured(`
   apiVersion: v1
   kind: Pod
@@ -319,6 +329,9 @@ func TestProcessNewChildEvent(t *testing.T) {
 			UID:        "2",
 		}},
 		ResourceVersion: "123",
+		CreationTimestamp: &metav1.Time{
+			Time: testCreationTime.Local(),
+		},
 	}, {
 		Ref: corev1.ObjectReference{
 			Kind:       "Pod",

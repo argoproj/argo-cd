@@ -311,11 +311,17 @@ func (c *clusterCache) newResource(un *unstructured.Unstructured) *Resource {
 	if c.populateResourceInfoHandler != nil {
 		info, cacheManifest = c.populateResourceInfoHandler(un, len(ownerRefs) == 0)
 	}
+	var creationTimestamp *metav1.Time
+	ct := un.GetCreationTimestamp()
+	if !ct.IsZero() {
+		creationTimestamp = &ct
+	}
 	resource := &Resource{
-		ResourceVersion: un.GetResourceVersion(),
-		Ref:             kube.GetObjectRef(un),
-		OwnerRefs:       ownerRefs,
-		Info:            info,
+		ResourceVersion:   un.GetResourceVersion(),
+		Ref:               kube.GetObjectRef(un),
+		OwnerRefs:         ownerRefs,
+		Info:              info,
+		CreationTimestamp: creationTimestamp,
 	}
 	if cacheManifest {
 		resource.Resource = un
