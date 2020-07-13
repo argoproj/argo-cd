@@ -1363,16 +1363,18 @@
                 
                 
                 <h1 id="jsonnet">Jsonnet<a class="headerlink" href="#jsonnet" title="Permanent link">&para;</a></h1>
-<p>Any file matching <code>*.jsonnet</code> in a directory app is treated as a Jsonnet file.</p>
+<p>Any file matching <code>*.jsonnet</code> in a directory app is treated as a Jsonnet file. ArgoCD evaluates the Jsonnet and is able to parse a generated object or array.</p>
 <h2 id="build-environment">Build Environment<a class="headerlink" href="#build-environment" title="Permanent link">&para;</a></h2>
 <blockquote>
 <p>v1.4</p>
 </blockquote>
-<p>Jsonnet apps have access to the <a href="../build-environment/">standard build environment</a> via substitution into <em>TLAs</em> and <em>external variables</em>.</p>
+<p>Jsonnet apps have access to the <a href="../build-environment/">standard build environment</a> via substitution into <em>TLAs</em> and <em>external variables</em>.
+It is also possible to add a shared libary (e.g. <code>vendor</code> folder) relative to the reposity root.</p>
 <p>E.g. via the CLI:</p>
 <div class="codehilite"><pre><span></span><code>argocd app create APPNAME <span class="se">\</span>
   --jsonnet-ext-str <span class="s1">&#39;app=${ARGOCD_APP_NAME}&#39;</span> <span class="se">\</span>
   --jsonnet-tla-str <span class="s1">&#39;ns=${ARGOCD_APP_NAMESPACE}&#39;</span>
+  --jsonnet-libs <span class="s1">&#39;vendor&#39;</span>
 </code></pre></div>
 
 
@@ -1385,6 +1387,8 @@
       <span class="nt">tlas</span><span class="p">:</span>
         <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ns</span>
           <span class="nt">value</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">$ARGOCD_APP_NAMESPACE</span>
+      <span class="nt">libs</span><span class="p">:</span>
+        <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">vendor</span>
 </code></pre></div>
                 
                   
