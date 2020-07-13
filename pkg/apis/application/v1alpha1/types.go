@@ -889,6 +889,7 @@ type ResourceNode struct {
 	ResourceVersion string                  `json:"resourceVersion,omitempty" protobuf:"bytes,5,opt,name=resourceVersion"`
 	Images          []string                `json:"images,omitempty" protobuf:"bytes,6,opt,name=images"`
 	Health          *HealthStatus           `json:"health,omitempty" protobuf:"bytes,7,opt,name=health"`
+	CreatedAt       *metav1.Time            `json:"createdAt,omitempty" protobuf:"bytes,8,opt,name=createdAt"`
 }
 
 func (n *ResourceNode) GroupKindVersion() schema.GroupVersionKind {
