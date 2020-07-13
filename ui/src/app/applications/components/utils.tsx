@@ -251,6 +251,7 @@ export const getAppOperationState = (app: appModels.Application): appModels.Oper
     } else if (app.operation) {
         return {
             phase: appModels.OperationPhases.Running,
+            message: (app.status && app.status.operationState && app.status.operationState.message) || 'waiting to start',
             startedAt: new Date().toISOString(),
             operation: {
                 sync: {}
