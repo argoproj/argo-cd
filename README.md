@@ -37,3 +37,4 @@ Check live demo at https://cd.apps.argoproj.io/.
 1. [Machine Learning as Code](https://www.youtube.com/watch?v=VXrGp5er1ZE&t=0s&index=135&list=PLj6h78yzYM2PZf9eA7bhWnIh_mK1vyOfU). Among other things, describes how Kubeflow uses Argo CD to implement GitOPs for ML
 1. [Argo CD - GitOps Continuous Delivery for Kubernetes](https://www.youtube.com/watch?v=aWDIQMbp1cc&feature=youtu.be&t=1m4s)
 1. [Introduction to Argo CD : Kubernetes DevOps CI/CD](https://www.youtube.com/watch?v=2WSJF7d8dUg&feature=youtu.be)
+1. [GitOps Deployment and Kubernetes - using ArgoCD] (https://medium.com/riskified-technology/gitops-deployment-and-kubernetes-f1ab289efa4b)
