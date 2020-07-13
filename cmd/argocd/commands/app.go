@@ -553,6 +553,8 @@ func setAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			setJsonnetOptExtVar(&spec.Source, appOpts.jsonnetExtVarStr, false)
 		case "jsonnet-ext-var-code":
 			setJsonnetOptExtVar(&spec.Source, appOpts.jsonnetExtVarCode, true)
+		case "jsonnet-libs":
+			setJsonnetOptLibs(&spec.Source, appOpts.jsonnetLibs)
 		case "sync-policy":
 			switch appOpts.syncPolicy {
 			case "none":
@@ -703,6 +705,12 @@ func setJsonnetOptExtVar(src *argoappv1.ApplicationSource, jsonnetExtVar []strin
 		src.Directory.Jsonnet.ExtVars = append(src.Directory.Jsonnet.ExtVars, argoappv1.NewJsonnetVar(j, code))
 	}
 }
+func setJsonnetOptLibs(src *argoappv1.ApplicationSource, libs []string) {
+	if src.Directory == nil {
+		src.Directory = &argoappv1.ApplicationSourceDirectory{}
+	}
+	src.Directory.Jsonnet.Libs = append(src.Directory.Jsonnet.Libs, libs...)
+}
 
 type appOptions struct {
 	repoURL                string
@@ -734,6 +742,7 @@ type appOptions struct {
 	jsonnetTlaCode         []string
 	jsonnetExtVarStr       []string
 	jsonnetExtVarCode      []string
+	jsonnetLibs            []string
 	kustomizeImages        []string
 	kustomizeVersion       string
 }
@@ -769,6 +778,7 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().StringArrayVar(&opts.jsonnetTlaCode, "jsonnet-tla-code", []string{}, "Jsonnet top level code arguments")
 	command.Flags().StringArrayVar(&opts.jsonnetExtVarStr, "jsonnet-ext-var-str", []string{}, "Jsonnet string ext var")
 	command.Flags().StringArrayVar(&opts.jsonnetExtVarCode, "jsonnet-ext-var-code", []string{}, "Jsonnet ext var")
+	command.Flags().StringArrayVar(&opts.jsonnetLibs, "jsonnet-libs", []string{}, "Additional jsonnet libs (prefixed by repoRoot)")
 	command.Flags().StringArrayVar(&opts.kustomizeImages, "kustomize-image", []string{}, "Kustomize images (e.g. --kustomize-image node:8.15.0 --kustomize-image mysql=mariadb,alpine@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d)")
 }
 
@@ -934,9 +944,9 @@ func liveObjects(resources []*argoappv1.ResourceDiff) ([]*unstructured.Unstructu
 	return objs, nil
 }
 
-func getLocalObjects(app *argoappv1.Application, local, appLabelKey, kubeVersion string, kustomizeOptions *argoappv1.KustomizeOptions,
+func getLocalObjects(app *argoappv1.Application, local, localRepoRoot, appLabelKey, kubeVersion string, kustomizeOptions *argoappv1.KustomizeOptions,
 	configManagementPlugins []*argoappv1.ConfigManagementPlugin) []*unstructured.Unstructured {
-	manifestStrings := getLocalObjectsString(app, local, appLabelKey, kubeVersion, kustomizeOptions, configManagementPlugins)
+	manifestStrings := getLocalObjectsString(app, local, localRepoRoot, appLabelKey, kubeVersion, kustomizeOptions, configManagementPlugins)
 	objs := make([]*unstructured.Unstructured, len(manifestStrings))
 	for i := range manifestStrings {
 		obj := unstructured.Unstructured{}
@@ -947,9 +957,10 @@ func getLocalObjects(app *argoappv1.Application, local, appLabelKey, kubeVersion
 	return objs
 }
 
-func getLocalObjectsString(app *argoappv1.Application, local, appLabelKey, kubeVersion string, kustomizeOptions *argoappv1.KustomizeOptions,
+func getLocalObjectsString(app *argoappv1.Application, local, localRepoRoot, appLabelKey, kubeVersion string, kustomizeOptions *argoappv1.KustomizeOptions,
 	configManagementPlugins []*argoappv1.ConfigManagementPlugin) []string {
-	res, err := repository.GenerateManifests(local, "/", app.Spec.Source.TargetRevision, &repoapiclient.ManifestRequest{
+
+	res, err := repository.GenerateManifests(local, localRepoRoot, app.Spec.Source.TargetRevision, &repoapiclient.ManifestRequest{
 		Repo:              &argoappv1.Repository{Repo: app.Spec.Source.RepoURL},
 		AppLabelKey:       appLabelKey,
 		AppLabelValue:     app.Name,
@@ -997,9 +1008,10 @@ func groupLocalObjs(localObs []*unstructured.Unstructured, liveObjs []*unstructu
 // NewApplicationDiffCommand returns a new instance of an `argocd app diff` command
 func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		refresh     bool
-		hardRefresh bool
-		local       string
+		refresh       bool
+		hardRefresh   bool
+		local         string
+		localRepoRoot string
 	)
 	shortDesc := "Perform a diff against the target and live state."
 	var command = &cobra.Command{
@@ -1038,7 +1050,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				defer argoio.Close(conn)
 				cluster, err := clusterIf.Get(context.Background(), &clusterpkg.ClusterQuery{Server: app.Spec.Destination.Server})
 				errors.CheckError(err)
-				localObjs := groupLocalObjs(getLocalObjects(app, local, argoSettings.AppLabelKey, cluster.ServerVersion, argoSettings.KustomizeOptions, argoSettings.ConfigManagementPlugins), liveObjs, app.Spec.Destination.Namespace)
+				localObjs := groupLocalObjs(getLocalObjects(app, local, localRepoRoot, argoSettings.AppLabelKey, cluster.ServerVersion, argoSettings.KustomizeOptions, argoSettings.ConfigManagementPlugins), liveObjs, app.Spec.Destination.Namespace)
 				for _, res := range resources.Items {
 					var live = &unstructured.Unstructured{}
 					err := json.Unmarshal([]byte(res.NormalizedLiveState), &live)
@@ -1145,6 +1157,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&refresh, "refresh", false, "Refresh application data when retrieving")
 	command.Flags().BoolVar(&hardRefresh, "hard-refresh", false, "Refresh application data as well as target manifests cache")
 	command.Flags().StringVar(&local, "local", "", "Compare live app to a local manifests")
+	command.Flags().StringVar(&localRepoRoot, "local-repo-root", "/", "Path to the repository root. Used together with --local allows setting the repository root")
 	return command
 }
 
@@ -1406,18 +1419,19 @@ func printAppResources(w io.Writer, app *argoappv1.Application) {
 // NewApplicationSyncCommand returns a new instance of an `argocd app sync` command
 func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		revision  string
-		resources []string
-		labels    []string
-		selector  string
-		prune     bool
-		dryRun    bool
-		timeout   uint
-		strategy  string
-		force     bool
-		async     bool
-		local     string
-		infos     []string
+		revision      string
+		resources     []string
+		labels        []string
+		selector      string
+		prune         bool
+		dryRun        bool
+		timeout       uint
+		strategy      string
+		force         bool
+		async         bool
+		local         string
+		localRepoRoot string
+		infos         []string
 	)
 	var command = &cobra.Command{
 		Use:   "sync [APPNAME... | -l selector]",
@@ -1515,7 +1529,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					cluster, err := clusterIf.Get(context.Background(), &clusterpkg.ClusterQuery{Server: app.Spec.Destination.Server})
 					errors.CheckError(err)
 					argoio.Close(conn)
-					localObjsStrings = getLocalObjectsString(app, local, argoSettings.AppLabelKey, cluster.ServerVersion, argoSettings.KustomizeOptions, argoSettings.ConfigManagementPlugins)
+					localObjsStrings = getLocalObjectsString(app, local, localRepoRoot, argoSettings.AppLabelKey, cluster.ServerVersion, argoSettings.KustomizeOptions, argoSettings.ConfigManagementPlugins)
 				}
 
 				syncReq := applicationpkg.ApplicationSyncRequest{
@@ -1571,6 +1585,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&force, "force", false, "Use a force apply")
 	command.Flags().BoolVar(&async, "async", false, "Do not wait for application to sync before continuing")
 	command.Flags().StringVar(&local, "local", "", "Path to a local directory. When this flag is present no git queries will be made")
+	command.Flags().StringVar(&localRepoRoot, "local-repo-root", "/", "Path to the repository root. Used together with --local allows setting the repository root")
 	command.Flags().StringArrayVar(&infos, "info", []string{}, "A list of key-value pairs during sync process. These infos will be persisted in app.")
 	return command
 }

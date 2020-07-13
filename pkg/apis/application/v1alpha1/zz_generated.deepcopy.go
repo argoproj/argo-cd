@@ -383,6 +383,11 @@ func (in *ApplicationSourceJsonnet) DeepCopyInto(out *ApplicationSourceJsonnet) 
 		*out = make([]JsonnetVar, len(*in))
 		copy(*out, *in)
 	}
+	if in.Libs != nil {
+		in, out := &in.Libs, &out.Libs
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

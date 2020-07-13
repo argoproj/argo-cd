@@ -3728,6 +3728,13 @@
             "$ref": "#/definitions/v1alpha1JsonnetVar"
           }
         },
+        "libs": {
+          "type": "array",
+          "title": "Additional library search dirs",
+          "items": {
+            "type": "string"
+          }
+        },
         "tlas": {
           "type": "array",
           "title": "TLAS is a list of Jsonnet Top-level Arguments",
