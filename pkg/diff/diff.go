@@ -131,30 +131,27 @@ func applyPatch(liveBytes []byte, patchBytes []byte, newVersionedObject func() (
 		return nil, nil, err
 	}
 
-	err = json.Unmarshal(predictedLiveBytes, &predictedLive)
-	if err != nil {
-		return nil, nil, err
-	}
-	kubescheme.Scheme.Default(predictedLive)
-
-	predictedLiveBytes, err = json.Marshal(predictedLive)
-	if err != nil {
-		return nil, nil, err
+	if err = json.Unmarshal(predictedLiveBytes, &predictedLive); err == nil {
+		kubescheme.Scheme.Default(predictedLive)
+		predictedLiveBytes, err = json.Marshal(predictedLive)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
 	live, err := newVersionedObject()
 	if err != nil {
 		return nil, nil, err
 	}
-	err = json.Unmarshal(liveBytes, live)
-	if err != nil {
-		return nil, nil, err
+
+	if err = json.Unmarshal(liveBytes, live); err == nil {
+		kubescheme.Scheme.Default(live)
+		liveBytes, err = json.Marshal(live)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
-	kubescheme.Scheme.Default(live)
-	liveBytes, err = json.Marshal(live)
-	if err != nil {
-		return nil, nil, err
-	}
+
 	return liveBytes, predictedLiveBytes, nil
 }
 
@@ -564,7 +561,7 @@ func remarshal(obj *unstructured.Unstructured) *unstructured.Unstructured {
 	err = json.Unmarshal(data, &unmarshalledObj)
 	if err != nil {
 		// User may have specified an invalid spec in git. Return original object
-		log.Warnf("Could not unmarshal to object of type %s: %v", gvk, err)
+		log.Debugf("Could not unmarshal to object of type %s: %v", gvk, err)
 		return obj
 	}
 	unstrBody, err := runtime.DefaultUnstructuredConverter.ToUnstructured(unmarshalledObj)

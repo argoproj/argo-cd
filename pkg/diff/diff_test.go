@@ -149,6 +149,34 @@ func TestDiff(t *testing.T) {
 	}
 }
 
+func TestDiff_KnownTypeInvalidValue(t *testing.T) {
+	leftDep := newDeployment()
+	leftUn := mustToUnstructured(leftDep)
+	if !assert.NoError(t, unstructured.SetNestedField(leftUn.Object, "badValue", "spec", "revisionHistoryLimit")) {
+		return
+	}
+
+	t.Run("NoDifference", func(t *testing.T) {
+		diffRes := diff(t, leftUn, leftUn, GetDefaultDiffOptions())
+		assert.False(t, diffRes.Modified)
+		ascii, err := printDiff(diffRes)
+		assert.Nil(t, err)
+		if ascii != "" {
+			log.Println(ascii)
+		}
+	})
+
+	t.Run("HasDifference", func(t *testing.T) {
+		rightUn := leftUn.DeepCopy()
+		if !assert.NoError(t, unstructured.SetNestedField(rightUn.Object, "3", "spec", "revisionHistoryLimit")) {
+			return
+		}
+
+		diffRes := diff(t, leftUn, rightUn, GetDefaultDiffOptions())
+		assert.True(t, diffRes.Modified)
+	})
+}
+
 func TestDiffWithNils(t *testing.T) {
 	dep := newDeployment()
 	resource := mustToUnstructured(dep)
