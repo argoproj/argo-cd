@@ -151,16 +151,16 @@
         position: absolute;
         bottom: -14px;
         right: 0;
+    }
 
-        span {
-            background-color: $argo-color-gray-4;
-            border: 1px solid $argo-color-gray-5;
-            border-radius: 5px;
-            padding: 0 5px;
-            font-size: 0.6em;
-            text-transform: lowercase;
-            margin-right: 1px;
-        }
+    &__node-label {
+        background-color: $argo-color-gray-4;
+        border: 1px solid $argo-color-gray-5;
+        border-radius: 5px;
+        padding: 0 5px;
+        font-size: 0.6em;
+        text-transform: lowercase;
+        margin-right: 1px;
     }
 
     &__node-kind {
