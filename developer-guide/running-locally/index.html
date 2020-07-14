@@ -1158,6 +1158,13 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#install-argocd-resources-to-your-cluster" title="Install ArgoCD resources to your cluster" class="md-nav__link">
+    Install ArgoCD resources to your cluster
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#scale-down-any-argocd-instance-in-your-cluster" title="Scale down any ArgoCD instance in your cluster" class="md-nav__link">
     Scale down any ArgoCD instance in your cluster
   </a>
@@ -1413,6 +1420,13 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#install-argocd-resources-to-your-cluster" title="Install ArgoCD resources to your cluster" class="md-nav__link">
+    Install ArgoCD resources to your cluster
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#scale-down-any-argocd-instance-in-your-cluster" title="Scale down any ArgoCD instance in your cluster" class="md-nav__link">
     Scale down any ArgoCD instance in your cluster
   </a>
@@ -1503,8 +1517,15 @@
 <p>During development, it might be viable to run ArgoCD outside of a Kubernetes cluster. This will greatly speed up development, as you don't have to constantly build, push and install new ArgoCD Docker images with your latest changes.</p>
 <p>You will still need a working Kubernetes cluster, as described in the <a href="../contributing/">Contribution Guide</a>, where ArgoCD will store all of its resources.</p>
 <p>If you followed the <a href="../contributing/">Contribution Guide</a> in setting up your toolchain, you can run ArgoCD locally with these simple steps:</p>
+<h3 id="install-argocd-resources-to-your-cluster">Install ArgoCD resources to your cluster<a class="headerlink" href="#install-argocd-resources-to-your-cluster" title="Permanent link">&para;</a></h3>
+<p>First push the installation manifest into argocd namespace:</p>
+<div class="codehilite"><pre><span></span><code>kubectl create namespace argocd
+kubectl apply -n argocd --force -f manifests/install.yaml
+</code></pre></div>
+
+
 <h3 id="scale-down-any-argocd-instance-in-your-cluster">Scale down any ArgoCD instance in your cluster<a class="headerlink" href="#scale-down-any-argocd-instance-in-your-cluster" title="Permanent link">&para;</a></h3>
-<p>First make sure that ArgoCD is not running in your development cluster by scaling down the deployments:</p>
+<p>Make sure that ArgoCD is not running in your development cluster by scaling down the deployments:</p>
 <div class="codehilite"><pre><span></span><code>kubectl -n argocd scale deployment/argocd-application-controller --replicas <span class="m">0</span>
 kubectl -n argocd scale deployment/argocd-dex-server --replicas <span class="m">0</span>
 kubectl -n argocd scale deployment/argocd-repo-server --replicas <span class="m">0</span>
@@ -1578,7 +1599,7 @@ kubectl -n argocd scale deployment/argocd-redis --replicas <span class="m">1</sp
 </div>
 <h3 id="configure-your-cluster-with-custom-manifests">Configure your cluster with custom manifests<a class="headerlink" href="#configure-your-cluster-with-custom-manifests" title="Permanent link">&para;</a></h3>
 <p>The final step is to push the manifests to your cluster, so it will pull and run your image:</p>
-<div class="codehilite"><pre><span></span><code>kubectl -n argocd --force -f manifests/install.yaml
+<div class="codehilite"><pre><span></span><code>kubectl apply -n argocd --force -f manifests/install.yaml
 </code></pre></div>
                 
                   
