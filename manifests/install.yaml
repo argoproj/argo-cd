@@ -2591,6 +2591,10 @@ spec:
       labels:
         app.kubernetes.io/name: argocd-redis
     spec:
+      securityContext:
+        fsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 1000
       containers:
       - args:
         - --save
