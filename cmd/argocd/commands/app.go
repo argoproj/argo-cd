@@ -92,6 +92,7 @@ func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 	command.AddCommand(NewApplicationPatchCommand(clientOpts))
 	command.AddCommand(NewApplicationPatchResourceCommand(clientOpts))
 	command.AddCommand(NewApplicationResourceActionsCommand(clientOpts))
+	command.AddCommand(NewApplicationListOrphanedResourceCommand(clientOpts))
 	return command
 }
 
@@ -2149,6 +2150,33 @@ func NewApplicationEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				}
 				return err
 			})
+		},
+	}
+	return command
+}
+
+func NewApplicationListOrphanedResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var command = &cobra.Command{
+		Use:   "list-orphaned APPNAME",
+		Short: "List orphaned resource of application",
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 1 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			appName := args[0]
+			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
+			defer argoio.Close(conn)
+			appResourceTree, err := appIf.ResourceTree(context.Background(),&applicationpkg.ResourcesQuery{ApplicationName: &appName})
+			errors.CheckError(err)
+			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+			headers := []interface{}{"GROUP", "KIND", "NAMESPACE", "NAME"}
+			fmtStr := "%s\t%s\t%s\t%s\n"
+			_, _ = fmt.Fprintf(w, fmtStr, headers...)
+			for _, res := range appResourceTree.OrphanedNodes {
+				_, _ = fmt.Fprintf(w, fmtStr,res.Group, res.Kind, res.Namespace, res.Name)
+			}
+			_ = w.Flush()
 		},
 	}
 	return command
