@@ -16,9 +16,10 @@ spec:
         app.kubernetes.io/name: argocd-redis
     spec:
       securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
         fsGroup: 1000
         runAsNonRoot: true
-        runAsUser: 1000
       containers:
       - name: redis
         image: redis:5.0.8
