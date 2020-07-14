@@ -321,6 +321,7 @@ export interface ResourceNode extends ResourceRef {
     networkingInfo?: ResourceNetworkingInfo;
     images?: string[];
     resourceVersion: string;
+    createdAt?: models.Time;
 }
 
 export interface ApplicationTree {

@@ -1647,6 +1647,10 @@ func (in *ResourceNode) DeepCopyInto(out *ResourceNode) {
 		*out = new(HealthStatus)
 		**out = **in
 	}
+	if in.CreatedAt != nil {
+		in, out := &in.CreatedAt, &out.CreatedAt
+		*out = (*in).DeepCopy()
+	}
 	return
 }
 

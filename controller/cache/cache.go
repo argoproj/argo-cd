@@ -144,6 +144,7 @@ func asResourceNode(r *clustercache.Resource) appv1.ResourceNode {
 		NetworkingInfo:  resourceInfo.NetworkingInfo,
 		Images:          resourceInfo.Images,
 		Health:          resHealth,
+		CreatedAt:       r.CreationTimestamp,
 	}
 }
 

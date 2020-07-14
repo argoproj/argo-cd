@@ -842,6 +842,8 @@ message ResourceNode {
   repeated string images = 6;
 
   optional HealthStatus health = 7;
+
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time createdAt = 8;
 }
 
 // ResourceOverride holds configuration to customize resource diffing and health assessment
