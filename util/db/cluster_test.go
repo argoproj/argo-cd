@@ -112,7 +112,7 @@ func TestWatchClusters_LocalClusterModifications(t *testing.T) {
 		},
 		func(old *v1alpha1.Cluster, new *v1alpha1.Cluster) {
 			assert.Equal(t, new.Server, common.KubernetesInternalAPIServerAddr)
-			assert.Equal(t, new.Name, "")
+			assert.Equal(t, new.Name, "in-cluster")
 		},
 	})
 }

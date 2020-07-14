@@ -18,6 +18,13 @@ export interface ApplicationTilesProps {
     deleteApplication: (appName: string) => any;
 }
 
+function getDestination(dest: models.ApplicationDestination) {
+    if (dest.server === undefined) {
+        return dest.name;
+    }
+    return dest.server;
+}
+
 export const ApplicationTiles = ({applications, syncApplication, refreshApplication, deleteApplication}: ApplicationTilesProps) => (
     <Consumer>
         {ctx => (
@@ -102,7 +109,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                     )}
                                     <div className='row'>
                                         <div className='columns small-3'>Destination:</div>
-                                        <div className='columns small-9'>{app.spec.destination.server}</div>
+                                        <div className='columns small-9'>{getDestination(app.spec.destination)}</div>
                                     </div>
                                     <div className='row'>
                                         <div className='columns small-3'>Namespace:</div>
