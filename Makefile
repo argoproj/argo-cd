@@ -204,7 +204,7 @@ manifests-local:
 
 .PHONY: manifests
 manifests: test-tools-image
-	$(call run-in-test-client,make manifests-local IMAGE_TAG='${IMAGE_TAG}')
+	$(call run-in-test-client,make manifests-local IMAGE_NAMESPACE='${IMAGE_NAMESPACE}' IMAGE_TAG='${IMAGE_TAG}')
 
 
 # NOTE: we use packr to do the build instead of go, since we embed swagger files and policy.csv
