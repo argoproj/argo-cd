@@ -422,6 +422,19 @@ func TestThreeWayDiffExample3(t *testing.T) {
 	}
 }
 
+func TestThreeWayDiffExample4(t *testing.T) {
+	configUn := unmarshalFile("testdata/mutatingwebhookconfig-config.json")
+	liveUn := unmarshalFile("testdata/mutatingwebhookconfig-live.json")
+
+	dr := diff(t, configUn, liveUn, GetDefaultDiffOptions())
+	assert.False(t, dr.Modified)
+	ascii, err := printDiff(dr)
+	assert.Nil(t, err)
+	if ascii != "" {
+		log.Println(ascii)
+	}
+}
+
 // TestThreeWayDiffExample2WithDifference is same as TestThreeWayDiffExample2 but with differences
 func TestThreeWayDiffExample2WithDifference(t *testing.T) {
 	configUn := unmarshalFile("testdata/elasticsearch-config.json")
