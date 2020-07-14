@@ -1,63 +1,46 @@
+local service = import 'nested/service.libsonnet';
 local params = import 'params.libsonnet';
 
 function(tlaString, tlaCode)
-[
-   {
-      "apiVersion": "v1",
-      "kind": "Service",
-      "metadata": {
-         "name": params.name
+  [
+    service.new(params),
+    {
+      apiVersion: 'apps/v1beta2',
+      kind: 'Deployment',
+      metadata: {
+        name: params.name,
       },
-      "spec": {
-         "ports": [
-            {
-               "port": params.servicePort,
-               "targetPort": params.containerPort
-            }
-         ],
-         "selector": {
-            "app": params.name
-         },
-         "type": params.type
-      }
-   },
-   {
-      "apiVersion": "apps/v1beta2",
-      "kind": "Deployment",
-      "metadata": {
-         "name": params.name
-      },
-      "spec": {
-         "replicas": params.replicas,
-         "selector": {
-            "matchLabels": {
-               "app": params.name
+      spec: {
+        replicas: params.replicas,
+        selector: {
+          matchLabels: {
+            app: params.name,
+          },
+        },
+        template: {
+          metadata: {
+            labels: {
+              app: params.name,
+              tlaString: tlaString,
+              tlaCode: tlaCode,
+              extVarString: std.extVar('extVarString'),
+              extVarCode: std.extVar('extVarCode'),
             },
-         },
-         "template": {
-            "metadata": {
-               "labels": {
-                  "app": params.name,
-                  "tlaString": tlaString,
-                  "tlaCode": tlaCode,
-                  "extVarString": std.extVar("extVarString"),
-                  "extVarCode": std.extVar("extVarCode")
-               }
-            },
-            "spec": {
-               "containers": [
+          },
+          spec: {
+            containers: [
+              {
+                image: params.image,
+                name: params.name,
+                ports: [
                   {
-                     "image": params.image,
-                     "name": params.name,
-                     "ports": [
-                     {
-                        "containerPort": params.containerPort
-                     }
-                     ]
-                  }
-               ]
-            }
-         }
-      }
-   }
-]
+                    containerPort: params.containerPort,
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      },
+    },
+  ]

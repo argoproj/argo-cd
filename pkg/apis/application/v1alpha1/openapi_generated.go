@@ -750,6 +750,20 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceJsonnet(ref common.Re
 							},
 						},
 					},
+					"libs": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Additional library search dirs",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Type:   []string{"string"},
+										Format: "",
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},

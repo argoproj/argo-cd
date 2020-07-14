@@ -353,6 +353,8 @@ type ApplicationSourceJsonnet struct {
 	ExtVars []JsonnetVar `json:"extVars,omitempty" protobuf:"bytes,1,opt,name=extVars"`
 	// TLAS is a list of Jsonnet Top-level Arguments
 	TLAs []JsonnetVar `json:"tlas,omitempty" protobuf:"bytes,2,opt,name=tlas"`
+	// Additional library search dirs
+	Libs []string `json:"libs,omitempty" protobuf:"bytes,3,opt,name=libs"`
 }
 
 func (j *ApplicationSourceJsonnet) IsZero() bool {
