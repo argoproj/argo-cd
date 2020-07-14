@@ -4767,6 +4767,9 @@
       "type": "object",
       "title": "ResourceNode contains information about live resource and its children",
       "properties": {
+        "createdAt": {
+          "$ref": "#/definitions/v1Time"
+        },
         "health": {
           "$ref": "#/definitions/v1alpha1HealthStatus"
         },
