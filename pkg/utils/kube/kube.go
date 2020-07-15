@@ -2,8 +2,11 @@
 package kube
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"regexp"
 	"strings"
 	"time"
@@ -14,8 +17,12 @@ import (
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured/unstructuredscheme"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/runtime/serializer/json"
+	"k8s.io/apimachinery/pkg/runtime/serializer/streaming"
+	kubeyaml "k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
@@ -23,7 +30,6 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
-	"sigs.k8s.io/yaml"
 )
 
 const (
@@ -46,6 +52,14 @@ const (
 	CustomResourceDefinitionKind = "CustomResourceDefinition"
 	PodKind                      = "Pod"
 	APIServiceKind               = "APIService"
+)
+
+var (
+	yamlSerializer = json.NewSerializerWithOptions(
+		json.DefaultMetaFactory,
+		unstructuredscheme.NewUnstructuredCreator(),
+		unstructuredscheme.NewUnstructuredObjectTyper(),
+		json.SerializerOptions{Yaml: true})
 )
 
 type ResourceInfoProvider interface {
@@ -274,38 +288,27 @@ func newAuthInfo(restConfig *rest.Config) *clientcmdapi.AuthInfo {
 	return &authInfo
 }
 
-var diffSeparator = regexp.MustCompile(`\n---`)
-
 // SplitYAML splits a YAML file into unstructured objects. Returns list of all unstructured objects
-// found in the yaml. If any errors occurred, returns the first one
-func SplitYAML(out string) ([]*unstructured.Unstructured, error) {
-	parts := diffSeparator.Split(out, -1)
+// found in the yaml. If an error occurs, returns objects that have been parsed so far too.
+func SplitYAML(yamlData []byte) (retObjs []*unstructured.Unstructured, retErr error) {
+	decoder := streaming.NewDecoder(kubeyaml.NewDocumentDecoder(ioutil.NopCloser(bytes.NewReader(yamlData))), yamlSerializer)
+	defer func() {
+		if err := decoder.Close(); err != nil && retErr == nil {
+			retErr = fmt.Errorf("failed to close decoder: %v", err)
+		}
+	}()
 	var objs []*unstructured.Unstructured
-	var firstErr error
-	for _, part := range parts {
-		var objMap map[string]interface{}
-		err := yaml.Unmarshal([]byte(part), &objMap)
+	for {
+		decodedRuntimeObj, _, err := decoder.Decode(nil, &unstructured.Unstructured{})
 		if err != nil {
-			if firstErr == nil {
-				firstErr = fmt.Errorf("Failed to unmarshal manifest: %v", err)
+			if err == io.EOF {
+				break
 			}
-			continue
+			return objs, fmt.Errorf("failed to unmarshal manifest: %v", err)
 		}
-		if len(objMap) == 0 {
-			// handles case where theres no content between `---`
-			continue
-		}
-		var obj unstructured.Unstructured
-		err = yaml.Unmarshal([]byte(part), &obj)
-		if err != nil {
-			if firstErr == nil {
-				firstErr = fmt.Errorf("Failed to unmarshal manifest: %v", err)
-			}
-			continue
-		}
-		objs = append(objs, &obj)
+		objs = append(objs, decodedRuntimeObj.(*unstructured.Unstructured))
 	}
-	return objs, firstErr
+	return objs, nil
 }
 
 // WatchWithRetry returns channel of watch events or errors of failed to call watch API.

@@ -79,7 +79,7 @@ func (s *settings) parseManifests() ([]*unstructured.Unstructured, string, error
 			if err != nil {
 				return err
 			}
-			items, err := kube.SplitYAML(string(data))
+			items, err := kube.SplitYAML(data)
 			if err != nil {
 				return fmt.Errorf("failed to parse %s: %v", path, err)
 			}
