@@ -22,7 +22,7 @@ jobs:
           args: run --timeout=5m
         env:
           GOROOT: ""
-      - uses: codecov/codecov-action@v1
+      - uses: codecov/codecov-action@v1.0.10
         with:
           token: ${{ secrets.CODECOV_TOKEN }} #required
           file: ./coverage.out
