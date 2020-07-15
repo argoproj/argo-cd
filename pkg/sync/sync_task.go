@@ -128,8 +128,11 @@ func (t *syncTask) hasHookDeletePolicy(policy common.HookDeletePolicy) bool {
 	return false
 }
 
-func (t *syncTask) needsDeleting() bool {
-	return t.liveObj != nil && (t.pending() && t.hasHookDeletePolicy(common.HookDeletePolicyBeforeHookCreation) ||
-		t.successful() && t.hasHookDeletePolicy(common.HookDeletePolicyHookSucceeded) ||
+func (t *syncTask) deleteBeforeCreation() bool {
+	return t.liveObj != nil && t.pending() && t.hasHookDeletePolicy(common.HookDeletePolicyBeforeHookCreation)
+}
+
+func (t *syncTask) deleteOnPhaseCompletion() bool {
+	return t.liveObj != nil && (t.successful() && t.hasHookDeletePolicy(common.HookDeletePolicyHookSucceeded) ||
 		t.failed() && t.hasHookDeletePolicy(common.HookDeletePolicyHookFailed))
 }

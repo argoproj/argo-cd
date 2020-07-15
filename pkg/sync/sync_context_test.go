@@ -15,6 +15,7 @@ import (
 	"k8s.io/client-go/rest"
 	testcore "k8s.io/client-go/testing"
 
+	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
@@ -591,6 +592,106 @@ func TestRunSyncFailHooksFailed(t *testing.T) {
 	// successfulSyncFailHook should be synced running (it is an nginx pod)
 	assert.Equal(t, synccommon.OperationRunning, resources[2].HookPhase)
 	assert.Equal(t, synccommon.ResultCodeSynced, resources[2].Status)
+}
+
+type resourceNameHealthOverride map[string]health.HealthStatusCode
+
+func (r resourceNameHealthOverride) GetResourceHealth(obj *unstructured.Unstructured) (*health.HealthStatus, error) {
+	if status, ok := r[obj.GetName()]; ok {
+		return &health.HealthStatus{Status: status, Message: "test"}, nil
+	}
+	return nil, nil
+}
+
+func TestRunSync_HooksNotDeletedIfPhaseNotCompleted(t *testing.T) {
+	completedHook := newHook(synccommon.HookTypePreSync)
+	completedHook.SetName("completed-hook")
+	completedHook.SetNamespace(FakeArgoCDNamespace)
+	_ = Annotate(completedHook, synccommon.AnnotationKeyHookDeletePolicy, "HookSucceeded")
+
+	inProgressHook := newHook(synccommon.HookTypePreSync)
+	inProgressHook.SetNamespace(FakeArgoCDNamespace)
+	inProgressHook.SetName("in-progress-hook")
+	_ = Annotate(inProgressHook, synccommon.AnnotationKeyHookDeletePolicy, "HookSucceeded")
+
+	syncCtx := newTestSyncCtx(
+		WithHealthOverride(resourceNameHealthOverride(map[string]health.HealthStatusCode{
+			inProgressHook.GetName(): health.HealthStatusProgressing,
+		})),
+		WithInitialState(synccommon.OperationRunning, "", []synccommon.ResourceSyncResult{{
+			ResourceKey: kube.GetResourceKey(completedHook),
+			HookPhase:   synccommon.OperationSucceeded,
+			SyncPhase:   synccommon.SyncPhasePreSync,
+		}, {
+			ResourceKey: kube.GetResourceKey(inProgressHook),
+			HookPhase:   synccommon.OperationRunning,
+			SyncPhase:   synccommon.SyncPhasePreSync,
+		}}))
+	fakeDynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme())
+	syncCtx.dynamicIf = fakeDynamicClient
+	deletedCount := 0
+	fakeDynamicClient.PrependReactor("delete", "*", func(action testcore.Action) (handled bool, ret runtime.Object, err error) {
+		deletedCount += 1
+		return true, nil, nil
+	})
+	syncCtx.resources = groupResources(ReconciliationResult{
+		Live:   []*unstructured.Unstructured{completedHook, inProgressHook},
+		Target: []*unstructured.Unstructured{nil, nil},
+	})
+	syncCtx.hooks = []*unstructured.Unstructured{completedHook, inProgressHook}
+
+	syncCtx.kubectl = &kubetest.MockKubectlCmd{
+		Commands: map[string]kubetest.KubectlOutput{},
+	}
+
+	syncCtx.Sync()
+
+	assert.Equal(t, synccommon.OperationRunning, syncCtx.phase)
+	assert.Equal(t, 0, deletedCount)
+}
+
+func TestRunSync_HooksDeletedAfterPhaseCompleted(t *testing.T) {
+	completedHook1 := newHook(synccommon.HookTypePreSync)
+	completedHook1.SetName("completed-hook1")
+	completedHook1.SetNamespace(FakeArgoCDNamespace)
+	_ = Annotate(completedHook1, synccommon.AnnotationKeyHookDeletePolicy, "HookSucceeded")
+
+	completedHook2 := newHook(synccommon.HookTypePreSync)
+	completedHook2.SetNamespace(FakeArgoCDNamespace)
+	completedHook2.SetName("completed-hook2")
+	_ = Annotate(completedHook2, synccommon.AnnotationKeyHookDeletePolicy, "HookSucceeded")
+
+	syncCtx := newTestSyncCtx(
+		WithInitialState(synccommon.OperationRunning, "", []synccommon.ResourceSyncResult{{
+			ResourceKey: kube.GetResourceKey(completedHook1),
+			HookPhase:   synccommon.OperationSucceeded,
+			SyncPhase:   synccommon.SyncPhasePreSync,
+		}, {
+			ResourceKey: kube.GetResourceKey(completedHook2),
+			HookPhase:   synccommon.OperationSucceeded,
+			SyncPhase:   synccommon.SyncPhasePreSync,
+		}}))
+	fakeDynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme())
+	syncCtx.dynamicIf = fakeDynamicClient
+	deletedCount := 0
+	fakeDynamicClient.PrependReactor("delete", "*", func(action testcore.Action) (handled bool, ret runtime.Object, err error) {
+		deletedCount += 1
+		return true, nil, nil
+	})
+	syncCtx.resources = groupResources(ReconciliationResult{
+		Live:   []*unstructured.Unstructured{completedHook1, completedHook2},
+		Target: []*unstructured.Unstructured{nil, nil},
+	})
+	syncCtx.hooks = []*unstructured.Unstructured{completedHook1, completedHook2}
+
+	syncCtx.kubectl = &kubetest.MockKubectlCmd{
+		Commands: map[string]kubetest.KubectlOutput{},
+	}
+
+	syncCtx.Sync()
+
+	assert.Equal(t, synccommon.OperationSucceeded, syncCtx.phase)
+	assert.Equal(t, 2, deletedCount)
 }
 
 func Test_syncContext_liveObj(t *testing.T) {

@@ -10,7 +10,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
-	"k8s.io/apimachinery/pkg/api/errors"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -301,16 +300,7 @@ func (sc *syncContext) Sync() {
 				sc.setResourceResult(task, "", common.OperationError, fmt.Sprintf("failed to get resource health: %v", err))
 			} else {
 				sc.setResourceResult(task, "", operationState, message)
-
-				// maybe delete the hook
-				if task.needsDeleting() {
-					err := sc.deleteResource(task)
-					if err != nil && !errors.IsNotFound(err) {
-						sc.setResourceResult(task, "", common.OperationError, fmt.Sprintf("failed to delete resource: %v", err))
-					}
-				}
 			}
-
 		} else {
 			// this must be calculated on the live object
 			healthStatus, err := health.GetResourceHealth(task.liveObj, sc.healthOverride)
@@ -339,6 +329,17 @@ func (sc *syncContext) Sync() {
 	if runningTasks.Len() > 0 {
 		sc.setRunningPhase(runningTasks, false)
 		return
+	}
+
+	// delete all completed hooks which have appropriate delete policy
+	hooksPendingDeletion := tasks.Filter(func(task *syncTask) bool {
+		return task.isHook() && task.liveObj != nil && !task.running() && task.deleteOnPhaseCompletion()
+	})
+	for _, task := range hooksPendingDeletion {
+		err := sc.deleteResource(task)
+		if err != nil && !apierr.IsNotFound(err) {
+			sc.setResourceResult(task, "", common.OperationError, fmt.Sprintf("failed to delete resource: %v", err))
+		}
 	}
 
 	// syncFailTasks only run during failure, so separate them from regular tasks
@@ -388,7 +389,7 @@ func (sc *syncContext) Sync() {
 		}
 	default:
 		sc.setRunningPhase(tasks.Filter(func(task *syncTask) bool {
-			return task.needsDeleting()
+			return task.deleteOnPhaseCompletion()
 		}), true)
 	}
 }
@@ -768,10 +769,11 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) runState {
 		wg.Wait()
 	}
 
+	hooksPendingDeletion := createTasks.Filter(func(t *syncTask) bool { return t.deleteBeforeCreation() })
 	// delete anything that need deleting
-	if runState == successful && createTasks.Any(func(t *syncTask) bool { return t.needsDeleting() }) {
+	if runState == successful && hooksPendingDeletion.Len() > 0 {
 		var wg sync.WaitGroup
-		for _, task := range createTasks.Filter(func(t *syncTask) bool { return t.needsDeleting() }) {
+		for _, task := range hooksPendingDeletion {
 			wg.Add(1)
 			go func(t *syncTask) {
 				defer wg.Done()
