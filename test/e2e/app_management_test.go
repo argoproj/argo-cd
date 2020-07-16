@@ -1009,6 +1009,12 @@ func TestOrphanedResource(t *testing.T) {
 		Refresh(RefreshTypeNormal).
 		Then().
 		Expect(Condition(ApplicationConditionOrphanedResourceWarning, "Application has 1 orphaned resources")).
+		And(func(app *Application) {
+			// app should be listed
+			output, err := RunCli("app", "list-orphaned-resource", app.Name)
+			assert.NoError(t, err)
+			assert.Contains(t, output, "orphaned-configmap")
+		}).
 		Given().
 		ProjectSpec(AppProjectSpec{
 			SourceRepos:       []string{"*"},
@@ -1018,40 +1024,58 @@ func TestOrphanedResource(t *testing.T) {
 		When().
 		Refresh(RefreshTypeNormal).
 		Then().
-		Expect(Condition(ApplicationConditionOrphanedResourceWarning, "Application has 1 orphaned resources"))
-		//Given().
-		//ProjectSpec(AppProjectSpec{
-		//	SourceRepos:       []string{"*"},
-		//	Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
-		//	OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.BoolPtr(true), Ignore: []OrphanedResourceKey{{Kind: "ConfigMap"}}},
-		//}).
-		//When().
-		//Refresh(RefreshTypeNormal).
-		//Then().
-		//Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		//Expect(NoConditions()).
-		//Given().
-		//ProjectSpec(AppProjectSpec{
-		//	SourceRepos:       []string{"*"},
-		//	Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
-		//	OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.BoolPtr(true), Ignore: []OrphanedResourceKey{{Kind: "ConfigMap", Name: "orphaned-configmap"}}},
-		//}).
-		//When().
-		//Refresh(RefreshTypeNormal).
-		//Then().
-		//Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		//Expect(NoConditions()).
-		//Given().
-		//ProjectSpec(AppProjectSpec{
-		//	SourceRepos:       []string{"*"},
-		//	Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
-		//	OrphanedResources: nil,
-		//}).
-		//When().
-		//Refresh(RefreshTypeNormal).
-		//Then().
-		//Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		//Expect(NoConditions())
+		Expect(Condition(ApplicationConditionOrphanedResourceWarning, "Application has 1 orphaned resources")).
+		And(func(app *Application) {
+			// app should be listed
+			output, err := RunCli("app", "list-orphaned-resource", app.Name)
+			assert.NoError(t, err)
+			assert.Contains(t, output, "orphaned-configmap")
+		}).
+		Given().
+		ProjectSpec(AppProjectSpec{
+			SourceRepos:       []string{"*"},
+			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
+			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.BoolPtr(true), Ignore: []OrphanedResourceKey{{Kind: "ConfigMap"}}},
+		}).
+		When().
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(NoConditions()).
+		And(func(app *Application) {
+			// app should be listed
+			output, err := RunCli("app", "list-orphaned-resource", app.Name)
+			assert.NoError(t, err)
+			assert.NotContains(t, output, "orphaned-configmap")
+		}).
+		Given().
+		ProjectSpec(AppProjectSpec{
+			SourceRepos:       []string{"*"},
+			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
+			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.BoolPtr(true), Ignore: []OrphanedResourceKey{{Kind: "ConfigMap", Name: "orphaned-configmap"}}},
+		}).
+		When().
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(NoConditions()).
+		And(func(app *Application) {
+			// app should be listed
+			output, err := RunCli("app", "list-orphaned-resource", app.Name)
+			assert.NoError(t, err)
+			assert.NotContains(t, output, "orphaned-configmap")
+		}).
+		Given().
+		ProjectSpec(AppProjectSpec{
+			SourceRepos:       []string{"*"},
+			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
+			OrphanedResources: nil,
+		}).
+		When().
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(NoConditions())
 }
 
 func TestNotPermittedResources(t *testing.T) {
