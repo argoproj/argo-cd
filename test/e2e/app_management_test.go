@@ -1010,7 +1010,6 @@ func TestOrphanedResource(t *testing.T) {
 		Then().
 		Expect(Condition(ApplicationConditionOrphanedResourceWarning, "Application has 1 orphaned resources")).
 		And(func(app *Application) {
-			// app should be listed
 			output, err := RunCli("app", "list-orphaned-resource", app.Name)
 			assert.NoError(t, err)
 			assert.Contains(t, output, "orphaned-configmap")
@@ -1026,7 +1025,6 @@ func TestOrphanedResource(t *testing.T) {
 		Then().
 		Expect(Condition(ApplicationConditionOrphanedResourceWarning, "Application has 1 orphaned resources")).
 		And(func(app *Application) {
-			// app should be listed
 			output, err := RunCli("app", "list-orphaned-resource", app.Name)
 			assert.NoError(t, err)
 			assert.Contains(t, output, "orphaned-configmap")
@@ -1043,7 +1041,6 @@ func TestOrphanedResource(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(NoConditions()).
 		And(func(app *Application) {
-			// app should be listed
 			output, err := RunCli("app", "list-orphaned-resource", app.Name)
 			assert.NoError(t, err)
 			assert.NotContains(t, output, "orphaned-configmap")
@@ -1060,7 +1057,6 @@ func TestOrphanedResource(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(NoConditions()).
 		And(func(app *Application) {
-			// app should be listed
 			output, err := RunCli("app", "list-orphaned-resource", app.Name)
 			assert.NoError(t, err)
 			assert.NotContains(t, output, "orphaned-configmap")
