@@ -2,8 +2,6 @@ module github.com/argoproj/argo-cd
 
 go 1.14
 
-replace github.com/argoproj/gitops-engine => /Users/mayz985/go/src/github.com/argoproj/gitops-engine
-
 require (
 	bou.ke/monkey v1.0.1
 	github.com/Masterminds/semver v1.5.0
