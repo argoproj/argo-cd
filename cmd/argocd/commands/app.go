@@ -92,7 +92,7 @@ func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 	command.AddCommand(NewApplicationPatchCommand(clientOpts))
 	command.AddCommand(NewApplicationPatchResourceCommand(clientOpts))
 	command.AddCommand(NewApplicationResourceActionsCommand(clientOpts))
-	command.AddCommand(NewApplicationListOrphanedResourceCommand(clientOpts))
+	command.AddCommand(NewApplicationListResourcesCommand(clientOpts))
 	return command
 }
 
@@ -2155,15 +2155,17 @@ func NewApplicationEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	return command
 }
 
-func NewApplicationListOrphanedResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+func NewApplicationListResourcesCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var orphaned bool
 	var command = &cobra.Command{
-		Use:   "list-orphaned-resource APPNAME",
-		Short: "List orphaned resource of application",
+		Use:   "resources APPNAME",
+		Short: "List resource of application",
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
+			listAll := !c.Flag("orphaned").Changed
 			appName := args[0]
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer argoio.Close(conn)
@@ -2173,12 +2175,20 @@ func NewApplicationListOrphanedResourceCommand(clientOpts *argocdclient.ClientOp
 			headers := []interface{}{"GROUP", "KIND", "NAMESPACE", "NAME"}
 			fmtStr := "%s\t%s\t%s\t%s\n"
 			_, _ = fmt.Fprintf(w, fmtStr, headers...)
-			for _, res := range appResourceTree.OrphanedNodes {
-				_, _ = fmt.Fprintf(w, fmtStr, res.Group, res.Kind, res.Namespace, res.Name)
+			if !orphaned || listAll {
+				for _, res := range appResourceTree.Nodes {
+					_, _ = fmt.Fprintf(w, fmtStr, res.Group, res.Kind, res.Namespace, res.Name)
+				}
+			}
+			if orphaned || listAll {
+				for _, res := range appResourceTree.OrphanedNodes {
+					_, _ = fmt.Fprintf(w, fmtStr, res.Group, res.Kind, res.Namespace, res.Name)
+				}
 			}
 			_ = w.Flush()
 		},
 	}
+	command.Flags().BoolVar(&orphaned, "orphaned", false, "Lists only orphaned resources")
 	return command
 }
 
