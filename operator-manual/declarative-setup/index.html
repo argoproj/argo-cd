@@ -1844,10 +1844,14 @@ definition as a Kubernetes manifest.</li>
       <span class="no">usernameSecret:</span>
         <span class="no">name: my-secret</span>
         <span class="no">key: username</span>
+    <span class="no">- url: git@github.com:argoproj-labs</span>
+      <span class="no">sshPrivateKeySecret:</span>
+        <span class="no">name: my-secret</span>
+        <span class="no">key: sshPrivateKey</span>
 </code></pre></div>
 
 
-<p>Argo CD will only use the credentials if you omit <code>usernameSecret</code>, <code>passwordSecret</code>, and <code>sshPrivateKeySecret</code> fields (<code>insecureIgnoreHostKey</code> is ignored).</p>
+<p>Argo CD will only use the credentials if you omit <code>usernameSecret</code>, <code>passwordSecret</code>, and <code>sshPrivateKeySecret</code> fields (<code>insecureIgnoreHostKey</code> is ignored) or if your repository is not listed in <code>repositories</code>.</p>
 <p>A credential may be match if it's URL is the prefix of the repository's URL. The means that credentials may match, e.g in the above example both <a href="https://github.com/argoproj">https://github.com/argoproj</a> and <a href="https://github.com">https://github.com</a> would match. Argo CD selects the first one that matches.</p>
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
