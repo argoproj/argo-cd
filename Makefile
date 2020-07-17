@@ -168,8 +168,6 @@ cli:
 
 .PHONY: cli-local
 cli-local: clean-debug
-	rm -f ${DIST_DIR}/${CLI_NAME}
-	mkdir -p ${DIST_DIR}
 	ls -la ${DIST_DIR}/
 	CGO_ENABLED=0 ${PACKR_CMD} build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${CLI_NAME} ./cmd/argocd
 

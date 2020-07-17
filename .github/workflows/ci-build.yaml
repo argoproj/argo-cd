@@ -329,6 +329,10 @@ jobs:
           docker pull quay.io/dexidp/dex:v2.22.0
           docker pull argoproj/argo-cd-ci-builder:v1.0.0
           docker pull redis:5.0.8-alpine
+      - name: Create target directory for binaries in the build-process
+        run: |
+          mkdir -p dist
+          chown runner dist
       - name: Run E2E server and wait for it being available
         timeout-minutes: 30
         run: |
