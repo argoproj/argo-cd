@@ -267,7 +267,8 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 
 	clusterResourceWhitelistsEqual := reflect.DeepEqual(q.Project.Spec.ClusterResourceWhitelist, oldProj.Spec.ClusterResourceWhitelist)
 	namespacesResourceBlacklistsEqual := reflect.DeepEqual(q.Project.Spec.NamespaceResourceBlacklist, oldProj.Spec.NamespaceResourceBlacklist)
-	if !clusterResourceWhitelistsEqual || !namespacesResourceBlacklistsEqual {
+	namespacesResourceWhitelistsEqual := reflect.DeepEqual(q.Project.Spec.NamespaceResourceWhitelist, oldProj.Spec.NamespaceResourceWhitelist)
+	if !clusterResourceWhitelistsEqual || !namespacesResourceBlacklistsEqual || !namespacesResourceWhitelistsEqual {
 		for _, cluster := range q.Project.Spec.DestinationClusters() {
 			if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionUpdate, cluster); err != nil {
 				return nil, err

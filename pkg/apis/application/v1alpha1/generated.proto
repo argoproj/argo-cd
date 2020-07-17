@@ -195,6 +195,9 @@ message ApplicationSourceJsonnet {
 
   // TLAS is a list of Jsonnet Top-level Arguments
   repeated JsonnetVar tlas = 2;
+
+  // Additional library search dirs
+  repeated string libs = 3;
 }
 
 // ApplicationSourceKsonnet holds ksonnet specific options
@@ -598,10 +601,20 @@ message OperationState {
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time finishedAt = 7;
 }
 
+message OrphanedResourceKey {
+  optional string group = 1;
+
+  optional string kind = 2;
+
+  optional string name = 3;
+}
+
 // OrphanedResourcesMonitorSettings holds settings of orphaned resources monitoring
 message OrphanedResourcesMonitorSettings {
   // Warn indicates if warning condition should be created for apps which have orphaned resources
   optional bool warn = 1;
+
+  repeated OrphanedResourceKey ignore = 2;
 }
 
 message OverrideIgnoreDiff {
@@ -832,6 +845,8 @@ message ResourceNode {
   repeated string images = 6;
 
   optional HealthStatus health = 7;
+
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time createdAt = 8;
 }
 
 // ResourceOverride holds configuration to customize resource diffing and health assessment

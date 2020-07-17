@@ -3728,6 +3728,13 @@
             "$ref": "#/definitions/v1alpha1JsonnetVar"
           }
         },
+        "libs": {
+          "type": "array",
+          "title": "Additional library search dirs",
+          "items": {
+            "type": "string"
+          }
+        },
         "tlas": {
           "type": "array",
           "title": "TLAS is a list of Jsonnet Top-level Arguments",
@@ -4382,10 +4389,30 @@
         }
       }
     },
+    "v1alpha1OrphanedResourceKey": {
+      "type": "object",
+      "properties": {
+        "group": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    },
     "v1alpha1OrphanedResourcesMonitorSettings": {
       "type": "object",
       "title": "OrphanedResourcesMonitorSettings holds settings of orphaned resources monitoring",
       "properties": {
+        "ignore": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1OrphanedResourceKey"
+          }
+        },
         "warn": {
           "type": "boolean",
           "format": "boolean",
@@ -4745,6 +4772,9 @@
       "type": "object",
       "title": "ResourceNode contains information about live resource and its children",
       "properties": {
+        "createdAt": {
+          "$ref": "#/definitions/v1Time"
+        },
         "health": {
           "$ref": "#/definitions/v1alpha1HealthStatus"
         },

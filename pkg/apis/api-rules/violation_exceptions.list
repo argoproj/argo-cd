@@ -11,6 +11,7 @@ API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/appli
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ApplicationSourceHelm,Parameters
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ApplicationSourceHelm,ValueFiles
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ApplicationSourceJsonnet,ExtVars
+API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ApplicationSourceJsonnet,Libs
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ApplicationSourceJsonnet,TLAs
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ApplicationSourceKsonnet,Parameters
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ApplicationSpec,IgnoreDifferences
@@ -28,6 +29,7 @@ API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/appli
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,GnuPGPublicKeyList,Items
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,JWTTokens,Items
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,Operation,Info
+API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,OrphanedResourcesMonitorSettings,Ignore
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,OverrideIgnoreDiff,JSONPointers
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ProjectRole,Groups
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ProjectRole,JWTTokens

@@ -95,6 +95,17 @@ spec:
             orphanedResources:
               description: OrphanedResources specifies if controller should monitor orphaned resources of apps in this project
               properties:
+                ignore:
+                  items:
+                    properties:
+                      group:
+                        type: string
+                      kind:
+                        type: string
+                      name:
+                        type: string
+                    type: object
+                  type: array
                 warn:
                   description: Warn indicates if warning condition should be created for apps which have orphaned resources
                   type: boolean

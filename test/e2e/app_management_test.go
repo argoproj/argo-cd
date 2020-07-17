@@ -853,25 +853,6 @@ func TestSyncOptionPruneFalse(t *testing.T) {
 		Expect(ResourceSyncStatusIs("Pod", "pod-1", SyncStatusCodeOutOfSync))
 }
 
-// make sure that if we sync with dry run, app does not go OutOfSync
-func TestSyncOptionDryRun(t *testing.T) {
-	Given(t).
-		Path("two-nice-pods").
-		When().
-		Create().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		When().
-		PatchFile("pod-1.yaml", `[{"op": "replace", "path": "/spec/containers/0/image", "value": "nginx:1.19.0"}]`).
-		Sync("--dry-run").
-		Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(ResourceSyncStatusIs("Pod", "pod-1", SyncStatusCodeSynced))
-}
-
 // make sure that if we have an invalid manifest, we can add it if we disable validation, we get a server error rather than a client error
 func TestSyncOptionValidateFalse(t *testing.T) {
 
@@ -1028,6 +1009,38 @@ func TestOrphanedResource(t *testing.T) {
 		Refresh(RefreshTypeNormal).
 		Then().
 		Expect(Condition(ApplicationConditionOrphanedResourceWarning, "Application has 1 orphaned resources")).
+		Given().
+		ProjectSpec(AppProjectSpec{
+			SourceRepos:       []string{"*"},
+			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
+			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.BoolPtr(true), Ignore: []OrphanedResourceKey{{Group: "Test", Kind: "ConfigMap"}}},
+		}).
+		When().
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(Condition(ApplicationConditionOrphanedResourceWarning, "Application has 1 orphaned resources")).
+		Given().
+		ProjectSpec(AppProjectSpec{
+			SourceRepos:       []string{"*"},
+			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
+			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.BoolPtr(true), Ignore: []OrphanedResourceKey{{Kind: "ConfigMap"}}},
+		}).
+		When().
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(NoConditions()).
+		Given().
+		ProjectSpec(AppProjectSpec{
+			SourceRepos:       []string{"*"},
+			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
+			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.BoolPtr(true), Ignore: []OrphanedResourceKey{{Kind: "ConfigMap", Name: "orphaned-configmap"}}},
+		}).
+		When().
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(NoConditions()).
 		Given().
 		ProjectSpec(AppProjectSpec{
 			SourceRepos:       []string{"*"},

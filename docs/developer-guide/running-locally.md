@@ -8,9 +8,18 @@ You will still need a working Kubernetes cluster, as described in the [Contribut
 
 If you followed the [Contribution Guide](contributing.md) in setting up your toolchain, you can run ArgoCD locally with these simple steps:
 
+### Install ArgoCD resources to your cluster
+
+First push the installation manifest into argocd namespace:
+
+```shell
+kubectl create namespace argocd
+kubectl apply -n argocd --force -f manifests/install.yaml
+```
+
 ### Scale down any ArgoCD instance in your cluster
 
-First make sure that ArgoCD is not running in your development cluster by scaling down the deployments:
+Make sure that ArgoCD is not running in your development cluster by scaling down the deployments:
 
 ```shell
 kubectl -n argocd scale deployment/argocd-application-controller --replicas 0
@@ -104,5 +113,5 @@ to build a new set of installation manifests which include your specific image r
 The final step is to push the manifests to your cluster, so it will pull and run your image:
 
 ```bash
-kubectl -n argocd --force -f manifests/install.yaml
+kubectl apply -n argocd --force -f manifests/install.yaml
 ```

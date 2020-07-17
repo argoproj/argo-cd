@@ -355,6 +355,8 @@ type ApplicationSourceJsonnet struct {
 	ExtVars []JsonnetVar `json:"extVars,omitempty" protobuf:"bytes,1,opt,name=extVars"`
 	// TLAS is a list of Jsonnet Top-level Arguments
 	TLAs []JsonnetVar `json:"tlas,omitempty" protobuf:"bytes,2,opt,name=tlas"`
+	// Additional library search dirs
+	Libs []string `json:"libs,omitempty" protobuf:"bytes,3,opt,name=libs"`
 }
 
 func (j *ApplicationSourceJsonnet) IsZero() bool {
@@ -889,6 +891,7 @@ type ResourceNode struct {
 	ResourceVersion string                  `json:"resourceVersion,omitempty" protobuf:"bytes,5,opt,name=resourceVersion"`
 	Images          []string                `json:"images,omitempty" protobuf:"bytes,6,opt,name=images"`
 	Health          *HealthStatus           `json:"health,omitempty" protobuf:"bytes,7,opt,name=health"`
+	CreatedAt       *metav1.Time            `json:"createdAt,omitempty" protobuf:"bytes,8,opt,name=createdAt"`
 }
 
 func (n *ResourceNode) GroupKindVersion() schema.GroupVersionKind {
@@ -1692,7 +1695,14 @@ func (p *AppProject) normalizePolicy(policy string) string {
 // OrphanedResourcesMonitorSettings holds settings of orphaned resources monitoring
 type OrphanedResourcesMonitorSettings struct {
 	// Warn indicates if warning condition should be created for apps which have orphaned resources
-	Warn *bool `json:"warn,omitempty" protobuf:"bytes,1,name=warn"`
+	Warn   *bool                 `json:"warn,omitempty" protobuf:"bytes,1,name=warn"`
+	Ignore []OrphanedResourceKey `json:"ignore,omitempty" protobuf:"bytes,2,opt,name=ignore"`
+}
+
+type OrphanedResourceKey struct {
+	Group string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
+	Kind  string `json:"kind,omitempty" protobuf:"bytes,2,opt,name=kind"`
+	Name  string `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
 }
 
 func (s *OrphanedResourcesMonitorSettings) IsWarn() bool {

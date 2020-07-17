@@ -553,6 +553,8 @@ func setAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			setJsonnetOptExtVar(&spec.Source, appOpts.jsonnetExtVarStr, false)
 		case "jsonnet-ext-var-code":
 			setJsonnetOptExtVar(&spec.Source, appOpts.jsonnetExtVarCode, true)
+		case "jsonnet-libs":
+			setJsonnetOptLibs(&spec.Source, appOpts.jsonnetLibs)
 		case "create-namespace":
 			spec.CreateNamespace = appOpts.createNamespace
 		case "sync-policy":
@@ -736,6 +738,7 @@ type appOptions struct {
 	jsonnetTlaCode         []string
 	jsonnetExtVarStr       []string
 	jsonnetExtVarCode      []string
+	jsonnetLibs            []string
 	kustomizeImages        []string
 	kustomizeVersion       string
 	createNamespace        bool
@@ -772,6 +775,7 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().StringArrayVar(&opts.jsonnetTlaCode, "jsonnet-tla-code", []string{}, "Jsonnet top level code arguments")
 	command.Flags().StringArrayVar(&opts.jsonnetExtVarStr, "jsonnet-ext-var-str", []string{}, "Jsonnet string ext var")
 	command.Flags().StringArrayVar(&opts.jsonnetExtVarCode, "jsonnet-ext-var-code", []string{}, "Jsonnet ext var")
+	command.Flags().StringArrayVar(&opts.jsonnetLibs, "jsonnet-libs", []string{}, "Additional jsonnet libs (prefixed by repoRoot)")
 	command.Flags().StringArrayVar(&opts.kustomizeImages, "kustomize-image", []string{}, "Kustomize images (e.g. --kustomize-image node:8.15.0 --kustomize-image mysql=mariadb,alpine@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d)")
 	command.Flags().BoolVar(&opts.createNamespace, "create-namespace", false, "Allows to create namespace if not exist")
 }

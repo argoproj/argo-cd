@@ -2,6 +2,7 @@ import {DropDown} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as dagre from 'dagre';
 import * as React from 'react';
+import Moment from 'react-moment';
 
 import * as models from '../../../shared/models';
 
@@ -241,8 +242,13 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                 </span>
             </div>
             <div className='application-resource-tree__node-labels'>
+                {node.createdAt ? (
+                    <Moment className='application-resource-tree__node-label' fromNow={true} ago={true}>
+                        {node.createdAt}
+                    </Moment>
+                ) : null}
                 {(node.info || []).map((tag, i) => (
-                    <span title={`${tag.name}:${tag.value}`} key={i}>
+                    <span className='application-resource-tree__node-label' title={`${tag.name}:${tag.value}`} key={i}>
                         {tag.value}
                     </span>
                 ))}

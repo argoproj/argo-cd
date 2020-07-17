@@ -130,6 +130,11 @@ spec:
                                 - value
                                 type: object
                               type: array
+                            libs:
+                              description: Additional library search dirs
+                              items:
+                                type: string
+                              type: array
                             tlas:
                               description: TLAS is a list of Jsonnet Top-level Arguments
                               items:
@@ -426,6 +431,11 @@ spec:
                             - value
                             type: object
                           type: array
+                        libs:
+                          description: Additional library search dirs
+                          items:
+                            type: string
+                          type: array
                         tlas:
                           description: TLAS is a list of Jsonnet Top-level Arguments
                           items:
@@ -691,6 +701,11 @@ spec:
                                   - name
                                   - value
                                   type: object
+                                type: array
+                              libs:
+                                description: Additional library search dirs
+                                items:
+                                  type: string
                                 type: array
                               tlas:
                                 description: TLAS is a list of Jsonnet Top-level Arguments
@@ -974,6 +989,11 @@ spec:
                                         - name
                                         - value
                                         type: object
+                                      type: array
+                                    libs:
+                                      description: Additional library search dirs
+                                      items:
+                                        type: string
                                       type: array
                                     tlas:
                                       description: TLAS is a list of Jsonnet Top-level
@@ -1269,6 +1289,11 @@ spec:
                                     - value
                                     type: object
                                   type: array
+                                libs:
+                                  description: Additional library search dirs
+                                  items:
+                                    type: string
+                                  type: array
                                 tlas:
                                   description: TLAS is a list of Jsonnet Top-level
                                     Arguments
@@ -1549,6 +1574,11 @@ spec:
                                     - name
                                     - value
                                     type: object
+                                  type: array
+                                libs:
+                                  description: Additional library search dirs
+                                  items:
+                                    type: string
                                   type: array
                                 tlas:
                                   description: TLAS is a list of Jsonnet Top-level
@@ -1856,6 +1886,17 @@ spec:
               description: OrphanedResources specifies if controller should monitor
                 orphaned resources of apps in this project
               properties:
+                ignore:
+                  items:
+                    properties:
+                      group:
+                        type: string
+                      kind:
+                        type: string
+                      name:
+                        type: string
+                    type: object
+                  type: array
                 warn:
                   description: Warn indicates if warning condition should be created
                     for apps which have orphaned resources
