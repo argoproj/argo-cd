@@ -171,7 +171,7 @@ cli-local: clean-debug
 	rm -f ${DIST_DIR}/${CLI_NAME}
 	mkdir -p ${DIST_DIR}
 	ls -la ${DIST_DIR}/
-	CGO_ENABLED=1 ${PACKR_CMD} build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${CLI_NAME} ./cmd/argocd
+	CGO_ENABLED=0 ${PACKR_CMD} build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${CLI_NAME} ./cmd/argocd
 
 .PHONY: cli-docker
 	go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${CLI_NAME} ./cmd/argocd
