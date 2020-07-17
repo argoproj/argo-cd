@@ -2,6 +2,8 @@ module github.com/argoproj/argo-cd
 
 go 1.14
 
+replace github.com/argoproj/gitops-engine => /Users/mayz985/go/src/github.com/argoproj/gitops-engine
+
 require (
 	bou.ke/monkey v1.0.1
 	github.com/Masterminds/semver v1.5.0
@@ -58,7 +60,7 @@ require (
 	github.com/vmihailenco/msgpack v3.3.1+incompatible
 	github.com/yuin/gopher-lua v0.0.0-20190115140932-732aa6820ec4
 	golang.org/x/crypto v0.0.0-20200220183623-bac4c82f6975
-	golang.org/x/net v0.0.0-20191004110552-13f9640d40b9
+	golang.org/x/net v0.0.0-20200226121028-0de0cce0169b
 	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45
 	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
 	google.golang.org/genproto v0.0.0-20190502173448-54afdca5d873
@@ -69,6 +71,7 @@ require (
 	k8s.io/api v1.17.8
 	k8s.io/apiextensions-apiserver v1.17.8
 	k8s.io/apimachinery v1.17.8
+	k8s.io/cli-runtime v1.17.8 // indirect
 	k8s.io/client-go v11.0.1-0.20190816222228-6d55c1b1f1ca+incompatible
 	k8s.io/code-generator v0.17.8
 	k8s.io/component-base v0.17.8
@@ -80,6 +83,7 @@ require (
 	k8s.io/kubernetes v1.17.8
 	k8s.io/utils v0.0.0-20200619165400-6e3d28b6ed19
 	layeh.com/gopher-json v0.0.0-20190114024228-97fed8db8427
+	sigs.k8s.io/yaml v1.2.0 // indirect
 )
 
 replace (

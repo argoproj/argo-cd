@@ -286,6 +286,9 @@ spec:
         spec:
           description: ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision.
           properties:
+            createNamespace:
+              description: CreateNamespace indicates if namespace should be created for app resources
+              type: boolean
             destination:
               description: Destination overrides the kubernetes server and namespace defined in the environment ksonnet app.yaml
               properties:

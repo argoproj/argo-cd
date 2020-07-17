@@ -3805,6 +3805,11 @@
       "description": "ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision.",
       "type": "object",
       "properties": {
+        "createNamespace": {
+          "type": "boolean",
+          "format": "boolean",
+          "title": "CreateNamespace indicates if namespace should be created for app resources"
+        },
         "destination": {
           "$ref": "#/definitions/v1alpha1ApplicationDestination"
         },

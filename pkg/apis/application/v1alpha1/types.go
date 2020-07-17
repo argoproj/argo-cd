@@ -72,6 +72,8 @@ type ApplicationSpec struct {
 	// Increasing will increase the space used to store the history, so we do not recommend increasing it.
 	// Default is 10.
 	RevisionHistoryLimit *int64 `json:"revisionHistoryLimit,omitempty" protobuf:"bytes,7,name=revisionHistoryLimit"`
+	// CreateNamespace indicates if namespace should be created for app resources
+	CreateNamespace bool `json:"createNamespace,omitempty" protobuf:"bytes,8,name=createNamespace"`
 }
 
 // ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.

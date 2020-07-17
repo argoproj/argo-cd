@@ -953,6 +953,13 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSpec(ref common.ReferenceCa
 							Format:      "int64",
 						},
 					},
+					"createNamespace": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CreateNamespace indicates if namespace should be created for app resources",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"source", "destination", "project"},
 			},
