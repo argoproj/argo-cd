@@ -80,6 +80,10 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.destination.namespace' component={Text} />
         },
         {
+            title: 'CREAT NAMESPACE',
+            view: app.spec.createNamespace ? 'True' : 'False',
+        },
+        {
             title: 'REPO URL',
             view: <Repo url={app.spec.source.repoURL} />,
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.repoURL' component={Text} />

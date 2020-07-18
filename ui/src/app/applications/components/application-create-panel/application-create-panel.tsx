@@ -2,7 +2,7 @@ import {AutocompleteField, Checkbox, DataLoader, DropDownMenu, FormField, HelpIc
 import * as deepMerge from 'deepmerge';
 import * as React from 'react';
 import {FieldApi, Form, FormApi, FormField as ReactFormField, Text} from 'react-form';
-import {clusterTitle, RevisionHelpIcon, YamlEditor} from '../../../shared/components';
+import {CheckboxField, clusterTitle, RevisionHelpIcon, YamlEditor} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ApplicationParameters} from '../application-parameters/application-parameters';
@@ -36,7 +36,8 @@ const DEFAULT_APP: Partial<models.Application> = {
             repoURL: '',
             targetRevision: 'HEAD'
         },
-        project: ''
+        project: '',
+        createNamespace: false
     }
 };
 
@@ -325,6 +326,9 @@ export const ApplicationCreatePanel = (props: {
                                                 </div>
                                                 <div className='argo-form-row'>
                                                     <FormField formApi={api} label='Namespace' field='spec.destination.namespace' component={Text} />
+                                                </div>
+                                                <div className='argo-form-row argo-field'>
+                                                    <FormField formApi={api} label='Create Namespace' field='spec.createNamespace' component={CheckboxField} />
                                                 </div>
                                             </div>
                                         );

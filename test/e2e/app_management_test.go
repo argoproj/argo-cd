@@ -1245,7 +1245,8 @@ func TestNamespaceAutoCreation(t *testing.T) {
 		Run("", "kubectl", "delete", "namespace", updatedNamespace)
 	}()
 	Given(t).
-		Path("guestbook-with-namespace").
+		Timeout(30).
+		Path("guestbook").
 		When().
 		Create("--create-namespace").
 		Then().
