@@ -10,7 +10,6 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/sync"
 	hookutil "github.com/argoproj/gitops-engine/pkg/sync/hook"
-	"github.com/argoproj/gitops-engine/pkg/sync/ignore"
 	resourceutil "github.com/argoproj/gitops-engine/pkg/sync/resource"
 	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	kubeutil "github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -460,7 +459,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		} else {
 			diffResult = diff.DiffResult{Modified: false, NormalizedLive: []byte("{}"), PredictedLive: []byte("{}")}
 		}
-		if resState.Hook || ignore.Ignore(obj) {
+		if resState.Hook {
 			// For resource hooks, don't store sync status, and do not affect overall sync status
 		} else if diffResult.Modified || targetObj == nil || liveObj == nil {
 			// Set resource state to OutOfSync since one of the following is true:
