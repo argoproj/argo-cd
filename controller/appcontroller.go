@@ -15,6 +15,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/gitops-engine/pkg/sync/syncwaves"
 	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -137,13 +138,13 @@ func NewApplicationController(
 		appRefreshQueue:               workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "app_reconciliation_queue"),
 		appOperationQueue:             workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "app_operation_processing_queue"),
 		appComparisonTypeRefreshQueue: workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
-		db:                            db,
-		statusRefreshTimeout:          appResyncPeriod,
-		refreshRequestedApps:          make(map[string]CompareWith),
-		refreshRequestedAppsMutex:     &sync.Mutex{},
-		auditLogger:                   argo.NewAuditLogger(namespace, kubeClientset, "argocd-application-controller"),
-		settingsMgr:                   settingsMgr,
-		selfHealTimeout:               selfHealTimeout,
+		db:                        db,
+		statusRefreshTimeout:      appResyncPeriod,
+		refreshRequestedApps:      make(map[string]CompareWith),
+		refreshRequestedAppsMutex: &sync.Mutex{},
+		auditLogger:               argo.NewAuditLogger(namespace, kubeClientset, "argocd-application-controller"),
+		settingsMgr:               settingsMgr,
+		selfHealTimeout:           selfHealTimeout,
 	}
 	if kubectlParallelismLimit > 0 {
 		ctrl.kubectlSemaphore = semaphore.NewWeighted(kubectlParallelismLimit)
@@ -611,7 +612,11 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 
 	objs := make([]*unstructured.Unstructured, 0)
 	for k := range objsMap {
-		if ctrl.shouldBeDeleted(app, objsMap[k]) && objsMap[k].GetDeletionTimestamp() == nil {
+		if objsMap[k].GetDeletionTimestamp() != nil {
+			logCtx.Infof("%d objects remaining for deletion", len(objsMap))
+			return objs, nil
+		}
+		if ctrl.shouldBeDeleted(app, objsMap[k]) {
 			objs = append(objs, objsMap[k])
 		}
 	}
@@ -622,8 +627,10 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	}
 	config := metrics.AddMetricsTransportWrapper(ctrl.metricsServer, app, cluster.RESTConfig())
 
-	err = kube.RunAllAsync(len(objs), func(i int) error {
-		obj := objs[i]
+	sortedObjs := FilterNonLowestSyncWave(objs)
+	err = kube.RunAllAsync(len(sortedObjs), func(i int) error {
+		obj := sortedObjs[i]
+		logCtx.Infof("%d - Issuing delete: name - %s, sync waves %s", i, obj.GetName(), syncwaves.Wave(obj))
 		return ctrl.kubectl.DeleteResource(config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), false)
 	})
 	if err != nil {
