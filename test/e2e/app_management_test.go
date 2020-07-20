@@ -1254,6 +1254,7 @@ func TestNamespaceAutoCreation(t *testing.T) {
 			//Make sure the namespace we are about to update to does not exist
 			_, err := Run("", "kubectl", "get", "namespace", updatedNamespace)
 			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "not found")
 		}).
 		When().
 		AppSet("--dest-namespace", updatedNamespace).
