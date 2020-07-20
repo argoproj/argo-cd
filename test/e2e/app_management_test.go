@@ -1242,7 +1242,8 @@ func TestCreateAppWithNoNameSpaceWhenRequired2(t *testing.T) {
 func TestNamespaceAutoCreation(t *testing.T) {
 	updatedNamespace := getNewNamespace(t)
 	defer func() {
-		Run("", "kubectl", "delete", "namespace", updatedNamespace)
+		_, err := Run("", "kubectl", "delete", "namespace", updatedNamespace)
+		assert.NoError(t, err)
 	}()
 	Given(t).
 		Timeout(30).
