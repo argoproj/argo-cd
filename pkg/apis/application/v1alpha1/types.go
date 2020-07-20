@@ -1804,7 +1804,7 @@ type AppProjectSpec struct {
 	// List of PGP key IDs that commits to be synced to must be signed with
 	SignatureKeys []SignatureKey `json:"signatureKeys,omitempty" protobuf:"bytes,10,opt,name=signatureKeys"`
 	// ClusterResourceBlacklist contains list of blacklisted cluster level resources
-	ClusterResourceBlacklist []metav1.GroupKind `json:"clusterResourceBlacklist,omitempty" protobuf:"bytes,6,opt,name=clusterResourceBlacklist"`
+	ClusterResourceBlacklist []metav1.GroupKind `json:"clusterResourceBlacklist,omitempty" protobuf:"bytes,11,opt,name=clusterResourceBlacklist"`
 }
 
 // SyncWindows is a collection of sync windows in this project

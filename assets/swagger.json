@@ -3491,6 +3491,13 @@
       "type": "object",
       "title": "AppProjectSpec is the specification of an AppProject",
       "properties": {
+        "clusterResourceBlacklist": {
+          "type": "array",
+          "title": "ClusterResourceBlacklist contains list of blacklisted cluster level resources",
+          "items": {
+            "$ref": "#/definitions/v1GroupKind"
+          }
+        },
         "clusterResourceWhitelist": {
           "type": "array",
           "title": "ClusterResourceWhitelist contains list of whitelisted cluster level resources",
