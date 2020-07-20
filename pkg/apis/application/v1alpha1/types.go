@@ -1803,6 +1803,8 @@ type AppProjectSpec struct {
 	NamespaceResourceWhitelist []metav1.GroupKind `json:"namespaceResourceWhitelist,omitempty" protobuf:"bytes,9,opt,name=namespaceResourceWhitelist"`
 	// List of PGP key IDs that commits to be synced to must be signed with
 	SignatureKeys []SignatureKey `json:"signatureKeys,omitempty" protobuf:"bytes,10,opt,name=signatureKeys"`
+	// ClusterResourceBlacklist contains list of blacklisted cluster level resources
+	ClusterResourceBlacklist []metav1.GroupKind `json:"clusterResourceBlacklist,omitempty" protobuf:"bytes,6,opt,name=clusterResourceBlacklist"`
 }
 
 // SyncWindows is a collection of sync windows in this project
@@ -2311,14 +2313,18 @@ func isResourceInList(res metav1.GroupKind, list []metav1.GroupKind) bool {
 
 // IsGroupKindPermitted validates if the given resource group/kind is permitted to be deployed in the project
 func (proj AppProject) IsGroupKindPermitted(gk schema.GroupKind, namespaced bool) bool {
+	var isWhiteListed, isBlackListed bool
 	res := metav1.GroupKind{Group: gk.Group, Kind: gk.Kind}
+
 	if namespaced {
-		isWhiteListed := len(proj.Spec.NamespaceResourceWhitelist) == 0 || isResourceInList(res, proj.Spec.NamespaceResourceWhitelist)
-		isBlackListed := isResourceInList(res, proj.Spec.NamespaceResourceBlacklist)
+		isWhiteListed = len(proj.Spec.NamespaceResourceWhitelist) == 0 || isResourceInList(res, proj.Spec.NamespaceResourceWhitelist)
+		isBlackListed = isResourceInList(res, proj.Spec.NamespaceResourceBlacklist)
 		return isWhiteListed && !isBlackListed
-	} else {
-		return isResourceInList(res, proj.Spec.ClusterResourceWhitelist)
 	}
+
+	isWhiteListed = len(proj.Spec.ClusterResourceWhitelist) == 0 || isResourceInList(res, proj.Spec.ClusterResourceWhitelist)
+	isBlackListed = isResourceInList(res, proj.Spec.ClusterResourceBlacklist)
+	return isWhiteListed && !isBlackListed
 }
 
 func (proj AppProject) IsLiveResourcePermitted(un *unstructured.Unstructured, server string) bool {
