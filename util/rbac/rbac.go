@@ -8,8 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/argo-cd/util/assets"
-
 	"github.com/casbin/casbin"
 	"github.com/casbin/casbin/model"
 	jwt "github.com/dgrijalva/jwt-go"
@@ -23,6 +21,9 @@ import (
 	v1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+
+	"github.com/argoproj/argo-cd/util/assets"
+	"github.com/argoproj/argo-cd/util/glob"
 )
 
 const (
@@ -53,10 +54,37 @@ type Enforcer struct {
 // ClaimsEnforcerFunc is func template to enforce a JWT claims. The subject is replaced
 type ClaimsEnforcerFunc func(claims jwt.Claims, rvals ...interface{}) bool
 
+func newEnforcerSafe(params ...interface{}) (e *casbin.Enforcer, err error) {
+	enfs, err := casbin.NewEnforcerSafe(params...)
+	if err != nil {
+		return nil, err
+	}
+	enfs.AddFunction("globMatch", func(args ...interface{}) (interface{}, error) {
+		if len(args) < 2 {
+			return false, nil
+		}
+		val, ok := args[0].(string)
+		if !ok {
+			return false, nil
+		}
+
+		pattern, ok := args[1].(string)
+		if !ok {
+			return false, nil
+		}
+
+		return glob.Match(pattern, val), nil
+	})
+	return enfs, nil
+}
+
 func NewEnforcer(clientset kubernetes.Interface, namespace, configmap string, claimsEnforcer ClaimsEnforcerFunc) *Enforcer {
 	adapter := newAdapter("", "", "")
 	builtInModel := newBuiltInModel()
-	enf := casbin.NewEnforcer(builtInModel, adapter)
+	enf, err := newEnforcerSafe(builtInModel, adapter)
+	if err != nil {
+		panic(err)
+	}
 	enf.EnableLog(false)
 	return &Enforcer{
 		Enforcer:           enf,
@@ -113,7 +141,7 @@ func (e *Enforcer) EnforceRuntimePolicy(policy string, rvals ...interface{}) boo
 	if policy == "" {
 		enf = e.Enforcer
 	} else {
-		enf, err = casbin.NewEnforcerSafe(newBuiltInModel(), newAdapter(e.adapter.builtinPolicy, e.adapter.userDefinedPolicy, policy))
+		enf, err = newEnforcerSafe(newBuiltInModel(), newAdapter(e.adapter.builtinPolicy, e.adapter.userDefinedPolicy, policy))
 		if err != nil {
 			log.Warnf("invalid runtime policy: %s", policy)
 			enf = e.Enforcer
@@ -238,7 +266,7 @@ func (e *Enforcer) syncUpdate(cm *apiv1.ConfigMap, onUpdated func(cm *apiv1.Conf
 
 // ValidatePolicy verifies a policy string is acceptable to casbin
 func ValidatePolicy(policy string) error {
-	_, err := casbin.NewEnforcerSafe(newBuiltInModel(), newAdapter("", "", policy))
+	_, err := newEnforcerSafe(newBuiltInModel(), newAdapter("", "", policy))
 	if err != nil {
 		return fmt.Errorf("policy syntax error: %s", policy)
 	}

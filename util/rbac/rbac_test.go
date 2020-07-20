@@ -127,6 +127,8 @@ p, mike, *, *, foo/obj, deny
 p, trudy, applications, get, foo/obj, allow
 p, trudy, applications/*, get, foo/obj, allow
 p, trudy, applications/secrets, get, foo/obj, deny
+p, danny, applications, get, */obj, allow
+p, danny, applications, get, proj1/a*p1, allow
 `
 	_ = enf.SetUserPolicy(policy)
 
@@ -170,6 +172,13 @@ p, trudy, applications/secrets, get, foo/obj, deny
 	assert.True(t, enf.Enforce("trudy", "applications", "get", "foo/obj"))
 	assert.True(t, enf.Enforce("trudy", "applications/logs", "get", "foo/obj"))
 	assert.False(t, enf.Enforce("trudy", "applications/secrets", "get", "foo/obj"))
+
+	// Verify trailing wildcards don't grant full access
+	assert.True(t, enf.Enforce("danny", "applications", "get", "foo/obj"))
+	assert.True(t, enf.Enforce("danny", "applications", "get", "bar/obj"))
+	assert.False(t, enf.Enforce("danny", "applications", "get", "foo/bar"))
+	assert.True(t, enf.Enforce("danny", "applications", "get", "proj1/app1"))
+	assert.False(t, enf.Enforce("danny", "applications", "get", "proj1/app2"))
 }
 
 // TestProjectIsolationEnforcement verifies the ability to create Project specific policies
