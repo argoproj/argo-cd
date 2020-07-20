@@ -89,3 +89,11 @@ spec:
     plural: testcrds
     kind: TestCrd`)
 }
+
+func NewNamespace() *unstructured.Unstructured {
+	return Unstructured(`apiVersion: v1
+kind: Namespace
+metadata:
+  name: testnamespace
+spec:`)
+}

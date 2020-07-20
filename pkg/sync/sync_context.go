@@ -8,6 +8,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -113,6 +114,13 @@ func WithOperationSettings(dryRun bool, prune bool, force bool, skipHooks bool) 
 func WithManifestValidation(enabled bool) SyncOpt {
 	return func(ctx *syncContext) {
 		ctx.validate = enabled
+	}
+}
+
+// WithNamespaceCreation will create non-exist namespace
+func WithNamespaceCreation(createNamespace bool) SyncOpt {
+	return func(ctx *syncContext) {
+		ctx.createNamespace = createNamespace
 	}
 }
 
@@ -240,6 +248,8 @@ type syncContext struct {
 	log *log.Entry
 	// lock to protect concurrent updates of the result list
 	lock sync.Mutex
+
+	createNamespace bool
 }
 
 func (sc *syncContext) setRunningPhase(tasks []*syncTask, isPendingDeletion bool) {
@@ -505,6 +515,10 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 		}
 	}
 
+	if sc.createNamespace && sc.namespace != "" {
+		tasks = sc.autoCreateNamespace(tasks)
+	}
+
 	// enrich task with live obj
 	for _, task := range tasks {
 		if task.targetObj == nil || task.liveObj != nil {
@@ -551,6 +565,55 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 	sort.Sort(tasks)
 
 	return tasks, successful
+}
+
+func (sc *syncContext) autoCreateNamespace(tasks syncTasks) syncTasks {
+	isNamespaceCreationNeeded := true
+
+	var allObjs []*unstructured.Unstructured
+	copy(allObjs, sc.hooks)
+	for _, res := range sc.resources {
+		allObjs = append(allObjs, res.Target)
+	}
+
+	for _, res := range allObjs {
+		if isNamespaceWithName(res, sc.namespace) {
+			isNamespaceCreationNeeded = false
+			break
+		}
+	}
+
+	if isNamespaceCreationNeeded {
+		annotations := make(map[string]string)
+		annotations[common.AnnotationKeyHook] = common.SyncPhasePreSync
+		nsSpec := &v1.Namespace{TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: kube.NamespaceKind}, ObjectMeta: metav1.ObjectMeta{Name: sc.namespace, Annotations: annotations}}
+		unstructuredObj, err := kube.ToUnstructured(nsSpec)
+		if err == nil {
+			liveObj, err := sc.kubectl.GetResource(sc.config, unstructuredObj.GroupVersionKind(), unstructuredObj.GetName(), "")
+			if err == nil || apierr.IsNotFound(err) {
+				tasks = append(tasks, &syncTask{phase: common.SyncPhasePreSync, targetObj: unstructuredObj, liveObj: liveObj})
+			} else {
+				task := &syncTask{phase: common.SyncPhasePreSync, targetObj: unstructuredObj}
+				sc.setResourceResult(task, common.ResultCodeSyncFailed, common.OperationError, fmt.Sprintf("Namespace auto creation failed: %s", err))
+				tasks = append(tasks, task)
+			}
+		} else {
+			sc.setOperationPhase(common.OperationFailed, fmt.Sprintf("Namespace auto creation failed: %s", err))
+		}
+	}
+	return tasks
+}
+
+func isNamespaceWithName(res *unstructured.Unstructured, ns string) bool {
+	return isNamespaceKind(res) &&
+		res.GetName() == ns
+}
+
+func isNamespaceKind(res *unstructured.Unstructured) bool {
+	return res != nil &&
+		res.GetObjectKind() != nil &&
+		res.GetObjectKind().GroupVersionKind().Group == "" &&
+		res.GetKind() == kube.NamespaceKind
 }
 
 func obj(a, b *unstructured.Unstructured) *unstructured.Unstructured {

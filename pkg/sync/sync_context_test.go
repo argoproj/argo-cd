@@ -7,6 +7,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -31,6 +32,7 @@ func newTestSyncCtx(opts ...SyncOpt) *syncContext {
 			APIResources: []v1.APIResource{
 				{Kind: "Pod", Group: "", Version: "v1", Namespaced: true},
 				{Kind: "Service", Group: "", Version: "v1", Namespaced: true},
+				{Kind: "Namespace", Group: "", Version: "v1", Namespaced: false},
 			},
 		},
 		&v1.APIResourceList{
@@ -501,6 +503,50 @@ func TestObjectsGetANamespace(t *testing.T) {
 	assert.Len(t, tasks, 1)
 	assert.Equal(t, FakeArgoCDNamespace, tasks[0].namespace())
 	assert.Equal(t, "", pod.GetNamespace())
+}
+
+func TestNamespaceAutoCreation(t *testing.T) {
+	pod := NewPod()
+	namespace := NewNamespace()
+	syncCtx := newTestSyncCtx()
+	syncCtx.createNamespace = true
+
+	//Namespace auto creation pre-sync task
+	annotations := make(map[string]string)
+	annotations[synccommon.AnnotationKeyHook] = synccommon.SyncPhasePreSync
+	nsSpec := &corev1.Namespace{TypeMeta: v1.TypeMeta{APIVersion: "v1", Kind: kube.NamespaceKind}, ObjectMeta: v1.ObjectMeta{Name: syncCtx.namespace, Annotations: annotations}}
+	unstructuredObj, err := kube.ToUnstructured(nsSpec)
+	if err != nil {
+		assert.Fail(t, "Failed convert namespace to Unstructured. ")
+	}
+	task := &syncTask{phase: synccommon.SyncPhasePreSync, targetObj: unstructuredObj}
+
+	t.Run("ns creation pre-sync task", func(t *testing.T) {
+		syncCtx.namespace = FakeArgoCDNamespace
+		syncCtx.resources = groupResources(ReconciliationResult{
+			Live:   []*unstructured.Unstructured{nil},
+			Target: []*unstructured.Unstructured{pod},
+		})
+		tasks, successful := syncCtx.getSyncTasks()
+
+		assert.True(t, successful)
+		assert.Len(t, tasks, 2)
+		assert.Contains(t, tasks, task)
+	})
+
+	t.Run("ns creation pre-sync task should not be created", func(t *testing.T) {
+		syncCtx.namespace = namespace.GetNamespace()
+		syncCtx.resources = groupResources(ReconciliationResult{
+			Live:   []*unstructured.Unstructured{nil},
+			Target: []*unstructured.Unstructured{namespace},
+		})
+		tasks, successful := syncCtx.getSyncTasks()
+
+		assert.True(t, successful)
+		assert.Len(t, tasks, 1)
+		assert.NotContains(t, tasks, task)
+	})
+
 }
 
 func TestSyncFailureHookWithSuccessfulSync(t *testing.T) {
