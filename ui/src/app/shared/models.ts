@@ -242,7 +242,7 @@ export interface ApplicationSpec {
     syncPolicy?: SyncPolicy;
     info?: Info[];
     revisionHistoryLimit?: number;
-    createNamespace: boolean
+    createNamespace: boolean;
 }
 
 /**
