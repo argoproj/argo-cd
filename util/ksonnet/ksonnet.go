@@ -115,7 +115,7 @@ func (k *ksonnetApp) Show(environment string) ([]*unstructured.Unstructured, err
 	if err != nil {
 		return nil, fmt.Errorf("`ks show` failed: %v", err)
 	}
-	return kube.SplitYAML(out)
+	return kube.SplitYAML([]byte(out))
 }
 
 // Destination returns the deployment destination for an environment

@@ -153,7 +153,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 		return nil, nil, err
 	}
 
-	objs, err := kube.SplitYAML(out)
+	objs, err := kube.SplitYAML([]byte(out))
 	if err != nil {
 		return nil, nil, err
 	}
