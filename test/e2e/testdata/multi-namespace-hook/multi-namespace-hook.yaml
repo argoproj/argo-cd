@@ -2,9 +2,7 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  annotations:
-    argocd.argoproj.io/hook: PreSync
-  name: test-multi-ns-hook-second4
+  name: test-multi-ns-hook-second
 
 ---
 apiVersion: apps/v1
@@ -50,7 +48,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: my-hook
-  namespace: test-multi-ns-hook-second4
+  namespace: test-multi-ns-hook-second
   annotations:
     argocd.argoproj.io/hook: PostSync
     argocd.argoproj.io/hook-delete-policy: HookSucceeded
