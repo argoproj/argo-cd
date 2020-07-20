@@ -19,7 +19,7 @@ func template(h Helm, opts *TemplateOpts) ([]*unstructured.Unstructured, error) 
 	if err != nil {
 		return nil, err
 	}
-	return kube.SplitYAML(out)
+	return kube.SplitYAML([]byte(out))
 }
 
 func TestHelmTemplateParams(t *testing.T) {
