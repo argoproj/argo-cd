@@ -346,7 +346,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			return nil, err
 		}
 	}
-	return kube.SplitYAML(out)
+	return kube.SplitYAML([]byte(out))
 }
 
 // GenerateManifests generates manifests from a path
@@ -570,7 +570,7 @@ func findManifests(appPath string, repoRoot string, env *v1alpha1.Env, directory
 				objs = append(objs, &jsonObj)
 			}
 		} else {
-			yamlObjs, err := kube.SplitYAML(string(out))
+			yamlObjs, err := kube.SplitYAML(out)
 			if err != nil {
 				if len(yamlObjs) > 0 {
 					// If we get here, we had a multiple objects in a single YAML file which had some
@@ -678,7 +678,7 @@ func runConfigManagementPlugin(appPath string, envVars *v1alpha1.Env, q *apiclie
 	if err != nil {
 		return nil, err
 	}
-	return kube.SplitYAML(out)
+	return kube.SplitYAML([]byte(out))
 }
 
 func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppDetailsQuery) (*apiclient.RepoAppDetailsResponse, error) {

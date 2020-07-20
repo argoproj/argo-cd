@@ -281,7 +281,7 @@ func NewImportCommand() *cobra.Command {
 			}
 
 			// Create or replace existing object
-			backupObjects, err := kube.SplitYAML(string(input))
+			backupObjects, err := kube.SplitYAML(input)
 			errors.CheckError(err)
 			for _, bakObj := range backupObjects {
 				gvk := bakObj.GroupVersionKind()
