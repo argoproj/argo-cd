@@ -2172,17 +2172,19 @@ func NewApplicationListResourcesCommand(clientOpts *argocdclient.ClientOptions) 
 			appResourceTree, err := appIf.ResourceTree(context.Background(), &applicationpkg.ResourcesQuery{ApplicationName: &appName})
 			errors.CheckError(err)
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			headers := []interface{}{"GROUP", "KIND", "NAMESPACE", "NAME"}
-			fmtStr := "%s\t%s\t%s\t%s\n"
+			headers := []interface{}{"GROUP", "KIND", "NAMESPACE", "NAME", "ORPHANED"}
+			fmtStr := "%s\t%s\t%s\t%s\t%s\n"
 			_, _ = fmt.Fprintf(w, fmtStr, headers...)
 			if !orphaned || listAll {
 				for _, res := range appResourceTree.Nodes {
-					_, _ = fmt.Fprintf(w, fmtStr, res.Group, res.Kind, res.Namespace, res.Name)
+					if len(res.ParentRefs) == 0 {
+						_, _ = fmt.Fprintf(w, fmtStr, res.Group, res.Kind, res.Namespace, res.Name, "No")
+					}
 				}
 			}
 			if orphaned || listAll {
 				for _, res := range appResourceTree.OrphanedNodes {
-					_, _ = fmt.Fprintf(w, fmtStr, res.Group, res.Kind, res.Namespace, res.Name)
+					_, _ = fmt.Fprintf(w, fmtStr, res.Group, res.Kind, res.Namespace, res.Name, "Yes")
 				}
 			}
 			_ = w.Flush()
