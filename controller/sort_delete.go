@@ -21,23 +21,20 @@ func (s syncWaveSorter) Less(i, j int) bool {
 	return syncwaves.Wave(s[i]) < syncwaves.Wave(s[j])
 }
 
-func sortBySyncWave(objs []*unstructured.Unstructured) []*unstructured.Unstructured {
-	sort.Sort(sort.Reverse(syncWaveSorter(objs)))
-	return []*unstructured.Unstructured(objs)
-}
-
 func FilterObjectsForDeletion(objs []*unstructured.Unstructured) []*unstructured.Unstructured {
 	if len(objs) <= 1 {
 		return objs
 	}
-	sortBySyncWave(objs)
+
+	sort.Sort(sort.Reverse(syncWaveSorter(objs)))
+
 	currentSyncWave := syncwaves.Wave(objs[0])
-	sortedObjs := make([]*unstructured.Unstructured, 0)
+	filteredObjs := make([]*unstructured.Unstructured, 0)
 	for _, obj := range objs {
 		if syncwaves.Wave(obj) != currentSyncWave {
 			break
 		}
-		sortedObjs = append(sortedObjs, obj)
+		filteredObjs = append(filteredObjs, obj)
 	}
-	return sortedObjs
+	return filteredObjs
 }

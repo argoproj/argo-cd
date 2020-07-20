@@ -1,22 +1,13 @@
 package controller
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	. "github.com/argoproj/gitops-engine/pkg/utils/testing"
-	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
-
-func TestSoryBySyncWave(t *testing.T) {
-	input := sliceOfObjectsWithSyncWaves([]string{"5", "4", "6", "8"})
-	expectedOutput := sliceOfObjectsWithSyncWaves([]string{"8", "6", "5", "4"})
-
-	sortBySyncWave(objects)
-
-	assert.Equal(t, expectedOutput, input)
-}
 
 func TestFilterObjectsForDeletion(t *testing.T) {
 	tests := []struct {
@@ -31,20 +22,18 @@ func TestFilterObjectsForDeletion(t *testing.T) {
 	for _, tt := range tests {
 		in := sliceOfObjectsWithSyncWaves(tt.input)
 		need := sliceOfObjectsWithSyncWaves(tt.want)
-		if got := FilterObjectsForDeletion(in); got != need {
+		if got := FilterObjectsForDeletion(in); !reflect.DeepEqual(got, need) {
 			t.Errorf("Received unexpected objects for deletion = %v, want %v", got, need)
 		}
 	}
 }
 
 func podWithSyncWave(wave string) *unstructured.Unstructured {
-	pod := NewPod()
-	pod.SetAnnotations(map[string]string{common.AnnotationSyncWave: wave})
-	return pod
+	return Annotate(NewPod(), common.AnnotationSyncWave, wave)
 }
 
 func sliceOfObjectsWithSyncWaves(waves []string) []*unstructured.Unstructured {
-	objects := make([]*unstructured.Unstructured, len(waves))
+	objects := make([]*unstructured.Unstructured, 0)
 	for _, wave := range waves {
 		objects = append(objects, podWithSyncWave(wave))
 	}

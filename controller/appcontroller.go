@@ -137,13 +137,13 @@ func NewApplicationController(
 		appRefreshQueue:               workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "app_reconciliation_queue"),
 		appOperationQueue:             workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "app_operation_processing_queue"),
 		appComparisonTypeRefreshQueue: workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
-		db:                        db,
-		statusRefreshTimeout:      appResyncPeriod,
-		refreshRequestedApps:      make(map[string]CompareWith),
-		refreshRequestedAppsMutex: &sync.Mutex{},
-		auditLogger:               argo.NewAuditLogger(namespace, kubeClientset, "argocd-application-controller"),
-		settingsMgr:               settingsMgr,
-		selfHealTimeout:           selfHealTimeout,
+		db:                            db,
+		statusRefreshTimeout:          appResyncPeriod,
+		refreshRequestedApps:          make(map[string]CompareWith),
+		refreshRequestedAppsMutex:     &sync.Mutex{},
+		auditLogger:                   argo.NewAuditLogger(namespace, kubeClientset, "argocd-application-controller"),
+		settingsMgr:                   settingsMgr,
+		selfHealTimeout:               selfHealTimeout,
 	}
 	if kubectlParallelismLimit > 0 {
 		ctrl.kubectlSemaphore = semaphore.NewWeighted(kubectlParallelismLimit)
@@ -626,9 +626,9 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	}
 	config := metrics.AddMetricsTransportWrapper(ctrl.metricsServer, app, cluster.RESTConfig())
 
-	sortedObjs := FilterObjectsForDeletion(objs)
-	err = kube.RunAllAsync(len(sortedObjs), func(i int) error {
-		obj := sortedObjs[i]
+	filteredObjs := FilterObjectsForDeletion(objs)
+	err = kube.RunAllAsync(len(filteredObjs), func(i int) error {
+		obj := filteredObjs[i]
 		return ctrl.kubectl.DeleteResource(config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), false)
 	})
 	if err != nil {
