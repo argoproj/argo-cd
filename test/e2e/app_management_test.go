@@ -1009,6 +1009,11 @@ func TestOrphanedResource(t *testing.T) {
 		Refresh(RefreshTypeNormal).
 		Then().
 		Expect(Condition(ApplicationConditionOrphanedResourceWarning, "Application has 1 orphaned resources")).
+		And(func(app *Application) {
+			output, err := RunCli("app", "resources", app.Name)
+			assert.NoError(t, err)
+			assert.Contains(t, output, "orphaned-configmap")
+		}).
 		Given().
 		ProjectSpec(AppProjectSpec{
 			SourceRepos:       []string{"*"},
@@ -1019,6 +1024,11 @@ func TestOrphanedResource(t *testing.T) {
 		Refresh(RefreshTypeNormal).
 		Then().
 		Expect(Condition(ApplicationConditionOrphanedResourceWarning, "Application has 1 orphaned resources")).
+		And(func(app *Application) {
+			output, err := RunCli("app", "resources", app.Name)
+			assert.NoError(t, err)
+			assert.Contains(t, output, "orphaned-configmap")
+		}).
 		Given().
 		ProjectSpec(AppProjectSpec{
 			SourceRepos:       []string{"*"},
@@ -1030,6 +1040,11 @@ func TestOrphanedResource(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(NoConditions()).
+		And(func(app *Application) {
+			output, err := RunCli("app", "resources", app.Name)
+			assert.NoError(t, err)
+			assert.NotContains(t, output, "orphaned-configmap")
+		}).
 		Given().
 		ProjectSpec(AppProjectSpec{
 			SourceRepos:       []string{"*"},
@@ -1041,6 +1056,11 @@ func TestOrphanedResource(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(NoConditions()).
+		And(func(app *Application) {
+			output, err := RunCli("app", "resources", app.Name)
+			assert.NoError(t, err)
+			assert.NotContains(t, output, "orphaned-configmap")
+		}).
 		Given().
 		ProjectSpec(AppProjectSpec{
 			SourceRepos:       []string{"*"},
@@ -1232,4 +1252,60 @@ func TestCreateAppWithNoNameSpaceWhenRequired2(t *testing.T) {
 			assert.Equal(t, updatedApp.Status.Conditions[0].Type, ApplicationConditionInvalidSpecError)
 			assert.Equal(t, updatedApp.Status.Conditions[1].Type, ApplicationConditionInvalidSpecError)
 		})
+}
+
+func TestListResource(t *testing.T) {
+	Given(t).
+		ProjectSpec(AppProjectSpec{
+			SourceRepos:       []string{"*"},
+			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
+			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.BoolPtr(true)},
+		}).
+		Path(guestbookPath).
+		When().
+		Create().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(NoConditions()).
+		When().
+		And(func() {
+			FailOnErr(KubeClientset.CoreV1().ConfigMaps(DeploymentNamespace()).Create(&v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "orphaned-configmap",
+				},
+			}))
+		}).
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(Condition(ApplicationConditionOrphanedResourceWarning, "Application has 1 orphaned resources")).
+		And(func(app *Application) {
+			output, err := RunCli("app", "resources", app.Name)
+			assert.NoError(t, err)
+			assert.Contains(t, output, "orphaned-configmap")
+			assert.Contains(t, output, "guestbook-ui")
+		}).
+		And(func(app *Application) {
+			output, err := RunCli("app", "resources", app.Name, "--orphaned=true")
+			assert.NoError(t, err)
+			assert.Contains(t, output, "orphaned-configmap")
+			assert.NotContains(t, output, "guestbook-ui")
+		}).
+		And(func(app *Application) {
+			output, err := RunCli("app", "resources", app.Name, "--orphaned=false")
+			assert.NoError(t, err)
+			assert.NotContains(t, output, "orphaned-configmap")
+			assert.Contains(t, output, "guestbook-ui")
+		}).
+		Given().
+		ProjectSpec(AppProjectSpec{
+			SourceRepos:       []string{"*"},
+			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
+			OrphanedResources: nil,
+		}).
+		When().
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(NoConditions())
 }
