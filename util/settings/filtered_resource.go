@@ -1,9 +1,6 @@
 package settings
 
-import (
-	"github.com/gobwas/glob"
-	log "github.com/sirupsen/logrus"
-)
+import "github.com/argoproj/argo-cd/util/glob"
 
 type FilteredResource struct {
 	APIGroups []string `json:"apiGroups,omitempty"`
@@ -13,20 +10,11 @@ type FilteredResource struct {
 
 func (r FilteredResource) matchGroup(apiGroup string) bool {
 	for _, excludedApiGroup := range r.APIGroups {
-		if match(excludedApiGroup, apiGroup) {
+		if glob.Match(excludedApiGroup, apiGroup) {
 			return true
 		}
 	}
 	return len(r.APIGroups) == 0
-}
-
-func match(pattern, text string) bool {
-	compiledGlob, err := glob.Compile(pattern)
-	if err != nil {
-		log.Warnf("failed to compile pattern %s due to error %v", pattern, err)
-		return false
-	}
-	return compiledGlob.Match(text)
 }
 
 func (r FilteredResource) matchKind(kind string) bool {
@@ -40,7 +28,7 @@ func (r FilteredResource) matchKind(kind string) bool {
 
 func (r FilteredResource) matchCluster(cluster string) bool {
 	for _, excludedCluster := range r.Clusters {
-		if match(excludedCluster, cluster) {
+		if glob.Match(excludedCluster, cluster) {
 			return true
 		}
 	}
