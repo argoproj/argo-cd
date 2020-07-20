@@ -8,7 +8,7 @@ require (
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
 	github.com/alicebob/gopher-json v0.0.0-20180125190556-5a6b3ba71ee6 // indirect
 	github.com/alicebob/miniredis v2.5.0+incompatible
-	github.com/argoproj/gitops-engine v0.1.3-0.20200713172125-eb210cf6d14c
+	github.com/argoproj/gitops-engine v0.1.3-0.20200720164507-3c545080c935
 	github.com/argoproj/pkg v0.0.0-20200624215116-23e74cb168fe
 	github.com/bsm/redislock v0.4.3
 	github.com/casbin/casbin v1.9.1
@@ -52,9 +52,9 @@ require (
 	github.com/sirupsen/logrus v1.4.2
 	github.com/skratchdot/open-golang v0.0.0-20160302144031-75fb7ed4208c
 	github.com/soheilhy/cmux v0.1.4
-	github.com/spf13/cobra v0.0.5
+	github.com/spf13/cobra v0.0.7
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.5.1
+	github.com/stretchr/testify v1.6.1
 	github.com/vmihailenco/msgpack v3.3.1+incompatible
 	github.com/yuin/gopher-lua v0.0.0-20190115140932-732aa6820ec4
 	golang.org/x/crypto v0.0.0-20200220183623-bac4c82f6975
