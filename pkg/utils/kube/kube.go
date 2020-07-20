@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"regexp"
 	"strings"
 	"time"
@@ -17,11 +16,8 @@ import (
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured/unstructuredscheme"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/runtime/serializer/json"
-	"k8s.io/apimachinery/pkg/runtime/serializer/streaming"
 	kubeyaml "k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
@@ -30,6 +26,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
+	"sigs.k8s.io/yaml"
 )
 
 const (
@@ -52,14 +49,6 @@ const (
 	CustomResourceDefinitionKind = "CustomResourceDefinition"
 	PodKind                      = "Pod"
 	APIServiceKind               = "APIService"
-)
-
-var (
-	yamlSerializer = json.NewSerializerWithOptions(
-		json.DefaultMetaFactory,
-		unstructuredscheme.NewUnstructuredCreator(),
-		unstructuredscheme.NewUnstructuredObjectTyper(),
-		json.SerializerOptions{Yaml: true})
 )
 
 type ResourceInfoProvider interface {
@@ -290,23 +279,30 @@ func newAuthInfo(restConfig *rest.Config) *clientcmdapi.AuthInfo {
 
 // SplitYAML splits a YAML file into unstructured objects. Returns list of all unstructured objects
 // found in the yaml. If an error occurs, returns objects that have been parsed so far too.
-func SplitYAML(yamlData []byte) (retObjs []*unstructured.Unstructured, retErr error) {
-	decoder := streaming.NewDecoder(kubeyaml.NewDocumentDecoder(ioutil.NopCloser(bytes.NewReader(yamlData))), yamlSerializer)
-	defer func() {
-		if err := decoder.Close(); err != nil && retErr == nil {
-			retErr = fmt.Errorf("failed to close decoder: %v", err)
-		}
-	}()
+func SplitYAML(yamlData []byte) ([]*unstructured.Unstructured, error) {
+	// Similar way to what kubectl does
+	// https://github.com/kubernetes/cli-runtime/blob/master/pkg/resource/visitor.go#L573-L600
+	// Ideally k8s.io/cli-runtime/pkg/resource.Builder should be used instead of this method.
+	// E.g. Builder does list unpacking and flattening and this code does not.
+	d := kubeyaml.NewYAMLOrJSONDecoder(bytes.NewReader(yamlData), 4096)
 	var objs []*unstructured.Unstructured
 	for {
-		decodedRuntimeObj, _, err := decoder.Decode(nil, &unstructured.Unstructured{})
-		if err != nil {
+		ext := runtime.RawExtension{}
+		if err := d.Decode(&ext); err != nil {
 			if err == io.EOF {
 				break
 			}
 			return objs, fmt.Errorf("failed to unmarshal manifest: %v", err)
 		}
-		objs = append(objs, decodedRuntimeObj.(*unstructured.Unstructured))
+		ext.Raw = bytes.TrimSpace(ext.Raw)
+		if len(ext.Raw) == 0 || bytes.Equal(ext.Raw, []byte("null")) {
+			continue
+		}
+		u := &unstructured.Unstructured{}
+		if err := yaml.Unmarshal(ext.Raw, u); err != nil {
+			return objs, fmt.Errorf("failed to unmarshal manifest: %v", err)
+		}
+		objs = append(objs, u)
 	}
 	return objs, nil
 }

@@ -2,10 +2,10 @@ package kube
 
 import (
 	"encoding/json"
-	"log"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	extv1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/rest"
@@ -34,21 +34,20 @@ spec:
 `
 
 func TestUnsetLabels(t *testing.T) {
-	for _, yamlStr := range []string{depWithLabel} {
+	for _, yamlStr := range [][]byte{[]byte(depWithLabel)} {
 		var obj unstructured.Unstructured
-		err := yaml.Unmarshal([]byte(yamlStr), &obj)
-		assert.Nil(t, err)
+		err := yaml.Unmarshal(yamlStr, &obj)
+		require.NoError(t, err)
 
 		UnsetLabel(&obj, "foo")
 
 		manifestBytes, err := json.MarshalIndent(obj.Object, "", "  ")
-		assert.Nil(t, err)
-		log.Println(string(manifestBytes))
+		require.NoError(t, err)
 
 		var dep extv1beta1.Deployment
 		err = json.Unmarshal(manifestBytes, &dep)
-		assert.Nil(t, err)
-		assert.Equal(t, 0, len(dep.ObjectMeta.Labels))
+		require.NoError(t, err)
+		assert.Empty(t, dep.ObjectMeta.Labels)
 	}
 
 }
@@ -115,7 +114,7 @@ spec:
 `)
 	deployment := unstructured.Unstructured{}
 	err := yaml.Unmarshal(manifest, &deployment)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, int64(2), *GetDeploymentReplicas(&deployment))
 }
 
@@ -135,6 +134,24 @@ spec:
 `)
 	noDeployment := unstructured.Unstructured{}
 	err := yaml.Unmarshal(manifest, &noDeployment)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Nil(t, GetDeploymentReplicas(&noDeployment))
+}
+
+func TestSplitYAML_SingleObject(t *testing.T) {
+	objs, err := SplitYAML([]byte(depWithLabel))
+	require.NoError(t, err)
+	assert.Len(t, objs, 1)
+}
+
+func TestSplitYAML_MultipleObjects(t *testing.T) {
+	objs, err := SplitYAML([]byte(depWithLabel + "\n---\n" + depWithLabel))
+	require.NoError(t, err)
+	assert.Len(t, objs, 2)
+}
+
+func TestSplitYAML_TrailingNewLines(t *testing.T) {
+	objs, err := SplitYAML([]byte("\n\n\n---" + depWithLabel))
+	require.NoError(t, err)
+	assert.Len(t, objs, 1)
 }
