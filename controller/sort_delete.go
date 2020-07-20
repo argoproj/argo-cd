@@ -26,7 +26,7 @@ func sortBySyncWave(objs []*unstructured.Unstructured) []*unstructured.Unstructu
 	return []*unstructured.Unstructured(objs)
 }
 
-func FilterNonLowestSyncWave(objs []*unstructured.Unstructured) []*unstructured.Unstructured {
+func FilterObjectsForDeletion(objs []*unstructured.Unstructured) []*unstructured.Unstructured {
 	if len(objs) <= 1 {
 		return objs
 	}
@@ -34,9 +34,10 @@ func FilterNonLowestSyncWave(objs []*unstructured.Unstructured) []*unstructured.
 	currentSyncWave := syncwaves.Wave(objs[0])
 	sortedObjs := make([]*unstructured.Unstructured, 0)
 	for _, obj := range objs {
-		if syncwaves.Wave(obj) == currentSyncWave {
-			sortedObjs = append(sortedObjs, obj)
+		if syncwaves.Wave(obj) != currentSyncWave {
+			break
 		}
+		sortedObjs = append(sortedObjs, obj)
 	}
 	return sortedObjs
 }

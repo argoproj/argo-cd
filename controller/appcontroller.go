@@ -15,7 +15,6 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/gitops-engine/pkg/sync/syncwaves"
 	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -627,10 +626,9 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	}
 	config := metrics.AddMetricsTransportWrapper(ctrl.metricsServer, app, cluster.RESTConfig())
 
-	sortedObjs := FilterNonLowestSyncWave(objs)
+	sortedObjs := FilterObjectsForDeletion(objs)
 	err = kube.RunAllAsync(len(sortedObjs), func(i int) error {
 		obj := sortedObjs[i]
-		logCtx.Infof("%d - Issuing delete: name - %s, sync waves %s", i, obj.GetName(), syncwaves.Wave(obj))
 		return ctrl.kubectl.DeleteResource(config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), false)
 	})
 	if err != nil {
