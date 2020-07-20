@@ -37,8 +37,7 @@ Download the latest Argo CD version from [https://github.com/argoproj/argo-cd/re
 Also available in Mac Homebrew:
 
 ```bash
-brew tap argoproj/tap
-brew install argoproj/tap/argocd
+brew install argocd
 ```
 
 ## 3. Access The Argo CD API Server
