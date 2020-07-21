@@ -7,6 +7,7 @@ import (
 	"math"
 	"reflect"
 	"runtime/debug"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -352,6 +353,9 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 		}}
 	}
 	a.Status.SetConditions(conditions, map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionOrphanedResourceWarning: true})
+	sort.Slice(orphanedNodes, func(i, j int) bool {
+		return orphanedNodes[i].ResourceRef.String() < orphanedNodes[j].ResourceRef.String()
+	})
 	return &appv1.ApplicationTree{Nodes: nodes, OrphanedNodes: orphanedNodes}, nil
 }
 
@@ -956,9 +960,16 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	app.Status.Sync = *compareResult.syncStatus
 	app.Status.Health = *compareResult.healthStatus
 	app.Status.Resources = compareResult.resources
+	sort.Slice(app.Status.Resources, func(i, j int) bool {
+		return resourceStatusKey(app.Status.Resources[i]) < resourceStatusKey(app.Status.Resources[j])
+	})
 	app.Status.SourceType = compareResult.appSourceType
 	ctrl.persistAppStatus(origApp, &app.Status)
 	return
+}
+
+func resourceStatusKey(res appv1.ResourceStatus) string {
+	return strings.Join([]string{res.Group, res.Kind, res.Namespace, res.Name}, "/")
 }
 
 // needRefreshAppStatus answers if application status needs to be refreshed.

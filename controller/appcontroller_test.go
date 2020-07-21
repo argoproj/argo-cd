@@ -128,7 +128,7 @@ func newFakeController(data *fakeData) *ApplicationController {
 		if res, ok := data.namespacedResources[key]; ok {
 			appName = res.AppName
 		}
-		action(argoappv1.ResourceNode{ResourceRef: argoappv1.ResourceRef{Group: key.Group, Namespace: key.Namespace, Name: key.Name}}, appName)
+		action(argoappv1.ResourceNode{ResourceRef: argoappv1.ResourceRef{Kind: key.Kind, Group: key.Group, Namespace: key.Namespace, Name: key.Name}}, appName)
 	}).Return(nil)
 	return ctrl
 }
@@ -706,6 +706,43 @@ func TestHandleOrphanedResourceUpdated(t *testing.T) {
 	isRequested, level = ctrl.isRefreshRequested(app2.Name)
 	assert.True(t, isRequested)
 	assert.Equal(t, ComparisonWithNothing, level)
+}
+
+func TestGetResourceTree_HasOrphanedResources(t *testing.T) {
+	app := newFakeApp()
+	proj := defaultProj.DeepCopy()
+	proj.Spec.OrphanedResources = &argoappv1.OrphanedResourcesMonitorSettings{}
+
+	managedDeploy := argoappv1.ResourceNode{
+		ResourceRef: argoappv1.ResourceRef{Group: "apps", Kind: "Deployment", Namespace: "default", Name: "nginx-deployment", Version: "v1"},
+	}
+	orphanedDeploy1 := argoappv1.ResourceNode{
+		ResourceRef: argoappv1.ResourceRef{Group: "apps", Kind: "Deployment", Namespace: "default", Name: "deploy1"},
+	}
+	orphanedDeploy2 := argoappv1.ResourceNode{
+		ResourceRef: argoappv1.ResourceRef{Group: "apps", Kind: "Deployment", Namespace: "default", Name: "deploy2"},
+	}
+
+	ctrl := newFakeController(&fakeData{
+		apps: []runtime.Object{app, proj},
+		namespacedResources: map[kube.ResourceKey]namespacedResource{
+			kube.NewResourceKey("apps", "Deployment", "default", "nginx-deployment"): {ResourceNode: managedDeploy},
+			kube.NewResourceKey("apps", "Deployment", "default", "deploy1"):          {ResourceNode: orphanedDeploy1},
+			kube.NewResourceKey("apps", "Deployment", "default", "deploy2"):          {ResourceNode: orphanedDeploy2},
+		},
+	})
+	tree, err := ctrl.getResourceTree(app, []*argoappv1.ResourceDiff{{
+		Namespace:   "default",
+		Name:        "nginx-deployment",
+		Kind:        "Deployment",
+		Group:       "apps",
+		LiveState:   "null",
+		TargetState: test.DeploymentManifest,
+	}})
+
+	assert.NoError(t, err)
+	assert.Equal(t, tree.Nodes, []argoappv1.ResourceNode{managedDeploy})
+	assert.Equal(t, tree.OrphanedNodes, []argoappv1.ResourceNode{orphanedDeploy1, orphanedDeploy2})
 }
 
 func TestSetOperationStateOnDeletedApp(t *testing.T) {
