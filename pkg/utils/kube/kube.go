@@ -18,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/wait"
 	kubeyaml "k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
@@ -367,31 +368,20 @@ func GetDeploymentReplicas(u *unstructured.Unstructured) *int64 {
 	return &val
 }
 
-// RetryUntilSucceed keep retrying given action with specified timeout until action succeed or specified context is done.
-func RetryUntilSucceed(action func() error, desc string, ctx context.Context, timeout time.Duration) {
-	ctxCompleted := false
-	stop := make(chan bool)
-	defer close(stop)
-	go func() {
-		select {
-		case <-ctx.Done():
-			ctxCompleted = true
-		case <-stop:
-		}
-	}()
-	for {
+// RetryUntilSucceed keep retrying given action with specified interval until action succeed or specified context is done.
+func RetryUntilSucceed(action func() error, desc string, ctx context.Context, interval time.Duration) {
+	pollErr := wait.PollImmediateUntil(interval, func() (bool /*done*/, error) {
 		log.Debugf("Start %s", desc)
 		err := action()
 		if err == nil {
 			log.Debugf("Completed %s", desc)
-			return
+			return true, nil
 		}
-		if ctxCompleted {
-			log.Debugf("Stop retrying %s", desc)
-			return
-		}
-		log.Debugf("Failed to %s: %+v, retrying in %v", desc, err, timeout)
-		time.Sleep(timeout)
-
+		log.Debugf("Failed to %s: %+v, retrying in %v", desc, err, interval)
+		return false, nil
+	}, ctx.Done())
+	if pollErr != nil {
+		// The only error that can happen here is wait.ErrWaitTimeout if ctx is done.
+		log.Debugf("Stop retrying %s", desc)
 	}
 }
