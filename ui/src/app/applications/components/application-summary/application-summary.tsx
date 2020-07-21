@@ -174,14 +174,12 @@ Default is 10.
         {
             title: 'SYNC OPTIONS',
             view: ((app.spec.syncPolicy || {}).syncOptions || []).join(', '),
-            edit: (formApi: FormApi) => {
-                return (
-                    <div>
-                        <FormField formApi={formApi} field='spec.syncPolicy.syncOptions' component={ApplicationSyncOptionsField} />
-                        <FormField formApi={formApi} field='spec.syncPolicy.syncOptions' component={ApplicationSyncOptionsCreateNamespaceField} />
-                    </div>
-                );
-            }
+            edit: (formApi: FormApi) => (
+                <div>
+                    <FormField formApi={formApi} field='spec.syncPolicy.syncOptions' component={ApplicationSyncOptionsField} />
+                    <FormField formApi={formApi} field='spec.syncPolicy.syncOptions' component={ApplicationSyncOptionsCreateNamespaceField} />
+                </div>
+            )
         },
         {
             title: 'STATUS',
