@@ -177,10 +177,10 @@ Default is 10.
             edit: (formApi: FormApi) => {
                 return (
                     <div>
-                    <FormField formApi={formApi} field='spec.syncPolicy.syncOptions' component={ApplicationSyncOptionsField} />
-                    <FormField formApi={formApi} field='spec.syncPolicy.syncOptions' component={ApplicationSyncOptionsCreateNamespaceField} />
+                        <FormField formApi={formApi} field='spec.syncPolicy.syncOptions' component={ApplicationSyncOptionsField} />
+                        <FormField formApi={formApi} field='spec.syncPolicy.syncOptions' component={ApplicationSyncOptionsCreateNamespaceField} />
                     </div>
-                )
+                );
             }
         },
         {
