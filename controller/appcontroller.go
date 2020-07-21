@@ -627,27 +627,31 @@ func (ctrl *ApplicationController) finalizeProjectDeletion(proj *appv1.AppProjec
 	if err != nil {
 		return err
 	}
-	hasApps := false
+	appsCount := 0
 	for i := range apps {
 		if apps[i].Spec.GetProject() == proj.Name {
-			hasApps = true
+			appsCount++
 			break
 		}
 	}
-	if !hasApps {
-		proj.RemoveFinalizer()
-		var patch []byte
-		patch, _ = json.Marshal(map[string]interface{}{
-			"metadata": map[string]interface{}{
-				"finalizers": proj.Finalizers,
-			},
-		})
-		_, err = ctrl.applicationClientset.ArgoprojV1alpha1().AppProjects(ctrl.namespace).Patch(proj.Name, types.MergePatchType, patch)
-		if err != nil {
-			return err
-		}
+	if appsCount == 0 {
+		return ctrl.removeProjectFinalizer(proj)
+	} else {
+		log.Infof("Cannot remove project '%s' finalizer as is referenced by %d applications", proj.Name, appsCount)
 	}
 	return nil
+}
+
+func (ctrl *ApplicationController) removeProjectFinalizer(proj *appv1.AppProject) error {
+	proj.RemoveFinalizer()
+	var patch []byte
+	patch, _ = json.Marshal(map[string]interface{}{
+		"metadata": map[string]interface{}{
+			"finalizers": proj.Finalizers,
+		},
+	})
+	_, err := ctrl.applicationClientset.ArgoprojV1alpha1().AppProjects(ctrl.namespace).Patch(proj.Name, types.MergePatchType, patch)
+	return err
 }
 
 // shouldBeDeleted returns whether a given resource obj should be deleted on cascade delete of application app

@@ -84,7 +84,7 @@ kind: AppProject
 metadata:
   name: my-project
   namespace: argocd
-  # Finalizer that ensures that project is not deleted until it is referenced by any application
+  # Finalizer that ensures that project is not deleted until it is not referenced by any application
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
