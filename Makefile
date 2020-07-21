@@ -23,9 +23,9 @@ DOCKER_WORKDIR?=/go/src/github.com/argoproj/argo-cd
 ARGOCD_PROCFILE?=Procfile
 
 # Configuration for building argocd-test-tools image
-TEST_TOOLS_NAMESPACE?=argoproj
+TEST_TOOLS_NAMESPACE?=
 TEST_TOOLS_IMAGE=argocd-test-tools
-TEST_TOOLS_TAG?=v0.5.0
+TEST_TOOLS_TAG?=latest
 ifdef TEST_TOOLS_NAMESPACE
 TEST_TOOLS_PREFIX=${TEST_TOOLS_NAMESPACE}/
 endif
@@ -83,7 +83,7 @@ define run-in-test-client
 		-v ${HOME}/.kube:/home/user/.kube${VOLUME_MOUNT} \
 		-v /tmp:/tmp${VOLUME_MOUNT} \
 		-w ${DOCKER_WORKDIR} \
-		$(TEST_TOOLS_NAMESPACE)/$(TEST_TOOLS_IMAGE):$(TEST_TOOLS_TAG) \
+		$(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE):$(TEST_TOOLS_TAG) \
 		bash -c "$(1)"
 endef
 
@@ -159,11 +159,11 @@ codegen-local: mod-vendor-local gogen protogen clientgen openapigen manifests-lo
 	rm -rf vendor/
 
 .PHONY: codegen
-codegen:
+codegen: test-tools-image
 	$(call run-in-test-client,make codegen-local)
 
 .PHONY: cli
-cli:
+cli: test-tools-image
 	$(call run-in-test-client, GOOS=${HOST_OS} GOARCH=${HOST_ARCH} make cli-local)
 
 .PHONY: cli-local
@@ -259,7 +259,7 @@ builder-image:
 	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argo-cd-ci-builder:$(IMAGE_TAG) ; fi
 
 .PHONY: mod-download
-mod-download:
+mod-download: test-tools-image
 	$(call run-in-test-client,go mod download)
 
 .PHONY: mod-download-local
@@ -267,7 +267,7 @@ mod-download-local:
 	go mod download
 
 .PHONY: mod-vendor
-mod-vendor:
+mod-vendor: test-tools-image
 	$(call run-in-test-client,go mod vendor)
 
 .PHONY: mod-vendor-local
@@ -281,7 +281,7 @@ install-lint-tools:
 
 # Run linter on the code
 .PHONY: lint
-lint:
+lint: test-tools-image
 	$(call run-in-test-client,make lint-local)
 
 # Run linter on the code (local version)
@@ -293,7 +293,7 @@ lint-local:
 	GOGC=$(ARGOCD_LINT_GOGC) GOMAXPROCS=2 golangci-lint run --fix --verbose --timeout 300s
 
 .PHONY: lint-ui
-lint-ui:
+lint-ui: test-tools-image
 	$(call run-in-test-client,make lint-ui-local)
 
 .PHONY: lint-ui-local
@@ -302,7 +302,7 @@ lint-ui-local:
 
 # Build all Go code
 .PHONY: build
-build:
+build: test-tools-image
 	mkdir -p $(GOCACHE)
 	$(call run-in-test-client, make build-local)
 
@@ -316,7 +316,7 @@ build-local:
 # If TEST_MODULE is set (to fully qualified module name), only this specific
 # module will be tested.
 .PHONY: test
-test:
+test: test-tools-image
 	mkdir -p $(GOCACHE)
 	$(call run-in-test-client,make TEST_MODULE=$(TEST_MODULE) test-local)
 
@@ -343,16 +343,16 @@ test-e2e-local: cli-local
 	ARGOCD_GPG_ENABLED=true NO_PROXY=* ./hack/test.sh -timeout 20m -v ./test/e2e
 
 # Spawns a shell in the test server container for debugging purposes
-debug-test-server:
+debug-test-server: test-tools-image
 	$(call run-in-test-server,/bin/bash)
 
 # Spawns a shell in the test client container for debugging purposes
-debug-test-client:
+debug-test-client: test-tools-image
 	$(call run-in-test-client,/bin/bash)
 
 # Starts e2e server in a container
 .PHONY: start-e2e
-start-e2e: 
+start-e2e: test-tools-image
 	docker version
 	mkdir -p ${GOCACHE}
 	$(call run-in-test-server,make ARGOCD_PROCFILE=test/container/Procfile start-e2e-local)
@@ -390,7 +390,7 @@ clean: clean-debug
 	-rm -rf ${CURRENT_DIR}/dist
 
 .PHONY: start
-start:
+start: test-tools-image
 	docker version
 	$(call run-in-test-server,make ARGOCD_PROCFILE=test/container/Procfile start-local ARGOCD_START=${ARGOCD_START})
 
@@ -446,12 +446,12 @@ publish-docs: lint-docs
 
 # Verify that kubectl can connect to your K8s cluster from Docker
 .PHONY: verify-kube-connect
-verify-kube-connect:
+verify-kube-connect: test-tools-image
 	$(call run-in-test-client,kubectl version)
 
 # Show the Go version of local and virtualized environments
 .PHONY: show-go-version
-show-go-version:
+show-go-version: test-tools-image
 	@echo -n "Local Go version: "
 	@go version
 	@echo -n "Docker Go version: "
@@ -482,7 +482,7 @@ install-go-tools-local:
 	./hack/install.sh codegen-go-tools
 
 .PHONY: dep-ui
-dep-ui:
+dep-ui: test-tools-image
 	$(call run-in-test-client,make dep-ui-local)
 
 dep-ui-local:
