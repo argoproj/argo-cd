@@ -100,11 +100,11 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
             )}
             <DataLoader
                 noLoaderOnInputChange={true}
-                input={application}
-                load={async () => {
-                    return await services.applications.getApplicationSyncWindowState(application.metadata.name);
+                input={application.metadata.name}
+                load={async name => {
+                    return await services.applications.getApplicationSyncWindowState(name);
                 }}>
-                {data => (
+                {(data: models.ApplicationSyncWindowState) => (
                     <React.Fragment>
                         <div className='application-status-panel__item columns small-2' style={{position: 'relative'}}>
                             <div className='application-status-panel__item-value'>
