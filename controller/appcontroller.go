@@ -611,6 +611,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 
 	objs := make([]*unstructured.Unstructured, 0)
 	for k := range objsMap {
+		// Wait for objects pending deletion to complete before proceeding with next sync wave
 		if objsMap[k].GetDeletionTimestamp() != nil {
 			logCtx.Infof("%d objects remaining for deletion", len(objsMap))
 			return objs, nil
