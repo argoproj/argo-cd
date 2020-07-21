@@ -203,6 +203,9 @@ func DeduplicateTargetObjects(
 			obj.SetNamespace(namespace)
 		}
 		key := kubeutil.GetResourceKey(obj)
+		if key.Name == "" && obj.GetGenerateName() != "" {
+			key.Name = fmt.Sprintf("%s%d", obj.GetGenerateName(), i)
+		}
 		targetByKey[key] = append(targetByKey[key], obj)
 	}
 	conditions := make([]v1alpha1.ApplicationCondition, 0)
