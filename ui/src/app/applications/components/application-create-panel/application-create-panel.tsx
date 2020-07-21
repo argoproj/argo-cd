@@ -6,7 +6,7 @@ import {clusterTitle, RevisionHelpIcon, YamlEditor} from '../../../shared/compon
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ApplicationParameters} from '../application-parameters/application-parameters';
-import {ApplicationSyncOptionsField} from '../application-sync-options';
+import {ApplicationSyncOptionsCreateNamespaceField, ApplicationSyncOptionsField} from '../application-sync-options';
 
 const jsonMergePatch = require('json-merge-patch');
 
@@ -190,6 +190,7 @@ export const ApplicationCreatePanel = (props: {
                                                 <div className='argo-form-row'>
                                                     <label>Sync Options</label>
                                                     <FormField formApi={api} field='spec.syncPolicy.syncOptions' component={ApplicationSyncOptionsField} />
+                                                    <FormField formApi={api} field='spec.syncPolicy.syncOptions' component={ApplicationSyncOptionsCreateNamespaceField} />
                                                 </div>
                                             </div>
                                         );
