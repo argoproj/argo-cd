@@ -601,7 +601,12 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 
 	objs := make([]*unstructured.Unstructured, 0)
 	for k := range objsMap {
-		if ctrl.shouldBeDeleted(app, objsMap[k]) && objsMap[k].GetDeletionTimestamp() == nil {
+		// Wait for objects pending deletion to complete before proceeding with next sync wave
+		if objsMap[k].GetDeletionTimestamp() != nil {
+			logCtx.Infof("%d objects remaining for deletion", len(objsMap))
+			return objs, nil
+		}
+		if ctrl.shouldBeDeleted(app, objsMap[k]) {
 			objs = append(objs, objsMap[k])
 		}
 	}
@@ -612,8 +617,9 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	}
 	config := metrics.AddMetricsTransportWrapper(ctrl.metricsServer, app, cluster.RESTConfig())
 
-	err = kube.RunAllAsync(len(objs), func(i int) error {
-		obj := objs[i]
+	filteredObjs := FilterObjectsForDeletion(objs)
+	err = kube.RunAllAsync(len(filteredObjs), func(i int) error {
+		obj := filteredObjs[i]
 		return ctrl.kubectl.DeleteResource(config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), false)
 	})
 	if err != nil {
