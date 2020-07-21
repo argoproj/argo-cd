@@ -933,3 +933,42 @@ func TestUpdateReconciledAt(t *testing.T) {
 	})
 
 }
+
+func TestFinalizeProjectDeletion_HasApplications(t *testing.T) {
+	app := newFakeApp()
+	proj := &argoappv1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: test.FakeArgoCDNamespace}}
+	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, proj}})
+
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	patched := false
+	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		patched = true
+		return true, nil, nil
+	})
+
+	err := ctrl.finalizeProjectDeletion(proj)
+	assert.NoError(t, err)
+	assert.False(t, patched)
+}
+
+func TestFinalizeProjectDeletion_DoesNotHaveApplications(t *testing.T) {
+	proj := &argoappv1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: test.FakeArgoCDNamespace}}
+	ctrl := newFakeController(&fakeData{apps: []runtime.Object{&defaultProj}})
+
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	receivedPatch := map[string]interface{}{}
+	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if patchAction, ok := action.(kubetesting.PatchAction); ok {
+			assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+		}
+		return true, nil, nil
+	})
+
+	err := ctrl.finalizeProjectDeletion(proj)
+	assert.NoError(t, err)
+	assert.Equal(t, map[string]interface{}{
+		"metadata": map[string]interface{}{
+			"finalizers": nil,
+		},
+	}, receivedPatch)
+}
