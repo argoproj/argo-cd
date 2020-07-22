@@ -1714,6 +1714,9 @@ It is defined by the following key pieces of information:</p>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">my-project</span>
   <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
+  <span class="c1"># Finalizer that ensures that project is not deleted until it is not referenced by any application</span>
+  <span class="nt">finalizers</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">resources-finalizer.argocd.argoproj.io</span>
 <span class="nt">spec</span><span class="p">:</span>
   <span class="nt">description</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Example Project</span>
   <span class="c1"># Allow manifests to deploy from any Git repos</span>
