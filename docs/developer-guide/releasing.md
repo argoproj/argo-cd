@@ -202,7 +202,7 @@ Update [Github releases](https://github.com/argoproj/argo-cd/releases) with:
 If GA, update Brew formula:
 
 ```bash
-brew bump-formula-pr argocd --version $VERSION
+brew bump-formula-pr argocd --version ${VERSION:1}
 ```
 
 ## Update stable tag (manual)
