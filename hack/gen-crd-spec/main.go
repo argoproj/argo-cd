@@ -37,7 +37,7 @@ func getCustomResourceDefinitions() map[string]*extensionsobj.CustomResourceDefi
 	deleteFile("config/webhook")
 	deleteFile("config")
 
-	objs, err := kube.SplitYAML(string(crdYamlBytes))
+	objs, err := kube.SplitYAML(crdYamlBytes)
 	checkErr(err)
 	crds := make(map[string]*extensionsobj.CustomResourceDefinition)
 	for i := range objs {

@@ -142,6 +142,9 @@ func diffReconcileResults(res1 reconcileResults, res2 reconcileResults) error {
 		}
 		pairs = append(pairs, diffPair{name: k, first: nil, second: secondUn})
 	}
+	sort.Slice(pairs, func(i, j int) bool {
+		return pairs[i].name < pairs[j].name
+	})
 	for _, item := range pairs {
 		printLine(item.name)
 		_ = diff.PrintDiff(item.name, item.first, item.second)

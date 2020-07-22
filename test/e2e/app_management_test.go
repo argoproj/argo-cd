@@ -338,7 +338,7 @@ func TestManipulateApplicationResources(t *testing.T) {
 		And(func(app *Application) {
 			manifests, err := RunCli("app", "manifests", app.Name, "--source", "live")
 			assert.NoError(t, err)
-			resources, err := kube.SplitYAML(manifests)
+			resources, err := kube.SplitYAML([]byte(manifests))
 			assert.NoError(t, err)
 
 			index := -1
