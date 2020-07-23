@@ -43,11 +43,8 @@ func SetApplicationHealth(resStatuses []appv1.ResourceStatus, liveObjs []*unstru
 // health of the application (e.g. hooks, missing child applications)
 func ignoreLiveObjectHealth(liveObj *unstructured.Unstructured, resHealth appv1.HealthStatus) bool {
 	if liveObj != nil {
-		if hookutil.IsHook(liveObj) {
-			// Don't allow resource hooks to affect health status
-			return true
-		}
-		if ignore.Ignore(liveObj) {
+		// Don't allow resource hooks or skipped resources to affect health status
+		if hookutil.IsHook(liveObj) || ignore.Ignore(liveObj) || hookutil.Skip(liveObj) {
 			return true
 		}
 		gvk := liveObj.GroupVersionKind()
