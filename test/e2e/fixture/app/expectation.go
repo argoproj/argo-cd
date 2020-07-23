@@ -36,6 +36,17 @@ func OperationPhaseIs(expected OperationPhase) Expectation {
 	}
 }
 
+func OperationMessageContains(text string) Expectation {
+	return func(c *Consequences) (state, string) {
+		operationState := c.app().Status.OperationState
+		actual := ""
+		if operationState != nil {
+			actual = operationState.Message
+		}
+		return simple(strings.Contains(actual, text), fmt.Sprintf("operation message should contains '%s', got: '%s'", text, actual))
+	}
+}
+
 func simple(success bool, message string) (state, string) {
 	if success {
 		return succeeded, message

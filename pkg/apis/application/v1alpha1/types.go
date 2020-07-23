@@ -3,6 +3,7 @@ package v1alpha1
 import (
 	"encoding/json"
 	"fmt"
+	math "math"
 	"net"
 	"net/http"
 	"net/url"
@@ -450,6 +451,8 @@ type Operation struct {
 	Sync        *SyncOperation     `json:"sync,omitempty" protobuf:"bytes,1,opt,name=sync"`
 	InitiatedBy OperationInitiator `json:"initiatedBy,omitempty" protobuf:"bytes,2,opt,name=initiatedBy"`
 	Info        []*Info            `json:"info,omitempty" protobuf:"bytes,3,name=info"`
+	// Retry controls failed sync retry behavior
+	Retry RetryStrategy `json:"retry,omitempty" protobuf:"bytes,4,opt,name=retry"`
 }
 
 // SyncOperationResource contains resources to sync.
@@ -523,6 +526,8 @@ type OperationState struct {
 	StartedAt metav1.Time `json:"startedAt" protobuf:"bytes,6,opt,name=startedAt"`
 	// FinishedAt contains time of operation completion
 	FinishedAt *metav1.Time `json:"finishedAt,omitempty" protobuf:"bytes,7,opt,name=finishedAt"`
+	// RetryCount contains time of operation retries
+	RetryCount int64 `json:"retryCount,omitempty" protobuf:"bytes,8,opt,name=retryCount"`
 }
 
 type Info struct {
@@ -565,10 +570,73 @@ type SyncPolicy struct {
 	Automated *SyncPolicyAutomated `json:"automated,omitempty" protobuf:"bytes,1,opt,name=automated"`
 	// Options allow you to specify whole app sync-options
 	SyncOptions SyncOptions `json:"syncOptions,omitempty" protobuf:"bytes,2,opt,name=syncOptions"`
+	// Retry controls failed sync retry behavior
+	Retry *RetryStrategy `json:"retry,omitempty" protobuf:"bytes,3,opt,name=retry"`
 }
 
 func (p *SyncPolicy) IsZero() bool {
 	return p == nil || (p.Automated == nil && len(p.SyncOptions) == 0)
+}
+
+type RetryStrategy struct {
+	// Limit is the maximum number of attempts when retrying a container
+	Limit int64 `json:"limit,omitempty" protobuf:"bytes,1,opt,name=limit"`
+
+	// Backoff is a backoff strategy
+	Backoff *Backoff `json:"backoff,omitempty" protobuf:"bytes,2,opt,name=backoff,casttype=Backoff"`
+}
+
+func parseStringToDuration(durationString string) (time.Duration, error) {
+	var suspendDuration time.Duration
+	// If no units are attached, treat as seconds
+	if val, err := strconv.Atoi(durationString); err == nil {
+		suspendDuration = time.Duration(val) * time.Second
+	} else if duration, err := time.ParseDuration(durationString); err == nil {
+		suspendDuration = duration
+	} else {
+		return 0, fmt.Errorf("unable to parse %s as a duration", durationString)
+	}
+	return suspendDuration, nil
+}
+
+func (r *RetryStrategy) NextRetryAt(lastAttempt time.Time, retryCounts int64) (time.Time, error) {
+	maxDuration := common.DefaultSyncRetryMaxDuration
+	duration := common.DefaultSyncRetryDuration
+	factor := common.DefaultSyncRetryFactor
+	var err error
+	if r.Backoff != nil {
+		if r.Backoff.Duration != "" {
+			if duration, err = parseStringToDuration(r.Backoff.Duration); err != nil {
+				return time.Time{}, err
+			}
+		}
+		if r.Backoff.MaxDuration != "" {
+			if maxDuration, err = parseStringToDuration(r.Backoff.MaxDuration); err != nil {
+				return time.Time{}, err
+			}
+		}
+		if r.Backoff.Factor != nil {
+			factor = *r.Backoff.Factor
+		}
+
+	}
+	// Formula: timeToWait = duration * factor^retry_number
+	// Note that timeToWait should equal to duration for the first retry attempt.
+	timeToWait := duration * time.Duration(math.Pow(float64(factor), float64(retryCounts)))
+	if maxDuration > 0 {
+		timeToWait = time.Duration(math.Min(float64(maxDuration), float64(timeToWait)))
+	}
+	return lastAttempt.Add(timeToWait), nil
+}
+
+// Backoff is a backoff strategy to use within retryStrategy
+type Backoff struct {
+	// Duration is the amount to back off. Default unit is seconds, but could also be a duration (e.g. "2m", "1h")
+	Duration string `json:"duration,omitempty" protobuf:"bytes,1,opt,name=duration"`
+	// Factor is a factor to multiply the base duration after each failed retry
+	Factor *int64 `json:"factor,omitempty" protobuf:"bytes,2,name=factor"`
+	// MaxDuration is the maximum amount of time allowed for the backoff strategy
+	MaxDuration string `json:"maxDuration,omitempty" protobuf:"bytes,3,opt,name=maxDuration"`
 }
 
 // SyncPolicyAutomated controls the behavior of an automated sync
