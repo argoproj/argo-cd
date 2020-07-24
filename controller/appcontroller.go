@@ -1284,6 +1284,20 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 
 	}
 
+	if app.Spec.SyncPolicy.Automated.Prune {
+		bAllNeedPrune := true
+		for _, r := range resources {
+			if !r.RequiresPruning {
+				bAllNeedPrune = false
+			}
+		}
+		if bAllNeedPrune {
+			message := fmt.Sprintf("Skipping sync attempt to %s: auto-sync will wipe out all resourses", desiredCommitSHA)
+			logCtx.Warnf(message)
+			return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: message}
+		}
+	}
+
 	appIf := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace)
 	_, err := argo.SetAppOperation(appIf, app.Name, &op)
 	if err != nil {
