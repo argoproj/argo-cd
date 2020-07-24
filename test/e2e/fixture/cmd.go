@@ -1,7 +1,6 @@
 package fixture
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
 	"strings"
@@ -14,7 +13,6 @@ func Run(workDir, name string, args ...string) (string, error) {
 }
 
 func RunWithStdin(stdin, workDir, name string, args ...string) (string, error) {
-	fmt.Printf("running command - %s -- %+v", name, args)
 	cmd := exec.Command(name, args...)
 	if stdin != "" {
 		cmd.Stdin = strings.NewReader(stdin)
