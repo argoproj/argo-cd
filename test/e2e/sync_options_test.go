@@ -96,7 +96,8 @@ func TestSyncWithSkipHook(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		// app should not remain synced if skipped annotation removed
 		When().
-		PatchFile("guestbook-ui-deployment.yaml", `[{ "op": "replace", "path": "/metadata/annotations", "value": { "foo": "bar" }}]`).
+		PatchFile("guestbook-ui-deployment.yaml", `[{ "op": "remove", "path": "/metadata/annotations" }]`).
+		Refresh(RefreshTypeNormal).
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync))
 }
