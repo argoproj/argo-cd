@@ -59,7 +59,7 @@ func GetLiveObjsForApplicationHealth(resources []managedResource, statuses []app
 	liveObjs := make([]*unstructured.Unstructured, 0)
 	resStatuses := make([]appv1.ResourceStatus, 0)
 	for i, resource := range resources {
-		if !hookutil.Skip(resource.Target) {
+		if resource.Target == nil || !hookutil.Skip(resource.Target) {
 			liveObjs = append(liveObjs, resource.Live)
 			resStatuses = append(resStatuses, statuses[i])
 		}
