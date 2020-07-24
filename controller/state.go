@@ -59,10 +59,13 @@ func GetLiveObjsForApplicationHealth(resources []managedResource, statuses []app
 	liveObjs := make([]*unstructured.Unstructured, 0)
 	resStatuses := make([]appv1.ResourceStatus, 0)
 	for i, resource := range resources {
-		if resource.Target == nil || !hookutil.Skip(resource.Target) {
-			liveObjs = append(liveObjs, resource.Live)
-			resStatuses = append(resStatuses, statuses[i])
+		if resource.Target != nil && hookutil.Skip(resource.Target) {
+			fmt.Printf("not including %s for app health", resource.Target.GetName())
+			continue
 		}
+
+		liveObjs = append(liveObjs, resource.Live)
+		resStatuses = append(resStatuses, statuses[i])
 	}
 	return resStatuses, liveObjs
 }
@@ -468,6 +471,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 			diffResult = diff.DiffResult{Modified: false, NormalizedLive: []byte("{}"), PredictedLive: []byte("{}")}
 		}
 		if resState.Hook || ignore.Ignore(obj) || (targetObj != nil && hookutil.Skip(targetObj)) {
+			fmt.Printf("ignore for app health")
 			// For resource hooks or skipped resources, don't store sync status, and do not affect overall sync status
 		} else if diffResult.Modified || targetObj == nil || liveObj == nil {
 			// Set resource state to OutOfSync since one of the following is true:
