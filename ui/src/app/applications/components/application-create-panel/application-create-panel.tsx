@@ -28,6 +28,7 @@ const DEFAULT_APP: Partial<models.Application> = {
     },
     spec: {
         destination: {
+            name: '',
             namespace: '',
             server: ''
         },

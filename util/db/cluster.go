@@ -29,6 +29,7 @@ import (
 
 var (
 	localCluster = appv1.Cluster{
+		Name:            "in-cluster",
 		Server:          common.KubernetesInternalAPIServerAddr,
 		ConnectionState: appv1.ConnectionState{Status: appv1.ConnectionStatusSuccessful},
 	}

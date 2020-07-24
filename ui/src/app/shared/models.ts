@@ -142,6 +142,10 @@ export interface ApplicationDestination {
      * Namespace overrides the environment namespace value in the ksonnet app.yaml
      */
     namespace: string;
+    /**
+     * Name of the destination cluster which can be used instead of server (url) field
+     */
+    name: string;
 }
 
 export interface OrphanedResource {
