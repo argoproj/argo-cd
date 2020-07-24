@@ -467,7 +467,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		} else {
 			diffResult = diff.DiffResult{Modified: false, NormalizedLive: []byte("{}"), PredictedLive: []byte("{}")}
 		}
-		if resState.Hook || ignore.Ignore(obj) || hookutil.Skip(targetObj) {
+		if resState.Hook || ignore.Ignore(obj) || (targetObj != nil && hookutil.Skip(targetObj)) {
 			// For resource hooks or skipped resources, don't store sync status, and do not affect overall sync status
 		} else if diffResult.Modified || targetObj == nil || liveObj == nil {
 			// Set resource state to OutOfSync since one of the following is true:
