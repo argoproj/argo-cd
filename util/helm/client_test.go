@@ -41,3 +41,34 @@ func Test_nativeHelmChart_ExtractChart(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, info.IsDir())
 }
+
+func Test_normalizeChartName(t *testing.T) {
+	t.Run("Test non-slashed name", func(t *testing.T) {
+		n := normalizeChartName("mychart")
+		assert.Equal(t, n, "mychart")
+	})
+	t.Run("Test single-slashed name", func(t *testing.T) {
+		n := normalizeChartName("myorg/mychart")
+		assert.Equal(t, n, "mychart")
+	})
+	t.Run("Test chart name with suborg", func(t *testing.T) {
+		n := normalizeChartName("myorg/mysuborg/mychart")
+		assert.Equal(t, n, "mychart")
+	})
+	t.Run("Test double-slashed name", func(t *testing.T) {
+		n := normalizeChartName("myorg//mychart")
+		assert.Equal(t, n, "mychart")
+	})
+	t.Run("Test invalid chart name - ends with slash", func(t *testing.T) {
+		n := normalizeChartName("myorg/")
+		assert.Equal(t, n, "myorg/")
+	})
+	t.Run("Test invalid chart name - is dot", func(t *testing.T) {
+		n := normalizeChartName("myorg/.")
+		assert.Equal(t, n, "myorg/.")
+	})
+	t.Run("Test invalid chart name - is two dots", func(t *testing.T) {
+		n := normalizeChartName("myorg/..")
+		assert.Equal(t, n, "myorg/..")
+	})
+}
