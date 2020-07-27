@@ -1373,7 +1373,7 @@ It is also possible to add a shared libary (e.g. <code>vendor</code> folder) rel
 <p>E.g. via the CLI:</p>
 <div class="codehilite"><pre><span></span><code>argocd app create APPNAME <span class="se">\</span>
   --jsonnet-ext-str <span class="s1">&#39;app=${ARGOCD_APP_NAME}&#39;</span> <span class="se">\</span>
-  --jsonnet-tla-str <span class="s1">&#39;ns=${ARGOCD_APP_NAMESPACE}&#39;</span>
+  --jsonnet-tla-str <span class="s1">&#39;ns=${ARGOCD_APP_NAMESPACE}&#39;</span> <span class="se">\</span>
   --jsonnet-libs <span class="s1">&#39;vendor&#39;</span>
 </code></pre></div>
 
