@@ -828,7 +828,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 				ctrl.requestAppRefresh(app.Name, CompareWithLatest.Pointer(), &retryAfter)
 				return
 			} else {
-				app.Status.OperationState.SyncResult = nil
+				state.SyncResult = nil
 			}
 		} else {
 			logCtx.Infof("Resuming in-progress operation. phase: %s, message: %s", state.Phase, state.Message)

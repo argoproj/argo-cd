@@ -1058,3 +1058,42 @@ func TestProcessRequestedAppOperation_FailedHasRetries(t *testing.T) {
 	retryCount, _, _ := unstructured.NestedFloat64(receivedPatch, "status", "operationState", "retryCount")
 	assert.Equal(t, float64(1), retryCount)
 }
+
+func TestProcessRequestedAppOperation_RunningPreviouslyFailed(t *testing.T) {
+	app := newFakeApp()
+	app.Operation = &argoappv1.Operation{
+		Sync:  &argoappv1.SyncOperation{},
+		Retry: argoappv1.RetryStrategy{Limit: 1},
+	}
+	app.Status.OperationState.Phase = synccommon.OperationRunning
+	app.Status.OperationState.SyncResult.Resources = []*argoappv1.ResourceResult{{
+		Name:   "guestbook",
+		Kind:   "Deployment",
+		Group:  "apps",
+		Status: synccommon.ResultCodeSyncFailed,
+	}}
+
+	data := &fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+	}
+	ctrl := newFakeController(data)
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	receivedPatch := map[string]interface{}{}
+	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if patchAction, ok := action.(kubetesting.PatchAction); ok {
+			assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+		}
+		return true, nil, nil
+	})
+
+	ctrl.processRequestedAppOperation(app)
+
+	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
+	assert.Equal(t, string(synccommon.OperationSucceeded), phase)
+}
