@@ -856,7 +856,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 }
 
 func (ctrl *ApplicationController) setOperationState(app *appv1.Application, state *appv1.OperationState) {
-	kube.RetryUntilSucceed(func() error {
+	kube.RetryUntilSucceed(context.Background(), updateOperationStateTimeout, "Update application operation state", func() error {
 		if state.Phase == "" {
 			// expose any bugs where we neglect to set phase
 			panic("no phase was set")
@@ -915,7 +915,7 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 			ctrl.metricsServer.IncSync(app, state)
 		}
 		return nil
-	}, "Update application operation state", context.Background(), updateOperationStateTimeout)
+	})
 }
 
 func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext bool) {
