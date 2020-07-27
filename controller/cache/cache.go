@@ -416,9 +416,9 @@ func (c *liveStateCache) Init() error {
 func (c *liveStateCache) Run(ctx context.Context) error {
 	go c.watchSettings(ctx)
 
-	kube.RetryUntilSucceed(func() error {
+	kube.RetryUntilSucceed(ctx, clustercache.ClusterRetryTimeout, "watch clusters", func() error {
 		return c.db.WatchClusters(ctx, c.handleAddEvent, c.handleModEvent, c.handleDeleteEvent)
-	}, "watch clusters", ctx, clustercache.ClusterRetryTimeout)
+	})
 
 	<-ctx.Done()
 	c.invalidate(c.cacheSettings)

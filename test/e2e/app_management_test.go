@@ -1309,3 +1309,47 @@ func TestListResource(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(NoConditions())
 }
+
+// Given application is set with --sync-option CreateNamespace=true
+//       application --dest-namespace does not exist
+// Verity application --dest-namespace is created
+//        application sync successful
+//        when application is deleted, --dest-namespace is not deleted
+func TestNamespaceAutoCreation(t *testing.T) {
+	updatedNamespace := getNewNamespace(t)
+	defer func() {
+		_, err := Run("", "kubectl", "delete", "namespace", updatedNamespace)
+		assert.NoError(t, err)
+	}()
+	Given(t).
+		Timeout(30).
+		Path("guestbook").
+		When().
+		Create("--sync-option", "CreateNamespace=true").
+		Then().
+		And(func(app *Application) {
+			//Make sure the namespace we are about to update to does not exist
+			_, err := Run("", "kubectl", "get", "namespace", updatedNamespace)
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "not found")
+		}).
+		When().
+		AppSet("--dest-namespace", updatedNamespace).
+		Sync().
+		Then().
+		Expect(Success("")).
+		Expect(OperationPhaseIs(OperationSucceeded)).Expect(ResourceHealthWithNamespaceIs("Deployment", "guestbook-ui", updatedNamespace, health.HealthStatusHealthy)).
+		Expect(ResourceHealthWithNamespaceIs("Deployment", "guestbook-ui", updatedNamespace, health.HealthStatusHealthy)).
+		Expect(ResourceSyncStatusWithNamespaceIs("Deployment", "guestbook-ui", updatedNamespace, SyncStatusCodeSynced)).
+		Expect(ResourceSyncStatusWithNamespaceIs("Deployment", "guestbook-ui", updatedNamespace, SyncStatusCodeSynced)).
+		When().
+		Delete(true).
+		Then().
+		Expect(Success("")).
+		And(func(app *Application) {
+			//Verify delete app does not delete the namespace auto created
+			output, err := Run("", "kubectl", "get", "namespace", updatedNamespace)
+			assert.NoError(t, err)
+			assert.Contains(t, output, updatedNamespace)
+		})
+}

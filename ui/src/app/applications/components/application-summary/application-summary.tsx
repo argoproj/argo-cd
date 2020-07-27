@@ -6,7 +6,7 @@ import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 
-import {ApplicationSyncOptionsField} from '../application-sync-options';
+import {ApplicationSyncOptionsCreateNamespaceField, ApplicationSyncOptionsField} from '../application-sync-options';
 import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage} from '../utils';
 
 require('./application-summary.scss');
@@ -176,7 +176,12 @@ Default is 10.
         {
             title: 'SYNC OPTIONS',
             view: ((app.spec.syncPolicy || {}).syncOptions || []).join(', '),
-            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.syncPolicy.syncOptions' component={ApplicationSyncOptionsField} />
+            edit: (formApi: FormApi) => (
+                <div>
+                    <FormField formApi={formApi} field='spec.syncPolicy.syncOptions' component={ApplicationSyncOptionsField} />
+                    <FormField formApi={formApi} field='spec.syncPolicy.syncOptions' component={ApplicationSyncOptionsCreateNamespaceField} />
+                </div>
+            )
         },
         {
             title: 'STATUS',
