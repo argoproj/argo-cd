@@ -2,6 +2,7 @@ package cache
 
 import (
 	"reflect"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -73,5 +74,12 @@ func SetConfig(config *rest.Config) UpdateSettingsFunc {
 			log.WithField("server", cache.config.Host).Infof("Changing cluster config to: %v", config)
 			cache.config = config
 		}
+	}
+}
+
+// SetResyncTimeout updates cluster re-sync timeout
+func SetResyncTimeout(timeout time.Duration) UpdateSettingsFunc {
+	return func(cache *clusterCache) {
+		cache.resyncTimeout = timeout
 	}
 }

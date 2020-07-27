@@ -121,6 +121,7 @@ type ClusterCache interface {
 // NewClusterCache creates new instance of cluster cache
 func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) *clusterCache {
 	cache := &clusterCache{
+		resyncTimeout:           clusterSyncTimeout,
 		settings:                Settings{ResourceHealthOverride: &noopSettings{}, ResourcesFilter: &noopSettings{}},
 		apisMeta:                make(map[schema.GroupKind]*apiMeta),
 		resources:               make(map[kube.ResourceKey]*Resource),
@@ -139,6 +140,7 @@ func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) *clusterCa
 }
 
 type clusterCache struct {
+	resyncTimeout time.Duration
 	syncTime      *time.Time
 	syncError     error
 	apisMeta      map[schema.GroupKind]*apiMeta
@@ -365,7 +367,7 @@ func (c *clusterCache) synced() bool {
 	if c.syncError != nil {
 		return time.Now().Before(syncTime.Add(ClusterRetryTimeout))
 	}
-	return time.Now().Before(syncTime.Add(clusterSyncTimeout))
+	return time.Now().Before(syncTime.Add(c.resyncTimeout))
 }
 
 func (c *clusterCache) stopWatching(gk schema.GroupKind, ns string) {

@@ -2,6 +2,7 @@ package cache
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"k8s.io/client-go/rest"
@@ -34,4 +35,14 @@ func TestSetNamespaces(t *testing.T) {
 	cache.Invalidate(SetNamespaces(updatedNamespaces))
 
 	assert.ElementsMatch(t, updatedNamespaces, cache.namespaces)
+}
+
+func TestSetResyncTimeout(t *testing.T) {
+	cache := NewClusterCache(&rest.Config{})
+	assert.Equal(t, clusterSyncTimeout, cache.resyncTimeout)
+
+	timeout := 1 * time.Hour
+	cache.Invalidate(SetResyncTimeout(timeout))
+
+	assert.Equal(t, timeout, cache.resyncTimeout)
 }
