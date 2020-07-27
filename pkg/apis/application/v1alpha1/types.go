@@ -358,7 +358,7 @@ type ApplicationSourceJsonnet struct {
 }
 
 func (j *ApplicationSourceJsonnet) IsZero() bool {
-	return j == nil || len(j.ExtVars) == 0 && len(j.TLAs) == 0
+	return j == nil || len(j.ExtVars) == 0 && len(j.TLAs) == 0 && len(j.Libs) == 0
 }
 
 // ApplicationSourceKsonnet holds ksonnet specific options
