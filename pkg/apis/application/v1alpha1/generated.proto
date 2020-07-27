@@ -335,7 +335,7 @@ message Cluster {
   // The server version
   optional string serverVersion = 5;
 
-  // Holds list of namespaces which are accessible in that cluster. Cluster level resources would be ignored if namespace list if not empty.
+  // Holds list of namespaces which are accessible in that cluster. Cluster level resources would be ignored if namespace list is not empty.
   repeated string namespaces = 6;
 
   // RefreshRequestedAt holds time when cluster cache refresh has been requested
