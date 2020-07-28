@@ -45,7 +45,10 @@ func TestAutoSyncSelfHealEnabled(t *testing.T) {
 		When().
 		// app should be auto-synced once created
 		CreateFromFile(func(app *Application) {
-			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{SelfHeal: true}}
+			app.Spec.SyncPolicy = &SyncPolicy{
+				Automated: &SyncPolicyAutomated{SelfHeal: true},
+				Retry:     &RetryStrategy{Limit: 0},
+			}
 		}).
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).

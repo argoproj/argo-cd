@@ -2428,6 +2428,9 @@
             "$ref": "#/definitions/v1alpha1SyncOperationResource"
           }
         },
+        "retryStrategy": {
+          "$ref": "#/definitions/v1alpha1RetryStrategy"
+        },
         "revision": {
           "type": "string"
         },
@@ -3942,6 +3945,25 @@
         }
       }
     },
+    "v1alpha1Backoff": {
+      "type": "object",
+      "title": "Backoff is a backoff strategy to use within retryStrategy",
+      "properties": {
+        "duration": {
+          "type": "string",
+          "title": "Duration is the amount to back off. Default unit is seconds, but could also be a duration (e.g. \"2m\", \"1h\")"
+        },
+        "factor": {
+          "type": "string",
+          "format": "int64",
+          "title": "Factor is a factor to multiply the base duration after each failed retry"
+        },
+        "maxDuration": {
+          "type": "string",
+          "title": "MaxDuration is the maximum amount of time allowed for the backoff strategy"
+        }
+      }
+    },
     "v1alpha1Cluster": {
       "type": "object",
       "title": "Cluster is the definition of a cluster resource",
@@ -4338,6 +4360,9 @@
         "initiatedBy": {
           "$ref": "#/definitions/v1alpha1OperationInitiator"
         },
+        "retry": {
+          "$ref": "#/definitions/v1alpha1RetryStrategy"
+        },
         "sync": {
           "$ref": "#/definitions/v1alpha1SyncOperation"
         }
@@ -4375,6 +4400,11 @@
         "phase": {
           "type": "string",
           "title": "Phase is the current phase of the operation"
+        },
+        "retryCount": {
+          "type": "string",
+          "format": "int64",
+          "title": "RetryCount contains time of operation retries"
         },
         "startedAt": {
           "$ref": "#/definitions/v1Time"
@@ -4923,6 +4953,19 @@
         }
       }
     },
+    "v1alpha1RetryStrategy": {
+      "type": "object",
+      "properties": {
+        "backoff": {
+          "$ref": "#/definitions/v1alpha1Backoff"
+        },
+        "limit": {
+          "type": "string",
+          "format": "int64",
+          "title": "Limit is the maximum number of attempts when retrying a container"
+        }
+      }
+    },
     "v1alpha1RevisionHistory": {
       "type": "object",
       "title": "RevisionHistory contains information relevant to an application deployment",
@@ -5076,6 +5119,9 @@
       "properties": {
         "automated": {
           "$ref": "#/definitions/v1alpha1SyncPolicyAutomated"
+        },
+        "retry": {
+          "$ref": "#/definitions/v1alpha1RetryStrategy"
         },
         "syncOptions": {
           "type": "array",

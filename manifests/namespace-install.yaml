@@ -60,6 +60,32 @@ spec:
                   description: Name of a user who started operation.
                   type: string
               type: object
+            retry:
+              description: Retry controls failed sync retry behavior
+              properties:
+                backoff:
+                  description: Backoff is a backoff strategy
+                  properties:
+                    duration:
+                      description: Duration is the amount to back off. Default unit
+                        is seconds, but could also be a duration (e.g. "2m", "1h")
+                      type: string
+                    factor:
+                      description: Factor is a factor to multiply the base duration
+                        after each failed retry
+                      format: int64
+                      type: integer
+                    maxDuration:
+                      description: MaxDuration is the maximum amount of time allowed
+                        for the backoff strategy
+                      type: string
+                  type: object
+                limit:
+                  description: Limit is the maximum number of attempts when retrying
+                    a container
+                  format: int64
+                  type: integer
+              type: object
             sync:
               description: SyncOperation contains sync operation details.
               properties:
@@ -600,6 +626,33 @@ spec:
                       description: 'SelfHeal enables auto-syncing if  (default: false)'
                       type: boolean
                   type: object
+                retry:
+                  description: Retry controls failed sync retry behavior
+                  properties:
+                    backoff:
+                      description: Backoff is a backoff strategy
+                      properties:
+                        duration:
+                          description: Duration is the amount to back off. Default
+                            unit is seconds, but could also be a duration (e.g. "2m",
+                            "1h")
+                          type: string
+                        factor:
+                          description: Factor is a factor to multiply the base duration
+                            after each failed retry
+                          format: int64
+                          type: integer
+                        maxDuration:
+                          description: MaxDuration is the maximum amount of time allowed
+                            for the backoff strategy
+                          type: string
+                      type: object
+                    limit:
+                      description: Limit is the maximum number of attempts when retrying
+                        a container
+                      format: int64
+                      type: integer
+                  type: object
                 syncOptions:
                   description: Options allow you to specify whole app sync-options
                   items:
@@ -912,6 +965,33 @@ spec:
                           description: Name of a user who started operation.
                           type: string
                       type: object
+                    retry:
+                      description: Retry controls failed sync retry behavior
+                      properties:
+                        backoff:
+                          description: Backoff is a backoff strategy
+                          properties:
+                            duration:
+                              description: Duration is the amount to back off. Default
+                                unit is seconds, but could also be a duration (e.g.
+                                "2m", "1h")
+                              type: string
+                            factor:
+                              description: Factor is a factor to multiply the base
+                                duration after each failed retry
+                              format: int64
+                              type: integer
+                            maxDuration:
+                              description: MaxDuration is the maximum amount of time
+                                allowed for the backoff strategy
+                              type: string
+                          type: object
+                        limit:
+                          description: Limit is the maximum number of attempts when
+                            retrying a container
+                          format: int64
+                          type: integer
+                      type: object
                     sync:
                       description: SyncOperation contains sync operation details.
                       properties:
@@ -1198,6 +1278,10 @@ spec:
                 phase:
                   description: Phase is the current phase of the operation
                   type: string
+                retryCount:
+                  description: RetryCount contains time of operation retries
+                  format: int64
+                  type: integer
                 startedAt:
                   description: StartedAt contains time of operation start
                   format: date-time
