@@ -338,7 +338,7 @@ func TestManipulateApplicationResources(t *testing.T) {
 		And(func(app *Application) {
 			manifests, err := RunCli("app", "manifests", app.Name, "--source", "live")
 			assert.NoError(t, err)
-			resources, err := kube.SplitYAML(manifests)
+			resources, err := kube.SplitYAML([]byte(manifests))
 			assert.NoError(t, err)
 
 			index := -1
@@ -1009,6 +1009,11 @@ func TestOrphanedResource(t *testing.T) {
 		Refresh(RefreshTypeNormal).
 		Then().
 		Expect(Condition(ApplicationConditionOrphanedResourceWarning, "Application has 1 orphaned resources")).
+		And(func(app *Application) {
+			output, err := RunCli("app", "resources", app.Name)
+			assert.NoError(t, err)
+			assert.Contains(t, output, "orphaned-configmap")
+		}).
 		Given().
 		ProjectSpec(AppProjectSpec{
 			SourceRepos:       []string{"*"},
@@ -1019,6 +1024,11 @@ func TestOrphanedResource(t *testing.T) {
 		Refresh(RefreshTypeNormal).
 		Then().
 		Expect(Condition(ApplicationConditionOrphanedResourceWarning, "Application has 1 orphaned resources")).
+		And(func(app *Application) {
+			output, err := RunCli("app", "resources", app.Name)
+			assert.NoError(t, err)
+			assert.Contains(t, output, "orphaned-configmap")
+		}).
 		Given().
 		ProjectSpec(AppProjectSpec{
 			SourceRepos:       []string{"*"},
@@ -1030,6 +1040,11 @@ func TestOrphanedResource(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(NoConditions()).
+		And(func(app *Application) {
+			output, err := RunCli("app", "resources", app.Name)
+			assert.NoError(t, err)
+			assert.NotContains(t, output, "orphaned-configmap")
+		}).
 		Given().
 		ProjectSpec(AppProjectSpec{
 			SourceRepos:       []string{"*"},
@@ -1041,6 +1056,11 @@ func TestOrphanedResource(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(NoConditions()).
+		And(func(app *Application) {
+			output, err := RunCli("app", "resources", app.Name)
+			assert.NoError(t, err)
+			assert.NotContains(t, output, "orphaned-configmap")
+		}).
 		Given().
 		ProjectSpec(AppProjectSpec{
 			SourceRepos:       []string{"*"},
@@ -1231,5 +1251,105 @@ func TestCreateAppWithNoNameSpaceWhenRequired2(t *testing.T) {
 			assert.Len(t, updatedApp.Status.Conditions, 2)
 			assert.Equal(t, updatedApp.Status.Conditions[0].Type, ApplicationConditionInvalidSpecError)
 			assert.Equal(t, updatedApp.Status.Conditions[1].Type, ApplicationConditionInvalidSpecError)
+		})
+}
+
+func TestListResource(t *testing.T) {
+	Given(t).
+		ProjectSpec(AppProjectSpec{
+			SourceRepos:       []string{"*"},
+			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
+			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.BoolPtr(true)},
+		}).
+		Path(guestbookPath).
+		When().
+		Create().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(NoConditions()).
+		When().
+		And(func() {
+			FailOnErr(KubeClientset.CoreV1().ConfigMaps(DeploymentNamespace()).Create(&v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "orphaned-configmap",
+				},
+			}))
+		}).
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(Condition(ApplicationConditionOrphanedResourceWarning, "Application has 1 orphaned resources")).
+		And(func(app *Application) {
+			output, err := RunCli("app", "resources", app.Name)
+			assert.NoError(t, err)
+			assert.Contains(t, output, "orphaned-configmap")
+			assert.Contains(t, output, "guestbook-ui")
+		}).
+		And(func(app *Application) {
+			output, err := RunCli("app", "resources", app.Name, "--orphaned=true")
+			assert.NoError(t, err)
+			assert.Contains(t, output, "orphaned-configmap")
+			assert.NotContains(t, output, "guestbook-ui")
+		}).
+		And(func(app *Application) {
+			output, err := RunCli("app", "resources", app.Name, "--orphaned=false")
+			assert.NoError(t, err)
+			assert.NotContains(t, output, "orphaned-configmap")
+			assert.Contains(t, output, "guestbook-ui")
+		}).
+		Given().
+		ProjectSpec(AppProjectSpec{
+			SourceRepos:       []string{"*"},
+			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
+			OrphanedResources: nil,
+		}).
+		When().
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(NoConditions())
+}
+
+// Given application is set with --sync-option CreateNamespace=true
+//       application --dest-namespace does not exist
+// Verity application --dest-namespace is created
+//        application sync successful
+//        when application is deleted, --dest-namespace is not deleted
+func TestNamespaceAutoCreation(t *testing.T) {
+	updatedNamespace := getNewNamespace(t)
+	defer func() {
+		_, err := Run("", "kubectl", "delete", "namespace", updatedNamespace)
+		assert.NoError(t, err)
+	}()
+	Given(t).
+		Timeout(30).
+		Path("guestbook").
+		When().
+		Create("--sync-option", "CreateNamespace=true").
+		Then().
+		And(func(app *Application) {
+			//Make sure the namespace we are about to update to does not exist
+			_, err := Run("", "kubectl", "get", "namespace", updatedNamespace)
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "not found")
+		}).
+		When().
+		AppSet("--dest-namespace", updatedNamespace).
+		Sync().
+		Then().
+		Expect(Success("")).
+		Expect(OperationPhaseIs(OperationSucceeded)).Expect(ResourceHealthWithNamespaceIs("Deployment", "guestbook-ui", updatedNamespace, health.HealthStatusHealthy)).
+		Expect(ResourceHealthWithNamespaceIs("Deployment", "guestbook-ui", updatedNamespace, health.HealthStatusHealthy)).
+		Expect(ResourceSyncStatusWithNamespaceIs("Deployment", "guestbook-ui", updatedNamespace, SyncStatusCodeSynced)).
+		Expect(ResourceSyncStatusWithNamespaceIs("Deployment", "guestbook-ui", updatedNamespace, SyncStatusCodeSynced)).
+		When().
+		Delete(true).
+		Then().
+		Expect(Success("")).
+		And(func(app *Application) {
+			//Verify delete app does not delete the namespace auto created
+			output, err := Run("", "kubectl", "get", "namespace", updatedNamespace)
+			assert.NoError(t, err)
+			assert.Contains(t, output, updatedNamespace)
 		})
 }

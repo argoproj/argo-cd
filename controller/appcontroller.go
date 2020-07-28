@@ -7,6 +7,7 @@ import (
 	"math"
 	"reflect"
 	"runtime/debug"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -24,6 +25,7 @@ import (
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -47,9 +49,8 @@ import (
 	"github.com/argoproj/argo-cd/util/argo"
 	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
 	"github.com/argoproj/argo-cd/util/db"
+	"github.com/argoproj/argo-cd/util/glob"
 	settings_util "github.com/argoproj/argo-cd/util/settings"
-
-	"github.com/gobwas/glob"
 )
 
 const (
@@ -90,6 +91,7 @@ type ApplicationController struct {
 	// queue contains app namespace/name/comparisonType and used to request app refresh with the predefined comparison type
 	appComparisonTypeRefreshQueue workqueue.RateLimitingInterface
 	appOperationQueue             workqueue.RateLimitingInterface
+	projectRefreshQueue           workqueue.RateLimitingInterface
 	appInformer                   cache.SharedIndexInformer
 	appLister                     applisters.ApplicationLister
 	projInformer                  cache.SharedIndexInformer
@@ -136,6 +138,7 @@ func NewApplicationController(
 		repoClientset:                 repoClientset,
 		appRefreshQueue:               workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "app_reconciliation_queue"),
 		appOperationQueue:             workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "app_operation_processing_queue"),
+		projectRefreshQueue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "project_reconciliation_queue"),
 		appComparisonTypeRefreshQueue: workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
 		db:                            db,
 		statusRefreshTimeout:          appResyncPeriod,
@@ -155,6 +158,23 @@ func NewApplicationController(
 	}
 	indexers := cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}
 	projInformer := v1alpha1.NewAppProjectInformer(applicationClientset, namespace, appResyncPeriod, indexers)
+	projInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			if key, err := cache.MetaNamespaceKeyFunc(obj); err == nil {
+				ctrl.projectRefreshQueue.Add(key)
+			}
+		},
+		UpdateFunc: func(old, new interface{}) {
+			if key, err := cache.MetaNamespaceKeyFunc(new); err == nil {
+				ctrl.projectRefreshQueue.Add(key)
+			}
+		},
+		DeleteFunc: func(obj interface{}) {
+			if key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj); err == nil {
+				ctrl.projectRefreshQueue.Add(key)
+			}
+		},
+	})
 	metricsAddr := fmt.Sprintf("0.0.0.0:%d", metricsPort)
 	ctrl.metricsServer = metrics.NewMetricsServer(metricsAddr, appLister, func() error {
 		_, err := kubeClientset.Discovery().ServerVersion()
@@ -265,24 +285,15 @@ func isKnownOrphanedResourceExclusion(key kube.ResourceKey, proj *appv1.AppProje
 	}
 	list := proj.Spec.OrphanedResources.Ignore
 	for _, item := range list {
-		if item.Kind == "" || match(item.Kind, key.Kind) {
-			if match(item.Group, key.Group) {
-				if item.Name == "" || match(item.Name, key.Name) {
+		if item.Kind == "" || glob.Match(item.Kind, key.Kind) {
+			if glob.Match(item.Group, key.Group) {
+				if item.Name == "" || glob.Match(item.Name, key.Name) {
 					return true
 				}
 			}
 		}
 	}
 	return false
-}
-
-func match(pattern, text string) bool {
-	compiledGlob, err := glob.Compile(pattern)
-	if err != nil {
-		log.Warnf("failed to compile pattern %s due to error %v", pattern, err)
-		return false
-	}
-	return compiledGlob.Match(text)
 }
 
 func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managedResources []*appv1.ResourceDiff) (*appv1.ApplicationTree, error) {
@@ -362,6 +373,9 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 		}}
 	}
 	a.Status.SetConditions(conditions, map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionOrphanedResourceWarning: true})
+	sort.Slice(orphanedNodes, func(i, j int) bool {
+		return orphanedNodes[i].ResourceRef.String() < orphanedNodes[j].ResourceRef.String()
+	})
 	return &appv1.ApplicationTree{Nodes: nodes, OrphanedNodes: orphanedNodes}, nil
 }
 
@@ -430,6 +444,7 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 	defer ctrl.appRefreshQueue.ShutDown()
 	defer ctrl.appComparisonTypeRefreshQueue.ShutDown()
 	defer ctrl.appOperationQueue.ShutDown()
+	defer ctrl.projectRefreshQueue.ShutDown()
 
 	ctrl.metricsServer.RegisterClustersInfoSource(ctx, ctrl.stateCache)
 	ctrl.RegisterClusterSecretUpdater(ctx)
@@ -463,6 +478,11 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 
 	go wait.Until(func() {
 		for ctrl.processAppComparisonTypeQueueItem() {
+		}
+	}, time.Second, ctx.Done())
+
+	go wait.Until(func() {
+		for ctrl.processProjectQueueItem() {
 		}
 	}, time.Second, ctx.Done())
 	<-ctx.Done()
@@ -569,6 +589,75 @@ func (ctrl *ApplicationController) processAppComparisonTypeQueueItem() (processN
 	return
 }
 
+func (ctrl *ApplicationController) processProjectQueueItem() (processNext bool) {
+	key, shutdown := ctrl.projectRefreshQueue.Get()
+	processNext = true
+
+	defer func() {
+		if r := recover(); r != nil {
+			log.Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
+		}
+		ctrl.projectRefreshQueue.Done(key)
+	}()
+	if shutdown {
+		processNext = false
+		return
+	}
+	obj, exists, err := ctrl.projInformer.GetIndexer().GetByKey(key.(string))
+	if err != nil {
+		log.Errorf("Failed to get project '%s' from informer index: %+v", key, err)
+		return
+	}
+	if !exists {
+		// This happens after appproj was deleted, but the work queue still had an entry for it.
+		return
+	}
+	origProj, ok := obj.(*appv1.AppProject)
+	if !ok {
+		log.Warnf("Key '%s' in index is not an appproject", key)
+		return
+	}
+
+	if origProj.DeletionTimestamp != nil && origProj.HasFinalizer() {
+		if err := ctrl.finalizeProjectDeletion(origProj.DeepCopy()); err != nil {
+			log.Warnf("Failed to finalize project deletion: %v", err)
+		}
+	}
+	return
+}
+
+func (ctrl *ApplicationController) finalizeProjectDeletion(proj *appv1.AppProject) error {
+	apps, err := ctrl.appLister.Applications(ctrl.namespace).List(labels.Everything())
+	if err != nil {
+		return err
+	}
+	appsCount := 0
+	for i := range apps {
+		if apps[i].Spec.GetProject() == proj.Name {
+			appsCount++
+			break
+		}
+	}
+	if appsCount == 0 {
+		return ctrl.removeProjectFinalizer(proj)
+	} else {
+		log.Infof("Cannot remove project '%s' finalizer as is referenced by %d applications", proj.Name, appsCount)
+	}
+	return nil
+}
+
+func (ctrl *ApplicationController) removeProjectFinalizer(proj *appv1.AppProject) error {
+	proj.RemoveFinalizer()
+	var patch []byte
+	patch, _ = json.Marshal(map[string]interface{}{
+		"metadata": map[string]interface{}{
+			"finalizers": proj.Finalizers,
+		},
+	})
+	_, err := ctrl.applicationClientset.ArgoprojV1alpha1().AppProjects(ctrl.namespace).Patch(proj.Name, types.MergePatchType, patch)
+	return err
+}
+
 // shouldBeDeleted returns whether a given resource obj should be deleted on cascade delete of application app
 func (ctrl *ApplicationController) shouldBeDeleted(app *appv1.Application, obj *unstructured.Unstructured) bool {
 	return !kube.IsCRD(obj) && !isSelfReferencedApp(app, kube.GetObjectRef(obj))
@@ -611,7 +700,12 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 
 	objs := make([]*unstructured.Unstructured, 0)
 	for k := range objsMap {
-		if ctrl.shouldBeDeleted(app, objsMap[k]) && objsMap[k].GetDeletionTimestamp() == nil {
+		// Wait for objects pending deletion to complete before proceeding with next sync wave
+		if objsMap[k].GetDeletionTimestamp() != nil {
+			logCtx.Infof("%d objects remaining for deletion", len(objsMap))
+			return objs, nil
+		}
+		if ctrl.shouldBeDeleted(app, objsMap[k]) {
 			objs = append(objs, objsMap[k])
 		}
 	}
@@ -622,8 +716,9 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	}
 	config := metrics.AddMetricsTransportWrapper(ctrl.metricsServer, app, cluster.RESTConfig())
 
-	err = kube.RunAllAsync(len(objs), func(i int) error {
-		obj := objs[i]
+	filteredObjs := FilterObjectsForDeletion(objs)
+	err = kube.RunAllAsync(len(filteredObjs), func(i int) error {
+		obj := filteredObjs[i]
 		return ctrl.kubectl.DeleteResource(config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), false)
 	})
 	if err != nil {
@@ -665,6 +760,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	}
 
 	logCtx.Infof("Successfully deleted %d resources", len(objs))
+	ctrl.projectRefreshQueue.Add(fmt.Sprintf("%s/%s", app.Namespace, app.Spec.GetProject()))
 	return objs, nil
 }
 
@@ -760,7 +856,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 }
 
 func (ctrl *ApplicationController) setOperationState(app *appv1.Application, state *appv1.OperationState) {
-	kube.RetryUntilSucceed(func() error {
+	kube.RetryUntilSucceed(context.Background(), updateOperationStateTimeout, "Update application operation state", func() error {
 		if state.Phase == "" {
 			// expose any bugs where we neglect to set phase
 			panic("no phase was set")
@@ -819,7 +915,7 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 			ctrl.metricsServer.IncSync(app, state)
 		}
 		return nil
-	}, "Update application operation state", context.Background(), updateOperationStateTimeout)
+	})
 }
 
 func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext bool) {
@@ -960,9 +1056,16 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	app.Status.Sync = *compareResult.syncStatus
 	app.Status.Health = *compareResult.healthStatus
 	app.Status.Resources = compareResult.resources
+	sort.Slice(app.Status.Resources, func(i, j int) bool {
+		return resourceStatusKey(app.Status.Resources[i]) < resourceStatusKey(app.Status.Resources[j])
+	})
 	app.Status.SourceType = compareResult.appSourceType
 	ctrl.persistAppStatus(origApp, &app.Status)
 	return
+}
+
+func resourceStatusKey(res appv1.ResourceStatus) string {
+	return strings.Join([]string{res.Group, res.Kind, res.Namespace, res.Name}, "/")
 }
 
 // needRefreshAppStatus answers if application status needs to be refreshed.

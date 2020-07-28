@@ -50,3 +50,23 @@ export const ApplicationSyncOptionsField = ReactForm.FormField((props: {fieldApi
         </div>
     );
 });
+
+export const ApplicationSyncOptionsCreateNamespace = (props: ApplicationSyncOptionProps) => <div>{booleanOption('CreateNamespace', 'Auto-create namespace', false, props)}</div>;
+
+export const ApplicationSyncOptionsCreateNamespaceField = ReactForm.FormField((props: {fieldApi: ReactForm.FieldApi}) => {
+    const {
+        fieldApi: {getValue, setValue, setTouched}
+    } = props;
+    const val = getValue() || [];
+    return (
+        <div className='argo-field'>
+            <ApplicationSyncOptionsCreateNamespace
+                options={val}
+                onChanged={opts => {
+                    setTouched(true);
+                    setValue(opts);
+                }}
+            />
+        </div>
+    );
+});

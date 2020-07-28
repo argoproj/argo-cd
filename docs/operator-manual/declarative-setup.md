@@ -84,6 +84,9 @@ kind: AppProject
 metadata:
   name: my-project
   namespace: argocd
+  # Finalizer that ensures that project is not deleted until it is not referenced by any application
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
 spec:
   description: Example Project
   # Allow manifests to deploy from any Git repos
@@ -216,9 +219,13 @@ data:
       usernameSecret:
         name: my-secret
         key: username
+    - url: git@github.com:argoproj-labs
+      sshPrivateKeySecret:
+        name: my-secret
+        key: sshPrivateKey
 ```
 
-Argo CD will only use the credentials if you omit `usernameSecret`, `passwordSecret`, and `sshPrivateKeySecret` fields (`insecureIgnoreHostKey` is ignored).
+Argo CD will only use the credentials if you omit `usernameSecret`, `passwordSecret`, and `sshPrivateKeySecret` fields (`insecureIgnoreHostKey` is ignored) or if your repository is not listed in `repositories`.
 
 A credential may be match if it's URL is the prefix of the repository's URL. The means that credentials may match, e.g in the above example both [https://github.com/argoproj](https://github.com/argoproj) and [https://github.com](https://github.com) would match. Argo CD selects the first one that matches.
 

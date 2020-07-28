@@ -358,7 +358,7 @@ type ApplicationSourceJsonnet struct {
 }
 
 func (j *ApplicationSourceJsonnet) IsZero() bool {
-	return j == nil || len(j.ExtVars) == 0 && len(j.TLAs) == 0
+	return j == nil || len(j.ExtVars) == 0 && len(j.TLAs) == 0 && len(j.Libs) == 0
 }
 
 // ApplicationSourceKsonnet holds ksonnet specific options
@@ -2078,18 +2078,9 @@ func (proj *AppProject) ProjectPoliciesString() string {
 	return strings.Join(policies, "\n")
 }
 
-func (app *Application) getFinalizerIndex(name string) int {
-	for i, finalizer := range app.Finalizers {
-		if finalizer == name {
-			return i
-		}
-	}
-	return -1
-}
-
 // CascadedDeletion indicates if resources finalizer is set and controller should delete app resources before deleting app
 func (app *Application) CascadedDeletion() bool {
-	return app.getFinalizerIndex(common.ResourcesFinalizerName) > -1
+	return getFinalizerIndex(app.ObjectMeta, common.ResourcesFinalizerName) > -1
 }
 
 func (app *Application) IsRefreshRequested() (RefreshType, bool) {
@@ -2113,15 +2104,7 @@ func (app *Application) IsRefreshRequested() (RefreshType, bool) {
 
 // SetCascadedDeletion sets or remove resources finalizer
 func (app *Application) SetCascadedDeletion(prune bool) {
-	index := app.getFinalizerIndex(common.ResourcesFinalizerName)
-	if prune != (index > -1) {
-		if index > -1 {
-			app.Finalizers[index] = app.Finalizers[len(app.Finalizers)-1]
-			app.Finalizers = app.Finalizers[:len(app.Finalizers)-1]
-		} else {
-			app.Finalizers = append(app.Finalizers, common.ResourcesFinalizerName)
-		}
-	}
+	setFinalizer(&app.ObjectMeta, common.ResourcesFinalizerName, prune)
 }
 
 // SetConditions updates the application status conditions for a subset of evaluated types.
@@ -2278,6 +2261,37 @@ func (proj AppProject) IsLiveResourcePermitted(un *unstructured.Unstructured, se
 		return proj.IsDestinationPermitted(ApplicationDestination{Server: server, Namespace: un.GetNamespace()})
 	}
 	return true
+}
+
+// getFinalizerIndex returns finalizer index in the list of object finalizers or -1 if finalizer does not exist
+func getFinalizerIndex(meta metav1.ObjectMeta, name string) int {
+	for i, finalizer := range meta.Finalizers {
+		if finalizer == name {
+			return i
+		}
+	}
+	return -1
+}
+
+// setFinalizer adds or removes finalizer with the specified name
+func setFinalizer(meta *metav1.ObjectMeta, name string, exist bool) {
+	index := getFinalizerIndex(*meta, name)
+	if exist != (index > -1) {
+		if index > -1 {
+			meta.Finalizers[index] = meta.Finalizers[len(meta.Finalizers)-1]
+			meta.Finalizers = meta.Finalizers[:len(meta.Finalizers)-1]
+		} else {
+			meta.Finalizers = append(meta.Finalizers, name)
+		}
+	}
+}
+
+func (proj AppProject) HasFinalizer() bool {
+	return getFinalizerIndex(proj.ObjectMeta, common.ResourcesFinalizerName) > -1
+}
+
+func (proj *AppProject) RemoveFinalizer() {
+	setFinalizer(&proj.ObjectMeta, common.ResourcesFinalizerName, false)
 }
 
 func globMatch(pattern string, val string) bool {

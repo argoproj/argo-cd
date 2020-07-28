@@ -6,7 +6,7 @@ import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 
-import {ApplicationSyncOptionsField} from '../application-sync-options';
+import {ApplicationSyncOptionsCreateNamespaceField, ApplicationSyncOptionsField} from '../application-sync-options';
 import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage} from '../utils';
 
 require('./application-summary.scss');
@@ -28,6 +28,8 @@ function swap(array: any[], a: number, b: number) {
 export const ApplicationSummary = (props: {app: models.Application; updateApp: (app: models.Application) => Promise<any>}) => {
     const app = JSON.parse(JSON.stringify(props.app)) as models.Application;
     const isHelm = app.spec.source.hasOwnProperty('chart');
+    const isDestName = app.spec.destination.server === undefined;
+    const fieldDest = isDestName ? 'spec.destination.name' : 'spec.destination.server';
 
     const attributes = [
         {
@@ -59,18 +61,18 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
         },
         {
             title: 'CLUSTER',
-            view: <Cluster server={app.spec.destination.server} showUrl={true} />,
+            view: <Cluster server={app.spec.destination.server} name={app.spec.destination.name} showUrl={true} />,
             edit: (formApi: FormApi) => (
                 <DataLoader
                     load={() =>
                         services.clusters.list().then(clusters =>
                             clusters.map(cluster => ({
                                 title: clusterTitle(cluster),
-                                value: cluster.server
+                                value: isDestName ? cluster.name : cluster.server
                             }))
                         )
                     }>
-                    {clusters => <FormField formApi={formApi} field='spec.destination.server' componentProps={{options: clusters}} component={FormSelect} />}
+                    {clusters => <FormField formApi={formApi} field={fieldDest} componentProps={{options: clusters}} component={FormSelect} />}
                 </DataLoader>
             )
         },
@@ -174,7 +176,12 @@ Default is 10.
         {
             title: 'SYNC OPTIONS',
             view: ((app.spec.syncPolicy || {}).syncOptions || []).join(', '),
-            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.syncPolicy.syncOptions' component={ApplicationSyncOptionsField} />
+            edit: (formApi: FormApi) => (
+                <div>
+                    <FormField formApi={formApi} field='spec.syncPolicy.syncOptions' component={ApplicationSyncOptionsField} />
+                    <FormField formApi={formApi} field='spec.syncPolicy.syncOptions' component={ApplicationSyncOptionsCreateNamespaceField} />
+                </div>
+            )
         },
         {
             title: 'STATUS',
@@ -326,10 +333,17 @@ Default is 10.
         <div className='application-summary'>
             <EditablePanel
                 save={props.updateApp}
-                validate={input => ({
-                    'spec.project': !input.spec.project && 'Project name is required',
-                    'spec.destination.server': !input.spec.destination.server && 'Cluster is required'
-                })}
+                validate={input =>
+                    isDestName
+                        ? {
+                              'spec.project': !input.spec.project && 'Project name is required',
+                              'spec.destination.name': !input.spec.destination.name && 'Cluster is required'
+                          }
+                        : {
+                              'spec.project': !input.spec.project && 'Project name is required',
+                              'spec.destination.server': !input.spec.destination.server && 'Cluster is required'
+                          }
+                }
                 values={app}
                 title={app.metadata.name.toLocaleUpperCase()}
                 items={attributes}
