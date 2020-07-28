@@ -316,6 +316,18 @@ message ApplicationWatchEvent {
   optional Application application = 2;
 }
 
+// Backoff is a backoff strategy to use within retryStrategy
+message Backoff {
+  // Duration is the amount to back off. Default unit is seconds, but could also be a duration (e.g. "2m", "1h")
+  optional string duration = 1;
+
+  // Factor is a factor to multiply the base duration after each failed retry
+  optional int64 factor = 2;
+
+  // MaxDuration is the maximum amount of time allowed for the backoff strategy
+  optional string maxDuration = 3;
+}
+
 // Cluster is the definition of a cluster resource
 message Cluster {
   // Server is the API server URL of the Kubernetes cluster
@@ -566,6 +578,9 @@ message Operation {
   optional OperationInitiator initiatedBy = 2;
 
   repeated Info info = 3;
+
+  // Retry controls failed sync retry behavior
+  optional RetryStrategy retry = 4;
 }
 
 // OperationInitiator holds information about the operation initiator
@@ -596,6 +611,9 @@ message OperationState {
 
   // FinishedAt contains time of operation completion
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time finishedAt = 7;
+
+  // RetryCount contains time of operation retries
+  optional int64 retryCount = 8;
 }
 
 message OrphanedResourceKey {
@@ -922,6 +940,14 @@ message ResourceStatus {
   optional bool requiresPruning = 9;
 }
 
+message RetryStrategy {
+  // Limit is the maximum number of attempts when retrying a container
+  optional int64 limit = 1;
+
+  // Backoff is a backoff strategy
+  optional Backoff backoff = 2;
+}
+
 // RevisionHistory contains information relevant to an application deployment
 message RevisionHistory {
   // Revision holds the revision of the sync
@@ -1028,6 +1054,9 @@ message SyncPolicy {
 
   // Options allow you to specify whole app sync-options
   repeated string syncOptions = 2;
+
+  // Retry controls failed sync retry behavior
+  optional RetryStrategy retry = 3;
 }
 
 // SyncPolicyAutomated controls the behavior of an automated sync

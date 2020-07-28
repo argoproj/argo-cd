@@ -32,7 +32,7 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
         }
     ];
 
-    if (operationState.finishedAt) {
+    if (operationState.finishedAt && operationState.phase !== 'Running') {
         operationAttributes.push({title: 'FINISHED AT', value: <Timestamp date={operationState.finishedAt} />});
     } else if (operationState.phase !== 'Terminating') {
         operationAttributes.push({
