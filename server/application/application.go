@@ -147,7 +147,11 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 	defer s.projectLock.Unlock(q.Application.Spec.Project)
 
 	a := q.Application
-	err := s.validateAndNormalizeApp(ctx, &a)
+	validate := true
+	if q.Validate != nil {
+		validate = *q.Validate
+	}
+	err := s.validateAndNormalizeApp(ctx, &a, validate)
 	if err != nil {
 		return nil, err
 	}
@@ -363,7 +367,7 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *application.Applicat
 	return kubeClientset.CoreV1().Events(namespace).List(opts)
 }
 
-func (s *Server) validateAndUpdateApp(ctx context.Context, newApp *appv1.Application, merge bool) (*appv1.Application, error) {
+func (s *Server) validateAndUpdateApp(ctx context.Context, newApp *appv1.Application, merge bool, validate bool) (*appv1.Application, error) {
 	s.projectLock.Lock(newApp.Spec.GetProject())
 	defer s.projectLock.Unlock(newApp.Spec.GetProject())
 
@@ -372,7 +376,7 @@ func (s *Server) validateAndUpdateApp(ctx context.Context, newApp *appv1.Applica
 		return nil, err
 	}
 
-	err = s.validateAndNormalizeApp(ctx, newApp)
+	err = s.validateAndNormalizeApp(ctx, newApp, validate)
 	if err != nil {
 		return nil, err
 	}
@@ -463,7 +467,7 @@ func (s *Server) Update(ctx context.Context, q *application.ApplicationUpdateReq
 		return nil, err
 	}
 
-	return s.validateAndUpdateApp(ctx, q.Application, false)
+	return s.validateAndUpdateApp(ctx, q.Application, false, true)
 }
 
 // UpdateSpec updates an application spec and filters out any invalid parameter overrides
@@ -476,7 +480,11 @@ func (s *Server) UpdateSpec(ctx context.Context, q *application.ApplicationUpdat
 		return nil, err
 	}
 	a.Spec = q.Spec
-	a, err = s.validateAndUpdateApp(ctx, a, false)
+	validate := true
+	if q.Validate != nil {
+		validate = *q.Validate
+	}
+	a, err = s.validateAndUpdateApp(ctx, a, false, validate)
 	if err != nil {
 		return nil, err
 	}
@@ -525,7 +533,7 @@ func (s *Server) Patch(ctx context.Context, q *application.ApplicationPatchReque
 	if err != nil {
 		return nil, err
 	}
-	return s.validateAndUpdateApp(ctx, app, false)
+	return s.validateAndUpdateApp(ctx, app, false, true)
 }
 
 // Delete removes an application and all associated resources
@@ -643,7 +651,7 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 	}
 }
 
-func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Application) error {
+func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Application, validate bool) error {
 	proj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(app.Spec.GetProject(), metav1.GetOptions{})
 	if err != nil {
 		if apierr.IsNotFound(err) {
@@ -686,16 +694,19 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 		return err
 	}
 
-	if err := argo.ValidateDestination(ctx, &app.Spec.Destination, s.db); err != nil {
-		return status.Errorf(codes.InvalidArgument, "application destination spec is invalid: %s", err.Error())
-	}
+	var conditions []appv1.ApplicationCondition
+	if validate {
+		if err := argo.ValidateDestination(ctx, &app.Spec.Destination, s.db); err != nil {
+			return status.Errorf(codes.InvalidArgument, "application destination spec is invalid: %s", err.Error())
+		}
 
-	conditions, err := argo.ValidateRepo(ctx, app, s.repoClientset, s.db, kustomizeOptions, plugins, s.kubectl)
-	if err != nil {
-		return err
-	}
-	if len(conditions) > 0 {
-		return status.Errorf(codes.InvalidArgument, "application spec is invalid: %s", argo.FormatAppConditions(conditions))
+		conditions, err = argo.ValidateRepo(ctx, app, s.repoClientset, s.db, kustomizeOptions, plugins, s.kubectl)
+		if err != nil {
+			return err
+		}
+		if len(conditions) > 0 {
+			return status.Errorf(codes.InvalidArgument, "application spec is invalid: %s", argo.FormatAppConditions(conditions))
+		}
 	}
 
 	conditions, err = argo.ValidatePermissions(ctx, &app.Spec, proj, s.db)

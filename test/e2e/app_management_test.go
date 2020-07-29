@@ -1353,3 +1353,19 @@ func TestNamespaceAutoCreation(t *testing.T) {
 			assert.Contains(t, output, updatedNamespace)
 		})
 }
+
+func TestCreateWithoutValidation(t *testing.T) {
+	Given(t).
+		Path("baddir").
+		When().
+		Create("--disable-validation").
+		Then().
+		And(func(app *Application) {
+			_, err := RunCli("app", "create", app.Name, "--upsert", "--disable-validation", "--repo", RepoURL(RepoURLTypeFile),
+				"--path", "baddir2", "--project", app.Spec.Project, "--dest-server", common.KubernetesInternalAPIServerAddr, "--dest-namespace", DeploymentNamespace())
+			assert.NoError(t, err)
+		}).
+		When().
+		AppSet("--path", "baddir3", "--disable-validation")
+
+}
