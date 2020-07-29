@@ -1,7 +1,7 @@
 import {AutocompleteField, DropDownMenu, FormField, FormSelect, HelpIcon, PopupApi} from 'argo-ui';
 import * as React from 'react';
 import {FormApi, Text} from 'react-form';
-import {Cluster, clusterTitle, DataLoader, EditablePanel, EditablePanelItem, Expandable, MapInputField, Repo, Revision, RevisionHelpIcon} from '../../../shared/components';
+import {Cluster, DataLoader, EditablePanel, EditablePanelItem, Expandable, MapInputField, Repo, Revision, RevisionHelpIcon} from '../../../shared/components';
 import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -30,6 +30,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
     const isHelm = app.spec.source.hasOwnProperty('chart');
     const isDestName = app.spec.destination.server === undefined;
     const fieldDest = isDestName ? 'spec.destination.name' : 'spec.destination.server';
+    const [destFormat, setDestFormat] = React.useState('URL');
 
     const attributes = [
         {
@@ -65,14 +66,43 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
             edit: (formApi: FormApi) => (
                 <DataLoader
                     load={() =>
-                        services.clusters.list().then(clusters =>
-                            clusters.map(cluster => ({
-                                title: clusterTitle(cluster),
-                                value: isDestName ? cluster.name : cluster.server
-                            }))
-                        )
+                        Promise.all([
+                            services.clusters.list().then(clusters => clusters.map(cluster => cluster.server).sort()),
+                            services.clusters.list().then(clusters => clusters.map(cluster => cluster.name).sort())
+                        ]).then(([clusterURLs, clusterNames]) => ({clusterURLs, clusterNames}))
                     }>
-                    {clusters => <FormField formApi={formApi} field={fieldDest} componentProps={{options: clusters}} component={FormSelect} />}
+                    {({clusterURLs, clusterNames}) => {
+                        return (
+                            <div className='row'>
+                                {(destFormat.toUpperCase() === 'URL' && (
+                                    <div className='columns small-10'>
+                                        <FormField formApi={formApi} field={fieldDest} componentProps={{items: clusterURLs}} component={AutocompleteField} />
+                                    </div>
+                                )) || (
+                                    <div className='columns small-10'>
+                                        <FormField formApi={formApi} field={fieldDest} componentProps={{items: clusterNames}} component={AutocompleteField} />
+                                    </div>
+                                )}
+                                <div className='columns small-2'>
+                                    <div style={{paddingTop: '1.5em'}}>
+                                        <DropDownMenu
+                                            anchor={() => (
+                                                <p>
+                                                    {destFormat.toUpperCase()} <i className='fa fa-caret-down' />
+                                                </p>
+                                            )}
+                                            items={['url', 'name'].map((type: 'url' | 'name') => ({
+                                                title: type.toUpperCase(),
+                                                action: () => {
+                                                    setDestFormat(type);
+                                                }
+                                            }))}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    }}
                 </DataLoader>
             )
         },
