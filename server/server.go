@@ -910,6 +910,7 @@ var pathPatters = []*regexp.Regexp{
 	regexp.MustCompile(`/api/v1/repocreds/[^/]+`),
 	regexp.MustCompile(`/api/v1/repositories/[^/]+/apps`),
 	regexp.MustCompile(`/api/v1/repositories/[^/]+/apps/[^/]+`),
+	regexp.MustCompile(`/settings/clusters/[^/]+`),
 }
 
 func (bf *bug21955Workaround) ServeHTTP(w http.ResponseWriter, r *http.Request) {

@@ -813,7 +813,26 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		}
 		app = freshApp
 		state = app.Status.OperationState.DeepCopy()
-		logCtx.Infof("Resuming in-progress operation. phase: %s, message: %s", state.Phase, state.Message)
+		// Failed  operation with retry strategy might have be in-progress and has completion time
+		if state.FinishedAt != nil && state.Phase != synccommon.OperationTerminating {
+			retryAt, err := app.Status.OperationState.Operation.Retry.NextRetryAt(state.FinishedAt.Time, state.RetryCount)
+			if err != nil {
+				state.Phase = synccommon.OperationFailed
+				state.Message = err.Error()
+				ctrl.setOperationState(app, state)
+				return
+			}
+			retryAfter := time.Until(retryAt)
+			if retryAfter > 0 {
+				logCtx.Infof("Skipping retrying in-progress operation. Attempting again at: %s", retryAt.Format(time.RFC3339))
+				ctrl.requestAppRefresh(app.Name, CompareWithLatest.Pointer(), &retryAfter)
+				return
+			} else {
+				state.SyncResult = nil
+			}
+		} else {
+			logCtx.Infof("Resuming in-progress operation. phase: %s, message: %s", state.Phase, state.Message)
+		}
 	} else {
 		state = &appv1.OperationState{Phase: synccommon.OperationRunning, Operation: *app.Operation, StartedAt: metav1.Now()}
 		ctrl.setOperationState(app, state)
@@ -840,6 +859,22 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 				// cleanup (e.g. delete jobs, workflows, etc...)
 			}
 		}
+	} else if state.Phase == synccommon.OperationFailed || state.Phase == synccommon.OperationError {
+		if state.RetryCount < state.Operation.Retry.Limit || state.Operation.Retry.Limit < 0 {
+			now := metav1.Now()
+			state.FinishedAt = &now
+			if retryAt, err := state.Operation.Retry.NextRetryAt(now.Time, state.RetryCount); err != nil {
+				state.Phase = synccommon.OperationFailed
+				state.Message = fmt.Sprintf("%s (failed to retry: %v)", state.Message, err)
+			} else {
+				state.Phase = synccommon.OperationRunning
+				state.RetryCount++
+				state.Message = fmt.Sprintf("%s. Retrying attempt #%d at %s.", state.Message, state.RetryCount, retryAt.Format(time.Kitchen))
+			}
+		} else if state.RetryCount > 0 {
+			state.Message = fmt.Sprintf("%s (retried %d times).", state.Message, state.RetryCount)
+		}
+
 	}
 
 	ctrl.setOperationState(app, state)
@@ -1252,6 +1287,10 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 			SyncOptions: app.Spec.SyncPolicy.SyncOptions,
 		},
 		InitiatedBy: appv1.OperationInitiator{Automated: true},
+		Retry:       appv1.RetryStrategy{Limit: 5},
+	}
+	if app.Spec.SyncPolicy.Retry != nil {
+		op.Retry = *app.Spec.SyncPolicy.Retry
 	}
 	// It is possible for manifests to remain OutOfSync even after a sync/kubectl apply (e.g.
 	// auto-sync with pruning disabled). We need to ensure that we do not keep Syncing an
@@ -1282,6 +1321,20 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 			return nil
 		}
 
+	}
+
+	if app.Spec.SyncPolicy.Automated.Prune {
+		bAllNeedPrune := true
+		for _, r := range resources {
+			if !r.RequiresPruning {
+				bAllNeedPrune = false
+			}
+		}
+		if bAllNeedPrune {
+			message := fmt.Sprintf("Skipping sync attempt to %s: auto-sync will wipe out all resourses", desiredCommitSHA)
+			logCtx.Warnf(message)
+			return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: message}
+		}
 	}
 
 	appIf := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace)

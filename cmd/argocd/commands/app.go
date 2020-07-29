@@ -31,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/controller"
@@ -1420,19 +1421,23 @@ func printAppResources(w io.Writer, app *argoappv1.Application) {
 // NewApplicationSyncCommand returns a new instance of an `argocd app sync` command
 func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		revision      string
-		resources     []string
-		labels        []string
-		selector      string
-		prune         bool
-		dryRun        bool
-		timeout       uint
-		strategy      string
-		force         bool
-		async         bool
-		local         string
-		localRepoRoot string
-		infos         []string
+		revision                string
+		resources               []string
+		labels                  []string
+		selector                string
+		prune                   bool
+		dryRun                  bool
+		timeout                 uint
+		strategy                string
+		force                   bool
+		async                   bool
+		retryLimit              int64
+		retryBackoffDuration    string
+		retryBackoffMaxDuration string
+		retryBackoffFactor      int64
+		local                   string
+		localRepoRoot           string
+		infos                   []string
 	)
 	var command = &cobra.Command{
 		Use:   "sync [APPNAME... | -l selector]",
@@ -1552,6 +1557,16 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				default:
 					log.Fatalf("Unknown sync strategy: '%s'", strategy)
 				}
+				if retryLimit > 0 {
+					syncReq.RetryStrategy = &argoappv1.RetryStrategy{
+						Limit: retryLimit,
+						Backoff: &argoappv1.Backoff{
+							Duration:    retryBackoffDuration,
+							MaxDuration: retryBackoffMaxDuration,
+							Factor:      pointer.Int64Ptr(retryBackoffFactor),
+						},
+					}
+				}
 				ctx := context.Background()
 				_, err := appIf.Sync(ctx, &syncReq)
 				errors.CheckError(err)
@@ -1582,6 +1597,10 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVarP(&selector, "selector", "l", "", "Sync apps that match this label")
 	command.Flags().StringArrayVar(&labels, "label", []string{}, "Sync only specific resources with a label. This option may be specified repeatedly.")
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
+	command.Flags().Int64Var(&retryLimit, "retry-limit", 0, "Max number of allowed sync retries")
+	command.Flags().StringVar(&retryBackoffDuration, "retry-backoff-duration", fmt.Sprintf("%ds", common.DefaultSyncRetryDuration/time.Second), "Retry backoff base duration. Default unit is seconds, but could also be a duration (e.g. 2m, 1h)")
+	command.Flags().StringVar(&retryBackoffMaxDuration, "retry-backoff-max-duration", fmt.Sprintf("%ds", common.DefaultSyncRetryMaxDuration/time.Second), "Max retry backoff duration. Default unit is seconds, but could also be a duration (e.g. 2m, 1h)")
+	command.Flags().Int64Var(&retryBackoffFactor, "retry-backoff-factor", common.DefaultSyncRetryFactor, "Factor multiplies the base duration after each failed retry")
 	command.Flags().StringVar(&strategy, "strategy", "", "Sync strategy (one of: apply|hook)")
 	command.Flags().BoolVar(&force, "force", false, "Use a force apply")
 	command.Flags().BoolVar(&async, "async", false, "Do not wait for application to sync before continuing")

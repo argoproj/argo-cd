@@ -6,7 +6,7 @@ import {RevisionHelpIcon, YamlEditor} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ApplicationParameters} from '../application-parameters/application-parameters';
-import {ApplicationSyncOptionsCreateNamespaceField, ApplicationSyncOptionsField} from '../application-sync-options';
+import {ApplicationSyncOptionsField} from '../application-sync-options';
 
 const jsonMergePatch = require('json-merge-patch');
 
@@ -62,13 +62,13 @@ const AutoSyncFormField = ReactFormField((props: {fieldApi: FieldApi; className:
             {automated && (
                 <div className='application-create-panel__sync-params'>
                     <div className='checkbox-container'>
-                        <Checkbox onChange={val => setValue({...automated, prune: val})} checked={automated.prune} id='policyPrune' />
+                        <Checkbox onChange={val => setValue({...automated, prune: val})} checked={!!automated.prune} id='policyPrune' />
                         <label htmlFor='policyPrune'>Prune Resources</label>
                         <HelpIcon title='If checked, Argo will delete resources if they are no longer defined in Git' />
                     </div>
                     <div className='checkbox-container'>
-                        <Checkbox onChange={val => setValue({...automated, selfHeal: val})} checked={automated.selfHeal} id='policySelfHeal' />
-                        <label htmlFor='selfHeal'>Self Heal</label>
+                        <Checkbox onChange={val => setValue({...automated, selfHeal: val})} checked={!!automated.selfHeal} id='policySelfHeal' />
+                        <label htmlFor='policySelfHeal'>Self Heal</label>
                         <HelpIcon title='If checked, Argo will force the state defined in Git into the cluster when a deviation in the cluster is detected' />
                     </div>
                 </div>
@@ -189,7 +189,6 @@ export const ApplicationCreatePanel = (props: {
                                                 <div className='argo-form-row'>
                                                     <label>Sync Options</label>
                                                     <FormField formApi={api} field='spec.syncPolicy.syncOptions' component={ApplicationSyncOptionsField} />
-                                                    <FormField formApi={api} field='spec.syncPolicy.syncOptions' component={ApplicationSyncOptionsCreateNamespaceField} />
                                                 </div>
                                             </div>
                                         );

@@ -1353,3 +1353,17 @@ func TestNamespaceAutoCreation(t *testing.T) {
 			assert.Contains(t, output, updatedNamespace)
 		})
 }
+
+func TestFailedSyncWithRetry(t *testing.T) {
+	Given(t).
+		Path(guestbookPath).
+		When().
+		// app should be attempted to auto-synced once and marked with error after failed attempt detected
+		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": "badValue"}]`).
+		Create().
+		IgnoreErrors().
+		Sync("--retry-limit=1", "--retry-backoff-duration=1s").
+		Then().
+		Expect(OperationPhaseIs(OperationFailed)).
+		Expect(OperationMessageContains("retried 1 times"))
+}
