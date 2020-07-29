@@ -59,7 +59,7 @@
 
     [RBAC Configurations](../rbac.md)
 
-        ConfigMap -> argocd-cm
+        ConfigMap -> argocd-rbac-cm
 
         policy.default: role:readonly
         policy.csv: |
