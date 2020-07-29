@@ -2,7 +2,7 @@ import {AutocompleteField, Checkbox, DataLoader, DropDownMenu, FormField, HelpIc
 import * as deepMerge from 'deepmerge';
 import * as React from 'react';
 import {FieldApi, Form, FormApi, FormField as ReactFormField, Text} from 'react-form';
-import {clusterTitle, RevisionHelpIcon, YamlEditor} from '../../../shared/components';
+import {RevisionHelpIcon, YamlEditor} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ApplicationParameters} from '../application-parameters/application-parameters';
@@ -102,6 +102,7 @@ export const ApplicationCreatePanel = (props: {
 }) => {
     const [yamlMode, setYamlMode] = React.useState(false);
     const [explicitPathType, setExplicitPathType] = React.useState<{path: string; type: models.AppSourceType}>(null);
+    const [destFormat, setDestFormat] = React.useState('URL');
 
     function normalizeTypeFields(formApi: FormApi, type: models.AppSourceType) {
         const app = formApi.getFormState().values;
@@ -120,15 +121,12 @@ export const ApplicationCreatePanel = (props: {
                 load={() =>
                     Promise.all([
                         services.projects.list().then(projects => projects.map(proj => proj.metadata.name).sort()),
-                        services.clusters
-                            .list()
-                            .then(clusters =>
-                                clusters.map(cluster => ({label: clusterTitle(cluster), value: cluster.server})).sort((first, second) => first.label.localeCompare(second.label))
-                            ),
+                        services.clusters.list().then(clusters => clusters.map(cluster => cluster.server).sort()),
+                        services.clusters.list().then(clusters => clusters.map(cluster => cluster.name).sort()),
                         services.repos.list()
-                    ]).then(([projects, clusters, reposInfo]) => ({projects, clusters, reposInfo}))
+                    ]).then(([projects, clusterURLs, clusterNames, reposInfo]) => ({projects, clusterURLs, clusterNames, reposInfo}))
                 }>
-                {({projects, clusters, reposInfo}) => {
+                {({projects, clusterURLs, clusterNames, reposInfo}) => {
                     const repos = reposInfo.map(info => info.repo).sort();
                     const app = deepMerge(DEFAULT_APP, props.app || {});
                     const repoInfo = reposInfo.find(info => info.repo === app.spec.source.repoURL);
@@ -312,18 +310,48 @@ export const ApplicationCreatePanel = (props: {
                                                 )}
                                             </div>
                                         );
-
                                         const destinationPanel = () => (
                                             <div className='white-box'>
                                                 <p>DESTINATION</p>
-                                                <div className='argo-form-row'>
-                                                    <FormField
-                                                        formApi={api}
-                                                        label='Cluster'
-                                                        field='spec.destination.server'
-                                                        componentProps={{items: clusters}}
-                                                        component={AutocompleteField}
-                                                    />
+                                                <div className='row argo-form-row'>
+                                                    {(destFormat.toUpperCase() === 'URL' && (
+                                                        <div className='columns small-10'>
+                                                            <FormField
+                                                                formApi={api}
+                                                                label='Cluster URL'
+                                                                field='spec.destination.server'
+                                                                componentProps={{items: clusterURLs}}
+                                                                component={AutocompleteField}
+                                                            />
+                                                        </div>
+                                                    )) || (
+                                                        <div className='columns small-10'>
+                                                            <FormField
+                                                                formApi={api}
+                                                                label='Cluster Name'
+                                                                field='spec.destination.name'
+                                                                componentProps={{items: clusterNames}}
+                                                                component={AutocompleteField}
+                                                            />
+                                                        </div>
+                                                    )}
+                                                    <div className='columns small-2'>
+                                                        <div style={{paddingTop: '1.5em'}}>
+                                                            <DropDownMenu
+                                                                anchor={() => (
+                                                                    <p>
+                                                                        {destFormat.toUpperCase()} <i className='fa fa-caret-down' />
+                                                                    </p>
+                                                                )}
+                                                                items={['url', 'name'].map((type: 'url' | 'name') => ({
+                                                                    title: type.toUpperCase(),
+                                                                    action: () => {
+                                                                        setDestFormat(type);
+                                                                    }
+                                                                }))}
+                                                            />
+                                                        </div>
+                                                    </div>
                                                 </div>
                                                 <div className='argo-form-row'>
                                                     <FormField formApi={api} label='Namespace' field='spec.destination.namespace' component={Text} />
