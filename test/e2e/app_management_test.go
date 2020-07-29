@@ -1368,7 +1368,7 @@ func TestFailedSyncWithRetry(t *testing.T) {
 		Expect(OperationMessageContains("retried 1 times"))
 }
 
-func TestCreateWithoutValidation(t *testing.T) {
+func TestCreateDisableValidation(t *testing.T) {
 	Given(t).
 		Path("baddir").
 		When().
