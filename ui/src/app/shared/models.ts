@@ -632,6 +632,7 @@ export interface ProjectSpec {
     description: string;
     roles: ProjectRole[];
     clusterResourceWhitelist: GroupKind[];
+    clusterResourceBlacklist: GroupKind[];
     namespaceResourceBlacklist: GroupKind[];
     namespaceResourceWhitelist: GroupKind[];
     signatureKeys: ProjectSignatureKey[];
