@@ -76,6 +76,7 @@ message ApplicationSyncRequest {
 	repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.SyncOperationResource resources = 7 [(gogoproto.nullable) = false];
 	repeated string manifests = 8;
 	repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Info infos = 9;
+	optional github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.RetryStrategy retryStrategy = 10;
 }
 
 // ApplicationUpdateSpecRequest is a request to update application spec

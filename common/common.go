@@ -55,6 +55,12 @@ const (
 	DefaultGnuPgHomePath = "/app/config/gpg/keys"
 )
 
+const (
+	DefaultSyncRetryDuration    = 5 * time.Second
+	DefaultSyncRetryMaxDuration = 3 * time.Minute
+	DefaultSyncRetryFactor      = int64(2)
+)
+
 // Argo CD application related constants
 const (
 	// KubernetesInternalAPIServerAddr is address of the k8s API server when accessing internal to the cluster

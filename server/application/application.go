@@ -1074,9 +1074,15 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 	if err != nil {
 		return nil, status.Errorf(codes.FailedPrecondition, err.Error())
 	}
+
+	var retry *appv1.RetryStrategy
 	var syncOptions appv1.SyncOptions
 	if a.Spec.SyncPolicy != nil {
 		syncOptions = a.Spec.SyncPolicy.SyncOptions
+		retry = a.Spec.SyncPolicy.Retry
+	}
+	if syncReq.RetryStrategy != nil {
+		retry = syncReq.RetryStrategy
 	}
 
 	// We cannot use local manifests if we're only allowed to sync to signed commits
@@ -1097,6 +1103,10 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		InitiatedBy: appv1.OperationInitiator{Username: session.Username(ctx)},
 		Info:        syncReq.Infos,
 	}
+	if retry != nil {
+		op.Retry = *retry
+	}
+
 	a, err = argo.SetAppOperation(appIf, *syncReq.Name, &op)
 	if err == nil {
 		partial := ""

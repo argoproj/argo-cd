@@ -6,7 +6,7 @@ import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 
-import {ApplicationSyncOptionsCreateNamespaceField, ApplicationSyncOptionsField} from '../application-sync-options';
+import {ApplicationSyncOptionsField} from '../application-sync-options';
 import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage} from '../utils';
 
 require('./application-summary.scss');
@@ -128,7 +128,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                                                           items: versions
                                                       }}
                                                   />
-                                                  <RevisionHelpIcon type='helm' />
+                                                  <RevisionHelpIcon type='helm' top='0' />
                                               </div>
                                           )}
                                       </DataLoader>
@@ -145,7 +145,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                       edit: (formApi: FormApi) => (
                           <React.Fragment>
                               <FormField formApi={formApi} field='spec.source.targetRevision' component={Text} componentProps={{placeholder: 'HEAD'}} />
-                              <RevisionHelpIcon type='git' />{' '}
+                              <RevisionHelpIcon type='git' top='0' />{' '}
                           </React.Fragment>
                       )
                   },
@@ -160,17 +160,18 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
             title: 'REVISION HISTORY LIMIT',
             view: app.spec.revisionHistoryLimit,
             edit: (formApi: FormApi) => (
-                <React.Fragment>
+                <div style={{position: 'relative'}}>
                     <FormField formApi={formApi} field='spec.revisionHistoryLimit' component={Text} />
-                    <HelpIcon
-                        title='This limits this number of items kept in the apps revision history.
-This should only be changed in exceptional circumstances.
-Setting to zero will store no history. This will reduce storage used.
-Increasing will increase the space used to store the history, so we do not recommend increasing it.
-Default is 10.
-'
-                    />
-                </React.Fragment>
+                    <div style={{position: 'absolute', right: '0', top: '0'}}>
+                        <HelpIcon
+                            title='This limits this number of items kept in the apps revision history.
+    This should only be changed in exceptional circumstances.
+    Setting to zero will store no history. This will reduce storage used.
+    Increasing will increase the space used to store the history, so we do not recommend increasing it.
+    Default is 10.'
+                        />
+                    </div>
+                </div>
             )
         },
         {
@@ -179,7 +180,6 @@ Default is 10.
             edit: (formApi: FormApi) => (
                 <div>
                     <FormField formApi={formApi} field='spec.syncPolicy.syncOptions' component={ApplicationSyncOptionsField} />
-                    <FormField formApi={formApi} field='spec.syncPolicy.syncOptions' component={ApplicationSyncOptionsCreateNamespaceField} />
                 </div>
             )
         },
