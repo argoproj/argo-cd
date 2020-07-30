@@ -4,22 +4,21 @@
 .project {
   &__button {
     display: block;
-    padding-top: 7px;
-    padding-bottom: 7px;
+    padding: 7px;
     margin-right: 10px;
     border-radius: 7px;
-  }
-
-  &__button {
     cursor: pointer;
     width: 100%;
-    flex-shrink: 0;
+    color: $white-color;
+    font-weight: 600;
   }
 
   &__button-save {
     background-color: $save-green;
-    color: $white-color;
-    font-weight: 600;
+  }
+
+  &__button-cancel {
+    background-color: $cancel-red;
   }
 
   &__button-round {
@@ -35,13 +34,13 @@
   }
 
   &__button-remove {
-    border: 2px solid $argo-color-red;
-    color: $argo-color-red;
+    border: 2px solid $cancel-red;
+    color: $cancel-red;
     transition: all 300ms;
 
     &:hover {
       color: $white-color;
-      background-color: $argo-color-red;
+      background-color: $cancel-red;
     }
   }
 

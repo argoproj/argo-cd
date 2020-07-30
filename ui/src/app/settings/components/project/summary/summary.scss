@@ -15,7 +15,11 @@
   }
 
   &__description {
-    display: flex;
+    &--row {
+      display: flex;
+      margin-bottom: 10px;
+    }
+
     input {
       background: none;
       border: none;
@@ -27,6 +31,14 @@
       margin-left: 10px;
     }
 
+    &--actions {
+      display: flex;
+      flex-shrink: 1;
+      flex-grow: 0;
+      div {
+        margin-right: 10px;
+      }
+    }
   }
 
   &__section {
