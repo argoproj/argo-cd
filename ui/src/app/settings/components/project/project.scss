@@ -1,0 +1,54 @@
+@import 'node_modules/argo-ui/src/styles/config';
+@import './config';
+
+.project {
+  &__button {
+    display: block;
+    padding-top: 7px;
+    padding-bottom: 7px;
+    margin-right: 10px;
+    border-radius: 7px;
+  }
+
+  &__button {
+    cursor: pointer;
+    width: 100%;
+    flex-shrink: 0;
+  }
+
+  &__button-save {
+    background-color: $save-green;
+    color: $white-color;
+    font-weight: 600;
+  }
+
+  &__button-round {
+    padding: 0;
+    border-radius: 100%;
+    font-weight: 800;
+    font-size: 25px;
+    width: $round-button-size;
+    height: $round-button-size;
+    line-height: $round-button-size;
+    text-align: center;
+    margin: 0 auto;
+  }
+
+  &__button-remove {
+    border: 2px solid $argo-color-red;
+    color: $argo-color-red;
+    transition: all 300ms;
+
+    &:hover {
+      color: $white-color;
+      background-color: $argo-color-red;
+    }
+  }
+
+  &__button-add {
+    background-color: $save-green;
+    margin-left: auto;
+    margin-right: 0;
+    color: $white-color;
+  }
+}

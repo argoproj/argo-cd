@@ -1,6 +1,7 @@
 import * as React from 'react';
 import {ResourceKindSelector} from './resource-kind-selector';
 
+require('./project.scss');
 require('./card.scss');
 
 interface CardProps {
@@ -24,7 +25,7 @@ export class Card extends React.Component<CardProps> {
             <div className='card'>
                 <div className='card__row'>
                     <div className='card__title'>{this.props.title}</div>
-                    <button className='card__button card__button-add card__button-round'>+</button>
+                    <button className='project__button project__button-add project__button-round'>+</button>
                 </div>
                 <div className='card__row card__input-labels'>
                     <div className='card__col-round-button card__col' />
@@ -39,7 +40,7 @@ export class Card extends React.Component<CardProps> {
                 </div>
                 <div className='card__input-container card__row'>
                     <div className='card__col-round-button card__col'>
-                        <button className='card__button card__button-remove card__button-round'>-</button>
+                        <button className='project__button project__button-remove project__button-round'>-</button>
                     </div>
                     {this.props.fields.map(field => {
                         let format;
@@ -57,7 +58,7 @@ export class Card extends React.Component<CardProps> {
                         );
                     })}
                     <div className='card__col-button card__col'>
-                        <button className='card__button card__button-save'>SAVE</button>
+                        <button className='project__button project__button-save'>SAVE</button>
                     </div>
                 </div>
             </div>

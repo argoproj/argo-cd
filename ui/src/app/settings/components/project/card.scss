@@ -1,10 +1,5 @@
 @import 'node_modules/argo-ui/src/styles/config';
-
-$save-green: #50c57c;
-$active-blue: #39a3e2;
-
-$button-width: 60px;
-$round-button-size: 27px;
+@import './config';
 
 .card {
   background-color: $white-color;
@@ -22,25 +17,22 @@ $round-button-size: 27px;
     align-items: center;
   }
 
-  &__button, input, select {
-    display: block;
-    padding-top: 7px;
-    padding-bottom: 7px;
-    margin-right: 10px;
-    border-radius: 7px;
-  }
-
   input, select {
     font-size: 17px;
     outline: none;
     box-shadow: none;
     border: 2px solid $argo-color-gray-4;
     padding-left: 7px;
+    padding-top: 7px;
+    padding-bottom: 7px;
     font-weight: 500;
     height: 2.5em;
     box-sizing: border-box;
     width: 100%;
     line-height: 1em;
+    display: block;
+    margin-right: 10px;
+    border-radius: 7px;
   }
 
   input:focus {
@@ -58,49 +50,6 @@ $round-button-size: 27px;
       font-weight: 500;
       text-transform: uppercase;
     }
-  }
-
-
-  &__button {
-    cursor: pointer;
-    width: 100%;
-    flex-shrink: 0;
-  }
-
-  &__button-save {
-    background-color: $save-green;
-    color: $white-color;
-    font-weight: 600;
-  }
-
-  &__button-round {
-    padding: 0;
-    border-radius: 100%;
-    font-weight: 800;
-    font-size: 25px;
-    width: $round-button-size;
-    height: $round-button-size;
-    line-height: $round-button-size;
-    text-align: center;
-    margin: 0 auto;
-  }
-
-  &__button-remove {
-    border: 2px solid $argo-color-red;
-    color: $argo-color-red;
-    transition: all 300ms;
-
-    &:hover {
-      color: $white-color;
-      background-color: $argo-color-red;
-    }
-  }
-
-  &__button-add {
-    background-color: $save-green;
-    margin-left: auto;
-    margin-right: 0;
-    color: $white-color;
   }
 
   &__col {
