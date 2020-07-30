@@ -177,11 +177,10 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 
 			conn, appIf := argocdClient.NewApplicationClientOrDie()
 			defer argoio.Close(conn)
-			validate := !appOpts.disableValidation
 			appCreateRequest := applicationpkg.ApplicationCreateRequest{
 				Application: app,
 				Upsert:      &upsert,
-				Validate:    &validate,
+				Validate:    &appOpts.validate,
 			}
 			created, err := appIf.Create(context.Background(), &appCreateRequest)
 			errors.CheckError(err)
@@ -478,11 +477,10 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				os.Exit(1)
 			}
 			setParameterOverrides(app, appOpts.parameters)
-			validate := !appOpts.disableValidation
 			_, err = appIf.UpdateSpec(ctx, &applicationpkg.ApplicationUpdateSpecRequest{
 				Name:     &app.Name,
 				Spec:     app.Spec,
-				Validate: &validate,
+				Validate: &appOpts.validate,
 			})
 			errors.CheckError(err)
 		},
@@ -751,7 +749,7 @@ type appOptions struct {
 	jsonnetLibs            []string
 	kustomizeImages        []string
 	kustomizeVersion       string
-	disableValidation      bool
+	validate               bool
 }
 
 func addAppFlags(command *cobra.Command, opts *appOptions) {
@@ -787,7 +785,7 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().StringArrayVar(&opts.jsonnetExtVarCode, "jsonnet-ext-var-code", []string{}, "Jsonnet ext var")
 	command.Flags().StringArrayVar(&opts.jsonnetLibs, "jsonnet-libs", []string{}, "Additional jsonnet libs (prefixed by repoRoot)")
 	command.Flags().StringArrayVar(&opts.kustomizeImages, "kustomize-image", []string{}, "Kustomize images (e.g. --kustomize-image node:8.15.0 --kustomize-image mysql=mariadb,alpine@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d)")
-	command.Flags().BoolVar(&opts.disableValidation, "disable-validation", false, "Disable validation of repo and cluster")
+	command.Flags().BoolVar(&opts.validate, "validate", true, " Validation of repo and cluster")
 }
 
 // NewApplicationUnsetCommand returns a new instance of an `argocd app unset` command
@@ -800,6 +798,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 		namePrefix       bool
 		kustomizeVersion bool
 		kustomizeImages  []string
+		appOpts          appOptions
 	)
 	var command = &cobra.Command{
 		Use:   "unset APPNAME parameters",
@@ -909,9 +908,11 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 				}
 			}
 
+			setAppSpecOptions(c.Flags(), &app.Spec, &appOpts)
 			_, err = appIf.UpdateSpec(context.Background(), &applicationpkg.ApplicationUpdateSpecRequest{
-				Name: &app.Name,
-				Spec: app.Spec,
+				Name:     &app.Name,
+				Spec:     app.Spec,
+				Validate: &appOpts.validate,
 			})
 			errors.CheckError(err)
 		},
@@ -2169,7 +2170,10 @@ func NewApplicationEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				if err != nil {
 					return err
 				}
-				_, err = appIf.UpdateSpec(context.Background(), &applicationpkg.ApplicationUpdateSpecRequest{Name: &app.Name, Spec: updatedSpec})
+
+				var appOpts appOptions
+				setAppSpecOptions(c.Flags(), &app.Spec, &appOpts)
+				_, err = appIf.UpdateSpec(context.Background(), &applicationpkg.ApplicationUpdateSpecRequest{Name: &app.Name, Spec: updatedSpec, Validate: &appOpts.validate})
 				if err != nil {
 					return fmt.Errorf("Failed to update application spec:\n%v", err)
 				}

@@ -467,7 +467,11 @@ func (s *Server) Update(ctx context.Context, q *application.ApplicationUpdateReq
 		return nil, err
 	}
 
-	return s.validateAndUpdateApp(ctx, q.Application, false, true)
+	validate := true
+	if q.Validate != nil {
+		validate = *q.Validate
+	}
+	return s.validateAndUpdateApp(ctx, q.Application, false, validate)
 }
 
 // UpdateSpec updates an application spec and filters out any invalid parameter overrides

@@ -59,6 +59,7 @@ message ApplicationCreateRequest {
 
 message ApplicationUpdateRequest {
 	required github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application application = 1;
+	optional bool validate = 2;
 }
 
 message ApplicationDeleteRequest {
