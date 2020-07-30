@@ -77,6 +77,28 @@ func SetConfig(config *rest.Config) UpdateSettingsFunc {
 	}
 }
 
+// SetListPageSize sets the page size for list pager.
+func SetListPageSize(listPageSize int64) UpdateSettingsFunc {
+	return func(cache *clusterCache) {
+		cache.listPageSize = listPageSize
+	}
+}
+
+// SetListPageBufferSize sets the number of pages to prefetch for list pager.
+func SetListPageBufferSize(listPageBufferSize int32) UpdateSettingsFunc {
+	return func(cache *clusterCache) {
+		cache.listPageBufferSize = listPageBufferSize
+	}
+}
+
+// SetListSemaphore sets the semaphore for list operations.
+// Taking an object rather than a number allows to share a semaphore among multiple caches if necessary.
+func SetListSemaphore(listSemaphore WeightedSemaphore) UpdateSettingsFunc {
+	return func(cache *clusterCache) {
+		cache.listSemaphore = listSemaphore
+	}
+}
+
 // SetResyncTimeout updates cluster re-sync timeout
 func SetResyncTimeout(timeout time.Duration) UpdateSettingsFunc {
 	return func(cache *clusterCache) {

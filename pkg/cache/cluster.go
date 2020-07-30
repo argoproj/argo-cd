@@ -29,35 +29,17 @@ const (
 	clusterSyncTimeout         = 24 * time.Hour
 	watchResourcesRetryTimeout = 1 * time.Second
 	ClusterRetryTimeout        = 10 * time.Second
-)
 
-var (
-	// listSemaphore is used to limit the number of concurrent k8s list queries.
-	// Global limit is required to avoid memory spikes during cache initialization.
+	// Same page size as in k8s.io/client-go/tools/pager/pager.go
+	defaultListPageSize = 500
+	// Prefetch only a single page
+	defaultListPageBufferSize = 1
+	// listSemaphore is used to limit the number of concurrent memory consuming operations on the
+	// k8s list queries results.
+	// Limit is required to avoid memory spikes during cache initialization.
 	// The default limit of 50 is chosen based on experiments.
-	listSemaphore = semaphore.NewWeighted(50)
+	defaultListSemaphoreWeight = 50
 )
-
-// SetMaxConcurrentList set maximum number of concurrent K8S list calls.
-// If set to 0 then no limit is enforced.
-// Note: method is not thread safe. Use it during initialization before executing ClusterCache.EnsureSynced method.
-func SetMaxConcurrentList(val int64) {
-	if val > 0 {
-		listSemaphore = semaphore.NewWeighted(val)
-	} else {
-		listSemaphore = nil
-	}
-}
-
-func list(resClient dynamic.ResourceInterface, opts metav1.ListOptions) (*unstructured.UnstructuredList, error) {
-	if listSemaphore != nil {
-		if err := listSemaphore.Acquire(context.Background(), 1); err != nil {
-			return nil, err
-		}
-		defer listSemaphore.Release(1)
-	}
-	return resClient.List(opts)
-}
 
 type apiMeta struct {
 	namespaced      bool
@@ -118,12 +100,21 @@ type ClusterCache interface {
 	OnEvent(handler OnEventHandler) Unsubscribe
 }
 
+type WeightedSemaphore interface {
+	Acquire(ctx context.Context, n int64) error
+	TryAcquire(n int64) bool
+	Release(n int64)
+}
+
 // NewClusterCache creates new instance of cluster cache
 func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) *clusterCache {
 	cache := &clusterCache{
 		resyncTimeout:           clusterSyncTimeout,
 		settings:                Settings{ResourceHealthOverride: &noopSettings{}, ResourcesFilter: &noopSettings{}},
 		apisMeta:                make(map[schema.GroupKind]*apiMeta),
+		listPageSize:            defaultListPageSize,
+		listPageBufferSize:      defaultListPageBufferSize,
+		listSemaphore:           semaphore.NewWeighted(defaultListSemaphoreWeight),
 		resources:               make(map[kube.ResourceKey]*Resource),
 		nsIndex:                 make(map[string]map[kube.ResourceKey]*Resource),
 		config:                  config,
@@ -148,6 +139,12 @@ type clusterCache struct {
 	apiGroups     []metav1.APIGroup
 	// namespacedResources is a simple map which indicates a groupKind is namespaced
 	namespacedResources map[schema.GroupKind]bool
+
+	// size of a page for list operations pager.
+	listPageSize int64
+	// number of pages to prefetch for list pager.
+	listPageBufferSize int32
+	listSemaphore      WeightedSemaphore
 
 	// lock is a rw lock which protects the fields of clusterInfo
 	lock      sync.RWMutex
@@ -428,28 +425,36 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 		}()
 
 		err = runSynced(&c.lock, func() error {
-			if info.resourceVersion == "" {
-				listPager := pager.New(func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
-					res, err := list(resClient, opts)
-					if err == nil {
-						info.resourceVersion = res.GetResourceVersion()
-					}
-					return res, err
-				})
-				var items []unstructured.Unstructured
-				err = listPager.EachListItem(ctx, metav1.ListOptions{}, func(obj runtime.Object) error {
-					if un, ok := obj.(*unstructured.Unstructured); !ok {
-						return fmt.Errorf("object %s/%s has an unexpected type", un.GroupVersionKind().String(), un.GetName())
-					} else {
-						items = append(items, *un)
-					}
-					return nil
-				})
-				if err != nil {
-					return fmt.Errorf("failed to load initial state of resource %s: %v", api.GroupKind.String(), err)
-				}
-				c.replaceResourceCache(api.GroupKind, info.resourceVersion, items, ns)
+			if info.resourceVersion != "" {
+				return nil
 			}
+			listPager := pager.New(func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
+				res, err := resClient.List(opts)
+				if err == nil {
+					info.resourceVersion = res.GetResourceVersion()
+				}
+				return res, err
+			})
+			listPager.PageBufferSize = c.listPageBufferSize
+			listPager.PageSize = c.listPageSize
+			if err := c.listSemaphore.Acquire(ctx, 1); err != nil {
+				return err
+			}
+			defer c.listSemaphore.Release(1)
+
+			var items []unstructured.Unstructured
+			err = listPager.EachListItem(ctx, metav1.ListOptions{}, func(obj runtime.Object) error {
+				if un, ok := obj.(*unstructured.Unstructured); !ok {
+					return fmt.Errorf("object %s/%s has an unexpected type", un.GroupVersionKind().String(), un.GetName())
+				} else {
+					items = append(items, *un)
+				}
+				return nil
+			})
+			if err != nil {
+				return fmt.Errorf("failed to load initial state of resource %s: %v", api.GroupKind.String(), err)
+			}
+			c.replaceResourceCache(api.GroupKind, info.resourceVersion, items, ns)
 			return nil
 		})
 
@@ -572,7 +577,7 @@ func (c *clusterCache) sync() (err error) {
 		return c.processApi(client, api, func(resClient dynamic.ResourceInterface, ns string) error {
 
 			listPager := pager.New(func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
-				res, err := list(resClient, opts)
+				res, err := resClient.List(opts)
 				if err == nil {
 					lock.Lock()
 					info.resourceVersion = res.GetResourceVersion()
@@ -580,6 +585,13 @@ func (c *clusterCache) sync() (err error) {
 				}
 				return res, err
 			})
+			listPager.PageBufferSize = c.listPageBufferSize
+			listPager.PageSize = c.listPageSize
+
+			if err := c.listSemaphore.Acquire(ctx, 1); err != nil {
+				return err
+			}
+			defer c.listSemaphore.Release(1)
 
 			err = listPager.EachListItem(context.Background(), metav1.ListOptions{}, func(obj runtime.Object) error {
 				if un, ok := obj.(*unstructured.Unstructured); !ok {
