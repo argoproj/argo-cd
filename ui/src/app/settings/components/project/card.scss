@@ -1,0 +1,96 @@
+@import 'node_modules/argo-ui/src/styles/config';
+
+$save-green: #50c57c;
+$active-blue: #39a3e2;
+
+.card {
+  background-color: $white-color;
+  padding: 25px;
+  border-radius: 18px;
+
+  &__title {
+    color : black;
+    font-size: 27px;
+    margin-bottom: 15px;
+  }
+
+  &__row {
+    display: flex;
+    align-items: center;
+  }
+
+  &__button, input, select {
+    display: block;
+    padding-top: 7px;
+    padding-bottom: 7px;
+    margin-right: 10px;
+    border-radius: 7px;
+  }
+
+  input, select {
+    font-size: 17px;
+    outline: none;
+    box-shadow: none;
+    border: 2px solid $argo-color-gray-4;
+    padding-left: 7px;
+    font-weight: 500;
+    height: 2.5em;
+    box-sizing: border-box;
+    width: auto;
+    line-height: 1em;
+  }
+
+  input:focus {
+    border: 2px solid $active-blue;
+    color: $active-blue - #555;
+  }
+
+  input::placeholder {
+    font-weight: 400;
+  }
+
+  &__input-labels {
+    margin-bottom: 10px;
+    &--label {
+      font-weight: 500;
+      text-transform: uppercase;
+    }
+  }
+
+
+  &__button {
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  &__button-save {
+    background-color: $save-green;
+    width: 60px;
+    color: $white-color;
+    font-weight: 600;
+
+  }
+
+  &__button-round {
+    padding: 0;
+    border-radius: 100%;
+    font-weight: 800;
+    font-size: 25px;
+    $size: 27px;
+    width: $size;
+    height: $size;
+    line-height: $size;
+    text-align: center;
+  }
+
+  &__button-remove {
+    background-color: $argo-color-red;
+    color: $white-color;
+  }
+
+  &__button-add {
+    background-color: $save-green;
+    margin-left: auto;
+    color: $white-color;
+  }
+}

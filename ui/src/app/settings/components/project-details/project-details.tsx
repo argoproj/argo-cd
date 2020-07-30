@@ -14,6 +14,8 @@ import {ProjectEvents} from '../project-events/project-events';
 import {ProjectRoleEditPanel} from '../project-role-edit-panel/project-role-edit-panel';
 import {ProjectSyncWindowsEditPanel} from '../project-sync-windows-edit-panel/project-sync-windows-edit-panel';
 
+import {ProjectSummary} from '../project/summary/summary';
+
 import {ProjectSyncWindowsParams} from '../../../shared/services/projects-service';
 
 import {SyncWindowStatusIcon} from '../../../applications/components/utils';
@@ -92,6 +94,11 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                         key: 'summary',
                                                         title: 'Summary',
                                                         content: this.summaryTab(proj)
+                                                    },
+                                                    {
+                                                        key: 'redesign',
+                                                        title: 'Redesigned Summary',
+                                                        content: this.redesignSummarytab(proj)
                                                     },
                                                     {
                                                         key: 'roles',
@@ -470,6 +477,10 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                 )}
             </div>
         );
+    }
+
+    private redesignSummarytab(proj: Project) {
+        return <ProjectSummary name={proj.metadata.name}/>
     }
 
     private summaryTab(proj: Project) {

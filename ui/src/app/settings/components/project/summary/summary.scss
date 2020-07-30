@@ -1,0 +1,31 @@
+@import 'node_modules/argo-ui/src/styles/config';
+
+.project-summary {
+  width: 95%;
+  margin: 0 auto;
+
+  .card {
+    margin-right: 30px;
+  }
+
+  &__title {
+    font-size: 33px;
+    color: black;
+    margin: 10px 0;
+  }
+
+  &__section {
+    margin: 30px 0;
+    &--row {
+      display: flex;
+    }
+  }
+
+  &__label {
+    text-transform: uppercase;
+    color: $argo-color-gray-7;
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 15px;
+  }
+}
