@@ -27,21 +27,38 @@ export class Card extends React.Component<CardProps> {
                     <button className='card__button card__button-add card__button-round'>+</button>
                 </div>
                 <div className='card__row card__input-labels'>
+                    <div className='card__col-round-button card__col' />
                     {this.props.fields.map(field => {
-                        return <div className='card__input-labels--label'>{field.name}</div>;
+                        return (
+                            <div className='card__input-labels--label card__col-input card__col' key={field.name + 'label'}>
+                                {field.name}
+                            </div>
+                        );
                     })}
+                    <div className='card__col-button card__col' />
                 </div>
                 <div className='card__input-container card__row'>
-                    <button className='card__button card__button-remove card__button-round'>-</button>
+                    <div className='card__col-round-button card__col'>
+                        <button className='card__button card__button-remove card__button-round'>-</button>
+                    </div>
                     {this.props.fields.map(field => {
+                        let format;
                         switch (field.type) {
                             case FieldType.ResourceKindSelector:
-                                return <ResourceKindSelector />;
+                                format = <ResourceKindSelector />;
+                                break;
                             default:
-                                return <input key={field.type + '.' + field.name} type='text' placeholder={field.name} />;
+                                format = <input type='text' placeholder={field.name} />;
                         }
+                        return (
+                            <div key={field.type + '.' + field.name} className='card__col-input card__col'>
+                                {format}
+                            </div>
+                        );
                     })}
-                    <button className='card__button card__button-save'>SAVE</button>
+                    <div className='card__col-button card__col'>
+                        <button className='card__button card__button-save'>SAVE</button>
+                    </div>
                 </div>
             </div>
         );

@@ -3,6 +3,9 @@
 $save-green: #50c57c;
 $active-blue: #39a3e2;
 
+$button-width: 60px;
+$round-button-size: 27px;
+
 .card {
   background-color: $white-color;
   padding: 25px;
@@ -36,7 +39,7 @@ $active-blue: #39a3e2;
     font-weight: 500;
     height: 2.5em;
     box-sizing: border-box;
-    width: auto;
+    width: 100%;
     line-height: 1em;
   }
 
@@ -60,15 +63,14 @@ $active-blue: #39a3e2;
 
   &__button {
     cursor: pointer;
+    width: 100%;
     flex-shrink: 0;
   }
 
   &__button-save {
     background-color: $save-green;
-    width: 60px;
     color: $white-color;
     font-weight: 600;
-
   }
 
   &__button-round {
@@ -76,11 +78,11 @@ $active-blue: #39a3e2;
     border-radius: 100%;
     font-weight: 800;
     font-size: 25px;
-    $size: 27px;
-    width: $size;
-    height: $size;
-    line-height: $size;
+    width: $round-button-size;
+    height: $round-button-size;
+    line-height: $round-button-size;
     text-align: center;
+    margin: 0 auto;
   }
 
   &__button-remove {
@@ -91,6 +93,26 @@ $active-blue: #39a3e2;
   &__button-add {
     background-color: $save-green;
     margin-left: auto;
+    margin-right: 0;
     color: $white-color;
   }
+
+  &__col {
+    display: block;
+    margin: 0 5px;
+  }
+
+  &__col-round-button {
+    flex-basis: $round-button-size;
+  }
+
+  &__col-button {
+    flex-basis: $button-width;
+  }
+
+  &__col-input {
+    flex: 3;
+  }
+
+
 }
