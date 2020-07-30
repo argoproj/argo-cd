@@ -86,8 +86,14 @@ $round-button-size: 27px;
   }
 
   &__button-remove {
-    background-color: $argo-color-red;
-    color: $white-color;
+    border: 2px solid $argo-color-red;
+    color: $argo-color-red;
+    transition: all 300ms;
+
+    &:hover {
+      color: $white-color;
+      background-color: $argo-color-red;
+    }
   }
 
   &__button-add {
