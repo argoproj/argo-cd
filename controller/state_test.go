@@ -121,6 +121,33 @@ func TestCompareAppStateHook(t *testing.T) {
 	assert.Equal(t, 0, len(app.Status.Conditions))
 }
 
+// TestCompareAppStateSkipHook checks that skipped resources are detected during manifest generation, and not
+// considered as part of resources when assessing Synced status
+func TestCompareAppStateSkipHook(t *testing.T) {
+	pod := NewPod()
+	pod.SetAnnotations(map[string]string{synccommon.AnnotationKeyHook: "Skip"})
+	podBytes, _ := json.Marshal(pod)
+	app := newFakeApp()
+	data := fakeData{
+		apps: []runtime.Object{app},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{string(podBytes)},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+	}
+	ctrl := newFakeController(&data)
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, nil)
+	assert.NotNil(t, compRes)
+	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
+	assert.Equal(t, 1, len(compRes.resources))
+	assert.Equal(t, 1, len(compRes.managedResources))
+	assert.Equal(t, 0, len(compRes.reconciliationResult.Hooks))
+	assert.Equal(t, 0, len(app.Status.Conditions))
+}
+
 // checks that ignore resources are detected, but excluded from status
 func TestCompareAppStateCompareOptionIgnoreExtraneous(t *testing.T) {
 	pod := NewPod()

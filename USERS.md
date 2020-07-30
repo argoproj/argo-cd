@@ -33,6 +33,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Intuit](https://www.intuit.com/)
 1. [KintoHub](https://www.kintohub.com/)
 1. [KompiTech GmbH](https://www.kompitech.com/)
+1. [LINE](https://linecorp.com/en/)
 1. [Lytt](https://www.lytt.co/)
 1. [Major League Baseball](https://mlb.com)
 1. [Mambu](https://www.mambu.com/)

@@ -77,3 +77,27 @@ func TestSyncWithStatusIgnored(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
+
+func TestSyncWithSkipHook(t *testing.T) {
+	Given(t).
+		Path(guestbookPath).
+		When().
+		CreateFromFile(func(app *Application) {
+			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{SelfHeal: true}}
+		}).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		// app should remain synced when app has skipped annotation even if git change detected
+		When().
+		PatchFile("guestbook-ui-deployment.yaml", `[{ "op": "add", "path": "/metadata/annotations", "value": { "argocd.argoproj.io/hook": "Skip" }}]`).
+		PatchFile("guestbook-ui-deployment.yaml", `[{ "op": "replace", "path": "/spec/replicas", "value": 1 }]`).
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		// app should not remain synced if skipped annotation removed
+		When().
+		PatchFile("guestbook-ui-deployment.yaml", `[{ "op": "remove", "path": "/metadata/annotations" }]`).
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync))
+}
