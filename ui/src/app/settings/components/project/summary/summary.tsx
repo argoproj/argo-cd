@@ -1,23 +1,24 @@
 import * as React from 'react';
 
+import {Project} from '../../../../shared/models';
 import {services} from '../../../../shared/services';
 import {Card, FieldType} from '../card';
 require('./summary.scss');
 
 interface SummaryProps {
-    name: string;
-    description: string;
+    proj: Project;
 }
 
 interface SummaryState {
     name: string;
     description: string;
+    proj: Project;
 }
 
 export class ProjectSummary extends React.Component<SummaryProps, SummaryState> {
     constructor(props: SummaryProps) {
         super(props);
-        this.state = {name: props.name, description: props.description};
+        this.state = {name: props.proj.metadata.name, description: props.proj.spec.description, proj: props.proj};
     }
 
     public render() {
@@ -25,19 +26,21 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
             <div className='project-summary'>
                 <div>
                     <div className='project-summary__label'>PROJECT</div>
-                    <div className='project-summary__title'>{this.props.name}</div>
+                    <div className='project-summary__title'>{this.state.name}</div>
                     <div className='project-summary__description'>
-                        <input value={this.state.description} onChange={e => this.setState({description: e.target.value})} />
-                        {this.state.description !== this.props.description ? (
+                        {this.state.description !== this.props.proj.spec.description ? (
                             <button
                                 onClick={async () => {
-                                    await services.projects.updateDescription(this.props.name, this.state.description);
+                                    const update = {...this.state.proj};
+                                    update.spec.description = this.state.description;
+                                    await services.projects.updateLean(this.state.name, update);
                                 }}>
                                 Save
                             </button>
                         ) : (
                             <i className='fa fa-pencil-alt' />
                         )}
+                        <input value={this.state.description} onChange={e => this.setState({description: e.target.value})} />
                     </div>
                 </div>
                 <div className='project-summary__section'>

@@ -480,7 +480,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
     }
 
     private redesignSummarytab(proj: Project) {
-        return <ProjectSummary name={proj.metadata.name} description={proj.spec.description} />;
+        return <ProjectSummary proj={proj} />;
     }
 
     private summaryTab(proj: Project) {
