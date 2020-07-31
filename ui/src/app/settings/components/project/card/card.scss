@@ -1,5 +1,5 @@
 @import 'node_modules/argo-ui/src/styles/config';
-@import './config';
+@import 'src/app/settings/components/project/config';
 
 .card {
   background-color: $white-color;
@@ -15,6 +15,12 @@
   &__row {
     display: flex;
     align-items: center;
+  }
+
+  &__input-container {
+    div {
+      display: flex;
+    }
   }
 
   input, select {

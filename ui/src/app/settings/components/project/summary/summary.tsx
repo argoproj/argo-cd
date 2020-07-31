@@ -2,7 +2,8 @@ import * as React from 'react';
 
 import {Project} from '../../../../shared/models';
 import {services} from '../../../../shared/services';
-import {Card, FieldType} from '../card';
+import {Card} from '../card/card';
+import {FieldData, FieldTypes} from '../card/row';
 require('./summary.scss');
 
 interface SummaryProps {
@@ -13,6 +14,17 @@ interface SummaryState {
     name: string;
     description: string;
     proj: Project;
+}
+
+const SourceFields: FieldData[] = [{name: 'url', type: FieldTypes.Text}];
+interface SourceData {
+    url: string;
+}
+
+const DestinationFields: FieldData[] = [{name: 'namespace', type: FieldTypes.Text}, {name: 'server', type: FieldTypes.Text}];
+interface DestinationData {
+    namespace: string;
+    server: string;
 }
 
 export class ProjectSummary extends React.Component<SummaryProps, SummaryState> {
@@ -66,8 +78,8 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                 <div className='project-summary__section'>
                     <div className='project-summary__label'>DEPLOYMENT</div>
                     <div className='project-summary__section--row'>
-                        <Card title='Sources' fields={[{type: FieldType.Text, name: 'url'}]} />
-                        <Card title='Destinations' fields={[{type: FieldType.Text, name: 'server'}, {type: FieldType.Text, name: 'namespace'}]} />
+                        <Card<SourceData> title='Sources' fields={SourceFields} data={[{url: 'helloworld.com'}]} />
+                        <Card<DestinationData> title='Destinations' fields={DestinationFields} data={[{namespace: 'default', server: 'myserver'}]} />
                     </div>
                 </div>
             </div>

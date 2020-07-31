@@ -51,7 +51,9 @@ enum ResourceKinds {
     CSINode = 'csinodes',
     StorageClass = 'storageclasses',
     VolumeAttachment = 'volumeattachments'
- }
+}
+
+export type ResourceKind = keyof ResourceKinds;
 
 export class ResourceKindSelector extends React.Component {
     public render() {

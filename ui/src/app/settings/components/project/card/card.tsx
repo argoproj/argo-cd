@@ -1,25 +1,27 @@
 import * as React from 'react';
-import {ResourceKindSelector} from './resource-kind-selector';
+import {CardRow, FieldData} from './row';
 
-require('./project.scss');
+require('../project.scss');
 require('./card.scss');
 
-interface CardProps {
+interface CardProps<T> {
     title: string;
-    fields: Field[];
+    data: T[];
+    fields: FieldData[];
 }
 
-interface Field {
-    type: FieldType;
-    name: string;
-}
+// Field type describes structure of the card but not the state
+// Row type will store the state
 
-export enum FieldType {
-    Text = 'text',
-    ResourceKindSelector = 'resourceKindSelector'
-}
+// this.state.rows[x][field].(type | value)
 
-export class Card extends React.Component<CardProps> {
+// PROBLEM: state data must match form structure
+// so we need the structure of the data to define the structure of the form
+
+// data must have knowledge of form structure to ensure type safety
+// but there is a lot of redundancy and extra processing to store form structure in each piece of data
+
+export class Card<T> extends React.Component<CardProps<T>> {
     public render() {
         return (
             <div className='card'>
@@ -42,20 +44,8 @@ export class Card extends React.Component<CardProps> {
                     <div className='card__col-round-button card__col'>
                         <button className='project__button project__button-remove project__button-round'>-</button>
                     </div>
-                    {this.props.fields.map(field => {
-                        let format;
-                        switch (field.type) {
-                            case FieldType.ResourceKindSelector:
-                                format = <ResourceKindSelector />;
-                                break;
-                            default:
-                                format = <input type='text' placeholder={field.name} />;
-                        }
-                        return (
-                            <div key={field.type + '.' + field.name} className='card__col-input card__col'>
-                                {format}
-                            </div>
-                        );
+                    {this.props.data.map(row => {
+                        return <CardRow<T> key={row.toString()} fields={this.props.fields} data={row} />
                     })}
                     <div className='card__col-button card__col'>
                         <button className='project__button project__button-save'>SAVE</button>
