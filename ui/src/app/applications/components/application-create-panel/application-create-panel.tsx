@@ -121,12 +121,11 @@ export const ApplicationCreatePanel = (props: {
                 load={() =>
                     Promise.all([
                         services.projects.list().then(projects => projects.map(proj => proj.metadata.name).sort()),
-                        services.clusters.list().then(clusters => clusters.map(cluster => cluster.server).sort()),
-                        services.clusters.list().then(clusters => clusters.map(cluster => cluster.name).sort()),
+                        services.clusters.list().then(clusters => clusters.sort()),
                         services.repos.list()
-                    ]).then(([projects, clusterURLs, clusterNames, reposInfo]) => ({projects, clusterURLs, clusterNames, reposInfo}))
+                    ]).then(([projects, clusters, reposInfo]) => ({projects, clusters, reposInfo}))
                 }>
-                {({projects, clusterURLs, clusterNames, reposInfo}) => {
+                {({projects, clusters, reposInfo}) => {
                     const repos = reposInfo.map(info => info.repo).sort();
                     const app = deepMerge(DEFAULT_APP, props.app || {});
                     const repoInfo = reposInfo.find(info => info.repo === app.spec.source.repoURL);
@@ -156,7 +155,16 @@ export const ApplicationCreatePanel = (props: {
                                         'spec.source.targetRevision': !a.spec.source.targetRevision && a.spec.source.hasOwnProperty('chart') && 'Version is required',
                                         'spec.source.path': !a.spec.source.path && !a.spec.source.chart && 'Path is required',
                                         'spec.source.chart': !a.spec.source.path && !a.spec.source.chart && 'Chart is required',
-                                        'spec.destination.server': !a.spec.destination.server && 'Cluster is required'
+                                        // Verify cluster URL when there is no cluster name field or the name value is empty
+                                        'spec.destination.server':
+                                            !a.spec.destination.server &&
+                                            (!a.spec.destination.hasOwnProperty('name') || a.spec.destination.name === '') &&
+                                            'Cluster URL is required',
+                                        // Verify cluster name when there is no cluster URL field or the URL value is empty
+                                        'spec.destination.name':
+                                            !a.spec.destination.name &&
+                                            (!a.spec.destination.hasOwnProperty('server') || a.spec.destination.server === '') &&
+                                            'Cluster name is required'
                                     })}
                                     defaultValues={app}
                                     formDidUpdate={state => props.onAppChanged(state.values as any)}
@@ -319,7 +327,7 @@ export const ApplicationCreatePanel = (props: {
                                                                 formApi={api}
                                                                 label='Cluster URL'
                                                                 field='spec.destination.server'
-                                                                componentProps={{items: clusterURLs}}
+                                                                componentProps={{items: clusters.map(cluster => cluster.server)}}
                                                                 component={AutocompleteField}
                                                             />
                                                         </div>
@@ -329,7 +337,7 @@ export const ApplicationCreatePanel = (props: {
                                                                 formApi={api}
                                                                 label='Cluster Name'
                                                                 field='spec.destination.name'
-                                                                componentProps={{items: clusterNames}}
+                                                                componentProps={{items: clusters.map(cluster => cluster.name)}}
                                                                 component={AutocompleteField}
                                                             />
                                                         </div>
@@ -339,13 +347,22 @@ export const ApplicationCreatePanel = (props: {
                                                             <DropDownMenu
                                                                 anchor={() => (
                                                                     <p>
-                                                                        {destFormat.toUpperCase()} <i className='fa fa-caret-down' />
+                                                                        {destFormat} <i className='fa fa-caret-down' />
                                                                     </p>
                                                                 )}
-                                                                items={['url', 'name'].map((type: 'url' | 'name') => ({
-                                                                    title: type.toUpperCase(),
+                                                                items={['URL', 'NAME'].map((type: 'URL' | 'NAME') => ({
+                                                                    title: type,
                                                                     action: () => {
-                                                                        setDestFormat(type);
+                                                                        if (destFormat !== type) {
+                                                                            const updatedApp = api.getFormState().values as models.Application;
+                                                                            if (type === 'URL') {
+                                                                                delete updatedApp.spec.destination.name;
+                                                                            } else {
+                                                                                delete updatedApp.spec.destination.server;
+                                                                            }
+                                                                            api.setAllValues(updatedApp);
+                                                                            setDestFormat(type);
+                                                                        }
                                                                     }
                                                                 }))}
                                                             />

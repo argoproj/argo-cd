@@ -28,10 +28,8 @@ function swap(array: any[], a: number, b: number) {
 export const ApplicationSummary = (props: {app: models.Application; updateApp: (app: models.Application) => Promise<any>}) => {
     const app = JSON.parse(JSON.stringify(props.app)) as models.Application;
     const isHelm = app.spec.source.hasOwnProperty('chart');
-    const isDestName = app.spec.destination.server === undefined;
-    const fieldDest = isDestName ? 'spec.destination.name' : 'spec.destination.server';
-    const [destFormat, setDestFormat] = React.useState('URL');
-
+    const initialState = app.spec.destination.server === undefined ? 'NAME' : 'URL';
+    const [destFormat, setDestFormat] = React.useState(initialState);
     const attributes = [
         {
             title: 'PROJECT',
@@ -64,37 +62,52 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
             title: 'CLUSTER',
             view: <Cluster server={app.spec.destination.server} name={app.spec.destination.name} showUrl={true} />,
             edit: (formApi: FormApi) => (
-                <DataLoader
-                    load={() =>
-                        Promise.all([
-                            services.clusters.list().then(clusters => clusters.map(cluster => cluster.server).sort()),
-                            services.clusters.list().then(clusters => clusters.map(cluster => cluster.name).sort())
-                        ]).then(([clusterURLs, clusterNames]) => ({clusterURLs, clusterNames}))
-                    }>
-                    {({clusterURLs, clusterNames}) => {
+                <DataLoader load={() => services.clusters.list().then(clusters => clusters.sort())}>
+                    {clusters => {
                         return (
                             <div className='row'>
                                 {(destFormat.toUpperCase() === 'URL' && (
                                     <div className='columns small-10'>
-                                        <FormField formApi={formApi} field={fieldDest} componentProps={{items: clusterURLs}} component={AutocompleteField} />
+                                        <FormField
+                                            formApi={formApi}
+                                            field='spec.destination.server'
+                                            componentProps={{items: clusters.map(cluster => cluster.server)}}
+                                            component={AutocompleteField}
+                                        />
                                     </div>
                                 )) || (
                                     <div className='columns small-10'>
-                                        <FormField formApi={formApi} field={fieldDest} componentProps={{items: clusterNames}} component={AutocompleteField} />
+                                        <FormField
+                                            formApi={formApi}
+                                            field='spec.destination.name'
+                                            componentProps={{items: clusters.map(cluster => cluster.name)}}
+                                            component={AutocompleteField}
+                                        />
                                     </div>
                                 )}
                                 <div className='columns small-2'>
-                                    <div style={{paddingTop: '1.5em'}}>
+                                    <div>
                                         <DropDownMenu
                                             anchor={() => (
                                                 <p>
                                                     {destFormat.toUpperCase()} <i className='fa fa-caret-down' />
                                                 </p>
                                             )}
-                                            items={['url', 'name'].map((type: 'url' | 'name') => ({
-                                                title: type.toUpperCase(),
+                                            items={['URL', 'NAME'].map((type: 'URL' | 'NAME') => ({
+                                                title: type,
                                                 action: () => {
-                                                    setDestFormat(type);
+                                                    if (destFormat !== type) {
+                                                        const updatedApp = formApi.getFormState().values as models.Application;
+                                                        if (type === 'URL') {
+                                                            updatedApp.spec.destination.server = '';
+                                                            delete updatedApp.spec.destination.name;
+                                                        } else {
+                                                            updatedApp.spec.destination.name = '';
+                                                            delete updatedApp.spec.destination.server;
+                                                        }
+                                                        formApi.setAllValues(updatedApp);
+                                                        setDestFormat(type);
+                                                    }
                                                 }
                                             }))}
                                         />
@@ -363,17 +376,11 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
         <div className='application-summary'>
             <EditablePanel
                 save={props.updateApp}
-                validate={input =>
-                    isDestName
-                        ? {
-                              'spec.project': !input.spec.project && 'Project name is required',
-                              'spec.destination.name': !input.spec.destination.name && 'Cluster is required'
-                          }
-                        : {
-                              'spec.project': !input.spec.project && 'Project name is required',
-                              'spec.destination.server': !input.spec.destination.server && 'Cluster is required'
-                          }
-                }
+                validate={input => ({
+                    'spec.project': !input.spec.project && 'Project name is required',
+                    'spec.destination.server': !input.spec.destination.server && input.spec.destination.hasOwnProperty('server') && 'Cluster server is required',
+                    'spec.destination.name': !input.spec.destination.name && input.spec.destination.hasOwnProperty('name') && 'Cluster name is required'
+                })}
                 values={app}
                 title={app.metadata.name.toLocaleUpperCase()}
                 items={attributes}
