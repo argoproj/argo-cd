@@ -431,6 +431,7 @@ The secret data must include following fields:
 
 * `name` - cluster name
 * `server` - cluster api server url
+* `namespaces` - optional list of namespaces which are accessible in that cluster. Cluster level resources would be ignored if namespace list is not empty.
 * `config` - JSON representation of following data structure:
 
 ```yaml
