@@ -352,19 +352,16 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                 childrenByParentKey.set(treeNodeKey(parent), children);
             });
         });
-        roots = nodes.filter(node => (node.parentRefs || []).length === 0 || isManagedResourse(node)).sort(compareNodes);
+        roots = nodes.filter(node => (node.parentRefs || []).length === 0 || isManagedResource(node)).sort(compareNodes);
     }
 
-    function isManagedResourse(node: ResourceTreeNode){
-        for (let i = 0; i < props.app.status.resources.length; i++) {
-            if (props.app.status.resources[i].group == node.group &&
-                props.app.status.resources[i].kind == node.kind &&
-                props.app.status.resources[i].version == node.version &&
-                props.app.status.resources[i].name == node.name)  {
-                return true
+    function isManagedResource(node: ResourceTreeNode) {
+        for (const resource of props.app.status.resources) {
+            if (resource.group === node.group && resource.kind === node.kind && resource.version === node.version && resource.name === node.name) {
+                return true;
             }
         }
-        return false
+        return false;
     }
     function processNode(node: ResourceTreeNode, root: ResourceTreeNode, colors?: string[]) {
         graph.setNode(treeNodeKey(node), {...node, width: NODE_WIDTH, height: NODE_HEIGHT, root});
