@@ -54,10 +54,12 @@ message ApplicationResponse {}
 message ApplicationCreateRequest {
 	required github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application application = 1 [(gogoproto.nullable) = false];
 	optional bool upsert = 2;
+	optional bool validate = 3;
 }
 
 message ApplicationUpdateRequest {
 	required github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application application = 1;
+	optional bool validate = 2;
 }
 
 message ApplicationDeleteRequest {
@@ -82,6 +84,7 @@ message ApplicationSyncRequest {
 message ApplicationUpdateSpecRequest {
 	required string name = 1;
 	required github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationSpec spec = 2 [(gogoproto.nullable) = false];
+	optional bool validate = 3;
 }
 
 // ApplicationPatchRequest is a request to patch an application
