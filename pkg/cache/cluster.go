@@ -484,27 +484,30 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 				return nil
 			case event, ok := <-w.ResultChan():
 				if ok {
-					obj := event.Object.(*unstructured.Unstructured)
-					info.resourceVersion = obj.GetResourceVersion()
-					c.processEvent(event.Type, obj)
-					if kube.IsCRD(obj) {
-						if event.Type == watch.Deleted {
-							group, groupOk, groupErr := unstructured.NestedString(obj.Object, "spec", "group")
-							kind, kindOk, kindErr := unstructured.NestedString(obj.Object, "spec", "names", "kind")
+					if obj, ok := event.Object.(*unstructured.Unstructured); ok {
+						info.resourceVersion = obj.GetResourceVersion()
+						c.processEvent(event.Type, obj)
+						if kube.IsCRD(obj) {
+							if event.Type == watch.Deleted {
+								group, groupOk, groupErr := unstructured.NestedString(obj.Object, "spec", "group")
+								kind, kindOk, kindErr := unstructured.NestedString(obj.Object, "spec", "names", "kind")
 
-							if groupOk && groupErr == nil && kindOk && kindErr == nil {
-								gk := schema.GroupKind{Group: group, Kind: kind}
-								c.stopWatching(gk, ns)
+								if groupOk && groupErr == nil && kindOk && kindErr == nil {
+									gk := schema.GroupKind{Group: group, Kind: kind}
+									c.stopWatching(gk, ns)
+								}
+							} else {
+								err = runSynced(&c.lock, func() error {
+									return c.startMissingWatches()
+								})
+
 							}
-						} else {
-							err = runSynced(&c.lock, func() error {
-								return c.startMissingWatches()
-							})
-
 						}
-					}
-					if err != nil {
-						c.log.Warnf("Failed to start missing watch: %v", err)
+						if err != nil {
+							c.log.Warnf("Failed to start missing watch: %v", err)
+						}
+					} else {
+						return fmt.Errorf("Failed to convert to *unstructured.Unstructured: %v", event.Object)
 					}
 				} else {
 					return fmt.Errorf("Watch %s on %s has closed", api.GroupKind, c.config.Host)
