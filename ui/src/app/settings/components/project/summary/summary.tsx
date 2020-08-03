@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import {Project} from '../../../../shared/models';
+import {ApplicationDestination, Project} from '../../../../shared/models';
 import {services} from '../../../../shared/services';
 import {Card} from '../card/card';
 import {FieldData, FieldTypes} from '../card/row';
@@ -13,28 +13,38 @@ interface SummaryProps {
 interface SummaryState {
     name: string;
     description: string;
+    sources: string[];
+    destinations: ApplicationDestination[];
     proj: Project;
 }
 
 const SourceFields: FieldData[] = [{name: 'url', type: FieldTypes.Text}];
-interface SourceData {
-    url: string;
-}
-
 const DestinationFields: FieldData[] = [{name: 'namespace', type: FieldTypes.Text}, {name: 'server', type: FieldTypes.Text}];
-interface DestinationData {
-    namespace: string;
-    server: string;
-}
 
 export class ProjectSummary extends React.Component<SummaryProps, SummaryState> {
-    constructor(props: SummaryProps) {
-        super(props);
-        this.state = {name: props.proj.metadata.name, description: props.proj.spec.description, proj: props.proj};
-    }
-
     get descriptionChanged(): boolean {
         return this.state.description !== this.props.proj.spec.description;
+    }
+
+    get sources(): {url: string}[] {
+        return this.state.sources
+            ? this.state.sources.map(item => {
+                  return {url: item};
+              })
+            : [];
+    }
+
+    constructor(props: SummaryProps) {
+        super(props);
+        this.state = {
+            name: props.proj.metadata.name,
+            description: props.proj.spec.description,
+            sources: props.proj.spec.sourceRepos,
+            destinations: props.proj.spec.destinations,
+            proj: props.proj
+        };
+        this.addSource = this.addSource.bind(this);
+        this.addDestination = this.addDestination.bind(this);
     }
 
     public render() {
@@ -78,11 +88,23 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                 <div className='project-summary__section'>
                     <div className='project-summary__label'>DEPLOYMENT</div>
                     <div className='project-summary__section--row'>
-                        <Card<SourceData> title='Sources' fields={SourceFields} data={[{url: 'helloworld.com'}]} />
-                        <Card<DestinationData> title='Destinations' fields={DestinationFields} data={[{namespace: 'default', server: 'myserver'}]} />
+                        <Card<{url: string}> title='Sources' fields={SourceFields} data={this.sources} add={this.addSource} />
+                        <Card<ApplicationDestination> title='Destinations' fields={DestinationFields} data={this.state.destinations} add={this.addDestination} />
                     </div>
                 </div>
             </div>
         );
+    }
+
+    private addSource() {
+        const update = this.state.sources || [];
+        update.push('');
+        this.setState({sources: update});
+    }
+
+    private addDestination() {
+        const update = this.state.destinations || [];
+        update.push({} as ApplicationDestination);
+        this.setState({destinations: update});
     }
 }

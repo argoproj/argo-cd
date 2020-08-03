@@ -14,6 +14,10 @@
   }
 
   &__button-save {
+    background-color: $active-blue;
+  }
+
+  &__button-saved {
     background-color: $save-green;
   }
 

@@ -6,15 +6,19 @@
   padding: 25px;
   border-radius: 18px;
 
+  &__empty {
+    width: 400px;
+  }
+
   &__title {
     color : black;
     font-size: 27px;
-    margin-bottom: 15px;
   }
 
   &__row {
     display: flex;
     align-items: center;
+    margin-bottom: 1em;
   }
 
   &__input-container {

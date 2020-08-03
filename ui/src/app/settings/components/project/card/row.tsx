@@ -38,18 +38,25 @@ export class CardRow<T> extends React.Component<CardRowProps<T>, CardRowState<T>
         };
     }
 
+    get changed(): boolean {
+        console.log(this.props.data)
+        console.log(this.state.data)
+        return this.props.data === this.state.data;
+    }
+
     public render() {
-        const row = this.props.fields.map(field => {
+        const inputs = this.props.fields.map(field => {
             let format;
             switch (field.type) {
                 case FieldTypes.ResourceKindSelector:
                     format = <ResourceKindSelector />;
                     break;
                 default:
+                    const curVal = prop(this.state.data, field.name as keyof T);
                     format = (
                         <input
                             type='text'
-                            value={prop(this.state.data, field.name as keyof T).toString()}
+                            value={curVal ? curVal.toString() : ''}
                             onChange={e => {
                                 const change = {...this.state.data};
                                 setProp(change, field.name as keyof T, e.target.value);
@@ -59,13 +66,21 @@ export class CardRow<T> extends React.Component<CardRowProps<T>, CardRowState<T>
                         />
                     );
             }
-            return (
-                <div className='card__col-input card__col' key={field.type + '.' + field.name}>
-                    {format}
-                </div>
-            );
+            return format;
         });
 
-        return <div>{row}</div>
+        return (
+            <div className='card__input-container card__row'>
+                <div className='card__col-round-button card__col'>
+                    <button className='project__button project__button-remove project__button-round'>-</button>
+                </div>
+                <div className='card__col-input card__col'>
+                    {inputs}
+                </div>
+                <div className='card__col-button card__col'>
+                    <button className={`project__button project__button-${this.changed ? 'save' : 'saved'}`}>{this.changed ? 'SAVE' : 'SAVED'}</button>
+                </div>
+            </div>
+        )
     };
 }
