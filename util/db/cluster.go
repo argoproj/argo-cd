@@ -203,7 +203,7 @@ func (db *db) getClusterSecret(server string) (*apiv1.Secret, error) {
 		return nil, err
 	}
 	for _, clusterSecret := range clusterSecrets {
-		if secretToCluster(clusterSecret).Server == server {
+		if secretToCluster(clusterSecret).Server == strings.TrimRight(server, "/") {
 			return clusterSecret, nil
 		}
 	}
@@ -284,7 +284,7 @@ func serverToSecretName(server string) (string, error) {
 // clusterToData converts a cluster object to string data for serialization to a secret
 func clusterToSecret(c *appv1.Cluster, secret *apiv1.Secret) error {
 	data := make(map[string][]byte)
-	data["server"] = []byte(c.Server)
+	data["server"] = []byte(strings.TrimRight(c.Server, "/"))
 	if c.Name == "" {
 		data["name"] = []byte(c.Server)
 	} else {
@@ -334,7 +334,7 @@ func secretToCluster(s *apiv1.Secret) *appv1.Cluster {
 		}
 	}
 	cluster := appv1.Cluster{
-		Server:             string(s.Data["server"]),
+		Server:             strings.TrimRight(string(s.Data["server"]), "/"),
 		Name:               string(s.Data["name"]),
 		Namespaces:         namespaces,
 		Config:             config,
