@@ -693,6 +693,11 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		return nil, err
 	}
 
+	err = argo.ValidateDestination(context.Background(), &app.Spec.Destination, ctrl.db)
+	if err != nil {
+		return nil, err
+	}
+
 	objsMap, err := ctrl.getPermittedAppLiveObjects(app, proj)
 	if err != nil {
 		return nil, err
@@ -1008,7 +1013,11 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		if err := ctrl.cache.GetAppManagedResources(app.Name, &managedResources); err != nil {
 			logCtx.Warnf("Failed to get cached managed resources for tree reconciliation, fallback to full reconciliation")
 		} else {
-			if tree, err := ctrl.getResourceTree(app, managedResources); err != nil {
+			var tree *appv1.ApplicationTree
+			if err = argo.ValidateDestination(context.Background(), &app.Spec.Destination, ctrl.db); err == nil {
+				tree, err = ctrl.getResourceTree(app, managedResources)
+			}
+			if err != nil {
 				app.Status.SetConditions(
 					[]appv1.ApplicationCondition{
 						{
