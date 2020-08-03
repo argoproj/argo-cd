@@ -340,7 +340,7 @@ func getConfigMapKey(obj *unstructured.Unstructured) string {
 }
 
 func (vm VM) getPredefinedLuaScripts(objKey string, scriptFile string) (string, error) {
-	data, err := box.MustBytes(filepath.Join(objKey, scriptFile))
+	data, err := box.Find(filepath.Join(objKey, scriptFile))
 	if err != nil {
 		if os.IsNotExist(err) {
 			return "", nil
