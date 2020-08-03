@@ -45,6 +45,8 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
         };
         this.addSource = this.addSource.bind(this);
         this.addDestination = this.addDestination.bind(this);
+        this.removeSource = this.removeSource.bind(this);
+        this.removeDestination = this.removeDestination.bind(this);
     }
 
     public render() {
@@ -88,8 +90,14 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                 <div className='project-summary__section'>
                     <div className='project-summary__label'>DEPLOYMENT</div>
                     <div className='project-summary__section--row'>
-                        <Card<{url: string}> title='Sources' fields={SourceFields} data={this.sources} add={this.addSource} />
-                        <Card<ApplicationDestination> title='Destinations' fields={DestinationFields} data={this.state.destinations} add={this.addDestination} />
+                        <Card<{url: string}> title='Sources' fields={SourceFields} data={this.sources} add={this.addSource} remove={this.removeSource} />
+                        <Card<ApplicationDestination>
+                            title='Destinations'
+                            fields={DestinationFields}
+                            data={this.state.destinations}
+                            add={this.addDestination}
+                            remove={this.removeDestination}
+                        />
                     </div>
                 </div>
             </div>
@@ -105,6 +113,24 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
     private addDestination() {
         const update = this.state.destinations || [];
         update.push({} as ApplicationDestination);
+        this.setState({destinations: update});
+    }
+
+    private removeSource(i: number) {
+        if (!this.state.sources || this.state.sources.length < 1) {
+            return;
+        }
+        const update = this.state.sources;
+        update.splice(i, 1);
+        this.setState({sources: update});
+    }
+
+    private removeDestination(i: number) {
+        if (!this.state.destinations || this.state.destinations.length < 1) {
+            return;
+        }
+        const update = this.state.destinations;
+        update.splice(i, 1);
         this.setState({destinations: update});
     }
 }

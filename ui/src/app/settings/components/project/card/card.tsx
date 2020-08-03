@@ -9,6 +9,7 @@ interface CardProps<T> {
     data: T[];
     fields: FieldData[];
     add: () => void;
+    remove: (i: number) => void;
 }
 
 export class Card<T> extends React.Component<CardProps<T>> {
@@ -34,10 +35,10 @@ export class Card<T> extends React.Component<CardProps<T>> {
                             })}
                             <div className='card__col-button card__col' />
                         </div>
-                        {this.props.data.map(row => {
+                        {this.props.data.map((row, i) => {
                             return (
-                                <div key={row.toString()}>
-                                    <CardRow<T> fields={this.props.fields} data={row} />
+                                <div key={row.toString() + '.' + i}>
+                                    <CardRow<T> fields={this.props.fields} data={row} remove={() => this.props.remove(i)} />
                                 </div>
                             );
                         })}

@@ -14,6 +14,7 @@ export enum FieldTypes {
 interface CardRowProps<T> {
     fields: FieldData[];
     data: T;
+    remove: () => void;
 }
 
 interface CardRowState<T> {
@@ -48,7 +49,7 @@ export class CardRow<T> extends React.Component<CardRowProps<T>, CardRowState<T>
     }
 
     public render() {
-        const inputs = this.props.fields.map(field => {
+        const inputs = this.props.fields.map((field, i) => {
             let format;
             switch (field.type) {
                 case FieldTypes.ResourceKindSelector:
@@ -69,13 +70,13 @@ export class CardRow<T> extends React.Component<CardRowProps<T>, CardRowState<T>
                         />
                     );
             }
-            return format;
+            return <div key={field.name + '.' + i}>{format}</div>;
         });
 
         return (
             <div className='card__input-container card__row'>
                 <div className='card__col-round-button card__col'>
-                    <button className='project__button project__button-remove project__button-round'>-</button>
+                    <button className='project__button project__button-remove project__button-round' onClick={this.props.remove}>-</button>
                 </div>
                 <div className='card__col-input card__col'>
                     {inputs}
