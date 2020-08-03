@@ -50,6 +50,6 @@ export class Card<T> extends React.Component<CardProps<T>> {
         );
     }
     private empty() {
-        return <div className={'card__empty'}>This is empty!</div>;
+        return <div className={`card__col card__col-fill-${this.props.fields.length}`}>This is empty!</div>;
     }
 }

@@ -4,7 +4,7 @@
 .project {
   &__button {
     display: block;
-    padding: 7px;
+    padding: $button-padding;
     margin-right: 10px;
     border-radius: 7px;
     cursor: pointer;

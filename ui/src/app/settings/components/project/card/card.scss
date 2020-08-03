@@ -6,10 +6,6 @@
   padding: 25px;
   border-radius: 18px;
 
-  &__empty {
-    width: 400px;
-  }
-
   &__title {
     color : black;
     font-size: 27px;
@@ -32,7 +28,7 @@
     outline: none;
     box-shadow: none;
     border: 2px solid $argo-color-gray-4;
-    padding-left: 7px;
+    padding-left: $input-padding-left;
     padding-top: 7px;
     padding-bottom: 7px;
     font-weight: 500;
@@ -41,7 +37,7 @@
     width: 100%;
     line-height: 1em;
     display: block;
-    margin-right: 10px;
+    margin-right: $input-margin-right;
     border-radius: 7px;
   }
 
@@ -64,7 +60,9 @@
 
   &__col {
     display: block;
-    margin: 0 5px;
+    margin: 0 $col-gutter;
+    flex-basis: $col-width;
+    width: $col-width;
     &:last-child {
       margin-right: 0;
     }
@@ -72,15 +70,30 @@
 
   &__col-round-button {
     flex-basis: $round-button-size;
+    width: $round-button-size;
   }
 
   &__col-button {
     flex-basis: $button-width;
+    width: $button-width;
   }
 
   &__col-input {
     flex: 3;
   }
 
+
+  @function get-col-width($cols) {
+    $fill: $button-width + $round-button-size + 2*$col-gutter;
+    @return $fill + $cols * ($col-width + 2*$col-gutter);
+  }
+
+  &__col-fill-1 {
+    width:get-col-width(1);
+  }
+
+  &__col-fill-2 {
+    width: get-col-width(2);
+  }
 
 }
