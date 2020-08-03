@@ -20,7 +20,7 @@ interface CardRowState<T> {
     data: T;
 }
 
-function prop<T, K extends keyof T>(obj: T, key: K) {
+function getProp<T, K extends keyof T>(obj: T, key: K) {
     return obj[key];
 }
 
@@ -39,9 +39,12 @@ export class CardRow<T> extends React.Component<CardRowProps<T>, CardRowState<T>
     }
 
     get changed(): boolean {
-        console.log(this.props.data)
-        console.log(this.state.data)
-        return this.props.data === this.state.data;
+        for (const key of Object.keys(this.props.data)) {
+            if (getProp(this.props.data, key as keyof T) !== getProp(this.state.data, key as keyof T)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public render() {
@@ -52,7 +55,7 @@ export class CardRow<T> extends React.Component<CardRowProps<T>, CardRowState<T>
                     format = <ResourceKindSelector />;
                     break;
                 default:
-                    const curVal = prop(this.state.data, field.name as keyof T);
+                    const curVal = getProp(this.state.data, field.name as keyof T);
                     format = (
                         <input
                             type='text'

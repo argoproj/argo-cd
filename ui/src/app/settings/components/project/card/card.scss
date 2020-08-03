@@ -65,6 +65,9 @@
   &__col {
     display: block;
     margin: 0 5px;
+    &:last-child {
+      margin-right: 0;
+    }
   }
 
   &__col-round-button {
