@@ -14,7 +14,6 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/argoproj/pkg/kube/cli"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -24,7 +23,6 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/engine"
 	"github.com/argoproj/gitops-engine/pkg/sync"
 	"github.com/argoproj/gitops-engine/pkg/utils/errors"
-	executil "github.com/argoproj/gitops-engine/pkg/utils/exec"
 	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 )
@@ -59,7 +57,7 @@ func (s *settings) getGCMark(key kube.ResourceKey) string {
 func (s *settings) parseManifests() ([]*unstructured.Unstructured, string, error) {
 	cmd := exec.Command("git", "rev-parse", "HEAD")
 	cmd.Dir = s.repoPath
-	revision, err := executil.Run(cmd)
+	revision, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, "", err
 	}
@@ -97,7 +95,7 @@ func (s *settings) parseManifests() ([]*unstructured.Unstructured, string, error
 		annotations[annotationGCMark] = s.getGCMark(kube.GetResourceKey(res[i]))
 		res[i].SetAnnotations(annotations)
 	}
-	return res, revision, nil
+	return res, string(revision), nil
 }
 
 func newCmd() *cobra.Command {
@@ -188,7 +186,7 @@ func newCmd() *cobra.Command {
 			}
 		},
 	}
-	clientConfig = cli.AddKubectlFlagsToCmd(&cmd)
+	clientConfig = addKubectlFlagsToCmd(&cmd)
 	cmd.Flags().StringArrayVar(&paths, "path", []string{"."}, "Directory path with-in repository")
 	cmd.Flags().IntVar(&resyncSeconds, "resync-seconds", 300, "Resync duration in seconds.")
 	cmd.Flags().IntVar(&port, "port", 9001, "Port number.")
@@ -198,4 +196,16 @@ func newCmd() *cobra.Command {
 		"The namespace that should be used if resource namespace is not specified. "+
 			"By default resources are installed into the same namespace where gitops-agent is installed.")
 	return &cmd
+}
+
+// addKubectlFlagsToCmd adds kubectl like flags to a command and returns the ClientConfig interface
+// for retrieving the values.
+func addKubectlFlagsToCmd(cmd *cobra.Command) clientcmd.ClientConfig {
+	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+	loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig
+	overrides := clientcmd.ConfigOverrides{}
+	kflags := clientcmd.RecommendedConfigOverrideFlags("")
+	cmd.PersistentFlags().StringVar(&loadingRules.ExplicitPath, "kubeconfig", "", "Path to a kube config. Only required if out-of-cluster")
+	clientcmd.BindOverrideFlags(&overrides, cmd.PersistentFlags(), kflags)
+	return clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, &overrides, os.Stdin)
 }

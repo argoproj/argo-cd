@@ -29,7 +29,6 @@ import (
 	"k8s.io/kubernetes/pkg/kubectl/cmd/auth"
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
-	executil "github.com/argoproj/gitops-engine/pkg/utils/exec"
 	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/argoproj/gitops-engine/pkg/utils/tracing"
 )
@@ -440,12 +439,13 @@ func Version() (string, error) {
 	span := tracing.StartSpan("Version")
 	defer span.Finish()
 	cmd := exec.Command("kubectl", "version", "--client")
-	out, err := executil.Run(cmd)
+	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("could not get kubectl version: %s", err)
 	}
+
 	re := regexp.MustCompile(`GitVersion:"([a-zA-Z0-9\.\-]+)"`)
-	matches := re.FindStringSubmatch(out)
+	matches := re.FindStringSubmatch(string(out))
 	if len(matches) != 2 {
 		return "", errors.New("could not get kubectl version")
 	}

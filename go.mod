@@ -3,7 +3,6 @@ module github.com/argoproj/gitops-engine
 go 1.13
 
 require (
-	github.com/argoproj/pkg v0.0.0-20200102163130-2dd1f3f6b4de
 	github.com/evanphx/json-patch v4.2.0+incompatible
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
 	github.com/pkg/errors v0.9.1
