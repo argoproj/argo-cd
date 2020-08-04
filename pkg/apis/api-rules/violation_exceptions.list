@@ -1,4 +1,5 @@
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,AppProjectList,Items
+API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,AppProjectSpec,ClusterResourceBlacklist
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,AppProjectSpec,ClusterResourceWhitelist
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,AppProjectSpec,Destinations
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,AppProjectSpec,NamespaceResourceBlacklist

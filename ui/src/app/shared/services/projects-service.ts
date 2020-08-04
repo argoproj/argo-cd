@@ -9,6 +9,7 @@ export interface ProjectParams {
     destinations: models.ApplicationDestination[];
     roles: models.ProjectRole[];
     clusterResourceWhitelist: models.GroupKind[];
+    clusterResourceBlacklist: models.GroupKind[];
     namespaceResourceBlacklist: models.GroupKind[];
     namespaceResourceWhitelist: models.GroupKind[];
     orphanedResourceIgnoreList: models.OrphanedResource[];
@@ -79,6 +80,7 @@ function paramsToProj(params: ProjectParams) {
             roles: params.roles,
             syncWindows: params.syncWindows,
             clusterResourceWhitelist: params.clusterResourceWhitelist,
+            clusterResourceBlacklist: params.clusterResourceBlacklist,
             namespaceResourceBlacklist: params.namespaceResourceBlacklist,
             namespaceResourceWhitelist: params.namespaceResourceWhitelist,
             signatureKeys: params.signatureKeys,

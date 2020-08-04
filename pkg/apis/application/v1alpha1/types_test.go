@@ -137,6 +137,22 @@ func TestAppProject_IsGroupKindPermitted(t *testing.T) {
 	}
 	assert.True(t, proj2.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "ReplicaSet"}, true))
 	assert.False(t, proj2.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "Action"}, true))
+
+	proj3 := AppProject{
+		Spec: AppProjectSpec{
+			ClusterResourceBlacklist: []metav1.GroupKind{{Group: "", Kind: "Namespace"}},
+		},
+	}
+	assert.False(t, proj3.IsGroupKindPermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, false))
+
+	proj4 := AppProject{
+		Spec: AppProjectSpec{
+			ClusterResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
+			ClusterResourceBlacklist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
+		},
+	}
+	assert.False(t, proj4.IsGroupKindPermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, false))
+	assert.True(t, proj4.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "Action"}, true))
 }
 
 func TestAppProject_GetRoleByName(t *testing.T) {
