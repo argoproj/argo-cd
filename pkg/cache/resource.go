@@ -23,6 +23,9 @@ type Resource struct {
 	Info interface{}
 	// Optional whole resource manifest
 	Resource *unstructured.Unstructured
+
+	// answers if given resource key is potential child resource
+	isChildRef func(key kube.ResourceKey) bool
 }
 
 func (r *Resource) ResourceKey() kube.ResourceKey {

@@ -250,60 +250,8 @@ func (c *clusterCache) replaceResourceCache(gk schema.GroupKind, resourceVersion
 	}
 }
 
-func isServiceAccountTokenSecret(un *unstructured.Unstructured) (bool, metav1.OwnerReference) {
-	ref := metav1.OwnerReference{
-		APIVersion: "v1",
-		Kind:       kube.ServiceAccountKind,
-	}
-	if un.GetKind() != kube.SecretKind || un.GroupVersionKind().Group != "" {
-		return false, ref
-	}
-
-	if typeVal, ok, err := unstructured.NestedString(un.Object, "type"); !ok || err != nil || typeVal != "kubernetes.io/service-account-token" {
-		return false, ref
-	}
-
-	annotations := un.GetAnnotations()
-	if annotations == nil {
-		return false, ref
-	}
-
-	id, okId := annotations["kubernetes.io/service-account.uid"]
-	name, okName := annotations["kubernetes.io/service-account.name"]
-	if okId && okName {
-		ref.Name = name
-		ref.UID = types.UID(id)
-	}
-	return ref.Name != "" && ref.UID != "", ref
-}
-
 func (c *clusterCache) newResource(un *unstructured.Unstructured) *Resource {
-	ownerRefs := un.GetOwnerReferences()
-	gvk := un.GroupVersionKind()
-	// Special case for endpoint. Remove after https://github.com/kubernetes/kubernetes/issues/28483 is fixed
-	if gvk.Group == "" && gvk.Kind == kube.EndpointsKind && len(un.GetOwnerReferences()) == 0 {
-		ownerRefs = append(ownerRefs, metav1.OwnerReference{
-			Name:       un.GetName(),
-			Kind:       kube.ServiceKind,
-			APIVersion: "v1",
-		})
-	}
-
-	// Special case for Operator Lifecycle Manager ClusterServiceVersion:
-	if un.GroupVersionKind().Group == "operators.coreos.com" && un.GetKind() == "ClusterServiceVersion" {
-		if un.GetAnnotations()["olm.operatorGroup"] != "" {
-			ownerRefs = append(ownerRefs, metav1.OwnerReference{
-				Name:       un.GetAnnotations()["olm.operatorGroup"],
-				Kind:       "OperatorGroup",
-				APIVersion: "operators.coreos.com/v1",
-			})
-		}
-	}
-
-	// edge case. Consider auto-created service account tokens as a child of service account objects
-	if yes, ref := isServiceAccountTokenSecret(un); yes {
-		ownerRefs = append(ownerRefs, ref)
-	}
+	ownerRefs, childRefs := c.resolveResourceReferences(un)
 
 	cacheManifest := false
 	var info interface{}
@@ -321,6 +269,7 @@ func (c *clusterCache) newResource(un *unstructured.Unstructured) *Resource {
 		OwnerRefs:         ownerRefs,
 		Info:              info,
 		CreationTimestamp: creationTimestamp,
+		isChildRef:        childRefs,
 	}
 	if cacheManifest {
 		resource.Resource = un
