@@ -8,7 +8,6 @@ import {ResourceKind, ResourceKindSelector} from '../resource-kind-selector';
 // OR
 // convert structured object data to and from string arrays in ProjectSummary
 
-
 export interface FieldData {
     type: FieldTypes;
     name: string;
@@ -21,13 +20,13 @@ export enum FieldTypes {
 
 interface CardRowProps<T> {
     fields: FieldData[];
-    data: T;
+    data: T | FieldValue;
     remove: () => void;
-    save: (value: T) => Promise<Project>;
+    save: (value: T | FieldValue) => Promise<Project>;
 }
 
 interface CardRowState<T> {
-    data: T;
+    data: T | FieldValue;
     error: boolean;
 }
 
@@ -35,15 +34,18 @@ export type FieldValue = string | ResourceKind;
 
 export class CardRow<T> extends React.Component<CardRowProps<T>, CardRowState<T>> {
     get changed(): boolean {
-        if (Object.keys(this.props.data).length < 1) {
-            return true;
+        if (this.dataIsFieldValue) {
+            return this.state.data !== this.props.data;
         }
         for (const key of Object.keys(this.props.data)) {
-            if (GetProp(this.props.data, key as keyof T) !== GetProp(this.state.data, key as keyof T)) {
+            if (GetProp(this.props.data as T, key as keyof T) !== GetProp(this.state.data as T, key as keyof T)) {
                 return true;
             }
         }
         return false;
+    }
+    get dataIsFieldValue(): boolean {
+        return this.isFieldValue(this.state.data);
     }
     constructor(props: CardRowProps<T>) {
         super(props);
@@ -55,6 +57,16 @@ export class CardRow<T> extends React.Component<CardRowProps<T>, CardRowState<T>
     }
 
     public render() {
+        let update = this.dataIsFieldValue
+            ? (value: FieldValue, _: keyof T) => {
+                  this.setState({data: value as FieldValue});
+              }
+            : (value: string, field: keyof T) => {
+                  const change = {...(this.state.data as T)};
+                  SetProp(change, field, value);
+                  this.setState({data: change});
+              };
+        update = update.bind(this);
         const inputs = this.props.fields.map((field, i) => {
             let format;
             switch (field.type) {
@@ -62,19 +74,8 @@ export class CardRow<T> extends React.Component<CardRowProps<T>, CardRowState<T>
                     format = <ResourceKindSelector />;
                     break;
                 default:
-                    const curVal = GetProp(this.state.data, field.name as keyof T);
-                    format = (
-                        <input
-                            type='text'
-                            value={curVal ? curVal.toString() : ''}
-                            onChange={e => {
-                                const change = {...this.state.data};
-                                SetProp(change, field.name as keyof T, e.target.value);
-                                this.setState({data: change});
-                            }}
-                            placeholder={field.name}
-                        />
-                    );
+                    const curVal = this.dataIsFieldValue ? this.state.data : GetProp(this.state.data as T, field.name as keyof T);
+                    format = <input type='text' value={curVal ? curVal.toString() : ''} onChange={e => update(e.target.value, field.name as keyof T)} placeholder={field.name} />;
             }
             return <div key={field.name + '.' + i}>{format}</div>;
         });
@@ -94,6 +95,12 @@ export class CardRow<T> extends React.Component<CardRowProps<T>, CardRowState<T>
                 </div>
             </div>
         );
+    }
+    private isFieldValue(value: T | FieldValue): value is FieldValue {
+        if ((typeof value as FieldValue) === 'string') {
+            return true;
+        }
+        return false;
     }
     private async save() {
         const err = await this.props.save(this.state.data);

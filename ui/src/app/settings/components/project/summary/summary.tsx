@@ -34,14 +34,6 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
         return this.state.description !== this.props.proj.spec.description;
     }
 
-    get sources(): {url: string}[] {
-        return this.state.sourceRepos
-            ? this.state.sourceRepos.map(item => {
-                  return {url: item};
-              })
-            : [];
-    }
-
     constructor(props: SummaryProps) {
         super(props);
         this.state = {
@@ -98,13 +90,13 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                 <div className='project-summary__section'>
                     <div className='project-summary__label'>DEPLOYMENT</div>
                     <div className='project-summary__section--row'>
-                        <Card<{url: string}>
+                        <Card<string>
                             title='Sources'
                             fields={SourceFields}
-                            data={this.sources}
+                            data={this.state.sourceRepos}
                             add={() => this.addSpecItem('sourceRepos', '')}
                             remove={this.removeSource}
-                            save={value => this.save('sourceRepos', value) as IterableSpecField}
+                            save={value => this.save('sourceRepos', value as string)}
                         />
                         <Card<ApplicationDestination>
                             title='Destinations'

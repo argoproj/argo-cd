@@ -1,6 +1,6 @@
 import * as React from 'react';
 import {Project} from '../../../../shared/models';
-import {CardRow, FieldData} from './row';
+import {CardRow, FieldData, FieldValue} from './row';
 
 require('../project.scss');
 require('./card.scss');
@@ -11,7 +11,7 @@ interface CardProps<T> {
     fields: FieldData[];
     add: () => void;
     remove: (i: number) => void;
-    save: (value: T) => Promise<Project>;
+    save: (value: T | FieldValue) => Promise<Project>;
 }
 
 export class Card<T> extends React.Component<CardProps<T>> {
