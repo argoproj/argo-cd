@@ -24,6 +24,7 @@ export const ProjectEditPanel = (props: {nameReadonly?: boolean; defaultParams?:
                 roles: [],
                 syncWindows: [],
                 clusterResourceWhitelist: [],
+                clusterResourceBlacklist: [],
                 namespaceResourceBlacklist: [],
                 namespaceResourceWhitelist: [],
                 orphanedResourceIgnoreList: [],
@@ -35,6 +36,10 @@ export const ProjectEditPanel = (props: {nameReadonly?: boolean; defaultParams?:
             })}
             preSubmit={(params: ProjectParams) => {
                 params.clusterResourceWhitelist.forEach((obj: models.GroupKind) => {
+                    obj.group = obj.group.trim();
+                    obj.kind = obj.kind.trim();
+                });
+                params.clusterResourceBlacklist.forEach((obj: models.GroupKind) => {
                     obj.group = obj.group.trim();
                     obj.kind = obj.kind.trim();
                 });
@@ -137,6 +142,35 @@ export const ProjectEditPanel = (props: {nameReadonly?: boolean; defaultParams?:
                         ))}
                         <a onClick={() => api.setValue('clusterResourceWhitelist', api.values.clusterResourceWhitelist.concat({group: '', kind: ''}))}>
                             whitelist new cluster resource
+                        </a>
+                    </React.Fragment>
+
+                    <React.Fragment>
+                        <h4>Blacklisted Cluster Resources</h4>
+                        <div>Cluster-scoped K8s API Groups and Kinds which are not permitted to be deployed</div>
+                        <div className='argo-table-list__head'>
+                            <div className='row'>
+                                <div className='columns small-5'>GROUP</div>
+                                <div className='columns small-5'>KIND</div>
+                            </div>
+                        </div>
+                        {(api.values.clusterResourceBlacklist as Array<models.GroupKind>).map((_, i) => (
+                            <div key={i} className='argo-table-list__row'>
+                                <div className='row'>
+                                    <div className='columns small-5'>
+                                        <Text className='argo-field' field={['clusterResourceBlacklist', i, 'group']} />
+                                    </div>
+                                    <div className='columns small-5'>
+                                        <Text className='argo-field' field={['clusterResourceBlacklist', i, 'kind']} />
+                                    </div>
+                                    <div className='columns small-2'>
+                                        <i className='fa fa-times' onClick={() => api.setValue('clusterResourceBlacklist', removeEl(api.values.clusterResourceBlacklist, i))} />
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                        <a onClick={() => api.setValue('clusterResourceBlacklist', api.values.clusterResourceBlacklist.concat({group: '', kind: ''}))}>
+                            blacklist new cluster resource
                         </a>
                     </React.Fragment>
 

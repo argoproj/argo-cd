@@ -79,6 +79,9 @@ message AppProjectSpec {
 
   // List of PGP key IDs that commits to be synced to must be signed with
   repeated SignatureKey signatureKeys = 10;
+
+  // ClusterResourceBlacklist contains list of blacklisted cluster level resources
+  repeated k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind clusterResourceBlacklist = 11;
 }
 
 // AppProjectStatus contains information about appproj

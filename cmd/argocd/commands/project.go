@@ -14,12 +14,14 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
-	"github.com/dustin/go-humanize"
+	humanize "github.com/dustin/go-humanize"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/utils/pointer"
 
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
@@ -651,8 +653,53 @@ func NewProjectDenyNamespaceResourceCommand(clientOpts *argocdclient.ClientOptio
 // NewProjectDenyClusterResourceCommand returns a new instance of an `deny-cluster-resource` command
 func NewProjectDenyClusterResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	use := "deny-cluster-resource PROJECT GROUP KIND"
-	desc := "Removes a cluster-scoped API resource from the whitelist"
+	desc := "Removes a cluster-scoped API resource from the whitelist and adds it to blacklist"
 	return modifyClusterResourceCmd(use, desc, clientOpts, func(proj *v1alpha1.AppProject, group string, kind string) bool {
+		gk := schema.GroupKind{Group: group, Kind: kind}
+		if !proj.IsGroupKindPermitted(gk, false) {
+			fmt.Printf("Group '%s' and kind '%s' already denied\n", group, kind)
+			return false
+		}
+
+		index := -1
+		for i, item := range proj.Spec.ClusterResourceWhitelist {
+			if item.Group == group && item.Kind == kind {
+				index = i
+				break
+			}
+		}
+		if index != -1 {
+			fmt.Printf("Removing group '%s' and kind '%s' from whitelisted cluster resources\n", group, kind)
+			proj.Spec.ClusterResourceWhitelist = append(proj.Spec.ClusterResourceWhitelist[:index], proj.Spec.ClusterResourceWhitelist[index+1:]...)
+		}
+
+		index = -1
+		for i, item := range proj.Spec.ClusterResourceBlacklist {
+			if item.Group == group && item.Kind == kind {
+				index = i
+				break
+			}
+		}
+		if index == -1 {
+			fmt.Printf("Adding group '%s' and kind '%s' to blacklisted cluster resources\n", group, kind)
+			proj.Spec.ClusterResourceBlacklist = append(proj.Spec.ClusterResourceBlacklist, metav1.GroupKind{Group: group, Kind: kind})
+		}
+
+		return true
+	})
+}
+
+// NewProjectAllowClusterResourceCommand returns a new instance of an `argocd proj allow-cluster-resource` command
+func NewProjectAllowClusterResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	use := "allow-cluster-resource PROJECT GROUP KIND"
+	desc := "Adds a cluster-scoped API resource to the whitelist and removes it from blacklist"
+	return modifyClusterResourceCmd(use, desc, clientOpts, func(proj *v1alpha1.AppProject, group string, kind string) bool {
+		gk := schema.GroupKind{Group: group, Kind: kind}
+		if proj.IsGroupKindPermitted(gk, false) {
+			fmt.Printf("Group '%s' and kind '%s' already allowed\n", group, kind)
+			return false
+		}
+
 		index := -1
 		for i, item := range proj.Spec.ClusterResourceWhitelist {
 			if item.Group == group && item.Kind == kind {
@@ -661,26 +708,23 @@ func NewProjectDenyClusterResourceCommand(clientOpts *argocdclient.ClientOptions
 			}
 		}
 		if index == -1 {
-			fmt.Printf("Group '%s' and kind '%s' not in whitelisted cluster resources\n", group, kind)
-			return false
+			fmt.Printf("Adding group '%s' and kind '%s' to whitelisted cluster resources\n", group, kind)
+			proj.Spec.ClusterResourceWhitelist = append(proj.Spec.ClusterResourceWhitelist, metav1.GroupKind{Group: group, Kind: kind})
 		}
-		proj.Spec.ClusterResourceWhitelist = append(proj.Spec.ClusterResourceWhitelist[:index], proj.Spec.ClusterResourceWhitelist[index+1:]...)
-		return true
-	})
-}
 
-// NewProjectAllowClusterResourceCommand returns a new instance of an `argocd proj allow-cluster-resource` command
-func NewProjectAllowClusterResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	use := "allow-cluster-resource PROJECT GROUP KIND"
-	desc := "Adds a cluster-scoped API resource to the whitelist"
-	return modifyClusterResourceCmd(use, desc, clientOpts, func(proj *v1alpha1.AppProject, group string, kind string) bool {
-		for _, item := range proj.Spec.ClusterResourceWhitelist {
+		index = -1
+		for i, item := range proj.Spec.ClusterResourceBlacklist {
 			if item.Group == group && item.Kind == kind {
-				fmt.Printf("Group '%s' and kind '%s' already present in whitelisted cluster resources\n", group, kind)
-				return false
+				index = i
+				break
 			}
 		}
-		proj.Spec.ClusterResourceWhitelist = append(proj.Spec.ClusterResourceWhitelist, v1.GroupKind{Group: group, Kind: kind})
+
+		if index != -1 {
+			fmt.Printf("Removing group '%s' and kind '%s' from blacklisted cluster resources\n", group, kind)
+			proj.Spec.ClusterResourceBlacklist = append(proj.Spec.ClusterResourceBlacklist[:index], proj.Spec.ClusterResourceBlacklist[index+1:]...)
+		}
+
 		return true
 	})
 }

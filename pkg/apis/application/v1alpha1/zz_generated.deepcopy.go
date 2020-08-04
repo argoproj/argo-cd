@@ -143,6 +143,11 @@ func (in *AppProjectSpec) DeepCopyInto(out *AppProjectSpec) {
 		*out = make([]SignatureKey, len(*in))
 		copy(*out, *in)
 	}
+	if in.ClusterResourceBlacklist != nil {
+		in, out := &in.ClusterResourceBlacklist, &out.ClusterResourceBlacklist
+		*out = make([]v1.GroupKind, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 
