@@ -1,4 +1,5 @@
 import * as React from 'react';
+import {Project} from '../../../../shared/models';
 import {CardRow, FieldData} from './row';
 
 require('../project.scss');
@@ -10,6 +11,7 @@ interface CardProps<T> {
     fields: FieldData[];
     add: () => void;
     remove: (i: number) => void;
+    save: (value: T) => Promise<Project>;
 }
 
 export class Card<T> extends React.Component<CardProps<T>> {
@@ -38,7 +40,7 @@ export class Card<T> extends React.Component<CardProps<T>> {
                         {this.props.data.map((row, i) => {
                             return (
                                 <div key={row.toString() + '.' + i}>
-                                    <CardRow<T> fields={this.props.fields} data={row} remove={() => this.props.remove(i)} />
+                                    <CardRow<T> fields={this.props.fields} data={row} remove={() => this.props.remove(i)} save={value => this.props.save(value)} />
                                 </div>
                             );
                         })}

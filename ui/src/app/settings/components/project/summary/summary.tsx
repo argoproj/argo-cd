@@ -1,7 +1,8 @@
 import * as React from 'react';
 
-import {ApplicationDestination, Project} from '../../../../shared/models';
+import {ApplicationDestination, Project, ProjectSpec} from '../../../../shared/models';
 import {services} from '../../../../shared/services';
+import {GetProp, SetProp} from '../../utils';
 import {Card} from '../card/card';
 import {FieldData, FieldTypes} from '../card/row';
 require('./summary.scss');
@@ -10,13 +11,20 @@ interface SummaryProps {
     proj: Project;
 }
 
-interface SummaryState {
+interface SummaryState extends IterableSpecFields {
     name: string;
     description: string;
-    sources: string[];
+    sourceRepos: string[];
     destinations: ApplicationDestination[];
     proj: Project;
 }
+
+interface IterableSpecFields {
+    destinations: ApplicationDestination[];
+    sourceRepos: string[];
+}
+
+export type IterableSpecField = ApplicationDestination | string;
 
 const SourceFields: FieldData[] = [{name: 'url', type: FieldTypes.Text}];
 const DestinationFields: FieldData[] = [{name: 'namespace', type: FieldTypes.Text}, {name: 'server', type: FieldTypes.Text}];
@@ -27,8 +35,8 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
     }
 
     get sources(): {url: string}[] {
-        return this.state.sources
-            ? this.state.sources.map(item => {
+        return this.state.sourceRepos
+            ? this.state.sourceRepos.map(item => {
                   return {url: item};
               })
             : [];
@@ -39,14 +47,14 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
         this.state = {
             name: props.proj.metadata.name,
             description: props.proj.spec.description,
-            sources: props.proj.spec.sourceRepos,
+            sourceRepos: props.proj.spec.sourceRepos,
             destinations: props.proj.spec.destinations,
             proj: props.proj
         };
-        this.addSource = this.addSource.bind(this);
         this.addDestination = this.addDestination.bind(this);
         this.removeSource = this.removeSource.bind(this);
         this.removeDestination = this.removeDestination.bind(this);
+        this.save = this.save.bind(this);
     }
 
     public render() {
@@ -90,13 +98,21 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                 <div className='project-summary__section'>
                     <div className='project-summary__label'>DEPLOYMENT</div>
                     <div className='project-summary__section--row'>
-                        <Card<{url: string}> title='Sources' fields={SourceFields} data={this.sources} add={this.addSource} remove={this.removeSource} />
+                        <Card<{url: string}>
+                            title='Sources'
+                            fields={SourceFields}
+                            data={this.sources}
+                            add={() => this.addSpecItem('sourceRepos', '')}
+                            remove={this.removeSource}
+                            save={value => this.save('sourceRepos', value) as IterableSpecField}
+                        />
                         <Card<ApplicationDestination>
                             title='Destinations'
                             fields={DestinationFields}
                             data={this.state.destinations}
-                            add={this.addDestination}
+                            add={() => this.addSpecItem('destinations', {} as ApplicationDestination)}
                             remove={this.removeDestination}
+                            save={() => null}
                         />
                     </div>
                 </div>
@@ -104,10 +120,12 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
         );
     }
 
-    private addSource() {
-        const update = this.state.sources || [];
-        update.push('');
-        this.setState({sources: update});
+    private addSpecItem(key: keyof IterableSpecFields, empty: IterableSpecField) {
+        const arr = (GetProp(this.state as IterableSpecFields, key) as IterableSpecField[]) || [];
+        arr.push(empty);
+        const update = {...this.state};
+        SetProp(update, key as keyof SummaryState, arr);
+        this.setState(update);
     }
 
     private addDestination() {
@@ -117,12 +135,12 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
     }
 
     private removeSource(i: number) {
-        if (!this.state.sources || this.state.sources.length < 1) {
+        if (!this.state.sourceRepos || this.state.sourceRepos.length < 1) {
             return;
         }
-        const update = this.state.sources;
+        const update = this.state.sourceRepos;
         update.splice(i, 1);
-        this.setState({sources: update});
+        this.setState({sourceRepos: update});
     }
 
     private removeDestination(i: number) {
@@ -132,5 +150,16 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
         const update = this.state.destinations;
         update.splice(i, 1);
         this.setState({destinations: update});
+    }
+
+    private async save(key: keyof IterableSpecFields, value: IterableSpecField): Promise<Project> {
+        const update = {...this.state.proj};
+        const arr = GetProp(this.state, key) as IterableSpecField[];
+        arr.push(value as IterableSpecField);
+        SetProp(update.spec, key as keyof ProjectSpec, arr);
+        console.log(update);
+        const res = await services.projects.updateLean(this.state.name, update);
+        this.setState({proj: res});
+        return res;
     }
 }

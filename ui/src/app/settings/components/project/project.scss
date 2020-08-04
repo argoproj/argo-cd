@@ -21,7 +21,11 @@
     background-color: $save-green;
   }
 
-  &__button-saved, &__button-save {
+  &__button-error {
+    background-color: $cancel-red;
+  }
+
+  &__button-saved, &__button-save, &__button-error {
     width: 70px;
     margin-right: 0;
   }
