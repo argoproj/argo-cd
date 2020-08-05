@@ -1015,26 +1015,19 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		} else {
 			var tree *appv1.ApplicationTree
 			if err = argo.ValidateDestination(context.Background(), &app.Spec.Destination, ctrl.db); err == nil {
-				tree, err = ctrl.getResourceTree(app, managedResources)
-			}
-			if err != nil {
-				app.Status.SetConditions(
-					[]appv1.ApplicationCondition{
-						{
-							Type:    appv1.ApplicationConditionComparisonError,
-							Message: err.Error(),
-						},
-					},
-					map[appv1.ApplicationConditionType]bool{
-						appv1.ApplicationConditionComparisonError: true,
-					},
-				)
-			} else {
-				app.Status.Summary = tree.GetSummary()
-				if err = ctrl.cache.SetAppResourcesTree(app.Name, tree); err != nil {
-					logCtx.Errorf("Failed to cache resources tree: %v", err)
-					return
+				if tree, err = ctrl.getResourceTree(app, managedResources); err == nil {
+					app.Status.Summary = tree.GetSummary()
+					if err := ctrl.cache.SetAppResourcesTree(app.Name, tree); err != nil {
+						logCtx.Errorf("Failed to cache resources tree: %v", err)
+						return
+					}
 				}
+			} else {
+				app.Status.SetConditions([]appv1.ApplicationCondition{{
+					Type: appv1.ApplicationConditionComparisonError, Message: err.Error(),
+				}}, map[appv1.ApplicationConditionType]bool{
+					appv1.ApplicationConditionComparisonError: true,
+				})
 			}
 			now := metav1.Now()
 			app.Status.ObservedAt = &now
