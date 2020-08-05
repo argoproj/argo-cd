@@ -1,6 +1,7 @@
 package sync
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strings"
@@ -18,6 +19,7 @@ import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
+	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -110,7 +112,7 @@ func WithOperationSettings(dryRun bool, prune bool, force bool, skipHooks bool) 
 	}
 }
 
-// WithSkipHooks enables or disables manifest validation
+// WithManifestValidation enables or disables manifest validation
 func WithManifestValidation(enabled bool) SyncOpt {
 	return func(ctx *syncContext) {
 		ctx.validate = enabled
@@ -587,7 +589,7 @@ func (sc *syncContext) autoCreateNamespace(tasks syncTasks) syncTasks {
 		nsSpec := &v1.Namespace{TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: kube.NamespaceKind}, ObjectMeta: metav1.ObjectMeta{Name: sc.namespace}}
 		unstructuredObj, err := kube.ToUnstructured(nsSpec)
 		if err == nil {
-			liveObj, err := sc.kubectl.GetResource(sc.config, unstructuredObj.GroupVersionKind(), unstructuredObj.GetName(), "")
+			liveObj, err := sc.kubectl.GetResource(context.TODO(), sc.config, unstructuredObj.GroupVersionKind(), unstructuredObj.GetName(), "")
 			if err == nil {
 				nsTask := &syncTask{phase: common.SyncPhasePreSync, targetObj: unstructuredObj, liveObj: liveObj}
 				_, ok := sc.syncRes[nsTask.resultKey()]
@@ -654,7 +656,7 @@ func (sc *syncContext) setOperationPhase(phase common.OperationPhase, message st
 // ensureCRDReady waits until specified CRD is ready (established condition is true). Method is best effort - it does not fail even if CRD is not ready without timeout.
 func (sc *syncContext) ensureCRDReady(name string) {
 	_ = wait.PollImmediate(time.Duration(100)*time.Millisecond, crdReadinessTimeout, func() (bool, error) {
-		crd, err := sc.extensionsclientset.ApiextensionsV1beta1().CustomResourceDefinitions().Get(name, metav1.GetOptions{})
+		crd, err := sc.extensionsclientset.ApiextensionsV1beta1().CustomResourceDefinitions().Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
 			return false, err
 		}
@@ -668,7 +670,11 @@ func (sc *syncContext) ensureCRDReady(name string) {
 }
 
 func (sc *syncContext) applyObject(targetObj *unstructured.Unstructured, dryRun bool, force bool, validate bool) (common.ResultCode, string) {
-	message, err := sc.kubectl.ApplyResource(sc.rawConfig, targetObj, targetObj.GetNamespace(), dryRun, force, validate)
+	dryRunStrategy := cmdutil.DryRunNone
+	if dryRun {
+		dryRunStrategy = cmdutil.DryRunClient
+	}
+	message, err := sc.kubectl.ApplyResource(context.TODO(), sc.rawConfig, targetObj, targetObj.GetNamespace(), dryRunStrategy, force, validate)
 	if err != nil {
 		return common.ResultCodeSyncFailed, err.Error()
 	}
@@ -691,7 +697,7 @@ func (sc *syncContext) pruneObject(liveObj *unstructured.Unstructured, prune, dr
 			// Skip deletion if object is already marked for deletion, so we don't cause a resource update hotloop
 			deletionTimestamp := liveObj.GetDeletionTimestamp()
 			if deletionTimestamp == nil || deletionTimestamp.IsZero() {
-				err := sc.kubectl.DeleteResource(sc.config, liveObj.GroupVersionKind(), liveObj.GetName(), liveObj.GetNamespace(), false)
+				err := sc.kubectl.DeleteResource(context.TODO(), sc.config, liveObj.GroupVersionKind(), liveObj.GetName(), liveObj.GetNamespace(), false)
 				if err != nil {
 					return common.ResultCodeSyncFailed, err.Error()
 				}
@@ -770,7 +776,7 @@ func (sc *syncContext) deleteResource(task *syncTask) error {
 		return err
 	}
 	propagationPolicy := metav1.DeletePropagationForeground
-	return resIf.Delete(task.name(), &metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
+	return resIf.Delete(context.TODO(), task.name(), metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
 }
 
 func (sc *syncContext) getResourceIf(task *syncTask) (dynamic.ResourceInterface, error) {
@@ -800,7 +806,6 @@ const (
 )
 
 func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) runState {
-
 	dryRun = dryRun || sc.dryRun
 
 	sc.log.WithFields(log.Fields{"numTasks": len(tasks), "dryRun": dryRun}).Debug("running tasks")

@@ -378,7 +378,7 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 				return nil
 			}
 			listPager := pager.New(func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
-				res, err := resClient.List(opts)
+				res, err := resClient.List(ctx, opts)
 				if err == nil {
 					info.resourceVersion = res.GetResourceVersion()
 				}
@@ -411,7 +411,7 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 			return err
 		}
 
-		w, err := resClient.Watch(metav1.ListOptions{ResourceVersion: info.resourceVersion})
+		w, err := resClient.Watch(ctx, metav1.ListOptions{ResourceVersion: info.resourceVersion})
 		if errors.IsNotFound(err) {
 			c.stopWatching(api.GroupKind, ns)
 			return nil
@@ -529,7 +529,7 @@ func (c *clusterCache) sync() (err error) {
 		return c.processApi(client, api, func(resClient dynamic.ResourceInterface, ns string) error {
 
 			listPager := pager.New(func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
-				res, err := resClient.List(opts)
+				res, err := resClient.List(ctx, opts)
 				if err == nil {
 					lock.Lock()
 					info.resourceVersion = res.GetResourceVersion()
@@ -677,7 +677,7 @@ func (c *clusterCache) GetManagedLiveObjs(targetObjs []*unstructured.Unstructure
 					managedObj = existingObj.Resource
 				} else {
 					var err error
-					managedObj, err = c.kubectl.GetResource(c.config, targetObj.GroupVersionKind(), existingObj.Ref.Name, existingObj.Ref.Namespace)
+					managedObj, err = c.kubectl.GetResource(context.TODO(), c.config, targetObj.GroupVersionKind(), existingObj.Ref.Name, existingObj.Ref.Namespace)
 					if err != nil {
 						if errors.IsNotFound(err) {
 							return nil
@@ -687,7 +687,7 @@ func (c *clusterCache) GetManagedLiveObjs(targetObjs []*unstructured.Unstructure
 				}
 			} else if _, watched := c.apisMeta[key.GroupKind()]; !watched {
 				var err error
-				managedObj, err = c.kubectl.GetResource(c.config, targetObj.GroupVersionKind(), targetObj.GetName(), targetObj.GetNamespace())
+				managedObj, err = c.kubectl.GetResource(context.TODO(), c.config, targetObj.GroupVersionKind(), targetObj.GetName(), targetObj.GetNamespace())
 				if err != nil {
 					if errors.IsNotFound(err) {
 						return nil
@@ -702,7 +702,7 @@ func (c *clusterCache) GetManagedLiveObjs(targetObjs []*unstructured.Unstructure
 			if err != nil {
 				// fallback to loading resource from kubernetes if conversion fails
 				log.Debugf("Failed to convert resource: %v", err)
-				managedObj, err = c.kubectl.GetResource(c.config, targetObj.GroupVersionKind(), managedObj.GetName(), managedObj.GetNamespace())
+				managedObj, err = c.kubectl.GetResource(context.TODO(), c.config, targetObj.GroupVersionKind(), managedObj.GetName(), managedObj.GetNamespace())
 				if err != nil {
 					if errors.IsNotFound(err) {
 						return nil

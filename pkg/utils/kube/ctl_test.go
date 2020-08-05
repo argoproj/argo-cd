@@ -9,6 +9,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var (
+	_ Kubectl = &KubectlCmd{}
+)
+
 func TestConvertToVersion(t *testing.T) {
 	kubectl := KubectlCmd{}
 	t.Run("AppsDeployment", func(t *testing.T) {

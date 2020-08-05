@@ -19,6 +19,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/printers"
+	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -34,11 +35,11 @@ import (
 )
 
 type Kubectl interface {
-	ApplyResource(config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRun, force, validate bool) (string, error)
+	ApplyResource(ctx context.Context, config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRunStrategy cmdutil.DryRunStrategy, force, validate bool) (string, error)
 	ConvertToVersion(obj *unstructured.Unstructured, group, version string) (*unstructured.Unstructured, error)
-	DeleteResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, forceDelete bool) error
-	GetResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error)
-	PatchResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, patchType types.PatchType, patchBytes []byte) (*unstructured.Unstructured, error)
+	DeleteResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, forceDelete bool) error
+	GetResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error)
+	PatchResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, patchType types.PatchType, patchBytes []byte) (*unstructured.Unstructured, error)
 	GetAPIResources(config *rest.Config, resourceFilter ResourceFilter) ([]APIResourceInfo, error)
 	GetAPIGroups(config *rest.Config) ([]metav1.APIGroup, error)
 	GetServerVersion(config *rest.Config) (string, error)
@@ -136,7 +137,7 @@ func (k *KubectlCmd) GetAPIResources(config *rest.Config, resourceFilter Resourc
 }
 
 // GetResource returns resource
-func (k *KubectlCmd) GetResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error) {
+func (k *KubectlCmd) GetResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error) {
 	span := tracing.StartSpan("GetResource")
 	span.SetBaggageItem("kind", gvk.Kind)
 	span.SetBaggageItem("name", name)
@@ -155,11 +156,11 @@ func (k *KubectlCmd) GetResource(config *rest.Config, gvk schema.GroupVersionKin
 	}
 	resource := gvk.GroupVersion().WithResource(apiResource.Name)
 	resourceIf := ToResourceInterface(dynamicIf, apiResource, resource, namespace)
-	return resourceIf.Get(name, metav1.GetOptions{})
+	return resourceIf.Get(ctx, name, metav1.GetOptions{})
 }
 
 // PatchResource patches resource
-func (k *KubectlCmd) PatchResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, patchType types.PatchType, patchBytes []byte) (*unstructured.Unstructured, error) {
+func (k *KubectlCmd) PatchResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, patchType types.PatchType, patchBytes []byte) (*unstructured.Unstructured, error) {
 	span := tracing.StartSpan("PatchResource")
 	span.SetBaggageItem("kind", gvk.Kind)
 	span.SetBaggageItem("name", name)
@@ -178,11 +179,11 @@ func (k *KubectlCmd) PatchResource(config *rest.Config, gvk schema.GroupVersionK
 	}
 	resource := gvk.GroupVersion().WithResource(apiResource.Name)
 	resourceIf := ToResourceInterface(dynamicIf, apiResource, resource, namespace)
-	return resourceIf.Patch(name, patchType, patchBytes, metav1.PatchOptions{})
+	return resourceIf.Patch(ctx, name, patchType, patchBytes, metav1.PatchOptions{})
 }
 
 // DeleteResource deletes resource
-func (k *KubectlCmd) DeleteResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, forceDelete bool) error {
+func (k *KubectlCmd) DeleteResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, forceDelete bool) error {
 	span := tracing.StartSpan("DeleteResource")
 	span.SetBaggageItem("kind", gvk.Kind)
 	span.SetBaggageItem("name", name)
@@ -202,18 +203,18 @@ func (k *KubectlCmd) DeleteResource(config *rest.Config, gvk schema.GroupVersion
 	resource := gvk.GroupVersion().WithResource(apiResource.Name)
 	resourceIf := ToResourceInterface(dynamicIf, apiResource, resource, namespace)
 	propagationPolicy := metav1.DeletePropagationForeground
-	deleteOptions := &metav1.DeleteOptions{PropagationPolicy: &propagationPolicy}
+	deleteOptions := metav1.DeleteOptions{PropagationPolicy: &propagationPolicy}
 	if forceDelete {
 		propagationPolicy = metav1.DeletePropagationBackground
 		zeroGracePeriod := int64(0)
 		deleteOptions.GracePeriodSeconds = &zeroGracePeriod
 	}
 
-	return resourceIf.Delete(name, deleteOptions)
+	return resourceIf.Delete(ctx, name, deleteOptions)
 }
 
 // ApplyResource performs an apply of a unstructured resource
-func (k *KubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRun, force, validate bool) (string, error) {
+func (k *KubectlCmd) ApplyResource(ctx context.Context, config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRunStrategy cmdutil.DryRunStrategy, force, validate bool) (string, error) {
 	span := tracing.StartSpan("ApplyResource")
 	span.SetBaggageItem("kind", obj.GetKind())
 	span.SetBaggageItem("name", obj.GetName())
@@ -273,7 +274,7 @@ func (k *KubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Unstru
 		if err != nil {
 			return "", err
 		}
-		outReconcile, err := k.authReconcile(config, f.Name(), manifestFile.Name(), namespace, dryRun)
+		outReconcile, err := k.authReconcile(ctx, config, f.Name(), manifestFile.Name(), namespace, dryRunStrategy)
 		io.Close(closer)
 		if err != nil {
 			return "", err
@@ -291,7 +292,7 @@ func (k *KubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Unstru
 
 	// Run kubectl apply
 	fact, ioStreams := kubeCmdFactory(f.Name(), namespace)
-	applyOpts, err := newApplyOptions(config, fact, ioStreams, manifestFile.Name(), namespace, validate, force, dryRun)
+	applyOpts, err := newApplyOptions(config, fact, ioStreams, manifestFile.Name(), namespace, validate, force, dryRunStrategy)
 	if err != nil {
 		return "", err
 	}
@@ -324,7 +325,7 @@ func kubeCmdFactory(kubeconfig, ns string) (cmdutil.Factory, genericclioptions.I
 	return f, ioStreams
 }
 
-func newApplyOptions(config *rest.Config, f cmdutil.Factory, ioStreams genericclioptions.IOStreams, fileName string, namespace string, validate bool, force bool, dryRun bool) (*apply.ApplyOptions, error) {
+func newApplyOptions(config *rest.Config, f cmdutil.Factory, ioStreams genericclioptions.IOStreams, fileName string, namespace string, validate bool, force bool, dryRunStrategy cmdutil.DryRunStrategy) (*apply.ApplyOptions, error) {
 	o := apply.NewApplyOptions(ioStreams)
 	dynamicClient, err := dynamic.NewForConfig(config)
 	if err != nil {
@@ -337,6 +338,11 @@ func newApplyOptions(config *rest.Config, f cmdutil.Factory, ioStreams genericcl
 	if err != nil {
 		return nil, err
 	}
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+	o.DryRunVerifier = resource.NewDryRunVerifier(dynamicClient, discoveryClient)
 	o.Builder = f.NewBuilder()
 	o.Mapper, err = f.ToRESTMapper()
 	if err != nil {
@@ -345,13 +351,13 @@ func newApplyOptions(config *rest.Config, f cmdutil.Factory, ioStreams genericcl
 
 	o.ToPrinter = func(operation string) (printers.ResourcePrinter, error) {
 		o.PrintFlags.NamePrintFlags.Operation = operation
-		if o.DryRun {
+		switch o.DryRunStrategy {
+		case cmdutil.DryRunClient:
 			err = o.PrintFlags.Complete("%s (dry run)")
 			if err != nil {
 				return nil, err
 			}
-		}
-		if o.ServerDryRun {
+		case cmdutil.DryRunServer:
 			err = o.PrintFlags.Complete("%s (server dry run)")
 			if err != nil {
 				return nil, err
@@ -362,16 +368,16 @@ func newApplyOptions(config *rest.Config, f cmdutil.Factory, ioStreams genericcl
 	o.DeleteOptions.FilenameOptions.Filenames = []string{fileName}
 	o.Namespace = namespace
 	o.DeleteOptions.ForceDeletion = force
-	o.DryRun = dryRun
+	o.DryRunStrategy = dryRunStrategy
 	return o, nil
 }
 
-func newReconcileOptions(f cmdutil.Factory, kubeClient *kubernetes.Clientset, fileName string, ioStreams genericclioptions.IOStreams, namespace string, dryRun bool) (*auth.ReconcileOptions, error) {
+func newReconcileOptions(f cmdutil.Factory, kubeClient *kubernetes.Clientset, fileName string, ioStreams genericclioptions.IOStreams, namespace string, dryRunStrategy cmdutil.DryRunStrategy) (*auth.ReconcileOptions, error) {
 	o := auth.NewReconcileOptions(ioStreams)
 	o.RBACClient = kubeClient.RbacV1()
 	o.NamespaceClient = kubeClient.CoreV1()
 	o.FilenameOptions.Filenames = []string{fileName}
-	o.DryRun = dryRun
+	o.DryRun = dryRunStrategy != cmdutil.DryRunNone
 
 	r := f.NewBuilder().
 		WithScheme(scheme.Scheme, scheme.Scheme.PrioritizedVersionsAllGroups()...).
@@ -395,7 +401,7 @@ func newReconcileOptions(f cmdutil.Factory, kubeClient *kubernetes.Clientset, fi
 	return o, nil
 }
 
-func (k *KubectlCmd) authReconcile(config *rest.Config, kubeconfigPath string, manifestFile string, namespace string, dryRun bool) (string, error) {
+func (k *KubectlCmd) authReconcile(ctx context.Context, config *rest.Config, kubeconfigPath string, manifestFile string, namespace string, dryRunStrategy cmdutil.DryRunStrategy) (string, error) {
 	kubeClient, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		return "", err
@@ -404,14 +410,14 @@ func (k *KubectlCmd) authReconcile(config *rest.Config, kubeconfigPath string, m
 	// See: https://github.com/kubernetes/kubernetes/issues/71185. This is behavior which we do
 	// not want. We need to check if the namespace exists, before know if it is safe to run this
 	// command. Skip this for dryRuns.
-	if !dryRun && namespace != "" {
-		_, err = kubeClient.CoreV1().Namespaces().Get(namespace, metav1.GetOptions{})
+	if dryRunStrategy == cmdutil.DryRunNone && namespace != "" {
+		_, err = kubeClient.CoreV1().Namespaces().Get(ctx, namespace, metav1.GetOptions{})
 		if err != nil {
 			return "", err
 		}
 	}
 	fact, ioStreams := kubeCmdFactory(kubeconfigPath, namespace)
-	reconcileOpts, err := newReconcileOptions(fact, kubeClient, manifestFile, ioStreams, namespace, dryRun)
+	reconcileOpts, err := newReconcileOptions(fact, kubeClient, manifestFile, ioStreams, namespace, dryRunStrategy)
 	if err != nil {
 		return "", err
 	}

@@ -5,6 +5,12 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/argoproj/gitops-engine/pkg/health"
+	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
+	. "github.com/argoproj/gitops-engine/pkg/utils/testing"
+	testingutils "github.com/argoproj/gitops-engine/pkg/utils/testing"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -15,13 +21,6 @@ import (
 	"k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/rest"
 	testcore "k8s.io/client-go/testing"
-
-	"github.com/argoproj/gitops-engine/pkg/health"
-	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
-	. "github.com/argoproj/gitops-engine/pkg/utils/testing"
-	testingutils "github.com/argoproj/gitops-engine/pkg/utils/testing"
 )
 
 func newTestSyncCtx(opts ...SyncOpt) *syncContext {
