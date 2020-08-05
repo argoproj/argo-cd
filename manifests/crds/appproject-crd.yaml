@@ -31,6 +31,20 @@ spec:
         spec:
           description: AppProjectSpec is the specification of an AppProject
           properties:
+            clusterResourceBlacklist:
+              description: ClusterResourceBlacklist contains list of blacklisted cluster level resources
+              items:
+                description: GroupKind specifies a Group and a Kind, but does not force a version.  This is useful for identifying concepts during lookup stages without having partially valid types
+                properties:
+                  group:
+                    type: string
+                  kind:
+                    type: string
+                required:
+                - group
+                - kind
+                type: object
+              type: array
             clusterResourceWhitelist:
               description: ClusterResourceWhitelist contains list of whitelisted cluster level resources
               items:

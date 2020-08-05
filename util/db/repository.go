@@ -416,13 +416,13 @@ func setSecretData(prefix string, url string, secretsData map[string]map[string]
 }
 
 func (db *db) upsertSecret(name string, data map[string][]byte) error {
-	secret, err := db.kubeclientset.CoreV1().Secrets(db.ns).Get(name, metav1.GetOptions{})
+	secret, err := db.kubeclientset.CoreV1().Secrets(db.ns).Get(context.Background(), name, metav1.GetOptions{})
 	if err != nil {
 		if apierr.IsNotFound(err) {
 			if len(data) == 0 {
 				return nil
 			}
-			_, err = db.kubeclientset.CoreV1().Secrets(db.ns).Create(&apiv1.Secret{
+			_, err = db.kubeclientset.CoreV1().Secrets(db.ns).Create(context.Background(), &apiv1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: name,
 					Annotations: map[string]string{
@@ -430,7 +430,7 @@ func (db *db) upsertSecret(name string, data map[string][]byte) error {
 					},
 				},
 				Data: data,
-			})
+			}, metav1.CreateOptions{})
 			if err != nil {
 				return err
 			}
@@ -450,11 +450,11 @@ func (db *db) upsertSecret(name string, data map[string][]byte) error {
 			isManagedByArgo := (secret.Annotations != nil && secret.Annotations[common.AnnotationKeyManagedBy] == common.AnnotationValueManagedByArgoCD) ||
 				(secret.Labels != nil && secret.Labels[common.LabelKeySecretType] == "repository")
 			if isManagedByArgo {
-				return db.kubeclientset.CoreV1().Secrets(db.ns).Delete(name, &metav1.DeleteOptions{})
+				return db.kubeclientset.CoreV1().Secrets(db.ns).Delete(context.Background(), name, metav1.DeleteOptions{})
 			}
 			return nil
 		} else {
-			_, err = db.kubeclientset.CoreV1().Secrets(db.ns).Update(secret)
+			_, err = db.kubeclientset.CoreV1().Secrets(db.ns).Update(context.Background(), secret, metav1.UpdateOptions{})
 			if err != nil {
 				return err
 			}

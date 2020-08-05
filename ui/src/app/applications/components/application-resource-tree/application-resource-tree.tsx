@@ -345,6 +345,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         });
         roots = networkNodes.filter(node => !hasParents.has(treeNodeKey(node)));
     } else {
+        const managedKeys = new Set(props.app.status.resources.map(nodeKey));
         nodes.forEach(child => {
             (child.parentRefs || []).forEach(parent => {
                 const children = childrenByParentKey.get(treeNodeKey(parent)) || [];
@@ -352,7 +353,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                 childrenByParentKey.set(treeNodeKey(parent), children);
             });
         });
-        roots = nodes.filter(node => (node.parentRefs || []).length === 0).sort(compareNodes);
+        roots = nodes.filter(node => (node.parentRefs || []).length === 0 || managedKeys.has(nodeKey(node))).sort(compareNodes);
     }
 
     function processNode(node: ResourceTreeNode, root: ResourceTreeNode, colors?: string[]) {

@@ -125,8 +125,8 @@ func TestAppCreation(t *testing.T) {
 		When().
 		// ensure that update replaces spec and merge labels and annotations
 		And(func() {
-			FailOnErr(AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Patch(
-				ctx.GetName(), types.MergePatchType, []byte(`{"metadata": {"labels": { "test": "label" }, "annotations": { "test": "annotation" }}}`)))
+			FailOnErr(AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Patch(context.Background(),
+				ctx.GetName(), types.MergePatchType, []byte(`{"metadata": {"labels": { "test": "label" }, "annotations": { "test": "annotation" }}}`), metav1.PatchOptions{}))
 		}).
 		Create("--upsert").
 		Then().
@@ -286,7 +286,7 @@ func TestAppRollbackSuccessful(t *testing.T) {
 			patch, _, err := diff.CreateTwoWayMergePatch(app, appWithHistory, &Application{})
 			assert.NoError(t, err)
 
-			app, err = AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Patch(app.Name, types.MergePatchType, patch)
+			app, err = AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Patch(context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
 			assert.NoError(t, err)
 
 			// sync app and make sure it reaches InSync state
@@ -428,11 +428,11 @@ func TestAppWithSecrets(t *testing.T) {
 			assert.Empty(t, diffOutput)
 
 			// patch secret and make sure app is out of sync and diff detects the change
-			FailOnErr(KubeClientset.CoreV1().Secrets(DeploymentNamespace()).Patch(
+			FailOnErr(KubeClientset.CoreV1().Secrets(DeploymentNamespace()).Patch(context.Background(),
 				"test-secret", types.JSONPatchType, []byte(`[
 	{"op": "remove", "path": "/data/username"},
 	{"op": "add", "path": "/stringData", "value": {"password": "foo"}}
-]`)))
+]`), metav1.PatchOptions{}))
 		}).
 		When().
 		Refresh(RefreshTypeNormal).
@@ -475,8 +475,8 @@ func TestResourceDiffing(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			// Patch deployment
-			_, err := KubeClientset.AppsV1().Deployments(DeploymentNamespace()).Patch(
-				"guestbook-ui", types.JSONPatchType, []byte(`[{ "op": "replace", "path": "/spec/template/spec/containers/0/image", "value": "test" }]`))
+			_, err := KubeClientset.AppsV1().Deployments(DeploymentNamespace()).Patch(context.Background(),
+				"guestbook-ui", types.JSONPatchType, []byte(`[{ "op": "replace", "path": "/spec/template/spec/containers/0/image", "value": "test" }]`), metav1.PatchOptions{})
 			assert.NoError(t, err)
 		}).
 		When().
@@ -518,7 +518,7 @@ func TestKnownTypesInCRDDiffing(t *testing.T) {
 		And(func() {
 			dummyResIf := DynamicClientset.Resource(dummiesGVR).Namespace(DeploymentNamespace())
 			patchData := []byte(`{"spec":{"requests": {"cpu": "2"}}}`)
-			FailOnErr(dummyResIf.Patch("dummy-crd-instance", types.MergePatchType, patchData, metav1.PatchOptions{}))
+			FailOnErr(dummyResIf.Patch(context.Background(), "dummy-crd-instance", types.MergePatchType, patchData, metav1.PatchOptions{}))
 		}).Refresh(RefreshTypeNormal).
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
@@ -649,7 +649,7 @@ func TestResourceAction(t *testing.T) {
 			})
 			assert.NoError(t, err)
 
-			deployment, err := KubeClientset.AppsV1().Deployments(DeploymentNamespace()).Get("guestbook-ui", metav1.GetOptions{})
+			deployment, err := KubeClientset.AppsV1().Deployments(DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{})
 			assert.NoError(t, err)
 
 			assert.Equal(t, "test", deployment.Labels["sample"])
@@ -787,12 +787,12 @@ func TestPermissions(t *testing.T) {
 	assert.Contains(t, err.Error(), sourceError)
 	assert.Contains(t, err.Error(), destinationError)
 
-	proj, err := AppClientset.ArgoprojV1alpha1().AppProjects(ArgoCDNamespace).Get("test", metav1.GetOptions{})
+	proj, err := AppClientset.ArgoprojV1alpha1().AppProjects(ArgoCDNamespace).Get(context.Background(), "test", metav1.GetOptions{})
 	assert.NoError(t, err)
 
 	proj.Spec.Destinations = []ApplicationDestination{{Server: "*", Namespace: "*"}}
 	proj.Spec.SourceRepos = []string{"*"}
-	proj, err = AppClientset.ArgoprojV1alpha1().AppProjects(ArgoCDNamespace).Update(proj)
+	proj, err = AppClientset.ArgoprojV1alpha1().AppProjects(ArgoCDNamespace).Update(context.Background(), proj, metav1.UpdateOptions{})
 	assert.NoError(t, err)
 
 	// make sure controller report permissions issues in conditions
@@ -800,13 +800,13 @@ func TestPermissions(t *testing.T) {
 		"--path", guestbookPath, "--project", "test", "--dest-server", common.KubernetesInternalAPIServerAddr, "--dest-namespace", DeploymentNamespace())
 	assert.NoError(t, err)
 	defer func() {
-		err = AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Delete(appName, &metav1.DeleteOptions{})
+		err = AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Delete(context.Background(), appName, metav1.DeleteOptions{})
 		assert.NoError(t, err)
 	}()
 
 	proj.Spec.Destinations = []ApplicationDestination{}
 	proj.Spec.SourceRepos = []string{}
-	_, err = AppClientset.ArgoprojV1alpha1().AppProjects(ArgoCDNamespace).Update(proj)
+	_, err = AppClientset.ArgoprojV1alpha1().AppProjects(ArgoCDNamespace).Update(context.Background(), proj, metav1.UpdateOptions{})
 	assert.NoError(t, err)
 	time.Sleep(1 * time.Second)
 	closer, client, err := ArgoCDClientset.NewApplicationClient()
@@ -1000,11 +1000,11 @@ func TestOrphanedResource(t *testing.T) {
 		Expect(NoConditions()).
 		When().
 		And(func() {
-			FailOnErr(KubeClientset.CoreV1().ConfigMaps(DeploymentNamespace()).Create(&v1.ConfigMap{
+			FailOnErr(KubeClientset.CoreV1().ConfigMaps(DeploymentNamespace()).Create(context.Background(), &v1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "orphaned-configmap",
 				},
-			}))
+			}, metav1.CreateOptions{}))
 		}).
 		Refresh(RefreshTypeNormal).
 		Then().
@@ -1102,7 +1102,7 @@ func TestNotPermittedResources(t *testing.T) {
 	}
 	defer func() {
 		log.Infof("Ingress 'sample-ingress' deleted from %s", ArgoCDNamespace)
-		CheckError(KubeClientset.NetworkingV1beta1().Ingresses(ArgoCDNamespace).Delete("sample-ingress", &metav1.DeleteOptions{}))
+		CheckError(KubeClientset.NetworkingV1beta1().Ingresses(ArgoCDNamespace).Delete(context.Background(), "sample-ingress", metav1.DeleteOptions{}))
 	}()
 
 	svc := &v1.Service{
@@ -1130,8 +1130,8 @@ func TestNotPermittedResources(t *testing.T) {
 			{Group: "", Kind: "Service"},
 		}}).
 		And(func() {
-			FailOnErr(KubeClientset.NetworkingV1beta1().Ingresses(ArgoCDNamespace).Create(ingress))
-			FailOnErr(KubeClientset.CoreV1().Services(DeploymentNamespace()).Create(svc))
+			FailOnErr(KubeClientset.NetworkingV1beta1().Ingresses(ArgoCDNamespace).Create(context.Background(), ingress, metav1.CreateOptions{}))
+			FailOnErr(KubeClientset.CoreV1().Services(DeploymentNamespace()).Create(context.Background(), svc, metav1.CreateOptions{}))
 		}).
 		Path(guestbookPath).
 		When().
@@ -1156,8 +1156,8 @@ func TestNotPermittedResources(t *testing.T) {
 		Expect(DoesNotExist())
 
 	// Make sure prohibited resources are not deleted during application deletion
-	FailOnErr(KubeClientset.NetworkingV1beta1().Ingresses(ArgoCDNamespace).Get("sample-ingress", metav1.GetOptions{}))
-	FailOnErr(KubeClientset.CoreV1().Services(DeploymentNamespace()).Get("guestbook-ui", metav1.GetOptions{}))
+	FailOnErr(KubeClientset.NetworkingV1beta1().Ingresses(ArgoCDNamespace).Get(context.Background(), "sample-ingress", metav1.GetOptions{}))
+	FailOnErr(KubeClientset.CoreV1().Services(DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{}))
 }
 
 func TestSyncWithInfos(t *testing.T) {
@@ -1193,7 +1193,7 @@ func TestCreateAppWithNoNameSpaceForGlobalResourse(t *testing.T) {
 		Then().
 		And(func(app *Application) {
 			time.Sleep(500 * time.Millisecond)
-			app, err := AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Get(app.Name, metav1.GetOptions{})
+			app, err := AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Get(context.Background(), app.Name, metav1.GetOptions{})
 			assert.NoError(t, err)
 			assert.Len(t, app.Status.Conditions, 0)
 		})
@@ -1212,7 +1212,7 @@ func TestCreateAppWithNoNameSpaceWhenRequired(t *testing.T) {
 		And(func(app *Application) {
 			var updatedApp *Application
 			for i := 0; i < 3; i++ {
-				obj, err := AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Get(app.Name, metav1.GetOptions{})
+				obj, err := AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Get(context.Background(), app.Name, metav1.GetOptions{})
 				assert.NoError(t, err)
 				updatedApp = obj
 				if len(updatedApp.Status.Conditions) > 0 {
@@ -1240,7 +1240,7 @@ func TestCreateAppWithNoNameSpaceWhenRequired2(t *testing.T) {
 		And(func(app *Application) {
 			var updatedApp *Application
 			for i := 0; i < 3; i++ {
-				obj, err := AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Get(app.Name, metav1.GetOptions{})
+				obj, err := AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Get(context.Background(), app.Name, metav1.GetOptions{})
 				assert.NoError(t, err)
 				updatedApp = obj
 				if len(updatedApp.Status.Conditions) > 0 {
@@ -1270,11 +1270,11 @@ func TestListResource(t *testing.T) {
 		Expect(NoConditions()).
 		When().
 		And(func() {
-			FailOnErr(KubeClientset.CoreV1().ConfigMaps(DeploymentNamespace()).Create(&v1.ConfigMap{
+			FailOnErr(KubeClientset.CoreV1().ConfigMaps(DeploymentNamespace()).Create(context.Background(), &v1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "orphaned-configmap",
 				},
-			}))
+			}, metav1.CreateOptions{}))
 		}).
 		Refresh(RefreshTypeNormal).
 		Then().

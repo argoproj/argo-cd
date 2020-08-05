@@ -198,13 +198,13 @@ func CreateSecret(username, password string) string {
 }
 
 func updateSettingConfigMap(updater func(cm *corev1.ConfigMap) error) {
-	cm, err := KubeClientset.CoreV1().ConfigMaps(ArgoCDNamespace).Get(common.ArgoCDConfigMapName, v1.GetOptions{})
+	cm, err := KubeClientset.CoreV1().ConfigMaps(ArgoCDNamespace).Get(context.Background(), common.ArgoCDConfigMapName, v1.GetOptions{})
 	errors.CheckError(err)
 	if cm.Data == nil {
 		cm.Data = make(map[string]string)
 	}
 	errors.CheckError(updater(cm))
-	_, err = KubeClientset.CoreV1().ConfigMaps(ArgoCDNamespace).Update(cm)
+	_, err = KubeClientset.CoreV1().ConfigMaps(ArgoCDNamespace).Update(context.Background(), cm, v1.UpdateOptions{})
 	errors.CheckError(err)
 }
 
@@ -282,10 +282,10 @@ func SetRepos(repos ...settings.RepositoryCredentials) {
 }
 
 func SetProjectSpec(project string, spec v1alpha1.AppProjectSpec) {
-	proj, err := AppClientset.ArgoprojV1alpha1().AppProjects(ArgoCDNamespace).Get(project, v1.GetOptions{})
+	proj, err := AppClientset.ArgoprojV1alpha1().AppProjects(ArgoCDNamespace).Get(context.Background(), project, v1.GetOptions{})
 	errors.CheckError(err)
 	proj.Spec = spec
-	_, err = AppClientset.ArgoprojV1alpha1().AppProjects(ArgoCDNamespace).Update(proj)
+	_, err = AppClientset.ArgoprojV1alpha1().AppProjects(ArgoCDNamespace).Update(context.Background(), proj, v1.UpdateOptions{})
 	errors.CheckError(err)
 }
 
@@ -296,13 +296,13 @@ func EnsureCleanState(t *testing.T) {
 	policy := v1.DeletePropagationBackground
 	// delete resources
 	// kubectl delete apps --all
-	CheckError(AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).DeleteCollection(&v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{}))
+	CheckError(AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).DeleteCollection(context.Background(), v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{}))
 	// kubectl delete appprojects --field-selector metadata.name!=default
-	CheckError(AppClientset.ArgoprojV1alpha1().AppProjects(ArgoCDNamespace).DeleteCollection(
-		&v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{FieldSelector: "metadata.name!=default"}))
+	CheckError(AppClientset.ArgoprojV1alpha1().AppProjects(ArgoCDNamespace).DeleteCollection(context.Background(),
+		v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{FieldSelector: "metadata.name!=default"}))
 	// kubectl delete secrets -l e2e.argoproj.io=true
-	CheckError(KubeClientset.CoreV1().Secrets(ArgoCDNamespace).DeleteCollection(
-		&v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{LabelSelector: testingLabel + "=true"}))
+	CheckError(KubeClientset.CoreV1().Secrets(ArgoCDNamespace).DeleteCollection(context.Background(),
+		v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{LabelSelector: testingLabel + "=true"}))
 
 	FailOnErr(Run("", "kubectl", "delete", "ns", "-l", testingLabel+"=true", "--field-selector", "status.phase=Active", "--wait=false"))
 	FailOnErr(Run("", "kubectl", "delete", "crd", "-l", testingLabel+"=true", "--wait=false"))

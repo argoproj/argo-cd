@@ -73,7 +73,7 @@ func (opts *settingsOpts) createSettingsManager() (*settings.SettingsManager, er
 			return nil, err
 		}
 
-		argocdCM, err = realClientset.CoreV1().ConfigMaps(ns).Get(common.ArgoCDConfigMapName, v1.GetOptions{})
+		argocdCM, err = realClientset.CoreV1().ConfigMaps(ns).Get(context.Background(), common.ArgoCDConfigMapName, v1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -105,7 +105,7 @@ func (opts *settingsOpts) createSettingsManager() (*settings.SettingsManager, er
 		if err != nil {
 			return nil, err
 		}
-		argocdSecret, err = realClientset.CoreV1().Secrets(ns).Get(common.ArgoCDSecretName, v1.GetOptions{})
+		argocdSecret, err = realClientset.CoreV1().Secrets(ns).Get(context.Background(), common.ArgoCDSecretName, v1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}

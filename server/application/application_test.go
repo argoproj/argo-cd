@@ -369,7 +369,7 @@ func TestSyncAndTerminate(t *testing.T) {
 	assert.NotNil(t, app)
 	assert.NotNil(t, app.Operation)
 
-	events, err := appServer.kubeclientset.CoreV1().Events(appServer.ns).List(metav1.ListOptions{})
+	events, err := appServer.kubeclientset.CoreV1().Events(appServer.ns).List(context.Background(), metav1.ListOptions{})
 	assert.Nil(t, err)
 	event := events.Items[1]
 
@@ -381,7 +381,7 @@ func TestSyncAndTerminate(t *testing.T) {
 		Phase:     synccommon.OperationRunning,
 		StartedAt: metav1.NewTime(time.Now()),
 	}
-	_, err = appServer.appclientset.ArgoprojV1alpha1().Applications(appServer.ns).Update(app)
+	_, err = appServer.appclientset.ArgoprojV1alpha1().Applications(appServer.ns).Update(context.Background(), app, metav1.UpdateOptions{})
 	assert.Nil(t, err)
 
 	resp, err := appServer.TerminateOperation(ctx, &application.OperationTerminateRequest{Name: &app.Name})
@@ -411,7 +411,7 @@ func TestSyncHelm(t *testing.T) {
 	assert.NotNil(t, app)
 	assert.NotNil(t, app.Operation)
 
-	events, err := appServer.kubeclientset.CoreV1().Events(appServer.ns).List(metav1.ListOptions{})
+	events, err := appServer.kubeclientset.CoreV1().Events(appServer.ns).List(context.Background(), metav1.ListOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, "Unknown user initiated sync to 0.7.* (0.7.2)", events.Items[1].Message)
 }

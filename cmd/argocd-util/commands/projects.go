@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -71,7 +72,7 @@ func saveProject(updated v1alpha1.AppProject, orig v1alpha1.AppProject, projects
 	}
 	_ = diff.PrintDiff(updated.Name, target, live)
 	if !dryRun {
-		_, err = projectsIf.Update(&updated)
+		_, err = projectsIf.Update(context.Background(), &updated, v1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
@@ -145,7 +146,7 @@ func NewUpdatePolicyRuleCommand() *cobra.Command {
 }
 
 func updateProjects(projIf appclient.AppProjectInterface, projectGlob string, rolePattern string, action string, modification func(string, string) string, dryRun bool) error {
-	projects, err := projIf.List(v1.ListOptions{})
+	projects, err := projIf.List(context.Background(), v1.ListOptions{})
 	if err != nil {
 		return err
 	}

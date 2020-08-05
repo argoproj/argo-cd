@@ -8,10 +8,10 @@ import (
 	"path"
 	"strings"
 
-	executil "github.com/argoproj/gitops-engine/pkg/utils/exec"
 	"github.com/ghodss/yaml"
 
 	"github.com/argoproj/argo-cd/util/config"
+	executil "github.com/argoproj/argo-cd/util/exec"
 )
 
 type HelmRepository struct {

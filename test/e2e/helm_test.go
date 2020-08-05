@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -13,6 +14,7 @@ import (
 	. "github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -364,8 +366,8 @@ func testHelmWithDependencies(t *testing.T, chartPath string, legacyRepo bool) {
 				fmt.Sprintf("--from-literal=username=%s", GitUsername),
 				fmt.Sprintf("--from-literal=password=%s", GitPassword),
 			))
-			FailOnErr(fixture.KubeClientset.CoreV1().Secrets(fixture.ArgoCDNamespace).Patch(
-				"helm-repo", types.MergePatchType, []byte(`{"metadata": { "labels": {"e2e.argoproj.io": "true"} }}`)))
+			FailOnErr(fixture.KubeClientset.CoreV1().Secrets(fixture.ArgoCDNamespace).Patch(context.Background(),
+				"helm-repo", types.MergePatchType, []byte(`{"metadata": { "labels": {"e2e.argoproj.io": "true"} }}`), metav1.PatchOptions{}))
 
 			fixture.SetHelmRepos(settings.HelmRepoCredentials{
 				URL:            RepoURL(RepoURLTypeHelm),

@@ -223,7 +223,7 @@ func (e *Enforcer) newInformer() cache.SharedIndexInformer {
 
 // RunPolicyLoader runs the policy loader which watches policy updates from the configmap and reloads them
 func (e *Enforcer) RunPolicyLoader(ctx context.Context, onUpdated func(cm *apiv1.ConfigMap) error) error {
-	cm, err := e.clientset.CoreV1().ConfigMaps(e.namespace).Get(e.configmap, metav1.GetOptions{})
+	cm, err := e.clientset.CoreV1().ConfigMaps(e.namespace).Get(ctx, e.configmap, metav1.GetOptions{})
 	if err != nil {
 		if !apierr.IsNotFound(err) {
 			return err
