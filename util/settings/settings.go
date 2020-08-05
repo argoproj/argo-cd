@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"net/url"
 	"os"
@@ -437,7 +438,8 @@ func (mgr *SettingsManager) GetAppInstanceLabelKey() (string, error) {
 		return common.LabelKeyAppInstance, nil
 	}
 	if len(label) > appInstanceLabelMaxLen {
-		return "sha224-" + sha256.Sum224([]byte(label)), nil
+		hash := sha256.Sum224([]byte(label))
+		return "sha224-" +  hex.EncodeToString(hash[:]), nil
 	}
 	return label, nil
 }
