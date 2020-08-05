@@ -26,15 +26,17 @@ export class Card<T> extends React.Component<CardProps<T>> {
                 </div>
                 {this.props.data && this.props.data.length > 0 ? (
                     <div>
-                        <div className='card__row card__input-labels'>
+                        <div className='card__row card__input-labels card__input-container'>
                             <div className='card__col-round-button card__col' />
-                            {this.props.fields.map(field => {
-                                return (
-                                    <div className='card__input-labels--label card__col-input card__col' key={field.name + 'label'}>
-                                        {field.name}
-                                    </div>
-                                );
-                            })}
+                            <div className='card__input-labels--label'>
+                                {this.props.fields.map(field => {
+                                    return (
+                                        <div className='card__col-input card__col' key={field.name + 'label'}>
+                                            {field.name}
+                                        </div>
+                                    );
+                                })}
+                            </div>
                             <div className='card__col-button card__col' />
                         </div>
                         {this.props.data.map((row, i) => {
@@ -52,6 +54,10 @@ export class Card<T> extends React.Component<CardProps<T>> {
         );
     }
     private empty() {
-        return <div className={`card__col card__col-fill-${this.props.fields.length}`}>This is empty!</div>;
+        return (
+            <div className={'card__row'}>
+                <div className={`card__col card__col-fill-${this.props.fields.length}`}>This is empty!</div>
+            </div>
+        );
     }
 }

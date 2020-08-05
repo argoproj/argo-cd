@@ -1,0 +1,34 @@
+$info-blue: #b0ddff;
+$warning-yellow: #f9e574;
+$error-red: #e66868;
+
+@mixin bannerStyle($color) {
+  background-color: $color;
+  border-color: $color - #111;
+  color: $color - #777;
+}
+
+.banner {
+  width: 100%;
+  background: white;
+  border: 2px solid black;
+  border-radius: 7px;
+  padding: 7px 14px;
+  font-weight: 500;
+
+  i {
+    margin-right: 7px;
+  }
+
+  &__info {
+    @include bannerStyle($info-blue);
+  }
+
+  &__warning {
+    @include bannerStyle($warning-yellow);
+  }
+
+  &__error {
+    @include bannerStyle($error-red);
+  }
+}

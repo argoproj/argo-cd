@@ -1,6 +1,7 @@
 import * as React from 'react';
 import {Project} from '../../../../shared/models';
 import {GetProp, SetProp} from '../../utils';
+import {Banner, BannerIcon, BannerType} from '../banner/banner';
 import {ResourceKind, ResourceKindSelector} from '../resource-kind-selector';
 
 export interface FieldData {
@@ -60,6 +61,20 @@ export class CardRow<T> extends React.Component<CardRowProps<T>, CardRowState<T>
     get dataIsFieldValue(): boolean {
         return this.isFieldValue(this.state.data);
     }
+    get fieldsSetToAll(): string[] {
+        if (this.dataIsFieldValue) {
+            const field = this.props.fields[0];
+            const comp = field.type === FieldTypes.ResourceKindSelector ? 'ANY' : '*';
+            return this.state.data.toString() === comp ? [field.name] : [];
+        }
+        const fields = [];
+        for (const key of Object.keys(this.state.data)) {
+            if (GetProp(this.state.data as T, key as keyof T).toString() === '*') {
+                fields.push(key);
+            }
+        }
+        return fields;
+    }
     constructor(props: CardRowProps<T>) {
         super(props);
         this.state = {
@@ -90,26 +105,48 @@ export class CardRow<T> extends React.Component<CardRowProps<T>, CardRowState<T>
                     const curVal = this.dataIsFieldValue ? this.state.data : GetProp(this.state.data as T, field.name as keyof T);
                     format = <input type='text' value={curVal ? curVal.toString() : ''} onChange={e => update(e.target.value, field.name as keyof T)} placeholder={field.name} />;
             }
-            return <div key={field.name + '.' + i}>{format}</div>;
+            return (
+                <div key={field.name + '.' + i} className='card__col-input card__col'>
+                    {format}
+                </div>
+            );
         });
 
         return (
-            <div className='card__input-container card__row'>
-                <div className='card__col-round-button card__col'>
-                    <button className='project__button project__button-remove project__button-round' onClick={() => this.setState({confirm: !this.state.confirm})}>
-                        <i className='fa fa-times' />
-                    </button>
+            <div>
+                <div className='card__input-container card__row'>
+                    <div className='card__col-round-button card__col'>
+                        <button className='project__button project__button-remove project__button-round' onClick={() => this.setState({confirm: !this.state.confirm})}>
+                            <i className='fa fa-times' />
+                        </button>
+                    </div>
+                    <div>{inputs}</div>
+                    <div className='card__col-button card__col'>
+                        <button
+                            className={`project__button project__button-${this.state.confirm ? 'error' : this.disabled ? 'disabled' : this.changed ? 'save' : 'saved'}`}
+                            onClick={() => (this.state.confirm ? this.props.remove() : this.disabled ? null : this.save())}>
+                            {this.state.confirm ? 'CONFIRM' : this.disabled ? 'EMPTY' : this.changed ? 'SAVE' : 'SAVED'}
+                        </button>
+                    </div>
                 </div>
-                <div className='card__col-input card__col'>{inputs}</div>
-                <div className='card__col-button card__col'>
-                    <button
-                        className={`project__button project__button-${this.state.confirm ? 'error' : this.disabled ? 'disabled' : this.changed ? 'save' : 'saved'}`}
-                        onClick={() => (this.state.confirm ? this.props.remove() : this.disabled ? null : this.save())}>
-                        {this.state.confirm ? 'CONFIRM' : this.disabled ? 'EMPTY' : this.changed ? 'SAVE' : 'SAVED'}
-                    </button>
-                </div>
+                {this.fieldsSetToAll.length > 0 ? this.allNoticeBanner(this.fieldsSetToAll) : null}
             </div>
         );
+    }
+    private allNoticeBanner(fields: string[]) {
+        let fieldList: string = fields[0] + 's';
+        fields.splice(0, 1);
+        if (fields.length > 0) {
+            const last = fields.pop();
+            if (fields.length > 0) {
+                for (const field of fields) {
+                    fieldList += ', ' + field + 's';
+                }
+            }
+            fieldList += ' and ' + last + 's';
+        }
+
+        return <div className='card__row'>{Banner(BannerType.Info, BannerIcon.Info, `Note: all (*) ${fieldList} are set`)}</div>;
     }
     private isFieldValue(value: T | FieldValue): value is FieldValue {
         if ((typeof value as FieldValue) === 'string') {

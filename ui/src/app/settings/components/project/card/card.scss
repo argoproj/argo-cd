@@ -15,6 +15,13 @@
     display: flex;
     align-items: center;
     margin-bottom: 1em;
+
+    div:first-child {
+      margin-left: 0;
+    }
+    div:last-child {
+      margin-right: 0;
+    }
   }
 
   &__input-container {
@@ -37,7 +44,6 @@
     width: 100%;
     line-height: 1em;
     display: block;
-    margin-right: $input-margin-right;
     border-radius: 7px;
   }
 
@@ -63,9 +69,6 @@
     margin: 0 $col-gutter;
     flex-basis: $col-width;
     width: $col-width;
-    &:last-child {
-      margin-right: 0;
-    }
   }
 
   &__col-round-button {
@@ -76,6 +79,10 @@
   &__col-button {
     flex-basis: $button-width;
     width: $button-width;
+    .project__button {
+      margin-left: auto;
+      margin-right: 0;
+    }
   }
 
   &__col-input {
@@ -84,8 +91,8 @@
 
 
   @function get-col-width($cols) {
-    $fill: $button-width + $round-button-size + 2*$col-gutter;
-    @return $fill + $cols * ($col-width + 2*$col-gutter);
+    $fill: $button-width + $round-button-size;
+    @return $fill + $cols * (2*$col-gutter + $col-width);
   }
 
   &__col-fill-1 {
