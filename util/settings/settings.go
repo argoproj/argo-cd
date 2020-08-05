@@ -439,7 +439,7 @@ func (mgr *SettingsManager) GetAppInstanceLabelKey() (string, error) {
 	}
 	if len(label) > appInstanceLabelMaxLen {
 		hash := sha256.Sum224([]byte(label))
-		return "sha224-" +  hex.EncodeToString(hash[:]), nil
+		return "sha224-" + hex.EncodeToString(hash[:]), nil
 	}
 	return label, nil
 }
