@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -35,11 +36,11 @@ func TestUpdateProjects_FindMatchingProject(t *testing.T) {
 	err = updateProjects(clientset.ArgoprojV1alpha1().AppProjects(namespace), "ba*", "*", "set", modification, false)
 	assert.NoError(t, err)
 
-	fooProj, err := clientset.ArgoprojV1alpha1().AppProjects(namespace).Get("foo", v1.GetOptions{})
+	fooProj, err := clientset.ArgoprojV1alpha1().AppProjects(namespace).Get(context.Background(), "foo", v1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Len(t, fooProj.Spec.Roles[0].Policies, 0)
 
-	barProj, err := clientset.ArgoprojV1alpha1().AppProjects(namespace).Get("bar", v1.GetOptions{})
+	barProj, err := clientset.ArgoprojV1alpha1().AppProjects(namespace).Get(context.Background(), "bar", v1.GetOptions{})
 	assert.NoError(t, err)
 	assert.EqualValues(t, barProj.Spec.Roles[0].Policies, []string{"p, proj:bar:test, *, set, bar/*, allow"})
 }
@@ -52,7 +53,7 @@ func TestUpdateProjects_FindMatchingRole(t *testing.T) {
 	err = updateProjects(clientset.ArgoprojV1alpha1().AppProjects(namespace), "*", "fo*", "set", modification, false)
 	assert.NoError(t, err)
 
-	proj, err := clientset.ArgoprojV1alpha1().AppProjects(namespace).Get("proj", v1.GetOptions{})
+	proj, err := clientset.ArgoprojV1alpha1().AppProjects(namespace).Get(context.Background(), "proj", v1.GetOptions{})
 	assert.NoError(t, err)
 	assert.EqualValues(t, proj.Spec.Roles[0].Policies, []string{"p, proj:proj:foo, *, set, proj/*, allow"})
 	assert.Len(t, proj.Spec.Roles[1].Policies, 0)

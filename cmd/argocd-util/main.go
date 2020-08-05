@@ -248,7 +248,7 @@ func NewImportCommand() *cobra.Command {
 			// items in this map indicates the resource should be pruned since it no longer appears
 			// in the backup
 			pruneObjects := make(map[kube.ResourceKey]unstructured.Unstructured)
-			configMaps, err := acdClients.configMaps.List(metav1.ListOptions{})
+			configMaps, err := acdClients.configMaps.List(context.Background(), metav1.ListOptions{})
 			errors.CheckError(err)
 			// referencedSecrets holds any secrets referenced in the argocd-cm configmap. These
 			// secrets need to be imported too
@@ -262,19 +262,19 @@ func NewImportCommand() *cobra.Command {
 				}
 			}
 
-			secrets, err := acdClients.secrets.List(metav1.ListOptions{})
+			secrets, err := acdClients.secrets.List(context.Background(), metav1.ListOptions{})
 			errors.CheckError(err)
 			for _, secret := range secrets.Items {
 				if isArgoCDSecret(referencedSecrets, secret) {
 					pruneObjects[kube.ResourceKey{Group: "", Kind: "Secret", Name: secret.GetName()}] = secret
 				}
 			}
-			applications, err := acdClients.applications.List(metav1.ListOptions{})
+			applications, err := acdClients.applications.List(context.Background(), metav1.ListOptions{})
 			errors.CheckError(err)
 			for _, app := range applications.Items {
 				pruneObjects[kube.ResourceKey{Group: "argoproj.io", Kind: "Application", Name: app.GetName()}] = app
 			}
-			projects, err := acdClients.projects.List(metav1.ListOptions{})
+			projects, err := acdClients.projects.List(context.Background(), metav1.ListOptions{})
 			errors.CheckError(err)
 			for _, proj := range projects.Items {
 				pruneObjects[kube.ResourceKey{Group: "argoproj.io", Kind: "AppProject", Name: proj.GetName()}] = proj
@@ -301,7 +301,7 @@ func NewImportCommand() *cobra.Command {
 				}
 				if !exists {
 					if !dryRun {
-						_, err = dynClient.Create(bakObj, metav1.CreateOptions{})
+						_, err = dynClient.Create(context.Background(), bakObj, metav1.CreateOptions{})
 						errors.CheckError(err)
 					}
 					fmt.Printf("%s/%s %s created%s\n", gvk.Group, gvk.Kind, bakObj.GetName(), dryRunMsg)
@@ -310,7 +310,7 @@ func NewImportCommand() *cobra.Command {
 				} else {
 					if !dryRun {
 						newLive := updateLive(bakObj, &liveObj)
-						_, err = dynClient.Update(newLive, metav1.UpdateOptions{})
+						_, err = dynClient.Update(context.Background(), newLive, metav1.UpdateOptions{})
 						errors.CheckError(err)
 					}
 					fmt.Printf("%s/%s %s updated%s\n", gvk.Group, gvk.Kind, bakObj.GetName(), dryRunMsg)
@@ -332,7 +332,7 @@ func NewImportCommand() *cobra.Command {
 						log.Fatalf("Unexpected kind '%s' in prune list", key.Kind)
 					}
 					if !dryRun {
-						err = dynClient.Delete(key.Name, &metav1.DeleteOptions{})
+						err = dynClient.Delete(context.Background(), key.Name, metav1.DeleteOptions{})
 						errors.CheckError(err)
 					}
 					fmt.Printf("%s/%s %s pruned%s\n", key.Group, key.Kind, key.Name, dryRunMsg)
@@ -400,33 +400,33 @@ func NewExportCommand() *cobra.Command {
 			}
 
 			acdClients := newArgoCDClientsets(config, namespace)
-			acdConfigMap, err := acdClients.configMaps.Get(common.ArgoCDConfigMapName, metav1.GetOptions{})
+			acdConfigMap, err := acdClients.configMaps.Get(context.Background(), common.ArgoCDConfigMapName, metav1.GetOptions{})
 			errors.CheckError(err)
 			export(writer, *acdConfigMap)
-			acdRBACConfigMap, err := acdClients.configMaps.Get(common.ArgoCDRBACConfigMapName, metav1.GetOptions{})
+			acdRBACConfigMap, err := acdClients.configMaps.Get(context.Background(), common.ArgoCDRBACConfigMapName, metav1.GetOptions{})
 			errors.CheckError(err)
 			export(writer, *acdRBACConfigMap)
-			acdKnownHostsConfigMap, err := acdClients.configMaps.Get(common.ArgoCDKnownHostsConfigMapName, metav1.GetOptions{})
+			acdKnownHostsConfigMap, err := acdClients.configMaps.Get(context.Background(), common.ArgoCDKnownHostsConfigMapName, metav1.GetOptions{})
 			errors.CheckError(err)
 			export(writer, *acdKnownHostsConfigMap)
-			acdTLSCertsConfigMap, err := acdClients.configMaps.Get(common.ArgoCDTLSCertsConfigMapName, metav1.GetOptions{})
+			acdTLSCertsConfigMap, err := acdClients.configMaps.Get(context.Background(), common.ArgoCDTLSCertsConfigMapName, metav1.GetOptions{})
 			errors.CheckError(err)
 			export(writer, *acdTLSCertsConfigMap)
 
 			referencedSecrets := getReferencedSecrets(*acdConfigMap)
-			secrets, err := acdClients.secrets.List(metav1.ListOptions{})
+			secrets, err := acdClients.secrets.List(context.Background(), metav1.ListOptions{})
 			errors.CheckError(err)
 			for _, secret := range secrets.Items {
 				if isArgoCDSecret(referencedSecrets, secret) {
 					export(writer, secret)
 				}
 			}
-			projects, err := acdClients.projects.List(metav1.ListOptions{})
+			projects, err := acdClients.projects.List(context.Background(), metav1.ListOptions{})
 			errors.CheckError(err)
 			for _, proj := range projects.Items {
 				export(writer, proj)
 			}
-			applications, err := acdClients.applications.List(metav1.ListOptions{})
+			applications, err := acdClients.applications.List(context.Background(), metav1.ListOptions{})
 			errors.CheckError(err)
 			for _, app := range applications.Items {
 				export(writer, app)

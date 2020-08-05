@@ -51,7 +51,7 @@ func TestUpdateCluster(t *testing.T) {
 		return
 	}
 
-	secret, err := kubeclientset.CoreV1().Secrets(fakeNamespace).Get("mycluster", metav1.GetOptions{})
+	secret, err := kubeclientset.CoreV1().Secrets(fakeNamespace).Get(context.Background(), "mycluster", metav1.GetOptions{})
 	if !assert.NoError(t, err) {
 		return
 	}

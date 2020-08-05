@@ -1,6 +1,7 @@
 package clusterauth
 
 import (
+	"context"
 	"io/ioutil"
 	"testing"
 
@@ -75,7 +76,7 @@ func TestCreateServiceAccount(t *testing.T) {
 		cs := fake.NewSimpleClientset(ns)
 		err := CreateServiceAccount(cs, "argocd-manager", "kube-system")
 		assert.NoError(t, err)
-		rsa, err := cs.CoreV1().ServiceAccounts("kube-system").Get("argocd-manager", metav1.GetOptions{})
+		rsa, err := cs.CoreV1().ServiceAccounts("kube-system").Get(context.Background(), "argocd-manager", metav1.GetOptions{})
 		assert.NoError(t, err)
 		assert.NotNil(t, rsa)
 	})
@@ -84,7 +85,7 @@ func TestCreateServiceAccount(t *testing.T) {
 		cs := fake.NewSimpleClientset(ns, sa)
 		err := CreateServiceAccount(cs, "argocd-manager", "kube-system")
 		assert.NoError(t, err)
-		rsa, err := cs.CoreV1().ServiceAccounts("kube-system").Get("argocd-manager", metav1.GetOptions{})
+		rsa, err := cs.CoreV1().ServiceAccounts("kube-system").Get(context.Background(), "argocd-manager", metav1.GetOptions{})
 		assert.NoError(t, err)
 		assert.NotNil(t, rsa)
 	})
@@ -93,7 +94,7 @@ func TestCreateServiceAccount(t *testing.T) {
 		cs := fake.NewSimpleClientset(ns)
 		err := CreateServiceAccount(cs, "", "kube-system")
 		assert.NoError(t, err)
-		rsa, err := cs.CoreV1().ServiceAccounts("kube-system").Get("argocd-manager", metav1.GetOptions{})
+		rsa, err := cs.CoreV1().ServiceAccounts("kube-system").Get(context.Background(), "argocd-manager", metav1.GetOptions{})
 		assert.Error(t, err)
 		assert.Nil(t, rsa)
 	})
@@ -102,7 +103,7 @@ func TestCreateServiceAccount(t *testing.T) {
 		cs := fake.NewSimpleClientset()
 		err := CreateServiceAccount(cs, "argocd-manager", "invalid")
 		assert.NoError(t, err)
-		rsa, err := cs.CoreV1().ServiceAccounts("invalid").Get("argocd-manager", metav1.GetOptions{})
+		rsa, err := cs.CoreV1().ServiceAccounts("invalid").Get(context.Background(), "argocd-manager", metav1.GetOptions{})
 		assert.NoError(t, err)
 		assert.NotNil(t, rsa)
 	})
@@ -217,7 +218,7 @@ func TestRotateServiceAccountSecrets(t *testing.T) {
 
 	// Verify service account references new secret and old secret is deleted
 	saClient := kubeclientset.CoreV1().ServiceAccounts(testClaims.Namespace)
-	sa, err := saClient.Get(testClaims.ServiceAccountName, metav1.GetOptions{})
+	sa, err := saClient.Get(context.Background(), testClaims.ServiceAccountName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, sa.Secrets, []corev1.ObjectReference{
 		{
@@ -225,7 +226,7 @@ func TestRotateServiceAccountSecrets(t *testing.T) {
 		},
 	})
 	secretsClient := kubeclientset.CoreV1().Secrets(testClaims.Namespace)
-	_, err = secretsClient.Get(testClaims.SecretName, metav1.GetOptions{})
+	_, err = secretsClient.Get(context.Background(), testClaims.SecretName, metav1.GetOptions{})
 	assert.True(t, apierr.IsNotFound(err))
 }
 

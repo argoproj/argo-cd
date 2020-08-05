@@ -589,7 +589,7 @@ func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revi
 	if err != nil {
 		return err
 	}
-	_, err = m.appclientset.ArgoprojV1alpha1().Applications(m.namespace).Patch(app.Name, types.MergePatchType, patch)
+	_, err = m.appclientset.ArgoprojV1alpha1().Applications(m.namespace).Patch(context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
 	return err
 }
 

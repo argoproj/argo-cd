@@ -654,7 +654,7 @@ func (ctrl *ApplicationController) removeProjectFinalizer(proj *appv1.AppProject
 			"finalizers": proj.Finalizers,
 		},
 	})
-	_, err := ctrl.applicationClientset.ArgoprojV1alpha1().AppProjects(ctrl.namespace).Patch(proj.Name, types.MergePatchType, patch)
+	_, err := ctrl.applicationClientset.ArgoprojV1alpha1().AppProjects(ctrl.namespace).Patch(context.Background(), proj.Name, types.MergePatchType, patch, metav1.PatchOptions{})
 	return err
 }
 
@@ -681,7 +681,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	logCtx := log.WithField("application", app.Name)
 	logCtx.Infof("Deleting resources")
 	// Get refreshed application info, since informer app copy might be stale
-	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(app.Name, metav1.GetOptions{})
+	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(context.Background(), app.Name, metav1.GetOptions{})
 	if err != nil {
 		if !apierr.IsNotFound(err) {
 			logCtx.Errorf("Unable to get refreshed application info prior deleting resources: %v", err)
@@ -719,7 +719,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	filteredObjs := FilterObjectsForDeletion(objs)
 	err = kube.RunAllAsync(len(filteredObjs), func(i int) error {
 		obj := filteredObjs[i]
-		return ctrl.kubectl.DeleteResource(config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), false)
+		return ctrl.kubectl.DeleteResource(context.Background(), config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), false)
 	})
 	if err != nil {
 		return objs, err
@@ -754,7 +754,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 			"finalizers": app.Finalizers,
 		},
 	})
-	_, err = ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Patch(app.Name, types.MergePatchType, patch)
+	_, err = ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Patch(context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
 	if err != nil {
 		return objs, err
 	}
@@ -774,7 +774,7 @@ func (ctrl *ApplicationController) setAppCondition(app *appv1.Application, condi
 		},
 	})
 	if err == nil {
-		_, err = ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Patch(app.Name, types.MergePatchType, patch)
+		_, err = ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Patch(context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
 	}
 	if err != nil {
 		log.Errorf("Unable to set application condition: %v", err)
@@ -802,7 +802,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		// We need to detect if the app object we pulled off the informer is stale and doesn't
 		// reflect the fact that the operation is completed. We don't want to perform the operation
 		// again. To detect this, always retrieve the latest version to ensure it is not stale.
-		freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(ctrl.namespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
+		freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(ctrl.namespace).Get(context.Background(), app.ObjectMeta.Name, metav1.GetOptions{})
 		if err != nil {
 			logCtx.Errorf("Failed to retrieve latest application state: %v", err)
 			return
@@ -849,7 +849,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	if state.Phase == synccommon.OperationRunning {
 		// It's possible for an app to be terminated while we were operating on it. We do not want
 		// to clobber the Terminated state with Running. Get the latest app state to check for this.
-		freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(ctrl.namespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
+		freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(ctrl.namespace).Get(context.Background(), app.ObjectMeta.Name, metav1.GetOptions{})
 		if err == nil {
 			if freshApp.Status.OperationState != nil && freshApp.Status.OperationState.Phase == synccommon.OperationTerminating {
 				state.Phase = synccommon.OperationTerminating
@@ -919,7 +919,7 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 			return err
 		}
 		appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(ctrl.namespace)
-		_, err = appClient.Patch(app.Name, types.MergePatchType, patchJSON)
+		_, err = appClient.Patch(context.Background(), app.Name, types.MergePatchType, patchJSON, metav1.PatchOptions{})
 		if err != nil {
 			// Stop retrying updating deleted application
 			if apierr.IsNotFound(err) {
@@ -1192,7 +1192,7 @@ func (ctrl *ApplicationController) normalizeApplication(orig, app *appv1.Applica
 		logCtx.Errorf("error constructing app spec patch: %v", err)
 	} else if modified {
 		appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace)
-		_, err = appClient.Patch(app.Name, types.MergePatchType, patch)
+		_, err = appClient.Patch(context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
 		if err != nil {
 			logCtx.Errorf("Error persisting normalized application spec: %v", err)
 		} else {
@@ -1233,7 +1233,7 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 	}
 	logCtx.Debugf("patch: %s", string(patch))
 	appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(orig.Namespace)
-	_, err = appClient.Patch(orig.Name, types.MergePatchType, patch)
+	_, err = appClient.Patch(context.Background(), orig.Name, types.MergePatchType, patch, metav1.PatchOptions{})
 	if err != nil {
 		logCtx.Warnf("Error updating application: %v", err)
 	} else {

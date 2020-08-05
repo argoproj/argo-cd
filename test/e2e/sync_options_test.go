@@ -1,11 +1,13 @@
 package e2e
 
 import (
+	"context"
 	"os"
 	"testing"
 
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -71,8 +73,8 @@ func TestSyncWithStatusIgnored(t *testing.T) {
 		// app should remain synced if k8s change detected
 		When().
 		And(func() {
-			errors.FailOnErr(fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Patch(
-				"guestbook-ui", types.JSONPatchType, []byte(`[{ "op": "replace", "path": "/status/observedGeneration", "value": 2 }]`)))
+			errors.FailOnErr(fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Patch(context.Background(),
+				"guestbook-ui", types.JSONPatchType, []byte(`[{ "op": "replace", "path": "/status/observedGeneration", "value": 2 }]`), v1.PatchOptions{}))
 		}).
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced))

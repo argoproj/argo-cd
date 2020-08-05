@@ -232,7 +232,7 @@ func saveToFile(err error, outputFormat string, result reconcileResults, outputP
 }
 
 func getReconcileResults(appClientset appclientset.Interface, namespace string, selector string) ([]appReconcileResult, error) {
-	appsList, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(v1.ListOptions{LabelSelector: selector})
+	appsList, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(context.Background(), v1.ListOptions{LabelSelector: selector})
 	if err != nil {
 		return nil, err
 	}
@@ -288,7 +288,7 @@ func reconcileApplications(
 	appStateManager := controller.NewAppStateManager(
 		argoDB, appClientset, repoServerClient, namespace, &kube.KubectlCmd{}, settingsMgr, stateCache, projInformer, server)
 
-	appsList, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(v1.ListOptions{LabelSelector: selector})
+	appsList, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(context.Background(), v1.ListOptions{LabelSelector: selector})
 	if err != nil {
 		return nil, err
 	}

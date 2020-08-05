@@ -230,7 +230,7 @@ func TestInitializingExistingDefaultProject(t *testing.T) {
 	argocd := NewServer(context.Background(), argoCDOpts)
 	assert.NotNil(t, argocd)
 
-	proj, err := appClientSet.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Get(common.DefaultAppProjectName, metav1.GetOptions{})
+	proj, err := appClientSet.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), common.DefaultAppProjectName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.NotNil(t, proj)
 	assert.Equal(t, proj.Name, common.DefaultAppProjectName)
@@ -251,7 +251,7 @@ func TestInitializingNotExistingDefaultProject(t *testing.T) {
 	argocd := NewServer(context.Background(), argoCDOpts)
 	assert.NotNil(t, argocd)
 
-	proj, err := appClientSet.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Get(common.DefaultAppProjectName, metav1.GetOptions{})
+	proj, err := appClientSet.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), common.DefaultAppProjectName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.NotNil(t, proj)
 	assert.Equal(t, proj.Name, common.DefaultAppProjectName)
@@ -304,7 +304,7 @@ func TestEnforceProjectGroups(t *testing.T) {
 	log.Println(existingProj.ProjectPoliciesString())
 	existingProj.Spec.Roles[0].Groups = nil
 	log.Println(existingProj.ProjectPoliciesString())
-	_, _ = s.AppClientset.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Update(&existingProj)
+	_, _ = s.AppClientset.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Update(context.Background(), &existingProj, metav1.UpdateOptions{})
 	time.Sleep(100 * time.Millisecond) // this lets the informer get synced
 	assert.False(t, s.enf.Enforce(claims, "projects", "get", existingProj.ObjectMeta.Name))
 	assert.False(t, s.enf.Enforce(claims, "applications", "get", defaultTestObject))
@@ -359,7 +359,7 @@ func TestRevokedToken(t *testing.T) {
 	// Now revoke the token by deleting the token
 	existingProj.Spec.Roles[0].JWTTokens = nil
 	existingProj.Status.JWTTokensByRole = nil
-	_, _ = s.AppClientset.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Update(&existingProj)
+	_, _ = s.AppClientset.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Update(context.Background(), &existingProj, metav1.UpdateOptions{})
 	time.Sleep(200 * time.Millisecond) // this lets the informer get synced
 	assert.False(t, s.enf.Enforce(claims, "projects", "get", existingProj.ObjectMeta.Name))
 	assert.False(t, s.enf.Enforce(claims, "applications", "get", defaultTestObject))

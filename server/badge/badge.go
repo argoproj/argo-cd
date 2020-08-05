@@ -1,6 +1,7 @@
 package badge
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -74,7 +75,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	//Sample url: http://localhost:8080/api/badge?name=123
 	if name, ok := r.URL.Query()["name"]; ok && enabled {
-		if app, err := h.appClientset.ArgoprojV1alpha1().Applications(h.namespace).Get(name[0], v1.GetOptions{}); err == nil {
+		if app, err := h.appClientset.ArgoprojV1alpha1().Applications(h.namespace).Get(context.Background(), name[0], v1.GetOptions{}); err == nil {
 			health = app.Status.Health.Status
 			status = app.Status.Sync.Status
 			if app.Status.OperationState != nil && app.Status.OperationState.SyncResult != nil {
