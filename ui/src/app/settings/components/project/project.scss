@@ -5,10 +5,10 @@
   &__button {
     display: block;
     padding: $button-padding;
-    margin-right: 10px;
+    margin-right: 0;
+    width: 70px;
     border-radius: 7px;
     cursor: pointer;
-    width: 100%;
     color: $white-color;
     font-weight: 600;
   }
@@ -25,25 +25,26 @@
     background-color: $cancel-red;
   }
 
-  &__button-saved, &__button-save, &__button-error {
-    width: 70px;
-    margin-right: 0;
-  }
-
   &__button-cancel {
     background-color: $cancel-red;
+  }
+
+  &__button-disabled {
+    background-color: $disabled-grey;
+    cursor: not-allowed;
   }
 
   &__button-round {
     padding: 0;
     border-radius: 100%;
     font-weight: 800;
-    font-size: 25px;
+    font-size: 15px;
     width: $round-button-size;
     height: $round-button-size;
-    line-height: $round-button-size;
-    text-align: center;
     margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   &__button-remove {

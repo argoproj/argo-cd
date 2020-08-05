@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import {ApplicationDestination, Project, ProjectSpec} from '../../../../shared/models';
+import {ApplicationDestination, GroupKind, Project, ProjectSpec} from '../../../../shared/models';
 import {services} from '../../../../shared/services';
 import {GetProp, SetProp} from '../../utils';
 import {Card} from '../card/card';
@@ -11,23 +11,23 @@ interface SummaryProps {
     proj: Project;
 }
 
-interface SummaryState extends IterableSpecFields {
+interface SummaryState extends ProjectSpec {
     name: string;
     description: string;
-    sourceRepos: string[];
-    destinations: ApplicationDestination[];
     proj: Project;
 }
 
-interface IterableSpecFields {
-    destinations: ApplicationDestination[];
-    sourceRepos: string[];
+enum IterableSpecFieldNames {
+    destinations = 'destinations',
+    sourceRepos = 'sourceRepos',
+    clusterResourceWhitelist = 'clusterResourceWhitelist'
 }
 
-export type IterableSpecField = ApplicationDestination | string;
+export type IterableSpecField = ApplicationDestination | GroupKind | string;
 
 const SourceFields: FieldData[] = [{name: 'url', type: FieldTypes.Text}];
 const DestinationFields: FieldData[] = [{name: 'namespace', type: FieldTypes.Text}, {name: 'server', type: FieldTypes.Text}];
+const AllowedClusterResourceFields: FieldData[] = [{name: 'group', type: FieldTypes.Text}, {name: 'kind', type: FieldTypes.ResourceKindSelector}];
 
 export class ProjectSummary extends React.Component<SummaryProps, SummaryState> {
     get descriptionChanged(): boolean {
@@ -38,14 +38,9 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
         super(props);
         this.state = {
             name: props.proj.metadata.name,
-            description: props.proj.spec.description,
-            sourceRepos: props.proj.spec.sourceRepos,
-            destinations: props.proj.spec.destinations,
-            proj: props.proj
+            proj: props.proj,
+            ...props.proj.spec
         };
-        this.addDestination = this.addDestination.bind(this);
-        this.removeSource = this.removeSource.bind(this);
-        this.removeDestination = this.removeDestination.bind(this);
         this.save = this.save.bind(this);
     }
 
@@ -60,7 +55,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             <div className='project-summary__col'>
                                 <i className='fa fa-pencil-alt' />
                             </div>
-                            <input value={this.state.description} onChange={e => this.setState({description: e.target.value})} />
+                            <input value={this.state.description} onChange={e => this.setState({description: e.target.value})} placeholder='Click to add a description' />
                         </div>
                         <div className='project-summary__description--row'>
                             {this.descriptionChanged ? (
@@ -94,17 +89,30 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             title='Sources'
                             fields={SourceFields}
                             data={this.state.sourceRepos}
-                            add={() => this.addSpecItem('sourceRepos', '')}
-                            remove={this.removeSource}
-                            save={value => this.save('sourceRepos', value as string)}
+                            add={() => this.addSpecItem(IterableSpecFieldNames.sourceRepos, '')}
+                            remove={i => this.removeSpecItem(IterableSpecFieldNames.sourceRepos, i)}
+                            save={(i, value) => this.save(IterableSpecFieldNames.sourceRepos, i, value as string)}
                         />
                         <Card<ApplicationDestination>
                             title='Destinations'
                             fields={DestinationFields}
                             data={this.state.destinations}
-                            add={() => this.addSpecItem('destinations', {} as ApplicationDestination)}
-                            remove={this.removeDestination}
-                            save={() => null}
+                            add={() => this.addSpecItem(IterableSpecFieldNames.destinations, {} as ApplicationDestination)}
+                            remove={i => this.removeSpecItem(IterableSpecFieldNames.destinations, i)}
+                            save={(i, value) => this.save(IterableSpecFieldNames.destinations, i, value as ApplicationDestination)}
+                        />
+                    </div>
+                </div>
+                <div className='project-summary__section'>
+                    <div className='project-summary__label'>ALLOW LIST</div>
+                    <div className='project-summary__section--row'>
+                        <Card<GroupKind>
+                            title='Allowed Cluster Resources'
+                            fields={AllowedClusterResourceFields}
+                            data={this.state.clusterResourceWhitelist}
+                            add={() => this.addSpecItem(IterableSpecFieldNames.clusterResourceWhitelist, {} as GroupKind)}
+                            remove={i => this.removeSpecItem(IterableSpecFieldNames.clusterResourceWhitelist, i)}
+                            save={(i, value) => this.save(IterableSpecFieldNames.clusterResourceWhitelist, i, value as string)}
                         />
                     </div>
                 </div>
@@ -112,46 +120,49 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
         );
     }
 
-    private addSpecItem(key: keyof IterableSpecFields, empty: IterableSpecField) {
-        const arr = (GetProp(this.state as IterableSpecFields, key) as IterableSpecField[]) || [];
+    private async addSpecItem(key: keyof ProjectSpec, empty: IterableSpecField) {
+        const arr = (GetProp(this.state as ProjectSpec, key) as IterableSpecField[]) || [];
         arr.push(empty);
         const update = {...this.state};
         SetProp(update, key as keyof SummaryState, arr);
         this.setState(update);
+        this.reconcileProject();
     }
-
-    private addDestination() {
-        const update = this.state.destinations || [];
-        update.push({} as ApplicationDestination);
-        this.setState({destinations: update});
-    }
-
-    private removeSource(i: number) {
-        if (!this.state.sourceRepos || this.state.sourceRepos.length < 1) {
+    private async removeSpecItem(key: keyof ProjectSpec, i: number) {
+        const arr = GetProp(this.state as ProjectSpec, key) as IterableSpecField[];
+        if (arr.length < 1 || !arr) {
             return;
         }
-        const update = this.state.sourceRepos;
-        update.splice(i, 1);
-        this.setState({sourceRepos: update});
+        arr.splice(i, 1);
+        const update = {...this.state};
+        SetProp(update, key as keyof SummaryState, arr);
+        this.setState(update);
+        const res = await services.projects.updateLean(this.state.name, update.proj);
+        this.updateProject(res);
+    }
+    private reconcileProject() {
+        const proj = this.state.proj;
+        proj.spec.sourceRepos = this.state.sourceRepos;
+        proj.spec.destinations = this.state.destinations;
+        this.setState({proj});
+    }
+    private updateProject(proj: Project) {
+        this.setState({
+            name: proj.metadata.name,
+            description: proj.spec.description,
+            sourceRepos: proj.spec.sourceRepos,
+            destinations: proj.spec.destinations,
+            proj
+        });
     }
 
-    private removeDestination(i: number) {
-        if (!this.state.destinations || this.state.destinations.length < 1) {
-            return;
-        }
-        const update = this.state.destinations;
-        update.splice(i, 1);
-        this.setState({destinations: update});
-    }
-
-    private async save(key: keyof IterableSpecFields, value: IterableSpecField): Promise<Project> {
+    private async save(key: keyof ProjectSpec, idx: number, value: IterableSpecField): Promise<Project> {
         const update = {...this.state.proj};
         const arr = GetProp(this.state, key) as IterableSpecField[];
-        arr.push(value as IterableSpecField);
+        arr[idx] = value as IterableSpecField;
         SetProp(update.spec, key as keyof ProjectSpec, arr);
-        console.log(update);
         const res = await services.projects.updateLean(this.state.name, update);
-        this.setState({proj: res});
+        this.updateProject(res);
         return res;
     }
 }

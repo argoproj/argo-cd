@@ -3,11 +3,6 @@ import {Project} from '../../../../shared/models';
 import {GetProp, SetProp} from '../../utils';
 import {ResourceKind, ResourceKindSelector} from '../resource-kind-selector';
 
-// two options here:
-// *support non-object types or strings as fields in CardRow,* (leaning toward this)
-// OR
-// convert structured object data to and from string arrays in ProjectSummary
-
 export interface FieldData {
     type: FieldTypes;
     name: string;
@@ -44,6 +39,24 @@ export class CardRow<T> extends React.Component<CardRowProps<T>, CardRowState<T>
         }
         return false;
     }
+    get disabled(): boolean {
+        if (!this.state.data) {
+            return true;
+        }
+        if (Object.keys(this.state.data).length < this.props.fields.length) {
+            return true;
+        }
+        if (this.dataIsFieldValue) {
+            return this.state.data === '' || this.state.data === null;
+        }
+        for (const key of Object.keys(this.state.data)) {
+            const cur = GetProp(this.state.data as T, key as keyof T).toString();
+            if (cur === '' || cur === null) {
+                return true;
+            }
+        }
+        return false;
+    }
     get dataIsFieldValue(): boolean {
         return this.isFieldValue(this.state.data);
     }
@@ -71,7 +84,7 @@ export class CardRow<T> extends React.Component<CardRowProps<T>, CardRowState<T>
             let format;
             switch (field.type) {
                 case FieldTypes.ResourceKindSelector:
-                    format = <ResourceKindSelector />;
+                    format = <ResourceKindSelector onChange={value => update(value, field.name as keyof T)} />;
                     break;
                 default:
                     const curVal = this.dataIsFieldValue ? this.state.data : GetProp(this.state.data as T, field.name as keyof T);
@@ -84,13 +97,15 @@ export class CardRow<T> extends React.Component<CardRowProps<T>, CardRowState<T>
             <div className='card__input-container card__row'>
                 <div className='card__col-round-button card__col'>
                     <button className='project__button project__button-remove project__button-round' onClick={this.props.remove}>
-                        -
+                        <i className='fa fa-times' />
                     </button>
                 </div>
                 <div className='card__col-input card__col'>{inputs}</div>
                 <div className='card__col-button card__col'>
-                    <button className={`project__button project__button-${this.state.error ? 'error' : this.changed ? 'save' : 'saved'}`} onClick={() => this.save()}>
-                        {this.state.error ? 'ERROR' : this.changed ? 'SAVE' : 'SAVED'}
+                    <button
+                        className={`project__button project__button-${this.disabled ? 'disabled' : this.changed ? 'save' : 'saved'}`}
+                        onClick={() => (this.disabled ? null : this.save())}>
+                        {this.disabled ? 'EMPTY' : this.changed ? 'SAVE' : 'SAVED'}
                     </button>
                 </div>
             </div>
@@ -103,8 +118,6 @@ export class CardRow<T> extends React.Component<CardRowProps<T>, CardRowState<T>
         return false;
     }
     private async save() {
-        const err = await this.props.save(this.state.data);
-        console.log(err);
-        // this.setState({error: err});
+        this.props.save(this.state.data);
     }
 }

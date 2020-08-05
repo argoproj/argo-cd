@@ -11,7 +11,7 @@ interface CardProps<T> {
     fields: FieldData[];
     add: () => void;
     remove: (i: number) => void;
-    save: (value: T | FieldValue) => Promise<Project>;
+    save: (i: number, value: T | FieldValue) => Promise<Project>;
 }
 
 export class Card<T> extends React.Component<CardProps<T>> {
@@ -21,7 +21,7 @@ export class Card<T> extends React.Component<CardProps<T>> {
                 <div className='card__row'>
                     <div className='card__title'>{this.props.title}</div>
                     <button className='project__button project__button-add project__button-round' onClick={this.props.add}>
-                        +
+                        <i className='fa fa-plus' />
                     </button>
                 </div>
                 {this.props.data && this.props.data.length > 0 ? (
@@ -40,7 +40,7 @@ export class Card<T> extends React.Component<CardProps<T>> {
                         {this.props.data.map((row, i) => {
                             return (
                                 <div key={row.toString() + '.' + i}>
-                                    <CardRow<T> fields={this.props.fields} data={row} remove={() => this.props.remove(i)} save={value => this.props.save(value)} />
+                                    <CardRow<T> fields={this.props.fields} data={row} remove={() => this.props.remove(i)} save={value => this.props.save(i, value)} />
                                 </div>
                             );
                         })}

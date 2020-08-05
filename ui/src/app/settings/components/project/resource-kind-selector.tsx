@@ -3,6 +3,7 @@ import * as React from 'react';
 // https://kubernetes.io/docs/reference/kubectl/overview/#resource-types
 
 enum ResourceKinds {
+    ANY = '*',
     Binding = 'bindings',
     ComponentStatus = 'componentstatuses',
     ConfigMap = 'configmaps',
@@ -55,13 +56,17 @@ enum ResourceKinds {
 
 export type ResourceKind = keyof ResourceKinds;
 
-export class ResourceKindSelector extends React.Component {
+interface ResourceKindProps {
+    onChange: (value: ResourceKinds) => void;
+}
+
+export class ResourceKindSelector extends React.Component<ResourceKindProps> {
     public render() {
         return (
-            <select>
+            <select onChange={e => this.props.onChange(e.target.value as ResourceKinds)}>
                 {Object.keys(ResourceKinds).map(kind => {
                     return (
-                        <option key={kind} value={kind}>
+                        <option key={kind} value={ResourceKinds[kind as any]}>
                             {kind}
                         </option>
                     );
