@@ -6,6 +6,19 @@
   padding: 25px;
   border-radius: 18px;
 
+  &__empty {
+    background-color: $argo-color-gray-2;
+    .card__title {
+      color: $argo-color-gray-7;
+    }
+    &:hover {
+      background-color: $argo-color-gray-1;
+      .card__title {
+        color: black;
+      }
+    }
+  }
+
   &__title {
     color : black;
     font-size: 27px;

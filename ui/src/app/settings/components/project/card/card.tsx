@@ -35,7 +35,7 @@ export class Card<T> extends React.Component<CardProps<T>, CardState> {
     }
     public render() {
         return (
-            <div className='card'>
+            <div className={`card ${this.props.data && this.props.data.length > 0 ? null : 'card__empty'}`}>
                 <div className='card__row'>
                     <div className='card__title'>{this.props.title}</div>
                     <div className='card__actions'>
