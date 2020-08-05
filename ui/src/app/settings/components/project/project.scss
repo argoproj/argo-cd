@@ -5,8 +5,8 @@
   &__button {
     display: block;
     padding: $button-padding;
-    margin-right: 0;
-    width: 70px;
+    margin: 0 auto;
+    width: auto;
     border-radius: 7px;
     cursor: pointer;
     color: $white-color;

@@ -22,7 +22,7 @@ interface CardRowProps<T> {
 
 interface CardRowState<T> {
     data: T | FieldValue;
-    error: boolean;
+    confirm: boolean;
 }
 
 export type FieldValue = string | ResourceKind;
@@ -64,7 +64,7 @@ export class CardRow<T> extends React.Component<CardRowProps<T>, CardRowState<T>
         super(props);
         this.state = {
             data: this.props.data,
-            error: false
+            confirm: false
         };
         this.save = this.save.bind(this);
     }
@@ -96,16 +96,16 @@ export class CardRow<T> extends React.Component<CardRowProps<T>, CardRowState<T>
         return (
             <div className='card__input-container card__row'>
                 <div className='card__col-round-button card__col'>
-                    <button className='project__button project__button-remove project__button-round' onClick={this.props.remove}>
+                    <button className='project__button project__button-remove project__button-round' onClick={() => this.setState({confirm: !this.state.confirm})}>
                         <i className='fa fa-times' />
                     </button>
                 </div>
                 <div className='card__col-input card__col'>{inputs}</div>
                 <div className='card__col-button card__col'>
                     <button
-                        className={`project__button project__button-${this.disabled ? 'disabled' : this.changed ? 'save' : 'saved'}`}
-                        onClick={() => (this.disabled ? null : this.save())}>
-                        {this.disabled ? 'EMPTY' : this.changed ? 'SAVE' : 'SAVED'}
+                        className={`project__button project__button-${this.state.confirm ? 'error' : this.disabled ? 'disabled' : this.changed ? 'save' : 'saved'}`}
+                        onClick={() => (this.state.confirm ? this.props.remove() : this.disabled ? null : this.save())}>
+                        {this.state.confirm ? 'CONFIRM' : this.disabled ? 'EMPTY' : this.changed ? 'SAVE' : 'SAVED'}
                     </button>
                 </div>
             </div>
