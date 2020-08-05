@@ -46,6 +46,7 @@
     &--row {
       display: flex;
       align-items: flex-start;
+      overflow-x: scroll;
     }
   }
 

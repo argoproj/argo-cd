@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import {ApplicationDestination, GroupKind, Project, ProjectSpec} from '../../../../shared/models';
+import {ApplicationDestination, GroupKind, Project, ProjectSignatureKey, ProjectSpec} from '../../../../shared/models';
 import {services} from '../../../../shared/services';
 import {GetProp, SetProp} from '../../utils';
 import {Card} from '../card/card';
@@ -20,14 +20,18 @@ interface SummaryState extends ProjectSpec {
 enum IterableSpecFieldNames {
     destinations = 'destinations',
     sourceRepos = 'sourceRepos',
-    clusterResourceWhitelist = 'clusterResourceWhitelist'
+    clusterResourceWhitelist = 'clusterResourceWhitelist',
+    clusterResourceBlacklist = 'clusterResourceBlacklist',
+    namespaceResourceBlacklist = 'namespaceResourceBlacklist',
+    signatureKeys = 'signatureKeys'
 }
 
-export type IterableSpecField = ApplicationDestination | GroupKind | string;
+export type IterableSpecField = ApplicationDestination | GroupKind | ProjectSignatureKey | string;
 
 const SourceFields: FieldData[] = [{name: 'url', type: FieldTypes.Text}];
 const DestinationFields: FieldData[] = [{name: 'namespace', type: FieldTypes.Text}, {name: 'server', type: FieldTypes.Text}];
-const AllowedClusterResourceFields: FieldData[] = [{name: 'group', type: FieldTypes.Text}, {name: 'kind', type: FieldTypes.ResourceKindSelector}];
+const ResourceFields: FieldData[] = [{name: 'group', type: FieldTypes.Text}, {name: 'kind', type: FieldTypes.ResourceKindSelector}];
+const SignatureKeyFields: FieldData[] = [{name: 'keyID', type: FieldTypes.Text}];
 
 export class ProjectSummary extends React.Component<SummaryProps, SummaryState> {
     get descriptionChanged(): boolean {
@@ -108,11 +112,45 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                     <div className='project-summary__section--row'>
                         <Card<GroupKind>
                             title='Allowed Cluster Resources'
-                            fields={AllowedClusterResourceFields}
+                            fields={ResourceFields}
                             data={this.state.clusterResourceWhitelist}
                             add={() => this.addSpecItem(IterableSpecFieldNames.clusterResourceWhitelist, {} as GroupKind)}
                             remove={idxs => this.removeSpecItems(IterableSpecFieldNames.clusterResourceWhitelist, idxs)}
                             save={(i, value) => this.save(IterableSpecFieldNames.clusterResourceWhitelist, i, value as string)}
+                        />
+                    </div>
+                </div>
+                <div className='project-summary__section'>
+                    <div className='project-summary__label'>DENY LIST</div>
+                    <div className='project-summary__section--row'>
+                        <Card<GroupKind>
+                            title='Denied Cluster Resources'
+                            fields={ResourceFields}
+                            data={this.state.clusterResourceBlacklist}
+                            add={() => this.addSpecItem(IterableSpecFieldNames.clusterResourceBlacklist, {} as GroupKind)}
+                            remove={idxs => this.removeSpecItems(IterableSpecFieldNames.clusterResourceBlacklist, idxs)}
+                            save={(i, value) => this.save(IterableSpecFieldNames.clusterResourceBlacklist, i, value as string)}
+                        />
+                        <Card<GroupKind>
+                            title='Denied Namespace Resources'
+                            fields={ResourceFields}
+                            data={this.state.namespaceResourceBlacklist}
+                            add={() => this.addSpecItem(IterableSpecFieldNames.namespaceResourceBlacklist, {} as GroupKind)}
+                            remove={idxs => this.removeSpecItems(IterableSpecFieldNames.namespaceResourceBlacklist, idxs)}
+                            save={(i, value) => this.save(IterableSpecFieldNames.namespaceResourceBlacklist, i, value as string)}
+                        />
+                    </div>
+                </div>
+                <div className='project-summary__section'>
+                    <div className='project-summary__label'>SIGNATURE KEYS</div>
+                    <div className='project-summary__section--row'>
+                        <Card<ProjectSignatureKey>
+                            title='Required Signature Keys'
+                            fields={SignatureKeyFields}
+                            data={this.state.signatureKeys}
+                            add={() => this.addSpecItem(IterableSpecFieldNames.signatureKeys, {} as ProjectSignatureKey)}
+                            remove={i => this.removeSpecItems(IterableSpecFieldNames.signatureKeys, i)}
+                            save={(i, value) => this.save(IterableSpecFieldNames.signatureKeys, i, value as string)}
                         />
                     </div>
                 </div>
