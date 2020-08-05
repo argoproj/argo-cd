@@ -146,7 +146,7 @@ func TestGetAppInstanceLabelForLengthyLabel(t *testing.T) {
 	})
 	label, err := settingsManager.GetAppInstanceLabelKey()
 	assert.NoError(t, err)
-	assert.Equal(t, "e1727dad441e85277dd5948c7afa1785124be3a007b2fe11238929b6", label)
+	assert.Equal(t, "sha224-e1727dad441e85277dd5948c7afa1785124be3a007b2fe11238929b6", label)
 }
 
 func TestGetResourceOverrides(t *testing.T) {
