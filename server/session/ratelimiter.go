@@ -1,93 +1,38 @@
 package session
 
 import (
-	"fmt"
-	"time"
+	"sync"
 
 	"github.com/argoproj/argo-cd/util/session"
 
+	"golang.org/x/sync/semaphore"
+
 	util "github.com/argoproj/gitops-engine/pkg/utils/io"
-	"github.com/bsm/redislock"
-	"github.com/go-redis/redis"
 	log "github.com/sirupsen/logrus"
 )
 
-const (
-	lockKey                = "login:lock"
-	inProgressCountKey     = "login:in-progress-count"
-	inProgressTimeoutDelay = time.Minute
-)
+var once sync.Once
 
-type stateStorage interface {
-	obtainLock(key string, ttl time.Duration) (util.Closer, error)
-	set(key string, value interface{}, expiration time.Duration) error
-	get(key string) (int, error)
+var instance *semaphore.Weighted
+
+func ObtainLoginSemaphore(maxNumber int) *semaphore.Weighted {
+	// Make a thread safe singleton to make sure we always use the same semaphore
+	once.Do(func() {
+		instance = semaphore.NewWeighted(int64(maxNumber))
+	})
+	return instance
 }
 
-// NewRedisStateStorage creates storage which leverages redis to establish distributed lock and store number
-// of incomplete login requests.
-func NewRedisStateStorage(client *redis.Client) *redisStateStorage {
-	return &redisStateStorage{client: client, locker: redislock.New(client)}
-}
-
-type redisStateStorage struct {
-	client *redis.Client
-	locker *redislock.Client
-}
-
-func (redis *redisStateStorage) obtainLock(key string, ttl time.Duration) (util.Closer, error) {
-	lock, err := redis.locker.Obtain(key, ttl, nil)
-	if err != nil {
-		return nil, err
-	}
-	return util.NewCloser(lock.Release), nil
-}
-
-func (redis *redisStateStorage) set(key string, value interface{}, expiration time.Duration) error {
-	return redis.client.Set(key, value, expiration).Err()
-}
-
-func (redis *redisStateStorage) get(key string) (int, error) {
-	return redis.client.Get(key).Int()
-}
-
-// NewLoginRateLimiter creates a function which enforces max number of concurrent login requests.
-// Function returns closer that should be closed when logging request has completed or error if number
-// of incomplete requests exceeded max number.
-func NewLoginRateLimiter(storage stateStorage, maxNumber int) func() (util.Closer, error) {
-	runLocked := func(callback func() error) error {
-		closer, err := storage.obtainLock(lockKey, 100*time.Millisecond)
-		if err != nil {
-			return fmt.Errorf("failed to enforce max concurrent logins limit: %v", err)
-		}
-		defer func() {
-			if err = closer.Close(); err != nil {
-				log.Warnf("failed to release redis lock: %v", err)
-			}
-		}()
-		return callback()
-	}
-
+func NewLoginRateLimiter(maxNumber int) func() (util.Closer, error) {
+	semaphore := ObtainLoginSemaphore(maxNumber)
 	return func() (util.Closer, error) {
-		if err := runLocked(func() error {
-			inProgressCount, err := storage.get(inProgressCountKey)
-			if err != nil && err != redis.Nil {
-				return err
-			}
-			if inProgressCount = inProgressCount + 1; inProgressCount > maxNumber {
-				log.Warnf("Exceeded number of concurrent login requests")
-				return session.InvalidLoginErr
-			}
-			return storage.set(inProgressCountKey, inProgressCount, inProgressTimeoutDelay)
-		}); err != nil {
-			return nil, err
+		if !semaphore.TryAcquire(1) {
+			log.Warnf("Exceeded number of concurrent login requests")
+			return nil, session.InvalidLoginErr
 		}
 		return util.NewCloser(func() error {
-			inProgressCount, err := storage.get(inProgressCountKey)
-			if err != nil && err != redis.Nil {
-				return err
-			}
-			return storage.set(inProgressCountKey, inProgressCount-1, inProgressTimeoutDelay)
+			defer semaphore.Release(1)
+			return nil
 		}), nil
 	}
 }

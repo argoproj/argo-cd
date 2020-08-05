@@ -505,8 +505,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	repoCredsService := repocreds.NewServer(a.RepoClientset, db, a.enf, a.settingsMgr)
 	var loginRateLimiter func() (io.Closer, error)
 	if maxConcurrentLoginRequestsCount > 0 {
-		loginRateLimiter = session.NewLoginRateLimiter(
-			session.NewRedisStateStorage(a.ArgoCDServerOpts.RedisClient), maxConcurrentLoginRequestsCount)
+		loginRateLimiter = session.NewLoginRateLimiter(maxConcurrentLoginRequestsCount)
 	}
 	sessionService := session.NewServer(a.sessionMgr, a, a.policyEnforcer, loginRateLimiter)
 	projectLock := util.NewKeyLock()
