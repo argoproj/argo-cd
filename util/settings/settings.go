@@ -321,9 +321,9 @@ func (mgr *SettingsManager) updateSecret(callback func(*apiv1.Secret) error) err
 	}
 
 	if createSecret {
-		_, err = mgr.clientset.CoreV1().Secrets(mgr.namespace).Create(updatedSecret)
+		_, err = mgr.clientset.CoreV1().Secrets(mgr.namespace).Create(context.Background(), updatedSecret, metav1.CreateOptions{})
 	} else {
-		_, err = mgr.clientset.CoreV1().Secrets(mgr.namespace).Update(updatedSecret)
+		_, err = mgr.clientset.CoreV1().Secrets(mgr.namespace).Update(context.Background(), updatedSecret, metav1.UpdateOptions{})
 	}
 	if err != nil {
 		return err
@@ -355,9 +355,9 @@ func (mgr *SettingsManager) updateConfigMap(callback func(*apiv1.ConfigMap) erro
 	}
 
 	if createCM {
-		_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Create(argoCDCM)
+		_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Create(context.Background(), argoCDCM, metav1.CreateOptions{})
 	} else {
-		_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Update(argoCDCM)
+		_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Update(context.Background(), argoCDCM, metav1.UpdateOptions{})
 	}
 
 	if err != nil {
@@ -919,7 +919,7 @@ func (mgr *SettingsManager) SaveSSHKnownHostsData(ctx context.Context, knownHost
 
 	sshKnownHostsData := strings.Join(knownHostsList, "\n") + "\n"
 	certCM.Data["ssh_known_hosts"] = sshKnownHostsData
-	_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Update(certCM)
+	_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Update(ctx, certCM, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
@@ -939,7 +939,7 @@ func (mgr *SettingsManager) SaveTLSCertificateData(ctx context.Context, tlsCerti
 	}
 
 	certCM.Data = tlsCertificates
-	_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Update(certCM)
+	_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Update(ctx, certCM, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
@@ -959,7 +959,7 @@ func (mgr *SettingsManager) SaveGPGPublicKeyData(ctx context.Context, gpgPublicK
 	}
 
 	keysCM.Data = gpgPublicKeys
-	_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Update(keysCM)
+	_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Update(ctx, keysCM, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}

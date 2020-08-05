@@ -118,7 +118,7 @@ func (db *db) CreateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 	if err = clusterToSecret(c, clusterSecret); err != nil {
 		return nil, err
 	}
-	clusterSecret, err = db.kubeclientset.CoreV1().Secrets(db.ns).Create(clusterSecret)
+	clusterSecret, err = db.kubeclientset.CoreV1().Secrets(db.ns).Create(ctx, clusterSecret, metav1.CreateOptions{})
 	if err != nil {
 		if apierr.IsAlreadyExists(err) {
 			return nil, status.Errorf(codes.AlreadyExists, "cluster %q already exists", c.Server)
@@ -236,7 +236,7 @@ func (db *db) UpdateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 		return nil, err
 	}
 
-	clusterSecret, err = db.kubeclientset.CoreV1().Secrets(db.ns).Update(clusterSecret)
+	clusterSecret, err = db.kubeclientset.CoreV1().Secrets(db.ns).Update(ctx, clusterSecret, metav1.UpdateOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -257,10 +257,10 @@ func (db *db) DeleteCluster(ctx context.Context, server string) error {
 	canDelete := secret.Annotations != nil && secret.Annotations[common.AnnotationKeyManagedBy] == common.AnnotationValueManagedByArgoCD
 
 	if canDelete {
-		err = db.kubeclientset.CoreV1().Secrets(db.ns).Delete(secret.Name, &metav1.DeleteOptions{})
+		err = db.kubeclientset.CoreV1().Secrets(db.ns).Delete(ctx, secret.Name, metav1.DeleteOptions{})
 	} else {
 		delete(secret.Labels, common.LabelKeySecretType)
-		_, err = db.kubeclientset.CoreV1().Secrets(db.ns).Update(secret)
+		_, err = db.kubeclientset.CoreV1().Secrets(db.ns).Update(ctx, secret, metav1.UpdateOptions{})
 	}
 	if err != nil {
 		return err

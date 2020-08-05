@@ -1,6 +1,8 @@
 package argo
 
 import (
+	"context"
+
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -84,7 +86,7 @@ func (l *AuditLogger) logEvent(objMeta ObjectRef, gvk schema.GroupVersionKind, i
 		Reason:         info.Reason,
 	}
 	logCtx.Info(message)
-	_, err := l.kIf.CoreV1().Events(objMeta.Namespace).Create(&event)
+	_, err := l.kIf.CoreV1().Events(objMeta.Namespace).Create(context.Background(), &event, metav1.CreateOptions{})
 	if err != nil {
 		logCtx.Errorf("Unable to create audit event: %v", err)
 		return

@@ -178,7 +178,7 @@ func initializeDefaultProject(opts ArgoCDServerOpts) error {
 		},
 	}
 
-	_, err := opts.AppClientset.ArgoprojV1alpha1().AppProjects(opts.Namespace).Create(defaultProj)
+	_, err := opts.AppClientset.ArgoprojV1alpha1().AppProjects(opts.Namespace).Create(context.Background(), defaultProj, metav1.CreateOptions{})
 	if apierrors.IsAlreadyExists(err) {
 		return nil
 	}

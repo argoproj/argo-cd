@@ -60,7 +60,7 @@ func TestCreateRepository(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, "https://github.com/argoproj/argocd-example-apps", repo.Repo)
 
-	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(repoURLToSecretName(repoSecretPrefix, repo.Repo), metav1.GetOptions{})
+	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(context.Background(), repoURLToSecretName(repoSecretPrefix, repo.Repo), metav1.GetOptions{})
 	assert.Nil(t, err)
 
 	assert.Equal(t, common.AnnotationValueManagedByArgoCD, secret.Annotations[common.AnnotationKeyManagedBy])
@@ -81,7 +81,7 @@ func TestCreateRepoCredentials(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, "https://github.com/argoproj/", creds.URL)
 
-	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(repoURLToSecretName(credSecretPrefix, creds.URL), metav1.GetOptions{})
+	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(context.Background(), repoURLToSecretName(credSecretPrefix, creds.URL), metav1.GetOptions{})
 	assert.Nil(t, err)
 
 	assert.Equal(t, common.AnnotationValueManagedByArgoCD, secret.Annotations[common.AnnotationKeyManagedBy])
@@ -201,11 +201,11 @@ func TestDeleteRepositoryManagedSecrets(t *testing.T) {
 	err := db.DeleteRepository(context.Background(), "https://github.com/argoproj/argocd-example-apps")
 	assert.Nil(t, err)
 
-	_, err = clientset.CoreV1().Secrets(testNamespace).Get("managed-secret", metav1.GetOptions{})
+	_, err = clientset.CoreV1().Secrets(testNamespace).Get(context.Background(), "managed-secret", metav1.GetOptions{})
 	assert.NotNil(t, err)
 	assert.True(t, errors.IsNotFound(err))
 
-	cm, err := clientset.CoreV1().ConfigMaps(testNamespace).Get("argocd-cm", metav1.GetOptions{})
+	cm, err := clientset.CoreV1().ConfigMaps(testNamespace).Get(context.Background(), "argocd-cm", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, "", cm.Data["repositories"])
 }
@@ -236,12 +236,12 @@ func TestDeleteRepositoryUnmanagedSecrets(t *testing.T) {
 	err := db.DeleteRepository(context.Background(), "https://github.com/argoproj/argocd-example-apps")
 	assert.Nil(t, err)
 
-	s, err := clientset.CoreV1().Secrets(testNamespace).Get("unmanaged-secret", metav1.GetOptions{})
+	s, err := clientset.CoreV1().Secrets(testNamespace).Get(context.Background(), "unmanaged-secret", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, "test-username", string(s.Data[username]))
 	assert.Equal(t, "test-password", string(s.Data[password]))
 
-	cm, err := clientset.CoreV1().ConfigMaps(testNamespace).Get("argocd-cm", metav1.GetOptions{})
+	cm, err := clientset.CoreV1().ConfigMaps(testNamespace).Get(context.Background(), "argocd-cm", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, "", cm.Data["repositories"])
 }
@@ -286,11 +286,11 @@ func TestUpdateRepositoryWithManagedSecrets(t *testing.T) {
 		Repo: "https://github.com/argoproj/argocd-example-apps", Password: "", Username: "", SSHPrivateKey: ""})
 	assert.Nil(t, err)
 
-	_, err = clientset.CoreV1().Secrets(testNamespace).Get("managed-secret", metav1.GetOptions{})
+	_, err = clientset.CoreV1().Secrets(testNamespace).Get(context.Background(), "managed-secret", metav1.GetOptions{})
 	assert.NotNil(t, err)
 	assert.True(t, errors.IsNotFound(err))
 
-	cm, err := clientset.CoreV1().ConfigMaps(testNamespace).Get("argocd-cm", metav1.GetOptions{})
+	cm, err := clientset.CoreV1().ConfigMaps(testNamespace).Get(context.Background(), "argocd-cm", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, "- url: https://github.com/argoproj/argocd-example-apps", strings.Trim(cm.Data["repositories"], "\n"))
 }
@@ -341,7 +341,7 @@ func TestCreateClusterSuccessful(t *testing.T) {
 	})
 	assert.Nil(t, err)
 
-	secret, err := clientset.CoreV1().Secrets(testNamespace).Get("cluster-mycluster-3274446258", metav1.GetOptions{})
+	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(context.Background(), "cluster-mycluster-3274446258", metav1.GetOptions{})
 	assert.Nil(t, err)
 
 	assert.Equal(t, server, string(secret.Data["server"]))
@@ -373,7 +373,7 @@ func TestDeleteClusterWithManagedSecret(t *testing.T) {
 	err := db.DeleteCluster(context.Background(), clusterURL)
 	assert.Nil(t, err)
 
-	_, err = clientset.CoreV1().Secrets(testNamespace).Get(clusterName, metav1.GetOptions{})
+	_, err = clientset.CoreV1().Secrets(testNamespace).Get(context.Background(), clusterName, metav1.GetOptions{})
 	assert.NotNil(t, err)
 
 	assert.True(t, errors.IsNotFound(err))
@@ -401,7 +401,7 @@ func TestDeleteClusterWithUnmanagedSecret(t *testing.T) {
 	err := db.DeleteCluster(context.Background(), clusterURL)
 	assert.Nil(t, err)
 
-	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(clusterName, metav1.GetOptions{})
+	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(context.Background(), clusterName, metav1.GetOptions{})
 	assert.Nil(t, err)
 
 	assert.Equal(t, 0, len(secret.Labels))

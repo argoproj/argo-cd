@@ -9,12 +9,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	executil "github.com/argoproj/gitops-engine/pkg/utils/exec"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/ghodss/yaml"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	executil "github.com/argoproj/argo-cd/util/exec"
 )
 
 // Destination returns the deployment destination for an environment in app spec data
