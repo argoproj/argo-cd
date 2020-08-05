@@ -1,6 +1,6 @@
 import * as React from 'react';
 import {Project} from '../../../../shared/models';
-import {CardRow, FieldData, FieldValue} from './row';
+import {CardRow, FieldData, FieldTypes, FieldValue} from './row';
 
 require('../project.scss');
 require('./card.scss');
@@ -58,6 +58,11 @@ export class Card<T> extends React.Component<CardProps<T>, CardState> {
                                     return (
                                         <div className='card__col-input card__col' key={field.name + 'label'}>
                                             {field.name}
+                                            {field.type === FieldTypes.ResourceKindSelector ? (
+                                                <a href='https://kubernetes.io/docs/reference/kubectl/overview/#resource-types' target='_blank' className='card__info-icon'>
+                                                    <i className='fas fa-info-circle' />
+                                                </a>
+                                            ) : null}
                                         </div>
                                     );
                                 })}

@@ -114,4 +114,13 @@
     width: get-col-width(2);
   }
 
+  &__info-icon {
+    color: $argo-color-gray-6;
+    margin-left: 5px;
+    
+    &:hover {
+      color: $argo-color-gray-6;
+    }
+  }
+
 }
