@@ -11,6 +11,17 @@
     font-size: 27px;
   }
 
+  &__actions {
+    display: flex;
+    margin-left: auto;
+    button {
+      margin-right: 7px;
+      &:last-child {
+        margin-right: 0;
+      }
+    }
+  }
+
   &__row {
     display: flex;
     align-items: center;

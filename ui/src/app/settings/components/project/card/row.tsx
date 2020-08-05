@@ -19,11 +19,12 @@ interface CardRowProps<T> {
     data: T | FieldValue;
     remove: () => void;
     save: (value: T | FieldValue) => Promise<Project>;
+    selected: boolean;
+    toggleSelect: () => void;
 }
 
 interface CardRowState<T> {
     data: T | FieldValue;
-    confirm: boolean;
 }
 
 export type FieldValue = string | ResourceKind;
@@ -78,8 +79,7 @@ export class CardRow<T> extends React.Component<CardRowProps<T>, CardRowState<T>
     constructor(props: CardRowProps<T>) {
         super(props);
         this.state = {
-            data: this.props.data,
-            confirm: false
+            data: this.props.data
         };
         this.save = this.save.bind(this);
     }
@@ -116,16 +116,16 @@ export class CardRow<T> extends React.Component<CardRowProps<T>, CardRowState<T>
             <div>
                 <div className='card__input-container card__row'>
                     <div className='card__col-round-button card__col'>
-                        <button className='project__button project__button-remove project__button-round' onClick={() => this.setState({confirm: !this.state.confirm})}>
+                        <button className='project__button project__button-remove project__button-round' onClick={this.props.toggleSelect}>
                             <i className='fa fa-times' />
                         </button>
                     </div>
                     <div>{inputs}</div>
                     <div className='card__col-button card__col'>
                         <button
-                            className={`project__button project__button-${this.state.confirm ? 'error' : this.disabled ? 'disabled' : this.changed ? 'save' : 'saved'}`}
-                            onClick={() => (this.state.confirm ? this.props.remove() : this.disabled ? null : this.save())}>
-                            {this.state.confirm ? 'CONFIRM' : this.disabled ? 'EMPTY' : this.changed ? 'SAVE' : 'SAVED'}
+                            className={`project__button project__button-${this.props.selected ? 'error' : this.disabled ? 'disabled' : this.changed ? 'save' : 'saved'}`}
+                            onClick={() => (this.props.selected ? this.props.remove() : this.disabled ? null : this.save())}>
+                            {this.props.selected ? 'CONFIRM' : this.disabled ? 'EMPTY' : this.changed ? 'SAVE' : 'SAVED'}
                         </button>
                     </div>
                 </div>

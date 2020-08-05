@@ -10,19 +10,44 @@ interface CardProps<T> {
     data: T[];
     fields: FieldData[];
     add: () => void;
-    remove: (i: number) => void;
+    remove: (i: number[]) => void;
     save: (i: number, value: T | FieldValue) => Promise<Project>;
 }
 
-export class Card<T> extends React.Component<CardProps<T>> {
+interface CardState {
+    selected: boolean[];
+}
+
+export class Card<T> extends React.Component<CardProps<T>, CardState> {
+    constructor(props: CardProps<T>) {
+        super(props);
+        const selected: boolean[] = [];
+        this.state = {selected};
+    }
+    get selectedIdxs(): number[] {
+        const arr: number[] = [];
+        this.state.selected.forEach((s, idx) => {
+            if (s) {
+                arr.push(idx);
+            }
+        });
+        return arr;
+    }
     public render() {
         return (
             <div className='card'>
                 <div className='card__row'>
                     <div className='card__title'>{this.props.title}</div>
-                    <button className='project__button project__button-add project__button-round' onClick={this.props.add}>
-                        <i className='fa fa-plus' />
-                    </button>
+                    <div className='card__actions'>
+                        {this.selectedIdxs.length > 1 ? (
+                            <button className={'project__button project__button-error'} onClick={() => this.remove(this.selectedIdxs)}>
+                                DELETE SELECTED
+                            </button>
+                        ) : null}
+                        <button className='project__button project__button-add project__button-round' onClick={this.props.add}>
+                            <i className='fa fa-plus' />
+                        </button>
+                    </div>
                 </div>
                 {this.props.data && this.props.data.length > 0 ? (
                     <div>
@@ -42,7 +67,14 @@ export class Card<T> extends React.Component<CardProps<T>> {
                         {this.props.data.map((row, i) => {
                             return (
                                 <div key={row.toString() + '.' + i}>
-                                    <CardRow<T> fields={this.props.fields} data={row} remove={() => this.props.remove(i)} save={value => this.props.save(i, value)} />
+                                    <CardRow<T>
+                                        fields={this.props.fields}
+                                        data={row}
+                                        remove={() => this.remove([i])}
+                                        save={value => this.props.save(i, value)}
+                                        selected={this.state.selected[i]}
+                                        toggleSelect={() => this.toggleSelect(i)}
+                                    />
                                 </div>
                             );
                         })}
@@ -52,6 +84,20 @@ export class Card<T> extends React.Component<CardProps<T>> {
                 )}
             </div>
         );
+    }
+    private toggleSelect(i: number) {
+        const selected = this.state.selected;
+        selected[i] = !selected[i];
+        this.setState({selected});
+    }
+    private remove(idxs: number[]) {
+        const tmp = [...idxs];
+        const selected = this.state.selected;
+        while (tmp.length) {
+            selected.splice(tmp.pop(), 1);
+        }
+        this.setState({selected});
+        this.props.remove(idxs);
     }
     private empty() {
         return (

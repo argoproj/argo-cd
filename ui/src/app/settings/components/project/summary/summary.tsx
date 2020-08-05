@@ -90,7 +90,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             fields={SourceFields}
                             data={this.state.sourceRepos}
                             add={() => this.addSpecItem(IterableSpecFieldNames.sourceRepos, '')}
-                            remove={i => this.removeSpecItem(IterableSpecFieldNames.sourceRepos, i)}
+                            remove={i => this.removeSpecItems(IterableSpecFieldNames.sourceRepos, i)}
                             save={(i, value) => this.save(IterableSpecFieldNames.sourceRepos, i, value as string)}
                         />
                         <Card<ApplicationDestination>
@@ -98,7 +98,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             fields={DestinationFields}
                             data={this.state.destinations}
                             add={() => this.addSpecItem(IterableSpecFieldNames.destinations, {} as ApplicationDestination)}
-                            remove={i => this.removeSpecItem(IterableSpecFieldNames.destinations, i)}
+                            remove={i => this.removeSpecItems(IterableSpecFieldNames.destinations, i)}
                             save={(i, value) => this.save(IterableSpecFieldNames.destinations, i, value as ApplicationDestination)}
                         />
                     </div>
@@ -111,7 +111,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             fields={AllowedClusterResourceFields}
                             data={this.state.clusterResourceWhitelist}
                             add={() => this.addSpecItem(IterableSpecFieldNames.clusterResourceWhitelist, {} as GroupKind)}
-                            remove={i => this.removeSpecItem(IterableSpecFieldNames.clusterResourceWhitelist, i)}
+                            remove={idxs => this.removeSpecItems(IterableSpecFieldNames.clusterResourceWhitelist, idxs)}
                             save={(i, value) => this.save(IterableSpecFieldNames.clusterResourceWhitelist, i, value as string)}
                         />
                     </div>
@@ -128,12 +128,14 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
         this.setState(update);
         this.reconcileProject();
     }
-    private async removeSpecItem(key: keyof ProjectSpec, i: number) {
+    private async removeSpecItems(key: keyof ProjectSpec, idxs: number[]) {
         const arr = GetProp(this.state as ProjectSpec, key) as IterableSpecField[];
         if (arr.length < 1 || !arr) {
             return;
         }
-        arr.splice(i, 1);
+        while (idxs.length) {
+            arr.splice(idxs.pop(), 1);
+        }
         const update = {...this.state};
         SetProp(update, key as keyof SummaryState, arr);
         this.setState(update);
