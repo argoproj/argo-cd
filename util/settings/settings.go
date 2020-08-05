@@ -235,6 +235,8 @@ const (
 	anonymousUserEnabledKey = "users.anonymous.enabled"
 	// diffOptions is the key where diff options are configured
 	resourceCompareOptionsKey = "resource.compareoptions"
+	// maximum number of allowed chars in kubernetes labels
+	labelMaximumLen = 63
 )
 
 // SettingsManager holds config info for a new manager with which to access Kubernetes ConfigMaps.
@@ -433,6 +435,9 @@ func (mgr *SettingsManager) GetAppInstanceLabelKey() (string, error) {
 	label := argoCDCM.Data[settingsApplicationInstanceLabelKey]
 	if label == "" {
 		return common.LabelKeyAppInstance, nil
+	}
+	if len(label) > labelMaximumLen {
+		return "sha224-" + sha256.Sum224([]byte(label)), nil
 	}
 	return label, nil
 }
