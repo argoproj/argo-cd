@@ -140,6 +140,15 @@ func TestGetAppInstanceLabelKey(t *testing.T) {
 	assert.Equal(t, "testLabel", label)
 }
 
+func TestGetAppInstanceLabelForLengthyLabel(t *testing.T) {
+	_, settingsManager := fixtures(map[string]string{
+		"application.instanceLabelKey": "this.is.definitely.a.string.that.is.used.for.tests.and.that.is.longer.than.63.characters",
+	})
+	label, err := settingsManager.GetAppInstanceLabelKey()
+	assert.NoError(t, err)
+	assert.Equal(t, "e1727dad441e85277dd5948c7afa1785124be3a007b2fe11238929b6", label)
+}
+
 func TestGetResourceOverrides(t *testing.T) {
 	ignoreStatus := v1alpha1.ResourceOverride{IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
 		JSONPointers: []string{"/status"},
