@@ -4,10 +4,6 @@
   width: 95%;
   margin: 0 auto;
 
-  .card {
-    margin-right: 30px;
-  }
-
   &__title {
     font-size: 33px;
     color: black;
@@ -17,7 +13,6 @@
   &__description {
     &--row {
       display: flex;
-      margin-bottom: 10px;
     }
 
     input {
@@ -42,11 +37,11 @@
   }
 
   &__section {
-    margin: 30px 0;
+    margin-top: 30px;
     &--row {
       display: flex;
+      flex-wrap: wrap;
       align-items: flex-start;
-      overflow-x: scroll;
     }
   }
 
