@@ -693,6 +693,11 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		return nil, err
 	}
 
+	err = argo.ValidateDestination(context.Background(), &app.Spec.Destination, ctrl.db)
+	if err != nil {
+		return nil, err
+	}
+
 	objsMap, err := ctrl.getPermittedAppLiveObjects(app, proj)
 	if err != nil {
 		return nil, err
@@ -1008,24 +1013,21 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		if err := ctrl.cache.GetAppManagedResources(app.Name, &managedResources); err != nil {
 			logCtx.Warnf("Failed to get cached managed resources for tree reconciliation, fallback to full reconciliation")
 		} else {
-			if tree, err := ctrl.getResourceTree(app, managedResources); err != nil {
-				app.Status.SetConditions(
-					[]appv1.ApplicationCondition{
-						{
-							Type:    appv1.ApplicationConditionComparisonError,
-							Message: err.Error(),
-						},
-					},
-					map[appv1.ApplicationConditionType]bool{
-						appv1.ApplicationConditionComparisonError: true,
-					},
-				)
-			} else {
-				app.Status.Summary = tree.GetSummary()
-				if err = ctrl.cache.SetAppResourcesTree(app.Name, tree); err != nil {
-					logCtx.Errorf("Failed to cache resources tree: %v", err)
-					return
+			var tree *appv1.ApplicationTree
+			if err = argo.ValidateDestination(context.Background(), &app.Spec.Destination, ctrl.db); err == nil {
+				if tree, err = ctrl.getResourceTree(app, managedResources); err == nil {
+					app.Status.Summary = tree.GetSummary()
+					if err := ctrl.cache.SetAppResourcesTree(app.Name, tree); err != nil {
+						logCtx.Errorf("Failed to cache resources tree: %v", err)
+						return
+					}
 				}
+			} else {
+				app.Status.SetConditions([]appv1.ApplicationCondition{{
+					Type: appv1.ApplicationConditionComparisonError, Message: err.Error(),
+				}}, map[appv1.ApplicationConditionType]bool{
+					appv1.ApplicationConditionComparisonError: true,
+				})
 			}
 			now := metav1.Now()
 			app.Status.ObservedAt = &now

@@ -476,23 +476,24 @@ func TestAutoSyncParameterOverrides(t *testing.T) {
 
 // TestFinalizeAppDeletion verifies application deletion
 func TestFinalizeAppDeletion(t *testing.T) {
-	// Ensure app can be deleted cascading
-	{
-		defaultProj := argoappv1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "default",
-				Namespace: test.FakeArgoCDNamespace,
-			},
-			Spec: argoappv1.AppProjectSpec{
-				SourceRepos: []string{"*"},
-				Destinations: []argoappv1.ApplicationDestination{
-					{
-						Server:    "*",
-						Namespace: "*",
-					},
+	defaultProj := argoappv1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "default",
+			Namespace: test.FakeArgoCDNamespace,
+		},
+		Spec: argoappv1.AppProjectSpec{
+			SourceRepos: []string{"*"},
+			Destinations: []argoappv1.ApplicationDestination{
+				{
+					Server:    "*",
+					Namespace: "*",
 				},
 			},
-		}
+		},
+	}
+
+	// Ensure app can be deleted cascading
+	t.Run("CascadingDelete", func(t *testing.T) {
 		app := newFakeApp()
 		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
 		appObj := kube.MustToUnstructured(&app)
@@ -514,26 +515,11 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		_, err := ctrl.finalizeApplicationDeletion(app)
 		assert.NoError(t, err)
 		assert.True(t, patched)
-	}
+	})
 
 	// Ensure any stray resources irregularly labeled with instance label of app are not deleted upon deleting,
 	// when app project restriction is in place
-	{
-		defaultProj := argoappv1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "default",
-				Namespace: test.FakeArgoCDNamespace,
-			},
-			Spec: argoappv1.AppProjectSpec{
-				SourceRepos: []string{"*"},
-				Destinations: []argoappv1.ApplicationDestination{
-					{
-						Server:    "*",
-						Namespace: "*",
-					},
-				},
-			},
-		}
+	t.Run("ProjectRestrictionEnforced", func(*testing.T) {
 		restrictedProj := argoappv1.AppProject{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "restricted",
@@ -587,7 +573,33 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		for _, o := range objs {
 			assert.NotEqual(t, "test-cm", o.GetName())
 		}
-	}
+	})
+
+	t.Run("DeleteWithDestinationClusterName", func(t *testing.T) {
+		app := newFakeApp()
+		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
+		app.Spec.Destination.Name = "minikube"
+		app.Spec.Destination.Server = ""
+		appObj := kube.MustToUnstructured(&app)
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}, managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+			kube.GetResourceKey(appObj): appObj,
+		}})
+
+		patched := false
+		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+		defaultReactor := fakeAppCs.ReactionChain[0]
+		fakeAppCs.ReactionChain = nil
+		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			return defaultReactor.React(action)
+		})
+		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			patched = true
+			return true, nil, nil
+		})
+		_, err := ctrl.finalizeApplicationDeletion(app)
+		assert.NoError(t, err)
+		assert.True(t, patched)
+	})
 }
 
 // TestNormalizeApplication verifies we normalize an application during reconciliation
