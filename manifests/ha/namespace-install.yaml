@@ -3202,6 +3202,9 @@ spec:
         - /shared/app
         - --redis
         - argocd-redis-ha-haproxy:6379
+        env:
+        - name: ARGOCD_API_SERVER_REPLICAS
+          value: "2"
         image: argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
