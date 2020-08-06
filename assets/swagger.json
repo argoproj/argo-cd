@@ -2653,6 +2653,9 @@
           "type": "boolean",
           "format": "boolean"
         },
+        "uiCssURL": {
+          "type": "string"
+        },
         "url": {
           "type": "string"
         },
