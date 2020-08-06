@@ -100,6 +100,7 @@ import (
 )
 
 const maxConcurrentLoginRequestsCountEnv = "ARGOCD_MAX_CONCURRENT_LOGIN_REQUESTS_COUNT"
+const replicasCountEnv = "ARGOCD_API_SERVER_REPLICAS"
 
 // ErrNoSession indicates no auth token was supplied as part of a request
 var ErrNoSession = status.Errorf(codes.Unauthenticated, "no session information")
@@ -123,10 +124,16 @@ var (
 	baseHRefRegex    = regexp.MustCompile(`<base href="(.*)">`)
 	// limits number of concurrent login requests to prevent password brute forcing. If set to 0 then no limit is enforced.
 	maxConcurrentLoginRequestsCount = 50
+
+	replicasCount = 1
 )
 
 func init() {
 	maxConcurrentLoginRequestsCount = env.ParseNumFromEnv(maxConcurrentLoginRequestsCountEnv, maxConcurrentLoginRequestsCount, 0, math.MaxInt32)
+	replicasCount = env.ParseNumFromEnv(replicasCountEnv, replicasCount, 0, math.MaxInt32)
+	if replicasCount > 0 {
+		maxConcurrentLoginRequestsCount = maxConcurrentLoginRequestsCount / replicasCount
+	}
 }
 
 // ArgoCDServer is the API server for Argo CD

@@ -21,6 +21,9 @@ spec:
                   app.kubernetes.io/name: argocd-server
               topologyKey: failure-domain.beta.kubernetes.io/zone
       containers:
+      - env:
+          name: ARGOCD_API_SERVER_REPLICAS
+          value: '2'
       - name: argocd-server
         command:
         - argocd-server
