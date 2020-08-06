@@ -58,6 +58,7 @@ export type ResourceKind = keyof ResourceKinds;
 
 interface ResourceKindProps {
     onChange: (value: ResourceKinds) => void;
+    init: ResourceKind;
 }
 
 export class ResourceKindSelector extends React.Component<ResourceKindProps> {
@@ -66,7 +67,7 @@ export class ResourceKindSelector extends React.Component<ResourceKindProps> {
             <select onChange={e => this.props.onChange(e.target.value as ResourceKinds)}>
                 {Object.keys(ResourceKinds).map(kind => {
                     return (
-                        <option key={kind} value={ResourceKinds[kind as any]}>
+                        <option key={kind} value={ResourceKinds[kind as any]} selected={kind === this.props.init}>
                             {kind}
                         </option>
                     );

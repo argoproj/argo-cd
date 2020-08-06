@@ -111,8 +111,12 @@
 
   &__col-input {
     flex: 3;
+    align-items: center;
   }
 
+  &__link-icon {
+    margin-left: 10px;
+  }
 
   @function get-col-width($cols) {
     $fill: $button-width + $round-button-size;

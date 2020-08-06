@@ -28,7 +28,7 @@ enum IterableSpecFieldNames {
 
 export type IterableSpecField = ApplicationDestination | GroupKind | ProjectSignatureKey | string;
 
-const SourceFields: FieldData[] = [{name: 'url', type: FieldTypes.Text}];
+const SourceFields: FieldData[] = [{name: 'url', type: FieldTypes.Url}];
 const DestinationFields: FieldData[] = [{name: 'namespace', type: FieldTypes.Text}, {name: 'server', type: FieldTypes.Text}];
 const ResourceFields: FieldData[] = [{name: 'group', type: FieldTypes.Text}, {name: 'kind', type: FieldTypes.ResourceKindSelector}];
 const SignatureKeyFields: FieldData[] = [{name: 'keyID', type: FieldTypes.Text}];

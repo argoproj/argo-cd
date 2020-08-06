@@ -11,7 +11,8 @@ export interface FieldData {
 
 export enum FieldTypes {
     Text = 'text',
-    ResourceKindSelector = 'resourceKindSelector'
+    ResourceKindSelector = 'resourceKindSelector',
+    Url = 'url'
 }
 
 interface CardRowProps<T> {
@@ -97,17 +98,22 @@ export class CardRow<T> extends React.Component<CardRowProps<T>, CardRowState<T>
         update = update.bind(this);
         const inputs = this.props.fields.map((field, i) => {
             let format;
+            const curVal = this.dataIsFieldValue ? this.state.data : GetProp(this.state.data as T, field.name as keyof T);
             switch (field.type) {
                 case FieldTypes.ResourceKindSelector:
-                    format = <ResourceKindSelector onChange={value => update(value, field.name as keyof T)} />;
+                    format = <ResourceKindSelector init={curVal as ResourceKind} onChange={value => update(value, field.name as keyof T)} />;
                     break;
                 default:
-                    const curVal = this.dataIsFieldValue ? this.state.data : GetProp(this.state.data as T, field.name as keyof T);
                     format = <input type='text' value={curVal ? curVal.toString() : ''} onChange={e => update(e.target.value, field.name as keyof T)} placeholder={field.name} />;
             }
             return (
                 <div key={field.name + '.' + i} className='card__col-input card__col'>
                     {format}
+                    {field.type === FieldTypes.Url && (curVal as string) !== '' && (curVal as string) !== null  && (curVal as string) !== '*' ? (
+                        <a className='card__link-icon' href={curVal as string} target='_blank'>
+                            <i className='fas fa-link' />
+                        </a>
+                    ) : null}
                 </div>
             );
         });
