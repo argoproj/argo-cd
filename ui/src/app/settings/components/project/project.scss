@@ -52,6 +52,11 @@
     color: $cancel-red;
     transition: all 300ms;
 
+    &--selected {
+      color: white;
+      background-color: $cancel-red;
+    }
+
     &:hover {
       color: $white-color;
       background-color: $cancel-red;

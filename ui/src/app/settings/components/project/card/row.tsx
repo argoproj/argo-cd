@@ -122,7 +122,9 @@ export class CardRow<T> extends React.Component<CardRowProps<T>, CardRowState<T>
             <div>
                 <div className='card__input-container card__row'>
                     <div className='card__col-round-button card__col'>
-                        <button className='project__button project__button-remove project__button-round' onClick={this.props.toggleSelect}>
+                        <button
+                            className={`project__button project__button-round project__button-remove${this.props.selected ? '--selected' : ''}`}
+                            onClick={this.props.toggleSelect}>
                             <i className='fa fa-times' />
                         </button>
                     </div>

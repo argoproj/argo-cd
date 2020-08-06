@@ -22,16 +22,18 @@
   &__title {
     color : black;
     font-size: 27px;
+    flex-shrink: 0;
   }
 
   &__actions {
     display: flex;
-    margin-left: auto;
-    button {
-      margin-right: 7px;
-      &:last-child {
-        margin-right: 0;
-      }
+    justify-content: flex-end;
+    flex-grow: 1;
+    margin-left: 10px;
+
+    .project__button {
+      margin-left: 10px;
+      margin-right: 0;
     }
   }
 

@@ -39,6 +39,11 @@ export class Card<T> extends React.Component<CardProps<T>, CardState> {
                 <div className='card__row'>
                     <div className='card__title'>{this.props.title}</div>
                     <div className='card__actions'>
+                        {this.selectedIdxs.length > 1 ? (
+                            <button className={'project__button project__button-error'} onClick={() => this.remove(this.selectedIdxs)}>
+                                DELETE SELECTED
+                            </button>
+                        ) : null}
                         <button className='project__button project__button-add project__button-round' onClick={this.props.add}>
                             <i className='fa fa-plus' />
                         </button>
