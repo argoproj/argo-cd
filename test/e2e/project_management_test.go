@@ -356,6 +356,7 @@ func TestAddOrphanedIgnore(t *testing.T) {
 	_, err = fixture.RunCli("proj", "add-orphaned-ignore", projectName,
 		"group",
 		"kind",
+		"--name",
 		"name",
 	)
 
@@ -366,6 +367,7 @@ func TestAddOrphanedIgnore(t *testing.T) {
 	_, err = fixture.RunCli("proj", "add-orphaned-ignore", projectName,
 		"group",
 		"kind",
+		"--name",
 		"name",
 	)
 	assert.Error(t, err)
@@ -403,6 +405,7 @@ func TestRemoveOrphanedIgnore(t *testing.T) {
 	_, err = fixture.RunCli("proj", "remove-orphaned-ignore", projectName,
 		"group",
 		"kind",
+		"--name",
 		"name",
 	)
 
@@ -413,6 +416,7 @@ func TestRemoveOrphanedIgnore(t *testing.T) {
 	_, err = fixture.RunCli("proj", "remove-orphaned-ignore", projectName,
 		"group",
 		"kind",
+		"--name",
 		"name",
 	)
 	assert.Error(t, err)
