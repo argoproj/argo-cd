@@ -22,6 +22,9 @@ spec:
               topologyKey: failure-domain.beta.kubernetes.io/zone
       containers:
       - name: argocd-server
+        env:
+        - name: ARGOCD_API_SERVER_REPLICAS
+          value: '2'
         command:
         - argocd-server
         - --staticassets
