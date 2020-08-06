@@ -85,11 +85,8 @@ For additional details, see [architecture overview](operator-manual/architecture
 
 ## Development Status
 
-Argo CD is being actively developed by the community. Our releases can be found [here](https://github.com/argoproj/argo-cd/releases) .
+Argo CD is being actively developed by the community. Our releases can be found [here](https://github.com/argoproj/argo-cd/releases).
 
 ## Adoption
 
-* Intuit
-* 
-
-Please let us know if you are an organization who is adopting ArgoCD.
+Organizations who have officially adopted ArgoCD can be found [here](https://github.com/argoproj/argo-cd/blob/master/USERS.md).
