@@ -406,18 +406,20 @@ func NewProjectRemoveDestinationCommand(clientOpts *argocdclient.ClientOptions) 
 
 // NewProjectAddOrphanedIgnoreCommand returns a new instance of an `argocd proj add-orphaned-ignore` command
 func NewProjectAddOrphanedIgnoreCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var (
+		name string
+	)
 	var command = &cobra.Command{
-		Use:   "add-orphaned-ignore PROJECT GROUP KIND NAME",
+		Use:   "add-orphaned-ignore PROJECT GROUP KIND",
 		Short: "Add a resource to orphaned ignore list",
 		Run: func(c *cobra.Command, args []string) {
-			if len(args) != 4 {
+			if len(args) != 3 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
 			projName := args[0]
 			group := args[1]
 			kind := args[2]
-			name := args[3]
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer argoio.Close(conn)
 
@@ -441,23 +443,26 @@ func NewProjectAddOrphanedIgnoreCommand(clientOpts *argocdclient.ClientOptions) 
 			errors.CheckError(err)
 		},
 	}
+	command.Flags().StringVar(&name, "name", "", "Resource name pattern")
 	return command
 }
 
 // NewProjectRemoveOrphanedIgnoreCommand returns a new instance of an `argocd proj remove-orphaned-ignore` command
 func NewProjectRemoveOrphanedIgnoreCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var (
+		name string
+	)
 	var command = &cobra.Command{
 		Use:   "remove-orphaned-ignore PROJECT GROUP KIND NAME",
 		Short: "Remove a resource from orphaned ignore list",
 		Run: func(c *cobra.Command, args []string) {
-			if len(args) != 4 {
+			if len(args) != 3 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
 			projName := args[0]
 			group := args[1]
 			kind := args[2]
-			name := args[3]
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer argoio.Close(conn)
 
@@ -485,7 +490,7 @@ func NewProjectRemoveOrphanedIgnoreCommand(clientOpts *argocdclient.ClientOption
 			}
 		},
 	}
-
+	command.Flags().StringVar(&name, "name", "", "Resource name pattern")
 	return command
 }
 
@@ -839,7 +844,11 @@ func formatOrphanedResources(p *v1alpha1.AppProject) string {
 	if p.Spec.OrphanedResources == nil {
 		return "disabled"
 	}
-	return fmt.Sprintf("enabled (warn=%v)", p.Spec.OrphanedResources.IsWarn())
+	details := fmt.Sprintf("warn=%v", p.Spec.OrphanedResources.IsWarn())
+	if len(p.Spec.OrphanedResources.Ignore) > 0 {
+		details = fmt.Sprintf("%s, ignored %d", details, len(p.Spec.OrphanedResources.Ignore))
+	}
+	return fmt.Sprintf("enabled (%s)", details)
 }
 
 func printProjectLine(w io.Writer, p *v1alpha1.AppProject) {
