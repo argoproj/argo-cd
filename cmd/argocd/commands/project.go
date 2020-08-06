@@ -21,7 +21,6 @@ import (
 	"github.com/spf13/pflag"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/utils/pointer"
 
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
@@ -530,35 +529,45 @@ func NewProjectAddSourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 	return command
 }
 
-func modifyClusterResourceCmd(cmdUse, cmdDesc string, clientOpts *argocdclient.ClientOptions, action func(proj *v1alpha1.AppProject, group string, kind string) bool) *cobra.Command {
-	return &cobra.Command{
-		Use:   cmdUse,
-		Short: cmdDesc,
-		Run: func(c *cobra.Command, args []string) {
-
-			if len(args) != 3 {
-				c.HelpFunc()(c, args)
-				os.Exit(1)
+func modifyResourcesList(list *[]metav1.GroupKind, add bool, listDesc string, group string, kind string) bool {
+	if add {
+		for _, item := range *list {
+			if item.Group == group && item.Kind == kind {
+				fmt.Printf("Group '%s' and kind '%s' already present in %s resources\n", group, kind, listDesc)
+				return false
 			}
-			projName, group, kind := args[0], args[1], args[2]
-			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
-			defer argoio.Close(conn)
-
-			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
-			errors.CheckError(err)
-
-			if action(proj, group, kind) {
-				_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
-				errors.CheckError(err)
+		}
+		fmt.Printf("Group '%s' and kind '%s' is added to %s resources\n", group, kind, listDesc)
+		*list = append(*list, v1.GroupKind{Group: group, Kind: kind})
+		return true
+	} else {
+		index := -1
+		for i, item := range *list {
+			if item.Group == group && item.Kind == kind {
+				index = i
+				break
 			}
-		},
+		}
+		if index == -1 {
+			fmt.Printf("Group '%s' and kind '%s' not in %s resources\n", group, kind, listDesc)
+			return false
+		}
+		*list = append((*list)[:index], (*list)[index+1:]...)
+		fmt.Printf("Group '%s' and kind '%s' is removed from %s resources\n", group, kind, listDesc)
+		return true
 	}
 }
 
-func modifyNamespaceResourceCmd(cmdUse, cmdDesc string, clientOpts *argocdclient.ClientOptions, action func(proj *v1alpha1.AppProject, group string, kind string, useWhitelist bool) bool) *cobra.Command {
+func modifyResourceListCmd(cmdUse, cmdDesc string, clientOpts *argocdclient.ClientOptions, allow bool, namespacedList bool) *cobra.Command {
 	var (
-		list string
+		listType    string
+		defaultList string
 	)
+	if namespacedList {
+		defaultList = "black"
+	} else {
+		defaultList = "white"
+	}
 	var command = &cobra.Command{
 		Use:   cmdUse,
 		Short: cmdDesc,
@@ -573,17 +582,34 @@ func modifyNamespaceResourceCmd(cmdUse, cmdDesc string, clientOpts *argocdclient
 
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
-			var useWhitelist = false
-			if list == "white" {
-				useWhitelist = true
+			var list, white, black *[]metav1.GroupKind
+			var listAction, listDesc string
+			var add bool
+			if namespacedList {
+				white, black = &proj.Spec.NamespaceResourceWhitelist, &proj.Spec.NamespaceResourceBlacklist
+				listDesc = "namespaced"
+			} else {
+				white, black = &proj.Spec.ClusterResourceWhitelist, &proj.Spec.ClusterResourceBlacklist
+				listDesc = "cluster"
 			}
-			if action(proj, group, kind, useWhitelist) {
+
+			if listType == "white" {
+				list = white
+				listAction = "whitelisted"
+				add = allow
+			} else {
+				list = black
+				listAction = "blacklisted"
+				add = !allow
+			}
+
+			if modifyResourcesList(list, add, listAction+" "+listDesc, group, kind) {
 				_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
 				errors.CheckError(err)
 			}
 		},
 	}
-	command.Flags().StringVarP(&list, "list", "l", "black", "Use blacklist or whitelist. This can only be 'white' or 'black'")
+	command.Flags().StringVarP(&listType, "list", "l", defaultList, "Use blacklist or whitelist. This can only be 'white' or 'black'")
 	return command
 }
 
@@ -591,147 +617,28 @@ func modifyNamespaceResourceCmd(cmdUse, cmdDesc string, clientOpts *argocdclient
 func NewProjectAllowNamespaceResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	use := "allow-namespace-resource PROJECT GROUP KIND"
 	desc := "Removes a namespaced API resource from the blacklist or add a namespaced API resource to the whitelist"
-
-	return modifyNamespaceResourceCmd(use, desc, clientOpts, func(proj *v1alpha1.AppProject, group string, kind string, useWhitelist bool) bool {
-		if useWhitelist {
-			for _, item := range proj.Spec.NamespaceResourceWhitelist {
-				if item.Group == group && item.Kind == kind {
-					fmt.Printf("Group '%s' and kind '%s' already present in whitelisted namespaced resources\n", group, kind)
-					return false
-				}
-			}
-			proj.Spec.NamespaceResourceWhitelist = append(proj.Spec.NamespaceResourceWhitelist, v1.GroupKind{Group: group, Kind: kind})
-			fmt.Printf("Group '%s' and kind '%s' is added to whitelisted namespaced resources\n", group, kind)
-			return true
-		}
-		index := -1
-		for i, item := range proj.Spec.NamespaceResourceBlacklist {
-			if item.Group == group && item.Kind == kind {
-				index = i
-				break
-			}
-		}
-		if index == -1 {
-			fmt.Printf("Group '%s' and kind '%s' not in blacklisted namespaced resources\n", group, kind)
-			return false
-		}
-		proj.Spec.NamespaceResourceBlacklist = append(proj.Spec.NamespaceResourceBlacklist[:index], proj.Spec.NamespaceResourceBlacklist[index+1:]...)
-		fmt.Printf("Group '%s' and kind '%s' is removed from blacklisted namespaced resources\n", group, kind)
-		return true
-	})
+	return modifyResourceListCmd(use, desc, clientOpts, true, true)
 }
 
 // NewProjectDenyNamespaceResourceCommand returns a new instance of an `argocd proj deny-namespace-resource` command
 func NewProjectDenyNamespaceResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	use := "deny-namespace-resource PROJECT GROUP KIND"
 	desc := "Adds a namespaced API resource to the blacklist or removes a namespaced API resource from the whitelist"
-	return modifyNamespaceResourceCmd(use, desc, clientOpts, func(proj *v1alpha1.AppProject, group string, kind string, useWhitelist bool) bool {
-		if useWhitelist {
-			index := -1
-			for i, item := range proj.Spec.NamespaceResourceWhitelist {
-				if item.Group == group && item.Kind == kind {
-					index = i
-					break
-				}
-			}
-			if index == -1 {
-				fmt.Printf("Group '%s' and kind '%s' not in whitelisted namespaced resources\n", group, kind)
-				return false
-			}
-			proj.Spec.NamespaceResourceWhitelist = append(proj.Spec.NamespaceResourceWhitelist[:index], proj.Spec.NamespaceResourceWhitelist[index+1:]...)
-			fmt.Printf("Group '%s' and kind '%s' is removed from whitelisted namespaced resources\n", group, kind)
-			return true
-		}
-
-		for _, item := range proj.Spec.NamespaceResourceBlacklist {
-			if item.Group == group && item.Kind == kind {
-				fmt.Printf("Group '%s' and kind '%s' already present in blacklisted namespaced resources\n", group, kind)
-				return false
-			}
-		}
-		proj.Spec.NamespaceResourceBlacklist = append(proj.Spec.NamespaceResourceBlacklist, v1.GroupKind{Group: group, Kind: kind})
-		fmt.Printf("Group '%s' and kind '%s' is added to blacklisted namespaced resources\n", group, kind)
-		return true
-	})
+	return modifyResourceListCmd(use, desc, clientOpts, false, true)
 }
 
 // NewProjectDenyClusterResourceCommand returns a new instance of an `deny-cluster-resource` command
 func NewProjectDenyClusterResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	use := "deny-cluster-resource PROJECT GROUP KIND"
 	desc := "Removes a cluster-scoped API resource from the whitelist and adds it to blacklist"
-	return modifyClusterResourceCmd(use, desc, clientOpts, func(proj *v1alpha1.AppProject, group string, kind string) bool {
-		gk := schema.GroupKind{Group: group, Kind: kind}
-		if !proj.IsGroupKindPermitted(gk, false) {
-			fmt.Printf("Group '%s' and kind '%s' already denied\n", group, kind)
-			return false
-		}
-
-		index := -1
-		for i, item := range proj.Spec.ClusterResourceWhitelist {
-			if item.Group == group && item.Kind == kind {
-				index = i
-				break
-			}
-		}
-		if index != -1 {
-			fmt.Printf("Removing group '%s' and kind '%s' from whitelisted cluster resources\n", group, kind)
-			proj.Spec.ClusterResourceWhitelist = append(proj.Spec.ClusterResourceWhitelist[:index], proj.Spec.ClusterResourceWhitelist[index+1:]...)
-		}
-
-		index = -1
-		for i, item := range proj.Spec.ClusterResourceBlacklist {
-			if item.Group == group && item.Kind == kind {
-				index = i
-				break
-			}
-		}
-		if index == -1 {
-			fmt.Printf("Adding group '%s' and kind '%s' to blacklisted cluster resources\n", group, kind)
-			proj.Spec.ClusterResourceBlacklist = append(proj.Spec.ClusterResourceBlacklist, metav1.GroupKind{Group: group, Kind: kind})
-		}
-
-		return true
-	})
+	return modifyResourceListCmd(use, desc, clientOpts, false, false)
 }
 
 // NewProjectAllowClusterResourceCommand returns a new instance of an `argocd proj allow-cluster-resource` command
 func NewProjectAllowClusterResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	use := "allow-cluster-resource PROJECT GROUP KIND"
 	desc := "Adds a cluster-scoped API resource to the whitelist and removes it from blacklist"
-	return modifyClusterResourceCmd(use, desc, clientOpts, func(proj *v1alpha1.AppProject, group string, kind string) bool {
-		gk := schema.GroupKind{Group: group, Kind: kind}
-		if proj.IsGroupKindPermitted(gk, false) {
-			fmt.Printf("Group '%s' and kind '%s' already allowed\n", group, kind)
-			return false
-		}
-
-		index := -1
-		for i, item := range proj.Spec.ClusterResourceWhitelist {
-			if item.Group == group && item.Kind == kind {
-				index = i
-				break
-			}
-		}
-		if index == -1 {
-			fmt.Printf("Adding group '%s' and kind '%s' to whitelisted cluster resources\n", group, kind)
-			proj.Spec.ClusterResourceWhitelist = append(proj.Spec.ClusterResourceWhitelist, metav1.GroupKind{Group: group, Kind: kind})
-		}
-
-		index = -1
-		for i, item := range proj.Spec.ClusterResourceBlacklist {
-			if item.Group == group && item.Kind == kind {
-				index = i
-				break
-			}
-		}
-
-		if index != -1 {
-			fmt.Printf("Removing group '%s' and kind '%s' from blacklisted cluster resources\n", group, kind)
-			proj.Spec.ClusterResourceBlacklist = append(proj.Spec.ClusterResourceBlacklist[:index], proj.Spec.ClusterResourceBlacklist[index+1:]...)
-		}
-
-		return true
-	})
+	return modifyResourceListCmd(use, desc, clientOpts, true, false)
 }
 
 // NewProjectRemoveSourceCommand returns a new instance of an `argocd proj remove-src` command
