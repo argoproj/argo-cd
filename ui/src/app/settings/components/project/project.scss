@@ -19,7 +19,6 @@
     margin-left: 10px;
     .project__button {
       border-radius: 0px;
-      border: 2px solid $active-blue;
       margin: 0;
       &:first-child {
         border-radius: 5px 0px 0px 5px;
@@ -27,13 +26,25 @@
       &:last-child {
         border-radius: 0px 5px 5px 0px;
       }
-      &--deselected {
-        background: white;
-        color: $active-blue;
+      &--on {
+        &__deselected {
+          background: white;
+          color: $active-blue;
+        }
+        &__selected {
+          background: $active-blue;
+          color: white;
+        }
       }
-      &--selected {
-        background: $active-blue;
-        color: white;
+      &--off {
+        &__deselected {
+          background: white;
+          color: $disabled-grey;
+        }
+        &__selected {
+          background: $disabled-grey;
+          color: white;
+        }
       }
     }
   }

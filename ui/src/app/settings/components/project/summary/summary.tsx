@@ -231,10 +231,10 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
             <div className='project-summary__monitoring-toggle'>
                 {label}
                 <div className='project__toggle'>
-                    <button className={`project__button project__button${status ? '--selected' : '--deselected'}`} onClick={() => change(true)}>
+                    <button className={`project__button project__button--on${status ? '__selected' : '__deselected'}`} onClick={() => change(true)}>
                         ON
                     </button>
-                    <button className={`project__button project__button${!status ? '--selected' : '--deselected'}`} onClick={() => change(false)}>
+                    <button className={`project__button project__button--off${!status ? '__selected' : '__deselected'}`} onClick={() => change(false)}>
                         OFF
                     </button>
                 </div>
