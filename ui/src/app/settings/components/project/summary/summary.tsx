@@ -37,7 +37,7 @@ const OrphanedResourceFields: FieldData[] = [{name: 'group', type: FieldTypes.Te
 
 export class ProjectSummary extends React.Component<SummaryProps, SummaryState> {
     get descriptionChanged(): boolean {
-        return this.state.description !== this.props.proj.spec.description;
+        return this.state.description !== this.state.proj.spec.description;
     }
     get orphanedResourceMonitoringEnabled(): boolean {
         return this.state.proj.spec.orphanedResources !== null && !!this.state.proj.spec.orphanedResources;
