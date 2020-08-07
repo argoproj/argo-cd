@@ -12,6 +12,7 @@ interface CardProps<T> {
     add: () => void;
     remove: (i: number[]) => void;
     save: (i: number, value: T | FieldValue) => Promise<Project>;
+    docs: string;
 }
 
 interface CardState {
@@ -37,7 +38,14 @@ export class Card<T> extends React.Component<CardProps<T>, CardState> {
         return (
             <div className={`card ${this.props.data && this.props.data.length > 0 ? null : 'card__empty'}`}>
                 <div className='card__row'>
-                    <div className='card__title'>{this.props.title}</div>
+                    <div className='card__title'>
+                        {this.props.title}&nbsp;
+                        {this.props.docs ? (
+                            <a href={this.props.docs} target='_blank'>
+                                <i className='fas fa-question-circle' />
+                            </a>
+                        ) : null}
+                    </div>
                     <div className='card__actions'>
                         {this.selectedIdxs.length > 1 ? (
                             <button className={'project__button project__button-error'} onClick={() => this.remove(this.selectedIdxs)}>

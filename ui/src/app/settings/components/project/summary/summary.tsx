@@ -5,6 +5,7 @@ import {services} from '../../../../shared/services';
 import {GetProp, SetProp} from '../../utils';
 import {Card} from '../card/card';
 import {FieldData, FieldTypes} from '../card/row';
+import {DocLinks} from '../doc-links';
 require('./summary.scss');
 
 interface SummaryProps {
@@ -64,7 +65,12 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
         return (
             <div className='project-summary'>
                 <div>
-                    <div className='project-summary__label'>PROJECT</div>
+                    <div className='project-summary__label'>
+                        PROJECT&nbsp;
+                        <a href={DocLinks.Projects} target='_blank'>
+                            <i className='fas fa-question-circle' />
+                        </a>
+                    </div>
                     <div className='project-summary__title'>{this.state.name}</div>
                     <div className='project-summary__description'>
                         <div className='project-summary__description--row'>
@@ -111,6 +117,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             add={() => this.addSpecItem(IterableSpecFieldNames.sourceRepos, '')}
                             remove={i => this.removeSpecItems(IterableSpecFieldNames.sourceRepos, i)}
                             save={(i, value) => this.save(IterableSpecFieldNames.sourceRepos, i, value as string)}
+                            docs={null}
                         />
                         <Card<ApplicationDestination>
                             title='Destinations'
@@ -119,6 +126,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             add={() => this.addSpecItem(IterableSpecFieldNames.destinations, {} as ApplicationDestination)}
                             remove={i => this.removeSpecItems(IterableSpecFieldNames.destinations, i)}
                             save={(i, value) => this.save(IterableSpecFieldNames.destinations, i, value as ApplicationDestination)}
+                            docs={null}
                         />
                     </div>
                 </div>
@@ -135,6 +143,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             add={() => this.addSpecItem(IterableSpecFieldNames.clusterResourceWhitelist, {} as GroupKind)}
                             remove={idxs => this.removeSpecItems(IterableSpecFieldNames.clusterResourceWhitelist, idxs)}
                             save={(i, value) => this.save(IterableSpecFieldNames.clusterResourceWhitelist, i, value as string)}
+                            docs={null}
                         />
                     </div>
                 </div>
@@ -151,6 +160,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             add={() => this.addSpecItem(IterableSpecFieldNames.clusterResourceBlacklist, {} as GroupKind)}
                             remove={idxs => this.removeSpecItems(IterableSpecFieldNames.clusterResourceBlacklist, idxs)}
                             save={(i, value) => this.save(IterableSpecFieldNames.clusterResourceBlacklist, i, value as string)}
+                            docs={null}
                         />
                         <Card<GroupKind>
                             title='Denied Namespace Resources'
@@ -159,6 +169,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             add={() => this.addSpecItem(IterableSpecFieldNames.namespaceResourceBlacklist, {} as GroupKind)}
                             remove={idxs => this.removeSpecItems(IterableSpecFieldNames.namespaceResourceBlacklist, idxs)}
                             save={(i, value) => this.save(IterableSpecFieldNames.namespaceResourceBlacklist, i, value as string)}
+                            docs={null}
                         />
                     </div>
                 </div>
@@ -175,6 +186,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             add={() => this.addSpecItem(IterableSpecFieldNames.signatureKeys, {} as ProjectSignatureKey)}
                             remove={i => this.removeSpecItems(IterableSpecFieldNames.signatureKeys, i)}
                             save={(i, value) => this.save(IterableSpecFieldNames.signatureKeys, i, value as string)}
+                            docs={null}
                         />
                     </div>
                 </div>
@@ -233,6 +245,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                                         this.updateProject(res);
                                         return res;
                                     }}
+                                    docs={DocLinks.OrphanedResources}
                                 />
                             </div>
                         ) : null}
@@ -244,7 +257,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
     private toggleSwitch(label: string, status: boolean, change: (_: boolean) => void) {
         return (
             <div className='project-summary__monitoring-toggle'>
-                {label}
+                <b>{label}</b>
                 <div className='project__toggle'>
                     <button className={`project__button project__button--on${status ? '__selected' : '__deselected'}`} onClick={() => change(true)}>
                         ON
