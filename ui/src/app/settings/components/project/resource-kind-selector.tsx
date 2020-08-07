@@ -64,10 +64,10 @@ interface ResourceKindProps {
 export class ResourceKindSelector extends React.Component<ResourceKindProps> {
     public render() {
         return (
-            <select onChange={e => this.props.onChange(e.target.value as ResourceKinds)}>
+            <select onChange={e => this.props.onChange(e.target.value as ResourceKinds)} defaultValue={this.props.init as string}>
                 {Object.keys(ResourceKinds).map(kind => {
                     return (
-                        <option key={kind} value={ResourceKinds[kind as any]} selected={kind === this.props.init}>
+                        <option key={kind} value={ResourceKinds[kind as any]}>
                             {kind}
                         </option>
                     );
