@@ -77,7 +77,7 @@
 
   input:focus {
     border: 2px solid $active-blue;
-    color: $active-blue - #555;
+    color: darken($active-blue, 25%);
   }
 
   input::placeholder {

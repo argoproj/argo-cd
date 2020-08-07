@@ -4,8 +4,8 @@ $error-red: #e66868;
 
 @mixin bannerStyle($color) {
   background-color: $color;
-  border-color: $color - #111;
-  color: $color - #777;
+  border-color: darken($color, 5%);
+  color: desaturate(darken($color, 60%), 20%);
 }
 
 .banner {
