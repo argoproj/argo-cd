@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"net/url"
 	"os"
@@ -235,6 +236,8 @@ const (
 	anonymousUserEnabledKey = "users.anonymous.enabled"
 	// diffOptions is the key where diff options are configured
 	resourceCompareOptionsKey = "resource.compareoptions"
+	// maximum number of allowed chars in kubernetes labels
+	appInstanceLabelMaxLen = 63
 )
 
 // SettingsManager holds config info for a new manager with which to access Kubernetes ConfigMaps.
@@ -433,6 +436,10 @@ func (mgr *SettingsManager) GetAppInstanceLabelKey() (string, error) {
 	label := argoCDCM.Data[settingsApplicationInstanceLabelKey]
 	if label == "" {
 		return common.LabelKeyAppInstance, nil
+	}
+	if len(label) > appInstanceLabelMaxLen {
+		hash := sha256.Sum224([]byte(label))
+		return "sha224-" + hex.EncodeToString(hash[:]), nil
 	}
 	return label, nil
 }
