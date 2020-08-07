@@ -99,7 +99,10 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                     </div>
                 </div>
                 <div className='project-summary__section'>
-                    <div className='project-summary__label'>DEPLOYMENT</div>
+                    <div className='project-summary__label'>
+                        DEPLOYMENT&nbsp;
+                        <i className='fas fa-paper-plane' />
+                    </div>
                     <div className='project-summary__section--row'>
                         <Card<string>
                             title='Sources'
@@ -120,7 +123,10 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                     </div>
                 </div>
                 <div className='project-summary__section'>
-                    <div className='project-summary__label'>ALLOW LIST</div>
+                    <div className='project-summary__label'>
+                        ALLOW LIST&nbsp;
+                        <i className='fas fa-tasks' />
+                    </div>
                     <div className='project-summary__section--row'>
                         <Card<GroupKind>
                             title='Allowed Cluster Resources'
@@ -133,7 +139,10 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                     </div>
                 </div>
                 <div className='project-summary__section'>
-                    <div className='project-summary__label'>DENY LIST</div>
+                    <div className='project-summary__label'>
+                        DENY LIST&nbsp;
+                        <i className='fas fa-ban' />
+                    </div>
                     <div className='project-summary__section--row'>
                         <Card<GroupKind>
                             title='Denied Cluster Resources'
@@ -154,7 +163,10 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                     </div>
                 </div>
                 <div className='project-summary__section'>
-                    <div className='project-summary__label'>SIGNATURE KEYS</div>
+                    <div className='project-summary__label'>
+                        SIGNATURE KEYS&nbsp;
+                        <i className='fas fa-key' />
+                    </div>
                     <div className='project-summary__section--row'>
                         <Card<ProjectSignatureKey>
                             title='Required Signature Keys'
@@ -167,7 +179,10 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                     </div>
                 </div>
                 <div className='project-summary__section'>
-                    <div className='project-summary__label'>ORPHANED RESOURCES</div>
+                    <div className='project-summary__label'>
+                        ORPHANED RESOURCES&nbsp;
+                        <i className='fas fa-file' />
+                    </div>
                     {this.toggleSwitch('MONITORING', this.orphanedResourceMonitoringEnabled, this.setOrphanedResourceMonitoring)}
                     <div className='project-summary__section--row'>
                         {this.orphanedResourceMonitoringEnabled ? (
