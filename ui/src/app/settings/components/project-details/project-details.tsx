@@ -8,7 +8,6 @@ import {Consumer} from '../../../shared/context';
 import {Project} from '../../../shared/models';
 import {CreateJWTTokenParams, DeleteJWTTokenParams, ProjectRoleParams, services} from '../../../shared/services';
 
-import {ProjectEditPanel} from '../project-edit-panel/project-edit-panel';
 import {ProjectEvents} from '../project-events/project-events';
 
 import {ProjectRoleEditPanel} from '../project-role-edit-panel/project-role-edit-panel';
@@ -36,7 +35,6 @@ function helpTip(text: string) {
 }
 
 export class ProjectDetails extends React.Component<RouteComponentProps<{name: string}>, ProjectDetailsState> {
-    private projectFormApi: FormApi;
     private projectRoleFormApi: FormApi;
     private projectSyncWindowsFormApi: FormApi;
     private loader: DataLoader;
@@ -56,7 +54,6 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                             breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Projects', path: '/settings/projects'}, {title: this.props.match.params.name}],
                             actionMenu: {
                                 items: [
-                                    {title: 'Edit', iconClassName: 'fa fa-pencil-alt', action: () => ctx.navigation.goto('.', {edit: true})},
                                     {title: 'Add Role', iconClassName: 'fa fa-plus', action: () => ctx.navigation.goto('.', {newRole: true})},
                                     {title: 'Add Sync Window', iconClassName: 'fa fa-plus', action: () => ctx.navigation.goto('.', {newWindow: true})},
                                     {
@@ -96,11 +93,6 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                         content: this.summaryTab(proj)
                                                     },
                                                     {
-                                                        key: 'redesign',
-                                                        title: 'Redesigned Summary',
-                                                        content: this.redesignSummarytab(proj)
-                                                    },
-                                                    {
                                                         key: 'roles',
                                                         title: 'Roles',
                                                         content: this.rolesTab(proj, ctx)
@@ -117,56 +109,6 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                     }
                                                 ]}
                                             />
-                                            <SlidingPanel
-                                                isShown={params.get('edit') === 'true'}
-                                                onClose={() => ctx.navigation.goto('.', {edit: null})}
-                                                header={
-                                                    <div>
-                                                        <button onClick={() => ctx.navigation.goto('.', {edit: null})} className='argo-button argo-button--base-o'>
-                                                            Cancel
-                                                        </button>{' '}
-                                                        <button onClick={() => this.projectFormApi.submitForm(null)} className='argo-button argo-button--base'>
-                                                            Update
-                                                        </button>
-                                                    </div>
-                                                }>
-                                                {params.get('edit') === 'true' && (
-                                                    <ProjectEditPanel
-                                                        nameReadonly={true}
-                                                        defaultParams={{
-                                                            name: proj.metadata.name,
-                                                            description: proj.spec.description,
-                                                            destinations: proj.spec.destinations || [],
-                                                            sourceRepos: proj.spec.sourceRepos || [],
-                                                            clusterResourceWhitelist: proj.spec.clusterResourceWhitelist || [],
-                                                            clusterResourceBlacklist: proj.spec.clusterResourceBlacklist || [],
-                                                            namespaceResourceBlacklist: proj.spec.namespaceResourceBlacklist || [],
-                                                            namespaceResourceWhitelist: proj.spec.namespaceResourceWhitelist || [],
-                                                            roles: proj.spec.roles || [],
-                                                            syncWindows: proj.spec.syncWindows || [],
-                                                            signatureKeys: proj.spec.signatureKeys || [],
-                                                            orphanedResourcesEnabled: !!proj.spec.orphanedResources,
-                                                            orphanedResourcesWarn:
-                                                                proj.spec.orphanedResources && (proj.spec.orphanedResources.warn === undefined || proj.spec.orphanedResources.warn),
-                                                            orphanedResourceIgnoreList:
-                                                                proj.spec.orphanedResources && proj.spec.orphanedResources.ignore ? proj.spec.orphanedResources.ignore : []
-                                                        }}
-                                                        getApi={api => (this.projectFormApi = api)}
-                                                        submit={async projParams => {
-                                                            try {
-                                                                await services.projects.update(projParams);
-                                                                ctx.navigation.goto('.', {edit: null});
-                                                                this.loader.reload();
-                                                            } catch (e) {
-                                                                ctx.notifications.show({
-                                                                    content: <ErrorNotification title='Unable to edit project' e={e} />,
-                                                                    type: NotificationType.Error
-                                                                });
-                                                            }
-                                                        }}
-                                                    />
-                                                )}
-                                            </SlidingPanel>
                                             <SlidingPanel
                                                 isMiddle={true}
                                                 isShown={params.get('editRole') !== null || params.get('newRole') !== null}
@@ -480,230 +422,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
         );
     }
 
-    private redesignSummarytab(proj: Project) {
-        return <ProjectSummary proj={proj} />;
-    }
-
     private summaryTab(proj: Project) {
-        const attributes = [{title: 'NAME', value: proj.metadata.name}, {title: 'DESCRIPTION', value: proj.spec.description}];
-        return (
-            <div className='argo-container'>
-                <div className='white-box'>
-                    <div className='white-box__details'>
-                        {attributes.map(attr => (
-                            <div className='row white-box__details-row' key={attr.title}>
-                                <div className='columns small-3'>{attr.title}</div>
-                                <div className='columns small-9'>{attr.value}</div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                <h4>Source repositories {helpTip('Git repositories where application manifests are permitted to be retrieved from')}</h4>
-                {((proj.spec.sourceRepos || []).length > 0 && (
-                    <div className='argo-table-list'>
-                        <div className='argo-table-list__head'>
-                            <div className='row'>
-                                <div className='columns small-12'>URL</div>
-                            </div>
-                        </div>
-                        {(proj.spec.sourceRepos || []).map(src => (
-                            <div className='argo-table-list__row' key={src}>
-                                <div className='row'>
-                                    <div className='columns small-12'>{src}</div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )) || (
-                    <div className='white-box'>
-                        <p>Project has no source repositories</p>
-                    </div>
-                )}
-
-                <h4>Destinations {helpTip('Cluster and namespaces where applications are permitted to be deployed to')}</h4>
-                {((proj.spec.destinations || []).length > 0 && (
-                    <div className='argo-table-list'>
-                        <div className='argo-table-list__head'>
-                            <div className='row'>
-                                <div className='columns small-3'>SERVER</div>
-                                <div className='columns small-6'>NAMESPACE</div>
-                            </div>
-                        </div>
-                        {(proj.spec.destinations || []).map(dst => (
-                            <div className='argo-table-list__row' key={`${dst.server}/${dst.namespace}`}>
-                                <div className='row'>
-                                    <div className='columns small-3'>{dst.server}</div>
-                                    <div className='columns small-6'>{dst.namespace}</div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )) || (
-                    <div className='white-box'>
-                        <p>Project has no destinations</p>
-                    </div>
-                )}
-
-                <h4>Whitelisted cluster resources {helpTip('Cluster-scoped K8s API Groups and Kinds which are permitted to be deployed')}</h4>
-                {((proj.spec.clusterResourceWhitelist || []).length > 0 && (
-                    <div className='argo-table-list'>
-                        <div className='argo-table-list__head'>
-                            <div className='row'>
-                                <div className='columns small-3'>GROUP</div>
-                                <div className='columns small-6'>KIND</div>
-                            </div>
-                        </div>
-                        {(proj.spec.clusterResourceWhitelist || []).map(res => (
-                            <div className='argo-table-list__row' key={`${res.group}/${res.kind}`}>
-                                <div className='row'>
-                                    <div className='columns small-3'>{res.group}</div>
-                                    <div className='columns small-6'>{res.kind}</div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )) || (
-                    <div className='white-box'>
-                        <p>No cluster-scoped resources are permitted to deploy</p>
-                    </div>
-                )}
-
-                <h4>Blacklisted cluster resources {helpTip('Cluster-scoped K8s API Groups and Kinds which are not permitted to be deployed')}</h4>
-                {((proj.spec.clusterResourceBlacklist || []).length > 0 && (
-                    <div className='argo-table-list'>
-                        <div className='argo-table-list__head'>
-                            <div className='row'>
-                                <div className='columns small-3'>GROUP</div>
-                                <div className='columns small-6'>KIND</div>
-                            </div>
-                        </div>
-                        {(proj.spec.clusterResourceBlacklist || []).map(res => (
-                            <div className='argo-table-list__row' key={`${res.group}/${res.kind}`}>
-                                <div className='row'>
-                                    <div className='columns small-3'>{res.group}</div>
-                                    <div className='columns small-6'>{res.kind}</div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )) || (
-                    <div className='white-box'>
-                        <p>No cluster-scoped resources are not permitted to deploy</p>
-                    </div>
-                )}
-
-                <h4>Blacklisted namespaced resources {helpTip('Namespace-scoped K8s API Groups and Kinds which are prohibited from being deployed')}</h4>
-                {((proj.spec.namespaceResourceBlacklist || []).length > 0 && (
-                    <div className='argo-table-list'>
-                        <div className='argo-table-list__head'>
-                            <div className='row'>
-                                <div className='columns small-3'>GROUP</div>
-                                <div className='columns small-6'>KIND</div>
-                            </div>
-                        </div>
-                        {(proj.spec.namespaceResourceBlacklist || []).map(res => (
-                            <div className='argo-table-list__row' key={`${res.group}/${res.kind}`}>
-                                <div className='row'>
-                                    <div className='columns small-3'>{res.group}</div>
-                                    <div className='columns small-6'>{res.kind}</div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )) || (
-                    <div className='white-box'>
-                        <p>All namespaced-scoped resources are permitted to deploy</p>
-                    </div>
-                )}
-
-                <h4>Whitelisted namespaced resources {helpTip('Namespace-scoped K8s API Groups and Kinds which are permitted to deploy')}</h4>
-                {((proj.spec.namespaceResourceWhitelist || []).length > 0 && (
-                    <div className='argo-table-list'>
-                        <div className='argo-table-list__head'>
-                            <div className='row'>
-                                <div className='columns small-3'>GROUP</div>
-                                <div className='columns small-6'>KIND</div>
-                            </div>
-                        </div>
-                        {(proj.spec.namespaceResourceWhitelist || []).map(res => (
-                            <div className='argo-table-list__row' key={`${res.group}/${res.kind}`}>
-                                <div className='row'>
-                                    <div className='columns small-3'>{res.group}</div>
-                                    <div className='columns small-6'>{res.kind}</div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )) || (
-                    <div className='white-box'>
-                        <p>All namespaced-scoped resources are permitted to deploy</p>
-                    </div>
-                )}
-
-                <h4>Required signature keys {helpTip('IDs of GnuPG keys that commits must be signed with in order to be allowed to sync to')}</h4>
-                {((proj.spec.signatureKeys || []).length > 0 && (
-                    <div className='argo-table-list'>
-                        <div className='argo-table-list__head'>
-                            <div className='row'>
-                                <div className='columns small-9'>KEY ID</div>
-                            </div>
-                        </div>
-                        {(proj.spec.signatureKeys || []).map(res => (
-                            <div className='argo-table-list__row' key={`${res.keyID}`}>
-                                <div className='row'>
-                                    <div className='columns small-9'>{res.keyID}</div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )) || (
-                    <div className='white-box'>
-                        <p>Commit signatures are not required</p>
-                    </div>
-                )}
-
-                <h4>Orphaned resource monitoring {helpTip('Enables monitoring of top level resources in the application target namespace')}</h4>
-
-                <div className='white-box'>
-                    <div className='white-box__details'>
-                        {(proj.spec.orphanedResources && (
-                            <div className='row white-box__details-row'>
-                                <div className='columns small-3'>WARN</div>
-                                <div className='columns small-9'>
-                                    {((proj.spec.orphanedResources.warn === undefined || proj.spec.orphanedResources.warn) && 'enabled') || 'disabled'}
-                                </div>
-                            </div>
-                        )) || <p>Orphan resources monitoring is disabled</p>}
-                    </div>
-                </div>
-
-                <h4>Orphaned resources ignore list {helpTip('Resources that ArgoCD should not report them as orphaned')}</h4>
-                {(((proj.spec.orphanedResources && proj.spec.orphanedResources.ignore) || []).length > 0 && (
-                    <div className='argo-table-list'>
-                        <div className='argo-table-list__head'>
-                            <div className='row'>
-                                <div className='columns small-3'>GROUP</div>
-                                <div className='columns small-3'>KIND</div>
-                                <div className='columns small-3'>NAME</div>
-                            </div>
-                        </div>
-                        {((proj.spec.orphanedResources && proj.spec.orphanedResources.ignore) || []).map(res => (
-                            <div className='argo-table-list__row' key={`${res.group}/${res.kind}/${res.name}`}>
-                                <div className='row'>
-                                    <div className='columns small-3'>{res.group}</div>
-                                    <div className='columns small-3'>{res.kind}</div>
-                                    <div className='columns small-3'>{res.name}</div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )) || (
-                    <div className='white-box'>
-                        <p> Resources that ArgoCD should not report them as orphaned</p>
-                    </div>
-                )}
-            </div>
-        );
+        return <ProjectSummary proj={proj} />;
     }
 }
