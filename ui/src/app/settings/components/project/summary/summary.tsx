@@ -207,7 +207,17 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                                         SetProp(update, 'orphanedResources', obj);
                                         this.setState(update);
                                     }}
-                                    save={(i, value) => this.save(IterableSpecFieldNames.signatureKeys, i, value as string)}
+                                    save={async (i, value) => {
+                                        const update = {...this.state.proj};
+                                        const obj = update.spec.orphanedResources;
+                                        const arr = obj.ignore;
+                                        arr[i] = value as OrphanedResource;
+                                        obj.ignore = arr;
+                                        update.spec.orphanedResources = obj;
+                                        const res = await services.projects.updateLean(this.state.name, update);
+                                        this.updateProject(res);
+                                        return res;
+                                    }}
                                 />
                             </div>
                         ) : null}
