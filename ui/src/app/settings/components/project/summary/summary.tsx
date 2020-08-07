@@ -278,7 +278,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
     private async updateOrphanedResources(on: boolean, warn: boolean) {
         const update = {...this.state.proj};
         if (on) {
-            const cur = update.spec.orphanedResources;
+            const cur = update.spec.orphanedResources || ({} as {warn: boolean; ignore: OrphanedResource[]});
             cur.warn = warn;
             SetProp(update.spec, 'orphanedResources', cur);
         } else {
