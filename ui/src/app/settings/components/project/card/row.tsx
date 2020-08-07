@@ -35,7 +35,7 @@ export class CardRow<T> extends React.Component<CardRowProps<T>, CardRowState<T>
         if (this.dataIsFieldValue) {
             return this.state.data !== this.props.data;
         }
-        for (const key of Object.keys(this.props.data)) {
+        for (const key of Object.keys(this.state.data)) {
             if (GetProp(this.props.data as T, key as keyof T) !== GetProp(this.state.data as T, key as keyof T)) {
                 return true;
             }
