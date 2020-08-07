@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import {ApplicationDestination, GroupKind, Project, ProjectSignatureKey, ProjectSpec} from '../../../../shared/models';
+import {ApplicationDestination, GroupKind, OrphanedResource, Project, ProjectSignatureKey, ProjectSpec} from '../../../../shared/models';
 import {services} from '../../../../shared/services';
 import {GetProp, SetProp} from '../../utils';
 import {Card} from '../card/card';
@@ -32,10 +32,14 @@ const SourceFields: FieldData[] = [{name: 'url', type: FieldTypes.Url}];
 const DestinationFields: FieldData[] = [{name: 'namespace', type: FieldTypes.Text}, {name: 'server', type: FieldTypes.Text}];
 const ResourceFields: FieldData[] = [{name: 'group', type: FieldTypes.Text}, {name: 'kind', type: FieldTypes.ResourceKindSelector}];
 const SignatureKeyFields: FieldData[] = [{name: 'keyID', type: FieldTypes.Text}];
+const OrphanedResourceFields: FieldData[] = [{name: 'group', type: FieldTypes.Text}, {name: 'kind', type: FieldTypes.ResourceKindSelector}, {name: 'name', type: FieldTypes.Text}];
 
 export class ProjectSummary extends React.Component<SummaryProps, SummaryState> {
     get descriptionChanged(): boolean {
         return this.state.description !== this.props.proj.spec.description;
+    }
+    get orphanedResourceMonitoringEnabled(): boolean {
+        return !!this.state.proj.spec.orphanedResources;
     }
 
     constructor(props: SummaryProps) {
@@ -154,10 +158,84 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                         />
                     </div>
                 </div>
+                <div className='project-summary__section'>
+                    <div className='project-summary__label'>ORPHANED RESOURCES</div>
+                    {this.monitoringToggle()}
+                    <div className='project-summary__section--row'>
+                        {this.orphanedResourceMonitoringEnabled ? (
+                            <Card<OrphanedResource>
+                                title='Orphaned Resource Ignore List'
+                                fields={OrphanedResourceFields}
+                                data={this.state.orphanedResources.ignore}
+                                add={() => {
+                                    const obj = GetProp(this.state as ProjectSpec, 'orphanedResources');
+                                    if (!obj || Object.keys(obj).length < 1) {
+                                        return;
+                                    }
+                                    if (!obj.ignore) {
+                                        obj.ignore = [];
+                                    }
+                                    obj.ignore.push({} as OrphanedResource);
+                                    const update = {...this.state};
+                                    SetProp(update, 'orphanedResources', obj);
+                                    this.setState(update);
+                                }}
+                                remove={idxs => {
+                                    const obj = GetProp(this.state as ProjectSpec, 'orphanedResources');
+                                    if (!obj || Object.keys(obj).length < 1 || !obj.ignore) {
+                                        return;
+                                    }
+                                    const arr = obj.ignore;
+                                    if (arr.length < 1) {
+                                        return;
+                                    }
+                                    while (idxs.length) {
+                                        arr.splice(idxs.pop(), 1);
+                                    }
+                                    obj.ignore = arr;
+                                    const update = {...this.state};
+                                    SetProp(update, 'orphanedResources', obj);
+                                    this.setState(update);
+                                }}
+                                save={(i, value) => this.save(IterableSpecFieldNames.signatureKeys, i, value as string)}
+                            />
+                        ) : null}
+                    </div>
+                </div>
             </div>
         );
     }
-
+    private monitoringToggle() {
+        return (
+            <div className='project-summary__monitoring-toggle'>
+                MONITORING
+                <div className='project__toggle'>
+                    <button
+                        className={`project__button project__button${this.orphanedResourceMonitoringEnabled ? '--selected' : '--deselected'}`}
+                        onClick={() => this.setOrphanedResourceMonitoring(true)}>
+                        ON
+                    </button>
+                    <button
+                        className={`project__button project__button${!this.orphanedResourceMonitoringEnabled ? '--selected' : '--deselected'}`}
+                        onClick={() => this.setOrphanedResourceMonitoring(false)}>
+                        OFF
+                    </button>
+                </div>
+            </div>
+        );
+    }
+    private async setOrphanedResourceMonitoring(on: boolean) {
+        const update = {...this.state.proj};
+        if (on) {
+            SetProp(update.spec, 'orphanedResources', {warn: false});
+        } else {
+            if (update.spec.orphanedResources) {
+                delete update.spec.orphanedResources;
+            }
+        }
+        const res = await services.projects.updateLean(this.state.name, update);
+        this.updateProject(res);
+    }
     private async addSpecItem(key: keyof ProjectSpec, empty: IterableSpecField) {
         const arr = (GetProp(this.state as ProjectSpec, key) as IterableSpecField[]) || [];
         arr.push(empty);

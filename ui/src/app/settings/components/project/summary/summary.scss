@@ -52,4 +52,9 @@
     font-weight: 500;
     margin-bottom: 15px;
   }
+
+  &__monitoring-toggle {
+    display: flex;
+    align-items: center;
+  }
 }

@@ -13,6 +13,30 @@
     font-weight: 600;
   }
 
+  &__toggle {
+    display: flex;
+    margin-left: 10px;
+    .project__button {
+      border-radius: 0px;
+      border: 2px solid $active-blue;
+      margin: 0;
+      &:first-child {
+        border-radius: 5px 0px 0px 5px;
+      }
+      &:last-child {
+        border-radius: 0px 5px 5px 0px;
+      }
+      &--deselected {
+        background: white;
+        color: $active-blue;
+      }
+      &--selected {
+        background: $active-blue;
+        color: white;
+      }
+    }
+  }
+
   &__button-save {
     background-color: $active-blue;
   }
