@@ -128,15 +128,6 @@ export class ProjectsService {
             .then(res => res.body as models.Project);
     }
 
-    public async updateDescription(name: string, description: string): Promise<models.Project> {
-        const proj = await this.get(name);
-        proj.spec.description = description;
-        return requests
-            .put(`/projects/${name}`)
-            .send({project: {...proj}})
-            .then(res => res.body as models.Project);
-    }
-
     public getSyncWindows(name: string): Promise<models.SyncWindowsState> {
         return requests
             .get(`/projects/${name}/syncwindows`)
