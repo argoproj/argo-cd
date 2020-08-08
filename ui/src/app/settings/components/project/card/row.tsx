@@ -123,9 +123,9 @@ export class CardRow<T> extends React.Component<CardRowProps<T>, CardRowState<T>
                 <div className='card__input-container card__row'>
                     <div className='card__col-round-button card__col'>
                         <button
-                            className={`project__button project__button-round project__button-remove${this.props.selected ? '--selected' : ''}`}
+                            className={`project__button project__button-round project__button-select${this.props.selected ? '--selected' : ''}`}
                             onClick={this.props.toggleSelect}>
-                            <i className='fa fa-times' />
+                            <i className='fa fa-check' />
                         </button>
                     </div>
                     <div>{inputs}</div>
@@ -133,7 +133,7 @@ export class CardRow<T> extends React.Component<CardRowProps<T>, CardRowState<T>
                         <button
                             className={`project__button project__button-${this.props.selected ? 'error' : this.disabled ? 'disabled' : this.changed ? 'save' : 'saved'}`}
                             onClick={() => (this.props.selected ? this.props.remove() : this.disabled ? null : this.save())}>
-                            {this.props.selected ? 'CONFIRM' : this.disabled ? 'EMPTY' : this.changed ? 'SAVE' : 'SAVED'}
+                            {this.props.selected ? 'DELETE' : this.disabled ? 'EMPTY' : this.changed ? 'SAVE' : 'SAVED'}
                         </button>
                     </div>
                 </div>

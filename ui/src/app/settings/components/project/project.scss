@@ -83,19 +83,19 @@
     justify-content: center;
   }
 
-  &__button-remove {
-    border: 2px solid $cancel-red;
-    color: $cancel-red;
+  &__button-select {
+    border: 2px solid $save-green;
+    color: $save-green;
     transition: all 300ms;
 
     &--selected {
       color: white;
-      background-color: $cancel-red;
+      background-color: $save-green;
     }
 
     &:hover {
       color: $white-color;
-      background-color: $cancel-red;
+      background-color: $save-green;
     }
   }
 
