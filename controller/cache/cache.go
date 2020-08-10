@@ -446,25 +446,22 @@ func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *a
 	cluster, ok := c.clusters[newCluster.Server]
 	c.lock.Unlock()
 	if ok {
-		var shouldInvalidate bool
-
-		if oldCluster.Server != newCluster.Server {
-			shouldInvalidate = true
-		}
+		var updateSettings []clustercache.UpdateSettingsFunc
 		if !reflect.DeepEqual(oldCluster.Config, newCluster.Config) {
-			shouldInvalidate = true
+			updateSettings = append(updateSettings, clustercache.SetConfig(newCluster.RESTConfig()))
 		}
 		if !reflect.DeepEqual(oldCluster.Namespaces, newCluster.Namespaces) {
-			shouldInvalidate = true
+			updateSettings = append(updateSettings, clustercache.SetNamespaces(newCluster.Namespaces))
 		}
+		forceInvalidate := false
 		if newCluster.RefreshRequestedAt != nil &&
 			cluster.GetClusterInfo().LastCacheSyncTime != nil &&
 			cluster.GetClusterInfo().LastCacheSyncTime.Before(newCluster.RefreshRequestedAt.Time) {
-			shouldInvalidate = true
+			forceInvalidate = true
 		}
 
-		if shouldInvalidate {
-			cluster.Invalidate()
+		if len(updateSettings) > 0 || forceInvalidate {
+			cluster.Invalidate(updateSettings...)
 			go func() {
 				// warm up cluster cache
 				_ = cluster.EnsureSynced()
