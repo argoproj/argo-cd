@@ -116,7 +116,8 @@ export class App extends React.Component<{}, {popupProps: PopupProps; error: Err
 
     public async componentDidMount() {
         this.popupManager.popupProps.subscribe(popupProps => this.setState({popupProps}));
-        const {trackingID, anonymizeUsers} = await services.authService.settings().then(item => item.googleAnalytics || {trackingID: '', anonymizeUsers: true});
+        const authSettings = await services.authService.settings();
+        const {trackingID, anonymizeUsers} = authSettings.googleAnalytics || {trackingID: '', anonymizeUsers: true};
         const {loggedIn, username} = await services.users.get();
         if (trackingID) {
             const ga = await import('react-ga');
@@ -130,6 +131,13 @@ export class App extends React.Component<{}, {popupProps: PopupProps; error: Err
             };
             trackPageView();
             history.listen(trackPageView);
+        }
+        if (authSettings.uiCssURL) {
+            const link = document.createElement('link');
+            link.href = authSettings.uiCssURL;
+            link.rel = 'stylesheet';
+            link.type = 'text/css';
+            document.head.appendChild(link);
         }
     }
 

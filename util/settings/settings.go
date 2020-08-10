@@ -68,6 +68,8 @@ type ArgoCDSettings struct {
 	KustomizeBuildOptions string `json:"kustomizeBuildOptions,omitempty"`
 	// Indicates if anonymous user is enabled or not
 	AnonymousUserEnabled bool `json:"anonymousUserEnabled,omitempty"`
+	// UiCssURL local or remote path to user-defined CSS to customize ArgoCD UI
+	UiCssURL string `json:"uiCssURL,omitempty"`
 }
 
 type GoogleAnalytics struct {
@@ -235,6 +237,8 @@ const (
 	anonymousUserEnabledKey = "users.anonymous.enabled"
 	// diffOptions is the key where diff options are configured
 	resourceCompareOptionsKey = "resource.compareoptions"
+	// settingUiCssURLKey designates the key for user-defined CSS URL for UI customization
+	settingUiCssURLKey = "ui.cssurl"
 )
 
 // SettingsManager holds config info for a new manager with which to access Kubernetes ConfigMaps.
@@ -793,6 +797,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	settings.KustomizeBuildOptions = argoCDCM.Data[kustomizeBuildOptionsKey]
 	settings.StatusBadgeEnabled = argoCDCM.Data[statusBadgeEnabledKey] == "true"
 	settings.AnonymousUserEnabled = argoCDCM.Data[anonymousUserEnabledKey] == "true"
+	settings.UiCssURL = argoCDCM.Data[settingUiCssURLKey]
 }
 
 // updateSettingsFromSecret transfers settings from a Kubernetes secret into an ArgoCDSettings struct.
@@ -858,6 +863,9 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 			argoCDCM.Data[settingsOIDCConfigKey] = settings.OIDCConfigRAW
 		} else {
 			delete(argoCDCM.Data, settingsOIDCConfigKey)
+		}
+		if settings.UiCssURL != "" {
+			argoCDCM.Data[settingUiCssURLKey] = settings.UiCssURL
 		}
 		return nil
 	})

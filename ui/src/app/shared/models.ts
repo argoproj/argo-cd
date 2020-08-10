@@ -416,6 +416,7 @@ export interface AuthSettings {
     plugins: Plugin[];
     userLoginsDisabled: boolean;
     kustomizeVersions: string[];
+    uiCssURL: string;
 }
 
 export interface UserInfo {
