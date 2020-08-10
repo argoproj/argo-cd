@@ -455,6 +455,13 @@ type Operation struct {
 	Retry RetryStrategy `json:"retry,omitempty" protobuf:"bytes,4,opt,name=retry"`
 }
 
+func (o *Operation) DryRun() bool {
+	if o.Sync != nil {
+		return o.Sync.DryRun
+	}
+	return false
+}
+
 // SyncOperationResource contains resources to sync.
 type SyncOperationResource struct {
 	Group     string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
