@@ -19,7 +19,7 @@ The diffing customization can be configured for single or multiple application r
 
 ## Application Level Configuration
 
-Argo CD allows ignoring differences at a specific JSON path, using [RFC6902 JSON patches](http://tools.ietf.org/html/rfc6902). The following sample application is configured to ignore differences in `spec.replicas` for all deployments:
+Argo CD allows ignoring differences at a specific JSON path, using [RFC6902 JSON patches](https://tools.ietf.org/html/rfc6902). The following sample application is configured to ignore differences in `spec.replicas` for all deployments:
 
 ```yaml
 spec:
