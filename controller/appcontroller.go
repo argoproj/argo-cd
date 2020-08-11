@@ -693,6 +693,11 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		return nil, err
 	}
 
+	err = argo.ValidateDestination(context.Background(), &app.Spec.Destination, ctrl.db)
+	if err != nil {
+		return nil, err
+	}
+
 	objsMap, err := ctrl.getPermittedAppLiveObjects(app, proj)
 	if err != nil {
 		return nil, err
@@ -797,6 +802,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 			ctrl.setOperationState(app, state)
 		}
 	}()
+	terminating := false
 	if isOperationInProgress(app) {
 		// If we get here, we are about process an operation but we notice it is already in progress.
 		// We need to detect if the app object we pulled off the informer is stale and doesn't
@@ -813,8 +819,9 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		}
 		app = freshApp
 		state = app.Status.OperationState.DeepCopy()
+		terminating = state.Phase == synccommon.OperationTerminating
 		// Failed  operation with retry strategy might have be in-progress and has completion time
-		if state.FinishedAt != nil && state.Phase != synccommon.OperationTerminating {
+		if state.FinishedAt != nil && !terminating {
 			retryAt, err := app.Status.OperationState.Operation.Retry.NextRetryAt(state.FinishedAt.Time, state.RetryCount)
 			if err != nil {
 				state.Phase = synccommon.OperationFailed
@@ -860,7 +867,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 			}
 		}
 	} else if state.Phase == synccommon.OperationFailed || state.Phase == synccommon.OperationError {
-		if state.RetryCount < state.Operation.Retry.Limit || state.Operation.Retry.Limit < 0 {
+		if !terminating && (state.RetryCount < state.Operation.Retry.Limit || state.Operation.Retry.Limit < 0) {
 			now := metav1.Now()
 			state.FinishedAt = &now
 			if retryAt, err := state.Operation.Retry.NextRetryAt(now.Time, state.RetryCount); err != nil {
@@ -1008,24 +1015,21 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		if err := ctrl.cache.GetAppManagedResources(app.Name, &managedResources); err != nil {
 			logCtx.Warnf("Failed to get cached managed resources for tree reconciliation, fallback to full reconciliation")
 		} else {
-			if tree, err := ctrl.getResourceTree(app, managedResources); err != nil {
-				app.Status.SetConditions(
-					[]appv1.ApplicationCondition{
-						{
-							Type:    appv1.ApplicationConditionComparisonError,
-							Message: err.Error(),
-						},
-					},
-					map[appv1.ApplicationConditionType]bool{
-						appv1.ApplicationConditionComparisonError: true,
-					},
-				)
-			} else {
-				app.Status.Summary = tree.GetSummary()
-				if err = ctrl.cache.SetAppResourcesTree(app.Name, tree); err != nil {
-					logCtx.Errorf("Failed to cache resources tree: %v", err)
-					return
+			var tree *appv1.ApplicationTree
+			if err = argo.ValidateDestination(context.Background(), &app.Spec.Destination, ctrl.db); err == nil {
+				if tree, err = ctrl.getResourceTree(app, managedResources); err == nil {
+					app.Status.Summary = tree.GetSummary()
+					if err := ctrl.cache.SetAppResourcesTree(app.Name, tree); err != nil {
+						logCtx.Errorf("Failed to cache resources tree: %v", err)
+						return
+					}
 				}
+			} else {
+				app.Status.SetConditions([]appv1.ApplicationCondition{{
+					Type: appv1.ApplicationConditionComparisonError, Message: err.Error(),
+				}}, map[appv1.ApplicationConditionType]bool{
+					appv1.ApplicationConditionComparisonError: true,
+				})
 			}
 			now := metav1.Now()
 			app.Status.ObservedAt = &now
