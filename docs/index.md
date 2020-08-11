@@ -85,4 +85,8 @@ For additional details, see [architecture overview](operator-manual/architecture
 
 ## Development Status
 
-Argo CD is actively developed and is being used in production to deploy SaaS services at Intuit
+Argo CD is being actively developed by the community. Our releases can be found [here](https://github.com/argoproj/argo-cd/releases).
+
+## Adoption
+
+Organizations who have officially adopted Argo CD can be found [here](https://github.com/argoproj/argo-cd/blob/master/USERS.md).
