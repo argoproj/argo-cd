@@ -1408,7 +1408,7 @@ which generates different data every time <code>helm template</code> is invoked.
 <p>In case it is impossible to fix the upstream issue, Argo CD allows you to optionally ignore differences of problematic resources.
 The diffing customization can be configured for single or multiple application resources or at a system level.</p>
 <h2 id="application-level-configuration">Application Level Configuration<a class="headerlink" href="#application-level-configuration" title="Permanent link">&para;</a></h2>
-<p>Argo CD allows ignoring differences at a specific JSON path, using <a href="http://tools.ietf.org/html/rfc6902">RFC6902 JSON patches</a>. The following sample application is configured to ignore differences in <code>spec.replicas</code> for all deployments:</p>
+<p>Argo CD allows ignoring differences at a specific JSON path, using <a href="https://tools.ietf.org/html/rfc6902">RFC6902 JSON patches</a>. The following sample application is configured to ignore differences in <code>spec.replicas</code> for all deployments:</p>
 <div class="codehilite"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
   <span class="nt">ignoreDifferences</span><span class="p">:</span>
   <span class="p p-Indicator">-</span> <span class="nt">group</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">apps</span>
