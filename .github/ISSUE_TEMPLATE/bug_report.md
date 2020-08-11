@@ -11,7 +11,7 @@ question in argocd slack [channel](https://argoproj.github.io/community/join-sla
 
 Checklist:
 
-* [ ] I've searched in the docs and FAQ for my answer: http://bit.ly/argocd-faq.
+* [ ] I've searched in the docs and FAQ for my answer: https://bit.ly/argocd-faq.
 * [ ] I've included steps to reproduce the bug.
 * [ ] I've pasted the output of `argocd version`.
 
