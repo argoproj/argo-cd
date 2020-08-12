@@ -18,6 +18,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	textutils "github.com/argoproj/gitops-engine/pkg/utils/text"
+	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/ghodss/yaml"
 	"github.com/google/go-jsonnet"
 	log "github.com/sirupsen/logrus"
@@ -447,8 +448,55 @@ func newEnv(q *apiclient.ManifestRequest, revision string) *v1alpha1.Env {
 	}
 }
 
+func mergeSourceParameters(source *v1alpha1.ApplicationSource, path string) error {
+	appFilePath := filepath.Join(path, ".argocd-app.yaml")
+	info, err := os.Stat(appFilePath)
+	if os.IsNotExist(err) {
+		return nil
+	} else if info != nil && info.IsDir() {
+		return nil
+	} else if err != nil {
+		return err
+	}
+	patch, err := json.Marshal(source)
+	if err != nil {
+		return err
+	}
+
+	data, err := ioutil.ReadFile(appFilePath)
+	if err != nil {
+		return err
+	}
+	data, err = yaml.YAMLToJSON(data)
+	if err != nil {
+		return err
+	}
+	data, err = jsonpatch.MergePatch(data, patch)
+	if err != nil {
+		return err
+	}
+	var merged v1alpha1.ApplicationSource
+	err = json.Unmarshal(data, &merged)
+	if err != nil {
+		return err
+	}
+	// make sure only config management tools related properties are used and ignore everything else
+	merged.Chart = source.Chart
+	merged.Path = source.Path
+	merged.RepoURL = source.RepoURL
+	merged.TargetRevision = source.TargetRevision
+
+	*source = merged
+	return nil
+}
+
 // GetAppSourceType returns explicit application source type or examines a directory and determines its application source type
 func GetAppSourceType(source *v1alpha1.ApplicationSource, path string) (v1alpha1.ApplicationSourceType, error) {
+	err := mergeSourceParameters(source, path)
+	if err != nil {
+		return "", fmt.Errorf("error while parsing .argocd-app.yaml: %v", err)
+	}
+
 	appSourceType, err := source.ExplicitType()
 	if err != nil {
 		return "", err
@@ -787,7 +835,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 				kustomizeBinary = q.KustomizeOptions.BinaryPath
 			}
 			k := kustomize.NewKustomizeApp(appPath, q.Repo.GetGitCreds(), q.Repo.Repo, kustomizeBinary)
-			_, images, err := k.Build(nil, q.KustomizeOptions)
+			_, images, err := k.Build(q.Source.Kustomize, q.KustomizeOptions)
 			if err != nil {
 				return err
 			}
