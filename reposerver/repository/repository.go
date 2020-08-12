@@ -15,7 +15,6 @@ import (
 
 	"github.com/Masterminds/semver"
 	"github.com/TomOnTime/utfutil"
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	textutils "github.com/argoproj/gitops-engine/pkg/utils/text"
 	"github.com/ghodss/yaml"
@@ -27,6 +26,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+
+	"github.com/argoproj/gitops-engine/pkg/utils/io"
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -54,7 +55,7 @@ type Service struct {
 	parallelismLimitSemaphore *semaphore.Weighted
 	metricsServer             *metrics.MetricsServer
 	newGitClient              func(rawRepoURL string, creds git.Creds, insecure bool, enableLfs bool) (git.Client, error)
-	newHelmClient             func(repoURL string, creds helm.Creds) helm.Client
+	newHelmClient             func(repoURL string, creds helm.Creds, enableOci bool) helm.Client
 }
 
 // NewService returns a new instance of the Manifest service
@@ -70,8 +71,8 @@ func NewService(metricsServer *metrics.MetricsServer, cache *reposervercache.Cac
 		cache:                     cache,
 		metricsServer:             metricsServer,
 		newGitClient:              git.NewClient,
-		newHelmClient: func(repoURL string, creds helm.Creds) helm.Client {
-			return helm.NewClientWithLock(repoURL, creds, repoLock)
+		newHelmClient: func(repoURL string, creds helm.Creds, enableOci bool) helm.Client {
+			return helm.NewClientWithLock(repoURL, creds, repoLock, enableOci)
 		},
 	}
 }
@@ -746,6 +747,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 					res.Helm.ValueFiles = append(res.Helm.ValueFiles, fName)
 				}
 			}
+
 			h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos), false)
 			if err != nil {
 				return err
@@ -902,7 +904,7 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 }
 
 func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revision string, chart string) (helm.Client, string, error) {
-	helmClient := s.newHelmClient(repo.Repo, repo.GetHelmCreds())
+	helmClient := s.newHelmClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOci)
 	if helm.IsVersion(revision) {
 		return helmClient, revision, nil
 	}
@@ -949,7 +951,7 @@ func checkoutRevision(gitClient git.Client, commitSHA string, logEntry *log.Entr
 }
 
 func (s *Service) GetHelmCharts(ctx context.Context, q *apiclient.HelmChartsRequest) (*apiclient.HelmChartsResponse, error) {
-	index, err := s.newHelmClient(q.Repo.Repo, q.Repo.GetHelmCreds()).GetIndex()
+	index, err := s.newHelmClient(q.Repo.Repo, q.Repo.GetHelmCreds(), q.Repo.EnableOci).GetIndex()
 	if err != nil {
 		return nil, err
 	}

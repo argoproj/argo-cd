@@ -14,7 +14,6 @@ import (
 	"github.com/Masterminds/semver"
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
 	jsonpatch "github.com/evanphx/json-patch"
@@ -34,6 +33,8 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/utils/pointer"
+
+	"github.com/argoproj/gitops-engine/pkg/utils/io"
 
 	"github.com/argoproj/argo-cd/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -1193,7 +1194,7 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 		if helm.IsVersion(ambiguousRevision) {
 			return ambiguousRevision, ambiguousRevision, nil
 		}
-		client := helm.NewClient(repo.Repo, repo.GetHelmCreds())
+		client := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOci)
 		index, err := client.GetIndex()
 		if err != nil {
 			return "", "", err

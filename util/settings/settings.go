@@ -162,6 +162,8 @@ type Repository struct {
 	TLSClientCertDataSecret *apiv1.SecretKeySelector `json:"tlsClientCertDataSecret,omitempty"`
 	// Name of the secret storing the TLS client cert's key data
 	TLSClientCertKeySecret *apiv1.SecretKeySelector `json:"tlsClientCertKeySecret,omitempty"`
+	// Whether the repo is helm-oci enabled. Git only.
+	EnableOci bool `json:"enableOci,omitempty"`
 }
 
 // Credential template for accessing repositories

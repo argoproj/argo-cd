@@ -4558,6 +4558,11 @@
           "format": "boolean",
           "title": "Whether git-lfs support should be enabled for this repo"
         },
+        "enableOci": {
+          "type": "boolean",
+          "format": "boolean",
+          "title": "Whether helm-oci support should be enabled for this repo"
+        },
         "inheritedCreds": {
           "type": "boolean",
           "format": "boolean",

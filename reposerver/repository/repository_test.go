@@ -11,12 +11,13 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver"
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	v1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+
+	"github.com/argoproj/gitops-engine/pkg/utils/io"
 
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
@@ -68,7 +69,7 @@ func newServiceWithMocks(root string, signed bool) (*Service, *gitmocks.Client) 
 	service.newGitClient = func(rawRepoURL string, creds git.Creds, insecure bool, enableLfs bool) (client git.Client, e error) {
 		return gitClient, nil
 	}
-	service.newHelmClient = func(repoURL string, creds helm.Creds) helm.Client {
+	service.newHelmClient = func(repoURL string, creds helm.Creds, enableOci bool) helm.Client {
 		return helmClient
 	}
 	return service, gitClient

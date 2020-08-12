@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -18,6 +17,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
+
+	"github.com/argoproj/gitops-engine/pkg/utils/io"
 
 	"github.com/argoproj/argo-cd/common"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -123,12 +124,18 @@ func WaitForRefresh(ctx context.Context, appIf v1alpha1.ApplicationInterface, na
 	return nil, fmt.Errorf("application refresh deadline exceeded")
 }
 
-func TestRepoWithKnownType(repo *argoappv1.Repository, isHelm bool) error {
+func TestRepoWithKnownType(repo *argoappv1.Repository, isHelm bool, isHelmOci bool) error {
 	repo = repo.DeepCopy()
 	if isHelm {
 		repo.Type = "helm"
 	} else {
 		repo.Type = "git"
+	}
+
+	if isHelmOci {
+		repo.EnableOci = true
+	} else {
+		repo.EnableOci = false
 	}
 	return TestRepo(repo)
 }
@@ -139,8 +146,13 @@ func TestRepo(repo *argoappv1.Repository) error {
 			return git.TestRepo(repo.Repo, repo.GetGitCreds(), repo.IsInsecure(), repo.IsLFSEnabled())
 		},
 		"helm": func() error {
-			_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds()).GetIndex()
-			return err
+			if repo.EnableOci {
+				_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOci).TestHelmOCI()
+				return err
+			} else {
+				_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOci).GetIndex()
+				return err
+			}
 		},
 	}
 	if check, ok := checks[repo.Type]; ok {
@@ -185,7 +197,7 @@ func ValidateRepo(
 	}
 
 	repoAccessible := false
-	err = TestRepoWithKnownType(repo, app.Spec.Source.IsHelm())
+	err = TestRepoWithKnownType(repo, app.Spec.Source.IsHelm(), app.Spec.Source.IsHelmOci())
 	if err != nil {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,

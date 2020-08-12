@@ -149,6 +149,16 @@ func (a *ApplicationSource) IsHelm() bool {
 	return a.Chart != ""
 }
 
+func (a *ApplicationSource) IsHelmOci() bool {
+	if a.Chart == "" {
+		return false
+	}
+	if _, _, ok := helm.IsHelmOci(a.Chart); ok {
+		return true
+	}
+	return false
+}
+
 func (a *ApplicationSource) IsZero() bool {
 	return a == nil ||
 		a.RepoURL == "" &&
@@ -1255,6 +1265,8 @@ type Repository struct {
 	Name string `json:"name,omitempty" protobuf:"bytes,12,opt,name=name"`
 	// Whether credentials were inherited from a credential set
 	InheritedCreds bool `json:"inheritedCreds,omitempty" protobuf:"bytes,13,opt,name=inheritedCreds"`
+	// Whether helm-oci support should be enabled for this repo
+	EnableOci bool `json:"enableOci,omitempty" protobuf:"bytes,14,opt,name=enableOci"`
 }
 
 // IsInsecure returns true if receiver has been configured to skip server verification

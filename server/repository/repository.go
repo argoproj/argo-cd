@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
 	log "github.com/sirupsen/logrus"
@@ -12,6 +11,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/argoproj/gitops-engine/pkg/utils/io"
 
 	"github.com/argoproj/argo-cd/common"
 	repositorypkg "github.com/argoproj/argo-cd/pkg/apiclient/repository"
@@ -139,6 +140,7 @@ func (s *Server) ListRepositories(ctx context.Context, q *repositorypkg.RepoQuer
 				Username:  repo.Username,
 				Insecure:  repo.IsInsecure(),
 				EnableLFS: repo.EnableLFS,
+				EnableOci: repo.EnableOci,
 			})
 		}
 	}
@@ -343,6 +345,7 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 		Insecure:          q.Insecure,
 		TLSClientCertData: q.TlsClientCertData,
 		TLSClientCertKey:  q.TlsClientCertKey,
+		EnableOci:         q.EnableOci,
 	}
 
 	var repoCreds *appsv1.RepoCreds

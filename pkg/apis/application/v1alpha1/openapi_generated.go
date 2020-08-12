@@ -2519,6 +2519,13 @@ func schema_pkg_apis_application_v1alpha1_Repository(ref common.ReferenceCallbac
 							Format:      "",
 						},
 					},
+					"enableOci": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Whether helm-oci support should be enabled for this repo",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"repo"},
 			},
