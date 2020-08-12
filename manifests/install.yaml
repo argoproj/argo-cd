@@ -2735,11 +2735,6 @@ spec:
         - argocd-redis:6379
         image: argoproj/argocd:latest
         imagePullPolicy: Always
-        livenessProbe:
-          initialDelaySeconds: 5
-          periodSeconds: 10
-          tcpSocket:
-            port: 8081
         name: argocd-repo-server
         ports:
         - containerPort: 8081
@@ -2791,12 +2786,6 @@ spec:
         - /shared/app
         image: argoproj/argocd:latest
         imagePullPolicy: Always
-        livenessProbe:
-          httpGet:
-            path: /healthz
-            port: 8080
-          initialDelaySeconds: 3
-          periodSeconds: 30
         name: argocd-server
         ports:
         - containerPort: 8080
