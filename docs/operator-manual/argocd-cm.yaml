@@ -233,3 +233,13 @@ data:
   accounts.alice: apiKey, login
   # disables user. User is enabled by default
   accounts.alice.enabled: "false"
+
+  # The location of optional user-defined CSS that is loaded at runtime.
+  # Local CSS Files:
+  # - If the supplied path is to a file mounted on the argocd-server container, that file should be mounted 
+  #   within a subdirectory of the existing "/shared/app" directory (e.g. "/shared/app/custom").  Otherwise,
+  #   the file will likely fail to be imported by the browser with an "incorrect MIME type" error.
+  # - The path should be specified relative to the "/shared/app" directory; not as an absolute path.
+  # Remote CSS Files:
+  # - Files may also be loaded from remote locations via fully qualified URLs.
+  ui.cssurl: "./custom/my-styles.css"
