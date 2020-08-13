@@ -39,12 +39,11 @@ Currently Argo CD controller is unable to handle that many clusters. The solutio
 
 ### ApplicationsSet
 
-The Argo CD applications allow splitting the cluster configuration into logic groups that are managed independently. However, the set of applications
-is the configuration as well and should be managed declaratively. The app-of-apps pattern solves this problem but still has some challenges such as
+Argo CD Applications allow splitting the cluster configuration into logic groups that are managed independently. However, the set of applications
+is a configuration that should be managed declaratively as well. The app-of-apps pattern solves this problem but still has some challenges such as
 maintenance overhead, security, and luck of some additional features.
 
-The [ApplicationsSet](https://github.com/argoproj-labs/applicationset) project formal solution that simplifies Argo CD application management and provides
-answer to app-of-apps pattern issues.
+[ApplicationsSet](https://github.com/argoproj-labs/applicationset) project provides a better solution for managing applications accross multiple environments.
 
 ### Large Applications support
 
