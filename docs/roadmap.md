@@ -102,7 +102,7 @@ Network view ([1](https://github.com/argoproj/argo-cd/issues/2892), [2](https://
 ### Cluster Management User interface
 
 Argo CD has information about whole clusters, not just applications in it.
-We need to provide user interface for cluster administrators that visualize cluster level resources.
+We need to provide a user interface for cluster administrators that visualize cluster level resources.
 
 ### Projects enhancements
 
