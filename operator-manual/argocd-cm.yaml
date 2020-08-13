@@ -201,9 +201,15 @@ data:
       clusters:
       - "*.local"
 
-  # if ignoreAggregatedRoles set to true then differences caused by aggregated roles in RBAC resources are ignored.
   resource.compareoptions: |
+    # if ignoreAggregatedRoles set to true then differences caused by aggregated roles in RBAC resources are ignored.
     ignoreAggregatedRoles: true
+
+    # disables status field diffing in specified resource types
+    # 'crd' - CustomResourceDefinitions (default)
+    # 'all' - all resources
+    # 'none' - disabled
+    ignoreResourceStatusField: crd
 
   # Configuration to add a config management plugin.
   configManagementPlugins: |
