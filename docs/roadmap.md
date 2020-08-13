@@ -55,7 +55,7 @@ That includes more metrics, out of the box alerts and cluster management user in
 ### GitOps Engine Enhancements
 
 The [GitOps Engine](https://github.com/argoproj/gitops-engine) is a library that implements core GitOps functions such as K8S resource reconciliation and diffing.
-A lot of Argo CD features are still no available in GitOps engine. The following features have to be contributed to the GitOps Engine:
+A lot of Argo CD features are still not available in GitOps engine. The following features have to be contributed to the GitOps Engine:
 
 * an ability to customize resources health assessment and existing CRD health [assessment functions](https://github.com/argoproj/argo-cd/tree/master/resource_customizations).
 * resource diffing [customization](https://argoproj.github.io/argo-cd/user-guide/diffing/).
