@@ -37,6 +37,7 @@ import (
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/util/cert"
 	"github.com/argoproj/argo-cd/util/git"
+	"github.com/argoproj/argo-cd/util/glob"
 	"github.com/argoproj/argo-cd/util/helm"
 )
 
@@ -2376,13 +2377,7 @@ func (proj *AppProject) RemoveFinalizer() {
 }
 
 func globMatch(pattern string, val string) bool {
-	if pattern == "*" {
-		return true
-	}
-	if ok, err := filepath.Match(pattern, val); ok && err == nil {
-		return true
-	}
-	return false
+	return glob.Match(pattern, val)
 }
 
 // IsSourcePermitted validates if the provided application's source is a one of the allowed sources for the project.
