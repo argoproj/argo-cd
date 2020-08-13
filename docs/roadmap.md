@@ -35,12 +35,16 @@ A set of optimizations is required to fix that issue.
 * 100+ Clusters support. The cluster addon management use-case requires connecting a large number of clusters to one Argo CD controller.
 Currently Argo CD controller is unable to handle that many clusters. The solution is to support horizontal controller scaling and automated sharding.
 
-* Mono Repository support. Argo CD is not optimized for mono repositories with a large number of applications. With 50+ applications in the same repository, manifest generation performance
-drops significantly. The repository server optimization is required to improve it.
+* Mono Repository support. Argo CD is not optimized for mono repositories with a large number of applications. With 50+ applications in the same repository, manifest generation performance drops significantly. The repository server optimization is required to improve it.
 
 ### ApplicationsSet
 
-The [ApplicationsSet](https://github.com/argoproj-labs/applicationset) project automates Argo CD applications management.
+The Argo CD applications allow splitting the cluster configuration into logic groups that are managed independently. However, the set of applications
+is the configuration as well and should be managed declaratively. The app-of-apps pattern solves this problem but still has some challenges such as
+maintenance overhead, security, and luck of some additional features.
+
+The [ApplicationsSet](https://github.com/argoproj-labs/applicationset) project formal solution that simplifies Argo CD application management and provides
+answer to app-of-apps pattern issues.
 
 ### Large Applications support
 
