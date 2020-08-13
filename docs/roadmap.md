@@ -35,7 +35,7 @@ A set of optimizations is required to fix that issue.
 * 100+ Clusters support. The cluster addon management use-case requires connecting a large number of clusters to one Argo CD controller.
 Currently Argo CD controller unable to handle that many clusters. The solution to support horizontal controller scaling and automated sharding.
 
-* Mono Repository support. Argo CD is not optimized for mono repositories with large number of applications. With 50+ applications in the same repository manifest generation performance
+* Mono Repository support. Argo CD is not optimized for mono repositories with a large number of applications. With 50+ applications in the same repository, manifest generation performance
 drops significantly. The repository server optimization is required to improve it.
 
 ### ApplicationsSet
