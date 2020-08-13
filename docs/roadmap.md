@@ -49,7 +49,7 @@ to improve user experience.
 
 ### Supportability
 
-To make Argo CD successful we need to build tools that enable Argo CD operators to handle scalability and performance issues without asking Argo CD team help.
+To make Argo CD successful we need to build tools that enable the Argo CD operators to handle scalability and performance issues without asking the Argo CD team for help.
 That includes more metrics, out of the box alerts and cluster management user interface.
 
 ### GitOps Engine Enhancements
