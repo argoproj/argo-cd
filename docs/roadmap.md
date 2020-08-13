@@ -44,7 +44,7 @@ The project automates Argo CD applications management: https://github.com/argopr
 
 ### Large Applications support
 
-Application details page is not suitable to visualize applications that includes large number of resources (hundreds of resources). The page have to be reworked
+Application details page is not suitable to visualize applications that include a large number of resources (hundreds of resources). The page has to be reworked
 to improve user experience.
 
 ### Supportability
