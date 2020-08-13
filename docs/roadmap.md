@@ -22,13 +22,14 @@ The core GitOps features still have several known bugs and limitations. The full
 https://github.com/argoproj/argo-cd/issues?q=is%3Aopen+is%3Aissue+label%3Abug+milestone%3A%22v1.7+%22+label%3Acomponent%3Acore)
 
 The most notable issues:
+
 * [Application is incorrectly reporting a diff](https://github.com/argoproj/argo-cd/issues/2865)
 * [Helm hooks are deleted right after creation](https://github.com/argoproj/argo-cd/issues/2737)
 * [Argo CD synchronization lasts incredibly long](https://github.com/argoproj/argo-cd/issues/3663)
 
 ### Performance
 
-* 2000+ Applications support. The user interface became notable slower if one Argo CD instance manages more than 1 thousand applications.
+* 2000+ Applications support. The user interface becomes notably slower if one Argo CD instance manages more than 1 thousand applications.
 A set of optimizations is required to fix that issue.
 
 * 100+ Clusters support. The cluster addon management use-case requires connecting a large number of clusters to one Argo CD controller.
@@ -39,7 +40,7 @@ drops significantly. The repository server optimization is required to improve i
 
 ### ApplicationsSet
 
-The project automates Argo CD applications management: https://github.com/argoproj-labs/applicationset
+The [ApplicationsSet](https://github.com/argoproj-labs/applicationset) project automates Argo CD applications management.
 
 ### Large Applications support
 
