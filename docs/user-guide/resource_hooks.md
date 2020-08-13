@@ -41,7 +41,7 @@ The following hooks are defined:
 
 ### Generate Name
 
-Named hooks (i.e., ones with `/metadata/name`) will only be created once. If you want a hook to be re-created each time either use `BeforeHookCreation` policy (see below) or `/metadata/generateName`. 
+Named hooks (i.e. ones with `/metadata/name`) will only be created once. If you want a hook to be re-created each time either use `BeforeHookCreation` policy (see below) or `/metadata/generateName`. 
 
 ## Selective Sync
 
