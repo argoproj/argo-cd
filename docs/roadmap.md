@@ -84,7 +84,7 @@ adoption is poor. We need to document and promote it. Then iterate and work on e
 ### Argo CD Notifications
 
 [Argo CD Notifications](https://github.com/argoproj-labs/argocd-notifications) provides the ability to notify users about Argo CD Application
-changes as well as implement integrations such as update Github commit status, trigger Jenkins job, set Grafana label etc.
+changes as well as implement integrations such as update Github commit status, trigger Jenkins job, set Grafana label, etc.
 
 ### Automated Registry Monitoring
 
