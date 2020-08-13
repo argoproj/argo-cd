@@ -108,5 +108,5 @@ We need to provide a user interface for cluster administrators that visualize cl
 
 Argo CD projects accumulated a lot of debt:
 - Users don't know how to use project roles and SSO. It is one of the key features but just not documented. We need to document and promote it.
-- Project management UI has evolved organically and need complete redesign. We packaged everything into one sliding panel which is painful to use.
+- Project management UI has evolved organically and need a complete redesign. We packaged everything into one sliding panel which is painful to use.
 - Enhancements: [#2718](https://github.com/argoproj/argo-cd/issues/2718), [#3598](https://github.com/argoproj/argo-cd/issues/3598)
