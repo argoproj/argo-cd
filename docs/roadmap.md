@@ -88,7 +88,7 @@ changes as well as implement integrations such as update Github commit status, t
 
 ### Automated Registry Monitoring
 
-An ability to monitor Docker registry and automatically update image versions in the deployment repository.
+An ability to monitor Docker registries and automatically update image versions in the deployment repository.
 https://github.com/argoproj/argo-cd/issues/1648
 
 ### Application details page usability
