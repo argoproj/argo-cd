@@ -1,21 +1,20 @@
 # Roadmap
 
-* [Core Functionality Bug Fixes](#core-functionality-bug-fixes)
-* [2000+ Applications support](#2000-applications-support)
-* [100+ Clusters support](#100-clusters-support)
-* [Mono Repository support](#mono-repository-support)
-* [ApplicationsSet](#applicationsset)
-* [Large Applications support](#large-applications-support)
-* [Supportability](#supportability)
-* [GitOps Engine Enhancements](#gitops-engine-enhancements)
-* [GitOps Agent](#gitops-agent)
-* [Config Management Tools integrations](#config-management-tools-integrations)
-* [Cluster Management User interface](#cluster-management-user-interface)
-* [Resource Actions revamp](#resource-actions-revamp)
-* [Argo CD Notifications](#argo-cd-notifications)
-* [Automated Registry Monitoring](#automated-registry-monitoring)
-* [Application details page usability](#application-details-page-usability)
-* [Projects enhancements](#projects-enhancements)
+- [Roadmap](#roadmap)
+    - [Core Functionality Bug Fixes](#core-functionality-bug-fixes)
+    - [Performance](#performance)
+    - [ApplicationsSet](#applicationsset)
+    - [Large Applications support](#large-applications-support)
+    - [Supportability](#supportability)
+    - [GitOps Engine Enhancements](#gitops-engine-enhancements)
+    - [GitOps Agent](#gitops-agent)
+    - [Config Management Tools Integrations](#config-management-tools-integrations)
+    - [Resource Actions Revamp](#resource-actions-revamp)
+    - [Argo CD Notifications](#argo-cd-notifications)
+    - [Automated Registry Monitoring](#automated-registry-monitoring)
+    - [Application Details Page Usability](#application-details-page-usability)
+    - [Cluster Management User Interface](#cluster-management-user-interface)
+    - [Projects Enhancements](#projects-enhancements)
 
 ### Core Functionality Bug Fixes
 
@@ -33,7 +32,7 @@ The most notable issues:
 A set of optimizations is required to fix that issue.
 
 * 100+ Clusters support. The cluster addon management use-case requires connecting a large number of clusters to one Argo CD controller.
-Currently Argo CD controller unable to handle that many clusters. The solution to support horizontal controller scaling and automated sharding.
+Currently Argo CD controller is unable to handle that many clusters. The solution is to support horizontal controller scaling and automated sharding.
 
 * Mono Repository support. Argo CD is not optimized for mono repositories with a large number of applications. With 50+ applications in the same repository, manifest generation performance
 drops significantly. The repository server optimization is required to improve it.
@@ -67,13 +66,13 @@ A lot of Argo CD features are still not available in GitOps engine. The followin
 [GitOps Agent](https://github.com/argoproj/gitops-engine/tree/master/agent) is a continuation of GitOps engine work. The GitOps Agent leverages the GitOps Engine and provides
 access to many engine features via a simple CLI interface.
 
-### Config Management Tools integrations
+### Config Management Tools Integrations
 
 Community likes the first class support of Helm, Kustomize and keep requesting to support more tools.
 Argo CD provides mechanism to integrate with any config management tool. We need to enhance investigate why
 it is not enough and implement missing features.
 
-### Resource Actions revamp
+### Resource Actions Revamp
 
 Resource actions is very powerful but literally hidden feature. Documentation is totally missing and therefore
 adoption is poor. We need to document and promote it. Then iterate and work on enhancements:
@@ -88,10 +87,10 @@ changes as well as implement integrations such as update Github commit status, t
 
 ### Automated Registry Monitoring
 
-An ability to monitor Docker registries and automatically update image versions in the deployment repository.
-https://github.com/argoproj/argo-cd/issues/1648
+[Argo CD Image Updater](https://github.com/argoproj-labs/argocd-image-updater) provides an ability to monitor Docker registries and automatically
+update image versions in the deployment repository. https://github.com/argoproj/argo-cd/issues/1648
 
-### Application details page usability
+### Application Details Page Usability
 
 Application details page has accumulated multiple usability and feature requests such as 
 [Node view](https://github.com/argoproj/argo-cd/issues/1483),
@@ -99,12 +98,12 @@ Logs ([1](https://github.com/argoproj/argo-cd/issues/781), [2](https://github.co
 Network view ([1](https://github.com/argoproj/argo-cd/issues/2892), [2](https://github.com/argoproj/argo-cd/issues/2338))
  [etc](https://github.com/argoproj/argo-cd/issues/2199).
 
-### Cluster Management User interface
+### Cluster Management User Interface
 
 Argo CD has information about whole clusters, not just applications in it.
 We need to provide a user interface for cluster administrators that visualize cluster level resources.
 
-### Projects enhancements
+### Projects Enhancements
 
 Argo CD projects accumulated a lot of debt:
 - Users don't know how to use project roles and SSO. It is one of the key features but just not documented. We need to document and promote it.
