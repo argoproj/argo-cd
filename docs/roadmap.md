@@ -41,19 +41,19 @@ Currently Argo CD controller is unable to handle that many clusters. The solutio
 
 Argo CD Applications allow splitting the cluster configuration into logic groups that are managed independently. However, the set of applications
 is a configuration that should be managed declaratively as well. The app-of-apps pattern solves this problem but still has some challenges such as
-maintenance overhead, security, and luck of some additional features.
+maintenance overhead, security, and lack of some additional features.
 
 [ApplicationsSet](https://github.com/argoproj-labs/applicationset) project provides a better solution for managing applications accross multiple environments.
 
 ### Large Applications support
 
-Application details page is not suitable to visualize applications that include a large number of resources (hundreds of resources). The page has to be reworked
+The application details page is not suitable to visualize applications that include a large number of resources (hundreds of resources). The page has to be reworked
 to improve user experience.
 
 ### Supportability
 
-To make Argo CD successful we need to build tools that enable the Argo CD operators to handle scalability and performance issues without asking the Argo CD team for help.
-That includes more metrics, out of the box alerts and cluster management user interface.
+To make Argo CD successful we need to build tools that enable Argo CD operators to handle scalability and performance issues without asking the Argo CD team for help.
+That includes more metrics, out of the box alerts and a cluster management user interface.
 
 ### GitOps Engine Enhancements
 
@@ -72,14 +72,14 @@ access to many engine features via a simple CLI interface.
 
 ### Config Management Tools Integrations
 
-Community likes the first class support of Helm, Kustomize and keep requesting to support more tools.
-Argo CD provides mechanism to integrate with any config management tool. We need to enhance investigate why
+The community likes the first class support of Helm, Kustomize and keeps requesting support for more tools.
+Argo CD provides a mechanism to integrate with any config management tool. We need to investigate why
 it is not enough and implement missing features.
 
 ### Resource Actions Revamp
 
-Resource actions is very powerful but literally hidden feature. Documentation is totally missing and therefore
-adoption is poor. We need to document and promote it. Then iterate and work on enhancements:
+Resource actions is very powerful but literally hidden feature. Documentation is missing and therefore
+adoption is poor. We need to document and promote it, and then iterate and work on enhancements:
 - hard to configure unless you are Argo CD ninja;
 - half done parameters support: we have backend but no UI/CLI for it;
 - configuration issue: it is impossible to share actions as a YAML file since ALL resource customizations are stored in one config map key;
@@ -110,6 +110,6 @@ We need to provide a user interface for cluster administrators that visualize cl
 ### Projects Enhancements
 
 Argo CD projects accumulated a lot of debt:
-- Users don't know how to use project roles and SSO. It is one of the key features but just not documented. We need to document and promote it.
-- Project management UI has evolved organically and need a complete redesign. We packaged everything into one sliding panel which is painful to use.
+- Users don't know how to use project roles and SSO. It is one of the key features but not documented well. We need to document and promote it.
+- Project management UI has evolved organically and needs a complete redesign. We packaged everything into one sliding panel which is painful to use.
 - Enhancements: [#2718](https://github.com/argoproj/argo-cd/issues/2718), [#3598](https://github.com/argoproj/argo-cd/issues/3598)
