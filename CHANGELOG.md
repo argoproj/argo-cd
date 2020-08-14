@@ -1,5 +1,50 @@
 # Changelog
 
+## v1.7.0 (Unreleased)
+
+### GnuPG Signature Verification
+
+The feature allows to only sync against commits that are signed in Git specified GnuPG. The list of public 
+GPG keys required for verification is configured at the system level and can be managed using Argo CD CLI or Web user interface.
+The keys management is integrated with Argo CD SSO and access control system (e.g. `argocd gpg add --from <path-to-key>`)
+
+The signature verification is enabled on the project level. The ApplicationProject CRD has a new signatureKeys field that includes
+a list of imported public GPG keys. Argo CD will verify the commit signature by these keys for every project application.
+
+### Cluster Management Enhancements
+
+Feature allows using the cluster name instead of the URL to specify the application destination cluster.
+Additionally, the cluster CLI and Web user interface have been improved. Argo CD operators now can view and edit cluster
+details using the Cluster Details page. The page includes cluster settings details as well as runtime information such
+as the number of monitored Kubernetes resources.
+
+### Diffing And Synchronization Usability
+
+* **Diffing logic improvement** Argo CD performs client-side resource diffing to detect deviations and present detected
+differences in the UI and CLI. The 1.7 release aligns a comparison algorithm with server-side Kubernetes implementation
+and removes inaccuracies in some edge cases.
+
+* **Helm Hooks Compatibility** The improvement removes the discrepancy between the way how Argo CD and Helm deletes
+hooks resources. This significantly improves the compatibility allows and enables additional use cases.
+
+* **Namespace Auto-Creation** You can click a checkbox and Argo CD will ensure that namespace specified as the
+application destination exists in the destination cluster. 
+
+* **Failed Sync Retry** This feature enables retying of failed synchronization attempts during both manually-triggered
+and automated synchronization.
+
+### Orphaned Resources Monitoring Enhancement
+
+The enhancement allows configuring an exception list in Orphaned Resources settings to avoid false alarms.
+
+## v1.6.2 (2020-08-01)
+
+- feat: adding validate for app create and app set (#4016)
+- fix: use glob matcher in casbin built-in model (#3966)
+- fix: Normalize Helm chart path when chart name contains a slash (#3987)
+- fix: allow duplicates when using generateName (#3878)
+- fix: nil pointer dereference while syncing an app (#3915)
+
 ## v1.6.1 (2020-06-18)
 
 - fix: User unable to generate project token even if account has appropriate permissions (#3804)
