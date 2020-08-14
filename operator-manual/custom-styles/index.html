@@ -308,10 +308,12 @@
       
       
 
+  
 
-  <li class="md-nav__item md-nav__item--nested">
+
+  <li class="md-nav__item md-nav__item--active md-nav__item--nested">
     
-      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-5" type="checkbox" id="nav-5">
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-5" type="checkbox" id="nav-5" checked>
     
     <label class="md-nav__link" for="nav-5">
       Operator Manual
@@ -579,6 +581,110 @@
           
           
 
+  
+
+
+  <li class="md-nav__item md-nav__item--active">
+    
+    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
+    
+      
+    
+    
+      <label class="md-nav__link md-nav__link--active" for="__toc">
+        Custom Styles
+      </label>
+    
+    <a href="./" title="Custom Styles" class="md-nav__link md-nav__link--active">
+      Custom Styles
+    </a>
+    
+      
+<nav class="md-nav md-nav--secondary">
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">Table of contents</label>
+    <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#adding-styles-via-remote-url" title="Adding Styles Via Remote URL" class="md-nav__link">
+    Adding Styles Via Remote URL
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#argocd-cm" title="argocd-cm" class="md-nav__link">
+    argocd-cm
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adding-styles-via-volume-mounts" title="Adding Styles Via Volume Mounts" class="md-nav__link">
+    Adding Styles Via Volume Mounts
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#argocd-cm_1" title="argocd-cm" class="md-nav__link">
+    argocd-cm
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#argocd-styles-cm" title="argocd-styles-cm" class="md-nav__link">
+    argocd-styles-cm
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#argocd-server" title="argocd-server" class="md-nav__link">
+    argocd-server
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#developing-style-overlays" title="Developing Style Overlays" class="md-nav__link">
+    Developing Style Overlays
+  </a>
+  
+</li>
+      
+      
+      
+      
+      
+    </ul>
+  
+</nav>
+    
+  </li>
+
+        
+          
+          
+          
+
 
   <li class="md-nav__item">
     <a href="../metrics/" title="Metrics" class="md-nav__link">
@@ -618,13 +724,13 @@
 
   <li class="md-nav__item md-nav__item--nested">
     
-      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-5-17" type="checkbox" id="nav-5-17">
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-5-18" type="checkbox" id="nav-5-18">
     
-    <label class="md-nav__link" for="nav-5-17">
+    <label class="md-nav__link" for="nav-5-18">
       Upgrading
     </label>
     <nav class="md-nav" data-md-component="collapsible" data-md-level="2">
-      <label class="md-nav__title" for="nav-5-17">
+      <label class="md-nav__title" for="nav-5-18">
         Upgrading
       </label>
       <ul class="md-nav__list" data-md-scrollfix>
@@ -638,6 +744,18 @@
   <li class="md-nav__item">
     <a href="../upgrading/overview/" title="Overview" class="md-nav__link">
       Overview
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../upgrading/1.6-1.7/" title="v1.6 to 1.7" class="md-nav__link">
+      v1.6 to 1.7
     </a>
   </li>
 
@@ -1481,6 +1599,41 @@ experience, you may wish to build a separate project using the <a href="https://
       
         
 <footer class="md-footer">
+  
+    <div class="md-footer-nav">
+      <nav class="md-footer-nav__inner md-grid">
+        
+          <a href="../custom_tools/" title="Custom Tooling" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
+            <div class="md-flex__cell md-flex__cell--shrink">
+              <i class="md-icon md-icon--arrow-back md-footer-nav__button"></i>
+            </div>
+            <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
+              <span class="md-flex__ellipsis">
+                <span class="md-footer-nav__direction">
+                  Previous
+                </span>
+                Custom Tooling
+              </span>
+            </div>
+          </a>
+        
+        
+          <a href="../metrics/" title="Metrics" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
+            <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
+              <span class="md-flex__ellipsis">
+                <span class="md-footer-nav__direction">
+                  Next
+                </span>
+                Metrics
+              </span>
+            </div>
+            <div class="md-flex__cell md-flex__cell--shrink">
+              <i class="md-icon md-icon--arrow-forward md-footer-nav__button"></i>
+            </div>
+          </a>
+        
+      </nav>
+    </div>
   
   <div class="md-footer-meta md-typeset">
     <div class="md-footer-meta__inner md-grid">
