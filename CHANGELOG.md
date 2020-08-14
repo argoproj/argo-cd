@@ -4,7 +4,7 @@
 
 ### GnuPG Signature Verification
 
-The feature allows to only sync against commits that are signed in Git specified GnuPG. The list of public 
+The feature allows to only sync against commits that are signed in Git using GnuPG. The list of public 
 GPG keys required for verification is configured at the system level and can be managed using Argo CD CLI or Web user interface.
 The keys management is integrated with Argo CD SSO and access control system (e.g. `argocd gpg add --from <path-to-key>`)
 
@@ -13,7 +13,7 @@ a list of imported public GPG keys. Argo CD will verify the commit signature by 
 
 ### Cluster Management Enhancements
 
-Feature allows using the cluster name instead of the URL to specify the application destination cluster.
+The feature allows using the cluster name instead of the URL to specify the application destination cluster.
 Additionally, the cluster CLI and Web user interface have been improved. Argo CD operators now can view and edit cluster
 details using the Cluster Details page. The page includes cluster settings details as well as runtime information such
 as the number of monitored Kubernetes resources.
@@ -25,12 +25,12 @@ differences in the UI and CLI. The 1.7 release aligns a comparison algorithm wit
 and removes inaccuracies in some edge cases.
 
 * **Helm Hooks Compatibility** The improvement removes the discrepancy between the way how Argo CD and Helm deletes
-hooks resources. This significantly improves the compatibility allows and enables additional use cases.
+hooks resources. This significantly improves the compatibility and enables additional use cases.
 
-* **Namespace Auto-Creation** You can click a checkbox and Argo CD will ensure that namespace specified as the
+* **Namespace Auto-Creation** With a new option for applications Argo CD will ensure that namespace specified as the
 application destination exists in the destination cluster. 
 
-* **Failed Sync Retry** This feature enables retying of failed synchronization attempts during both manually-triggered
+* **Failed Sync Retry** This feature enables retrying of failed synchronization attempts during both manually-triggered
 and automated synchronization.
 
 ### Orphaned Resources Monitoring Enhancement
