@@ -123,6 +123,19 @@ const (
 	AnnotationValueManagedByArgoCD = "argocd.argoproj.io"
 	// ResourcesFinalizerName the finalizer value which we inject to finalize deletion of an application
 	ResourcesFinalizerName = "resources-finalizer.argocd.argoproj.io"
+
+	// AnnotationKeyRefreshPathUpdatesOnly is an annotation used by the api-server when processing webhooks
+	// it tells the api server to only trigger app refreshes when the webhook contains changes for
+	// the files under the path defined at `.Spec.Source.Path` in the application resource.
+	// This is enough for most apps, but some Kustomize installations may need to trigger
+	// on paths outside of the app path. In these cases, use AnnotationKeyRefreshPrefix to specify the path.
+	// The associated value should be a string of "true"
+	AnnotationKeyRefreshPathUpdatesOnly = "argocd.argoproj.io/refresh-on-path-updates-only"
+	// AnnotationKeyRefreshPrefix is an annotation used by the api-server when processing webhooks
+	// it tells the api server to only trigger app refreshes when the webhook contains changes for
+	// files under the given path.
+	// The associated value should be a file path.
+	AnnotationKeyRefreshPrefix = "argocd.argoproj.io/refresh-prefix"
 )
 
 // Environment variables for tuning and debugging Argo CD

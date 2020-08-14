@@ -73,3 +73,64 @@ The `argocd-server` is stateless and probably least likely to cause issues. You 
 ### argocd-dex-server, argocd-redis
 
 The `argocd-dex-server` uses an in-memory database, and two or more instances would have inconsistent data. `argocd-redis` is pre-configured with the understanding of only three total redis servers/sentinels.
+
+## Monorepo Scaling Considerations
+
+Installations that use the "app of apps" pattern within a single repo, combined with [webhooks ⧉](https://github.com/argoproj/argo-cd/tree/master/docs/operator-manual/webhook) can slow down `argocd-application-controller` performance due to excessive application refreshes.
+
+To reduce webhook-triggered application refresh frequency in large installations set one of the webhook-prefix annotations in your `Application` resources:
+
+Installations that use a different repo for each app, or installations that do not use the "app of apps" pattern are **not** subject to this behavior and will likely get no benefit from using these annotations.
+
+!!! note
+    Installations with a large number of apps should also set the `--app-resync` flag in the `argocd-application-controller` process to a larger value to reduce automatic refreshes based on git polling. The exact value is a trade-off between reduced work and app sync in case of a missed webhook event. For most cases `1800` (30m) or `3600` (1h) is a good trade-off.
+
+### Webhook Refresh Control Annotations
+
+!!! note
+    Application refresh prefix annotation support depends on the git provider used for the Application. It is currently only supported for GitHub, GitLab, and Gogs based repos
+
+* `argocd.argoproj.io/refresh-on-path-updates-only: "true"` - will cause the app to only trigger updates on changes to it's target path. This is all that is needed for most applications. Example partial resouce:
+    ```yaml
+    apiVersion: argoproj.io/v1alpha1
+    kind: Application
+    metadata:
+      name: guestbook
+      namespace: argocd
+      annotations:
+        argocd.argoproj.io/refresh-on-path-updates-only: "true"
+    spec:
+      source:
+        repoURL: https://github.com/argoproj/argocd-example-apps.git
+        targetRevision: HEAD
+        path: guestbook
+    # ...
+    ```
+* `argocd.argoproj.io/refresh-prefix: "PATH"` - will cause the app to only trigger updates when files under the given `PATH`. This may be required when using `kustomize` apps that traverse directories to use files outside of the app path.
+    Example repo structure:
+    ```
+    guestbook/
+    guestbook/base/kustomization.yaml
+    guestbook/dev/kustomization.yaml
+    ```
+    If `guestbook/dev/kustomization.yaml` uses a base behind the app path:
+    ```yaml
+    bases:
+    - ../base
+    ```
+    The application prefix would need to be set explicitly, to include the previous path. Example partial resource:
+    ```yaml
+    apiVersion: argoproj.io/v1alpha1
+    kind: Application
+    metadata:
+      name: guestbook
+      annotations:
+        # trigger refreshes for any files changed under `guestbook`
+        argocd.argoproj.io/refresh-prefix: guestbook
+    spec:
+      source:
+        repoURL: https://github.com/argoproj/argocd-example-apps.git
+        targetRevision: HEAD
+        path: guestbook/dev
+    # ...
+    ```

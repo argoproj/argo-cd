@@ -10,6 +10,9 @@ import (
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-cd/util/settings"
 )
@@ -98,4 +101,74 @@ func TestGitLabPushEvent(t *testing.T) {
 	expectedLogResult := "Received push event repo: https://gitlab/group/name, revision: master, touchedHead: true"
 	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
 	hook.Reset()
+}
+
+func Test_getAppRefreshPrefix(t *testing.T) {
+	tests := []struct {
+		name string
+		app  *v1alpha1.Application
+		want string
+	}{
+		{
+			"default no prefix",
+			&v1alpha1.Application{},
+			"",
+		},
+		{
+			"use path prefix",
+			&v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"argocd.argoproj.io/refresh-on-path-updates-only": "true",
+					},
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Source: v1alpha1.ApplicationSource{
+						Path: "soource/path",
+					},
+				},
+			},
+			"soource/path",
+		},
+		{
+			"use explicit path",
+			&v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"argocd.argoproj.io/refresh-prefix": "explicit/refresh/prefix",
+					},
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Source: v1alpha1.ApplicationSource{
+						Path: "testpath/here",
+					},
+				},
+			},
+			"explicit/refresh/prefix",
+		},
+		{
+			"explicit overrides path",
+			&v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"argocd.argoproj.io/refresh-on-path-updates-only": "true",
+						"argocd.argoproj.io/refresh-prefix":               "explicit/refresh/prefix",
+					},
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Source: v1alpha1.ApplicationSource{
+						Path: "soource/path",
+					},
+				},
+			},
+			"explicit/refresh/prefix",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := getAppRefreshPrefix(tt.app); got != tt.want {
+				t.Errorf("getAppRefreshPrefix() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }
