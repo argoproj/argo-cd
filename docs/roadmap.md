@@ -79,7 +79,7 @@ it is not enough and implement missing features.
 ### Resource Actions Revamp
 
 Resource actions is very powerful but literally hidden feature. Documentation is missing and therefore
-adoption is poor. We need to document and promote it. Then iterate and work on enhancements:
+adoption is poor. We need to document and promote it, and then iterate and work on enhancements:
 - hard to configure unless you are Argo CD ninja;
 - half done parameters support: we have backend but no UI/CLI for it;
 - configuration issue: it is impossible to share actions as a YAML file since ALL resource customizations are stored in one config map key;
