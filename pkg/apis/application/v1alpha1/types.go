@@ -2377,7 +2377,10 @@ func (proj *AppProject) RemoveFinalizer() {
 }
 
 func globMatch(pattern string, val string) bool {
-	return glob.Match(pattern, val)
+	if pattern == "*" {
+		return true
+	}
+	return glob.Match(pattern, val, '/')
 }
 
 // IsSourcePermitted validates if the provided application's source is a one of the allowed sources for the project.
