@@ -10,6 +10,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [ANSTO - Australian Synchrotron](https://www.synchrotron.org.au/)
 1. [ARZ Allgemeines Rechenzentrum GmbH ](https://www.arz.at/)
 1. [Baloise](https://www.baloise.com)
+1. [Beat](https://thebeat.co/en/)
 1. [BioBox Analytics](https://biobox.io)
 1. [CARFAX](https://www.carfax.com)
 1. [Celonis](https://www.celonis.com/)
