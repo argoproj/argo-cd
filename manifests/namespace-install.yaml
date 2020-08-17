@@ -230,6 +230,10 @@ spec:
                           description: Values is Helm values, typically defined as
                             a block
                           type: string
+                        version:
+                          description: Version is the Helm version to use for templating
+                            with
+                          type: string
                       type: object
                     ksonnet:
                       description: Ksonnet holds ksonnet specific options
@@ -525,6 +529,10 @@ spec:
                       type: array
                     values:
                       description: Values is Helm values, typically defined as a block
+                      type: string
+                    version:
+                      description: Version is the Helm version to use for templating
+                        with
                       type: string
                   type: object
                 ksonnet:
@@ -826,6 +834,10 @@ spec:
                           values:
                             description: Values is Helm values, typically defined
                               as a block
+                            type: string
+                          version:
+                            description: Version is the Helm version to use for templating
+                              with
                             type: string
                         type: object
                       ksonnet:
@@ -1148,6 +1160,10 @@ spec:
                                   description: Values is Helm values, typically defined
                                     as a block
                                   type: string
+                                version:
+                                  description: Version is the Helm version to use
+                                    for templating with
+                                  type: string
                               type: object
                             ksonnet:
                               description: Ksonnet holds ksonnet specific options
@@ -1447,6 +1463,10 @@ spec:
                               description: Values is Helm values, typically defined
                                 as a block
                               type: string
+                            version:
+                              description: Version is the Helm version to use for
+                                templating with
+                              type: string
                           type: object
                         ksonnet:
                           description: Ksonnet holds ksonnet specific options
@@ -1732,6 +1752,10 @@ spec:
                             values:
                               description: Values is Helm values, typically defined
                                 as a block
+                              type: string
+                            version:
+                              description: Version is the Helm version to use for
+                                templating with
                               type: string
                           type: object
                         ksonnet:
