@@ -6,9 +6,9 @@
 
 Sure thing! You can either open an Enhancement Proposal in our GitHub issue tracker or you can [join us on Slack](https://argoproj.github.io/community/join-slack) in channel #argo-dev to discuss your ideas and get guidance for submitting a PR.
 
-### Noone has looked at my PR yet. Why?
+### No one has looked at my PR yet. Why?
 
-As we have limited man power, it can sometimes take a while for someone to respond to your PR. Especially, when your PR contains complex or non-obvious changes. Please bear with us, we try to look at every PR that we receive.
+As we have limited manpower, it can sometimes take a while for someone to respond to your PR. Especially, when your PR contains complex or non-obvious changes. Please bear with us, we try to look at every PR that we receive.
 
 ### Why has my PR been declined? I put much work in it!
 
