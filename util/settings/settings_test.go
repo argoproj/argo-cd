@@ -398,3 +398,25 @@ func TestRedirectURL(t *testing.T) {
 		assert.Equal(t, expected[1], dexRedirectURL)
 	}
 }
+
+func Test_validateExternalURL(t *testing.T) {
+	tests := []struct {
+		name   string
+		url    string
+		errMsg string
+	}{
+		{name: "Valid URL", url: "https://my.domain.com"},
+		{name: "No URL - Valid", url: ""},
+		{name: "Invalid URL", url: "my.domain.com", errMsg: "URL must inlcude http or https protocol"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateExternalURL(tt.url)
+			if tt.errMsg != "" {
+				assert.EqualError(t, err, tt.errMsg)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}

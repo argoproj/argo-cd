@@ -790,14 +790,33 @@ func (mgr *SettingsManager) ensureSynced(forceResync bool) error {
 	return mgr.initialize(ctx)
 }
 
+// updateSettingsFromConfigMap transfers settings from a Kubernetes configmap into an ArgoCDSettings struct.
 func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.ConfigMap) {
 	settings.DexConfig = argoCDCM.Data[settingDexConfigKey]
 	settings.OIDCConfigRAW = argoCDCM.Data[settingsOIDCConfigKey]
-	settings.URL = argoCDCM.Data[settingURLKey]
 	settings.KustomizeBuildOptions = argoCDCM.Data[kustomizeBuildOptionsKey]
 	settings.StatusBadgeEnabled = argoCDCM.Data[statusBadgeEnabledKey] == "true"
 	settings.AnonymousUserEnabled = argoCDCM.Data[anonymousUserEnabledKey] == "true"
 	settings.UiCssURL = argoCDCM.Data[settingUiCssURLKey]
+	if err := validateExternalURL(argoCDCM.Data[settingURLKey]); err != nil {
+		log.Warnf("Failed to validate URL in configmap: %v", err)
+	}
+	settings.URL = argoCDCM.Data[settingURLKey]
+}
+
+// validateExternalURL ensures the external URL that is set on the configmap is valid
+func validateExternalURL(u string) error {
+	if u == "" {
+		return nil
+	}
+	URL, err := url.Parse(u)
+	if err != nil {
+		return fmt.Errorf("Failed to parse URL: %v", err)
+	}
+	if URL.Scheme != "http" && URL.Scheme != "https" {
+		return fmt.Errorf("URL must inlcude http or https protocol")
+	}
+	return nil
 }
 
 // updateSettingsFromSecret transfers settings from a Kubernetes secret into an ArgoCDSettings struct.
