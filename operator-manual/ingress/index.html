@@ -434,9 +434,22 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#traefik-v20" title="Traefik (v2.0)" class="md-nav__link">
-    Traefik (v2.0)
+  <a href="#traefik-v22" title="Traefik (v2.2)" class="md-nav__link">
+    Traefik (v2.2)
   </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ingressroute-crd" title="IngressRoute CRD" class="md-nav__link">
+    IngressRoute CRD
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1469,9 +1482,22 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#traefik-v20" title="Traefik (v2.0)" class="md-nav__link">
-    Traefik (v2.0)
+  <a href="#traefik-v22" title="Traefik (v2.2)" class="md-nav__link">
+    Traefik (v2.2)
   </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ingressroute-crd" title="IngressRoute CRD" class="md-nav__link">
+    IngressRoute CRD
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1666,24 +1692,33 @@ way would be to define two Ingress objects. One for HTTP/HTTPS, and the other fo
 <p>The obvious disadvantage to this approach is that this technique requires two separate hostnames for
 the API server -- one for gRPC and the other for HTTP/HTTPS. However it allows TLS termination to
 happen at the ingress controller.</p>
-<h2 id="traefik-v20"><a href="https://docs.traefik.io/">Traefik (v2.0)</a><a class="headerlink" href="#traefik-v20" title="Permanent link">&para;</a></h2>
-<p>Traefik can be used as an edge router and provide <a href="https://docs.traefik.io/user-guides/crd-acme/">TLS</a> termination within the same deployment.</p>
-<p>It currently has an advantage over NGINX in that it can terminate both TCP and HTTP connections <em>on the same port</em> meaning you do not require multiple ingress objects and hosts.</p>
+<h2 id="traefik-v22"><a href="https://docs.traefik.io/">Traefik (v2.2)</a><a class="headerlink" href="#traefik-v22" title="Permanent link">&para;</a></h2>
+<p>Traefik can be used as an edge router and provide <a href="https://docs.traefik.io/user-guides/grpc/">TLS</a> termination within the same deployment.</p>
+<p>It currently has an advantage over NGINX in that it can terminate both TCP and HTTP connections <em>on the same port</em> meaning you do not require multiple hosts or paths.</p>
 <p>The API server should be run with TLS disabled. Edit the <code>argocd-server</code> deployment to add the <code>--insecure</code> flag to the argocd-server command.</p>
+<h3 id="ingressroute-crd">IngressRoute CRD<a class="headerlink" href="#ingressroute-crd" title="Permanent link">&para;</a></h3>
 <div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">traefik.containo.us/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">IngressRoute</span>
 <span class="nt">metadata</span><span class="p">:</span>
-  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-server-ingress</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-server</span>
   <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
 <span class="nt">spec</span><span class="p">:</span>
   <span class="nt">entryPoints</span><span class="p">:</span>
     <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">websecure</span>
   <span class="nt">routes</span><span class="p">:</span>
-    <span class="p p-Indicator">-</span> <span class="nt">match</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Host(`argocd.example.com`)</span>
-      <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Rule</span>
+    <span class="p p-Indicator">-</span> <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Rule</span>
+      <span class="nt">match</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Host(`argocd.example.com`)</span>
+      <span class="nt">priority</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">10</span>
       <span class="nt">services</span><span class="p">:</span>
         <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-server</span>
           <span class="nt">port</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">80</span>
+    <span class="p p-Indicator">-</span> <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Rule</span>
+      <span class="nt">match</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Host(`argocd.example.com`) &amp;&amp; Headers(`Content-Type`, `application/grpc`)</span>
+      <span class="nt">priority</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">11</span>
+      <span class="nt">services</span><span class="p">:</span>
+        <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-server</span>
+          <span class="nt">port</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">80</span>
+          <span class="nt">scheme</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">h2c</span>
   <span class="nt">tls</span><span class="p">:</span>
     <span class="nt">certResolver</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">default</span>
     <span class="nt">options</span><span class="p">:</span> <span class="p p-Indicator">{}</span>
