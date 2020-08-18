@@ -132,7 +132,6 @@ export const ApplicationCreatePanel = (props: {
                     if (repoInfo) {
                         normalizeAppSource(app, repoInfo.type || 'git');
                     }
-                    console.log("may: " + JSON.stringify(app))
                     return (
                         <div className='application-create-panel'>
                             {(yamlMode && (
