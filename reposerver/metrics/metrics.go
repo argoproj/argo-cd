@@ -59,8 +59,8 @@ func NewMetricsServer() *MetricsServer {
 
 	redisRequestHistogram := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name:    "argocd_redis_request_duration",
-			Help:    "Redis requests duration.",
+			Name:    "argocd_redis_request_duration_seconds",
+			Help:    "Redis requests duration seconds.",
 			Buckets: []float64{0.1, 0.25, .5, 1, 2},
 		},
 		[]string{"initiator"},
