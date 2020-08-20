@@ -15,3 +15,5 @@ spec:
         - "10"
         - --redis
         - "argocd-redis-ha-haproxy:6379"
+        - --loglevel
+        - $(ARGOCD_APPLICATION_CONTROLLER_LOG_LEVEL)

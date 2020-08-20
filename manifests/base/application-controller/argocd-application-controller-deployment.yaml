@@ -24,9 +24,14 @@ spec:
         - "20"
         - --operation-processors
         - "10"
+        - --loglevel
+        - $(ARGOCD_APPLICATION_CONTROLLER_LOG_LEVEL)
         image: argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-application-controller
+        env:
+        - name: ARGOCD_APPLICATION_CONTROLLER_LOG_LEVEL
+          value: "info"
         ports:
         - containerPort: 8082
         readinessProbe:

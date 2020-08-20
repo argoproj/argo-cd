@@ -31,3 +31,5 @@ spec:
         - /shared/app
         - --redis
         - "argocd-redis-ha-haproxy:6379"
+        - --loglevel
+        - $(ARGOCD_SERVER_LOG_LEVEL)

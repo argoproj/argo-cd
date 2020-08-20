@@ -3108,6 +3108,11 @@ spec:
         - "10"
         - --redis
         - argocd-redis-ha-haproxy:6379
+        - --loglevel
+        - $(ARGOCD_APPLICATION_CONTROLLER_LOG_LEVEL)
+        env:
+        - name: ARGOCD_APPLICATION_CONTROLLER_LOG_LEVEL
+          value: "info"
         image: argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
@@ -3214,6 +3219,11 @@ spec:
         - argocd-repo-server
         - --redis
         - argocd-redis-ha-haproxy:6379
+        - --loglevel
+        - $(ARGOCD_REPO_SERVER_LOG_LEVEL)
+        env:
+        - name: ARGOCD_REPO_SERVER_LOG_LEVEL
+          value: "info"
         image: argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-repo-server
@@ -3282,9 +3292,13 @@ spec:
         - /shared/app
         - --redis
         - argocd-redis-ha-haproxy:6379
+        - --loglevel
+        - $(ARGOCD_SERVER_LOG_LEVEL)
         env:
         - name: ARGOCD_API_SERVER_REPLICAS
           value: "2"
+        - name: ARGOCD_SERVER_LOG_LEVEL
+          value: "info"
         image: argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-server
