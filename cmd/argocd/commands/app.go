@@ -551,6 +551,10 @@ func setAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			setKustomizeOpt(&spec.Source, kustomizeOpts{images: appOpts.kustomizeImages})
 		case "kustomize-version":
 			setKustomizeOpt(&spec.Source, kustomizeOpts{version: appOpts.kustomizeVersion})
+		case "kustomize-common-label":
+			parsedLabels, err := label.Parse(appOpts.kustomizeCommonLabels)
+			errors.CheckError(err)
+			setKustomizeOpt(&spec.Source, kustomizeOpts{commonLabels: parsedLabels})
 		case "jsonnet-tla-str":
 			setJsonnetOpt(&spec.Source, appOpts.jsonnetTlaStr, false)
 		case "jsonnet-tla-code":
@@ -625,10 +629,11 @@ func setKsonnetOpt(src *argoappv1.ApplicationSource, env *string) {
 }
 
 type kustomizeOpts struct {
-	namePrefix string
-	nameSuffix string
-	images     []string
-	version    string
+	namePrefix   string
+	nameSuffix   string
+	images       []string
+	version      string
+	commonLabels map[string]string
 }
 
 func setKustomizeOpt(src *argoappv1.ApplicationSource, opts kustomizeOpts) {
@@ -638,6 +643,7 @@ func setKustomizeOpt(src *argoappv1.ApplicationSource, opts kustomizeOpts) {
 	src.Kustomize.Version = opts.version
 	src.Kustomize.NamePrefix = opts.namePrefix
 	src.Kustomize.NameSuffix = opts.nameSuffix
+	src.Kustomize.CommonLabels = opts.commonLabels
 	for _, image := range opts.images {
 		src.Kustomize.MergeImage(argoappv1.KustomizeImage(image))
 	}
@@ -756,6 +762,7 @@ type appOptions struct {
 	jsonnetLibs            []string
 	kustomizeImages        []string
 	kustomizeVersion       string
+	kustomizeCommonLabels  []string
 	validate               bool
 }
 
@@ -794,6 +801,7 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().StringArrayVar(&opts.jsonnetLibs, "jsonnet-libs", []string{}, "Additional jsonnet libs (prefixed by repoRoot)")
 	command.Flags().StringArrayVar(&opts.kustomizeImages, "kustomize-image", []string{}, "Kustomize images (e.g. --kustomize-image node:8.15.0 --kustomize-image mysql=mariadb,alpine@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d)")
 	command.Flags().BoolVar(&opts.validate, "validate", true, "Validation of repo and cluster")
+	command.Flags().StringArrayVar(&opts.kustomizeCommonLabels, "kustomize-common-label", []string{}, "Set common labels in Kustomize")
 }
 
 // NewApplicationUnsetCommand returns a new instance of an `argocd app unset` command
