@@ -494,7 +494,6 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                 <h4>Source repositories {helpTip('Git repositories where application manifests are permitted to be retrieved from')}</h4>
                 {((proj.spec.sourceRepos || []).length > 0 && (
                     <div className='argo-table-list'>
-
                         <div className='argo-table-list__head'>
                             <div className='row'>
                                 <div className='columns small-12'>URL</div>
