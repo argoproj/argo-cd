@@ -29,20 +29,20 @@
       &--on {
         &__deselected {
           background: white;
-          color: $active-blue;
+          color: $argo-running-color;
         }
         &__selected {
-          background: $active-blue;
+          background: $argo-running-color;
           color: white;
         }
       }
       &--off {
         &__deselected {
           background: white;
-          color: $disabled-grey;
+          color: $argo-color-gray-5;
         }
         &__selected {
-          background: $disabled-grey;
+          background: $argo-color-gray-5;
           color: white;
         }
       }
@@ -50,23 +50,23 @@
   }
 
   &__button-save {
-    background-color: $active-blue;
+    background-color: $argo-running-color;
   }
 
   &__button-saved {
-    background-color: $save-green;
+    background-color: $argo-success-color;
   }
 
   &__button-error {
-    background-color: $cancel-red;
+    background-color: $argo-failed-color;
   }
 
   &__button-cancel {
-    background-color: $cancel-red;
+    background-color: $argo-failed-color;
   }
 
   &__button-disabled {
-    background-color: $disabled-grey;
+    background-color: $argo-color-gray-5;
     cursor: not-allowed;
   }
 
@@ -84,23 +84,23 @@
   }
 
   &__button-select {
-    border: 2px solid $save-green;
-    color: $save-green;
+    border: 2px solid $argo-success-color;
+    color: $argo-success-color;
     transition: all 300ms;
 
     &--selected {
       color: white;
-      background-color: $save-green;
+      background-color: $argo-success-color;
     }
 
     &:hover {
       color: $white-color;
-      background-color: $save-green;
+      background-color: $argo-success-color;
     }
   }
 
   &__button-add {
-    background-color: $save-green;
+    background-color: $argo-success-color;
     margin-right: 0;
     color: $white-color;
   }

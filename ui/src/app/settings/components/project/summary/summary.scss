@@ -17,7 +17,7 @@
     }
 
     &:focus-within {
-      color: darken($active-blue, 15%);
+      color: darken($argo-running-color, 15%);
     }
 
     input {
@@ -31,7 +31,7 @@
       margin-left: 10px;
 
       &:focus {
-        color: darken($active-blue, 15%);
+        color: darken($argo-running-color, 15%);
       }
     }
 

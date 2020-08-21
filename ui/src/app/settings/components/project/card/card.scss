@@ -81,8 +81,8 @@
   }
 
   input:focus {
-    border: 2px solid $active-blue;
-    color: darken($active-blue, 25%);
+    border: 2px solid $argo-running-color;
+    color: darken($argo-running-color, 25%);
   }
 
   input::placeholder {

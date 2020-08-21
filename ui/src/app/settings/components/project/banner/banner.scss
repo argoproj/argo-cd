@@ -1,6 +1,4 @@
-$info-blue: #b0ddff;
-$warning-yellow: #f9e574;
-$error-red: #e66868;
+@import 'node_modules/argo-ui/src/styles/config';
 
 @mixin bannerStyle($color) {
   background-color: $color;
@@ -20,14 +18,15 @@ $error-red: #e66868;
   }
 
   &__info {
-    @include bannerStyle($info-blue);
+    @include bannerStyle($argo-color-teal-3);
   }
 
   &__warning {
-    @include bannerStyle($warning-yellow);
+    @include bannerStyle($argo-status-warning-color);
   }
 
   &__error {
-    @include bannerStyle($error-red);
+    @include bannerStyle($argo-failed-color-light);
+    color: white;
   }
 }
