@@ -2,9 +2,6 @@
 @import 'src/app/settings/components/project/config';
 
 .card {
-  background-color: $white-color;
-  padding: 25px;
-  border-radius: 18px;
   margin-bottom: 1.5em;
   margin-right: 30px;
 
@@ -63,7 +60,7 @@
     }
   }
 
-  input, select {
+  &--input, &--select {
     font-size: 17px;
     outline: none;
     box-shadow: none;
@@ -80,12 +77,12 @@
     border-radius: 7px;
   }
 
-  input:focus {
+  &--input:focus {
     border: 2px solid $argo-running-color;
     color: darken($argo-running-color, 25%);
   }
 
-  input::placeholder {
+  &--input::placeholder {
     font-weight: 400;
   }
 

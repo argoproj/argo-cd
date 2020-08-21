@@ -104,7 +104,15 @@ export class CardRow<T> extends React.Component<CardRowProps<T>, CardRowState<T>
                     format = <ResourceKindSelector init={curVal as ResourceKind} onChange={value => update(value, field.name as keyof T)} />;
                     break;
                 default:
-                    format = <input type='text' value={curVal ? curVal.toString() : ''} onChange={e => update(e.target.value, field.name as keyof T)} placeholder={field.name} />;
+                    format = (
+                        <input
+                            type='text'
+                            className='card--input'
+                            value={curVal ? curVal.toString() : ''}
+                            onChange={e => update(e.target.value, field.name as keyof T)}
+                            placeholder={field.name}
+                        />
+                    );
             }
             return (
                 <div key={field.name + '.' + i} className='card__col-input card__col'>
