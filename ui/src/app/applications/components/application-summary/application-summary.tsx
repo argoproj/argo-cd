@@ -369,7 +369,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
             edit: null
         });
     const [badgeType, setBadgeType] = React.useState('URL');
-    const rootPath = location.pathname.substring(0, location.pathname.indexOf("/applications/"))
+    const rootPath = location.pathname.substring(0, location.pathname.indexOf('/applications/'));
     const badgeURL = `${location.protocol}//${location.host}${rootPath}/api/badge?name=${props.app.metadata.name}&revision=true`;
     const appURL = `${location.protocol}//${location.host}${rootPath}/applications/${props.app.metadata.name}`;
 
