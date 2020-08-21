@@ -82,6 +82,9 @@ message AppProjectSpec {
 
   // ClusterResourceBlacklist contains list of blacklisted cluster level resources
   repeated k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind clusterResourceBlacklist = 11;
+
+  // Labels contains list of label which can be used for project category
+  repeated string labels = 12;
 }
 
 // AppProjectStatus contains information about appproj

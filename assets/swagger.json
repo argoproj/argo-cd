@@ -3519,6 +3519,13 @@
             "$ref": "#/definitions/v1alpha1ApplicationDestination"
           }
         },
+        "labels": {
+          "type": "array",
+          "title": "Labels contains list of label which can be used for project category",
+          "items": {
+            "type": "string"
+          }
+        },
         "namespaceResourceBlacklist": {
           "type": "array",
           "title": "NamespaceResourceBlacklist contains list of blacklisted namespace level resources",

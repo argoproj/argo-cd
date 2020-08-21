@@ -5,6 +5,7 @@ import * as models from '../models';
 export interface ProjectParams {
     name: string;
     description: string;
+    labels: string[];
     sourceRepos: string[];
     destinations: models.ApplicationDestination[];
     roles: models.ProjectRole[];
@@ -75,6 +76,7 @@ function paramsToProj(params: ProjectParams) {
         metadata: {name: params.name},
         spec: {
             description: params.description,
+            labels: params.labels,
             sourceRepos: params.sourceRepos,
             destinations: params.destinations,
             roles: params.roles,

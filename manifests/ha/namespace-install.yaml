@@ -1945,6 +1945,12 @@ spec:
                     type: string
                 type: object
               type: array
+            labels:
+              description: Labels contains list of label which can be used for project
+                category
+              items:
+                type: string
+              type: array
             namespaceResourceBlacklist:
               description: NamespaceResourceBlacklist contains list of blacklisted
                 namespace level resources

@@ -1813,6 +1813,8 @@ type AppProjectSpec struct {
 	SignatureKeys []SignatureKey `json:"signatureKeys,omitempty" protobuf:"bytes,10,opt,name=signatureKeys"`
 	// ClusterResourceBlacklist contains list of blacklisted cluster level resources
 	ClusterResourceBlacklist []metav1.GroupKind `json:"clusterResourceBlacklist,omitempty" protobuf:"bytes,11,opt,name=clusterResourceBlacklist"`
+	// Labels contains list of label which can be used for project category
+	Labels []string `json:"labels,omitempty" protobuf:"bytes,12,name=labels"`
 }
 
 // SyncWindows is a collection of sync windows in this project

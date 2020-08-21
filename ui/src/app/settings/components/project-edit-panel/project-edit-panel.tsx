@@ -2,7 +2,7 @@ import {AutocompleteField, FormField, FormSelect} from 'argo-ui';
 import * as React from 'react';
 import {Form, FormApi, Text} from 'react-form';
 
-import {CheckboxField, clusterTitle, DataLoader} from '../../../shared/components';
+import {CheckboxField, clusterTitle, DataLoader, TagsInput} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {ProjectParams, services} from '../../../shared/services';
 
@@ -19,6 +19,7 @@ export const ProjectEditPanel = (props: {nameReadonly?: boolean; defaultParams?:
             onSubmit={props.submit}
             getApi={props.getApi}
             defaultValues={{
+                labels: [],
                 sourceRepos: [],
                 destinations: [],
                 roles: [],
@@ -54,6 +55,13 @@ export const ProjectEditPanel = (props: {nameReadonly?: boolean; defaultParams?:
                     <div className='argo-form-row'>
                         <FormField formApi={api} label='Project Description' field='description' component={Text} />
                     </div>
+                    <div>Labels</div>
+                    <TagsInput
+                        tags={api.values.labels}
+                        onChange={array => {
+                            api.setValue('labels', array);
+                        }}
+                    />
                     <DataLoader load={() => services.repos.list().then(repos => repos.concat({repo: '*'} as models.Repository).map(repo => repo.repo))}>
                         {repos => (
                             <React.Fragment>

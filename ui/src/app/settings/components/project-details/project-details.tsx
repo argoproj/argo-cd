@@ -129,6 +129,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                         defaultParams={{
                                                             name: proj.metadata.name,
                                                             description: proj.spec.description,
+                                                            labels: proj.spec.labels || [],
                                                             destinations: proj.spec.destinations || [],
                                                             sourceRepos: proj.spec.sourceRepos || [],
                                                             clusterResourceWhitelist: proj.spec.clusterResourceWhitelist || [],
@@ -474,7 +475,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
     }
 
     private summaryTab(proj: Project) {
-        const attributes = [{title: 'NAME', value: proj.metadata.name}, {title: 'DESCRIPTION', value: proj.spec.description}];
+        const attributes = [{title: 'NAME', value: proj.metadata.name}, {title: 'DESCRIPTION', value: proj.spec.description}, {title: 'LABELS', value: proj.spec.labels}];
         return (
             <div className='argo-container'>
                 <div className='white-box'>
@@ -482,7 +483,9 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                         {attributes.map(attr => (
                             <div className='row white-box__details-row' key={attr.title}>
                                 <div className='columns small-3'>{attr.title}</div>
-                                <div className='columns small-9'>{attr.value}</div>
+                                {(attr.title !== 'LABELS' && <div className='columns small-9'>{attr.value}</div>) || (
+                                    <div className='columns small-9'>{(proj.spec.labels || []).map(label => label).join(', ')}</div>
+                                )}
                             </div>
                         ))}
                     </div>
@@ -491,6 +494,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                 <h4>Source repositories {helpTip('Git repositories where application manifests are permitted to be retrieved from')}</h4>
                 {((proj.spec.sourceRepos || []).length > 0 && (
                     <div className='argo-table-list'>
+
                         <div className='argo-table-list__head'>
                             <div className='row'>
                                 <div className='columns small-12'>URL</div>

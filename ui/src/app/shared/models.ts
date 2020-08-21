@@ -631,6 +631,7 @@ export interface ProjectSpec {
     sourceRepos: string[];
     destinations: ApplicationDestination[];
     description: string;
+    labels: string[];
     roles: ProjectRole[];
     clusterResourceWhitelist: GroupKind[];
     clusterResourceBlacklist: GroupKind[];
