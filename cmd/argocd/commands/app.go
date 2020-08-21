@@ -1461,7 +1461,9 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
   # Sync a specific resource
   # Resource should be formatted as GROUP:KIND:NAME. If no GROUP is specified then :KIND:NAME
   argocd app sync my-app --resource :Service:my-service
-  argocd app sync my-app --resource argoproj.io:Rollout:my-rollout`,
+  argocd app sync my-app --resource argoproj.io:Rollout:my-rollout
+  # Specify namespace if the application has resources with the same name in different namespaces
+  argocd app sync my-app --resource argoproj.io:Rollout:my-namespace/my-rollout`,
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) == 0 && selector == "" {
 				c.HelpFunc()(c, args)

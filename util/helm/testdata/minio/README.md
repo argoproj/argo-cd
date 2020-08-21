@@ -8,7 +8,7 @@ Minio supports [distributed mode](https://docs.minio.io/docs/distributed-minio-q
 Introduction
 ------------
 
-This chart bootstraps Minio deployment on a [Kubernetes](http://kubernetes.io) cluster using the [Helm](https://helm.sh) package manager.
+This chart bootstraps Minio deployment on a [Kubernetes](https://kubernetes.io) cluster using the [Helm](https://helm.sh) package manager.
 
 Prerequisites
 -------------
@@ -153,7 +153,7 @@ $ helm install --set mode=distributed,replicas=8 stable/minio
 
 This provisions Minio server in distributed mode with 8 nodes. Note that the `replicas` value should be an integer between 4 and 16 (inclusive).
 
-### StatefulSet [limitations](http://kubernetes.io/docs/concepts/abstractions/controllers/statefulsets/#limitations) applicable to distributed Minio
+### StatefulSet [limitations](https://kubernetes.io/docs/concepts/abstractions/controllers/statefulsets/#limitations) applicable to distributed Minio
 
 1. StatefulSets need persistent storage, so the `persistence.enabled` flag is ignored when `mode` is set to `distributed`.
 2. When uninstalling a distributed Minio release, you'll need to manually delete volumes associated with the StatefulSet.

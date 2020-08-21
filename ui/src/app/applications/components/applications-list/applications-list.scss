@@ -102,7 +102,6 @@
         }
 
         &--expanded {
-            overflow-y: auto;
             max-height: calc(1.55em * 17);
             transition: max-height 1s ease-in-out;
             &::before {
