@@ -191,11 +191,6 @@ func InitializeGnuPG() error {
 		return fmt.Errorf("%s ('%s') does not point to a directory", common.EnvGnuPGHome, gnuPgHome)
 	}
 
-	// Check for sane permissions as well (GPG will issue a warning otherwise)
-	if st.Mode().Perm() != 0700 {
-		return fmt.Errorf("%s at '%s' has too wide permissions, must be 0700", common.EnvGnuPGHome, gnuPgHome)
-	}
-
 	_, err = os.Stat(path.Join(gnuPgHome, "trustdb.gpg"))
 	if err != nil {
 		if !os.IsNotExist(err) {
@@ -220,7 +215,7 @@ func InitializeGnuPG() error {
 
 	f.Close()
 
-	cmd := exec.Command("gpg", "--logger-fd", "1", "--batch", "--generate-key", f.Name())
+	cmd := exec.Command("gpg", "--no-permission-warning", "--logger-fd", "1", "--batch", "--generate-key", f.Name())
 	cmd.Env = getGPGEnviron()
 
 	_, err = executil.Run(cmd)
@@ -250,7 +245,7 @@ func ImportPGPKeysFromString(keyData string) ([]*appsv1.GnuPGPublicKey, error) {
 func ImportPGPKeys(keyFile string) ([]*appsv1.GnuPGPublicKey, error) {
 	keys := make([]*appsv1.GnuPGPublicKey, 0)
 
-	cmd := exec.Command("gpg", "--logger-fd", "1", "--import", keyFile)
+	cmd := exec.Command("gpg", "--no-permission-warning", "--logger-fd", "1", "--import", keyFile)
 	cmd.Env = getGPGEnviron()
 
 	out, err := executil.Run(cmd)
@@ -364,7 +359,7 @@ func SetPGPTrustLevel(pgpKeys []*appsv1.GnuPGPublicKey, trustLevel string) error
 	f.Close()
 
 	// Load ownertrust from the file we have constructed and instruct gpg to update the trustdb
-	cmd := exec.Command("gpg", "--import-ownertrust", f.Name())
+	cmd := exec.Command("gpg", "--no-permission-warning", "--import-ownertrust", f.Name())
 	cmd.Env = getGPGEnviron()
 
 	_, err = executil.Run(cmd)
@@ -373,7 +368,7 @@ func SetPGPTrustLevel(pgpKeys []*appsv1.GnuPGPublicKey, trustLevel string) error
 	}
 
 	// Update the trustdb once we updated the ownertrust, to prevent gpg to do it once we validate a signature
-	cmd = exec.Command("gpg", "--update-trustdb")
+	cmd = exec.Command("gpg", "--no-permission-warning", "--update-trustdb")
 	cmd.Env = getGPGEnviron()
 	_, err = executil.Run(cmd)
 	if err != nil {
@@ -385,7 +380,7 @@ func SetPGPTrustLevel(pgpKeys []*appsv1.GnuPGPublicKey, trustLevel string) error
 
 // DeletePGPKey deletes a key from our GnuPG key ring
 func DeletePGPKey(keyID string) error {
-	args := append([]string{}, "--yes", "--batch", "--delete-keys", keyID)
+	args := append([]string{}, "--no-permission-warning", "--yes", "--batch", "--delete-keys", keyID)
 	cmd := exec.Command("gpg", args...)
 	cmd.Env = getGPGEnviron()
 
@@ -399,7 +394,7 @@ func DeletePGPKey(keyID string) error {
 
 // IsSecretKey returns true if the keyID also has a private key in the keyring
 func IsSecretKey(keyID string) (bool, error) {
-	args := append([]string{}, "--list-secret-keys", keyID)
+	args := append([]string{}, "--no-permission-warning", "--list-secret-keys", keyID)
 	cmd := exec.Command("gpg-wrapper.sh", args...)
 	cmd.Env = getGPGEnviron()
 	out, err := executil.Run(cmd)
@@ -416,7 +411,7 @@ func IsSecretKey(keyID string) (bool, error) {
 func GetInstalledPGPKeys(kids []string) ([]*appsv1.GnuPGPublicKey, error) {
 	keys := make([]*appsv1.GnuPGPublicKey, 0)
 
-	args := append([]string{}, "--list-public-keys")
+	args := append([]string{}, "--no-permission-warning", "--list-public-keys")
 	// kids can contain an arbitrary list of key IDs we want to list. If empty, we list all keys.
 	if len(kids) > 0 {
 		args = append(args, kids...)
@@ -496,7 +491,7 @@ func GetInstalledPGPKeys(kids []string) ([]*appsv1.GnuPGPublicKey, error) {
 
 	// We need to get the final key for each imported key, so we run --export on each key
 	for _, key := range keys {
-		cmd := exec.Command("gpg", "-a", "--export", key.KeyID)
+		cmd := exec.Command("gpg", "--no-permission-warning", "-a", "--export", key.KeyID)
 		cmd.Env = getGPGEnviron()
 
 		out, err := executil.Run(cmd)
@@ -617,6 +612,12 @@ func SyncKeyRingFromDirectory(basePath string) ([]string, []string, error) {
 
 	// Collect configuration, i.e. files in basePath
 	err = filepath.Walk(basePath, func(path string, fi os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if fi == nil {
+			return nil
+		}
 		if IsShortKeyID(fi.Name()) {
 			configured[fi.Name()] = true
 		}

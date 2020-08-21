@@ -2751,6 +2751,8 @@ spec:
           name: tls-certs
         - mountPath: /app/config/gpg/source
           name: gpg-keys
+        - mountPath: /app/config/gpg/keys
+          name: gpg-keyring
       volumes:
       - configMap:
           name: argocd-ssh-known-hosts-cm
@@ -2761,6 +2763,8 @@ spec:
       - configMap:
           name: argocd-gpg-keys-cm
         name: gpg-keys
+      - emptyDir: {}
+        name: gpg-keyring
 ---
 apiVersion: apps/v1
 kind: Deployment
