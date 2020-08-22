@@ -8,14 +8,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
-	"os"
-	"os/exec"
-	"path"
 	"reflect"
 
 	jsonpatch "github.com/evanphx/json-patch"
-	"github.com/google/shlex"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -23,7 +18,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/jsonmergepatch"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/client-go/kubernetes/scheme"
-	"sigs.k8s.io/yaml"
 
 	jsonutil "github.com/argoproj/gitops-engine/pkg/utils/json"
 	kubescheme "github.com/argoproj/gitops-engine/pkg/utils/kube/scheme"
@@ -572,51 +566,4 @@ func remarshal(obj *unstructured.Unstructured) *unstructured.Unstructured {
 	// remove all default values specified by custom formatter (e.g. creationTimestamp)
 	unstrBody = jsonutil.RemoveMapFields(obj.Object, unstrBody)
 	return &unstructured.Unstructured{Object: unstrBody}
-}
-
-// PrintDiff prints a diff between two unstructured objects to stdout using an external diff utility
-// Honors the diff utility set in the KUBECTL_EXTERNAL_DIFF environment variable
-func PrintDiff(name string, live *unstructured.Unstructured, target *unstructured.Unstructured) error {
-	tempDir, err := ioutil.TempDir("", "argocd-diff")
-	if err != nil {
-		return err
-	}
-	targetFile := path.Join(tempDir, name)
-	targetData := []byte("")
-	if target != nil {
-		targetData, err = yaml.Marshal(target)
-		if err != nil {
-			return err
-		}
-	}
-	err = ioutil.WriteFile(targetFile, targetData, 0644)
-	if err != nil {
-		return err
-	}
-	liveFile := path.Join(tempDir, fmt.Sprintf("%s-live.yaml", name))
-	liveData := []byte("")
-	if live != nil {
-		liveData, err = yaml.Marshal(live)
-		if err != nil {
-			return err
-		}
-	}
-	err = ioutil.WriteFile(liveFile, liveData, 0644)
-	if err != nil {
-		return err
-	}
-	cmdBinary := "diff"
-	var args []string
-	if envDiff := os.Getenv("KUBECTL_EXTERNAL_DIFF"); envDiff != "" {
-		parts, err := shlex.Split(envDiff)
-		if err != nil {
-			return err
-		}
-		cmdBinary = parts[0]
-		args = parts[1:]
-	}
-	cmd := exec.Command(cmdBinary, append(args, liveFile, targetFile)...)
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stdout
-	return cmd.Run()
 }

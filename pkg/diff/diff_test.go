@@ -2,9 +2,12 @@ package diff
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -55,8 +58,44 @@ func printDiff(result *DiffResult) (string, error) {
 		return "", err
 	}
 	return captureStdout(func() {
-		_ = PrintDiff("diff", &live, &target)
+		_ = printDiffInternal("diff", &live, &target)
 	})
+}
+
+// printDiffInternal prints a diff between two unstructured objects to stdout using an external diff utility
+func printDiffInternal(name string, live *unstructured.Unstructured, target *unstructured.Unstructured) error {
+	tempDir, err := ioutil.TempDir("", "argocd-diff")
+	if err != nil {
+		return err
+	}
+	targetFile := filepath.Join(tempDir, name)
+	targetData := []byte("")
+	if target != nil {
+		targetData, err = yaml.Marshal(target)
+		if err != nil {
+			return err
+		}
+	}
+	err = ioutil.WriteFile(targetFile, targetData, 0644)
+	if err != nil {
+		return err
+	}
+	liveFile := filepath.Join(tempDir, fmt.Sprintf("%s-live.yaml", name))
+	liveData := []byte("")
+	if live != nil {
+		liveData, err = yaml.Marshal(live)
+		if err != nil {
+			return err
+		}
+	}
+	err = ioutil.WriteFile(liveFile, liveData, 0644)
+	if err != nil {
+		return err
+	}
+	cmd := exec.Command("diff", liveFile, targetFile)
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
+	return cmd.Run()
 }
 
 func toUnstructured(obj interface{}) (*unstructured.Unstructured, error) {
