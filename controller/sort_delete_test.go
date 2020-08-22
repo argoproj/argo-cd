@@ -9,7 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
-func TestFilterObjectsForDeletion(t *testing.T) {
+func TestFilterObjectsForDeletionForWave(t *testing.T) {
 	tests := []struct {
 		input []string
 		want  []string
@@ -24,6 +24,22 @@ func TestFilterObjectsForDeletion(t *testing.T) {
 		need := sliceOfObjectsWithSyncWaves(tt.want)
 		if got := FilterObjectsForDeletion(in); !reflect.DeepEqual(got, need) {
 			t.Errorf("Received unexpected objects for deletion = %v, want %v", got, need)
+		}
+	}
+}
+
+func TestFilterObjectsForDeletionForKind(t *testing.T) {
+	tests := []struct {
+		input []*unstructured.Unstructured
+		want  []*unstructured.Unstructured
+	}{
+		{[]*unstructured.Unstructured{NewPod(), NewService()}, []*unstructured.Unstructured{NewService()}},
+		{[]*unstructured.Unstructured{NewPod()}, []*unstructured.Unstructured{NewPod()}},
+		{[]*unstructured.Unstructured{}, []*unstructured.Unstructured{}},
+	}
+	for _, tt := range tests {
+		if got := FilterObjectsForDeletion(tt.input); !reflect.DeepEqual(got, tt.want) {
+			t.Errorf("Received unexpected objects for deletion = %v, want %v", got, tt.want)
 		}
 	}
 }
