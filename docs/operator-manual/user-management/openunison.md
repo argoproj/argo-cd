@@ -2,18 +2,13 @@
 
 ## Integrating OpenUnison and ArgoCD
 
-These instructions will take your through the steps of integrating OpenUnison and ArgoCD to support
-single sign-on and add a "badge" to your OpenUnison portal to create a single access point
-for both Kubernetes and ArgoCD.  These instructions assume you'll be using both ArgoCD's web interface and
-command line interface.  These instructions assume you are running OpenUnison 1.0.20+ from https://www.tremolosecurity.com/products/orchestra-for-kubernetes.
+These instructions will take your through the steps of integrating OpenUnison and ArgoCD to support single sign-on and add a "badge" to your OpenUnison portal to create a single access point for both Kubernetes and ArgoCD.  These instructions assume you'll be using both ArgoCD's web interface and command line interface.  These instructions assume you are running OpenUnison 1.0.20+ from https://www.tremolosecurity.com/products/orchestra-for-kubernetes.
 
 ![OpenUnison Portal with ArgoCD](../../assets/openunison-portal.png)
 
 ## Create an OpenUnison Trust
 
-Update the below `Trust` object and add it to the `openunison` namespace.  The only change you need to make 
-is to replace `argocd.apps.domain.com` with the host name of your ArgoCD URL.  The localhost URL is needed
-for the cli to work.  There is no client secret used for ArgoCD since the cli will not work with it.
+Update the below `Trust` object and add it to the `openunison` namespace.  The only change you need to make is to replace `argocd.apps.domain.com` with the host name of your ArgoCD URL.  The localhost URL is needed for the cli to work.  There is no client secret used for ArgoCD since the cli will not work with it.
 
 ```
 apiVersion: openunison.tremolo.io/v1
