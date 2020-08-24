@@ -34,6 +34,7 @@ nav:
       - operator-manual/user-management/okta.md
       - operator-manual/user-management/onelogin.md
       - operator-manual/user-management/keycloak.md
+      - operator-manual/user-management/openunison.md
       - operator-manual/rbac.md
     - operator-manual/security.md
     - operator-manual/cluster-bootstrapping.md
