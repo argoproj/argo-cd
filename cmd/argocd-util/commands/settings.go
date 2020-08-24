@@ -12,7 +12,6 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/argoproj/gitops-engine/pkg/diff"
 	healthutil "github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/ghodss/yaml"
@@ -423,7 +422,7 @@ argocd-util settings resource-overrides ignore-differences ./deploy.yaml --argoc
 				}
 
 				_, _ = fmt.Printf("Following fields are ignored:\n\n")
-				_ = diff.PrintDiff(res.GetName(), &res, normalizedRes)
+				_ = cli.PrintDiff(res.GetName(), &res, normalizedRes)
 			})
 		},
 	}
@@ -538,7 +537,7 @@ argocd-util settings resource-overrides action run /tmp/deploy.yaml restart --ar
 				}
 
 				_, _ = fmt.Printf("Following fields have been changed:\n\n")
-				_ = diff.PrintDiff(res.GetName(), &res, modifiedRes)
+				_ = cli.PrintDiff(res.GetName(), &res, modifiedRes)
 			})
 		},
 	}

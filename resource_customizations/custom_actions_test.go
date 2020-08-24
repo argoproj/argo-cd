@@ -16,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/lua"
 )
 
@@ -98,7 +99,7 @@ func TestLuaResourceActionsScript(t *testing.T) {
 				assert.NoError(t, err)
 				if diffResult.Modified {
 					t.Error("Output does not match input:")
-					err = diff.PrintDiff(test.Action, expectedObj, result)
+					err = cli.PrintDiff(test.Action, expectedObj, result)
 					assert.NoError(t, err)
 				}
 			})
