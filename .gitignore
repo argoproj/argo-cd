@@ -12,3 +12,4 @@ coverage.out
 test-results
 .scannerwork
 .scratch
+node_modules/
