@@ -96,6 +96,8 @@ func Test_GPG_InitializeGnuPG(t *testing.T) {
 	}
 
 	// GNUPGHOME with too wide permissions
+	// We do not expect an error here, because of openshift's random UIDs that
+	// forced us to use an emptyDir mount (#4127)
 	p = initTempDir()
 	defer os.RemoveAll(p)
 	err = os.Chmod(p, 0777)
@@ -104,8 +106,7 @@ func Test_GPG_InitializeGnuPG(t *testing.T) {
 	}
 	os.Setenv(common.EnvGnuPGHome, p)
 	err = InitializeGnuPG()
-	assert.Error(t, err)
-
+	assert.NoError(t, err)
 }
 
 func Test_GPG_KeyManagement(t *testing.T) {
