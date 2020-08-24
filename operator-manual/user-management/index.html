@@ -1768,7 +1768,9 @@ inputted into the Argo CD configmap.</p>
 <p>NOTES:</p>
 <ul>
 <li>Any values which start with '$' will look to a key in argocd-secret of the same name (minus the $),
-  to obtain the actual value. This allows you to store the <code>clientSecret</code> as a kubernetes secret.</li>
+  to obtain the actual value. This allows you to store the <code>clientSecret</code> as a kubernetes secret. 
+  Kubernetes secrets must be base64 encoded. To base64 encode your secret, you can run 
+  <code>printf RAW_STRING | base64</code>.</li>
 <li>There is no need to set <code>redirectURI</code> in the <code>connectors.config</code> as shown in the dex documentation.
   Argo CD will automatically use the correct <code>redirectURI</code> for any OAuth2 connectors, to match the
   correct external callback URL (e.g. <code>https://argocd.example.com/api/dex/callback</code>)</li>
