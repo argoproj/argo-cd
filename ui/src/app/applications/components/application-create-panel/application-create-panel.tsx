@@ -56,7 +56,7 @@ const AutoSyncFormField = ReactFormField((props: {fieldApi: FieldApi; className:
                 value={automated ? auto : manual}
                 options={[manual, auto]}
                 onChange={opt => {
-                    setValue(opt.value === auto ? {automated: {prune: false, selfHeal: false}} : null);
+                    setValue(opt.value === auto ? {prune: false, selfHeal: false} : null);
                 }}
             />
             {automated && (
