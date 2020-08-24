@@ -92,7 +92,9 @@ spec:
   updateStrategy:
     type: OnDelete
   volumeClaimTemplates:
-  - metadata:
+  - kind: PersistentVolumeClaim
+    apiVersion: v1
+    metadata:
       creationTimestamp: null
       labels:
         app: redis

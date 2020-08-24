@@ -239,6 +239,25 @@ func removeNamespaceAnnotation(orig *unstructured.Unstructured) *unstructured.Un
 	return orig
 }
 
+// StatefulSet requires special handling since it embeds PersistentVolumeClaim resource.
+// K8S API server applies additional default field which we cannot reproduce on client side.
+// So workaround is to remove all "defaulted" fields from 'volumeClaimTemplates' of live resource.
+func statefulSetWorkaround(orig, live *unstructured.Unstructured) *unstructured.Unstructured {
+	origTemplate, ok, err := unstructured.NestedSlice(orig.Object, "spec", "volumeClaimTemplates")
+	if !ok || err != nil {
+		return live
+	}
+
+	liveTemplate, ok, err := unstructured.NestedSlice(live.Object, "spec", "volumeClaimTemplates")
+	if !ok || err != nil {
+		return live
+	}
+	live = live.DeepCopy()
+
+	_ = unstructured.SetNestedField(live.Object, jsonutil.RemoveListFields(origTemplate, liveTemplate), "spec", "volumeClaimTemplates")
+	return live
+}
+
 func threeWayMergePatch(orig, config, live *unstructured.Unstructured) ([]byte, func() (runtime.Object, error), error) {
 	origBytes, err := json.Marshal(orig.Object)
 	if err != nil {
@@ -250,6 +269,11 @@ func threeWayMergePatch(orig, config, live *unstructured.Unstructured) ([]byte, 
 	}
 
 	if versionedObject, err := scheme.Scheme.New(orig.GroupVersionKind()); err == nil {
+		gk := orig.GroupVersionKind().GroupKind()
+		if (gk.Group == "apps" || gk.Group == "extensions") && gk.Kind == "StatefulSet" {
+			live = statefulSetWorkaround(orig, live)
+		}
+
 		liveBytes, err := json.Marshal(live.Object)
 		if err != nil {
 			return nil, nil, err
