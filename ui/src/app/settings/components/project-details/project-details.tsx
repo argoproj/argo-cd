@@ -484,7 +484,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                             <div className='row white-box__details-row' key={attr.title}>
                                 <div className='columns small-3'>{attr.title}</div>
                                 {(attr.title !== 'LABELS' && <div className='columns small-9'>{attr.value}</div>) || (
-                                    <div className='columns small-9'>{(proj.spec.labels || []).map(label => label).join(', ')}</div>
+                                    <div className='columns small-9'>{(proj.spec.labels || []).join(', ')}</div>
                                 )}
                             </div>
                         ))}
