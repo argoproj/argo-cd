@@ -88,6 +88,7 @@ nav:
     - developer-guide/index.md
     - developer-guide/contributing.md
     - developer-guide/running-locally.md
+    - developer-guide/debugging-remote-environment.md
     - developer-guide/api-docs.md
     - developer-guide/test-e2e.md
     - developer-guide/ci.md
