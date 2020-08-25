@@ -2,7 +2,7 @@ import {AutocompleteField, DropDownMenu, FormField, FormSelect, HelpIcon, PopupA
 import * as React from 'react';
 import {FormApi, Text} from 'react-form';
 import {Cluster, DataLoader, EditablePanel, EditablePanelItem, Expandable, MapInputField, Repo, Revision, RevisionHelpIcon} from '../../../shared/components';
-import {Consumer} from '../../../shared/context';
+import {Consumer, Context} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 
@@ -369,8 +369,9 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
             edit: null
         });
     const [badgeType, setBadgeType] = React.useState('URL');
-    const badgeURL = `${location.protocol}//${location.host}/api/badge?name=${props.app.metadata.name}&revision=true`;
-    const appURL = `${location.protocol}//${location.host}/applications/${props.app.metadata.name}`;
+    const context = React.useContext(Context);
+    const badgeURL = `${location.protocol}//${location.host}${context.baseHref}api/badge?name=${props.app.metadata.name}&revision=true`;
+    const appURL = `${location.protocol}//${location.host}${context.baseHref}applications/${props.app.metadata.name}`;
 
     return (
         <div className='application-summary'>
