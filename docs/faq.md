@@ -4,11 +4,24 @@
 
 **Q**: What's the backstory behind this?
 
-**A**: The announcement blog posts do quite a good job of explaining where our two projects come from and why it was important for us to take the next step and join our efforts:
+**A**: In November 2019 the teams behind Argo CD and Flux announced that they were going to join efforts. Some of the announcement blog posts explain what the thinking of the time was:
 
 - Jay Pipes on the [AWS blog](https://aws.amazon.com/de/blogs/containers/help-us-write-a-new-chapter-for-gitops-kubernetes-and-open-source-collaboration/)
 - Pratik Wadher on the [Intuit blog](https://www.intuit.com/blog/technology/introducing-argo-flux/)
 - Tamao Nakahara on the [Weaveworks blog](https://www.weave.works/blog/argo-flux-join-forces)
+
+In the course of the next months, the two engineering teams [met on a regular basis](https://docs.google.com/document/d/17AEZgv6yVuD4HS7_oNPiMKmS7Q6vjkhk6jH0YCELpRk/edit) and scoped out the future of the project. Two options were on the table:
+
+1. Rethink APIs and build the project from the ground up.
+1. Extract useful code from Argo into an Engine project.
+
+The latter was deemed to be the most practical solution.
+
+March 2020 the Flux team made a [proof of concept](https://github.com/fluxcd/flux/pull/2886) available, which rebased the Flux on top of the GitOps Engine, but while looking at the breaking changes this was going to introduce the Flux team decided that it was a time for a [more ground-breaking approach](https://www.weave.works/blog/gitops-with-flux-v2) on how to do GitOps. After some experimentation, the GitOps Toolkit was put out as an RFC in June 2020.
+
+A [number of other projects](https://github.com/search?q=argoproj%2Fgitops-engine&type=Code) already started looking at integrating the GitOps Engine.
+
+The Argo and Flux teams decided all of this on good terms. All of these discussions were immensely helpful in shaping both projects' future. You might see each of us stealing good ideas from the other in the future and celebrate each others successes. There might be future collaborations, we'll keep you posted.
 
 ----
 
@@ -20,19 +33,6 @@
 - We want to offer a shared vision for GitOps and the best possible GitOps experience for everyone.
 - We hope to bring a bigger community together than we can on our own.
 - We want to learn from each other's approaches and offer the best in breed GitOps solution out there.
-
-----
-
-**Q**: What can current Flux CD users look forward to from this collaboration with Argo CD?
-
-**A**: Here are a few of our favourites:
-
-- Syncing will be more efficient. Instead of polling, Flux CD will use Kubernetes Informers to get information from the cluster.
-- Users will see a great (if not huge) reduction in K8S API calls and etcd traffic.
-- We can increase the syncing frequency.
-- Advanced syncing features such as pre-post sync hooks and sync waves.
-- Overall performance and efficiency improvements (registry scanning excluded) are the major gains for Flux CD users.
-- Given the concept of GitOps is quite young, and all people involved were involved early on (or present during the birth), we hope this will result in an even more experienced team working on core features.
 
 ----
 
