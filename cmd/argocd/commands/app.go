@@ -523,6 +523,8 @@ func setAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			setHelmOpt(&spec.Source, helmOpts{values: string(data)})
 		case "release-name":
 			setHelmOpt(&spec.Source, helmOpts{releaseName: appOpts.releaseName})
+		case "helm-version":
+			setHelmOpt(&spec.Source, helmOpts{version: appOpts.helmVersion})
 		case "helm-set":
 			setHelmOpt(&spec.Source, helmOpts{helmSets: appOpts.helmSets})
 		case "helm-set-string":
@@ -648,6 +650,7 @@ type helmOpts struct {
 	valueFiles     []string
 	values         string
 	releaseName    string
+	version        string
 	helmSets       []string
 	helmSetStrings []string
 	helmSetFiles   []string
@@ -665,6 +668,9 @@ func setHelmOpt(src *argoappv1.ApplicationSource, opts helmOpts) {
 	}
 	if opts.releaseName != "" {
 		src.Helm.ReleaseName = opts.releaseName
+	}
+	if opts.version != "" {
+		src.Helm.Version = opts.version
 	}
 	for _, text := range opts.helmSets {
 		p, err := argoappv1.NewHelmParameter(text, false)
@@ -733,6 +739,7 @@ type appOptions struct {
 	helmSets               []string
 	helmSetStrings         []string
 	helmSetFiles           []string
+	helmVersion            string
 	project                string
 	syncPolicy             string
 	syncOptions            []string
@@ -766,6 +773,7 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().StringArrayVar(&opts.valuesFiles, "values", []string{}, "Helm values file(s) to use")
 	command.Flags().StringVar(&opts.values, "values-literal-file", "", "Filename or URL to import as a literal Helm values block")
 	command.Flags().StringVar(&opts.releaseName, "release-name", "", "Helm release-name")
+	command.Flags().StringVar(&opts.helmVersion, "helm-version", "", "Helm version")
 	command.Flags().StringArrayVar(&opts.helmSets, "helm-set", []string{}, "Helm set values on the command line (can be repeated to set several values: --helm-set key1=val1 --helm-set key2=val2)")
 	command.Flags().StringArrayVar(&opts.helmSetStrings, "helm-set-string", []string{}, "Helm set STRING values on the command line (can be repeated to set several values: --helm-set-string key1=val1 --helm-set-string key2=val2)")
 	command.Flags().StringArrayVar(&opts.helmSetFiles, "helm-set-file", []string{}, "Helm set values from respective files specified via the command line (can be repeated to set several values: --helm-set-file key1=path1 --helm-set-file key2=path2)")

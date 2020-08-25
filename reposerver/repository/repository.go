@@ -252,7 +252,11 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 	}
 
 	appHelm := q.ApplicationSource.Helm
+	var version string
 	if appHelm != nil {
+		if appHelm.Version != "" {
+			version = appHelm.Version
+		}
 		if appHelm.ReleaseName != "" {
 			templateOpts.Name = appHelm.ReleaseName
 		}
@@ -322,7 +326,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 	for i, j := range templateOpts.SetFile {
 		templateOpts.SetFile[i] = env.Envsubst(j)
 	}
-	h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos), isLocal)
+	h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos), isLocal, version)
 
 	if err != nil {
 		return nil, err
@@ -746,7 +750,13 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 					res.Helm.ValueFiles = append(res.Helm.ValueFiles, fName)
 				}
 			}
-			h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos), false)
+			var version string
+			if q.Source.Helm != nil {
+				if q.Source.Helm.Version != "" {
+					version = q.Source.Helm.Version
+				}
+			}
+			h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos), false, version)
 			if err != nil {
 				return err
 			}
