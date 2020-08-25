@@ -449,7 +449,7 @@ func newEnv(q *apiclient.ManifestRequest, revision string) *v1alpha1.Env {
 }
 
 func mergeSourceParameters(source *v1alpha1.ApplicationSource, path string) error {
-	appFilePath := filepath.Join(path, ".argocd-app.yaml")
+	appFilePath := filepath.Join(path, ".argocd-source.yaml")
 	info, err := os.Stat(appFilePath)
 	if os.IsNotExist(err) {
 		return nil
