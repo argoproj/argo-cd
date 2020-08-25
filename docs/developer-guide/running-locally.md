@@ -31,7 +31,7 @@ kubectl -n argocd scale deployment/argocd-redis --replicas 0
 
 ### Start local services
 
-When you use the virtualized toolchain, starting local services is as simple as running
+Before starting local services, make sure you are present in `argocd` namespace. When you use the virtualized toolchain, starting local services is as simple as running
 
 ```bash
 make start

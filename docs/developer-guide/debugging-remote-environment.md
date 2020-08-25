@@ -14,7 +14,7 @@ To read more about it, refer to the official documentation at [telepresence.io](
 First of all, install ArgoCD on your cluster
 ```shell
 kubectl create ns argocd
-curl -sSfL https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml | k apply -n argocd -f -
+curl -sSfL https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml | kubectl apply -n argocd -f -
 ```
 
 ## Connect
