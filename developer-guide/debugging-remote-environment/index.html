@@ -1490,7 +1490,7 @@
 <h2 id="install-argocd">Install ArgoCD<a class="headerlink" href="#install-argocd" title="Permanent link">&para;</a></h2>
 <p>First of all, install ArgoCD on your cluster</p>
 <div class="codehilite"><pre><span></span><code>kubectl create ns argocd
-curl -sSfL https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml <span class="p">|</span> k apply -n argocd -f -
+curl -sSfL https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml <span class="p">|</span> kubectl apply -n argocd -f -
 </code></pre></div>
 
 
