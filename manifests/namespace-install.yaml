@@ -2523,7 +2523,7 @@ spec:
         - "20"
         - --operation-processors
         - "10"
-        image: argoproj/argocd:v1.7.0-rc1
+        image: argoproj/argocd:v1.7.0
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
@@ -2579,7 +2579,7 @@ spec:
         - -n
         - /usr/local/bin/argocd-util
         - /shared
-        image: argoproj/argocd:v1.7.0-rc1
+        image: argoproj/argocd:v1.7.0
         imagePullPolicy: Always
         name: copyutil
         volumeMounts:
@@ -2648,7 +2648,7 @@ spec:
         - argocd-repo-server
         - --redis
         - argocd-redis:6379
-        image: argoproj/argocd:v1.7.0-rc1
+        image: argoproj/argocd:v1.7.0
         imagePullPolicy: Always
         name: argocd-repo-server
         ports:
@@ -2703,7 +2703,7 @@ spec:
         - argocd-server
         - --staticassets
         - /shared/app
-        image: argoproj/argocd:v1.7.0-rc1
+        image: argoproj/argocd:v1.7.0
         imagePullPolicy: Always
         name: argocd-server
         ports:
