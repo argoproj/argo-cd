@@ -38,3 +38,4 @@ Check live demo at https://cd.apps.argoproj.io/.
 1. [Argo CD - GitOps Continuous Delivery for Kubernetes](https://www.youtube.com/watch?v=aWDIQMbp1cc&feature=youtu.be&t=1m4s)
 1. [Introduction to Argo CD : Kubernetes DevOps CI/CD](https://www.youtube.com/watch?v=2WSJF7d8dUg&feature=youtu.be)
 1. [GitOps Deployment and Kubernetes - using ArgoCD](https://medium.com/riskified-technology/gitops-deployment-and-kubernetes-f1ab289efa4b)
+1. [Deploy Argo CD with Ingress and TLS in Three Steps: No YAML Yak Shaving Required](https://itnext.io/deploy-argo-cd-with-ingress-and-tls-in-three-steps-no-yaml-yak-shaving-required-bc536d401491)
