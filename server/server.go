@@ -577,8 +577,7 @@ func withRootPath(handler http.Handler, a *ArgoCDServer) http.Handler {
 	mux.Handle("/"+root+"/", http.StripPrefix("/"+root, handler))
 
 	healthz.ServeHealthCheck(mux, func() error {
-		_, err := a.KubeClientset.(*kubernetes.Clientset).ServerVersion()
-		return err
+		return nil
 	})
 
 	return mux
@@ -645,8 +644,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	// Swagger UI
 	swagger.ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui", a.RootPath)
 	healthz.ServeHealthCheck(mux, func() error {
-		_, err := a.KubeClientset.(*kubernetes.Clientset).ServerVersion()
-		return err
+		return nil
 	})
 
 	// Dex reverse proxy and client app and OAuth2 login/callback

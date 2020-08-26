@@ -177,8 +177,7 @@ func NewApplicationController(
 	})
 	metricsAddr := fmt.Sprintf("0.0.0.0:%d", metricsPort)
 	ctrl.metricsServer = metrics.NewMetricsServer(metricsAddr, appLister, func() error {
-		_, err := kubeClientset.Discovery().ServerVersion()
-		return err
+		return nil
 	})
 	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, kubectl, ctrl.metricsServer, ctrl.handleObjectUpdated)
 	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.settingsMgr, stateCache, projInformer, ctrl.metricsServer)
