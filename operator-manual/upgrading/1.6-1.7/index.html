@@ -709,6 +709,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#resources-like-configmap-might-become-out-of-sync-due-to-yaml-library-upgrade" title="Resources like ConfigMap might become out-of-sync due to YAML library upgrade" class="md-nav__link">
+    Resources like ConfigMap might become out-of-sync due to YAML library upgrade
+  </a>
+  
+</li>
+      
       
       
       
@@ -1393,6 +1400,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#resources-like-configmap-might-become-out-of-sync-due-to-yaml-library-upgrade" title="Resources like ConfigMap might become out-of-sync due to YAML library upgrade" class="md-nav__link">
+    Resources like ConfigMap might become out-of-sync due to YAML library upgrade
+  </a>
+  
+</li>
+      
       
       
       
@@ -1418,6 +1432,23 @@
 AppProject CRD have been moved from <code>spec</code> to <code>status</code> field. The migration is performed automatically during upgrade
 and might cause few seconds delay. No additional side effects besides the delay are expected. It is acceptable to
 rollback to previous version - no data loss is expected.</p>
+<h2 id="resources-like-configmap-might-become-out-of-sync-due-to-yaml-library-upgrade">Resources like ConfigMap might become out-of-sync due to YAML library upgrade<a class="headerlink" href="#resources-like-configmap-might-become-out-of-sync-due-to-yaml-library-upgrade" title="Permanent link">&para;</a></h2>
+<p>As part of v1.7 release, the Kubernetes client library have been upgrade to v1.18.8 as well as we've started using
+https://github.com/kubernetes-sigs/yaml for YALM handling to be consistent with <code>kubectl</code> behavior.
+This introduced a change of multiline string handling in resource manifests. As a result, YAML manifests with multiline
+strings might become out-of-sync after upgrading and you might have to trigger the syncronization once to resolve it.</p>
+<p>Affected resource example:</p>
+<div class="codehilite"><pre><span></span><code><span class="nn">---</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">my-config-map</span>
+<span class="nt">data</span><span class="p">:</span>
+  <span class="nt">value</span><span class="p">:</span> <span class="p p-Indicator">|+</span> <span class="c1"># block chomping indicator is dropped by Argo CD v1.7 ( same as kubectl apply)</span>
+  <span class="l l-Scalar l-Scalar-Plain">hello</span>
+</code></pre></div>
+
+
 <p>From here on you can follow the <a href="../overview/">regular upgrade process</a>.</p>
                 
                   
