@@ -314,10 +314,13 @@ func clusterToSecret(c *appv1.Cluster, secret *apiv1.Secret) error {
 // secretToCluster converts a secret into a Cluster object
 func secretToCluster(s *apiv1.Secret) *appv1.Cluster {
 	var config appv1.ClusterConfig
-	err := json.Unmarshal(s.Data["config"], &config)
-	if err != nil {
-		panic(err)
+	if len(s.Data["config"]) > 0 {
+		err := json.Unmarshal(s.Data["config"], &config)
+		if err != nil {
+			panic(err)
+		}
 	}
+
 	var namespaces []string
 	for _, ns := range strings.Split(string(s.Data["namespaces"]), ",") {
 		if ns = strings.TrimSpace(ns); ns != "" {
