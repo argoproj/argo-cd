@@ -46,6 +46,10 @@ func getCustomResourceDefinitions() map[string]*extensionsobj.CustomResourceDefi
 		// We need to completely remove validation of problematic fields such as creationTimestamp,
 		// which get marshalled to `null`, but are typed as as a `string` during Open API validation
 		removeValidation(un, "metadata.creationTimestamp")
+		// remove status validation for AppProject CRD as workaround for https://github.com/argoproj/argo-cd/issues/4158
+		if un.GetName() == "appprojects.argoproj.io" {
+			removeValidation(un, "status")
+		}
 
 		crd := toCRD(un)
 		crd.Labels = map[string]string{
