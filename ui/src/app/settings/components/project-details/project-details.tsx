@@ -129,6 +129,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                         defaultParams={{
                                                             name: proj.metadata.name,
                                                             description: proj.spec.description,
+                                                            labels: proj.metadata.labels || {},
                                                             destinations: proj.spec.destinations || [],
                                                             sourceRepos: proj.spec.sourceRepos || [],
                                                             clusterResourceWhitelist: proj.spec.clusterResourceWhitelist || [],
@@ -474,7 +475,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
     }
 
     private summaryTab(proj: Project) {
-        const attributes = [{title: 'NAME', value: proj.metadata.name}, {title: 'DESCRIPTION', value: proj.spec.description}];
+        const attributes = [{title: 'NAME', value: proj.metadata.name}, {title: 'DESCRIPTION', value: proj.spec.description}, {title: 'LABELS', value: proj.metadata.labels}];
         return (
             <div className='argo-container'>
                 <div className='white-box'>
@@ -482,7 +483,13 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                         {attributes.map(attr => (
                             <div className='row white-box__details-row' key={attr.title}>
                                 <div className='columns small-3'>{attr.title}</div>
-                                <div className='columns small-9'>{attr.value}</div>
+                                {(attr.title !== 'LABELS' && <div className='columns small-9'>{attr.value}</div>) || (
+                                    <div className='columns small-9'>
+                                        {Object.keys(proj.metadata.labels || {})
+                                            .map(label => `${label}=${proj.metadata.labels[label]}`)
+                                            .join(', ')}
+                                    </div>
+                                )}
                             </div>
                         ))}
                     </div>
