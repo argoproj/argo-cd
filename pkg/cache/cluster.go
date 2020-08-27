@@ -485,7 +485,7 @@ func (c *clusterCache) processApi(client dynamic.Interface, api kube.APIResource
 	return nil
 }
 
-func (c *clusterCache) sync() (err error) {
+func (c *clusterCache) sync() error {
 	c.log.Info("Start syncing cluster")
 
 	for i := range c.apisMeta {
@@ -545,7 +545,7 @@ func (c *clusterCache) sync() (err error) {
 			}
 			defer c.listSemaphore.Release(1)
 
-			err = listPager.EachListItem(context.Background(), metav1.ListOptions{}, func(obj runtime.Object) error {
+			err := listPager.EachListItem(context.Background(), metav1.ListOptions{}, func(obj runtime.Object) error {
 				if un, ok := obj.(*unstructured.Unstructured); !ok {
 					return fmt.Errorf("object %s/%s has an unexpected type", un.GroupVersionKind().String(), un.GetName())
 				} else {
