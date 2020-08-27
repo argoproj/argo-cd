@@ -39,8 +39,8 @@ func Test_secretToCluster(t *testing.T) {
 	}
 	cluster := secretToCluster(secret)
 	assert.Equal(t, *cluster, v1alpha1.Cluster{
-		Name:               "test",
-		Server:             "http://mycluster",
+		Name:   "test",
+		Server: "http://mycluster",
 		Config: v1alpha1.ClusterConfig{
 			Username: "foo",
 		},
@@ -60,8 +60,8 @@ func Test_secretToCluster_NoConfig(t *testing.T) {
 	}
 	cluster := secretToCluster(secret)
 	assert.Equal(t, *cluster, v1alpha1.Cluster{
-		Name:               "test",
-		Server:             "http://mycluster",
+		Name:   "test",
+		Server: "http://mycluster",
 	})
 }
 
