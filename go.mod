@@ -8,7 +8,7 @@ require (
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
 	github.com/alicebob/gopher-json v0.0.0-20180125190556-5a6b3ba71ee6 // indirect
 	github.com/alicebob/miniredis v2.5.0+incompatible
-	github.com/argoproj/gitops-engine v0.1.3-0.20200826062957-2cf3a72c659c
+	github.com/argoproj/gitops-engine v0.1.3-0.20200821034629-05731b99b1da
 	github.com/argoproj/pkg v0.0.0-20200624215116-23e74cb168fe
 	github.com/casbin/casbin v1.9.1
 	github.com/chai2010/gettext-go v0.0.0-20170215093142-bf70f2a70fb1 // indirect
@@ -75,6 +75,7 @@ require (
 	k8s.io/gengo v0.0.0-20200413195148-3a45101e95ac // indirect
 	k8s.io/klog v1.0.0
 	k8s.io/klog/v2 v2.3.0 // indirect
+	k8s.io/kube-aggregator v0.18.8 // indirect
 	k8s.io/kube-openapi v0.0.0-20200410145947-bcb3869e6f29
 	k8s.io/kubectl v0.18.8
 	k8s.io/kubernetes v1.18.8
