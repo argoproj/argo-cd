@@ -33,6 +33,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Honestbank](https://honestbank.com)
 1. [InsideBoard](https://www.insideboard.com)
 1. [Intuit](https://www.intuit.com/)
+1. [Kasa](https://kasa.co.kr/)
 1. [KintoHub](https://www.kintohub.com/)
 1. [KompiTech GmbH](https://www.kompitech.com/)
 1. [LINE](https://linecorp.com/en/)
