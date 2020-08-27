@@ -1,6 +1,12 @@
 .yaml-editor {
     position: relative;
 
+    &__error {
+        display: block;
+        word-wrap: break-word;
+        width: 200px;
+    }
+
     &__buttons {
         position: absolute;
         right: 1em;
