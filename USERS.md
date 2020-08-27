@@ -47,6 +47,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Optoro](https://www.optoro.com/)
 1. [Peloton Interactive](https://www.onepeloton.com/)
 1. [Pipefy](https://www.pipefy.com/)
+1. [Preferred Networks](https://preferred.jp/en/)
 1. [Prudential](https://prudential.com.sg)
 1. [PUBG](https://www.pubg.com)
 1. [QuintoAndar](https://quintoandar.com.br)

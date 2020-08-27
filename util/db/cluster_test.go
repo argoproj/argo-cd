@@ -25,6 +25,46 @@ func Test_serverToSecretName(t *testing.T) {
 	assert.Equal(t, "cluster-foo-752281925", name)
 }
 
+func Test_secretToCluster(t *testing.T) {
+	secret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "mycluster",
+			Namespace: fakeNamespace,
+		},
+		Data: map[string][]byte{
+			"name":   []byte("test"),
+			"server": []byte("http://mycluster"),
+			"config": []byte("{\"username\":\"foo\"}"),
+		},
+	}
+	cluster := secretToCluster(secret)
+	assert.Equal(t, *cluster, v1alpha1.Cluster{
+		Name:   "test",
+		Server: "http://mycluster",
+		Config: v1alpha1.ClusterConfig{
+			Username: "foo",
+		},
+	})
+}
+
+func Test_secretToCluster_NoConfig(t *testing.T) {
+	secret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "mycluster",
+			Namespace: fakeNamespace,
+		},
+		Data: map[string][]byte{
+			"name":   []byte("test"),
+			"server": []byte("http://mycluster"),
+		},
+	}
+	cluster := secretToCluster(secret)
+	assert.Equal(t, *cluster, v1alpha1.Cluster{
+		Name:   "test",
+		Server: "http://mycluster",
+	})
+}
+
 func TestUpdateCluster(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset(&v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
