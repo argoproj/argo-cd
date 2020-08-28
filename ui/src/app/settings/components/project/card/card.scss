@@ -5,6 +5,10 @@
   margin-bottom: 1.5em;
   margin-right: 30px;
 
+  &__full-width {
+      width: 100%;
+  }
+
   &__empty {
     background-color: $argo-color-gray-2;
     .card__title {
@@ -101,6 +105,17 @@
     width: $col-width;
   }
 
+  &__col-large {
+    flex-basis: $col-width-large;
+    width: $col-width-large;
+  }
+
+  &__col-grow {
+    width: auto;
+    flex-shrink: 0;
+    flex-grow: 1;
+  }
+
   &__col-round-button {
     flex-basis: $round-button-size;
     width: $round-button-size;
@@ -116,7 +131,6 @@
   }
 
   &__col-input {
-    flex: 3;
     align-items: center;
   }
 

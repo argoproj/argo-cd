@@ -13,6 +13,7 @@ interface CardProps<T> {
     remove: (i: number[]) => void;
     save: (i: number, value: T | FieldValue) => Promise<Project>;
     docs: string;
+    fullWidth: boolean;
 }
 
 interface CardState {
@@ -36,7 +37,7 @@ export class Card<T> extends React.Component<CardProps<T>, CardState> {
     }
     public render() {
         return (
-            <div className={`card white-box ${this.props.data && this.props.data.length > 0 ? null : 'card__empty'}`}>
+            <div className={`card white-box ${this.props.data && this.props.data.length > 0 ? '' : 'card__empty'} ${this.props.fullWidth ? 'card__full-width' : ''}`}>
                 <div className='white-box__details'>
                     <div className='card__row'>
                         <div className='card__title'>
@@ -62,20 +63,18 @@ export class Card<T> extends React.Component<CardProps<T>, CardState> {
                         <div>
                             <div className='card__row card__input-labels card__input-container'>
                                 <div className='card__col-round-button card__col' />
-                                <div className='card__input-labels--label'>
-                                    {this.props.fields.map(field => {
-                                        return (
-                                            <div className='card__col-input card__col' key={field.name + 'label'}>
-                                                {field.name}
-                                                {field.type === FieldTypes.ResourceKindSelector ? (
-                                                    <a href='https://kubernetes.io/docs/reference/kubectl/overview/#resource-types' target='_blank' className='card__info-icon'>
-                                                        <i className='fas fa-info-circle' />
-                                                    </a>
-                                                ) : null}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
+                                {this.props.fields.map(field => {
+                                    return (
+                                        <div className={`card__input-labels--label card__col-input card__col card__col-${field.size}`} key={field.name + 'label'}>
+                                            {field.name}
+                                            {field.type === FieldTypes.ResourceKindSelector ? (
+                                                <a href='https://kubernetes.io/docs/reference/kubectl/overview/#resource-types' target='_blank' className='card__info-icon'>
+                                                    <i className='fas fa-info-circle' />
+                                                </a>
+                                            ) : null}
+                                        </div>
+                                    );
+                                })}
                                 <div className='card__col-button card__col' />
                             </div>
                             {this.props.data.map((row, i) => {

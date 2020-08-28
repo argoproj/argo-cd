@@ -7,12 +7,19 @@ import {ResourceKind, ResourceKindSelector} from '../resource-kind-selector';
 export interface FieldData {
     type: FieldTypes;
     name: string;
+    size: FieldSizes
 }
 
 export enum FieldTypes {
     Text = 'text',
     ResourceKindSelector = 'resourceKindSelector',
     Url = 'url'
+}
+
+export enum FieldSizes {
+    Normal = 'normal',
+    Large = 'large',
+    Grow = 'grow'
 }
 
 interface CardRowProps<T> {
@@ -115,7 +122,7 @@ export class CardRow<T> extends React.Component<CardRowProps<T>, CardRowState<T>
                     );
             }
             return (
-                <div key={field.name + '.' + i} className='card__col-input card__col'>
+                <div key={field.name + '.' + i} className={`card__col-input card__col card__col-${field.size}`}>
                     {format}
                     {field.type === FieldTypes.Url && (curVal as string) !== '' && (curVal as string) !== null && (curVal as string) !== '*' ? (
                         <a className='card__link-icon' href={curVal as string} target='_blank'>
@@ -136,7 +143,7 @@ export class CardRow<T> extends React.Component<CardRowProps<T>, CardRowState<T>
                             <i className='fa fa-check' />
                         </button>
                     </div>
-                    <div>{inputs}</div>
+                    {inputs}
                     <div className='card__col-button card__col'>
                         <button
                             className={`project__button project__button-${this.props.selected ? 'error' : this.disabled ? 'disabled' : this.changed ? 'save' : 'saved'}`}
@@ -162,7 +169,7 @@ export class CardRow<T> extends React.Component<CardRowProps<T>, CardRowState<T>
             fieldList += ' and ' + last + 's';
         }
 
-        return <div className='card__row'>{Banner(BannerType.Info, BannerIcon.Info, `Note: all (*) ${fieldList} are set`)}</div>;
+        return <div className='card__row'>{Banner(BannerType.Info, BannerIcon.Info, `Note: ${fieldList} are set to wildcard (*)`)}</div>;
     }
     private isFieldValue(value: T | FieldValue): value is FieldValue {
         if ((typeof value as FieldValue) === 'string') {

@@ -1,11 +1,19 @@
 import * as React from 'react';
 
-import {ApplicationDestination, GroupKind, OrphanedResource, Project, ProjectSignatureKey, ProjectSpec} from '../../../../shared/models';
+import {
+    ApplicationDestination,
+    GroupKind,
+    OrphanedResource,
+    Project,
+    ProjectSignatureKey,
+    ProjectSpec
+} from '../../../../shared/models';
 import {services} from '../../../../shared/services';
 import {GetProp, SetProp} from '../../utils';
 import {Card} from '../card/card';
-import {FieldData, FieldTypes} from '../card/row';
+import {FieldData, FieldSizes, FieldTypes} from '../card/row';
 import {DocLinks} from '../doc-links';
+
 require('./summary.scss');
 
 interface SummaryProps {
@@ -29,11 +37,18 @@ enum IterableSpecFieldNames {
 
 export type IterableSpecField = ApplicationDestination | GroupKind | ProjectSignatureKey | string;
 
-const SourceFields: FieldData[] = [{name: 'url', type: FieldTypes.Url}];
-const DestinationFields: FieldData[] = [{name: 'namespace', type: FieldTypes.Text}, {name: 'server', type: FieldTypes.Text}];
-const ResourceFields: FieldData[] = [{name: 'group', type: FieldTypes.Text}, {name: 'kind', type: FieldTypes.ResourceKindSelector}];
-const SignatureKeyFields: FieldData[] = [{name: 'keyID', type: FieldTypes.Text}];
-const OrphanedResourceFields: FieldData[] = [{name: 'group', type: FieldTypes.Text}, {name: 'kind', type: FieldTypes.ResourceKindSelector}, {name: 'name', type: FieldTypes.Text}];
+const SourceFields: FieldData[] = [{name: 'url', type: FieldTypes.Url, size: FieldSizes.Grow}];
+const DestinationFields: FieldData[] = [{name: 'namespace', type: FieldTypes.Text, size: FieldSizes.Normal}, {name: 'server', type: FieldTypes.Text, size: FieldSizes.Grow}];
+const ResourceFields: FieldData[] = [
+    {name: 'group', type: FieldTypes.Text, size: FieldSizes.Normal},
+    {name: 'kind', type: FieldTypes.ResourceKindSelector, size: FieldSizes.Normal}
+];
+const SignatureKeyFields: FieldData[] = [{name: 'keyID', type: FieldTypes.Text, size: FieldSizes.Normal}];
+const OrphanedResourceFields: FieldData[] = [
+    {name: 'group', type: FieldTypes.Text, size: FieldSizes.Normal},
+    {name: 'kind', type: FieldTypes.ResourceKindSelector, size: FieldSizes.Normal},
+    {name: 'name', type: FieldTypes.Text, size: FieldSizes.Normal}
+];
 
 export class ProjectSummary extends React.Component<SummaryProps, SummaryState> {
     get descriptionChanged(): boolean {
@@ -118,6 +133,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             remove={i => this.removeSpecItems(IterableSpecFieldNames.sourceRepos, i)}
                             save={(i, value) => this.save(IterableSpecFieldNames.sourceRepos, i, value as string)}
                             docs={null}
+                            fullWidth={true}
                         />
                         <Card<ApplicationDestination>
                             title='Destinations'
@@ -127,6 +143,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             remove={i => this.removeSpecItems(IterableSpecFieldNames.destinations, i)}
                             save={(i, value) => this.save(IterableSpecFieldNames.destinations, i, value as ApplicationDestination)}
                             docs={null}
+                            fullWidth={true}
                         />
                     </div>
                 </div>
@@ -144,6 +161,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             remove={idxs => this.removeSpecItems(IterableSpecFieldNames.clusterResourceWhitelist, idxs)}
                             save={(i, value) => this.save(IterableSpecFieldNames.clusterResourceWhitelist, i, value as string)}
                             docs={null}
+                            fullWidth={false}
                         />
                     </div>
                 </div>
@@ -161,6 +179,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             remove={idxs => this.removeSpecItems(IterableSpecFieldNames.clusterResourceBlacklist, idxs)}
                             save={(i, value) => this.save(IterableSpecFieldNames.clusterResourceBlacklist, i, value as string)}
                             docs={null}
+                            fullWidth={false}
                         />
                         <Card<GroupKind>
                             title='Denied Namespace Resources'
@@ -170,6 +189,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             remove={idxs => this.removeSpecItems(IterableSpecFieldNames.namespaceResourceBlacklist, idxs)}
                             save={(i, value) => this.save(IterableSpecFieldNames.namespaceResourceBlacklist, i, value as string)}
                             docs={null}
+                            fullWidth={false}
                         />
                     </div>
                 </div>
@@ -187,6 +207,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             remove={i => this.removeSpecItems(IterableSpecFieldNames.signatureKeys, i)}
                             save={(i, value) => this.save(IterableSpecFieldNames.signatureKeys, i, value as string)}
                             docs={null}
+                            fullWidth={false}
                         />
                     </div>
                 </div>
@@ -246,6 +267,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                                         return res;
                                     }}
                                     docs={DocLinks.OrphanedResources}
+                                    fullWidth={false}
                                 />
                             </div>
                         ) : null}
