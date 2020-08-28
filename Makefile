@@ -11,7 +11,7 @@ generate: agent-manifests
 
 .PHONY: test
 test:
-	go test ./... -coverprofile=coverage.out
+	go test -race ./... -coverprofile=coverage.out
 
 .PHONY: lint
 lint:

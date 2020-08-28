@@ -20,13 +20,16 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/pager"
+	watchutil "k8s.io/client-go/tools/watch"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 )
 
 const (
-	clusterSyncTimeout         = 24 * time.Hour
+	clusterResyncTimeout       = 24 * time.Hour
+	watchResyncTimeout         = 10 * time.Minute
 	watchResourcesRetryTimeout = 1 * time.Second
 	ClusterRetryTimeout        = 10 * time.Second
 
@@ -42,9 +45,8 @@ const (
 )
 
 type apiMeta struct {
-	namespaced      bool
-	resourceVersion string
-	watchCancel     context.CancelFunc
+	namespaced  bool
+	watchCancel context.CancelFunc
 }
 
 // ClusterInfo holds cluster cache stats
@@ -109,7 +111,7 @@ type WeightedSemaphore interface {
 // NewClusterCache creates new instance of cluster cache
 func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) *clusterCache {
 	cache := &clusterCache{
-		resyncTimeout:           clusterSyncTimeout,
+		resyncTimeout:           clusterResyncTimeout,
 		settings:                Settings{ResourceHealthOverride: &noopSettings{}, ResourcesFilter: &noopSettings{}},
 		apisMeta:                make(map[schema.GroupKind]*apiMeta),
 		listPageSize:            defaultListPageSize,
@@ -222,31 +224,27 @@ func (c *clusterCache) GetAPIGroups() []metav1.APIGroup {
 	return c.apiGroups
 }
 
-func (c *clusterCache) replaceResourceCache(gk schema.GroupKind, resourceVersion string, objs []unstructured.Unstructured, ns string) {
-	info, ok := c.apisMeta[gk]
-	if ok {
-		objByKey := make(map[kube.ResourceKey]*unstructured.Unstructured)
-		for i := range objs {
-			objByKey[kube.GetResourceKey(&objs[i])] = &objs[i]
+func (c *clusterCache) replaceResourceCache(gk schema.GroupKind, objs []unstructured.Unstructured, ns string) {
+	objByKey := make(map[kube.ResourceKey]*unstructured.Unstructured)
+	for i := range objs {
+		objByKey[kube.GetResourceKey(&objs[i])] = &objs[i]
+	}
+
+	// update existing nodes
+	for i := range objs {
+		obj := &objs[i]
+		key := kube.GetResourceKey(&objs[i])
+		c.onNodeUpdated(c.resources[key], obj)
+	}
+
+	for key := range c.resources {
+		if key.Kind != gk.Kind || key.Group != gk.Group || ns != "" && key.Namespace != ns {
+			continue
 		}
 
-		// update existing nodes
-		for i := range objs {
-			obj := &objs[i]
-			key := kube.GetResourceKey(&objs[i])
-			c.onNodeUpdated(c.resources[key], obj)
+		if _, ok := objByKey[key]; !ok {
+			c.onNodeRemoved(key)
 		}
-
-		for key := range c.resources {
-			if key.Kind != gk.Kind || key.Group != gk.Group || ns != "" && key.Namespace != ns {
-				continue
-			}
-
-			if _, ok := objByKey[key]; !ok {
-				c.onNodeRemoved(key)
-			}
-		}
-		info.resourceVersion = resourceVersion
 	}
 }
 
@@ -322,7 +320,7 @@ func (c *clusterCache) stopWatching(gk schema.GroupKind, ns string) {
 	if info, ok := c.apisMeta[gk]; ok {
 		info.watchCancel()
 		delete(c.apisMeta, gk)
-		c.replaceResourceCache(gk, "", []unstructured.Unstructured{}, ns)
+		c.replaceResourceCache(gk, []unstructured.Unstructured{}, ns)
 		c.log.Warnf("Stop watching: %s not found", gk)
 	}
 }
@@ -343,11 +341,10 @@ func (c *clusterCache) startMissingWatches() error {
 		namespacedResources[api.GroupKind] = api.Meta.Namespaced
 		if _, ok := c.apisMeta[api.GroupKind]; !ok {
 			ctx, cancel := context.WithCancel(context.Background())
-			info := &apiMeta{namespaced: api.Meta.Namespaced, watchCancel: cancel}
-			c.apisMeta[api.GroupKind] = info
+			c.apisMeta[api.GroupKind] = &apiMeta{namespaced: api.Meta.Namespaced, watchCancel: cancel}
 
 			err = c.processApi(client, api, func(resClient dynamic.ResourceInterface, ns string) error {
-				go c.watchEvents(ctx, api, info, resClient, ns)
+				go c.watchEvents(ctx, api, resClient, ns, "")
 				return nil
 			})
 			if err != nil {
@@ -365,7 +362,7 @@ func runSynced(lock sync.Locker, action func() error) error {
 	return action()
 }
 
-func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo, info *apiMeta, resClient dynamic.ResourceInterface, ns string) {
+func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo, resClient dynamic.ResourceInterface, ns string, resourceVersion string) {
 	kube.RetryUntilSucceed(ctx, watchResourcesRetryTimeout, fmt.Sprintf("watch %s on %s", api.GroupKind, c.config.Host), func() (err error) {
 		defer func() {
 			if r := recover(); r != nil {
@@ -373,14 +370,12 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 			}
 		}()
 
-		err = runSynced(&c.lock, func() error {
-			if info.resourceVersion != "" {
-				return nil
-			}
+		// load API initial state if no resource version provided
+		if resourceVersion == "" {
 			listPager := pager.New(func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
 				res, err := resClient.List(ctx, opts)
 				if err == nil {
-					info.resourceVersion = res.GetResourceVersion()
+					resourceVersion = res.GetResourceVersion()
 				}
 				return res, err
 			})
@@ -389,7 +384,6 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 			if err := c.listSemaphore.Acquire(ctx, 1); err != nil {
 				return err
 			}
-			defer c.listSemaphore.Release(1)
 
 			var items []unstructured.Unstructured
 			err = listPager.EachListItem(ctx, metav1.ListOptions{}, func(obj runtime.Object) error {
@@ -400,66 +394,82 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 				}
 				return nil
 			})
+
+			c.listSemaphore.Release(1)
+
 			if err != nil {
 				return fmt.Errorf("failed to load initial state of resource %s: %v", api.GroupKind.String(), err)
 			}
-			c.replaceResourceCache(api.GroupKind, info.resourceVersion, items, ns)
-			return nil
+
+			err = runSynced(&c.lock, func() error {
+				c.replaceResourceCache(api.GroupKind, items, ns)
+				return nil
+			})
+
+			if err != nil {
+				return err
+			}
+		}
+
+		w, err := watchutil.NewRetryWatcher(resourceVersion, &cache.ListWatch{
+			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
+				res, err := resClient.Watch(ctx, options)
+				if errors.IsNotFound(err) {
+					c.stopWatching(api.GroupKind, ns)
+				}
+				return res, err
+			},
 		})
 
-		if err != nil {
-			return err
-		}
+		defer func() {
+			w.Stop()
+			resourceVersion = ""
+		}()
 
-		w, err := resClient.Watch(ctx, metav1.ListOptions{ResourceVersion: info.resourceVersion})
-		if errors.IsNotFound(err) {
-			c.stopWatching(api.GroupKind, ns)
-			return nil
-		}
+		shouldResync := time.After(watchResyncTimeout)
 
-		if errors.IsGone(err) {
-			info.resourceVersion = ""
-			c.log.Warnf("Resource version of %s is too old", api.GroupKind)
-		}
-
-		if err != nil {
-			return err
-		}
-
-		defer w.Stop()
 		for {
 			select {
+			// stop watching when parent context got cancelled
 			case <-ctx.Done():
 				return nil
+
+			// re-synchronize API state and restart watch periodically
+			case <-shouldResync:
+				return fmt.Errorf("Resyncing %s on %s during to timeout", api.GroupKind, c.config.Host)
+
+			// re-synchronize API state and restart watch if retry watcher failed to continue watching using provided resource version
+			case <-w.Done():
+				return fmt.Errorf("Watch %s on %s has closed", api.GroupKind, c.config.Host)
+
 			case event, ok := <-w.ResultChan():
-				if ok {
-					if obj, ok := event.Object.(*unstructured.Unstructured); ok {
-						info.resourceVersion = obj.GetResourceVersion()
-						c.processEvent(event.Type, obj)
-						if kube.IsCRD(obj) {
-							if event.Type == watch.Deleted {
-								group, groupOk, groupErr := unstructured.NestedString(obj.Object, "spec", "group")
-								kind, kindOk, kindErr := unstructured.NestedString(obj.Object, "spec", "names", "kind")
+				if !ok {
+					return fmt.Errorf("Watch %s on %s has closed", api.GroupKind, c.config.Host)
+				}
 
-								if groupOk && groupErr == nil && kindOk && kindErr == nil {
-									gk := schema.GroupKind{Group: group, Kind: kind}
-									c.stopWatching(gk, ns)
-								}
-							} else {
-								err = runSynced(&c.lock, func() error {
-									return c.startMissingWatches()
-								})
+				obj, ok := event.Object.(*unstructured.Unstructured)
+				if !ok {
+					return fmt.Errorf("Failed to convert to *unstructured.Unstructured: %v", event.Object)
+				}
 
-							}
-						}
-						if err != nil {
-							c.log.Warnf("Failed to start missing watch: %v", err)
+				c.processEvent(event.Type, obj)
+				if kube.IsCRD(obj) {
+					if event.Type == watch.Deleted {
+						group, groupOk, groupErr := unstructured.NestedString(obj.Object, "spec", "group")
+						kind, kindOk, kindErr := unstructured.NestedString(obj.Object, "spec", "names", "kind")
+
+						if groupOk && groupErr == nil && kindOk && kindErr == nil {
+							gk := schema.GroupKind{Group: group, Kind: kind}
+							c.stopWatching(gk, ns)
 						}
 					} else {
-						return fmt.Errorf("Failed to convert to *unstructured.Unstructured: %v", event.Object)
+						err = runSynced(&c.lock, func() error {
+							return c.startMissingWatches()
+						})
 					}
-				} else {
-					return fmt.Errorf("Watch %s on %s has closed", api.GroupKind, c.config.Host)
+				}
+				if err != nil {
+					c.log.Warnf("Failed to start missing watch: %v", err)
 				}
 			}
 		}
@@ -527,13 +537,11 @@ func (c *clusterCache) sync() error {
 		lock.Unlock()
 
 		return c.processApi(client, api, func(resClient dynamic.ResourceInterface, ns string) error {
-
+			resourceVersion := ""
 			listPager := pager.New(func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
 				res, err := resClient.List(ctx, opts)
 				if err == nil {
-					lock.Lock()
-					info.resourceVersion = res.GetResourceVersion()
-					lock.Unlock()
+					resourceVersion = res.GetResourceVersion()
 				}
 				return res, err
 			})
@@ -560,7 +568,7 @@ func (c *clusterCache) sync() error {
 				return fmt.Errorf("failed to load initial state of resource %s: %v", api.GroupKind.String(), err)
 			}
 
-			go c.watchEvents(ctx, api, info, resClient, ns)
+			go c.watchEvents(ctx, api, resClient, ns, resourceVersion)
 
 			return nil
 		})
