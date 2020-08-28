@@ -140,7 +140,7 @@
 
   @function get-col-width($cols) {
     $fill: $button-width + $round-button-size;
-    @return $fill + $cols * (2*$col-gutter + $col-width);
+    @return $fill + $cols * (2*$col-gutter + $col-width) + 2*$col-gutter;
   }
 
   &__col-fill-1 {
