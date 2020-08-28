@@ -55,7 +55,7 @@ export class YamlEditor<T> extends React.Component<
                                                         ctx.notifications.show({
                                                             content: (
                                                                 <div className='yaml-editor__error'>
-                                                                    <ErrorNotification e={e} />
+                                                                    <ErrorNotification title='Unable to save changes' e={e} />
                                                                 </div>
                                                             ),
                                                             type: NotificationType.Error

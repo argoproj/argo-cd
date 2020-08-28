@@ -4,7 +4,9 @@
     &__error {
         display: block;
         word-wrap: break-word;
-        width: 200px;
+        width: 290px;
+        overflow-y: scroll;
+        max-height: 500px;
     }
 
     &__buttons {
