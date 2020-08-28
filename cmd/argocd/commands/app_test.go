@@ -40,6 +40,11 @@ func Test_setHelmOpt(t *testing.T) {
 		setHelmOpt(&src, helmOpts{helmSetFiles: []string{"foo=bar"}})
 		assert.Equal(t, []v1alpha1.HelmFileParameter{{Name: "foo", Path: "bar"}}, src.Helm.FileParameters)
 	})
+	t.Run("Version", func(t *testing.T) {
+		src := v1alpha1.ApplicationSource{}
+		setHelmOpt(&src, helmOpts{version: "v3"})
+		assert.Equal(t, "v3", src.Helm.Version)
+	})
 }
 
 func Test_setJsonnetOpt(t *testing.T) {

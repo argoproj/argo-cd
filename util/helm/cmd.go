@@ -22,7 +22,15 @@ type Cmd struct {
 	IsLocal  bool
 }
 
-func NewCmd(workDir string) (*Cmd, error) {
+func NewCmd(workDir string, version string) (*Cmd, error) {
+	if version != "" {
+		switch version {
+		case "v2":
+			return NewCmdWithVersion(workDir, HelmV2)
+		case "v3":
+			return NewCmdWithVersion(workDir, HelmV3)
+		}
+	}
 	helmVersion, err := getHelmVersion(workDir)
 	if err != nil {
 		return nil, err

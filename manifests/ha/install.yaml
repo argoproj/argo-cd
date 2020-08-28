@@ -230,6 +230,10 @@ spec:
                           description: Values is Helm values, typically defined as
                             a block
                           type: string
+                        version:
+                          description: Version is the Helm version to use for templating
+                            with
+                          type: string
                       type: object
                     ksonnet:
                       description: Ksonnet holds ksonnet specific options
@@ -525,6 +529,10 @@ spec:
                       type: array
                     values:
                       description: Values is Helm values, typically defined as a block
+                      type: string
+                    version:
+                      description: Version is the Helm version to use for templating
+                        with
                       type: string
                   type: object
                 ksonnet:
@@ -826,6 +834,10 @@ spec:
                           values:
                             description: Values is Helm values, typically defined
                               as a block
+                            type: string
+                          version:
+                            description: Version is the Helm version to use for templating
+                              with
                             type: string
                         type: object
                       ksonnet:
@@ -1148,6 +1160,10 @@ spec:
                                   description: Values is Helm values, typically defined
                                     as a block
                                   type: string
+                                version:
+                                  description: Version is the Helm version to use
+                                    for templating with
+                                  type: string
                               type: object
                             ksonnet:
                               description: Ksonnet holds ksonnet specific options
@@ -1447,6 +1463,10 @@ spec:
                               description: Values is Helm values, typically defined
                                 as a block
                               type: string
+                            version:
+                              description: Version is the Helm version to use for
+                                templating with
+                              type: string
                           type: object
                         ksonnet:
                           description: Ksonnet holds ksonnet specific options
@@ -1732,6 +1752,10 @@ spec:
                             values:
                               description: Values is Helm values, typically defined
                                 as a block
+                              type: string
+                            version:
+                              description: Version is the Helm version to use for
+                                templating with
                               type: string
                           type: object
                         ksonnet:
@@ -2108,32 +2132,6 @@ spec:
                     type: string
                 type: object
               type: array
-          type: object
-        status:
-          description: AppProjectStatus contains information about appproj
-          properties:
-            jwtTokensByRole:
-              additionalProperties:
-                properties:
-                  items:
-                    items:
-                      description: JWTToken holds the issuedAt and expiresAt values
-                        of a token
-                      properties:
-                        exp:
-                          format: int64
-                          type: integer
-                        iat:
-                          format: int64
-                          type: integer
-                        id:
-                          type: string
-                      required:
-                      - iat
-                      type: object
-                    type: array
-                type: object
-              type: object
           type: object
       required:
       - metadata
@@ -3232,6 +3230,8 @@ spec:
           name: tls-certs
         - mountPath: /app/config/gpg/source
           name: gpg-keys
+        - mountPath: /app/config/gpg/keys
+          name: gpg-keyring
       volumes:
       - configMap:
           name: argocd-ssh-known-hosts-cm
@@ -3242,6 +3242,8 @@ spec:
       - configMap:
           name: argocd-gpg-keys-cm
         name: gpg-keys
+      - emptyDir: {}
+        name: gpg-keyring
 ---
 apiVersion: apps/v1
 kind: Deployment

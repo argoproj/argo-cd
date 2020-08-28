@@ -135,9 +135,9 @@ function renderFilteredNode(node: {count: number} & dagre.Node, onClearFilter: (
                 <div className='application-resource-tree__node-kind-icon '>
                     <i className='icon fa fa-filter' />
                 </div>
-                <div className='application-resource-tree__node-content'>
+                <div className='application-resource-tree__node-content-wrap-overflow'>
                     <a className='application-resource-tree__node-title' onClick={onClearFilter}>
-                        show {node.count} hidden resource{node.count > 1 && 's'}
+                        clear filters to show {node.count} additional resource{node.count > 1 && 's'}
                     </a>
                 </div>
             </div>

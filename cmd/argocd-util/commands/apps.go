@@ -9,7 +9,6 @@ import (
 	"sort"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/ghodss/yaml"
@@ -147,7 +146,7 @@ func diffReconcileResults(res1 reconcileResults, res2 reconcileResults) error {
 	})
 	for _, item := range pairs {
 		printLine(item.name)
-		_ = diff.PrintDiff(item.name, item.first, item.second)
+		_ = cli.PrintDiff(item.name, item.first, item.second)
 	}
 
 	return nil

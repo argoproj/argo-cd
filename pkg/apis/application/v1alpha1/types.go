@@ -191,6 +191,8 @@ type ApplicationSourceHelm struct {
 	Values string `json:"values,omitempty" protobuf:"bytes,4,opt,name=values"`
 	// FileParameters are file parameters to the helm template
 	FileParameters []HelmFileParameter `json:"fileParameters,omitempty" protobuf:"bytes,5,opt,name=fileParameters"`
+	// Version is the Helm version to use for templating with
+	Version string `json:"version,omitempty" protobuf:"bytes,6,opt,name=version"`
 }
 
 // HelmParameter is a parameter to a helm template
@@ -265,7 +267,7 @@ func (in *ApplicationSourceHelm) AddFileParameter(p HelmFileParameter) {
 }
 
 func (h *ApplicationSourceHelm) IsZero() bool {
-	return h == nil || (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0 && len(h.FileParameters) == 0 && h.Values == ""
+	return h == nil || (h.Version == "") && (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0 && len(h.FileParameters) == 0 && h.Values == ""
 }
 
 type KustomizeImage string

@@ -3727,6 +3727,10 @@
         "values": {
           "type": "string",
           "title": "Values is Helm values, typically defined as a block"
+        },
+        "version": {
+          "type": "string",
+          "title": "Version is the Helm version to use for templating with"
         }
       }
     },
