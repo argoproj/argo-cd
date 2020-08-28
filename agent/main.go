@@ -33,7 +33,7 @@ const (
 
 func main() {
 	if err := newCmd().Execute(); err != nil {
-		fmt.Println(err)
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }

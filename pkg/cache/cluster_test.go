@@ -451,7 +451,7 @@ func ExampleNewClusterCache_inspectNamespaceResources() {
 	// Iterate default namespace resources tree
 	for _, root := range clusterCache.GetNamespaceTopLevelResources("default") {
 		clusterCache.IterateHierarchy(root.ResourceKey(), func(resource *Resource, _ map[kube.ResourceKey]*Resource) {
-			println(fmt.Sprintf("resource: %s, info: %v", resource.Ref.String(), resource.Info))
+			fmt.Printf("resource: %s, info: %v\n", resource.Ref.String(), resource.Info)
 		})
 	}
 }
@@ -467,11 +467,11 @@ func ExampleNewClusterCache_resourceUpdatedEvents() {
 	}
 	unsubscribe := clusterCache.OnResourceUpdated(func(newRes *Resource, oldRes *Resource, _ map[kube.ResourceKey]*Resource) {
 		if newRes == nil {
-			println(fmt.Sprintf("%s deleted", oldRes.Ref.String()))
+			fmt.Printf("%s deleted\n", oldRes.Ref.String())
 		} else if oldRes == nil {
-			println(fmt.Sprintf("%s created", newRes.Ref.String()))
+			fmt.Printf("%s created\n", newRes.Ref.String())
 		} else {
-			println(fmt.Sprintf("%s updated", newRes.Ref.String()))
+			fmt.Printf("%s updated\n", newRes.Ref.String())
 		}
 	})
 	defer unsubscribe()
