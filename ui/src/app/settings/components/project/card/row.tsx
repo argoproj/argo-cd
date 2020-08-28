@@ -169,7 +169,15 @@ export class CardRow<T> extends React.Component<CardRowProps<T>, CardRowState<T>
             fieldList += ' and ' + last + 's';
         }
 
-        return <div className='card__row'>{Banner(BannerType.Info, BannerIcon.Info, `Note: ${fieldList} are set to wildcard (*)`)}</div>;
+        return (
+            <div className='card__row'>
+                <div className='card__col-round-button card__col' />
+                <div className={'card__col card__col-grow'}>
+                    {Banner(BannerType.Info, BannerIcon.Info, `Note: ${fieldList} are set to wildcard (*)`)}
+                </div>
+                <div className='card__col-button card__col' />
+            </div>
+        );
     }
     private isFieldValue(value: T | FieldValue): value is FieldValue {
         if ((typeof value as FieldValue) === 'string') {
