@@ -325,8 +325,8 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
         if (arr.length < 1 || !arr) {
             return;
         }
-        while (idxs.length) {
-            arr.splice(idxs.pop(), 1);
+        for (const i of idxs) {
+            delete arr[i];
         }
         const update = {...this.state};
         SetProp(update, key as keyof SummaryState, arr);

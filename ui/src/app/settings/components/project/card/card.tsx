@@ -107,9 +107,10 @@ export class Card<T> extends React.Component<CardProps<T>, CardState> {
     private remove(idxs: number[]) {
         const tmp = [...idxs];
         const selected = this.state.selected;
-        while (tmp.length) {
-            selected.splice(tmp.pop(), 1);
+        for (const i of tmp) {
+            delete selected[i];
         }
+        console.log(selected);
         this.setState({selected});
         this.props.remove(idxs);
     }
