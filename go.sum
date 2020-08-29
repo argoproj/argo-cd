@@ -57,8 +57,8 @@ github.com/alicebob/miniredis v2.5.0+incompatible/go.mod h1:8HZjEj4yU0dwhYHky+Dx
 github.com/andreyvit/diff v0.0.0-20170406064948-c7f18ee00883/go.mod h1:rCTlJbsFo29Kk6CurOXKm700vrz8f0KW0JNfpkRJY/8=
 github.com/anmitsu/go-shlex v0.0.0-20161002113705-648efa622239 h1:kFOfPq6dUM1hTo4JG6LR5AXSUEsOjtdm0kw0FtQtMJA=
 github.com/anmitsu/go-shlex v0.0.0-20161002113705-648efa622239/go.mod h1:2FmKhYUyUczH0OGQWaF5ceTx0UBShxjsH6f8oGKYe2c=
-github.com/argoproj/gitops-engine v0.1.3-0.20200826062957-2cf3a72c659c h1:sX3CD5rYfYe9l/tcVq6Zp09byT29EFOSDTggY8Zimgg=
-github.com/argoproj/gitops-engine v0.1.3-0.20200826062957-2cf3a72c659c/go.mod h1:LhzAS5UB6MusZ8MJj1dys1Em5xGPxEIZHdp2oz81ViY=
+github.com/argoproj/gitops-engine v0.1.3-0.20200829034824-8472746916e6 h1:aoDGrZdTtFFoddKV5+azCOcFBfcDlJk6ddIK6SKZm04=
+github.com/argoproj/gitops-engine v0.1.3-0.20200829034824-8472746916e6/go.mod h1:jeiFokbkgLXjvx3eXB0MddyxsmftWsFTY7paLH4ZqCg=
 github.com/argoproj/pkg v0.0.0-20200624215116-23e74cb168fe h1:HjTM7H8Z+J1xt340LNpH9q4jc8pXeqzkC8QKIjQphp4=
 github.com/argoproj/pkg v0.0.0-20200624215116-23e74cb168fe/go.mod h1:2EZ44RG/CcgtPTwrRR0apOc7oU6UIw8GjCUJWZ8X3bM=
 github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e/go.mod h1:3U/XgcO3hCbHZ8TKRvWD2dDTCfh9M9ya+I9JpbB7O8o=
@@ -155,7 +155,6 @@ github.com/emirpasic/gods v1.12.0 h1:QAUIPSaCu4G+POclxeqb3F+WPpdKqFGlw36+yOzGlrg
 github.com/emirpasic/gods v1.12.0/go.mod h1:YfzfFFoVP/catgzJb4IKIqXjX78Ha8FMSDh3ymbK86o=
 github.com/euank/go-kmsg-parser v2.0.0+incompatible/go.mod h1:MhmAMZ8V4CYH4ybgdRwPr2TU5ThnS43puaKEMpja1uw=
 github.com/evanphx/json-patch v0.0.0-20200808040245-162e5629780b/go.mod h1:NAJj0yf/KaRKURN6nyi7A9IZydMivZEm9oQLWNjfKDc=
-github.com/evanphx/json-patch v4.2.0+incompatible/go.mod h1:50XU6AFN0ol/bzJsmQLiYLvXMP4fmwYFNcr97nuDLSk=
 github.com/evanphx/json-patch v4.9.0+incompatible h1:kLcOMZeuLAJvL2BPWLMIj5oaZQobrkAqrL+WFZwQses=
 github.com/evanphx/json-patch v4.9.0+incompatible/go.mod h1:50XU6AFN0ol/bzJsmQLiYLvXMP4fmwYFNcr97nuDLSk=
 github.com/exponent-io/jsonpath v0.0.0-20151013193312-d6023ce2651d h1:105gxyaGwCFad8crR9dcMQWvV9Hvulu6hwUh4tWPJnM=
