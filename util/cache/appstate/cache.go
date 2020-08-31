@@ -1,6 +1,7 @@
 package appstate
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -76,8 +77,16 @@ func (c *Cache) GetAppResourcesTree(appName string, res *appv1.ApplicationTree) 
 	return err
 }
 
+func (c *Cache) OnAppResourcesTreeChanged(ctx context.Context, appName string, callback func() error) error {
+	return c.Cache.OnUpdated(ctx, appManagedResourcesKey(appName), callback)
+}
+
 func (c *Cache) SetAppResourcesTree(appName string, resourcesTree *appv1.ApplicationTree) error {
-	return c.SetItem(appResourcesTreeKey(appName), resourcesTree, c.appStateCacheExpiration, resourcesTree == nil)
+	err := c.SetItem(appResourcesTreeKey(appName), resourcesTree, c.appStateCacheExpiration, resourcesTree == nil)
+	if err != nil {
+		return err
+	}
+	return c.Cache.NotifyUpdated(appManagedResourcesKey(appName))
 }
 
 func (c *Cache) SetClusterInfo(server string, info *appv1.ClusterInfo) error {

@@ -962,7 +962,7 @@ func TestUpdateReconciledAt(t *testing.T) {
 
 		_, updated, err = unstructured.NestedString(receivedPatch, "status", "observedAt")
 		assert.NoError(t, err)
-		assert.True(t, updated)
+		assert.False(t, updated)
 	})
 
 	t.Run("NotUpdatedOnPartialReconciliation", func(t *testing.T) {
@@ -978,7 +978,7 @@ func TestUpdateReconciledAt(t *testing.T) {
 
 		_, updated, err = unstructured.NestedString(receivedPatch, "status", "observedAt")
 		assert.NoError(t, err)
-		assert.True(t, updated)
+		assert.False(t, updated)
 	})
 
 }

@@ -901,6 +901,17 @@ func (s *Server) ResourceTree(ctx context.Context, q *application.ResourcesQuery
 	return s.getAppResources(ctx, a)
 }
 
+func (s *Server) WatchResourceTree(q *application.ResourcesQuery, ws application.ApplicationService_WatchResourceTreeServer) error {
+	return s.cache.OnAppResourcesTreeChanged(ws.Context(), q.GetApplicationName(), func() error {
+		var tree appv1.ApplicationTree
+		err := s.cache.GetAppResourcesTree(q.GetApplicationName(), &tree)
+		if err != nil {
+			return err
+		}
+		return ws.Send(&tree)
+	})
+}
+
 func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMetadataQuery) (*v1alpha1.RevisionMetadata, error) {
 	a, err := s.appLister.Get(q.GetName())
 	if err != nil {
