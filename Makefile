@@ -403,6 +403,7 @@ start-local: mod-vendor-local
 	rm -rf /tmp/argocd-local
 	mkdir -p /tmp/argocd-local
 	mkdir -p /tmp/argocd-local/gpg/keys && chmod 0700 /tmp/argocd-local/gpg/keys
+	if test "$(USER_ID)" != ""; then chown -R "$(USER_ID)" /tmp/argocd-local/gpg/keys; fi
 	mkdir -p /tmp/argocd-local/gpg/source
 	ARGOCD_ZJWT_FEATURE_FLAG=always \
 	ARGOCD_IN_CI=false \
