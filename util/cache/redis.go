@@ -1,8 +1,10 @@
 package cache
 
 import (
+	"context"
 	"time"
 
+	ioutil "github.com/argoproj/gitops-engine/pkg/utils/io"
 	rediscache "github.com/go-redis/cache"
 	"github.com/go-redis/redis"
 	"github.com/vmihailenco/msgpack"
@@ -10,6 +12,7 @@ import (
 
 func NewRedisCache(client *redis.Client, expiration time.Duration) CacheClient {
 	return &redisCache{
+		client:     client,
 		expiration: expiration,
 		codec: &rediscache.Codec{
 			Redis: client,
@@ -25,6 +28,7 @@ func NewRedisCache(client *redis.Client, expiration time.Duration) CacheClient {
 
 type redisCache struct {
 	expiration time.Duration
+	client     *redis.Client
 	codec      *rediscache.Codec
 }
 
@@ -50,6 +54,27 @@ func (r *redisCache) Get(key string, obj interface{}) error {
 
 func (r *redisCache) Delete(key string) error {
 	return r.codec.Delete(key)
+}
+
+func (r *redisCache) OnUpdated(ctx context.Context, key string, callback func() error) error {
+	pubsub := r.client.Subscribe(key)
+	defer ioutil.Close(pubsub)
+
+	ch := pubsub.Channel()
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-ch:
+			if err := callback(); err != nil {
+				return err
+			}
+		}
+	}
+}
+
+func (r *redisCache) NotifyUpdated(key string) error {
+	return r.client.Publish(key, "").Err()
 }
 
 type MetricsRegistry interface {

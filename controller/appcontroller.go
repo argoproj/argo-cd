@@ -1030,8 +1030,6 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 					appv1.ApplicationConditionComparisonError: true,
 				})
 			}
-			now := metav1.Now()
-			app.Status.ObservedAt = &now
 			ctrl.persistAppStatus(origApp, &app.Status)
 			return
 		}
@@ -1055,7 +1053,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		revision = app.Status.Sync.Revision
 	}
 
-	observedAt := metav1.Now()
+	now := metav1.Now()
 	compareResult := ctrl.appStateManager.CompareAppState(app, project, revision, app.Spec.Source, refreshType == appv1.RefreshTypeHard, localManifests)
 	for k, v := range compareResult.timings {
 		logCtx = logCtx.WithField(k, v.Milliseconds())
@@ -1088,9 +1086,8 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	}
 
 	if app.Status.ReconciledAt == nil || comparisonLevel == CompareWithLatest {
-		app.Status.ReconciledAt = &observedAt
+		app.Status.ReconciledAt = &now
 	}
-	app.Status.ObservedAt = &observedAt
 	app.Status.Sync = *compareResult.syncStatus
 	app.Status.Health = *compareResult.healthStatus
 	app.Status.Resources = compareResult.resources

@@ -54,6 +54,10 @@ export class ApplicationsService {
         return requests.get(`/applications/${name}/resource-tree`).then(res => res.body as models.ApplicationTree);
     }
 
+    public watchResourceTree(name: string): Observable<models.ApplicationTree> {
+        return requests.loadEventSource(`/stream/applications/${name}/resource-tree`).map(data => JSON.parse(data).result as models.ApplicationTree);
+    }
+
     public managedResources(name: string, options: {id?: models.ResourceID; fields?: string[]} = {}): Promise<models.ResourceDiff[]> {
         return requests
             .get(`/applications/${name}/managed-resources`)
