@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -55,6 +56,10 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) 
 
 func (c *Cache) GetAppResourcesTree(appName string, res *appv1.ApplicationTree) error {
 	return c.cache.GetAppResourcesTree(appName, res)
+}
+
+func (c *Cache) OnAppResourcesTreeChanged(ctx context.Context, appName string, callback func() error) error {
+	return c.cache.OnAppResourcesTreeChanged(ctx, appName, callback)
 }
 
 func (c *Cache) GetAppManagedResources(appName string, res *[]*appv1.ResourceDiff) error {

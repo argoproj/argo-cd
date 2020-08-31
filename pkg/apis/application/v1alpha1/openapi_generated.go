@@ -1058,7 +1058,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationStatus(ref common.Reference
 					},
 					"observedAt": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ObservedAt indicates when the application state was updated without querying latest git state",
+							Description: "ObservedAt indicates when the application state was updated without querying latest git state Deprecated: controller no longer updates ObservedAt field",
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
