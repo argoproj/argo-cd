@@ -146,7 +146,7 @@ export class ApplicationsFilter extends React.Component<ApplicationsFilterProps,
                             <p>Projects</p>
                             <ul>
                                 <li>
-                                    <DataLoader load={() => services.projects.list()}>
+                                    <DataLoader load={() => services.projects.list('items.metadata.name')}>
                                         {projects => {
                                             const projAppCount = new Map<string, number>();
                                             projects.forEach(proj => projAppCount.set(proj.metadata.name, 0));
