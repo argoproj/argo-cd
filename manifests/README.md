@@ -15,7 +15,7 @@ Four sets of installation manifests are provided:
   on inputted cluster credentials. An example of using this set of manifests is if you run several
   Argo CD instances for different teams, where each instance will be deploying applications to
   external clusters. Will still be possible to deploy to the same cluster (kubernetes.svc.default)
-  with inputted credentials (i.e. `argocd cluster add <CONTEXT> --in-cluster`).
+  with inputted credentials (i.e. `argocd cluster add <CONTEXT> --in-cluster --namespace <YOUR NAMESPACE>`).
 
 ## High Availability:
 
