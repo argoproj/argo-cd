@@ -58,6 +58,7 @@ func NewCommand() *cobra.Command {
 		repoServerAddress        string
 		dexServerAddress         string
 		disableAuth              bool
+		enableGZip               bool
 		tlsConfigCustomizerSrc   func() (tls.ConfigCustomizer, error)
 		cacheSrc                 func() (*servercache.Cache, error)
 		frameOptions             string
@@ -115,6 +116,7 @@ func NewCommand() *cobra.Command {
 				RepoClientset:       repoclientset,
 				DexServerAddr:       dexServerAddress,
 				DisableAuth:         disableAuth,
+				EnableGZip:          enableGZip,
 				TLSConfigCustomizer: tlsConfigCustomizer,
 				Cache:               cache,
 				XFrameOptions:       frameOptions,
@@ -146,6 +148,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&repoServerAddress, "repo-server", common.DefaultRepoServerAddr, "Repo server address")
 	command.Flags().StringVar(&dexServerAddress, "dex-server", common.DefaultDexServerAddr, "Dex server address")
 	command.Flags().BoolVar(&disableAuth, "disable-auth", false, "Disable client authentication")
+	command.Flags().BoolVar(&enableGZip, "enable-gzip", false, "Enable GZIP compression")
 	command.AddCommand(cli.NewVersionCmd(cliName))
 	command.Flags().IntVar(&listenPort, "port", common.DefaultPortAPIServer, "Listen on given port")
 	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortArgoCDAPIServerMetrics, "Start metrics on given port")
