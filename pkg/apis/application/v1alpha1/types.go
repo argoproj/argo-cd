@@ -2604,7 +2604,7 @@ func jwtTokensCombine(tokens1 []JWTToken, tokens2 []JWTToken) []JWTToken {
 		tokensMap[token.ID] = token
 	}
 
-	tokens := []JWTToken{}
+	var tokens []JWTToken
 	for _, v := range tokensMap {
 		tokens = append(tokens, v)
 	}

@@ -412,7 +412,6 @@ func (s *Server) NormalizeProjs() error {
 		return status.Errorf(codes.Internal, "Error retrieving project list: %s", err.Error())
 	}
 	for _, proj := range projList.Items {
-		// if !apierr.IsConflict(err), retry 3 times
 		for i := 0; i < 3; i++ {
 			if proj.NormalizeJWTTokens() {
 				_, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(context.Background(), &proj, metav1.UpdateOptions{})
@@ -432,6 +431,8 @@ func (s *Server) NormalizeProjs() error {
 				if i == 2 {
 					return status.Errorf(codes.Internal, "Failed normalize project %s", proj.Name)
 				}
+			} else {
+				break
 			}
 		}
 	}
