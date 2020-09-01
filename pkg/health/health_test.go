@@ -41,6 +41,10 @@ func TestStatefulSetHealth(t *testing.T) {
 	assertAppHealth(t, "./testdata/statefulset.yaml", HealthStatusHealthy)
 }
 
+func TestStatefulSetOnDeleteHealth(t *testing.T) {
+	assertAppHealth(t, "./testdata/statefulset-ondelete.yaml", HealthStatusHealthy)
+}
+
 func TestPVCHealth(t *testing.T) {
 	assertAppHealth(t, "./testdata/pvc-bound.yaml", HealthStatusHealthy)
 	assertAppHealth(t, "./testdata/pvc-pending.yaml", HealthStatusProgressing)

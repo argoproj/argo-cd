@@ -329,6 +329,12 @@ func getStatefulSetHealth(obj *unstructured.Unstructured) (*HealthStatus, error)
 			Message: fmt.Sprintf("partitioned roll out complete: %d new pods have been updated...", sts.Status.UpdatedReplicas),
 		}, nil
 	}
+	if sts.Spec.UpdateStrategy.Type == appsv1.OnDeleteStatefulSetStrategyType {
+		return &HealthStatus{
+			Status:  HealthStatusHealthy,
+			Message: fmt.Sprintf("statefulset has %d ready pods", sts.Status.ReadyReplicas),
+		}, nil
+	}
 	if sts.Status.UpdateRevision != sts.Status.CurrentRevision {
 		return &HealthStatus{
 			Status:  HealthStatusProgressing,
