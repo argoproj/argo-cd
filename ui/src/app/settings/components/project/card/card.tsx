@@ -110,7 +110,6 @@ export class Card<T> extends React.Component<CardProps<T>, CardState> {
         for (const i of tmp) {
             delete selected[i];
         }
-        console.log(selected);
         this.setState({selected});
         this.props.remove(idxs);
     }

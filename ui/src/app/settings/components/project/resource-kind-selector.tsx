@@ -1,8 +1,9 @@
 import * as React from 'react';
+import {ArgoAutocomplete} from './card/autocomplete';
 
 // https://kubernetes.io/docs/reference/kubectl/overview/#resource-types
 
-enum ResourceKinds {
+export enum ResourceKinds {
     ANY = '*',
     Binding = 'bindings',
     ComponentStatus = 'componentstatuses',
@@ -59,20 +60,11 @@ export type ResourceKind = keyof ResourceKinds;
 interface ResourceKindProps {
     onChange: (value: ResourceKinds) => void;
     init: ResourceKind;
+    placeholder: string;
 }
 
 export class ResourceKindSelector extends React.Component<ResourceKindProps> {
     public render() {
-        return (
-            <select className='card--select' onChange={e => this.props.onChange(e.target.value as ResourceKinds)} defaultValue={this.props.init as string}>
-                {Object.keys(ResourceKinds).map(kind => {
-                    return (
-                        <option key={kind} value={ResourceKinds[kind as any]}>
-                            {kind}
-                        </option>
-                    );
-                })}
-            </select>
-        );
+        return <ArgoAutocomplete onChange={this.props.onChange} init={this.props.init} values={Object.keys(ResourceKinds)} placeholder={this.props.placeholder} />;
     }
 }

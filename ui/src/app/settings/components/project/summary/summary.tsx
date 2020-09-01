@@ -1,13 +1,6 @@
 import * as React from 'react';
 
-import {
-    ApplicationDestination,
-    GroupKind,
-    OrphanedResource,
-    Project,
-    ProjectSignatureKey,
-    ProjectSpec
-} from '../../../../shared/models';
+import {ApplicationDestination, GroupKind, OrphanedResource, Project, ProjectSignatureKey, ProjectSpec} from '../../../../shared/models';
 import {services} from '../../../../shared/services';
 import {GetProp, SetProp} from '../../utils';
 import {Card} from '../card/card';
@@ -40,10 +33,10 @@ export type IterableSpecField = ApplicationDestination | GroupKind | ProjectSign
 const SourceFields: FieldData[] = [{name: 'url', type: FieldTypes.Url, size: FieldSizes.Grow}];
 const DestinationFields: FieldData[] = [{name: 'namespace', type: FieldTypes.Text, size: FieldSizes.Normal}, {name: 'server', type: FieldTypes.Text, size: FieldSizes.Grow}];
 const ResourceFields: FieldData[] = [
-    {name: 'group', type: FieldTypes.Text, size: FieldSizes.Normal},
+    {name: 'group', type: FieldTypes.AutoComplete, size: FieldSizes.Normal},
     {name: 'kind', type: FieldTypes.ResourceKindSelector, size: FieldSizes.Normal}
 ];
-const SignatureKeyFields: FieldData[] = [{name: 'keyID', type: FieldTypes.Text, size: FieldSizes.Normal}];
+const SignatureKeyFields: FieldData[] = [{name: 'keyID', type: FieldTypes.AutoComplete, size: FieldSizes.Normal}];
 const OrphanedResourceFields: FieldData[] = [
     {name: 'group', type: FieldTypes.Text, size: FieldSizes.Normal},
     {name: 'kind', type: FieldTypes.ResourceKindSelector, size: FieldSizes.Normal},
@@ -52,6 +45,9 @@ const OrphanedResourceFields: FieldData[] = [
 
 export class ProjectSummary extends React.Component<SummaryProps, SummaryState> {
     get descriptionChanged(): boolean {
+        if (!this.state.proj.spec.description && this.state.description === '') {
+            return false;
+        }
         return this.state.description !== this.state.proj.spec.description;
     }
     get orphanedResourceMonitoringEnabled(): boolean {
@@ -110,7 +106,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                                     <button
                                         className='project__button project__button-cancel'
                                         onClick={async () => {
-                                            this.setState({description: this.props.proj.spec.description});
+                                            this.setState({description: this.props.proj.spec.description || ''});
                                         }}>
                                         REVERT
                                     </button>
@@ -195,7 +191,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                 </div>
                 <div className='project-summary__section'>
                     <div className='project-summary__label'>
-                        SIGNATURE KEYS&nbsp;
+                        GPG SIGNATURE KEYS&nbsp;
                         <i className='fas fa-key' />
                     </div>
                     <div className='project-summary__section--row'>

@@ -3,17 +3,20 @@ import {Project} from '../../../../shared/models';
 import {GetProp, SetProp} from '../../utils';
 import {Banner, BannerIcon, BannerType} from '../banner/banner';
 import {ResourceKind, ResourceKindSelector} from '../resource-kind-selector';
+import {ArgoAutocomplete} from './autocomplete';
 
 export interface FieldData {
     type: FieldTypes;
     name: string;
-    size: FieldSizes
+    size: FieldSizes;
+    values?: FieldValue[];
 }
 
 export enum FieldTypes {
     Text = 'text',
     ResourceKindSelector = 'resourceKindSelector',
-    Url = 'url'
+    Url = 'url',
+    AutoComplete = 'autoComplete'
 }
 
 export enum FieldSizes {
@@ -108,7 +111,12 @@ export class CardRow<T> extends React.Component<CardRowProps<T>, CardRowState<T>
             const curVal = this.dataIsFieldValue ? this.state.data : GetProp(this.state.data as T, field.name as keyof T);
             switch (field.type) {
                 case FieldTypes.ResourceKindSelector:
-                    format = <ResourceKindSelector init={curVal as ResourceKind} onChange={value => update(value, field.name as keyof T)} />;
+                    format = <ResourceKindSelector placeholder={field.name} init={curVal as ResourceKind} onChange={value => update(value, field.name as keyof T)} />;
+                    break;
+                case FieldTypes.AutoComplete:
+                    format = (
+                        <ArgoAutocomplete values={['hello', 'world']} placeholder={field.name} onChange={val => update(val, field.name as keyof T)} init={curVal as FieldValue} />
+                    );
                     break;
                 default:
                     format = (
