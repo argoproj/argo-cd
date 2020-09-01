@@ -505,6 +505,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                     )
                 );
             })
+            .filter(([application, tree]) => !!application && !!tree)
             .map(([application, tree]) => ({application, tree}));
     }
 
