@@ -1695,6 +1695,11 @@ func TestProjectNormalize(t *testing.T) {
 		assert.Nil(t, p.Spec.Roles)
 		assert.Nil(t, p.Status.JWTTokensByRole)
 	})
+	t.Run("HasRoles_NoTokens", func(t *testing.T) {
+		p := AppProject{Spec: AppProjectSpec{Roles: []ProjectRole{{Name: "test-role"}}}}
+		needNormalize := p.NormalizeJWTTokens()
+		assert.False(t, needNormalize)
+	})
 	t.Run("SpecRolesToken-StatusRolesTokenEmpty", func(t *testing.T) {
 		p := AppProject{Spec: AppProjectSpec{Roles: []ProjectRole{{Name: "test-role", JWTTokens: testTokens}}}}
 		needNormalize := p.NormalizeJWTTokens()
