@@ -168,9 +168,9 @@ export class ApplicationsFilter extends React.Component<ApplicationsFilterProps,
                                 <li>
                                     <TagsInput
                                         placeholder='https://kubernetes.default.svc'
-                                        autocomplete={Array.from(new Set(applications.map(app => app.spec.destination.server).filter(item => !!item))).filter(
-                                            ns => pref.clustersFilter.indexOf(ns) === -1
-                                        )}
+                                        autocomplete={Array.from(
+                                            new Set(applications.map(app => app.spec.destination.server || app.spec.destination.name).filter(item => !!item))
+                                        ).filter(ns => pref.clustersFilter.indexOf(ns) === -1)}
                                         tags={pref.clustersFilter}
                                         onChange={selected => onChange({...pref, clustersFilter: selected})}
                                     />
