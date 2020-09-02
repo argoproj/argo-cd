@@ -321,12 +321,11 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
         if (arr.length < 1 || !arr) {
             return;
         }
-        for (const i of idxs) {
-            delete arr[i];
+        while (idxs.length) {
+            arr.splice(idxs.pop(), 1);
         }
         const update = {...this.state};
         SetProp(update, key as keyof SummaryState, arr);
-        this.setState(update);
         const res = await services.projects.updateLean(this.state.name, update.proj);
         this.updateProject(res);
     }

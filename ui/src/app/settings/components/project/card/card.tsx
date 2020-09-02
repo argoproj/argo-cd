@@ -23,7 +23,10 @@ interface CardState {
 export class Card<T> extends React.Component<CardProps<T>, CardState> {
     constructor(props: CardProps<T>) {
         super(props);
-        const selected: boolean[] = [];
+        let selected: boolean[] = [];
+        if (props.data) {
+            selected = new Array(props.data.length);
+        }
         this.state = {selected};
     }
     get selectedIdxs(): number[] {
@@ -79,7 +82,7 @@ export class Card<T> extends React.Component<CardProps<T>, CardState> {
                             </div>
                             {this.props.data.map((row, i) => {
                                 return (
-                                    <div key={row.toString() + '.' + i}>
+                                    <div key={this.generateKey(row)}>
                                         <CardRow<T>
                                             fields={this.props.fields}
                                             data={row}
@@ -107,8 +110,8 @@ export class Card<T> extends React.Component<CardProps<T>, CardState> {
     private remove(idxs: number[]) {
         const tmp = [...idxs];
         const selected = this.state.selected;
-        for (const i of tmp) {
-            delete selected[i];
+        while (tmp.length) {
+            selected.splice(tmp.pop(), 1);
         }
         this.setState({selected});
         this.props.remove(idxs);
@@ -119,5 +122,8 @@ export class Card<T> extends React.Component<CardProps<T>, CardState> {
                 <div className={`card__col card__col-fill-${this.props.fields.length}`}>Project has no {this.props.title}</div>
             </div>
         );
+    }
+    private generateKey(d: T) {
+        return JSON.stringify(d) + Math.random();
     }
 }

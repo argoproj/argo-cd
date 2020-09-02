@@ -130,7 +130,7 @@ export class CardRow<T> extends React.Component<CardRowProps<T>, CardRowState<T>
                     );
             }
             return (
-                <div key={field.name + '.' + i} className={`card__col-input card__col card__col-${field.size}`}>
+                <div key={field.name} className={`card__col-input card__col card__col-${field.size}`}>
                     {format}
                     {field.type === FieldTypes.Url && (curVal as string) !== '' && (curVal as string) !== null && (curVal as string) !== '*' ? (
                         <a className='card__link-icon' href={curVal as string} target='_blank'>
