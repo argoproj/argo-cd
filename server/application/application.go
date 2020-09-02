@@ -61,6 +61,7 @@ type Server struct {
 	kubeclientset  kubernetes.Interface
 	appclientset   appclientset.Interface
 	appLister      applisters.ApplicationNamespaceLister
+	appInformer    cache.SharedIndexInformer
 	appBroadcaster *broadcasterHandler
 	repoClientset  apiclient.Clientset
 	kubectl        kube.Kubectl
@@ -93,6 +94,7 @@ func NewServer(
 		ns:             namespace,
 		appclientset:   appclientset,
 		appLister:      appLister,
+		appInformer:    appInformer,
 		appBroadcaster: appBroadcaster,
 		kubeclientset:  kubeclientset,
 		cache:          cache,
@@ -132,6 +134,9 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*ap
 		return newItems[i].Name < newItems[j].Name
 	})
 	appList := appv1.ApplicationList{
+		ListMeta: metav1.ListMeta{
+			ResourceVersion: s.appInformer.LastSyncResourceVersion(),
+		},
 		Items: newItems,
 	}
 	return &appList, nil
