@@ -5,7 +5,7 @@
     - [Performance](#performance)
     - [ApplicationsSet](#applicationsset)
     - [Large Applications support](#large-applications-support)
-    - [Supportability](#supportability)
+    - [Serviceability](#serviceability)
     - [GitOps Engine Enhancements](#gitops-engine-enhancements)
     - [GitOps Agent](#gitops-agent)
     - [Config Management Tools Integrations](#config-management-tools-integrations)
@@ -50,9 +50,10 @@ maintenance overhead, security, and lack of some additional features.
 The application details page is not suitable to visualize applications that include a large number of resources (hundreds of resources). The page has to be reworked
 to improve user experience.
 
-### Supportability
+### Serviceability
 
-To make Argo CD successful we need to build tools that enable Argo CD operators to handle scalability and performance issues without asking the Argo CD team for help.
+To make Argo CD successful we need to build tools that enable Argo CD administrators to handle scalability and performance issues in a self-service model.
+
 That includes more metrics, out of the box alerts and a cluster management user interface.
 
 ### GitOps Engine Enhancements
