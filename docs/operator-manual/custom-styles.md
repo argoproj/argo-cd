@@ -5,7 +5,7 @@ Sometimes, it may be desired to customize certain components of the UI for brand
 help distinguish between multiple instances of Argo CD running in different environments.
 
 Such custom styling can be applied either by supplying a URL to a remotely hosted CSS file, or by 
-loading a CSS file directly onto the argocd-server container.  Both mechanisms are drievn by modifying
+loading a CSS file directly onto the argocd-server container.  Both mechanisms are driven by modifying
 the argocd-cm configMap.
 
 ## Adding Styles Via Remote URL

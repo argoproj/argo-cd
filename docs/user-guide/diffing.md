@@ -58,7 +58,7 @@ data:
         - /webhooks/0/clientConfig/caBundle
 ```
 
-The `status` field of `CustomResourceDefintions` is often stored in Git/Helm manifest and should be ignored during diffing. The `ignoreResourceStatusField` setting simplifies
+The `status` field of `CustomResourceDefinitions` is often stored in Git/Helm manifest and should be ignored during diffing. The `ignoreResourceStatusField` setting simplifies
 handling that edge case:
 
 ```yaml
@@ -71,7 +71,7 @@ data:
     ignoreResourceStatusField: crd
 ```
 
-By default `status` field is ignored during diffing for `CustomResourceDefinition` resourcse. The behavior can be extended to all resources using `all` value or disabled using `none`.
+By default `status` field is ignored during diffing for `CustomResourceDefinition` resource. The behavior can be extended to all resources using `all` value or disabled using `none`.
 
 ## Known Kubernetes types in CRDs (Resource limits, Volume mounts etc)
 
