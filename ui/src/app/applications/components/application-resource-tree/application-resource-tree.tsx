@@ -116,7 +116,22 @@ function filterGraph(app: models.Application, filteredIndicatorParent: string, g
 }
 
 function compareNodes(first: ResourceTreeNode, second: ResourceTreeNode) {
-    return `${(first.orphaned && '1') || '0'}/${nodeKey(first)}`.localeCompare(`${(second.orphaned && '1') || '0'}/${nodeKey(second)}`);
+    function orphanedToInt(orphaned?: boolean) {
+        return (orphaned && 1) || 0;
+    }
+    function compareRevision(a: string, b: string) {
+        const numberA = Number(a);
+        const numberB = Number(b);
+        if (isNaN(numberA) || isNaN(numberB)) {
+            return a.localeCompare(b);
+        }
+        return Math.sign(numberA - numberB);
+    }
+    return (
+        orphanedToInt(first.orphaned) - orphanedToInt(second.orphaned) ||
+        compareRevision(first.resourceVersion, second.resourceVersion) ||
+        nodeKey(first).localeCompare(nodeKey(second))
+    );
 }
 
 function appNodeKey(app: models.Application) {
