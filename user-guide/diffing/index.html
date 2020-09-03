@@ -1491,7 +1491,7 @@ of a <code>MutatingWebhookConfiguration</code> webhooks:</p>
 </code></pre></div>
 
 
-<p>The <code>status</code> field of <code>CustomResourceDefintions</code> is often stored in Git/Helm manifest and should be ignored during diffing. The <code>ignoreResourceStatusField</code> setting simplifies
+<p>The <code>status</code> field of <code>CustomResourceDefinitions</code> is often stored in Git/Helm manifest and should be ignored during diffing. The <code>ignoreResourceStatusField</code> setting simplifies
 handling that edge case:</p>
 <div class="codehilite"><pre><span></span><code><span class="nt">data</span><span class="p">:</span>
   <span class="nt">resource.compareoptions</span><span class="p">:</span> <span class="p p-Indicator">|</span>
@@ -1503,7 +1503,7 @@ handling that edge case:</p>
 </code></pre></div>
 
 
-<p>By default <code>status</code> field is ignored during diffing for <code>CustomResourceDefinition</code> resourcse. The behavior can be extended to all resources using <code>all</code> value or disabled using <code>none</code>.</p>
+<p>By default <code>status</code> field is ignored during diffing for <code>CustomResourceDefinition</code> resource. The behavior can be extended to all resources using <code>all</code> value or disabled using <code>none</code>.</p>
 <h2 id="known-kubernetes-types-in-crds-resource-limits-volume-mounts-etc">Known Kubernetes types in CRDs (Resource limits, Volume mounts etc)<a class="headerlink" href="#known-kubernetes-types-in-crds-resource-limits-volume-mounts-etc" title="Permanent link">&para;</a></h2>
 <p>Some CRDs are re-using data structures defined in the Kubernetes source base and therefore inheriting custom
 JSON/YAML marshaling. Custom marshalers might serialize CRDs in a slightly different format that causes false

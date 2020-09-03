@@ -1392,14 +1392,14 @@ the groups scope. Make sure to set the <strong>Name</strong> as well as the <str
 <p><img alt="Keycloak groups mapper" src="../../../assets/keycloak-groups-mapper.png" title="Keycloak groups mapper" /></p>
 <p>We can now configure the client to provide the <em>groups</em> scope. You can now assign the <em>groups</em> scope either to the <strong>Assigned Default Client Scopes</strong> 
 or to the <strong>Assigned Optional Client Scopes</strong>. If you put it in the Optional category you will need to make sure that ArgoCD requests the scope in
-it's OIDC configuation. </p>
+it's OIDC configuration. </p>
 <p><img alt="Keycloak client scope" src="../../../assets/keycloak-client-scope.png" title="Keycloak client scope" /></p>
 <p>Since we will always want group information, I recommend using the Default category. Make sure you click <strong>Add selected</strong>
 and that the <em>groups</em> claim is in the correct list on the <strong>right</strong>.</p>
 <p><img alt="Keycloak client scope selected" src="../../../assets/keycloak-client-scope-selected.png" title="Keycloak client scope selected" /></p>
 <p>Create a group called <em>ArgoCDAdmins</em> and have your current user join the group.</p>
 <p><img alt="Keycloak user group" src="../../../assets/keycloak-user-group.png" title="Keycloak user group" /></p>
-<h2 id="confguring-argocd-oidc">Confguring ArgoCD OIDC<a class="headerlink" href="#confguring-argocd-oidc" title="Permanent link">&para;</a></h2>
+<h2 id="configuring-argocd-oidc">Configuring ArgoCD OIDC<a class="headerlink" href="#configuring-argocd-oidc" title="Permanent link">&para;</a></h2>
 <p>Let's start by storing the client secret you generated earlier in the argocd secret <em>argocd-secret</em>.</p>
 <ol>
 <li>First you'll need to encode the client secret in base64: <code>$ echo -n '83083958-8ec6-47b0-a411-a8c55381fbd2' | base64</code></li>
