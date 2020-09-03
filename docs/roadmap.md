@@ -43,7 +43,7 @@ Argo CD Applications allow splitting the cluster configuration into logic groups
 is a configuration that should be managed declaratively as well. The app-of-apps pattern solves this problem but still has some challenges such as
 maintenance overhead, security, and lack of some additional features.
 
-[ApplicationsSet](https://github.com/argoproj-labs/applicationset) project provides a better solution for managing applications accross multiple environments.
+[ApplicationsSet](https://github.com/argoproj-labs/applicationset) project provides a better solution for managing applications across multiple environments.
 
 ### Large Applications support
 

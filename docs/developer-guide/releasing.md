@@ -93,7 +93,7 @@ action is `Create release`. Don't get confused by the name of the running
 workflow, it will be the commit message of the latest commit to `master`
 branch, this is a limitation of GH actions.
 
-The workflow performs necessary checks so that the release can be sucessfully
+The workflow performs necessary checks so that the release can be successfully
 build before the build actually starts. It will error when one of the
 prerequisites is not met, or if the release cannot be build (i.e. already
 exists, release notes invalid, etc etc). You can see a summary of what has

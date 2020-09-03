@@ -94,7 +94,7 @@ This step registers a cluster's credentials to Argo CD, and is only necessary wh
 an external cluster. When deploying internally (to the same cluster that Argo CD is running in),
 https://kubernetes.default.svc should be used as the application's K8s API server address.
 
-First list all clusters contexts in your current kubconfig:
+First list all clusters contexts in your current kubeconfig:
 ```bash
 argocd cluster add
 ```
