@@ -68,6 +68,8 @@ type ArgoCDSettings struct {
 	KustomizeBuildOptions string `json:"kustomizeBuildOptions,omitempty"`
 	// Indicates if anonymous user is enabled or not
 	AnonymousUserEnabled bool `json:"anonymousUserEnabled,omitempty"`
+	// UiCssURL local or remote path to user-defined CSS to customize ArgoCD UI
+	UiCssURL string `json:"uiCssURL,omitempty"`
 }
 
 type GoogleAnalytics struct {
@@ -235,6 +237,8 @@ const (
 	anonymousUserEnabledKey = "users.anonymous.enabled"
 	// diffOptions is the key where diff options are configured
 	resourceCompareOptionsKey = "resource.compareoptions"
+	// settingUiCssURLKey designates the key for user-defined CSS URL for UI customization
+	settingUiCssURLKey = "ui.cssurl"
 )
 
 // SettingsManager holds config info for a new manager with which to access Kubernetes ConfigMaps.
@@ -321,9 +325,9 @@ func (mgr *SettingsManager) updateSecret(callback func(*apiv1.Secret) error) err
 	}
 
 	if createSecret {
-		_, err = mgr.clientset.CoreV1().Secrets(mgr.namespace).Create(updatedSecret)
+		_, err = mgr.clientset.CoreV1().Secrets(mgr.namespace).Create(context.Background(), updatedSecret, metav1.CreateOptions{})
 	} else {
-		_, err = mgr.clientset.CoreV1().Secrets(mgr.namespace).Update(updatedSecret)
+		_, err = mgr.clientset.CoreV1().Secrets(mgr.namespace).Update(context.Background(), updatedSecret, metav1.UpdateOptions{})
 	}
 	if err != nil {
 		return err
@@ -355,9 +359,9 @@ func (mgr *SettingsManager) updateConfigMap(callback func(*apiv1.ConfigMap) erro
 	}
 
 	if createCM {
-		_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Create(argoCDCM)
+		_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Create(context.Background(), argoCDCM, metav1.CreateOptions{})
 	} else {
-		_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Update(argoCDCM)
+		_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Update(context.Background(), argoCDCM, metav1.UpdateOptions{})
 	}
 
 	if err != nil {
@@ -786,13 +790,33 @@ func (mgr *SettingsManager) ensureSynced(forceResync bool) error {
 	return mgr.initialize(ctx)
 }
 
+// updateSettingsFromConfigMap transfers settings from a Kubernetes configmap into an ArgoCDSettings struct.
 func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.ConfigMap) {
 	settings.DexConfig = argoCDCM.Data[settingDexConfigKey]
 	settings.OIDCConfigRAW = argoCDCM.Data[settingsOIDCConfigKey]
-	settings.URL = argoCDCM.Data[settingURLKey]
 	settings.KustomizeBuildOptions = argoCDCM.Data[kustomizeBuildOptionsKey]
 	settings.StatusBadgeEnabled = argoCDCM.Data[statusBadgeEnabledKey] == "true"
 	settings.AnonymousUserEnabled = argoCDCM.Data[anonymousUserEnabledKey] == "true"
+	settings.UiCssURL = argoCDCM.Data[settingUiCssURLKey]
+	if err := validateExternalURL(argoCDCM.Data[settingURLKey]); err != nil {
+		log.Warnf("Failed to validate URL in configmap: %v", err)
+	}
+	settings.URL = argoCDCM.Data[settingURLKey]
+}
+
+// validateExternalURL ensures the external URL that is set on the configmap is valid
+func validateExternalURL(u string) error {
+	if u == "" {
+		return nil
+	}
+	URL, err := url.Parse(u)
+	if err != nil {
+		return fmt.Errorf("Failed to parse URL: %v", err)
+	}
+	if URL.Scheme != "http" && URL.Scheme != "https" {
+		return fmt.Errorf("URL must inlcude http or https protocol")
+	}
+	return nil
 }
 
 // updateSettingsFromSecret transfers settings from a Kubernetes secret into an ArgoCDSettings struct.
@@ -859,6 +883,9 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 		} else {
 			delete(argoCDCM.Data, settingsOIDCConfigKey)
 		}
+		if settings.UiCssURL != "" {
+			argoCDCM.Data[settingUiCssURLKey] = settings.UiCssURL
+		}
 		return nil
 	})
 
@@ -919,7 +946,7 @@ func (mgr *SettingsManager) SaveSSHKnownHostsData(ctx context.Context, knownHost
 
 	sshKnownHostsData := strings.Join(knownHostsList, "\n") + "\n"
 	certCM.Data["ssh_known_hosts"] = sshKnownHostsData
-	_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Update(certCM)
+	_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Update(ctx, certCM, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
@@ -939,7 +966,7 @@ func (mgr *SettingsManager) SaveTLSCertificateData(ctx context.Context, tlsCerti
 	}
 
 	certCM.Data = tlsCertificates
-	_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Update(certCM)
+	_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Update(ctx, certCM, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
@@ -959,7 +986,7 @@ func (mgr *SettingsManager) SaveGPGPublicKeyData(ctx context.Context, gpgPublicK
 	}
 
 	keysCM.Data = gpgPublicKeys
-	_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Update(keysCM)
+	_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Update(ctx, keysCM, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}

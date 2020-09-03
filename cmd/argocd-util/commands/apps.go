@@ -9,7 +9,6 @@ import (
 	"sort"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/ghodss/yaml"
@@ -142,9 +141,12 @@ func diffReconcileResults(res1 reconcileResults, res2 reconcileResults) error {
 		}
 		pairs = append(pairs, diffPair{name: k, first: nil, second: secondUn})
 	}
+	sort.Slice(pairs, func(i, j int) bool {
+		return pairs[i].name < pairs[j].name
+	})
 	for _, item := range pairs {
 		printLine(item.name)
-		_ = diff.PrintDiff(item.name, item.first, item.second)
+		_ = cli.PrintDiff(item.name, item.first, item.second)
 	}
 
 	return nil
@@ -229,7 +231,7 @@ func saveToFile(err error, outputFormat string, result reconcileResults, outputP
 }
 
 func getReconcileResults(appClientset appclientset.Interface, namespace string, selector string) ([]appReconcileResult, error) {
-	appsList, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(v1.ListOptions{LabelSelector: selector})
+	appsList, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(context.Background(), v1.ListOptions{LabelSelector: selector})
 	if err != nil {
 		return nil, err
 	}
@@ -285,7 +287,7 @@ func reconcileApplications(
 	appStateManager := controller.NewAppStateManager(
 		argoDB, appClientset, repoServerClient, namespace, &kube.KubectlCmd{}, settingsMgr, stateCache, projInformer, server)
 
-	appsList, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(v1.ListOptions{LabelSelector: selector})
+	appsList, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(context.Background(), v1.ListOptions{LabelSelector: selector})
 	if err != nil {
 		return nil, err
 	}

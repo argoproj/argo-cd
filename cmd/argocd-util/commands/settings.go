@@ -12,7 +12,6 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/argoproj/gitops-engine/pkg/diff"
 	healthutil "github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/ghodss/yaml"
@@ -73,7 +72,7 @@ func (opts *settingsOpts) createSettingsManager() (*settings.SettingsManager, er
 			return nil, err
 		}
 
-		argocdCM, err = realClientset.CoreV1().ConfigMaps(ns).Get(common.ArgoCDConfigMapName, v1.GetOptions{})
+		argocdCM, err = realClientset.CoreV1().ConfigMaps(ns).Get(context.Background(), common.ArgoCDConfigMapName, v1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -105,7 +104,7 @@ func (opts *settingsOpts) createSettingsManager() (*settings.SettingsManager, er
 		if err != nil {
 			return nil, err
 		}
-		argocdSecret, err = realClientset.CoreV1().Secrets(ns).Get(common.ArgoCDSecretName, v1.GetOptions{})
+		argocdSecret, err = realClientset.CoreV1().Secrets(ns).Get(context.Background(), common.ArgoCDSecretName, v1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -423,7 +422,7 @@ argocd-util settings resource-overrides ignore-differences ./deploy.yaml --argoc
 				}
 
 				_, _ = fmt.Printf("Following fields are ignored:\n\n")
-				_ = diff.PrintDiff(res.GetName(), &res, normalizedRes)
+				_ = cli.PrintDiff(res.GetName(), &res, normalizedRes)
 			})
 		},
 	}
@@ -538,7 +537,7 @@ argocd-util settings resource-overrides action run /tmp/deploy.yaml restart --ar
 				}
 
 				_, _ = fmt.Printf("Following fields have been changed:\n\n")
-				_ = diff.PrintDiff(res.GetName(), &res, modifiedRes)
+				_ = cli.PrintDiff(res.GetName(), &res, modifiedRes)
 			})
 		},
 	}

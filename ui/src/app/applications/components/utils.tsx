@@ -205,7 +205,7 @@ export const ResourceResultIcon = ({resource}: {resource: appModels.ResourceResu
         }
         let title: string = resource.message;
         if (resource.message) {
-            title = `${resource.status}: ${resource.message};`;
+            title = `${resource.status}: ${resource.message}`;
         }
         return <i title={title} className={'fa ' + icon} style={{color}} />;
     }

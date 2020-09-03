@@ -9,8 +9,9 @@ import (
 	"path/filepath"
 	"regexp"
 
-	executil "github.com/argoproj/gitops-engine/pkg/utils/exec"
 	"github.com/argoproj/gitops-engine/pkg/utils/io"
+
+	executil "github.com/argoproj/argo-cd/util/exec"
 )
 
 // A thin wrapper around the "helm" command, adding logging and error translation.
@@ -21,7 +22,15 @@ type Cmd struct {
 	IsLocal  bool
 }
 
-func NewCmd(workDir string) (*Cmd, error) {
+func NewCmd(workDir string, version string) (*Cmd, error) {
+	if version != "" {
+		switch version {
+		case "v2":
+			return NewCmdWithVersion(workDir, HelmV2)
+		case "v3":
+			return NewCmdWithVersion(workDir, HelmV3)
+		}
+	}
 	helmVersion, err := getHelmVersion(workDir)
 	if err != nil {
 		return nil, err

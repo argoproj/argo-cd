@@ -57,7 +57,7 @@ func TestSaveRepositories(t *testing.T) {
 	kubeClient, settingsManager := fixtures(nil)
 	err := settingsManager.SaveRepositories([]Repository{{URL: "http://foo"}})
 	assert.NoError(t, err)
-	cm, err := kubeClient.CoreV1().ConfigMaps("default").Get(common.ArgoCDConfigMapName, metav1.GetOptions{})
+	cm, err := kubeClient.CoreV1().ConfigMaps("default").Get(context.Background(), common.ArgoCDConfigMapName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, cm.Data["repositories"], "- url: http://foo\n")
 
@@ -72,7 +72,7 @@ func TestSaveRepositoriesNoConfigMap(t *testing.T) {
 
 	err := settingsManager.SaveRepositories([]Repository{{URL: "http://foo"}})
 	assert.NoError(t, err)
-	cm, err := kubeClient.CoreV1().ConfigMaps("default").Get(common.ArgoCDConfigMapName, metav1.GetOptions{})
+	cm, err := kubeClient.CoreV1().ConfigMaps("default").Get(context.Background(), common.ArgoCDConfigMapName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, cm.Data["repositories"], "- url: http://foo\n")
 }
@@ -81,7 +81,7 @@ func TestSaveRepositoryCredentials(t *testing.T) {
 	kubeClient, settingsManager := fixtures(nil)
 	err := settingsManager.SaveRepositoryCredentials([]RepositoryCredentials{{URL: "http://foo"}})
 	assert.NoError(t, err)
-	cm, err := kubeClient.CoreV1().ConfigMaps("default").Get(common.ArgoCDConfigMapName, metav1.GetOptions{})
+	cm, err := kubeClient.CoreV1().ConfigMaps("default").Get(context.Background(), common.ArgoCDConfigMapName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, cm.Data["repository.credentials"], "- url: http://foo\n")
 
@@ -396,5 +396,27 @@ func TestRedirectURL(t *testing.T) {
 		dexRedirectURL, err := settings.DexRedirectURL()
 		assert.NoError(t, err)
 		assert.Equal(t, expected[1], dexRedirectURL)
+	}
+}
+
+func Test_validateExternalURL(t *testing.T) {
+	tests := []struct {
+		name   string
+		url    string
+		errMsg string
+	}{
+		{name: "Valid URL", url: "https://my.domain.com"},
+		{name: "No URL - Valid", url: ""},
+		{name: "Invalid URL", url: "my.domain.com", errMsg: "URL must inlcude http or https protocol"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateExternalURL(tt.url)
+			if tt.errMsg != "" {
+				assert.EqualError(t, err, tt.errMsg)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
 	}
 }

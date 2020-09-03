@@ -134,7 +134,7 @@ func replaceListSecrets(obj []interface{}, secretValues map[string]string) []int
 // https://github.com/dexidp/dex/tree/master/Documentation/connectors
 func needsRedirectURI(connectorType string) bool {
 	switch connectorType {
-	case "oidc", "saml", "microsoft", "linkedin", "gitlab", "github", "bitbucket-cloud":
+	case "oidc", "saml", "microsoft", "linkedin", "gitlab", "github", "bitbucket-cloud", "openshift":
 		return true
 	}
 	return false

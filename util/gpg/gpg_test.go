@@ -5,10 +5,12 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/test"
@@ -60,10 +62,20 @@ func Test_GPG_InitializeGnuPG(t *testing.T) {
 	assert.Len(t, keys, 1)
 	assert.Equal(t, keys[0].Trust, "ultimate")
 
-	// Second run should return error
+	// During unit-tests, we need to also kill gpg-agent so we can create a new key.
+	// In real world scenario -- i.e. container crash -- gpg-agent is not running yet.
+	cmd := exec.Command("gpgconf", "--kill", "gpg-agent")
+	cmd.Env = []string{fmt.Sprintf("GNUPGHOME=%s", p)}
+	err = cmd.Run()
+	require.NoError(t, err)
+
+	// Second run should not return error
 	err = InitializeGnuPG()
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "already initialized")
+	require.NoError(t, err)
+	keys, err = GetInstalledPGPKeys(nil)
+	assert.NoError(t, err)
+	assert.Len(t, keys, 1)
+	assert.Equal(t, keys[0].Trust, "ultimate")
 
 	// GNUPGHOME is a file - we need to error out
 	f, err := ioutil.TempFile("", "gpg-test")
@@ -96,6 +108,8 @@ func Test_GPG_InitializeGnuPG(t *testing.T) {
 	}
 
 	// GNUPGHOME with too wide permissions
+	// We do not expect an error here, because of openshift's random UIDs that
+	// forced us to use an emptyDir mount (#4127)
 	p = initTempDir()
 	defer os.RemoveAll(p)
 	err = os.Chmod(p, 0777)
@@ -104,8 +118,7 @@ func Test_GPG_InitializeGnuPG(t *testing.T) {
 	}
 	os.Setenv(common.EnvGnuPGHome, p)
 	err = InitializeGnuPG()
-	assert.Error(t, err)
-
+	assert.NoError(t, err)
 }
 
 func Test_GPG_KeyManagement(t *testing.T) {

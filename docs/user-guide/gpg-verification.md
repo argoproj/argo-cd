@@ -1,4 +1,4 @@
-# GnuPG signature verifcation
+# GnuPG signature verification
 
 ## Overview
 

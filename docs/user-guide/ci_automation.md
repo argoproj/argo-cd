@@ -27,7 +27,7 @@ git clone https://github.com/mycompany/guestbook-config.git
 cd guestbook-config
 
 # kustomize
-kustomize edit set imagetag mycompany/guestbook:v2.0
+kustomize edit set image mycompany/guestbook:v2.0
 
 # ksonnet
 ks param set guestbook image mycompany/guestbook:v2.0

@@ -31,6 +31,20 @@ spec:
         spec:
           description: AppProjectSpec is the specification of an AppProject
           properties:
+            clusterResourceBlacklist:
+              description: ClusterResourceBlacklist contains list of blacklisted cluster level resources
+              items:
+                description: GroupKind specifies a Group and a Kind, but does not force a version.  This is useful for identifying concepts during lookup stages without having partially valid types
+                properties:
+                  group:
+                    type: string
+                  kind:
+                    type: string
+                required:
+                - group
+                - kind
+                type: object
+              type: array
             clusterResourceWhitelist:
               description: ClusterResourceWhitelist contains list of whitelisted cluster level resources
               items:
@@ -203,31 +217,6 @@ spec:
                     type: string
                 type: object
               type: array
-          type: object
-        status:
-          description: AppProjectStatus contains information about appproj
-          properties:
-            jwtTokensByRole:
-              additionalProperties:
-                properties:
-                  items:
-                    items:
-                      description: JWTToken holds the issuedAt and expiresAt values of a token
-                      properties:
-                        exp:
-                          format: int64
-                          type: integer
-                        iat:
-                          format: int64
-                          type: integer
-                        id:
-                          type: string
-                      required:
-                      - iat
-                      type: object
-                    type: array
-                type: object
-              type: object
           type: object
       required:
       - metadata

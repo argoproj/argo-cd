@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,7 +12,6 @@ import (
 	appclient "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/typed/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/cli"
 
-	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/spf13/cobra"
@@ -69,9 +69,9 @@ func saveProject(updated v1alpha1.AppProject, orig v1alpha1.AppProject, projects
 	if err != nil {
 		return err
 	}
-	_ = diff.PrintDiff(updated.Name, target, live)
+	_ = cli.PrintDiff(updated.Name, target, live)
 	if !dryRun {
-		_, err = projectsIf.Update(&updated)
+		_, err = projectsIf.Update(context.Background(), &updated, v1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
@@ -145,7 +145,7 @@ func NewUpdatePolicyRuleCommand() *cobra.Command {
 }
 
 func updateProjects(projIf appclient.AppProjectInterface, projectGlob string, rolePattern string, action string, modification func(string, string) string, dryRun bool) error {
-	projects, err := projIf.List(v1.ListOptions{})
+	projects, err := projIf.List(context.Background(), v1.ListOptions{})
 	if err != nil {
 		return err
 	}

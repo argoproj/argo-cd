@@ -34,6 +34,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSummary":               schema_pkg_apis_application_v1alpha1_ApplicationSummary(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationTree":                  schema_pkg_apis_application_v1alpha1_ApplicationTree(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationWatchEvent":            schema_pkg_apis_application_v1alpha1_ApplicationWatchEvent(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Backoff":                          schema_pkg_apis_application_v1alpha1_Backoff(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Cluster":                          schema_pkg_apis_application_v1alpha1_Cluster(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ClusterCacheInfo":                 schema_pkg_apis_application_v1alpha1_ClusterCacheInfo(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ClusterConfig":                    schema_pkg_apis_application_v1alpha1_ClusterConfig(ref),
@@ -83,6 +84,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceRef":                      schema_pkg_apis_application_v1alpha1_ResourceRef(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceResult":                   schema_pkg_apis_application_v1alpha1_ResourceResult(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceStatus":                   schema_pkg_apis_application_v1alpha1_ResourceStatus(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RetryStrategy":                    schema_pkg_apis_application_v1alpha1_RetryStrategy(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RevisionHistory":                  schema_pkg_apis_application_v1alpha1_RevisionHistory(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RevisionMetadata":                 schema_pkg_apis_application_v1alpha1_RevisionMetadata(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SignatureKey":                     schema_pkg_apis_application_v1alpha1_SignatureKey(ref),
@@ -341,6 +343,19 @@ func schema_pkg_apis_application_v1alpha1_AppProjectSpec(ref common.ReferenceCal
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SignatureKey"),
+									},
+								},
+							},
+						},
+					},
+					"clusterResourceBlacklist": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ClusterResourceBlacklist contains list of blacklisted cluster level resources",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.GroupKind"),
 									},
 								},
 							},
@@ -709,6 +724,13 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceHelm(ref common.Refer
 							},
 						},
 					},
+					"version": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Version is the Helm version to use for templating with",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
@@ -1043,7 +1065,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationStatus(ref common.Reference
 					},
 					"observedAt": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ObservedAt indicates when the application state was updated without querying latest git state",
+							Description: "ObservedAt indicates when the application state was updated without querying latest git state Deprecated: controller no longer updates ObservedAt field",
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
@@ -1175,6 +1197,40 @@ func schema_pkg_apis_application_v1alpha1_ApplicationWatchEvent(ref common.Refer
 	}
 }
 
+func schema_pkg_apis_application_v1alpha1_Backoff(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Backoff is a backoff strategy to use within retryStrategy",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"duration": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Duration is the amount to back off. Default unit is seconds, but could also be a duration (e.g. \"2m\", \"1h\")",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"factor": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Factor is a factor to multiply the base duration after each failed retry",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"maxDuration": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MaxDuration is the maximum amount of time allowed for the backoff strategy",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 func schema_pkg_apis_application_v1alpha1_Cluster(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -1217,7 +1273,7 @@ func schema_pkg_apis_application_v1alpha1_Cluster(ref common.ReferenceCallback) 
 					},
 					"namespaces": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Holds list of namespaces which are accessible in that cluster. Cluster level resources would be ignored if namespace list if not empty.",
+							Description: "Holds list of namespaces which are accessible in that cluster. Cluster level resources would be ignored if namespace list is not empty.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -2021,11 +2077,17 @@ func schema_pkg_apis_application_v1alpha1_Operation(ref common.ReferenceCallback
 							},
 						},
 					},
+					"retry": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Retry controls failed sync retry behavior",
+							Ref:         ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RetryStrategy"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Info", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.OperationInitiator", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncOperation"},
+			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Info", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.OperationInitiator", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RetryStrategy", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncOperation"},
 	}
 }
 
@@ -2099,6 +2161,13 @@ func schema_pkg_apis_application_v1alpha1_OperationState(ref common.ReferenceCal
 						SchemaProps: spec.SchemaProps{
 							Description: "FinishedAt contains time of operation completion",
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"retryCount": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RetryCount contains time of operation retries",
+							Type:        []string{"integer"},
+							Format:      "int64",
 						},
 					},
 				},
@@ -3273,6 +3342,33 @@ func schema_pkg_apis_application_v1alpha1_ResourceStatus(ref common.ReferenceCal
 	}
 }
 
+func schema_pkg_apis_application_v1alpha1_RetryStrategy(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"limit": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Limit is the maximum number of attempts when retrying a container",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"backoff": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Backoff is a backoff strategy",
+							Ref:         ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Backoff"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Backoff"},
+	}
+}
+
 func schema_pkg_apis_application_v1alpha1_RevisionHistory(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -3594,11 +3690,17 @@ func schema_pkg_apis_application_v1alpha1_SyncPolicy(ref common.ReferenceCallbac
 							},
 						},
 					},
+					"retry": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Retry controls failed sync retry behavior",
+							Ref:         ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RetryStrategy"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncPolicyAutomated"},
+			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RetryStrategy", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncPolicyAutomated"},
 	}
 }
 

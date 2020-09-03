@@ -15,6 +15,7 @@ export const RevisionMetadataPanel = (props: {appName: string; type: string; rev
                     content={
                         <span>
                             {m.author && <React.Fragment>Authored by {m.author}</React.Fragment>}
+                            <br />
                             {m.date && <Timestamp date={m.date} />}
                             <br />
                             {m.tags && (

@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"context"
 	"errors"
 	"time"
 )
@@ -18,4 +19,6 @@ type CacheClient interface {
 	Set(item *Item) error
 	Get(key string, obj interface{}) error
 	Delete(key string) error
+	OnUpdated(ctx context.Context, key string, callback func() error) error
+	NotifyUpdated(key string) error
 }

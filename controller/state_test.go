@@ -121,6 +121,33 @@ func TestCompareAppStateHook(t *testing.T) {
 	assert.Equal(t, 0, len(app.Status.Conditions))
 }
 
+// TestCompareAppStateSkipHook checks that skipped resources are detected during manifest generation, and not
+// considered as part of resources when assessing Synced status
+func TestCompareAppStateSkipHook(t *testing.T) {
+	pod := NewPod()
+	pod.SetAnnotations(map[string]string{synccommon.AnnotationKeyHook: "Skip"})
+	podBytes, _ := json.Marshal(pod)
+	app := newFakeApp()
+	data := fakeData{
+		apps: []runtime.Object{app},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{string(podBytes)},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+	}
+	ctrl := newFakeController(&data)
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, nil)
+	assert.NotNil(t, compRes)
+	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
+	assert.Equal(t, 1, len(compRes.resources))
+	assert.Equal(t, 1, len(compRes.managedResources))
+	assert.Equal(t, 0, len(compRes.reconciliationResult.Hooks))
+	assert.Equal(t, 0, len(app.Status.Conditions))
+}
+
 // checks that ignore resources are detected, but excluded from status
 func TestCompareAppStateCompareOptionIgnoreExtraneous(t *testing.T) {
 	pod := NewPod()
@@ -188,11 +215,17 @@ func TestCompareAppStateDuplicatedNamespacedResources(t *testing.T) {
 	obj2 := NewPod()
 	obj3 := NewPod()
 	obj3.SetNamespace("kube-system")
+	obj4 := NewPod()
+	obj4.SetGenerateName("my-pod")
+	obj4.SetName("")
+	obj5 := NewPod()
+	obj5.SetName("")
+	obj5.SetGenerateName("my-pod")
 
 	app := newFakeApp()
 	data := fakeData{
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{toJSON(t, obj1), toJSON(t, obj2), toJSON(t, obj3)},
+			Manifests: []string{toJSON(t, obj1), toJSON(t, obj2), toJSON(t, obj3), toJSON(t, obj4), toJSON(t, obj5)},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -210,7 +243,7 @@ func TestCompareAppStateDuplicatedNamespacedResources(t *testing.T) {
 	assert.NotNil(t, app.Status.Conditions[0].LastTransitionTime)
 	assert.Equal(t, argoappv1.ApplicationConditionRepeatedResourceWarning, app.Status.Conditions[0].Type)
 	assert.Equal(t, "Resource /Pod/fake-dest-ns/my-pod appeared 2 times among application resources.", app.Status.Conditions[0].Message)
-	assert.Equal(t, 2, len(compRes.resources))
+	assert.Equal(t, 4, len(compRes.resources))
 }
 
 var defaultProj = argoappv1.AppProject{

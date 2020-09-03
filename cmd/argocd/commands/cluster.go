@@ -65,6 +65,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 		awsClusterName  string
 		systemNamespace string
 		namespaces      []string
+		name            string
 	)
 	var command = &cobra.Command{
 		Use:   "add CONTEXT",
@@ -111,6 +112,9 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			}
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
 			defer io.Close(conn)
+			if name != "" {
+				contextName = name
+			}
 			clst := newCluster(contextName, namespaces, conf, managerBearerToken, awsAuthConf)
 			if inCluster {
 				clst.Server = common.KubernetesInternalAPIServerAddr
@@ -132,6 +136,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 	command.Flags().StringVar(&awsRoleArn, "aws-role-arn", "", "Optional AWS role arn. If set then AWS IAM Authenticator assume a role to perform cluster operations instead of the default AWS credential provider chain.")
 	command.Flags().StringVar(&systemNamespace, "system-namespace", common.DefaultSystemNamespace, "Use different system namespace")
 	command.Flags().StringArrayVar(&namespaces, "namespace", nil, "List of namespaces which are allowed to manage")
+	command.Flags().StringVar(&name, "name", "", "Overwrite the cluster name")
 	return command
 }
 

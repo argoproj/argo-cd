@@ -1,6 +1,7 @@
 package webhook
 
 import (
+	"context"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -152,7 +153,7 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 		log.Infof("Received push event repo: %s, revision: %s, touchedHead: %v", webURL, revision, touchedHead)
 	}
 	appIf := a.appClientset.ArgoprojV1alpha1().Applications(a.ns)
-	apps, err := appIf.List(metav1.ListOptions{})
+	apps, err := appIf.List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		log.Warnf("Failed to list applications: %v", err)
 		return

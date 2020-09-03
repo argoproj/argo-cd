@@ -124,7 +124,7 @@
         "tags": [
           "AccountService"
         ],
-        "operationId": "CreateTokenMixin10",
+        "operationId": "CreateToken",
         "parameters": [
           {
             "type": "string",
@@ -156,7 +156,7 @@
         "tags": [
           "AccountService"
         ],
-        "operationId": "DeleteTokenMixin10",
+        "operationId": "DeleteToken",
         "parameters": [
           {
             "type": "string",
@@ -187,7 +187,7 @@
           "ApplicationService"
         ],
         "summary": "List returns list of applications",
-        "operationId": "ListMixin9",
+        "operationId": "List",
         "parameters": [
           {
             "type": "string",
@@ -238,7 +238,7 @@
           "ApplicationService"
         ],
         "summary": "Create creates an application",
-        "operationId": "CreateMixin9",
+        "operationId": "Create",
         "parameters": [
           {
             "name": "body",
@@ -265,7 +265,7 @@
           "ApplicationService"
         ],
         "summary": "Update updates an application",
-        "operationId": "UpdateMixin9",
+        "operationId": "Update",
         "parameters": [
           {
             "type": "string",
@@ -397,7 +397,7 @@
           "ApplicationService"
         ],
         "summary": "Get returns an application by name",
-        "operationId": "GetMixin9",
+        "operationId": "Get",
         "parameters": [
           {
             "type": "string",
@@ -449,7 +449,7 @@
           "ApplicationService"
         ],
         "summary": "Delete deletes an application",
-        "operationId": "DeleteMixin9",
+        "operationId": "Delete",
         "parameters": [
           {
             "type": "string",
@@ -1148,7 +1148,7 @@
           "ClusterService"
         ],
         "summary": "List returns list of clusters",
-        "operationId": "List",
+        "operationId": "ListMixin3",
         "parameters": [
           {
             "type": "string",
@@ -1175,7 +1175,7 @@
           "ClusterService"
         ],
         "summary": "Create creates a cluster",
-        "operationId": "Create",
+        "operationId": "CreateMixin3",
         "parameters": [
           {
             "name": "body",
@@ -1202,7 +1202,7 @@
           "ClusterService"
         ],
         "summary": "Update updates a cluster",
-        "operationId": "Update",
+        "operationId": "UpdateMixin3",
         "parameters": [
           {
             "type": "string",
@@ -1236,7 +1236,7 @@
           "ClusterService"
         ],
         "summary": "Get returns a cluster by server address",
-        "operationId": "GetMixin2",
+        "operationId": "GetMixin3",
         "parameters": [
           {
             "type": "string",
@@ -1264,7 +1264,7 @@
           "ClusterService"
         ],
         "summary": "Delete deletes a cluster",
-        "operationId": "Delete",
+        "operationId": "DeleteMixin3",
         "parameters": [
           {
             "type": "string",
@@ -1344,7 +1344,7 @@
           "GPGKeyService"
         ],
         "summary": "List all available repository certificates",
-        "operationId": "ListMixin7",
+        "operationId": "ListMixin4",
         "parameters": [
           {
             "type": "string",
@@ -1367,7 +1367,7 @@
           "GPGKeyService"
         ],
         "summary": "Create one or more GPG public keys in the server's configuration",
-        "operationId": "CreateMixin7",
+        "operationId": "CreateMixin4",
         "parameters": [
           {
             "description": "Raw key data of the GPG key(s) to create",
@@ -1393,7 +1393,7 @@
           "GPGKeyService"
         ],
         "summary": "Delete specified GPG public key from the server's configuration",
-        "operationId": "DeleteMixin7",
+        "operationId": "DeleteMixin4",
         "parameters": [
           {
             "type": "string",
@@ -1418,7 +1418,7 @@
           "GPGKeyService"
         ],
         "summary": "Get information about specified GPG public key from the server",
-        "operationId": "GetMixin7",
+        "operationId": "GetMixin4",
         "parameters": [
           {
             "type": "string",
@@ -1444,7 +1444,7 @@
           "ProjectService"
         ],
         "summary": "List returns list of projects",
-        "operationId": "ListMixin6",
+        "operationId": "ListMixin5",
         "parameters": [
           {
             "type": "string",
@@ -1466,7 +1466,7 @@
           "ProjectService"
         ],
         "summary": "Create a new project.",
-        "operationId": "CreateMixin6",
+        "operationId": "CreateMixin5",
         "parameters": [
           {
             "name": "body",
@@ -1493,7 +1493,7 @@
           "ProjectService"
         ],
         "summary": "Get returns a project by name",
-        "operationId": "GetMixin6",
+        "operationId": "GetMixin5",
         "parameters": [
           {
             "type": "string",
@@ -1516,7 +1516,7 @@
           "ProjectService"
         ],
         "summary": "Delete deletes a project",
-        "operationId": "DeleteMixin6",
+        "operationId": "DeleteMixin5",
         "parameters": [
           {
             "type": "string",
@@ -1591,7 +1591,7 @@
           "ProjectService"
         ],
         "summary": "Update updates a project",
-        "operationId": "UpdateMixin6",
+        "operationId": "UpdateMixin5",
         "parameters": [
           {
             "type": "string",
@@ -1625,7 +1625,7 @@
           "ProjectService"
         ],
         "summary": "Create a new project token.",
-        "operationId": "CreateToken",
+        "operationId": "CreateTokenMixin5",
         "parameters": [
           {
             "type": "string",
@@ -1664,7 +1664,7 @@
           "ProjectService"
         ],
         "summary": "Delete a new project token.",
-        "operationId": "DeleteToken",
+        "operationId": "DeleteTokenMixin5",
         "parameters": [
           {
             "type": "string",
@@ -1909,7 +1909,7 @@
           "RepositoryService"
         ],
         "summary": "Get returns a repository or its credentials",
-        "operationId": "GetMixin3",
+        "operationId": "GetMixin7",
         "parameters": [
           {
             "type": "string",
@@ -2104,7 +2104,7 @@
           "SessionService"
         ],
         "summary": "Create a new JWT for authentication and set a cookie if using HTTP.",
-        "operationId": "CreateMixin11",
+        "operationId": "CreateMixin8",
         "parameters": [
           {
             "name": "body",
@@ -2129,7 +2129,7 @@
           "SessionService"
         ],
         "summary": "Delete an existing JWT cookie if using HTTP.",
-        "operationId": "DeleteMixin11",
+        "operationId": "DeleteMixin8",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2163,7 +2163,7 @@
           "SettingsService"
         ],
         "summary": "Get returns Argo CD settings",
-        "operationId": "Get",
+        "operationId": "GetMixin10",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2222,6 +2222,56 @@
             "description": "A successful response.(streaming responses)",
             "schema": {
               "$ref": "#/x-stream-definitions/v1alpha1ApplicationWatchEvent"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/stream/applications/{applicationName}/resource-tree": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "Watch returns stream of application resource tree",
+        "operationId": "WatchResourceTree",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "applicationName",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "name",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "version",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "group",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "kind",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.(streaming responses)",
+            "schema": {
+              "$ref": "#/x-stream-definitions/v1alpha1ApplicationTree"
             }
           }
         }
@@ -2427,6 +2477,9 @@
           "items": {
             "$ref": "#/definitions/v1alpha1SyncOperationResource"
           }
+        },
+        "retryStrategy": {
+          "$ref": "#/definitions/v1alpha1RetryStrategy"
         },
         "revision": {
           "type": "string"
@@ -2649,6 +2702,9 @@
         "statusBadgeEnabled": {
           "type": "boolean",
           "format": "boolean"
+        },
+        "uiCssURL": {
+          "type": "string"
         },
         "url": {
           "type": "string"
@@ -3360,7 +3416,7 @@
     },
     "v1ObjectReference": {
       "type": "object",
-      "title": "ObjectReference contains enough information to let you inspect or modify the referred object.\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object",
+      "title": "ObjectReference contains enough information to let you inspect or modify the referred object.\n---\nNew uses of this type are discouraged because of difficulty describing its usage when embedded in APIs.\n 1. Ignored fields.  It includes many fields which are not generally honored.  For instance, ResourceVersion and FieldPath are both very rarely valid in actual usage.\n 2. Invalid usage help.  It is impossible to add specific help for individual usage.  In most embedded usages, there are particular\n    restrictions like, \"must refer only to types A and B\" or \"UID not honored\" or \"name must be restricted\".\n    Those cannot be well described when embedded.\n 3. Inconsistent validation.  Because the usages are different, the validation rules are different by usage, which makes it hard for users to predict what will happen.\n 4. The fields are both imprecise and overly precise.  Kind is not a precise mapping to a URL. This can produce ambiguity\n    during interpretation and require a REST mapping.  In most cases, the dependency is on the group,resource tuple\n    and the version of the actual struct is irrelevant.\n 5. We cannot easily change it.  Because this type is embedded in many locations, updates to this type\n    will affect numerous schemas.  Don't make new APIs embed an underspecified API type they do not control.\nInstead of using this type, create a locally provided and used type that is well-focused on your reference.\nFor example, ServiceReferences for admission registration: https://github.com/kubernetes/api/blob/release-1.17/admissionregistration/v1/types.go#L533 .\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object",
       "properties": {
         "apiVersion": {
           "type": "string",
@@ -3488,6 +3544,13 @@
       "type": "object",
       "title": "AppProjectSpec is the specification of an AppProject",
       "properties": {
+        "clusterResourceBlacklist": {
+          "type": "array",
+          "title": "ClusterResourceBlacklist contains list of blacklisted cluster level resources",
+          "items": {
+            "$ref": "#/definitions/v1GroupKind"
+          }
+        },
         "clusterResourceWhitelist": {
           "type": "array",
           "title": "ClusterResourceWhitelist contains list of whitelisted cluster level resources",
@@ -3714,6 +3777,10 @@
         "values": {
           "type": "string",
           "title": "Values is Helm values, typically defined as a block"
+        },
+        "version": {
+          "type": "string",
+          "title": "Version is the Helm version to use for templating with"
         }
       }
     },
@@ -3942,6 +4009,25 @@
         }
       }
     },
+    "v1alpha1Backoff": {
+      "type": "object",
+      "title": "Backoff is a backoff strategy to use within retryStrategy",
+      "properties": {
+        "duration": {
+          "type": "string",
+          "title": "Duration is the amount to back off. Default unit is seconds, but could also be a duration (e.g. \"2m\", \"1h\")"
+        },
+        "factor": {
+          "type": "string",
+          "format": "int64",
+          "title": "Factor is a factor to multiply the base duration after each failed retry"
+        },
+        "maxDuration": {
+          "type": "string",
+          "title": "MaxDuration is the maximum amount of time allowed for the backoff strategy"
+        }
+      }
+    },
     "v1alpha1Cluster": {
       "type": "object",
       "title": "Cluster is the definition of a cluster resource",
@@ -3960,7 +4046,7 @@
           "title": "Name of the cluster. If omitted, will use the server address"
         },
         "namespaces": {
-          "description": "Holds list of namespaces which are accessible in that cluster. Cluster level resources would be ignored if namespace list if not empty.",
+          "description": "Holds list of namespaces which are accessible in that cluster. Cluster level resources would be ignored if namespace list is not empty.",
           "type": "array",
           "items": {
             "type": "string"
@@ -4338,6 +4424,9 @@
         "initiatedBy": {
           "$ref": "#/definitions/v1alpha1OperationInitiator"
         },
+        "retry": {
+          "$ref": "#/definitions/v1alpha1RetryStrategy"
+        },
         "sync": {
           "$ref": "#/definitions/v1alpha1SyncOperation"
         }
@@ -4375,6 +4464,11 @@
         "phase": {
           "type": "string",
           "title": "Phase is the current phase of the operation"
+        },
+        "retryCount": {
+          "type": "string",
+          "format": "int64",
+          "title": "RetryCount contains time of operation retries"
         },
         "startedAt": {
           "$ref": "#/definitions/v1Time"
@@ -4923,6 +5017,19 @@
         }
       }
     },
+    "v1alpha1RetryStrategy": {
+      "type": "object",
+      "properties": {
+        "backoff": {
+          "$ref": "#/definitions/v1alpha1Backoff"
+        },
+        "limit": {
+          "type": "string",
+          "format": "int64",
+          "title": "Limit is the maximum number of attempts when retrying a container"
+        }
+      }
+    },
     "v1alpha1RevisionHistory": {
       "type": "object",
       "title": "RevisionHistory contains information relevant to an application deployment",
@@ -5076,6 +5183,9 @@
       "properties": {
         "automated": {
           "$ref": "#/definitions/v1alpha1SyncPolicyAutomated"
+        },
+        "retry": {
+          "$ref": "#/definitions/v1alpha1RetryStrategy"
         },
         "syncOptions": {
           "type": "array",
@@ -5246,6 +5356,9 @@
           "type": "string"
         },
         "HelmVersion": {
+          "type": "string"
+        },
+        "JsonnetVersion": {
           "type": "string"
         },
         "KsonnetVersion": {

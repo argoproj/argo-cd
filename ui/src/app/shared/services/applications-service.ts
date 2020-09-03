@@ -18,13 +18,14 @@ function optionsToSearch(options?: QueryOptions) {
 }
 
 export class ApplicationsService {
-    public list(projects: string[], options?: QueryOptions): Promise<models.Application[]> {
+    public list(projects: string[], options?: QueryOptions): Promise<models.ApplicationList> {
         return requests
             .get('/applications')
             .query({project: projects, ...optionsToSearch(options)})
             .then(res => res.body as models.ApplicationList)
             .then(list => {
-                return (list.items || []).map(app => this.parseAppFields(app));
+                list.items = (list.items || []).map(app => this.parseAppFields(app));
+                return list;
             });
     }
 
@@ -52,6 +53,10 @@ export class ApplicationsService {
 
     public resourceTree(name: string): Promise<models.ApplicationTree> {
         return requests.get(`/applications/${name}/resource-tree`).then(res => res.body as models.ApplicationTree);
+    }
+
+    public watchResourceTree(name: string): Observable<models.ApplicationTree> {
+        return requests.loadEventSource(`/stream/applications/${name}/resource-tree`).map(data => JSON.parse(data).result as models.ApplicationTree);
     }
 
     public managedResources(name: string, options: {id?: models.ResourceID; fields?: string[]} = {}): Promise<models.ResourceDiff[]> {
@@ -114,10 +119,15 @@ export class ApplicationsService {
             .then(() => true);
     }
 
-    public watch(query?: {name: string}, options?: QueryOptions): Observable<models.ApplicationWatchEvent> {
+    public watch(query?: {name?: string; resourceVersion?: string}, options?: QueryOptions): Observable<models.ApplicationWatchEvent> {
         const search = new URLSearchParams();
         if (query) {
-            search.set('name', query.name);
+            if (query.name) {
+                search.set('name', query.name);
+            }
+            if (query.resourceVersion) {
+                search.set('resourceVersion', query.resourceVersion);
+            }
         }
         if (options) {
             const searchOptions = optionsToSearch(options);

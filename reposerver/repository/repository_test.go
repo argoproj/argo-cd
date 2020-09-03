@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/Masterminds/semver"
 	"github.com/argoproj/gitops-engine/pkg/utils/io"
+	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	v1 "k8s.io/api/apps/v1"
@@ -510,6 +512,7 @@ func TestListApps(t *testing.T) {
 
 	expectedApps := map[string]string{
 		"Kustomization":      "Kustomize",
+		"app-parameters":     "Kustomize",
 		"invalid-helm":       "Helm",
 		"invalid-kustomize":  "Kustomize",
 		"kustomization_yaml": "Kustomize",
@@ -684,4 +687,53 @@ func TestService_newHelmClientResolveRevision(t *testing.T) {
 		_, _, err := service.newHelmClientResolveRevision(&argoappv1.Repository{}, "???", "")
 		assert.EqualError(t, err, "invalid revision '???': improper constraint: ???")
 	})
+}
+
+func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
+	service := newService(".")
+	details, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
+		Repo: &argoappv1.Repository{},
+		Source: &argoappv1.ApplicationSource{
+			Path: "./testdata/app-parameters",
+		},
+	})
+	if !assert.NoError(t, err) {
+		return
+	}
+	assert.EqualValues(t, []string{"gcr.io/heptio-images/ks-guestbook-demo:0.2"}, details.Kustomize.Images)
+}
+
+func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
+	service := newService(".")
+	manifests, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+		Repo: &argoappv1.Repository{},
+		ApplicationSource: &argoappv1.ApplicationSource{
+			Path: "./testdata/app-parameters",
+		},
+	})
+	if !assert.NoError(t, err) {
+		return
+	}
+	resourceByKindName := make(map[string]*unstructured.Unstructured)
+	for _, manifest := range manifests.Manifests {
+		var un unstructured.Unstructured
+		err := yaml.Unmarshal([]byte(manifest), &un)
+		if !assert.NoError(t, err) {
+			return
+		}
+		resourceByKindName[fmt.Sprintf("%s/%s", un.GetKind(), un.GetName())] = &un
+	}
+	deployment, ok := resourceByKindName["Deployment/guestbook-ui"]
+	if !assert.True(t, ok) {
+		return
+	}
+	containers, ok, _ := unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
+	if !assert.True(t, ok) {
+		return
+	}
+	image, ok, _ := unstructured.NestedString(containers[0].(map[string]interface{}), "image")
+	if !assert.True(t, ok) {
+		return
+	}
+	assert.Equal(t, "gcr.io/heptio-images/ks-guestbook-demo:0.2", image)
 }

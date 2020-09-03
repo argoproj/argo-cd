@@ -15,10 +15,10 @@ import (
 
 	"github.com/Masterminds/semver"
 	"github.com/TomOnTime/utfutil"
-	executil "github.com/argoproj/gitops-engine/pkg/utils/exec"
 	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	textutils "github.com/argoproj/gitops-engine/pkg/utils/text"
+	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/ghodss/yaml"
 	"github.com/google/go-jsonnet"
 	log "github.com/sirupsen/logrus"
@@ -37,6 +37,7 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/app/discovery"
 	argopath "github.com/argoproj/argo-cd/util/app/path"
+	executil "github.com/argoproj/argo-cd/util/exec"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/gpg"
 	"github.com/argoproj/argo-cd/util/helm"
@@ -252,7 +253,11 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 	}
 
 	appHelm := q.ApplicationSource.Helm
+	var version string
 	if appHelm != nil {
+		if appHelm.Version != "" {
+			version = appHelm.Version
+		}
 		if appHelm.ReleaseName != "" {
 			templateOpts.Name = appHelm.ReleaseName
 		}
@@ -322,7 +327,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 	for i, j := range templateOpts.SetFile {
 		templateOpts.SetFile[i] = env.Envsubst(j)
 	}
-	h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos), isLocal)
+	h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos), isLocal, version)
 
 	if err != nil {
 		return nil, err
@@ -346,7 +351,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			return nil, err
 		}
 	}
-	return kube.SplitYAML(out)
+	return kube.SplitYAML([]byte(out))
 }
 
 // GenerateManifests generates manifests from a path
@@ -447,8 +452,55 @@ func newEnv(q *apiclient.ManifestRequest, revision string) *v1alpha1.Env {
 	}
 }
 
+func mergeSourceParameters(source *v1alpha1.ApplicationSource, path string) error {
+	appFilePath := filepath.Join(path, ".argocd-source.yaml")
+	info, err := os.Stat(appFilePath)
+	if os.IsNotExist(err) {
+		return nil
+	} else if info != nil && info.IsDir() {
+		return nil
+	} else if err != nil {
+		return err
+	}
+	patch, err := json.Marshal(source)
+	if err != nil {
+		return err
+	}
+
+	data, err := ioutil.ReadFile(appFilePath)
+	if err != nil {
+		return err
+	}
+	data, err = yaml.YAMLToJSON(data)
+	if err != nil {
+		return err
+	}
+	data, err = jsonpatch.MergePatch(data, patch)
+	if err != nil {
+		return err
+	}
+	var merged v1alpha1.ApplicationSource
+	err = json.Unmarshal(data, &merged)
+	if err != nil {
+		return err
+	}
+	// make sure only config management tools related properties are used and ignore everything else
+	merged.Chart = source.Chart
+	merged.Path = source.Path
+	merged.RepoURL = source.RepoURL
+	merged.TargetRevision = source.TargetRevision
+
+	*source = merged
+	return nil
+}
+
 // GetAppSourceType returns explicit application source type or examines a directory and determines its application source type
 func GetAppSourceType(source *v1alpha1.ApplicationSource, path string) (v1alpha1.ApplicationSourceType, error) {
+	err := mergeSourceParameters(source, path)
+	if err != nil {
+		return "", fmt.Errorf("error while parsing .argocd-app.yaml: %v", err)
+	}
+
 	appSourceType, err := source.ExplicitType()
 	if err != nil {
 		return "", err
@@ -570,7 +622,7 @@ func findManifests(appPath string, repoRoot string, env *v1alpha1.Env, directory
 				objs = append(objs, &jsonObj)
 			}
 		} else {
-			yamlObjs, err := kube.SplitYAML(string(out))
+			yamlObjs, err := kube.SplitYAML(out)
 			if err != nil {
 				return status.Errorf(codes.FailedPrecondition, "Failed to unmarshal %q: %v", f.Name(), err)
 			}
@@ -671,7 +723,7 @@ func runConfigManagementPlugin(appPath string, envVars *v1alpha1.Env, q *apiclie
 	if err != nil {
 		return nil, err
 	}
-	return kube.SplitYAML(out)
+	return kube.SplitYAML([]byte(out))
 }
 
 func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppDetailsQuery) (*apiclient.RepoAppDetailsResponse, error) {
@@ -739,7 +791,13 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 					res.Helm.ValueFiles = append(res.Helm.ValueFiles, fName)
 				}
 			}
-			h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos), false)
+			var version string
+			if q.Source.Helm != nil {
+				if q.Source.Helm.Version != "" {
+					version = q.Source.Helm.Version
+				}
+			}
+			h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos), false, version)
 			if err != nil {
 				return err
 			}
@@ -780,7 +838,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 				kustomizeBinary = q.KustomizeOptions.BinaryPath
 			}
 			k := kustomize.NewKustomizeApp(appPath, q.Repo.GetGitCreds(), q.Repo.Repo, kustomizeBinary)
-			_, images, err := k.Build(nil, q.KustomizeOptions)
+			_, images, err := k.Build(q.Source.Kustomize, q.KustomizeOptions)
 			if err != nil {
 				return err
 			}

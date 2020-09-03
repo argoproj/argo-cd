@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"k8s.io/utils/pointer"
+
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,6 +34,14 @@ func TestAppProject_IsSourcePermitted(t *testing.T) {
 		projSources: []string{"https://github.com/argoproj/*.git"}, appSource: "https://github.com/argoproj1/test2.git", isPermitted: false,
 	}, {
 		projSources: []string{"https://github.com/argoproj/foo"}, appSource: "https://github.com/argoproj/foo1", isPermitted: false,
+	}, {
+		projSources: []string{"https://gitlab.com/group/*"}, appSource: "https://gitlab.com/group/repo/owner", isPermitted: false,
+	}, {
+		projSources: []string{"https://gitlab.com/group/*/*"}, appSource: "https://gitlab.com/group/repo/owner", isPermitted: true,
+	}, {
+		projSources: []string{"https://gitlab.com/group/*/*/*"}, appSource: "https://gitlab.com/group/sub-group/repo/owner", isPermitted: true,
+	}, {
+		projSources: []string{"https://gitlab.com/group/**"}, appSource: "https://gitlab.com/group/sub-group/repo/owner", isPermitted: true,
 	}}
 
 	for _, data := range testData {
@@ -135,6 +145,22 @@ func TestAppProject_IsGroupKindPermitted(t *testing.T) {
 	}
 	assert.True(t, proj2.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "ReplicaSet"}, true))
 	assert.False(t, proj2.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "Action"}, true))
+
+	proj3 := AppProject{
+		Spec: AppProjectSpec{
+			ClusterResourceBlacklist: []metav1.GroupKind{{Group: "", Kind: "Namespace"}},
+		},
+	}
+	assert.False(t, proj3.IsGroupKindPermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, false))
+
+	proj4 := AppProject{
+		Spec: AppProjectSpec{
+			ClusterResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
+			ClusterResourceBlacklist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
+		},
+	}
+	assert.False(t, proj4.IsGroupKindPermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, false))
+	assert.True(t, proj4.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "Action"}, true))
 }
 
 func TestAppProject_GetRoleByName(t *testing.T) {
@@ -1669,6 +1695,11 @@ func TestProjectNormalize(t *testing.T) {
 		assert.Nil(t, p.Spec.Roles)
 		assert.Nil(t, p.Status.JWTTokensByRole)
 	})
+	t.Run("HasRoles_NoTokens", func(t *testing.T) {
+		p := AppProject{Spec: AppProjectSpec{Roles: []ProjectRole{{Name: "test-role"}}}}
+		needNormalize := p.NormalizeJWTTokens()
+		assert.False(t, needNormalize)
+	})
 	t.Run("SpecRolesToken-StatusRolesTokenEmpty", func(t *testing.T) {
 		p := AppProject{Spec: AppProjectSpec{Roles: []ProjectRole{{Name: "test-role", JWTTokens: testTokens}}}}
 		needNormalize := p.NormalizeJWTTokens()
@@ -1709,4 +1740,46 @@ func TestProjectNormalize(t *testing.T) {
 		assert.ElementsMatch(t, p.Spec.Roles[1].JWTTokens, p.Status.JWTTokensByRole["test-role1"].Items)
 		assert.ElementsMatch(t, p.Spec.Roles[2].JWTTokens, p.Status.JWTTokensByRole["test-role2"].Items)
 	})
+}
+
+func TestRetryStrategy_NextRetryAtDefaultBackoff(t *testing.T) {
+	retry := RetryStrategy{}
+	now := time.Now()
+	expectedTimes := []time.Time{
+		now.Add(5 * time.Second),
+		now.Add(10 * time.Second),
+		now.Add(20 * time.Second),
+		now.Add(40 * time.Second),
+		now.Add(80 * time.Second),
+	}
+
+	for i, expected := range expectedTimes {
+		retryAt, err := retry.NextRetryAt(now, int64(i))
+		assert.NoError(t, err)
+		assert.Equal(t, expected.Format(time.RFC850), retryAt.Format(time.RFC850))
+	}
+}
+
+func TestRetryStrategy_NextRetryAtCustomBackoff(t *testing.T) {
+	retry := RetryStrategy{
+		Backoff: &Backoff{
+			Duration:    "2s",
+			Factor:      pointer.Int64Ptr(3),
+			MaxDuration: "1m",
+		},
+	}
+	now := time.Now()
+	expectedTimes := []time.Time{
+		now.Add(2 * time.Second),
+		now.Add(6 * time.Second),
+		now.Add(18 * time.Second),
+		now.Add(54 * time.Second),
+		now.Add(60 * time.Second),
+	}
+
+	for i, expected := range expectedTimes {
+		retryAt, err := retry.NextRetryAt(now, int64(i))
+		assert.NoError(t, err)
+		assert.Equal(t, expected.Format(time.RFC850), retryAt.Format(time.RFC850))
+	}
 }

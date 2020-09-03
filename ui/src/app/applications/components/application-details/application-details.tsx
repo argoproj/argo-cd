@@ -475,42 +475,38 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
     }
 
     private loadAppInfo(name: string): Observable<{application: appModels.Application; tree: appModels.ApplicationTree}> {
-        return Observable.merge(
-            Observable.fromPromise(services.applications.get(name).then(app => ({app, watchEvent: false}))),
-            services.applications
-                .watch({name})
-                .map(watchEvent => {
-                    if (watchEvent.type === 'DELETED') {
-                        this.onAppDeleted();
-                    }
-                    return {app: watchEvent.application, watchEvent: true};
-                })
-                .repeat()
-                .retryWhen(errors => errors.delay(500)),
-            this.refreshRequested.filter(e => e !== null).flatMap(() => services.applications.get(name).then(app => ({app, watchEvent: true})))
-        ).flatMap(appInfo => {
-            const app = appInfo.app;
-            const fallbackTree: appModels.ApplicationTree = {
-                nodes: app.status.resources.map(res => ({...res, parentRefs: [], info: [], resourceVersion: '', uid: ''})),
-                orphanedNodes: []
-            };
-            const treeSource = new Observable<{application: appModels.Application; tree: appModels.ApplicationTree}>(observer => {
-                services.applications
-                    .resourceTree(app.metadata.name)
-                    .then(tree => observer.next({application: app, tree}))
-                    .catch(e => {
-                        observer.next({application: app, tree: fallbackTree});
-                        observer.error(e);
-                    });
+        return Observable.fromPromise(services.applications.get(name))
+            .flatMap(app => {
+                const fallbackTree = {
+                    nodes: app.status.resources.map(res => ({...res, parentRefs: [], info: [], resourceVersion: '', uid: ''})),
+                    orphanedNodes: []
+                } as appModels.ApplicationTree;
+                return Observable.combineLatest(
+                    Observable.merge(
+                        Observable.from([app]),
+                        services.applications
+                            .watch({name})
+                            .map(watchEvent => {
+                                if (watchEvent.type === 'DELETED') {
+                                    this.onAppDeleted();
+                                }
+                                return watchEvent.application;
+                            })
+                            .repeat()
+                            .retryWhen(errors => errors.delay(500))
+                    ),
+                    Observable.merge(
+                        Observable.from([fallbackTree]),
+                        services.applications.resourceTree(name).catch(() => fallbackTree),
+                        services.applications
+                            .watchResourceTree(name)
+                            .repeat()
+                            .retryWhen(errors => errors.delay(500))
+                    )
+                );
             })
-                .repeat()
-                .retryWhen(errors => errors.delay(1000));
-            if (appInfo.watchEvent) {
-                return treeSource;
-            } else {
-                return Observable.merge(Observable.from([{application: app, tree: fallbackTree}]), treeSource);
-            }
-        });
+            .filter(([application, tree]) => !!application && !!tree)
+            .map(([application, tree]) => ({application, tree}));
     }
 
     private onAppDeleted() {

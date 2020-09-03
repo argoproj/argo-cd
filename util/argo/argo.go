@@ -77,7 +77,7 @@ func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType ar
 		return nil, err
 	}
 	for attempt := 0; attempt < 5; attempt++ {
-		app, err := appIf.Patch(name, types.MergePatchType, patch)
+		app, err := appIf.Patch(context.Background(), name, types.MergePatchType, patch, metav1.PatchOptions{})
 		if err != nil {
 			if !apierr.IsConflict(err) {
 				return nil, err
@@ -102,7 +102,7 @@ func WaitForRefresh(ctx context.Context, appIf v1alpha1.ApplicationInterface, na
 	ch := kube.WatchWithRetry(ctx, func() (i watch.Interface, e error) {
 		fieldSelector := fields.ParseSelectorOrDie(fmt.Sprintf("metadata.name=%s", name))
 		listOpts := metav1.ListOptions{FieldSelector: fieldSelector.String()}
-		return appIf.Watch(listOpts)
+		return appIf.Watch(ctx, listOpts)
 	})
 	for next := range ch {
 		if next.Error != nil {
@@ -411,7 +411,7 @@ func verifyGenerateManifests(
 // SetAppOperation updates an application with the specified operation, retrying conflict errors
 func SetAppOperation(appIf v1alpha1.ApplicationInterface, appName string, op *argoappv1.Operation) (*argoappv1.Application, error) {
 	for {
-		a, err := appIf.Get(appName, metav1.GetOptions{})
+		a, err := appIf.Get(context.Background(), appName, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -420,7 +420,7 @@ func SetAppOperation(appIf v1alpha1.ApplicationInterface, appName string, op *ar
 		}
 		a.Operation = op
 		a.Status.OperationState = nil
-		a, err = appIf.Update(a)
+		a, err = appIf.Update(context.Background(), a, metav1.UpdateOptions{})
 		if op.Sync == nil {
 			return nil, status.Errorf(codes.InvalidArgument, "Operation unspecified")
 		}

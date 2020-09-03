@@ -23,6 +23,7 @@ message VersionMessage {
 	string KustomizeVersion = 10;
 	string HelmVersion = 11;
 	string KubectlVersion = 12;
+	string JsonnetVersion = 13;
 }
 
 // VersionService returns the version of the API server.

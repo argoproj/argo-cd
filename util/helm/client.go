@@ -17,12 +17,12 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver"
-	executil "github.com/argoproj/gitops-engine/pkg/utils/exec"
 	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 
 	"github.com/argoproj/argo-cd/util"
+	executil "github.com/argoproj/argo-cd/util/exec"
 )
 
 var (
@@ -153,7 +153,7 @@ func (c *nativeHelmChart) ExtractChart(chart string, version *semver.Version) (s
 		_ = os.RemoveAll(tempDir)
 		return "", nil, err
 	}
-	return path.Join(tempDir, chart), io.NewCloser(func() error {
+	return path.Join(tempDir, normalizeChartName(chart)), io.NewCloser(func() error {
 		return os.RemoveAll(tempDir)
 	}), nil
 }
@@ -241,6 +241,17 @@ func newTLSConfig(creds Creds) (*tls.Config, error) {
 	return tlsConfig, nil
 }
 
+// Normalize a chart name for file system use, that is, if chart name is foo/bar/baz, returns the last component as chart name.
+func normalizeChartName(chart string) string {
+	_, nc := path.Split(chart)
+	// We do not want to return the empty string or something else related to filesystem access
+	// Instead, return original string
+	if nc == "" || nc == "." || nc == ".." {
+		return chart
+	}
+	return nc
+}
+
 func (c *nativeHelmChart) getChartPath(chart string, version *semver.Version) string {
-	return path.Join(c.repoPath, fmt.Sprintf("%s-%v.tgz", chart, version))
+	return path.Join(c.repoPath, fmt.Sprintf("%s-%v.tgz", normalizeChartName(chart), version))
 }

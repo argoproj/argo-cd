@@ -142,6 +142,10 @@ export interface ApplicationDestination {
      * Namespace overrides the environment namespace value in the ksonnet app.yaml
      */
     namespace: string;
+    /**
+     * Name of the destination cluster which can be used instead of server (url) field
+     */
+    name: string;
 }
 
 export interface OrphanedResource {
@@ -412,6 +416,7 @@ export interface AuthSettings {
     plugins: Plugin[];
     userLoginsDisabled: boolean;
     kustomizeVersions: string[];
+    uiCssURL: string;
 }
 
 export interface UserInfo {
@@ -628,6 +633,7 @@ export interface ProjectSpec {
     description: string;
     roles: ProjectRole[];
     clusterResourceWhitelist: GroupKind[];
+    clusterResourceBlacklist: GroupKind[];
     namespaceResourceBlacklist: GroupKind[];
     namespaceResourceWhitelist: GroupKind[];
     signatureKeys: ProjectSignatureKey[];

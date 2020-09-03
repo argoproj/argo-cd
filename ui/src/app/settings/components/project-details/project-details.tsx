@@ -132,6 +132,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                             destinations: proj.spec.destinations || [],
                                                             sourceRepos: proj.spec.sourceRepos || [],
                                                             clusterResourceWhitelist: proj.spec.clusterResourceWhitelist || [],
+                                                            clusterResourceBlacklist: proj.spec.clusterResourceBlacklist || [],
                                                             namespaceResourceBlacklist: proj.spec.namespaceResourceBlacklist || [],
                                                             namespaceResourceWhitelist: proj.spec.namespaceResourceWhitelist || [],
                                                             roles: proj.spec.roles || [],
@@ -554,6 +555,30 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                 )) || (
                     <div className='white-box'>
                         <p>No cluster-scoped resources are permitted to deploy</p>
+                    </div>
+                )}
+
+                <h4>Blacklisted cluster resources {helpTip('Cluster-scoped K8s API Groups and Kinds which are not permitted to be deployed')}</h4>
+                {((proj.spec.clusterResourceBlacklist || []).length > 0 && (
+                    <div className='argo-table-list'>
+                        <div className='argo-table-list__head'>
+                            <div className='row'>
+                                <div className='columns small-3'>GROUP</div>
+                                <div className='columns small-6'>KIND</div>
+                            </div>
+                        </div>
+                        {(proj.spec.clusterResourceBlacklist || []).map(res => (
+                            <div className='argo-table-list__row' key={`${res.group}/${res.kind}`}>
+                                <div className='row'>
+                                    <div className='columns small-3'>{res.group}</div>
+                                    <div className='columns small-6'>{res.kind}</div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )) || (
+                    <div className='white-box'>
+                        <p>No cluster-scoped resources are not permitted to deploy</p>
                     </div>
                 )}
 

@@ -40,7 +40,7 @@ func PortForward(podSelector string, targetPort int, namespace string) (int, err
 		return -1, err
 	}
 
-	pods, err := clientSet.CoreV1().Pods(namespace).List(v1.ListOptions{
+	pods, err := clientSet.CoreV1().Pods(namespace).List(context.Background(), v1.ListOptions{
 		LabelSelector: podSelector,
 	})
 	if err != nil {

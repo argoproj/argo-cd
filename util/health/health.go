@@ -11,7 +11,7 @@ import (
 )
 
 // SetApplicationHealth updates the health statuses of all resources performed in the comparison
-func SetApplicationHealth(resStatuses []appv1.ResourceStatus, liveObjs []*unstructured.Unstructured, resourceOverrides map[string]appv1.ResourceOverride, filter func(obj *unstructured.Unstructured) bool) (*appv1.HealthStatus, error) {
+func SetApplicationHealth(resStatuses []*appv1.ResourceStatus, liveObjs []*unstructured.Unstructured, resourceOverrides map[string]appv1.ResourceOverride, filter func(obj *unstructured.Unstructured) bool) (*appv1.HealthStatus, error) {
 	var savedErr error
 	appHealth := appv1.HealthStatus{Status: health.HealthStatusHealthy}
 	for i, liveObj := range liveObjs {
@@ -43,11 +43,8 @@ func SetApplicationHealth(resStatuses []appv1.ResourceStatus, liveObjs []*unstru
 // health of the application (e.g. hooks, missing child applications)
 func ignoreLiveObjectHealth(liveObj *unstructured.Unstructured, resHealth appv1.HealthStatus) bool {
 	if liveObj != nil {
-		if hookutil.IsHook(liveObj) {
-			// Don't allow resource hooks to affect health status
-			return true
-		}
-		if ignore.Ignore(liveObj) {
+		// Don't allow resource hooks to affect health status
+		if hookutil.IsHook(liveObj) || ignore.Ignore(liveObj) {
 			return true
 		}
 		gvk := liveObj.GroupVersionKind()

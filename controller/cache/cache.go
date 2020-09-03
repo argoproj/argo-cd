@@ -16,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/tools/cache"
 
+	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/controller/metrics"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/argo"
@@ -231,6 +232,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 	}
 
 	clusterCache = clustercache.NewClusterCache(cluster.RESTConfig(),
+		clustercache.SetResyncTimeout(common.K8SClusterResyncDuration),
 		clustercache.SetSettings(cacheSettings.clusterSettings),
 		clustercache.SetNamespaces(cluster.Namespaces),
 		clustercache.SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (interface{}, bool) {
@@ -416,9 +418,9 @@ func (c *liveStateCache) Init() error {
 func (c *liveStateCache) Run(ctx context.Context) error {
 	go c.watchSettings(ctx)
 
-	kube.RetryUntilSucceed(func() error {
+	kube.RetryUntilSucceed(ctx, clustercache.ClusterRetryTimeout, "watch clusters", func() error {
 		return c.db.WatchClusters(ctx, c.handleAddEvent, c.handleModEvent, c.handleDeleteEvent)
-	}, "watch clusters", ctx, clustercache.ClusterRetryTimeout)
+	})
 
 	<-ctx.Done()
 	c.invalidate(c.cacheSettings)
@@ -444,25 +446,22 @@ func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *a
 	cluster, ok := c.clusters[newCluster.Server]
 	c.lock.Unlock()
 	if ok {
-		var shouldInvalidate bool
-
-		if oldCluster.Server != newCluster.Server {
-			shouldInvalidate = true
-		}
+		var updateSettings []clustercache.UpdateSettingsFunc
 		if !reflect.DeepEqual(oldCluster.Config, newCluster.Config) {
-			shouldInvalidate = true
+			updateSettings = append(updateSettings, clustercache.SetConfig(newCluster.RESTConfig()))
 		}
 		if !reflect.DeepEqual(oldCluster.Namespaces, newCluster.Namespaces) {
-			shouldInvalidate = true
+			updateSettings = append(updateSettings, clustercache.SetNamespaces(newCluster.Namespaces))
 		}
+		forceInvalidate := false
 		if newCluster.RefreshRequestedAt != nil &&
 			cluster.GetClusterInfo().LastCacheSyncTime != nil &&
 			cluster.GetClusterInfo().LastCacheSyncTime.Before(newCluster.RefreshRequestedAt.Time) {
-			shouldInvalidate = true
+			forceInvalidate = true
 		}
 
-		if shouldInvalidate {
-			cluster.Invalidate()
+		if len(updateSettings) > 0 || forceInvalidate {
+			cluster.Invalidate(updateSettings...)
 			go func() {
 				// warm up cluster cache
 				_ = cluster.EnsureSynced()
