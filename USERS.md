@@ -47,6 +47,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Mirantis](https://mirantis.com/)
 1. [Money Forward](https://corp.moneyforward.com/en/)
 1. [MOO Print](https://www.moo.com/)
+1. [Nikkei](https://www.nikkei.co.jp/nikkeiinfo/en/)
 1. [OpenSaaS Studio](https://opensaas.studio)
 1. [Optoro](https://www.optoro.com/)
 1. [Peloton Interactive](https://www.onepeloton.com/)
