@@ -271,6 +271,12 @@ func getDaemonSetHealth(obj *unstructured.Unstructured) (*HealthStatus, error) {
 	}
 	// Borrowed at kubernetes/kubectl/rollout_status.go https://github.com/kubernetes/kubernetes/blob/5232ad4a00ec93942d0b2c6359ee6cd1201b46bc/pkg/kubectl/rollout_status.go#L110
 	if daemon.Generation <= daemon.Status.ObservedGeneration {
+		if daemon.Spec.UpdateStrategy.Type == appsv1.OnDeleteDaemonSetStrategyType {
+			return &HealthStatus{
+				Status:  HealthStatusHealthy,
+				Message: fmt.Sprintf("daemon set %d out of %d new pods have been updated", daemon.Status.UpdatedNumberScheduled, daemon.Status.DesiredNumberScheduled),
+			}, nil
+		}
 		if daemon.Status.UpdatedNumberScheduled < daemon.Status.DesiredNumberScheduled {
 			return &HealthStatus{
 				Status:  HealthStatusProgressing,
