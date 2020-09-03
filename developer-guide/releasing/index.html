@@ -1646,7 +1646,6 @@ have been performed, you will need to manually clean up.</p>
 <h3 id="post-process-manual-steps">Post-process manual steps<a class="headerlink" href="#post-process-manual-steps" title="Permanent link">&para;</a></h3>
 <p>For now, the only manual steps left are to</p>
 <ul>
-<li>update brew formulae for ArgoCD CLI on Mac if release is GA</li>
 <li>update stable tag in GitHub repository to point to new release (if appropriate)</li>
 </ul>
 <p>These will be automated as well in the future.</p>
@@ -1700,11 +1699,7 @@ git push <span class="nv">$REPO</span> <span class="nv">$VERSION</span>
 </ul>
 <h2 id="update-brew-formulae-manual">Update brew formulae (manual)<a class="headerlink" href="#update-brew-formulae-manual" title="Permanent link">&para;</a></h2>
 <p>If GA, update Brew formula:</p>
-<div class="codehilite"><pre><span></span><code>git clone git@github.com:argoproj/homebrew-tap.git
-<span class="nb">cd</span> homebrew-tap
-./update.sh argocd <span class="nv">$VERSION</span>
-git commit -am <span class="s2">&quot;Update argocd to </span><span class="nv">$VERSION</span><span class="s2">&quot;</span>
-git push
+<div class="codehilite"><pre><span></span><code>brew bump-formula-pr argocd --version <span class="si">${</span><span class="nv">VERSION</span><span class="p">:</span><span class="nv">1</span><span class="si">}</span>
 </code></pre></div>
 
 
