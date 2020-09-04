@@ -491,24 +491,28 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                     Observable.merge(
                         Observable.from([app]),
                         this.appChanged.filter(item => !!item),
-                        services.applications
-                            .watch({name})
-                            .map(watchEvent => {
-                                if (watchEvent.type === 'DELETED') {
-                                    this.onAppDeleted();
-                                }
-                                return watchEvent.application;
-                            })
-                            .repeat()
-                            .retryWhen(errors => errors.delay(500))
+                        AppUtils.handlePageVisibility(() =>
+                            services.applications
+                                .watch({name})
+                                .map(watchEvent => {
+                                    if (watchEvent.type === 'DELETED') {
+                                        this.onAppDeleted();
+                                    }
+                                    return watchEvent.application;
+                                })
+                                .repeat()
+                                .retryWhen(errors => errors.delay(500))
+                        )
                     ),
                     Observable.merge(
                         Observable.from([fallbackTree]),
                         services.applications.resourceTree(name).catch(() => fallbackTree),
-                        services.applications
-                            .watchResourceTree(name)
-                            .repeat()
-                            .retryWhen(errors => errors.delay(500))
+                        AppUtils.handlePageVisibility(() =>
+                            services.applications
+                                .watchResourceTree(name)
+                                .repeat()
+                                .retryWhen(errors => errors.delay(500))
+                        )
                     )
                 );
             })
