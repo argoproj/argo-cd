@@ -166,6 +166,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                     <div className='application-details__view-type'>
                                                         <i
                                                             className={classNames('fa fa-sitemap', {selected: pref.view === 'tree'})}
+                                                            title='Tree'
                                                             onClick={() => {
                                                                 this.appContext.apis.navigation.goto('.', {view: 'tree'});
                                                                 services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'tree'}});
@@ -173,6 +174,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                         />
                                                         <i
                                                             className={classNames('fa fa-network-wired', {selected: pref.view === 'network'})}
+                                                            title='Network'
                                                             onClick={() => {
                                                                 this.appContext.apis.navigation.goto('.', {view: 'network'});
                                                                 services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'network'}});
@@ -180,6 +182,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                         />
                                                         <i
                                                             className={classNames('fa fa-th-list', {selected: pref.view === 'list'})}
+                                                            title='List'
                                                             onClick={() => {
                                                                 this.appContext.apis.navigation.goto('.', {view: 'list'});
                                                                 services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'list'}});
