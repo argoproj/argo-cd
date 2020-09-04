@@ -172,12 +172,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
             const applications = loaderRef.current.getData() as models.Application[];
             const app = applications.find(item => item.metadata.name === appName);
             if (app) {
-                if (!app.metadata.annotations) {
-                    app.metadata.annotations = {};
-                }
-                if (!app.metadata.annotations[models.AnnotationRefreshKey]) {
-                    app.metadata.annotations[models.AnnotationRefreshKey] = 'refreshing';
-                }
+                AppUtils.setAppRefreshing(app);
                 loaderRef.current.setData(applications);
             }
         }

@@ -413,6 +413,15 @@ export function isAppRefreshing(app: appModels.Application) {
     return !!(app.metadata.annotations && app.metadata.annotations[appModels.AnnotationRefreshKey]);
 }
 
+export function setAppRefreshing(app: appModels.Application) {
+    if (!app.metadata.annotations) {
+        app.metadata.annotations = {};
+    }
+    if (!app.metadata.annotations[appModels.AnnotationRefreshKey]) {
+        app.metadata.annotations[appModels.AnnotationRefreshKey] = 'refreshing';
+    }
+}
+
 export function refreshLinkAttrs(app: appModels.Application) {
     return {disabled: isAppRefreshing(app)};
 }
