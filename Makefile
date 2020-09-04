@@ -48,6 +48,7 @@ ARGOCD_LINT_GOGC?=20
 define run-in-test-server
 	docker run --rm -it \
 		--name argocd-test-server \
+		-u $(shell id -u):$(shell id -g) \
 		-e USER_ID=$(shell id -u) \
 		-e HOME=/home/user \
 		-e GOPATH=/go \
@@ -71,7 +72,7 @@ endef
 define run-in-test-client
 	docker run --rm -it \
 	  --name argocd-test-client \
-		-u $(shell id -u) \
+		-u $(shell id -u):$(shell id -g) \
 		-e HOME=/home/user \
 		-e GOPATH=/go \
 		-e ARGOCD_E2E_K3S=$(ARGOCD_E2E_K3S) \
@@ -89,7 +90,7 @@ endef
 
 # 
 define exec-in-test-server
-	docker exec -it -u $(shell id -u) -e ARGOCD_E2E_K3S=$(ARGOCD_E2E_K3S) argocd-test-server $(1)
+	docker exec -it -u $(shell id -u):$(shell id -g) -e ARGOCD_E2E_K3S=$(ARGOCD_E2E_K3S) argocd-test-server $(1)
 endef
 
 PATH:=$(PATH):$(PWD)/hack
@@ -403,7 +404,6 @@ start-local: mod-vendor-local
 	rm -rf /tmp/argocd-local
 	mkdir -p /tmp/argocd-local
 	mkdir -p /tmp/argocd-local/gpg/keys && chmod 0700 /tmp/argocd-local/gpg/keys
-	if test "$(USER_ID)" != ""; then chown -R "$(USER_ID)" /tmp/argocd-local/gpg/keys; fi
 	mkdir -p /tmp/argocd-local/gpg/source
 	ARGOCD_ZJWT_FEATURE_FLAG=always \
 	ARGOCD_IN_CI=false \
