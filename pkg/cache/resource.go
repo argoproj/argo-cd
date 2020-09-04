@@ -24,8 +24,8 @@ type Resource struct {
 	// Optional whole resource manifest
 	Resource *unstructured.Unstructured
 
-	// answers if given resource key is potential child resource
-	isChildRef func(key kube.ResourceKey) bool
+	// answers if resource is inferred parent of provided resource
+	isInferredParentOf func(key kube.ResourceKey) bool
 }
 
 func (r *Resource) ResourceKey() kube.ResourceKey {
@@ -48,6 +48,29 @@ func (r *Resource) isParentOf(child *Resource) bool {
 	}
 
 	return false
+}
+
+// setOwnerRef adds or removes specified owner reference
+func (r *Resource) setOwnerRef(ref metav1.OwnerReference, add bool) {
+	index := -1
+	for i, item := range r.OwnerRefs {
+		if item.UID == ref.UID {
+			index = i
+			break
+		}
+	}
+	added := index > -1
+	if add != added {
+		if add {
+			r.OwnerRefs = append(r.OwnerRefs, ref)
+		} else {
+			r.OwnerRefs = append(r.OwnerRefs[:index], r.OwnerRefs[index+1:]...)
+		}
+	}
+}
+
+func (r *Resource) toOwnerRef() metav1.OwnerReference {
+	return metav1.OwnerReference{UID: r.Ref.UID, Name: r.Ref.Name, Kind: r.Ref.Kind, APIVersion: r.Ref.APIVersion}
 }
 
 func newResourceKeySet(set map[kube.ResourceKey]bool, keys ...kube.ResourceKey) map[kube.ResourceKey]bool {

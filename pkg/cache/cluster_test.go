@@ -8,7 +8,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -22,6 +24,14 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
 )
+
+func mustToUnstructured(obj interface{}) *unstructured.Unstructured {
+	un, err := kube.ToUnstructured(obj)
+	if err != nil {
+		panic(err)
+	}
+	return un
+}
 
 func strToUnstructured(jsonStr string) *unstructured.Unstructured {
 	obj := make(map[string]interface{})
@@ -126,6 +136,10 @@ func newCluster(objs ...*unstructured.Unstructured) *clusterCache {
 		GroupKind:            schema.GroupKind{Group: "apps", Kind: "Deployment"},
 		GroupVersionResource: schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"},
 		Meta:                 metav1.APIResource{Namespaced: true},
+	}, {
+		GroupKind:            schema.GroupKind{Group: "apps", Kind: "StatefulSet"},
+		GroupVersionResource: schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "statefulsets"},
+		Meta:                 metav1.APIResource{Namespaced: true},
 	}}
 
 	return NewClusterCache(
@@ -162,6 +176,75 @@ func TestEnsureSynced(t *testing.T) {
 		names = append(names, k.Name)
 	}
 	assert.ElementsMatch(t, []string{"helm-guestbook1", "helm-guestbook2"}, names)
+}
+
+func TestStatefulSetOwnershipInferred(t *testing.T) {
+	sts := mustToUnstructured(&appsv1.StatefulSet{
+		TypeMeta:   metav1.TypeMeta{APIVersion: "apps/v1", Kind: kube.StatefulSetKind},
+		ObjectMeta: metav1.ObjectMeta{UID: "123", Name: "web", Namespace: "default"},
+		Spec: appsv1.StatefulSetSpec{
+			VolumeClaimTemplates: []v1.PersistentVolumeClaim{{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "www",
+				},
+			}},
+		},
+	})
+
+	t.Run("STSTemplateNameNotMatching", func(t *testing.T) {
+		cluster := newCluster(sts)
+		err := cluster.EnsureSynced()
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		pvc := mustToUnstructured(&v1.PersistentVolumeClaim{
+			TypeMeta:   metav1.TypeMeta{Kind: kube.PersistentVolumeClaimKind},
+			ObjectMeta: metav1.ObjectMeta{Name: "www1-web-0", Namespace: "default"},
+		})
+
+		cluster.processEvent(watch.Added, pvc)
+
+		refs := cluster.resources[kube.GetResourceKey(pvc)].OwnerRefs
+
+		assert.Len(t, refs, 0)
+	})
+
+	t.Run("STSTemplateNameNotMatching", func(t *testing.T) {
+		cluster := newCluster(sts)
+		err := cluster.EnsureSynced()
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		pvc := mustToUnstructured(&v1.PersistentVolumeClaim{
+			TypeMeta:   metav1.TypeMeta{Kind: kube.PersistentVolumeClaimKind},
+			ObjectMeta: metav1.ObjectMeta{Name: "www1-web-0", Namespace: "default"},
+		})
+		cluster.processEvent(watch.Added, pvc)
+
+		refs := cluster.resources[kube.GetResourceKey(pvc)].OwnerRefs
+
+		assert.Len(t, refs, 0)
+	})
+
+	t.Run("MatchingSTSExists", func(t *testing.T) {
+		cluster := newCluster(sts)
+		err := cluster.EnsureSynced()
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		pvc := mustToUnstructured(&v1.PersistentVolumeClaim{
+			TypeMeta:   metav1.TypeMeta{Kind: kube.PersistentVolumeClaimKind},
+			ObjectMeta: metav1.ObjectMeta{Name: "www-web-0", Namespace: "default"},
+		})
+		cluster.processEvent(watch.Added, pvc)
+
+		refs := cluster.resources[kube.GetResourceKey(pvc)].OwnerRefs
+
+		assert.ElementsMatch(t, refs, []metav1.OwnerReference{{APIVersion: "apps/v1", Kind: kube.StatefulSetKind, Name: "web", UID: "123"}})
+	})
 }
 
 func TestEnsureSyncedSingleNamespace(t *testing.T) {

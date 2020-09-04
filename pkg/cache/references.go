@@ -3,7 +3,6 @@ package cache
 import (
 	"encoding/json"
 	"fmt"
-	"regexp"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
@@ -15,12 +14,13 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 )
 
-var (
-	pvcNameRegex = regexp.MustCompile(`.+-(.+)-\d+`)
-)
+// mightHaveInferredOwner returns true of given resource might have inferred owners
+func mightHaveInferredOwner(r *Resource) bool {
+	return r.Ref.GroupVersionKind().Group == "" && r.Ref.Kind == kube.PersistentVolumeClaimKind
+}
 
 func (c *clusterCache) resolveResourceReferences(un *unstructured.Unstructured) ([]metav1.OwnerReference, func(kube.ResourceKey) bool) {
-	var isChildRef func(_ kube.ResourceKey) bool
+	var isInferredParentOf func(_ kube.ResourceKey) bool
 	ownerRefs := un.GetOwnerReferences()
 	gvk := un.GroupVersionKind()
 
@@ -50,36 +50,15 @@ func (c *clusterCache) resolveResourceReferences(un *unstructured.Unstructured) 
 			ownerRefs = append(ownerRefs, ref)
 		}
 
-	// PVC with matching names should be considered as a child of matching StatefulSet
-	case un.GroupVersionKind().Group == "" && un.GroupVersionKind().Kind == kube.PersistentVolumeClaimKind:
-		ownerRefs = append(ownerRefs, c.getPVCOwnerRefs(un)...)
-
 	case (un.GroupVersionKind().Group == "apps" || un.GroupVersionKind().Group == "extensions") && un.GetKind() == kube.StatefulSetKind:
 		if refs, err := isStatefulSetChild(un); err != nil {
 			log.Errorf("Failed to extract StatefulSet %s/%s PVC references: %v", un.GetNamespace(), un.GetName(), err)
 		} else {
-			isChildRef = refs
+			isInferredParentOf = refs
 		}
 	}
 
-	return ownerRefs, isChildRef
-}
-
-func (c *clusterCache) getPVCOwnerRefs(un *unstructured.Unstructured) []metav1.OwnerReference {
-	if match := pvcNameRegex.FindStringSubmatch(un.GetName()); len(match) >= 2 {
-		stsName := match[1]
-		if sts, ok := c.resources[kube.NewResourceKey("apps", kube.StatefulSetKind, un.GetNamespace(), stsName)]; ok &&
-			sts.isChildRef != nil && sts.isChildRef(kube.GetResourceKey(un)) {
-
-			return []metav1.OwnerReference{{
-				APIVersion: sts.Ref.APIVersion,
-				Kind:       sts.Ref.Kind,
-				Name:       sts.Ref.Name,
-				UID:        sts.Ref.UID,
-			}}
-		}
-	}
-	return nil
+	return ownerRefs, isInferredParentOf
 }
 
 func isStatefulSetChild(un *unstructured.Unstructured) (func(kube.ResourceKey) bool, error) {
@@ -95,9 +74,11 @@ func isStatefulSetChild(un *unstructured.Unstructured) (func(kube.ResourceKey) b
 
 	templates := sts.Spec.VolumeClaimTemplates
 	return func(key kube.ResourceKey) bool {
-		for _, templ := range templates {
-			if strings.HasPrefix(key.Name, fmt.Sprintf("%s-%s-", templ.Name, un.GetName())) {
-				return true
+		if key.Kind == kube.PersistentVolumeClaimKind && key.GroupKind().Group == "" {
+			for _, templ := range templates {
+				if strings.HasPrefix(key.Name, fmt.Sprintf("%s-%s-", templ.Name, un.GetName())) {
+					return true
+				}
 			}
 		}
 		return false

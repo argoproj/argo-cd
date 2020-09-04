@@ -249,7 +249,7 @@ func (c *clusterCache) replaceResourceCache(gk schema.GroupKind, objs []unstruct
 }
 
 func (c *clusterCache) newResource(un *unstructured.Unstructured) *Resource {
-	ownerRefs, childRefs := c.resolveResourceReferences(un)
+	ownerRefs, isInferredParentOf := c.resolveResourceReferences(un)
 
 	cacheManifest := false
 	var info interface{}
@@ -262,12 +262,12 @@ func (c *clusterCache) newResource(un *unstructured.Unstructured) *Resource {
 		creationTimestamp = &ct
 	}
 	resource := &Resource{
-		ResourceVersion:   un.GetResourceVersion(),
-		Ref:               kube.GetObjectRef(un),
-		OwnerRefs:         ownerRefs,
-		Info:              info,
-		CreationTimestamp: creationTimestamp,
-		isChildRef:        childRefs,
+		ResourceVersion:    un.GetResourceVersion(),
+		Ref:                kube.GetObjectRef(un),
+		OwnerRefs:          ownerRefs,
+		Info:               info,
+		CreationTimestamp:  creationTimestamp,
+		isInferredParentOf: isInferredParentOf,
 	}
 	if cacheManifest {
 		resource.Resource = un
@@ -285,6 +285,19 @@ func (c *clusterCache) setNode(n *Resource) {
 		c.nsIndex[key.Namespace] = ns
 	}
 	ns[key] = n
+
+	// update inferred parent references
+	if n.isInferredParentOf != nil || mightHaveInferredOwner(n) {
+		for k, v := range ns {
+			// update child resource owner references
+			if n.isInferredParentOf != nil && mightHaveInferredOwner(v) {
+				v.setOwnerRef(n.toOwnerRef(), n.isInferredParentOf(k))
+			}
+			if mightHaveInferredOwner(n) && v.isInferredParentOf != nil {
+				n.setOwnerRef(v.toOwnerRef(), v.isInferredParentOf(n.ResourceKey()))
+			}
+		}
+	}
 }
 
 // Invalidate cache and executes callback that optionally might update cache settings
@@ -763,6 +776,14 @@ func (c *clusterCache) onNodeRemoved(key kube.ResourceKey) {
 			delete(ns, key)
 			if len(ns) == 0 {
 				delete(c.nsIndex, key.Namespace)
+			}
+			// remove ownership references from children with inferred references
+			if existing.isInferredParentOf != nil {
+				for k, v := range ns {
+					if mightHaveInferredOwner(v) && existing.isInferredParentOf(k) {
+						v.setOwnerRef(existing.toOwnerRef(), false)
+					}
+				}
 			}
 		}
 		for _, h := range c.getResourceUpdatedHandlers() {
