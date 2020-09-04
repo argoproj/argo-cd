@@ -234,7 +234,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                 {pref => (
                                     <DataLoader
                                         ref={loaderRef}
-                                        load={() => loadApplications()}
+                                        load={() => AppUtils.handlePageVisibility(() => loadApplications())}
                                         loadingRenderer={() => (
                                             <div className='argo-container'>
                                                 <MockupList height={100} marginTop={30} />
