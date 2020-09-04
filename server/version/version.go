@@ -5,6 +5,8 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"golang.org/x/net/context"
 
+	"github.com/google/go-jsonnet"
+
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apiclient/version"
 	"github.com/argoproj/argo-cd/util/helm"
@@ -17,6 +19,7 @@ type Server struct {
 	kustomizeVersion string
 	helmVersion      string
 	kubectlVersion   string
+	jsonnetVersion   string
 }
 
 // Version returns the version of the API server
@@ -55,6 +58,7 @@ func (s *Server) Version(context.Context, *empty.Empty) (*version.VersionMessage
 			s.kubectlVersion = err.Error()
 		}
 	}
+	s.jsonnetVersion = jsonnet.Version()
 	return &version.VersionMessage{
 		Version:          vers.Version,
 		BuildDate:        vers.BuildDate,
@@ -68,6 +72,7 @@ func (s *Server) Version(context.Context, *empty.Empty) (*version.VersionMessage
 		KustomizeVersion: s.kustomizeVersion,
 		HelmVersion:      s.helmVersion,
 		KubectlVersion:   s.kubectlVersion,
+		JsonnetVersion:   s.jsonnetVersion,
 	}, nil
 }
 

@@ -90,9 +90,10 @@ function paramsToProj(params: ProjectParams) {
 }
 
 export class ProjectsService {
-    public list(): Promise<models.Project[]> {
+    public list(...fields: string[]): Promise<models.Project[]> {
         return requests
             .get('/projects')
+            .query({fields: fields.join(',')})
             .then(res => res.body as models.ProjectList)
             .then(list => list.items || []);
     }

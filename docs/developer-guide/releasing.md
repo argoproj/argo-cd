@@ -93,7 +93,7 @@ action is `Create release`. Don't get confused by the name of the running
 workflow, it will be the commit message of the latest commit to `master`
 branch, this is a limitation of GH actions.
 
-The workflow performs necessary checks so that the release can be sucessfully
+The workflow performs necessary checks so that the release can be successfully
 build before the build actually starts. It will error when one of the
 prerequisites is not met, or if the release cannot be build (i.e. already
 exists, release notes invalid, etc etc). You can see a summary of what has
@@ -138,7 +138,6 @@ have been performed, you will need to manually clean up.
 
 For now, the only manual steps left are to
 
-* update brew formulae for ArgoCD CLI on Mac if release is GA
 * update stable tag in GitHub repository to point to new release (if appropriate)
 
 These will be automated as well in the future.
@@ -203,11 +202,7 @@ Update [Github releases](https://github.com/argoproj/argo-cd/releases) with:
 If GA, update Brew formula:
 
 ```bash
-git clone git@github.com:argoproj/homebrew-tap.git
-cd homebrew-tap
-./update.sh argocd $VERSION
-git commit -am "Update argocd to $VERSION"
-git push
+brew bump-formula-pr argocd --version ${VERSION:1}
 ```
 
 ## Update stable tag (manual)

@@ -205,7 +205,7 @@ export const ResourceResultIcon = ({resource}: {resource: appModels.ResourceResu
         }
         let title: string = resource.message;
         if (resource.message) {
-            title = `${resource.status}: ${resource.message};`;
+            title = `${resource.status}: ${resource.message}`;
         }
         return <i title={title} className={'fa ' + icon} style={{color}} />;
     }
@@ -411,6 +411,15 @@ export function getAppOverridesCount(app: appModels.Application) {
 
 export function isAppRefreshing(app: appModels.Application) {
     return !!(app.metadata.annotations && app.metadata.annotations[appModels.AnnotationRefreshKey]);
+}
+
+export function setAppRefreshing(app: appModels.Application) {
+    if (!app.metadata.annotations) {
+        app.metadata.annotations = {};
+    }
+    if (!app.metadata.annotations[appModels.AnnotationRefreshKey]) {
+        app.metadata.annotations[appModels.AnnotationRefreshKey] = 'refreshing';
+    }
 }
 
 export function refreshLinkAttrs(app: appModels.Application) {

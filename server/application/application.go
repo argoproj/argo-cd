@@ -61,6 +61,7 @@ type Server struct {
 	kubeclientset  kubernetes.Interface
 	appclientset   appclientset.Interface
 	appLister      applisters.ApplicationNamespaceLister
+	appInformer    cache.SharedIndexInformer
 	appBroadcaster *broadcasterHandler
 	repoClientset  apiclient.Clientset
 	kubectl        kube.Kubectl
@@ -93,6 +94,7 @@ func NewServer(
 		ns:             namespace,
 		appclientset:   appclientset,
 		appLister:      appLister,
+		appInformer:    appInformer,
 		appBroadcaster: appBroadcaster,
 		kubeclientset:  kubeclientset,
 		cache:          cache,
@@ -132,6 +134,9 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*ap
 		return newItems[i].Name < newItems[j].Name
 	})
 	appList := appv1.ApplicationList{
+		ListMeta: metav1.ListMeta{
+			ResourceVersion: s.appInformer.LastSyncResourceVersion(),
+		},
 		Items: newItems,
 	}
 	return &appList, nil
@@ -636,12 +641,15 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 	}
 
 	events := make(chan *appv1.ApplicationWatchEvent)
-	apps, err := s.appLister.List(selector)
-	if err != nil {
-		return err
-	}
-	for i := range apps {
-		sendIfPermitted(*apps[i], watch.Added)
+	if q.ResourceVersion == "" {
+		// mimic watch API behavior: send ADDED events if no resource version provided
+		apps, err := s.appLister.List(selector)
+		if err != nil {
+			return err
+		}
+		for i := range apps {
+			sendIfPermitted(*apps[i], watch.Added)
+		}
 	}
 	unsubscribe := s.appBroadcaster.Subscribe(events)
 	defer unsubscribe()
@@ -899,6 +907,17 @@ func (s *Server) ResourceTree(ctx context.Context, q *application.ResourcesQuery
 		return nil, err
 	}
 	return s.getAppResources(ctx, a)
+}
+
+func (s *Server) WatchResourceTree(q *application.ResourcesQuery, ws application.ApplicationService_WatchResourceTreeServer) error {
+	return s.cache.OnAppResourcesTreeChanged(ws.Context(), q.GetApplicationName(), func() error {
+		var tree appv1.ApplicationTree
+		err := s.cache.GetAppResourcesTree(q.GetApplicationName(), &tree)
+		if err != nil {
+			return err
+		}
+		return ws.Send(&tree)
+	})
 }
 
 func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMetadataQuery) (*v1alpha1.RevisionMetadata, error) {

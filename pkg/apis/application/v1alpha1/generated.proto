@@ -286,6 +286,7 @@ message ApplicationStatus {
   optional OperationState operationState = 7;
 
   // ObservedAt indicates when the application state was updated without querying latest git state
+  // Deprecated: controller no longer updates ObservedAt field
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time observedAt = 8;
 
   optional string sourceType = 9;

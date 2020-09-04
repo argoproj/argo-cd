@@ -2227,6 +2227,56 @@
         }
       }
     },
+    "/api/v1/stream/applications/{applicationName}/resource-tree": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "Watch returns stream of application resource tree",
+        "operationId": "WatchResourceTree",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "applicationName",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "name",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "version",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "group",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "kind",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.(streaming responses)",
+            "schema": {
+              "$ref": "#/x-stream-definitions/v1alpha1ApplicationTree"
+            }
+          }
+        }
+      }
+    },
     "/api/version": {
       "get": {
         "tags": [
@@ -5306,6 +5356,9 @@
           "type": "string"
         },
         "HelmVersion": {
+          "type": "string"
+        },
+        "JsonnetVersion": {
           "type": "string"
         },
         "KsonnetVersion": {
