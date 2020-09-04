@@ -641,12 +641,15 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 	}
 
 	events := make(chan *appv1.ApplicationWatchEvent)
-	apps, err := s.appLister.List(selector)
-	if err != nil {
-		return err
-	}
-	for i := range apps {
-		sendIfPermitted(*apps[i], watch.Added)
+	if q.ResourceVersion == "" {
+		// mimic watch API behavior: send ADDED events if no resource version provided
+		apps, err := s.appLister.List(selector)
+		if err != nil {
+			return err
+		}
+		for i := range apps {
+			sendIfPermitted(*apps[i], watch.Added)
+		}
 	}
 	unsubscribe := s.appBroadcaster.Subscribe(events)
 	defer unsubscribe()

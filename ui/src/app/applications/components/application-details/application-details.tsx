@@ -38,7 +38,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         apis: PropTypes.object
     };
 
-    private refreshRequested = new BehaviorSubject(null);
+    private appChanged = new BehaviorSubject<appModels.Application>(null);
 
     constructor(props: RouteComponentProps<{name: string}>) {
         super(props);
@@ -459,7 +459,13 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                     </React.Fragment>
                 ),
                 disabled: !!refreshing,
-                action: () => !refreshing && services.applications.get(app.metadata.name, 'normal')
+                action: () => {
+                    if (!refreshing) {
+                        services.applications.get(app.metadata.name, 'normal');
+                        AppUtils.setAppRefreshing(app);
+                        this.appChanged.next(app);
+                    }
+                }
             }
         ];
     }
@@ -484,6 +490,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                 return Observable.combineLatest(
                     Observable.merge(
                         Observable.from([app]),
+                        this.appChanged.filter(item => !!item),
                         services.applications
                             .watch({name})
                             .map(watchEvent => {
@@ -519,8 +526,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         latestApp.metadata.labels = app.metadata.labels;
         latestApp.metadata.annotations = app.metadata.annotations;
         latestApp.spec = app.spec;
-        await services.applications.update(latestApp);
-        this.refreshRequested.next({});
+        const updatedApp = await services.applications.update(latestApp);
+        this.appChanged.next(updatedApp);
     }
 
     private groupAppNodesByKey(application: appModels.Application, tree: appModels.ApplicationTree) {
@@ -589,7 +596,7 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
                     await services.applications.update(update);
                 }
                 await services.applications.rollback(this.props.match.params.name, revisionHistory.id);
-                this.refreshRequested.next({});
+                this.appChanged.next(await services.applications.get(this.props.match.params.name));
                 this.setRollbackPanelVisible(-1);
             }
         } catch (e) {
@@ -637,7 +644,7 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
                                 submit: async (vals, _, close) => {
                                     try {
                                         await services.applications.deleteResource(this.props.match.params.name, resource, !!vals.force);
-                                        this.refreshRequested.next({});
+                                        this.appChanged.next(await services.applications.get(this.props.match.params.name));
                                         close();
                                     } catch (e) {
                                         this.appContext.apis.notifications.show({

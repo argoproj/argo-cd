@@ -101,7 +101,7 @@ export class ApplicationsService {
         return requests
             .put(`/applications/${app.metadata.name}`)
             .send(app)
-            .then(res => res.body as models.Application);
+            .then(res => this.parseAppFields(res.body));
     }
 
     public create(app: models.Application): Promise<models.Application> {
