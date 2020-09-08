@@ -1,6 +1,16 @@
 # Changelog
 
-## v1.7.0 (Unreleased)
+## v1.7.2 (2020-08-27)
+
+- fix: Sync hangs with cert-manager on latest RC (#4105)
+- fix: support for PKCE for cli login (#2932)
+
+## v1.7.2 (2020-08-25)
+
+- fix: Unable to create project JWT token on K8S v1.15 (#4165)
+- fix: Argo CD does not exclude creationTimestamp from diffing (#4157)
+
+## v1.7.0 (2020-08-24)
 
 ### GnuPG Signature Verification
 

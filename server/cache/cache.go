@@ -1,10 +1,11 @@
 package cache
 
 import (
+	"context"
 	"fmt"
 	"time"
 
-	"github.com/go-redis/redis"
+	"github.com/go-redis/redis/v8"
 	"github.com/spf13/cobra"
 
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -55,6 +56,10 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) 
 
 func (c *Cache) GetAppResourcesTree(appName string, res *appv1.ApplicationTree) error {
 	return c.cache.GetAppResourcesTree(appName, res)
+}
+
+func (c *Cache) OnAppResourcesTreeChanged(ctx context.Context, appName string, callback func() error) error {
+	return c.cache.OnAppResourcesTreeChanged(ctx, appName, callback)
 }
 
 func (c *Cache) GetAppManagedResources(appName string, res *[]*appv1.ResourceDiff) error {

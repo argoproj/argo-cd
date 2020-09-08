@@ -146,7 +146,7 @@ export class ApplicationsFilter extends React.Component<ApplicationsFilterProps,
                             <p>Projects</p>
                             <ul>
                                 <li>
-                                    <DataLoader load={() => services.projects.list()}>
+                                    <DataLoader load={() => services.projects.list('items.metadata.name')}>
                                         {projects => {
                                             const projAppCount = new Map<string, number>();
                                             projects.forEach(proj => projAppCount.set(proj.metadata.name, 0));
@@ -168,9 +168,9 @@ export class ApplicationsFilter extends React.Component<ApplicationsFilterProps,
                                 <li>
                                     <TagsInput
                                         placeholder='https://kubernetes.default.svc'
-                                        autocomplete={Array.from(new Set(applications.map(app => app.spec.destination.server).filter(item => !!item))).filter(
-                                            ns => pref.clustersFilter.indexOf(ns) === -1
-                                        )}
+                                        autocomplete={Array.from(
+                                            new Set(applications.map(app => app.spec.destination.server || app.spec.destination.name).filter(item => !!item))
+                                        ).filter(ns => pref.clustersFilter.indexOf(ns) === -1)}
                                         tags={pref.clustersFilter}
                                         onChange={selected => onChange({...pref, clustersFilter: selected})}
                                     />

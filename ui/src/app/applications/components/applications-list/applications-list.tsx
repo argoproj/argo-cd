@@ -21,6 +21,8 @@ import {ApplicationTiles} from './applications-tiles';
 
 require('./applications-list.scss');
 
+const EVENTS_BUFFER_TIMEOUT = 500;
+const WATCH_RETRY_TIMEOUT = 500;
 const APP_FIELDS = [
     'metadata.name',
     'metadata.annotations',
@@ -35,37 +37,44 @@ const APP_FIELDS = [
     'status.operationState.operation.sync',
     'status.summary'
 ];
-const APP_LIST_FIELDS = APP_FIELDS.map(field => `items.${field}`);
+const APP_LIST_FIELDS = ['metadata.resourceVersion', ...APP_FIELDS.map(field => `items.${field}`)];
 const APP_WATCH_FIELDS = ['result.type', ...APP_FIELDS.map(field => `result.application.${field}`)];
 
 function loadApplications(): Observable<models.Application[]> {
-    return Observable.fromPromise(services.applications.list([], {fields: APP_LIST_FIELDS})).flatMap(applications =>
-        Observable.merge(
+    return Observable.fromPromise(services.applications.list([], {fields: APP_LIST_FIELDS})).flatMap(applicationsList => {
+        const applications = applicationsList.items;
+        return Observable.merge(
             Observable.from([applications]),
             services.applications
-                .watch(null, {fields: APP_WATCH_FIELDS})
-                .map(appChange => {
-                    const index = applications.findIndex(item => item.metadata.name === appChange.application.metadata.name);
-                    switch (appChange.type) {
-                        case 'DELETED':
-                            if (index > -1) {
-                                applications.splice(index, 1);
-                            }
-                            break;
-                        default:
-                            if (index > -1) {
-                                applications[index] = appChange.application;
-                            } else {
-                                applications.unshift(appChange.application);
-                            }
-                            break;
-                    }
-                    return {applications, updated: true};
+                .watch({resourceVersion: applicationsList.metadata.resourceVersion}, {fields: APP_WATCH_FIELDS})
+                .repeat()
+                .retryWhen(errors => errors.delay(WATCH_RETRY_TIMEOUT))
+                // batch events to avoid constant re-rendering and improve UI performance
+                .bufferTime(EVENTS_BUFFER_TIMEOUT)
+                .map(appChanges => {
+                    appChanges.forEach(appChange => {
+                        const index = applications.findIndex(item => item.metadata.name === appChange.application.metadata.name);
+                        switch (appChange.type) {
+                            case 'DELETED':
+                                if (index > -1) {
+                                    applications.splice(index, 1);
+                                }
+                                break;
+                            default:
+                                if (index > -1) {
+                                    applications[index] = appChange.application;
+                                } else {
+                                    applications.unshift(appChange.application);
+                                }
+                                break;
+                        }
+                    });
+                    return {applications, updated: appChanges.length > 0};
                 })
                 .filter(item => item.updated)
                 .map(item => item.applications)
-        )
-    );
+        );
+    });
 }
 
 const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: number; search: string}) => React.ReactNode}) => (
@@ -134,7 +143,7 @@ function filterApps(applications: models.Application[], pref: AppsListPreference
             (pref.syncFilter.length === 0 || pref.syncFilter.includes(app.status.sync.status)) &&
             (pref.healthFilter.length === 0 || pref.healthFilter.includes(app.status.health.status)) &&
             (pref.namespacesFilter.length === 0 || pref.namespacesFilter.some(ns => minimatch(app.spec.destination.namespace, ns))) &&
-            (pref.clustersFilter.length === 0 || pref.clustersFilter.some(server => minimatch(app.spec.destination.server, server))) &&
+            (pref.clustersFilter.length === 0 || pref.clustersFilter.some(server => minimatch(app.spec.destination.server || app.spec.destination.name, server))) &&
             (pref.labelsFilter.length === 0 || pref.labelsFilter.every(selector => LabelSelector.match(selector, app.metadata.labels)))
     );
 }
@@ -154,6 +163,21 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
     const [createApi, setCreateApi] = React.useState(null);
     const clusters = React.useMemo(() => services.clusters.list(), []);
     const [isAppCreatePending, setAppCreatePending] = React.useState(false);
+
+    const loaderRef = React.useRef<DataLoader>();
+    function refreshApp(appName: string) {
+        // app refreshing might be done too quickly so that UI might miss it due to event batching
+        // add refreshing annotation in the UI to improve user experience
+        if (loaderRef.current) {
+            const applications = loaderRef.current.getData() as models.Application[];
+            const app = applications.find(item => item.metadata.name === appName);
+            if (app) {
+                AppUtils.setAppRefreshing(app);
+                loaderRef.current.setData(applications);
+            }
+        }
+        services.applications.get(appName, 'normal');
+    }
 
     return (
         <ClusterCtx.Provider value={clusters}>
@@ -209,7 +233,8 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                             <ViewPref>
                                 {pref => (
                                     <DataLoader
-                                        load={() => loadApplications()}
+                                        ref={loaderRef}
+                                        load={() => AppUtils.handlePageVisibility(() => loadApplications())}
                                         loadingRenderer={() => (
                                             <div className='argo-container'>
                                                 <MockupList height={100} marginTop={30} />
@@ -305,14 +330,14 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                         <ApplicationTiles
                                                                             applications={data}
                                                                             syncApplication={appName => ctx.navigation.goto('.', {syncApp: appName})}
-                                                                            refreshApplication={appName => services.applications.get(appName, 'normal')}
+                                                                            refreshApplication={refreshApp}
                                                                             deleteApplication={appName => AppUtils.deleteApplication(appName, ctx)}
                                                                         />
                                                                     )) || (
                                                                         <ApplicationsTable
                                                                             applications={data}
                                                                             syncApplication={appName => ctx.navigation.goto('.', {syncApp: appName})}
-                                                                            refreshApplication={appName => services.applications.get(appName, 'normal')}
+                                                                            refreshApplication={refreshApp}
                                                                             deleteApplication={appName => AppUtils.deleteApplication(appName, ctx)}
                                                                         />
                                                                     )

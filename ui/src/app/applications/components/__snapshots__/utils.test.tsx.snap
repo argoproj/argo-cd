@@ -303,6 +303,6 @@ exports[`ResourceResultIcon.Synced 1`] = `
       "color": "#18BE94",
     }
   }
-  title="Synced: my-message;"
+  title="Synced: my-message"
 />
 `;

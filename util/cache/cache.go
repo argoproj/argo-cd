@@ -1,12 +1,13 @@
 package cache
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"os"
 	"time"
 
-	"github.com/go-redis/redis"
+	"github.com/go-redis/redis/v8"
 	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-cd/common"
@@ -95,4 +96,12 @@ func (c *Cache) GetItem(key string, item interface{}) error {
 	}
 	key = fmt.Sprintf("%s|%s", key, common.CacheVersion)
 	return c.client.Get(key, item)
+}
+
+func (c *Cache) OnUpdated(ctx context.Context, key string, callback func() error) error {
+	return c.client.OnUpdated(ctx, fmt.Sprintf("%s|%s", key, common.CacheVersion), callback)
+}
+
+func (c *Cache) NotifyUpdated(key string) error {
+	return c.client.NotifyUpdated(fmt.Sprintf("%s|%s", key, common.CacheVersion))
 }

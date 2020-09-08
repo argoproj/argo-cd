@@ -173,3 +173,22 @@ ENV HELM_PLUGINS="/home/argocd/.local/share/helm/plugins/"
 You have to remember about `HELM_PLUGINS` environment property - this is required to works plugins correctly.
 
 After that you have to use your custom image for ArgoCD installation.
+
+## Helm Version
+
+ArgoCD normally detects which version of Helm to use by looking at the `apiVersion` in Chart.yaml.
+
+If needed, it is possible to specifically set the Helm version to template with by setting the `helm-version` flag on the cli (either v2 or v3):
+
+```bash
+argocd app set helm-guestbook --helm-version v2
+```
+
+Or using declarative syntax:
+
+```yaml
+spec:
+  source:
+    helm:
+      version: v2
+```

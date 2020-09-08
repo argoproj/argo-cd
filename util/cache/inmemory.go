@@ -2,6 +2,7 @@ package cache
 
 import (
 	"bytes"
+	"context"
 	"encoding/gob"
 	"time"
 
@@ -44,4 +45,12 @@ func (i *InMemoryCache) Delete(key string) error {
 
 func (i *InMemoryCache) Flush() {
 	i.memCache.Flush()
+}
+
+func (i *InMemoryCache) OnUpdated(ctx context.Context, key string, callback func() error) error {
+	return nil
+}
+
+func (i *InMemoryCache) NotifyUpdated(key string) error {
+	return nil
 }
