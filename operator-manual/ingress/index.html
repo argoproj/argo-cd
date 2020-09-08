@@ -1701,9 +1701,9 @@ way would be to define two Ingress objects. One for HTTP/HTTPS, and the other fo
 <div class="codehilite"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
   <span class="nt">template</span><span class="p">:</span>
     <span class="nt">spec</span><span class="p">:</span>
-      <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-server</span>
       <span class="nt">containers</span><span class="p">:</span>
-      <span class="p p-Indicator">-</span> <span class="nt">command</span><span class="p">:</span>
+      <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-server</span>
+        <span class="nt">command</span><span class="p">:</span>
         <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">/argocd-server</span>
         <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">--staticassets</span>
         <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">/shared/app</span>
