@@ -139,9 +139,9 @@ The API server should then be run with TLS disabled. Edit the `argocd-server` de
 spec:
   template:
     spec:
-      name: argocd-server
       containers:
-      - command:
+      - name: argocd-server
+        command:
         - /argocd-server
         - --staticassets
         - /shared/app
