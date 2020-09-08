@@ -13,3 +13,6 @@ vars:
     apiVersion: v1
   fieldref:
     fieldpath: metadata.name
+patchesStrategicMerge:
+- overlays/version_label_patch.yaml
+

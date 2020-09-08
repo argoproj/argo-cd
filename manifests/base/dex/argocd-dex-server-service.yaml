@@ -8,15 +8,15 @@ metadata:
   name: argocd-dex-server
 spec:
   ports:
-  - name: http
+  - name: http-argocddex
     protocol: TCP
     port: 5556
     targetPort: 5556
-  - name: grpc
+  - name: grpc-argocddex
     protocol: TCP
     port: 5557
     targetPort: 5557
-  - name: metrics
+  - name: http-argocddexmetrics
     port: 5558
     protocol: TCP
     targetPort: 5558

@@ -4,3 +4,5 @@ kind: Kustomization
 resources:
 - argocd-repo-server-deployment.yaml
 - argocd-repo-server-service.yaml
+patchesStrategicMerge:
+- overlays/version_label_patch.yaml

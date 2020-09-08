@@ -4,3 +4,4 @@
     app.kubernetes.io/name: argocd-redis-ha-haproxy
     app.kubernetes.io/component: redis
     app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/version: v1.7.0

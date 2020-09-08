@@ -1,0 +1,6 @@
+- op: replace
+  path: /spec/ports/0/name
+  value: tcp-server
+- op: replace
+  path: /spec/ports/1/name
+  value: tcp-sentinel

@@ -13,19 +13,28 @@ cd ${SRCROOT}/manifests/ha/base/redis-ha && ./generate.sh
 
 IMAGE_NAMESPACE="${IMAGE_NAMESPACE:-argoproj}"
 IMAGE_TAG="${IMAGE_TAG:-}"
+ARGOCD_VERSION_LABEL=v$(cat $SRCROOT/VERSION)
 
 # if the tag has not been declared, and we are on a release branch, use the VERSION file.
 if [ "$IMAGE_TAG" = "" ]; then
   branch=$(git rev-parse --abbrev-ref HEAD)
   if [[ $branch = release-* ]]; then
     pwd
-    IMAGE_TAG=v$(cat $SRCROOT/VERSION)
+    IMAGE_TAG=${ARGOCD_VERSION_LABEL}
   fi
 fi
 # otherwise, use latest
 if [ "$IMAGE_TAG" = "" ]; then
   IMAGE_TAG=latest
 fi
+
+# update label patches with current version
+for onedir in base/application-controller/overlays base/dex/overlays base/repo-server/overlays base/redis/overlays base/server/overlays ha/base/redis-ha/overlays; do
+  cd ${SRCROOT}/manifests/${onedir}
+  for onetemplate in `ls -1 *.tmpl`;do
+    sed "s/ARGOCD_VERSION_TO_BE_REPLACED/${ARGOCD_VERSION_LABEL}/g" ${onetemplate} > ${onetemplate%.*}.yaml
+  done
+done
 
 cd ${SRCROOT}/manifests/base && $KUSTOMIZE edit set image argoproj/argocd=${IMAGE_NAMESPACE}/argocd:${IMAGE_TAG}
 cd ${SRCROOT}/manifests/ha/base && $KUSTOMIZE edit set image argoproj/argocd=${IMAGE_NAMESPACE}/argocd:${IMAGE_TAG}

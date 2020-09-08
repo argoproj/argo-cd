@@ -8,11 +8,11 @@ metadata:
   name: argocd-repo-server
 spec:
   ports:
-  - name: server
+  - name: https-argocdreposerver
     protocol: TCP
     port: 8081
     targetPort: 8081
-  - name: metrics
+  - name: http-argocdreposervermetrics
     protocol: TCP
     port: 8084
     targetPort: 8084

@@ -1,0 +1,11 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-dex-server
+  labels:
+    app.kubernetes.io/version: ARGOCD_VERSION_TO_BE_REPLACED
+spec:
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/version: ARGOCD_VERSION_TO_BE_REPLACED

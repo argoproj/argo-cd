@@ -8,11 +8,11 @@ metadata:
   name: argocd-server
 spec:
   ports:
-  - name: http
+  - name: tcp-argocdserver
     protocol: TCP
     port: 80
     targetPort: 8080
-  - name: https
+  - name: tcp-argocdservertls
     protocol: TCP
     port: 443
     targetPort: 8080

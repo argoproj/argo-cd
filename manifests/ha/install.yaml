@@ -2151,6 +2151,7 @@ metadata:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis-ha-haproxy
     app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/version: v1.7.0
   name: argocd-redis-ha-haproxy
 ---
 apiVersion: v1
@@ -2160,6 +2161,7 @@ metadata:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis-ha
     app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/version: v1.7.0
   name: argocd-redis-ha
 ---
 apiVersion: v1
@@ -2196,6 +2198,7 @@ metadata:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis-ha
     app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/version: v1.7.0
   name: argocd-redis-ha
 rules:
 - apiGroups:
@@ -2364,6 +2367,7 @@ metadata:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis-ha
     app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/version: v1.7.0
   name: argocd-redis-ha
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -2708,6 +2712,7 @@ metadata:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis-ha
     app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/version: v1.7.0
   name: argocd-redis-ha-configmap
 ---
 apiVersion: v1
@@ -2778,14 +2783,15 @@ metadata:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis-ha
     app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/version: v1.7.0
   name: argocd-redis-ha-announce-0
 spec:
   ports:
-  - name: server
+  - name: tcp-server
     port: 6379
     protocol: TCP
     targetPort: redis
-  - name: sentinel
+  - name: tcp-sentinel
     port: 26379
     protocol: TCP
     targetPort: sentinel
@@ -2804,14 +2810,15 @@ metadata:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis-ha
     app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/version: v1.7.0
   name: argocd-redis-ha-announce-1
 spec:
   ports:
-  - name: server
+  - name: tcp-server
     port: 6379
     protocol: TCP
     targetPort: redis
-  - name: sentinel
+  - name: tcp-sentinel
     port: 26379
     protocol: TCP
     targetPort: sentinel
@@ -2830,14 +2837,15 @@ metadata:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis-ha
     app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/version: v1.7.0
   name: argocd-redis-ha-announce-2
 spec:
   ports:
-  - name: server
+  - name: tcp-server
     port: 6379
     protocol: TCP
     targetPort: redis
-  - name: sentinel
+  - name: tcp-sentinel
     port: 26379
     protocol: TCP
     targetPort: sentinel
@@ -2855,10 +2863,11 @@ metadata:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis-ha-haproxy
     app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/version: v1.7.0
   name: argocd-redis-ha-haproxy
 spec:
   ports:
-  - name: haproxy
+  - name: tcp-haproxy
     port: 6379
     protocol: TCP
     targetPort: redis
@@ -2874,15 +2883,16 @@ metadata:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis-ha
     app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/version: v1.7.0
   name: argocd-redis-ha
 spec:
   clusterIP: None
   ports:
-  - name: server
+  - name: tcp-server
     port: 6379
     protocol: TCP
     targetPort: redis
-  - name: sentinel
+  - name: tcp-sentinel
     port: 26379
     protocol: TCP
     targetPort: sentinel
@@ -2900,15 +2910,15 @@ metadata:
   name: argocd-dex-server
 spec:
   ports:
-  - name: http
+  - name: http-argocddex
     port: 5556
     protocol: TCP
     targetPort: 5556
-  - name: grpc
+  - name: grpc-argocddex
     port: 5557
     protocol: TCP
     targetPort: 5557
-  - name: metrics
+  - name: http-argocddexmetrics
     port: 5558
     protocol: TCP
     targetPort: 5558
@@ -2925,7 +2935,7 @@ metadata:
   name: argocd-metrics
 spec:
   ports:
-  - name: metrics
+  - name: http-argocdacmetrics
     port: 8082
     protocol: TCP
     targetPort: 8082
@@ -2942,11 +2952,11 @@ metadata:
   name: argocd-repo-server
 spec:
   ports:
-  - name: server
+  - name: https-argocdreposerver
     port: 8081
     protocol: TCP
     targetPort: 8081
-  - name: metrics
+  - name: http-argocdreposervermetrics
     port: 8084
     protocol: TCP
     targetPort: 8084
@@ -2963,7 +2973,7 @@ metadata:
   name: argocd-server-metrics
 spec:
   ports:
-  - name: metrics
+  - name: http-argocdservermetrics
     port: 8083
     protocol: TCP
     targetPort: 8083
@@ -2980,11 +2990,11 @@ metadata:
   name: argocd-server
 spec:
   ports:
-  - name: http
+  - name: tcp-argocdserver
     port: 80
     protocol: TCP
     targetPort: 8080
-  - name: https
+  - name: tcp-argocdservertls
     port: 443
     protocol: TCP
     targetPort: 8080
@@ -2998,6 +3008,7 @@ metadata:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis-ha-haproxy
     app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/version: v1.7.0
   name: argocd-redis-ha-haproxy
 spec:
   replicas: 3
@@ -3013,6 +3024,7 @@ spec:
         checksum/config: 790be9eae7c7e468c497c0256949ab96cb3f14b935c6702424647c3c60fba91c
       labels:
         app.kubernetes.io/name: argocd-redis-ha-haproxy
+        app.kubernetes.io/version: v1.7.0
       name: argocd-redis-ha-haproxy
     spec:
       affinity:
@@ -3086,6 +3098,7 @@ metadata:
     app.kubernetes.io/component: application-controller
     app.kubernetes.io/name: argocd-application-controller
     app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/version: v1.7.0
   name: argocd-application-controller
 spec:
   selector:
@@ -3097,6 +3110,7 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: argocd-application-controller
+        app.kubernetes.io/version: v1.7.0
     spec:
       containers:
       - command:
@@ -3133,6 +3147,7 @@ metadata:
     app.kubernetes.io/component: dex-server
     app.kubernetes.io/name: argocd-dex-server
     app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/version: v1.7.0
   name: argocd-dex-server
 spec:
   selector:
@@ -3142,6 +3157,7 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: argocd-dex-server
+        app.kubernetes.io/version: v1.7.0
     spec:
       containers:
       - command:
@@ -3181,6 +3197,7 @@ metadata:
     app.kubernetes.io/component: repo-server
     app.kubernetes.io/name: argocd-repo-server
     app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/version: v1.7.0
   name: argocd-repo-server
 spec:
   replicas: 2
@@ -3191,6 +3208,7 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: argocd-repo-server
+        app.kubernetes.io/version: v1.7.0
     spec:
       affinity:
         podAntiAffinity:
@@ -3253,6 +3271,7 @@ metadata:
     app.kubernetes.io/component: server
     app.kubernetes.io/name: argocd-server
     app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/version: v1.7.0
   name: argocd-server
 spec:
   replicas: 2
@@ -3263,6 +3282,7 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: argocd-server
+        app.kubernetes.io/version: v1.7.0
     spec:
       affinity:
         podAntiAffinity:
@@ -3323,6 +3343,7 @@ metadata:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis-ha
     app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/version: v1.7.0
   name: argocd-redis-ha-server
 spec:
   podManagementPolicy: OrderedReady
@@ -3337,6 +3358,7 @@ spec:
         checksum/init-config: 552ee3bec8fe5d9d865e371f7b615c6d472253649eb65d53ed4ae874f782647c
       labels:
         app.kubernetes.io/name: argocd-redis-ha
+        app.kubernetes.io/version: v1.7.0
     spec:
       affinity:
         podAntiAffinity:
