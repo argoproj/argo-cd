@@ -3,11 +3,13 @@ package oidc
 import (
 	"encoding/json"
 	"fmt"
+	"html"
 	"html/template"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	gooidc "github.com/coreos/go-oidc"
@@ -16,8 +18,8 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/argoproj/argo-cd/common"
-	servercache "github.com/argoproj/argo-cd/server/cache"
 	"github.com/argoproj/argo-cd/server/settings/oidc"
+	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
 	"github.com/argoproj/argo-cd/util/dex"
 	httputil "github.com/argoproj/argo-cd/util/http"
 	"github.com/argoproj/argo-cd/util/jwt/zjwt"
@@ -43,6 +45,16 @@ type ClaimsRequest struct {
 	IDToken map[string]*oidc.Claim `json:"id_token"`
 }
 
+type OIDCState struct {
+	// ReturnURL is the URL in which to redirect a user back to after completing an OAuth2 login
+	ReturnURL string `json:"returnURL"`
+}
+
+type OIDCStateStorage interface {
+	GetOIDCState(key string) (*OIDCState, error)
+	SetOIDCState(key string, state *OIDCState) error
+}
+
 type ClientApp struct {
 	// OAuth2 client ID of this application (e.g. argo-cd)
 	clientID string
@@ -65,7 +77,7 @@ type ClientApp struct {
 	provider Provider
 	// cache holds temporary nonce tokens to which hold application state values
 	// See http://tools.ietf.org/html/rfc6749#section-10.12 for more info.
-	cache *servercache.Cache
+	cache OIDCStateStorage
 }
 
 func GetScopesOrDefault(scopes []string) []string {
@@ -77,7 +89,7 @@ func GetScopesOrDefault(scopes []string) []string {
 
 // NewClientApp will register the Argo CD client app (either via Dex or external OIDC) and return an
 // object which has HTTP handlers for handling the HTTP responses for login and callback
-func NewClientApp(settings *settings.ArgoCDSettings, cache *servercache.Cache, dexServerAddr, baseHRef string) (*ClientApp, error) {
+func NewClientApp(settings *settings.ArgoCDSettings, cache OIDCStateStorage, dexServerAddr, baseHRef string) (*ClientApp, error) {
 	redirectURL, err := settings.RedirectURL()
 	if err != nil {
 		return nil, err
@@ -145,7 +157,7 @@ func (a *ClientApp) generateAppState(returnURL string) string {
 	if returnURL == "" {
 		returnURL = a.baseHRef
 	}
-	err := a.cache.SetOIDCState(randStr, &servercache.OIDCState{ReturnURL: returnURL})
+	err := a.cache.SetOIDCState(randStr, &OIDCState{ReturnURL: returnURL})
 	if err != nil {
 		// This should never happen with the in-memory cache
 		log.Errorf("Failed to set app state: %v", err)
@@ -153,10 +165,10 @@ func (a *ClientApp) generateAppState(returnURL string) string {
 	return randStr
 }
 
-func (a *ClientApp) verifyAppState(state string) (*servercache.OIDCState, error) {
+func (a *ClientApp) verifyAppState(state string) (*OIDCState, error) {
 	res, err := a.cache.GetOIDCState(state)
 	if err != nil {
-		if err == servercache.ErrCacheMiss {
+		if err == appstatecache.ErrCacheMiss {
 			return nil, fmt.Errorf("unknown app state %s", state)
 		} else {
 			return nil, fmt.Errorf("failed to verify app state %s: %v", state, err)
@@ -212,7 +224,8 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Infof("Callback: %s", r.URL)
 	if errMsg := r.FormValue("error"); errMsg != "" {
-		http.Error(w, errMsg+": "+r.FormValue("error_description"), http.StatusBadRequest)
+		errorDesc := r.FormValue("error_description")
+		http.Error(w, html.EscapeString(errMsg)+": "+html.EscapeString(errorDesc), http.StatusBadRequest)
 		return
 	}
 	code := r.FormValue("code")
@@ -243,7 +256,12 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("invalid session token: %v", err), http.StatusInternalServerError)
 		return
 	}
-	flags := []string{"path=/"}
+	path := "/"
+	if a.baseHRef != "" {
+		path = strings.TrimRight(strings.TrimLeft(a.baseHRef, "/"), "/")
+	}
+	cookiePath := fmt.Sprintf("path=/%s", path)
+	flags := []string{cookiePath, "SameSite=lax", "httpOnly"}
 	if a.secureCookie {
 		flags = append(flags, "Secure")
 	}

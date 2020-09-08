@@ -6,9 +6,9 @@
 
 Sure thing! You can either open an Enhancement Proposal in our GitHub issue tracker or you can [join us on Slack](https://argoproj.github.io/community/join-slack) in channel #argo-dev to discuss your ideas and get guidance for submitting a PR.
 
-### Noone has looked at my PR yet. Why?
+### No one has looked at my PR yet. Why?
 
-As we have limited man power, it can sometimes take a while for someone to respond to your PR. Especially, when your PR contains complex or non-obvious changes. Please bear with us, we try to look at every PR that we receive.
+As we have limited manpower, it can sometimes take a while for someone to respond to your PR. Especially, when your PR contains complex or non-obvious changes. Please bear with us, we try to look at every PR that we receive.
 
 ### Why has my PR been declined? I put much work in it!
 
@@ -50,6 +50,15 @@ If the codegen step fails with "Check nothing has changed...", chances are high 
 A second common case for this is, when you modified any of the auto generated assets, as these will be overwritten upon `make codegen`.
 
 Generally, this step runs `codegen` and compares the outcome against the Git branch it has checked out. If there are differences, the step will fail.
+
+### Why does the lint step fail?
+
+The lint step is most likely to fail for two reasons:
+
+* The `golangci-lint` process was OOM killed by CircleCI. This happens sometimes, and is annoying. This is indicated by a `Killed.` message in the CircleCI output.
+  If this is the case, please re-trigger the CI process as described above and see if it runs through.
+
+* Your code failed to lint correctly, or modifications were performed by the `golangci-lint` process. You should run `make lint` on your local branch and fix all the issues.
 
 ### Why does the test or e2e steps fail?
 

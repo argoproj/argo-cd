@@ -24,8 +24,11 @@ export const ProjectEditPanel = (props: {nameReadonly?: boolean; defaultParams?:
                 roles: [],
                 syncWindows: [],
                 clusterResourceWhitelist: [],
+                clusterResourceBlacklist: [],
                 namespaceResourceBlacklist: [],
                 namespaceResourceWhitelist: [],
+                orphanedResourceIgnoreList: [],
+                signatureKeys: [],
                 ...props.defaultParams
             }}
             validateError={(params: ProjectParams) => ({
@@ -33,6 +36,10 @@ export const ProjectEditPanel = (props: {nameReadonly?: boolean; defaultParams?:
             })}
             preSubmit={(params: ProjectParams) => {
                 params.clusterResourceWhitelist.forEach((obj: models.GroupKind) => {
+                    obj.group = obj.group.trim();
+                    obj.kind = obj.kind.trim();
+                });
+                params.clusterResourceBlacklist.forEach((obj: models.GroupKind) => {
                     obj.group = obj.group.trim();
                     obj.kind = obj.kind.trim();
                 });
@@ -139,6 +146,35 @@ export const ProjectEditPanel = (props: {nameReadonly?: boolean; defaultParams?:
                     </React.Fragment>
 
                     <React.Fragment>
+                        <h4>Blacklisted Cluster Resources</h4>
+                        <div>Cluster-scoped K8s API Groups and Kinds which are not permitted to be deployed</div>
+                        <div className='argo-table-list__head'>
+                            <div className='row'>
+                                <div className='columns small-5'>GROUP</div>
+                                <div className='columns small-5'>KIND</div>
+                            </div>
+                        </div>
+                        {(api.values.clusterResourceBlacklist as Array<models.GroupKind>).map((_, i) => (
+                            <div key={i} className='argo-table-list__row'>
+                                <div className='row'>
+                                    <div className='columns small-5'>
+                                        <Text className='argo-field' field={['clusterResourceBlacklist', i, 'group']} />
+                                    </div>
+                                    <div className='columns small-5'>
+                                        <Text className='argo-field' field={['clusterResourceBlacklist', i, 'kind']} />
+                                    </div>
+                                    <div className='columns small-2'>
+                                        <i className='fa fa-times' onClick={() => api.setValue('clusterResourceBlacklist', removeEl(api.values.clusterResourceBlacklist, i))} />
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                        <a onClick={() => api.setValue('clusterResourceBlacklist', api.values.clusterResourceBlacklist.concat({group: '', kind: ''}))}>
+                            blacklist new cluster resource
+                        </a>
+                    </React.Fragment>
+
+                    <React.Fragment>
                         <h4>Blacklisted Namespaced Resources</h4>
                         <div>
                             Namespace-scoped K8s API Groups and Kinds which are <strong>prohibited</strong> from being deployed
@@ -200,12 +236,77 @@ export const ProjectEditPanel = (props: {nameReadonly?: boolean; defaultParams?:
                         </a>
                     </React.Fragment>
 
+                    <DataLoader load={() => services.gpgkeys.list().then(gpgkeys => gpgkeys.map(gpgkey => gpgkey.keyID))}>
+                        {gpgkeys => (
+                            <React.Fragment>
+                                <h4>Required signature keys</h4>
+                                <div>GnuPG key IDs which commits to be synced to must be signed with</div>
+                                {(api.values.signatureKeys as Array<string>).map((_, i) => (
+                                    <div key={i} className='row project-edit-panel__form-row'>
+                                        <div className='columns small-12'>
+                                            <FormField
+                                                formApi={api}
+                                                field={`signatureKeys[${i}].keyID`}
+                                                component={AutocompleteField}
+                                                componentProps={{
+                                                    items: gpgkeys
+                                                }}
+                                            />
+                                            <i className='fa fa-times' onClick={() => api.setValue('signatureKeys', removeEl(api.values.signatureKeys, i))} />
+                                        </div>
+                                    </div>
+                                ))}
+                                <a onClick={() => api.setValue('signatureKeys', api.values.signatureKeys.concat(gpgkeys[0]))}>add GnuPG key ID</a>
+                            </React.Fragment>
+                        )}
+                    </DataLoader>
+
                     <React.Fragment>
                         <h4>Orphaned Resource Monitoring</h4>
                         <div>Enables monitoring of top level resources in the application target namespace</div>
                         <FormField formApi={api} label='Enabled' field='orphanedResourcesEnabled' component={CheckboxField} />
                         {api.values.orphanedResourcesEnabled && <FormField formApi={api} label='Warn' field='orphanedResourcesWarn' component={CheckboxField} />}
                     </React.Fragment>
+
+                    {api.values.orphanedResourcesEnabled && (
+                        <React.Fragment>
+                            <h4>Orphaned Resources Ignore List</h4>
+                            <div>
+                                Define resources that ArgoCD should <strong>not</strong> report them as orphaned
+                            </div>
+                            <div className='argo-table-list__head'>
+                                <div className='row'>
+                                    <div className='columns small-3'>GROUP</div>
+                                    <div className='columns small-3'>KIND</div>
+                                    <div className='columns small-4'>NAME</div>
+                                </div>
+                            </div>
+                            {(api.values.orphanedResourceIgnoreList as Array<models.OrphanedResource>).map((_, i) => (
+                                <div key={i} className='argo-table-list__row'>
+                                    <div className='row'>
+                                        <div className='columns small-3'>
+                                            <Text className='argo-field' field={['orphanedResourceIgnoreList', i, 'group']} />
+                                        </div>
+                                        <div className='columns small-3'>
+                                            <Text className='argo-field' field={['orphanedResourceIgnoreList', i, 'kind']} />
+                                        </div>
+                                        <div className='columns small-4'>
+                                            <Text className='argo-field' field={['orphanedResourceIgnoreList', i, 'name']} />
+                                        </div>
+                                        <div className='columns small-2'>
+                                            <i
+                                                className='fa fa-times'
+                                                onClick={() => api.setValue('orphanedResourceIgnoreList', removeEl(api.values.orphanedResourceIgnoreList, i))}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                            <a onClick={() => api.setValue('orphanedResourceIgnoreList', api.values.orphanedResourceIgnoreList.concat({group: '', kind: '', name: ''}))}>
+                                add new resource to orphaned ignore list
+                            </a>
+                        </React.Fragment>
+                    )}
                 </form>
             )}
         </Form>

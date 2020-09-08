@@ -1,13 +1,15 @@
 package cert
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
 	"testing"
 
-	"github.com/argoproj/argo-cd/common"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/argoproj/argo-cd/common"
 )
 
 const Test_Cert1CN = "CN=foo.example.com,OU=SpecOps,O=Capone\\, Inc,L=Chicago,ST=IL,C=US"
@@ -383,15 +385,21 @@ func Test_ValidHostnames(t *testing.T) {
 		"argocd-server.svc.kubernetes.local": true,
 		"localhost.":                         true,
 		"github.com.":                        true,
+		"foo_bar.example.com":                true,
+		"_svc.example.com":                   true,
+		"_svc.example_.com":                  false,
+		"_.example.com":                      false,
 		"localhost..":                        false,
 		"localhost..localdomain":             false,
 		".localhost":                         false,
-		"local_host":                         false,
-		"localhost.local_domain":             false,
+		"local_host":                         true,
+		"localhost.local_domain":             true,
 	}
 
 	for hostName, valid := range hostNames {
-		assert.Equal(t, valid, IsValidHostname(hostName, false))
+		t.Run(fmt.Sprintf("Test validity for hostname %s", hostName), func(t *testing.T) {
+			assert.Equal(t, valid, IsValidHostname(hostName, false))
+		})
 	}
 }
 
@@ -447,7 +455,7 @@ func TestGetTLSCertificateDataPath(t *testing.T) {
 	})
 }
 
-func TestGetSSHKnownHostseDataPath(t *testing.T) {
+func TestGetSSHKnownHostsDataPath(t *testing.T) {
 	t.Run("Get default path", func(t *testing.T) {
 		os.Setenv(common.EnvVarSSHDataPath, "")
 		p := GetSSHKnownHostsDataPath()

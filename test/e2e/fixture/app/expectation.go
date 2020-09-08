@@ -1,9 +1,12 @@
 package app
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
+	"github.com/argoproj/gitops-engine/pkg/health"
+	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 	v1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,6 +34,17 @@ func OperationPhaseIs(expected OperationPhase) Expectation {
 			actual = operationState.Phase
 		}
 		return simple(actual == expected, fmt.Sprintf("operation phase should be %s, is %s", expected, actual))
+	}
+}
+
+func OperationMessageContains(text string) Expectation {
+	return func(c *Consequences) (state, string) {
+		operationState := c.app().Status.OperationState
+		actual := ""
+		if operationState != nil {
+			actual = operationState.Message
+		}
+		return simple(strings.Contains(actual, text), fmt.Sprintf("operation message should contains '%s', got: '%s'", text, actual))
 	}
 }
 
@@ -72,7 +86,7 @@ func NoConditions() Expectation {
 	}
 }
 
-func HealthIs(expected HealthStatusCode) Expectation {
+func HealthIs(expected health.HealthStatusCode) Expectation {
 	return func(c *Consequences) (state, string) {
 		actual := c.app().Status.Health.Status
 		return simple(actual == expected, fmt.Sprintf("health to should %s, is %s", expected, actual))
@@ -81,14 +95,25 @@ func HealthIs(expected HealthStatusCode) Expectation {
 
 func ResourceSyncStatusIs(kind, resource string, expected SyncStatusCode) Expectation {
 	return func(c *Consequences) (state, string) {
-		actual := c.resource(kind, resource).Status
+		actual := c.resource(kind, resource, "").Status
 		return simple(actual == expected, fmt.Sprintf("resource '%s/%s' sync status should be %s, is %s", kind, resource, expected, actual))
 	}
 }
-
-func ResourceHealthIs(kind, resource string, expected HealthStatusCode) Expectation {
+func ResourceSyncStatusWithNamespaceIs(kind, resource, namespace string, expected SyncStatusCode) Expectation {
 	return func(c *Consequences) (state, string) {
-		actual := c.resource(kind, resource).Health.Status
+		actual := c.resource(kind, resource, namespace).Status
+		return simple(actual == expected, fmt.Sprintf("resource '%s/%s' sync status should be %s, is %s", kind, resource, expected, actual))
+	}
+}
+func ResourceHealthIs(kind, resource string, expected health.HealthStatusCode) Expectation {
+	return func(c *Consequences) (state, string) {
+		actual := c.resource(kind, resource, "").Health.Status
+		return simple(actual == expected, fmt.Sprintf("resource '%s/%s' health should be %s, is %s", kind, resource, expected, actual))
+	}
+}
+func ResourceHealthWithNamespaceIs(kind, resource, namespace string, expected health.HealthStatusCode) Expectation {
+	return func(c *Consequences) (state, string) {
+		actual := c.resource(kind, resource, namespace).Health.Status
 		return simple(actual == expected, fmt.Sprintf("resource '%s/%s' health should be %s, is %s", kind, resource, expected, actual))
 	}
 }
@@ -141,7 +166,7 @@ func Pod(predicate func(p v1.Pod) bool) Expectation {
 				return succeeded, fmt.Sprintf("pod predicate matched pod named '%s'", pod.GetName())
 			}
 		}
-		return pending, fmt.Sprintf("pod predicate does not match pods")
+		return pending, "pod predicate does not match pods"
 	}
 }
 
@@ -156,19 +181,19 @@ func NotPod(predicate func(p v1.Pod) bool) Expectation {
 				return pending, fmt.Sprintf("pod predicate matched pod named '%s'", pod.GetName())
 			}
 		}
-		return succeeded, fmt.Sprintf("pod predicate did not match any pod")
+		return succeeded, "pod predicate did not match any pod"
 	}
 }
 
 func pods() (*v1.PodList, error) {
 	fixture.KubeClientset.CoreV1()
-	pods, err := fixture.KubeClientset.CoreV1().Pods(fixture.DeploymentNamespace()).List(metav1.ListOptions{})
+	pods, err := fixture.KubeClientset.CoreV1().Pods(fixture.DeploymentNamespace()).List(context.Background(), metav1.ListOptions{})
 	return pods, err
 }
 
 func Event(reason string, message string) Expectation {
 	return func(c *Consequences) (state, string) {
-		list, err := fixture.KubeClientset.CoreV1().Events(fixture.ArgoCDNamespace).List(metav1.ListOptions{
+		list, err := fixture.KubeClientset.CoreV1().Events(fixture.ArgoCDNamespace).List(context.Background(), metav1.ListOptions{
 			FieldSelector: fields.SelectorFromSet(map[string]string{
 				"involvedObject.name":      c.context.name,
 				"involvedObject.namespace": fixture.ArgoCDNamespace,

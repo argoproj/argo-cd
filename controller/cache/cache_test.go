@@ -1,26 +1,52 @@
 package cache
 
 import (
-	"sync"
 	"testing"
-	"time"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/argoproj/gitops-engine/pkg/cache"
+	"github.com/argoproj/gitops-engine/pkg/cache/mocks"
+	"github.com/stretchr/testify/mock"
+
+	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )
 
-func TestGetServerVersion(t *testing.T) {
-	now := time.Now()
-	cache := &liveStateCache{
-		lock: &sync.RWMutex{},
-		clusters: map[string]*clusterInfo{
-			"http://localhost": {
-				syncTime:      &now,
-				lock:          &sync.RWMutex{},
-				serverVersion: "123",
-			},
-		}}
+func TestHandleModEvent_HasChanges(t *testing.T) {
+	clusterCache := &mocks.ClusterCache{}
+	clusterCache.On("Invalidate", mock.Anything, mock.Anything).Return(nil).Once()
+	clusterCache.On("EnsureSynced").Return(nil).Once()
 
-	version, _, err := cache.GetVersionsInfo("http://localhost")
-	assert.NoError(t, err)
-	assert.Equal(t, "123", version)
+	clustersCache := liveStateCache{
+		clusters: map[string]cache.ClusterCache{
+			"https://mycluster": clusterCache,
+		},
+	}
+
+	clustersCache.handleModEvent(&appv1.Cluster{
+		Server: "https://mycluster",
+		Config: appv1.ClusterConfig{Username: "foo"},
+	}, &appv1.Cluster{
+		Server:     "https://mycluster",
+		Config:     appv1.ClusterConfig{Username: "bar"},
+		Namespaces: []string{"default"},
+	})
+}
+
+func TestHandleModEvent_NoChanges(t *testing.T) {
+	clusterCache := &mocks.ClusterCache{}
+	clusterCache.On("Invalidate", mock.Anything).Panic("should not invalidate")
+	clusterCache.On("EnsureSynced").Return(nil).Panic("should not re-sync")
+
+	clustersCache := liveStateCache{
+		clusters: map[string]cache.ClusterCache{
+			"https://mycluster": clusterCache,
+		},
+	}
+
+	clustersCache.handleModEvent(&appv1.Cluster{
+		Server: "https://mycluster",
+		Config: appv1.ClusterConfig{Username: "bar"},
+	}, &appv1.Cluster{
+		Server: "https://mycluster",
+		Config: appv1.ClusterConfig{Username: "bar"},
+	})
 }

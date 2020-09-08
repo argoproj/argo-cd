@@ -1,9 +1,10 @@
 package settings
 
 import (
-	sessionmgr "github.com/argoproj/argo-cd/util/session"
 	"github.com/ghodss/yaml"
 	"golang.org/x/net/context"
+
+	sessionmgr "github.com/argoproj/argo-cd/util/session"
 
 	settingspkg "github.com/argoproj/argo-cd/pkg/apiclient/settings"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -14,6 +15,7 @@ import (
 type Server struct {
 	mgr           *settings.SettingsManager
 	authenticator Authenticator
+	disableAuth   bool
 }
 
 type Authenticator interface {
@@ -21,8 +23,8 @@ type Authenticator interface {
 }
 
 // NewServer returns a new instance of the Settings service
-func NewServer(mgr *settings.SettingsManager, authenticator Authenticator) *Server {
-	return &Server{mgr: mgr, authenticator: authenticator}
+func NewServer(mgr *settings.SettingsManager, authenticator Authenticator, disableAuth bool) *Server {
+	return &Server{mgr: mgr, authenticator: authenticator, disableAuth: disableAuth}
 }
 
 // Get returns Argo CD settings
@@ -68,6 +70,15 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 		}
 	}
 
+	kustomizeSettings, err := s.mgr.GetKustomizeSettings()
+	if err != nil {
+		return nil, err
+	}
+	var kustomizeVersions []string
+	for i := range kustomizeSettings.Versions {
+		kustomizeVersions = append(kustomizeVersions, kustomizeSettings.Versions[i].Name)
+	}
+
 	set := settingspkg.Settings{
 		URL:                argoCDSettings.URL,
 		AppLabelKey:        appInstanceLabelKey,
@@ -86,9 +97,11 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 		},
 		Plugins:            plugins,
 		UserLoginsDisabled: userLoginsDisabled,
+		KustomizeVersions:  kustomizeVersions,
+		UiCssURL:           argoCDSettings.UiCssURL,
 	}
 
-	if sessionmgr.LoggedIn(ctx) {
+	if sessionmgr.LoggedIn(ctx) || s.disableAuth {
 		configManagementPlugins, err := s.mgr.GetConfigManagementPlugins()
 		if err != nil {
 			return nil, err

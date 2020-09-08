@@ -65,7 +65,7 @@ const (
 )
 
 // Regular expression that matches a valid hostname
-var validHostNameRegexp = regexp.MustCompile(`^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9])(\.([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]))*(\.){0,1}$`)
+var validHostNameRegexp = regexp.MustCompile(`^([a-zA-Z0-9]|[a-zA-Z0-9_][a-zA-Z0-9-_]{0,61}[a-zA-Z0-9_])(\.([a-zA-Z0-9]|[a-zA-Z0-9_][a-zA-Z0-9-_]{0,61}[a-zA-Z0-9]))*(\.){0,1}$`)
 
 // Regular expression that matches all kind of IPv6 addresses
 // See https://stackoverflow.com/questions/53497/regular-expression-that-matches-valid-ipv6-addresses
@@ -277,7 +277,7 @@ func MatchHostName(hostname, pattern string) bool {
 	return match
 }
 
-// Convinience wrapper around SSHFingerprintSHA256
+// Convenience wrapper around SSHFingerprintSHA256
 func SSHFingerprintSHA256FromString(key string) string {
 	pubKey, _, _, _, err := ssh.ParseAuthorizedKey([]byte(key))
 	if err != nil {

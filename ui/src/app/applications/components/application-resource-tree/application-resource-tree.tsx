@@ -2,6 +2,7 @@ import {DropDown} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as dagre from 'dagre';
 import * as React from 'react';
+import Moment from 'react-moment';
 
 import * as models from '../../../shared/models';
 
@@ -134,9 +135,9 @@ function renderFilteredNode(node: {count: number} & dagre.Node, onClearFilter: (
                 <div className='application-resource-tree__node-kind-icon '>
                     <i className='icon fa fa-filter' />
                 </div>
-                <div className='application-resource-tree__node-content'>
+                <div className='application-resource-tree__node-content-wrap-overflow'>
                     <a className='application-resource-tree__node-title' onClick={onClearFilter}>
-                        show {node.count} hidden resource{node.count > 1 && 's'}
+                        clear filters to show {node.count} additional resource{node.count > 1 && 's'}
                     </a>
                 </div>
             </div>
@@ -241,8 +242,13 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                 </span>
             </div>
             <div className='application-resource-tree__node-labels'>
+                {node.createdAt ? (
+                    <Moment className='application-resource-tree__node-label' fromNow={true} ago={true}>
+                        {node.createdAt}
+                    </Moment>
+                ) : null}
                 {(node.info || []).map((tag, i) => (
-                    <span title={`${tag.name}:${tag.value}`} key={i}>
+                    <span className='application-resource-tree__node-label' title={`${tag.name}:${tag.value}`} key={i}>
                         {tag.value}
                     </span>
                 ))}
@@ -339,6 +345,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         });
         roots = networkNodes.filter(node => !hasParents.has(treeNodeKey(node)));
     } else {
+        const managedKeys = new Set(props.app.status.resources.map(nodeKey));
         nodes.forEach(child => {
             (child.parentRefs || []).forEach(parent => {
                 const children = childrenByParentKey.get(treeNodeKey(parent)) || [];
@@ -346,7 +353,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                 childrenByParentKey.set(treeNodeKey(parent), children);
             });
         });
-        roots = nodes.filter(node => (node.parentRefs || []).length === 0).sort(compareNodes);
+        roots = nodes.filter(node => (node.parentRefs || []).length === 0 || managedKeys.has(nodeKey(node))).sort(compareNodes);
     }
 
     function processNode(node: ResourceTreeNode, root: ResourceTreeNode, colors?: string[]) {

@@ -1,6 +1,10 @@
 package metrics
 
-import "github.com/argoproj/argo-cd/util/git"
+import (
+	"time"
+
+	"github.com/argoproj/argo-cd/util/git"
+)
 
 type gitClientWrapper struct {
 	repo          string
@@ -13,15 +17,19 @@ func WrapGitClient(repo string, metricsServer *MetricsServer, client git.Client)
 }
 
 func (w *gitClientWrapper) Fetch() error {
+	startTime := time.Now()
 	w.metricsServer.IncGitRequest(w.repo, GitRequestTypeFetch)
+	defer w.metricsServer.ObserveGitRequestDuration(w.repo, GitRequestTypeFetch, time.Since(startTime))
 	return w.client.Fetch()
 }
 
 func (w *gitClientWrapper) LsRemote(revision string) (string, error) {
+	startTime := time.Now()
 	sha, err := w.client.LsRemote(revision)
 	if sha != revision {
 		// This is true only if specified revision is a tag, branch or HEAD and client had to use 'ls-remote'
 		w.metricsServer.IncGitRequest(w.repo, GitRequestTypeLsRemote)
+		defer w.metricsServer.ObserveGitRequestDuration(w.repo, GitRequestTypeFetch, time.Since(startTime))
 	}
 	return sha, err
 }
@@ -52,4 +60,8 @@ func (w *gitClientWrapper) Init() error {
 
 func (w *gitClientWrapper) RevisionMetadata(revision string) (*git.RevisionMetadata, error) {
 	return w.client.RevisionMetadata(revision)
+}
+
+func (w *gitClientWrapper) VerifyCommitSignature(revision string) (string, error) {
+	return w.client.VerifyCommitSignature(revision)
 }

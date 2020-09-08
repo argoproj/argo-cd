@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/io"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -22,15 +24,13 @@ import (
 	"github.com/argoproj/argo-cd/pkg/client/clientset/versioned/typed/application/v1alpha1"
 	applicationsv1 "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/helm"
-	"github.com/argoproj/argo-cd/util/kube"
 )
 
 const (
-	errDestinationMissing = "Destination server and/or namespace missing from app spec"
+	errDestinationMissing = "Destination server missing from app spec"
 )
 
 // FormatAppConditions returns string representation of give app condition list
@@ -77,7 +77,7 @@ func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType ar
 		return nil, err
 	}
 	for attempt := 0; attempt < 5; attempt++ {
-		app, err := appIf.Patch(name, types.MergePatchType, patch)
+		app, err := appIf.Patch(context.Background(), name, types.MergePatchType, patch, metav1.PatchOptions{})
 		if err != nil {
 			if !apierr.IsConflict(err) {
 				return nil, err
@@ -102,7 +102,7 @@ func WaitForRefresh(ctx context.Context, appIf v1alpha1.ApplicationInterface, na
 	ch := kube.WatchWithRetry(ctx, func() (i watch.Interface, e error) {
 		fieldSelector := fields.ParseSelectorOrDie(fmt.Sprintf("metadata.name=%s", name))
 		listOpts := metav1.ListOptions{FieldSelector: fieldSelector.String()}
-		return appIf.Watch(listOpts)
+		return appIf.Watch(ctx, listOpts)
 	})
 	for next := range ch {
 		if next.Error != nil {
@@ -178,7 +178,7 @@ func ValidateRepo(
 	if err != nil {
 		return nil, err
 	}
-	defer util.Close(conn)
+	defer io.Close(conn)
 	repo, err := db.GetRepository(ctx, spec.Source.RepoURL)
 	if err != nil {
 		return nil, err
@@ -266,6 +266,29 @@ func enrichSpec(spec *argoappv1.ApplicationSpec, appDetails *apiclient.RepoAppDe
 	}
 }
 
+// ValidateDestination checks:
+// if we used destination name we infer the server url
+// if we used both name and server then we return an invalid spec error
+func ValidateDestination(ctx context.Context, dest *argoappv1.ApplicationDestination, db db.ArgoDB) error {
+	if dest.Name != "" {
+		if dest.Server == "" {
+			server, err := getDestinationServer(ctx, db, dest.Name)
+			if err != nil {
+				return fmt.Errorf("unable to find destination server: %v", err)
+			}
+			if server == "" {
+				return fmt.Errorf("application references destination cluster %s which does not exist", dest.Name)
+			}
+			dest.SetInferredServer(server)
+		} else {
+			if !dest.IsServerInferred() {
+				return fmt.Errorf("application destination can't have both name and server defined: %s %s", dest.Name, dest.Server)
+			}
+		}
+	}
+	return nil
+}
+
 // ValidatePermissions ensures that the referenced cluster has been added to Argo CD and the app source repo and destination namespace/cluster are permitted in app project
 func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, proj *argoappv1.AppProject, db db.ArgoDB) ([]argoappv1.ApplicationCondition, error) {
 	conditions := make([]argoappv1.ApplicationCondition, 0)
@@ -291,11 +314,11 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 		})
 	}
 
-	if spec.Destination.Server != "" && spec.Destination.Namespace != "" {
+	if spec.Destination.Server != "" {
 		if !proj.IsDestinationPermitted(spec.Destination) {
 			conditions = append(conditions, argoappv1.ApplicationCondition{
 				Type:    argoappv1.ApplicationConditionInvalidSpecError,
-				Message: fmt.Sprintf("application destination %v is not permitted in project '%s'", spec.Destination, spec.Project),
+				Message: fmt.Sprintf("application destination {%s %s} is not permitted in project '%s'", spec.Destination.Server, spec.Destination.Namespace, spec.Project),
 			})
 		}
 		// Ensure the k8s cluster the app is referencing, is configured in Argo CD
@@ -310,7 +333,7 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 				return nil, err
 			}
 		}
-	} else {
+	} else if spec.Destination.Server == "" {
 		conditions = append(conditions, argoappv1.ApplicationCondition{Type: argoappv1.ApplicationConditionInvalidSpecError, Message: errDestinationMissing})
 	}
 	return conditions, nil
@@ -346,7 +369,7 @@ func verifyGenerateManifests(
 ) []argoappv1.ApplicationCondition {
 	spec := &app.Spec
 	var conditions []argoappv1.ApplicationCondition
-	if spec.Destination.Server == "" || spec.Destination.Namespace == "" {
+	if spec.Destination.Server == "" {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
 			Message: errDestinationMissing,
@@ -388,7 +411,7 @@ func verifyGenerateManifests(
 // SetAppOperation updates an application with the specified operation, retrying conflict errors
 func SetAppOperation(appIf v1alpha1.ApplicationInterface, appName string, op *argoappv1.Operation) (*argoappv1.Application, error) {
 	for {
-		a, err := appIf.Get(appName, metav1.GetOptions{})
+		a, err := appIf.Get(context.Background(), appName, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -397,7 +420,7 @@ func SetAppOperation(appIf v1alpha1.ApplicationInterface, appName string, op *ar
 		}
 		a.Operation = op
 		a.Status.OperationState = nil
-		a, err = appIf.Update(a)
+		a, err = appIf.Update(context.Background(), a, metav1.UpdateOptions{})
 		if op.Sync == nil {
 			return nil, status.Errorf(codes.InvalidArgument, "Operation unspecified")
 		}
@@ -412,9 +435,9 @@ func SetAppOperation(appIf v1alpha1.ApplicationInterface, appName string, op *ar
 }
 
 // ContainsSyncResource determines if the given resource exists in the provided slice of sync operation resources.
-func ContainsSyncResource(name string, gvk schema.GroupVersionKind, rr []argoappv1.SyncOperationResource) bool {
+func ContainsSyncResource(name string, namespace string, gvk schema.GroupVersionKind, rr []argoappv1.SyncOperationResource) bool {
 	for _, r := range rr {
-		if r.HasIdentity(name, gvk) {
+		if r.HasIdentity(name, namespace, gvk) {
 			return true
 		}
 	}
@@ -446,4 +469,23 @@ func NormalizeApplicationSpec(spec *argoappv1.ApplicationSpec) *argoappv1.Applic
 		spec.Source.Directory = nil
 	}
 	return spec
+}
+
+func getDestinationServer(ctx context.Context, db db.ArgoDB, clusterName string) (string, error) {
+	clusterList, err := db.ListClusters(ctx)
+	if err != nil {
+		return "", err
+	}
+	var servers []string
+	for _, c := range clusterList.Items {
+		if c.Name == clusterName {
+			servers = append(servers, c.Server)
+		}
+	}
+	if len(servers) > 1 {
+		return "", fmt.Errorf("there are %d clusters with the same name: %v", len(servers), servers)
+	} else if len(servers) == 0 {
+		return "", fmt.Errorf("there are no clusters with this name: %s", clusterName)
+	}
+	return servers[0], nil
 }

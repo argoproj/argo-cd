@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/argoproj/argo-cd/util/json"
-
+	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	lua "github.com/yuin/gopher-lua"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/grpc"
 )
 
 const objJSON = `
@@ -57,7 +57,7 @@ func TestExecuteNewHealthStatusFunction(t *testing.T) {
 	vm := VM{}
 	status, err := vm.ExecuteHealthLua(testObj, newHealthStatusFunction)
 	assert.Nil(t, err)
-	expectedHealthStatus := &appv1.HealthStatus{
+	expectedHealthStatus := &health.HealthStatus{
 		Status:  "Healthy",
 		Message: "testMessage",
 	}
@@ -94,8 +94,8 @@ func TestInvalidHealthStatusStatus(t *testing.T) {
 	vm := VM{}
 	status, err := vm.ExecuteHealthLua(testObj, invalidHealthStatusStatus)
 	assert.Nil(t, err)
-	expectedStatus := &appv1.HealthStatus{
-		Status:  appv1.HealthStatusUnknown,
+	expectedStatus := &health.HealthStatus{
+		Status:  health.HealthStatusUnknown,
 		Message: invalidHealthStatus,
 	}
 	assert.Equal(t, expectedStatus, status)
@@ -167,7 +167,7 @@ func TestGetResourceActionWithOverride(t *testing.T) {
 	vm := VM{
 		ResourceOverrides: map[string]appv1.ResourceOverride{
 			"argoproj.io/Rollout": {
-				Actions: string(json.MustMarshal(appv1.ResourceActions{
+				Actions: string(grpc.MustMarshal(appv1.ResourceActions{
 					Definitions: []appv1.ResourceActionDefinition{
 						test,
 					},
@@ -202,7 +202,7 @@ func TestGetResourceActionDiscoveryWithOverride(t *testing.T) {
 	vm := VM{
 		ResourceOverrides: map[string]appv1.ResourceOverride{
 			"argoproj.io/Rollout": {
-				Actions: string(json.MustMarshal(appv1.ResourceActions{
+				Actions: string(grpc.MustMarshal(appv1.ResourceActions{
 					ActionDiscoveryLua: validDiscoveryLua,
 				})),
 			},

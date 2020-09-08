@@ -16,6 +16,9 @@ import (
 )
 
 func newFakeProj() *argoappv1.AppProject {
+	jwtTokenByRole := make(map[string]argoappv1.JWTTokens)
+	jwtTokenByRole["my-role"] = argoappv1.JWTTokens{Items: []argoappv1.JWTToken{{IssuedAt: 1234}}}
+
 	return &argoappv1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "my-proj",
@@ -39,6 +42,7 @@ func newFakeProj() *argoappv1.AppProject {
 				},
 			},
 		},
+		Status: argoappv1.AppProjectStatus{JWTTokensByRole: jwtTokenByRole},
 	}
 }
 
@@ -107,4 +111,20 @@ p, cam, applications, %s/argoproj.io/Rollout/resume, my-proj/*, allow
 	// Eve does not have approval for any actions
 	claims = jwt.MapClaims{"sub": "eve"}
 	assert.False(t, enf.Enforce(claims, "applications", ActionAction+"/argoproj.io/Rollout/resume", "my-proj/my-app"))
+}
+
+func TestGetScopes_DefaultScopes(t *testing.T) {
+	rbacEnforcer := NewRBACPolicyEnforcer(nil, nil)
+
+	scopes := rbacEnforcer.GetScopes()
+	assert.Equal(t, scopes, defaultScopes)
+}
+
+func TestGetScopes_CustomScopes(t *testing.T) {
+	rbacEnforcer := NewRBACPolicyEnforcer(nil, nil)
+	customScopes := []string{"custom"}
+	rbacEnforcer.SetScopes(customScopes)
+
+	scopes := rbacEnforcer.GetScopes()
+	assert.Equal(t, scopes, customScopes)
 }

@@ -1,0 +1,15 @@
+apiVersion: jaegertracing.io/v1
+kind: Jaeger
+metadata:
+  generation: 3
+  labels:
+    argocd.argoproj.io/instance: jaeger-operator-default
+  name: jaeger
+  namespace: jaeger
+  resourceVersion: "226432"
+  selfLink: /apis/jaegertracing.io/v1/namespaces/2269-jaeger/jaegers/jaeger
+  uid: 48d186c8-47d7-494b-8b6a-435747e406a4
+spec: {}
+status:
+  phase: Running
+  version: 1.17.0

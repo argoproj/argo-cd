@@ -2,12 +2,17 @@ package commands
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/errors"
+	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/coreos/go-oidc"
 	"github.com/dgrijalva/jwt-go"
 	log "github.com/sirupsen/logrus"
@@ -15,11 +20,9 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/oauth2"
 
-	"github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	sessionpkg "github.com/argoproj/argo-cd/pkg/apiclient/session"
 	settingspkg "github.com/argoproj/argo-cd/pkg/apiclient/settings"
-	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cli"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/localconfig"
@@ -41,41 +44,55 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 		Short: "Log in to Argo CD",
 		Long:  "Log in to Argo CD",
 		Run: func(c *cobra.Command, args []string) {
-			if len(args) == 0 {
+			var server string
+
+			if len(args) != 1 && !globalClientOpts.PortForward {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			server := args[0]
-			tlsTestResult, err := grpc_util.TestTLS(server)
-			errors.CheckError(err)
-			if !tlsTestResult.TLS {
-				if !globalClientOpts.PlainText {
-					if !cli.AskToProceed("WARNING: server is not configured with TLS. Proceed (y/n)? ") {
-						os.Exit(1)
+
+			if globalClientOpts.PortForward {
+				server = "port-forward"
+			} else {
+				server = args[0]
+				tlsTestResult, err := grpc_util.TestTLS(server)
+				errors.CheckError(err)
+				if !tlsTestResult.TLS {
+					if !globalClientOpts.PlainText {
+						if !cli.AskToProceed("WARNING: server is not configured with TLS. Proceed (y/n)? ") {
+							os.Exit(1)
+						}
+						globalClientOpts.PlainText = true
 					}
-					globalClientOpts.PlainText = true
-				}
-			} else if tlsTestResult.InsecureErr != nil {
-				if !globalClientOpts.Insecure {
-					if !cli.AskToProceed(fmt.Sprintf("WARNING: server certificate had error: %s. Proceed insecurely (y/n)? ", tlsTestResult.InsecureErr)) {
-						os.Exit(1)
+				} else if tlsTestResult.InsecureErr != nil {
+					if !globalClientOpts.Insecure {
+						if !cli.AskToProceed(fmt.Sprintf("WARNING: server certificate had error: %s. Proceed insecurely (y/n)? ", tlsTestResult.InsecureErr)) {
+							os.Exit(1)
+						}
+						globalClientOpts.Insecure = true
 					}
-					globalClientOpts.Insecure = true
 				}
 			}
 			clientOpts := argocdclient.ClientOptions{
-				ConfigPath: "",
-				ServerAddr: server,
-				Insecure:   globalClientOpts.Insecure,
-				PlainText:  globalClientOpts.PlainText,
-				GRPCWeb:    globalClientOpts.GRPCWeb,
+				ConfigPath:           "",
+				ServerAddr:           server,
+				Insecure:             globalClientOpts.Insecure,
+				PlainText:            globalClientOpts.PlainText,
+				GRPCWeb:              globalClientOpts.GRPCWeb,
+				GRPCWebRootPath:      globalClientOpts.GRPCWebRootPath,
+				PortForward:          globalClientOpts.PortForward,
+				PortForwardNamespace: globalClientOpts.PortForwardNamespace,
 			}
 			acdClient := argocdclient.NewClientOrDie(&clientOpts)
 			setConn, setIf := acdClient.NewSettingsClientOrDie()
-			defer util.Close(setConn)
+			defer io.Close(setConn)
 
 			if ctxName == "" {
 				ctxName = server
+				if globalClientOpts.GRPCWebRootPath != "" {
+					rootPath := strings.TrimRight(strings.TrimLeft(globalClientOpts.GRPCWebRootPath, "/"), "/")
+					ctxName = fmt.Sprintf("%s/%s", server, rootPath)
+				}
 			}
 
 			// Perform the login
@@ -99,7 +116,7 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 				SkipClaimsValidation: true,
 			}
 			claims := jwt.MapClaims{}
-			_, _, err = parser.ParseUnverified(tokenString, &claims)
+			_, _, err := parser.ParseUnverified(tokenString, &claims)
 			errors.CheckError(err)
 
 			fmt.Printf("'%s' logged in successfully\n", userDisplayName(claims))
@@ -110,10 +127,11 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 				localCfg = &localconfig.LocalConfig{}
 			}
 			localCfg.UpsertServer(localconfig.Server{
-				Server:    server,
-				PlainText: globalClientOpts.PlainText,
-				Insecure:  globalClientOpts.Insecure,
-				GRPCWeb:   globalClientOpts.GRPCWeb,
+				Server:          server,
+				PlainText:       globalClientOpts.PlainText,
+				Insecure:        globalClientOpts.Insecure,
+				GRPCWeb:         globalClientOpts.GRPCWeb,
+				GRPCWebRootPath: globalClientOpts.GRPCWebRootPath,
 			})
 			localCfg.UpsertUser(localconfig.User{
 				Name:         ctxName,
@@ -176,6 +194,11 @@ func oauth2Login(ctx context.Context, port int, oidcSettings *settingspkg.OIDCCo
 		completionChan <- errMsg
 	}
 
+	// PKCE implementation of https://tools.ietf.org/html/rfc7636
+	codeVerifier := rand.RandStringCharset(43, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
+	codeChallengeHash := sha256.Sum256([]byte(codeVerifier))
+	codeChallenge := base64.RawURLEncoding.EncodeToString(codeChallengeHash[:])
+
 	// Authorization redirect callback from OAuth2 auth flow.
 	// Handles both implicit and authorization code flow
 	callbackHandler := func(w http.ResponseWriter, r *http.Request) {
@@ -215,7 +238,8 @@ func oauth2Login(ctx context.Context, port int, oidcSettings *settingspkg.OIDCCo
 				handleErr(w, fmt.Sprintf("no code in request: %q", r.Form))
 				return
 			}
-			tok, err := oauth2conf.Exchange(ctx, code)
+			opts := []oauth2.AuthCodeOption{oauth2.SetAuthURLParam("code_verifier", codeVerifier)}
+			tok, err := oauth2conf.Exchange(ctx, code, opts...)
 			if err != nil {
 				handleErr(w, err.Error())
 				return
@@ -251,6 +275,8 @@ func oauth2Login(ctx context.Context, port int, oidcSettings *settingspkg.OIDCCo
 
 	switch grantType {
 	case oidcutil.GrantTypeAuthorizationCode:
+		opts = append(opts, oauth2.SetAuthURLParam("code_challenge", codeChallenge))
+		opts = append(opts, oauth2.SetAuthURLParam("code_challenge_method", "S256"))
 		url = oauth2conf.AuthCodeURL(stateNonce, opts...)
 	case oidcutil.GrantTypeImplicit:
 		url = oidcutil.ImplicitFlowURL(oauth2conf, stateNonce, opts...)
@@ -283,7 +309,7 @@ func oauth2Login(ctx context.Context, port int, oidcSettings *settingspkg.OIDCCo
 func passwordLogin(acdClient argocdclient.Client, username, password string) string {
 	username, password = cli.PromptCredentials(username, password)
 	sessConn, sessionIf := acdClient.NewSessionClientOrDie()
-	defer util.Close(sessConn)
+	defer io.Close(sessConn)
 	sessionRequest := sessionpkg.SessionCreateRequest{
 		Username: username,
 		Password: password,

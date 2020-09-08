@@ -3,6 +3,9 @@ package e2e
 import (
 	"testing"
 
+	"github.com/argoproj/gitops-engine/pkg/health"
+	. "github.com/argoproj/gitops-engine/pkg/sync/common"
+
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
 )
@@ -17,7 +20,7 @@ func TestDeployment(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
 		When().
 		PatchFile("deployment.yaml", `[
     {

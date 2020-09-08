@@ -1,10 +1,10 @@
 package commands
 
 import (
+	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/config"
@@ -15,9 +15,13 @@ func init() {
 	cobra.OnInitialize(initConfig)
 }
 
-var logLevel string
+var (
+	logFormat string
+	logLevel  string
+)
 
 func initConfig() {
+	cli.SetLogFormat(logFormat)
 	cli.SetLogLevel(logLevel)
 }
 
@@ -49,6 +53,7 @@ func NewCommand() *cobra.Command {
 	command.AddCommand(NewAccountCommand(&clientOpts))
 	command.AddCommand(NewLogoutCommand(&clientOpts))
 	command.AddCommand(NewCertCommand(&clientOpts))
+	command.AddCommand(NewGPGCommand(&clientOpts))
 
 	defaultLocalConfigPath, err := localconfig.DefaultLocalConfigPath()
 	errors.CheckError(err)
@@ -57,8 +62,12 @@ func NewCommand() *cobra.Command {
 	command.PersistentFlags().BoolVar(&clientOpts.PlainText, "plaintext", config.GetBoolFlag("plaintext"), "Disable TLS")
 	command.PersistentFlags().BoolVar(&clientOpts.Insecure, "insecure", config.GetBoolFlag("insecure"), "Skip server certificate and domain verification")
 	command.PersistentFlags().StringVar(&clientOpts.CertFile, "server-crt", config.GetFlag("server-crt", ""), "Server certificate file")
+	command.PersistentFlags().StringVar(&clientOpts.ClientCertFile, "client-crt", config.GetFlag("client-crt", ""), "Client certificate file")
+	command.PersistentFlags().StringVar(&clientOpts.ClientCertKeyFile, "client-crt-key", config.GetFlag("client-crt-key", ""), "Client certificate key file")
 	command.PersistentFlags().StringVar(&clientOpts.AuthToken, "auth-token", config.GetFlag("auth-token", ""), "Authentication token")
 	command.PersistentFlags().BoolVar(&clientOpts.GRPCWeb, "grpc-web", config.GetBoolFlag("grpc-web"), "Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2.")
+	command.PersistentFlags().StringVar(&clientOpts.GRPCWebRootPath, "grpc-web-root-path", config.GetFlag("grpc-web-root-path", ""), "Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2. Set web root.")
+	command.PersistentFlags().StringVar(&logFormat, "logformat", config.GetFlag("logformat", "text"), "Set the logging format. One of: text|json")
 	command.PersistentFlags().StringVar(&logLevel, "loglevel", config.GetFlag("loglevel", "info"), "Set the logging level. One of: debug|info|warn|error")
 	command.PersistentFlags().StringSliceVarP(&clientOpts.Headers, "header", "H", []string{}, "Sets additional header to all requests made by Argo CD CLI. (Can be repeated multiple times to add multiple headers, also supports comma separated headers)")
 	command.PersistentFlags().BoolVar(&clientOpts.PortForward, "port-forward", config.GetBoolFlag("port-forward"), "Connect to a random argocd-server port using port forwarding")

@@ -1,4 +1,4 @@
-FROM redis:5.0.3 as redis
+FROM redis:5.0.8 as redis
 
 FROM node:11.15.0 as node
 
@@ -31,6 +31,7 @@ ENV GOROOT /usr/local/go
 ENV GOPATH /go
 
 # Install build and test dependencies
+ADD ./hack/tool-versions.sh .
 ADD ./hack/install.sh .
 ADD ./hack/installers installers
 

@@ -26,6 +26,7 @@ apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
   name: argocd-server-ingress
+  namespace: argocd
   annotations:
     kubernetes.io/ingress.class: nginx
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
@@ -88,6 +89,7 @@ apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
   name: argocd-server-http-ingress
+  namespace: argocd
   annotations:
     kubernetes.io/ingress.class: "nginx"
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
@@ -112,6 +114,7 @@ apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
   name: argocd-server-grpc-ingress
+  namespace: argocd
   annotations:
     kubernetes.io/ingress.class: "nginx"
     nginx.ingress.kubernetes.io/backend-protocol: "GRPC"
@@ -136,9 +139,9 @@ The API server should then be run with TLS disabled. Edit the `argocd-server` de
 spec:
   template:
     spec:
-      name: argocd-server
       containers:
-      - command:
+      - name: argocd-server
+        command:
         - /argocd-server
         - --staticassets
         - /shared/app
@@ -152,33 +155,42 @@ the API server -- one for gRPC and the other for HTTP/HTTPS. However it allows T
 happen at the ingress controller.
 
 
-## [Traefik (v2.0)](https://docs.traefik.io/)
+## [Traefik (v2.2)](https://docs.traefik.io/)
 
-Traefik can be used as an edge router and provide [TLS](https://docs.traefik.io/user-guides/crd-acme/) termination within the same deployment.
+Traefik can be used as an edge router and provide [TLS](https://docs.traefik.io/user-guides/grpc/) termination within the same deployment.
 
-It currently has an advantage over NGINX in that it can terminate both TCP and HTTP connections _on the same port_ meaning you do not require multiple ingress objects and hosts.
+It currently has an advantage over NGINX in that it can terminate both TCP and HTTP connections _on the same port_ meaning you do not require multiple hosts or paths.
 
 The API server should be run with TLS disabled. Edit the `argocd-server` deployment to add the `--insecure` flag to the argocd-server command.
 
+### IngressRoute CRD
 ```yaml
 apiVersion: traefik.containo.us/v1alpha1
 kind: IngressRoute
 metadata:
-  name: argocd-server-ingress
+  name: argocd-server
+  namespace: argocd
 spec:
   entryPoints:
     - websecure
   routes:
-    - match: Host(`argocd.example.com`)
-      kind: Rule
+    - kind: Rule
+      match: Host(`argocd.example.com`)
+      priority: 10
       services:
         - name: argocd-server
           port: 80
+    - kind: Rule
+      match: Host(`argocd.example.com`) && Headers(`Content-Type`, `application/grpc`)
+      priority: 11
+      services:
+        - name: argocd-server
+          port: 80
+          scheme: h2c
   tls:
     certResolver: default
     options: {}
 ```
-
 
 ## AWS Application Load Balancers (ALBs) And Classic ELB (HTTP Mode)
 
@@ -197,6 +209,59 @@ ArgoCD endpoints may be protected by one or more reverse proxies layers, in that
 ```shell
 $ argocd login <host>:<port> --header 'x-token1:foo' --header 'x-token2:bar' # can be repeated multiple times
 $ argocd login <host>:<port> --header 'x-token1:foo,x-token2:bar' # headers can also be comma separated
+```
+## ArgoCD Server and UI Root Path (v1.5.3)
+
+ArgoCD server and UI can be configured to be available under a non-root path (e.g. `/argo-cd`).
+To do this, add the `--rootpath` flag into the `argocd-server` deployment command:
+
+```yaml
+spec:
+  template:
+    spec:
+      name: argocd-server
+      containers:
+      - command:
+        - /argocd-server
+        - --staticassets
+        - /shared/app
+        - --repo-server
+        - argocd-repo-server:8081
+        - --rootpath
+        - /argo-cd
+```
+NOTE: The flag `--rootpath` changes both API Server and UI base URL. 
+Example nginx.conf:
+
+```
+worker_processes 1;
+
+events { worker_connections 1024; }
+
+http {
+
+    sendfile on;
+
+    server {
+        listen 443;
+
+        location /argo-cd/ {
+            proxy_pass         https://localhost:8080/argo-cd/;
+            proxy_redirect     off;
+            proxy_set_header   Host $host;
+            proxy_set_header   X-Real-IP $remote_addr;
+            proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header   X-Forwarded-Host $server_name;
+            # buffering should be disabled for api/v1/stream/applications to support chunked response
+            proxy_buffering off;
+        }
+    }
+}
+```
+Flag ```--grpc-web-root-path ``` is used to provide a non-root path (e.g. /argo-cd)
+
+```shell
+$ argocd login <host>:<port> --grpc-web-root-path /argo-cd
 ```
 
 ## UI Base Path

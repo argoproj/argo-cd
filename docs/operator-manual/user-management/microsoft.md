@@ -19,7 +19,17 @@
             Directory (tenant) ID: 33333333-dddd-4444-eeee-555555555555
             Secret: some_secret
 
-2. Edit `argocd-cm` and configure the `data.oidc.config` section:
+2. Setup permissions for Azure AD Application
+
+    On "API permissions" page find `User.Read` permission (under `Microsoft Graph`) and grant it to the created application:
+
+    ![Azure AD API permissions](../../assets/azure-api-permissions.png "Azure AD API permissions")
+
+    Also, on "Token Configuration" page add groups claim for the groups assigned to the application:
+
+    ![Azure AD token configuration](../../assets/azure-token-configuration.png "Azure AD token configuration")
+
+3. Edit `argocd-cm` and configure the `data.oidc.config` section:
 
         ConfigMap -> argocd-cm
         
@@ -27,22 +37,29 @@
             url: https://argocd.example.com/
             oidc.config: |
                 name: Azure
-                issuer: https://sts.windows.net/{directory_tenant_id}/
+                issuer: https://login.microsoftonline.com/{directory_tenant_id}/v2.0
                 clientID: {azure_ad_application_client_id}
                 clientSecret: $oidc.azure.clientSecret
+                requestedIDTokenClaims:
+                    groups:
+                        essential: true
+                requestedScopes:
+                    - openid
+                    - profile
+                    - email
 
-3. Edit `argocd-secret` and configure the `data.oidc.azure.clientSecret` section:
+4. Edit `argocd-secret` and configure the `data.oidc.azure.clientSecret` section:
 
         Secret -> argocd-secret
         
         data:
             oidc.azure.clientSecret: {client_secret | base64_encoded}
 
-4. Edit `argocd-rbac-cm` to configure permissions
+5. Edit `argocd-rbac-cm` to configure permissions. Use group ID from Azure for assigning roles
 
     [RBAC Configurations](../rbac.md)
 
-        ConfigMap -> argocd-cm
+        ConfigMap -> argocd-rbac-cm
 
         policy.default: role:readonly
         policy.csv: |
@@ -52,9 +69,9 @@
             p, role:org-admin, repositories, create, *, allow
             p, role:org-admin, repositories, update, *, allow
             p, role:org-admin, repositories, delete, *, allow
-            g, "Grp Argo CD", role:org-admin
+            g, "84ce98d1-e359-4f3b-85af-985b458de3c6", role:org-admin
 
-5. Mapping role from jwt token to argo
+6. Mapping role from jwt token to argo
 
     If you want to map the roles from the jwt token to match the default roles (readonly and admin) then you must change the scope variable in the rbac-configmap.
         

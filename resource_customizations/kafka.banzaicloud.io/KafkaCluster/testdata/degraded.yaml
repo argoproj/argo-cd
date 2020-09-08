@@ -1,0 +1,48 @@
+apiVersion: kafka.banzaicloud.io/v1beta1
+kind: KafkaCluster
+metadata:
+  finalizers:
+  - finalizer.kafkaclusters.kafka.banzaicloud.io
+  - topics.kafkaclusters.kafka.banzaicloud.io
+  - users.kafkaclusters.kafka.banzaicloud.io
+  generation: 4
+  labels:
+    argocd.argoproj.io/instance: kafka-cluster
+    controller-tools.k8s.io: "1.0"
+    name: kafkacluster
+    namespace: kafka
+  name: kafkacluster
+  namespace: kafka
+  resourceVersion: "31935335"
+  selfLink: /apis/kafka.banzaicloud.io/v1beta1/namespaces/2269-kafka/kafkaclusters/kafkacluster
+  uid: c6affef0-651d-44c7-8bff-638961517c8d
+spec: {}
+status:
+  alertCount: 0
+  brokersState:
+    "0":
+      configurationState: ConfigInSync
+      gracefulActionState:
+        cruiseControlState: GracefulUpscaleSucceeded
+        errorMessage: CruiseControl not yet ready
+      rackAwarenessState: |
+        broker.rack=us-east-1,us-east-1c
+    "1":
+      configurationState: ConfigInSync
+      gracefulActionState:
+        cruiseControlState: GracefulUpscaleSucceeded
+        errorMessage: CruiseControl not yet ready
+      rackAwarenessState: |
+        broker.rack=us-east-1,us-east-1b
+    "2":
+      configurationState: ConfigOutOfSync
+      gracefulActionState:
+        cruiseControlState: GracefulUpscaleSucceeded
+        errorMessage: CruiseControl not yet ready
+      rackAwarenessState: |
+        broker.rack=us-east-1,us-east-1a
+  cruiseControlTopicStatus: CruiseControlTopicReady
+  rollingUpgradeStatus:
+    errorCount: 0
+    lastSuccess: ""
+  state: ClusterRunning

@@ -20,7 +20,7 @@ This will create a new namespace, `argocd`, where Argo CD services and applicati
 On GKE, you will need grant your account the ability to create new cluster roles:
     
 ```bash
-kubectl create clusterrolebinding YOURNAME-cluster-admin-binding --clusterrole=cluster-admin --user=YOUREMAIL@gmail.com
+kubectl create clusterrolebinding cluster-admin-binding --clusterrole=cluster-admin --user="$(gcloud config get-value account)"
 ```
 
 !!! note
@@ -37,8 +37,7 @@ Download the latest Argo CD version from [https://github.com/argoproj/argo-cd/re
 Also available in Mac Homebrew:
 
 ```bash
-brew tap argoproj/tap
-brew install argoproj/tap/argocd
+brew install argocd
 ```
 
 ## 3. Access The Argo CD API Server
@@ -94,7 +93,7 @@ This step registers a cluster's credentials to Argo CD, and is only necessary wh
 an external cluster. When deploying internally (to the same cluster that Argo CD is running in),
 https://kubernetes.default.svc should be used as the application's K8s API server address.
 
-First list all clusters contexts in your current kubconfig:
+First list all clusters contexts in your current kubeconfig:
 ```bash
 argocd cluster add
 ```

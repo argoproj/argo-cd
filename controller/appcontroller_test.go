@@ -6,6 +6,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/cache/mocks"
+	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -25,12 +29,9 @@ import (
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	mockrepoclient "github.com/argoproj/argo-cd/reposerver/apiclient/mocks"
-	mockreposerver "github.com/argoproj/argo-cd/reposerver/mocks"
 	"github.com/argoproj/argo-cd/test"
 	cacheutil "github.com/argoproj/argo-cd/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
-	"github.com/argoproj/argo-cd/util/kube"
-	"github.com/argoproj/argo-cd/util/kube/kubetest"
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
@@ -57,8 +58,7 @@ func newFakeController(data *fakeData) *ApplicationController {
 	// Mock out call to GenerateManifest
 	mockRepoClient := mockrepoclient.RepoServerServiceClient{}
 	mockRepoClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(data.manifestResponse, nil)
-	mockRepoClientset := mockreposerver.Clientset{}
-	mockRepoClientset.On("NewRepoServerClient").Return(&fakeCloser{}, &mockRepoClient, nil)
+	mockRepoClientset := mockrepoclient.Clientset{RepoServerServiceClient: &mockRepoClient}
 
 	secret := corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -106,6 +106,9 @@ func newFakeController(data *fakeData) *ApplicationController {
 	defer cancelProj()
 	cancelApp := test.StartInformer(ctrl.appInformer)
 	defer cancelApp()
+	clusterCacheMock := mocks.ClusterCache{}
+	clusterCacheMock.On("IsNamespaced", mock.Anything).Return(true, nil)
+
 	mockStateCache := mockstatecache.LiveStateCache{}
 	ctrl.appStateManager.(*appStateManager).liveStateCache = &mockStateCache
 	ctrl.stateCache = &mockStateCache
@@ -117,6 +120,7 @@ func newFakeController(data *fakeData) *ApplicationController {
 		response[k] = v.ResourceNode
 	}
 	mockStateCache.On("GetNamespaceTopLevelResources", mock.Anything, mock.Anything).Return(response, nil)
+	mockStateCache.On("GetClusterCache", mock.Anything).Return(&clusterCacheMock, nil)
 	mockStateCache.On("IterateHierarchy", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
 		key := args[1].(kube.ResourceKey)
 		action := args[2].(func(child argoappv1.ResourceNode, appName string))
@@ -124,14 +128,10 @@ func newFakeController(data *fakeData) *ApplicationController {
 		if res, ok := data.namespacedResources[key]; ok {
 			appName = res.AppName
 		}
-		action(argoappv1.ResourceNode{ResourceRef: argoappv1.ResourceRef{Group: key.Group, Namespace: key.Namespace, Name: key.Name}}, appName)
+		action(argoappv1.ResourceNode{ResourceRef: argoappv1.ResourceRef{Kind: key.Kind, Group: key.Group, Namespace: key.Namespace, Name: key.Name}}, appName)
 	}).Return(nil)
 	return ctrl
 }
-
-type fakeCloser struct{}
-
-func (f *fakeCloser) Close() error { return nil }
 
 var fakeCluster = `
 apiVersion: v1
@@ -139,7 +139,7 @@ data:
   # {"bearerToken":"fake","tlsClientConfig":{"insecure":true},"awsAuthConfig":null}
   config: eyJiZWFyZXJUb2tlbiI6ImZha2UiLCJ0bHNDbGllbnRDb25maWciOnsiaW5zZWN1cmUiOnRydWV9LCJhd3NBdXRoQ29uZmlnIjpudWxsfQ==
   # minikube
-  name: aHR0cHM6Ly9sb2NhbGhvc3Q6NjQ0Mw==
+  name: bWluaWt1YmU=
   # https://localhost:6443
   server: aHR0cHM6Ly9sb2NhbGhvc3Q6NjQ0Mw==
 kind: Secret
@@ -192,6 +192,45 @@ status:
         repoURL: https://github.com/argoproj/argocd-example-apps.git
 `
 
+var fakeAppWithDestName = `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  uid: "123"
+  name: my-app
+  namespace: ` + test.FakeArgoCDNamespace + `
+spec:
+  destination:
+    namespace: ` + test.FakeDestNamespace + `
+    name: minikube
+  project: default
+  source:
+    path: some/path
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+  syncPolicy:
+    automated: {}
+`
+
+var fakeAppWithDestMismatch = `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  uid: "123"
+  name: my-app
+  namespace: ` + test.FakeArgoCDNamespace + `
+spec:
+  destination:
+    namespace: ` + test.FakeDestNamespace + `
+    name: another-cluster
+    server: https://localhost:6443
+  project: default
+  source:
+    path: some/path
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+  syncPolicy:
+    automated: {}
+`
+
 var fakeStrayResource = `
 apiVersion: v1
 kind: ConfigMap
@@ -204,8 +243,20 @@ data:
 `
 
 func newFakeApp() *argoappv1.Application {
+	return createFakeApp(fakeApp)
+}
+
+func newFakeAppWithDestMismatch() *argoappv1.Application {
+	return createFakeApp(fakeAppWithDestMismatch)
+}
+
+func newFakeAppWithDestName() *argoappv1.Application {
+	return createFakeApp(fakeAppWithDestName)
+}
+
+func createFakeApp(testApp string) *argoappv1.Application {
 	var app argoappv1.Application
-	err := yaml.Unmarshal([]byte(fakeApp), &app)
+	err := yaml.Unmarshal([]byte(testApp), &app)
 	if err != nil {
 		panic(err)
 	}
@@ -230,7 +281,7 @@ func TestAutoSync(t *testing.T) {
 	}
 	cond := ctrl.autoSync(app, &syncStatus, []argoappv1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: argoappv1.SyncStatusCodeOutOfSync}})
 	assert.Nil(t, cond)
-	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
+	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(context.Background(), "my-app", metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, app.Operation)
 	assert.NotNil(t, app.Operation.Sync)
@@ -249,7 +300,7 @@ func TestSkipAutoSync(t *testing.T) {
 		}
 		cond := ctrl.autoSync(app, &syncStatus, []argoappv1.ResourceStatus{})
 		assert.Nil(t, cond)
-		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
+		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(context.Background(), "my-app", metav1.GetOptions{})
 		assert.NoError(t, err)
 		assert.Nil(t, app.Operation)
 	})
@@ -264,7 +315,7 @@ func TestSkipAutoSync(t *testing.T) {
 		}
 		cond := ctrl.autoSync(app, &syncStatus, []argoappv1.ResourceStatus{})
 		assert.Nil(t, cond)
-		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
+		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(context.Background(), "my-app", metav1.GetOptions{})
 		assert.NoError(t, err)
 		assert.Nil(t, app.Operation)
 	})
@@ -280,7 +331,7 @@ func TestSkipAutoSync(t *testing.T) {
 		}
 		cond := ctrl.autoSync(app, &syncStatus, []argoappv1.ResourceStatus{})
 		assert.Nil(t, cond)
-		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
+		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(context.Background(), "my-app", metav1.GetOptions{})
 		assert.NoError(t, err)
 		assert.Nil(t, app.Operation)
 	})
@@ -297,7 +348,7 @@ func TestSkipAutoSync(t *testing.T) {
 		}
 		cond := ctrl.autoSync(app, &syncStatus, []argoappv1.ResourceStatus{})
 		assert.Nil(t, cond)
-		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
+		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(context.Background(), "my-app", metav1.GetOptions{})
 		assert.NoError(t, err)
 		assert.Nil(t, app.Operation)
 	})
@@ -310,7 +361,7 @@ func TestSkipAutoSync(t *testing.T) {
 			Operation: argoappv1.Operation{
 				Sync: &argoappv1.SyncOperation{},
 			},
-			Phase: argoappv1.OperationFailed,
+			Phase: synccommon.OperationFailed,
 			SyncResult: &argoappv1.SyncOperationResult{
 				Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 				Source:   *app.Spec.Source.DeepCopy(),
@@ -323,7 +374,7 @@ func TestSkipAutoSync(t *testing.T) {
 		}
 		cond := ctrl.autoSync(app, &syncStatus, []argoappv1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: argoappv1.SyncStatusCodeOutOfSync}})
 		assert.NotNil(t, cond)
-		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
+		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(context.Background(), "my-app", metav1.GetOptions{})
 		assert.NoError(t, err)
 		assert.Nil(t, app.Operation)
 	})
@@ -339,7 +390,7 @@ func TestSkipAutoSync(t *testing.T) {
 			{Name: "guestbook", Kind: kube.DeploymentKind, Status: argoappv1.SyncStatusCodeOutOfSync, RequiresPruning: true},
 		})
 		assert.Nil(t, cond)
-		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
+		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(context.Background(), "my-app", metav1.GetOptions{})
 		assert.NoError(t, err)
 		assert.Nil(t, app.Operation)
 	})
@@ -367,7 +418,7 @@ func TestAutoSyncIndicateError(t *testing.T) {
 				Source: app.Spec.Source.DeepCopy(),
 			},
 		},
-		Phase: argoappv1.OperationFailed,
+		Phase: synccommon.OperationFailed,
 		SyncResult: &argoappv1.SyncOperationResult{
 			Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 			Source:   *app.Spec.Source.DeepCopy(),
@@ -375,7 +426,7 @@ func TestAutoSyncIndicateError(t *testing.T) {
 	}
 	cond := ctrl.autoSync(app, &syncStatus, []argoappv1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: argoappv1.SyncStatusCodeOutOfSync}})
 	assert.NotNil(t, cond)
-	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
+	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(context.Background(), "my-app", metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Nil(t, app.Operation)
 }
@@ -411,37 +462,38 @@ func TestAutoSyncParameterOverrides(t *testing.T) {
 				},
 			},
 		},
-		Phase: argoappv1.OperationFailed,
+		Phase: synccommon.OperationFailed,
 		SyncResult: &argoappv1.SyncOperationResult{
 			Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 		},
 	}
 	cond := ctrl.autoSync(app, &syncStatus, []argoappv1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: argoappv1.SyncStatusCodeOutOfSync}})
 	assert.Nil(t, cond)
-	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
+	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(context.Background(), "my-app", metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, app.Operation)
 }
 
 // TestFinalizeAppDeletion verifies application deletion
 func TestFinalizeAppDeletion(t *testing.T) {
-	// Ensure app can be deleted cascading
-	{
-		defaultProj := argoappv1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "default",
-				Namespace: test.FakeArgoCDNamespace,
-			},
-			Spec: argoappv1.AppProjectSpec{
-				SourceRepos: []string{"*"},
-				Destinations: []argoappv1.ApplicationDestination{
-					{
-						Server:    "*",
-						Namespace: "*",
-					},
+	defaultProj := argoappv1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "default",
+			Namespace: test.FakeArgoCDNamespace,
+		},
+		Spec: argoappv1.AppProjectSpec{
+			SourceRepos: []string{"*"},
+			Destinations: []argoappv1.ApplicationDestination{
+				{
+					Server:    "*",
+					Namespace: "*",
 				},
 			},
-		}
+		},
+	}
+
+	// Ensure app can be deleted cascading
+	t.Run("CascadingDelete", func(t *testing.T) {
 		app := newFakeApp()
 		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
 		appObj := kube.MustToUnstructured(&app)
@@ -463,26 +515,11 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		_, err := ctrl.finalizeApplicationDeletion(app)
 		assert.NoError(t, err)
 		assert.True(t, patched)
-	}
+	})
 
-	// Ensure any stray resources irregulary labeled with instance label of app are not deleted upon deleting,
+	// Ensure any stray resources irregularly labeled with instance label of app are not deleted upon deleting,
 	// when app project restriction is in place
-	{
-		defaultProj := argoappv1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "default",
-				Namespace: test.FakeArgoCDNamespace,
-			},
-			Spec: argoappv1.AppProjectSpec{
-				SourceRepos: []string{"*"},
-				Destinations: []argoappv1.ApplicationDestination{
-					{
-						Server:    "*",
-						Namespace: "*",
-					},
-				},
-			},
-		}
+	t.Run("ProjectRestrictionEnforced", func(*testing.T) {
 		restrictedProj := argoappv1.AppProject{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "restricted",
@@ -536,7 +573,33 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		for _, o := range objs {
 			assert.NotEqual(t, "test-cm", o.GetName())
 		}
-	}
+	})
+
+	t.Run("DeleteWithDestinationClusterName", func(t *testing.T) {
+		app := newFakeApp()
+		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
+		app.Spec.Destination.Name = "minikube"
+		app.Spec.Destination.Server = ""
+		appObj := kube.MustToUnstructured(&app)
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}, managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+			kube.GetResourceKey(appObj): appObj,
+		}})
+
+		patched := false
+		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+		defaultReactor := fakeAppCs.ReactionChain[0]
+		fakeAppCs.ReactionChain = nil
+		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			return defaultReactor.React(action)
+		})
+		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			patched = true
+			return true, nil, nil
+		})
+		_, err := ctrl.finalizeApplicationDeletion(app)
+		assert.NoError(t, err)
+		assert.True(t, patched)
+	})
 }
 
 // TestNormalizeApplication verifies we normalize an application during reconciliation
@@ -657,6 +720,43 @@ func TestHandleOrphanedResourceUpdated(t *testing.T) {
 	assert.Equal(t, ComparisonWithNothing, level)
 }
 
+func TestGetResourceTree_HasOrphanedResources(t *testing.T) {
+	app := newFakeApp()
+	proj := defaultProj.DeepCopy()
+	proj.Spec.OrphanedResources = &argoappv1.OrphanedResourcesMonitorSettings{}
+
+	managedDeploy := argoappv1.ResourceNode{
+		ResourceRef: argoappv1.ResourceRef{Group: "apps", Kind: "Deployment", Namespace: "default", Name: "nginx-deployment", Version: "v1"},
+	}
+	orphanedDeploy1 := argoappv1.ResourceNode{
+		ResourceRef: argoappv1.ResourceRef{Group: "apps", Kind: "Deployment", Namespace: "default", Name: "deploy1"},
+	}
+	orphanedDeploy2 := argoappv1.ResourceNode{
+		ResourceRef: argoappv1.ResourceRef{Group: "apps", Kind: "Deployment", Namespace: "default", Name: "deploy2"},
+	}
+
+	ctrl := newFakeController(&fakeData{
+		apps: []runtime.Object{app, proj},
+		namespacedResources: map[kube.ResourceKey]namespacedResource{
+			kube.NewResourceKey("apps", "Deployment", "default", "nginx-deployment"): {ResourceNode: managedDeploy},
+			kube.NewResourceKey("apps", "Deployment", "default", "deploy1"):          {ResourceNode: orphanedDeploy1},
+			kube.NewResourceKey("apps", "Deployment", "default", "deploy2"):          {ResourceNode: orphanedDeploy2},
+		},
+	})
+	tree, err := ctrl.getResourceTree(app, []*argoappv1.ResourceDiff{{
+		Namespace:   "default",
+		Name:        "nginx-deployment",
+		Kind:        "Deployment",
+		Group:       "apps",
+		LiveState:   "null",
+		TargetState: test.DeploymentManifest,
+	}})
+
+	assert.NoError(t, err)
+	assert.Equal(t, tree.Nodes, []argoappv1.ResourceNode{managedDeploy})
+	assert.Equal(t, tree.OrphanedNodes, []argoappv1.ResourceNode{orphanedDeploy1, orphanedDeploy2})
+}
+
 func TestSetOperationStateOnDeletedApp(t *testing.T) {
 	ctrl := newFakeController(&fakeData{apps: []runtime.Object{}})
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
@@ -666,7 +766,7 @@ func TestSetOperationStateOnDeletedApp(t *testing.T) {
 		patched = true
 		return true, nil, apierr.NewNotFound(schema.GroupResource{}, "my-app")
 	})
-	ctrl.setOperationState(newFakeApp(), &argoappv1.OperationState{Phase: argoappv1.OperationSucceeded})
+	ctrl.setOperationState(newFakeApp(), &argoappv1.OperationState{Phase: synccommon.OperationSucceeded})
 	assert.True(t, patched)
 }
 
@@ -801,6 +901,26 @@ func TestRefreshAppConditions(t *testing.T) {
 		assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, app.Status.Conditions[0].Type)
 		assert.Equal(t, "Application referencing project wrong project which does not exist", app.Status.Conditions[0].Message)
 	})
+
+	t.Run("NoErrorConditionsWithDestNameOnly", func(t *testing.T) {
+		app := newFakeAppWithDestName()
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}})
+
+		_, hasErrors := ctrl.refreshAppConditions(app)
+		assert.False(t, hasErrors)
+		assert.Len(t, app.Status.Conditions, 0)
+	})
+
+	t.Run("ErrorOnBothDestNameAndServer", func(t *testing.T) {
+		app := newFakeAppWithDestMismatch()
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}})
+
+		_, hasErrors := ctrl.refreshAppConditions(app)
+		assert.True(t, hasErrors)
+		assert.Len(t, app.Status.Conditions, 1)
+		assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, app.Status.Conditions[0].Type)
+		assert.Equal(t, "application destination can't have both name and server defined: another-cluster https://localhost:6443", app.Status.Conditions[0].Message)
+	})
 }
 
 func TestUpdateReconciledAt(t *testing.T) {
@@ -842,7 +962,7 @@ func TestUpdateReconciledAt(t *testing.T) {
 
 		_, updated, err = unstructured.NestedString(receivedPatch, "status", "observedAt")
 		assert.NoError(t, err)
-		assert.True(t, updated)
+		assert.False(t, updated)
 	})
 
 	t.Run("NotUpdatedOnPartialReconciliation", func(t *testing.T) {
@@ -858,7 +978,167 @@ func TestUpdateReconciledAt(t *testing.T) {
 
 		_, updated, err = unstructured.NestedString(receivedPatch, "status", "observedAt")
 		assert.NoError(t, err)
-		assert.True(t, updated)
+		assert.False(t, updated)
 	})
 
+}
+
+func TestFinalizeProjectDeletion_HasApplications(t *testing.T) {
+	app := newFakeApp()
+	proj := &argoappv1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: test.FakeArgoCDNamespace}}
+	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, proj}})
+
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	patched := false
+	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		patched = true
+		return true, nil, nil
+	})
+
+	err := ctrl.finalizeProjectDeletion(proj)
+	assert.NoError(t, err)
+	assert.False(t, patched)
+}
+
+func TestFinalizeProjectDeletion_DoesNotHaveApplications(t *testing.T) {
+	proj := &argoappv1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: test.FakeArgoCDNamespace}}
+	ctrl := newFakeController(&fakeData{apps: []runtime.Object{&defaultProj}})
+
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	receivedPatch := map[string]interface{}{}
+	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if patchAction, ok := action.(kubetesting.PatchAction); ok {
+			assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+		}
+		return true, nil, nil
+	})
+
+	err := ctrl.finalizeProjectDeletion(proj)
+	assert.NoError(t, err)
+	assert.Equal(t, map[string]interface{}{
+		"metadata": map[string]interface{}{
+			"finalizers": nil,
+		},
+	}, receivedPatch)
+}
+
+func TestProcessRequestedAppOperation_FailedNoRetries(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.Project = "invalid-project"
+	app.Operation = &argoappv1.Operation{
+		Sync: &argoappv1.SyncOperation{},
+	}
+	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	receivedPatch := map[string]interface{}{}
+	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if patchAction, ok := action.(kubetesting.PatchAction); ok {
+			assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+		}
+		return true, nil, nil
+	})
+
+	ctrl.processRequestedAppOperation(app)
+
+	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
+	assert.Equal(t, string(synccommon.OperationError), phase)
+}
+
+func TestProcessRequestedAppOperation_FailedHasRetries(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.Project = "invalid-project"
+	app.Operation = &argoappv1.Operation{
+		Sync:  &argoappv1.SyncOperation{},
+		Retry: argoappv1.RetryStrategy{Limit: 1},
+	}
+	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	receivedPatch := map[string]interface{}{}
+	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if patchAction, ok := action.(kubetesting.PatchAction); ok {
+			assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+		}
+		return true, nil, nil
+	})
+
+	ctrl.processRequestedAppOperation(app)
+
+	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
+	assert.Equal(t, string(synccommon.OperationRunning), phase)
+	message, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "message")
+	assert.Contains(t, message, "Retrying attempt #1")
+	retryCount, _, _ := unstructured.NestedFloat64(receivedPatch, "status", "operationState", "retryCount")
+	assert.Equal(t, float64(1), retryCount)
+}
+
+func TestProcessRequestedAppOperation_RunningPreviouslyFailed(t *testing.T) {
+	app := newFakeApp()
+	app.Operation = &argoappv1.Operation{
+		Sync:  &argoappv1.SyncOperation{},
+		Retry: argoappv1.RetryStrategy{Limit: 1},
+	}
+	app.Status.OperationState.Phase = synccommon.OperationRunning
+	app.Status.OperationState.SyncResult.Resources = []*argoappv1.ResourceResult{{
+		Name:   "guestbook",
+		Kind:   "Deployment",
+		Group:  "apps",
+		Status: synccommon.ResultCodeSyncFailed,
+	}}
+
+	data := &fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+	}
+	ctrl := newFakeController(data)
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	receivedPatch := map[string]interface{}{}
+	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if patchAction, ok := action.(kubetesting.PatchAction); ok {
+			assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+		}
+		return true, nil, nil
+	})
+
+	ctrl.processRequestedAppOperation(app)
+
+	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
+	assert.Equal(t, string(synccommon.OperationSucceeded), phase)
+}
+
+func TestProcessRequestedAppOperation_HasRetriesTerminated(t *testing.T) {
+	app := newFakeApp()
+	app.Operation = &argoappv1.Operation{
+		Sync:  &argoappv1.SyncOperation{},
+		Retry: argoappv1.RetryStrategy{Limit: 10},
+	}
+	app.Status.OperationState.Phase = synccommon.OperationTerminating
+
+	data := &fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+	}
+	ctrl := newFakeController(data)
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	receivedPatch := map[string]interface{}{}
+	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if patchAction, ok := action.(kubetesting.PatchAction); ok {
+			assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+		}
+		return true, nil, nil
+	})
+
+	ctrl.processRequestedAppOperation(app)
+
+	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
+	assert.Equal(t, string(synccommon.OperationFailed), phase)
 }

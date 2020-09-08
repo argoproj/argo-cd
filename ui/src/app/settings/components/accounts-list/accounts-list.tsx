@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import {DataLoader, Page} from '../../../shared/components';
+import {DataLoader, EmptyState, Page} from '../../../shared/components';
 import {Context} from '../../../shared/context';
 import {services} from '../../../shared/services';
 
@@ -15,7 +15,7 @@ export const AccountsList = () => {
             <div className='argo-container'>
                 <DataLoader load={() => services.accounts.list()}>
                     {accounts =>
-                        accounts.length > 0 && (
+                        (accounts.length > 0 && (
                             <div className='argo-table-list argo-table-list--clickable'>
                                 <div className='argo-table-list__head'>
                                     <div className='row'>
@@ -34,6 +34,11 @@ export const AccountsList = () => {
                                     </div>
                                 ))}
                             </div>
+                        )) || (
+                            <EmptyState icon='fa fa-user-circle'>
+                                <h4>No accounts yet</h4>
+                                <h5>Define new accounts in Argo CD configuration</h5>
+                            </EmptyState>
                         )
                     }
                 </DataLoader>

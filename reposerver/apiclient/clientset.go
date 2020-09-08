@@ -4,13 +4,13 @@ import (
 	"crypto/tls"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
-	"github.com/argoproj/argo-cd/util"
 	argogrpc "github.com/argoproj/argo-cd/util/grpc"
 )
 
@@ -19,9 +19,9 @@ const (
 	MaxGRPCMessageSize = 100 * 1024 * 1024
 )
 
-// Clientset represets repository server api clients
+// Clientset represents repository server api clients
 type Clientset interface {
-	NewRepoServerClient() (util.Closer, RepoServerServiceClient, error)
+	NewRepoServerClient() (io.Closer, RepoServerServiceClient, error)
 }
 
 type clientSet struct {
@@ -29,7 +29,7 @@ type clientSet struct {
 	timeoutSeconds int
 }
 
-func (c *clientSet) NewRepoServerClient() (util.Closer, RepoServerServiceClient, error) {
+func (c *clientSet) NewRepoServerClient() (io.Closer, RepoServerServiceClient, error) {
 	retryOpts := []grpc_retry.CallOption{
 		grpc_retry.WithMax(3),
 		grpc_retry.WithBackoff(grpc_retry.BackoffLinear(1000 * time.Millisecond)),

@@ -137,3 +137,58 @@ Or via declarative syntax:
         - name: app
           value: $ARGOCD_APP_NAME
 ```
+
+## Helm plugins
+
+> v1.5
+
+Argo CD is un-opinionated on what cloud provider you use and what kind of Helm plugins you are using that's why there is no any plugins delivered with ArgoCD image.
+
+But sometimes it happens you would like to use custom plugin. One of the cases is that you would like to use Google Cloud Storage or Amazon S3 storage to save the Helm charts, for example: https://github.com/hayorov/helm-gcs where you can use `gs://` protocol for Helm chart repository access.
+
+In order to do that you have to prepare your own ArgoCD image with installed plugins.
+
+Example `Dockerfile`:
+
+```
+FROM argoproj/argocd:v1.5.7
+
+USER root
+RUN apt-get update && \
+    apt-get install -y \
+        curl && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+USER argocd
+
+ARG GCS_PLUGIN_VERSION="0.3.5"
+ARG GCS_PLUGIN_REPO="https://github.com/hayorov/helm-gcs.git"
+
+RUN helm plugin install ${GCS_PLUGIN_REPO} --version ${GCS_PLUGIN_VERSION}
+
+ENV HELM_PLUGINS="/home/argocd/.local/share/helm/plugins/"
+```
+
+You have to remember about `HELM_PLUGINS` environment property - this is required to works plugins correctly.
+
+After that you have to use your custom image for ArgoCD installation.
+
+## Helm Version
+
+ArgoCD normally detects which version of Helm to use by looking at the `apiVersion` in Chart.yaml.
+
+If needed, it is possible to specifically set the Helm version to template with by setting the `helm-version` flag on the cli (either v2 or v3):
+
+```bash
+argocd app set helm-guestbook --helm-version v2
+```
+
+Or using declarative syntax:
+
+```yaml
+spec:
+  source:
+    helm:
+      version: v2
+```

@@ -36,6 +36,8 @@ message AppProject {
   optional k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
 
   optional AppProjectSpec spec = 2;
+
+  optional AppProjectStatus status = 3;
 }
 
 // AppProjectList is list of AppProject resources
@@ -74,6 +76,17 @@ message AppProjectSpec {
 
   // NamespaceResourceWhitelist contains list of whitelisted namespace level resources
   repeated k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind namespaceResourceWhitelist = 9;
+
+  // List of PGP key IDs that commits to be synced to must be signed with
+  repeated SignatureKey signatureKeys = 10;
+
+  // ClusterResourceBlacklist contains list of blacklisted cluster level resources
+  repeated k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind clusterResourceBlacklist = 11;
+}
+
+// AppProjectStatus contains information about appproj
+message AppProjectStatus {
+  map<string, JWTTokens> jwtTokensByRole = 1;
 }
 
 // Application is a definition of Application resource.
@@ -110,6 +123,9 @@ message ApplicationDestination {
 
   // Namespace overrides the environment namespace value in the ksonnet app.yaml
   optional string namespace = 2;
+
+  // Name of the destination cluster which can be used instead of server (url) field
+  optional string name = 3;
 }
 
 // ApplicationList is list of Application resources
@@ -173,6 +189,9 @@ message ApplicationSourceHelm {
 
   // FileParameters are file parameters to the helm template
   repeated HelmFileParameter fileParameters = 5;
+
+  // Version is the Helm version to use for templating with
+  optional string version = 6;
 }
 
 // ApplicationSourceJsonnet holds jsonnet specific options
@@ -182,6 +201,9 @@ message ApplicationSourceJsonnet {
 
   // TLAS is a list of Jsonnet Top-level Arguments
   repeated JsonnetVar tlas = 2;
+
+  // Additional library search dirs
+  repeated string libs = 3;
 }
 
 // ApplicationSourceKsonnet holds ksonnet specific options
@@ -206,6 +228,9 @@ message ApplicationSourceKustomize {
 
   // CommonLabels adds additional kustomize commonLabels
   map<string, string> commonLabels = 4;
+
+  // Version contains optional Kustomize version
+  optional string version = 5;
 }
 
 // ApplicationSourcePlugin holds config management plugin specific options
@@ -261,6 +286,7 @@ message ApplicationStatus {
   optional OperationState operationState = 7;
 
   // ObservedAt indicates when the application state was updated without querying latest git state
+  // Deprecated: controller no longer updates ObservedAt field
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time observedAt = 8;
 
   optional string sourceType = 9;
@@ -297,6 +323,18 @@ message ApplicationWatchEvent {
   optional Application application = 2;
 }
 
+// Backoff is a backoff strategy to use within retryStrategy
+message Backoff {
+  // Duration is the amount to back off. Default unit is seconds, but could also be a duration (e.g. "2m", "1h")
+  optional string duration = 1;
+
+  // Factor is a factor to multiply the base duration after each failed retry
+  optional int64 factor = 2;
+
+  // MaxDuration is the maximum amount of time allowed for the backoff strategy
+  optional string maxDuration = 3;
+}
+
 // Cluster is the definition of a cluster resource
 message Cluster {
   // Server is the API server URL of the Kubernetes cluster
@@ -308,14 +346,33 @@ message Cluster {
   // Config holds cluster information for connecting to a cluster
   optional ClusterConfig config = 3;
 
+  // DEPRECATED: use Info.ConnectionState field instead.
   // ConnectionState contains information about cluster connection state
   optional ConnectionState connectionState = 4;
 
+  // DEPRECATED: use Info.ServerVersion field instead.
   // The server version
   optional string serverVersion = 5;
 
-  // Holds list of namespaces which are accessible in that cluster. Cluster level resources would be ignored if namespace list if not empty.
+  // Holds list of namespaces which are accessible in that cluster. Cluster level resources would be ignored if namespace list is not empty.
   repeated string namespaces = 6;
+
+  // RefreshRequestedAt holds time when cluster cache refresh has been requested
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time refreshRequestedAt = 7;
+
+  // Holds information about cluster cache
+  optional ClusterInfo info = 8;
+}
+
+message ClusterCacheInfo {
+  // ResourcesCount holds number of observed Kubernetes resources
+  optional int64 resourcesCount = 1;
+
+  // APIsCount holds number of observed Kubernetes API count
+  optional int64 apisCount = 2;
+
+  // LastCacheSyncTime holds time of most recent cache synchronization
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time lastCacheSyncTime = 3;
 }
 
 // ClusterConfig is the configuration attributes. This structure is subset of the go-client
@@ -336,6 +393,16 @@ message ClusterConfig {
 
   // AWSAuthConfig contains IAM authentication configuration
   optional AWSAuthConfig awsAuthConfig = 5;
+}
+
+message ClusterInfo {
+  optional ConnectionState connectionState = 1;
+
+  optional string serverVersion = 2;
+
+  optional ClusterCacheInfo cacheInfo = 3;
+
+  optional int64 applicationsCount = 4;
 }
 
 // ClusterList is a collection of Clusters.
@@ -394,6 +461,34 @@ message EnvEntry {
   optional string value = 2;
 }
 
+// GnuPGPublicKey is a representation of a GnuPG public key
+message GnuPGPublicKey {
+  // KeyID in hexadecimal string format
+  optional string keyID = 1;
+
+  // Fingerprint of the key
+  optional string fingerprint = 2;
+
+  // Owner identification
+  optional string owner = 3;
+
+  // Trust level
+  optional string trust = 4;
+
+  // Key sub type (e.g. rsa4096)
+  optional string subType = 5;
+
+  // Key data
+  optional string keyData = 6;
+}
+
+// GnuPGPublicKeyList is a collection of GnuPGPublicKey objects
+message GnuPGPublicKeyList {
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+
+  repeated GnuPGPublicKey items = 2;
+}
+
 message HealthStatus {
   optional string status = 1;
 
@@ -441,6 +536,12 @@ message JWTToken {
   optional int64 iat = 1;
 
   optional int64 exp = 2;
+
+  optional string id = 3;
+}
+
+message JWTTokens {
+  repeated JWTToken items = 1;
 }
 
 // JsonnetVar is a jsonnet variable
@@ -450,6 +551,13 @@ message JsonnetVar {
   optional string value = 2;
 
   optional bool code = 3;
+}
+
+// KnownTypeField contains mapping between CRD field and known Kubernetes type
+message KnownTypeField {
+  optional string field = 1;
+
+  optional string type = 2;
 }
 
 // KsonnetParameter is a ksonnet component parameter
@@ -465,6 +573,9 @@ message KsonnetParameter {
 message KustomizeOptions {
   // BuildOptions is a string of build parameters to use when calling `kustomize build`
   optional string buildOptions = 1;
+
+  // BinaryPath holds optional path to kustomize binary
+  optional string binaryPath = 2;
 }
 
 // Operation contains requested operation parameters.
@@ -472,6 +583,11 @@ message Operation {
   optional SyncOperation sync = 1;
 
   optional OperationInitiator initiatedBy = 2;
+
+  repeated Info info = 3;
+
+  // Retry controls failed sync retry behavior
+  optional RetryStrategy retry = 4;
 }
 
 // OperationInitiator holds information about the operation initiator
@@ -502,12 +618,29 @@ message OperationState {
 
   // FinishedAt contains time of operation completion
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time finishedAt = 7;
+
+  // RetryCount contains time of operation retries
+  optional int64 retryCount = 8;
+}
+
+message OrphanedResourceKey {
+  optional string group = 1;
+
+  optional string kind = 2;
+
+  optional string name = 3;
 }
 
 // OrphanedResourcesMonitorSettings holds settings of orphaned resources monitoring
 message OrphanedResourcesMonitorSettings {
   // Warn indicates if warning condition should be created for apps which have orphaned resources
   optional bool warn = 1;
+
+  repeated OrphanedResourceKey ignore = 2;
+}
+
+message OverrideIgnoreDiff {
+  repeated string jSONPointers = 1;
 }
 
 // ProjectRole represents a role that has access to a project
@@ -734,6 +867,8 @@ message ResourceNode {
   repeated string images = 6;
 
   optional HealthStatus health = 7;
+
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time createdAt = 8;
 }
 
 // ResourceOverride holds configuration to customize resource diffing and health assessment
@@ -742,7 +877,9 @@ message ResourceOverride {
 
   optional string actions = 3;
 
-  optional string ignoreDifferences = 2;
+  optional OverrideIgnoreDiff ignoreDifferences = 2;
+
+  repeated KnownTypeField knownTypeFields = 4;
 }
 
 // ResourceRef includes fields which unique identify resource
@@ -810,15 +947,29 @@ message ResourceStatus {
   optional bool requiresPruning = 9;
 }
 
+message RetryStrategy {
+  // Limit is the maximum number of attempts when retrying a container
+  optional int64 limit = 1;
+
+  // Backoff is a backoff strategy
+  optional Backoff backoff = 2;
+}
+
 // RevisionHistory contains information relevant to an application deployment
 message RevisionHistory {
+  // Revision holds the revision of the sync
   optional string revision = 2;
 
+  // DeployedAt holds the time the deployment completed
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time deployedAt = 4;
 
+  // ID is an auto incrementing identifier of the RevisionHistory
   optional int64 id = 5;
 
   optional ApplicationSource source = 6;
+
+  // DeployStartedAt holds the time the deployment started
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time deployStartedAt = 7;
 }
 
 // data about a specific revision within a repo
@@ -839,6 +990,16 @@ message RevisionMetadata {
   // probably the commit message,
   // this is truncated to the first newline or 64 characters (which ever comes first)
   optional string message = 4;
+
+  // If revision was signed with GPG, and signature verification is enabled,
+  // this contains a hint on the signer
+  optional string signatureInfo = 5;
+}
+
+// SignatureKey is the specification of a key required to verify commit signatures with
+message SignatureKey {
+  // The ID of the key in hexadecimal notation
+  optional string keyID = 1;
 }
 
 // SyncOperation contains sync operation details.
@@ -877,6 +1038,8 @@ message SyncOperationResource {
   optional string kind = 2;
 
   optional string name = 3;
+
+  optional string namespace = 4;
 }
 
 // SyncOperationResult represent result of sync operation
@@ -896,8 +1059,11 @@ message SyncPolicy {
   // Automated will keep an application synced to the target revision
   optional SyncPolicyAutomated automated = 1;
 
-  // Options allow youe to specify whole app sync-options
+  // Options allow you to specify whole app sync-options
   repeated string syncOptions = 2;
+
+  // Retry controls failed sync retry behavior
+  optional RetryStrategy retry = 3;
 }
 
 // SyncPolicyAutomated controls the behavior of an automated sync

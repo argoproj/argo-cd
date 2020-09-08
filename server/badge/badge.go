@@ -1,10 +1,12 @@
 package badge
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"regexp"
 
+	healthutil "github.com/argoproj/gitops-engine/pkg/health"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -61,7 +63,7 @@ func replaceFirstGroupSubMatch(re *regexp.Regexp, str string, repl string) strin
 //ServeHTTP returns badge with health and sync status for application
 //(or an error badge if wrong query or application name is given)
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	health := appv1.HealthStatusUnknown
+	health := healthutil.HealthStatusUnknown
 	status := appv1.SyncStatusCodeUnknown
 	revision := ""
 	revisionEnabled := false
@@ -73,7 +75,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	//Sample url: http://localhost:8080/api/badge?name=123
 	if name, ok := r.URL.Query()["name"]; ok && enabled {
-		if app, err := h.appClientset.ArgoprojV1alpha1().Applications(h.namespace).Get(name[0], v1.GetOptions{}); err == nil {
+		if app, err := h.appClientset.ArgoprojV1alpha1().Applications(h.namespace).Get(context.Background(), name[0], v1.GetOptions{}); err == nil {
 			health = app.Status.Health.Status
 			status = app.Status.Sync.Status
 			if app.Status.OperationState != nil && app.Status.OperationState.SyncResult != nil {
@@ -103,7 +105,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		rightColorString = toRGBString(Grey)
 	}
 
-	leftText := health
+	leftText := string(health)
 	rightText := string(status)
 
 	if notFound {
@@ -122,7 +124,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		badge = svgWidthPattern.ReplaceAllString(badge, fmt.Sprintf(`<svg width="%d" $2`, svgWidthWithRevision))
 		badge = displayNonePattern.ReplaceAllString(badge, `display="inline"`)
 		badge = revisionRectColorPattern.ReplaceAllString(badge, fmt.Sprintf(`id="revisionRect" fill="%s" $2`, rightColorString))
-		badge = replaceFirstGroupSubMatch(revisionTextPattern, badge, fmt.Sprintf("(%s)", revision[:7]))
+		shortRevision := revision
+		if len(shortRevision) > 7 {
+			shortRevision = shortRevision[:7]
+		}
+		badge = replaceFirstGroupSubMatch(revisionTextPattern, badge, fmt.Sprintf("(%s)", shortRevision))
 	}
 
 	w.Header().Set("Content-Type", "image/svg+xml")

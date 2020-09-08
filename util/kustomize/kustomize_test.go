@@ -34,7 +34,7 @@ func TestKustomizeBuild(t *testing.T) {
 	assert.Nil(t, err)
 	namePrefix := "namePrefix-"
 	nameSuffix := "-nameSuffix"
-	kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "")
+	kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", "")
 	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
 		NamePrefix: namePrefix,
 		NameSuffix: nameSuffix,

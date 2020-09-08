@@ -9,8 +9,11 @@ export interface ProjectParams {
     destinations: models.ApplicationDestination[];
     roles: models.ProjectRole[];
     clusterResourceWhitelist: models.GroupKind[];
+    clusterResourceBlacklist: models.GroupKind[];
     namespaceResourceBlacklist: models.GroupKind[];
     namespaceResourceWhitelist: models.GroupKind[];
+    orphanedResourceIgnoreList: models.OrphanedResource[];
+    signatureKeys: models.ProjectSignatureKey[];
     orphanedResourcesEnabled: boolean;
     orphanedResourcesWarn: boolean;
     syncWindows: models.SyncWindow[];
@@ -63,7 +66,6 @@ function paramsToProjRole(params: ProjectRoleParams): models.ProjectRole {
         name: params.roleName,
         description: params.description,
         policies: newPolicies,
-        jwtTokens: params.jwtTokens,
         groups: params.groups
     };
 }
@@ -78,17 +80,20 @@ function paramsToProj(params: ProjectParams) {
             roles: params.roles,
             syncWindows: params.syncWindows,
             clusterResourceWhitelist: params.clusterResourceWhitelist,
+            clusterResourceBlacklist: params.clusterResourceBlacklist,
             namespaceResourceBlacklist: params.namespaceResourceBlacklist,
             namespaceResourceWhitelist: params.namespaceResourceWhitelist,
-            orphanedResources: (params.orphanedResourcesEnabled && {warn: !!params.orphanedResourcesWarn}) || null
+            signatureKeys: params.signatureKeys,
+            orphanedResources: (params.orphanedResourcesEnabled && {warn: !!params.orphanedResourcesWarn, ignore: params.orphanedResourceIgnoreList}) || null
         }
     };
 }
 
 export class ProjectsService {
-    public list(): Promise<models.Project[]> {
+    public list(...fields: string[]): Promise<models.Project[]> {
         return requests
             .get('/projects')
+            .query({fields: fields.join(',')})
             .then(res => res.body as models.ProjectList)
             .then(list => list.items || []);
     }

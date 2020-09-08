@@ -29,8 +29,7 @@ You should now be able to run `argocd` commands.
 ### Homebrew
 
 ```bash
-brew tap argoproj/tap
-brew install argoproj/tap/argocd
+brew install argocd
 ```
 
 ### Download With Curl

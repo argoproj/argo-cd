@@ -25,8 +25,8 @@ WORKDIR /tmp
 
 ADD hack/install.sh .
 ADD hack/installers installers
+ADD hack/tool-versions.sh .
 
-RUN ./install.sh dep-linux
 RUN ./install.sh packr-linux
 RUN ./install.sh kubectl-linux
 RUN ./install.sh ksonnet-linux
@@ -50,12 +50,14 @@ RUN groupadd -g 999 argocd && \
     chmod g=u /home/argocd && \
     chmod g=u /etc/passwd && \
     apt-get update && \
-    apt-get install -y git git-lfs python3-pip && \
+    apt-get install -y git git-lfs python3-pip tini gpg && \
     apt-get clean && \
-    pip3 install awscli==1.17.7 && \
+    pip3 install awscli==1.18.80 && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 COPY hack/git-ask-pass.sh /usr/local/bin/git-ask-pass.sh
+COPY hack/gpg-wrapper.sh /usr/local/bin/gpg-wrapper.sh
+COPY hack/git-verify-wrapper.sh /usr/local/bin/git-verify-wrapper.sh
 COPY --from=builder /usr/local/bin/ks /usr/local/bin/ks
 COPY --from=builder /usr/local/bin/helm2 /usr/local/bin/helm2
 COPY --from=builder /usr/local/bin/helm /usr/local/bin/helm
@@ -71,11 +73,15 @@ RUN mkdir -p /app/config/ssh && \
     ln -s /app/config/ssh/ssh_known_hosts /etc/ssh/ssh_known_hosts 
 
 RUN mkdir -p /app/config/tls
+RUN mkdir -p /app/config/gpg/source && \
+    mkdir -p /app/config/gpg/keys && \
+    chown argocd /app/config/gpg/keys && \
+    chmod 0700 /app/config/gpg/keys
 
 # workaround ksonnet issue https://github.com/ksonnet/ksonnet/issues/298
 ENV USER=argocd
 
-USER argocd
+USER 999
 WORKDIR /home/argocd
 
 ####################################################################################################
@@ -99,26 +105,24 @@ RUN NODE_ENV='production' yarn build
 ####################################################################################################
 FROM golang:1.14.1 as argocd-build
 
-COPY --from=builder /usr/local/bin/dep /usr/local/bin/dep
 COPY --from=builder /usr/local/bin/packr /usr/local/bin/packr
 
-# A dummy directory is created under $GOPATH/src/dummy so we are able to use dep
-# to install all the packages of our dep lock file
-COPY Gopkg.toml ${GOPATH}/src/dummy/Gopkg.toml
-COPY Gopkg.lock ${GOPATH}/src/dummy/Gopkg.lock
+WORKDIR /go/src/github.com/argoproj/argo-cd
 
-RUN cd ${GOPATH}/src/dummy && \
-    dep ensure -vendor-only && \
-    mv vendor/* ${GOPATH}/src/ && \
-    rmdir vendor
+COPY go.mod go.mod
+COPY go.sum go.sum
+
+RUN go mod download
 
 # Perform the build
-WORKDIR /go/src/github.com/argoproj/argo-cd
 COPY . .
-RUN make cli server controller repo-server argocd-util && \
-    make CLI_NAME=argocd-darwin-amd64 GOOS=darwin cli && \
-    make CLI_NAME=argocd-windows-amd64.exe GOOS=windows cli
+RUN make cli-local server controller repo-server argocd-util
 
+ARG BUILD_ALL_CLIS=true
+RUN if [ "$BUILD_ALL_CLIS" = "true" ] ; then \
+    make CLI_NAME=argocd-darwin-amd64 GOOS=darwin cli-local && \
+    make CLI_NAME=argocd-windows-amd64.exe GOOS=windows cli-local \
+    ; fi
 
 ####################################################################################################
 # Final image

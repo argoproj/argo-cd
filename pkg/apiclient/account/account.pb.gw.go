@@ -9,13 +9,13 @@ It translates gRPC into RESTful JSON APIs.
 package account
 
 import (
+	"context"
 	"io"
 	"net/http"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/grpc-ecosystem/grpc-gateway/utilities"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/grpclog"
@@ -81,7 +81,11 @@ func request_AccountService_UpdatePassword_0(ctx context.Context, marshaler runt
 	var protoReq UpdatePasswordRequest
 	var metadata runtime.ServerMetadata
 
-	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil {
+	newReader, berr := utilities.IOReaderFactory(req.Body)
+	if berr != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
+	}
+	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq); err != nil && err != io.EOF {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -130,7 +134,11 @@ func request_AccountService_CreateToken_0(ctx context.Context, marshaler runtime
 	var protoReq CreateTokenRequest
 	var metadata runtime.ServerMetadata
 
-	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil {
+	newReader, berr := utilities.IOReaderFactory(req.Body)
+	if berr != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
+	}
+	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq); err != nil && err != io.EOF {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -205,14 +213,14 @@ func RegisterAccountServiceHandlerFromEndpoint(ctx context.Context, mux *runtime
 	defer func() {
 		if err != nil {
 			if cerr := conn.Close(); cerr != nil {
-				grpclog.Printf("Failed to close conn to %s: %v", endpoint, cerr)
+				grpclog.Infof("Failed to close conn to %s: %v", endpoint, cerr)
 			}
 			return
 		}
 		go func() {
 			<-ctx.Done()
 			if cerr := conn.Close(); cerr != nil {
-				grpclog.Printf("Failed to close conn to %s: %v", endpoint, cerr)
+				grpclog.Infof("Failed to close conn to %s: %v", endpoint, cerr)
 			}
 		}()
 	}()
@@ -226,8 +234,8 @@ func RegisterAccountServiceHandler(ctx context.Context, mux *runtime.ServeMux, c
 	return RegisterAccountServiceHandlerClient(ctx, mux, NewAccountServiceClient(conn))
 }
 
-// RegisterAccountServiceHandler registers the http handlers for service AccountService to "mux".
-// The handlers forward requests to the grpc endpoint over the given implementation of "AccountServiceClient".
+// RegisterAccountServiceHandlerClient registers the http handlers for service AccountService
+// to "mux". The handlers forward requests to the grpc endpoint over the given implementation of "AccountServiceClient".
 // Note: the gRPC framework executes interceptors within the gRPC handler. If the passed in "AccountServiceClient"
 // doesn't go through the normal gRPC flow (creating a gRPC client etc.) then it will be up to the passed in
 // "AccountServiceClient" to call the correct interceptors.
@@ -236,15 +244,6 @@ func RegisterAccountServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 	mux.Handle("GET", pattern_AccountService_CanI_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
-		if cn, ok := w.(http.CloseNotifier); ok {
-			go func(done <-chan struct{}, closed <-chan bool) {
-				select {
-				case <-done:
-				case <-closed:
-					cancel()
-				}
-			}(ctx.Done(), cn.CloseNotify())
-		}
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		rctx, err := runtime.AnnotateContext(ctx, mux, req)
 		if err != nil {
@@ -265,15 +264,6 @@ func RegisterAccountServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 	mux.Handle("PUT", pattern_AccountService_UpdatePassword_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
-		if cn, ok := w.(http.CloseNotifier); ok {
-			go func(done <-chan struct{}, closed <-chan bool) {
-				select {
-				case <-done:
-				case <-closed:
-					cancel()
-				}
-			}(ctx.Done(), cn.CloseNotify())
-		}
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		rctx, err := runtime.AnnotateContext(ctx, mux, req)
 		if err != nil {
@@ -294,15 +284,6 @@ func RegisterAccountServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 	mux.Handle("GET", pattern_AccountService_ListAccounts_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
-		if cn, ok := w.(http.CloseNotifier); ok {
-			go func(done <-chan struct{}, closed <-chan bool) {
-				select {
-				case <-done:
-				case <-closed:
-					cancel()
-				}
-			}(ctx.Done(), cn.CloseNotify())
-		}
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		rctx, err := runtime.AnnotateContext(ctx, mux, req)
 		if err != nil {
@@ -323,15 +304,6 @@ func RegisterAccountServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 	mux.Handle("GET", pattern_AccountService_GetAccount_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
-		if cn, ok := w.(http.CloseNotifier); ok {
-			go func(done <-chan struct{}, closed <-chan bool) {
-				select {
-				case <-done:
-				case <-closed:
-					cancel()
-				}
-			}(ctx.Done(), cn.CloseNotify())
-		}
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		rctx, err := runtime.AnnotateContext(ctx, mux, req)
 		if err != nil {
@@ -352,15 +324,6 @@ func RegisterAccountServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 	mux.Handle("POST", pattern_AccountService_CreateToken_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
-		if cn, ok := w.(http.CloseNotifier); ok {
-			go func(done <-chan struct{}, closed <-chan bool) {
-				select {
-				case <-done:
-				case <-closed:
-					cancel()
-				}
-			}(ctx.Done(), cn.CloseNotify())
-		}
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		rctx, err := runtime.AnnotateContext(ctx, mux, req)
 		if err != nil {
@@ -381,15 +344,6 @@ func RegisterAccountServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 	mux.Handle("DELETE", pattern_AccountService_DeleteToken_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
-		if cn, ok := w.(http.CloseNotifier); ok {
-			go func(done <-chan struct{}, closed <-chan bool) {
-				select {
-				case <-done:
-				case <-closed:
-					cancel()
-				}
-			}(ctx.Done(), cn.CloseNotify())
-		}
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		rctx, err := runtime.AnnotateContext(ctx, mux, req)
 		if err != nil {
@@ -411,17 +365,17 @@ func RegisterAccountServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 }
 
 var (
-	pattern_AccountService_CanI_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 1, 0, 4, 1, 5, 5, 1, 0, 4, 1, 5, 6}, []string{"api", "v1", "account", "can-i", "resource", "action", "subresource"}, ""))
+	pattern_AccountService_CanI_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 1, 0, 4, 1, 5, 5, 1, 0, 4, 1, 5, 6}, []string{"api", "v1", "account", "can-i", "resource", "action", "subresource"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_AccountService_UpdatePassword_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "account", "password"}, ""))
+	pattern_AccountService_UpdatePassword_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "account", "password"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_AccountService_ListAccounts_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "account"}, ""))
+	pattern_AccountService_ListAccounts_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "account"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_AccountService_GetAccount_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "account", "name"}, ""))
+	pattern_AccountService_GetAccount_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "account", "name"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_AccountService_CreateToken_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "account", "name", "token"}, ""))
+	pattern_AccountService_CreateToken_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "account", "name", "token"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_AccountService_DeleteToken_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 1, 0, 4, 1, 5, 5}, []string{"api", "v1", "account", "name", "token", "id"}, ""))
+	pattern_AccountService_DeleteToken_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 1, 0, 4, 1, 5, 5}, []string{"api", "v1", "account", "name", "token", "id"}, "", runtime.AssumeColonVerbOpt(true)))
 )
 
 var (

@@ -32,26 +32,35 @@ func GenerateDexConfigYAML(settings *settings.ArgoCDSettings) ([]byte, error) {
 	dexCfg["grpc"] = map[string]interface{}{
 		"addr": "0.0.0.0:5557",
 	}
+	dexCfg["telemetry"] = map[string]interface{}{
+		"http": "0.0.0.0:5558",
+	}
 	dexCfg["oauth2"] = map[string]interface{}{
 		"skipApprovalScreen": true,
 	}
-	dexCfg["staticClients"] = []map[string]interface{}{
-		{
-			"id":     common.ArgoCDClientAppID,
-			"name":   common.ArgoCDClientAppName,
-			"secret": settings.DexOAuth2ClientSecret(),
-			"redirectURIs": []string{
-				redirectURL,
-			},
+
+	argoCDStaticClient := map[string]interface{}{
+		"id":     common.ArgoCDClientAppID,
+		"name":   common.ArgoCDClientAppName,
+		"secret": settings.DexOAuth2ClientSecret(),
+		"redirectURIs": []string{
+			redirectURL,
 		},
-		{
-			"id":     common.ArgoCDCLIClientAppID,
-			"name":   common.ArgoCDCLIClientAppName,
-			"public": true,
-			"redirectURIs": []string{
-				"http://localhost",
-			},
+	}
+	argoCDCLIStaticClient := map[string]interface{}{
+		"id":     common.ArgoCDCLIClientAppID,
+		"name":   common.ArgoCDCLIClientAppName,
+		"public": true,
+		"redirectURIs": []string{
+			"http://localhost",
 		},
+	}
+
+	staticClients, ok := dexCfg["staticClients"].([]interface{})
+	if ok {
+		dexCfg["staticClients"] = append([]interface{}{argoCDStaticClient, argoCDCLIStaticClient}, staticClients...)
+	} else {
+		dexCfg["staticClients"] = []interface{}{argoCDStaticClient, argoCDCLIStaticClient}
 	}
 
 	dexRedirectURL, err := settings.DexRedirectURL()
@@ -125,7 +134,7 @@ func replaceListSecrets(obj []interface{}, secretValues map[string]string) []int
 // https://github.com/dexidp/dex/tree/master/Documentation/connectors
 func needsRedirectURI(connectorType string) bool {
 	switch connectorType {
-	case "oidc", "saml", "microsoft", "linkedin", "gitlab", "github", "bitbucket-cloud":
+	case "oidc", "saml", "microsoft", "linkedin", "gitlab", "github", "bitbucket-cloud", "openshift":
 		return true
 	}
 	return false

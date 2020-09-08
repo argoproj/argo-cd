@@ -36,6 +36,18 @@ spec:
         operation:
           description: Operation contains requested operation parameters.
           properties:
+            info:
+              items:
+                properties:
+                  name:
+                    type: string
+                  value:
+                    type: string
+                required:
+                - name
+                - value
+                type: object
+              type: array
             initiatedBy:
               description: OperationInitiator holds information about the operation
                 initiator
@@ -47,6 +59,32 @@ spec:
                 username:
                   description: Name of a user who started operation.
                   type: string
+              type: object
+            retry:
+              description: Retry controls failed sync retry behavior
+              properties:
+                backoff:
+                  description: Backoff is a backoff strategy
+                  properties:
+                    duration:
+                      description: Duration is the amount to back off. Default unit
+                        is seconds, but could also be a duration (e.g. "2m", "1h")
+                      type: string
+                    factor:
+                      description: Factor is a factor to multiply the base duration
+                        after each failed retry
+                      format: int64
+                      type: integer
+                    maxDuration:
+                      description: MaxDuration is the maximum amount of time allowed
+                        for the backoff strategy
+                      type: string
+                  type: object
+                limit:
+                  description: Limit is the maximum number of attempts when retrying
+                    a container
+                  format: int64
+                  type: integer
               type: object
             sync:
               description: SyncOperation contains sync operation details.
@@ -75,6 +113,8 @@ spec:
                       kind:
                         type: string
                       name:
+                        type: string
+                      namespace:
                         type: string
                     required:
                     - kind
@@ -115,6 +155,11 @@ spec:
                                 - name
                                 - value
                                 type: object
+                              type: array
+                            libs:
+                              description: Additional library search dirs
+                              items:
+                                type: string
                               type: array
                             tlas:
                               description: TLAS is a list of Jsonnet Top-level Arguments
@@ -185,6 +230,10 @@ spec:
                           description: Values is Helm values, typically defined as
                             a block
                           type: string
+                        version:
+                          description: Version is the Helm version to use for templating
+                            with
+                          type: string
                       type: object
                     ksonnet:
                       description: Ksonnet holds ksonnet specific options
@@ -231,6 +280,9 @@ spec:
                         nameSuffix:
                           description: NameSuffix is a suffix appended to resources
                             for kustomize apps
+                          type: string
+                        version:
+                          description: Version contains optional Kustomize version
                           type: string
                       type: object
                     path:
@@ -311,6 +363,10 @@ spec:
               description: Destination overrides the kubernetes server and namespace
                 defined in the environment ksonnet app.yaml
               properties:
+                name:
+                  description: Name of the destination cluster which can be used instead
+                    of server (url) field
+                  type: string
                 namespace:
                   description: Namespace overrides the environment namespace value
                     in the ksonnet app.yaml
@@ -401,6 +457,11 @@ spec:
                             - value
                             type: object
                           type: array
+                        libs:
+                          description: Additional library search dirs
+                          items:
+                            type: string
+                          type: array
                         tlas:
                           description: TLAS is a list of Jsonnet Top-level Arguments
                           items:
@@ -469,6 +530,10 @@ spec:
                     values:
                       description: Values is Helm values, typically defined as a block
                       type: string
+                    version:
+                      description: Version is the Helm version to use for templating
+                        with
+                      type: string
                   type: object
                 ksonnet:
                   description: Ksonnet holds ksonnet specific options
@@ -515,6 +580,9 @@ spec:
                     nameSuffix:
                       description: NameSuffix is a suffix appended to resources for
                         kustomize apps
+                      type: string
+                    version:
+                      description: Version contains optional Kustomize version
                       type: string
                   type: object
                 path:
@@ -566,8 +634,35 @@ spec:
                       description: 'SelfHeal enables auto-syncing if  (default: false)'
                       type: boolean
                   type: object
+                retry:
+                  description: Retry controls failed sync retry behavior
+                  properties:
+                    backoff:
+                      description: Backoff is a backoff strategy
+                      properties:
+                        duration:
+                          description: Duration is the amount to back off. Default
+                            unit is seconds, but could also be a duration (e.g. "2m",
+                            "1h")
+                          type: string
+                        factor:
+                          description: Factor is a factor to multiply the base duration
+                            after each failed retry
+                          format: int64
+                          type: integer
+                        maxDuration:
+                          description: MaxDuration is the maximum amount of time allowed
+                            for the backoff strategy
+                          type: string
+                      type: object
+                    limit:
+                      description: Limit is the maximum number of attempts when retrying
+                        a container
+                      format: int64
+                      type: integer
+                  type: object
                 syncOptions:
-                  description: Options allow youe to specify whole app sync-options
+                  description: Options allow you to specify whole app sync-options
                   items:
                     type: string
                   type: array
@@ -608,6 +703,7 @@ spec:
                 message:
                   type: string
                 status:
+                  description: Represents resource health status
                   type: string
               type: object
             history:
@@ -617,13 +713,20 @@ spec:
                 description: RevisionHistory contains information relevant to an application
                   deployment
                 properties:
+                  deployStartedAt:
+                    description: DeployStartedAt holds the time the deployment started
+                    format: date-time
+                    type: string
                   deployedAt:
+                    description: DeployedAt holds the time the deployment completed
                     format: date-time
                     type: string
                   id:
+                    description: ID is an auto incrementing identifier of the RevisionHistory
                     format: int64
                     type: integer
                   revision:
+                    description: Revision holds the revision of the sync
                     type: string
                   source:
                     description: ApplicationSource contains information about github
@@ -655,6 +758,11 @@ spec:
                                   - name
                                   - value
                                   type: object
+                                type: array
+                              libs:
+                                description: Additional library search dirs
+                                items:
+                                  type: string
                                 type: array
                               tlas:
                                 description: TLAS is a list of Jsonnet Top-level Arguments
@@ -727,6 +835,10 @@ spec:
                             description: Values is Helm values, typically defined
                               as a block
                             type: string
+                          version:
+                            description: Version is the Helm version to use for templating
+                              with
+                            type: string
                         type: object
                       ksonnet:
                         description: Ksonnet holds ksonnet specific options
@@ -775,6 +887,9 @@ spec:
                             description: NameSuffix is a suffix appended to resources
                               for kustomize apps
                             type: string
+                          version:
+                            description: Version contains optional Kustomize version
+                            type: string
                         type: object
                       path:
                         description: Path is a directory path within the Git repository
@@ -819,8 +934,9 @@ spec:
                 type: object
               type: array
             observedAt:
-              description: ObservedAt indicates when the application state was updated
-                without querying latest git state
+              description: 'ObservedAt indicates when the application state was updated
+                without querying latest git state Deprecated: controller no longer
+                updates ObservedAt field'
               format: date-time
               type: string
             operationState:
@@ -838,6 +954,18 @@ spec:
                 operation:
                   description: Operation is the original requested operation
                   properties:
+                    info:
+                      items:
+                        properties:
+                          name:
+                            type: string
+                          value:
+                            type: string
+                        required:
+                        - name
+                        - value
+                        type: object
+                      type: array
                     initiatedBy:
                       description: OperationInitiator holds information about the
                         operation initiator
@@ -849,6 +977,33 @@ spec:
                         username:
                           description: Name of a user who started operation.
                           type: string
+                      type: object
+                    retry:
+                      description: Retry controls failed sync retry behavior
+                      properties:
+                        backoff:
+                          description: Backoff is a backoff strategy
+                          properties:
+                            duration:
+                              description: Duration is the amount to back off. Default
+                                unit is seconds, but could also be a duration (e.g.
+                                "2m", "1h")
+                              type: string
+                            factor:
+                              description: Factor is a factor to multiply the base
+                                duration after each failed retry
+                              format: int64
+                              type: integer
+                            maxDuration:
+                              description: MaxDuration is the maximum amount of time
+                                allowed for the backoff strategy
+                              type: string
+                          type: object
+                        limit:
+                          description: Limit is the maximum number of attempts when
+                            retrying a container
+                          format: int64
+                          type: integer
                       type: object
                     sync:
                       description: SyncOperation contains sync operation details.
@@ -878,6 +1033,8 @@ spec:
                               kind:
                                 type: string
                               name:
+                                type: string
+                              namespace:
                                 type: string
                             required:
                             - kind
@@ -921,6 +1078,11 @@ spec:
                                         - name
                                         - value
                                         type: object
+                                      type: array
+                                    libs:
+                                      description: Additional library search dirs
+                                      items:
+                                        type: string
                                       type: array
                                     tlas:
                                       description: TLAS is a list of Jsonnet Top-level
@@ -999,6 +1161,10 @@ spec:
                                   description: Values is Helm values, typically defined
                                     as a block
                                   type: string
+                                version:
+                                  description: Version is the Helm version to use
+                                    for templating with
+                                  type: string
                               type: object
                             ksonnet:
                               description: Ksonnet holds ksonnet specific options
@@ -1047,6 +1213,10 @@ spec:
                                 nameSuffix:
                                   description: NameSuffix is a suffix appended to
                                     resources for kustomize apps
+                                  type: string
+                                version:
+                                  description: Version contains optional Kustomize
+                                    version
                                   type: string
                               type: object
                             path:
@@ -1125,6 +1295,10 @@ spec:
                 phase:
                   description: Phase is the current phase of the operation
                   type: string
+                retryCount:
+                  description: RetryCount contains time of operation retries
+                  format: int64
+                  type: integer
                 startedAt:
                   description: StartedAt contains time of operation start
                   format: date-time
@@ -1212,6 +1386,11 @@ spec:
                                     - value
                                     type: object
                                   type: array
+                                libs:
+                                  description: Additional library search dirs
+                                  items:
+                                    type: string
+                                  type: array
                                 tlas:
                                   description: TLAS is a list of Jsonnet Top-level
                                     Arguments
@@ -1285,6 +1464,10 @@ spec:
                               description: Values is Helm values, typically defined
                                 as a block
                               type: string
+                            version:
+                              description: Version is the Helm version to use for
+                                templating with
+                              type: string
                           type: object
                         ksonnet:
                           description: Ksonnet holds ksonnet specific options
@@ -1333,6 +1516,9 @@ spec:
                             nameSuffix:
                               description: NameSuffix is a suffix appended to resources
                                 for kustomize apps
+                              type: string
+                            version:
+                              description: Version contains optional Kustomize version
                               type: string
                           type: object
                         path:
@@ -1396,6 +1582,7 @@ spec:
                       message:
                         type: string
                       status:
+                        description: Represents resource health status
                         type: string
                     type: object
                   hook:
@@ -1444,6 +1631,10 @@ spec:
                       description: ApplicationDestination contains deployment destination
                         information
                       properties:
+                        name:
+                          description: Name of the destination cluster which can be
+                            used instead of server (url) field
+                          type: string
                         namespace:
                           description: Namespace overrides the environment namespace
                             value in the ksonnet app.yaml
@@ -1484,6 +1675,11 @@ spec:
                                     - name
                                     - value
                                     type: object
+                                  type: array
+                                libs:
+                                  description: Additional library search dirs
+                                  items:
+                                    type: string
                                   type: array
                                 tlas:
                                   description: TLAS is a list of Jsonnet Top-level
@@ -1558,6 +1754,10 @@ spec:
                               description: Values is Helm values, typically defined
                                 as a block
                               type: string
+                            version:
+                              description: Version is the Helm version to use for
+                                templating with
+                              type: string
                           type: object
                         ksonnet:
                           description: Ksonnet holds ksonnet specific options
@@ -1606,6 +1806,9 @@ spec:
                             nameSuffix:
                               description: NameSuffix is a suffix appended to resources
                                 for kustomize apps
+                              type: string
+                            version:
+                              description: Version contains optional Kustomize version
                               type: string
                           type: object
                         path:
@@ -1709,6 +1912,23 @@ spec:
         spec:
           description: AppProjectSpec is the specification of an AppProject
           properties:
+            clusterResourceBlacklist:
+              description: ClusterResourceBlacklist contains list of blacklisted cluster
+                level resources
+              items:
+                description: GroupKind specifies a Group and a Kind, but does not
+                  force a version.  This is useful for identifying concepts during
+                  lookup stages without having partially valid types
+                properties:
+                  group:
+                    type: string
+                  kind:
+                    type: string
+                required:
+                - group
+                - kind
+                type: object
+              type: array
             clusterResourceWhitelist:
               description: ClusterResourceWhitelist contains list of whitelisted cluster
                 level resources
@@ -1736,6 +1956,10 @@ spec:
                 description: ApplicationDestination contains deployment destination
                   information
                 properties:
+                  name:
+                    description: Name of the destination cluster which can be used
+                      instead of server (url) field
+                    type: string
                   namespace:
                     description: Namespace overrides the environment namespace value
                       in the ksonnet app.yaml
@@ -1784,6 +2008,17 @@ spec:
               description: OrphanedResources specifies if controller should monitor
                 orphaned resources of apps in this project
               properties:
+                ignore:
+                  items:
+                    properties:
+                      group:
+                        type: string
+                      kind:
+                        type: string
+                      name:
+                        type: string
+                    type: object
+                  type: array
                 warn:
                   description: Warn indicates if warning condition should be created
                     for apps which have orphaned resources
@@ -1817,6 +2052,8 @@ spec:
                         iat:
                           format: int64
                           type: integer
+                        id:
+                          type: string
                       required:
                       - iat
                       type: object
@@ -1832,6 +2069,20 @@ spec:
                     type: array
                 required:
                 - name
+                type: object
+              type: array
+            signatureKeys:
+              description: List of PGP key IDs that commits to be synced to must be
+                signed with
+              items:
+                description: SignatureKey is the specification of a key required to
+                  verify commit signatures with
+                properties:
+                  keyID:
+                    description: The ID of the key in hexadecimal notation
+                    type: string
+                required:
+                - keyID
                 type: object
               type: array
             sourceRepos:
@@ -2081,6 +2332,14 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   labels:
+    app.kubernetes.io/name: argocd-gpg-keys-cm
+    app.kubernetes.io/part-of: argocd
+  name: argocd-gpg-keys-cm
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
     app.kubernetes.io/name: argocd-rbac-cm
     app.kubernetes.io/part-of: argocd
   name: argocd-rbac-cm
@@ -2138,6 +2397,10 @@ spec:
     port: 5557
     protocol: TCP
     targetPort: 5557
+  - name: metrics
+    port: 5558
+    protocol: TCP
+    targetPort: 5558
   selector:
     app.kubernetes.io/name: argocd-dex-server
 ---
@@ -2299,12 +2562,13 @@ spec:
       - command:
         - /shared/argocd-util
         - rundex
-        image: quay.io/dexidp/dex:v2.21.0
+        image: quay.io/dexidp/dex:v2.22.0
         imagePullPolicy: Always
         name: dex
         ports:
         - containerPort: 5556
         - containerPort: 5557
+        - containerPort: 5558
         volumeMounts:
         - mountPath: /shared
           name: static-files
@@ -2348,11 +2612,16 @@ spec:
         - ""
         - --appendonly
         - "no"
-        image: redis:5.0.3
+        image: redis:5.0.8
         imagePullPolicy: Always
         name: redis
         ports:
         - containerPort: 6379
+      securityContext:
+        fsGroup: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 1000
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -2380,11 +2649,6 @@ spec:
         - argocd-redis:6379
         image: argoproj/argocd:latest
         imagePullPolicy: Always
-        livenessProbe:
-          initialDelaySeconds: 5
-          periodSeconds: 10
-          tcpSocket:
-            port: 8081
         name: argocd-repo-server
         ports:
         - containerPort: 8081
@@ -2399,6 +2663,10 @@ spec:
           name: ssh-known-hosts
         - mountPath: /app/config/tls
           name: tls-certs
+        - mountPath: /app/config/gpg/source
+          name: gpg-keys
+        - mountPath: /app/config/gpg/keys
+          name: gpg-keyring
       volumes:
       - configMap:
           name: argocd-ssh-known-hosts-cm
@@ -2406,6 +2674,11 @@ spec:
       - configMap:
           name: argocd-tls-certs-cm
         name: tls-certs
+      - configMap:
+          name: argocd-gpg-keys-cm
+        name: gpg-keys
+      - emptyDir: {}
+        name: gpg-keyring
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -2431,12 +2704,6 @@ spec:
         - /shared/app
         image: argoproj/argocd:latest
         imagePullPolicy: Always
-        livenessProbe:
-          httpGet:
-            path: /healthz
-            port: 8080
-          initialDelaySeconds: 3
-          periodSeconds: 30
         name: argocd-server
         ports:
         - containerPort: 8080

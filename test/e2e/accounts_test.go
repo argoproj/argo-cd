@@ -4,14 +4,14 @@ import (
 	"context"
 	"testing"
 
-	"github.com/argoproj/argo-cd/pkg/apiclient/session"
-	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/gitops-engine/pkg/utils/io"
+	"github.com/argoproj/pkg/errors"
+	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
-
-	"github.com/stretchr/testify/assert"
-
-	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/pkg/apiclient/session"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture"
 )
 
@@ -43,10 +43,36 @@ test   true     login, apiKey`, output)
 	testAccountClientset := argocdclient.NewClientOrDie(&clientOpts)
 
 	closer, client := testAccountClientset.NewSessionClientOrDie()
-	defer util.Close(closer)
+	defer io.Close(closer)
 
 	info, err := client.GetUserInfo(context.Background(), &session.GetUserInfoRequest{})
 	assert.NoError(t, err)
 
 	assert.Equal(t, info.Username, "test")
+}
+
+func TestLoginBadCredentials(t *testing.T) {
+	EnsureCleanState(t)
+
+	closer, sessionClient := ArgoCDClientset.NewSessionClientOrDie()
+	defer io.Close(closer)
+
+	requests := []session.SessionCreateRequest{{
+		Username: "user-does-not-exist", Password: "some-password",
+	}, {
+		Username: "admin", Password: "bad-password",
+	}}
+
+	for _, r := range requests {
+		_, err := sessionClient.Create(context.Background(), &r)
+		if !assert.Error(t, err) {
+			return
+		}
+		errStatus, ok := status.FromError(err)
+		if !assert.True(t, ok) {
+			return
+		}
+		assert.Equal(t, codes.Unauthenticated, errStatus.Code())
+		assert.Equal(t, "Invalid username or password", errStatus.Message())
+	}
 }

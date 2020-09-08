@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver"
+	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 
@@ -29,16 +30,17 @@ var (
 )
 
 type Creds struct {
-	Username string
-	Password string
-	CAPath   string
-	CertData []byte
-	KeyData  []byte
+	Username           string
+	Password           string
+	CAPath             string
+	CertData           []byte
+	KeyData            []byte
+	InsecureSkipVerify bool
 }
 
 type Client interface {
 	CleanChartCache(chart string, version *semver.Version) error
-	ExtractChart(chart string, version *semver.Version) (string, util.Closer, error)
+	ExtractChart(chart string, version *semver.Version) (string, io.Closer, error)
 	GetIndex() (*Index, error)
 }
 
@@ -88,7 +90,7 @@ func (c *nativeHelmChart) CleanChartCache(chart string, version *semver.Version)
 	return os.RemoveAll(c.getChartPath(chart, version))
 }
 
-func (c *nativeHelmChart) ExtractChart(chart string, version *semver.Version) (string, util.Closer, error) {
+func (c *nativeHelmChart) ExtractChart(chart string, version *semver.Version) (string, io.Closer, error) {
 	err := c.ensureHelmChartRepoPath()
 	if err != nil {
 		return "", nil, err
@@ -151,7 +153,7 @@ func (c *nativeHelmChart) ExtractChart(chart string, version *semver.Version) (s
 		_ = os.RemoveAll(tempDir)
 		return "", nil, err
 	}
-	return path.Join(tempDir, chart), util.NewCloser(func() error {
+	return path.Join(tempDir, normalizeChartName(chart)), io.NewCloser(func() error {
 		return os.RemoveAll(tempDir)
 	}), nil
 }
@@ -213,7 +215,7 @@ func (c *nativeHelmChart) loadRepoIndex() ([]byte, error) {
 }
 
 func newTLSConfig(creds Creds) (*tls.Config, error) {
-	tlsConfig := &tls.Config{InsecureSkipVerify: false}
+	tlsConfig := &tls.Config{InsecureSkipVerify: creds.InsecureSkipVerify}
 
 	if creds.CAPath != "" {
 		caData, err := ioutil.ReadFile(creds.CAPath)
@@ -233,11 +235,23 @@ func newTLSConfig(creds Creds) (*tls.Config, error) {
 		}
 		tlsConfig.Certificates = []tls.Certificate{cert}
 	}
+	// nolint:staticcheck
 	tlsConfig.BuildNameToCertificate()
 
 	return tlsConfig, nil
 }
 
+// Normalize a chart name for file system use, that is, if chart name is foo/bar/baz, returns the last component as chart name.
+func normalizeChartName(chart string) string {
+	_, nc := path.Split(chart)
+	// We do not want to return the empty string or something else related to filesystem access
+	// Instead, return original string
+	if nc == "" || nc == "." || nc == ".." {
+		return chart
+	}
+	return nc
+}
+
 func (c *nativeHelmChart) getChartPath(chart string, version *semver.Version) string {
-	return path.Join(c.repoPath, fmt.Sprintf("%s-%v.tgz", chart, version))
+	return path.Join(c.repoPath, fmt.Sprintf("%s-%v.tgz", normalizeChartName(chart), version))
 }

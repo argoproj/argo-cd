@@ -6,6 +6,9 @@ import (
 	"testing"
 	"time"
 
+	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/gitops-engine/pkg/utils/errors"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
@@ -13,29 +16,28 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	v1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
 	k8scache "k8s.io/client-go/tools/cache"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/pkg/apiclient/application"
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	apps "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
 	appinformer "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/reposerver/apiclient/mocks"
-	mockrepo "github.com/argoproj/argo-cd/reposerver/mocks"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/test"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/assets"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/argo-cd/util/kube/kubetest"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/settings"
 )
@@ -44,12 +46,6 @@ const (
 	testNamespace = "default"
 	fakeRepoURL   = "https://git.com/repo.git"
 )
-
-type fakeCloser struct{}
-
-func (f fakeCloser) Close() error {
-	return nil
-}
 
 func fakeRepo() *appsv1.Repository {
 	return &appsv1.Repository{
@@ -105,8 +101,7 @@ func newTestAppServer(objects ...runtime.Object) *Server {
 	mockRepoServiceClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(&apiclient.ManifestResponse{}, nil)
 	mockRepoServiceClient.On("GetAppDetails", mock.Anything, mock.Anything).Return(&apiclient.RepoAppDetailsResponse{}, nil)
 
-	mockRepoClient := &mockrepo.Clientset{}
-	mockRepoClient.On("NewRepoServerClient").Return(&fakeCloser{}, &mockRepoServiceClient, nil)
+	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mockRepoServiceClient}
 
 	defaultProj := &appsv1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "default"},
@@ -165,6 +160,7 @@ func newTestAppServer(objects ...runtime.Object) *Server {
 		kubeclientset,
 		fakeAppsClientset,
 		factory.Argoproj().V1alpha1().Applications().Lister().Applications(testNamespace),
+		appInformer,
 		mockRepoClient,
 		nil,
 		&kubetest.MockKubectlCmd{},
@@ -194,9 +190,35 @@ spec:
     server: https://cluster-api.com
 `
 
+const fakeAppWithDestName = `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: test-app
+  namespace: default
+spec:
+  source:
+    path: some/path
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+    targetRevision: HEAD
+    ksonnet:
+      environment: default
+  destination:
+    namespace: ` + test.FakeDestNamespace + `
+    name: fake-cluster
+`
+
+func newTestAppWithDestName(opts ...func(app *appsv1.Application)) *appsv1.Application {
+	return createTestApp(fakeAppWithDestName, opts...)
+}
+
 func newTestApp(opts ...func(app *appsv1.Application)) *appsv1.Application {
+	return createTestApp(fakeApp, opts...)
+}
+
+func createTestApp(testApp string, opts ...func(app *appsv1.Application)) *appsv1.Application {
 	var app appsv1.Application
-	err := yaml.Unmarshal([]byte(fakeApp), &app)
+	err := yaml.Unmarshal([]byte(testApp), &app)
 	if err != nil {
 		panic(err)
 	}
@@ -236,6 +258,18 @@ func TestCreateApp(t *testing.T) {
 	assert.NotNil(t, app)
 	assert.NotNil(t, app.Spec)
 	assert.Equal(t, app.Spec.Project, "default")
+}
+
+func TestCreateAppWithDestName(t *testing.T) {
+	appServer := newTestAppServer()
+	testApp := newTestAppWithDestName()
+	createReq := application.ApplicationCreateRequest{
+		Application: *testApp,
+	}
+	app, err := appServer.Create(context.Background(), &createReq)
+	assert.NoError(t, err)
+	assert.NotNil(t, app)
+	assert.Equal(t, app.Spec.Destination.Server, "https://cluster-api.com")
 }
 
 func TestUpdateApp(t *testing.T) {
@@ -308,6 +342,17 @@ func TestDeleteApp(t *testing.T) {
 	assert.True(t, deleted)
 }
 
+func TestDeleteApp_InvalidName(t *testing.T) {
+	appServer := newTestAppServer()
+	_, err := appServer.Delete(context.Background(), &application.ApplicationDeleteRequest{
+		Name: pointer.StringPtr("foo"),
+	})
+	if !assert.Error(t, err) {
+		return
+	}
+	assert.True(t, apierrors.IsNotFound(err))
+}
+
 func TestSyncAndTerminate(t *testing.T) {
 	ctx := context.Background()
 	appServer := newTestAppServer()
@@ -324,7 +369,7 @@ func TestSyncAndTerminate(t *testing.T) {
 	assert.NotNil(t, app)
 	assert.NotNil(t, app.Operation)
 
-	events, err := appServer.kubeclientset.CoreV1().Events(appServer.ns).List(metav1.ListOptions{})
+	events, err := appServer.kubeclientset.CoreV1().Events(appServer.ns).List(context.Background(), metav1.ListOptions{})
 	assert.Nil(t, err)
 	event := events.Items[1]
 
@@ -333,10 +378,10 @@ func TestSyncAndTerminate(t *testing.T) {
 	// set status.operationState to pretend that an operation has started by controller
 	app.Status.OperationState = &appsv1.OperationState{
 		Operation: *app.Operation,
-		Phase:     appsv1.OperationRunning,
+		Phase:     synccommon.OperationRunning,
 		StartedAt: metav1.NewTime(time.Now()),
 	}
-	_, err = appServer.appclientset.ArgoprojV1alpha1().Applications(appServer.ns).Update(app)
+	_, err = appServer.appclientset.ArgoprojV1alpha1().Applications(appServer.ns).Update(context.Background(), app, metav1.UpdateOptions{})
 	assert.Nil(t, err)
 
 	resp, err := appServer.TerminateOperation(ctx, &application.OperationTerminateRequest{Name: &app.Name})
@@ -346,7 +391,7 @@ func TestSyncAndTerminate(t *testing.T) {
 	app, err = appServer.Get(ctx, &application.ApplicationQuery{Name: &app.Name})
 	assert.Nil(t, err)
 	assert.NotNil(t, app)
-	assert.Equal(t, appsv1.OperationTerminating, app.Status.OperationState.Phase)
+	assert.Equal(t, synccommon.OperationTerminating, app.Status.OperationState.Phase)
 }
 
 func TestSyncHelm(t *testing.T) {
@@ -366,7 +411,7 @@ func TestSyncHelm(t *testing.T) {
 	assert.NotNil(t, app)
 	assert.NotNil(t, app.Operation)
 
-	events, err := appServer.kubeclientset.CoreV1().Events(appServer.ns).List(metav1.ListOptions{})
+	events, err := appServer.kubeclientset.CoreV1().Events(appServer.ns).List(context.Background(), metav1.ListOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, "Unknown user initiated sync to 0.7.* (0.7.2)", events.Items[1].Message)
 }
@@ -396,6 +441,7 @@ func TestRollbackApp(t *testing.T) {
 func TestUpdateAppProject(t *testing.T) {
 	testApp := newTestApp()
 	ctx := context.Background()
+	// nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.StandardClaims{Subject: "admin"})
 	appServer := newTestAppServer(testApp)
 	appServer.enf.SetDefaultRole("")
@@ -448,6 +494,7 @@ p, admin, applications, update, my-proj/test-app, allow
 func TestAppJsonPatch(t *testing.T) {
 	testApp := newTestApp()
 	ctx := context.Background()
+	// nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.StandardClaims{Subject: "admin"})
 	appServer := newTestAppServer(testApp)
 	appServer.enf.SetDefaultRole("")
@@ -468,6 +515,7 @@ func TestAppJsonPatch(t *testing.T) {
 func TestAppMergePatch(t *testing.T) {
 	testApp := newTestApp()
 	ctx := context.Background()
+	// nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.StandardClaims{Subject: "admin"})
 	appServer := newTestAppServer(testApp)
 	appServer.enf.SetDefaultRole("")

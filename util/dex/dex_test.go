@@ -19,8 +19,8 @@ const invalidURL = ":://localhost/foo/bar"
 
 var malformedDexConfig = `
 valid:
-  yaml: valid	
-yaml: 
+  yaml: valid
+yaml:
   valid
 `
 
@@ -46,6 +46,24 @@ connectors:
     clientSecret: $dex.acme.clientSecret
     orgs:
     - name: your-github-org
+`
+var customStaticClientDexConfig = `
+connectors:
+# GitHub example
+- type: github
+  id: github
+  name: GitHub
+  config:
+    clientID: aabbccddeeff00112233
+    clientSecret: abcdefghijklmnopqrst
+    orgs:
+    - name: your-github-org
+staticClients:
+- id: argo-workflow
+  name: Argo Workflow
+  redirectURIs:
+  - https://argo/oauth2/callback
+  secret: abcdefghijklmnopqrst
 `
 var badDexConfig = `
 connectors:
@@ -173,6 +191,28 @@ func Test_GenerateDexConfig(t *testing.T) {
 		}
 		assert.False(t, needsRedirectURI("invalid"))
 	})
+
+	t.Run("Custom static clients", func(t *testing.T) {
+		s := settings.ArgoCDSettings{
+			URL:       "http://localhost",
+			DexConfig: customStaticClientDexConfig,
+		}
+		config, err := GenerateDexConfigYAML(&s)
+		assert.NoError(t, err)
+		assert.NotNil(t, config)
+		var dexCfg map[string]interface{}
+		err = yaml.Unmarshal(config, &dexCfg)
+		if err != nil {
+			panic(err.Error())
+		}
+		clients, ok := dexCfg["staticClients"].([]interface{})
+		assert.True(t, ok)
+		assert.Equal(t, 3, len(clients))
+
+		customCient := clients[2].(map[string]interface{})
+		assert.Equal(t, "argo-workflow", customCient["id"].(string))
+		assert.Equal(t, 1, len(customCient["redirectURIs"].([]interface{})))
+	})
 }
 
 func Test_DexReverseProxy(t *testing.T) {
@@ -230,6 +270,7 @@ func Test_DexReverseProxy(t *testing.T) {
 		assert.NotNil(t, rt)
 		req, err := http.NewRequest("GET", "/", bytes.NewBuffer([]byte("")))
 		assert.NoError(t, err)
-		rt.RoundTrip(req)
+		_, err = rt.RoundTrip(req)
+		assert.NoError(t, err)
 	})
 }

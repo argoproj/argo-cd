@@ -4,13 +4,13 @@ import (
 	"context"
 	"testing"
 
+	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/stretchr/testify/assert"
 
 	repositorypkg "github.com/argoproj/argo-cd/pkg/apiclient/repository"
 	"github.com/argoproj/argo-cd/test/e2e/fixture"
 	"github.com/argoproj/argo-cd/test/e2e/fixture/app"
 	"github.com/argoproj/argo-cd/test/e2e/fixture/repos"
-	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
@@ -22,7 +22,7 @@ func TestAddRemovePublicRepo(t *testing.T) {
 
 		conn, repoClient, err := fixture.ArgoCDClientset.NewRepoClient()
 		assert.NoError(t, err)
-		defer util.Close(conn)
+		defer argoio.Close(conn)
 
 		repo, err := repoClient.List(context.Background(), &repositorypkg.RepoQuery{})
 
@@ -80,7 +80,7 @@ func TestAddRemoveHelmRepo(t *testing.T) {
 
 		conn, repoClient, err := fixture.ArgoCDClientset.NewRepoClient()
 		assert.NoError(t, err)
-		defer util.Close(conn)
+		defer argoio.Close(conn)
 
 		repo, err := repoClient.List(context.Background(), &repositorypkg.RepoQuery{})
 
@@ -107,6 +107,46 @@ func TestAddRemoveHelmRepo(t *testing.T) {
 			}
 		}
 		assert.False(t, exists)
+	})
+
+}
+
+func TestAddHelmRepoInsecureSkipVerify(t *testing.T) {
+	app.Given(t).And(func() {
+		_, err := fixture.RunCli("repo", "add", fixture.RepoURL(fixture.RepoURLTypeHelm),
+			"--name", "testrepo",
+			"--type", "helm",
+			"--username", fixture.GitUsername,
+			"--password", fixture.GitPassword,
+			"--insecure-skip-server-verification",
+			"--tls-client-cert-path", repos.CertPath,
+			"--tls-client-cert-key-path", repos.CertKeyPath)
+
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		conn, repoClient, err := fixture.ArgoCDClientset.NewRepoClient()
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		defer argoio.Close(conn)
+
+		repo, err := repoClient.List(context.Background(), &repositorypkg.RepoQuery{})
+
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		exists := false
+		for i := range repo.Items {
+			if repo.Items[i].Repo == fixture.RepoURL(fixture.RepoURLTypeHelm) {
+				exists = true
+				break
+			}
+		}
+		assert.True(t, exists)
 	})
 
 }

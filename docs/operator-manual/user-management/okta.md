@@ -12,12 +12,12 @@ A working Single Sign-On configuration using Okta via at least two methods was a
 
 1. Create a new SAML application in Okta UI.
     * ![Okta SAML App 1](../../assets/saml-1.png)
-        I've disabled `App Visibility` because Dex doesn't support Provider-initated login flows.
+        I've disabled `App Visibility` because Dex doesn't support Provider-initiated login flows.
     * ![Okta SAML App 2](../../assets/saml-2.png)
 1. Click `View setup instructions` after creating the application in Okta.
     * ![Okta SAML App 3](../../assets/saml-3.png)
 1. Copy the SSO URL to the `argocd-cm` in the data.oicd
-1. Download the CA certificate to use in the `argocd-cm` configuration.
+1. Download the CA certificate to use in the `argocd-cm` configuration.  If you are using this in the caData field, you will need to pass the entire certificate (including `-----BEGIN CERTIFICATE-----` and `-----END CERTIFICATE-----` stanzas) through base64 encoding, for example, `base64 my_cert.pem`.
     * ![Okta SAML App 4](../../assets/saml-4.png)
 1. Edit the `argocd-cm` and configure the `data.dex.config` section:
 
@@ -35,7 +35,7 @@ dex.config: |
       ssoURL: https://yourorganization.oktapreview.com/app/yourorganizationsandbox_appnamesaml_2/rghdr9s6hg98s9dse/sso/saml
       # You need `caData` _OR_ `ca`, but not both.
       caData: |
-        <base64 encoded CA cert>
+        <CA cert passed through base64 encoding>
       # You need `caData` _OR_ `ca`, but not both.
       ca: /path/to/ca.pem
       redirectURI: https://ui.argocd.yourorganization.net/api/dex/callback
@@ -50,7 +50,7 @@ dex.config: |
 ## OIDC (without Dex)
 
 !!! warning "Do you want groups for RBAC later?"
-    If you want `groups` scope returned from Okta you need to unforunately contact support to enable [API Access Management with Okta](https://developer.okta.com/docs/concepts/api-access-management/) or [_just use SAML above!_](#saml-with-dex)
+    If you want `groups` scope returned from Okta you need to unfortunately contact support to enable [API Access Management with Okta](https://developer.okta.com/docs/concepts/api-access-management/) or [_just use SAML above!_](#saml-with-dex)
 
     Next you may need the API Access Management feature, which the support team can enable for your OktaPreview domain for testing, to enable "custom scopes" and a separate endpoint to use instead of the "public" `/oauth2/v1/authorize` API Access Management endpoint. This might be a paid feature if you want OIDC unfortunately. The free alternative I found was SAML.
 

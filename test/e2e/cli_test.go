@@ -3,6 +3,8 @@ package e2e
 import (
 	"testing"
 
+	"github.com/argoproj/gitops-engine/pkg/health"
+	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
 
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -24,7 +26,7 @@ func TestCliAppCommand(t *testing.T) {
 		}).
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(_ *Application) {
 			output, err := RunCli("app", "list")
 			assert.NoError(t, err)

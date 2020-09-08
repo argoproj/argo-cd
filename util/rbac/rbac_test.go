@@ -2,6 +2,7 @@ package rbac
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -127,6 +128,8 @@ p, mike, *, *, foo/obj, deny
 p, trudy, applications, get, foo/obj, allow
 p, trudy, applications/*, get, foo/obj, allow
 p, trudy, applications/secrets, get, foo/obj, deny
+p, danny, applications, get, */obj, allow
+p, danny, applications, get, proj1/a*p1, allow
 `
 	_ = enf.SetUserPolicy(policy)
 
@@ -170,6 +173,13 @@ p, trudy, applications/secrets, get, foo/obj, deny
 	assert.True(t, enf.Enforce("trudy", "applications", "get", "foo/obj"))
 	assert.True(t, enf.Enforce("trudy", "applications/logs", "get", "foo/obj"))
 	assert.False(t, enf.Enforce("trudy", "applications/secrets", "get", "foo/obj"))
+
+	// Verify trailing wildcards don't grant full access
+	assert.True(t, enf.Enforce("danny", "applications", "get", "foo/obj"))
+	assert.True(t, enf.Enforce("danny", "applications", "get", "bar/obj"))
+	assert.False(t, enf.Enforce("danny", "applications", "get", "foo/bar"))
+	assert.True(t, enf.Enforce("danny", "applications", "get", "proj1/app1"))
+	assert.False(t, enf.Enforce("danny", "applications", "get", "proj1/app2"))
 }
 
 // TestProjectIsolationEnforcement verifies the ability to create Project specific policies
@@ -401,4 +411,27 @@ func TestEnforceErrorMessage(t *testing.T) {
 	err = enf.EnforceErr()
 	assert.Error(t, err)
 	assert.Equal(t, "rpc error: code = PermissionDenied desc = permission denied", err.Error())
+
+	ctx := context.WithValue(context.Background(), "claims", &jwt.StandardClaims{Subject: "proj:default:admin"})
+	err = enf.EnforceErr(ctx.Value("claims"), "project")
+	assert.Error(t, err)
+	assert.Equal(t, "rpc error: code = PermissionDenied desc = permission denied: project, sub: proj:default:admin", err.Error())
+
+	iat := time.Unix(int64(1593035962), 0).Format(time.RFC3339)
+	exp := fmt.Sprintf("rpc error: code = PermissionDenied desc = permission denied: project, sub: proj:default:admin, iat: %s", iat)
+	ctx = context.WithValue(context.Background(), "claims", &jwt.StandardClaims{Subject: "proj:default:admin", IssuedAt: 1593035962})
+	err = enf.EnforceErr(ctx.Value("claims"), "project")
+	assert.Error(t, err)
+	assert.Equal(t, exp, err.Error())
+
+	ctx = context.WithValue(context.Background(), "claims", &jwt.StandardClaims{ExpiresAt: 1})
+	err = enf.EnforceErr(ctx.Value("claims"), "project")
+	assert.Error(t, err)
+	assert.Equal(t, "rpc error: code = PermissionDenied desc = permission denied: project", err.Error())
+
+	ctx = context.WithValue(context.Background(), "claims", &jwt.StandardClaims{Subject: "proj:default:admin", IssuedAt: 0})
+	err = enf.EnforceErr(ctx.Value("claims"), "project")
+	assert.Error(t, err)
+	assert.Equal(t, "rpc error: code = PermissionDenied desc = permission denied: project, sub: proj:default:admin", err.Error())
+
 }

@@ -13,9 +13,9 @@ Four sets of installation manifests are provided:
   namespace level privileges (does not need cluster roles). Use this manifest set if you do not
   need Argo CD to deploy applications in the same cluster that Argo CD runs in, and will rely solely
   on inputted cluster credentials. An example of using this set of manifests is if you run several
-  Argo CD instances for different teams, where each instance will bedeploying applications to
+  Argo CD instances for different teams, where each instance will be deploying applications to
   external clusters. Will still be possible to deploy to the same cluster (kubernetes.svc.default)
-  with inputted credentials (i.e. `argocd cluster add <CONTEXT> --in-cluster`).
+  with inputted credentials (i.e. `argocd cluster add <CONTEXT> --in-cluster --namespace <YOUR NAMESPACE>`).
 
 ## High Availability:
 

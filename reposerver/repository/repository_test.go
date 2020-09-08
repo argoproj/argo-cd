@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -11,6 +12,8 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver"
+	"github.com/argoproj/gitops-engine/pkg/utils/io"
+	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	v1 "k8s.io/api/apps/v1"
@@ -21,7 +24,6 @@ import (
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/reposerver/cache"
 	"github.com/argoproj/argo-cd/reposerver/metrics"
-	"github.com/argoproj/argo-cd/util"
 	cacheutil "github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/git"
 	gitmocks "github.com/argoproj/argo-cd/util/git/mocks"
@@ -29,7 +31,12 @@ import (
 	helmmocks "github.com/argoproj/argo-cd/util/helm/mocks"
 )
 
-func newServiceWithMocks(root string) (*Service, *gitmocks.Client) {
+const testSignature = `gpg: Signature made Wed Feb 26 23:22:34 2020 CET
+gpg:                using RSA key 4AEE18F83AFDEB23
+gpg: Good signature from "GitHub (web-flow commit signing) <noreply@github.com>" [ultimate]
+`
+
+func newServiceWithMocks(root string, signed bool) (*Service, *gitmocks.Client) {
 	service := NewService(metrics.NewMetricsServer(), cache.NewCache(
 		cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Minute)),
 		1*time.Minute,
@@ -46,13 +53,18 @@ func newServiceWithMocks(root string) (*Service, *gitmocks.Client) {
 	gitClient.On("LsRemote", mock.Anything).Return(mock.Anything, nil)
 	gitClient.On("CommitSHA").Return(mock.Anything, nil)
 	gitClient.On("Root").Return(root)
+	if signed {
+		gitClient.On("VerifyCommitSignature", mock.Anything).Return(testSignature, nil)
+	} else {
+		gitClient.On("VerifyCommitSignature", mock.Anything).Return("", nil)
+	}
 
 	chart := "my-chart"
 	version := semver.MustParse("1.1.0")
 	helmClient.On("GetIndex").Return(&helm.Index{Entries: map[string]helm.Entries{
 		chart: {{Version: "1.0.0"}, {Version: version.String()}},
 	}}, nil)
-	helmClient.On("ExtractChart", chart, version).Return("./testdata/my-chart", util.NopCloser, nil)
+	helmClient.On("ExtractChart", chart, version).Return("./testdata/my-chart", io.NopCloser, nil)
 	helmClient.On("CleanChartCache", chart, version).Return(nil)
 
 	service.newGitClient = func(rawRepoURL string, creds git.Creds, insecure bool, enableLfs bool) (client git.Client, e error) {
@@ -65,7 +77,12 @@ func newServiceWithMocks(root string) (*Service, *gitmocks.Client) {
 }
 
 func newService(root string) *Service {
-	service, _ := newServiceWithMocks(root)
+	service, _ := newServiceWithMocks(root, false)
+	return service
+}
+
+func newServiceWithSignature(root string) *Service {
+	service, _ := newServiceWithMocks(root, true)
 	return service
 }
 
@@ -76,7 +93,7 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src}
 
 	// update this value if we add/remove manifests
-	const countOfManifests = 25
+	const countOfManifests = 26
 
 	res1, err := service.GenerateManifest(context.Background(), &q)
 
@@ -84,7 +101,7 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	assert.Equal(t, countOfManifests, len(res1.Manifests))
 
 	// this will test concatenated manifests to verify we split YAMLs correctly
-	res2, err := GenerateManifests("./testdata/concatenated", "/", "", &q)
+	res2, err := GenerateManifests("./testdata/concatenated", "/", "", &q, false)
 	assert.NoError(t, err)
 	assert.Equal(t, 3, len(res2.Manifests))
 }
@@ -107,7 +124,7 @@ func TestHelmManifestFromChartRepo(t *testing.T) {
 }
 
 func TestGenerateManifestsUseExactRevision(t *testing.T) {
-	service, gitClient := newServiceWithMocks(".")
+	service, gitClient := newServiceWithMocks(".", false)
 
 	src := argoappv1.ApplicationSource{Path: "./testdata/recurse", Directory: &argoappv1.ApplicationSourceDirectory{Recurse: true}}
 
@@ -142,6 +159,7 @@ func TestGenerateJsonnetManifestInDir(t *testing.T) {
 				Jsonnet: argoappv1.ApplicationSourceJsonnet{
 					ExtVars: []argoappv1.JsonnetVar{{Name: "extVarString", Value: "extVarString"}, {Name: "extVarCode", Value: "\"extVarCode\"", Code: true}},
 					TLAs:    []argoappv1.JsonnetVar{{Name: "tlaString", Value: "tlaString"}, {Name: "tlaCode", Value: "\"tlaCode\"", Code: true}},
+					Libs:    []string{"testdata/jsonnet/vendor"},
 				},
 			},
 		},
@@ -481,7 +499,7 @@ func TestGenerateFromUTF16(t *testing.T) {
 		Repo:              &argoappv1.Repository{},
 		ApplicationSource: &argoappv1.ApplicationSource{},
 	}
-	res1, err := GenerateManifests("./testdata/utf-16", "/", "", &q)
+	res1, err := GenerateManifests("./testdata/utf-16", "/", "", &q, false)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(res1.Manifests))
 }
@@ -494,6 +512,7 @@ func TestListApps(t *testing.T) {
 
 	expectedApps := map[string]string{
 		"Kustomization":      "Kustomize",
+		"app-parameters":     "Kustomize",
 		"invalid-helm":       "Helm",
 		"invalid-kustomize":  "Kustomize",
 		"kustomization_yaml": "Kustomize",
@@ -568,7 +587,7 @@ func TestGetHelmCharts(t *testing.T) {
 }
 
 func TestGetRevisionMetadata(t *testing.T) {
-	service, gitClient := newServiceWithMocks("../..")
+	service, gitClient := newServiceWithMocks("../..", false)
 	now := time.Now()
 
 	gitClient.On("RevisionMetadata", mock.Anything).Return(&git.RevisionMetadata{
@@ -589,6 +608,53 @@ func TestGetRevisionMetadata(t *testing.T) {
 	assert.Equal(t, "author", res.Author)
 	assert.EqualValues(t, []string{"tag1", "tag2"}, res.Tags)
 
+}
+
+func TestGetSignatureVerificationResult(t *testing.T) {
+	// Commit with signature and verification requested
+	{
+		service := newServiceWithSignature("../..")
+
+		src := argoappv1.ApplicationSource{Path: "manifests/base"}
+		q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src, VerifySignature: true}
+
+		res, err := service.GenerateManifest(context.Background(), &q)
+		assert.NoError(t, err)
+		assert.Equal(t, testSignature, res.VerifyResult)
+	}
+	// Commit with signature and verification not requested
+	{
+		service := newServiceWithSignature("../..")
+
+		src := argoappv1.ApplicationSource{Path: "manifests/base"}
+		q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src}
+
+		res, err := service.GenerateManifest(context.Background(), &q)
+		assert.NoError(t, err)
+		assert.Empty(t, res.VerifyResult)
+	}
+	// Commit without signature and verification requested
+	{
+		service := newService("../..")
+
+		src := argoappv1.ApplicationSource{Path: "manifests/base"}
+		q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src, VerifySignature: true}
+
+		res, err := service.GenerateManifest(context.Background(), &q)
+		assert.NoError(t, err)
+		assert.Empty(t, res.VerifyResult)
+	}
+	// Commit without signature and verification not requested
+	{
+		service := newService("../..")
+
+		src := argoappv1.ApplicationSource{Path: "manifests/base"}
+		q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src, VerifySignature: true}
+
+		res, err := service.GenerateManifest(context.Background(), &q)
+		assert.NoError(t, err)
+		assert.Empty(t, res.VerifyResult)
+	}
 }
 
 func Test_newEnv(t *testing.T) {
@@ -621,4 +687,53 @@ func TestService_newHelmClientResolveRevision(t *testing.T) {
 		_, _, err := service.newHelmClientResolveRevision(&argoappv1.Repository{}, "???", "")
 		assert.EqualError(t, err, "invalid revision '???': improper constraint: ???")
 	})
+}
+
+func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
+	service := newService(".")
+	details, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
+		Repo: &argoappv1.Repository{},
+		Source: &argoappv1.ApplicationSource{
+			Path: "./testdata/app-parameters",
+		},
+	})
+	if !assert.NoError(t, err) {
+		return
+	}
+	assert.EqualValues(t, []string{"gcr.io/heptio-images/ks-guestbook-demo:0.2"}, details.Kustomize.Images)
+}
+
+func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
+	service := newService(".")
+	manifests, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+		Repo: &argoappv1.Repository{},
+		ApplicationSource: &argoappv1.ApplicationSource{
+			Path: "./testdata/app-parameters",
+		},
+	})
+	if !assert.NoError(t, err) {
+		return
+	}
+	resourceByKindName := make(map[string]*unstructured.Unstructured)
+	for _, manifest := range manifests.Manifests {
+		var un unstructured.Unstructured
+		err := yaml.Unmarshal([]byte(manifest), &un)
+		if !assert.NoError(t, err) {
+			return
+		}
+		resourceByKindName[fmt.Sprintf("%s/%s", un.GetKind(), un.GetName())] = &un
+	}
+	deployment, ok := resourceByKindName["Deployment/guestbook-ui"]
+	if !assert.True(t, ok) {
+		return
+	}
+	containers, ok, _ := unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
+	if !assert.True(t, ok) {
+		return
+	}
+	image, ok, _ := unstructured.NestedString(containers[0].(map[string]interface{}), "image")
+	if !assert.True(t, ok) {
+		return
+	}
+	assert.Equal(t, "gcr.io/heptio-images/ks-guestbook-demo:0.2", image)
 }

@@ -1,0 +1,26 @@
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+metadata:
+  creationTimestamp: "2020-06-04T17:46:57Z"
+  finalizers:
+  - istio-finalizer.install.istio.io
+  generation: 1
+  labels:
+    argocd.argoproj.io/instance: istio-default
+  name: istio-control-plane
+  namespace: istio-system
+  resourceVersion: "270068"
+  selfLink: /apis/install.istio.io/v1alpha1/namespaces/istio-system/istiooperators/istio-control-plane
+  uid: d4ff8619-f3b0-4fb3-8bdb-a44ff44a401a
+spec: {}
+status:
+  componentStatus:
+    AddonComponents:
+      status: HEALTHY
+    Base:
+      status: RECONCILING
+    IngressGateways:
+      status: HEALTHY
+    Pilot:
+      status: HEALTHY
+  status: RECONCILING

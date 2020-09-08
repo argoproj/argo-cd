@@ -3,6 +3,7 @@
 package v1alpha1
 
 import (
+	"context"
 	"time"
 
 	v1alpha1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -21,14 +22,14 @@ type AppProjectsGetter interface {
 
 // AppProjectInterface has methods to work with AppProject resources.
 type AppProjectInterface interface {
-	Create(*v1alpha1.AppProject) (*v1alpha1.AppProject, error)
-	Update(*v1alpha1.AppProject) (*v1alpha1.AppProject, error)
-	Delete(name string, options *v1.DeleteOptions) error
-	DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error
-	Get(name string, options v1.GetOptions) (*v1alpha1.AppProject, error)
-	List(opts v1.ListOptions) (*v1alpha1.AppProjectList, error)
-	Watch(opts v1.ListOptions) (watch.Interface, error)
-	Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.AppProject, err error)
+	Create(ctx context.Context, appProject *v1alpha1.AppProject, opts v1.CreateOptions) (*v1alpha1.AppProject, error)
+	Update(ctx context.Context, appProject *v1alpha1.AppProject, opts v1.UpdateOptions) (*v1alpha1.AppProject, error)
+	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
+	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha1.AppProject, error)
+	List(ctx context.Context, opts v1.ListOptions) (*v1alpha1.AppProjectList, error)
+	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.AppProject, err error)
 	AppProjectExpansion
 }
 
@@ -47,20 +48,20 @@ func newAppProjects(c *ArgoprojV1alpha1Client, namespace string) *appProjects {
 }
 
 // Get takes name of the appProject, and returns the corresponding appProject object, and an error if there is any.
-func (c *appProjects) Get(name string, options v1.GetOptions) (result *v1alpha1.AppProject, err error) {
+func (c *appProjects) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.AppProject, err error) {
 	result = &v1alpha1.AppProject{}
 	err = c.client.Get().
 		Namespace(c.ns).
 		Resource("appprojects").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // List takes label and field selectors, and returns the list of AppProjects that match those selectors.
-func (c *appProjects) List(opts v1.ListOptions) (result *v1alpha1.AppProjectList, err error) {
+func (c *appProjects) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.AppProjectList, err error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
@@ -71,13 +72,13 @@ func (c *appProjects) List(opts v1.ListOptions) (result *v1alpha1.AppProjectList
 		Resource("appprojects").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Watch returns a watch.Interface that watches the requested appProjects.
-func (c *appProjects) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *appProjects) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
@@ -88,71 +89,74 @@ func (c *appProjects) Watch(opts v1.ListOptions) (watch.Interface, error) {
 		Resource("appprojects").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Watch()
+		Watch(ctx)
 }
 
 // Create takes the representation of a appProject and creates it.  Returns the server's representation of the appProject, and an error, if there is any.
-func (c *appProjects) Create(appProject *v1alpha1.AppProject) (result *v1alpha1.AppProject, err error) {
+func (c *appProjects) Create(ctx context.Context, appProject *v1alpha1.AppProject, opts v1.CreateOptions) (result *v1alpha1.AppProject, err error) {
 	result = &v1alpha1.AppProject{}
 	err = c.client.Post().
 		Namespace(c.ns).
 		Resource("appprojects").
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(appProject).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Update takes the representation of a appProject and updates it. Returns the server's representation of the appProject, and an error, if there is any.
-func (c *appProjects) Update(appProject *v1alpha1.AppProject) (result *v1alpha1.AppProject, err error) {
+func (c *appProjects) Update(ctx context.Context, appProject *v1alpha1.AppProject, opts v1.UpdateOptions) (result *v1alpha1.AppProject, err error) {
 	result = &v1alpha1.AppProject{}
 	err = c.client.Put().
 		Namespace(c.ns).
 		Resource("appprojects").
 		Name(appProject.Name).
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(appProject).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Delete takes name of the appProject and deletes it. Returns an error if one occurs.
-func (c *appProjects) Delete(name string, options *v1.DeleteOptions) error {
+func (c *appProjects) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("appprojects").
 		Name(name).
-		Body(options).
-		Do().
+		Body(&opts).
+		Do(ctx).
 		Error()
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *appProjects) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
+func (c *appProjects) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
 	var timeout time.Duration
-	if listOptions.TimeoutSeconds != nil {
-		timeout = time.Duration(*listOptions.TimeoutSeconds) * time.Second
+	if listOpts.TimeoutSeconds != nil {
+		timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
 	}
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("appprojects").
-		VersionedParams(&listOptions, scheme.ParameterCodec).
+		VersionedParams(&listOpts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Body(options).
-		Do().
+		Body(&opts).
+		Do(ctx).
 		Error()
 }
 
 // Patch applies the patch and returns the patched appProject.
-func (c *appProjects) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.AppProject, err error) {
+func (c *appProjects) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.AppProject, err error) {
 	result = &v1alpha1.AppProject{}
 	err = c.client.Patch(pt).
 		Namespace(c.ns).
 		Resource("appprojects").
-		SubResource(subresources...).
 		Name(name).
+		SubResource(subresources...).
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(data).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dgrijalva/jwt-go"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -15,10 +15,13 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
+	jwt "github.com/dgrijalva/jwt-go"
+
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apiclient/project"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	apps "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
+	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/assets"
 	jwtutil "github.com/argoproj/argo-cd/util/jwt"
@@ -67,11 +70,29 @@ func TestProjectServer(t *testing.T) {
 
 	policyTemplate := "p, proj:%s:%s, applications, %s, %s/%s, %s"
 
+	t.Run("TestNormalizeProj", func(t *testing.T) {
+		sessionMgr := session.NewSessionManager(settingsMgr, "", session.NewInMemoryUserStateStorage())
+		projectWithRole := existingProj.DeepCopy()
+		roleName := "roleName"
+		role1 := v1alpha1.ProjectRole{Name: roleName, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: 1}}}
+		projectWithRole.Spec.Roles = append(projectWithRole.Spec.Roles, role1)
+
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithRole), enforcer, util.NewKeyLock(), sessionMgr, nil)
+		err := projectServer.NormalizeProjs()
+		assert.NoError(t, err)
+
+		appList, err := projectServer.appclientset.ArgoprojV1alpha1().AppProjects(projectWithRole.Namespace).List(context.Background(), v1.ListOptions{})
+		assert.NoError(t, err)
+		assert.Equal(t, appList.Items[0].Status.JWTTokensByRole[roleName].Items[0].IssuedAt, int64(1))
+		assert.ElementsMatch(t, appList.Items[0].Status.JWTTokensByRole[roleName].Items, appList.Items[0].Spec.Roles[0].JWTTokens)
+
+	})
+
 	t.Run("TestClusterUpdateDenied", func(t *testing.T) {
 
 		enforcer.SetDefaultRole("role:projects")
 		_ = enforcer.SetBuiltinPolicy("p, role:projects, projects, update, *, allow")
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, util.NewKeyLock(), nil)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, util.NewKeyLock(), nil, nil)
 
 		updatedProj := existingProj.DeepCopy()
 		updatedProj.Spec.Destinations = nil
@@ -85,7 +106,7 @@ func TestProjectServer(t *testing.T) {
 
 		enforcer.SetDefaultRole("role:projects")
 		_ = enforcer.SetBuiltinPolicy("p, role:projects, projects, update, *, allow")
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, util.NewKeyLock(), nil)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, util.NewKeyLock(), nil, nil)
 
 		updatedProj := existingProj.DeepCopy()
 		updatedProj.Spec.SourceRepos = nil
@@ -99,7 +120,7 @@ func TestProjectServer(t *testing.T) {
 
 		enforcer.SetDefaultRole("role:projects")
 		_ = enforcer.SetBuiltinPolicy("p, role:projects, projects, update, *, allow")
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, util.NewKeyLock(), nil)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, util.NewKeyLock(), nil, nil)
 
 		updatedProj := existingProj.DeepCopy()
 		updatedProj.Spec.ClusterResourceWhitelist = []metav1.GroupKind{{}}
@@ -113,7 +134,7 @@ func TestProjectServer(t *testing.T) {
 
 		enforcer.SetDefaultRole("role:projects")
 		_ = enforcer.SetBuiltinPolicy("p, role:projects, projects, update, *, allow")
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, util.NewKeyLock(), nil)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, util.NewKeyLock(), nil, nil)
 
 		updatedProj := existingProj.DeepCopy()
 		updatedProj.Spec.NamespaceResourceBlacklist = []metav1.GroupKind{{}}
@@ -131,7 +152,7 @@ func TestProjectServer(t *testing.T) {
 			Spec:       v1alpha1.ApplicationSpec{Project: "test", Destination: v1alpha1.ApplicationDestination{Namespace: "ns3", Server: "https://server3"}},
 		}
 
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, util.NewKeyLock(), nil)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, util.NewKeyLock(), nil, nil)
 
 		updatedProj := existingProj.DeepCopy()
 		updatedProj.Spec.Destinations = updatedProj.Spec.Destinations[1:]
@@ -147,7 +168,7 @@ func TestProjectServer(t *testing.T) {
 			Spec:       v1alpha1.ApplicationSpec{Project: "test", Destination: v1alpha1.ApplicationDestination{Namespace: "ns1", Server: "https://server1"}},
 		}
 
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, util.NewKeyLock(), nil)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, util.NewKeyLock(), nil, nil)
 
 		updatedProj := existingProj.DeepCopy()
 		updatedProj.Spec.Destinations = updatedProj.Spec.Destinations[1:]
@@ -165,7 +186,7 @@ func TestProjectServer(t *testing.T) {
 			Spec:       v1alpha1.ApplicationSpec{Project: "test"},
 		}
 
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, util.NewKeyLock(), nil)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, util.NewKeyLock(), nil, nil)
 
 		updatedProj := existingProj.DeepCopy()
 		updatedProj.Spec.SourceRepos = []string{}
@@ -181,7 +202,7 @@ func TestProjectServer(t *testing.T) {
 			Spec:       v1alpha1.ApplicationSpec{Project: "test", Source: v1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argo-cd.git"}},
 		}
 
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, util.NewKeyLock(), nil)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, util.NewKeyLock(), nil, nil)
 
 		updatedProj := existingProj.DeepCopy()
 		updatedProj.Spec.SourceRepos = []string{}
@@ -201,7 +222,7 @@ func TestProjectServer(t *testing.T) {
 			Spec:       v1alpha1.ApplicationSpec{Project: "test", Source: v1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argo-cd.git"}},
 		}
 
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(proj, &existingApp), enforcer, util.NewKeyLock(), nil)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(proj, &existingApp), enforcer, util.NewKeyLock(), nil, nil)
 
 		updatedProj := proj.DeepCopy()
 		updatedProj.Spec.SourceRepos = []string{"https://github.com/argoproj/*"}
@@ -226,7 +247,7 @@ func TestProjectServer(t *testing.T) {
 			}},
 		}
 
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(proj, &existingApp), enforcer, util.NewKeyLock(), nil)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(proj, &existingApp), enforcer, util.NewKeyLock(), nil, nil)
 
 		updatedProj := proj.DeepCopy()
 		updatedProj.Spec.Destinations = []v1alpha1.ApplicationDestination{
@@ -240,7 +261,7 @@ func TestProjectServer(t *testing.T) {
 	})
 
 	t.Run("TestDeleteProjectSuccessful", func(t *testing.T) {
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj), enforcer, util.NewKeyLock(), nil)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj), enforcer, util.NewKeyLock(), nil, nil)
 
 		_, err := projectServer.Delete(context.Background(), &project.ProjectQuery{Name: "test"})
 
@@ -252,7 +273,7 @@ func TestProjectServer(t *testing.T) {
 			ObjectMeta: v1.ObjectMeta{Name: "default", Namespace: "default"},
 			Spec:       v1alpha1.AppProjectSpec{},
 		}
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&defaultProj), enforcer, util.NewKeyLock(), nil)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&defaultProj), enforcer, util.NewKeyLock(), nil, nil)
 
 		_, err := projectServer.Delete(context.Background(), &project.ProjectQuery{Name: defaultProj.Name})
 		statusCode, _ := status.FromError(err)
@@ -265,7 +286,7 @@ func TestProjectServer(t *testing.T) {
 			Spec:       v1alpha1.ApplicationSpec{Project: "test"},
 		}
 
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, util.NewKeyLock(), nil)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, util.NewKeyLock(), nil, nil)
 
 		_, err := projectServer.Delete(context.Background(), &project.ProjectQuery{Name: "test"})
 
@@ -278,24 +299,28 @@ func TestProjectServer(t *testing.T) {
 	enforcer = newEnforcer(kubeclientset)
 	_ = enforcer.SetBuiltinPolicy(`p, *, *, *, *, deny`)
 	enforcer.SetClaimsEnforcerFunc(nil)
+	// nolint:staticcheck
 	ctx := context.WithValue(context.Background(), "claims", &jwt.MapClaims{"groups": []string{"my-group"}})
+	policyEnf := rbacpolicy.NewRBACPolicyEnforcer(enforcer, nil)
+	policyEnf.SetScopes([]string{"groups"})
 
 	tokenName := "testToken"
+	id := "testId"
 
 	t.Run("TestCreateTokenDenied", func(t *testing.T) {
-		sessionMgr := session.NewSessionManager(settingsMgr, "")
+		sessionMgr := session.NewSessionManager(settingsMgr, "", session.NewInMemoryUserStateStorage())
 		projectWithRole := existingProj.DeepCopy()
 		projectWithRole.Spec.Roles = []v1alpha1.ProjectRole{{Name: tokenName}}
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithRole), enforcer, util.NewKeyLock(), sessionMgr)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithRole), enforcer, util.NewKeyLock(), sessionMgr, policyEnf)
 		_, err := projectServer.CreateToken(ctx, &project.ProjectTokenCreateRequest{Project: projectWithRole.Name, Role: tokenName, ExpiresIn: 1})
 		assert.EqualError(t, err, "rpc error: code = PermissionDenied desc = permission denied: projects, update, test")
 	})
 
 	t.Run("TestCreateTokenSuccessfullyUsingGroup", func(t *testing.T) {
-		sessionMgr := session.NewSessionManager(settingsMgr, "")
+		sessionMgr := session.NewSessionManager(settingsMgr, "", session.NewInMemoryUserStateStorage())
 		projectWithRole := existingProj.DeepCopy()
 		projectWithRole.Spec.Roles = []v1alpha1.ProjectRole{{Name: tokenName, Groups: []string{"my-group"}}}
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithRole), enforcer, util.NewKeyLock(), sessionMgr)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithRole), enforcer, util.NewKeyLock(), sessionMgr, policyEnf)
 		_, err := projectServer.CreateToken(ctx, &project.ProjectTokenCreateRequest{Project: projectWithRole.Name, Role: tokenName, ExpiresIn: 1})
 		assert.NoError(t, err)
 	})
@@ -303,10 +328,10 @@ func TestProjectServer(t *testing.T) {
 	_ = enforcer.SetBuiltinPolicy(`p, role:admin, projects, update, *, allow`)
 
 	t.Run("TestCreateTokenSuccessfully", func(t *testing.T) {
-		sessionMgr := session.NewSessionManager(settingsMgr, "")
+		sessionMgr := session.NewSessionManager(settingsMgr, "", session.NewInMemoryUserStateStorage())
 		projectWithRole := existingProj.DeepCopy()
 		projectWithRole.Spec.Roles = []v1alpha1.ProjectRole{{Name: tokenName}}
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithRole), enforcer, util.NewKeyLock(), sessionMgr)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithRole), enforcer, util.NewKeyLock(), sessionMgr, policyEnf)
 		tokenResponse, err := projectServer.CreateToken(context.Background(), &project.ProjectTokenCreateRequest{Project: projectWithRole.Name, Role: tokenName, ExpiresIn: 1})
 		assert.NoError(t, err)
 		claims, err := sessionMgr.Parse(tokenResponse.Token)
@@ -320,30 +345,71 @@ func TestProjectServer(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
+	t.Run("TestCreateTokenWithIDSuccessfully", func(t *testing.T) {
+		sessionMgr := session.NewSessionManager(settingsMgr, "", session.NewInMemoryUserStateStorage())
+		projectWithRole := existingProj.DeepCopy()
+		projectWithRole.Spec.Roles = []v1alpha1.ProjectRole{{Name: tokenName}}
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithRole), enforcer, util.NewKeyLock(), sessionMgr, policyEnf)
+		tokenResponse, err := projectServer.CreateToken(context.Background(), &project.ProjectTokenCreateRequest{Project: projectWithRole.Name, Role: tokenName, ExpiresIn: 1, Id: id})
+		assert.NoError(t, err)
+		claims, err := sessionMgr.Parse(tokenResponse.Token)
+		assert.NoError(t, err)
+
+		mapClaims, err := jwtutil.MapClaims(claims)
+		subject, ok := mapClaims["sub"].(string)
+		assert.True(t, ok)
+		expectedSubject := fmt.Sprintf(JWTTokenSubFormat, projectWithRole.Name, tokenName)
+		assert.Equal(t, expectedSubject, subject)
+		assert.NoError(t, err)
+	})
+
+	t.Run("TestCreateTokenWithSameIdDeny", func(t *testing.T) {
+		sessionMgr := session.NewSessionManager(settingsMgr, "", session.NewInMemoryUserStateStorage())
+		projectWithRole := existingProj.DeepCopy()
+		projectWithRole.Spec.Roles = []v1alpha1.ProjectRole{{Name: tokenName}}
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithRole), enforcer, util.NewKeyLock(), sessionMgr, policyEnf)
+		tokenResponse, err := projectServer.CreateToken(context.Background(), &project.ProjectTokenCreateRequest{Project: projectWithRole.Name, Role: tokenName, ExpiresIn: 1, Id: id})
+
+		assert.NoError(t, err)
+		claims, err := sessionMgr.Parse(tokenResponse.Token)
+		assert.NoError(t, err)
+
+		mapClaims, err := jwtutil.MapClaims(claims)
+		subject, ok := mapClaims["sub"].(string)
+		assert.True(t, ok)
+		expectedSubject := fmt.Sprintf(JWTTokenSubFormat, projectWithRole.Name, tokenName)
+		assert.Equal(t, expectedSubject, subject)
+		assert.NoError(t, err)
+
+		_, err1 := projectServer.CreateToken(context.Background(), &project.ProjectTokenCreateRequest{Project: projectWithRole.Name, Role: tokenName, ExpiresIn: 1, Id: id})
+		expectedErr := fmt.Sprintf("rpc error: code = InvalidArgument desc = rpc error: code = InvalidArgument desc = Token id '%s' has been used. ", id)
+		assert.EqualError(t, err1, expectedErr)
+	})
+
 	_ = enforcer.SetBuiltinPolicy(`p, *, *, *, *, deny`)
 
 	t.Run("TestDeleteTokenDenied", func(t *testing.T) {
-		sessionMgr := session.NewSessionManager(settingsMgr, "")
+		sessionMgr := session.NewSessionManager(settingsMgr, "", session.NewInMemoryUserStateStorage())
 		projWithToken := existingProj.DeepCopy()
 		issuedAt := int64(1)
 		secondIssuedAt := issuedAt + 1
 		token := v1alpha1.ProjectRole{Name: tokenName, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: issuedAt}, {IssuedAt: secondIssuedAt}}}
 		projWithToken.Spec.Roles = append(projWithToken.Spec.Roles, token)
 
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, util.NewKeyLock(), sessionMgr)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, util.NewKeyLock(), sessionMgr, policyEnf)
 		_, err := projectServer.DeleteToken(ctx, &project.ProjectTokenDeleteRequest{Project: projWithToken.Name, Role: tokenName, Iat: issuedAt})
 		assert.EqualError(t, err, "rpc error: code = PermissionDenied desc = permission denied: projects, update, test")
 	})
 
 	t.Run("TestDeleteTokenSuccessfullyWithGroup", func(t *testing.T) {
-		sessionMgr := session.NewSessionManager(settingsMgr, "")
+		sessionMgr := session.NewSessionManager(settingsMgr, "", session.NewInMemoryUserStateStorage())
 		projWithToken := existingProj.DeepCopy()
 		issuedAt := int64(1)
 		secondIssuedAt := issuedAt + 1
 		token := v1alpha1.ProjectRole{Name: tokenName, Groups: []string{"my-group"}, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: issuedAt}, {IssuedAt: secondIssuedAt}}}
 		projWithToken.Spec.Roles = append(projWithToken.Spec.Roles, token)
 
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, util.NewKeyLock(), sessionMgr)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, util.NewKeyLock(), sessionMgr, policyEnf)
 		_, err := projectServer.DeleteToken(ctx, &project.ProjectTokenDeleteRequest{Project: projWithToken.Name, Role: tokenName, Iat: issuedAt})
 		assert.NoError(t, err)
 	})
@@ -352,15 +418,39 @@ func TestProjectServer(t *testing.T) {
 p, role:admin, projects, update, *, allow`)
 
 	t.Run("TestDeleteTokenSuccessfully", func(t *testing.T) {
-		sessionMgr := session.NewSessionManager(settingsMgr, "")
+		sessionMgr := session.NewSessionManager(settingsMgr, "", session.NewInMemoryUserStateStorage())
 		projWithToken := existingProj.DeepCopy()
 		issuedAt := int64(1)
 		secondIssuedAt := issuedAt + 1
 		token := v1alpha1.ProjectRole{Name: tokenName, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: issuedAt}, {IssuedAt: secondIssuedAt}}}
 		projWithToken.Spec.Roles = append(projWithToken.Spec.Roles, token)
 
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, util.NewKeyLock(), sessionMgr)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, util.NewKeyLock(), sessionMgr, policyEnf)
 		_, err := projectServer.DeleteToken(ctx, &project.ProjectTokenDeleteRequest{Project: projWithToken.Name, Role: tokenName, Iat: issuedAt})
+		assert.NoError(t, err)
+		projWithoutToken, err := projectServer.Get(context.Background(), &project.ProjectQuery{Name: projWithToken.Name})
+		assert.NoError(t, err)
+		assert.Len(t, projWithoutToken.Spec.Roles, 1)
+		assert.Len(t, projWithoutToken.Spec.Roles[0].JWTTokens, 1)
+		assert.Equal(t, projWithoutToken.Spec.Roles[0].JWTTokens[0].IssuedAt, secondIssuedAt)
+	})
+
+	_ = enforcer.SetBuiltinPolicy(`p, role:admin, projects, get, *, allow
+p, role:admin, projects, update, *, allow`)
+
+	t.Run("TestDeleteTokenByIdSuccessfully", func(t *testing.T) {
+		sessionMgr := session.NewSessionManager(settingsMgr, "", session.NewInMemoryUserStateStorage())
+		projWithToken := existingProj.DeepCopy()
+		issuedAt := int64(1)
+		secondIssuedAt := issuedAt + 1
+		id := "testId"
+		uniqueId, _ := uuid.NewRandom()
+		secondId := uniqueId.String()
+		token := v1alpha1.ProjectRole{Name: tokenName, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: issuedAt, ID: id}, {IssuedAt: secondIssuedAt, ID: secondId}}}
+		projWithToken.Spec.Roles = append(projWithToken.Spec.Roles, token)
+
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, util.NewKeyLock(), sessionMgr, policyEnf)
+		_, err := projectServer.DeleteToken(ctx, &project.ProjectTokenDeleteRequest{Project: projWithToken.Name, Role: tokenName, Iat: secondIssuedAt, Id: id})
 		assert.NoError(t, err)
 		projWithoutToken, err := projectServer.Get(context.Background(), &project.ProjectQuery{Name: projWithToken.Name})
 		assert.NoError(t, err)
@@ -372,12 +462,12 @@ p, role:admin, projects, update, *, allow`)
 	enforcer = newEnforcer(kubeclientset)
 
 	t.Run("TestCreateTwoTokensInRoleSuccess", func(t *testing.T) {
-		sessionMgr := session.NewSessionManager(settingsMgr, "")
+		sessionMgr := session.NewSessionManager(settingsMgr, "", session.NewInMemoryUserStateStorage())
 		projWithToken := existingProj.DeepCopy()
 		tokenName := "testToken"
 		token := v1alpha1.ProjectRole{Name: tokenName, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: 1}}}
 		projWithToken.Spec.Roles = append(projWithToken.Spec.Roles, token)
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, util.NewKeyLock(), sessionMgr)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, util.NewKeyLock(), sessionMgr, policyEnf)
 		_, err := projectServer.CreateToken(context.Background(), &project.ProjectTokenCreateRequest{Project: projWithToken.Name, Role: tokenName})
 		assert.Nil(t, err)
 		projWithTwoTokens, err := projectServer.Get(context.Background(), &project.ProjectQuery{Name: projWithToken.Name})
@@ -389,14 +479,14 @@ p, role:admin, projects, update, *, allow`)
 	t.Run("TestAddWildcardSource", func(t *testing.T) {
 
 		proj := existingProj.DeepCopy()
-		wildSouceRepo := "*"
-		proj.Spec.SourceRepos = append(proj.Spec.SourceRepos, wildSouceRepo)
+		wildSourceRepo := "*"
+		proj.Spec.SourceRepos = append(proj.Spec.SourceRepos, wildSourceRepo)
 
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(proj), enforcer, util.NewKeyLock(), nil)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(proj), enforcer, util.NewKeyLock(), nil, policyEnf)
 		request := &project.ProjectUpdateRequest{Project: proj}
 		updatedProj, err := projectServer.Update(context.Background(), request)
 		assert.Nil(t, err)
-		assert.Equal(t, wildSouceRepo, updatedProj.Spec.SourceRepos[1])
+		assert.Equal(t, wildSourceRepo, updatedProj.Spec.SourceRepos[1])
 	})
 
 	t.Run("TestCreateRolePolicySuccessfully", func(t *testing.T) {
@@ -411,7 +501,7 @@ p, role:admin, projects, update, *, allow`)
 		role.Policies = append(role.Policies, policy)
 		projWithRole.Spec.Roles = append(projWithRole.Spec.Roles, role)
 
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, util.NewKeyLock(), nil)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, util.NewKeyLock(), nil, policyEnf)
 		request := &project.ProjectUpdateRequest{Project: projWithRole}
 		_, err := projectServer.Update(context.Background(), request)
 		assert.Nil(t, err)
@@ -433,7 +523,7 @@ p, role:admin, projects, update, *, allow`)
 		role.Policies = append(role.Policies, policy)
 		projWithRole.Spec.Roles = append(projWithRole.Spec.Roles, role)
 
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, util.NewKeyLock(), nil)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, util.NewKeyLock(), nil, nil)
 		request := &project.ProjectUpdateRequest{Project: projWithRole}
 		_, err := projectServer.Update(context.Background(), request)
 		expectedErr := fmt.Sprintf("rpc error: code = AlreadyExists desc = policy '%s' already exists for role '%s'", policy, roleName)
@@ -453,7 +543,7 @@ p, role:admin, projects, update, *, allow`)
 		role.Policies = append(role.Policies, policy)
 		projWithRole.Spec.Roles = append(projWithRole.Spec.Roles, role)
 
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, util.NewKeyLock(), nil)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, util.NewKeyLock(), nil, nil)
 		request := &project.ProjectUpdateRequest{Project: projWithRole}
 		_, err := projectServer.Update(context.Background(), request)
 		assert.Contains(t, err.Error(), "object must be of form 'test/*' or 'test/<APPNAME>'")
@@ -472,7 +562,7 @@ p, role:admin, projects, update, *, allow`)
 		role.Policies = append(role.Policies, invalidPolicy)
 		projWithRole.Spec.Roles = append(projWithRole.Spec.Roles, role)
 
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, util.NewKeyLock(), nil)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, util.NewKeyLock(), nil, nil)
 		request := &project.ProjectUpdateRequest{Project: projWithRole}
 		_, err := projectServer.Update(context.Background(), request)
 		assert.Contains(t, err.Error(), "policy subject must be: 'proj:test:testRole'")
@@ -491,7 +581,7 @@ p, role:admin, projects, update, *, allow`)
 		role.Policies = append(role.Policies, invalidPolicy)
 		projWithRole.Spec.Roles = append(projWithRole.Spec.Roles, role)
 
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, util.NewKeyLock(), nil)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, util.NewKeyLock(), nil, nil)
 		request := &project.ProjectUpdateRequest{Project: projWithRole}
 		_, err := projectServer.Update(context.Background(), request)
 		assert.Contains(t, err.Error(), "policy subject must be: 'proj:test:testRole'")
@@ -509,7 +599,7 @@ p, role:admin, projects, update, *, allow`)
 		role.Policies = append(role.Policies, invalidPolicy)
 		projWithRole.Spec.Roles = append(projWithRole.Spec.Roles, role)
 
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, util.NewKeyLock(), nil)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, util.NewKeyLock(), nil, nil)
 		request := &project.ProjectUpdateRequest{Project: projWithRole}
 		_, err := projectServer.Update(context.Background(), request)
 		assert.Contains(t, err.Error(), "effect must be: 'allow' or 'deny'")
@@ -528,7 +618,7 @@ p, role:admin, projects, update, *, allow`)
 		role.Policies = append(role.Policies, invalidPolicy)
 		projWithRole.Spec.Roles = append(projWithRole.Spec.Roles, role)
 
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, util.NewKeyLock(), nil)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, util.NewKeyLock(), nil, nil)
 		request := &project.ProjectUpdateRequest{Project: projWithRole}
 		updateProj, err := projectServer.Update(context.Background(), request)
 		assert.Nil(t, err)
@@ -537,26 +627,26 @@ p, role:admin, projects, update, *, allow`)
 	})
 
 	t.Run("TestSyncWindowsActive", func(t *testing.T) {
-		sessionMgr := session.NewSessionManager(settingsMgr, "")
+		sessionMgr := session.NewSessionManager(settingsMgr, "", session.NewInMemoryUserStateStorage())
 		projectWithSyncWindows := existingProj.DeepCopy()
 		projectWithSyncWindows.Spec.SyncWindows = v1alpha1.SyncWindows{}
 		win := &v1alpha1.SyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "1h"}
 		projectWithSyncWindows.Spec.SyncWindows = append(projectWithSyncWindows.Spec.SyncWindows, win)
 
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithSyncWindows), enforcer, util.NewKeyLock(), sessionMgr)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithSyncWindows), enforcer, util.NewKeyLock(), sessionMgr, nil)
 		res, err := projectServer.GetSyncWindowsState(ctx, &project.SyncWindowsQuery{Name: projectWithSyncWindows.Name})
 		assert.NoError(t, err)
 		assert.Equal(t, 1, len(res.Windows))
 	})
 
 	t.Run("TestGetSyncWindowsStateCannotGetProjectDetails", func(t *testing.T) {
-		sessionMgr := session.NewSessionManager(settingsMgr, "")
+		sessionMgr := session.NewSessionManager(settingsMgr, "", session.NewInMemoryUserStateStorage())
 		projectWithSyncWindows := existingProj.DeepCopy()
 		projectWithSyncWindows.Spec.SyncWindows = v1alpha1.SyncWindows{}
 		win := &v1alpha1.SyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "1h"}
 		projectWithSyncWindows.Spec.SyncWindows = append(projectWithSyncWindows.Spec.SyncWindows, win)
 
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithSyncWindows), enforcer, util.NewKeyLock(), sessionMgr)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithSyncWindows), enforcer, util.NewKeyLock(), sessionMgr, nil)
 		res, err := projectServer.GetSyncWindowsState(ctx, &project.SyncWindowsQuery{Name: "incorrect"})
 		assert.Contains(t, err.Error(), "not found")
 		assert.Nil(t, res)
@@ -566,17 +656,19 @@ p, role:admin, projects, update, *, allow`)
 		enforcer = newEnforcer(kubeclientset)
 		_ = enforcer.SetBuiltinPolicy(`p, *, *, *, *, deny`)
 		enforcer.SetClaimsEnforcerFunc(nil)
+		// nolint:staticcheck
 		ctx := context.WithValue(context.Background(), "claims", &jwt.MapClaims{"groups": []string{"my-group"}})
 
-		sessionMgr := session.NewSessionManager(settingsMgr, "")
+		sessionMgr := session.NewSessionManager(settingsMgr, "", session.NewInMemoryUserStateStorage())
 		projectWithSyncWindows := existingProj.DeepCopy()
 		win := &v1alpha1.SyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "1h"}
 		projectWithSyncWindows.Spec.SyncWindows = append(projectWithSyncWindows.Spec.SyncWindows, win)
 
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithSyncWindows), enforcer, util.NewKeyLock(), sessionMgr)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithSyncWindows), enforcer, util.NewKeyLock(), sessionMgr, nil)
 		_, err := projectServer.GetSyncWindowsState(ctx, &project.SyncWindowsQuery{Name: projectWithSyncWindows.Name})
 		assert.EqualError(t, err, "rpc error: code = PermissionDenied desc = permission denied: projects, get, test")
 	})
+
 }
 
 func newEnforcer(kubeclientset *fake.Clientset) *rbac.Enforcer {
