@@ -9,7 +9,7 @@ export interface FieldData {
     type: FieldTypes;
     name: string;
     size: FieldSizes;
-    values?: FieldValue[];
+    values?: string[];
 }
 
 export enum FieldTypes {
@@ -114,8 +114,9 @@ export class CardRow<T> extends React.Component<CardRowProps<T>, CardRowState<T>
                     format = <ResourceKindSelector placeholder={field.name} init={curVal as ResourceKind} onChange={value => update(value, field.name as keyof T)} />;
                     break;
                 case FieldTypes.AutoComplete:
+                    console.log(field);
                     format = (
-                        <ArgoAutocomplete values={['hello', 'world']} placeholder={field.name} onChange={val => update(val, field.name as keyof T)} init={curVal as FieldValue} />
+                        <ArgoAutocomplete values={field.values || []} placeholder={field.name} onChange={val => update(val, field.name as keyof T)} init={curVal as FieldValue} />
                     );
                     break;
                 default:

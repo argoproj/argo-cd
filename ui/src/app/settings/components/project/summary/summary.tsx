@@ -13,10 +13,19 @@ interface SummaryProps {
     proj: Project;
 }
 
+interface ProjectFields {
+    sources: FieldData[];
+    destinations: FieldData[];
+    resources: FieldData[];
+    signatureKeys: FieldData[];
+    orphanedResources: FieldData[];
+}
+
 interface SummaryState extends ProjectSpec {
     name: string;
     description: string;
     proj: Project;
+    fields: ProjectFields;
 }
 
 enum IterableSpecFieldNames {
@@ -29,19 +38,6 @@ enum IterableSpecFieldNames {
 }
 
 export type IterableSpecField = ApplicationDestination | GroupKind | ProjectSignatureKey | string;
-
-const SourceFields: FieldData[] = [{name: 'url', type: FieldTypes.Url, size: FieldSizes.Grow}];
-const DestinationFields: FieldData[] = [{name: 'namespace', type: FieldTypes.Text, size: FieldSizes.Normal}, {name: 'server', type: FieldTypes.Text, size: FieldSizes.Grow}];
-const ResourceFields: FieldData[] = [
-    {name: 'group', type: FieldTypes.AutoComplete, size: FieldSizes.Normal},
-    {name: 'kind', type: FieldTypes.ResourceKindSelector, size: FieldSizes.Normal}
-];
-const SignatureKeyFields: FieldData[] = [{name: 'keyID', type: FieldTypes.AutoComplete, size: FieldSizes.Normal}];
-const OrphanedResourceFields: FieldData[] = [
-    {name: 'group', type: FieldTypes.Text, size: FieldSizes.Normal},
-    {name: 'kind', type: FieldTypes.ResourceKindSelector, size: FieldSizes.Normal},
-    {name: 'name', type: FieldTypes.Text, size: FieldSizes.Normal}
-];
 
 export class ProjectSummary extends React.Component<SummaryProps, SummaryState> {
     get descriptionChanged(): boolean {
@@ -62,14 +58,32 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
 
     constructor(props: SummaryProps) {
         super(props);
+        const fields: ProjectFields = {
+            sources: [{name: 'url', type: FieldTypes.Url, size: FieldSizes.Grow}],
+            destinations: [{name: 'namespace', type: FieldTypes.Text, size: FieldSizes.Normal}, {name: 'server', type: FieldTypes.Text, size: FieldSizes.Grow}],
+            resources: [{name: 'group', type: FieldTypes.AutoComplete, size: FieldSizes.Normal}, {name: 'kind', type: FieldTypes.ResourceKindSelector, size: FieldSizes.Normal}],
+            signatureKeys: [{name: 'keyID', type: FieldTypes.AutoComplete, size: FieldSizes.Normal}],
+            orphanedResources: [
+                {name: 'group', type: FieldTypes.Text, size: FieldSizes.Normal},
+                {name: 'kind', type: FieldTypes.ResourceKindSelector, size: FieldSizes.Normal},
+                {name: 'name', type: FieldTypes.Text, size: FieldSizes.Normal}
+            ]
+        };
         this.state = {
             name: props.proj.metadata.name,
             proj: props.proj,
-            ...props.proj.spec
+            ...props.proj.spec,
+            fields
         };
         this.save = this.save.bind(this);
         this.setOrphanedResourceWarning = this.setOrphanedResourceWarning.bind(this);
         this.setOrphanedResourceMonitoring = this.setOrphanedResourceMonitoring.bind(this);
+    }
+    public async componentDidMount() {
+        const fields = {...this.state.fields};
+        const keys = await this.getGpgKeyIDs();
+        fields.signatureKeys[0].values = keys;
+        this.setState({fields});
     }
 
     public render() {
@@ -123,7 +137,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                     <div className='project-summary__section--row'>
                         <Card<string>
                             title='Sources'
-                            fields={SourceFields}
+                            fields={this.state.fields.sources}
                             data={this.state.sourceRepos}
                             add={() => this.addSpecItem(IterableSpecFieldNames.sourceRepos, '')}
                             remove={i => this.removeSpecItems(IterableSpecFieldNames.sourceRepos, i)}
@@ -133,7 +147,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                         />
                         <Card<ApplicationDestination>
                             title='Destinations'
-                            fields={DestinationFields}
+                            fields={this.state.fields.destinations}
                             data={this.state.destinations}
                             add={() => this.addSpecItem(IterableSpecFieldNames.destinations, {} as ApplicationDestination)}
                             remove={i => this.removeSpecItems(IterableSpecFieldNames.destinations, i)}
@@ -151,7 +165,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                     <div className='project-summary__section--row'>
                         <Card<GroupKind>
                             title='Allowed Cluster Resources'
-                            fields={ResourceFields}
+                            fields={this.state.fields.resources}
                             data={this.state.clusterResourceWhitelist}
                             add={() => this.addSpecItem(IterableSpecFieldNames.clusterResourceWhitelist, {} as GroupKind)}
                             remove={idxs => this.removeSpecItems(IterableSpecFieldNames.clusterResourceWhitelist, idxs)}
@@ -169,7 +183,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                     <div className='project-summary__section--row'>
                         <Card<GroupKind>
                             title='Denied Cluster Resources'
-                            fields={ResourceFields}
+                            fields={this.state.fields.resources}
                             data={this.state.clusterResourceBlacklist}
                             add={() => this.addSpecItem(IterableSpecFieldNames.clusterResourceBlacklist, {} as GroupKind)}
                             remove={idxs => this.removeSpecItems(IterableSpecFieldNames.clusterResourceBlacklist, idxs)}
@@ -179,7 +193,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                         />
                         <Card<GroupKind>
                             title='Denied Namespace Resources'
-                            fields={ResourceFields}
+                            fields={this.state.fields.resources}
                             data={this.state.namespaceResourceBlacklist}
                             add={() => this.addSpecItem(IterableSpecFieldNames.namespaceResourceBlacklist, {} as GroupKind)}
                             remove={idxs => this.removeSpecItems(IterableSpecFieldNames.namespaceResourceBlacklist, idxs)}
@@ -197,7 +211,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                     <div className='project-summary__section--row'>
                         <Card<ProjectSignatureKey>
                             title='Required Signature Keys'
-                            fields={SignatureKeyFields}
+                            fields={this.state.fields.signatureKeys}
                             data={this.state.signatureKeys}
                             add={() => this.addSpecItem(IterableSpecFieldNames.signatureKeys, {} as ProjectSignatureKey)}
                             remove={i => this.removeSpecItems(IterableSpecFieldNames.signatureKeys, i)}
@@ -219,7 +233,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                                 {this.toggleSwitch('WARN', this.orphanedResourceWarningEnabled, this.setOrphanedResourceWarning)}
                                 <Card<OrphanedResource>
                                     title='Orphaned Resource Ignore List'
-                                    fields={OrphanedResourceFields}
+                                    fields={this.state.fields.orphanedResources}
                                     data={this.state.orphanedResources.ignore}
                                     add={() => {
                                         const obj = GetProp(this.state as ProjectSpec, 'orphanedResources');
@@ -271,6 +285,14 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                 </div>
             </div>
         );
+    }
+    private async getGpgKeyIDs(): Promise<string[]> {
+        const keys = await services.gpgkeys.list();
+        const ids = [];
+        for (const key of keys) {
+            ids.push(key.keyID);
+        }
+        return ids;
     }
     private toggleSwitch(label: string, status: boolean, change: (_: boolean) => void) {
         return (
