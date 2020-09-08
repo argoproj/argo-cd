@@ -69,6 +69,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [ThousandEyes](https://www.thousandeyes.com/)
 1. [Ticketmaster](https://ticketmaster.com)
 1. [Tiger Analytics](https://www.tigeranalytics.com/)
+1. [Toss](https://toss.im/en)
 1. [Twilio SendGrid](https://sendgrid.com)
 1. [tZERO](https://www.tzero.com/)
 1. [UBIO](https://ub.io/)
