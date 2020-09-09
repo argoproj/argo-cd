@@ -35,6 +35,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/utils/pointer"
 
+	argocommon "github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -306,22 +307,37 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)); err != nil {
 		return nil, err
 	}
-	if q.Refresh != nil {
-		refreshType := appv1.RefreshTypeNormal
-		if *q.Refresh == string(appv1.RefreshTypeHard) {
-			refreshType = appv1.RefreshTypeHard
-		}
-		appIf := s.appclientset.ArgoprojV1alpha1().Applications(s.ns)
-		_, err = argoutil.RefreshApp(appIf, *q.Name, refreshType)
-		if err != nil {
-			return nil, err
-		}
-		a, err = argoutil.WaitForRefresh(ctx, appIf, *q.Name, nil)
-		if err != nil {
-			return nil, err
+	if q.Refresh == nil {
+		return a, nil
+	}
+
+	refreshType := appv1.RefreshTypeNormal
+	if *q.Refresh == string(appv1.RefreshTypeHard) {
+		refreshType = appv1.RefreshTypeHard
+	}
+	appIf := s.appclientset.ArgoprojV1alpha1().Applications(s.ns)
+	_, err = argoutil.RefreshApp(appIf, *q.Name, refreshType)
+	if err != nil {
+		return nil, err
+	}
+	events := make(chan *appv1.ApplicationWatchEvent)
+	unsubscribe := s.appBroadcaster.Subscribe(events)
+	defer unsubscribe()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("application refresh deadline exceeded")
+		case event := <-events:
+			annotations := event.Application.GetAnnotations()
+			if annotations == nil {
+				annotations = make(map[string]string)
+			}
+			if _, ok := annotations[argocommon.AnnotationKeyRefresh]; !ok {
+				return &event.Application, nil
+			}
 		}
 	}
-	return a, nil
 }
 
 // ListResourceEvents returns a list of event resources
