@@ -1434,7 +1434,7 @@ and might cause few seconds delay. No additional side effects besides the delay 
 rollback to previous version - no data loss is expected.</p>
 <h2 id="resources-like-configmap-might-become-out-of-sync-due-to-yaml-library-upgrade">Resources like ConfigMap might become out-of-sync due to YAML library upgrade<a class="headerlink" href="#resources-like-configmap-might-become-out-of-sync-due-to-yaml-library-upgrade" title="Permanent link">&para;</a></h2>
 <p>As part of v1.7 release, the Kubernetes client library have been upgrade to v1.18.8 as well as we've started using
-https://github.com/kubernetes-sigs/yaml for YALM handling to be consistent with <code>kubectl</code> behavior.
+https://github.com/kubernetes-sigs/yaml for YAML handling to be consistent with <code>kubectl</code> behavior.
 This introduced a change of multiline string handling in resource manifests. As a result, YAML manifests with multiline
 strings might become out-of-sync after upgrading and you might have to trigger the syncronization once to resolve it.</p>
 <p>Affected resource example:</p>
