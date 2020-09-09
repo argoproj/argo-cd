@@ -201,7 +201,7 @@ manifests-local:
 	./hack/update-manifests.sh
 
 .PHONY: manifests
-manifests:
+manifests: test-tools-image
 	$(call run-in-test-client,make manifests-local IMAGE_NAMESPACE='${IMAGE_NAMESPACE}' IMAGE_TAG='${IMAGE_TAG}')
 
 
