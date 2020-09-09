@@ -4,9 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
-	"strings"
 	"testing"
-	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
 	"github.com/stretchr/testify/assert"
@@ -15,8 +13,6 @@ import (
 	"google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/watch"
-	testcore "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
 
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -63,33 +59,6 @@ func TestGetAppProjectWithNoProjDefined(t *testing.T) {
 	proj, err := GetAppProject(&testApp.Spec, applisters.NewAppProjectLister(informer.GetIndexer()), namespace)
 	assert.Nil(t, err)
 	assert.Equal(t, proj.Name, projName)
-}
-
-func TestWaitForRefresh(t *testing.T) {
-	appClientset := appclientset.NewSimpleClientset()
-
-	// Verify timeout
-	appIf := appClientset.ArgoprojV1alpha1().Applications("default")
-	oneHundredMs := 100 * time.Millisecond
-	app, err := WaitForRefresh(context.Background(), appIf, "test-app", &oneHundredMs)
-	assert.NotNil(t, err)
-	assert.Nil(t, app)
-	assert.Contains(t, strings.ToLower(err.Error()), "deadline exceeded")
-
-	// Verify success
-	var testApp argoappv1.Application
-	testApp.Name = "test-app"
-	testApp.Namespace = "default"
-	appClientset = appclientset.NewSimpleClientset()
-
-	appIf = appClientset.ArgoprojV1alpha1().Applications("default")
-	watcher := watch.NewFake()
-	appClientset.PrependWatchReactor("applications", testcore.DefaultWatchReactor(watcher, nil))
-	// simulate add/update/delete watch events
-	go watcher.Add(&testApp)
-	app, err = WaitForRefresh(context.Background(), appIf, "test-app", &oneHundredMs)
-	assert.Nil(t, err)
-	assert.NotNil(t, app)
 }
 
 func TestContainsSyncResource(t *testing.T) {
