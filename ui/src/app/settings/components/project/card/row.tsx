@@ -32,38 +32,25 @@ interface CardRowProps<T> {
     save: (value: T | FieldValue) => Promise<Project>;
     selected: boolean;
     toggleSelect: () => void;
-}
-
-interface CardRowState<T> {
-    data: T | FieldValue;
+    changed: boolean;
+    onChange: (value: T | FieldValue) => void;
 }
 
 export type FieldValue = string | ResourceKind;
 
-export class CardRow<T> extends React.Component<CardRowProps<T>, CardRowState<T>> {
-    get changed(): boolean {
-        if (this.dataIsFieldValue) {
-            return this.state.data !== this.props.data;
-        }
-        for (const key of Object.keys(this.state.data)) {
-            if (GetProp(this.props.data as T, key as keyof T) !== GetProp(this.state.data as T, key as keyof T)) {
-                return true;
-            }
-        }
-        return false;
-    }
+export class CardRow<T> extends React.Component<CardRowProps<T>> {
     get disabled(): boolean {
-        if (!this.state.data) {
+        if (!this.props.data) {
             return true;
         }
-        if (Object.keys(this.state.data).length < this.props.fields.length) {
+        if (Object.keys(this.props.data).length < this.props.fields.length) {
             return true;
         }
         if (this.dataIsFieldValue) {
-            return this.state.data === '' || this.state.data === null;
+            return this.props.data === '' || this.props.data === null;
         }
-        for (const key of Object.keys(this.state.data)) {
-            const cur = GetProp(this.state.data as T, key as keyof T).toString();
+        for (const key of Object.keys(this.props.data)) {
+            const cur = GetProp(this.props.data as T, key as keyof T).toString();
             if (cur === '' || cur === null) {
                 return true;
             }
@@ -71,17 +58,17 @@ export class CardRow<T> extends React.Component<CardRowProps<T>, CardRowState<T>
         return false;
     }
     get dataIsFieldValue(): boolean {
-        return this.isFieldValue(this.state.data);
+        return this.isFieldValue(this.props.data);
     }
     get fieldsSetToAll(): string[] {
         if (this.dataIsFieldValue) {
             const field = this.props.fields[0];
             const comp = field.type === FieldTypes.ResourceKindSelector ? 'ANY' : '*';
-            return this.state.data.toString() === comp ? [field.name] : [];
+            return this.props.data.toString() === comp ? [field.name] : [];
         }
         const fields = [];
-        for (const key of Object.keys(this.state.data)) {
-            if (GetProp(this.state.data as T, key as keyof T).toString() === '*') {
+        for (const key of Object.keys(this.props.data)) {
+            if (GetProp(this.props.data as T, key as keyof T).toString() === '*') {
                 fields.push(key);
             }
         }
@@ -92,29 +79,27 @@ export class CardRow<T> extends React.Component<CardRowProps<T>, CardRowState<T>
         this.state = {
             data: this.props.data
         };
-        this.save = this.save.bind(this);
     }
 
     public render() {
         let update = this.dataIsFieldValue
             ? (value: FieldValue, _: keyof T) => {
-                  this.setState({data: value as FieldValue});
+                  this.props.onChange(value);
               }
             : (value: string, field: keyof T) => {
-                  const change = {...(this.state.data as T)};
+                  const change = {...(this.props.data as T)};
                   SetProp(change, field, value);
-                  this.setState({data: change});
+                  this.props.onChange(change);
               };
         update = update.bind(this);
         const inputs = this.props.fields.map((field, i) => {
             let format;
-            const curVal = this.dataIsFieldValue ? this.state.data : GetProp(this.state.data as T, field.name as keyof T);
+            const curVal = this.dataIsFieldValue ? this.props.data : GetProp(this.props.data as T, field.name as keyof T);
             switch (field.type) {
                 case FieldTypes.ResourceKindSelector:
-                    format = <ResourceKindSelector placeholder={field.name} init={curVal as ResourceKind} onChange={value => update(value, field.name as keyof T)} />;
+                    format = <ResourceKindSelector placeholder={field.name} init={curVal as ResourceKind} onChange={val => update(val, field.name as keyof T)} />;
                     break;
                 case FieldTypes.AutoComplete:
-                    console.log(field);
                     format = (
                         <ArgoAutocomplete values={field.values || []} placeholder={field.name} onChange={val => update(val, field.name as keyof T)} init={curVal as FieldValue} />
                     );
@@ -155,9 +140,9 @@ export class CardRow<T> extends React.Component<CardRowProps<T>, CardRowState<T>
                     {inputs}
                     <div className='card__col-button card__col'>
                         <button
-                            className={`project__button project__button-${this.props.selected ? 'error' : this.disabled ? 'disabled' : this.changed ? 'save' : 'saved'}`}
-                            onClick={() => (this.props.selected ? this.props.remove() : this.disabled ? null : this.save())}>
-                            {this.props.selected ? 'DELETE' : this.disabled ? 'EMPTY' : this.changed ? 'SAVE' : 'SAVED'}
+                            className={`project__button project__button-${this.props.selected ? 'error' : this.disabled ? 'disabled' : this.props.changed ? 'save' : 'saved'}`}
+                            onClick={() => (this.props.selected ? this.props.remove() : this.disabled ? null : this.props.save(this.props.data))}>
+                            {this.props.selected ? 'DELETE' : this.disabled ? 'EMPTY' : this.props.changed ? 'SAVE' : 'SAVED'}
                         </button>
                     </div>
                 </div>
@@ -181,9 +166,7 @@ export class CardRow<T> extends React.Component<CardRowProps<T>, CardRowState<T>
         return (
             <div className='card__row'>
                 <div className='card__col-round-button card__col' />
-                <div className={'card__col card__col-grow'}>
-                    {Banner(BannerType.Info, BannerIcon.Info, `Note: ${fieldList} are set to wildcard (*)`)}
-                </div>
+                <div className={'card__col card__col-grow'}>{Banner(BannerType.Info, BannerIcon.Info, `Note: ${fieldList} are set to wildcard (*)`)}</div>
                 <div className='card__col-button card__col' />
             </div>
         );
@@ -193,8 +176,5 @@ export class CardRow<T> extends React.Component<CardRowProps<T>, CardRowState<T>
             return true;
         }
         return false;
-    }
-    private async save() {
-        this.props.save(this.state.data);
     }
 }

@@ -1,5 +1,4 @@
 import * as React from 'react';
-import {Project} from '../../../../shared/models';
 import {CardRow, FieldData, FieldTypes, FieldValue} from './row';
 
 require('../project.scss');
@@ -9,25 +8,41 @@ interface CardProps<T> {
     title: string;
     data: T[];
     fields: FieldData[];
-    add: () => void;
+    add: () => Promise<any>;
     remove: (i: number[]) => void;
-    save: (i: number, value: T | FieldValue) => Promise<Project>;
+    save: (i: number[], values: (T | FieldValue)[]) => Promise<any>;
     docs: string;
     fullWidth: boolean;
 }
 
-interface CardState {
+interface CardState<T> {
     selected: boolean[];
+    isChanged: boolean[];
+    data: Row<T>[];
+    changeCount: number;
 }
 
-export class Card<T> extends React.Component<CardProps<T>, CardState> {
+interface Row<T> {
+    id: number;
+    value: T;
+}
+
+export class Card<T> extends React.Component<CardProps<T>, CardState<T>> {
     constructor(props: CardProps<T>) {
         super(props);
         let selected: boolean[] = [];
+        let isChanged: boolean[] = [];
+        const data: Row<T>[] = [];
         if (props.data) {
             selected = new Array(props.data.length);
+            isChanged = new Array(props.data.length);
+            for (const r of props.data) {
+                const id = Math.random();
+                data.push({id, value: r});
+            }
         }
-        this.state = {selected};
+        this.add = this.add.bind(this);
+        this.state = {selected, isChanged, data, changeCount: 0};
     }
     get selectedIdxs(): number[] {
         const arr: number[] = [];
@@ -39,6 +54,21 @@ export class Card<T> extends React.Component<CardProps<T>, CardState> {
         return arr;
     }
     public render() {
+        // let data = this.state.data;
+        // if (this.props.data) {
+        //     const sl = this.state.data ? this.state.data.length : 0;
+        //     const pl = this.props.data.length;
+        //     if (pl > sl) {
+        //         let n = pl - sl;
+        //         while (n > 0) {
+        //             const id = Math.random();
+        //             data.push({id, value: this.props.data[sl - n + 1]});
+        //             n -= 1;
+        //         }
+        //     } else if (sl > pl) {
+        //
+        //     }
+        // }
         return (
             <div className={`card white-box ${this.props.data && this.props.data.length > 0 ? '' : 'card__empty'} ${this.props.fullWidth ? 'card__full-width' : ''}`}>
                 <div className='white-box__details'>
@@ -52,12 +82,21 @@ export class Card<T> extends React.Component<CardProps<T>, CardState> {
                             ) : null}
                         </div>
                         <div className='card__actions'>
+                            {this.state.changeCount > 0 ? (
+                                <button
+                                    className={'project__button project__button-save'}
+                                    onClick={() => {
+                                        return;
+                                    }}>
+                                    SAVE ALL
+                                </button>
+                            ) : null}
                             {this.selectedIdxs.length > 1 ? (
                                 <button className={'project__button project__button-error'} onClick={() => this.remove(this.selectedIdxs)}>
                                     DELETE SELECTED
                                 </button>
                             ) : null}
-                            <button className='project__button project__button-add project__button-round' onClick={this.props.add}>
+                            <button className='project__button project__button-add project__button-round' onClick={this.add}>
                                 <i className='fa fa-plus' />
                             </button>
                         </div>
@@ -80,16 +119,19 @@ export class Card<T> extends React.Component<CardProps<T>, CardState> {
                                 })}
                                 <div className='card__col-button card__col' />
                             </div>
-                            {this.props.data.map((row, i) => {
+                            {this.state.data.map((row, i) => {
+                                const val = row.value;
                                 return (
-                                    <div key={this.generateKey(row)}>
+                                    <div key={i}>
                                         <CardRow<T>
                                             fields={this.props.fields}
-                                            data={row}
+                                            data={val}
                                             remove={() => this.remove([i])}
-                                            save={value => this.props.save(i, value)}
+                                            save={value => this.props.save([i], [value])}
                                             selected={this.state.selected[i]}
                                             toggleSelect={() => this.toggleSelect(i)}
+                                            onChange={r => this.updateRow(i, r as T)}
+                                            changed={this.state.isChanged[i]}
                                         />
                                     </div>
                                 );
@@ -110,10 +152,13 @@ export class Card<T> extends React.Component<CardProps<T>, CardState> {
     private remove(idxs: number[]) {
         const tmp = [...idxs];
         const selected = this.state.selected;
+        const data = [...this.state.data];
         while (tmp.length) {
-            selected.splice(tmp.pop(), 1);
+            const i = tmp.pop();
+            selected.splice(i, 1);
+            data.splice(i, 1);
         }
-        this.setState({selected});
+        this.setState({data, selected});
         this.props.remove(idxs);
     }
     private empty() {
@@ -123,7 +168,28 @@ export class Card<T> extends React.Component<CardProps<T>, CardState> {
             </div>
         );
     }
-    private generateKey(d: T) {
-        return JSON.stringify(d) + Math.random();
+    private async add() {
+        const data = [...this.state.data];
+        const value = await this.props.add();
+        data.push({value, id: Math.random()});
+        this.setState({data});
+    }
+    private updateRow(i: number, r: T) {
+        const data = [...this.state.data];
+        const isChanged = this.state.isChanged;
+        const cur = {...data[i], value: r};
+        data[i] = cur;
+        if (data[i].value !== this.props.data[i]) {
+            if (!isChanged[i]) {
+                this.setState({changeCount: this.state.changeCount + 1});
+            }
+            isChanged[i] = true;
+        } else {
+            if (isChanged[i]) {
+                this.setState({changeCount: this.state.changeCount - 1});
+            }
+            isChanged[i] = false;
+        }
+        this.setState({data});
     }
 }

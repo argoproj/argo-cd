@@ -141,7 +141,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             data={this.state.sourceRepos}
                             add={() => this.addSpecItem(IterableSpecFieldNames.sourceRepos, '')}
                             remove={i => this.removeSpecItems(IterableSpecFieldNames.sourceRepos, i)}
-                            save={(i, value) => this.save(IterableSpecFieldNames.sourceRepos, i, value as string)}
+                            save={(i, values) => this.save(IterableSpecFieldNames.sourceRepos, i, values as string[])}
                             docs={null}
                             fullWidth={true}
                         />
@@ -151,7 +151,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             data={this.state.destinations}
                             add={() => this.addSpecItem(IterableSpecFieldNames.destinations, {} as ApplicationDestination)}
                             remove={i => this.removeSpecItems(IterableSpecFieldNames.destinations, i)}
-                            save={(i, value) => this.save(IterableSpecFieldNames.destinations, i, value as ApplicationDestination)}
+                            save={(i, values) => this.save(IterableSpecFieldNames.destinations, i, values as ApplicationDestination[])}
                             docs={null}
                             fullWidth={true}
                         />
@@ -169,7 +169,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             data={this.state.clusterResourceWhitelist}
                             add={() => this.addSpecItem(IterableSpecFieldNames.clusterResourceWhitelist, {} as GroupKind)}
                             remove={idxs => this.removeSpecItems(IterableSpecFieldNames.clusterResourceWhitelist, idxs)}
-                            save={(i, value) => this.save(IterableSpecFieldNames.clusterResourceWhitelist, i, value as string)}
+                            save={(i, values) => this.save(IterableSpecFieldNames.clusterResourceWhitelist, i, values as string[])}
                             docs={null}
                             fullWidth={false}
                         />
@@ -187,7 +187,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             data={this.state.clusterResourceBlacklist}
                             add={() => this.addSpecItem(IterableSpecFieldNames.clusterResourceBlacklist, {} as GroupKind)}
                             remove={idxs => this.removeSpecItems(IterableSpecFieldNames.clusterResourceBlacklist, idxs)}
-                            save={(i, value) => this.save(IterableSpecFieldNames.clusterResourceBlacklist, i, value as string)}
+                            save={(i, values) => this.save(IterableSpecFieldNames.clusterResourceBlacklist, i, values as string[])}
                             docs={null}
                             fullWidth={false}
                         />
@@ -197,7 +197,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             data={this.state.namespaceResourceBlacklist}
                             add={() => this.addSpecItem(IterableSpecFieldNames.namespaceResourceBlacklist, {} as GroupKind)}
                             remove={idxs => this.removeSpecItems(IterableSpecFieldNames.namespaceResourceBlacklist, idxs)}
-                            save={(i, value) => this.save(IterableSpecFieldNames.namespaceResourceBlacklist, i, value as string)}
+                            save={(i, values) => this.save(IterableSpecFieldNames.namespaceResourceBlacklist, i, values as string[])}
                             docs={null}
                             fullWidth={false}
                         />
@@ -215,7 +215,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             data={this.state.signatureKeys}
                             add={() => this.addSpecItem(IterableSpecFieldNames.signatureKeys, {} as ProjectSignatureKey)}
                             remove={i => this.removeSpecItems(IterableSpecFieldNames.signatureKeys, i)}
-                            save={(i, value) => this.save(IterableSpecFieldNames.signatureKeys, i, value as string)}
+                            save={(i, values) => this.save(IterableSpecFieldNames.signatureKeys, i, values as string[])}
                             docs={null}
                             fullWidth={false}
                         />
@@ -235,7 +235,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                                     title='Orphaned Resource Ignore List'
                                     fields={this.state.fields.orphanedResources}
                                     data={this.state.orphanedResources.ignore}
-                                    add={() => {
+                                    add={async () => {
                                         const obj = GetProp(this.state as ProjectSpec, 'orphanedResources');
                                         if (!obj || Object.keys(obj).length < 1) {
                                             return;
@@ -247,6 +247,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                                         const update = {...this.state};
                                         SetProp(update, 'orphanedResources', obj);
                                         this.setState(update);
+                                        return {} as OrphanedResource;
                                     }}
                                     remove={idxs => {
                                         const obj = GetProp(this.state as ProjectSpec, 'orphanedResources');
@@ -265,11 +266,13 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                                         SetProp(update, 'orphanedResources', obj);
                                         this.setState(update);
                                     }}
-                                    save={async (i, value) => {
+                                    save={async (idxs, values) => {
                                         const update = {...this.state.proj};
                                         const obj = update.spec.orphanedResources;
                                         const arr = obj.ignore;
-                                        arr[i] = value as OrphanedResource;
+                                        for (const i of idxs) {
+                                            arr[i] = values[i] as OrphanedResource;
+                                        }
                                         obj.ignore = arr;
                                         update.spec.orphanedResources = obj;
                                         const res = await services.projects.updateLean(this.state.name, update);
@@ -330,13 +333,14 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
         this.updateProject(res);
         return;
     }
-    private async addSpecItem(key: keyof ProjectSpec, empty: IterableSpecField) {
+    private async addSpecItem(key: keyof ProjectSpec, empty: IterableSpecField): Promise<IterableSpecField> {
         const arr = (GetProp(this.state as ProjectSpec, key) as IterableSpecField[]) || [];
         arr.push(empty);
         const update = {...this.state};
         SetProp(update, key as keyof SummaryState, arr);
         this.setState(update);
         this.reconcileProject();
+        return empty;
     }
     private async removeSpecItems(key: keyof ProjectSpec, idxs: number[]) {
         const arr = GetProp(this.state as ProjectSpec, key) as IterableSpecField[];
@@ -368,11 +372,12 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
         this.setState(update);
         this.setState({name: proj.metadata.name, proj});
     }
-
-    private async save(key: keyof ProjectSpec, idx: number, value: IterableSpecField): Promise<Project> {
+    private async save(key: keyof ProjectSpec, idxs: number[], values: IterableSpecField[]): Promise<Project> {
         const update = {...this.state.proj};
         const arr = GetProp(this.state, key) as IterableSpecField[];
-        arr[idx] = value as IterableSpecField;
+        for (const i of idxs) {
+            arr[i] = values[i] as IterableSpecField;
+        }
         SetProp(update.spec, key as keyof ProjectSpec, arr);
         const res = await services.projects.updateLean(this.state.name, update);
         this.updateProject(res);
