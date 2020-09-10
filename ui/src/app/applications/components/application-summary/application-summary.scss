@@ -52,18 +52,10 @@
         padding-right: 1em;
     }
 
-    .white-box__details-row .columns {
-        padding-top: 1.5em;
-        padding-bottom: 1.5em;
-
-        & > div {
-           line-height: 1.6em;
-        }
-    }
-
     .white-box__details-row .row .columns:last-child {
         padding-left: 1em;
     }
+
     .select {
         padding-bottom: 0;
     }

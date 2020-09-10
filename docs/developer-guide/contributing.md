@@ -76,7 +76,7 @@ After you have submitted your PR, and whenever you push new commits to that bran
 * Run a Go linter on the code (`make lint`)
 * Run the unit tests (`make test`)
 * Run the End-to-End tests (`make test-e2e`)
-* Build and lint the UI code (`make ui`)
+* Build and lint the UI code (`make lint-ui`)
 * Build the `argocd` CLI (`make cli`)
 
 If any of these tests in the CI pipeline fail, it means that some of your contribution is considered faulty (or a test might be flaky, see below).
