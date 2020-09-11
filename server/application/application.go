@@ -316,25 +316,34 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 		refreshType = appv1.RefreshTypeHard
 	}
 	appIf := s.appclientset.ArgoprojV1alpha1().Applications(s.ns)
-	_, err = argoutil.RefreshApp(appIf, *q.Name, refreshType)
-	if err != nil {
-		return nil, err
-	}
+
 	events := make(chan *appv1.ApplicationWatchEvent)
 	unsubscribe := s.appBroadcaster.Subscribe(events)
 	defer unsubscribe()
+
+	app, err := argoutil.RefreshApp(appIf, *q.Name, refreshType)
+	if err != nil {
+		return nil, err
+	}
+
+	minVersion := 0
+	if minVersion, err = strconv.Atoi(app.ResourceVersion); err != nil {
+		minVersion = 0
+	}
 
 	for {
 		select {
 		case <-ctx.Done():
 			return nil, fmt.Errorf("application refresh deadline exceeded")
 		case event := <-events:
-			annotations := event.Application.GetAnnotations()
-			if annotations == nil {
-				annotations = make(map[string]string)
-			}
-			if _, ok := annotations[argocommon.AnnotationKeyRefresh]; !ok {
-				return &event.Application, nil
+			if appVersion, err := strconv.Atoi(event.Application.ResourceVersion); err == nil && appVersion > minVersion {
+				annotations := event.Application.GetAnnotations()
+				if annotations == nil {
+					annotations = make(map[string]string)
+				}
+				if _, ok := annotations[argocommon.AnnotationKeyRefresh]; !ok {
+					return &event.Application, nil
+				}
 			}
 		}
 	}
