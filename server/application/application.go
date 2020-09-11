@@ -935,6 +935,15 @@ func (s *Server) ResourceTree(ctx context.Context, q *application.ResourcesQuery
 }
 
 func (s *Server) WatchResourceTree(q *application.ResourcesQuery, ws application.ApplicationService_WatchResourceTreeServer) error {
+	a, err := s.appLister.Get(q.GetApplicationName())
+	if err != nil {
+		return err
+	}
+
+	if err := s.enf.EnforceErr(ws.Context().Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)); err != nil {
+		return err
+	}
+
 	return s.cache.OnAppResourcesTreeChanged(ws.Context(), q.GetApplicationName(), func() error {
 		var tree appv1.ApplicationTree
 		err := s.cache.GetAppResourcesTree(q.GetApplicationName(), &tree)
