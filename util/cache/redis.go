@@ -50,7 +50,7 @@ func (r *redisCache) Delete(key string) error {
 }
 
 func (r *redisCache) OnUpdated(ctx context.Context, key string, callback func() error) error {
-	pubsub := r.client.Subscribe(context.TODO(), key)
+	pubsub := r.client.Subscribe(ctx, key)
 	defer ioutil.Close(pubsub)
 
 	ch := pubsub.Channel()
