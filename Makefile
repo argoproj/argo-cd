@@ -48,6 +48,7 @@ ARGOCD_LINT_GOGC?=20
 define run-in-test-server
 	docker run --rm -it \
 		--name argocd-test-server \
+		-u $(shell id -u):$(shell id -g) \
 		-e USER_ID=$(shell id -u) \
 		-e HOME=/home/user \
 		-e GOPATH=/go \
@@ -71,6 +72,7 @@ endef
 define run-in-test-client
 	docker run --rm -it \
 	  --name argocd-test-client \
+		-u $(shell id -u):$(shell id -g) \
 		-e HOME=/home/user \
 		-e GOPATH=/go \
 		-e ARGOCD_E2E_K3S=$(ARGOCD_E2E_K3S) \
@@ -192,7 +194,7 @@ argocd-util: clean-debug
 
 .PHONY: test-tools-image
 test-tools-image:
-	docker build -t $(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE) -f test/container/Dockerfile .
+	docker build --build-arg UID=$(shell id -u) -t $(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE) -f test/container/Dockerfile .
 	docker tag $(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE) $(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE):$(TEST_TOOLS_TAG)
 
 .PHONY: manifests-local
