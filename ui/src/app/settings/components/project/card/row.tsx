@@ -18,13 +18,14 @@ export class CardRow<T> extends React.Component<CardRowProps<T>> {
     get disabled(): boolean {
         if (!this.props.data) {
             return true;
-        }
-        if (Object.keys(this.props.data).length < this.props.fields.length) {
+        } else if (Object.keys(this.props.data).length < this.props.fields.length) {
             return true;
         }
         for (const key of Object.keys(this.props.data)) {
-            const cur = GetProp(this.props.data as T, key as keyof T).toString();
-            if (cur === '' || cur === null) {
+            const data = GetProp(this.props.data as T, key as keyof T);
+            if (data === null) {
+                return true;
+            } else if (data.toString() === '') {
                 return true;
             }
         }
@@ -34,6 +35,9 @@ export class CardRow<T> extends React.Component<CardRowProps<T>> {
         return this.isFieldValue(this.props.data);
     }
     get fieldsSetToAll(): string[] {
+        if (!this.props.data) {
+            return [];
+        }
         if (this.dataIsFieldValue) {
             const field = this.props.fields[0];
             const comp = field.type === FieldTypes.ResourceKindSelector ? 'ANY' : '*';
@@ -76,7 +80,15 @@ export class CardRow<T> extends React.Component<CardRowProps<T>> {
                         </button>
                     </div>
                     {this.props.fields.map((field, i) => {
-                        const curVal = this.dataIsFieldValue ? this.props.data.toString() : GetProp(this.props.data as T, field.name as keyof T).toString();
+                        let curVal = '';
+                        if (this.props.data) {
+                            if (this.dataIsFieldValue) {
+                                curVal = this.props.data.toString();
+                            } else {
+                                const data = GetProp(this.props.data as T, field.name as keyof T);
+                                curVal = data ? data.toString() : '';
+                            }
+                        }
                         return (
                             <div key={field.name} className={`card__col-input card__col card__col-${field.size}`}>
                                 <ArgoField field={field} onChange={val => update(val, field.name as keyof T)} data={curVal} />
