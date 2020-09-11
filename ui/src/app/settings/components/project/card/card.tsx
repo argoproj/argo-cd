@@ -82,7 +82,7 @@ export class Card<T> extends React.Component<CardProps<T>, CardState<T>> {
                         <div className='card__actions'>
                             {this.state.changeCount > 0 ? (
                                 <button
-                                    className={'project__button project__button-save'}
+                                    className={'card__button card__button-save'}
                                     onClick={() => {
                                         const [i, v] = this.changedVals;
                                         this.save(i, v);
@@ -91,12 +91,12 @@ export class Card<T> extends React.Component<CardProps<T>, CardState<T>> {
                                 </button>
                             ) : null}
                             {this.selectedIdxs.length > 1 ? (
-                                <button className={'project__button project__button-error'} onClick={() => this.remove(this.selectedIdxs)}>
+                                <button className={'card__button card__button-error'} onClick={() => this.remove(this.selectedIdxs)}>
                                     DELETE SELECTED
                                 </button>
                             ) : null}
                             {this.props.disabled ? null : (
-                                <button className='project__button project__button-add project__button-round' onClick={this.add}>
+                                <button className='card__button card__button-add card__button-round' onClick={this.add}>
                                     <i className='fa fa-plus' />
                                 </button>
                             )}

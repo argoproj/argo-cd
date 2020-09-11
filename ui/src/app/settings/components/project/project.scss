@@ -2,17 +2,6 @@
 @import './config';
 
 .project {
-  &__button {
-    display: block;
-    padding: $button-padding;
-    margin: 0 auto;
-    width: auto;
-    border-radius: 7px;
-    cursor: pointer;
-    color: $white-color;
-    font-weight: 600;
-  }
-
   &__toggle {
     display: flex;
     align-items: center;
@@ -47,68 +36,5 @@
         }
       }
     }
-  }
-
-  &__button-save {
-    background-color: $argo-running-color;
-  }
-
-  &__button-saved {
-    background-color: $argo-success-color;
-  }
-
-  &__button-error {
-    background-color: $argo-failed-color;
-  }
-
-  &__button-cancel {
-    background-color: $argo-failed-color;
-  }
-
-  &__button-disabled {
-    background-color: $argo-color-gray-5;
-    cursor: not-allowed;
-  }
-
-  &__button-round {
-    padding: 0;
-    border-radius: 100%;
-    font-weight: 800;
-    font-size: 15px;
-    width: $round-button-size;
-    height: $round-button-size;
-    margin: 0 auto;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  &__button-select {
-    border: 2px solid $argo-running-color;
-    border-radius: 3px;
-    color: $white-color;
-    transition: all 300ms;
-    width: $select-button-size;
-    height: $select-button-size;
-    margin: 0 auto;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    &--selected {
-      @extend .project__button-select;
-      border-radius: 3px;
-      background-color: $argo-running-color;
-    }
-
-    &:hover {
-      background-color: $argo-running-color;
-    }
-  }
-
-  &__button-add {
-    background-color: $argo-success-color;
-    margin-right: 0;
-    color: $white-color;
   }
 }

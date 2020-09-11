@@ -73,7 +73,7 @@ export class CardRow<T> extends React.Component<CardRowProps<T>> {
             <div>
                 <div className='card__input-container card__row'>
                     <div className='card__col-select-button card__col'>
-                        <button className={`project__button project__button-select${this.props.selected ? '--selected' : ''}`} onClick={this.props.toggleSelect}>
+                        <button className={`card__button card__button-select${this.props.selected ? '--selected' : ''}`} onClick={this.props.toggleSelect}>
                             <i className='fa fa-check' />
                         </button>
                     </div>
@@ -95,7 +95,7 @@ export class CardRow<T> extends React.Component<CardRowProps<T>> {
                     })}
                     <div className='card__col-button card__col'>
                         <button
-                            className={`project__button project__button-${this.props.selected ? 'error' : this.disabled ? 'disabled' : this.props.changed ? 'save' : 'saved'}`}
+                            className={`card__button card__button-${this.props.selected ? 'error' : this.disabled ? 'disabled' : this.props.changed ? 'save' : 'saved'}`}
                             onClick={() => (this.props.selected ? this.props.remove() : this.disabled ? null : this.props.save(this.props.data))}>
                             {this.props.selected ? 'DELETE' : this.disabled ? 'EMPTY' : this.props.changed ? 'SAVE' : 'SAVED'}
                         </button>

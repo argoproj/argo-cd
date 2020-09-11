@@ -8,6 +8,7 @@ import {FieldData, FieldSizes, FieldTypes} from '../card/field';
 import {DocLinks} from '../doc-links';
 
 require('./summary.scss');
+require('../card/card.scss');
 
 interface SummaryProps {
     proj: Project;
@@ -108,7 +109,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             {this.descriptionChanged ? (
                                 <div className='project-summary__description--actions'>
                                     <button
-                                        className='project__button project__button-save'
+                                        className='card__button card__button-save'
                                         onClick={async () => {
                                             const update = {...this.state.proj};
                                             update.spec.description = this.state.description;
@@ -118,7 +119,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                                         SAVE
                                     </button>
                                     <button
-                                        className='project__button project__button-cancel'
+                                        className='card__button card__button-cancel'
                                         onClick={async () => {
                                             this.setState({description: this.props.proj.spec.description || ''});
                                         }}>
@@ -296,10 +297,10 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
             <div className='project-summary__monitoring-toggle'>
                 <b>{label}</b>
                 <div className='project__toggle'>
-                    <button className={`project__button project__button--on${status ? '__selected' : '__deselected'}`} onClick={() => change(true)}>
+                    <button className={`card__button card__button--on${status ? '__selected' : '__deselected'}`} onClick={() => change(true)}>
                         ON
                     </button>
-                    <button className={`project__button project__button--off${!status ? '__selected' : '__deselected'}`} onClick={() => change(false)}>
+                    <button className={`card__button card__button--off${!status ? '__selected' : '__deselected'}`} onClick={() => change(false)}>
                         OFF
                     </button>
                 </div>
