@@ -121,6 +121,11 @@
     width: $round-button-size;
   }
 
+  &__col-select-button {
+    flex-basis: $select-button-size;
+    width: $select-button-size;
+  }
+
   &__col-button {
     flex-basis: $button-width;
     width: $button-width;

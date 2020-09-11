@@ -84,18 +84,25 @@
   }
 
   &__button-select {
-    border: 2px solid $argo-success-color;
-    color: $argo-success-color;
+    border: 2px solid $argo-running-color;
+    border-radius: 3px;
+    color: $white-color;
     transition: all 300ms;
+    width: $select-button-size;
+    height: $select-button-size;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 
     &--selected {
-      color: white;
-      background-color: $argo-success-color;
+      @extend .project__button-select;
+      border-radius: 3px;
+      background-color: $argo-running-color;
     }
 
     &:hover {
-      color: $white-color;
-      background-color: $argo-success-color;
+      background-color: $argo-running-color;
     }
   }
 

@@ -72,10 +72,8 @@ export class CardRow<T> extends React.Component<CardRowProps<T>> {
         return (
             <div>
                 <div className='card__input-container card__row'>
-                    <div className='card__col-round-button card__col'>
-                        <button
-                            className={`project__button project__button-round project__button-select${this.props.selected ? '--selected' : ''}`}
-                            onClick={this.props.toggleSelect}>
+                    <div className='card__col-select-button card__col'>
+                        <button className={`project__button project__button-select${this.props.selected ? '--selected' : ''}`} onClick={this.props.toggleSelect}>
                             <i className='fa fa-check' />
                         </button>
                     </div>
@@ -122,7 +120,7 @@ export class CardRow<T> extends React.Component<CardRowProps<T>> {
 
         return (
             <div className='card__row'>
-                <div className='card__col-round-button card__col' />
+                <div className='card__col-select-button card__col' />
                 <div className={'card__col card__col-grow'}>{Banner(BannerType.Info, BannerIcon.Info, `Note: ${fieldList} are set to wildcard (*)`)}</div>
                 <div className='card__col-button card__col' />
             </div>

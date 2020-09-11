@@ -105,7 +105,7 @@ export class Card<T> extends React.Component<CardProps<T>, CardState<T>> {
                     {this.props.data && this.props.data.length > 0 ? (
                         <div>
                             <div className='card__row card__input-labels card__input-container'>
-                                <div className='card__col-round-button card__col' />
+                                <div className='card__col-select-button card__col' />
                                 {this.props.fields.map(field => {
                                     return (
                                         <div className={`card__input-labels--label card__col-input card__col card__col-${field.size}`} key={field.name + 'label'}>
