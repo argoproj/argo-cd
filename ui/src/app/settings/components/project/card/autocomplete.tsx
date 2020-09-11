@@ -1,6 +1,6 @@
 import * as React from 'react';
 import * as ReactAutocomplete from 'react-autocomplete';
-import {FieldValue} from './row';
+import {FieldValue} from './field';
 
 interface AutocompleteProps {
     onChange: (value: FieldValue) => void;

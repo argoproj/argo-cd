@@ -4,7 +4,7 @@ import {ApplicationDestination, GroupKind, OrphanedResource, Project, ProjectSig
 import {services} from '../../../../shared/services';
 import {GetProp, SetProp} from '../../utils';
 import {Card} from '../card/card';
-import {FieldData, FieldSizes, FieldTypes} from '../card/row';
+import {FieldData, FieldSizes, FieldTypes} from '../card/field';
 import {DocLinks} from '../doc-links';
 
 require('./summary.scss');
@@ -372,15 +372,15 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
         this.setState(update);
         this.setState({name: proj.metadata.name, proj});
     }
-    private async save(key: keyof ProjectSpec, idxs: number[], values: IterableSpecField[]): Promise<Project> {
+    private async save(key: keyof ProjectSpec, idxs: number[], values: IterableSpecField[]): Promise<any> {
         const update = {...this.state.proj};
         const arr = GetProp(this.state, key) as IterableSpecField[];
-        for (const i of idxs) {
-            arr[i] = values[i] as IterableSpecField;
-        }
+        values.forEach((value, i) => {
+            arr[idxs[i]] = values[i] as IterableSpecField;
+        });
         SetProp(update.spec, key as keyof ProjectSpec, arr);
         const res = await services.projects.updateLean(this.state.name, update);
         this.updateProject(res);
-        return res;
+        return GetProp(res.spec as ProjectSpec, key as keyof ProjectSpec);
     }
 }

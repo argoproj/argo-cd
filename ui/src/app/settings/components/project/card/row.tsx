@@ -1,42 +1,18 @@
 import * as React from 'react';
-import {Project} from '../../../../shared/models';
 import {GetProp, SetProp} from '../../utils';
 import {Banner, BannerIcon, BannerType} from '../banner/banner';
-import {ResourceKind, ResourceKindSelector} from '../resource-kind-selector';
-import {ArgoAutocomplete} from './autocomplete';
-
-export interface FieldData {
-    type: FieldTypes;
-    name: string;
-    size: FieldSizes;
-    values?: string[];
-}
-
-export enum FieldTypes {
-    Text = 'text',
-    ResourceKindSelector = 'resourceKindSelector',
-    Url = 'url',
-    AutoComplete = 'autoComplete'
-}
-
-export enum FieldSizes {
-    Normal = 'normal',
-    Large = 'large',
-    Grow = 'grow'
-}
+import {ArgoField, FieldData, FieldTypes, FieldValue} from './field';
 
 interface CardRowProps<T> {
     fields: FieldData[];
     data: T | FieldValue;
     remove: () => void;
-    save: (value: T | FieldValue) => Promise<Project>;
+    save: (value: T | FieldValue) => Promise<any>;
     selected: boolean;
     toggleSelect: () => void;
     changed: boolean;
     onChange: (value: T | FieldValue) => void;
 }
-
-export type FieldValue = string | ResourceKind;
 
 export class CardRow<T> extends React.Component<CardRowProps<T>> {
     get disabled(): boolean {
@@ -45,9 +21,6 @@ export class CardRow<T> extends React.Component<CardRowProps<T>> {
         }
         if (Object.keys(this.props.data).length < this.props.fields.length) {
             return true;
-        }
-        if (this.dataIsFieldValue) {
-            return this.props.data === '' || this.props.data === null;
         }
         for (const key of Object.keys(this.props.data)) {
             const cur = GetProp(this.props.data as T, key as keyof T).toString();
@@ -86,47 +59,12 @@ export class CardRow<T> extends React.Component<CardRowProps<T>> {
             ? (value: FieldValue, _: keyof T) => {
                   this.props.onChange(value);
               }
-            : (value: string, field: keyof T) => {
+            : (value: FieldValue, field: keyof T) => {
                   const change = {...(this.props.data as T)};
                   SetProp(change, field, value);
                   this.props.onChange(change);
               };
         update = update.bind(this);
-        const inputs = this.props.fields.map((field, i) => {
-            let format;
-            const curVal = this.dataIsFieldValue ? this.props.data : GetProp(this.props.data as T, field.name as keyof T);
-            switch (field.type) {
-                case FieldTypes.ResourceKindSelector:
-                    format = <ResourceKindSelector placeholder={field.name} init={curVal as ResourceKind} onChange={val => update(val, field.name as keyof T)} />;
-                    break;
-                case FieldTypes.AutoComplete:
-                    format = (
-                        <ArgoAutocomplete values={field.values || []} placeholder={field.name} onChange={val => update(val, field.name as keyof T)} init={curVal as FieldValue} />
-                    );
-                    break;
-                default:
-                    format = (
-                        <input
-                            type='text'
-                            className='card--input'
-                            value={curVal ? curVal.toString() : ''}
-                            onChange={e => update(e.target.value, field.name as keyof T)}
-                            placeholder={field.name}
-                        />
-                    );
-            }
-            return (
-                <div key={field.name} className={`card__col-input card__col card__col-${field.size}`}>
-                    {format}
-                    {field.type === FieldTypes.Url && (curVal as string) !== '' && (curVal as string) !== null && (curVal as string) !== '*' ? (
-                        <a className='card__link-icon' href={curVal as string} target='_blank'>
-                            <i className='fas fa-link' />
-                        </a>
-                    ) : null}
-                </div>
-            );
-        });
-
         return (
             <div>
                 <div className='card__input-container card__row'>
@@ -137,7 +75,14 @@ export class CardRow<T> extends React.Component<CardRowProps<T>> {
                             <i className='fa fa-check' />
                         </button>
                     </div>
-                    {inputs}
+                    {this.props.fields.map((field, i) => {
+                        const curVal = this.dataIsFieldValue ? this.props.data.toString() : GetProp(this.props.data as T, field.name as keyof T).toString();
+                        return (
+                            <div key={field.name} className={`card__col-input card__col card__col-${field.size}`}>
+                                <ArgoField field={field} onChange={val => update(val, field.name as keyof T)} data={curVal} />
+                            </div>
+                        );
+                    })}
                     <div className='card__col-button card__col'>
                         <button
                             className={`project__button project__button-${this.props.selected ? 'error' : this.disabled ? 'disabled' : this.props.changed ? 'save' : 'saved'}`}

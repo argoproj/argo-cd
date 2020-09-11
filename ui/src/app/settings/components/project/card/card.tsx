@@ -1,5 +1,6 @@
 import * as React from 'react';
-import {CardRow, FieldData, FieldTypes, FieldValue} from './row';
+import {FieldData, FieldTypes, FieldValue} from './field';
+import {CardRow} from './row';
 
 require('../project.scss');
 require('./card.scss');
@@ -10,7 +11,7 @@ interface CardProps<T> {
     fields: FieldData[];
     add: () => Promise<any>;
     remove: (i: number[]) => void;
-    save: (i: number[], values: (T | FieldValue)[]) => Promise<any>;
+    save: (i: number[], values: FieldValue[] | T[]) => Promise<any>;
     docs: string;
     fullWidth: boolean;
 }
@@ -53,22 +54,18 @@ export class Card<T> extends React.Component<CardProps<T>, CardState<T>> {
         });
         return arr;
     }
+    get changedVals(): [number[], T[]] {
+        const idxs: number[] = [];
+        const vals: T[] = [];
+        this.state.isChanged.forEach((s, idx) => {
+            if (s) {
+                idxs.push(idx);
+                vals.push(this.state.data[idx].value);
+            }
+        });
+        return [idxs, vals];
+    }
     public render() {
-        // let data = this.state.data;
-        // if (this.props.data) {
-        //     const sl = this.state.data ? this.state.data.length : 0;
-        //     const pl = this.props.data.length;
-        //     if (pl > sl) {
-        //         let n = pl - sl;
-        //         while (n > 0) {
-        //             const id = Math.random();
-        //             data.push({id, value: this.props.data[sl - n + 1]});
-        //             n -= 1;
-        //         }
-        //     } else if (sl > pl) {
-        //
-        //     }
-        // }
         return (
             <div className={`card white-box ${this.props.data && this.props.data.length > 0 ? '' : 'card__empty'} ${this.props.fullWidth ? 'card__full-width' : ''}`}>
                 <div className='white-box__details'>
@@ -86,7 +83,8 @@ export class Card<T> extends React.Component<CardProps<T>, CardState<T>> {
                                 <button
                                     className={'project__button project__button-save'}
                                     onClick={() => {
-                                        return;
+                                        const [i, v] = this.changedVals;
+                                        this.save(i, v);
                                     }}>
                                     SAVE ALL
                                 </button>
@@ -127,7 +125,7 @@ export class Card<T> extends React.Component<CardProps<T>, CardState<T>> {
                                             fields={this.props.fields}
                                             data={val}
                                             remove={() => this.remove([i])}
-                                            save={value => this.props.save([i], [value])}
+                                            save={value => this.save([i], [value as T])}
                                             selected={this.state.selected[i]}
                                             toggleSelect={() => this.toggleSelect(i)}
                                             onChange={r => this.updateRow(i, r as T)}
@@ -173,6 +171,16 @@ export class Card<T> extends React.Component<CardProps<T>, CardState<T>> {
         const value = await this.props.add();
         data.push({value, id: Math.random()});
         this.setState({data});
+    }
+    private async save(idxs: number[], values: T[]) {
+        await this.props.save(idxs, values);
+        const isChanged = this.state.isChanged;
+        const update = this.state.data;
+        values.forEach((value, i) => {
+            update[idxs[i]] = {value, id: Math.random()};
+            isChanged[idxs[i]] = false;
+        });
+        this.setState({isChanged, data: update, changeCount: 0});
     }
     private updateRow(i: number, r: T) {
         const data = [...this.state.data];
