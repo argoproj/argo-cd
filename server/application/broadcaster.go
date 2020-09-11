@@ -16,7 +16,10 @@ type broadcasterHandler struct {
 func (b *broadcasterHandler) notify(event *appv1.ApplicationWatchEvent) {
 	subscribers := b.subscribers
 	for i := range subscribers {
-		subscribers[i] <- event
+		s := subscribers[i]
+		go func() {
+			s <- event
+		}()
 	}
 }
 

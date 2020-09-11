@@ -558,6 +558,7 @@ func TestServer_GetApplicationSyncWindowsState(t *testing.T) {
 
 func TestGetCachedAppState(t *testing.T) {
 	testApp := newTestApp()
+	testApp.ObjectMeta.ResourceVersion = "1"
 	testApp.Spec.Project = "none"
 	appServer := newTestAppServer(testApp)
 
@@ -579,12 +580,15 @@ func TestGetCachedAppState(t *testing.T) {
 		fakeClientSet.WatchReactionChain = nil
 		fakeClientSet.AddReactor("patch", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			patched = true
-			watcher.Modify(testApp)
-			return true, nil, nil
+			updated := testApp.DeepCopy()
+			updated.ResourceVersion = "2"
+			appServer.appBroadcaster.OnUpdate(testApp, updated)
+			return true, testApp, nil
 		})
 		fakeClientSet.AddWatchReactor("applications", func(action kubetesting.Action) (handled bool, ret watch.Interface, err error) {
 			return true, watcher, nil
 		})
+
 		err := appServer.getCachedAppState(context.Background(), testApp, func() error {
 			res := cache.ErrCacheMiss
 			if retryCount == 1 {
