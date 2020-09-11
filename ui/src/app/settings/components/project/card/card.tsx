@@ -12,8 +12,9 @@ interface CardProps<T> {
     add: () => Promise<any>;
     remove: (i: number[]) => void;
     save: (i: number[], values: FieldValue[] | T[]) => Promise<any>;
-    docs: string;
+    docs?: string;
     fullWidth: boolean;
+    disabled?: boolean;
 }
 
 interface CardState<T> {
@@ -94,9 +95,11 @@ export class Card<T> extends React.Component<CardProps<T>, CardState<T>> {
                                     DELETE SELECTED
                                 </button>
                             ) : null}
-                            <button className='project__button project__button-add project__button-round' onClick={this.add}>
-                                <i className='fa fa-plus' />
-                            </button>
+                            {this.props.disabled ? null : (
+                                <button className='project__button project__button-add project__button-round' onClick={this.add}>
+                                    <i className='fa fa-plus' />
+                                </button>
+                            )}
                         </div>
                     </div>
                     {this.props.data && this.props.data.length > 0 ? (

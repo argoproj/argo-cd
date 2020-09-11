@@ -142,7 +142,6 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             add={() => this.addSpecItem(IterableSpecFieldNames.sourceRepos, '')}
                             remove={i => this.removeSpecItems(IterableSpecFieldNames.sourceRepos, i)}
                             save={(i, values) => this.save(IterableSpecFieldNames.sourceRepos, i, values as string[])}
-                            docs={null}
                             fullWidth={true}
                         />
                         <Card<ApplicationDestination>
@@ -152,7 +151,6 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             add={() => this.addSpecItem(IterableSpecFieldNames.destinations, {} as ApplicationDestination)}
                             remove={i => this.removeSpecItems(IterableSpecFieldNames.destinations, i)}
                             save={(i, values) => this.save(IterableSpecFieldNames.destinations, i, values as ApplicationDestination[])}
-                            docs={null}
                             fullWidth={true}
                         />
                     </div>
@@ -170,7 +168,6 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             add={() => this.addSpecItem(IterableSpecFieldNames.clusterResourceWhitelist, {} as GroupKind)}
                             remove={idxs => this.removeSpecItems(IterableSpecFieldNames.clusterResourceWhitelist, idxs)}
                             save={(i, values) => this.save(IterableSpecFieldNames.clusterResourceWhitelist, i, values as string[])}
-                            docs={null}
                             fullWidth={false}
                         />
                     </div>
@@ -188,7 +185,6 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             add={() => this.addSpecItem(IterableSpecFieldNames.clusterResourceBlacklist, {} as GroupKind)}
                             remove={idxs => this.removeSpecItems(IterableSpecFieldNames.clusterResourceBlacklist, idxs)}
                             save={(i, values) => this.save(IterableSpecFieldNames.clusterResourceBlacklist, i, values as string[])}
-                            docs={null}
                             fullWidth={false}
                         />
                         <Card<GroupKind>
@@ -198,7 +194,6 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             add={() => this.addSpecItem(IterableSpecFieldNames.namespaceResourceBlacklist, {} as GroupKind)}
                             remove={idxs => this.removeSpecItems(IterableSpecFieldNames.namespaceResourceBlacklist, idxs)}
                             save={(i, values) => this.save(IterableSpecFieldNames.namespaceResourceBlacklist, i, values as string[])}
-                            docs={null}
                             fullWidth={false}
                         />
                     </div>
@@ -216,7 +211,6 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             add={() => this.addSpecItem(IterableSpecFieldNames.signatureKeys, {} as ProjectSignatureKey)}
                             remove={i => this.removeSpecItems(IterableSpecFieldNames.signatureKeys, i)}
                             save={(i, values) => this.save(IterableSpecFieldNames.signatureKeys, i, values as string[])}
-                            docs={null}
                             fullWidth={false}
                         />
                     </div>
@@ -228,62 +222,62 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                     </div>
                     {this.toggleSwitch('MONITORING', this.orphanedResourceMonitoringEnabled, this.setOrphanedResourceMonitoring)}
                     <div className='project-summary__section--row'>
-                        {this.orphanedResourceMonitoringEnabled ? (
-                            <div>
-                                {this.toggleSwitch('WARN', this.orphanedResourceWarningEnabled, this.setOrphanedResourceWarning)}
-                                <Card<OrphanedResource>
-                                    title='Orphaned Resource Ignore List'
-                                    fields={this.state.fields.orphanedResources}
-                                    data={this.state.orphanedResources.ignore}
-                                    add={async () => {
-                                        const obj = GetProp(this.state as ProjectSpec, 'orphanedResources');
-                                        if (!obj || Object.keys(obj).length < 1) {
-                                            return;
-                                        }
-                                        if (!obj.ignore) {
-                                            obj.ignore = [];
-                                        }
-                                        obj.ignore.push({} as OrphanedResource);
-                                        const update = {...this.state};
-                                        SetProp(update, 'orphanedResources', obj);
-                                        this.setState(update);
-                                        return {} as OrphanedResource;
-                                    }}
-                                    remove={idxs => {
-                                        const obj = GetProp(this.state as ProjectSpec, 'orphanedResources');
-                                        if (!obj || Object.keys(obj).length < 1 || !obj.ignore) {
-                                            return;
-                                        }
-                                        const arr = obj.ignore;
-                                        if (arr.length < 1) {
-                                            return;
-                                        }
-                                        while (idxs.length) {
-                                            arr.splice(idxs.pop(), 1);
-                                        }
-                                        obj.ignore = arr;
-                                        const update = {...this.state};
-                                        SetProp(update, 'orphanedResources', obj);
-                                        this.setState(update);
-                                    }}
-                                    save={async (idxs, values) => {
-                                        const update = {...this.state.proj};
-                                        const obj = update.spec.orphanedResources;
-                                        const arr = obj.ignore;
-                                        for (const i of idxs) {
-                                            arr[i] = values[i] as OrphanedResource;
-                                        }
-                                        obj.ignore = arr;
-                                        update.spec.orphanedResources = obj;
-                                        const res = await services.projects.updateLean(this.state.name, update);
-                                        this.updateProject(res);
-                                        return res;
-                                    }}
-                                    docs={DocLinks.OrphanedResources}
-                                    fullWidth={false}
-                                />
-                            </div>
-                        ) : null}
+                        <div>
+                            {this.toggleSwitch('WARN', this.orphanedResourceWarningEnabled, this.setOrphanedResourceWarning)}
+                            <Card<OrphanedResource>
+                                title='Orphaned Resource Ignore List'
+                                fields={this.state.fields.orphanedResources}
+                                data={this.state.orphanedResources ? this.state.orphanedResources.ignore : null}
+                                add={async () => {
+                                    const obj = GetProp(this.state as ProjectSpec, 'orphanedResources');
+                                    if (!obj || Object.keys(obj).length < 1) {
+                                        return;
+                                    }
+                                    if (!obj.ignore) {
+                                        obj.ignore = [];
+                                    }
+                                    obj.ignore.push({} as OrphanedResource);
+                                    const update = {...this.state};
+                                    SetProp(update, 'orphanedResources', obj);
+                                    this.setState(update);
+                                    return {} as OrphanedResource;
+                                }}
+                                disabled={!this.orphanedResourceMonitoringEnabled}
+                                remove={idxs => {
+                                    const obj = GetProp(this.state as ProjectSpec, 'orphanedResources');
+                                    if (!obj || Object.keys(obj).length < 1 || !obj.ignore) {
+                                        return;
+                                    }
+                                    const arr = obj.ignore;
+                                    if (arr.length < 1) {
+                                        return;
+                                    }
+                                    while (idxs.length) {
+                                        arr.splice(idxs.pop(), 1);
+                                    }
+                                    obj.ignore = arr;
+                                    const update = {...this.state};
+                                    SetProp(update, 'orphanedResources', obj);
+                                    this.setState(update);
+                                }}
+                                save={async (idxs, values) => {
+                                    const update = {...this.state.proj};
+                                    const obj = update.spec.orphanedResources;
+                                    const arr = obj.ignore;
+                                    for (const i of idxs) {
+                                        arr[i] = values[i] as OrphanedResource;
+                                    }
+                                    obj.ignore = arr;
+                                    update.spec.orphanedResources = obj;
+                                    const res = await services.projects.updateLean(this.state.name, update);
+                                    this.updateProject(res);
+                                    return res;
+                                }}
+                                docs={DocLinks.OrphanedResources}
+                                fullWidth={false}
+                            />
+                        </div>
+                        {/*) : null}*/}
                     </div>
                 </div>
             </div>
