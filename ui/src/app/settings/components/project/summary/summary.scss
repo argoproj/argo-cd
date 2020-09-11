@@ -27,9 +27,10 @@
       appearance: none;
       font-weight: 500;
       color: $argo-color-gray-7;
-      flex-grow: 1;
       margin-left: 10px;
-
+      border-bottom: 2px solid $argo-running-color;
+      padding: 7px 0;
+      width: 60%;
       &:focus {
         color: darken($argo-running-color, 15%);
       }
