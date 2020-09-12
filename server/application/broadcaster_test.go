@@ -15,7 +15,7 @@ func TestBroadcasterHandler_SubscribeUnsubscribe(t *testing.T) {
 	subscriber := make(chan *appv1.ApplicationWatchEvent)
 	unsubscribe := broadcaster.Subscribe(subscriber)
 
-	assert.ElementsMatch(t, broadcaster.subscribers, []chan *appv1.ApplicationWatchEvent{subscriber})
+	assert.Len(t, broadcaster.subscribers, 1)
 
 	unsubscribe()
 	assert.Empty(t, broadcaster.subscribers)
@@ -24,8 +24,8 @@ func TestBroadcasterHandler_SubscribeUnsubscribe(t *testing.T) {
 func TestBroadcasterHandler_ReceiveEvents(t *testing.T) {
 	broadcaster := broadcasterHandler{}
 
-	subscriber1 := make(chan *appv1.ApplicationWatchEvent)
-	subscriber2 := make(chan *appv1.ApplicationWatchEvent)
+	subscriber1 := make(chan *appv1.ApplicationWatchEvent, 1000)
+	subscriber2 := make(chan *appv1.ApplicationWatchEvent, 1000)
 
 	_ = broadcaster.Subscribe(subscriber1)
 	_ = broadcaster.Subscribe(subscriber2)
