@@ -317,8 +317,11 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 	}
 	appIf := s.appclientset.ArgoprojV1alpha1().Applications(s.ns)
 
-	events := make(chan *appv1.ApplicationWatchEvent)
-	unsubscribe := s.appBroadcaster.Subscribe(events)
+	// subscribe early with buffered channel to ensure we don't miss events
+	events := make(chan *appv1.ApplicationWatchEvent, 100)
+	unsubscribe := s.appBroadcaster.Subscribe(events, func(event *appv1.ApplicationWatchEvent) bool {
+		return event.Application.Name == q.GetName()
+	})
 	defer unsubscribe()
 
 	app, err := argoutil.RefreshApp(appIf, *q.Name, refreshType)
