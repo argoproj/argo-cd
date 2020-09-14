@@ -9,6 +9,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/sync/semaphore"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -73,6 +74,8 @@ func NewLiveStateCache(
 		kubectl:         kubectl,
 		settingsMgr:     settingsMgr,
 		metricsServer:   metricsServer,
+		// The default limit of 50 is chosen based on experiments.
+		listSemaphore: semaphore.NewWeighted(50),
 	}
 }
 
@@ -88,6 +91,10 @@ type liveStateCache struct {
 	kubectl         kube.Kubectl
 	settingsMgr     *settings.SettingsManager
 	metricsServer   *metrics.MetricsServer
+
+	// listSemaphore is used to limit the number of concurrent memory consuming operations on the
+	// k8s list queries results across all clusters to avoid memory spikes during cache initialization.
+	listSemaphore *semaphore.Weighted
 
 	clusters      map[string]clustercache.ClusterCache
 	cacheSettings cacheSettings
@@ -232,6 +239,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 	}
 
 	clusterCache = clustercache.NewClusterCache(cluster.RESTConfig(),
+		clustercache.SetListSemaphore(c.listSemaphore),
 		clustercache.SetResyncTimeout(common.K8SClusterResyncDuration),
 		clustercache.SetSettings(cacheSettings.clusterSettings),
 		clustercache.SetNamespaces(cluster.Namespaces),
