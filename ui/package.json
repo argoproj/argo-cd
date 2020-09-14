@@ -85,6 +85,7 @@
     "@babel/preset-env": "^7.7.1",
     "@babel/preset-react": "^7.7.0",
     "@babel/preset-typescript": "^7.7.2",
+    "@beyonk/google-fonts-webpack-plugin": "^1.5.0",
     "@types/jest": "^24.0.13",
     "@types/react-test-renderer": "^16.8.3",
     "add": "^2.0.6",
