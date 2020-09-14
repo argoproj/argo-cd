@@ -1716,23 +1716,23 @@ value, in the values.yaml such that the value is stable between each comparison.
 <p>But sometimes it happens you would like to use custom plugin. One of the cases is that you would like to use Google Cloud Storage or Amazon S3 storage to save the Helm charts, for example: https://github.com/hayorov/helm-gcs where you can use <code>gs://</code> protocol for Helm chart repository access.</p>
 <p>In order to do that you have to prepare your own ArgoCD image with installed plugins.</p>
 <p>Example <code>Dockerfile</code>:</p>
-<div class="codehilite"><pre><span></span><code>FROM argoproj/argocd:v1.5.7
+<div class="codehilite"><pre><span></span><code><span class="n">FROM</span> <span class="n">argoproj</span><span class="o">/</span><span class="n">argocd</span><span class="p">:</span><span class="n">v1</span><span class="o">.</span><span class="mf">5.7</span>
 
-USER root
-RUN apt-get update <span class="err">&amp;&amp;</span> \
-    apt-get install -y \
-        curl <span class="err">&amp;&amp;</span> \
-    apt-get clean <span class="err">&amp;&amp;</span> \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+<span class="n">USER</span> <span class="n">root</span>
+<span class="n">RUN</span> <span class="n">apt</span><span class="o">-</span><span class="n">get</span> <span class="n">update</span> <span class="o">&amp;&amp;</span> \
+    <span class="n">apt</span><span class="o">-</span><span class="n">get</span> <span class="n">install</span> <span class="o">-</span><span class="n">y</span> \
+        <span class="n">curl</span> <span class="o">&amp;&amp;</span> \
+    <span class="n">apt</span><span class="o">-</span><span class="n">get</span> <span class="n">clean</span> <span class="o">&amp;&amp;</span> \
+    <span class="n">rm</span> <span class="o">-</span><span class="n">rf</span> <span class="o">/</span><span class="k">var</span><span class="o">/</span><span class="n">lib</span><span class="o">/</span><span class="n">apt</span><span class="o">/</span><span class="n">lists</span><span class="o">/*</span> <span class="o">/</span><span class="n">tmp</span><span class="o">/*</span> <span class="o">/</span><span class="k">var</span><span class="o">/</span><span class="n">tmp</span><span class="o">/*</span>
 
-USER argocd
+<span class="n">USER</span> <span class="n">argocd</span>
 
-ARG GCS_PLUGIN_VERSION=&quot;0.3.5&quot;
-ARG GCS_PLUGIN_REPO=&quot;https://github.com/hayorov/helm-gcs.git&quot;
+<span class="n">ARG</span> <span class="n">GCS_PLUGIN_VERSION</span><span class="o">=</span><span class="s2">&quot;0.3.5&quot;</span>
+<span class="n">ARG</span> <span class="n">GCS_PLUGIN_REPO</span><span class="o">=</span><span class="s2">&quot;https://github.com/hayorov/helm-gcs.git&quot;</span>
 
-RUN helm plugin install <span class="cp">${</span><span class="n">GCS_PLUGIN_REPO</span><span class="cp">}</span> --version <span class="cp">${</span><span class="n">GCS_PLUGIN_VERSION</span><span class="cp">}</span>
+<span class="n">RUN</span> <span class="n">helm</span> <span class="n">plugin</span> <span class="n">install</span> <span class="o">$</span><span class="p">{</span><span class="n">GCS_PLUGIN_REPO</span><span class="p">}</span> <span class="o">--</span><span class="n">version</span> <span class="o">$</span><span class="p">{</span><span class="n">GCS_PLUGIN_VERSION</span><span class="p">}</span>
 
-ENV HELM_PLUGINS=&quot;/home/argocd/.local/share/helm/plugins/&quot;
+<span class="n">ENV</span> <span class="n">HELM_PLUGINS</span><span class="o">=</span><span class="s2">&quot;/home/argocd/.local/share/helm/plugins/&quot;</span>
 </code></pre></div>
 
 
