@@ -58,7 +58,26 @@ func (a *Actions) AddSignedFile(fileName, fileContents string) *Actions {
 	return a
 }
 
-func (a *Actions) CreateFromFile(handler func(app *Application)) *Actions {
+func (a *Actions) CreateFromPartialFile(data string, flags ...string) *Actions {
+	a.context.t.Helper()
+	tmpFile, err := ioutil.TempFile("", "")
+	errors.CheckError(err)
+	_, err = tmpFile.Write([]byte(data))
+	errors.CheckError(err)
+
+	args := append([]string{
+		"app", "create",
+		"-f", tmpFile.Name(),
+		"--name", a.context.name,
+		"--repo", fixture.RepoURL(a.context.repoURLType),
+		"--dest-server", a.context.destServer,
+		"--dest-namespace", fixture.DeploymentNamespace(),
+	}, flags...)
+
+	a.runCli(args...)
+	return a
+}
+func (a *Actions) CreateFromFile(handler func(app *Application), flags ...string) *Actions {
 	a.context.t.Helper()
 	app := &Application{
 		ObjectMeta: v1.ObjectMeta{
@@ -108,7 +127,12 @@ func (a *Actions) CreateFromFile(handler func(app *Application)) *Actions {
 	_, err = tmpFile.Write(data)
 	errors.CheckError(err)
 
-	a.runCli("app", "create", "-f", tmpFile.Name())
+	args := append([]string{
+		"app", "create",
+		"-f", tmpFile.Name(),
+	}, flags...)
+
+	a.runCli(args...)
 	return a
 }
 

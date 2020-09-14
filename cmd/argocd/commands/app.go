@@ -151,8 +151,15 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 					log.Fatalf("app name '%s' does not match app spec metadata.name '%s'", args[0], app.Name)
 				}
 				if appName != "" && appName != app.Name {
-					log.Fatalf("--name argument '%s' does not match app spec metadata.name '%s'", appName, app.Name)
+					app.Name = appName
 				}
+				if app.Name == "" {
+					log.Fatalf("app.Name is empty. --name argument can be used to provide app.Name")
+				}
+				setAppSpecOptions(c.Flags(), &app.Spec, &appOpts)
+				setParameterOverrides(&app, appOpts.parameters)
+				setLabels(&app, labels)
+
 			} else {
 				// read arguments
 				if len(args) == 1 {

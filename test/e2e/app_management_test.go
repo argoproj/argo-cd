@@ -1383,3 +1383,24 @@ func TestCreateDisableValidation(t *testing.T) {
 		AppSet("--path", "baddir3", "--validate=false")
 
 }
+
+func TestCreateFromPartialFile(t *testing.T) {
+	partialApp :=
+		`spec:
+  syncPolicy:
+    automated: {prune: true }`
+
+	path := "helm-values"
+	Given(t).
+		When().
+		// app should be auto-synced once created
+		CreateFromPartialFile(partialApp, "--path", path, "--helm-set", "foo=foo").
+		Then().
+		Expect(Success("")).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(NoConditions()).
+		And(func(app *Application) {
+			assert.Equal(t, path, app.Spec.Source.Path)
+			assert.Equal(t, []HelmParameter{{Name: "foo", Value: "foo"}}, app.Spec.Source.Helm.Parameters)
+		})
+}
