@@ -660,7 +660,7 @@ type SyncPolicyAutomated struct {
 
 // SyncStrategy controls the manner in which a sync is performed
 type SyncStrategy struct {
-	// Apply wil perform a `kubectl apply` to perform the sync.
+	// Apply will perform a `kubectl apply` to perform the sync.
 	Apply *SyncStrategyApply `json:"apply,omitempty" protobuf:"bytes,1,opt,name=apply"`
 	// Hook will submit any referenced resources to perform the sync. This is the default strategy
 	Hook *SyncStrategyHook `json:"hook,omitempty" protobuf:"bytes,2,opt,name=hook"`

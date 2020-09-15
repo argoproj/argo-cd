@@ -297,7 +297,7 @@ spec:
                   description: SyncStrategy describes how to perform the sync
                   properties:
                     apply:
-                      description: Apply wil perform a `kubectl apply` to perform the sync.
+                      description: Apply will perform a `kubectl apply` to perform the sync.
                       properties:
                         force:
                           description: Force indicates whether or not to supply the --force flag to `kubectl apply`. The --force flag deletes and re-create the resource, when PATCH encounters conflict and has retried for 5 times.
@@ -1112,7 +1112,7 @@ spec:
                           description: SyncStrategy describes how to perform the sync
                           properties:
                             apply:
-                              description: Apply wil perform a `kubectl apply` to perform the sync.
+                              description: Apply will perform a `kubectl apply` to perform the sync.
                               properties:
                                 force:
                                   description: Force indicates whether or not to supply the --force flag to `kubectl apply`. The --force flag deletes and re-create the resource, when PATCH encounters conflict and has retried for 5 times.

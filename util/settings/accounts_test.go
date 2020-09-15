@@ -70,6 +70,27 @@ func TestGetAccount(t *testing.T) {
 	})
 }
 
+func TestGetAccount_WithInvalidToken(t *testing.T) {
+	_, settingsManager := fixtures(map[string]string{
+		"accounts.user1":       "apiKey",
+		"accounts.invaliduser": "apiKey",
+		"accounts.user2":       "apiKey",
+	},
+		func(secret *v1.Secret) {
+			secret.Data["accounts.user1.tokens"] = []byte(`[{"id":"1","iat":158378932,"exp":1583789194}]`)
+		},
+		func(secret *v1.Secret) {
+			secret.Data["accounts.invaliduser.tokens"] = []byte("Invalid token")
+		},
+		func(secret *v1.Secret) {
+			secret.Data["accounts.user2.tokens"] = []byte(`[{"id":"2","iat":1583789194,"exp":1583784545}]`)
+		},
+	)
+
+	_, err := settingsManager.GetAccounts()
+	assert.NoError(t, err)
+}
+
 func TestGetAdminAccount(t *testing.T) {
 	mTime := time.Now().Format(time.RFC3339)
 	_, settingsManager := fixtures(nil, func(secret *v1.Secret) {

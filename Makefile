@@ -48,6 +48,7 @@ ARGOCD_LINT_GOGC?=20
 define run-in-test-server
 	docker run --rm -it \
 		--name argocd-test-server \
+		-u $(shell id -u):$(shell id -g) \
 		-e USER_ID=$(shell id -u) \
 		-e HOME=/home/user \
 		-e GOPATH=/go \
@@ -71,7 +72,7 @@ endef
 define run-in-test-client
 	docker run --rm -it \
 	  --name argocd-test-client \
-		-u $(shell id -u) \
+		-u $(shell id -u):$(shell id -g) \
 		-e HOME=/home/user \
 		-e GOPATH=/go \
 		-e ARGOCD_E2E_K3S=$(ARGOCD_E2E_K3S) \
@@ -89,7 +90,7 @@ endef
 
 # 
 define exec-in-test-server
-	docker exec -it -u $(shell id -u) -e ARGOCD_E2E_K3S=$(ARGOCD_E2E_K3S) argocd-test-server $(1)
+	docker exec -it -u $(shell id -u):$(shell id -g) -e ARGOCD_E2E_K3S=$(ARGOCD_E2E_K3S) argocd-test-server $(1)
 endef
 
 PATH:=$(PATH):$(PWD)/hack
@@ -193,7 +194,7 @@ argocd-util: clean-debug
 
 .PHONY: test-tools-image
 test-tools-image:
-	docker build -t $(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE) -f test/container/Dockerfile .
+	docker build --build-arg UID=$(shell id -u) -t $(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE) -f test/container/Dockerfile .
 	docker tag $(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE) $(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE):$(TEST_TOOLS_TAG)
 
 .PHONY: manifests-local
@@ -367,7 +368,6 @@ start-e2e-local:
 	if test -d /tmp/argo-e2e/app/config/gpg; then rm -rf /tmp/argo-e2e/app/config/gpg/*; fi
 	mkdir -p /tmp/argo-e2e/app/config/gpg/keys && chmod 0700 /tmp/argo-e2e/app/config/gpg/keys
 	mkdir -p /tmp/argo-e2e/app/config/gpg/source && chmod 0700 /tmp/argo-e2e/app/config/gpg/source
-	if test "$(USER_ID)" != ""; then chown -R "$(USER_ID)" /tmp/argo-e2e; fi
 	# set paths for locally managed ssh known hosts and tls certs data
 	ARGOCD_SSH_DATA_PATH=/tmp/argo-e2e/app/config/ssh \
 	ARGOCD_TLS_DATA_PATH=/tmp/argo-e2e/app/config/tls \

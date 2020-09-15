@@ -249,8 +249,6 @@ func TestTrackAppStateAndSyncApp(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
-		Expect(Success(fmt.Sprintf("apps  Deployment  %s          guestbook-ui  OutOfSync  Missing", DeploymentNamespace()))).
-		Expect(Success(fmt.Sprintf("Service  %s          guestbook-ui  OutOfSync  Missing", DeploymentNamespace()))).
 		Expect(Success(fmt.Sprintf("Service     %s  guestbook-ui  Synced ", DeploymentNamespace()))).
 		Expect(Success(fmt.Sprintf("apps   Deployment  %s  guestbook-ui  Synced", DeploymentNamespace()))).
 		Expect(Event(EventReasonResourceUpdated, "sync")).
@@ -1382,4 +1380,25 @@ func TestCreateDisableValidation(t *testing.T) {
 		When().
 		AppSet("--path", "baddir3", "--validate=false")
 
+}
+
+func TestCreateFromPartialFile(t *testing.T) {
+	partialApp :=
+		`spec:
+  syncPolicy:
+    automated: {prune: true }`
+
+	path := "helm-values"
+	Given(t).
+		When().
+		// app should be auto-synced once created
+		CreateFromPartialFile(partialApp, "--path", path, "--helm-set", "foo=foo").
+		Then().
+		Expect(Success("")).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(NoConditions()).
+		And(func(app *Application) {
+			assert.Equal(t, path, app.Spec.Source.Path)
+			assert.Equal(t, []HelmParameter{{Name: "foo", Value: "foo"}}, app.Spec.Source.Helm.Parameters)
+		})
 }
