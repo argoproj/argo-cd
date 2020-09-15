@@ -112,37 +112,36 @@ func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 					}] = true
 				}
 
-				if port, ok, err := unstructured.NestedFieldNoCopy(path, "backend", "servicePort"); ok && err == nil && host != "" && host != nil {
-					stringPort := ""
-					switch typedPod := port.(type) {
-					case int64:
-						stringPort = fmt.Sprintf("%d", typedPod)
-					case float64:
-						stringPort = fmt.Sprintf("%d", int64(typedPod))
-					case string:
-						stringPort = typedPod
-					default:
-						stringPort = fmt.Sprintf("%v", port)
+				stringPort := "http"
+				if tls, ok, err := unstructured.NestedSlice(un.Object, "spec", "tls"); ok && err == nil {
+					for i := range tls {
+						tlsline, ok := tls[i].(map[string]interface{})
+						secretName := tlsline["secretName"]
+						if ok && secretName != nil {
+							stringPort = "https"
+						}
+						tlshost := tlsline["host"]
+						if tlshost == host {
+							stringPort = "https"
+						}
 					}
-
-					var externalURL string
-					switch stringPort {
-					case "80", "http":
-						externalURL = fmt.Sprintf("http://%s", host)
-					case "443", "https":
-						externalURL = fmt.Sprintf("https://%s", host)
-					default:
-						externalURL = fmt.Sprintf("http://%s:%s", host, stringPort)
-					}
-
-					subPath := ""
-					if nestedPath, ok, err := unstructured.NestedString(path, "path"); ok && err == nil {
-						subPath = nestedPath
-					}
-
-					externalURL += subPath
-					urlsSet[externalURL] = true
 				}
+
+				var externalURL string
+				switch stringPort {
+				case "http":
+					externalURL = fmt.Sprintf("http://%s", host)
+				case "https":
+					externalURL = fmt.Sprintf("https://%s", host)
+				}
+
+				subPath := ""
+				if nestedPath, ok, err := unstructured.NestedString(path, "path"); ok && err == nil {
+					subPath = nestedPath
+				}
+
+				externalURL += subPath
+				urlsSet[externalURL] = true
 			}
 		}
 	}
