@@ -3773,7 +3773,7 @@ func schema_pkg_apis_application_v1alpha1_SyncStrategy(ref common.ReferenceCallb
 				Properties: map[string]spec.Schema{
 					"apply": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Apply wil perform a `kubectl apply` to perform the sync.",
+							Description: "Apply will perform a `kubectl apply` to perform the sync.",
 							Ref:         ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncStrategyApply"),
 						},
 					},
