@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	goio "io"
 	"reflect"
 	"sort"
 	"strconv"
@@ -1052,9 +1053,15 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 	done := make(chan bool)
 	gracefulExit := false
 	go func() {
-		scanner := bufio.NewScanner(stream)
-		for scanner.Scan() {
-			line := scanner.Text()
+		bufReader := bufio.NewReader(stream)
+
+		for {
+			line, err := bufReader.ReadString('\n')
+			if err != nil {
+				// Error or io.EOF
+				break
+			}
+			line = strings.TrimSpace(line) // Remove trailing line ending
 			parts := strings.Split(line, " ")
 			logTime, err := time.Parse(time.RFC3339, parts[0])
 			metaLogTime := metav1.NewTime(logTime)
@@ -1074,11 +1081,11 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 			}
 		}
 		if gracefulExit {
-			logCtx.Info("k8s pod logs scanner completed due to closed grpc context")
-		} else if err := scanner.Err(); err != nil {
-			logCtx.Warnf("k8s pod logs scanner failed with error: %v", err)
+			logCtx.Info("k8s pod logs reader completed due to closed grpc context")
+		} else if err != nil && err != goio.EOF {
+			logCtx.Warnf("k8s pod logs reader failed with error: %v", err)
 		} else {
-			logCtx.Info("k8s pod logs scanner completed with EOF")
+			logCtx.Info("k8s pod logs reader completed with EOF")
 		}
 		close(done)
 	}()
