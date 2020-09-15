@@ -876,3 +876,52 @@ func Test_GetTLSConfiguration(t *testing.T) {
 		assert.Contains(t, getCNFromCertificate(settings.Certificate), "Argo CD E2E")
 	})
 }
+
+func TestSecretKeyRef(t *testing.T){
+	data := map[string]string{
+		"dex.config": `
+      connectors:
+        # GitHub example
+        - type: github
+          id: github
+          name: GitHub
+          config:
+            clientID: aabbccddeeff00112233
+            clientSecretSecretRef:
+              name: google
+              key: clientSecret
+            orgs:
+              - name: your-github-org`,
+	}
+	cm := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDConfigMapName,
+			Namespace: "default",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+		Data: data,
+	}
+	secret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "google",
+			Namespace: "default",
+		},
+		Data: map[string][]byte{
+			"clientSecret": []byte("deadbeef"),
+		},
+	}
+	kubeClient := fake.NewSimpleClientset(cm, secret)
+	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+	cm, err := kubeClient.CoreV1().ConfigMaps("default").Get(context.Background(), common.ArgoCDConfigMapName, metav1.GetOptions{})
+	assert.NoError(t, err)
+	updatedData := make(map[string]interface{})
+	for k, v := range cm.Data {
+		updatedData[k] = v
+	}
+
+	updatedData, err = settingsManager.updateMapSecretRef(updatedData)
+	assert.NoError(t, err)
+	assert.Contains(t, updatedData["dex.config"], "clientSecret: deadbeef")
+}

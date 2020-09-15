@@ -448,6 +448,17 @@ func (mgr *SettingsManager) getConfigMap() (*apiv1.ConfigMap, error) {
 	}
 	if argoCDCM.Data == nil {
 		argoCDCM.Data = make(map[string]string)
+	} else {
+		// Update ArgoCDConfigMap with K8S Secret referenced content
+		updatedData := make(map[string]interface{})
+		for k, v := range argoCDCM.Data {
+			updatedData[k] = v
+		}
+
+		updatedData, err := mgr.updateMapSecretRef(updatedData)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return argoCDCM, err
 }
@@ -1513,6 +1524,72 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 		return mgr.GetSettings()
 	}
 	return cdSettings, nil
+}
+
+// Update data with K8S Secret referenced content
+func (mgr *SettingsManager) updateMapSecretRef(data map[string]interface{}) (map[string]interface{}, error) {
+	updatedData := make(map[string]interface{})
+	suffix := "SecretRef"
+	for key, value := range data {
+		if strings.HasSuffix(key, suffix) { // ex. ClientSecretSecretRef
+			var secretRef apiv1.SecretKeySelector
+			// Make sure value apiv1.SecretKeySelector struct
+			tmp, _ := yaml.Marshal(value)
+			err := yaml.Unmarshal([]byte(tmp), &secretRef)
+			if err != nil {
+				return data, err
+			}
+
+			// Fetch K8S Secret
+			k8sSecret, err := mgr.clientset.CoreV1().Secrets(mgr.namespace).Get(context.Background(), secretRef.Name, metav1.GetOptions{})
+			if err != nil {
+				return data, err
+			}
+			secretKey := strings.Replace(key, suffix, "", 1)
+			data[secretKey] = string(k8sSecret.Data[secretRef.Key])
+			delete(data, key)
+		}
+		unmarshaled := false
+		if s, ok := value.(string); ok {
+			// This might be a YAML multiline string
+			unmarshaled = true
+			var tmp interface{}
+			err := yaml.Unmarshal([]byte(s), &tmp)
+			if err != nil {
+				return updatedData, nil
+			}
+			value = tmp
+		}
+
+		switch b := value.(type) {
+		case map[string]interface{}:
+			updatedData[key], _ = mgr.updateMapSecretRef(b)
+		case []interface{}:
+			updatedData[key], _ = mgr.updateListSecretRef(b)
+		case string:
+			updatedData[key] = value
+		}
+		if unmarshaled {
+			yamlStr, _ := yaml.Marshal(value)
+			updatedData[key] = string(yamlStr)
+		}
+	}
+	return updatedData, nil
+}
+
+func (mgr *SettingsManager) updateListSecretRef(data []interface{}) ([]interface{}, error) {
+	updatedData := make([]interface{}, len(data))
+	for index, value := range data {
+		switch v := value.(type) {
+		case map[string]interface{}:
+			updatedData[index], _ = mgr.updateMapSecretRef(v)
+		case []interface{}:
+			updatedData[index], _ = mgr.updateListSecretRef(v)
+		default:
+			updatedData[index] = value
+		}
+	}
+	return updatedData, nil
 }
 
 // ReplaceStringSecret checks if given string is a secret key reference ( starts with $ ) and returns corresponding value from provided map
