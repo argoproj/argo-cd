@@ -78,7 +78,9 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                         </div>
                                     </div>
                                     <div className='row'>
-                                        <div className='columns small-3' title='Status:'>Status:</div>
+                                        <div className='columns small-3' title='Status:'>
+                                            Status:
+                                        </div>
                                         <div className='columns small-9'>
                                             <AppUtils.HealthStatusIcon state={app.status.health} /> {app.status.health.status}
                                             &nbsp;
