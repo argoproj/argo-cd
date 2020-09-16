@@ -47,7 +47,7 @@ import (
 	"github.com/argoproj/argo-cd/util/security"
 	"github.com/argoproj/argo-cd/util/text"
 )
-d
+
 // Service implements ManifestService interface
 type Service struct {
 	repoLock                  sync.KeyLock
