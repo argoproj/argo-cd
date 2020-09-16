@@ -47,11 +47,15 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                         </div>
                                     </div>
                                     <div className='row'>
-                                        <div className='columns small-3' title='Project:'>Project:</div>
+                                        <div className='columns small-3' title='Project:'>
+                                            Project:
+                                        </div>
                                         <div className='columns small-9'>{app.spec.project}</div>
                                     </div>
                                     <div className='row'>
-                                        <div className='columns small-3' title='Labels:'>Labels:</div>
+                                        <div className='columns small-3' title='Labels:'>
+                                            Labels:
+                                        </div>
                                         <div className='columns small-9'>
                                             <Tooltip
                                                 content={
@@ -84,7 +88,9 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                         </div>
                                     </div>
                                     <div className='row'>
-                                        <div className='columns small-3' title='Repository:'>Repository:</div>
+                                        <div className='columns small-3' title='Repository:'>
+                                            Repository:
+                                        </div>
                                         <div className='columns small-9'>
                                             <Tooltip content={app.spec.source.repoURL}>
                                                 <span>{app.spec.source.repoURL}</span>
@@ -92,27 +98,37 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                         </div>
                                     </div>
                                     <div className='row'>
-                                        <div className='columns small-3' title='Target Revision:'>Target Revision:</div>
+                                        <div className='columns small-3' title='Target Revision:'>
+                                            Target Revision:
+                                        </div>
                                         <div className='columns small-9'>{app.spec.source.targetRevision}</div>
                                     </div>
                                     {app.spec.source.path && (
                                         <div className='row'>
-                                            <div className='columns small-3' title='Path:'>Path:</div>
+                                            <div className='columns small-3' title='Path:'>
+                                                Path:
+                                            </div>
                                             <div className='columns small-9'>{app.spec.source.path}</div>
                                         </div>
                                     )}
                                     {app.spec.source.chart && (
                                         <div className='row'>
-                                            <div className='columns small-3' title='Chart:'>Chart:</div>
+                                            <div className='columns small-3' title='Chart:'>
+                                                Chart:
+                                            </div>
                                             <div className='columns small-9'>{app.spec.source.chart}</div>
                                         </div>
                                     )}
                                     <div className='row'>
-                                        <div className='columns small-3' title='Destination:'>Destination:</div>
+                                        <div className='columns small-3' title='Destination:'>
+                                            Destination:
+                                        </div>
                                         <div className='columns small-9'>{getDestination(app.spec.destination)}</div>
                                     </div>
                                     <div className='row'>
-                                        <div className='columns small-3' title='Namespace:'>Namespace:</div>
+                                        <div className='columns small-3' title='Namespace:'>
+                                            Namespace:
+                                        </div>
                                         <div className='columns small-9'>{app.spec.destination.namespace}</div>
                                     </div>
                                     <div className='row'>
