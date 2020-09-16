@@ -235,6 +235,7 @@ func enrichSpec(spec *argoappv1.ApplicationSpec, appDetails *apiclient.RepoAppDe
 // ValidateDestination checks:
 // if we used destination name we infer the server url
 // if we used both name and server then we return an invalid spec error
+// if we specified a namespace that is not managed by argo, then we return an invalid spec error
 func ValidateDestination(ctx context.Context, dest *argoappv1.ApplicationDestination, db db.ArgoDB) error {
 	if dest.Name != "" {
 		if dest.Server == "" {
@@ -252,6 +253,25 @@ func ValidateDestination(ctx context.Context, dest *argoappv1.ApplicationDestina
 			}
 		}
 	}
+
+	cluster, err := db.GetCluster(ctx, dest.Server)
+	if err != nil {
+		return fmt.Errorf("unable to find cluster for destination server: %s: %v", dest.Server, err)
+	}
+	if len(cluster.Namespaces) > 0 {
+		found := false
+		for _, v := range cluster.Namespaces {
+			if v == dest.Namespace {
+				// don't return nil here, otherwise if other checks are added after, this code would need to be changed
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("application destination namespace is not managed by ArgoCD: %s", dest.Namespace)
+		}
+	}
+
 	return nil
 }
 

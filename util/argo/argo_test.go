@@ -557,7 +557,13 @@ func TestValidateDestination(t *testing.T) {
 			Namespace: "default",
 		}
 
-		appCond := ValidateDestination(context.Background(), &dest, nil)
+		db := &dbmocks.ArgoDB{}
+		db.On("GetCluster", context.Background(), "https://127.0.0.1:6443").Return(&argoappv1.Cluster{
+			Name:   "minikube",
+			Server: "https://127.0.0.1:6443",
+		}, nil)
+
+		appCond := ValidateDestination(context.Background(), &dest, db)
 		assert.Nil(t, appCond)
 		assert.False(t, dest.IsServerInferred())
 	})
@@ -575,6 +581,11 @@ func TestValidateDestination(t *testing.T) {
 					Server: "https://127.0.0.1:6443",
 				},
 			},
+		}, nil)
+
+		db.On("GetCluster", context.Background(), "https://127.0.0.1:6443").Return(&argoappv1.Cluster{
+			Name:   "minikube",
+			Server: "https://127.0.0.1:6443",
 		}, nil)
 
 		appCond := ValidateDestination(context.Background(), &dest, db)
@@ -652,4 +663,64 @@ func TestValidateDestination(t *testing.T) {
 		assert.False(t, dest.IsServerInferred())
 	})
 
+	t.Run("Validate cluster manages all namespaces", func(t *testing.T) {
+		dest := argoappv1.ApplicationDestination{
+			Server:    "https://127.0.0.1:6443",
+			Namespace: "default",
+		}
+
+		db := &dbmocks.ArgoDB{}
+		db.On("GetCluster", context.Background(), "https://127.0.0.1:6443").Return(&argoappv1.Cluster{
+			Name:       "minikube",
+			Server:     "https://127.0.0.1:6443",
+			Namespaces: nil,
+		}, nil)
+
+		appCond := ValidateDestination(context.Background(), &dest, db)
+		assert.Nil(t, appCond)
+
+		db = &dbmocks.ArgoDB{}
+		db.On("GetCluster", context.Background(), "https://127.0.0.1:6443").Return(&argoappv1.Cluster{
+			Name:       "minikube",
+			Server:     "https://127.0.0.1:6443",
+			Namespaces: []string{},
+		}, nil)
+
+		appCond = ValidateDestination(context.Background(), &dest, db)
+		assert.Nil(t, appCond)
+	})
+
+	t.Run("Validate destination namespace in cluster managed namespaces", func(t *testing.T) {
+		dest := argoappv1.ApplicationDestination{
+			Server:    "https://127.0.0.1:6443",
+			Namespace: "develop",
+		}
+
+		db := &dbmocks.ArgoDB{}
+		db.On("GetCluster", context.Background(), "https://127.0.0.1:6443").Return(&argoappv1.Cluster{
+			Name:       "minikube",
+			Server:     "https://127.0.0.1:6443",
+			Namespaces: []string{"default", "develop"},
+		}, nil)
+
+		appCond := ValidateDestination(context.Background(), &dest, db)
+		assert.Nil(t, appCond)
+	})
+
+	t.Run("Validate destination namespace not in cluster managed namespaces", func(t *testing.T) {
+		dest := argoappv1.ApplicationDestination{
+			Server:    "https://127.0.0.1:6443",
+			Namespace: "develop",
+		}
+
+		db := &dbmocks.ArgoDB{}
+		db.On("GetCluster", context.Background(), "https://127.0.0.1:6443").Return(&argoappv1.Cluster{
+			Name:       "minikube",
+			Server:     "https://127.0.0.1:6443",
+			Namespaces: []string{"default"},
+		}, nil)
+
+		err := ValidateDestination(context.Background(), &dest, db)
+		assert.Equal(t, "application destination namespace is not managed by ArgoCD: develop", err.Error())
+	})
 }
