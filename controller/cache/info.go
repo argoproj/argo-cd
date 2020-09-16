@@ -127,19 +127,12 @@ func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 					}
 				}
 
-				var externalURL string
-				switch stringPort {
-				case "http":
-					externalURL = fmt.Sprintf("http://%s", host)
-				case "https":
-					externalURL = fmt.Sprintf("https://%s", host)
-				}
+				externalURL := fmt.Sprintf("%s://%s", stringPort, host)
 
 				subPath := ""
 				if nestedPath, ok, err := unstructured.NestedString(path, "path"); ok && err == nil {
 					subPath = nestedPath
 				}
-
 				externalURL += subPath
 				urlsSet[externalURL] = true
 			}

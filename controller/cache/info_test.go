@@ -70,6 +70,34 @@ var (
     loadBalancer:
       ingress:
       - ip: 107.178.210.11`)
+
+	testIngressWithoutTls = strToUnstructured(`
+  apiVersion: extensions/v1beta1
+  kind: Ingress
+  metadata:
+    name: helm-guestbook
+    namespace: default
+    uid: "4"
+  spec:
+    backend:
+      serviceName: not-found-service
+      servicePort: 443
+    rules:
+    - host: helm-guestbook.com
+      http:
+        paths:
+        - backend:
+            serviceName: helm-guestbook
+            servicePort: 443
+          path: /
+        - backend:
+            serviceName: helm-guestbook
+            servicePort: https
+          path: /
+  status:
+    loadBalancer:
+      ingress:
+      - ip: 107.178.210.11`)
 )
 
 func TestGetPodInfo(t *testing.T) {
@@ -128,6 +156,30 @@ func TestGetIngressInfo(t *testing.T) {
 			Name:      "helm-guestbook",
 		}},
 		ExternalURLs: []string{"https://helm-guestbook.com/"},
+	}, info.NetworkingInfo)
+}
+
+func TestGetIngressInfoWithoutTls(t *testing.T) {
+	info := &ResourceInfo{}
+	populateNodeInfo(testIngressWithoutTls, info)
+	assert.Equal(t, 0, len(info.Info))
+	sort.Slice(info.NetworkingInfo.TargetRefs, func(i, j int) bool {
+		return strings.Compare(info.NetworkingInfo.TargetRefs[j].Name, info.NetworkingInfo.TargetRefs[i].Name) < 0
+	})
+	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
+		Ingress: []v1.LoadBalancerIngress{{IP: "107.178.210.11"}},
+		TargetRefs: []v1alpha1.ResourceRef{{
+			Namespace: "default",
+			Group:     "",
+			Kind:      kube.ServiceKind,
+			Name:      "not-found-service",
+		}, {
+			Namespace: "default",
+			Group:     "",
+			Kind:      kube.ServiceKind,
+			Name:      "helm-guestbook",
+		}},
+		ExternalURLs: []string{"http://helm-guestbook.com/"},
 	}, info.NetworkingInfo)
 }
 
