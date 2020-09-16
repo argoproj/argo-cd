@@ -459,6 +459,9 @@ func (mgr *SettingsManager) getConfigMap() (*apiv1.ConfigMap, error) {
 		if err != nil {
 			return nil, err
 		}
+		for k, v := range updatedData {
+			argoCDCM.Data[k] = v.(string)
+		}
 	}
 	return argoCDCM, err
 }
@@ -1535,7 +1538,7 @@ func (mgr *SettingsManager) updateMapSecretRef(data map[string]interface{}) (map
 			var secretRef apiv1.SecretKeySelector
 			// Make sure value apiv1.SecretKeySelector struct
 			tmp, _ := yaml.Marshal(value)
-			err := yaml.Unmarshal([]byte(tmp), &secretRef)
+			err := yaml.Unmarshal(tmp, &secretRef)
 			if err != nil {
 				return data, err
 			}
@@ -1565,7 +1568,7 @@ func (mgr *SettingsManager) updateMapSecretRef(data map[string]interface{}) (map
 		case map[string]interface{}:
 			updatedData[key], _ = mgr.updateMapSecretRef(b)
 		case []interface{}:
-			updatedData[key], _ = mgr.updateListSecretRef(b)
+			updatedData[key] = mgr.updateListSecretRef(b)
 		case string:
 			updatedData[key] = value
 		}
@@ -1577,19 +1580,19 @@ func (mgr *SettingsManager) updateMapSecretRef(data map[string]interface{}) (map
 	return updatedData, nil
 }
 
-func (mgr *SettingsManager) updateListSecretRef(data []interface{}) ([]interface{}, error) {
+func (mgr *SettingsManager) updateListSecretRef(data []interface{}) []interface{} {
 	updatedData := make([]interface{}, len(data))
 	for index, value := range data {
 		switch v := value.(type) {
 		case map[string]interface{}:
 			updatedData[index], _ = mgr.updateMapSecretRef(v)
 		case []interface{}:
-			updatedData[index], _ = mgr.updateListSecretRef(v)
+			updatedData[index] = mgr.updateListSecretRef(v)
 		default:
 			updatedData[index] = value
 		}
 	}
-	return updatedData, nil
+	return updatedData
 }
 
 // ReplaceStringSecret checks if given string is a secret key reference ( starts with $ ) and returns corresponding value from provided map

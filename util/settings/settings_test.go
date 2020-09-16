@@ -877,7 +877,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 	})
 }
 
-func TestSecretKeyRef(t *testing.T){
+func TestSecretKeyRef(t *testing.T) {
 	data := map[string]string{
 		"dex.config": `
       connectors:
