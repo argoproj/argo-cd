@@ -99,6 +99,25 @@ func TestUpdateCluster(t *testing.T) {
 	assert.Equal(t, secret.Annotations[common.AnnotationKeyRefresh], requestedAt.Format(time.RFC3339))
 }
 
+func TestDeleteUnknownCluster(t *testing.T) {
+	kubeclientset := fake.NewSimpleClientset(&v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "mycluster",
+			Namespace: fakeNamespace,
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+			},
+		},
+		Data: map[string][]byte{
+			"server": []byte("http://mycluster"),
+			"name":   []byte("mycluster"),
+		},
+	})
+	settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
+	db := NewDB(fakeNamespace, settingsManager, kubeclientset)
+	assert.EqualError(t, db.DeleteCluster(context.Background(), "http://unknown"), `rpc error: code = NotFound desc = cluster "http://unknown" not found`)
+}
+
 func TestWatchClusters_CreateRemoveCluster(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
 	settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
