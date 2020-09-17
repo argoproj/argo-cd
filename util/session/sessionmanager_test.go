@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
@@ -18,7 +19,6 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/util/password"
 	"github.com/argoproj/argo-cd/util/settings"
 )
@@ -83,6 +83,8 @@ func TestSessionManager(t *testing.T) {
 }
 
 var loggedOutContext = context.Background()
+
+// nolint:staticcheck
 var loggedInContext = context.WithValue(context.Background(), "claims", &jwt.MapClaims{"iss": "qux", "sub": "foo", "email": "bar", "groups": []string{"baz"}})
 
 func TestIss(t *testing.T) {
@@ -105,8 +107,8 @@ func TestSub(t *testing.T) {
 }
 
 func TestGroups(t *testing.T) {
-	assert.Empty(t, Groups(loggedOutContext))
-	assert.Equal(t, []string{"baz"}, Groups(loggedInContext))
+	assert.Empty(t, Groups(loggedOutContext, []string{"groups"}))
+	assert.Equal(t, []string{"baz"}, Groups(loggedInContext, []string{"groups"}))
 }
 
 func TestVerifyUsernamePassword(t *testing.T) {
@@ -270,7 +272,7 @@ func TestLoginRateLimiter(t *testing.T) {
 		}
 
 		storage.attempts = map[string]LoginAttempts{}
-		// Failed counter should have been reseted, should validate immediately
+		// Failed counter should have been reset, should validate immediately
 		{
 			err := mgr.VerifyUsernamePassword("admin", "password")
 			assert.NoError(t, err)

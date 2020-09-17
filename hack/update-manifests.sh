@@ -4,7 +4,7 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-KUSTOMIZE=kustomize2
+KUSTOMIZE=kustomize
 
 SRCROOT="$( CDPATH='' cd -- "$(dirname "$0")/.." && pwd -P )"
 AUTOGENMSG="# This is an auto-generated file. DO NOT EDIT"
@@ -26,6 +26,8 @@ fi
 if [ "$IMAGE_TAG" = "" ]; then
   IMAGE_TAG=latest
 fi
+
+$KUSTOMIZE version
 
 cd ${SRCROOT}/manifests/base && $KUSTOMIZE edit set image argoproj/argocd=${IMAGE_NAMESPACE}/argocd:${IMAGE_TAG}
 cd ${SRCROOT}/manifests/ha/base && $KUSTOMIZE edit set image argoproj/argocd=${IMAGE_NAMESPACE}/argocd:${IMAGE_TAG}

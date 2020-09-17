@@ -1,6 +1,6 @@
 # Tracking and Deployment Strategies
 
-An Argo CD application spec provides several different ways of track Kubernetes resource manifests
+An Argo CD application spec provides several different ways of tracking Kubernetes resource manifests.
 
 In all tracking strategies, the app has the option to sync automatically. If [auto-sync](auto_sync.md)
 is configured, the new resources manifests will be applied automatically -- as soon as a difference
@@ -31,7 +31,7 @@ For Git, all versions are Git references:
 | Pin to a version (e.g. in production) | Either (a) tag the commit with (e.g. `v1.2.0`) and use that tag, or (b) using commit SHA. | See [commit pinning](#commit-pinning). |
 | Track patches (e.g. in pre-production) | Tag/re-tag the commit, e.g. (e.g. `v1.2`) and use that tag. | See [tag tracking](#tag-tracking) |
 | Track minor releases (e.g. in QA) | Re-tag the commit as (e.g. `v1`) and use that tag. | See [tag tracking](#tag-tracking) |
-| Use the latest (e.g. in local development) | Use `HEAD` or `master` (assuming `master` is your master branch). | See [HEAD / Branch Tracking](#head--branch-tracking) |
+| Use the latest (e.g. in local development) | Use `HEAD` or `master` (assuming `master` is your master branch). | See [HEAD / Branch Tracking](#head-branch-tracking) |
 
 
 ### HEAD / Branch Tracking

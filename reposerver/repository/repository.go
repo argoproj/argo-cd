@@ -8,15 +8,17 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
 
-	executil "github.com/argoproj/argo-cd/util/exec"
-	"github.com/argoproj/argo-cd/util/security"
-
 	"github.com/Masterminds/semver"
 	"github.com/TomOnTime/utfutil"
+	"github.com/argoproj/gitops-engine/pkg/utils/io"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	textutils "github.com/argoproj/gitops-engine/pkg/utils/text"
+	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/ghodss/yaml"
 	"github.com/google/go-jsonnet"
 	log "github.com/sirupsen/logrus"
@@ -35,11 +37,14 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/app/discovery"
 	argopath "github.com/argoproj/argo-cd/util/app/path"
+	executil "github.com/argoproj/argo-cd/util/exec"
 	"github.com/argoproj/argo-cd/util/git"
+	"github.com/argoproj/argo-cd/util/gpg"
 	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/ksonnet"
-	"github.com/argoproj/argo-cd/util/kube"
+	argokube "github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/kustomize"
+	"github.com/argoproj/argo-cd/util/security"
 	"github.com/argoproj/argo-cd/util/text"
 )
 
@@ -89,7 +94,7 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 	s.repoLock.Lock(gitClient.Root())
 	defer s.repoLock.Unlock(gitClient.Root())
 
-	commitSHA, err = checkoutRevision(gitClient, commitSHA)
+	_, err = checkoutRevision(gitClient, commitSHA, log.WithField("repo", q.Repo.Repo))
 	if err != nil {
 		return nil, err
 	}
@@ -116,14 +121,16 @@ func (s *Service) runRepoOperation(
 	revision string,
 	repo *v1alpha1.Repository,
 	source *v1alpha1.ApplicationSource,
+	verifyCommit bool,
 	getCached func(revision string) bool,
-	operation func(appPath, repoRoot, revision string) error,
+	operation func(appPath, repoRoot, revision, verifyResult string) error,
 	settings operationSettings) error {
 
 	var gitClient git.Client
 	var helmClient helm.Client
 	var err error
-	revision = util.FirstNonEmpty(revision, source.TargetRevision)
+	var signature string
+	revision = textutils.FirstNonEmpty(revision, source.TargetRevision)
 	if source.IsHelm() {
 		helmClient, revision, err = s.newHelmClientResolveRevision(repo, revision, source.Chart)
 		if err != nil {
@@ -166,8 +173,8 @@ func (s *Service) runRepoOperation(
 		if err != nil {
 			return err
 		}
-		defer util.Close(closer)
-		return operation(chartPath, chartPath, revision)
+		defer io.Close(closer)
+		return operation(chartPath, chartPath, revision, "")
 	} else {
 		s.repoLock.Lock(gitClient.Root())
 		defer s.repoLock.Unlock(gitClient.Root())
@@ -175,15 +182,21 @@ func (s *Service) runRepoOperation(
 		if !settings.noCache && getCached(revision) {
 			return nil
 		}
-		revision, err = checkoutRevision(gitClient, revision)
+		_, err = checkoutRevision(gitClient, revision, log.WithField("repo", repo.Repo))
 		if err != nil {
 			return err
+		}
+		if verifyCommit {
+			signature, err = gitClient.VerifyCommitSignature(revision)
+			if err != nil {
+				return err
+			}
 		}
 		appPath, err := argopath.Path(gitClient.Root(), source.Path)
 		if err != nil {
 			return err
 		}
-		return operation(appPath, gitClient.Root(), revision)
+		return operation(appPath, gitClient.Root(), revision, signature)
 	}
 }
 
@@ -203,13 +216,14 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 		}
 		return false
 	}
-	err := s.runRepoOperation(ctx, q.Revision, q.Repo, q.ApplicationSource, getCached, func(appPath, repoRoot, revision string) error {
+	err := s.runRepoOperation(ctx, q.Revision, q.Repo, q.ApplicationSource, q.VerifySignature, getCached, func(appPath, repoRoot, revision, verifyResult string) error {
 		var err error
 		res, err = GenerateManifests(appPath, repoRoot, revision, q, false)
 		if err != nil {
 			return err
 		}
 		res.Revision = revision
+		res.VerifyResult = verifyResult
 		err = s.cache.SetManifests(revision, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, &res)
 		if err != nil {
 			log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), revision, err)
@@ -239,7 +253,11 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 	}
 
 	appHelm := q.ApplicationSource.Helm
+	var version string
 	if appHelm != nil {
+		if appHelm.Version != "" {
+			version = appHelm.Version
+		}
 		if appHelm.ReleaseName != "" {
 			templateOpts.Name = appHelm.ReleaseName
 		}
@@ -309,7 +327,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 	for i, j := range templateOpts.SetFile {
 		templateOpts.SetFile[i] = env.Envsubst(j)
 	}
-	h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos), isLocal)
+	h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos), isLocal, version)
 
 	if err != nil {
 		return nil, err
@@ -333,7 +351,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			return nil, err
 		}
 	}
-	return kube.SplitYAML(out)
+	return kube.SplitYAML([]byte(out))
 }
 
 // GenerateManifests generates manifests from a path
@@ -370,7 +388,7 @@ func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.Manifest
 		if directory = q.ApplicationSource.Directory; directory == nil {
 			directory = &v1alpha1.ApplicationSourceDirectory{}
 		}
-		targetObjs, err = findManifests(appPath, env, *directory)
+		targetObjs, err = findManifests(appPath, repoRoot, env, *directory)
 	}
 	if err != nil {
 		return nil, err
@@ -399,7 +417,7 @@ func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.Manifest
 
 		for _, target := range targets {
 			if q.AppLabelKey != "" && q.AppLabelValue != "" && !kube.IsCRD(target) {
-				err = kube.SetAppInstanceLabel(target, q.AppLabelKey, q.AppLabelValue)
+				err = argokube.SetAppInstanceLabel(target, q.AppLabelKey, q.AppLabelValue)
 				if err != nil {
 					return nil, err
 				}
@@ -434,8 +452,55 @@ func newEnv(q *apiclient.ManifestRequest, revision string) *v1alpha1.Env {
 	}
 }
 
+func mergeSourceParameters(source *v1alpha1.ApplicationSource, path string) error {
+	appFilePath := filepath.Join(path, ".argocd-source.yaml")
+	info, err := os.Stat(appFilePath)
+	if os.IsNotExist(err) {
+		return nil
+	} else if info != nil && info.IsDir() {
+		return nil
+	} else if err != nil {
+		return err
+	}
+	patch, err := json.Marshal(source)
+	if err != nil {
+		return err
+	}
+
+	data, err := ioutil.ReadFile(appFilePath)
+	if err != nil {
+		return err
+	}
+	data, err = yaml.YAMLToJSON(data)
+	if err != nil {
+		return err
+	}
+	data, err = jsonpatch.MergePatch(data, patch)
+	if err != nil {
+		return err
+	}
+	var merged v1alpha1.ApplicationSource
+	err = json.Unmarshal(data, &merged)
+	if err != nil {
+		return err
+	}
+	// make sure only config management tools related properties are used and ignore everything else
+	merged.Chart = source.Chart
+	merged.Path = source.Path
+	merged.RepoURL = source.RepoURL
+	merged.TargetRevision = source.TargetRevision
+
+	*source = merged
+	return nil
+}
+
 // GetAppSourceType returns explicit application source type or examines a directory and determines its application source type
 func GetAppSourceType(source *v1alpha1.ApplicationSource, path string) (v1alpha1.ApplicationSourceType, error) {
+	err := mergeSourceParameters(source, path)
+	if err != nil {
+		return "", fmt.Errorf("error while parsing .argocd-app.yaml: %v", err)
+	}
+
 	appSourceType, err := source.ExplicitType()
 	if err != nil {
 		return "", err
@@ -505,7 +570,7 @@ func ksShow(appLabelKey, appPath string, ksonnetOpts *v1alpha1.ApplicationSource
 var manifestFile = regexp.MustCompile(`^.*\.(yaml|yml|json|jsonnet)$`)
 
 // findManifests looks at all yaml files in a directory and unmarshals them into a list of unstructured objects
-func findManifests(appPath string, env *v1alpha1.Env, directory v1alpha1.ApplicationSourceDirectory) ([]*unstructured.Unstructured, error) {
+func findManifests(appPath string, repoRoot string, env *v1alpha1.Env, directory v1alpha1.ApplicationSourceDirectory) ([]*unstructured.Unstructured, error) {
 	var objs []*unstructured.Unstructured
 	err := filepath.Walk(appPath, func(path string, f os.FileInfo, err error) error {
 		if err != nil {
@@ -534,10 +599,10 @@ func findManifests(appPath string, env *v1alpha1.Env, directory v1alpha1.Applica
 			}
 			objs = append(objs, &obj)
 		} else if strings.HasSuffix(f.Name(), ".jsonnet") {
-			vm := makeJsonnetVm(directory.Jsonnet, env)
-			vm.Importer(&jsonnet.FileImporter{
-				JPaths: []string{appPath},
-			})
+			vm, err := makeJsonnetVm(appPath, repoRoot, directory.Jsonnet, env)
+			if err != nil {
+				return err
+			}
 			jsonStr, err := vm.EvaluateSnippet(path, string(out))
 			if err != nil {
 				return status.Errorf(codes.FailedPrecondition, "Failed to evaluate jsonnet %q: %v", f.Name(), err)
@@ -557,16 +622,9 @@ func findManifests(appPath string, env *v1alpha1.Env, directory v1alpha1.Applica
 				objs = append(objs, &jsonObj)
 			}
 		} else {
-			yamlObjs, err := kube.SplitYAML(string(out))
+			yamlObjs, err := kube.SplitYAML(out)
 			if err != nil {
-				if len(yamlObjs) > 0 {
-					// If we get here, we had a multiple objects in a single YAML file which had some
-					// valid k8s objects, but errors parsing others (within the same file). It's very
-					// likely the user messed up a portion of the YAML, so report on that.
-					return status.Errorf(codes.FailedPrecondition, "Failed to unmarshal %q: %v", f.Name(), err)
-				}
-				// Otherwise, it might be a unrelated YAML file which we will ignore
-				return nil
+				return status.Errorf(codes.FailedPrecondition, "Failed to unmarshal %q: %v", f.Name(), err)
 			}
 			objs = append(objs, yamlObjs...)
 		}
@@ -578,7 +636,8 @@ func findManifests(appPath string, env *v1alpha1.Env, directory v1alpha1.Applica
 	return objs, nil
 }
 
-func makeJsonnetVm(sourceJsonnet v1alpha1.ApplicationSourceJsonnet, env *v1alpha1.Env) *jsonnet.VM {
+func makeJsonnetVm(appPath string, repoRoot string, sourceJsonnet v1alpha1.ApplicationSourceJsonnet, env *v1alpha1.Env) (*jsonnet.VM, error) {
+
 	vm := jsonnet.MakeVM()
 	for i, j := range sourceJsonnet.TLAs {
 		sourceJsonnet.TLAs[i].Value = env.Envsubst(j.Value)
@@ -601,7 +660,21 @@ func makeJsonnetVm(sourceJsonnet v1alpha1.ApplicationSourceJsonnet, env *v1alpha
 		}
 	}
 
-	return vm
+	// Jsonnet Imports relative to the repository path
+	jpaths := []string{appPath}
+	for _, p := range sourceJsonnet.Libs {
+		jpath := path.Join(repoRoot, p)
+		if !strings.HasPrefix(jpath, repoRoot) {
+			return nil, status.Errorf(codes.FailedPrecondition, "%s: referenced library points outside the repository", p)
+		}
+		jpaths = append(jpaths, jpath)
+	}
+
+	vm.Importer(&jsonnet.FileImporter{
+		JPaths: jpaths,
+	})
+
+	return vm, nil
 }
 
 func runCommand(command v1alpha1.Command, path string, env []string) (string, error) {
@@ -650,7 +723,7 @@ func runConfigManagementPlugin(appPath string, envVars *v1alpha1.Env, q *apiclie
 	if err != nil {
 		return nil, err
 	}
-	return kube.SplitYAML(out)
+	return kube.SplitYAML([]byte(out))
 }
 
 func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppDetailsQuery) (*apiclient.RepoAppDetailsResponse, error) {
@@ -670,7 +743,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 		return false
 	}
 
-	err := s.runRepoOperation(ctx, q.Source.TargetRevision, q.Repo, q.Source, getCached, func(appPath, repoRoot, revision string) error {
+	err := s.runRepoOperation(ctx, q.Source.TargetRevision, q.Repo, q.Source, false, getCached, func(appPath, repoRoot, revision, verifyResult string) error {
 		appSourceType, err := GetAppSourceType(q.Source, appPath)
 		if err != nil {
 			return err
@@ -718,7 +791,13 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 					res.Helm.ValueFiles = append(res.Helm.ValueFiles, fName)
 				}
 			}
-			h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos), false)
+			var version string
+			if q.Source.Helm != nil {
+				if q.Source.Helm.Version != "" {
+					version = q.Source.Helm.Version
+				}
+			}
+			h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos), false, version)
 			if err != nil {
 				return err
 			}
@@ -759,7 +838,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 				kustomizeBinary = q.KustomizeOptions.BinaryPath
 			}
 			k := kustomize.NewKustomizeApp(appPath, q.Repo.GetGitCreds(), q.Repo.Repo, kustomizeBinary)
-			_, images, err := k.Build(nil, q.KustomizeOptions)
+			_, images, err := k.Build(q.Source.Kustomize, q.KustomizeOptions)
 			if err != nil {
 				return err
 			}
@@ -799,7 +878,7 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 	s.repoLock.Lock(gitClient.Root())
 	defer s.repoLock.Unlock(gitClient.Root())
 
-	_, err = checkoutRevision(gitClient, q.Revision)
+	_, err = checkoutRevision(gitClient, q.Revision, log.WithField("repo", q.Repo.Repo))
 	if err != nil {
 		return nil, err
 	}
@@ -808,9 +887,31 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 	if err != nil {
 		return nil, err
 	}
+
+	// Run gpg verify-commit on the revision
+	signatureInfo := ""
+	if gpg.IsGPGEnabled() {
+		cs, err := gitClient.VerifyCommitSignature(q.Revision)
+		if err != nil {
+			log.Debugf("Could not verify commit signature: %v", err)
+			return nil, err
+		}
+
+		if cs != "" {
+			vr, err := gpg.ParseGitCommitVerification(cs)
+			if err != nil {
+				log.Debugf("Could not parse commit verification: %v", err)
+				return nil, err
+			}
+			signatureInfo = fmt.Sprintf("%s signature from %s key %s", vr.Result, vr.Cipher, gpg.KeyID(vr.KeyID))
+		} else {
+			signatureInfo = "Revision is not signed."
+		}
+	}
+
 	// discard anything after the first new line and then truncate to 64 chars
 	message := text.Trunc(strings.SplitN(m.Message, "\n", 2)[0], 64)
-	metadata = &v1alpha1.RevisionMetadata{Author: m.Author, Date: metav1.Time{Time: m.Date}, Tags: m.Tags, Message: message}
+	metadata = &v1alpha1.RevisionMetadata{Author: m.Author, Date: metav1.Time{Time: m.Date}, Tags: m.Tags, Message: message, SignatureInfo: signatureInfo}
 	_ = s.cache.SetRevisionMetadata(q.Repo.Repo, q.Revision, metadata)
 	return metadata, nil
 }
@@ -877,7 +978,8 @@ func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revisi
 
 // checkoutRevision is a convenience function to initialize a repo, fetch, and checkout a revision
 // Returns the 40 character commit SHA after the checkout has been performed
-func checkoutRevision(gitClient git.Client, commitSHA string) (string, error) {
+// nolint:unparam
+func checkoutRevision(gitClient git.Client, commitSHA string, logEntry *log.Entry) (string, error) {
 	err := gitClient.Init()
 	if err != nil {
 		return "", status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
@@ -890,7 +992,11 @@ func checkoutRevision(gitClient git.Client, commitSHA string) (string, error) {
 	if err != nil {
 		return "", status.Errorf(codes.Internal, "Failed to checkout %s: %v", commitSHA, err)
 	}
-	return gitClient.CommitSHA()
+	sha, err := gitClient.CommitSHA()
+	if err == nil && git.IsCommitSHA(commitSHA) && sha != commitSHA {
+		logEntry.Warnf("'git checkout %s' has switched repo to unexpected commit: %s", commitSHA, sha)
+	}
+	return sha, err
 }
 
 func (s *Service) GetHelmCharts(ctx context.Context, q *apiclient.HelmChartsRequest) (*apiclient.HelmChartsResponse, error) {

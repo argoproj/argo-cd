@@ -1,5 +1,6 @@
 actions = {}
 actions["resume"] = {["disabled"] = false}
+actions["restart"] = {["disabled"] = false}
 
 local paused = false
 

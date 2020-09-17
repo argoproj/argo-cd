@@ -12,7 +12,7 @@ Before enabling feature you might consider disabling warning. In this case appli
 
 ## Exceptions
 
-Not every resource in the Kuberenetes cluster is controlled by the end user. Following resources are never considered as orphaned:
+Not every resource in the Kubernetes cluster is controlled by the end user. Following resources are never considered as orphaned:
 
 * Namespaced resources blacklisted in the project. Usually, such resources are managed by cluster administrators and not supposed to be modified by namespace user.
 * `ServiceAccount` with name `default` ( and corresponding auto-generated `ServiceAccountToken` ).

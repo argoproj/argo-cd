@@ -3,14 +3,8 @@ package util_test
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/argoproj/argo-cd/util"
 )
-
-func TestNopCloser(t *testing.T) {
-	assert.NoError(t, util.NopCloser.Close())
-}
 
 func TestMakeSignature(t *testing.T) {
 	for size := 1; size <= 64; size++ {

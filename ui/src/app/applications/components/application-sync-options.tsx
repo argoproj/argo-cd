@@ -31,7 +31,14 @@ function booleanOption(name: string, label: string, defaultVal: boolean, props: 
     );
 }
 
-export const ApplicationSyncOptions = (props: ApplicationSyncOptionProps) => <div>{booleanOption('Validate', 'Use a schema to validate resource manifests', true, props)}</div>;
+const optionStyle: React.CSSProperties = {marginTop: '0.5em'};
+
+export const ApplicationSyncOptions = (props: ApplicationSyncOptionProps) => (
+    <React.Fragment>
+        <div style={optionStyle}>{booleanOption('Validate', 'Use a schema to validate resource manifests', true, props)}</div>
+        <div style={optionStyle}>{booleanOption('CreateNamespace', 'Auto-create namespace', false, props)}</div>
+    </React.Fragment>
+);
 
 export const ApplicationSyncOptionsField = ReactForm.FormField((props: {fieldApi: ReactForm.FieldApi}) => {
     const {

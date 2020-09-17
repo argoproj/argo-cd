@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
@@ -14,7 +15,6 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/pkg/apiclient/account"
 	sessionpkg "github.com/argoproj/argo-cd/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/server/session"
@@ -67,7 +67,7 @@ func newTestAccountServerExt(ctx context.Context, enforceFn rbac.ClaimsEnforcerF
 	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
 	enforcer.SetClaimsEnforcerFunc(enforceFn)
 
-	return NewServer(sessionMgr, settingsMgr, enforcer), session.NewServer(sessionMgr, nil, nil)
+	return NewServer(sessionMgr, settingsMgr, enforcer), session.NewServer(sessionMgr, nil, nil, nil)
 }
 
 func getAdminAccount(mgr *settings.SettingsManager) (*settings.Account, error) {
@@ -80,10 +80,12 @@ func getAdminAccount(mgr *settings.SettingsManager) (*settings.Account, error) {
 }
 
 func adminContext(ctx context.Context) context.Context {
+	// nolint:staticcheck
 	return context.WithValue(ctx, "claims", &jwt.StandardClaims{Subject: "admin", Issuer: sessionutil.SessionManagerClaimsIssuer})
 }
 
 func ssoAdminContext(ctx context.Context, iat time.Time) context.Context {
+	// nolint:staticcheck
 	return context.WithValue(ctx, "claims", &jwt.StandardClaims{
 		Subject:  "admin",
 		Issuer:   "https://myargocdhost.com/api/dex",
@@ -92,6 +94,7 @@ func ssoAdminContext(ctx context.Context, iat time.Time) context.Context {
 }
 
 func projTokenContext(ctx context.Context) context.Context {
+	// nolint:staticcheck
 	return context.WithValue(ctx, "claims", &jwt.StandardClaims{
 		Subject: "proj:demo:deployer",
 		Issuer:  sessionutil.SessionManagerClaimsIssuer,

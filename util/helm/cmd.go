@@ -2,7 +2,6 @@ package helm
 
 import (
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -10,7 +9,8 @@ import (
 	"path/filepath"
 	"regexp"
 
-	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/gitops-engine/pkg/utils/io"
+
 	executil "github.com/argoproj/argo-cd/util/exec"
 )
 
@@ -22,7 +22,15 @@ type Cmd struct {
 	IsLocal  bool
 }
 
-func NewCmd(workDir string) (*Cmd, error) {
+func NewCmd(workDir string, version string) (*Cmd, error) {
+	if version != "" {
+		switch version {
+		case "v2":
+			return NewCmdWithVersion(workDir, HelmV2)
+		case "v3":
+			return NewCmdWithVersion(workDir, HelmV3)
+		}
+	}
 	helmVersion, err := getHelmVersion(workDir)
 	if err != nil {
 		return nil, err
@@ -85,6 +93,10 @@ func (c *Cmd) RepoAdd(name string, url string, opts Creds) (string, error) {
 		args = append(args, "--ca-file", opts.CAPath)
 	}
 
+	if opts.InsecureSkipVerify && c.insecureSkipVerifySupported {
+		args = append(args, "--insecure-skip-tls-verify")
+	}
+
 	if len(opts.CertData) > 0 {
 		certFile, err := ioutil.TempFile("", "helm")
 		if err != nil {
@@ -124,7 +136,7 @@ func writeToTmp(data []byte) (string, io.Closer, error) {
 		_ = os.RemoveAll(file.Name())
 		return "", nil, err
 	}
-	return file.Name(), util.NewCloser(func() error {
+	return file.Name(), io.NewCloser(func() error {
 		return os.RemoveAll(file.Name())
 	}), nil
 }
@@ -149,7 +161,7 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds) (
 		if err != nil {
 			return "", err
 		}
-		defer util.Close(closer)
+		defer io.Close(closer)
 		args = append(args, "--cert-file", filePath)
 	}
 	if len(creds.KeyData) > 0 {
@@ -157,7 +169,7 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds) (
 		if err != nil {
 			return "", err
 		}
-		defer util.Close(closer)
+		defer io.Close(closer)
 		args = append(args, "--key-file", filePath)
 	}
 

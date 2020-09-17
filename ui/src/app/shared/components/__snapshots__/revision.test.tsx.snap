@@ -2,7 +2,7 @@
 
 exports[`Revision.Branch.Children 1`] = `
 <a
-  href="http://github.com/my-org/my-repo/commit/long-branch-name"
+  href="http://github.com/my-org/my-repo/tree/long-branch-name"
 >
   foo
 </a>
@@ -10,7 +10,7 @@ exports[`Revision.Branch.Children 1`] = `
 
 exports[`Revision.Branch.NoChildren 1`] = `
 <a
-  href="http://github.com/my-org/my-repo/commit/long-branch-name"
+  href="http://github.com/my-org/my-repo/tree/long-branch-name"
 >
   long-branch-name
 </a>

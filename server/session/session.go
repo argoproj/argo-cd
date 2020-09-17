@@ -3,11 +3,12 @@ package session
 import (
 	"context"
 
+	util "github.com/argoproj/gitops-engine/pkg/utils/io"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	"github.com/argoproj/argo-cd/pkg/apiclient/session"
-	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	sessionmgr "github.com/argoproj/argo-cd/util/session"
 )
 
@@ -15,6 +16,7 @@ import (
 type Server struct {
 	mgr                *sessionmgr.SessionManager
 	authenticator      Authenticator
+	policyEnf          *rbacpolicy.RBACPolicyEnforcer
 	limitLoginAttempts func() (util.Closer, error)
 }
 
@@ -23,8 +25,8 @@ type Authenticator interface {
 }
 
 // NewServer returns a new instance of the Session service
-func NewServer(mgr *sessionmgr.SessionManager, authenticator Authenticator, rateLimiter func() (util.Closer, error)) *Server {
-	return &Server{mgr, authenticator, rateLimiter}
+func NewServer(mgr *sessionmgr.SessionManager, authenticator Authenticator, policyEnf *rbacpolicy.RBACPolicyEnforcer, rateLimiter func() (util.Closer, error)) *Server {
+	return &Server{mgr, authenticator, policyEnf, rateLimiter}
 }
 
 // Create generates a JWT token signed by Argo CD intended for web/CLI logins of the admin user
@@ -75,6 +77,6 @@ func (s *Server) GetUserInfo(ctx context.Context, q *session.GetUserInfoRequest)
 		LoggedIn: sessionmgr.LoggedIn(ctx),
 		Username: sessionmgr.Username(ctx),
 		Iss:      sessionmgr.Iss(ctx),
-		Groups:   sessionmgr.Groups(ctx),
+		Groups:   sessionmgr.Groups(ctx, s.policyEnf.GetScopes()),
 	}, nil
 }

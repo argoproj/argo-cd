@@ -36,7 +36,7 @@ metadata:
     argocd.argoproj.io/sync-options: Validate=false
 ```
 
-If you want to exclude a whole class of objects globally, consider setting `resource.customizations` in [system level configuation](../user-guide/diffing.md#system-level-configuration). 
+If you want to exclude a whole class of objects globally, consider setting `resource.customizations` in [system level configuration](../user-guide/diffing.md#system-level-configuration). 
     
 ## Skip Dry Run for new custom resources types
 

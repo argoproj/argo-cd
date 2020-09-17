@@ -5,8 +5,9 @@ package mocks
 import (
 	context "context"
 
-	metrics "github.com/argoproj/argo-cd/controller/metrics"
-	kube "github.com/argoproj/argo-cd/util/kube"
+	cache "github.com/argoproj/gitops-engine/pkg/cache"
+
+	kube "github.com/argoproj/gitops-engine/pkg/utils/kube"
 
 	mock "github.com/stretchr/testify/mock"
 
@@ -24,16 +25,39 @@ type LiveStateCache struct {
 	mock.Mock
 }
 
+// GetClusterCache provides a mock function with given fields: server
+func (_m *LiveStateCache) GetClusterCache(server string) (cache.ClusterCache, error) {
+	ret := _m.Called(server)
+
+	var r0 cache.ClusterCache
+	if rf, ok := ret.Get(0).(func(string) cache.ClusterCache); ok {
+		r0 = rf(server)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(cache.ClusterCache)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(server)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetClustersInfo provides a mock function with given fields:
-func (_m *LiveStateCache) GetClustersInfo() []metrics.ClusterInfo {
+func (_m *LiveStateCache) GetClustersInfo() []cache.ClusterInfo {
 	ret := _m.Called()
 
-	var r0 []metrics.ClusterInfo
-	if rf, ok := ret.Get(0).(func() []metrics.ClusterInfo); ok {
+	var r0 []cache.ClusterInfo
+	if rf, ok := ret.Get(0).(func() []cache.ClusterInfo); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]metrics.ClusterInfo)
+			r0 = ret.Get(0).([]cache.ClusterInfo)
 		}
 	}
 
@@ -116,9 +140,18 @@ func (_m *LiveStateCache) GetVersionsInfo(serverURL string) (string, []v1.APIGro
 	return r0, r1, r2
 }
 
-// Invalidate provides a mock function with given fields:
-func (_m *LiveStateCache) Invalidate() {
-	_m.Called()
+// Init provides a mock function with given fields:
+func (_m *LiveStateCache) Init() error {
+	ret := _m.Called()
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func() error); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
 }
 
 // IsNamespaced provides a mock function with given fields: server, gk

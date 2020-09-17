@@ -4,8 +4,10 @@ import (
 	"context"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
@@ -24,7 +26,9 @@ type MetricsServer struct {
 	kubectlExecPendingGauge *prometheus.GaugeVec
 	k8sRequestCounter       *prometheus.CounterVec
 	clusterEventsCounter    *prometheus.CounterVec
+	redisRequestCounter     *prometheus.CounterVec
 	reconcileHistogram      *prometheus.HistogramVec
+	redisRequestHistogram   *prometheus.HistogramVec
 	registry                *prometheus.Registry
 }
 
@@ -108,6 +112,23 @@ var (
 		Name: "argocd_cluster_events_total",
 		Help: "Number of processes k8s resource events.",
 	}, append(descClusterDefaultLabels, "group", "kind"))
+
+	redisRequestCounter = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "argocd_redis_request_total",
+			Help: "Number of kubernetes requests executed during application reconciliation.",
+		},
+		[]string{"initiator", "failed"},
+	)
+
+	redisRequestHistogram = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "argocd_redis_request_duration",
+			Help:    "Redis requests duration.",
+			Buckets: []float64{0.01, 0.05, 0.10, 0.25, .5, 1},
+		},
+		[]string{"initiator"},
+	)
 )
 
 // NewMetricsServer returns a new prometheus server which collects application metrics
@@ -128,6 +149,8 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, health
 	registry.MustRegister(kubectlExecPendingGauge)
 	registry.MustRegister(reconcileHistogram)
 	registry.MustRegister(clusterEventsCounter)
+	registry.MustRegister(redisRequestCounter)
+	registry.MustRegister(redisRequestHistogram)
 
 	return &MetricsServer{
 		registry: registry,
@@ -141,6 +164,8 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, health
 		kubectlExecPendingGauge: kubectlExecPendingGauge,
 		reconcileHistogram:      reconcileHistogram,
 		clusterEventsCounter:    clusterEventsCounter,
+		redisRequestCounter:     redisRequestCounter,
+		redisRequestHistogram:   redisRequestHistogram,
 	}
 }
 
@@ -187,6 +212,15 @@ func (m *MetricsServer) IncKubernetesRequest(app *argoappv1.Application, server,
 		namespace, name, project, server, statusCode,
 		verb, resourceKind, resourceNamespace,
 	).Inc()
+}
+
+func (m *MetricsServer) IncRedisRequest(failed bool) {
+	m.redisRequestCounter.WithLabelValues("argocd-application-controller", strconv.FormatBool(failed)).Inc()
+}
+
+// ObserveRedisRequestDuration observes redis request duration
+func (m *MetricsServer) ObserveRedisRequestDuration(duration time.Duration) {
+	m.redisRequestHistogram.WithLabelValues("argocd-application-controller").Observe(duration.Seconds())
 }
 
 // IncReconcile increments the reconcile counter for an application
@@ -260,10 +294,10 @@ func collectApps(ch chan<- prometheus.Metric, app *argoappv1.Application) {
 	}
 	healthStatus := app.Status.Health.Status
 	if healthStatus == "" {
-		healthStatus = argoappv1.HealthStatusUnknown
+		healthStatus = health.HealthStatusUnknown
 	}
 
-	addGauge(descAppInfo, 1, git.NormalizeGitURL(app.Spec.Source.RepoURL), app.Spec.Destination.Server, app.Spec.Destination.Namespace, string(syncStatus), healthStatus, operation)
+	addGauge(descAppInfo, 1, git.NormalizeGitURL(app.Spec.Source.RepoURL), app.Spec.Destination.Server, app.Spec.Destination.Namespace, string(syncStatus), string(healthStatus), operation)
 
 	// Deprecated controller metrics
 	if os.Getenv(EnvVarLegacyControllerMetrics) == "true" {
@@ -273,11 +307,12 @@ func collectApps(ch chan<- prometheus.Metric, app *argoappv1.Application) {
 		addGauge(descAppSyncStatusCode, boolFloat64(syncStatus == argoappv1.SyncStatusCodeOutOfSync), string(argoappv1.SyncStatusCodeOutOfSync))
 		addGauge(descAppSyncStatusCode, boolFloat64(syncStatus == argoappv1.SyncStatusCodeUnknown || syncStatus == ""), string(argoappv1.SyncStatusCodeUnknown))
 
-		addGauge(descAppHealthStatus, boolFloat64(healthStatus == argoappv1.HealthStatusUnknown || healthStatus == ""), argoappv1.HealthStatusUnknown)
-		addGauge(descAppHealthStatus, boolFloat64(healthStatus == argoappv1.HealthStatusProgressing), argoappv1.HealthStatusProgressing)
-		addGauge(descAppHealthStatus, boolFloat64(healthStatus == argoappv1.HealthStatusSuspended), argoappv1.HealthStatusSuspended)
-		addGauge(descAppHealthStatus, boolFloat64(healthStatus == argoappv1.HealthStatusHealthy), argoappv1.HealthStatusHealthy)
-		addGauge(descAppHealthStatus, boolFloat64(healthStatus == argoappv1.HealthStatusDegraded), argoappv1.HealthStatusDegraded)
-		addGauge(descAppHealthStatus, boolFloat64(healthStatus == argoappv1.HealthStatusMissing), argoappv1.HealthStatusMissing)
+		healthStatus := app.Status.Health.Status
+		addGauge(descAppHealthStatus, boolFloat64(healthStatus == health.HealthStatusUnknown || healthStatus == ""), string(health.HealthStatusUnknown))
+		addGauge(descAppHealthStatus, boolFloat64(healthStatus == health.HealthStatusProgressing), string(health.HealthStatusProgressing))
+		addGauge(descAppHealthStatus, boolFloat64(healthStatus == health.HealthStatusSuspended), string(health.HealthStatusSuspended))
+		addGauge(descAppHealthStatus, boolFloat64(healthStatus == health.HealthStatusHealthy), string(health.HealthStatusHealthy))
+		addGauge(descAppHealthStatus, boolFloat64(healthStatus == health.HealthStatusDegraded), string(health.HealthStatusDegraded))
+		addGauge(descAppHealthStatus, boolFloat64(healthStatus == health.HealthStatusMissing), string(health.HealthStatusMissing))
 	}
 }

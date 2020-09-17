@@ -10,5 +10,5 @@ export const Revision = ({repoUrl, revision, children}: {repoUrl: string; revisi
 
 export const isSHA = (revision: string) => {
     // https://stackoverflow.com/questions/468370/a-regex-to-match-a-sha1
-    return revision.match(/[0-9a-f]{5,40}/) !== null;
+    return revision.match(/^[a-f0-9]{5,40}$/) !== null;
 };

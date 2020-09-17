@@ -108,7 +108,7 @@ export class ApplicationsFilter extends React.Component<ApplicationsFilterProps,
             <div className={classNames('applications-list__filters-container', {'applications-list__filters-container--expanded': this.state.expanded})}>
                 <i
                     onClick={() => this.setState({expanded: !this.state.expanded})}
-                    className={classNames('fa applications-list__filters-expander', {'fa-chevron-up': !this.state.expanded, 'fa-chevron-down': this.state.expanded})}
+                    className={classNames('fa applications-list__filters-expander', {'fa-chevron-up': this.state.expanded, 'fa-chevron-down': !this.state.expanded})}
                 />
                 <p className='applications-list__filters-container-title'>Filter By:</p>
                 <div className='row'>
@@ -146,7 +146,7 @@ export class ApplicationsFilter extends React.Component<ApplicationsFilterProps,
                             <p>Projects</p>
                             <ul>
                                 <li>
-                                    <DataLoader load={() => services.projects.list()}>
+                                    <DataLoader load={() => services.projects.list('items.metadata.name')}>
                                         {projects => {
                                             const projAppCount = new Map<string, number>();
                                             projects.forEach(proj => projAppCount.set(proj.metadata.name, 0));
@@ -168,9 +168,9 @@ export class ApplicationsFilter extends React.Component<ApplicationsFilterProps,
                                 <li>
                                     <TagsInput
                                         placeholder='https://kubernetes.default.svc'
-                                        autocomplete={Array.from(new Set(applications.map(app => app.spec.destination.server).filter(item => !!item))).filter(
-                                            ns => pref.clustersFilter.indexOf(ns) === -1
-                                        )}
+                                        autocomplete={Array.from(
+                                            new Set(applications.map(app => app.spec.destination.server || app.spec.destination.name).filter(item => !!item))
+                                        ).filter(ns => pref.clustersFilter.indexOf(ns) === -1)}
                                         tags={pref.clustersFilter}
                                         onChange={selected => onChange({...pref, clustersFilter: selected})}
                                     />

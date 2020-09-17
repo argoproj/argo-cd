@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/gobuffalo/packr"
 	lua "github.com/yuin/gopher-lua"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -31,6 +32,26 @@ var (
 
 func init() {
 	box = packr.NewBox(resourceCustomizationBuiltInPath)
+}
+
+type ResourceHealthOverrides map[string]appv1.ResourceOverride
+
+func (overrides ResourceHealthOverrides) GetResourceHealth(obj *unstructured.Unstructured) (*health.HealthStatus, error) {
+	luaVM := VM{
+		ResourceOverrides: overrides,
+	}
+	script, err := luaVM.GetHealthScript(obj)
+	if err != nil {
+		return nil, err
+	}
+	if script == "" {
+		return nil, nil
+	}
+	result, err := luaVM.ExecuteHealthLua(obj, script)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 // VM Defines a struct that implements the luaVM
@@ -77,7 +98,7 @@ func (vm VM) runLua(obj *unstructured.Unstructured, script string) (*lua.LState,
 }
 
 // ExecuteHealthLua runs the lua script to generate the health status of a resource
-func (vm VM) ExecuteHealthLua(obj *unstructured.Unstructured, script string) (*appv1.HealthStatus, error) {
+func (vm VM) ExecuteHealthLua(obj *unstructured.Unstructured, script string) (*health.HealthStatus, error) {
 	l, err := vm.runLua(obj, script)
 	if err != nil {
 		return nil, err
@@ -88,14 +109,14 @@ func (vm VM) ExecuteHealthLua(obj *unstructured.Unstructured, script string) (*a
 		if err != nil {
 			return nil, err
 		}
-		healthStatus := &appv1.HealthStatus{}
+		healthStatus := &health.HealthStatus{}
 		err = json.Unmarshal(jsonBytes, healthStatus)
 		if err != nil {
 			return nil, err
 		}
 		if !isValidHealthStatusCode(healthStatus.Status) {
-			return &appv1.HealthStatus{
-				Status:  appv1.HealthStatusUnknown,
+			return &health.HealthStatus{
+				Status:  health.HealthStatusUnknown,
 				Message: invalidHealthStatus,
 			}, nil
 		}
@@ -329,9 +350,9 @@ func (vm VM) getPredefinedLuaScripts(objKey string, scriptFile string) (string, 
 	return string(data), nil
 }
 
-func isValidHealthStatusCode(statusCode string) bool {
+func isValidHealthStatusCode(statusCode health.HealthStatusCode) bool {
 	switch statusCode {
-	case appv1.HealthStatusUnknown, appv1.HealthStatusProgressing, appv1.HealthStatusSuspended, appv1.HealthStatusHealthy, appv1.HealthStatusDegraded, appv1.HealthStatusMissing:
+	case health.HealthStatusUnknown, health.HealthStatusProgressing, health.HealthStatusSuspended, health.HealthStatusHealthy, health.HealthStatusDegraded, health.HealthStatusMissing:
 		return true
 	}
 	return false

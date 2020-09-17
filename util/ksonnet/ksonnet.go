@@ -9,12 +9,12 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/ghodss/yaml"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	executil "github.com/argoproj/argo-cd/util/exec"
-	"github.com/argoproj/argo-cd/util/kube"
 )
 
 // Destination returns the deployment destination for an environment in app spec data
@@ -115,7 +115,7 @@ func (k *ksonnetApp) Show(environment string) ([]*unstructured.Unstructured, err
 	if err != nil {
 		return nil, fmt.Errorf("`ks show` failed: %v", err)
 	}
-	return kube.SplitYAML(out)
+	return kube.SplitYAML([]byte(out))
 }
 
 // Destination returns the deployment destination for an environment

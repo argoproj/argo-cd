@@ -17,15 +17,6 @@ jobs:
       - uses: actions/checkout@master
         with:
           path: src/github.com/argoproj/argo-cd
-      - uses: actions/cache@v1
-        with:
-          path: src/github.com/argoproj/argo-cd/vendor
-          key: ${{ runner.os }}-go-dep-${{ hashFiles('**/Gopkg.lock') }}
-      # download dependencies
-      - run: mkdir -p $GITHUB_WORKSPACE/bin && curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-        working-directory: src/github.com/argoproj/argo-cd
-      - run: $GOPATH/bin/dep ensure -v
-        working-directory: ./src/github.com/argoproj/argo-cd
 
       # get image tag
       - run: echo ::set-output name=tag::$(cat ./VERSION)-${GITHUB_SHA::8}

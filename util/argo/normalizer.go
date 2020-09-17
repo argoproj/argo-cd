@@ -1,11 +1,11 @@
 package argo
 
 import (
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/argo/normalizers"
-	"github.com/argoproj/argo-cd/util/diff"
+
+	"github.com/argoproj/gitops-engine/pkg/diff"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 // NewDiffNormalizer creates normalizer that uses Argo CD and application settings to normalize the resource prior to diffing.

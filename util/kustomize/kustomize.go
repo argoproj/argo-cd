@@ -9,16 +9,15 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	certutil "github.com/argoproj/argo-cd/util/cert"
 	executil "github.com/argoproj/argo-cd/util/exec"
 	"github.com/argoproj/argo-cd/util/git"
-	"github.com/argoproj/argo-cd/util/kube"
-
-	certutil "github.com/argoproj/argo-cd/util/cert"
 )
 
 // represents a Docker image in the format NAME[:TAG].
@@ -154,7 +153,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 		return nil, nil, err
 	}
 
-	objs, err := kube.SplitYAML(out)
+	objs, err := kube.SplitYAML([]byte(out))
 	if err != nil {
 		return nil, nil, err
 	}

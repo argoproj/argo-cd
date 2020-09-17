@@ -1,17 +1,22 @@
 package e2e
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
+	"net"
+	"net/http"
 	"os"
 	"testing"
 
+	"github.com/argoproj/gitops-engine/pkg/health"
+	. "github.com/argoproj/gitops-engine/pkg/sync/common"
+	. "github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/argoproj/argo-cd/errors"
-	. "github.com/argoproj/argo-cd/errors"
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture"
@@ -29,7 +34,7 @@ func TestHelmHooksAreCreated(t *testing.T) {
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "hook", Message: "pod/hook created", HookType: HookTypePreSync, HookPhase: OperationSucceeded, SyncPhase: SyncPhasePreSync}))
 }
@@ -74,7 +79,7 @@ func TestDeclarativeHelm(t *testing.T) {
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
@@ -84,9 +89,27 @@ func TestDeclarativeHelmInvalidValuesFile(t *testing.T) {
 		When().
 		Declarative("declarative-apps/invalid-helm.yaml").
 		Then().
-		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeUnknown)).
 		Expect(Condition(ApplicationConditionComparisonError, "does-not-exist-values.yaml: no such file or directory"))
+}
+
+func TestHelmRepo(t *testing.T) {
+	Given(t).
+		CustomCACertAdded().
+		HelmRepoAdded("custom-repo").
+		RepoURLType(RepoURLTypeHelm).
+		Chart("helm").
+		Revision("1.0.0").
+		When().
+		Create().
+		Then().
+		When().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
 func TestHelmValues(t *testing.T) {
@@ -102,6 +125,98 @@ func TestHelmValues(t *testing.T) {
 		})
 }
 
+func TestHelmValuesMultipleUnset(t *testing.T) {
+	Given(t).
+		Path("helm").
+		When().
+		AddFile("foo.yml", "").
+		AddFile("baz.yml", "").
+		Create().
+		AppSet("--values", "foo.yml", "--values", "baz.yml").
+		Then().
+		And(func(app *Application) {
+			assert.NotNil(t, app.Spec.Source.Helm)
+			assert.Equal(t, []string{"foo.yml", "baz.yml"}, app.Spec.Source.Helm.ValueFiles)
+		}).
+		When().
+		AppUnSet("--values", "foo.yml").
+		Then().
+		And(func(app *Application) {
+			assert.NotNil(t, app.Spec.Source.Helm)
+			assert.Equal(t, []string{"baz.yml"}, app.Spec.Source.Helm.ValueFiles)
+		}).
+		When().
+		AppUnSet("--values", "baz.yml").
+		Then().
+		And(func(app *Application) {
+			assert.Nil(t, app.Spec.Source.Helm)
+		})
+}
+
+func TestHelmValuesLiteralFileLocal(t *testing.T) {
+	Given(t).
+		Path("helm").
+		When().
+		Create().
+		AppSet("--values-literal-file", "testdata/helm/baz.yaml").
+		Then().
+		And(func(app *Application) {
+			data, err := ioutil.ReadFile("testdata/helm/baz.yaml")
+			if err != nil {
+				panic(err)
+			}
+			assert.Equal(t, string(data), app.Spec.Source.Helm.Values)
+		}).
+		When().
+		AppUnSet("--values-literal").
+		Then().
+		And(func(app *Application) {
+			assert.Nil(t, app.Spec.Source.Helm)
+		})
+}
+
+func TestHelmValuesLiteralFileRemote(t *testing.T) {
+	sentinel := "a: b"
+	serve := func(c chan<- string) {
+		// listen on first available dynamic (unprivileged) port
+		listener, err := net.Listen("tcp", ":0")
+		if err != nil {
+			panic(err)
+		}
+
+		// send back the address so that it can be used
+		c <- listener.Addr().String()
+		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			// return the sentinel text at root URL
+			fmt.Fprint(w, sentinel)
+		})
+
+		panic(http.Serve(listener, nil))
+	}
+	c := make(chan string, 1)
+
+	// run a local webserver to test data retrieval
+	go serve(c)
+	address := <-c
+	t.Logf("Listening at address: %s", address)
+
+	Given(t).
+		Path("helm").
+		When().
+		Create().
+		AppSet("--values-literal-file", "http://"+address).
+		Then().
+		And(func(app *Application) {
+			assert.Equal(t, "a: b", app.Spec.Source.Helm.Values)
+		}).
+		When().
+		AppUnSet("--values-literal").
+		Then().
+		And(func(app *Application) {
+			assert.Nil(t, app.Spec.Source.Helm)
+		})
+}
+
 func TestHelmCrdHook(t *testing.T) {
 	Given(t).
 		Path("helm-crd").
@@ -110,7 +225,7 @@ func TestHelmCrdHook(t *testing.T) {
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(ResourceResultNumbering(2))
 }
@@ -206,7 +321,7 @@ func TestKubeVersion(t *testing.T) {
 		And(func(app *Application) {
 			kubeVersion := FailOnErr(Run(".", "kubectl", "-n", DeploymentNamespace(), "get", "cm", "my-map",
 				"-o", "jsonpath={.data.kubeVersion}")).(string)
-			// Capabiliets.KubeVersion defaults to 1.9.0, we assume here you are running a later version
+			// Capabilities.KubeVersion defaults to 1.9.0, we assume here you are running a later version
 			assert.Equal(t, GetVersions().ServerVersion.Format("v%s.%s.0"), kubeVersion)
 		})
 }
@@ -221,7 +336,7 @@ func TestHelmValuesHiddenDirectory(t *testing.T) {
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
@@ -244,15 +359,15 @@ func testHelmWithDependencies(t *testing.T, chartPath string, legacyRepo bool) {
 		Timeout(30)
 	if legacyRepo {
 		ctx.And(func() {
-			errors.FailOnErr(fixture.Run("", "kubectl", "create", "secret", "generic", "helm-repo",
+			FailOnErr(fixture.Run("", "kubectl", "create", "secret", "generic", "helm-repo",
 				"-n", fixture.ArgoCDNamespace,
 				fmt.Sprintf("--from-file=certSecret=%s", repos.CertPath),
 				fmt.Sprintf("--from-file=keySecret=%s", repos.CertKeyPath),
 				fmt.Sprintf("--from-literal=username=%s", GitUsername),
 				fmt.Sprintf("--from-literal=password=%s", GitPassword),
 			))
-			errors.FailOnErr(fixture.KubeClientset.CoreV1().Secrets(fixture.ArgoCDNamespace).Patch(
-				"helm-repo", types.MergePatchType, []byte(`{"metadata": { "labels": {"e2e.argoproj.io": "true"} }}`)))
+			FailOnErr(fixture.KubeClientset.CoreV1().Secrets(fixture.ArgoCDNamespace).Patch(context.Background(),
+				"helm-repo", types.MergePatchType, []byte(`{"metadata": { "labels": {"e2e.argoproj.io": "true"} }}`), metav1.PatchOptions{}))
 
 			fixture.SetHelmRepos(settings.HelmRepoCredentials{
 				URL:            RepoURL(RepoURLTypeHelm),
@@ -302,7 +417,7 @@ func TestHelmRepoDiffLocal(t *testing.T) {
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			_ = os.Setenv("XDG_CONFIG_HOME", helmTmp)

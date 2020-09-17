@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	. "github.com/argoproj/argo-cd/errors"
+	. "github.com/argoproj/gitops-engine/pkg/utils/errors"
+
 	"github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
 )
@@ -46,9 +47,6 @@ func TestCanAddAppFromPrivateRepoWithRepoCfg(t *testing.T) {
 		Create().
 		Then().
 		Expect(Success(""))
-}
-
-func TestCanAddAppFromPrivateRepoWithCredsFromCLI(t *testing.T) {
 }
 
 // make sure you can create an app from a private repo, if the creds are set-up in the CM

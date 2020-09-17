@@ -5,7 +5,7 @@ for initial configuration and then switch to local users or configure SSO integr
 
 ## Local users/accounts (v1.5)
 
-The local users/accounts feature serving to main use-cases:
+The local users/accounts feature serves two main use-cases:
 
 * Auth tokens for Argo CD management automation. It is possible to configure an API account with limited permissions and generate an authentication token.
 Such token can be used to automatically create applications, projects etc.
@@ -42,6 +42,7 @@ data:
 ```
 
 Each user might have two capabilities:
+
 * apiKey - allows generating authentication tokens for API access
 * login - allows to login using UI
 
@@ -118,7 +119,7 @@ There are two ways that SSO can be configured:
   organizations and teams to OIDC groups claims).
 
 * [Existing OIDC provider](#existing-oidc-provider) - use this if you already have an OIDC provider which you are using (e.g.
-  [Okta](okta.md), [OneLogin](onelogin.md), [Auth0](auth0.md), [Microsoft](microsoft.md)), where you manage your users, groups, and memberships.
+  [Okta](okta.md), [OneLogin](onelogin.md), [Auth0](auth0.md), [Microsoft](microsoft.md), [Keycloak](keycloak.md)), where you manage your users, groups, and memberships.
 
 ## Dex
 
@@ -193,7 +194,9 @@ After saving, the changes should take affect automatically.
 NOTES:
 
 * Any values which start with '$' will look to a key in argocd-secret of the same name (minus the $),
-  to obtain the actual value. This allows you to store the `clientSecret` as a kubernetes secret.
+  to obtain the actual value. This allows you to store the `clientSecret` as a kubernetes secret. 
+  Kubernetes secrets must be base64 encoded. To base64 encode your secret, you can run 
+  `printf RAW_STRING | base64`.
 * There is no need to set `redirectURI` in the `connectors.config` as shown in the dex documentation.
   Argo CD will automatically use the correct `redirectURI` for any OAuth2 connectors, to match the
   correct external callback URL (e.g. `https://argocd.example.com/api/dex/callback`)

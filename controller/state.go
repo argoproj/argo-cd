@@ -6,8 +6,15 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/diff"
+	"github.com/argoproj/gitops-engine/pkg/health"
+	"github.com/argoproj/gitops-engine/pkg/sync"
+	hookutil "github.com/argoproj/gitops-engine/pkg/sync/hook"
+	"github.com/argoproj/gitops-engine/pkg/sync/ignore"
+	resourceutil "github.com/argoproj/gitops-engine/pkg/sync/resource"
+	"github.com/argoproj/gitops-engine/pkg/utils/io"
+	kubeutil "github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
-	"github.com/yudai/gojsondiff"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -21,18 +28,20 @@ import (
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/argo-cd/util/diff"
-	"github.com/argoproj/argo-cd/util/health"
-	hookutil "github.com/argoproj/argo-cd/util/hook"
-	kubeutil "github.com/argoproj/argo-cd/util/kube"
-	"github.com/argoproj/argo-cd/util/resource"
-	"github.com/argoproj/argo-cd/util/resource/ignore"
+	"github.com/argoproj/argo-cd/util/gpg"
+	argohealth "github.com/argoproj/argo-cd/util/health"
 	"github.com/argoproj/argo-cd/util/settings"
 	"github.com/argoproj/argo-cd/util/stats"
 )
+
+type resourceInfoProviderStub struct {
+}
+
+func (r *resourceInfoProviderStub) IsNamespaced(_ schema.GroupKind) (bool, error) {
+	return false, nil
+}
 
 type managedResource struct {
 	Target    *unstructured.Unstructured
@@ -46,16 +55,18 @@ type managedResource struct {
 	Hook      bool
 }
 
-func GetLiveObjs(res []managedResource) []*unstructured.Unstructured {
-	objs := make([]*unstructured.Unstructured, len(res))
-	for i := range res {
-		objs[i] = res[i].Live
-	}
-	return objs
-}
+func GetLiveObjsForApplicationHealth(resources []managedResource, statuses []appv1.ResourceStatus) ([]*appv1.ResourceStatus, []*unstructured.Unstructured) {
+	liveObjs := make([]*unstructured.Unstructured, 0)
+	resStatuses := make([]*appv1.ResourceStatus, 0)
+	for i, resource := range resources {
+		if resource.Target != nil && hookutil.Skip(resource.Target) {
+			continue
+		}
 
-type ResourceInfoProvider interface {
-	IsNamespaced(server string, gk schema.GroupKind) (bool, error)
+		liveObjs = append(liveObjs, resource.Live)
+		resStatuses = append(resStatuses, &statuses[i])
+	}
+	return resStatuses, liveObjs
 }
 
 // AppStateManager defines methods which allow to compare application spec and actual application state.
@@ -65,25 +76,23 @@ type AppStateManager interface {
 }
 
 type comparisonResult struct {
-	syncStatus       *v1alpha1.SyncStatus
-	healthStatus     *v1alpha1.HealthStatus
-	resources        []v1alpha1.ResourceStatus
-	managedResources []managedResource
-	hooks            []*unstructured.Unstructured
-	diffNormalizer   diff.Normalizer
-	appSourceType    v1alpha1.ApplicationSourceType
+	syncStatus           *v1alpha1.SyncStatus
+	healthStatus         *v1alpha1.HealthStatus
+	resources            []v1alpha1.ResourceStatus
+	managedResources     []managedResource
+	reconciliationResult sync.ReconciliationResult
+	diffNormalizer       diff.Normalizer
+	appSourceType        v1alpha1.ApplicationSourceType
 	// timings maps phases of comparison to the duration it took to complete (for statistical purposes)
 	timings map[string]time.Duration
 }
 
-func (cr *comparisonResult) targetObjs() []*unstructured.Unstructured {
-	objs := cr.hooks
-	for _, r := range cr.managedResources {
-		if r.Target != nil {
-			objs = append(objs, r.Target)
-		}
-	}
-	return objs
+func (res *comparisonResult) GetSyncStatus() *v1alpha1.SyncStatus {
+	return res.syncStatus
+}
+
+func (res *comparisonResult) GetHealthStatus() *v1alpha1.HealthStatus {
+	return res.healthStatus
 }
 
 // appStateManager allows to compare applications to git
@@ -99,23 +108,23 @@ type appStateManager struct {
 	namespace      string
 }
 
-func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1.ApplicationSource, appLabelKey, revision string, noCache bool) ([]*unstructured.Unstructured, []*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
+func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1.ApplicationSource, appLabelKey, revision string, noCache, verifySignature bool) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
 	ts := stats.NewTimingStats()
 	helmRepos, err := m.db.ListHelmRepositories(context.Background())
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 	ts.AddCheckpoint("helm_ms")
 	repo, err := m.db.GetRepository(context.Background(), source.RepoURL)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 	ts.AddCheckpoint("repo_ms")
 	conn, repoClient, err := m.repoClientset.NewRepoServerClient()
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
-	defer util.Close(conn)
+	defer io.Close(conn)
 
 	if revision == "" {
 		revision = source.TargetRevision
@@ -123,7 +132,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 
 	plugins, err := m.settingsMgr.GetConfigManagementPlugins()
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 	ts.AddCheckpoint("plugins_ms")
 	tools := make([]*appv1.ConfigManagementPlugin, len(plugins))
@@ -133,16 +142,16 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 
 	kustomizeSettings, err := m.settingsMgr.GetKustomizeSettings()
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 	kustomizeOptions, err := kustomizeSettings.GetOptions(app.Spec.Source)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 	ts.AddCheckpoint("build_options_ms")
 	serverVersion, apiGroups, err := m.liveStateCache.GetVersionsInfo(app.Spec.Destination.Server)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 	ts.AddCheckpoint("version_ms")
 	manifestInfo, err := repoClient.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
@@ -158,15 +167,17 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		KustomizeOptions:  kustomizeOptions,
 		KubeVersion:       serverVersion,
 		ApiVersions:       argo.APIGroupsToVersions(apiGroups),
+		VerifySignature:   verifySignature,
 	})
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
-	ts.AddCheckpoint("manifests_ms")
-	targetObjs, hooks, err := unmarshalManifests(manifestInfo.Manifests)
+	targetObjs, err := unmarshalManifests(manifestInfo.Manifests)
+
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
+
 	ts.AddCheckpoint("unmarshal_ms")
 	logCtx := log.WithField("application", app.Name)
 	for k, v := range ts.Timings() {
@@ -174,49 +185,43 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 	}
 	logCtx = logCtx.WithField("time_ms", time.Since(ts.StartTime).Milliseconds())
 	logCtx.Info("getRepoObjs stats")
-	return targetObjs, hooks, manifestInfo, nil
+	return targetObjs, manifestInfo, nil
 }
 
-func unmarshalManifests(manifests []string) ([]*unstructured.Unstructured, []*unstructured.Unstructured, error) {
+func unmarshalManifests(manifests []string) ([]*unstructured.Unstructured, error) {
 	targetObjs := make([]*unstructured.Unstructured, 0)
-	hooks := make([]*unstructured.Unstructured, 0)
 	for _, manifest := range manifests {
 		obj, err := v1alpha1.UnmarshalToUnstructured(manifest)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
-		if obj == nil || ignore.Ignore(obj) {
-			continue
-		}
-		if hookutil.IsHook(obj) {
-			hooks = append(hooks, obj)
-		} else {
-			targetObjs = append(targetObjs, obj)
-		}
+		targetObjs = append(targetObjs, obj)
 	}
-	return targetObjs, hooks, nil
+	return targetObjs, nil
 }
 
 func DeduplicateTargetObjects(
-	server string,
 	namespace string,
 	objs []*unstructured.Unstructured,
-	infoProvider ResourceInfoProvider,
+	infoProvider kubeutil.ResourceInfoProvider,
 ) ([]*unstructured.Unstructured, []v1alpha1.ApplicationCondition, error) {
 
 	targetByKey := make(map[kubeutil.ResourceKey][]*unstructured.Unstructured)
 	for i := range objs {
 		obj := objs[i]
-		isNamespaced, err := infoProvider.IsNamespaced(server, obj.GroupVersionKind().GroupKind())
-		if err != nil {
-			return objs, nil, err
+		if obj == nil {
+			continue
 		}
+		isNamespaced := kubeutil.IsNamespacedOrUnknown(infoProvider, obj.GroupVersionKind().GroupKind())
 		if !isNamespaced {
 			obj.SetNamespace("")
 		} else if obj.GetNamespace() == "" {
 			obj.SetNamespace(namespace)
 		}
 		key := kubeutil.GetResourceKey(obj)
+		if key.Name == "" && obj.GetGenerateName() != "" {
+			key.Name = fmt.Sprintf("%s%d", obj.GetGenerateName(), i)
+		}
 		targetByKey[key] = append(targetByKey[key], obj)
 	}
 	conditions := make([]v1alpha1.ApplicationCondition, 0)
@@ -234,42 +239,6 @@ func DeduplicateTargetObjects(
 	}
 
 	return result, conditions, nil
-}
-
-// dedupLiveResources handles removes live resource duplicates with the same UID. Duplicates are created in a separate resource groups.
-// E.g. apps/Deployment produces duplicate in extensions/Deployment, authorization.openshift.io/ClusterRole produces duplicate in rbac.authorization.k8s.io/ClusterRole etc.
-// The method removes such duplicates unless it was defined in git ( exists in target resources list ). At least one duplicate stays.
-// If non of duplicates are in git at random one stays
-func dedupLiveResources(targetObjs []*unstructured.Unstructured, liveObjsByKey map[kubeutil.ResourceKey]*unstructured.Unstructured) {
-	targetObjByKey := make(map[kubeutil.ResourceKey]*unstructured.Unstructured)
-	for i := range targetObjs {
-		targetObjByKey[kubeutil.GetResourceKey(targetObjs[i])] = targetObjs[i]
-	}
-	liveObjsById := make(map[types.UID][]*unstructured.Unstructured)
-	for k := range liveObjsByKey {
-		obj := liveObjsByKey[k]
-		if obj != nil {
-			liveObjsById[obj.GetUID()] = append(liveObjsById[obj.GetUID()], obj)
-		}
-	}
-	for id := range liveObjsById {
-		objs := liveObjsById[id]
-
-		if len(objs) > 1 {
-			duplicatesLeft := len(objs)
-			for i := range objs {
-				obj := objs[i]
-				resourceKey := kubeutil.GetResourceKey(obj)
-				if _, ok := targetObjByKey[resourceKey]; !ok {
-					delete(liveObjsByKey, resourceKey)
-					duplicatesLeft--
-					if duplicatesLeft == 1 {
-						break
-					}
-				}
-			}
-		}
-	}
 }
 
 func (m *appStateManager) getComparisonSettings(app *appv1.Application) (string, map[string]v1alpha1.ResourceOverride, diff.Normalizer, *settings.ResourcesFilter, error) {
@@ -292,6 +261,50 @@ func (m *appStateManager) getComparisonSettings(app *appv1.Application) (string,
 	return appLabelKey, resourceOverrides, diffNormalizer, resFilter, nil
 }
 
+// verifyGnuPGSignature verifies the result of a GnuPG operation for a given git
+// revision.
+func verifyGnuPGSignature(revision string, project *appv1.AppProject, manifestInfo *apiclient.ManifestResponse) []appv1.ApplicationCondition {
+	now := metav1.Now()
+	conditions := make([]appv1.ApplicationCondition, 0)
+	// We need to have some data in the verificatin result to parse, otherwise there was no signature
+	if manifestInfo.VerifyResult != "" {
+		verifyResult, err := gpg.ParseGitCommitVerification(manifestInfo.VerifyResult)
+		if err != nil {
+			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
+			log.Errorf("Error while verifying git commit for revision %s: %s", revision, err.Error())
+		} else {
+			switch verifyResult.Result {
+			case gpg.VerifyResultGood:
+				// This is the only case we allow to sync to, but we need to make sure signing key is allowed
+				validKey := false
+				for _, k := range project.Spec.SignatureKeys {
+					if gpg.KeyID(k.KeyID) == gpg.KeyID(verifyResult.KeyID) && gpg.KeyID(k.KeyID) != "" {
+						validKey = true
+						break
+					}
+				}
+				if !validKey {
+					msg := fmt.Sprintf("Found good signature made with %s key %s, but this key is not allowed in AppProject",
+						verifyResult.Cipher, verifyResult.KeyID)
+					conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
+				}
+			case gpg.VerifyResultInvalid:
+				msg := fmt.Sprintf("Found signature made with %s key %s, but verification result was invalid: '%s'",
+					verifyResult.Cipher, verifyResult.KeyID, verifyResult.Message)
+				conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
+			default:
+				msg := fmt.Sprintf("Could not verify commit signature on revision '%s', check logs for more information.", revision)
+				conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
+			}
+		}
+	} else {
+		msg := fmt.Sprintf("Target revision %s in Git is not signed, but a signature is required", revision)
+		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
+	}
+
+	return conditions
+}
+
 // CompareAppState compares application git state to the live app state, using the specified
 // revision and supplied source. If revision or overrides are empty, then compares against
 // revision and overrides in the app spec.
@@ -307,8 +320,14 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 				ComparedTo: appv1.ComparedTo{Source: source, Destination: app.Spec.Destination},
 				Status:     appv1.SyncStatusCodeUnknown,
 			},
-			healthStatus: &appv1.HealthStatus{Status: appv1.HealthStatusUnknown},
+			healthStatus: &appv1.HealthStatus{Status: health.HealthStatusUnknown},
 		}
+	}
+
+	// When signature keys are defined in the project spec, we need to verify the signature on the Git revision
+	verifySignature := false
+	if project.Spec.SignatureKeys != nil && len(project.Spec.SignatureKeys) > 0 && gpg.IsGPGEnabled() {
+		verifySignature = true
 	}
 
 	// do best effort loading live and target state to present as much information about app state as possible
@@ -319,29 +338,42 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	logCtx.Infof("Comparing app state (cluster: %s, namespace: %s)", app.Spec.Destination.Server, app.Spec.Destination.Namespace)
 
 	var targetObjs []*unstructured.Unstructured
-	var hooks []*unstructured.Unstructured
 	var manifestInfo *apiclient.ManifestResponse
 	now := metav1.Now()
 
 	if len(localManifests) == 0 {
-		targetObjs, hooks, manifestInfo, err = m.getRepoObjs(app, source, appLabelKey, revision, noCache)
+		targetObjs, manifestInfo, err = m.getRepoObjs(app, source, appLabelKey, revision, noCache, verifySignature)
 		if err != nil {
 			targetObjs = make([]*unstructured.Unstructured, 0)
 			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
 			failedToLoadObjs = true
 		}
 	} else {
-		targetObjs, hooks, err = unmarshalManifests(localManifests)
-		if err != nil {
+		// Prevent applying local manifests for now when signature verification is enabled
+		// This is also enforced on API level, but as a last resort, we also enforce it here
+		if gpg.IsGPGEnabled() && verifySignature {
+			msg := "Cannot use local manifests when signature verification is required"
 			targetObjs = make([]*unstructured.Unstructured, 0)
-			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
+			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
 			failedToLoadObjs = true
+		} else {
+			targetObjs, err = unmarshalManifests(localManifests)
+			if err != nil {
+				targetObjs = make([]*unstructured.Unstructured, 0)
+				conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
+				failedToLoadObjs = true
+			}
 		}
 		manifestInfo = nil
 	}
 	ts.AddCheckpoint("git_ms")
 
-	targetObjs, dedupConditions, err := DeduplicateTargetObjects(app.Spec.Destination.Server, app.Spec.Destination.Namespace, targetObjs, m.liveStateCache)
+	var infoProvider kubeutil.ResourceInfoProvider
+	infoProvider, err = m.liveStateCache.GetClusterCache(app.Spec.Destination.Server)
+	if err != nil {
+		infoProvider = &resourceInfoProviderStub{}
+	}
+	targetObjs, dedupConditions, err := DeduplicateTargetObjects(app.Spec.Destination.Namespace, targetObjs, infoProvider)
 	if err != nil {
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
 	}
@@ -366,7 +398,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
 		failedToLoadObjs = true
 	}
-	dedupLiveResources(targetObjs, liveObjByKey)
+	logCtx.Debugf("Retrieved lived manifests")
+
 	// filter out all resources which are not permitted in the application project
 	for k, v := range liveObjByKey {
 		if !project.IsLiveResourcePermitted(v, app.Spec.Destination.Server) {
@@ -387,33 +420,18 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		}
 	}
 
-	managedLiveObj := make([]*unstructured.Unstructured, len(targetObjs))
-	for i, obj := range targetObjs {
-		gvk := obj.GroupVersionKind()
-		ns := util.FirstNonEmpty(obj.GetNamespace(), app.Spec.Destination.Namespace)
-		if namespaced, err := m.liveStateCache.IsNamespaced(app.Spec.Destination.Server, obj.GroupVersionKind().GroupKind()); err == nil && !namespaced {
-			ns = ""
-		}
-		key := kubeutil.NewResourceKey(gvk.Group, gvk.Kind, ns, obj.GetName())
-		if liveObj, ok := liveObjByKey[key]; ok {
-			managedLiveObj[i] = liveObj
-			delete(liveObjByKey, key)
-		} else {
-			managedLiveObj[i] = nil
-		}
-	}
+	reconciliation := sync.Reconcile(targetObjs, liveObjByKey, app.Spec.Destination.Namespace, infoProvider)
 	ts.AddCheckpoint("live_ms")
 
-	// Everything remaining in liveObjByKey are "extra" resources that aren't tracked in git.
-	// The following adds all the extras to the managedLiveObj list and backfills the targetObj
-	// list with nils, so that the lists are of equal lengths for comparison purposes.
-	for _, obj := range liveObjByKey {
-		targetObjs = append(targetObjs, nil)
-		managedLiveObj = append(managedLiveObj, obj)
+	compareOptions, err := m.settingsMgr.GetResourceCompareOptions()
+	if err != nil {
+		log.Warnf("Could not get compare options from ConfigMap (assuming defaults): %v", err)
+		compareOptions = diff.GetDefaultDiffOptions()
 	}
 
+	logCtx.Debugf("built managed objects list")
 	// Do the actual comparison
-	diffResults, err := diff.DiffArray(targetObjs, managedLiveObj, diffNormalizer)
+	diffResults, err := diff.DiffArray(reconciliation.Target, reconciliation.Live, diffNormalizer, compareOptions)
 	if err != nil {
 		diffResults = &diff.DiffResultList{}
 		failedToLoadObjs = true
@@ -422,10 +440,10 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	ts.AddCheckpoint("diff_ms")
 
 	syncCode := v1alpha1.SyncStatusCodeSynced
-	managedResources := make([]managedResource, len(targetObjs))
-	resourceSummaries := make([]v1alpha1.ResourceStatus, len(targetObjs))
-	for i, targetObj := range targetObjs {
-		liveObj := managedLiveObj[i]
+	managedResources := make([]managedResource, len(reconciliation.Target))
+	resourceSummaries := make([]v1alpha1.ResourceStatus, len(reconciliation.Target))
+	for i, targetObj := range reconciliation.Target {
+		liveObj := reconciliation.Live[i]
 		obj := liveObj
 		if obj == nil {
 			obj = targetObj
@@ -449,15 +467,10 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		if i < len(diffResults.Diffs) {
 			diffResult = diffResults.Diffs[i]
 		} else {
-			diffResult = diff.DiffResult{
-				Diff:           gojsondiff.New().CompareObjects(map[string]interface{}{}, map[string]interface{}{}),
-				Modified:       false,
-				NormalizedLive: []byte("{}"),
-				PredictedLive:  []byte("{}"),
-			}
+			diffResult = diff.DiffResult{Modified: false, NormalizedLive: []byte("{}"), PredictedLive: []byte("{}")}
 		}
-		if resState.Hook || ignore.Ignore(obj) {
-			// For resource hooks, don't store sync status, and do not affect overall sync status
+		if resState.Hook || ignore.Ignore(obj) || (targetObj != nil && hookutil.Skip(targetObj)) {
+			// For resource hooks or skipped resources, don't store sync status, and do not affect overall sync status
 		} else if diffResult.Modified || targetObj == nil || liveObj == nil {
 			// Set resource state to OutOfSync since one of the following is true:
 			// * target and live resource are different
@@ -466,7 +479,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 			resState.Status = v1alpha1.SyncStatusCodeOutOfSync
 			// we ignore the status if the obj needs pruning AND we have the annotation
 			needsPruning := targetObj == nil && liveObj != nil
-			if !(needsPruning && resource.HasAnnotationOption(obj, common.AnnotationCompareOptions, "IgnoreExtraneous")) {
+			if !(needsPruning && resourceutil.HasAnnotationOption(obj, common.AnnotationCompareOptions, "IgnoreExtraneous")) {
 				syncCode = v1alpha1.SyncStatusCodeOutOfSync
 			}
 		} else {
@@ -476,6 +489,10 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		isNamespaced, err := m.liveStateCache.IsNamespaced(app.Spec.Destination.Server, gvk.GroupKind())
 		if !project.IsGroupKindPermitted(gvk.GroupKind(), isNamespaced && err == nil) {
 			resState.Status = v1alpha1.SyncStatusCodeUnknown
+		}
+
+		if isNamespaced && obj.GetNamespace() == "" {
+			conditions = append(conditions, appv1.ApplicationCondition{Type: v1alpha1.ApplicationConditionInvalidSpecError, Message: fmt.Sprintf("Namespace for %s %s is missing.", obj.GetName(), gvk.String()), LastTransitionTime: &now})
 		}
 
 		// we can't say anything about the status if we were unable to get the target objects
@@ -511,7 +528,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	}
 	ts.AddCheckpoint("sync_ms")
 
-	healthStatus, err := health.SetApplicationHealth(resourceSummaries, GetLiveObjs(managedResources), resourceOverrides, func(obj *unstructured.Unstructured) bool {
+	resSumForAppHealth, liveObjsForAppHealth := GetLiveObjsForApplicationHealth(managedResources, resourceSummaries)
+	healthStatus, err := argohealth.SetApplicationHealth(resSumForAppHealth, liveObjsForAppHealth, resourceOverrides, func(obj *unstructured.Unstructured) bool {
 		return !isSelfReferencedApp(app, kubeutil.GetObjectRef(obj))
 	})
 
@@ -519,13 +537,20 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		conditions = append(conditions, appv1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
 	}
 
+	// Git has already performed the signature verification via its GPG interface, and the result is available
+	// in the manifest info received from the repository server. We now need to form our oppinion about the result
+	// and stop processing if we do not agree about the outcome.
+	if gpg.IsGPGEnabled() && verifySignature && manifestInfo != nil {
+		conditions = append(conditions, verifyGnuPGSignature(revision, project, manifestInfo)...)
+	}
+
 	compRes := comparisonResult{
-		syncStatus:       &syncStatus,
-		healthStatus:     healthStatus,
-		resources:        resourceSummaries,
-		managedResources: managedResources,
-		hooks:            hooks,
-		diffNormalizer:   diffNormalizer,
+		syncStatus:           &syncStatus,
+		healthStatus:         healthStatus,
+		resources:            resourceSummaries,
+		managedResources:     managedResources,
+		reconciliationResult: reconciliation,
+		diffNormalizer:       diffNormalizer,
 	}
 	if manifestInfo != nil {
 		compRes.appSourceType = v1alpha1.ApplicationSourceType(manifestInfo.SourceType)
@@ -541,16 +566,17 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	return &compRes
 }
 
-func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource) error {
+func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource, startedAt metav1.Time) error {
 	var nextID int64
 	if len(app.Status.History) > 0 {
-		nextID = app.Status.History[len(app.Status.History)-1].ID + 1
+		nextID = app.Status.History.LastRevisionHistory().ID + 1
 	}
 	app.Status.History = append(app.Status.History, v1alpha1.RevisionHistory{
-		Revision:   revision,
-		DeployedAt: metav1.NewTime(time.Now().UTC()),
-		ID:         nextID,
-		Source:     source,
+		Revision:        revision,
+		DeployedAt:      metav1.NewTime(time.Now().UTC()),
+		DeployStartedAt: &startedAt,
+		ID:              nextID,
+		Source:          source,
 	})
 
 	app.Status.History = app.Status.History.Trunc(app.Spec.GetRevisionHistoryLimit())
@@ -563,11 +589,11 @@ func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revi
 	if err != nil {
 		return err
 	}
-	_, err = m.appclientset.ArgoprojV1alpha1().Applications(m.namespace).Patch(app.Name, types.MergePatchType, patch)
+	_, err = m.appclientset.ArgoprojV1alpha1().Applications(m.namespace).Patch(context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
 	return err
 }
 
-// NewAppStateManager creates new instance of Ksonnet app comparator
+// NewAppStateManager creates new instance of AppStateManager
 func NewAppStateManager(
 	db db.ArgoDB,
 	appclientset appclientset.Interface,

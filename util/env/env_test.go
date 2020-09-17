@@ -5,11 +5,12 @@ import (
 	"os"
 	"testing"
 
-	"github.com/argoproj/argo-cd/util"
+	util "github.com/argoproj/gitops-engine/pkg/utils/io"
 
 	"github.com/stretchr/testify/assert"
 )
 
+// nolint:unparam
 func setEnv(t *testing.T, env string, val string) io.Closer {
 	assert.NoError(t, os.Setenv(env, val))
 	return util.NewCloser(func() error {

@@ -2,8 +2,15 @@ package controller
 
 import (
 	"encoding/json"
+	"io/ioutil"
+	"os"
 	"testing"
+	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/health"
+	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	. "github.com/argoproj/gitops-engine/pkg/utils/testing"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,7 +21,6 @@ import (
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/test"
-	"github.com/argoproj/argo-cd/util/kube"
 )
 
 // TestCompareAppStateEmpty tests comparison when both git and live have no objects
@@ -45,7 +51,7 @@ func TestCompareAppStateMissing(t *testing.T) {
 	data := fakeData{
 		apps: []runtime.Object{app},
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{test.PodManifest},
+			Manifests: []string{PodManifest},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -64,7 +70,7 @@ func TestCompareAppStateMissing(t *testing.T) {
 
 // TestCompareAppStateExtra tests when there is an extra object in live but not defined in git
 func TestCompareAppStateExtra(t *testing.T) {
-	pod := test.NewPod()
+	pod := NewPod()
 	pod.SetNamespace(test.FakeDestNamespace)
 	app := newFakeApp()
 	key := kube.ResourceKey{Group: "", Kind: "Pod", Namespace: test.FakeDestNamespace, Name: app.Name}
@@ -91,8 +97,8 @@ func TestCompareAppStateExtra(t *testing.T) {
 // TestCompareAppStateHook checks that hooks are detected during manifest generation, and not
 // considered as part of resources when assessing Synced status
 func TestCompareAppStateHook(t *testing.T) {
-	pod := test.NewPod()
-	pod.SetAnnotations(map[string]string{common.AnnotationKeyHook: "PreSync"})
+	pod := NewPod()
+	pod.SetAnnotations(map[string]string{synccommon.AnnotationKeyHook: "PreSync"})
 	podBytes, _ := json.Marshal(pod)
 	app := newFakeApp()
 	data := fakeData{
@@ -111,13 +117,40 @@ func TestCompareAppStateHook(t *testing.T) {
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
 	assert.Equal(t, 0, len(compRes.resources))
 	assert.Equal(t, 0, len(compRes.managedResources))
-	assert.Equal(t, 1, len(compRes.hooks))
+	assert.Equal(t, 1, len(compRes.reconciliationResult.Hooks))
+	assert.Equal(t, 0, len(app.Status.Conditions))
+}
+
+// TestCompareAppStateSkipHook checks that skipped resources are detected during manifest generation, and not
+// considered as part of resources when assessing Synced status
+func TestCompareAppStateSkipHook(t *testing.T) {
+	pod := NewPod()
+	pod.SetAnnotations(map[string]string{synccommon.AnnotationKeyHook: "Skip"})
+	podBytes, _ := json.Marshal(pod)
+	app := newFakeApp()
+	data := fakeData{
+		apps: []runtime.Object{app},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{string(podBytes)},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+	}
+	ctrl := newFakeController(&data)
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, nil)
+	assert.NotNil(t, compRes)
+	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
+	assert.Equal(t, 1, len(compRes.resources))
+	assert.Equal(t, 1, len(compRes.managedResources))
+	assert.Equal(t, 0, len(compRes.reconciliationResult.Hooks))
 	assert.Equal(t, 0, len(app.Status.Conditions))
 }
 
 // checks that ignore resources are detected, but excluded from status
 func TestCompareAppStateCompareOptionIgnoreExtraneous(t *testing.T) {
-	pod := test.NewPod()
+	pod := NewPod()
 	pod.SetAnnotations(map[string]string{common.AnnotationCompareOptions: "IgnoreExtraneous"})
 	app := newFakeApp()
 	data := fakeData{
@@ -143,8 +176,8 @@ func TestCompareAppStateCompareOptionIgnoreExtraneous(t *testing.T) {
 
 // TestCompareAppStateExtraHook tests when there is an extra _hook_ object in live but not defined in git
 func TestCompareAppStateExtraHook(t *testing.T) {
-	pod := test.NewPod()
-	pod.SetAnnotations(map[string]string{common.AnnotationKeyHook: "PreSync"})
+	pod := NewPod()
+	pod.SetAnnotations(map[string]string{synccommon.AnnotationKeyHook: "PreSync"})
 	pod.SetNamespace(test.FakeDestNamespace)
 	app := newFakeApp()
 	key := kube.ResourceKey{Group: "", Kind: "Pod", Namespace: test.FakeDestNamespace, Name: app.Name}
@@ -166,7 +199,7 @@ func TestCompareAppStateExtraHook(t *testing.T) {
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
 	assert.Equal(t, 1, len(compRes.resources))
 	assert.Equal(t, 1, len(compRes.managedResources))
-	assert.Equal(t, 0, len(compRes.hooks))
+	assert.Equal(t, 0, len(compRes.reconciliationResult.Hooks))
 	assert.Equal(t, 0, len(app.Status.Conditions))
 }
 
@@ -177,16 +210,22 @@ func toJSON(t *testing.T, obj *unstructured.Unstructured) string {
 }
 
 func TestCompareAppStateDuplicatedNamespacedResources(t *testing.T) {
-	obj1 := test.NewPod()
+	obj1 := NewPod()
 	obj1.SetNamespace(test.FakeDestNamespace)
-	obj2 := test.NewPod()
-	obj3 := test.NewPod()
+	obj2 := NewPod()
+	obj3 := NewPod()
 	obj3.SetNamespace("kube-system")
+	obj4 := NewPod()
+	obj4.SetGenerateName("my-pod")
+	obj4.SetName("")
+	obj5 := NewPod()
+	obj5.SetName("")
+	obj5.SetGenerateName("my-pod")
 
 	app := newFakeApp()
 	data := fakeData{
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{toJSON(t, obj1), toJSON(t, obj2), toJSON(t, obj3)},
+			Manifests: []string{toJSON(t, obj1), toJSON(t, obj2), toJSON(t, obj3), toJSON(t, obj4), toJSON(t, obj5)},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -204,7 +243,7 @@ func TestCompareAppStateDuplicatedNamespacedResources(t *testing.T) {
 	assert.NotNil(t, app.Status.Conditions[0].LastTransitionTime)
 	assert.Equal(t, argoappv1.ApplicationConditionRepeatedResourceWarning, app.Status.Conditions[0].Type)
 	assert.Equal(t, "Resource /Pod/fake-dest-ns/my-pod appeared 2 times among application resources.", app.Status.Conditions[0].Message)
-	assert.Equal(t, 2, len(compRes.resources))
+	assert.Equal(t, 4, len(compRes.resources))
 }
 
 var defaultProj = argoappv1.AppProject{
@@ -250,7 +289,7 @@ func TestSetHealth(t *testing.T) {
 
 	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, nil)
 
-	assert.Equal(t, compRes.healthStatus.Status, argoappv1.HealthStatusHealthy)
+	assert.Equal(t, compRes.healthStatus.Status, health.HealthStatusHealthy)
 }
 
 func TestSetHealthSelfReferencedApp(t *testing.T) {
@@ -282,7 +321,7 @@ func TestSetHealthSelfReferencedApp(t *testing.T) {
 
 	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, nil)
 
-	assert.Equal(t, compRes.healthStatus.Status, argoappv1.HealthStatusHealthy)
+	assert.Equal(t, compRes.healthStatus.Status, health.HealthStatusHealthy)
 }
 
 func TestSetManagedResourcesWithOrphanedResources(t *testing.T) {
@@ -352,7 +391,7 @@ func TestReturnUnknownComparisonStateOnSettingLoadError(t *testing.T) {
 
 	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, nil)
 
-	assert.Equal(t, argoappv1.HealthStatusUnknown, compRes.healthStatus.Status)
+	assert.Equal(t, health.HealthStatusUnknown, compRes.healthStatus.Status)
 	assert.Equal(t, argoappv1.SyncStatusCodeUnknown, compRes.syncStatus.Status)
 }
 
@@ -385,13 +424,6 @@ func TestSetManagedResourcesKnownOrphanedResourceExceptions(t *testing.T) {
 	assert.Equal(t, "guestbook", tree.OrphanedNodes[0].Name)
 }
 
-func Test_comparisonResult_obs(t *testing.T) {
-	assert.Len(t, (&comparisonResult{}).targetObjs(), 0)
-	assert.Len(t, (&comparisonResult{managedResources: []managedResource{{}}}).targetObjs(), 0)
-	assert.Len(t, (&comparisonResult{managedResources: []managedResource{{Target: test.NewPod()}}}).targetObjs(), 1)
-	assert.Len(t, (&comparisonResult{hooks: []*unstructured.Unstructured{{}}}).targetObjs(), 1)
-}
-
 func Test_appStateManager_persistRevisionHistory(t *testing.T) {
 	app := newFakeApp()
 	ctrl := newFakeController(&fakeData{
@@ -403,7 +435,7 @@ func Test_appStateManager_persistRevisionHistory(t *testing.T) {
 		app.Spec.RevisionHistoryLimit = &i
 	}
 	addHistory := func() {
-		err := manager.persistRevisionHistory(app, "my-revision", argoappv1.ApplicationSource{})
+		err := manager.persistRevisionHistory(app, "my-revision", argoappv1.ApplicationSource{}, metav1.Time{})
 		assert.NoError(t, err)
 	}
 	addHistory()
@@ -437,4 +469,304 @@ func Test_appStateManager_persistRevisionHistory(t *testing.T) {
 	setRevisionHistoryLimit(9)
 	addHistory()
 	assert.Len(t, app.Status.History, 9)
+
+	metav1NowTime := metav1.NewTime(time.Now())
+	err := manager.persistRevisionHistory(app, "my-revision", argoappv1.ApplicationSource{}, metav1NowTime)
+	assert.NoError(t, err)
+	assert.Equal(t, app.Status.History.LastRevisionHistory().DeployStartedAt, &metav1NowTime)
+}
+
+// helper function to read contents of a file to string
+// panics on error
+func mustReadFile(path string) string {
+	b, err := ioutil.ReadFile(path)
+	if err != nil {
+		panic(err.Error())
+	}
+	return string(b)
+}
+
+var signedProj = argoappv1.AppProject{
+	ObjectMeta: metav1.ObjectMeta{
+		Name:      "default",
+		Namespace: test.FakeArgoCDNamespace,
+	},
+	Spec: argoappv1.AppProjectSpec{
+		SourceRepos: []string{"*"},
+		Destinations: []argoappv1.ApplicationDestination{
+			{
+				Server:    "*",
+				Namespace: "*",
+			},
+		},
+		SignatureKeys: []argoappv1.SignatureKey{
+			{
+				KeyID: "4AEE18F83AFDEB23",
+			},
+		},
+	},
+}
+
+func TestSignedResponseNoSignatureRequired(t *testing.T) {
+	oldval := os.Getenv("ARGOCD_GPG_ENABLED")
+	os.Setenv("ARGOCD_GPG_ENABLED", "true")
+	defer os.Setenv("ARGOCD_GPG_ENABLED", oldval)
+	// We have a good signature response, but project does not require signed commits
+	{
+		app := newFakeApp()
+		data := fakeData{
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests:    []string{},
+				Namespace:    test.FakeDestNamespace,
+				Server:       test.FakeClusterURL,
+				Revision:     "abc123",
+				VerifyResult: mustReadFile("../util/gpg/testdata/good_signature.txt"),
+			},
+			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+		}
+		ctrl := newFakeController(&data)
+		compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, nil)
+		assert.NotNil(t, compRes)
+		assert.NotNil(t, compRes.syncStatus)
+		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
+		assert.Len(t, compRes.resources, 0)
+		assert.Len(t, compRes.managedResources, 0)
+		assert.Len(t, app.Status.Conditions, 0)
+	}
+	// We have a bad signature response, but project does not require signed commits
+	{
+		app := newFakeApp()
+		data := fakeData{
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests:    []string{},
+				Namespace:    test.FakeDestNamespace,
+				Server:       test.FakeClusterURL,
+				Revision:     "abc123",
+				VerifyResult: mustReadFile("../util/gpg/testdata/bad_signature_bad.txt"),
+			},
+			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+		}
+		ctrl := newFakeController(&data)
+		compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, nil)
+		assert.NotNil(t, compRes)
+		assert.NotNil(t, compRes.syncStatus)
+		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
+		assert.Len(t, compRes.resources, 0)
+		assert.Len(t, compRes.managedResources, 0)
+		assert.Len(t, app.Status.Conditions, 0)
+	}
+}
+
+func TestSignedResponseSignatureRequired(t *testing.T) {
+	oldval := os.Getenv("ARGOCD_GPG_ENABLED")
+	os.Setenv("ARGOCD_GPG_ENABLED", "true")
+	defer os.Setenv("ARGOCD_GPG_ENABLED", oldval)
+
+	// We have a good signature response, valid key, and signing is required - sync!
+	{
+		app := newFakeApp()
+		data := fakeData{
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests:    []string{},
+				Namespace:    test.FakeDestNamespace,
+				Server:       test.FakeClusterURL,
+				Revision:     "abc123",
+				VerifyResult: mustReadFile("../util/gpg/testdata/good_signature.txt"),
+			},
+			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+		}
+		ctrl := newFakeController(&data)
+		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, "", app.Spec.Source, false, nil)
+		assert.NotNil(t, compRes)
+		assert.NotNil(t, compRes.syncStatus)
+		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
+		assert.Len(t, compRes.resources, 0)
+		assert.Len(t, compRes.managedResources, 0)
+		assert.Len(t, app.Status.Conditions, 0)
+	}
+	// We have a bad signature response and signing is required - do not sync
+	{
+		app := newFakeApp()
+		data := fakeData{
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests:    []string{},
+				Namespace:    test.FakeDestNamespace,
+				Server:       test.FakeClusterURL,
+				Revision:     "abc123",
+				VerifyResult: mustReadFile("../util/gpg/testdata/bad_signature_bad.txt"),
+			},
+			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+		}
+		ctrl := newFakeController(&data)
+		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, "abc123", app.Spec.Source, false, nil)
+		assert.NotNil(t, compRes)
+		assert.NotNil(t, compRes.syncStatus)
+		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
+		assert.Len(t, compRes.resources, 0)
+		assert.Len(t, compRes.managedResources, 0)
+		assert.Len(t, app.Status.Conditions, 1)
+	}
+	// We have a malformed signature response and signing is required - do not sync
+	{
+		app := newFakeApp()
+		data := fakeData{
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests:    []string{},
+				Namespace:    test.FakeDestNamespace,
+				Server:       test.FakeClusterURL,
+				Revision:     "abc123",
+				VerifyResult: mustReadFile("../util/gpg/testdata/bad_signature_malformed1.txt"),
+			},
+			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+		}
+		ctrl := newFakeController(&data)
+		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, "abc123", app.Spec.Source, false, nil)
+		assert.NotNil(t, compRes)
+		assert.NotNil(t, compRes.syncStatus)
+		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
+		assert.Len(t, compRes.resources, 0)
+		assert.Len(t, compRes.managedResources, 0)
+		assert.Len(t, app.Status.Conditions, 1)
+	}
+	// We have no signature response (no signature made) and signing is required - do not sync
+	{
+		app := newFakeApp()
+		data := fakeData{
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests:    []string{},
+				Namespace:    test.FakeDestNamespace,
+				Server:       test.FakeClusterURL,
+				Revision:     "abc123",
+				VerifyResult: "",
+			},
+			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+		}
+		ctrl := newFakeController(&data)
+		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, "abc123", app.Spec.Source, false, nil)
+		assert.NotNil(t, compRes)
+		assert.NotNil(t, compRes.syncStatus)
+		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
+		assert.Len(t, compRes.resources, 0)
+		assert.Len(t, compRes.managedResources, 0)
+		assert.Len(t, app.Status.Conditions, 1)
+	}
+
+	// We have a good signature and signing is required, but key is not allowed - do not sync
+	{
+		app := newFakeApp()
+		data := fakeData{
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests:    []string{},
+				Namespace:    test.FakeDestNamespace,
+				Server:       test.FakeClusterURL,
+				Revision:     "abc123",
+				VerifyResult: mustReadFile("../util/gpg/testdata/good_signature.txt"),
+			},
+			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+		}
+		ctrl := newFakeController(&data)
+		testProj := signedProj
+		testProj.Spec.SignatureKeys[0].KeyID = "4AEE18F83AFDEB24"
+		compRes := ctrl.appStateManager.CompareAppState(app, &testProj, "abc123", app.Spec.Source, false, nil)
+		assert.NotNil(t, compRes)
+		assert.NotNil(t, compRes.syncStatus)
+		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
+		assert.Len(t, compRes.resources, 0)
+		assert.Len(t, compRes.managedResources, 0)
+		assert.Len(t, app.Status.Conditions, 1)
+		assert.Contains(t, app.Status.Conditions[0].Message, "key is not allowed")
+	}
+	// Signature required and local manifests supplied - do not sync
+	{
+		app := newFakeApp()
+		data := fakeData{
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests:    []string{},
+				Namespace:    test.FakeDestNamespace,
+				Server:       test.FakeClusterURL,
+				Revision:     "abc123",
+				VerifyResult: "",
+			},
+			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+		}
+		// it doesn't matter for our test whether local manifests are valid
+		localManifests := []string{"foobar"}
+		ctrl := newFakeController(&data)
+		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, "abc123", app.Spec.Source, false, localManifests)
+		assert.NotNil(t, compRes)
+		assert.NotNil(t, compRes.syncStatus)
+		assert.Equal(t, argoappv1.SyncStatusCodeUnknown, compRes.syncStatus.Status)
+		assert.Len(t, compRes.resources, 0)
+		assert.Len(t, compRes.managedResources, 0)
+		assert.Len(t, app.Status.Conditions, 1)
+		assert.Contains(t, app.Status.Conditions[0].Message, "Cannot use local manifests")
+	}
+
+	os.Setenv("ARGOCD_GPG_ENABLED", "false")
+	// We have a bad signature response and signing would be required, but GPG subsystem is disabled - sync
+	{
+		app := newFakeApp()
+		data := fakeData{
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests:    []string{},
+				Namespace:    test.FakeDestNamespace,
+				Server:       test.FakeClusterURL,
+				Revision:     "abc123",
+				VerifyResult: mustReadFile("../util/gpg/testdata/bad_signature_bad.txt"),
+			},
+			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+		}
+		ctrl := newFakeController(&data)
+		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, "abc123", app.Spec.Source, false, nil)
+		assert.NotNil(t, compRes)
+		assert.NotNil(t, compRes.syncStatus)
+		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
+		assert.Len(t, compRes.resources, 0)
+		assert.Len(t, compRes.managedResources, 0)
+		assert.Len(t, app.Status.Conditions, 0)
+	}
+
+	// Signature required and local manifests supplied and GPG subystem is disabled - sync
+	{
+		app := newFakeApp()
+		data := fakeData{
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests:    []string{},
+				Namespace:    test.FakeDestNamespace,
+				Server:       test.FakeClusterURL,
+				Revision:     "abc123",
+				VerifyResult: "",
+			},
+			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+		}
+		// it doesn't matter for our test whether local manifests are valid
+		localManifests := []string{""}
+		ctrl := newFakeController(&data)
+		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, "abc123", app.Spec.Source, false, localManifests)
+		assert.NotNil(t, compRes)
+		assert.NotNil(t, compRes.syncStatus)
+		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
+		assert.Len(t, compRes.resources, 0)
+		assert.Len(t, compRes.managedResources, 0)
+		assert.Len(t, app.Status.Conditions, 0)
+	}
+
+}
+
+func TestComparisonResult_GetHealthStatus(t *testing.T) {
+	status := &argoappv1.HealthStatus{Status: health.HealthStatusMissing}
+	res := comparisonResult{
+		healthStatus: status,
+	}
+
+	assert.Equal(t, status, res.GetHealthStatus())
+}
+
+func TestComparisonResult_GetSyncStatus(t *testing.T) {
+	status := &argoappv1.SyncStatus{Status: argoappv1.SyncStatusCodeOutOfSync}
+	res := comparisonResult{
+		syncStatus: status,
+	}
+
+	assert.Equal(t, status, res.GetSyncStatus())
 }

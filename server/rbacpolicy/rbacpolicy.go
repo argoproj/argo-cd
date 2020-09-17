@@ -20,6 +20,7 @@ const (
 	ResourceRepositories = "repositories"
 	ResourceCertificates = "certificates"
 	ResourceAccounts     = "accounts"
+	ResourceGPGKeys      = "gpgkeys"
 
 	// please add new items to Actions
 	ActionGet      = "get"
@@ -70,6 +71,14 @@ func NewRBACPolicyEnforcer(enf *rbac.Enforcer, projLister applister.AppProjectNa
 
 func (p *RBACPolicyEnforcer) SetScopes(scopes []string) {
 	p.scopes = scopes
+}
+
+func (p *RBACPolicyEnforcer) GetScopes() []string {
+	scopes := p.scopes
+	if scopes == nil {
+		scopes = defaultScopes
+	}
+	return scopes
 }
 
 func IsProjectSubject(subject string) bool {

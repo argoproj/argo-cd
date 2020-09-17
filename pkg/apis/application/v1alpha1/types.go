@@ -3,6 +3,7 @@ package v1alpha1
 import (
 	"encoding/json"
 	"fmt"
+	math "math"
 	"net"
 	"net/http"
 	"net/url"
@@ -15,11 +16,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/health"
+	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/ghodss/yaml"
+	"github.com/google/go-cmp/cmp"
 	"github.com/robfig/cron"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"gopkg.in/yaml.v2"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -33,6 +37,7 @@ import (
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/util/cert"
 	"github.com/argoproj/argo-cd/util/git"
+	"github.com/argoproj/argo-cd/util/glob"
 	"github.com/argoproj/argo-cd/util/helm"
 )
 
@@ -107,7 +112,7 @@ func (e Env) Environ() []string {
 	return environ
 }
 
-// does an operation similar to `envstubst` tool,
+// does an operation similar to `envsubst` tool,
 // but unlike envsubst it does not change missing names into empty string
 // see https://linux.die.net/man/1/envsubst
 func (e Env) Envsubst(s string) string {
@@ -186,6 +191,8 @@ type ApplicationSourceHelm struct {
 	Values string `json:"values,omitempty" protobuf:"bytes,4,opt,name=values"`
 	// FileParameters are file parameters to the helm template
 	FileParameters []HelmFileParameter `json:"fileParameters,omitempty" protobuf:"bytes,5,opt,name=fileParameters"`
+	// Version is the Helm version to use for templating with
+	Version string `json:"version,omitempty" protobuf:"bytes,6,opt,name=version"`
 }
 
 // HelmParameter is a parameter to a helm template
@@ -260,7 +267,7 @@ func (in *ApplicationSourceHelm) AddFileParameter(p HelmFileParameter) {
 }
 
 func (h *ApplicationSourceHelm) IsZero() bool {
-	return h == nil || (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0 && len(h.FileParameters) == 0 && h.Values == ""
+	return h == nil || (h.Version == "") && (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0 && len(h.FileParameters) == 0 && h.Values == ""
 }
 
 type KustomizeImage string
@@ -350,10 +357,12 @@ type ApplicationSourceJsonnet struct {
 	ExtVars []JsonnetVar `json:"extVars,omitempty" protobuf:"bytes,1,opt,name=extVars"`
 	// TLAS is a list of Jsonnet Top-level Arguments
 	TLAs []JsonnetVar `json:"tlas,omitempty" protobuf:"bytes,2,opt,name=tlas"`
+	// Additional library search dirs
+	Libs []string `json:"libs,omitempty" protobuf:"bytes,3,opt,name=libs"`
 }
 
 func (j *ApplicationSourceJsonnet) IsZero() bool {
-	return j == nil || len(j.ExtVars) == 0 && len(j.TLAs) == 0
+	return j == nil || len(j.ExtVars) == 0 && len(j.TLAs) == 0 && len(j.Libs) == 0
 }
 
 // ApplicationSourceKsonnet holds ksonnet specific options
@@ -400,6 +409,11 @@ type ApplicationDestination struct {
 	Server string `json:"server,omitempty" protobuf:"bytes,1,opt,name=server"`
 	// Namespace overrides the environment namespace value in the ksonnet app.yaml
 	Namespace string `json:"namespace,omitempty" protobuf:"bytes,2,opt,name=namespace"`
+	// Name of the destination cluster which can be used instead of server (url) field
+	Name string `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
+
+	// nolint:govet
+	isServerInferred bool `json:"-"`
 }
 
 // ApplicationStatus contains information about application sync, health status
@@ -413,9 +427,19 @@ type ApplicationStatus struct {
 	ReconciledAt   *metav1.Time    `json:"reconciledAt,omitempty" protobuf:"bytes,6,opt,name=reconciledAt"`
 	OperationState *OperationState `json:"operationState,omitempty" protobuf:"bytes,7,opt,name=operationState"`
 	// ObservedAt indicates when the application state was updated without querying latest git state
+	// Deprecated: controller no longer updates ObservedAt field
 	ObservedAt *metav1.Time          `json:"observedAt,omitempty" protobuf:"bytes,8,opt,name=observedAt"`
 	SourceType ApplicationSourceType `json:"sourceType,omitempty" protobuf:"bytes,9,opt,name=sourceType"`
 	Summary    ApplicationSummary    `json:"summary,omitempty" protobuf:"bytes,10,opt,name=summary"`
+}
+
+type JWTTokens struct {
+	Items []JWTToken `json:"items,omitempty" protobuf:"bytes,1,opt,name=items"`
+}
+
+// AppProjectStatus contains information about appproj
+type AppProjectStatus struct {
+	JWTTokensByRole map[string]JWTTokens `json:"jwtTokensByRole,omitempty" protobuf:"bytes,1,opt,name=jwtTokensByRole"`
 }
 
 // OperationInitiator holds information about the operation initiator
@@ -430,17 +454,32 @@ type OperationInitiator struct {
 type Operation struct {
 	Sync        *SyncOperation     `json:"sync,omitempty" protobuf:"bytes,1,opt,name=sync"`
 	InitiatedBy OperationInitiator `json:"initiatedBy,omitempty" protobuf:"bytes,2,opt,name=initiatedBy"`
+	Info        []*Info            `json:"info,omitempty" protobuf:"bytes,3,name=info"`
+	// Retry controls failed sync retry behavior
+	Retry RetryStrategy `json:"retry,omitempty" protobuf:"bytes,4,opt,name=retry"`
+}
+
+func (o *Operation) DryRun() bool {
+	if o.Sync != nil {
+		return o.Sync.DryRun
+	}
+	return false
 }
 
 // SyncOperationResource contains resources to sync.
 type SyncOperationResource struct {
-	Group string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
-	Kind  string `json:"kind" protobuf:"bytes,2,opt,name=kind"`
-	Name  string `json:"name" protobuf:"bytes,3,opt,name=name"`
+	Group     string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
+	Kind      string `json:"kind" protobuf:"bytes,2,opt,name=kind"`
+	Name      string `json:"name" protobuf:"bytes,3,opt,name=name"`
+	Namespace string `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
 }
 
 // RevisionHistories is a array of history, oldest first and newest last
 type RevisionHistories []RevisionHistory
+
+func (in RevisionHistories) LastRevisionHistory() RevisionHistory {
+	return in[len(in)-1]
+}
 
 func (in RevisionHistories) Trunc(n int) RevisionHistories {
 	i := len(in) - n
@@ -450,9 +489,9 @@ func (in RevisionHistories) Trunc(n int) RevisionHistories {
 	return in
 }
 
-// HasIdentity determines whether a sync operation is identified by a manifest.
-func (r SyncOperationResource) HasIdentity(name string, gvk schema.GroupVersionKind) bool {
-	if name == r.Name && gvk.Kind == r.Kind && gvk.Group == r.Group {
+// HasIdentity determines whether a sync operation is identified by a manifest
+func (r SyncOperationResource) HasIdentity(name string, namespace string, gvk schema.GroupVersionKind) bool {
+	if name == r.Name && gvk.Kind == r.Kind && gvk.Group == r.Group && (r.Namespace == "" || namespace == r.Namespace) {
 		return true
 	}
 	return false
@@ -484,42 +523,12 @@ func (o *SyncOperation) IsApplyStrategy() bool {
 	return o.SyncStrategy != nil && o.SyncStrategy.Apply != nil
 }
 
-type OperationPhase string
-
-const (
-	OperationRunning     OperationPhase = "Running"
-	OperationTerminating OperationPhase = "Terminating"
-	OperationFailed      OperationPhase = "Failed"
-	OperationError       OperationPhase = "Error"
-	OperationSucceeded   OperationPhase = "Succeeded"
-)
-
-func (os OperationPhase) Completed() bool {
-	switch os {
-	case OperationFailed, OperationError, OperationSucceeded:
-		return true
-	}
-	return false
-}
-
-func (os OperationPhase) Running() bool {
-	return os == OperationRunning
-}
-
-func (os OperationPhase) Successful() bool {
-	return os == OperationSucceeded
-}
-
-func (os OperationPhase) Failed() bool {
-	return os == OperationFailed
-}
-
 // OperationState contains information about state of currently performing operation on application.
 type OperationState struct {
 	// Operation is the original requested operation
 	Operation Operation `json:"operation" protobuf:"bytes,1,opt,name=operation"`
 	// Phase is the current phase of the operation
-	Phase OperationPhase `json:"phase" protobuf:"bytes,2,opt,name=phase"`
+	Phase synccommon.OperationPhase `json:"phase" protobuf:"bytes,2,opt,name=phase"`
 	// Message hold any pertinent messages when attempting to perform operation (typically errors).
 	Message string `json:"message,omitempty" protobuf:"bytes,3,opt,name=message"`
 	// SyncResult is the result of a Sync operation
@@ -528,6 +537,8 @@ type OperationState struct {
 	StartedAt metav1.Time `json:"startedAt" protobuf:"bytes,6,opt,name=startedAt"`
 	// FinishedAt contains time of operation completion
 	FinishedAt *metav1.Time `json:"finishedAt,omitempty" protobuf:"bytes,7,opt,name=finishedAt"`
+	// RetryCount contains time of operation retries
+	RetryCount int64 `json:"retryCount,omitempty" protobuf:"bytes,8,opt,name=retryCount"`
 }
 
 type Info struct {
@@ -568,12 +579,75 @@ func (o SyncOptions) HasOption(option string) bool {
 type SyncPolicy struct {
 	// Automated will keep an application synced to the target revision
 	Automated *SyncPolicyAutomated `json:"automated,omitempty" protobuf:"bytes,1,opt,name=automated"`
-	// Options allow youe to specify whole app sync-options
+	// Options allow you to specify whole app sync-options
 	SyncOptions SyncOptions `json:"syncOptions,omitempty" protobuf:"bytes,2,opt,name=syncOptions"`
+	// Retry controls failed sync retry behavior
+	Retry *RetryStrategy `json:"retry,omitempty" protobuf:"bytes,3,opt,name=retry"`
 }
 
 func (p *SyncPolicy) IsZero() bool {
 	return p == nil || (p.Automated == nil && len(p.SyncOptions) == 0)
+}
+
+type RetryStrategy struct {
+	// Limit is the maximum number of attempts when retrying a container
+	Limit int64 `json:"limit,omitempty" protobuf:"bytes,1,opt,name=limit"`
+
+	// Backoff is a backoff strategy
+	Backoff *Backoff `json:"backoff,omitempty" protobuf:"bytes,2,opt,name=backoff,casttype=Backoff"`
+}
+
+func parseStringToDuration(durationString string) (time.Duration, error) {
+	var suspendDuration time.Duration
+	// If no units are attached, treat as seconds
+	if val, err := strconv.Atoi(durationString); err == nil {
+		suspendDuration = time.Duration(val) * time.Second
+	} else if duration, err := time.ParseDuration(durationString); err == nil {
+		suspendDuration = duration
+	} else {
+		return 0, fmt.Errorf("unable to parse %s as a duration", durationString)
+	}
+	return suspendDuration, nil
+}
+
+func (r *RetryStrategy) NextRetryAt(lastAttempt time.Time, retryCounts int64) (time.Time, error) {
+	maxDuration := common.DefaultSyncRetryMaxDuration
+	duration := common.DefaultSyncRetryDuration
+	factor := common.DefaultSyncRetryFactor
+	var err error
+	if r.Backoff != nil {
+		if r.Backoff.Duration != "" {
+			if duration, err = parseStringToDuration(r.Backoff.Duration); err != nil {
+				return time.Time{}, err
+			}
+		}
+		if r.Backoff.MaxDuration != "" {
+			if maxDuration, err = parseStringToDuration(r.Backoff.MaxDuration); err != nil {
+				return time.Time{}, err
+			}
+		}
+		if r.Backoff.Factor != nil {
+			factor = *r.Backoff.Factor
+		}
+
+	}
+	// Formula: timeToWait = duration * factor^retry_number
+	// Note that timeToWait should equal to duration for the first retry attempt.
+	timeToWait := duration * time.Duration(math.Pow(float64(factor), float64(retryCounts)))
+	if maxDuration > 0 {
+		timeToWait = time.Duration(math.Min(float64(maxDuration), float64(timeToWait)))
+	}
+	return lastAttempt.Add(timeToWait), nil
+}
+
+// Backoff is a backoff strategy to use within retryStrategy
+type Backoff struct {
+	// Duration is the amount to back off. Default unit is seconds, but could also be a duration (e.g. "2m", "1h")
+	Duration string `json:"duration,omitempty" protobuf:"bytes,1,opt,name=duration"`
+	// Factor is a factor to multiply the base duration after each failed retry
+	Factor *int64 `json:"factor,omitempty" protobuf:"bytes,2,name=factor"`
+	// MaxDuration is the maximum amount of time allowed for the backoff strategy
+	MaxDuration string `json:"maxDuration,omitempty" protobuf:"bytes,3,opt,name=maxDuration"`
 }
 
 // SyncPolicyAutomated controls the behavior of an automated sync
@@ -586,7 +660,7 @@ type SyncPolicyAutomated struct {
 
 // SyncStrategy controls the manner in which a sync is performed
 type SyncStrategy struct {
-	// Apply wil perform a `kubectl apply` to perform the sync.
+	// Apply will perform a `kubectl apply` to perform the sync.
 	Apply *SyncStrategyApply `json:"apply,omitempty" protobuf:"bytes,1,opt,name=apply"`
 	// Hook will submit any referenced resources to perform the sync. This is the default strategy
 	Hook *SyncStrategyHook `json:"hook,omitempty" protobuf:"bytes,2,opt,name=hook"`
@@ -620,41 +694,6 @@ type SyncStrategyHook struct {
 	SyncStrategyApply `json:",inline" protobuf:"bytes,1,opt,name=syncStrategyApply"`
 }
 
-type HookType string
-
-const (
-	HookTypePreSync  HookType = "PreSync"
-	HookTypeSync     HookType = "Sync"
-	HookTypePostSync HookType = "PostSync"
-	HookTypeSkip     HookType = "Skip"
-	HookTypeSyncFail HookType = "SyncFail"
-)
-
-func NewHookType(t string) (HookType, bool) {
-	return HookType(t),
-		t == string(HookTypePreSync) ||
-			t == string(HookTypeSync) ||
-			t == string(HookTypePostSync) ||
-			t == string(HookTypeSyncFail) ||
-			t == string(HookTypeSkip)
-
-}
-
-type HookDeletePolicy string
-
-const (
-	HookDeletePolicyHookSucceeded      HookDeletePolicy = "HookSucceeded"
-	HookDeletePolicyHookFailed         HookDeletePolicy = "HookFailed"
-	HookDeletePolicyBeforeHookCreation HookDeletePolicy = "BeforeHookCreation"
-)
-
-func NewHookDeletePolicy(p string) (HookDeletePolicy, bool) {
-	return HookDeletePolicy(p),
-		p == string(HookDeletePolicyHookSucceeded) ||
-			p == string(HookDeletePolicyHookFailed) ||
-			p == string(HookDeletePolicyBeforeHookCreation)
-}
-
 // data about a specific revision within a repo
 type RevisionMetadata struct {
 	// who authored this revision,
@@ -670,6 +709,9 @@ type RevisionMetadata struct {
 	// probably the commit message,
 	// this is truncated to the first newline or 64 characters (which ever comes first)
 	Message string `json:"message,omitempty" protobuf:"bytes,4,opt,name=message"`
+	// If revision was signed with GPG, and signature verification is enabled,
+	// this contains a hint on the signer
+	SignatureInfo string `json:"signatureInfo,omitempty" protobuf:"bytes,5,opt,name=signatureInfo"`
 }
 
 // SyncOperationResult represent result of sync operation
@@ -682,24 +724,6 @@ type SyncOperationResult struct {
 	Source ApplicationSource `json:"source,omitempty" protobuf:"bytes,3,opt,name=source"`
 }
 
-type ResultCode string
-
-const (
-	ResultCodeSynced       ResultCode = "Synced"
-	ResultCodeSyncFailed   ResultCode = "SyncFailed"
-	ResultCodePruned       ResultCode = "Pruned"
-	ResultCodePruneSkipped ResultCode = "PruneSkipped"
-)
-
-type SyncPhase = string
-
-const (
-	SyncPhasePreSync  = "PreSync"
-	SyncPhaseSync     = "Sync"
-	SyncPhasePostSync = "PostSync"
-	SyncPhaseSyncFail = "SyncFail"
-)
-
 // ResourceResult holds the operation result details of a specific resource
 type ResourceResult struct {
 	Group     string `json:"group" protobuf:"bytes,1,opt,name=group"`
@@ -708,16 +732,16 @@ type ResourceResult struct {
 	Namespace string `json:"namespace" protobuf:"bytes,4,opt,name=namespace"`
 	Name      string `json:"name" protobuf:"bytes,5,opt,name=name"`
 	// the final result of the sync, this is be empty if the resources is yet to be applied/pruned and is always zero-value for hooks
-	Status ResultCode `json:"status,omitempty" protobuf:"bytes,6,opt,name=status"`
+	Status synccommon.ResultCode `json:"status,omitempty" protobuf:"bytes,6,opt,name=status"`
 	// message for the last sync OR operation
 	Message string `json:"message,omitempty" protobuf:"bytes,7,opt,name=message"`
 	// the type of the hook, empty for non-hook resources
-	HookType HookType `json:"hookType,omitempty" protobuf:"bytes,8,opt,name=hookType"`
+	HookType synccommon.HookType `json:"hookType,omitempty" protobuf:"bytes,8,opt,name=hookType"`
 	// the state of any operation associated with this resource OR hook
 	// note: can contain values for non-hook resources
-	HookPhase OperationPhase `json:"hookPhase,omitempty" protobuf:"bytes,9,opt,name=hookPhase"`
+	HookPhase synccommon.OperationPhase `json:"hookPhase,omitempty" protobuf:"bytes,9,opt,name=hookPhase"`
 	// indicates the particular phase of the sync that this is for
-	SyncPhase SyncPhase `json:"syncPhase,omitempty" protobuf:"bytes,10,opt,name=syncPhase"`
+	SyncPhase synccommon.SyncPhase `json:"syncPhase,omitempty" protobuf:"bytes,10,opt,name=syncPhase"`
 }
 
 func (r *ResourceResult) GroupVersionKind() schema.GroupVersionKind {
@@ -730,16 +754,7 @@ func (r *ResourceResult) GroupVersionKind() schema.GroupVersionKind {
 
 type ResourceResults []*ResourceResult
 
-func (r ResourceResults) Filter(predicate func(r *ResourceResult) bool) ResourceResults {
-	results := ResourceResults{}
-	for _, res := range r {
-		if predicate(res) {
-			results = append(results, res)
-		}
-	}
-	return results
-}
-func (r ResourceResults) Find(group string, kind string, namespace string, name string, phase SyncPhase) (int, *ResourceResult) {
+func (r ResourceResults) Find(group string, kind string, namespace string, name string, phase synccommon.SyncPhase) (int, *ResourceResult) {
 	for i, res := range r {
 		if res.Group == group && res.Kind == kind && res.Namespace == namespace && res.Name == name && res.SyncPhase == phase {
 			return i, res
@@ -750,7 +765,7 @@ func (r ResourceResults) Find(group string, kind string, namespace string, name 
 
 func (r ResourceResults) PruningRequired() (num int) {
 	for _, res := range r {
-		if res.Status == ResultCodePruneSkipped {
+		if res.Status == synccommon.ResultCodePruneSkipped {
 			num++
 		}
 	}
@@ -759,10 +774,15 @@ func (r ResourceResults) PruningRequired() (num int) {
 
 // RevisionHistory contains information relevant to an application deployment
 type RevisionHistory struct {
-	Revision   string            `json:"revision" protobuf:"bytes,2,opt,name=revision"`
-	DeployedAt metav1.Time       `json:"deployedAt" protobuf:"bytes,4,opt,name=deployedAt"`
-	ID         int64             `json:"id" protobuf:"bytes,5,opt,name=id"`
-	Source     ApplicationSource `json:"source,omitempty" protobuf:"bytes,6,opt,name=source"`
+	// Revision holds the revision of the sync
+	Revision string `json:"revision" protobuf:"bytes,2,opt,name=revision"`
+	// DeployedAt holds the time the deployment completed
+	DeployedAt metav1.Time `json:"deployedAt" protobuf:"bytes,4,opt,name=deployedAt"`
+	// ID is an auto incrementing identifier of the RevisionHistory
+	ID     int64             `json:"id" protobuf:"bytes,5,opt,name=id"`
+	Source ApplicationSource `json:"source,omitempty" protobuf:"bytes,6,opt,name=source"`
+	// DeployStartedAt holds the time the deployment started
+	DeployStartedAt *metav1.Time `json:"deployStartedAt,omitempty" protobuf:"bytes,7,opt,name=deployStartedAt"`
 }
 
 // ApplicationWatchEvent contains information about application change.
@@ -853,20 +873,9 @@ type SyncStatus struct {
 }
 
 type HealthStatus struct {
-	Status  HealthStatusCode `json:"status,omitempty" protobuf:"bytes,1,opt,name=status"`
-	Message string           `json:"message,omitempty" protobuf:"bytes,2,opt,name=message"`
+	Status  health.HealthStatusCode `json:"status,omitempty" protobuf:"bytes,1,opt,name=status"`
+	Message string                  `json:"message,omitempty" protobuf:"bytes,2,opt,name=message"`
 }
-
-type HealthStatusCode = string
-
-const (
-	HealthStatusUnknown     HealthStatusCode = "Unknown"
-	HealthStatusProgressing HealthStatusCode = "Progressing"
-	HealthStatusHealthy     HealthStatusCode = "Healthy"
-	HealthStatusSuspended   HealthStatusCode = "Suspended"
-	HealthStatusDegraded    HealthStatusCode = "Degraded"
-	HealthStatusMissing     HealthStatusCode = "Missing"
-)
 
 // InfoItem contains human readable information about object
 type InfoItem struct {
@@ -927,10 +936,16 @@ func (t *ApplicationTree) GetSummary() ApplicationSummary {
 	for url := range urlsSet {
 		urls = append(urls, url)
 	}
+	sort.Slice(urls, func(i, j int) bool {
+		return urls[i] < urls[j]
+	})
 	images := make([]string, 0)
 	for image := range imagesSet {
 		images = append(images, image)
 	}
+	sort.Slice(images, func(i, j int) bool {
+		return images[i] < images[j]
+	})
 	return ApplicationSummary{ExternalURLs: urls, Images: images}
 }
 
@@ -953,6 +968,7 @@ type ResourceNode struct {
 	ResourceVersion string                  `json:"resourceVersion,omitempty" protobuf:"bytes,5,opt,name=resourceVersion"`
 	Images          []string                `json:"images,omitempty" protobuf:"bytes,6,opt,name=images"`
 	Health          *HealthStatus           `json:"health,omitempty" protobuf:"bytes,7,opt,name=health"`
+	CreatedAt       *metav1.Time            `json:"createdAt,omitempty" protobuf:"bytes,8,opt,name=createdAt"`
 }
 
 func (n *ResourceNode) GroupKindVersion() schema.GroupVersionKind {
@@ -1006,6 +1022,7 @@ type ConnectionStatus = string
 const (
 	ConnectionStatusSuccessful = "Successful"
 	ConnectionStatusFailed     = "Failed"
+	ConnectionStatusUnknown    = "Unknown"
 )
 
 // ConnectionState contains information about remote resource connection state
@@ -1023,12 +1040,47 @@ type Cluster struct {
 	Name string `json:"name" protobuf:"bytes,2,opt,name=name"`
 	// Config holds cluster information for connecting to a cluster
 	Config ClusterConfig `json:"config" protobuf:"bytes,3,opt,name=config"`
+	// DEPRECATED: use Info.ConnectionState field instead.
 	// ConnectionState contains information about cluster connection state
 	ConnectionState ConnectionState `json:"connectionState,omitempty" protobuf:"bytes,4,opt,name=connectionState"`
+	// DEPRECATED: use Info.ServerVersion field instead.
 	// The server version
 	ServerVersion string `json:"serverVersion,omitempty" protobuf:"bytes,5,opt,name=serverVersion"`
-	// Holds list of namespaces which are accessible in that cluster. Cluster level resources would be ignored if namespace list if not empty.
+	// Holds list of namespaces which are accessible in that cluster. Cluster level resources would be ignored if namespace list is not empty.
 	Namespaces []string `json:"namespaces,omitempty" protobuf:"bytes,6,opt,name=namespaces"`
+	// RefreshRequestedAt holds time when cluster cache refresh has been requested
+	RefreshRequestedAt *metav1.Time `json:"refreshRequestedAt,omitempty" protobuf:"bytes,7,opt,name=refreshRequestedAt"`
+	// Holds information about cluster cache
+	Info ClusterInfo `json:"info,omitempty" protobuf:"bytes,8,opt,name=info"`
+}
+
+func (c *Cluster) Equals(other *Cluster) bool {
+	if c.Server != other.Server {
+		return false
+	}
+	if c.Name != other.Name {
+		return false
+	}
+	if strings.Join(c.Namespaces, ",") != strings.Join(other.Namespaces, ",") {
+		return false
+	}
+	return reflect.DeepEqual(c.Config, other.Config)
+}
+
+type ClusterInfo struct {
+	ConnectionState   ConnectionState  `json:"connectionState,omitempty" protobuf:"bytes,1,opt,name=connectionState"`
+	ServerVersion     string           `json:"serverVersion,omitempty" protobuf:"bytes,2,opt,name=serverVersion"`
+	CacheInfo         ClusterCacheInfo `json:"cacheInfo,omitempty" protobuf:"bytes,3,opt,name=cacheInfo"`
+	ApplicationsCount int64            `json:"applicationsCount" protobuf:"bytes,4,opt,name=applicationsCount"`
+}
+
+type ClusterCacheInfo struct {
+	// ResourcesCount holds number of observed Kubernetes resources
+	ResourcesCount int64 `json:"resourcesCount,omitempty" protobuf:"bytes,1,opt,name=resourcesCount"`
+	// APIsCount holds number of observed Kubernetes API count
+	APIsCount int64 `json:"apisCount,omitempty" protobuf:"bytes,2,opt,name=apisCount"`
+	// LastCacheSyncTime holds time of most recent cache synchronization
+	LastCacheSyncTime *metav1.Time `json:"lastCacheSyncTime,omitempty" protobuf:"bytes,3,opt,name=lastCacheSyncTime"`
 }
 
 // ClusterList is a collection of Clusters.
@@ -1090,12 +1142,43 @@ type KnownTypeField struct {
 	Type  string `json:"type,omitempty" protobuf:"bytes,2,opt,name=type"`
 }
 
+type OverrideIgnoreDiff struct {
+	JSONPointers []string `json:"jsonPointers" protobuf:"bytes,1,rep,name=jSONPointers"`
+}
+
+type rawResourceOverride struct {
+	HealthLua         string           `json:"health.lua,omitempty"`
+	Actions           string           `json:"actions,omitempty"`
+	IgnoreDifferences string           `json:"ignoreDifferences,omitempty"`
+	KnownTypeFields   []KnownTypeField `json:"knownTypeFields,omitempty"`
+}
+
 // ResourceOverride holds configuration to customize resource diffing and health assessment
 type ResourceOverride struct {
-	HealthLua         string           `json:"health.lua,omitempty" protobuf:"bytes,1,opt,name=healthLua"`
-	Actions           string           `json:"actions,omitempty" protobuf:"bytes,3,opt,name=actions"`
-	IgnoreDifferences string           `json:"ignoreDifferences,omitempty" protobuf:"bytes,2,opt,name=ignoreDifferences"`
-	KnownTypeFields   []KnownTypeField `json:"knownTypeFields,omitempty" protobuf:"bytes,4,opt,name=knownTypeFields"`
+	HealthLua         string             `protobuf:"bytes,1,opt,name=healthLua"`
+	Actions           string             `protobuf:"bytes,3,opt,name=actions"`
+	IgnoreDifferences OverrideIgnoreDiff `protobuf:"bytes,2,opt,name=ignoreDifferences"`
+	KnownTypeFields   []KnownTypeField   `protobuf:"bytes,4,opt,name=knownTypeFields"`
+}
+
+func (s *ResourceOverride) UnmarshalJSON(data []byte) error {
+	raw := &rawResourceOverride{}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	s.KnownTypeFields = raw.KnownTypeFields
+	s.HealthLua = raw.HealthLua
+	s.Actions = raw.Actions
+	return yaml.Unmarshal([]byte(raw.IgnoreDifferences), &s.IgnoreDifferences)
+}
+
+func (s ResourceOverride) MarshalJSON() ([]byte, error) {
+	ignoreDifferencesData, err := yaml.Marshal(s.IgnoreDifferences)
+	if err != nil {
+		return nil, err
+	}
+	raw := &rawResourceOverride{s.HealthLua, s.Actions, string(ignoreDifferencesData), s.KnownTypeFields}
+	return json.Marshal(raw)
 }
 
 func (o *ResourceOverride) GetActions() (ResourceActions, error) {
@@ -1331,6 +1414,28 @@ type RepositoryCertificateList struct {
 	Items []RepositoryCertificate `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
 
+// GnuPGPublicKey is a representation of a GnuPG public key
+type GnuPGPublicKey struct {
+	// KeyID in hexadecimal string format
+	KeyID string `json:"keyID" protobuf:"bytes,1,opt,name=keyID"`
+	// Fingerprint of the key
+	Fingerprint string `json:"fingerprint,omitempty" protobuf:"bytes,2,opt,name=fingerprint"`
+	// Owner identification
+	Owner string `json:"owner,omitempty" protobuf:"bytes,3,opt,name=owner"`
+	// Trust level
+	Trust string `json:"trust,omitempty" protobuf:"bytes,4,opt,name=trust"`
+	// Key sub type (e.g. rsa4096)
+	SubType string `json:"subType,omitempty" protobuf:"bytes,5,opt,name=subType"`
+	// Key data
+	KeyData string `json:"keyData,omitempty" protobuf:"bytes,6,opt,name=keyData"`
+}
+
+// GnuPGPublicKeyList is a collection of GnuPGPublicKey objects
+type GnuPGPublicKeyList struct {
+	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
+	Items           []GnuPGPublicKey `json:"items" protobuf:"bytes,2,rep,name=items"`
+}
+
 // AppProjectList is list of AppProject resources
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type AppProjectList struct {
@@ -1352,7 +1457,8 @@ type AppProjectList struct {
 type AppProject struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
-	Spec              AppProjectSpec `json:"spec" protobuf:"bytes,2,opt,name=spec"`
+	Spec              AppProjectSpec   `json:"spec" protobuf:"bytes,2,opt,name=spec"`
+	Status            AppProjectStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
 }
 
 // GetRoleByName returns the role in a project by the name with its index
@@ -1366,7 +1472,8 @@ func (p *AppProject) GetRoleByName(name string) (*ProjectRole, int, error) {
 }
 
 // GetJWTToken looks up the index of a JWTToken in a project by id (new token), if not then by the issue at time (old token)
-func (p *AppProject) GetJWTToken(roleName string, issuedAt int64, id string) (*JWTToken, int, error) {
+func (p *AppProject) GetJWTTokenFromSpec(roleName string, issuedAt int64, id string) (*JWTToken, int, error) {
+	// This is for backward compatibility. In the oder version, JWTTokens are stored under spec.role
 	role, _, err := p.GetRoleByName(roleName)
 	if err != nil {
 		return nil, -1, err
@@ -1389,6 +1496,54 @@ func (p *AppProject) GetJWTToken(roleName string, issuedAt int64, id string) (*J
 	}
 
 	return nil, -1, fmt.Errorf("JWT token for role '%s' issued at '%d' does not exist in project '%s'", role.Name, issuedAt, p.Name)
+}
+
+// GetJWTToken looks up the index of a JWTToken in a project by id (new token), if not then by the issue at time (old token)
+func (p *AppProject) GetJWTToken(roleName string, issuedAt int64, id string) (*JWTToken, int, error) {
+	// This is for newer version, JWTTokens are stored under status
+	if id != "" {
+		for i, token := range p.Status.JWTTokensByRole[roleName].Items {
+			if id == token.ID {
+				return &token, i, nil
+			}
+		}
+
+	}
+
+	if issuedAt != -1 {
+		for i, token := range p.Status.JWTTokensByRole[roleName].Items {
+			if issuedAt == token.IssuedAt {
+				return &token, i, nil
+			}
+		}
+	}
+
+	return nil, -1, fmt.Errorf("JWT token for role '%s' issued at '%d' does not exist in project '%s'", roleName, issuedAt, p.Name)
+}
+
+func (p AppProject) RemoveJWTToken(roleIndex int, issuedAt int64, id string) error {
+	roleName := p.Spec.Roles[roleIndex].Name
+	// For backward compatibility
+	_, jwtTokenIndex, err1 := p.GetJWTTokenFromSpec(roleName, issuedAt, id)
+	if err1 == nil {
+		p.Spec.Roles[roleIndex].JWTTokens[jwtTokenIndex] = p.Spec.Roles[roleIndex].JWTTokens[len(p.Spec.Roles[roleIndex].JWTTokens)-1]
+		p.Spec.Roles[roleIndex].JWTTokens = p.Spec.Roles[roleIndex].JWTTokens[:len(p.Spec.Roles[roleIndex].JWTTokens)-1]
+	}
+
+	// New location for storing JWTToken
+	_, jwtTokenIndex, err2 := p.GetJWTToken(roleName, issuedAt, id)
+	if err2 == nil {
+		p.Status.JWTTokensByRole[roleName].Items[jwtTokenIndex] = p.Status.JWTTokensByRole[roleName].Items[len(p.Status.JWTTokensByRole[roleName].Items)-1]
+		p.Status.JWTTokensByRole[roleName] = JWTTokens{Items: p.Status.JWTTokensByRole[roleName].Items[:len(p.Status.JWTTokensByRole[roleName].Items)-1]}
+	}
+
+	if err1 == nil || err2 == nil {
+		//If we find this token from either places, we can say there are no error
+		return nil
+	} else {
+		//If we could not locate this taken from either places, we can return any of the errors
+		return err2
+	}
 }
 
 func (p *AppProject) ValidateJWTTokenID(roleName string, id string) error {
@@ -1617,11 +1772,24 @@ func (p *AppProject) normalizePolicy(policy string) string {
 // OrphanedResourcesMonitorSettings holds settings of orphaned resources monitoring
 type OrphanedResourcesMonitorSettings struct {
 	// Warn indicates if warning condition should be created for apps which have orphaned resources
-	Warn *bool `json:"warn,omitempty" protobuf:"bytes,1,name=warn"`
+	Warn   *bool                 `json:"warn,omitempty" protobuf:"bytes,1,name=warn"`
+	Ignore []OrphanedResourceKey `json:"ignore,omitempty" protobuf:"bytes,2,opt,name=ignore"`
+}
+
+type OrphanedResourceKey struct {
+	Group string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
+	Kind  string `json:"kind,omitempty" protobuf:"bytes,2,opt,name=kind"`
+	Name  string `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
 }
 
 func (s *OrphanedResourcesMonitorSettings) IsWarn() bool {
 	return s.Warn == nil || *s.Warn
+}
+
+// SignatureKey is the specification of a key required to verify commit signatures with
+type SignatureKey struct {
+	// The ID of the key in hexadecimal notation
+	KeyID string `json:"keyID" protobuf:"bytes,1,name=keyID"`
 }
 
 // AppProjectSpec is the specification of an AppProject
@@ -1644,6 +1812,10 @@ type AppProjectSpec struct {
 	SyncWindows SyncWindows `json:"syncWindows,omitempty" protobuf:"bytes,8,opt,name=syncWindows"`
 	// NamespaceResourceWhitelist contains list of whitelisted namespace level resources
 	NamespaceResourceWhitelist []metav1.GroupKind `json:"namespaceResourceWhitelist,omitempty" protobuf:"bytes,9,opt,name=namespaceResourceWhitelist"`
+	// List of PGP key IDs that commits to be synced to must be signed with
+	SignatureKeys []SignatureKey `json:"signatureKeys,omitempty" protobuf:"bytes,10,opt,name=signatureKeys"`
+	// ClusterResourceBlacklist contains list of blacklisted cluster level resources
+	ClusterResourceBlacklist []metav1.GroupKind `json:"clusterResourceBlacklist,omitempty" protobuf:"bytes,11,opt,name=clusterResourceBlacklist"`
 }
 
 // SyncWindows is a collection of sync windows in this project
@@ -1987,18 +2159,9 @@ func (proj *AppProject) ProjectPoliciesString() string {
 	return strings.Join(policies, "\n")
 }
 
-func (app *Application) getFinalizerIndex(name string) int {
-	for i, finalizer := range app.Finalizers {
-		if finalizer == name {
-			return i
-		}
-	}
-	return -1
-}
-
 // CascadedDeletion indicates if resources finalizer is set and controller should delete app resources before deleting app
 func (app *Application) CascadedDeletion() bool {
-	return app.getFinalizerIndex(common.ResourcesFinalizerName) > -1
+	return getFinalizerIndex(app.ObjectMeta, common.ResourcesFinalizerName) > -1
 }
 
 func (app *Application) IsRefreshRequested() (RefreshType, bool) {
@@ -2022,15 +2185,7 @@ func (app *Application) IsRefreshRequested() (RefreshType, bool) {
 
 // SetCascadedDeletion sets or remove resources finalizer
 func (app *Application) SetCascadedDeletion(prune bool) {
-	index := app.getFinalizerIndex(common.ResourcesFinalizerName)
-	if prune != (index > -1) {
-		if index > -1 {
-			app.Finalizers[index] = app.Finalizers[len(app.Finalizers)-1]
-			app.Finalizers = app.Finalizers[:len(app.Finalizers)-1]
-		} else {
-			app.Finalizers = append(app.Finalizers, common.ResourcesFinalizerName)
-		}
-	}
+	setFinalizer(&app.ObjectMeta, common.ResourcesFinalizerName, prune)
 }
 
 // SetConditions updates the application status conditions for a subset of evaluated types.
@@ -2169,14 +2324,18 @@ func isResourceInList(res metav1.GroupKind, list []metav1.GroupKind) bool {
 
 // IsGroupKindPermitted validates if the given resource group/kind is permitted to be deployed in the project
 func (proj AppProject) IsGroupKindPermitted(gk schema.GroupKind, namespaced bool) bool {
+	var isWhiteListed, isBlackListed bool
 	res := metav1.GroupKind{Group: gk.Group, Kind: gk.Kind}
+
 	if namespaced {
-		isWhiteListed := len(proj.Spec.NamespaceResourceWhitelist) == 0 || isResourceInList(res, proj.Spec.NamespaceResourceWhitelist)
-		isBlackListed := isResourceInList(res, proj.Spec.NamespaceResourceBlacklist)
+		isWhiteListed = len(proj.Spec.NamespaceResourceWhitelist) == 0 || isResourceInList(res, proj.Spec.NamespaceResourceWhitelist)
+		isBlackListed = isResourceInList(res, proj.Spec.NamespaceResourceBlacklist)
 		return isWhiteListed && !isBlackListed
-	} else {
-		return isResourceInList(res, proj.Spec.ClusterResourceWhitelist)
 	}
+
+	isWhiteListed = len(proj.Spec.ClusterResourceWhitelist) == 0 || isResourceInList(res, proj.Spec.ClusterResourceWhitelist)
+	isBlackListed = isResourceInList(res, proj.Spec.ClusterResourceBlacklist)
+	return isWhiteListed && !isBlackListed
 }
 
 func (proj AppProject) IsLiveResourcePermitted(un *unstructured.Unstructured, server string) bool {
@@ -2189,14 +2348,42 @@ func (proj AppProject) IsLiveResourcePermitted(un *unstructured.Unstructured, se
 	return true
 }
 
-func globMatch(pattern string, val string) bool {
+// getFinalizerIndex returns finalizer index in the list of object finalizers or -1 if finalizer does not exist
+func getFinalizerIndex(meta metav1.ObjectMeta, name string) int {
+	for i, finalizer := range meta.Finalizers {
+		if finalizer == name {
+			return i
+		}
+	}
+	return -1
+}
+
+// setFinalizer adds or removes finalizer with the specified name
+func setFinalizer(meta *metav1.ObjectMeta, name string, exist bool) {
+	index := getFinalizerIndex(*meta, name)
+	if exist != (index > -1) {
+		if index > -1 {
+			meta.Finalizers[index] = meta.Finalizers[len(meta.Finalizers)-1]
+			meta.Finalizers = meta.Finalizers[:len(meta.Finalizers)-1]
+		} else {
+			meta.Finalizers = append(meta.Finalizers, name)
+		}
+	}
+}
+
+func (proj AppProject) HasFinalizer() bool {
+	return getFinalizerIndex(proj.ObjectMeta, common.ResourcesFinalizerName) > -1
+}
+
+func (proj *AppProject) RemoveFinalizer() {
+	setFinalizer(&proj.ObjectMeta, common.ResourcesFinalizerName, false)
+}
+
+func globMatch(pattern string, val string, separators ...rune) bool {
 	if pattern == "*" {
 		return true
 	}
-	if ok, err := filepath.Match(pattern, val); ok && err == nil {
-		return true
-	}
-	return false
+	return glob.Match(pattern, val, separators...)
 }
 
 // IsSourcePermitted validates if the provided application's source is a one of the allowed sources for the project.
@@ -2204,7 +2391,7 @@ func (proj AppProject) IsSourcePermitted(src ApplicationSource) bool {
 	srcNormalized := git.NormalizeGitURL(src.RepoURL)
 	for _, repoURL := range proj.Spec.SourceRepos {
 		normalized := git.NormalizeGitURL(repoURL)
-		if globMatch(normalized, srcNormalized) {
+		if globMatch(normalized, srcNormalized, '/') {
 			return true
 		}
 	}
@@ -2337,4 +2524,95 @@ func (r ResourceDiff) LiveObject() (*unstructured.Unstructured, error) {
 
 func (r ResourceDiff) TargetObject() (*unstructured.Unstructured, error) {
 	return UnmarshalToUnstructured(r.TargetState)
+}
+
+func (d *ApplicationDestination) SetInferredServer(server string) {
+	d.isServerInferred = true
+	d.Server = server
+}
+
+func (d *ApplicationDestination) IsServerInferred() bool {
+	return d.isServerInferred
+}
+
+func (d *ApplicationDestination) MarshalJSON() ([]byte, error) {
+	type Alias ApplicationDestination
+	dest := d
+	if d.isServerInferred {
+		dest = dest.DeepCopy()
+		dest.Server = ""
+	}
+	return json.Marshal(&struct{ *Alias }{Alias: (*Alias)(dest)})
+}
+
+func (proj *AppProject) NormalizeJWTTokens() bool {
+	needNormalize := false
+	for i, role := range proj.Spec.Roles {
+		for j, token := range role.JWTTokens {
+			if token.ID == "" {
+				token.ID = strconv.FormatInt(token.IssuedAt, 10)
+				role.JWTTokens[j] = token
+				needNormalize = true
+			}
+		}
+		proj.Spec.Roles[i] = role
+	}
+	for _, roleTokenEntry := range proj.Status.JWTTokensByRole {
+		for j, token := range roleTokenEntry.Items {
+			if token.ID == "" {
+				token.ID = strconv.FormatInt(token.IssuedAt, 10)
+				roleTokenEntry.Items[j] = token
+				needNormalize = true
+			}
+		}
+	}
+	needSync := syncJWTTokenBetweenStatusAndSpec(proj)
+	return needNormalize || needSync
+}
+
+func syncJWTTokenBetweenStatusAndSpec(proj *AppProject) bool {
+	needSync := false
+	for roleIndex, role := range proj.Spec.Roles {
+		tokensInSpec := role.JWTTokens
+		tokensInStatus := []JWTToken{}
+		if proj.Status.JWTTokensByRole == nil {
+			tokensByRole := make(map[string]JWTTokens)
+			proj.Status.JWTTokensByRole = tokensByRole
+		} else {
+			tokensInStatus = proj.Status.JWTTokensByRole[role.Name].Items
+		}
+		tokens := jwtTokensCombine(tokensInStatus, tokensInSpec)
+
+		sort.Slice(proj.Spec.Roles[roleIndex].JWTTokens, func(i, j int) bool {
+			return proj.Spec.Roles[roleIndex].JWTTokens[i].IssuedAt > proj.Spec.Roles[roleIndex].JWTTokens[j].IssuedAt
+		})
+		sort.Slice(proj.Status.JWTTokensByRole[role.Name].Items, func(i, j int) bool {
+			return proj.Status.JWTTokensByRole[role.Name].Items[i].IssuedAt > proj.Status.JWTTokensByRole[role.Name].Items[j].IssuedAt
+		})
+		if !cmp.Equal(tokens, proj.Spec.Roles[roleIndex].JWTTokens) || !cmp.Equal(tokens, proj.Status.JWTTokensByRole[role.Name].Items) {
+			needSync = true
+		}
+
+		proj.Spec.Roles[roleIndex].JWTTokens = tokens
+		proj.Status.JWTTokensByRole[role.Name] = JWTTokens{Items: tokens}
+
+	}
+	return needSync
+}
+
+func jwtTokensCombine(tokens1 []JWTToken, tokens2 []JWTToken) []JWTToken {
+	tokensMap := make(map[string]JWTToken)
+	for _, token := range append(tokens1, tokens2...) {
+		tokensMap[token.ID] = token
+	}
+
+	var tokens []JWTToken
+	for _, v := range tokensMap {
+		tokens = append(tokens, v)
+	}
+
+	sort.Slice(tokens, func(i, j int) bool {
+		return tokens[i].IssuedAt > tokens[j].IssuedAt
+	})
+	return tokens
 }

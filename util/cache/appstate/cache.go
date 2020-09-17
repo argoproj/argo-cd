@@ -1,10 +1,11 @@
 package appstate
 
 import (
+	"context"
 	"fmt"
 	"time"
 
-	"github.com/go-redis/redis"
+	"github.com/go-redis/redis/v8"
 	"github.com/spf13/cobra"
 
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -12,6 +13,10 @@ import (
 )
 
 var ErrCacheMiss = cacheutil.ErrCacheMiss
+
+const (
+	clusterInfoCacheExpiration = 1 * time.Minute
+)
 
 type Cache struct {
 	Cache                   *cacheutil.Cache
@@ -63,11 +68,32 @@ func appResourcesTreeKey(appName string) string {
 	return fmt.Sprintf("app|resources-tree|%s", appName)
 }
 
+func clusterInfoKey(server string) string {
+	return fmt.Sprintf("cluster|info|%s", server)
+}
+
 func (c *Cache) GetAppResourcesTree(appName string, res *appv1.ApplicationTree) error {
 	err := c.GetItem(appResourcesTreeKey(appName), &res)
 	return err
 }
 
+func (c *Cache) OnAppResourcesTreeChanged(ctx context.Context, appName string, callback func() error) error {
+	return c.Cache.OnUpdated(ctx, appManagedResourcesKey(appName), callback)
+}
+
 func (c *Cache) SetAppResourcesTree(appName string, resourcesTree *appv1.ApplicationTree) error {
-	return c.SetItem(appResourcesTreeKey(appName), resourcesTree, c.appStateCacheExpiration, resourcesTree == nil)
+	err := c.SetItem(appResourcesTreeKey(appName), resourcesTree, c.appStateCacheExpiration, resourcesTree == nil)
+	if err != nil {
+		return err
+	}
+	return c.Cache.NotifyUpdated(appManagedResourcesKey(appName))
+}
+
+func (c *Cache) SetClusterInfo(server string, info *appv1.ClusterInfo) error {
+	return c.SetItem(clusterInfoKey(server), info, clusterInfoCacheExpiration, info == nil)
+}
+
+func (c *Cache) GetClusterInfo(server string, res *appv1.ClusterInfo) error {
+	err := c.GetItem(clusterInfoKey(server), &res)
+	return err
 }

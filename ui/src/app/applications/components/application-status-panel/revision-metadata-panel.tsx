@@ -15,6 +15,7 @@ export const RevisionMetadataPanel = (props: {appName: string; type: string; rev
                     content={
                         <span>
                             {m.author && <React.Fragment>Authored by {m.author}</React.Fragment>}
+                            <br />
                             {m.date && <Timestamp date={m.date} />}
                             <br />
                             {m.tags && (
@@ -23,6 +24,8 @@ export const RevisionMetadataPanel = (props: {appName: string; type: string; rev
                                     <br />
                                 </span>
                             )}
+                            {m.signatureInfo}
+                            <br />
                             {m.message}
                         </span>
                     }
@@ -31,7 +34,7 @@ export const RevisionMetadataPanel = (props: {appName: string; type: string; rev
                     <div className='application-status-panel__item-name'>
                         {m.author && (
                             <React.Fragment>
-                                Authored by {m.author}
+                                Authored by {m.author} - {m.signatureInfo}
                                 <br />
                             </React.Fragment>
                         )}

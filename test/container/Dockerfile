@@ -1,4 +1,4 @@
-FROM redis:5.0.3 as redis
+FROM redis:5.0.8 as redis
 
 FROM node:11.15.0 as node
 
@@ -31,6 +31,7 @@ ENV GOROOT /usr/local/go
 ENV GOPATH /go
 
 # Install build and test dependencies
+ADD ./hack/tool-versions.sh .
 ADD ./hack/install.sh .
 ADD ./hack/installers installers
 
@@ -70,8 +71,11 @@ COPY --from=node /opt/yarn-v1.15.2 /opt/yarn-v1.15.2
 # Entrypoint is required for container's user management
 COPY ./test/container/uid_entrypoint.sh /usr/local/bin
 
+ARG UID
+
 # Prepare user configuration & build environments
-RUN mkdir -p /home/user && chmod 777 /home/user && \
+RUN useradd -u ${UID} -d /home/user -s /bin/bash user && \
+    echo "user ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/user && \
     HELM_HOME=/home/user/.helm helm2 init --client-only && \
     HOME=/home/user git config --global user.name "ArgoCD Test User" && \
     HOME=/home/user git config --global user.email "noreply@example.com" && \
@@ -85,6 +89,8 @@ RUN mkdir -p /home/user && chmod 777 /home/user && \
     chmod 0600 /etc/ssh/ssh_host_*_key && \
     mkdir -p /tmp/go-build-cache && chmod -R 777 /tmp/go-build-cache && \
     mkdir -p /home/user/.cache && chmod 777 /home/user/.cache && \
+    chown -R user /home/user && \
+    chgrp -R user /home/user && \
     chmod -R 777 /usr/local/go && \
     ln -s /usr/local/bin/node /usr/local/bin/nodejs && \
     ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm && \

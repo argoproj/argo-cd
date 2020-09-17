@@ -307,7 +307,7 @@ func parseAccounts(secret *v1.Secret, cm *v1.ConfigMap) (map[string]Account, err
 			account.Tokens = make([]Token, 0)
 			if string(tokensStr) != "" {
 				if err := json.Unmarshal(tokensStr, &account.Tokens); err != nil {
-					return nil, err
+					log.Errorf("Account '%s' has invalid token in secret '%s'", name, secret.Name)
 				}
 			}
 		}

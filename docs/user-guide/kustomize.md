@@ -56,6 +56,30 @@ data:
     kustomize.version.v3.5.4: /custom-tools/kustomize_3_5_4
 ```
 
+Once new version is configured you can reference it in Application spec as following:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: guestbook
+spec:
+  source:
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+    targetRevision: HEAD
+    path: guestbook-kustomize
+
+    kustomize:
+      version: v3.5.4
+```
+
+Additionally application kustomize version can be configured using Parameters tab of Application Details page or using following CLI command:
+
+```
+argocd app set <appyName> --kustomize-version v3.5.4
+```
+
+
 ## Build Environment
 
 Kustomize does not support parameters and therefore cannot support the standard [build environment](build-environment.md).

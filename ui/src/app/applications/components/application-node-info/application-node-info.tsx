@@ -20,6 +20,12 @@ export const ApplicationNodeInfo = (props: {
         {title: 'NAME', value: props.node.name},
         {title: 'NAMESPACE', value: props.node.namespace}
     ];
+    if (props.node.createdAt) {
+        attributes.push({
+            title: 'CREATED_AT',
+            value: props.node.createdAt
+        });
+    }
     if ((props.node.images || []).length) {
         attributes.push({
             title: 'IMAGES',

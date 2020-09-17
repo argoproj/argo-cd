@@ -509,12 +509,12 @@ func Sub(ctx context.Context) string {
 	return jwtutil.GetField(mapClaims, "sub")
 }
 
-func Groups(ctx context.Context) []string {
+func Groups(ctx context.Context, scopes []string) []string {
 	mapClaims, ok := mapClaims(ctx)
 	if !ok {
 		return nil
 	}
-	return jwtutil.GetGroups(mapClaims)
+	return jwtutil.GetGroups(mapClaims, scopes)
 }
 
 func mapClaims(ctx context.Context) (jwt.MapClaims, bool) {

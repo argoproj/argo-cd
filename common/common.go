@@ -25,6 +25,7 @@ const (
 	ArgoCDKnownHostsConfigMapName = "argocd-ssh-known-hosts-cm"
 	// Contains TLS certificate data for connecting repositories. Will get mounted as volume to pods
 	ArgoCDTLSCertsConfigMapName = "argocd-tls-certs-cm"
+	ArgoCDGPGKeysConfigMapName  = "argocd-gpg-keys-cm"
 )
 
 // Some default configurables
@@ -50,6 +51,14 @@ const (
 	DefaultPathSSHConfig = "/app/config/ssh"
 	// Default name for the SSH known hosts file
 	DefaultSSHKnownHostsName = "ssh_known_hosts"
+	// Default path to GnuPG home directory
+	DefaultGnuPgHomePath = "/app/config/gpg/keys"
+)
+
+const (
+	DefaultSyncRetryDuration    = 5 * time.Second
+	DefaultSyncRetryMaxDuration = 3 * time.Minute
+	DefaultSyncRetryFactor      = int64(2)
 )
 
 // Argo CD application related constants
@@ -104,14 +113,7 @@ const (
 
 	// AnnotationCompareOptions is a comma-separated list of options for comparison
 	AnnotationCompareOptions = "argocd.argoproj.io/compare-options"
-	// AnnotationSyncOptions is a comma-separated list of options for syncing
-	AnnotationSyncOptions = "argocd.argoproj.io/sync-options"
-	// AnnotationSyncWave indicates which wave of the sync the resource or hook should be in
-	AnnotationSyncWave = "argocd.argoproj.io/sync-wave"
-	// AnnotationKeyHook contains the hook type of a resource
-	AnnotationKeyHook = "argocd.argoproj.io/hook"
-	// AnnotationKeyHookDeletePolicy is the policy of deleting a hook
-	AnnotationKeyHookDeletePolicy = "argocd.argoproj.io/hook-delete-policy"
+
 	// AnnotationKeyRefresh is the annotation key which indicates that app needs to be refreshed. Removed by application controller after app is refreshed.
 	// Might take values 'normal'/'hard'. Value 'hard' means manifest cache and target cluster state cache should be invalidated before refresh.
 	AnnotationKeyRefresh = "argocd.argoproj.io/refresh"
@@ -144,8 +146,12 @@ const (
 	EnvK8sClientQPS = "ARGOCD_K8S_CLIENT_QPS"
 	// EnvK8sClientBurst is the burst value used for the kubernetes client (default: twice the client QPS)
 	EnvK8sClientBurst = "ARGOCD_K8S_CLIENT_BURST"
+	// EnvClusterCacheResyncDuration is the env variable that holds cluster cache re-sync duration
+	EnvClusterCacheResyncDuration = "ARGOCD_CLUSTER_CACHE_RESYNC_DURATION"
 	// EnvK8sClientMaxIdleConnections is the number of max idle connections in K8s REST client HTTP transport (default: 500)
 	EnvK8sClientMaxIdleConnections = "ARGOCD_K8S_CLIENT_MAX_IDLE_CONNECTIONS"
+	// EnvGnuPGHome is the path to ArgoCD's GnuPG keyring for signature verification
+	EnvGnuPGHome = "ARGOCD_GNUPGHOME"
 )
 
 const (
@@ -158,6 +164,15 @@ const (
 	CacheVersion = "1.0.0"
 )
 
+// GetGnuPGHomePath retrieves the path to use for GnuPG home directory, which is either taken from GNUPGHOME environment or a default value
+func GetGnuPGHomePath() string {
+	if gnuPgHome := os.Getenv(EnvGnuPGHome); gnuPgHome == "" {
+		return DefaultGnuPgHomePath
+	} else {
+		return gnuPgHome
+	}
+}
+
 var (
 	// K8sClientConfigQPS controls the QPS to be used in K8s REST client configs
 	K8sClientConfigQPS float32 = 50
@@ -165,6 +180,8 @@ var (
 	K8sClientConfigBurst int = 100
 	// K8sMaxIdleConnections controls the number of max idle connections in K8s REST client HTTP transport
 	K8sMaxIdleConnections = 500
+	// K8sMaxIdleConnections controls the duration of cluster cache refresh
+	K8SClusterResyncDuration = 12 * time.Hour
 )
 
 func init() {
@@ -184,6 +201,11 @@ func init() {
 	if envMaxConn := os.Getenv(EnvK8sClientMaxIdleConnections); envMaxConn != "" {
 		if maxConn, err := strconv.Atoi(envMaxConn); err != nil {
 			K8sMaxIdleConnections = maxConn
+		}
+	}
+	if clusterResyncDurationStr := os.Getenv(EnvClusterCacheResyncDuration); clusterResyncDurationStr != "" {
+		if duration, err := time.ParseDuration(clusterResyncDurationStr); err == nil {
+			K8SClusterResyncDuration = duration
 		}
 	}
 }

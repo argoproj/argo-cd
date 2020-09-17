@@ -8,10 +8,12 @@ import (
 	"os"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
+	"text/tabwriter"
 
-	"k8s.io/client-go/kubernetes/fake"
-
+	healthutil "github.com/argoproj/gitops-engine/pkg/health"
+	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -19,15 +21,13 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/argo/normalizers"
 	"github.com/argoproj/argo-cd/util/cli"
-	"github.com/argoproj/argo-cd/util/diff"
-	"github.com/argoproj/argo-cd/util/health"
 	"github.com/argoproj/argo-cd/util/lua"
 	"github.com/argoproj/argo-cd/util/settings"
 )
@@ -72,7 +72,7 @@ func (opts *settingsOpts) createSettingsManager() (*settings.SettingsManager, er
 			return nil, err
 		}
 
-		argocdCM, err = realClientset.CoreV1().ConfigMaps(ns).Get(common.ArgoCDConfigMapName, v1.GetOptions{})
+		argocdCM, err = realClientset.CoreV1().ConfigMaps(ns).Get(context.Background(), common.ArgoCDConfigMapName, v1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -104,7 +104,7 @@ func (opts *settingsOpts) createSettingsManager() (*settings.SettingsManager, er
 		if err != nil {
 			return nil, err
 		}
-		argocdSecret, err = realClientset.CoreV1().Secrets(ns).Get(common.ArgoCDSecretName, v1.GetOptions{})
+		argocdSecret, err = realClientset.CoreV1().Secrets(ns).Get(context.Background(), common.ArgoCDSecretName, v1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -354,7 +354,8 @@ func NewResourceOverridesCommand(cmdCtx commandContext) *cobra.Command {
 		},
 	}
 	command.AddCommand(NewResourceIgnoreDifferencesCommand(cmdCtx))
-	command.AddCommand(NewResourceActionCommand(cmdCtx))
+	command.AddCommand(NewResourceActionListCommand(cmdCtx))
+	command.AddCommand(NewResourceActionRunCommand(cmdCtx))
 	command.AddCommand(NewResourceHealthCommand(cmdCtx))
 	return command
 }
@@ -399,7 +400,7 @@ argocd-util settings resource-overrides ignore-differences ./deploy.yaml --argoc
 
 			executeResourceOverrideCommand(cmdCtx, args, func(res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride) {
 				gvk := res.GroupVersionKind()
-				if override.IgnoreDifferences == "" {
+				if len(override.IgnoreDifferences.JSONPointers) == 0 {
 					_, _ = fmt.Printf("Ignore differences are not configured for '%s/%s'\n", gvk.Group, gvk.Kind)
 					return
 				}
@@ -421,7 +422,7 @@ argocd-util settings resource-overrides ignore-differences ./deploy.yaml --argoc
 				}
 
 				_, _ = fmt.Printf("Following fields are ignored:\n\n")
-				_ = diff.PrintDiff(res.GetName(), &res, normalizedRes)
+				_ = cli.PrintDiff(res.GetName(), &res, normalizedRes)
 			})
 		},
 	}
@@ -448,7 +449,7 @@ argocd-util settings resource-overrides health ./deploy.yaml --argocd-cm-path ./
 					return
 				}
 
-				resHealth, err := health.GetResourceHealth(&res, overrides)
+				resHealth, err := healthutil.GetResourceHealth(&res, lua.ResourceHealthOverrides(overrides))
 				errors.CheckError(err)
 
 				_, _ = fmt.Printf("STATUS: %s\n", resHealth.Status)
@@ -459,13 +460,56 @@ argocd-util settings resource-overrides health ./deploy.yaml --argocd-cm-path ./
 	return command
 }
 
-func NewResourceActionCommand(cmdCtx commandContext) *cobra.Command {
+func NewResourceActionListCommand(cmdCtx commandContext) *cobra.Command {
 	var command = &cobra.Command{
-		Use:   "action RESOURCE_YAML_PATH ACTION",
-		Short: "Executes resource action",
-		Long:  "Executes resource action using the lua script configured in the 'resource.customizations' field of 'argocd-cm' ConfigMap and outputs updated fields",
+		Use:   "list-actions RESOURCE_YAML_PATH",
+		Short: "List available resource actions",
+		Long:  "List actions available for given resource action using the lua scripts configured in the 'resource.customizations' field of 'argocd-cm' ConfigMap and outputs updated fields",
 		Example: `
-argocd-util settings resource-overrides action /tmp/deploy.yaml restart --argocd-cm-path ./argocd-cm.yaml`,
+argocd-util settings resource-overrides action list /tmp/deploy.yaml --argocd-cm-path ./argocd-cm.yaml`,
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) < 1 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+
+			executeResourceOverrideCommand(cmdCtx, args, func(res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride) {
+				gvk := res.GroupVersionKind()
+				if override.Actions == "" {
+					_, _ = fmt.Printf("Actions are not configured for '%s/%s'\n", gvk.Group, gvk.Kind)
+					return
+				}
+
+				luaVM := lua.VM{ResourceOverrides: overrides}
+				discoveryScript, err := luaVM.GetResourceActionDiscovery(&res)
+				errors.CheckError(err)
+
+				availableActions, err := luaVM.ExecuteResourceActionDiscovery(&res, discoveryScript)
+				errors.CheckError(err)
+				sort.Slice(availableActions, func(i, j int) bool {
+					return availableActions[i].Name < availableActions[j].Name
+				})
+
+				w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+				_, _ = fmt.Fprintf(w, "NAME\tENABLED\n")
+				for _, action := range availableActions {
+					_, _ = fmt.Fprintf(w, "%s\t%s\n", action.Name, strconv.FormatBool(action.Disabled))
+				}
+				_ = w.Flush()
+			})
+		},
+	}
+	return command
+}
+
+func NewResourceActionRunCommand(cmdCtx commandContext) *cobra.Command {
+	var command = &cobra.Command{
+		Use:     "run-action RESOURCE_YAML_PATH ACTION",
+		Aliases: []string{"action"},
+		Short:   "Executes resource action",
+		Long:    "Executes resource action using the lua script configured in the 'resource.customizations' field of 'argocd-cm' ConfigMap and outputs updated fields",
+		Example: `
+argocd-util settings resource-overrides action run /tmp/deploy.yaml restart --argocd-cm-path ./argocd-cm.yaml`,
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) < 2 {
 				c.HelpFunc()(c, args)
@@ -493,7 +537,7 @@ argocd-util settings resource-overrides action /tmp/deploy.yaml restart --argocd
 				}
 
 				_, _ = fmt.Printf("Following fields have been changed:\n\n")
-				_ = diff.PrintDiff(res.GetName(), &res, modifiedRes)
+				_ = cli.PrintDiff(res.GetName(), &res, modifiedRes)
 			})
 		},
 	}

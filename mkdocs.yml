@@ -8,6 +8,7 @@ theme:
   font:
     text: 'Work Sans'
   logo: 'assets/logo.png'
+  favicon: 'assets/favicon.png'
 google_analytics:
 - 'UA-105170809-2'
 - 'auto'
@@ -32,6 +33,8 @@ nav:
       - operator-manual/user-management/microsoft.md
       - operator-manual/user-management/okta.md
       - operator-manual/user-management/onelogin.md
+      - operator-manual/user-management/keycloak.md
+      - operator-manual/user-management/openunison.md
       - operator-manual/rbac.md
     - operator-manual/security.md
     - operator-manual/cluster-bootstrapping.md
@@ -41,9 +44,19 @@ nav:
     - operator-manual/webhook.md
     - operator-manual/health.md
     - operator-manual/custom_tools.md
+    - operator-manual/custom-styles.md
     - operator-manual/metrics.md
     - operator-manual/notifications.md
     - operator-manual/troubleshooting.md
+    - Upgrading:
+        - operator-manual/upgrading/overview.md
+        - operator-manual/upgrading/1.6-1.7.md
+        - operator-manual/upgrading/1.5-1.6.md
+        - operator-manual/upgrading/1.4-1.5.md
+        - operator-manual/upgrading/1.3-1.4.md
+        - operator-manual/upgrading/1.2-1.3.md
+        - operator-manual/upgrading/1.1-1.2.md
+        - operator-manual/upgrading/1.0-1.1.md
   - User Guide:
     - user-guide/index.md
     - user-guide/application_sources.md
@@ -55,6 +68,7 @@ nav:
     - user-guide/tool_detection.md
     - user-guide/projects.md
     - user-guide/private-repositories.md
+    - GnuPG verification: user-guide/gpg-verification.md
     - user-guide/auto_sync.md
     - user-guide/diffing.md
     - user-guide/orphaned-resources.md
@@ -75,6 +89,7 @@ nav:
     - developer-guide/index.md
     - developer-guide/contributing.md
     - developer-guide/running-locally.md
+    - developer-guide/debugging-remote-environment.md
     - developer-guide/api-docs.md
     - developer-guide/test-e2e.md
     - developer-guide/ci.md
@@ -84,6 +99,6 @@ nav:
   - faq.md
   - security_considerations.md
   - Support: SUPPORT.md
+  - roadmap.md
   - Releases ⧉: https://github.com/argoproj/argo-cd/releases
-  - Roadmap ⧉: https://github.com/argoproj/argo-cd/milestones
   - Blog ⧉: https://blog.argoproj.io/

@@ -13,6 +13,7 @@ interface ProjectRoleDefaultParams {
     role?: models.ProjectRole;
     newRole: boolean;
     deleteRole: boolean;
+    jwtTokens: models.JwtToken[];
 }
 
 interface ProjectRoleEditPanelProps {
@@ -37,7 +38,7 @@ export const ProjectRoleEditPanel = (props: ProjectRoleEditPanelProps) => {
                     roleName: (props.defaultParams.role && props.defaultParams.role.name) || '',
                     description: (props.defaultParams.role && props.defaultParams.role.description) || '',
                     policies: (props.defaultParams.role && props.defaultParams.role.policies) || [],
-                    jwtTokens: (props.defaultParams.role && props.defaultParams.role.jwtTokens) || [],
+                    jwtTokens: (props.defaultParams.role && props.defaultParams.jwtTokens) || [],
                     groups: (props.defaultParams.role && props.defaultParams.role.groups) || []
                 }}
                 validateError={(params: ProjectRoleParams) => ({
@@ -73,7 +74,7 @@ export const ProjectRoleEditPanel = (props: ProjectRoleEditPanelProps) => {
                 <ProjectRoleJWTTokens
                     projName={props.defaultParams.projName}
                     roleName={props.defaultParams.role.name}
-                    tokens={props.defaultParams.role.jwtTokens as models.JwtToken[]}
+                    tokens={props.defaultParams.jwtTokens as models.JwtToken[]}
                     token={props.token}
                     createJWTToken={props.createJWTToken}
                     deleteJWTToken={props.deleteJWTToken}

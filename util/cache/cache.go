@@ -1,19 +1,26 @@
 package cache
 
 import (
+	"context"
 	"fmt"
+	"math"
 	"os"
 	"time"
 
-	"github.com/go-redis/redis"
+	"github.com/go-redis/redis/v8"
 	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/util/env"
 )
 
 const (
 	// envRedisPassword is a env variable name which stores redis password
 	envRedisPassword = "REDIS_PASSWORD"
+	// envRedisRetryCount is a env variable name which stores redis retry count
+	envRedisRetryCount = "REDIS_RETRY_COUNT"
+	// defaultRedisRetryCount holds default number of retries
+	defaultRedisRetryCount = 3
 )
 
 func NewCache(client CacheClient) *Cache {
@@ -35,12 +42,14 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) 
 	cmd.Flags().DurationVar(&defaultCacheExpiration, "default-cache-expiration", 24*time.Hour, "Cache expiration default")
 	return func() (*Cache, error) {
 		password := os.Getenv(envRedisPassword)
+		maxRetries := env.ParseNumFromEnv(envRedisRetryCount, defaultRedisRetryCount, 0, math.MaxInt32)
 		if len(sentinelAddresses) > 0 {
 			client := redis.NewFailoverClient(&redis.FailoverOptions{
 				MasterName:    sentinelMaster,
 				SentinelAddrs: sentinelAddresses,
 				DB:            redisDB,
 				Password:      password,
+				MaxRetries:    maxRetries,
 			})
 			for i := range opts {
 				opts[i](client)
@@ -52,9 +61,10 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) 
 			redisAddress = common.DefaultRedisAddr
 		}
 		client := redis.NewClient(&redis.Options{
-			Addr:     redisAddress,
-			Password: password,
-			DB:       redisDB,
+			Addr:       redisAddress,
+			Password:   password,
+			DB:         redisDB,
+			MaxRetries: maxRetries,
 		})
 		for i := range opts {
 			opts[i](client)
@@ -86,4 +96,12 @@ func (c *Cache) GetItem(key string, item interface{}) error {
 	}
 	key = fmt.Sprintf("%s|%s", key, common.CacheVersion)
 	return c.client.Get(key, item)
+}
+
+func (c *Cache) OnUpdated(ctx context.Context, key string, callback func() error) error {
+	return c.client.OnUpdated(ctx, fmt.Sprintf("%s|%s", key, common.CacheVersion), callback)
+}
+
+func (c *Cache) NotifyUpdated(key string) error {
+	return c.client.NotifyUpdated(fmt.Sprintf("%s|%s", key, common.CacheVersion))
 }

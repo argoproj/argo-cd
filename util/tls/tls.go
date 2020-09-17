@@ -14,13 +14,22 @@ import (
 	"math/big"
 	"net"
 	"os"
+	"strings"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
 const (
 	DefaultRSABits = 2048
+	// The default TLS cipher suites to provide to clients - see https://cipherlist.eu for updates
+	// Note that for TLS v1.3, cipher suites are not configurable and will be chosen automatically.
+	DefaultTLSCipherSuite = "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:TLS_RSA_WITH_AES_256_GCM_SHA384"
+	// The default minimum TLS version to provide to clients
+	DefaultTLSMinVersion = "1.2"
+	// The default maximum TLS version to provide to clients
+	DefaultTLSMaxVersion = "1.3"
 )
 
 var (
@@ -28,6 +37,7 @@ var (
 		"1.0": tls.VersionTLS10,
 		"1.1": tls.VersionTLS11,
 		"1.2": tls.VersionTLS12,
+		"1.3": tls.VersionTLS13,
 	}
 )
 
@@ -69,25 +79,103 @@ func getTLSVersionByString(version string) (uint16, error) {
 	return 0, fmt.Errorf("%s is not valid TLS version", version)
 }
 
+// Parse colon separated string representation of TLS cipher suites into array of values usable by crypto/tls
+func getTLSCipherSuitesByString(cipherSuites string) ([]uint16, error) {
+	suiteMap := make(map[string]uint16)
+	for _, s := range tls.CipherSuites() {
+		suiteMap[s.Name] = s.ID
+	}
+	allowedSuites := make([]uint16, 0)
+	for _, s := range strings.Split(cipherSuites, ":") {
+		id, ok := suiteMap[strings.TrimSpace(s)]
+		if ok {
+			allowedSuites = append(allowedSuites, id)
+		} else {
+			return nil, fmt.Errorf("invalid cipher suite specified: %s", s)
+		}
+	}
+	return allowedSuites, nil
+}
+
+// Return array of strings representing TLS versions
+func tlsVersionsToStr(versions []uint16) []string {
+	ret := make([]string, 0)
+	for _, v := range versions {
+		switch v {
+		case tls.VersionTLS10:
+			ret = append(ret, "1.0")
+		case tls.VersionTLS11:
+			ret = append(ret, "1.1")
+		case tls.VersionTLS12:
+			ret = append(ret, "1.2")
+		case tls.VersionTLS13:
+			ret = append(ret, "1.3")
+		default:
+			ret = append(ret, "unknown")
+		}
+	}
+	return ret
+}
+
+func getTLSConfigCustomizer(minVersionStr, maxVersionStr, tlsCiphersStr string) (ConfigCustomizer, error) {
+	minVersion, err := getTLSVersionByString(minVersionStr)
+	if err != nil {
+		return nil, err
+	}
+	maxVersion, err := getTLSVersionByString(maxVersionStr)
+	if err != nil {
+		return nil, err
+	}
+	if minVersion > maxVersion {
+		return nil, fmt.Errorf("Minimum TLS version %s must not be higher than maximum TLS version %s", minVersionStr, maxVersionStr)
+	}
+
+	// Cipher suites for TLSv1.3 are not configurable
+	if minVersion == tls.VersionTLS13 {
+		if tlsCiphersStr != DefaultTLSCipherSuite {
+			log.Warnf("TLSv1.3 cipher suites are not configurable, ignoring value of --tlsciphers")
+		}
+		tlsCiphersStr = ""
+	}
+
+	if tlsCiphersStr == "list" {
+		fmt.Printf("Supported TLS ciphers:\n")
+		for _, s := range tls.CipherSuites() {
+			fmt.Printf("* %s (TLS versions: %s)\n", tls.CipherSuiteName(s.ID), strings.Join(tlsVersionsToStr(s.SupportedVersions), ", "))
+		}
+		os.Exit(0)
+	}
+
+	var cipherSuites []uint16
+	if tlsCiphersStr != "" {
+		cipherSuites, err = getTLSCipherSuitesByString(tlsCiphersStr)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		cipherSuites = make([]uint16, 0)
+	}
+
+	return func(config *tls.Config) {
+		config.MinVersion = minVersion
+		config.MaxVersion = maxVersion
+		config.CipherSuites = cipherSuites
+	}, nil
+
+}
+
+// Adds TLS server related command line options to a command and returns a TLS
+// config customizer object, set up to the options specified
 func AddTLSFlagsToCmd(cmd *cobra.Command) func() (ConfigCustomizer, error) {
 	minVersionStr := ""
 	maxVersionStr := ""
-	cmd.Flags().StringVar(&minVersionStr, "tlsminversion", "", "The minimum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2)")
-	cmd.Flags().StringVar(&maxVersionStr, "tlsmaxversion", "", "The maximum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2)")
+	tlsCiphersStr := ""
+	cmd.Flags().StringVar(&minVersionStr, "tlsminversion", DefaultTLSMinVersion, "The minimum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3)")
+	cmd.Flags().StringVar(&maxVersionStr, "tlsmaxversion", DefaultTLSMaxVersion, "The maximum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3)")
+	cmd.Flags().StringVar(&tlsCiphersStr, "tlsciphers", DefaultTLSCipherSuite, "The list of acceptable ciphers to be used when establishing TLS connections. Use 'list' to list available ciphers.")
 
 	return func() (ConfigCustomizer, error) {
-		minVersion, err := getTLSVersionByString(minVersionStr)
-		if err != nil {
-			return nil, err
-		}
-		maxVersion, err := getTLSVersionByString(maxVersionStr)
-		if err != nil {
-			return nil, err
-		}
-		return func(config *tls.Config) {
-			config.MinVersion = minVersion
-			config.MaxVersion = maxVersion
-		}, nil
+		return getTLSConfigCustomizer(minVersionStr, maxVersionStr, tlsCiphersStr)
 	}
 }
 

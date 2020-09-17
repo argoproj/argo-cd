@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-cd/util/assets"
+	"github.com/argoproj/argo-cd/util/glob"
+	jwtutil "github.com/argoproj/argo-cd/util/jwt"
 
 	"github.com/casbin/casbin"
 	"github.com/casbin/casbin/model"
@@ -37,7 +39,7 @@ const (
 // * is backed by a kubernetes config map
 // * has a predefined RBAC model
 // * supports a built-in policy
-// * supports a user-defined bolicy
+// * supports a user-defined policy
 // * supports a custom JWT claims enforce function
 type Enforcer struct {
 	*casbin.Enforcer
@@ -53,10 +55,37 @@ type Enforcer struct {
 // ClaimsEnforcerFunc is func template to enforce a JWT claims. The subject is replaced
 type ClaimsEnforcerFunc func(claims jwt.Claims, rvals ...interface{}) bool
 
+func newEnforcerSafe(params ...interface{}) (e *casbin.Enforcer, err error) {
+	enfs, err := casbin.NewEnforcerSafe(params...)
+	if err != nil {
+		return nil, err
+	}
+	enfs.AddFunction("globMatch", func(args ...interface{}) (interface{}, error) {
+		if len(args) < 2 {
+			return false, nil
+		}
+		val, ok := args[0].(string)
+		if !ok {
+			return false, nil
+		}
+
+		pattern, ok := args[1].(string)
+		if !ok {
+			return false, nil
+		}
+
+		return glob.Match(pattern, val), nil
+	})
+	return enfs, nil
+}
+
 func NewEnforcer(clientset kubernetes.Interface, namespace, configmap string, claimsEnforcer ClaimsEnforcerFunc) *Enforcer {
 	adapter := newAdapter("", "", "")
 	builtInModel := newBuiltInModel()
-	enf := casbin.NewEnforcer(builtInModel, adapter)
+	enf, err := newEnforcerSafe(builtInModel, adapter)
+	if err != nil {
+		panic(err)
+	}
 	enf.EnableLog(false)
 	return &Enforcer{
 		Enforcer:           enf,
@@ -97,6 +126,26 @@ func (e *Enforcer) EnforceErr(rvals ...interface{}) error {
 			for i, rval := range rvals[1:] {
 				rvalsStrs[i] = fmt.Sprintf("%s", rval)
 			}
+			switch s := rvals[0].(type) {
+			case jwt.Claims:
+				claims, err := jwtutil.MapClaims(s)
+				if err != nil {
+					break
+				}
+				sub := jwtutil.GetField(claims, "sub")
+				if sub != "" {
+					rvalsStrs = append(rvalsStrs, fmt.Sprintf("sub: %s", sub))
+				}
+				iatField, ok := claims["iat"]
+				if !ok {
+					break
+				}
+				iat, ok := iatField.(float64)
+				if !ok {
+					break
+				}
+				rvalsStrs = append(rvalsStrs, fmt.Sprintf("iat: %s", time.Unix(int64(iat), 0).Format(time.RFC3339)))
+			}
 			errMsg = fmt.Sprintf("%s: %s", errMsg, strings.Join(rvalsStrs, ", "))
 		}
 		return status.Error(codes.PermissionDenied, errMsg)
@@ -113,7 +162,7 @@ func (e *Enforcer) EnforceRuntimePolicy(policy string, rvals ...interface{}) boo
 	if policy == "" {
 		enf = e.Enforcer
 	} else {
-		enf, err = casbin.NewEnforcerSafe(newBuiltInModel(), newAdapter(e.adapter.builtinPolicy, e.adapter.userDefinedPolicy, policy))
+		enf, err = newEnforcerSafe(newBuiltInModel(), newAdapter(e.adapter.builtinPolicy, e.adapter.userDefinedPolicy, policy))
 		if err != nil {
 			log.Warnf("invalid runtime policy: %s", policy)
 			enf = e.Enforcer
@@ -174,7 +223,7 @@ func (e *Enforcer) newInformer() cache.SharedIndexInformer {
 
 // RunPolicyLoader runs the policy loader which watches policy updates from the configmap and reloads them
 func (e *Enforcer) RunPolicyLoader(ctx context.Context, onUpdated func(cm *apiv1.ConfigMap) error) error {
-	cm, err := e.clientset.CoreV1().ConfigMaps(e.namespace).Get(e.configmap, metav1.GetOptions{})
+	cm, err := e.clientset.CoreV1().ConfigMaps(e.namespace).Get(ctx, e.configmap, metav1.GetOptions{})
 	if err != nil {
 		if !apierr.IsNotFound(err) {
 			return err
@@ -238,7 +287,7 @@ func (e *Enforcer) syncUpdate(cm *apiv1.ConfigMap, onUpdated func(cm *apiv1.Conf
 
 // ValidatePolicy verifies a policy string is acceptable to casbin
 func ValidatePolicy(policy string) error {
-	_, err := casbin.NewEnforcerSafe(newBuiltInModel(), newAdapter("", "", policy))
+	_, err := newEnforcerSafe(newBuiltInModel(), newAdapter("", "", policy))
 	if err != nil {
 		return fmt.Errorf("policy syntax error: %s", policy)
 	}

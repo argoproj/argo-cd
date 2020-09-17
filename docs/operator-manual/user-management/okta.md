@@ -12,7 +12,7 @@ A working Single Sign-On configuration using Okta via at least two methods was a
 
 1. Create a new SAML application in Okta UI.
     * ![Okta SAML App 1](../../assets/saml-1.png)
-        I've disabled `App Visibility` because Dex doesn't support Provider-initated login flows.
+        I've disabled `App Visibility` because Dex doesn't support Provider-initiated login flows.
     * ![Okta SAML App 2](../../assets/saml-2.png)
 1. Click `View setup instructions` after creating the application in Okta.
     * ![Okta SAML App 3](../../assets/saml-3.png)
@@ -50,7 +50,7 @@ dex.config: |
 ## OIDC (without Dex)
 
 !!! warning "Do you want groups for RBAC later?"
-    If you want `groups` scope returned from Okta you need to unforunately contact support to enable [API Access Management with Okta](https://developer.okta.com/docs/concepts/api-access-management/) or [_just use SAML above!_](#saml-with-dex)
+    If you want `groups` scope returned from Okta you need to unfortunately contact support to enable [API Access Management with Okta](https://developer.okta.com/docs/concepts/api-access-management/) or [_just use SAML above!_](#saml-with-dex)
 
     Next you may need the API Access Management feature, which the support team can enable for your OktaPreview domain for testing, to enable "custom scopes" and a separate endpoint to use instead of the "public" `/oauth2/v1/authorize` API Access Management endpoint. This might be a paid feature if you want OIDC unfortunately. The free alternative I found was SAML.
 
