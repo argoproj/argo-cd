@@ -152,6 +152,8 @@ const (
 	EnvK8sClientMaxIdleConnections = "ARGOCD_K8S_CLIENT_MAX_IDLE_CONNECTIONS"
 	// EnvGnuPGHome is the path to ArgoCD's GnuPG keyring for signature verification
 	EnvGnuPGHome = "ARGOCD_GNUPGHOME"
+	// EnvWatchAPIBufferSize is the buffer size used to transfer K8S watch events to watch API consumer
+	EnvWatchAPIBufferSize = "ARGOCD_WATCH_API_BUFFER_SIZE"
 )
 
 const (

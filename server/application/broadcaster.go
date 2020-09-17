@@ -42,6 +42,9 @@ func (b *broadcasterHandler) notify(event *appv1.ApplicationWatchEvent) {
 	}
 }
 
+// Subscribe forward application informer watch events to the provided channel.
+// The watch events are dropped if no receives are reading events from the channel so the channel must have
+// buffer if dropping events is not acceptable.
 func (b *broadcasterHandler) Subscribe(ch chan *appv1.ApplicationWatchEvent, filters ...func(event *appv1.ApplicationWatchEvent) bool) func() {
 	b.lock.Lock()
 	defer b.lock.Unlock()
