@@ -18,6 +18,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
+	"github.com/argoproj/pkg/sync"
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -45,7 +46,6 @@ import (
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	servercache "github.com/argoproj/argo-cd/server/cache"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
 	argoutil "github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/db"
@@ -69,7 +69,7 @@ type Server struct {
 	kubectl        kube.Kubectl
 	db             db.ArgoDB
 	enf            *rbac.Enforcer
-	projectLock    *util.KeyLock
+	projectLock    sync.KeyLock
 	auditLogger    *argo.AuditLogger
 	settingsMgr    *settings.SettingsManager
 	cache          *servercache.Cache
@@ -87,7 +87,7 @@ func NewServer(
 	kubectl kube.Kubectl,
 	db db.ArgoDB,
 	enf *rbac.Enforcer,
-	projectLock *util.KeyLock,
+	projectLock sync.KeyLock,
 	settingsMgr *settings.SettingsManager,
 ) application.ApplicationServiceServer {
 	appBroadcaster := &broadcasterHandler{}
