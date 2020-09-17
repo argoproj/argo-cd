@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"reflect"
 	"sort"
 	"strconv"
@@ -48,12 +49,17 @@ import (
 	"github.com/argoproj/argo-cd/util/argo"
 	argoutil "github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/db"
+	"github.com/argoproj/argo-cd/util/env"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/lua"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/session"
 	"github.com/argoproj/argo-cd/util/settings"
+)
+
+var (
+	watchAPIBufferSize = env.ParseNumFromEnv(argocommon.EnvWatchAPIBufferSize, 1000, 0, math.MaxInt32)
 )
 
 // Server provides a Application service
@@ -318,7 +324,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 	appIf := s.appclientset.ArgoprojV1alpha1().Applications(s.ns)
 
 	// subscribe early with buffered channel to ensure we don't miss events
-	events := make(chan *appv1.ApplicationWatchEvent, 100)
+	events := make(chan *appv1.ApplicationWatchEvent, watchAPIBufferSize)
 	unsubscribe := s.appBroadcaster.Subscribe(events, func(event *appv1.ApplicationWatchEvent) bool {
 		return event.Application.Name == q.GetName()
 	})
@@ -668,7 +674,7 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 		}
 	}
 
-	events := make(chan *appv1.ApplicationWatchEvent)
+	events := make(chan *appv1.ApplicationWatchEvent, watchAPIBufferSize)
 	// Mimic watch API behavior: send ADDED events if no resource version provided
 	// If watch API is executed for one application when emit event even if resource version is provided
 	// This is required since single app watch API is used for during operations like app syncing and it is
