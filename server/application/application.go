@@ -669,8 +669,11 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 	}
 
 	events := make(chan *appv1.ApplicationWatchEvent)
-	if q.ResourceVersion == "" {
-		// mimic watch API behavior: send ADDED events if no resource version provided
+	// Mimic watch API behavior: send ADDED events if no resource version provided
+	// If watch API is executed for one application when emit event even if resource version is provided
+	// This is required since single app watch API is used for during operations like app syncing and it is
+	// critical to never miss events.
+	if q.ResourceVersion == "" || q.GetName() != "" {
 		apps, err := s.appLister.List(selector)
 		if err != nil {
 			return err
