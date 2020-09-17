@@ -1522,17 +1522,17 @@
                 
                 <h1 id="releasing">Releasing<a class="headerlink" href="#releasing" title="Permanent link">&para;</a></h1>
 <h2 id="automated-release-procedure">Automated release procedure<a class="headerlink" href="#automated-release-procedure" title="Permanent link">&para;</a></h2>
-<p>Starting from <code>release-1.6</code> branch, ArgoCD can be released in automatic fashion
+<p>Starting from <code>release-1.6</code> branch, ArgoCD can be released in an automated fashion
 using GitHub actions. The release process takes about 20 minutes, sometimes a
-little less, depending on the performance of GitHub actions runners.</p>
-<p>The target release branch must already exist in GitHub repository. If you for
+little less, depending on the performance of GitHub Actions runners.</p>
+<p>The target release branch must already exist in the GitHub repository. If you for
 example want to create a release <code>v1.7.0</code>, the corresponding release branch
-<code>release-1.7</code> needs to exist, otherwise the release cannot be build. Also,
+<code>release-1.7</code> needs to exist, otherwise, the release cannot be built. Also,
 the trigger tag should always be created in the release branch, checked out
 in your local repository clone.</p>
 <p>Before triggering the release automation, the <code>CHANGELOG.md</code> should be updated
-with the latest information, and this change should be commited and pushed to
-the GitHub repository to the release branch. Afterwards, the automation can be
+with the latest information, and this change should be committed and pushed to
+the GitHub repository to the release branch. Afterward, the automation can be
 triggered.</p>
 <p><strong>Manual steps before release creation:</strong></p>
 <ul>
@@ -1542,13 +1542,13 @@ triggered.</p>
 </ul>
 <p><strong>The automation will perform the following steps:</strong></p>
 <ul>
-<li>Update <code>VERSION</code> file in release branch</li>
-<li>Update manifests with image tags of new version in release branch</li>
+<li>Update <code>VERSION</code> file in the release branch</li>
+<li>Update manifests with image tags of the new version in the release branch</li>
 <li>Build the Docker image and push to Docker Hub</li>
-<li>Create release tag in the GitHub repository</li>
-<li>Create GitHub release and attach the required assets to it (CLI binaries, ...)</li>
+<li>Create a release tag in the GitHub repository</li>
+<li>Create a GitHub release and attach the required assets to it (CLI binaries, ...)</li>
 </ul>
-<p>Finally, it will the remove trigger tag from repository again.</p>
+<p>Finally, it will the remove trigger tag from the repository again.</p>
 <p>Automation supports both, GA and pre-releases. The automation is triggered by
 pushing a tag to the repository. The tag must be in one of the following formats
 to trigger the GH workflow:</p>
@@ -1558,9 +1558,9 @@ to trigger the GH workflow:</p>
 </ul>
 <p>The tag must be an annotated tag, and it must contain the release notes in the
 commit message. Please note that Markdown uses <code>#</code> character for formatting, but
-Git uses it as comment char. To solve this, temporarily switch Git comment char
+Git uses it as comment char. To solve this, temporarily switch Git's comment char
 to something else, the <code>;</code> character is recommended.</p>
-<p>For example, considering you have configured the Git remote for repository to
+<p>For example, consider you have configured the Git remote for the repository to
 <code>github.com/argoproj/argo-cd</code> to be named <code>upstream</code> and are in your locally
 checked out repo:</p>
 <div class="codehilite"><pre><span></span><code>git config core.commentChar <span class="s1">&#39;;&#39;</span>
@@ -1577,7 +1577,7 @@ it to the GitHub repo.</p>
 <p>In summary, the modifications it does are:</p>
 <ul>
 <li>Create annotated trigger tag in your local repository</li>
-<li>Push tag to GitHub repository to trigger workflow</li>
+<li>Push the tag to the GitHub repository to trigger the workflow</li>
 <li>Remove trigger tag from your local repository</li>
 </ul>
 <p>The script can be found at <code>hacks/trigger-release.sh</code> and is used as follows:</p>
@@ -1589,42 +1589,38 @@ it to the GitHub repo.</p>
 prefix, so just specify it as <code>v1.6.0-rc2</code> for example. The <code>&lt;remote name&gt;</code>
 specifies the name of the remote used to push to the GitHub repository. </p>
 <p>If you omit the <code>&lt;release notes path&gt;</code>, an editor will pop-up asking you to
-enter the tag's annotation so you can paste the release notes, save and exit.
+enter the tag's annotation so you can paste the release notes, save, and exit.
 It will also take care of temporarily configuring the <code>core.commentChar</code> and
 setting it back to its original state.</p>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>It is strongly recommended to use this script to trigger the workflow
-instead of manually pushing a tag to the repository.</p>
-</div>
+<p>:warning:
+    It is strongly recommended to use this script to trigger the workflow
+    instead of manually pushing a tag to the repository.</p>
 <p>Once the trigger tag is pushed to the repo, the GitHub workflow will start
-execution. You can follow its progress under <code>Actions</code> tab, the name of the
+execution. You can follow its progress under the <code>Actions</code> tab, the name of the
 action is <code>Create release</code>. Don't get confused by the name of the running
-workflow, it will be the commit message of the latest commit to <code>master</code>
+workflow, it will be the commit message of the latest commit to the <code>master</code>
 branch, this is a limitation of GH actions.</p>
 <p>The workflow performs necessary checks so that the release can be successfully
-build before the build actually starts. It will error when one of the
-prerequisites is not met, or if the release cannot be build (i.e. already
+built before the build actually starts. It will error when one of the
+prerequisites is not met, or if the release cannot be built (i.e. already
 exists, release notes invalid, etc etc). You can see a summary of what has
-failed in the job's overview page, and more detailed errors in the output
+failed in the job's overview page and more detailed errors in the output
 of the step that has failed.</p>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>You cannot perform more than one release on the same release branch at the
-same time. For example, both <code>v1.6.0</code> and <code>v1.6.1</code> would operate on the
-<code>release-1.6</code> branch. If you submit <code>v1.6.1</code> while <code>v1.6.0</code> is still
-executing, the release automation will not execute. You have to either
-cancel <code>v1.6.0</code> before submitting <code>v1.6.1</code> or wait until it has finished.
-You can execute releases on different release branches simultaneously, for
-example <code>v1.6.0</code> and <code>v1.7.0-rc1</code>, without problems.</p>
-</div>
+<p>:warning:
+    You cannot perform more than one release on the same release branch at the
+    same time. For example, both <code>v1.6.0</code> and <code>v1.6.1</code> would operate on the
+    <code>release-1.6</code> branch. If you submit <code>v1.6.1</code> while <code>v1.6.0</code> is still
+    executing, the release automation will not execute. You have to either
+    cancel <code>v1.6.0</code> before submitting <code>v1.6.1</code> or wait until it has finished.
+    You can execute releases on different release branches simultaneously, for
+    example, <code>v1.6.0</code> and <code>v1.7.0-rc1</code>, without problems.</p>
 <h3 id="verifying-automated-release">Verifying automated release<a class="headerlink" href="#verifying-automated-release" title="Permanent link">&para;</a></h3>
 <p>After the automatic release creation has finished, you should perform manual
 checks to see if the release came out correctly:</p>
 <ul>
 <li>Check status &amp; output of the GitHub action</li>
 <li>Check <a href="https://github.com/argoproj/argo-cd/releases">https://github.com/argoproj/argo-cd/releases</a>
-  to see if release has been correctly created, and if all required assets
+  to see if the release has been correctly created and if all required assets
   are attached.</li>
 <li>Check whether the image has been published on DockerHub correctly</li>
 </ul>
@@ -1632,12 +1628,12 @@ checks to see if the release came out correctly:</p>
 <p>If something went wrong, damage should be limited. Depending on the steps that
 have been performed, you will need to manually clean up.</p>
 <ul>
-<li>Delete release tag (i.e. <code>v1.6.0-rc2</code>) created on GitHub repository. This
-  will immediately set release (if created) to <code>draft</code> status, invisible for
+<li>Delete the release tag (e.g. <code>v1.6.0-rc2</code>) created in the GitHub repository. This
+  will immediately set the release (if created) to <code>draft</code> status, invisible to the
   general public.</li>
-<li>Delete the draft release (if created) from <code>Releases</code> page on GitHub</li>
+<li>Delete the draft release (if created) from the <code>Releases</code> page on GitHub</li>
 <li>If Docker image has been pushed to DockerHub, delete it</li>
-<li>If commits have been performed to the release branch, revert them. Paths that could have been commited to are:<ul>
+<li>If commits have been performed to the release branch, revert them. Paths that could have been committed to are:<ul>
 <li><code>VERSION</code></li>
 <li><code>manifests/*</code></li>
 </ul>
@@ -1646,11 +1642,12 @@ have been performed, you will need to manually clean up.</p>
 <h3 id="post-process-manual-steps">Post-process manual steps<a class="headerlink" href="#post-process-manual-steps" title="Permanent link">&para;</a></h3>
 <p>For now, the only manual steps left are to</p>
 <ul>
-<li>update stable tag in GitHub repository to point to new release (if appropriate)</li>
+<li>update stable tag in the GitHub repository to point to new the release (if appropriate)</li>
+<li>update the <code>VERSION</code> file on <code>master</code> if this is a new major release</li>
 </ul>
-<p>These will be automated as well in the future.</p>
+<p>These may be automated as well in the future.</p>
 <h2 id="manual-releasing">Manual releasing<a class="headerlink" href="#manual-releasing" title="Permanent link">&para;</a></h2>
-<p>Automatic release process does not interfere with manual release process, since
+<p>The automatic release process does not interfere with the manual release process, since
 the trigger tag does not match a normal release tag. If you prefer to perform,
 manual release or if automatic release is for some reason broken, these are the
 steps:</p>
@@ -1673,7 +1670,7 @@ steps:</p>
 </code></pre></div>
 
 
-<p>Update <code>VERSION</code> and manifests with new version:</p>
+<p>Update <code>VERSION</code> and manifests with the new version:</p>
 <div class="codehilite"><pre><span></span><code>git checkout <span class="nv">$BRANCH</span>
 <span class="nb">echo</span> <span class="si">${</span><span class="nv">VERSION</span><span class="p">:</span><span class="nv">1</span><span class="si">}</span> &gt; VERSION
 make dev-tools-image
@@ -1691,14 +1688,14 @@ git push <span class="nv">$REPO</span> <span class="nv">$VERSION</span>
 </code></pre></div>
 
 
-<p>Update <a href="https://github.com/argoproj/argo-cd/releases">Github releases</a> with:</p>
+<p>Update <a href="https://github.com/argoproj/argo-cd/releases">GitHub releases</a> with:</p>
 <ul>
-<li>Getting started (copy from previous release)</li>
+<li>Getting started (copy from the previous release)</li>
 <li>Changelog</li>
 <li>Binaries (e.g. <code>dist/argocd-darwin-amd64</code>).</li>
 </ul>
 <h2 id="update-brew-formulae-manual">Update brew formulae (manual)<a class="headerlink" href="#update-brew-formulae-manual" title="Permanent link">&para;</a></h2>
-<p>If GA, update Brew formula:</p>
+<p>If GA, update the Brew formula:</p>
 <div class="codehilite"><pre><span></span><code>brew bump-formula-pr argocd --version <span class="si">${</span><span class="nv">VERSION</span><span class="p">:</span><span class="nv">1</span><span class="si">}</span>
 </code></pre></div>
 
