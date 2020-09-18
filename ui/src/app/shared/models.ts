@@ -697,6 +697,15 @@ export interface ApplicationSyncWindowState {
 
 export interface VersionMessage {
     Version: string;
+    BuildDate: string;
+    GoVersion: string;
+    Compiler: string;
+    Platform: string;
+    KsonnetVersion: string;
+    KustomizeVersion: string;
+    HelmVersion: string;
+    KubectlVersion: string;
+    JsonnetVersion: string;
 }
 
 export interface Token {

@@ -1,0 +1,24 @@
+@import 'node_modules/argo-ui/src/styles/config';
+
+.version-info-button {
+    white-space: nowrap;
+    cursor: pointer;
+
+    &:hover, &:focus {
+        text-decoration: underline;
+    }
+}
+
+.version-copy-btn-container {
+    margin-top: 15px;   // half of the panel's padding
+    display: flex;
+    flex-direction: row-reverse;
+
+    & button {
+        & i {
+            text-align: center;
+            margin-right: 0.5em;
+            min-width: 1rem;
+        }
+    }
+}

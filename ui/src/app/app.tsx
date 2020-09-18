@@ -1,4 +1,4 @@
-import {DataLoader, Layout, NavigationManager, Notifications, NotificationsManager, PageContext, Popup, PopupManager, PopupProps, Tooltip} from 'argo-ui';
+import {DataLoader, Layout, NavigationManager, Notifications, NotificationsManager, PageContext, Popup, PopupManager, PopupProps} from 'argo-ui';
 import {createBrowserHistory} from 'history';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
@@ -14,6 +14,8 @@ import {services} from './shared/services';
 import requests from './shared/services/requests';
 import {hashCode} from './shared/utils';
 import userInfo from './user-info';
+import {VersionButton} from './version-info/components/version-info-button';
+import {VersionPanel} from './version-info/components/version-info-panel';
 
 services.viewPreferences.init();
 const bases = document.getElementsByTagName('base');
@@ -52,7 +54,7 @@ const navItems = [
     }
 ];
 
-const versionInfo = services.version.version();
+const versionLoader = services.version.version();
 
 async function isExpiredSSO() {
     try {
@@ -92,7 +94,7 @@ requests.onError.subscribe(async err => {
     }
 });
 
-export class App extends React.Component<{}, {popupProps: PopupProps; error: Error}> {
+export class App extends React.Component<{}, {popupProps: PopupProps; showVersionPanel: boolean; error: Error}> {
     public static childContextTypes = {
         history: PropTypes.object,
         apis: PropTypes.object
@@ -108,7 +110,7 @@ export class App extends React.Component<{}, {popupProps: PopupProps; error: Err
 
     constructor(props: {}) {
         super(props);
-        this.state = {popupProps: null, error: null};
+        this.state = {popupProps: null, error: null, showVersionPanel: false};
         this.popupManager = new PopupManager();
         this.notificationsManager = new NotificationsManager();
         this.navigationManager = new NavigationManager(history);
@@ -185,15 +187,7 @@ export class App extends React.Component<{}, {popupProps: PopupProps; error: Err
                                                 ) : (
                                                     <Layout
                                                         navItems={navItems}
-                                                        version={() => (
-                                                            <DataLoader load={() => versionInfo}>
-                                                                {msg => (
-                                                                    <Tooltip content={msg.Version}>
-                                                                        <span style={{whiteSpace: 'nowrap'}}>{msg.Version}</span>
-                                                                    </Tooltip>
-                                                                )}
-                                                            </DataLoader>
-                                                        )}>
+                                                        version={() => <VersionButton version={versionLoader} onClick={() => this.toggleVersionPanel(true)} />}>
                                                         <route.component {...routeProps} />
                                                     </Layout>
                                                 )
@@ -219,6 +213,7 @@ export class App extends React.Component<{}, {popupProps: PopupProps; error: Err
                     </Provider>
                 </PageContext.Provider>
                 <Notifications notifications={this.notificationsManager.notifications} />
+                <VersionPanel version={versionLoader} isShown={this.state.showVersionPanel} onClose={() => this.toggleVersionPanel(false)} />
             </React.Fragment>
         );
     }
@@ -226,4 +221,8 @@ export class App extends React.Component<{}, {popupProps: PopupProps; error: Err
     public getChildContext() {
         return {history, apis: {popup: this.popupManager, notifications: this.notificationsManager, navigation: this.navigationManager}};
     }
+
+    public toggleVersionPanel = (isShown: boolean) => {
+        this.setState({showVersionPanel: isShown});
+    };
 }
