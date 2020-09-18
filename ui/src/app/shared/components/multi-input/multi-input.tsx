@@ -1,5 +1,5 @@
 import * as React from 'react';
-import {FieldData, FieldLabels} from '../../../settings/components/project/card/field';
+import {FieldData, FieldLabels, FieldValue, IsFieldValue} from '../../../settings/components/project/card/field';
 import {CardRow} from '../../../settings/components/project/card/row';
 
 require('../../../settings/components/project/project.scss');
@@ -8,7 +8,6 @@ require('../../../settings/components/project/card/card.scss');
 interface MultiInputProps<T> {
     title: string;
     data: T[];
-    empty: T;
     fields: FieldData[];
     docs?: string;
     disabled?: boolean;
@@ -64,6 +63,13 @@ export class MultiInput<T> extends React.Component<MultiInputProps<T>, MultiInpu
         });
         return [idxs, vals];
     }
+    get emptyItem(): T | FieldValue {
+        if (IsFieldValue(this.raw(this.state.data)[0])) {
+            return '';
+        } else {
+            return {} as T;
+        }
+    }
     public render() {
         return (
             <div className='multi-input card__multi-data'>
@@ -106,7 +112,7 @@ export class MultiInput<T> extends React.Component<MultiInputProps<T>, MultiInpu
                             </button>
                         ) : null}
                         {this.props.disabled ? null : (
-                            <button className='card__button card__button-add card__button-round' onClick={_ => this.add(this.props.empty)}>
+                            <button className='card__button card__button-add card__button-round' onClick={_ => this.add()}>
                                 <i className='fa fa-plus' />
                             </button>
                         )}
@@ -142,9 +148,9 @@ export class MultiInput<T> extends React.Component<MultiInputProps<T>, MultiInpu
         this.setState({data, selected});
         this.props.onChange(this.raw(data));
     }
-    private async add(empty: T) {
+    private async add() {
         const data = [...this.state.data];
-        data.push({value: empty, id: Math.random()});
+        data.push({value: this.emptyItem as T, id: Math.random()});
         this.setState({data});
         this.props.onChange(this.raw(data));
     }

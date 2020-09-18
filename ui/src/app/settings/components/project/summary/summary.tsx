@@ -335,8 +335,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
         this.updateProject(res);
         return GetProp(res.spec as ProjectSpec, key as keyof ProjectSpec);
     }
-    private async saveV3(key: keyof ProjectSpec, values: IterableSpecField[]): Promise<any> {
-        console.log(values);
+    private async saveV3<T>(key: keyof ProjectSpec, values: T[]): Promise<any> {
         const update = {...this.state.proj};
         SetProp(update.spec, key as keyof ProjectSpec, values);
         const res = await services.projects.updateLean(this.state.name, update);
