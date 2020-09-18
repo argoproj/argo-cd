@@ -1,14 +1,11 @@
 @import 'node_modules/argo-ui/src/styles/config';
 @import 'src/app/settings/components/project/config';
 
+.multi-input {
+  margin-bottom: 2em;
+}
+
 .card {
-  margin-bottom: 1.5em;
-  margin-right: 30px;
-
-  &__full-width {
-      width: 100%;
-  }
-
   &__empty {
     background-color: $argo-color-gray-2;
     .card__title {
@@ -20,6 +17,10 @@
         color: black;
       }
     }
+  }
+
+  &__multi-data {
+    margin: 1.5em 0;
   }
 
   &__title {
@@ -35,13 +36,10 @@
 
   &__actions {
     display: flex;
-    justify-content: flex-end;
     flex-grow: 1;
-    margin-left: 10px;
 
-    .project__button {
-      margin-left: 10px;
-      margin-right: 0;
+    .card__button {
+      margin-right: 10px;
     }
   }
 
@@ -60,15 +58,17 @@
 
   &__input-container {
     div {
+      line-height: normal;
       display: flex;
     }
   }
 
   &--input, &--select {
-    font-size: 17px;
+    font-size: 14px;
     outline: none;
     box-shadow: none;
-    border: 2px solid $argo-color-gray-4;
+    border: none;
+    border-bottom: 2px solid $argo-color-gray-4;
     padding-left: $input-padding-left;
     padding-top: 7px;
     padding-bottom: 7px;
@@ -78,11 +78,10 @@
     width: 100%;
     line-height: 1em;
     display: block;
-    border-radius: 7px;
   }
 
   &--input:focus {
-    border: 2px solid $argo-running-color;
+    border-color: $argo-running-color;
     color: darken($argo-running-color, 25%);
   }
 
@@ -90,8 +89,9 @@
     font-weight: 400;
   }
 
-  &__input-labels {
-    margin-bottom: 10px;
+  &__labels {
+    border-bottom: 1px solid $argo-color-gray-2;
+    padding-bottom: 1em;
     &--label {
       font-weight: 500;
       text-transform: uppercase;
@@ -129,13 +129,14 @@
   &__col-button {
     flex-basis: $button-width;
     width: $button-width;
-    .project__button {
+    .card__button {
       margin-left: auto;
       margin-right: 0;
     }
   }
 
   &__col-input {
+    display: flex;
     align-items: center;
   }
 
@@ -168,7 +169,6 @@
   &__button {
     display: block;
     padding: $button-padding;
-    margin: 0 auto;
     width: auto;
     border-radius: 7px;
     cursor: pointer;
@@ -204,14 +204,15 @@
     font-size: 15px;
     width: $round-button-size;
     height: $round-button-size;
-    margin: 0 auto;
     display: flex;
     align-items: center;
     justify-content: center;
   }
 
   &__button-select {
-    border: 2px solid $argo-running-color;
+    $deselect-color: $argo-color-gray-6;
+    $select-color: $argo-color-teal-6;
+    border: 2px solid $deselect-color;
     border-radius: 3px;
     color: $white-color;
     transition: all 300ms;
@@ -224,17 +225,18 @@
 
     &--selected {
       @extend .card__button-select;
-      border-radius: 3px;
-      background-color: $argo-running-color;
+      border-color: $select-color;
+      background-color: $select-color;
     }
 
     &:hover {
-      background-color: $argo-running-color;
+      border-color: $select-color;
+      background-color: $select-color;
     }
   }
 
   &__button-add {
-    background-color: $argo-success-color;
+    background-color: $argo-color-gray-6;
     margin-right: 0;
     color: $white-color;
   }

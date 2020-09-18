@@ -1,10 +1,14 @@
 import * as React from 'react';
 
+import {FormApi} from 'react-form';
+import {EditablePanel} from '../../../../shared/components';
 import {ApplicationDestination, GroupKind, OrphanedResource, Project, ProjectSignatureKey, ProjectSpec} from '../../../../shared/models';
 import {services} from '../../../../shared/services';
 import {GetProp, SetProp} from '../../utils';
 import {Card} from '../card/card';
 import {FieldData, FieldSizes, FieldTypes} from '../card/field';
+import {MultiData} from '../../../../shared/components/multi-input/multi-data';
+import {MultiInput} from '../../../../shared/components/multi-input/multi-input';
 import {DocLinks} from '../doc-links';
 
 require('./summary.scss');
@@ -130,6 +134,79 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                         </div>
                     </div>
                 </div>
+                <div className='project-summary__section'>
+                    <EditablePanel<string[]>
+                        title={'DEPLOYMENT'}
+                        values={[]}
+                        items={[
+                            {
+                                title: 'SOURCES',
+                                view: MultiData<string>(this.state.fields.sources, this.state.sourceRepos),
+                                edit: (_: FormApi) => (
+                                    <MultiInput<string>
+                                        title={'sources'}
+                                        data={this.state.sourceRepos}
+                                        empty={''}
+                                        fields={this.state.fields.sources}
+                                        save={(i, values) => this.save(IterableSpecFieldNames.sourceRepos, i, values as string[])}
+                                    />
+                                )
+                            },
+                            {
+                                title: 'DESTINATIONS',
+                                view: MultiData<ApplicationDestination>(this.state.fields.destinations, this.state.destinations),
+                                edit: (formApi: FormApi) => (
+                                    <MultiInput<ApplicationDestination>
+                                        title={'destinations'}
+                                        data={this.state.destinations}
+                                        empty={{server: '', namespace: ''} as ApplicationDestination}
+                                        fields={this.state.fields.destinations}
+                                        save={(i, values) => this.save(IterableSpecFieldNames.destinations, i, values as ApplicationDestination[])}
+                                    />
+                                )
+                            }
+                        ]}
+                        save={values => this.savePanel(IterableSpecFieldNames.sourceRepos, values as string[])}
+                        noReadonlyMode={false}
+                    />
+                </div>
+                <div className='project-summary__section'>
+                    <EditablePanel<string[]>
+                        title={'ALLOW LIST'}
+                        values={[]}
+                        items={[
+                            {
+                                title: 'ALLOWED CLUSTER RESOURCES',
+                                view: MultiData<GroupKind>(this.state.fields.resources, this.state.clusterResourceWhitelist),
+                                edit: (_: FormApi) => (
+                                    <MultiInput<GroupKind>
+                                        title={'Allow List'}
+                                        data={this.state.clusterResourceWhitelist}
+                                        empty={{group: '', kind: ''} as GroupKind}
+                                        fields={this.state.fields.resources}
+                                        save={(i, values) => this.save(IterableSpecFieldNames.clusterResourceWhitelist, i, values as GroupKind[])}
+                                    />
+                                )
+                            },
+                            {
+                                title: 'DESTINATIONS',
+                                view: MultiData<ApplicationDestination>(this.state.fields.destinations, this.state.destinations),
+                                edit: (formApi: FormApi) => (
+                                    <MultiInput<ApplicationDestination>
+                                        title={'destinations'}
+                                        data={this.state.destinations}
+                                        empty={{server: '', namespace: ''} as ApplicationDestination}
+                                        fields={this.state.fields.destinations}
+                                        save={(i, values) => this.save(IterableSpecFieldNames.destinations, i, values as ApplicationDestination[])}
+                                    />
+                                )
+                            }
+                        ]}
+                        save={values => this.savePanel(IterableSpecFieldNames.sourceRepos, values as string[])}
+                        noReadonlyMode={false}
+                    />
+                </div>
+
                 <div className='project-summary__section'>
                     <div className='project-summary__label'>
                         DEPLOYMENT&nbsp;
@@ -374,6 +451,13 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
             arr[idxs[i]] = values[i] as IterableSpecField;
         });
         SetProp(update.spec, key as keyof ProjectSpec, arr);
+        const res = await services.projects.updateLean(this.state.name, update);
+        this.updateProject(res);
+        return GetProp(res.spec as ProjectSpec, key as keyof ProjectSpec);
+    }
+    private async savePanel(key: keyof ProjectSpec, values: IterableSpecField[]): Promise<any> {
+        const update = {...this.state.proj};
+        SetProp(update.spec, key as keyof ProjectSpec, values);
         const res = await services.projects.updateLean(this.state.name, update);
         this.updateProject(res);
         return GetProp(res.spec as ProjectSpec, key as keyof ProjectSpec);

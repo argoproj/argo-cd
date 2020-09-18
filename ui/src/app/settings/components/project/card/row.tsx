@@ -1,7 +1,7 @@
 import * as React from 'react';
 import {GetProp, SetProp} from '../../utils';
 import {Banner, BannerIcon, BannerType} from '../banner/banner';
-import {ArgoField, FieldData, FieldTypes, FieldValue} from './field';
+import {ArgoField, FieldData, FieldTypes, FieldValue, IsFieldValue} from './field';
 
 interface CardRowProps<T> {
     fields: FieldData[];
@@ -32,7 +32,7 @@ export class CardRow<T> extends React.Component<CardRowProps<T>> {
         return false;
     }
     get dataIsFieldValue(): boolean {
-        return this.isFieldValue(this.props.data);
+        return IsFieldValue(this.props.data);
     }
     get fieldsSetToAll(): string[] {
         if (!this.props.data) {
@@ -125,11 +125,5 @@ export class CardRow<T> extends React.Component<CardRowProps<T>> {
                 <div className='card__col-button card__col' />
             </div>
         );
-    }
-    private isFieldValue(value: T | FieldValue): value is FieldValue {
-        if ((typeof value as FieldValue) === 'string') {
-            return true;
-        }
-        return false;
     }
 }

@@ -24,6 +24,32 @@ export enum FieldSizes {
 
 export type FieldValue = string | ResourceKind;
 
+export function IsFieldValue<T>(value: T | FieldValue): value is FieldValue {
+    if ((typeof value as FieldValue) === 'string') {
+        return true;
+    }
+    return false;
+}
+
+export function FieldLabels(fields: FieldData[]): React.ReactFragment {
+    return (
+        <div className='card__row card__labels card__input-container'>
+            {fields.map(field => {
+                return (
+                    <div className={`card__labels--label card__col-input card__col card__col-${field.size}`} key={field.name + 'label'}>
+                        {field.name}
+                        {field.type === FieldTypes.ResourceKindSelector ? (
+                            <a href='https://kubernetes.io/docs/reference/kubectl/overview/#resource-types' target='_blank' className='card__info-icon'>
+                                <i className='fas fa-info-circle' />
+                            </a>
+                        ) : null}
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
 interface ArgoFieldProps {
     field: FieldData;
     onChange: (value: FieldValue) => void;

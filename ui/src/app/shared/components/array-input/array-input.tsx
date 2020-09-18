@@ -2,7 +2,7 @@ import * as React from 'react';
 import * as ReactForm from 'react-form';
 
 /*
-    This provide a way to may a form field to an array of items. It allows you to
+    This provides a way to map a form field to an array of items. It allows you to
 
     * Add a new (maybe duplicate) item.
     * Replace an item.
