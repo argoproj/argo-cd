@@ -1,7 +1,7 @@
 import * as path from 'path';
+import {BehaviorSubject, Observable, Observer} from 'rxjs';
 import * as superagent from 'superagent';
 const superagentPromise = require('superagent-promise');
-import {BehaviorSubject, Observable, Observer} from 'rxjs';
 
 type Callback = (data: any) => void;
 
