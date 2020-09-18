@@ -711,9 +711,6 @@ func (c *client) WatchApplicationWithRetry(ctx context.Context, appName string, 
 				if isCanceledContextErr(err) {
 					cancelled = true
 				} else {
-					if err != io.EOF {
-						log.Warnf("watch err: %v", err)
-					}
 					time.Sleep(1 * time.Second)
 				}
 			}
