@@ -11,7 +11,6 @@ package engine
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"time"
@@ -113,7 +112,7 @@ func (e *gitOpsEngine) Sync(ctx context.Context,
 		select {
 		case <-ctx.Done():
 			syncCtx.Terminate()
-			return resources, errors.New("sync operation was terminated")
+			return resources, ctx.Err()
 		case <-time.After(operationRefreshTimeout):
 		case <-resUpdated:
 		}
