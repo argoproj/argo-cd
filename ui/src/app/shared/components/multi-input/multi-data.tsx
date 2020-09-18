@@ -5,8 +5,8 @@ import {FieldData, FieldLabels, IsFieldValue} from '../../../settings/components
 require('../../../settings/components/project/card/card.scss')
 
 export function MultiData<T>(fields: FieldData[], data: T[]): React.ReactFragment {
-    const rows = data.map((d: T) => (
-        <div className='card__input-container card__row card__row--data' key={d.toString()}>
+    const rows = data.map((d: T, idx) => (
+        <div className='card__input-container card__row card__row--data' key={idx}>
             {fields.map((field, i) => {
                 let curVal = '';
                 if (d) {

@@ -13,7 +13,7 @@ export enum FieldTypes {
     Text = 'text',
     ResourceKindSelector = 'resourceKindSelector',
     Url = 'url',
-    AutoComplete = 'autoComplete'
+    AutoComplete = 'autoComplete',
 }
 
 export enum FieldSizes {
@@ -54,12 +54,13 @@ interface ArgoFieldProps {
     field: FieldData;
     onChange: (value: FieldValue) => void;
     data: FieldValue;
+    index: number;
 }
 
 export class ArgoField extends React.Component<ArgoFieldProps> {
     public render() {
-        let format;
         const field = this.props.field;
+        let format;
         switch (field.type) {
             case FieldTypes.ResourceKindSelector:
                 format = <ResourceKindSelector placeholder={field.name} init={this.props.data as ResourceKind} onChange={this.props.onChange} />;

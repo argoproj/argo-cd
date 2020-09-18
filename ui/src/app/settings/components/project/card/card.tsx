@@ -128,7 +128,6 @@ export class Card<T> extends React.Component<CardProps<T>, CardState<T>> {
                                             fields={this.props.fields}
                                             data={val}
                                             remove={() => this.remove([i])}
-                                            save={value => this.save([i], [value as T])}
                                             selected={this.state.selected[i]}
                                             toggleSelect={() => this.toggleSelect(i)}
                                             onChange={r => this.updateRow(i, r as T)}

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import {FieldData, FieldLabels, FieldValue} from '../../../settings/components/project/card/field';
+import {FieldData, FieldLabels} from '../../../settings/components/project/card/field';
 import {CardRow} from '../../../settings/components/project/card/row';
 
 require('../../../settings/components/project/project.scss');
@@ -10,9 +10,9 @@ interface MultiInputProps<T> {
     data: T[];
     empty: T;
     fields: FieldData[];
-    save: (i: number[], values: FieldValue[] | T[]) => Promise<any>;
     docs?: string;
     disabled?: boolean;
+    onChange?: (values: T[]) => Promise<any>;
 }
 
 interface MultiInputState<T> {
@@ -22,7 +22,7 @@ interface MultiInputState<T> {
     changeCount: number;
 }
 
-interface Row<T> {
+export interface Row<T> {
     id: number;
     value: T;
 }
@@ -81,14 +81,12 @@ export class MultiInput<T> extends React.Component<MultiInputProps<T>, MultiInpu
                     {this.props.data && this.props.data.length > 0 ? (
                         <div>
                             {this.state.data.map((row, i) => {
-                                const val = row.value;
                                 return (
                                     <div key={i}>
                                         <CardRow<T>
                                             fields={this.props.fields}
-                                            data={val}
+                                            data={row.value}
                                             remove={() => this.remove([i])}
-                                            save={value => this.save([i], [value as T])}
                                             selected={this.state.selected[i]}
                                             toggleSelect={() => this.toggleSelect(i)}
                                             onChange={r => this.updateRow(i, r as T)}
@@ -102,16 +100,6 @@ export class MultiInput<T> extends React.Component<MultiInputProps<T>, MultiInpu
                         this.empty()
                     )}
                     <div className='card__actions'>
-                        {this.state.changeCount > 0 ? (
-                            <button
-                                className={'card__button card__button-save'}
-                                onClick={() => {
-                                    const [i, v] = this.changedVals;
-                                    this.save(i, v);
-                                }}>
-                                SAVE ALL
-                            </button>
-                        ) : null}
                         {this.selectedIdxs.length > 1 ? (
                             <button className={'card__button card__button-error'} onClick={() => this.remove(this.selectedIdxs)}>
                                 DELETE SELECTED
@@ -132,6 +120,16 @@ export class MultiInput<T> extends React.Component<MultiInputProps<T>, MultiInpu
         selected[i] = !selected[i];
         this.setState({selected});
     }
+    private raw(data: Row<T>[]): T[] {
+        return data.map(d => d.value);
+    }
+    private empty() {
+        return (
+            <div className={'card__row'}>
+                <div className={`card__col card__col-fill-${this.props.fields.length}`}>Project has no {this.props.title}</div>
+            </div>
+        );
+    }
     private remove(idxs: number[]) {
         const tmp = [...idxs];
         const selected = this.state.selected;
@@ -142,28 +140,13 @@ export class MultiInput<T> extends React.Component<MultiInputProps<T>, MultiInpu
             data.splice(i, 1);
         }
         this.setState({data, selected});
-    }
-    private empty() {
-        return (
-            <div className={'card__row'}>
-                <div className={`card__col card__col-fill-${this.props.fields.length}`}>Project has no {this.props.title}</div>
-            </div>
-        );
+        this.props.onChange(this.raw(data));
     }
     private async add(empty: T) {
         const data = [...this.state.data];
         data.push({value: empty, id: Math.random()});
         this.setState({data});
-    }
-    private async save(idxs: number[], values: T[]) {
-        await this.props.save(idxs, values);
-        const isChanged = this.state.isChanged;
-        const update = this.state.data;
-        values.forEach((value, i) => {
-            update[idxs[i]] = {value, id: Math.random()};
-            isChanged[idxs[i]] = false;
-        });
-        this.setState({isChanged, data: update, changeCount: 0});
+        this.props.onChange(this.raw(data));
     }
     private updateRow(i: number, r: T) {
         const data = [...this.state.data];
@@ -182,5 +165,8 @@ export class MultiInput<T> extends React.Component<MultiInputProps<T>, MultiInpu
             isChanged[i] = false;
         }
         this.setState({data});
+        if (this.props.onChange) {
+            this.props.onChange(this.raw(data));
+        }
     }
 }

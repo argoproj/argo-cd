@@ -6,6 +6,7 @@
 }
 
 .card {
+  margin-right: 20px;
   &__empty {
     background-color: $argo-color-gray-2;
     .card__title {

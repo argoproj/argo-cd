@@ -7,11 +7,11 @@ interface CardRowProps<T> {
     fields: FieldData[];
     data: T | FieldValue;
     remove: () => void;
-    save: (value: T | FieldValue) => Promise<any>;
     selected: boolean;
     toggleSelect: () => void;
     changed: boolean;
     onChange: (value: T | FieldValue) => void;
+    index?: number;
 }
 
 export class CardRow<T> extends React.Component<CardRowProps<T>> {
@@ -89,17 +89,17 @@ export class CardRow<T> extends React.Component<CardRowProps<T>> {
                         }
                         return (
                             <div key={field.name} className={`card__col-input card__col card__col-${field.size}`}>
-                                <ArgoField field={field} onChange={val => update(val, field.name as keyof T)} data={curVal} />
+                                <ArgoField field={field} onChange={val => update(val, field.name as keyof T)} data={curVal} index={this.props.index || 0} />
                             </div>
                         );
                     })}
-                    <div className='card__col-button card__col'>
-                        <button
-                            className={`card__button card__button-${this.props.selected ? 'error' : this.disabled ? 'disabled' : this.props.changed ? 'save' : 'saved'}`}
-                            onClick={() => (this.props.selected ? this.props.remove() : this.disabled ? null : this.props.save(this.props.data))}>
-                            {this.props.selected ? 'DELETE' : this.disabled ? 'EMPTY' : this.props.changed ? 'SAVE' : 'SAVED'}
-                        </button>
-                    </div>
+                    {this.props.selected ? (
+                        <div className='card__col-button card__col'>
+                            <button className='card__button card__button-error' onClick={() => (this.props.selected ? this.props.remove() : null)}>
+                                DELETE
+                            </button>
+                        </div>
+                    ) : null}
                 </div>
                 {this.fieldsSetToAll.length > 0 ? this.allNoticeBanner(this.fieldsSetToAll) : null}
             </div>
