@@ -127,7 +127,7 @@ export class MultiInput<T> extends React.Component<MultiInputProps<T>, MultiInpu
         this.setState({selected});
     }
     private raw(data: Row<T>[]): T[] {
-        return data.map(d => d.value);
+        return data && data.length > 0 ? data.map(d => d.value) : [];
     }
     private empty() {
         return (

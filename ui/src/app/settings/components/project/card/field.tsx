@@ -34,6 +34,7 @@ export function IsFieldValue<T>(value: T | FieldValue): value is FieldValue {
 export function FieldLabels(fields: FieldData[]): React.ReactFragment {
     return (
         <div className='card__row card__labels card__input-container'>
+            <div className='card__col card__col-select-button' />
             {fields.map(field => {
                 return (
                     <div className={`card__labels--label card__col-input card__col card__col-${field.size}`} key={field.name + 'label'}>

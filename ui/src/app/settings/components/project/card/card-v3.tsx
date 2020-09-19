@@ -46,7 +46,7 @@ export class Card<T> extends React.Component<CardProps<T>, CardState<T>> {
     }
     public render() {
         return (
-            <div className={`card white-box ${this.props.values && this.props.values.length > 0 ? '' : 'card__empty'} ${this.props.fullWidth ? 'card__full-width' : ''}`}>
+            <div className={`card white-box ${this.props.fullWidth ? 'card__full-width' : ''}`}>
                 <div className='white-box__details'>
                     <div className='card__row'>
                         <div className='card__title'>
@@ -85,23 +85,12 @@ export class Card<T> extends React.Component<CardProps<T>, CardState<T>> {
                             </div>
                         </div>
                     </div>
-                    {this.props.values && this.props.values.length > 0 ? (
-                        this.state.edit ? (
-                            <MultiInput<T> title={this.props.title} data={this.state.data} fields={this.props.fields} onChange={async data => await this.setState({data})} />
-                        ) : (
-                            MultiData(this.props.fields, this.props.values)
-                        )
+                    {this.state.edit ? (
+                        <MultiInput<T> title={this.props.title} data={this.state.data} fields={this.props.fields} onChange={async data => await this.setState({data})} />
                     ) : (
-                        this.empty()
+                        MultiData(this.props.fields, this.props.values)
                     )}
                 </div>
-            </div>
-        );
-    }
-    private empty() {
-        return (
-            <div className={'card__row'}>
-                <div className={`card__col card__col-fill-${this.props.fields.length}`}>Project has no {this.props.title}</div>
             </div>
         );
     }
