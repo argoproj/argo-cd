@@ -74,7 +74,7 @@ COPY ./test/container/uid_entrypoint.sh /usr/local/bin
 ARG UID
 
 # Prepare user configuration & build environments
-RUN useradd -u ${UID} -d /home/user -s /bin/bash user && \
+RUN useradd -l -u ${UID} -d /home/user -s /bin/bash user && \
     echo "user ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/user && \
     HELM_HOME=/home/user/.helm helm2 init --client-only && \
     HOME=/home/user git config --global user.name "ArgoCD Test User" && \
