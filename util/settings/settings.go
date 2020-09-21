@@ -1574,7 +1574,7 @@ func (mgr *SettingsManager) updateMapSecretRef(data map[string]interface{}) (map
 		}
 		if unmarshaled {
 			yamlStr, _ := yaml.Marshal(value)
-			updatedData[key] = string(yamlStr)
+			updatedData[key] = strings.TrimSuffix(string(yamlStr), "\n")
 		}
 	}
 	return updatedData, nil
