@@ -1,4 +1,5 @@
 import {DataLoader, Tab, Tabs} from 'argo-ui';
+import * as moment from 'moment';
 import * as React from 'react';
 
 import {YamlEditor} from '../../../shared/components';
@@ -21,9 +22,19 @@ export const ApplicationNodeInfo = (props: {
         {title: 'NAMESPACE', value: props.node.namespace}
     ];
     if (props.node.createdAt) {
+        const createdAtUtc = props.node.createdAt;
+
+        let createdAtLocal: string;
+        try {
+            // formatted: September 21 2020 10:12 AM
+            createdAtLocal = moment(createdAtUtc).format('LLL');
+        } catch (err) {
+            createdAtLocal = createdAtUtc;
+        }
+
         attributes.push({
             title: 'CREATED_AT',
-            value: props.node.createdAt
+            value: createdAtLocal
         });
     }
     if ((props.node.images || []).length) {
