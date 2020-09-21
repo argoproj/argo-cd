@@ -1,10 +1,11 @@
-import {NotificationsApi, NotificationType, SlidingPanel, Tabs, Tooltip} from 'argo-ui';
+import {AutocompleteField, FormField, NotificationsApi, NotificationType, SlidingPanel, Tabs, Tooltip} from 'argo-ui';
+import * as PropTypes from 'prop-types';
 import * as React from 'react';
-import {FormApi} from 'react-form';
+import {FormApi, Text} from 'react-form';
 import {RouteComponentProps} from 'react-router';
 
-import {DataLoader, ErrorNotification, Page, Query} from '../../../shared/components';
-import {Consumer} from '../../../shared/context';
+import {DataLoader, EditablePanel, ErrorNotification, Page, Query} from '../../../shared/components';
+import {AppContext, Consumer} from '../../../shared/context';
 import {Project} from '../../../shared/models';
 import {CreateJWTTokenParams, DeleteJWTTokenParams, ProjectRoleParams, services} from '../../../shared/services';
 
@@ -18,8 +19,14 @@ import {ProjectSyncWindowsParams} from '../../../shared/services/projects-servic
 
 import {SyncWindowStatusIcon} from '../../../applications/components/utils';
 
+require('./project-details.scss');
+
 interface ProjectDetailsState {
     token: string;
+}
+
+function removeEl(items: any[], index: number) {
+    return items.slice(0, index).concat(items.slice(index + 1));
 }
 
 function helpTip(text: string) {
@@ -34,6 +41,10 @@ function helpTip(text: string) {
 }
 
 export class ProjectDetails extends React.Component<RouteComponentProps<{name: string}>, ProjectDetailsState> {
+    public static contextTypes = {
+        apis: PropTypes.object
+    };
+
     private projectFormApi: FormApi;
     private projectRoleFormApi: FormApi;
     private projectSyncWindowsFormApi: FormApi;
@@ -82,7 +93,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                             {proj => (
                                 <Query>
                                     {params => (
-                                        <div>
+                                        <div className='project-details'>
                                             <Tabs
                                                 selectedTabKey={params.get('tab') || 'summary'}
                                                 onTabSelected={tab => ctx.navigation.goto('.', {tab})}
@@ -473,66 +484,142 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
         );
     }
 
+    private get appContext(): AppContext {
+        return this.context as AppContext;
+    }
+
+    private async saveProject(updatedProj: Project) {
+        try {
+            const proj = await services.projects.get(updatedProj.metadata.name);
+            proj.spec = updatedProj.spec;
+            this.loader.setData(await services.projects.updateProj(proj));
+        } catch (e) {
+            this.appContext.apis.notifications.show({
+                content: <ErrorNotification title='Unable to update project' e={e} />,
+                type: NotificationType.Error
+            });
+        }
+    }
+
     private summaryTab(proj: Project) {
-        const attributes = [{title: 'NAME', value: proj.metadata.name}, {title: 'DESCRIPTION', value: proj.spec.description}];
         return (
             <div className='argo-container'>
-                <div className='white-box'>
-                    <div className='white-box__details'>
-                        {attributes.map(attr => (
-                            <div className='row white-box__details-row' key={attr.title}>
-                                <div className='columns small-3'>{attr.title}</div>
-                                <div className='columns small-9'>{attr.value}</div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
+                <EditablePanel
+                    save={item => this.saveProject(item)}
+                    validate={input => ({
+                        'metadata.name': !input.metadata.name && 'Project name is required'
+                    })}
+                    values={proj}
+                    title='GENERAL'
+                    items={[
+                        {
+                            title: 'NAME',
+                            view: proj.metadata.name,
+                            edit: (_: FormApi) => proj.metadata.name
+                        },
+                        {
+                            title: 'DESCRIPTION',
+                            view: proj.spec.description,
+                            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.description' component={Text} />
+                        }
+                    ]}
+                />
 
-                <h4>Source repositories {helpTip('Git repositories where application manifests are permitted to be retrieved from')}</h4>
-                {((proj.spec.sourceRepos || []).length > 0 && (
-                    <div className='argo-table-list'>
-                        <div className='argo-table-list__head'>
-                            <div className='row'>
-                                <div className='columns small-12'>URL</div>
-                            </div>
-                        </div>
-                        {(proj.spec.sourceRepos || []).map(src => (
-                            <div className='argo-table-list__row' key={src}>
-                                <div className='row'>
-                                    <div className='columns small-12'>{src}</div>
+                <EditablePanel
+                    save={item => this.saveProject(item)}
+                    values={proj}
+                    title='SOURCE REPOSITORIES'
+                    view={
+                        <React.Fragment>
+                            {(proj.spec.sourceRepos || []).map((repo, i) => (
+                                <div className='row white-box__details-row' key={i}>
+                                    <div className='columns small-12'>{repo}</div>
                                 </div>
-                            </div>
-                        ))}
-                    </div>
-                )) || (
-                    <div className='white-box'>
-                        <p>Project has no source repositories</p>
-                    </div>
-                )}
+                            ))}
+                        </React.Fragment>
+                    }
+                    edit={formApi => (
+                        <DataLoader load={() => services.repos.list()}>
+                            {repos => (
+                                <React.Fragment>
+                                    {formApi.values.spec.sourceRepos.map((_: Project, i: number) => (
+                                        <div className='row white-box__details-row' key={i}>
+                                            <div className='columns small-12'>
+                                                <FormField
+                                                    formApi={formApi}
+                                                    field={`spec.sourceRepos[${i}]`}
+                                                    component={AutocompleteField}
+                                                    componentProps={{items: repos.map(repo => repo.repo)}}
+                                                />
+                                                <i className='fa fa-times' onClick={() => formApi.setValue('spec.sourceRepos', removeEl(formApi.values.spec.sourceRepos, i))} />
+                                            </div>
+                                        </div>
+                                    ))}
+                                    <button
+                                        className='argo-button argo-button--short'
+                                        onClick={() => formApi.setValue('spec.sourceRepos', (formApi.values.spec.sourceRepos || []).concat('*'))}>
+                                        ADD SOURCE
+                                    </button>
+                                </React.Fragment>
+                            )}
+                        </DataLoader>
+                    )}
+                    items={[]}
+                />
 
-                <h4>Destinations {helpTip('Cluster and namespaces where applications are permitted to be deployed to')}</h4>
-                {((proj.spec.destinations || []).length > 0 && (
-                    <div className='argo-table-list'>
-                        <div className='argo-table-list__head'>
-                            <div className='row'>
-                                <div className='columns small-3'>SERVER</div>
-                                <div className='columns small-6'>NAMESPACE</div>
-                            </div>
-                        </div>
-                        {(proj.spec.destinations || []).map(dst => (
-                            <div className='argo-table-list__row' key={`${dst.server}/${dst.namespace}`}>
-                                <div className='row'>
-                                    <div className='columns small-3'>{dst.server}</div>
-                                    <div className='columns small-6'>{dst.namespace}</div>
+                <EditablePanel
+                    save={item => this.saveProject(item)}
+                    values={proj}
+                    title='DESTINATIONS'
+                    view={
+                        <React.Fragment>
+                            {(proj.spec.destinations || []).map((dest, i) => (
+                                <div className='row white-box__details-row' key={i}>
+                                    <div className='columns small-4'>{dest.server}</div>
+                                    <div className='columns small-8'>{dest.namespace}</div>
                                 </div>
-                            </div>
-                        ))}
-                    </div>
-                )) || (
-                    <div className='white-box'>
-                        <p>Project has no destinations</p>
-                    </div>
-                )}
+                            ))}
+                        </React.Fragment>
+                    }
+                    edit={formApi => (
+                        <DataLoader load={() => services.clusters.list()}>
+                            {clusters => (
+                                <React.Fragment>
+                                    {formApi.values.spec.destinations.map((_: Project, i: number) => (
+                                        <div className='row white-box__details-row' key={i}>
+                                            <div className='columns small-4'>
+                                                <FormField
+                                                    formApi={formApi}
+                                                    field={`spec.destinations[${i}].server`}
+                                                    component={AutocompleteField}
+                                                    componentProps={{items: clusters.map(cluster => cluster.server)}}
+                                                />
+                                            </div>
+                                            <div className='columns small-8'>
+                                                <FormField formApi={formApi} field={`spec.destinations[${i}].namespace`} component={AutocompleteField} />
+                                            </div>
+                                            <i className='fa fa-times' onClick={() => formApi.setValue('spec.destinations', removeEl(formApi.values.spec.destinations, i))} />
+                                        </div>
+                                    ))}
+                                    <button
+                                        className='argo-button argo-button--short'
+                                        onClick={() =>
+                                            formApi.setValue(
+                                                'spec.destinations',
+                                                (formApi.values.spec.destinations || []).concat({
+                                                    server: '*',
+                                                    namespace: '*'
+                                                })
+                                            )
+                                        }>
+                                        ADD DESTINATION
+                                    </button>
+                                </React.Fragment>
+                            )}
+                        </DataLoader>
+                    )}
+                    items={[]}
+                />
 
                 <h4>Whitelisted cluster resources {helpTip('Cluster-scoped K8s API Groups and Kinds which are permitted to be deployed')}</h4>
                 {((proj.spec.clusterResourceWhitelist || []).length > 0 && (
