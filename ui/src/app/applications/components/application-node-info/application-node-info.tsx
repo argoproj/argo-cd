@@ -24,7 +24,10 @@ export const ApplicationNodeInfo = (props: {
     if (props.node.createdAt) {
         attributes.push({
             title: 'CREATED_AT',
-            value: moment.utc(props.node.createdAt).local().format('MM/DD/YYYY HH:mm:ss')
+            value: moment
+                .utc(props.node.createdAt)
+                .local()
+                .format('MM/DD/YYYY HH:mm:ss')
         });
     }
     if ((props.node.images || []).length) {
