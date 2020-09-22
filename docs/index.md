@@ -49,9 +49,6 @@ For a quick 10 minute overview of Argo CD, check out the demo presented to the S
 meeting:
 [![Alt text](https://img.youtube.com/vi/aWDIQMbp1cc/0.jpg)](https://youtu.be/aWDIQMbp1cc?t=1m4s)
 
-For a quick 20 minute overview of Argo CD, check out this video:
-[![Alt text](https://img.youtube.com/vi/vpWQeoaiRM4/0.jpg)](https://youtu.be/vpWQeoaiRM4)
-
 ## Architecture
 
 ![Argo CD Architecture](assets/argocd_architecture.png)
