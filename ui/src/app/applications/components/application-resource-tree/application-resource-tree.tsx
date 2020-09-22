@@ -127,10 +127,22 @@ export function compareNodes(first: ResourceTreeNode, second: ResourceTreeNode) 
         }
         return Math.sign(numberA - numberB);
     }
+    function getRevision(a: ResourceTreeNode) {
+        const filtered = a.info.filter(b => b.name === 'Revision' && b)[0];
+        if (filtered == null) {
+            return '';
+        }
+        const value = filtered.value;
+        if (value == null) {
+            return '';
+        }
+        return value.replace(/^Rev:/, '');
+    }
     return (
         orphanedToInt(first.orphaned) - orphanedToInt(second.orphaned) ||
-        compareRevision(first.resourceVersion, second.resourceVersion) ||
-        nodeKey(first).localeCompare(nodeKey(second))
+        nodeKey(first).localeCompare(nodeKey(second)) ||
+        compareRevision(getRevision(first), getRevision(second)) ||
+        0
     );
 }
 
