@@ -510,6 +510,7 @@ func TestNamespaceAutoCreation(t *testing.T) {
 	syncCtx := newTestSyncCtx()
 	syncCtx.createNamespace = true
 	syncCtx.namespace = FakeArgoCDNamespace
+	namespace.SetName(FakeArgoCDNamespace)
 
 	task, err := createNamespaceTask(syncCtx.namespace)
 	assert.NoError(t, err, "Failed creating test data: namespace task")
@@ -535,6 +536,9 @@ func TestNamespaceAutoCreation(t *testing.T) {
 			Live:   []*unstructured.Unstructured{nil},
 			Target: []*unstructured.Unstructured{pod},
 		})
+		syncCtx.namespaceModifier = func(*unstructured.Unstructured) bool {
+			return false
+		}
 		tasks, successful := syncCtx.getSyncTasks()
 
 		assert.True(t, successful)
