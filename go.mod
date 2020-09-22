@@ -113,5 +113,5 @@ replace (
 	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.18.8
 
 	// github.com/argoproj/gitops-engine => ../gitops-engine
-	github.com/argoproj/gitops-engine => github.com/jopit/gitops-engine namespace-check
+	github.com/argoproj/gitops-engine => github.com/jopit/gitops-engine v0.1.3-0.20200922173449-af9eedc5e848
 )
