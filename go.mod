@@ -8,7 +8,7 @@ require (
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
 	github.com/alicebob/gopher-json v0.0.0-20180125190556-5a6b3ba71ee6 // indirect
 	github.com/alicebob/miniredis v2.5.0+incompatible
-	github.com/argoproj/gitops-engine v0.1.3-0.20200904164417-c04f859da9b2
+	github.com/argoproj/gitops-engine v0.1.3-0.20200922225933-7171d62f8c6e
 	github.com/argoproj/pkg v0.0.0-20200624215116-23e74cb168fe
 	github.com/casbin/casbin v1.9.1
 	github.com/chai2010/gettext-go v0.0.0-20170215093142-bf70f2a70fb1 // indirect
