@@ -115,7 +115,7 @@ function filterGraph(app: models.Application, filteredIndicatorParent: string, g
     }
 }
 
-function compareNodes(first: ResourceTreeNode, second: ResourceTreeNode) {
+export function compareNodes(first: ResourceTreeNode, second: ResourceTreeNode) {
     function orphanedToInt(orphaned?: boolean) {
         return (orphaned && 1) || 0;
     }

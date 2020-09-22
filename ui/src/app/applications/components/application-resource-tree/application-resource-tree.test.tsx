@@ -1,4 +1,4 @@
-import {describeNode, ResourceTreeNode} from "./application-resource-tree";
+import {compareNodes, describeNode, ResourceTreeNode} from "./application-resource-tree";
 
 test("describeNode.NoImages", () => {
     expect(describeNode({
@@ -23,7 +23,6 @@ Images:
 - my-image:v1`)
 });
 
-/*
 test("compareNodes", () => {
     const nodes = [
       {
@@ -68,4 +67,3 @@ test("compareNodes", () => {
     expect(compareNodes(nodes[0], nodes[4])).toBe(-1)
     expect(compareNodes(nodes[4], nodes[0])).toBe(1)
 });
-*/
