@@ -4,7 +4,6 @@ import {ApplicationDestination, GroupKind, OrphanedResource, Project, ProjectSig
 import {services} from '../../../../shared/services';
 import {GetProp, SetProp} from '../../utils';
 import {Card} from '../card/card';
-import {Card as CardV3} from '../card/card-v3';
 import {FieldData, FieldSizes, FieldTypes} from '../card/field';
 import {DocLinks} from '../doc-links';
 
@@ -137,18 +136,18 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                         <i className='fas fa-paper-plane' />
                     </div>
                     <div className='project-summary__section--row'>
-                        <CardV3<string>
+                        <Card<string>
                             title='Sources'
                             fields={this.state.fields.sources}
                             values={this.state.sourceRepos}
-                            save={values => this.saveV3(IterableSpecFieldNames.sourceRepos, values as string[])}
+                            save={values => this.save(IterableSpecFieldNames.sourceRepos, values as string[])}
                             fullWidth={true}
                         />
-                        <CardV3<ApplicationDestination>
+                        <Card<ApplicationDestination>
                             title='Destinations'
                             fields={this.state.fields.destinations}
                             values={this.state.destinations}
-                            save={values => this.saveV3(IterableSpecFieldNames.destinations, values as ApplicationDestination[])}
+                            save={values => this.save(IterableSpecFieldNames.destinations, values as ApplicationDestination[])}
                             fullWidth={true}
                         />
                     </div>
@@ -159,11 +158,11 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                         <i className='fas fa-tasks' />
                     </div>
                     <div className='project-summary__section--row'>
-                        <CardV3<GroupKind>
+                        <Card<GroupKind>
                             title='Allowed Cluster Resources'
                             fields={this.state.fields.resources}
                             values={this.state.clusterResourceWhitelist}
-                            save={values => this.saveV3(IterableSpecFieldNames.clusterResourceWhitelist, values as GroupKind[])}
+                            save={values => this.save(IterableSpecFieldNames.clusterResourceWhitelist, values as GroupKind[])}
                             fullWidth={false}
                         />
                     </div>
@@ -177,19 +176,15 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                         <Card<GroupKind>
                             title='Denied Cluster Resources'
                             fields={this.state.fields.resources}
-                            data={this.state.clusterResourceBlacklist}
-                            add={() => this.addSpecItem(IterableSpecFieldNames.clusterResourceBlacklist, {} as GroupKind)}
-                            remove={idxs => this.removeSpecItems(IterableSpecFieldNames.clusterResourceBlacklist, idxs)}
-                            save={(i, values) => this.save(IterableSpecFieldNames.clusterResourceBlacklist, i, values as string[])}
+                            values={this.state.clusterResourceBlacklist}
+                            save={values => this.save(IterableSpecFieldNames.clusterResourceBlacklist, values as GroupKind[])}
                             fullWidth={false}
                         />
                         <Card<GroupKind>
                             title='Denied Namespace Resources'
                             fields={this.state.fields.resources}
-                            data={this.state.namespaceResourceBlacklist}
-                            add={() => this.addSpecItem(IterableSpecFieldNames.namespaceResourceBlacklist, {} as GroupKind)}
-                            remove={idxs => this.removeSpecItems(IterableSpecFieldNames.namespaceResourceBlacklist, idxs)}
-                            save={(i, values) => this.save(IterableSpecFieldNames.namespaceResourceBlacklist, i, values as string[])}
+                            values={this.state.namespaceResourceBlacklist}
+                            save={values => this.save(IterableSpecFieldNames.namespaceResourceBlacklist, values as GroupKind[])}
                             fullWidth={false}
                         />
                     </div>
@@ -203,10 +198,8 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                         <Card<ProjectSignatureKey>
                             title='Required Signature Keys'
                             fields={this.state.fields.signatureKeys}
-                            data={this.state.signatureKeys}
-                            add={() => this.addSpecItem(IterableSpecFieldNames.signatureKeys, {} as ProjectSignatureKey)}
-                            remove={i => this.removeSpecItems(IterableSpecFieldNames.signatureKeys, i)}
-                            save={(i, values) => this.save(IterableSpecFieldNames.signatureKeys, i, values as string[])}
+                            values={this.state.signatureKeys}
+                            save={values => this.save(IterableSpecFieldNames.signatureKeys, values as ProjectSignatureKey[])}
                             fullWidth={false}
                         />
                     </div>
@@ -220,7 +213,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                     <div className='project-summary__section--row'>
                         <div>
                             {this.toggleSwitch('WARN', this.orphanedResourceWarningEnabled, this.setOrphanedResourceWarning)}
-                            <CardV3<OrphanedResource>
+                            <Card<OrphanedResource>
                                 title='Orphaned Resource Ignore List'
                                 fields={this.state.fields.orphanedResources}
                                 values={this.state.orphanedResources ? this.state.orphanedResources.ignore : null}
@@ -285,36 +278,6 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
         this.updateProject(res);
         return;
     }
-    private async addSpecItem(key: keyof ProjectSpec, empty: IterableSpecField): Promise<IterableSpecField> {
-        const arr = (GetProp(this.state as ProjectSpec, key) as IterableSpecField[]) || [];
-        arr.push(empty);
-        const update = {...this.state};
-        SetProp(update, key as keyof SummaryState, arr);
-        this.setState(update);
-        this.reconcileProject();
-        return empty;
-    }
-    private async removeSpecItems(key: keyof ProjectSpec, idxs: number[]) {
-        const arr = GetProp(this.state as ProjectSpec, key) as IterableSpecField[];
-        if (arr.length < 1 || !arr) {
-            return;
-        }
-        while (idxs.length) {
-            arr.splice(idxs.pop(), 1);
-        }
-        const update = {...this.state};
-        SetProp(update, key as keyof SummaryState, arr);
-        const res = await services.projects.updateLean(this.state.name, update.proj);
-        this.updateProject(res);
-    }
-    private reconcileProject() {
-        const proj = this.state.proj;
-        for (const key of Object.keys(proj.spec)) {
-            const cur = GetProp(this.state, key as keyof ProjectSpec);
-            SetProp(proj.spec, key as keyof ProjectSpec, cur);
-        }
-        this.setState({proj});
-    }
     private updateProject(proj: Project) {
         const update = {...this.state};
         for (const key of Object.keys(proj.spec)) {
@@ -324,18 +287,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
         this.setState(update);
         this.setState({name: proj.metadata.name, proj});
     }
-    private async save(key: keyof ProjectSpec, idxs: number[], values: IterableSpecField[]): Promise<any> {
-        const update = {...this.state.proj};
-        const arr = GetProp(this.state, key) as IterableSpecField[];
-        values.forEach((value, i) => {
-            arr[idxs[i]] = values[i] as IterableSpecField;
-        });
-        SetProp(update.spec, key as keyof ProjectSpec, arr);
-        const res = await services.projects.updateLean(this.state.name, update);
-        this.updateProject(res);
-        return GetProp(res.spec as ProjectSpec, key as keyof ProjectSpec);
-    }
-    private async saveV3<T>(key: keyof ProjectSpec, values: T[]): Promise<any> {
+    private async save<T>(key: keyof ProjectSpec, values: T[]): Promise<any> {
         const update = {...this.state.proj};
         SetProp(update.spec, key as keyof ProjectSpec, values);
         const res = await services.projects.updateLean(this.state.name, update);
