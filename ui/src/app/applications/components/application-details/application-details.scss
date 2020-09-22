@@ -113,4 +113,11 @@
             color: $argo-color-gray-3 !important;
         }
     }
+
+    .argo-table-list__row {
+        .columns.small-1.xxxlarge-1 {
+            width: 60px;
+            text-align: center;
+        }
+    }
 }
