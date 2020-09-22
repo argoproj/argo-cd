@@ -69,8 +69,6 @@ github.com/allegro/bigcache v1.2.1-0.20190218064605-e24eb225f156/go.mod h1:Cb/ax
 github.com/andreyvit/diff v0.0.0-20170406064948-c7f18ee00883/go.mod h1:rCTlJbsFo29Kk6CurOXKm700vrz8f0KW0JNfpkRJY/8=
 github.com/anmitsu/go-shlex v0.0.0-20161002113705-648efa622239 h1:kFOfPq6dUM1hTo4JG6LR5AXSUEsOjtdm0kw0FtQtMJA=
 github.com/anmitsu/go-shlex v0.0.0-20161002113705-648efa622239/go.mod h1:2FmKhYUyUczH0OGQWaF5ceTx0UBShxjsH6f8oGKYe2c=
-github.com/argoproj/gitops-engine v0.1.3-0.20200904164417-c04f859da9b2 h1:/tFET94tzxQ8Uz5fQBI4nqa3pI5JRfcHBLhiwcIJaBg=
-github.com/argoproj/gitops-engine v0.1.3-0.20200904164417-c04f859da9b2/go.mod h1:jeiFokbkgLXjvx3eXB0MddyxsmftWsFTY7paLH4ZqCg=
 github.com/argoproj/gitops-engine v0.1.3-0.20200922225933-7171d62f8c6e h1:YIHc7IRfyJX9k65KSCwQOI5h+gwVjBlAc3LhuNxriDI=
 github.com/argoproj/gitops-engine v0.1.3-0.20200922225933-7171d62f8c6e/go.mod h1:jeiFokbkgLXjvx3eXB0MddyxsmftWsFTY7paLH4ZqCg=
 github.com/argoproj/pkg v0.0.0-20200624215116-23e74cb168fe h1:HjTM7H8Z+J1xt340LNpH9q4jc8pXeqzkC8QKIjQphp4=
