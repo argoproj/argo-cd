@@ -92,8 +92,8 @@ export class EditablePanel<T = {}> extends React.Component<EditablePanelProps<T>
                                         <React.Fragment key={item.key || item.title}>
                                             {item.before && item.before}
                                             <div className='row white-box__details-row'>
-                                                <div className='columns small-3'>{item.title}</div>
-                                                <div className='columns small-9'>{item.view}</div>
+                                                <div className='columns small-4'>{item.title}</div>
+                                                <div className='columns small-8'>{item.view}</div>
                                             </div>
                                         </React.Fragment>
                                     ))}
