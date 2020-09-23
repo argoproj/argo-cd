@@ -1,10 +1,11 @@
-import {AutocompleteField, FormField, NotificationsApi, NotificationType, SlidingPanel, Tabs, Tooltip} from 'argo-ui';
+import {AutocompleteField, FormField, HelpIcon, NotificationsApi, NotificationType, SlidingPanel, Tabs, Tooltip} from 'argo-ui';
+import classNames from 'classnames';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import {FormApi, Text} from 'react-form';
 import {RouteComponentProps} from 'react-router';
 
-import {DataLoader, EditablePanel, ErrorNotification, Page, Query} from '../../../shared/components';
+import {CheckboxField, DataLoader, EditablePanel, ErrorNotification, Page, Query} from '../../../shared/components';
 import {AppContext, Consumer} from '../../../shared/context';
 import {Project, ResourceKinds} from '../../../shared/models';
 import {CreateJWTTokenParams, DeleteJWTTokenParams, ProjectRoleParams, services} from '../../../shared/services';
@@ -848,60 +849,105 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                     view={
                         proj.spec.orphanedResources ? (
                             <React.Fragment>
+                                <p>
+                                    <i className={'fa fa-toggle-on'} /> Enabled
+                                </p>
+                                <p>
+                                    <i
+                                        className={classNames('fa', {
+                                            'fa-toggle-off': !proj.spec.orphanedResources.warn,
+                                            'fa-toggle-on': proj.spec.orphanedResources.warn
+                                        })}
+                                    />{' '}
+                                    Application warning conditions are {proj.spec.orphanedResources.warn ? 'enabled' : 'disabled'}.
+                                </p>
                                 {(proj.spec.orphanedResources.ignore || []).length > 0 ? (
-                                    (proj.spec.orphanedResources.ignore || []).map((resource, i) => (
-                                        <div className='row white-box__details-row' key={i}>
-                                            <div className='columns small-4'>{resource.group}</div>
-                                            <div className='columns small-4'>{resource.kind}</div>
-                                            <div className='columns small-4'>{resource.name}</div>
+                                    <React.Fragment>
+                                        <p>Resources Ignore List</p>
+                                        <div className='row white-box__details-row'>
+                                            <div className='columns small-4'>Group</div>
+                                            <div className='columns small-4'>Kind</div>
+                                            <div className='columns small-4'>Name</div>
                                         </div>
-                                    ))
+                                        {(proj.spec.orphanedResources.ignore || []).map((resource, i) => (
+                                            <div className='row white-box__details-row' key={i}>
+                                                <div className='columns small-4'>{resource.group}</div>
+                                                <div className='columns small-4'>{resource.kind}</div>
+                                                <div className='columns small-4'>{resource.name}</div>
+                                            </div>
+                                        ))}
+                                    </React.Fragment>
                                 ) : (
-                                    <p>Orphaned Resource Ignore list is empty.</p>
+                                    <p>Resource ignore list is empty.</p>
                                 )}
-                                <p>Orphaned Resource warning is {proj.spec.orphanedResources.warn ? 'enabled' : 'disabled'}.</p>
                             </React.Fragment>
                         ) : (
-                            <p>Orphaned Resources monitoring is disabled</p>
+                            <p>
+                                <i className={'fa fa-toggle-off'} /> Disabled
+                            </p>
                         )
                     }
                     edit={formApi =>
                         formApi.values.spec.orphanedResources ? (
                             <React.Fragment>
-                                {(formApi.values.spec.orphanedResources.ignore || []).map((_: Project, i: number) => (
-                                    <div className='row white-box__details-row' key={i}>
-                                        <div className='columns small-4'>
-                                            <FormField
-                                                formApi={formApi}
-                                                field={`spec.orphanedResources.ignore[${i}].kind`}
-                                                component={AutocompleteField}
-                                                componentProps={{items: ['']}}
-                                            />
-                                        </div>
-                                        <div className='columns small-4'>
-                                            <FormField
-                                                formApi={formApi}
-                                                field={`spec.orphanedResources.ignore[${i}].group`}
-                                                component={AutocompleteField}
-                                                componentProps={{items: ['']}}
-                                            />
-                                        </div>
-                                        <div className='columns small-4'>
-                                            <FormField
-                                                formApi={formApi}
-                                                field={`spec.orphanedResources.ignore[${i}].name`}
-                                                component={AutocompleteField}
-                                                componentProps={{items: ['']}}
-                                            />
-                                        </div>
-                                        <i
-                                            className='fa fa-times'
-                                            onClick={() => formApi.setValue('spec.orphanedResources.ignore', removeEl(formApi.values.spec.orphanedResources.ignore, i))}
-                                        />
+                                <button className='argo-button argo-button--base' onClick={() => formApi.setValue('spec.orphanedResources', null)}>
+                                    DISABLE
+                                </button>
+                                <div className='row white-box__details-row'>
+                                    <div className='columns small-4'>
+                                        Enable application warning conditions?
+                                        <HelpIcon title='If checked, Application will have a warning condition when orphaned resources detected' />
                                     </div>
-                                ))}
+                                    <div className='columns small-8'>
+                                        <FormField formApi={formApi} field='spec.orphanedResources.warn' component={CheckboxField} />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    Resources Ignore List
+                                    <HelpIcon title='Define resources that ArgoCD should not report as orphaned' />
+                                </div>
+                                <div className='row white-box__details-row'>
+                                    <div className='columns small-4'>Group</div>
+                                    <div className='columns small-4'>Kind</div>
+                                    <div className='columns small-4'>Name</div>
+                                </div>
+                                {((formApi.values.spec.orphanedResources.ignore || []).length === 0 && <div>Ignore list is empty</div>) ||
+                                    formApi.values.spec.orphanedResources.ignore.map((_: Project, i: number) => (
+                                        <div className='row white-box__details-row' key={i}>
+                                            <div className='columns small-4'>
+                                                <FormField
+                                                    formApi={formApi}
+                                                    field={`spec.orphanedResources.ignore[${i}].group`}
+                                                    component={AutocompleteField}
+                                                    componentProps={{items: [''], filterSuggestions: true}}
+                                                />
+                                            </div>
+                                            <div className='columns small-4'>
+                                                <FormField
+                                                    formApi={formApi}
+                                                    field={`spec.orphanedResources.ignore[${i}].kind`}
+                                                    component={AutocompleteField}
+                                                    componentProps={{items: Object.keys(ResourceKinds), filterSuggestions: true}}
+                                                />
+                                            </div>
+                                            <div className='columns small-4'>
+                                                <FormField
+                                                    formApi={formApi}
+                                                    field={`spec.orphanedResources.ignore[${i}].name`}
+                                                    component={AutocompleteField}
+                                                    componentProps={{items: ['']}}
+                                                />
+                                            </div>
+                                            <i
+                                                className='fa fa-times'
+                                                onClick={() => formApi.setValue('spec.orphanedResources.ignore', removeEl(formApi.values.spec.orphanedResources.ignore, i))}
+                                            />
+                                        </div>
+                                    ))}
+                                <br />
                                 <button
-                                    className='argo-button argo-button--short'
+                                    className='argo-button argo-button--base'
                                     onClick={() =>
                                         formApi.setValue(
                                             'spec.orphanedResources.ignore',
@@ -912,17 +958,9 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                     }>
                                     ADD RESOURCE
                                 </button>
-                                <button
-                                    className='argo-button argo-button--short'
-                                    onClick={() => formApi.setValue('spec.orphanedResources.warn', !formApi.values.spec.orphanedResources.warn)}>
-                                    {formApi.values.spec.orphanedResources.warn ? 'DISABLE' : 'ENABLE'} Warning
-                                </button>
-                                <button className='argo-button argo-button--short' onClick={() => formApi.setValue('spec.orphanedResources', null)}>
-                                    DISABLE
-                                </button>
                             </React.Fragment>
                         ) : (
-                            <button className='argo-button argo-button--short' onClick={() => formApi.setValue('spec.orphanedResources.ignore', [])}>
+                            <button className='argo-button argo-button--base' onClick={() => formApi.setValue('spec.orphanedResources.ignore', [])}>
                                 ENABLE
                             </button>
                         )
