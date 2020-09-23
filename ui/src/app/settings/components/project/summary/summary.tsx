@@ -5,10 +5,13 @@ import {services} from '../../../../shared/services';
 import {GetProp, SetProp} from '../../utils';
 import {Card} from '../card/card';
 import {FieldData, FieldSizes, FieldTypes} from '../card/field';
-import {DocLinks} from '../doc-links';
 
 require('./summary.scss');
-require('../card/card.scss');
+
+export enum DocLinks {
+    OrphanedResources = 'https://github.com/argoproj/argo-cd/blob/master/docs/user-guide/orphaned-resources.md',
+    Projects = 'https://github.com/argoproj/argo-cd/blob/master/docs/user-guide/projects.md'
+}
 
 interface SummaryProps {
     proj: Project;
