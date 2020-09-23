@@ -8,9 +8,20 @@ import {FieldData, FieldSizes, FieldTypes} from '../card/field';
 
 require('./summary.scss');
 
-export enum DocLinks {
+enum DocLinks {
     OrphanedResources = 'https://github.com/argoproj/argo-cd/blob/master/docs/user-guide/orphaned-resources.md',
     Projects = 'https://github.com/argoproj/argo-cd/blob/master/docs/user-guide/projects.md'
+}
+
+enum HelpTips {
+    Sources = 'Git repositories where application manifests are permitted to be retrieved from',
+    Destinations = 'Cluster and namespaces where applications are permitted to be deployed to',
+    ClusterResourceWhitelist = 'Cluster-scoped K8s API Groups and Kinds which are permitted to be deployed',
+    ClusterResourceBlacklist = 'Cluster-scoped K8s API Groups and Kinds which are not permitted to be deployed',
+    NamespaceResourceBlacklist = 'Namespace-scoped K8s API Groups and Kinds which are prohibited from being deployed',
+    NamespaceResourceWhitelist = 'Namespace-scoped K8s API Groups and Kinds which are permitted to deploy',
+    SignatureKeys = 'IDs of GnuPG keys that commits must be signed with in order to be allowed to sync to',
+    OrphanedResources = 'Enables monitoring of top level resources in the application target namespace'
 }
 
 interface SummaryProps {
@@ -36,6 +47,7 @@ enum IterableSpecFieldNames {
     destinations = 'destinations',
     sourceRepos = 'sourceRepos',
     clusterResourceWhitelist = 'clusterResourceWhitelist',
+    namespaceResourceWhitelist = 'namespaceResourceWhitelist',
     clusterResourceBlacklist = 'clusterResourceBlacklist',
     namespaceResourceBlacklist = 'namespaceResourceBlacklist',
     signatureKeys = 'signatureKeys'
@@ -146,6 +158,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             fields={this.state.fields.sources}
                             values={this.state.sourceRepos}
                             save={values => this.save(IterableSpecFieldNames.sourceRepos, values as string[])}
+                            help={HelpTips.Sources}
                             fullWidth={true}
                         />
                         <Card<ApplicationDestination>
@@ -153,6 +166,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             fields={this.state.fields.destinations}
                             values={this.state.destinations}
                             save={values => this.save(IterableSpecFieldNames.destinations, values as ApplicationDestination[])}
+                            help={HelpTips.Destinations}
                             fullWidth={true}
                         />
                     </div>
@@ -168,6 +182,15 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             fields={this.state.fields.resources}
                             values={this.state.clusterResourceWhitelist}
                             save={values => this.save(IterableSpecFieldNames.clusterResourceWhitelist, values as GroupKind[])}
+                            help={HelpTips.ClusterResourceWhitelist}
+                            fullWidth={false}
+                        />
+                        <Card<GroupKind>
+                            title='Allowed Namespace Resources'
+                            fields={this.state.fields.resources}
+                            values={this.state.namespaceResourceWhitelist}
+                            save={values => this.save(IterableSpecFieldNames.namespaceResourceWhitelist, values as GroupKind[])}
+                            help={HelpTips.NamespaceResourceWhitelist}
                             fullWidth={false}
                         />
                     </div>
@@ -183,6 +206,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             fields={this.state.fields.resources}
                             values={this.state.clusterResourceBlacklist}
                             save={values => this.save(IterableSpecFieldNames.clusterResourceBlacklist, values as GroupKind[])}
+                            help={HelpTips.ClusterResourceBlacklist}
                             fullWidth={false}
                         />
                         <Card<GroupKind>
@@ -190,6 +214,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             fields={this.state.fields.resources}
                             values={this.state.namespaceResourceBlacklist}
                             save={values => this.save(IterableSpecFieldNames.namespaceResourceBlacklist, values as GroupKind[])}
+                            help={HelpTips.NamespaceResourceBlacklist}
                             fullWidth={false}
                         />
                     </div>
@@ -205,6 +230,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             fields={this.state.fields.signatureKeys}
                             values={this.state.signatureKeys}
                             save={values => this.save(IterableSpecFieldNames.signatureKeys, values as ProjectSignatureKey[])}
+                            help={HelpTips.SignatureKeys}
                             fullWidth={false}
                         />
                     </div>
@@ -230,6 +256,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                                     this.updateProject(res);
                                     return res;
                                 }}
+                                help={HelpTips.OrphanedResources}
                                 docs={DocLinks.OrphanedResources}
                                 fullWidth={false}
                             />
@@ -255,9 +282,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                         <i className='fa fa-check' />
                     </button>
                 </div>
-                <div className={'card__col'}>
-                    {label}
-                </div>
+                <div className={'card__col'}>{label}</div>
             </div>
         );
     }

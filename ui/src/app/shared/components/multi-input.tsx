@@ -1,6 +1,6 @@
 import * as React from 'react';
-import {FieldData, FieldValue, IsFieldValue} from '../../../settings/components/project/card/field';
-import {CardRow, FieldLabels} from '../../../settings/components/project/card/row';
+import {FieldData, FieldValue, IsFieldValue} from '../../settings/components/project/card/field';
+import {CardRow, FieldLabels} from '../../settings/components/project/card/row';
 
 interface MultiInputProps<T> {
     title: string;
@@ -69,41 +69,37 @@ export class MultiInput<T> extends React.Component<MultiInputProps<T>, MultiInpu
     public render() {
         return (
             <React.Fragment>
-                <div>
-                    <div>{FieldLabels(this.props.fields, true)}</div>
-                    {this.props.data && this.props.data.length > 0 ? (
-                        <div>
-                            {this.state.data.map((row, i) => {
-                                return (
-                                    <div key={i}>
-                                        <CardRow<T>
-                                            fields={this.props.fields}
-                                            data={row.value}
-                                            remove={() => this.remove([i])}
-                                            selected={this.state.selected[i]}
-                                            toggleSelect={() => this.toggleSelect(i)}
-                                            onChange={r => this.updateRow(i, r as T)}
-                                            changed={this.state.isChanged[i]}
-                                        />
-                                    </div>
-                                );
-                            })}
+                {this.props.data && this.props.data.length > 0 ? (
+                    FieldLabels(this.props.fields, true)
+                ) : (
+                    <div className='card__row'>Project has no {this.props.title.toLowerCase()}</div>
+                )}
+                {(this.state.data || []).map((row, i) => {
+                    return (
+                        <div key={i}>
+                            <CardRow<T>
+                                fields={this.props.fields}
+                                data={row.value}
+                                remove={() => this.remove([i])}
+                                selected={this.state.selected[i]}
+                                toggleSelect={() => this.toggleSelect(i)}
+                                onChange={r => this.updateRow(i, r as T)}
+                                changed={this.state.isChanged[i]}
+                            />
                         </div>
-                    ) : (
-                        <div className='card__row'>Project has no {this.props.title}</div>
+                    );
+                })}
+                <div className='card__row'>
+                    {this.selectedIdxs.length > 1 ? (
+                        <button className='argo-button argo-button--base-o' onClick={() => this.remove(this.selectedIdxs)}>
+                            DELETE SELECTED
+                        </button>
+                    ) : null}
+                    {this.props.disabled ? null : (
+                        <button className='argo-button argo-button--base argo-button--short' onClick={_ => this.add()}>
+                            <i className='fa fa-plus' style={{cursor: 'pointer'}} />
+                        </button>
                     )}
-                    <div className='card__row'>
-                        {this.selectedIdxs.length > 1 ? (
-                            <button className='argo-button argo-button--base-o' onClick={() => this.remove(this.selectedIdxs)}>
-                                DELETE SELECTED
-                            </button>
-                        ) : null}
-                        {this.props.disabled ? null : (
-                            <button className='argo-button argo-button--base argo-button--short' onClick={_ => this.add()}>
-                                <i className='fa fa-plus' style={{cursor: 'pointer'}} />
-                            </button>
-                        )}
-                    </div>
                 </div>
             </React.Fragment>
         );

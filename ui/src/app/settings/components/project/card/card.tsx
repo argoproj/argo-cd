@@ -1,6 +1,7 @@
+import {Tooltip} from 'argo-ui';
 import * as React from 'react';
-import {MultiData} from '../../../../shared/components/multi-input/multi-data';
-import {MultiInput} from '../../../../shared/components/multi-input/multi-input';
+import {MultiData} from '../../../../shared/components/multi-data';
+import {MultiInput} from '../../../../shared/components/multi-input';
 import {FieldData} from './field';
 
 interface CardProps<T> {
@@ -9,6 +10,7 @@ interface CardProps<T> {
     fields: FieldData[];
     save: (values: T[]) => Promise<any>;
     docs?: string;
+    help?: string;
     fullWidth?: boolean;
     disabled?: boolean;
 }
@@ -19,6 +21,17 @@ interface CardState<T> {
     changeCount: number;
     data: T[];
     edit: boolean;
+}
+
+function helpTip(text: string) {
+    return (
+        <Tooltip content={text}>
+            <span style={{fontSize: 'smaller'}}>
+                {' '}
+                <i className='fa fa-question-circle' />
+            </span>
+        </Tooltip>
+    );
 }
 
 export class Card<T> extends React.Component<CardProps<T>, CardState<T>> {
@@ -47,7 +60,8 @@ export class Card<T> extends React.Component<CardProps<T>, CardState<T>> {
                 <div className='white-box__details'>
                     <div className='row'>
                         <p>
-                            {this.props.title}&nbsp;
+                            {this.props.title.toUpperCase()}&nbsp;
+                            {this.props.help && helpTip(this.props.help)}&nbsp;
                             {this.props.docs ? (
                                 <a href={this.props.docs} target='_blank'>
                                     <i className='fas fa-question-circle' />
