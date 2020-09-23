@@ -1,5 +1,5 @@
 import * as React from 'react';
-import {ResourceKind, ResourceKindSelector} from '../resource-kind-selector';
+import {ResourceKind, ResourceKindSelector} from '../../../../shared/components/project/resource-kind-selector';
 import {ArgoAutocomplete} from './autocomplete';
 
 export interface FieldData {
@@ -13,7 +13,7 @@ export enum FieldTypes {
     Text = 'text',
     ResourceKindSelector = 'resourceKindSelector',
     Url = 'url',
-    AutoComplete = 'autoComplete',
+    AutoComplete = 'autoComplete'
 }
 
 export enum FieldSizes {
@@ -29,26 +29,6 @@ export function IsFieldValue<T>(value: T | FieldValue): value is FieldValue {
         return true;
     }
     return false;
-}
-
-export function FieldLabels(fields: FieldData[]): React.ReactFragment {
-    return (
-        <div className='card__row card__labels card__input-container'>
-            <div className='card__col card__col-select-button' />
-            {fields.map(field => {
-                return (
-                    <div className={`card__labels--label card__col-input card__col card__col-${field.size}`} key={field.name + 'label'}>
-                        {field.name}
-                        {field.type === FieldTypes.ResourceKindSelector ? (
-                            <a href='https://kubernetes.io/docs/reference/kubectl/overview/#resource-types' target='_blank' className='card__info-icon'>
-                                <i className='fas fa-info-circle' />
-                            </a>
-                        ) : null}
-                    </div>
-                );
-            })}
-        </div>
-    );
 }
 
 interface ArgoFieldProps {
@@ -73,7 +53,7 @@ export class ArgoField extends React.Component<ArgoFieldProps> {
                 format = (
                     <input
                         type='text'
-                        className='card--input'
+                        className='argo-field'
                         value={this.props.data ? this.props.data.toString() : ''}
                         onChange={e => this.props.onChange(e.target.value)}
                         placeholder={field.name}
@@ -81,10 +61,10 @@ export class ArgoField extends React.Component<ArgoFieldProps> {
                 );
         }
         return (
-            <div style={{width: '100%'}}>
+            <div style={{width: '100%', display: 'flex'}}>
                 {format}
                 {field.type === FieldTypes.Url && (this.props.data as string) !== '' && (this.props.data as string) !== null && (this.props.data as string) !== '*' ? (
-                    <a className='card__link-icon' href={this.props.data as string} target='_blank'>
+                    <a href={this.props.data as string} target='_blank'>
                         <i className='fas fa-link' />
                     </a>
                 ) : null}

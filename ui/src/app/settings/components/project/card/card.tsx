@@ -4,7 +4,6 @@ import {MultiInput} from '../../../../shared/components/multi-input/multi-input'
 import {FieldData} from './field';
 
 require('../project.scss');
-require('./card.scss');
 
 interface CardProps<T> {
     title: string;
@@ -46,18 +45,18 @@ export class Card<T> extends React.Component<CardProps<T>, CardState<T>> {
     }
     public render() {
         return (
-            <div className={`card white-box ${this.props.fullWidth ? 'card__full-width' : ''}`}>
+            <div className='white-box'>
                 <div className='white-box__details'>
-                    <div className='card__row'>
-                        <div className='card__title'>
+                    <div className='row'>
+                        <p>
                             {this.props.title}&nbsp;
                             {this.props.docs ? (
                                 <a href={this.props.docs} target='_blank'>
                                     <i className='fas fa-question-circle' />
                                 </a>
                             ) : null}
-                        </div>
-                        <div className='card__actions'>
+                        </p>
+                        <div className='row'>
                             <div className='editable-panel__buttons'>
                                 {!this.state.edit && (
                                     <button

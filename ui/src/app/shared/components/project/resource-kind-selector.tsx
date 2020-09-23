@@ -1,5 +1,5 @@
 import * as React from 'react';
-import {ArgoAutocomplete} from './card/autocomplete';
+import {ArgoAutocomplete} from '../../../settings/components/project/card/autocomplete';
 
 // https://kubernetes.io/docs/reference/kubectl/overview/#resource-types
 

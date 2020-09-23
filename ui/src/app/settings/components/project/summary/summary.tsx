@@ -89,7 +89,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
 
     public render() {
         return (
-            <div className='project-summary'>
+            <div className='project-summary argo-container'>
                 <div>
                     <div className='project-summary__label'>
                         PROJECT&nbsp;
@@ -99,17 +99,19 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                     </div>
                     <div className='project-summary__title'>{this.state.name}</div>
                     <div className='project-summary__description'>
-                        <div className='project-summary__description--row'>
-                            <div className='project-summary__col'>
-                                <i className='fa fa-pencil-alt' />
-                            </div>
-                            <input value={this.state.description} onChange={e => this.setState({description: e.target.value})} placeholder='Click to add a description' />
+                        <div>
+                            <input
+                                className='argo-field'
+                                value={this.state.description}
+                                onChange={e => this.setState({description: e.target.value})}
+                                placeholder='Click to add a description'
+                            />
                         </div>
-                        <div className='project-summary__description--row'>
+                        <div>
                             {this.descriptionChanged ? (
-                                <div className='project-summary__description--actions'>
+                                <React.Fragment>
                                     <button
-                                        className='card__button card__button-save'
+                                        className='argo-button argo-button--base'
                                         onClick={async () => {
                                             const update = {...this.state.proj};
                                             update.spec.description = this.state.description;
@@ -119,13 +121,13 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                                         SAVE
                                     </button>
                                     <button
-                                        className='card__button card__button-cancel'
+                                        className='argo-button argo-button--base-o'
                                         onClick={async () => {
                                             this.setState({description: this.props.proj.spec.description || ''});
                                         }}>
                                         REVERT
                                     </button>
-                                </div>
+                                </React.Fragment>
                             ) : null}
                         </div>
                     </div>

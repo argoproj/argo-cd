@@ -15,49 +15,8 @@
     margin: 10px 0;
   }
 
-  &__description {
-    &--row {
-      display: flex;
-    }
-
-    &:focus-within {
-      color: darken($argo-running-color, 15%);
-    }
-
-    input {
-      background: none;
-      border: none;
-      outline: none;
-      appearance: none;
-      font-weight: 500;
-      color: $argo-color-gray-7;
-      margin-left: 10px;
-      border-bottom: 2px solid $argo-running-color;
-      padding: 7px 0;
-      width: 60%;
-      &:focus {
-        color: darken($argo-running-color, 15%);
-      }
-    }
-
-    &--actions {
-      display: flex;
-      flex-shrink: 1;
-      flex-grow: 0;
-      margin-top: 1em;
-      .project__button {
-        margin-right: 10px;
-      }
-    }
-  }
-
   &__section {
     margin-top: 30px;
-    &--row {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: flex-start;
-    }
   }
 
   &__label {

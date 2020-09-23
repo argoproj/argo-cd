@@ -1,6 +1,5 @@
 import * as React from 'react';
 import {GetProp, SetProp} from '../../utils';
-import {Banner, BannerIcon, BannerType} from '../banner/banner';
 import {ArgoField, FieldData, FieldTypes, FieldValue, IsFieldValue} from './field';
 
 interface CardRowProps<T> {
@@ -12,6 +11,25 @@ interface CardRowProps<T> {
     changed: boolean;
     onChange: (value: T | FieldValue) => void;
     index?: number;
+}
+
+export function FieldLabels(fields: FieldData[]): React.ReactFragment {
+    return (
+        <div className='card__row'>
+            {fields.map(field => {
+                return (
+                    <div className={`card__col-input card__col card__col-${field.size} card__label`} key={field.name + 'label'}>
+                        {field.name}
+                        {field.type === FieldTypes.ResourceKindSelector ? (
+                            <a href='https://kubernetes.io/docs/reference/kubectl/overview/#resource-types' target='_blank' className='card__info-icon'>
+                                <i className='fas fa-info-circle' />
+                            </a>
+                        ) : null}
+                    </div>
+                );
+            })}
+        </div>
+    );
 }
 
 export class CardRow<T> extends React.Component<CardRowProps<T>> {
@@ -70,8 +88,8 @@ export class CardRow<T> extends React.Component<CardRowProps<T>> {
               };
         update = update.bind(this);
         return (
-            <div>
-                <div className='card__input-container card__row'>
+            <React.Fragment>
+                <div className='card__row'>
                     <div className='card__col-select-button card__col'>
                         <button className={`card__button card__button-select${this.props.selected ? '--selected' : ''}`} onClick={this.props.toggleSelect}>
                             <i className='fa fa-check' />
@@ -93,37 +111,16 @@ export class CardRow<T> extends React.Component<CardRowProps<T>> {
                             </div>
                         );
                     })}
+                    {this.fieldsSetToAll.length > 0 ? <i className='fa fa-info-circle' /> : null}
                     {this.props.selected ? (
                         <div className='card__col-button card__col'>
-                            <button className='card__button card__button-error' onClick={() => (this.props.selected ? this.props.remove() : null)}>
+                            <button className='argo-button argo-button--base' onClick={() => (this.props.selected ? this.props.remove() : null)}>
                                 DELETE
                             </button>
                         </div>
                     ) : null}
                 </div>
-                {this.fieldsSetToAll.length > 0 ? this.allNoticeBanner(this.fieldsSetToAll) : null}
-            </div>
-        );
-    }
-    private allNoticeBanner(fields: string[]) {
-        let fieldList: string = fields[0] + 's';
-        fields.splice(0, 1);
-        if (fields.length > 0) {
-            const last = fields.pop();
-            if (fields.length > 0) {
-                for (const field of fields) {
-                    fieldList += ', ' + field + 's';
-                }
-            }
-            fieldList += ' and ' + last + 's';
-        }
-
-        return (
-            <div className='card__row'>
-                <div className='card__col-select-button card__col' />
-                <div className={'card__col card__col-grow'}>{Banner(BannerType.Info, BannerIcon.Info, `Note: ${fieldList} are set to wildcard (*)`)}</div>
-                <div className='card__col-button card__col' />
-            </div>
+            </React.Fragment>
         );
     }
 }

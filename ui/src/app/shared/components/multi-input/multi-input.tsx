@@ -1,6 +1,6 @@
 import * as React from 'react';
-import {FieldData, FieldLabels, FieldValue, IsFieldValue} from '../../../settings/components/project/card/field';
-import {CardRow} from '../../../settings/components/project/card/row';
+import {FieldData, FieldValue, IsFieldValue} from '../../../settings/components/project/card/field';
+import {CardRow, FieldLabels} from '../../../settings/components/project/card/row';
 
 require('../../../settings/components/project/project.scss');
 require('../../../settings/components/project/card/card.scss');
@@ -9,7 +9,6 @@ interface MultiInputProps<T> {
     title: string;
     data: T[];
     fields: FieldData[];
-    docs?: string;
     disabled?: boolean;
     onChange?: (values: T[]) => Promise<any>;
 }
@@ -74,15 +73,6 @@ export class MultiInput<T> extends React.Component<MultiInputProps<T>, MultiInpu
         return (
             <div className='multi-input card__multi-data'>
                 <div>
-                    <div className='card__row'>
-                        <div className='card__title'>
-                            {this.props.docs ? (
-                                <a href={this.props.docs} target='_blank'>
-                                    <i className='fas fa-question-circle' />
-                                </a>
-                            ) : null}
-                        </div>
-                    </div>
                     {FieldLabels(this.props.fields)}
                     {this.props.data && this.props.data.length > 0 ? (
                         <div>
@@ -105,9 +95,9 @@ export class MultiInput<T> extends React.Component<MultiInputProps<T>, MultiInpu
                     ) : (
                         this.empty()
                     )}
-                    <div className='card__actions'>
+                    <div className='card__row'>
                         {this.selectedIdxs.length > 1 ? (
-                            <button className={'card__button card__button-error'} onClick={() => this.remove(this.selectedIdxs)}>
+                            <button className='argo-button argo-button--base-o' onClick={() => this.remove(this.selectedIdxs)}>
                                 DELETE SELECTED
                             </button>
                         ) : null}
@@ -131,8 +121,8 @@ export class MultiInput<T> extends React.Component<MultiInputProps<T>, MultiInpu
     }
     private empty() {
         return (
-            <div className={'card__row'}>
-                <div className={`card__col card__col-fill-${this.props.fields.length}`}>Project has no {this.props.title}</div>
+            <div className='row'>
+                <div className='column small-12'>Project has no {this.props.title}</div>
             </div>
         );
     }

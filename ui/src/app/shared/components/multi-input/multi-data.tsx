@@ -1,5 +1,6 @@
 import * as React from 'react';
-import {FieldData, FieldLabels, IsFieldValue} from '../../../settings/components/project/card/field';
+import {FieldData, IsFieldValue} from '../../../settings/components/project/card/field';
+import {FieldLabels} from '../../../settings/components/project/card/row';
 import {GetProp} from '../../../settings/components/utils';
 
 require('../../../settings/components/project/card/card.scss');
@@ -8,7 +9,7 @@ export function MultiData<T>(fields: FieldData[], data: T[]): React.ReactFragmen
     const rows =
         data && data.length > 0 ? (
             data.map((d: T, idx) => (
-                <div className='card__input-container card__row card__row--data' key={idx}>
+                <div className='card__row' key={idx}>
                     {fields.map((field, i) => {
                         let curVal = '';
                         if (d) {
@@ -20,9 +21,8 @@ export function MultiData<T>(fields: FieldData[], data: T[]): React.ReactFragmen
                             }
                         }
                         return (
-                            <div key={field.name}>
-                                <div className={`card__col-input card__col card__col-select-button`} />
-                                <div className={`card__col-input card__col card__col-${field.size}`}>{curVal}</div>
+                            <div key={field.name} className={`card__col-input card__col card__col-${field.size}`}>
+                                {curVal}
                             </div>
                         );
                     })}
@@ -32,9 +32,9 @@ export function MultiData<T>(fields: FieldData[], data: T[]): React.ReactFragmen
             <div>Section is empty</div>
         );
     return (
-        <div className='card__multi-data'>
+        <React.Fragment>
             {FieldLabels(fields)}
             {rows}
-        </div>
+        </React.Fragment>
     );
 }
