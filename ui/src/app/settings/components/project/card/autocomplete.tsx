@@ -35,7 +35,7 @@ export class ArgoAutocomplete extends React.Component<AutocompleteProps> {
                     }
                     return <div style={{...style, ...this.menuStyle, display: 'block', color: 'white', zIndex: 10, maxHeight: '20em'}} children={menuItems} />;
                 }}
-                renderInput={inputProps => <input {...inputProps} className='card--input' placeholder={this.props.placeholder} />}
+                renderInput={inputProps => <input {...inputProps} className='argo-field' placeholder={this.props.placeholder} />}
             />
         );
     }

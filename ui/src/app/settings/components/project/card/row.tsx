@@ -13,21 +13,21 @@ interface CardRowProps<T> {
     index?: number;
 }
 
-export function FieldLabels(fields: FieldData[]): React.ReactFragment {
+export function FieldLabels(fields: FieldData[], edit: boolean): React.ReactFragment {
     return (
         <div className='card__row'>
-            {fields.map(field => {
-                return (
-                    <div className={`card__col-input card__col card__col-${field.size} card__label`} key={field.name + 'label'}>
-                        {field.name}
-                        {field.type === FieldTypes.ResourceKindSelector ? (
-                            <a href='https://kubernetes.io/docs/reference/kubectl/overview/#resource-types' target='_blank' className='card__info-icon'>
-                                <i className='fas fa-info-circle' />
-                            </a>
-                        ) : null}
-                    </div>
-                );
-            })}
+            {edit && <div className='card__col-select-button card__col' />}
+            {fields.map(field => (
+                <div className={`card__col-input card__col card__col-${field.size} card__label`} key={field.name + 'label'}>
+                    <b>{field.name}</b>
+                    {field.type === FieldTypes.ResourceKindSelector ? (
+                        <a href='https://kubernetes.io/docs/reference/kubectl/overview/#resource-types' target='_blank' className='card__info-icon'>
+                            &nbsp;
+                            <i className='fas fa-info-circle' />
+                        </a>
+                    ) : null}
+                </div>
+            ))}
         </div>
     );
 }

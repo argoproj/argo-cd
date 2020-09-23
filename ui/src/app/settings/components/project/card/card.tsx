@@ -87,7 +87,7 @@ export class Card<T> extends React.Component<CardProps<T>, CardState<T>> {
                     {this.state.edit ? (
                         <MultiInput<T> title={this.props.title} data={this.state.data} fields={this.props.fields} onChange={async data => await this.setState({data})} />
                     ) : (
-                        MultiData(this.props.fields, this.props.values)
+                        MultiData(this.props.fields, this.props.values, this.props.title)
                     )}
                 </div>
             </div>

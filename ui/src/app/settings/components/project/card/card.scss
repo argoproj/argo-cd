@@ -93,7 +93,7 @@
     $select-color: $argo-color-teal-6;
     border: 2px solid $deselect-color;
     border-radius: 3px;
-    color: $white-color;
+    color: transparent;
     transition: all 300ms;
     width: $select-button-size;
     height: $select-button-size;
@@ -106,6 +106,7 @@
       @extend .card__button-select;
       border-color: $select-color;
       background-color: $select-color;
+      color: $white-color;
     }
 
     &:hover {

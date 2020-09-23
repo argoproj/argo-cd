@@ -5,7 +5,7 @@ import {GetProp} from '../../../settings/components/utils';
 
 require('../../../settings/components/project/card/card.scss');
 
-export function MultiData<T>(fields: FieldData[], data: T[]): React.ReactFragment {
+export function MultiData<T>(fields: FieldData[], data: T[], title: string): React.ReactFragment {
     const rows =
         data && data.length > 0 ? (
             data.map((d: T, idx) => (
@@ -29,11 +29,11 @@ export function MultiData<T>(fields: FieldData[], data: T[]): React.ReactFragmen
                 </div>
             ))
         ) : (
-            <div>Section is empty</div>
+            <div className='card__row'>Project has no {title}</div>
         );
     return (
         <React.Fragment>
-            {FieldLabels(fields)}
+            {FieldLabels(fields, false)}
             {rows}
         </React.Fragment>
     );

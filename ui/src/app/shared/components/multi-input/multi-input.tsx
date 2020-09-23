@@ -2,9 +2,6 @@ import * as React from 'react';
 import {FieldData, FieldValue, IsFieldValue} from '../../../settings/components/project/card/field';
 import {CardRow, FieldLabels} from '../../../settings/components/project/card/row';
 
-require('../../../settings/components/project/project.scss');
-require('../../../settings/components/project/card/card.scss');
-
 interface MultiInputProps<T> {
     title: string;
     data: T[];
@@ -71,9 +68,9 @@ export class MultiInput<T> extends React.Component<MultiInputProps<T>, MultiInpu
     }
     public render() {
         return (
-            <div className='multi-input card__multi-data'>
+            <React.Fragment>
                 <div>
-                    {FieldLabels(this.props.fields)}
+                    <div>{FieldLabels(this.props.fields, true)}</div>
                     {this.props.data && this.props.data.length > 0 ? (
                         <div>
                             {this.state.data.map((row, i) => {
@@ -93,7 +90,7 @@ export class MultiInput<T> extends React.Component<MultiInputProps<T>, MultiInpu
                             })}
                         </div>
                     ) : (
-                        this.empty()
+                        <div className='card__row'>Project has no {this.props.title}</div>
                     )}
                     <div className='card__row'>
                         {this.selectedIdxs.length > 1 ? (
@@ -108,7 +105,7 @@ export class MultiInput<T> extends React.Component<MultiInputProps<T>, MultiInpu
                         )}
                     </div>
                 </div>
-            </div>
+            </React.Fragment>
         );
     }
     private toggleSelect(i: number) {
@@ -118,13 +115,6 @@ export class MultiInput<T> extends React.Component<MultiInputProps<T>, MultiInpu
     }
     private raw(data: Row<T>[]): T[] {
         return data && data.length > 0 ? data.map(d => d.value) : [];
-    }
-    private empty() {
-        return (
-            <div className='row'>
-                <div className='column small-12'>Project has no {this.props.title}</div>
-            </div>
-        );
     }
     private remove(idxs: number[]) {
         const tmp = [...idxs];

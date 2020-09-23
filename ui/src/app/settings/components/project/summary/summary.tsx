@@ -102,7 +102,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                     </div>
                     <div className='project-summary__title'>{this.state.name}</div>
                     <div className='project-summary__description'>
-                        <div>
+                        <div style={{marginBottom: '1em'}}>
                             <input
                                 className='argo-field'
                                 value={this.state.description}
@@ -118,7 +118,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                                         onClick={async () => {
                                             const update = {...this.state.proj};
                                             update.spec.description = this.state.description;
-                                            const res = await services.projects.updateLean(this.state.name, update);
+                                            const res = await services.projects.updateProj(update);
                                             this.setState({proj: res});
                                         }}>
                                         SAVE
@@ -226,7 +226,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                                 save={async values => {
                                     const update = {...this.state.proj};
                                     update.spec.orphanedResources.ignore = values;
-                                    const res = await services.projects.updateLean(this.state.name, update);
+                                    const res = await services.projects.updateProj(update);
                                     this.updateProject(res);
                                     return res;
                                 }}
@@ -249,15 +249,14 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
     }
     private toggleSwitch(label: string, status: boolean, change: (_: boolean) => void) {
         return (
-            <div className='project-summary__monitoring-toggle'>
-                <b>{label}</b>
-                <div className='project__toggle'>
-                    <button className={`card__button card__button--on${status ? '__selected' : '__deselected'}`} onClick={() => change(true)}>
-                        ON
+            <div className='card__row'>
+                <div className='card__col-select-button card__col'>
+                    <button className={`card__button card__button-select${status ? '--selected' : ''}`} onClick={() => change(!status)}>
+                        <i className='fa fa-check' />
                     </button>
-                    <button className={`card__button card__button--off${!status ? '__selected' : '__deselected'}`} onClick={() => change(false)}>
-                        OFF
-                    </button>
+                </div>
+                <div className={'card__col'}>
+                    {label}
                 </div>
             </div>
         );
@@ -279,7 +278,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                 delete update.spec.orphanedResources;
             }
         }
-        const res = await services.projects.updateLean(this.state.name, update);
+        const res = await services.projects.updateProj(update);
         this.updateProject(res);
         return;
     }
@@ -295,7 +294,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
     private async save<T>(key: keyof ProjectSpec, values: T[]): Promise<any> {
         const update = {...this.state.proj};
         SetProp(update.spec, key as keyof ProjectSpec, values);
-        const res = await services.projects.updateLean(this.state.name, update);
+        const res = await services.projects.updateProj(update);
         this.updateProject(res);
         return GetProp(res.spec as ProjectSpec, key as keyof ProjectSpec);
     }

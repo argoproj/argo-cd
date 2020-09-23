@@ -113,19 +113,19 @@ export class ProjectsService {
             .then(res => res.body as models.Project);
     }
 
+    public async updateProj(project: models.Project): Promise<models.Project> {
+        return requests
+            .put(`/projects/${project.metadata.name}`)
+            .send({project})
+            .then(res => res.body as models.Project);
+    }
+
     public async update(params: ProjectParams): Promise<models.Project> {
         const proj = await this.get(params.name);
         const update = paramsToProj(params);
         return requests
             .put(`/projects/${params.name}`)
             .send({project: {...proj, spec: update.spec}})
-            .then(res => res.body as models.Project);
-    }
-
-    public async updateLean(name: string, proj: models.Project) {
-        return requests
-            .put(`/projects/${name}`)
-            .send({project: {...proj}})
             .then(res => res.body as models.Project);
     }
 
