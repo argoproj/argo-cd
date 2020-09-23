@@ -40,6 +40,10 @@ function helpTip(text: string) {
     );
 }
 
+function emptyMessage(title: string) {
+    return <p>Project has no {title}</p>;
+}
+
 export class ProjectDetails extends React.Component<RouteComponentProps<{name: string}>, ProjectDetailsState> {
     public static contextTypes = {
         apis: PropTypes.object
@@ -475,14 +479,16 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                 <EditablePanel
                     save={item => this.saveProject(item)}
                     values={proj}
-                    title='SOURCE REPOSITORIES'
+                    title={<React.Fragment>SOURCE REPOSITORIES {helpTip('Git repositories where application manifests are permitted to be retrieved from')}</React.Fragment>}
                     view={
                         <React.Fragment>
-                            {(proj.spec.sourceRepos || []).map((repo, i) => (
-                                <div className='row white-box__details-row' key={i}>
-                                    <div className='columns small-12'>{repo}</div>
-                                </div>
-                            ))}
+                            {proj.spec.sourceRepos
+                                ? proj.spec.sourceRepos.map((repo, i) => (
+                                      <div className='row white-box__details-row' key={i}>
+                                          <div className='columns small-12'>{repo}</div>
+                                      </div>
+                                  ))
+                                : emptyMessage('source repositories')}
                         </React.Fragment>
                     }
                     edit={formApi => (
@@ -517,15 +523,17 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                 <EditablePanel
                     save={item => this.saveProject(item)}
                     values={proj}
-                    title='DESTINATIONS'
+                    title={<React.Fragment>DESTINATIONS {helpTip('Cluster and namespaces where applications are permitted to be deployed to')}</React.Fragment>}
                     view={
                         <React.Fragment>
-                            {(proj.spec.destinations || []).map((dest, i) => (
-                                <div className='row white-box__details-row' key={i}>
-                                    <div className='columns small-4'>{dest.server}</div>
-                                    <div className='columns small-8'>{dest.namespace}</div>
-                                </div>
-                            ))}
+                            {proj.spec.destinations
+                                ? proj.spec.destinations.map((dest, i) => (
+                                      <div className='row white-box__details-row' key={i}>
+                                          <div className='columns small-4'>{dest.server}</div>
+                                          <div className='columns small-8'>{dest.namespace}</div>
+                                      </div>
+                                  ))
+                                : emptyMessage('destinations')}
                         </React.Fragment>
                     }
                     edit={formApi => (
@@ -571,15 +579,17 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                 <EditablePanel
                     save={item => this.saveProject(item)}
                     values={proj}
-                    title='CLUSTER RESOURCE ALLOW LIST'
+                    title={<React.Fragment>CLUSTER RESOURCE ALLOW LIST {helpTip('Cluster-scoped K8s API Groups and Kinds which are permitted to be deployed')}</React.Fragment>}
                     view={
                         <React.Fragment>
-                            {(proj.spec.clusterResourceWhitelist || []).map((resource, i) => (
-                                <div className='row white-box__details-row' key={i}>
-                                    <div className='columns small-4'>{resource.kind}</div>
-                                    <div className='columns small-8'>{resource.group}</div>
-                                </div>
-                            ))}
+                            {proj.spec.clusterResourceWhitelist
+                                ? proj.spec.clusterResourceWhitelist.map((resource, i) => (
+                                      <div className='row white-box__details-row' key={i}>
+                                          <div className='columns small-4'>{resource.kind}</div>
+                                          <div className='columns small-8'>{resource.group}</div>
+                                      </div>
+                                  ))
+                                : emptyMessage('cluster resource allow list')}
                         </React.Fragment>
                     }
                     edit={formApi => (
@@ -593,7 +603,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                     formApi={formApi}
                                                     field={`spec.clusterResourceWhitelist[${i}].kind`}
                                                     component={AutocompleteField}
-                                                    componentProps={{items: Object.keys(ResourceKinds)}}
+                                                    componentProps={{items: ResourceKinds}}
                                                 />
                                             </div>
                                             <div className='columns small-8'>
@@ -627,15 +637,17 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                 <EditablePanel
                     save={item => this.saveProject(item)}
                     values={proj}
-                    title='CLUSTER RESOURCE DENY LIST'
+                    title={<React.Fragment>CLUSTER RESOURCE DENY LIST {helpTip('Cluster-scoped K8s API Groups and Kinds which are not permitted to be deployed')}</React.Fragment>}
                     view={
                         <React.Fragment>
-                            {(proj.spec.clusterResourceBlacklist || []).map((resource, i) => (
-                                <div className='row white-box__details-row' key={i}>
-                                    <div className='columns small-4'>{resource.kind}</div>
-                                    <div className='columns small-8'>{resource.group}</div>
-                                </div>
-                            ))}
+                            {proj.spec.clusterResourceBlacklist
+                                ? proj.spec.clusterResourceBlacklist.map((resource, i) => (
+                                      <div className='row white-box__details-row' key={i}>
+                                          <div className='columns small-4'>{resource.kind}</div>
+                                          <div className='columns small-8'>{resource.group}</div>
+                                      </div>
+                                  ))
+                                : emptyMessage('cluster resource deny list')}
                         </React.Fragment>
                     }
                     edit={formApi => (
@@ -649,7 +661,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                     formApi={formApi}
                                                     field={`spec.clusterResourceBlacklist[${i}].kind`}
                                                     component={AutocompleteField}
-                                                    componentProps={{items: Object.keys(ResourceKinds)}}
+                                                    componentProps={{items: ResourceKinds}}
                                                 />
                                             </div>
                                             <div className='columns small-8'>
@@ -683,15 +695,17 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                 <EditablePanel
                     save={item => this.saveProject(item)}
                     values={proj}
-                    title='NAMESPACE RESOURCE ALLOW LIST'
+                    title={<React.Fragment>NAMESPACE RESOURCE ALLOW LIST {helpTip('Namespace-scoped K8s API Groups and Kinds which are permitted to deploy')}</React.Fragment>}
                     view={
                         <React.Fragment>
-                            {(proj.spec.namespaceResourceWhitelist || []).map((resource, i) => (
-                                <div className='row white-box__details-row' key={i}>
-                                    <div className='columns small-4'>{resource.kind}</div>
-                                    <div className='columns small-8'>{resource.group}</div>
-                                </div>
-                            ))}
+                            {proj.spec.namespaceResourceWhitelist
+                                ? proj.spec.namespaceResourceWhitelist.map((resource, i) => (
+                                      <div className='row white-box__details-row' key={i}>
+                                          <div className='columns small-4'>{resource.kind}</div>
+                                          <div className='columns small-8'>{resource.group}</div>
+                                      </div>
+                                  ))
+                                : emptyMessage('namespace resource allow list')}
                         </React.Fragment>
                     }
                     edit={formApi => (
@@ -705,7 +719,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                     formApi={formApi}
                                                     field={`spec.namespaceResourceWhitelist[${i}].kind`}
                                                     component={AutocompleteField}
-                                                    componentProps={{items: Object.keys(ResourceKinds)}}
+                                                    componentProps={{items: ResourceKinds}}
                                                 />
                                             </div>
                                             <div className='columns small-8'>
@@ -739,15 +753,21 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                 <EditablePanel
                     save={item => this.saveProject(item)}
                     values={proj}
-                    title='NAMESPACE RESOURCE DENY LIST'
+                    title={
+                        <React.Fragment>
+                            NAMESPACE RESOURCE DENY LIST {helpTip('Namespace-scoped K8s API Groups and Kinds which are prohibited from being deployed')}
+                        </React.Fragment>
+                    }
                     view={
                         <React.Fragment>
-                            {(proj.spec.namespaceResourceBlacklist || []).map((resource, i) => (
-                                <div className='row white-box__details-row' key={i}>
-                                    <div className='columns small-4'>{resource.kind}</div>
-                                    <div className='columns small-8'>{resource.group}</div>
-                                </div>
-                            ))}
+                            {proj.spec.namespaceResourceBlacklist
+                                ? proj.spec.namespaceResourceBlacklist.map((resource, i) => (
+                                      <div className='row white-box__details-row' key={i}>
+                                          <div className='columns small-4'>{resource.kind}</div>
+                                          <div className='columns small-8'>{resource.group}</div>
+                                      </div>
+                                  ))
+                                : emptyMessage('namespace resource deny list')}
                         </React.Fragment>
                     }
                     edit={formApi => (
@@ -761,7 +781,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                     formApi={formApi}
                                                     field={`spec.namespaceResourceBlacklist[${i}].kind`}
                                                     component={AutocompleteField}
-                                                    componentProps={{items: Object.keys(ResourceKinds)}}
+                                                    componentProps={{items: ResourceKinds}}
                                                 />
                                             </div>
                                             <div className='columns small-8'>
@@ -796,21 +816,23 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                 <EditablePanel
                     save={item => this.saveProject(item)}
                     values={proj}
-                    title='GPG SIGNATURE KEYS'
+                    title={<React.Fragment>GPG SIGNATURE KEYS {helpTip('IDs of GnuPG keys that commits must be signed with in order to be allowed to sync to')}</React.Fragment>}
                     view={
                         <React.Fragment>
-                            {(proj.spec.signatureKeys || []).map((key, i) => (
-                                <div className='row white-box__details-row' key={i}>
-                                    <div className='columns small-12'>{key.keyID}</div>
-                                </div>
-                            ))}
+                            {proj.spec.signatureKeys
+                                ? proj.spec.signatureKeys.map((key, i) => (
+                                      <div className='row white-box__details-row' key={i}>
+                                          <div className='columns small-12'>{key.keyID}</div>
+                                      </div>
+                                  ))
+                                : emptyMessage('signature keys')}
                         </React.Fragment>
                     }
                     edit={formApi => (
                         <DataLoader load={() => services.gpgkeys.list()}>
                             {keys => (
                                 <React.Fragment>
-                                    {(formApi.values.spec.signatureKeys || []).map((_: Project, i: number) => (
+                                    {formApi.values.spec.signatureKeys.map((_: Project, i: number) => (
                                         <div className='row white-box__details-row' key={i}>
                                             <div className='columns small-12'>
                                                 <FormField
@@ -845,7 +867,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                 <EditablePanel
                     save={item => this.saveProject(item)}
                     values={proj}
-                    title='ORPHANED RESOURCE MONITORING'
+                    title={<React.Fragment>RESOURCE MONITORING {helpTip('Enables monitoring of top level resources in the application target namespace')}</React.Fragment>}
                     view={
                         proj.spec.orphanedResources ? (
                             <React.Fragment>
@@ -878,7 +900,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                         ))}
                                     </React.Fragment>
                                 ) : (
-                                    <p>Resource ignore list is empty.</p>
+                                    emptyMessage('resource ignore list')
                                 )}
                             </React.Fragment>
                         ) : (
@@ -928,7 +950,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                     formApi={formApi}
                                                     field={`spec.orphanedResources.ignore[${i}].kind`}
                                                     component={AutocompleteField}
-                                                    componentProps={{items: Object.keys(ResourceKinds), filterSuggestions: true}}
+                                                    componentProps={{items: ResourceKinds, filterSuggestions: true}}
                                                 />
                                             </div>
                                             <div className='columns small-4'>

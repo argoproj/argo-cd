@@ -15,7 +15,7 @@ export interface EditablePanelItem {
 }
 
 export interface EditablePanelProps<T> {
-    title?: string;
+    title?: string | React.ReactNode;
     values: T;
     validate?: (values: T) => any;
     save?: (input: T) => Promise<any>;
