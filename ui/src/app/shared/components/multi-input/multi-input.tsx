@@ -99,8 +99,8 @@ export class MultiInput<T> extends React.Component<MultiInputProps<T>, MultiInpu
                             </button>
                         ) : null}
                         {this.props.disabled ? null : (
-                            <button className='card__button card__button-add card__button-round' onClick={_ => this.add()}>
-                                <i className='fa fa-plus' />
+                            <button className='argo-button argo-button--base argo-button--short' onClick={_ => this.add()}>
+                                <i className='fa fa-plus' style={{cursor: 'pointer'}} />
                             </button>
                         )}
                     </div>

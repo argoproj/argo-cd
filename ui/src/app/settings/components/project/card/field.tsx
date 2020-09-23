@@ -1,6 +1,6 @@
 import * as React from 'react';
-import {ResourceKind, ResourceKindSelector} from '../../../../shared/components/project/resource-kind-selector';
-import {ArgoAutocomplete} from './autocomplete';
+import {ResourceKind, ResourceKindSelector} from '../../../../shared/components/resource-kind-selector';
+import {ArgoAutocomplete} from '../../../../shared/components/card/autocomplete';
 
 export interface FieldData {
     type: FieldTypes;

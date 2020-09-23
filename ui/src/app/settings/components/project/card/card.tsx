@@ -3,8 +3,6 @@ import {MultiData} from '../../../../shared/components/multi-input/multi-data';
 import {MultiInput} from '../../../../shared/components/multi-input/multi-input';
 import {FieldData} from './field';
 
-require('../project.scss');
-
 interface CardProps<T> {
     title: string;
     values: T[];

@@ -1,5 +1,10 @@
 @import 'node_modules/argo-ui/src/styles/config';
-@import 'src/app/settings/components/project/config';
+
+$button-width: 75px;
+$select-button-size: 18px;
+$col-width: 245px;
+$col-width-large: 450px;
+$col-gutter: 10px;
 
 .card {
   &__row {
@@ -33,11 +38,6 @@
     flex-grow: 1;
   }
 
-  &__col-round-button {
-    flex-basis: $round-button-size;
-    width: $round-button-size;
-  }
-
   &__col-select-button {
     flex-basis: $select-button-size;
     width: $select-button-size;
@@ -65,36 +65,13 @@
     text-transform: uppercase;
   }
 
-  @function get-col-width($cols) {
-    $fill: $button-width + $round-button-size;
-    @return $fill + $cols * (2*$col-gutter + $col-width) + 2*$col-gutter;
-  }
-
-  &__col-fill-1 {
-    width:get-col-width(1);
-  }
-
-  &__col-fill-2 {
-    width: get-col-width(2);
-  }
-
-  &__button {
-    display: block;
-    padding: $button-padding;
-    width: auto;
-    border-radius: 7px;
-    cursor: pointer;
-    color: $white-color;
-    font-weight: 600;
-  }
-
   &__button-select {
     $deselect-color: $argo-color-gray-6;
     $select-color: $argo-color-teal-6;
+    cursor: pointer;
     border: 2px solid $deselect-color;
     border-radius: 3px;
     color: transparent;
-    transition: all 300ms;
     width: $select-button-size;
     height: $select-button-size;
     margin: 0 auto;
@@ -108,17 +85,6 @@
       background-color: $select-color;
       color: $white-color;
     }
-
-    &:hover {
-      border-color: $select-color;
-      background-color: $select-color;
-    }
-  }
-
-  &__button-add {
-    background-color: $argo-color-gray-6;
-    margin-right: 0;
-    color: $white-color;
   }
 
 }

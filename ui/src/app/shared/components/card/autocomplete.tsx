@@ -1,6 +1,6 @@
 import * as React from 'react';
 import * as ReactAutocomplete from 'react-autocomplete';
-import {FieldValue} from './field';
+import {FieldValue} from '../../../settings/components/project/card/field';
 
 interface AutocompleteProps {
     onChange: (value: FieldValue) => void;
