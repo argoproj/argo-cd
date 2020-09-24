@@ -157,7 +157,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             title='Sources'
                             fields={this.state.fields.sources}
                             values={this.state.sourceRepos}
-                            save={values => this.save(IterableSpecFieldNames.sourceRepos, values as string[])}
+                            save={values => this.save<string>(IterableSpecFieldNames.sourceRepos, values as string[])}
                             help={HelpTips.Sources}
                             fullWidth={true}
                         />

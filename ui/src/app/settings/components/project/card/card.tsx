@@ -81,7 +81,12 @@ export class Card<T> extends React.Component<CardProps<T>, CardState<T>> {
                                 )}
                                 {this.state.edit && (
                                     <React.Fragment>
-                                        <button className='argo-button argo-button--base' onClick={e => this.props.save(this.state.data)}>
+                                        <button
+                                            className='argo-button argo-button--base'
+                                            onClick={e => {
+                                                this.props.save(this.state.data);
+                                                this.setState({edit: false});
+                                            }}>
                                             Save
                                         </button>
                                         <button

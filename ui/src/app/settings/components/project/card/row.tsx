@@ -50,6 +50,9 @@ export class CardRow<T> extends React.Component<CardRowProps<T>> {
         return false;
     }
     get dataIsFieldValue(): boolean {
+        if (!this.props.data) {
+            return true;
+        }
         return IsFieldValue(this.props.data);
     }
     get fieldsSetToAll(): string[] {
@@ -97,7 +100,9 @@ export class CardRow<T> extends React.Component<CardRowProps<T>> {
                     </div>
                     {this.props.fields.map((field, i) => {
                         let curVal = '';
+                        console.log(this.props.data);
                         if (this.props.data) {
+                            console.log("I'm not null");
                             if (this.dataIsFieldValue) {
                                 curVal = this.props.data.toString();
                             } else {

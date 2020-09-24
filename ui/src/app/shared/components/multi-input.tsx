@@ -1,5 +1,5 @@
 import * as React from 'react';
-import {FieldData, FieldValue, IsFieldValue} from '../../settings/components/project/card/field';
+import {FieldData, FieldValue} from '../../settings/components/project/card/field';
 import {CardRow, FieldLabels} from '../../settings/components/project/card/row';
 
 interface MultiInputProps<T> {
@@ -60,11 +60,16 @@ export class MultiInput<T> extends React.Component<MultiInputProps<T>, MultiInpu
         return [idxs, vals];
     }
     get emptyItem(): T | FieldValue {
-        if (IsFieldValue(this.raw(this.state.data)[0])) {
-            return '';
-        } else {
-            return {} as T;
-        }
+        console.log(null as T);
+        return null as T;
+        // console.log(T);
+        // if (IsFieldValue(this.raw(this.state.data)[0])) {
+        //     console.log('A');
+        //     return '';
+        // } else {
+        //     console.log('B');
+        //     return {} as T;
+        // }
     }
     public render() {
         return (
@@ -131,6 +136,7 @@ export class MultiInput<T> extends React.Component<MultiInputProps<T>, MultiInpu
         this.props.onChange(this.raw(data));
     }
     private updateRow(i: number, r: T) {
+        console.log(r);
         const data = [...this.state.data];
         const isChanged = this.state.isChanged;
         const cur = {...data[i], value: r};
