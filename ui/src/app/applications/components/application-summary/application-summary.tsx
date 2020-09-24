@@ -2,6 +2,7 @@ import {AutocompleteField, DropDownMenu, FormField, FormSelect, HelpIcon, PopupA
 import * as React from 'react';
 import {FormApi, Text} from 'react-form';
 import {Cluster, DataLoader, EditablePanel, EditablePanelItem, Expandable, MapInputField, Repo, Revision, RevisionHelpIcon} from '../../../shared/components';
+import {Spinner} from '../../../shared/components';
 import {Consumer, Context} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -30,6 +31,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
     const isHelm = app.spec.source.hasOwnProperty('chart');
     const initialState = app.spec.destination.server === undefined ? 'NAME' : 'URL';
     const [destFormat, setDestFormat] = React.useState(initialState);
+    const [changeSync, setChangeSync] = React.useState(false);
     const attributes = [
         {
             title: 'PROJECT',
@@ -278,21 +280,31 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
     async function setAutoSync(ctx: {popup: PopupApi}, confirmationTitle: string, confirmationText: string, prune: boolean, selfHeal: boolean) {
         const confirmed = await ctx.popup.confirm(confirmationTitle, confirmationText);
         if (confirmed) {
-            const updatedApp = JSON.parse(JSON.stringify(props.app)) as models.Application;
-            if (!updatedApp.spec.syncPolicy) {
-                updatedApp.spec.syncPolicy = {};
+            try {
+                setChangeSync(true);
+                const updatedApp = JSON.parse(JSON.stringify(props.app)) as models.Application;
+                if (!updatedApp.spec.syncPolicy) {
+                    updatedApp.spec.syncPolicy = {};
+                }
+                updatedApp.spec.syncPolicy.automated = {prune, selfHeal};
+                await props.updateApp(updatedApp);
+            } finally {
+                setChangeSync(false);
             }
-            updatedApp.spec.syncPolicy.automated = {prune, selfHeal};
-            props.updateApp(updatedApp);
         }
     }
 
     async function unsetAutoSync(ctx: {popup: PopupApi}) {
         const confirmed = await ctx.popup.confirm('Disable Auto-Sync?', 'Are you sure you want to disable automated application synchronization');
         if (confirmed) {
-            const updatedApp = JSON.parse(JSON.stringify(props.app)) as models.Application;
-            updatedApp.spec.syncPolicy.automated = null;
-            props.updateApp(updatedApp);
+            try {
+                setChangeSync(true);
+                const updatedApp = JSON.parse(JSON.stringify(props.app)) as models.Application;
+                updatedApp.spec.syncPolicy.automated = null;
+                await props.updateApp(updatedApp);
+            } finally {
+                setChangeSync(false);
+            }
         }
     }
 
@@ -396,6 +408,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                                 <div className='columns small-9'>
                                     {(app.spec.syncPolicy && app.spec.syncPolicy.automated && (
                                         <button className='argo-button argo-button--base' onClick={() => unsetAutoSync(ctx)}>
+                                            <Spinner show={changeSync} style={{marginRight: '5px'}} />
                                             Disable Auto-Sync
                                         </button>
                                     )) || (
@@ -404,6 +417,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                                             onClick={() =>
                                                 setAutoSync(ctx, 'Enable Auto-Sync?', 'Are you sure you want to enable automated application synchronization?', false, false)
                                             }>
+                                            <Spinner show={changeSync} style={{marginRight: '5px'}} />
                                             Enable Auto-Sync
                                         </button>
                                     )}
