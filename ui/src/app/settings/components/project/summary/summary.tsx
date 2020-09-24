@@ -244,9 +244,9 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                         ORPHANED RESOURCES&nbsp;
                         <i className='fas fa-file' />
                     </div>
-                    {this.toggleSwitch('MONITORING', this.orphanedResourceMonitoringEnabled, this.setOrphanedResourceMonitoring)}
                     <div className='project-summary__section--row'>
                         <div>
+                            {this.toggleSwitch('MONITORING', this.orphanedResourceMonitoringEnabled, this.setOrphanedResourceMonitoring)}
                             {this.toggleSwitch('WARN', this.orphanedResourceWarningEnabled, this.setOrphanedResourceWarning)}
                             <Card<OrphanedResource>
                                 title='Orphaned Resource Ignore List'
