@@ -4,6 +4,7 @@ import * as React from 'react';
 import {Form, FormApi} from 'react-form';
 
 import {Consumer} from '../../context';
+import {Spinner} from '../spinner';
 
 export interface EditablePanelItem {
     title: string;
@@ -71,6 +72,7 @@ export class EditablePanel<T = {}> extends React.Component<EditablePanelProps<T>
                                                 disabled={this.state.saving}
                                                 onClick={() => !this.state.saving && this.formApi.submitForm(null)}
                                                 className='argo-button argo-button--base'>
+                                                <Spinner show={this.state.saving} style={{marginRight: '5px'}} />
                                                 Save
                                             </button>{' '}
                                             <button
