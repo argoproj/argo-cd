@@ -7,7 +7,7 @@ import {RouteComponentProps} from 'react-router';
 
 import {CheckboxField, DataLoader, EditablePanel, ErrorNotification, Page, Query} from '../../../shared/components';
 import {AppContext, Consumer} from '../../../shared/context';
-import {Project, ResourceKinds} from '../../../shared/models';
+import {Groups, Project, ResourceKinds} from '../../../shared/models';
 import {CreateJWTTokenParams, DeleteJWTTokenParams, ProjectRoleParams, services} from '../../../shared/services';
 
 import {ProjectEvents} from '../project-events/project-events';
@@ -526,20 +526,32 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                     title={<React.Fragment>DESTINATIONS {helpTip('Cluster and namespaces where applications are permitted to be deployed to')}</React.Fragment>}
                     view={
                         <React.Fragment>
-                            {proj.spec.destinations
-                                ? proj.spec.destinations.map((dest, i) => (
-                                      <div className='row white-box__details-row' key={i}>
-                                          <div className='columns small-4'>{dest.server}</div>
-                                          <div className='columns small-8'>{dest.namespace}</div>
-                                      </div>
-                                  ))
-                                : emptyMessage('destinations')}
+                            {proj.spec.destinations ? (
+                                <React.Fragment>
+                                    <div className='row white-box__details-row'>
+                                        <div className='columns small-4'>Server</div>
+                                        <div className='columns small-8'>Namespace</div>
+                                    </div>
+                                    {proj.spec.destinations.map((dest, i) => (
+                                        <div className='row white-box__details-row' key={i}>
+                                            <div className='columns small-4'>{dest.server}</div>
+                                            <div className='columns small-8'>{dest.namespace}</div>
+                                        </div>
+                                    ))}
+                                </React.Fragment>
+                            ) : (
+                                emptyMessage('destinations')
+                            )}
                         </React.Fragment>
                     }
                     edit={formApi => (
                         <DataLoader load={() => services.clusters.list()}>
                             {clusters => (
                                 <React.Fragment>
+                                    <div className='row white-box__details-row'>
+                                        <div className='columns small-4'>Server</div>
+                                        <div className='columns small-8'>Namespace</div>
+                                    </div>
                                     {(formApi.values.spec.destinations || []).map((_: Project, i: number) => (
                                         <div className='row white-box__details-row' key={i}>
                                             <div className='columns small-4'>
@@ -582,55 +594,68 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                     title={<React.Fragment>CLUSTER RESOURCE ALLOW LIST {helpTip('Cluster-scoped K8s API Groups and Kinds which are permitted to be deployed')}</React.Fragment>}
                     view={
                         <React.Fragment>
-                            {proj.spec.clusterResourceWhitelist
-                                ? proj.spec.clusterResourceWhitelist.map((resource, i) => (
-                                      <div className='row white-box__details-row' key={i}>
-                                          <div className='columns small-4'>{resource.kind}</div>
-                                          <div className='columns small-8'>{resource.group}</div>
-                                      </div>
-                                  ))
-                                : emptyMessage('cluster resource allow list')}
+                            {proj.spec.clusterResourceWhitelist ? (
+                                <React.Fragment>
+                                    <div className='row white-box__details-row'>
+                                        <div className='columns small-4'>Kind</div>
+                                        <div className='columns small-8'>Group</div>
+                                    </div>
+                                    {proj.spec.clusterResourceWhitelist.map((resource, i) => (
+                                        <div className='row white-box__details-row' key={i}>
+                                            <div className='columns small-4'>{resource.kind}</div>
+                                            <div className='columns small-8'>{resource.group}</div>
+                                        </div>
+                                    ))}
+                                </React.Fragment>
+                            ) : (
+                                emptyMessage('cluster resource allow list')
+                            )}
                         </React.Fragment>
                     }
                     edit={formApi => (
-                        <DataLoader load={() => services.clusters.list()}>
-                            {clusters => (
-                                <React.Fragment>
-                                    {(formApi.values.spec.clusterResourceWhitelist || []).map((_: Project, i: number) => (
-                                        <div className='row white-box__details-row' key={i}>
-                                            <div className='columns small-4'>
-                                                <FormField
-                                                    formApi={formApi}
-                                                    field={`spec.clusterResourceWhitelist[${i}].kind`}
-                                                    component={AutocompleteField}
-                                                    componentProps={{items: ResourceKinds}}
-                                                />
-                                            </div>
-                                            <div className='columns small-8'>
-                                                <FormField formApi={formApi} field={`spec.clusterResourceWhitelist[${i}].group`} component={AutocompleteField} />
-                                            </div>
-                                            <i
-                                                className='fa fa-times'
-                                                onClick={() => formApi.setValue('spec.clusterResourceWhitelist', removeEl(formApi.values.spec.clusterResourceWhitelist, i))}
-                                            />
-                                        </div>
-                                    ))}
-                                    <button
-                                        className='argo-button argo-button--short'
-                                        onClick={() =>
-                                            formApi.setValue(
-                                                'spec.clusterResourceWhitelist',
-                                                (formApi.values.spec.clusterResourceWhitelist || []).concat({
-                                                    group: '*',
-                                                    kind: '*'
-                                                })
-                                            )
-                                        }>
-                                        ADD RESOURCE
-                                    </button>
-                                </React.Fragment>
-                            )}
-                        </DataLoader>
+                        <React.Fragment>
+                            <div className='row white-box__details-row'>
+                                <div className='columns small-4'>Kind</div>
+                                <div className='columns small-8'>Group</div>
+                            </div>
+                            {(formApi.values.spec.clusterResourceWhitelist || []).map((_: Project, i: number) => (
+                                <div className='row white-box__details-row' key={i}>
+                                    <div className='columns small-4'>
+                                        <FormField
+                                            formApi={formApi}
+                                            field={`spec.clusterResourceWhitelist[${i}].kind`}
+                                            component={AutocompleteField}
+                                            componentProps={{items: ResourceKinds}}
+                                        />
+                                    </div>
+                                    <div className='columns small-8'>
+                                        <FormField
+                                            formApi={formApi}
+                                            field={`spec.clusterResourceWhitelist[${i}].group`}
+                                            component={AutocompleteField}
+                                            componentProps={{items: Groups}}
+                                        />
+                                    </div>
+                                    <i
+                                        className='fa fa-times'
+                                        onClick={() => formApi.setValue('spec.clusterResourceWhitelist', removeEl(formApi.values.spec.clusterResourceWhitelist, i))}
+                                    />
+                                </div>
+                            ))}
+                            <button
+                                className='argo-button argo-button--short'
+                                onClick={() =>
+                                    formApi.setValue(
+                                        'spec.clusterResourceWhitelist',
+                                        (formApi.values.spec.clusterResourceWhitelist || []).concat({
+                                            group: '*',
+                                            kind: '*'
+                                        })
+                                    )
+                                }>
+                                ADD RESOURCE
+                            </button>
+                        </React.Fragment>
                     )}
                     items={[]}
                 />
@@ -640,55 +665,68 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                     title={<React.Fragment>CLUSTER RESOURCE DENY LIST {helpTip('Cluster-scoped K8s API Groups and Kinds which are not permitted to be deployed')}</React.Fragment>}
                     view={
                         <React.Fragment>
-                            {proj.spec.clusterResourceBlacklist
-                                ? proj.spec.clusterResourceBlacklist.map((resource, i) => (
-                                      <div className='row white-box__details-row' key={i}>
-                                          <div className='columns small-4'>{resource.kind}</div>
-                                          <div className='columns small-8'>{resource.group}</div>
-                                      </div>
-                                  ))
-                                : emptyMessage('cluster resource deny list')}
+                            {proj.spec.clusterResourceBlacklist ? (
+                                <React.Fragment>
+                                    <div className='row white-box__details-row'>
+                                        <div className='columns small-4'>Kind</div>
+                                        <div className='columns small-8'>Group</div>
+                                    </div>
+                                    {proj.spec.clusterResourceBlacklist.map((resource, i) => (
+                                        <div className='row white-box__details-row' key={i}>
+                                            <div className='columns small-4'>{resource.kind}</div>
+                                            <div className='columns small-8'>{resource.group}</div>
+                                        </div>
+                                    ))}
+                                </React.Fragment>
+                            ) : (
+                                emptyMessage('cluster resource deny list')
+                            )}
                         </React.Fragment>
                     }
                     edit={formApi => (
-                        <DataLoader load={() => services.clusters.list()}>
-                            {clusters => (
-                                <React.Fragment>
-                                    {(formApi.values.spec.clusterResourceBlacklist || []).map((_: Project, i: number) => (
-                                        <div className='row white-box__details-row' key={i}>
-                                            <div className='columns small-4'>
-                                                <FormField
-                                                    formApi={formApi}
-                                                    field={`spec.clusterResourceBlacklist[${i}].kind`}
-                                                    component={AutocompleteField}
-                                                    componentProps={{items: ResourceKinds}}
-                                                />
-                                            </div>
-                                            <div className='columns small-8'>
-                                                <FormField formApi={formApi} field={`spec.clusterResourceBlacklist[${i}].group`} component={AutocompleteField} />
-                                            </div>
-                                            <i
-                                                className='fa fa-times'
-                                                onClick={() => formApi.setValue('spec.clusterResourceBlacklist', removeEl(formApi.values.spec.clusterResourceBlacklist, i))}
-                                            />
-                                        </div>
-                                    ))}
-                                    <button
-                                        className='argo-button argo-button--short'
-                                        onClick={() =>
-                                            formApi.setValue(
-                                                'spec.clusterResourceBlacklist',
-                                                (formApi.values.spec.clusterResourceBlacklist || []).concat({
-                                                    group: '*',
-                                                    kind: '*'
-                                                })
-                                            )
-                                        }>
-                                        ADD RESOURCE
-                                    </button>
-                                </React.Fragment>
-                            )}
-                        </DataLoader>
+                        <React.Fragment>
+                            <div className='row white-box__details-row'>
+                                <div className='columns small-4'>Kind</div>
+                                <div className='columns small-8'>Group</div>
+                            </div>
+                            {(formApi.values.spec.clusterResourceBlacklist || []).map((_: Project, i: number) => (
+                                <div className='row white-box__details-row' key={i}>
+                                    <div className='columns small-4'>
+                                        <FormField
+                                            formApi={formApi}
+                                            field={`spec.clusterResourceBlacklist[${i}].kind`}
+                                            component={AutocompleteField}
+                                            componentProps={{items: ResourceKinds}}
+                                        />
+                                    </div>
+                                    <div className='columns small-8'>
+                                        <FormField
+                                            formApi={formApi}
+                                            field={`spec.clusterResourceBlacklist[${i}].group`}
+                                            component={AutocompleteField}
+                                            componentProps={{items: Groups}}
+                                        />
+                                    </div>
+                                    <i
+                                        className='fa fa-times'
+                                        onClick={() => formApi.setValue('spec.clusterResourceBlacklist', removeEl(formApi.values.spec.clusterResourceBlacklist, i))}
+                                    />
+                                </div>
+                            ))}
+                            <button
+                                className='argo-button argo-button--short'
+                                onClick={() =>
+                                    formApi.setValue(
+                                        'spec.clusterResourceBlacklist',
+                                        (formApi.values.spec.clusterResourceBlacklist || []).concat({
+                                            group: '*',
+                                            kind: '*'
+                                        })
+                                    )
+                                }>
+                                ADD RESOURCE
+                            </button>
+                        </React.Fragment>
                     )}
                     items={[]}
                 />
@@ -698,20 +736,32 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                     title={<React.Fragment>NAMESPACE RESOURCE ALLOW LIST {helpTip('Namespace-scoped K8s API Groups and Kinds which are permitted to deploy')}</React.Fragment>}
                     view={
                         <React.Fragment>
-                            {proj.spec.namespaceResourceWhitelist
-                                ? proj.spec.namespaceResourceWhitelist.map((resource, i) => (
-                                      <div className='row white-box__details-row' key={i}>
-                                          <div className='columns small-4'>{resource.kind}</div>
-                                          <div className='columns small-8'>{resource.group}</div>
-                                      </div>
-                                  ))
-                                : emptyMessage('namespace resource allow list')}
+                            {proj.spec.namespaceResourceWhitelist ? (
+                                <React.Fragment>
+                                    <div className='row white-box__details-row'>
+                                        <div className='columns small-4'>Kind</div>
+                                        <div className='columns small-8'>Group</div>
+                                    </div>
+                                    {proj.spec.namespaceResourceWhitelist.map((resource, i) => (
+                                        <div className='row white-box__details-row' key={i}>
+                                            <div className='columns small-4'>{resource.kind}</div>
+                                            <div className='columns small-8'>{resource.group}</div>
+                                        </div>
+                                    ))}
+                                </React.Fragment>
+                            ) : (
+                                emptyMessage('namespace resource allow list')
+                            )}
                         </React.Fragment>
                     }
                     edit={formApi => (
                         <DataLoader load={() => services.clusters.list()}>
                             {clusters => (
                                 <React.Fragment>
+                                    <div className='row white-box__details-row'>
+                                        <div className='columns small-4'>Kind</div>
+                                        <div className='columns small-8'>Group</div>
+                                    </div>
                                     {(formApi.values.spec.namespaceResourceWhitelist || []).map((_: Project, i: number) => (
                                         <div className='row white-box__details-row' key={i}>
                                             <div className='columns small-4'>
@@ -723,7 +773,12 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                 />
                                             </div>
                                             <div className='columns small-8'>
-                                                <FormField formApi={formApi} field={`spec.namespaceResourceWhitelist[${i}].group`} component={AutocompleteField} />
+                                                <FormField
+                                                    formApi={formApi}
+                                                    field={`spec.namespaceResourceWhitelist[${i}].group`}
+                                                    component={AutocompleteField}
+                                                    componentProps={{items: Groups}}
+                                                />
                                             </div>
                                             <i
                                                 className='fa fa-times'
@@ -760,20 +815,32 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                     }
                     view={
                         <React.Fragment>
-                            {proj.spec.namespaceResourceBlacklist
-                                ? proj.spec.namespaceResourceBlacklist.map((resource, i) => (
-                                      <div className='row white-box__details-row' key={i}>
-                                          <div className='columns small-4'>{resource.kind}</div>
-                                          <div className='columns small-8'>{resource.group}</div>
-                                      </div>
-                                  ))
-                                : emptyMessage('namespace resource deny list')}
+                            {proj.spec.namespaceResourceBlacklist ? (
+                                <React.Fragment>
+                                    <div className='row white-box__details-row'>
+                                        <div className='columns small-4'>Kind</div>
+                                        <div className='columns small-8'>Group</div>
+                                    </div>
+                                    {proj.spec.namespaceResourceBlacklist.map((resource, i) => (
+                                        <div className='row white-box__details-row' key={i}>
+                                            <div className='columns small-4'>{resource.kind}</div>
+                                            <div className='columns small-8'>{resource.group}</div>
+                                        </div>
+                                    ))}
+                                </React.Fragment>
+                            ) : (
+                                emptyMessage('namespace resource deny list')
+                            )}
                         </React.Fragment>
                     }
                     edit={formApi => (
                         <DataLoader load={() => services.clusters.list()}>
                             {clusters => (
                                 <React.Fragment>
+                                    <div className='row white-box__details-row'>
+                                        <div className='columns small-4'>Kind</div>
+                                        <div className='columns small-8'>Group</div>
+                                    </div>
                                     {(formApi.values.spec.namespaceResourceBlacklist || []).map((_: Project, i: number) => (
                                         <div className='row white-box__details-row' key={i}>
                                             <div className='columns small-4'>
@@ -785,7 +852,12 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                 />
                                             </div>
                                             <div className='columns small-8'>
-                                                <FormField formApi={formApi} field={`spec.namespaceResourceBlacklist[${i}].group`} component={AutocompleteField} />
+                                                <FormField
+                                                    formApi={formApi}
+                                                    field={`spec.namespaceResourceBlacklist[${i}].group`}
+                                                    component={AutocompleteField}
+                                                    componentProps={{items: Groups}}
+                                                />
                                             </div>
                                             <i
                                                 className='fa fa-times'
@@ -832,7 +904,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                         <DataLoader load={() => services.gpgkeys.list()}>
                             {keys => (
                                 <React.Fragment>
-                                    {formApi.values.spec.signatureKeys.map((_: Project, i: number) => (
+                                    {(formApi.values.spec.signatureKeys || []).map((_: Project, i: number) => (
                                         <div className='row white-box__details-row' key={i}>
                                             <div className='columns small-12'>
                                                 <FormField
@@ -942,7 +1014,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                     formApi={formApi}
                                                     field={`spec.orphanedResources.ignore[${i}].group`}
                                                     component={AutocompleteField}
-                                                    componentProps={{items: [''], filterSuggestions: true}}
+                                                    componentProps={{items: Groups, filterSuggestions: true}}
                                                 />
                                             </div>
                                             <div className='columns small-4'>
@@ -954,12 +1026,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                 />
                                             </div>
                                             <div className='columns small-4'>
-                                                <FormField
-                                                    formApi={formApi}
-                                                    field={`spec.orphanedResources.ignore[${i}].name`}
-                                                    component={AutocompleteField}
-                                                    componentProps={{items: ['']}}
-                                                />
+                                                <FormField formApi={formApi} field={`spec.orphanedResources.ignore[${i}].name`} component={AutocompleteField} />
                                             </div>
                                             <i
                                                 className='fa fa-times'
