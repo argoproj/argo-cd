@@ -78,8 +78,8 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
             sources: [{name: 'url', type: FieldTypes.Url, size: FieldSizes.Grow}],
             destinations: [{name: 'namespace', type: FieldTypes.Text, size: FieldSizes.Normal}, {name: 'server', type: FieldTypes.Text, size: FieldSizes.Grow}],
             resources: [
-                {name: 'group', type: FieldTypes.AutoComplete, size: FieldSizes.Normal, values: Groups},
-                {name: 'kind', type: FieldTypes.AutoComplete, size: FieldSizes.Normal, values: ResourceKinds}
+                {name: 'group', type: FieldTypes.AutoComplete, size: FieldSizes.Grow, values: Groups},
+                {name: 'kind', type: FieldTypes.AutoComplete, size: FieldSizes.Grow, values: ResourceKinds}
             ],
             signatureKeys: [{name: 'keyID', type: FieldTypes.AutoComplete, size: FieldSizes.Normal}],
             orphanedResources: [
