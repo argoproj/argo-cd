@@ -1545,7 +1545,9 @@ flag. The flag can be repeated to support multiple values files:</p>
 
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>Values files must be on the same directory or a subdirectory of the Helm application</p>
+<p>Values files must be in the same git repository as the Helm chart. The files can be in a different 
+location in which case it can be accessed using a relative path relative to the root directory of 
+the Helm chart.</p>
 </div>
 <h2 id="helm-parameters">Helm Parameters<a class="headerlink" href="#helm-parameters" title="Permanent link">&para;</a></h2>
 <p>Helm has the ability to set parameter values, which override any values in
@@ -1554,14 +1556,14 @@ a <code>values.yaml</code>. For example, <code>service.type</code> is a common p
 </code></pre></div>
 
 
-<p>Similarly Argo CD can override values in the <code>values.yaml</code> parameters using <code>argo app set</code> command,
+<p>Similarly, Argo CD can override values in the <code>values.yaml</code> parameters using <code>argo app set</code> command,
 in the form of <code>-p PARAM=VALUE</code>. For example:</p>
 <div class="codehilite"><pre><span></span><code>argocd app <span class="nb">set</span> helm-guestbook -p service.type<span class="o">=</span>LoadBalancer
 </code></pre></div>
 
 
 <h2 id="helm-release-name">Helm Release Name<a class="headerlink" href="#helm-release-name" title="Permanent link">&para;</a></h2>
-<p>By default the Helm release name is equal to the Application name to which it belongs. Sometimes, especially on a centralised ArgoCD,
+<p>By default, the Helm release name is equal to the Application name to which it belongs. Sometimes, especially on a centralised ArgoCD,
 you may want to override that  name, and it is possible with the <code>release-name</code> flag on the cli:</p>
 <div class="codehilite"><pre><span></span><code>argocd app <span class="nb">set</span> helm-guestbook --release-name myRelease
 </code></pre></div>
@@ -1712,8 +1714,8 @@ value, in the values.yaml such that the value is stable between each comparison.
 <blockquote>
 <p>v1.5</p>
 </blockquote>
-<p>Argo CD is un-opinionated on what cloud provider you use and what kind of Helm plugins you are using that's why there is no any plugins delivered with ArgoCD image.</p>
-<p>But sometimes it happens you would like to use custom plugin. One of the cases is that you would like to use Google Cloud Storage or Amazon S3 storage to save the Helm charts, for example: https://github.com/hayorov/helm-gcs where you can use <code>gs://</code> protocol for Helm chart repository access.</p>
+<p>Argo CD is un-opinionated on what cloud provider you use and what kind of Helm plugins you are using, that's why there are no plugins delivered with the ArgoCD image.</p>
+<p>But sometimes it happens you would like to use a custom plugin. One of the cases is that you would like to use Google Cloud Storage or Amazon S3 storage to save the Helm charts, for example: https://github.com/hayorov/helm-gcs where you can use <code>gs://</code> protocol for Helm chart repository access.</p>
 <p>In order to do that you have to prepare your own ArgoCD image with installed plugins.</p>
 <p>Example <code>Dockerfile</code>:</p>
 <div class="codehilite"><pre><span></span><code><span class="n">FROM</span> <span class="n">argoproj</span><span class="o">/</span><span class="n">argocd</span><span class="p">:</span><span class="n">v1</span><span class="o">.</span><span class="mf">5.7</span>
@@ -1736,7 +1738,7 @@ value, in the values.yaml such that the value is stable between each comparison.
 </code></pre></div>
 
 
-<p>You have to remember about <code>HELM_PLUGINS</code> environment property - this is required to works plugins correctly.</p>
+<p>You have to remember about <code>HELM_PLUGINS</code> environment property - this is required for plugins to work correctly.</p>
 <p>After that you have to use your custom image for ArgoCD installation.</p>
 <h2 id="helm-version">Helm Version<a class="headerlink" href="#helm-version" title="Permanent link">&para;</a></h2>
 <p>ArgoCD normally detects which version of Helm to use by looking at the <code>apiVersion</code> in Chart.yaml.</p>
