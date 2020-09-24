@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import {ApplicationDestination, GroupKind, OrphanedResource, Project, ProjectSignatureKey, ProjectSpec} from '../../../../shared/models';
+import {ApplicationDestination, GroupKind, Groups, OrphanedResource, Project, ProjectSignatureKey, ProjectSpec, ResourceKinds} from '../../../../shared/models';
 import {services} from '../../../../shared/services';
 import {GetProp, SetProp} from '../../utils';
 import {Card} from '../card/card';
@@ -77,11 +77,14 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
         const fields: ProjectFields = {
             sources: [{name: 'url', type: FieldTypes.Url, size: FieldSizes.Grow}],
             destinations: [{name: 'namespace', type: FieldTypes.Text, size: FieldSizes.Normal}, {name: 'server', type: FieldTypes.Text, size: FieldSizes.Grow}],
-            resources: [{name: 'group', type: FieldTypes.AutoComplete, size: FieldSizes.Normal}, {name: 'kind', type: FieldTypes.ResourceKindSelector, size: FieldSizes.Normal}],
+            resources: [
+                {name: 'group', type: FieldTypes.AutoComplete, size: FieldSizes.Normal, values: Groups},
+                {name: 'kind', type: FieldTypes.AutoComplete, size: FieldSizes.Normal, values: ResourceKinds}
+            ],
             signatureKeys: [{name: 'keyID', type: FieldTypes.AutoComplete, size: FieldSizes.Normal}],
             orphanedResources: [
-                {name: 'group', type: FieldTypes.Text, size: FieldSizes.Normal},
-                {name: 'kind', type: FieldTypes.ResourceKindSelector, size: FieldSizes.Normal},
+                {name: 'group', type: FieldTypes.AutoComplete, size: FieldSizes.Normal, values: Groups},
+                {name: 'kind', type: FieldTypes.AutoComplete, size: FieldSizes.Normal, values: ResourceKinds},
                 {name: 'name', type: FieldTypes.Text, size: FieldSizes.Normal}
             ]
         };
@@ -160,6 +163,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             save={values => this.save<string>(IterableSpecFieldNames.sourceRepos, values as string[])}
                             help={HelpTips.Sources}
                             fullWidth={true}
+                            emptyItem={''}
                         />
                         <Card<ApplicationDestination>
                             title='Destinations'

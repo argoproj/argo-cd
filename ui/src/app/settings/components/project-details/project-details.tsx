@@ -1,4 +1,4 @@
-import {NotificationsApi, NotificationType, SlidingPanel, Tabs, Tooltip} from 'argo-ui';
+import {NotificationsApi, NotificationType, SlidingPanel, Tabs} from 'argo-ui';
 import * as React from 'react';
 import {FormApi} from 'react-form';
 import {RouteComponentProps} from 'react-router';
@@ -18,20 +18,10 @@ import {ProjectSummary} from '../project/summary/summary';
 import {ProjectSyncWindowsParams} from '../../../shared/services/projects-service';
 
 import {SyncWindowStatusIcon} from '../../../applications/components/utils';
+import {HelpTip} from '../project/card/card';
 
 interface ProjectDetailsState {
     token: string;
-}
-
-function helpTip(text: string) {
-    return (
-        <Tooltip content={text}>
-            <span style={{fontSize: 'smaller'}}>
-                {' '}
-                <i className='fa fa-question-circle' />
-            </span>
-        </Tooltip>
-    );
 }
 
 export class ProjectDetails extends React.Component<RouteComponentProps<{name: string}>, ProjectDetailsState> {
@@ -362,7 +352,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                     <div className='row'>
                                         <div className='columns small-2'>
                                             STATUS
-                                            {helpTip(
+                                            {HelpTip(
                                                 'If a window is active or inactive and what the current ' +
                                                     'effect would be if it was assigned to an application, namespace or cluster. ' +
                                                     'Red: no syncs allowed. ' +
@@ -372,23 +362,23 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                         </div>
                                         <div className='columns small-2'>
                                             WINDOW
-                                            {helpTip('The kind, start time and duration of the window')}
+                                            {HelpTip('The kind, start time and duration of the window')}
                                         </div>
                                         <div className='columns small-2'>
                                             APPLICATIONS
-                                            {helpTip('The applications assigned to the window, wildcards are supported')}
+                                            {HelpTip('The applications assigned to the window, wildcards are supported')}
                                         </div>
                                         <div className='columns small-2'>
                                             NAMESPACES
-                                            {helpTip('The namespaces assigned to the window, wildcards are supported')}
+                                            {HelpTip('The namespaces assigned to the window, wildcards are supported')}
                                         </div>
                                         <div className='columns small-2'>
                                             CLUSTERS
-                                            {helpTip('The clusters assigned to the window, wildcards are supported')}
+                                            {HelpTip('The clusters assigned to the window, wildcards are supported')}
                                         </div>
                                         <div className='columns small-2'>
                                             MANUALSYNC
-                                            {helpTip('If the window allows manual syncs')}
+                                            {HelpTip('If the window allows manual syncs')}
                                         </div>
                                     </div>
                                 </div>

@@ -1,6 +1,5 @@
 import * as React from 'react';
-import {ArgoAutocomplete} from '../../../../shared/components/card/autocomplete';
-import {ResourceKind, ResourceKindSelector} from '../../../../shared/components/resource-kind-selector';
+import {ArgoAutocomplete} from '../../../../shared/components/autocomplete';
 
 export interface FieldData {
     type: FieldTypes;
@@ -11,7 +10,6 @@ export interface FieldData {
 
 export enum FieldTypes {
     Text = 'text',
-    ResourceKindSelector = 'resourceKindSelector',
     Url = 'url',
     AutoComplete = 'autoComplete'
 }
@@ -22,19 +20,10 @@ export enum FieldSizes {
     Grow = 'grow'
 }
 
-export type FieldValue = string | ResourceKind;
-
-export function IsFieldValue<T>(value: T | FieldValue): value is FieldValue {
-    if ((typeof value as FieldValue) === 'string') {
-        return true;
-    }
-    return false;
-}
-
 interface ArgoFieldProps {
     field: FieldData;
-    onChange: (value: FieldValue) => void;
-    data: FieldValue;
+    onChange: (value: string) => void;
+    data: string;
     index: number;
 }
 
@@ -43,11 +32,8 @@ export class ArgoField extends React.Component<ArgoFieldProps> {
         const field = this.props.field;
         let format;
         switch (field.type) {
-            case FieldTypes.ResourceKindSelector:
-                format = <ResourceKindSelector placeholder={field.name} init={this.props.data as ResourceKind} onChange={this.props.onChange} />;
-                break;
             case FieldTypes.AutoComplete:
-                format = <ArgoAutocomplete values={field.values || []} placeholder={field.name} onChange={this.props.onChange} init={this.props.data as FieldValue} />;
+                format = <ArgoAutocomplete values={field.values || []} placeholder={field.name} onChange={this.props.onChange} init={this.props.data} />;
                 break;
             default:
                 format = (
@@ -63,7 +49,7 @@ export class ArgoField extends React.Component<ArgoFieldProps> {
         return (
             <div style={{width: '100%', display: 'flex'}}>
                 {format}
-                {field.type === FieldTypes.Url && (this.props.data as string) !== '' && (this.props.data as string) !== null && (this.props.data as string) !== '*' ? (
+                {field.type === FieldTypes.Url && this.props.data !== '' && this.props.data !== null && this.props.data !== '*' ? (
                     <a href={this.props.data as string} target='_blank'>
                         <i className='fas fa-link' />
                     </a>

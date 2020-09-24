@@ -1,11 +1,10 @@
 import * as React from 'react';
 import * as ReactAutocomplete from 'react-autocomplete';
-import {FieldValue} from '../../../settings/components/project/card/field';
 
 interface AutocompleteProps {
-    onChange: (value: FieldValue) => void;
-    init: FieldValue;
-    values: FieldValue[];
+    onChange: (value: string) => void;
+    init: string;
+    values: string[];
     placeholder: string;
 }
 
@@ -16,11 +15,11 @@ export class ArgoAutocomplete extends React.Component<AutocompleteProps> {
                 wrapperStyle={{display: 'block', width: '100%'}}
                 items={this.props.values}
                 onSelect={(_, item: string) => {
-                    this.props.onChange(item as FieldValue);
+                    this.props.onChange(item);
                 }}
                 getItemValue={item => item}
                 value={this.props.init ? this.props.init.toString() : ''}
-                onChange={e => this.props.onChange(e.target.value as FieldValue)}
+                onChange={e => this.props.onChange(e.target.value)}
                 shouldItemRender={(item: string, val: string) => {
                     return item.toLowerCase().indexOf(val.toLowerCase()) > -1;
                 }}

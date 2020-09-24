@@ -13,6 +13,7 @@ interface CardProps<T> {
     help?: string;
     fullWidth?: boolean;
     disabled?: boolean;
+    emptyItem?: T;
 }
 
 interface CardState<T> {
@@ -23,7 +24,7 @@ interface CardState<T> {
     edit: boolean;
 }
 
-function helpTip(text: string) {
+export function HelpTip(text: string) {
     return (
         <Tooltip content={text}>
             <span style={{fontSize: 'smaller'}}>
@@ -61,10 +62,10 @@ export class Card<T> extends React.Component<CardProps<T>, CardState<T>> {
                     <div className='row'>
                         <p>
                             {this.props.title.toUpperCase()}&nbsp;
-                            {this.props.help && helpTip(this.props.help)}&nbsp;
+                            {this.props.help && HelpTip(this.props.help)}&nbsp;
                             {this.props.docs ? (
                                 <a href={this.props.docs} target='_blank'>
-                                    <i className='fas fa-question-circle' />
+                                    <i className='fa fa-file-alt' />
                                 </a>
                             ) : null}
                         </p>
@@ -102,7 +103,13 @@ export class Card<T> extends React.Component<CardProps<T>, CardState<T>> {
                         </div>
                     </div>
                     {this.state.edit ? (
-                        <MultiInput<T> title={this.props.title} data={this.state.data} fields={this.props.fields} onChange={async data => await this.setState({data})} />
+                        <MultiInput<T>
+                            emptyItem={this.props.emptyItem}
+                            title={this.props.title}
+                            data={this.state.data}
+                            fields={this.props.fields}
+                            onChange={async data => await this.setState({data})}
+                        />
                     ) : (
                         MultiData(this.props.fields, this.props.values, this.props.title)
                     )}

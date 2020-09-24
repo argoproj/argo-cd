@@ -1,15 +1,15 @@
 import * as React from 'react';
 import {GetProp, SetProp} from '../../utils';
-import {ArgoField, FieldData, FieldTypes, FieldValue, IsFieldValue} from './field';
+import {ArgoField, FieldData} from './field';
 
 interface CardRowProps<T> {
     fields: FieldData[];
-    data: T | FieldValue;
+    data: T | string;
     remove: () => void;
     selected: boolean;
     toggleSelect: () => void;
     changed: boolean;
-    onChange: (value: T | FieldValue) => void;
+    onChange: (value: T | string) => void;
     index?: number;
 }
 
@@ -20,12 +20,6 @@ export function FieldLabels(fields: FieldData[], edit: boolean): React.ReactFrag
             {fields.map(field => (
                 <div className={`card__col-input card__col card__col-${field.size} card__label`} key={field.name + 'label'}>
                     <b>{field.name}</b>
-                    {field.type === FieldTypes.ResourceKindSelector ? (
-                        <a href='https://kubernetes.io/docs/reference/kubectl/overview/#resource-types' target='_blank' className='card__info-icon'>
-                            &nbsp;
-                            <i className='fas fa-info-circle' />
-                        </a>
-                    ) : null}
                 </div>
             ))}
         </div>
@@ -49,20 +43,13 @@ export class CardRow<T> extends React.Component<CardRowProps<T>> {
         }
         return false;
     }
-    get dataIsFieldValue(): boolean {
-        if (!this.props.data) {
-            return true;
-        }
-        return IsFieldValue(this.props.data);
-    }
     get fieldsSetToAll(): string[] {
         if (!this.props.data) {
             return [];
         }
-        if (this.dataIsFieldValue) {
+        if (this.isString(this.props.data)) {
             const field = this.props.fields[0];
-            const comp = field.type === FieldTypes.ResourceKindSelector ? 'ANY' : '*';
-            return this.props.data.toString() === comp ? [field.name] : [];
+            return this.props.data.toString() === '*' ? [field.name] : [];
         }
         const fields = [];
         for (const key of Object.keys(this.props.data)) {
@@ -80,11 +67,11 @@ export class CardRow<T> extends React.Component<CardRowProps<T>> {
     }
 
     public render() {
-        let update = this.dataIsFieldValue
-            ? (value: FieldValue, _: keyof T) => {
+        let update = this.isString(this.props.data)
+            ? (value: string, _: keyof T) => {
                   this.props.onChange(value);
               }
-            : (value: FieldValue, field: keyof T) => {
+            : (value: string, field: keyof T) => {
                   const change = {...(this.props.data as T)};
                   SetProp(change, field, value);
                   this.props.onChange(change);
@@ -100,11 +87,9 @@ export class CardRow<T> extends React.Component<CardRowProps<T>> {
                     </div>
                     {this.props.fields.map((field, i) => {
                         let curVal = '';
-                        console.log(this.props.data);
                         if (this.props.data) {
-                            console.log("I'm not null");
-                            if (this.dataIsFieldValue) {
-                                curVal = this.props.data.toString();
+                            if (this.isString(this.props.data)) {
+                                curVal = this.props.data;
                             } else {
                                 const data = GetProp(this.props.data as T, field.name as keyof T);
                                 curVal = data ? data.toString() : '';
@@ -127,5 +112,8 @@ export class CardRow<T> extends React.Component<CardRowProps<T>> {
                 </div>
             </React.Fragment>
         );
+    }
+    private isString(x: any): x is string {
+        return typeof x === 'string';
     }
 }

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import {FieldData, FieldValue} from '../../settings/components/project/card/field';
+import {FieldData} from '../../settings/components/project/card/field';
 import {CardRow, FieldLabels} from '../../settings/components/project/card/row';
 
 interface MultiInputProps<T> {
@@ -8,6 +8,7 @@ interface MultiInputProps<T> {
     fields: FieldData[];
     disabled?: boolean;
     onChange?: (values: T[]) => Promise<any>;
+    emptyItem?: T;
 }
 
 interface MultiInputState<T> {
@@ -58,18 +59,6 @@ export class MultiInput<T> extends React.Component<MultiInputProps<T>, MultiInpu
             }
         });
         return [idxs, vals];
-    }
-    get emptyItem(): T | FieldValue {
-        console.log(null as T);
-        return null as T;
-        // console.log(T);
-        // if (IsFieldValue(this.raw(this.state.data)[0])) {
-        //     console.log('A');
-        //     return '';
-        // } else {
-        //     console.log('B');
-        //     return {} as T;
-        // }
     }
     public render() {
         return (
@@ -131,12 +120,11 @@ export class MultiInput<T> extends React.Component<MultiInputProps<T>, MultiInpu
     }
     private async add() {
         const data = [...this.state.data];
-        data.push({value: this.emptyItem as T, id: Math.random()});
+        data.push({value: this.props.emptyItem, id: Math.random()});
         this.setState({data});
         this.props.onChange(this.raw(data));
     }
     private updateRow(i: number, r: T) {
-        console.log(r);
         const data = [...this.state.data];
         const isChanged = this.state.isChanged;
         const cur = {...data[i], value: r};
