@@ -25,6 +25,7 @@ import (
 	"github.com/argoproj/argo-cd/reposerver/cache"
 	"github.com/argoproj/argo-cd/reposerver/metrics"
 	cacheutil "github.com/argoproj/argo-cd/util/cache"
+	fileutil "github.com/argoproj/argo-cd/util/files"
 	"github.com/argoproj/argo-cd/util/git"
 	gitmocks "github.com/argoproj/argo-cd/util/git/mocks"
 	"github.com/argoproj/argo-cd/util/helm"
@@ -40,7 +41,7 @@ func newServiceWithMocks(root string, signed bool) (*Service, *gitmocks.Client) 
 	service := NewService(metrics.NewMetricsServer(), cache.NewCache(
 		cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Minute)),
 		1*time.Minute,
-	), 1)
+	), RepoServerInitConstants{ParallelismLimit: 1})
 	helmClient := &helmmocks.Client{}
 	gitClient := &gitmocks.Client{}
 	root, err := filepath.Abs(root)
@@ -200,6 +201,305 @@ func TestGenerateHelmChartWithDependencies(t *testing.T) {
 	res1, err := service.GenerateManifest(context.Background(), &q)
 	assert.Nil(t, err)
 	assert.Len(t, res1.Manifests, 12)
+}
+
+func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
+
+	// Example:
+	// With repo server (test) parameters:
+	// - PauseGenerationAfterFailedGenerationAttempts: 2
+	// - PauseGenerationOnFailureForRequests: 4
+	// - TotalCacheInvocations: 10
+	//
+	// After 2 manifest generation failures in a row, the next 4 manifest generation requests should be cached,
+	// with the next 2 after that being uncached. Here's how it looks...
+	//
+	//  request count) result
+	// --------------------------
+	// 1) Attempt to generate manifest, fails.
+	// 2) Second attempt to generate manifest, fails.
+	// 3) Return cached error attempt from #2
+	// 4) Return cached error attempt from #2
+	// 5) Return cached error attempt from #2
+	// 6) Return cached error attempt from #2. Max response limit hit, so reset cache entry.
+	// 7) Attempt to generate manifest, fails.
+	// 8) Attempt to generate manifest, fails.
+	// 9) Return cached error attempt from #8
+	// 10) Return cached error attempt from #8
+
+	// The same pattern PauseGenerationAfterFailedGenerationAttempts generation attempts, followed by
+	// PauseGenerationOnFailureForRequests cached responses, should apply for various combinations of
+	// both paramters.
+
+	tests := []struct {
+		PauseGenerationAfterFailedGenerationAttempts int
+		PauseGenerationOnFailureForRequests          int
+		TotalCacheInvocations                        int
+	}{
+		{2, 4, 10},
+		{3, 5, 10},
+		{1, 2, 5},
+	}
+	for _, tt := range tests {
+		testName := fmt.Sprintf("gen-attempts-%d-pause-%d-total-%d", tt.PauseGenerationAfterFailedGenerationAttempts, tt.PauseGenerationOnFailureForRequests, tt.TotalCacheInvocations)
+		t.Run(testName, func(t *testing.T) {
+			service := newService(".")
+
+			service.initConstants = RepoServerInitConstants{
+				ParallelismLimit: 1,
+				PauseGenerationAfterFailedGenerationAttempts: tt.PauseGenerationAfterFailedGenerationAttempts,
+				PauseGenerationOnFailureForMinutes:           0,
+				PauseGenerationOnFailureForRequests:          tt.PauseGenerationOnFailureForRequests,
+			}
+
+			totalAttempts := service.initConstants.PauseGenerationAfterFailedGenerationAttempts + service.initConstants.PauseGenerationOnFailureForRequests
+
+			manifestTestUtil := generateManifestTestUtil{}
+
+			for invocationCount := 0; invocationCount < tt.TotalCacheInvocations; invocationCount++ {
+
+				adjustedInvocation := invocationCount % totalAttempts
+
+				fmt.Printf("%d )-------------------------------------------\n", invocationCount)
+
+				res, err := service.generateManifest(context.Background(), &apiclient.ManifestRequest{
+					Repo:          &argoappv1.Repository{},
+					AppLabelValue: "test",
+					ApplicationSource: &argoappv1.ApplicationSource{
+						Path: "./testdata/invalid-helm",
+					},
+				}, &manifestTestUtil)
+
+				// Verify invariant: res != nil xor err != nil
+				if err != nil {
+					assert.True(t, res == nil, "both err and res are non-nil res: %v   err: %v", res, err)
+				} else {
+					assert.True(t, res != nil, "both err and res are nil")
+				}
+
+				isCachedError := err != nil && strings.HasPrefix(err.Error(), cachedManifestGenerationPrefix)
+
+				if adjustedInvocation < service.initConstants.PauseGenerationAfterFailedGenerationAttempts {
+					// GenerateManifest should not return cached errors for the first X responses, where X is the FailGenAttempts constants
+					assert.True(t, !isCachedError)
+					assert.True(t, manifestTestUtil.recentCachedRes != nil)
+					assert.True(t, manifestTestUtil.recentCachedRes.FirstFailureTimestamp != 0)
+
+					// Internal cache consec failures value should increase with invocations, cached response should stay the same,
+					assert.True(t, int(manifestTestUtil.recentCachedRes.NumberOfConsecutiveFailures) == adjustedInvocation+1)
+					assert.True(t, int(manifestTestUtil.recentCachedRes.NumberOfCachedResponsesReturned) == 0)
+
+				} else {
+					// GenerateManifest SHOULD return cached errors for the next X responses, where X is the
+					// PauseGenerationOnFailureForRequests constant
+					assert.True(t, isCachedError)
+					assert.True(t, manifestTestUtil.recentCachedRes != nil)
+					assert.True(t, manifestTestUtil.recentCachedRes.FirstFailureTimestamp != 0)
+
+					// Internal cache values should update correctly based on number of return cache entries, concecutive failures should stay the same
+					assert.True(t, int(manifestTestUtil.recentCachedRes.NumberOfConsecutiveFailures) == service.initConstants.PauseGenerationAfterFailedGenerationAttempts)
+					assert.True(t, int(manifestTestUtil.recentCachedRes.NumberOfCachedResponsesReturned) == (adjustedInvocation-service.initConstants.PauseGenerationAfterFailedGenerationAttempts+1))
+				}
+
+			}
+
+		})
+	}
+
+}
+
+func TestManifestGenErrorCacheFileContentsChange(t *testing.T) {
+
+	tmpDir, err := ioutil.TempDir("", "repository-test-")
+	assert.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
+
+	service := newService(tmpDir)
+
+	service.initConstants = RepoServerInitConstants{
+		ParallelismLimit: 1,
+		PauseGenerationAfterFailedGenerationAttempts: 2,
+		PauseGenerationOnFailureForMinutes:           0,
+		PauseGenerationOnFailureForRequests:          4,
+	}
+
+	for step := 0; step < 3; step++ {
+
+		// step 1) Attempt to generate manifests against invalid helm chart (should return uncached error)
+		// step 2) Attempt to generate manifest against valid helm chart (should succeed and return valid response)
+		// step 3) Attempt to generate manifest against invalid helm chart (should return cached value from step 2)
+
+		errorExpected := step%2 == 0
+
+		// Ensure that the target directory will succeed or fail, so we can verify the cache correctly handles it
+		err = os.RemoveAll(tmpDir)
+		assert.NoError(t, err)
+		err = os.MkdirAll(tmpDir, 0777)
+		assert.NoError(t, err)
+		if errorExpected {
+			// Copy invalid helm chart into temporary directory, ensuring manifest generation will fail
+			err = fileutil.CopyDir("./testdata/invalid-helm", tmpDir)
+			assert.NoError(t, err)
+
+		} else {
+			// Copy valid helm chart into temporary directory, ensuring generation will succeed
+			err = fileutil.CopyDir("./testdata/my-chart", tmpDir)
+			assert.NoError(t, err)
+		}
+
+		res, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+			Repo:          &argoappv1.Repository{},
+			AppLabelValue: "test",
+			ApplicationSource: &argoappv1.ApplicationSource{
+				Path: ".",
+			},
+		})
+
+		fmt.Println("-", step, "-", res != nil, err != nil, errorExpected)
+		fmt.Println("    err: ", err)
+		fmt.Println("    res: ", res)
+
+		if step < 2 {
+			assert.True(t, (err != nil) == errorExpected, "error return value and error expected did not match")
+			assert.True(t, (res != nil) == !errorExpected, "GenerateManifest return value and expected value did not match")
+		}
+
+		if step == 2 {
+			assert.True(t, err == nil, "error ret val was non-nil on step 3")
+			assert.True(t, res != nil, "GenerateManifest ret val was nil on step 3")
+		}
+	}
+}
+
+func TestManifestGenErrorCacheByMinutesElapsed(t *testing.T) {
+
+	tests := []struct {
+		// Test with a range of pause expiration thresholds
+		PauseGenerationOnFailureForMinutes int
+	}{
+		{1}, {2}, {10}, {24 * 60},
+	}
+	for _, tt := range tests {
+		testName := fmt.Sprintf("pause-time-%d", tt.PauseGenerationOnFailureForMinutes)
+		t.Run(testName, func(t *testing.T) {
+			service := newService(".")
+
+			service.initConstants = RepoServerInitConstants{
+				ParallelismLimit: 1,
+				PauseGenerationAfterFailedGenerationAttempts: 1,
+				PauseGenerationOnFailureForMinutes:           tt.PauseGenerationOnFailureForMinutes,
+				PauseGenerationOnFailureForRequests:          0,
+			}
+
+			// 1) Put the cache into the failure state
+			for x := 0; x < 2; x++ {
+				res, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+					Repo:          &argoappv1.Repository{},
+					AppLabelValue: "test",
+					ApplicationSource: &argoappv1.ApplicationSource{
+						Path: "./testdata/invalid-helm",
+					},
+				})
+
+				assert.True(t, err != nil && res == nil)
+
+				// Ensure that the second invocation triggers the cached error state
+				if x == 1 {
+					assert.True(t, strings.HasPrefix(err.Error(), cachedManifestGenerationPrefix))
+				}
+
+			}
+
+			// 2) Jump forward X-1 minutes in time, where X is the expiration boundary
+			newTime := time.Now().Add(time.Duration(tt.PauseGenerationOnFailureForMinutes-1) * time.Minute)
+			res, err := service.generateManifest(context.Background(), &apiclient.ManifestRequest{
+				Repo:          &argoappv1.Repository{},
+				AppLabelValue: "test",
+				ApplicationSource: &argoappv1.ApplicationSource{
+					Path: "./testdata/invalid-helm",
+				},
+			}, &generateManifestTestUtil{currentTime: &newTime})
+
+			// 3) Ensure that the cache still returns a cached copy of the last error
+			assert.True(t, err != nil && res == nil)
+			assert.True(t, strings.HasPrefix(err.Error(), cachedManifestGenerationPrefix))
+
+			// 4) Jump forward 2 minutes in time, such that the pause generation time has elapsed and we should return to normal state
+			newTime = newTime.Add(2 * time.Minute)
+
+			res, err = service.generateManifest(context.Background(), &apiclient.ManifestRequest{
+				Repo:          &argoappv1.Repository{},
+				AppLabelValue: "test",
+				ApplicationSource: &argoappv1.ApplicationSource{
+					Path: "./testdata/invalid-helm",
+				},
+			}, &generateManifestTestUtil{currentTime: &newTime})
+
+			// 5) Ensure that the service no longer returns a cached copy of the last error
+			assert.True(t, err != nil && res == nil)
+			assert.True(t, !strings.HasPrefix(err.Error(), cachedManifestGenerationPrefix))
+
+		})
+	}
+
+}
+
+func TestManifestGenErrorCacheRespectsNoCache(t *testing.T) {
+
+	service := newService(".")
+
+	service.initConstants = RepoServerInitConstants{
+		ParallelismLimit: 1,
+		PauseGenerationAfterFailedGenerationAttempts: 1,
+		PauseGenerationOnFailureForMinutes:           0,
+		PauseGenerationOnFailureForRequests:          4,
+	}
+
+	// 1) Put the cache into the failure state
+	for x := 0; x < 2; x++ {
+		res, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+			Repo:          &argoappv1.Repository{},
+			AppLabelValue: "test",
+			ApplicationSource: &argoappv1.ApplicationSource{
+				Path: "./testdata/invalid-helm",
+			},
+		})
+
+		assert.True(t, err != nil && res == nil)
+
+		// Ensure that the second invocation is cached
+		if x == 1 {
+			assert.True(t, strings.HasPrefix(err.Error(), cachedManifestGenerationPrefix))
+		}
+	}
+
+	// 2) Call generateManifest with NoCache enabled
+	res, err := service.generateManifest(context.Background(), &apiclient.ManifestRequest{
+		Repo:          &argoappv1.Repository{},
+		AppLabelValue: "test",
+		ApplicationSource: &argoappv1.ApplicationSource{
+			Path: "./testdata/invalid-helm",
+		},
+		NoCache: true,
+	}, &generateManifestTestUtil{})
+
+	// 3) Ensure that the cache returns a new generation attempt, rather than a previous cached error
+	assert.True(t, err != nil && res == nil)
+	assert.True(t, !strings.HasPrefix(err.Error(), cachedManifestGenerationPrefix))
+
+	// 4) Call generateManifest
+	res, err = service.generateManifest(context.Background(), &apiclient.ManifestRequest{
+		Repo:          &argoappv1.Repository{},
+		AppLabelValue: "test",
+		ApplicationSource: &argoappv1.ApplicationSource{
+			Path: "./testdata/invalid-helm",
+		},
+	}, &generateManifestTestUtil{})
+
+	// 5) Ensure that the subsequent invocation, after nocache, is cached
+	assert.True(t, err != nil && res == nil)
+	assert.True(t, strings.HasPrefix(err.Error(), cachedManifestGenerationPrefix))
+
 }
 
 func TestGenerateHelmWithValues(t *testing.T) {

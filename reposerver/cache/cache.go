@@ -76,6 +76,10 @@ func (c *Cache) SetManifests(revision string, appSrc *appv1.ApplicationSource, n
 	return c.cache.SetItem(manifestCacheKey(revision, appSrc, namespace, appLabelKey, appLabelValue), res, c.repoCacheExpiration, res == nil)
 }
 
+func (c *Cache) DeleteManifests(revision string, appSrc *appv1.ApplicationSource, namespace string, appLabelKey string, appLabelValue string) error {
+	return c.cache.SetItem(manifestCacheKey(revision, appSrc, namespace, appLabelKey, appLabelValue), "", c.repoCacheExpiration, true)
+}
+
 func appDetailsCacheKey(revision string, appSrc *appv1.ApplicationSource) string {
 	return fmt.Sprintf("appdetails|%s|%d", revision, appSourceKey(appSrc))
 }
