@@ -7,6 +7,9 @@ module.exports = {
   globals: {
     'ts-jest': {
       isolatedModules: true,
+      diagnostics: {
+        ignoreCodes: [151001],
+      },
     },
   },
   moduleNameMapper: {
