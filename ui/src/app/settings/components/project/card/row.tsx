@@ -1,3 +1,4 @@
+import {Checkbox} from 'argo-ui';
 import * as React from 'react';
 import {GetProp, SetProp} from '../../utils';
 import {ArgoField, FieldData} from './field';
@@ -81,9 +82,7 @@ export class CardRow<T> extends React.Component<CardRowProps<T>> {
             <React.Fragment>
                 <div className='card__row'>
                     <div className='card__col-select-button card__col'>
-                        <button className={`card__button card__button-select${this.props.selected ? '--selected' : ''}`} onClick={this.props.toggleSelect}>
-                            <i className='fa fa-check' />
-                        </button>
+                        <Checkbox onChange={this.props.toggleSelect} checked={this.props.selected} />
                     </div>
                     {this.props.fields.map((field, i) => {
                         let curVal = '';

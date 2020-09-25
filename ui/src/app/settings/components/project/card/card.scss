@@ -65,26 +65,4 @@ $col-gutter: 10px;
     text-transform: uppercase;
   }
 
-  &__button-select {
-    $deselect-color: $argo-color-gray-6;
-    $select-color: $argo-color-teal-6;
-    cursor: pointer;
-    border: 2px solid $deselect-color;
-    border-radius: 3px;
-    color: transparent;
-    width: $select-button-size;
-    height: $select-button-size;
-    margin: 0 auto;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    &--selected {
-      @extend .card__button-select;
-      border-color: $select-color;
-      background-color: $select-color;
-      color: $white-color;
-    }
-  }
-
 }
