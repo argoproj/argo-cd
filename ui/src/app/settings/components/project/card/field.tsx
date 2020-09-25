@@ -1,5 +1,5 @@
 import * as React from 'react';
-import {ArgoAutocomplete} from '../../../../shared/components/autocomplete';
+import * as ReactAutocomplete from 'react-autocomplete';
 
 export interface FieldData {
     type: FieldTypes;
@@ -33,7 +33,33 @@ export class ArgoField extends React.Component<ArgoFieldProps> {
         let format;
         switch (field.type) {
             case FieldTypes.AutoComplete:
-                format = <ArgoAutocomplete values={field.values || []} placeholder={field.name} onChange={this.props.onChange} init={this.props.data} />;
+                format = (
+                    <ReactAutocomplete
+                        wrapperStyle={{display: 'block', width: '100%'}}
+                        items={field.values || []}
+                        onSelect={(_, item: string) => {
+                            this.props.onChange(item);
+                        }}
+                        getItemValue={item => item}
+                        value={this.props.data ? this.props.data.toString() : ''}
+                        onChange={e => this.props.onChange(e.target.value)}
+                        shouldItemRender={(item: string, val: string) => {
+                            return item.toLowerCase().indexOf(val.toLowerCase()) > -1;
+                        }}
+                        renderItem={(item, isSelected) => (
+                            <div className={`select__option ${isSelected ? 'selected' : ''}`} key={item}>
+                                {item}
+                            </div>
+                        )}
+                        renderMenu={function(menuItems, _, style) {
+                            if (menuItems.length === 0) {
+                                return <div style={{display: 'none'}} />;
+                            }
+                            return <div style={{...style, ...this.menuStyle, display: 'block', color: 'white', zIndex: 10, maxHeight: '20em'}} children={menuItems} />;
+                        }}
+                        renderInput={inputProps => <input {...inputProps} className='argo-field' placeholder={field.name} />}
+                    />
+                );
                 break;
             default:
                 format = (
