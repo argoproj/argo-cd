@@ -661,12 +661,36 @@ func (c *clusterCache) IsNamespaced(gk schema.GroupKind) (bool, error) {
 	return false, errors.NewNotFound(schema.GroupResource{Group: gk.Group}, "")
 }
 
+func (c *clusterCache) managesNamespace(namespace string) bool {
+	if len(c.namespaces) == 0 {
+		return true
+	}
+	if namespace == "" {
+		return false
+	}
+	for _, ns := range c.namespaces {
+		if ns == namespace {
+			return true
+		}
+	}
+	return false
+}
+
 // GetManagedLiveObjs helps finding matching live K8S resources for a given resources list.
 // The function returns all resources from cache for those `isManaged` function returns true and resources
 // specified in targetObjs list.
 func (c *clusterCache) GetManagedLiveObjs(targetObjs []*unstructured.Unstructured, isManaged func(r *Resource) bool) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
+
+	for _, o := range targetObjs {
+		if !c.managesNamespace(o.GetNamespace()) {
+			if o.GetNamespace() == "" {
+				return nil, fmt.Errorf("Cluster level %s %q can not be managed when in namespaced mode", o.GetKind(), o.GetName())
+			}
+			return nil, fmt.Errorf("Namespace %q for %s %q is not managed", o.GetNamespace(), o.GetKind(), o.GetName())
+		}
+	}
 
 	managedObjs := make(map[kube.ResourceKey]*unstructured.Unstructured)
 	// iterate all objects in live state cache to find ones associated with app
