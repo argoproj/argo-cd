@@ -1,9 +1,6 @@
 @import 'node_modules/argo-ui/src/styles/config';
 
 .project-summary {
-  width: 95%;
-  margin: 0 auto;
-
   &__section {
     margin-bottom: 20px;
   }
@@ -24,15 +21,5 @@
     font-size: 14px;
     font-weight: 500;
     margin-bottom: 15px;
-  }
-
-  &__monitoring-toggle {
-    display: flex;
-    align-items: center;
-    margin-bottom: 1em;
-
-    b {
-      font-weight: 500;
-    }
   }
 }

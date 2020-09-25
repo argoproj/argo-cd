@@ -19,7 +19,7 @@ export function FieldLabels(fields: FieldData[], edit: boolean): React.ReactFrag
             {edit && <div className='card__col-select-button card__col' />}
             {fields.map(field => (
                 <div className={`card__col-input card__col card__col-${field.size} card__label`} key={field.name + 'label'}>
-                    <b>{field.name}</b>
+                    <b>{field.name.toUpperCase()}</b>
                 </div>
             ))}
         </div>
