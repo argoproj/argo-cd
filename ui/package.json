@@ -43,7 +43,7 @@
     "json-merge-patch": "^0.2.3",
     "minimatch": "^3.0.4",
     "moment": "^2.24.0",
-    "monaco-editor": "^0.15.6",
+    "monaco-editor": "^0.20.0",
     "monaco-editor-webpack-plugin": "^1.7.0",
     "node-sass": "^4.7.2",
     "prop-types": "^15.6.0",
