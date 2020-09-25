@@ -19,7 +19,7 @@ export function FieldLabels(fields: FieldData[], edit: boolean): React.ReactFrag
         <div className='card__row'>
             {edit && <div className='card__col-select-button card__col' />}
             {fields.map(field => (
-                <div className={`card__col-input card__col card__col-${field.size} card__label`} key={field.name + 'label'}>
+                <div className={`card__ card__col card__col-${field.size}`} key={field.name + 'label'}>
                     <b>{field.name.toUpperCase()}</b>
                 </div>
             ))}
@@ -95,14 +95,13 @@ export class CardRow<T> extends React.Component<CardRowProps<T>> {
                             }
                         }
                         return (
-                            <div key={field.name} className={`card__col-input card__col card__col-${field.size}`}>
+                            <div key={field.name} className={`card__col card__col-${field.size}`}>
                                 <ArgoField field={field} onChange={val => update(val, field.name as keyof T)} data={curVal} index={this.props.index || 0} />
                             </div>
                         );
                     })}
-                    {this.fieldsSetToAll.length > 0 ? <i className='fa fa-info-circle' /> : null}
                     {this.props.selected ? (
-                        <div className='card__col-button card__col'>
+                        <div>
                             <button className='argo-button argo-button--base' onClick={() => (this.props.selected ? this.props.remove() : null)}>
                                 DELETE
                             </button>

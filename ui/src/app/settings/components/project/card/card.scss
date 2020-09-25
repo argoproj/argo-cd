@@ -21,7 +21,6 @@ $col-gutter: 10px;
   }
 
   &__col {
-    display: block;
     margin: 0 $col-gutter;
     flex-basis: $col-width;
     width: $col-width;
@@ -42,27 +41,4 @@ $col-gutter: 10px;
     flex-basis: $select-button-size;
     width: $select-button-size;
   }
-
-  &__col-button {
-    flex-basis: $button-width;
-    width: $button-width;
-    .card__button {
-      margin-left: auto;
-      margin-right: 0;
-    }
-  }
-
-  &__col-input {
-    display: flex;
-    align-items: center;
-  }
-
-  &__link-icon {
-    margin-left: 10px;
-  }
-
-  &__label {
-    text-transform: uppercase;
-  }
-
 }

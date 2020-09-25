@@ -1,5 +1,5 @@
+import {Checkbox} from 'argo-ui';
 import * as React from 'react';
-
 import {ApplicationDestination, GroupKind, Groups, OrphanedResource, Project, ProjectSignatureKey, ProjectSpec, ResourceKinds} from '../../../../shared/models';
 import {services} from '../../../../shared/services';
 import {GetProp, SetProp} from '../../utils';
@@ -282,9 +282,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
         return (
             <div className='card__row'>
                 <div className='card__col-select-button card__col'>
-                    <button className={`card__button card__button-select${status ? '--selected' : ''}`} onClick={() => change(!status)}>
-                        <i className='fa fa-check' />
-                    </button>
+                    <Checkbox onChange={() => change(!status)} checked={status} />
                 </div>
                 <div className={'card__col'}>{label}</div>
             </div>
