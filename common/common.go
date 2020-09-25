@@ -163,7 +163,7 @@ const (
 	MinClientVersion = "1.4.0"
 	// CacheVersion is a objects version cached using util/cache/cache.go.
 	// Number should be bumped in case of backward incompatible change to make sure cache is invalidated after upgrade.
-	CacheVersion = "1.0.0"
+	CacheVersion = "1.8.0"
 )
 
 // GetGnuPGHomePath retrieves the path to use for GnuPG home directory, which is either taken from GNUPGHOME environment or a default value
