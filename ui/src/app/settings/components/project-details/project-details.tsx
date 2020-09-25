@@ -18,7 +18,7 @@ import {ProjectSummary} from '../project/summary/summary';
 import {ProjectSyncWindowsParams} from '../../../shared/services/projects-service';
 
 import {SyncWindowStatusIcon} from '../../../applications/components/utils';
-import {HelpTip} from '../project/card/card';
+import {HelpTip} from '../../../shared/components/card/card';
 
 interface ProjectDetailsState {
     token: string;

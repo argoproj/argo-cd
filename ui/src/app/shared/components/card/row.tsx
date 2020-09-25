@@ -1,6 +1,6 @@
 import {Checkbox} from 'argo-ui';
 import * as React from 'react';
-import {GetProp, SetProp} from '../../utils';
+import {GetProp, SetProp} from '../../../settings/components/utils';
 import {ArgoField, FieldData} from './field';
 
 interface CardRowProps<T> {

@@ -1,6 +1,6 @@
 import {Tooltip} from 'argo-ui';
 import * as React from 'react';
-import {GetProp} from '../../utils';
+import {GetProp} from '../../../settings/components/utils';
 import {FieldData} from './field';
 import {CardRow, FieldLabels} from './row';
 

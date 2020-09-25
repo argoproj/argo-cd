@@ -1,10 +1,10 @@
 import {Checkbox} from 'argo-ui';
 import * as React from 'react';
+import {Card} from '../../../../shared/components/card/card';
+import {FieldData, FieldSizes, FieldTypes} from '../../../../shared/components/card/field';
 import {ApplicationDestination, GroupKind, Groups, OrphanedResource, Project, ProjectSignatureKey, ProjectSpec, ResourceKinds} from '../../../../shared/models';
 import {services} from '../../../../shared/services';
 import {GetProp, SetProp} from '../../utils';
-import {Card} from '../card/card';
-import {FieldData, FieldSizes, FieldTypes} from '../card/field';
 
 require('./summary.scss');
 

@@ -1,10 +1,8 @@
 @import 'node_modules/argo-ui/src/styles/config';
 
-$button-width: 75px;
 $select-button-size: 18px;
 $col-width: 245px;
 $col-width-large: 450px;
-$col-gutter: 10px;
 
 .card {
   &__row {
@@ -21,7 +19,7 @@ $col-gutter: 10px;
   }
 
   &__col {
-    margin: 0 $col-gutter;
+    margin: 0 10px;
     flex-basis: $col-width;
     width: $col-width;
   }
