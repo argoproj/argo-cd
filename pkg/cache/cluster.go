@@ -224,17 +224,19 @@ func (c *clusterCache) GetAPIGroups() []metav1.APIGroup {
 	return c.apiGroups
 }
 
-func (c *clusterCache) replaceResourceCache(gk schema.GroupKind, objs []unstructured.Unstructured, ns string) {
-	objByKey := make(map[kube.ResourceKey]*unstructured.Unstructured)
-	for i := range objs {
-		objByKey[kube.GetResourceKey(&objs[i])] = &objs[i]
+func (c *clusterCache) replaceResourceCache(gk schema.GroupKind, resources []*Resource, ns string) {
+	objByKey := make(map[kube.ResourceKey]*Resource)
+	for i := range resources {
+		objByKey[resources[i].ResourceKey()] = resources[i]
 	}
 
 	// update existing nodes
-	for i := range objs {
-		obj := &objs[i]
-		key := kube.GetResourceKey(&objs[i])
-		c.onNodeUpdated(c.resources[key], obj)
+	for i := range resources {
+		res := resources[i]
+		oldRes := c.resources[res.ResourceKey()]
+		if oldRes == nil || oldRes.ResourceVersion != res.ResourceVersion {
+			c.onNodeUpdated(oldRes, res)
+		}
 	}
 
 	for key := range c.resources {
@@ -333,7 +335,7 @@ func (c *clusterCache) stopWatching(gk schema.GroupKind, ns string) {
 	if info, ok := c.apisMeta[gk]; ok {
 		info.watchCancel()
 		delete(c.apisMeta, gk)
-		c.replaceResourceCache(gk, []unstructured.Unstructured{}, ns)
+		c.replaceResourceCache(gk, nil, ns)
 		c.log.Warnf("Stop watching: %s not found", gk)
 	}
 }
@@ -406,12 +408,12 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 		// load API initial state if no resource version provided
 		if resourceVersion == "" {
 			resourceVersion, err = c.listResources(ctx, resClient, func(listPager *pager.ListPager) error {
-				var items []unstructured.Unstructured
+				var items []*Resource
 				err := listPager.EachListItem(ctx, metav1.ListOptions{}, func(obj runtime.Object) error {
 					if un, ok := obj.(*unstructured.Unstructured); !ok {
 						return fmt.Errorf("object %s/%s has an unexpected type", un.GroupVersionKind().String(), un.GetName())
 					} else {
-						items = append(items, *un)
+						items = append(items, c.newResource(un))
 					}
 					return nil
 				})
@@ -779,12 +781,11 @@ func (c *clusterCache) processEvent(event watch.EventType, un *unstructured.Unst
 			c.onNodeRemoved(key)
 		}
 	} else if event != watch.Deleted {
-		c.onNodeUpdated(existingNode, un)
+		c.onNodeUpdated(existingNode, c.newResource(un))
 	}
 }
 
-func (c *clusterCache) onNodeUpdated(oldRes *Resource, un *unstructured.Unstructured) {
-	newRes := c.newResource(un)
+func (c *clusterCache) onNodeUpdated(oldRes *Resource, newRes *Resource) {
 	c.setNode(newRes)
 	for _, h := range c.getResourceUpdatedHandlers() {
 		h(newRes, oldRes, c.nsIndex[newRes.Ref.Namespace])

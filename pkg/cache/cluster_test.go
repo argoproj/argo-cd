@@ -569,7 +569,7 @@ func TestWatchCacheUpdated(t *testing.T) {
 	podGroupKind := testPod.GroupVersionKind().GroupKind()
 
 	cluster.lock.Lock()
-	cluster.replaceResourceCache(podGroupKind, []unstructured.Unstructured{*updated, *added}, "")
+	cluster.replaceResourceCache(podGroupKind, []*Resource{cluster.newResource(updated), cluster.newResource(added)}, "")
 
 	_, ok := cluster.resources[kube.GetResourceKey(removed)]
 	assert.False(t, ok)
