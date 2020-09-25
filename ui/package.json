@@ -70,7 +70,7 @@
     "ts-node": "^4.1.0",
     "tslint": "^5.16.0",
     "tslint-react": "^3.4.0",
-    "typescript": "^3.4.5",
+    "typescript": "3.7",
     "unidiff": "^1.0.2",
     "webpack": "^4.41.2",
     "webpack-cli": "^3.2.3",
