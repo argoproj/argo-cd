@@ -623,7 +623,7 @@ func findManifests(appPath string, repoRoot string, env *v1alpha1.Env, directory
 			}
 		} else {
 			yamlObjs, err := kube.SplitYAML(out)
-			if err != nil {
+			if len(yamlObjs) > 0 && err != nil {
 				return status.Errorf(codes.FailedPrecondition, "Failed to unmarshal %q: %v", f.Name(), err)
 			}
 			objs = append(objs, yamlObjs...)
