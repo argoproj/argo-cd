@@ -21,6 +21,7 @@ import {SyncWindowStatusIcon} from '../../../applications/components/utils';
 
 require('./project-details.scss');
 
+
 interface ProjectDetailsState {
     token: string;
 }
