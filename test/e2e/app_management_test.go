@@ -545,7 +545,7 @@ func TestConfigMap(t *testing.T) {
 }
 
 func TestFailedConversion(t *testing.T) {
-
+	t.Skip()
 	defer func() {
 		FailOnErr(Run("", "kubectl", "delete", "apiservice", "v1beta1.metrics.k8s.io"))
 	}()
