@@ -9,7 +9,6 @@ interface CardRowProps<T> {
     remove: () => void;
     selected: boolean;
     toggleSelect: () => void;
-    changed: boolean;
     onChange: (value: T | string) => void;
     index?: number;
 }
@@ -85,18 +84,15 @@ export class CardRow<T> extends React.Component<CardRowProps<T>> {
                         <Checkbox onChange={this.props.toggleSelect} checked={this.props.selected} />
                     </div>
                     {this.props.fields.map((field, i) => {
-                        let curVal = '';
-                        if (this.props.data) {
-                            if (this.isString(this.props.data)) {
-                                curVal = this.props.data;
-                            } else {
-                                const data = GetProp(this.props.data as T, field.name as keyof T);
-                                curVal = data ? data.toString() : '';
-                            }
-                        }
+                        const d = this.props.data || '';
                         return (
                             <div key={field.name} className={`card__col card__col-${field.size}`}>
-                                <ArgoField field={field} onChange={val => update(val, field.name as keyof T)} data={curVal} index={this.props.index || 0} />
+                                <ArgoField
+                                    field={field}
+                                    onChange={val => update(val, field.name as keyof T)}
+                                    data={this.isString(d) ? d : (GetProp(d as T, field.name as keyof T) || '').toString()}
+                                    index={this.props.index || 0}
+                                />
                             </div>
                         );
                     })}

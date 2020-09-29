@@ -115,7 +115,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             <i className='fas fa-question-circle' />
                         </a>
                     </div>
-                    <div className='project-summary__title'>{this.state.name}</div>
+                    <div style={{fontSize: '30px'}}>{this.state.name}</div>
                     <div className='project-summary__description'>
                         <div style={{marginBottom: '1em'}}>
                             <input

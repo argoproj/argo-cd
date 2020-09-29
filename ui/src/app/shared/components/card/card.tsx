@@ -20,8 +20,6 @@ interface CardProps<T> {
 
 interface CardState<T> {
     selected: boolean[];
-    isChanged: boolean[];
-    changeCount: number;
     data: T[];
     rows: Row<T>[];
     edit: boolean;
@@ -47,17 +45,15 @@ export class Card<T> extends React.Component<CardProps<T>, CardState<T>> {
     constructor(props: CardProps<T>) {
         super(props);
         let selected: boolean[] = [];
-        let isChanged: boolean[] = [];
         const rows: Row<T>[] = [];
         if (props.values) {
             selected = new Array(props.values.length);
-            isChanged = new Array(props.values.length);
             for (const r of props.values) {
                 const id = Math.random();
                 rows.push({id, value: r});
             }
         }
-        this.state = {selected, isChanged, data: props.values, rows, changeCount: 0, edit: false};
+        this.state = {selected, data: props.values, rows, edit: false};
     }
     get selectedIdxs(): number[] {
         const arr: number[] = [];
@@ -76,11 +72,11 @@ export class Card<T> extends React.Component<CardProps<T>, CardState<T>> {
                         <p>
                             {this.props.title.toUpperCase()}&nbsp;
                             {this.props.help && HelpTip(this.props.help)}&nbsp;
-                            {this.props.docs ? (
+                            {this.props.docs && (
                                 <a href={this.props.docs} target='_blank'>
                                     <i className='fa fa-file-alt' />
                                 </a>
-                            ) : null}
+                            )}
                         </p>
                         <div className='row'>
                             <div className='editable-panel__buttons'>
@@ -103,11 +99,7 @@ export class Card<T> extends React.Component<CardProps<T>, CardState<T>> {
                                             }}>
                                             Save
                                         </button>
-                                        <button
-                                            onClick={() => {
-                                                this.setState({edit: false});
-                                            }}
-                                            className='argo-button argo-button--base-o'>
+                                        <button onClick={() => this.setState({edit: false})} className='argo-button argo-button--base-o'>
                                             Cancel
                                         </button>
                                     </React.Fragment>
@@ -129,8 +121,11 @@ export class Card<T> extends React.Component<CardProps<T>, CardState<T>> {
                                                     remove={() => this.remove([i])}
                                                     selected={this.state.selected[i]}
                                                     toggleSelect={() => this.toggleSelect(i)}
-                                                    onChange={r => this.updateRow(i, r as T)}
-                                                    changed={this.state.isChanged[i]}
+                                                    onChange={r => {
+                                                        const rows = this.state.rows;
+                                                        rows[i] = {...rows[i], value: r as T};
+                                                        this.syncState(rows);
+                                                    }}
                                                 />
                                             </div>
                                         );
@@ -141,18 +136,9 @@ export class Card<T> extends React.Component<CardProps<T>, CardState<T>> {
                                     {(this.state.data || []).map((d: T, idx) => (
                                         <div className='card__row' key={idx}>
                                             {this.props.fields.map((field, i) => {
-                                                let curVal = '';
-                                                if (d) {
-                                                    if (typeof d === 'string') {
-                                                        curVal = d.toString();
-                                                    } else {
-                                                        const tmp = GetProp(d as T, field.name as keyof T);
-                                                        curVal = tmp ? tmp.toString() : '';
-                                                    }
-                                                }
                                                 return (
                                                     <div key={field.name} className={`card__col-input card__col card__col-${field.size}`}>
-                                                        {curVal}
+                                                        {typeof d === 'string' ? d.toString() : (GetProp(d as T, field.name as keyof T) || '').toString()}
                                                     </div>
                                                 );
                                             })}
@@ -164,7 +150,7 @@ export class Card<T> extends React.Component<CardProps<T>, CardState<T>> {
                     ) : (
                         <div className='card__row'>Project has no {this.props.title.toLowerCase()}</div>
                     )}
-                    {this.state.edit ? (
+                    {this.state.edit && (
                         <div className='card__row'>
                             {this.selectedIdxs.length > 1 ? (
                                 <button className='argo-button argo-button--base-o' onClick={() => this.remove(this.selectedIdxs)}>
@@ -172,12 +158,14 @@ export class Card<T> extends React.Component<CardProps<T>, CardState<T>> {
                                 </button>
                             ) : null}
                             {this.props.disabled ? null : (
-                                <button className='argo-button argo-button--base argo-button--short' onClick={_ => this.add()}>
+                                <button
+                                    className='argo-button argo-button--base argo-button--short'
+                                    onClick={_ => this.syncState(this.state.rows.concat([{value: this.props.emptyItem, id: Math.random()}]))}>
                                     <i className='fa fa-plus' style={{cursor: 'pointer'}} />
                                 </button>
                             )}
                         </div>
-                    ) : null}
+                    )}
                 </div>
             </div>
         );
@@ -192,39 +180,17 @@ export class Card<T> extends React.Component<CardProps<T>, CardState<T>> {
         return data && data.length > 0 ? data.map(d => d.value) : [];
     }
     private remove(idxs: number[]) {
-        const tmp = [...idxs];
         const selected = this.state.selected;
-        const rows = [...this.state.rows];
-        while (tmp.length) {
-            const i = tmp.pop();
+        const rows = this.state.rows;
+        while (idxs.length) {
+            const i = idxs.pop();
             selected.splice(i, 1);
             rows.splice(i, 1);
         }
-        this.setState({rows, selected});
-        this.setState({data: this.raw(rows)});
+        this.setState({selected});
+        this.syncState(rows);
     }
-    private async add() {
-        const rows = [...this.state.rows];
-        rows.push({value: this.props.emptyItem, id: Math.random()});
-        this.setState({rows});
-        this.setState({data: this.raw(rows)});
-    }
-    private updateRow(i: number, r: T) {
-        const rows = [...this.state.rows];
-        const isChanged = this.state.isChanged;
-        const cur = {...rows[i], value: r};
-        rows[i] = cur;
-        if (rows[i].value !== this.state.data[i]) {
-            if (!isChanged[i]) {
-                this.setState({changeCount: this.state.changeCount + 1});
-            }
-            isChanged[i] = true;
-        } else {
-            if (isChanged[i]) {
-                this.setState({changeCount: this.state.changeCount - 1});
-            }
-            isChanged[i] = false;
-        }
+    private syncState(rows: Row<T>[]) {
         this.setState({rows});
         this.setState({data: this.raw(rows)});
     }
