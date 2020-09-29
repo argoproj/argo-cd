@@ -10,7 +10,6 @@ interface CardRowProps<T> {
     selected: boolean;
     toggleSelect: () => void;
     onChange: (value: T | string) => void;
-    index?: number;
 }
 
 export function FieldLabels(fields: FieldData[], edit: boolean): React.ReactFragment {
@@ -91,7 +90,6 @@ export class CardRow<T> extends React.Component<CardRowProps<T>> {
                                     field={field}
                                     onChange={val => update(val, field.name as keyof T)}
                                     data={this.isString(d) ? d : (GetProp(d as T, field.name as keyof T) || '').toString()}
-                                    index={this.props.index || 0}
                                 />
                             </div>
                         );

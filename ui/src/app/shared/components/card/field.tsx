@@ -24,7 +24,6 @@ interface ArgoFieldProps {
     field: FieldData;
     onChange: (value: string) => void;
     data: string;
-    index: number;
 }
 
 export class ArgoField extends React.Component<ArgoFieldProps> {
