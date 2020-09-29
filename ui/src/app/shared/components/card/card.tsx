@@ -2,7 +2,7 @@ import {Tooltip} from 'argo-ui';
 import * as React from 'react';
 import {GetProp} from '../../../settings/components/utils';
 import {FieldData} from './field';
-import {CardRow, FieldLabels} from './row';
+import {CardRow} from './row';
 
 require('./card.scss');
 
@@ -109,7 +109,14 @@ export class Card<T> extends React.Component<CardProps<T>, CardState<T>> {
                     </div>
                     {this.state.data && this.state.data.length > 0 ? (
                         <React.Fragment>
-                            {FieldLabels(this.props.fields, this.state.edit)}
+                            <div className='card__row'>
+                                {this.state.edit && <div className='card__col-select-button card__col' />}
+                                {this.props.fields.map(field => (
+                                    <div className={`card__ card__col card__col-${field.size}`} key={field.name + 'label'}>
+                                        <b>{field.name.toUpperCase()}</b>
+                                    </div>
+                                ))}
+                            </div>
                             {this.state.edit ? (
                                 <React.Fragment>
                                     {(this.state.rows || []).map((row, i) => {

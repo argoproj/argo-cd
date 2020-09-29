@@ -12,19 +12,6 @@ interface CardRowProps<T> {
     onChange: (value: T | string) => void;
 }
 
-export function FieldLabels(fields: FieldData[], edit: boolean): React.ReactFragment {
-    return (
-        <div className='card__row'>
-            {edit && <div className='card__col-select-button card__col' />}
-            {fields.map(field => (
-                <div className={`card__ card__col card__col-${field.size}`} key={field.name + 'label'}>
-                    <b>{field.name.toUpperCase()}</b>
-                </div>
-            ))}
-        </div>
-    );
-}
-
 export class CardRow<T> extends React.Component<CardRowProps<T>> {
     get disabled(): boolean {
         if (!this.props.data) {

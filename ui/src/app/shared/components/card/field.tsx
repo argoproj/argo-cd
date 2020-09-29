@@ -28,14 +28,13 @@ interface ArgoFieldProps {
 
 export class ArgoField extends React.Component<ArgoFieldProps> {
     public render() {
-        const field = this.props.field;
         let format;
-        switch (field.type) {
+        switch (this.props.field.type) {
             case FieldTypes.AutoComplete:
                 format = (
                     <ReactAutocomplete
                         wrapperStyle={{display: 'block', width: '100%'}}
-                        items={field.values || []}
+                        items={this.props.field.values || []}
                         onSelect={(_, item: string) => {
                             this.props.onChange(item);
                         }}
@@ -56,7 +55,7 @@ export class ArgoField extends React.Component<ArgoFieldProps> {
                             }
                             return <div style={{...style, ...this.menuStyle, display: 'block', color: 'white', zIndex: 10, maxHeight: '20em'}} children={menuItems} />;
                         }}
-                        renderInput={inputProps => <input {...inputProps} className='argo-field' placeholder={field.name} />}
+                        renderInput={inputProps => <input {...inputProps} className='argo-field' placeholder={this.props.field.name} />}
                     />
                 );
                 break;
@@ -67,14 +66,14 @@ export class ArgoField extends React.Component<ArgoFieldProps> {
                         className='argo-field'
                         value={this.props.data ? this.props.data.toString() : ''}
                         onChange={e => this.props.onChange(e.target.value)}
-                        placeholder={field.name}
+                        placeholder={this.props.field.name}
                     />
                 );
         }
         return (
             <div style={{width: '100%', display: 'flex'}}>
                 {format}
-                {field.type === FieldTypes.Url && this.props.data !== '' && this.props.data !== null && this.props.data !== '*' ? (
+                {this.props.field.type === FieldTypes.Url && this.props.data !== '' && this.props.data !== null && this.props.data !== '*' ? (
                     <a href={this.props.data as string} target='_blank'>
                         <i className='fas fa-link' />
                     </a>
