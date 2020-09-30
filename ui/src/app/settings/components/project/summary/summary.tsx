@@ -29,6 +29,7 @@ interface SummaryProps {
 }
 
 interface ProjectFields {
+    labels: FieldData[];
     sources: FieldData[];
     destinations: FieldData[];
     resources: FieldData[];
@@ -40,6 +41,7 @@ interface SummaryState extends ProjectSpec {
     name: string;
     description: string;
     proj: Project;
+    labels: {key: string; value: string}[];
     fields: ProjectFields;
 }
 
@@ -75,6 +77,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
     constructor(props: SummaryProps) {
         super(props);
         const fields: ProjectFields = {
+            labels: [{name: 'key', type: FieldTypes.Text, size: FieldSizes.Grow}, {name: 'value', type: FieldTypes.Text, size: FieldSizes.Grow}],
             sources: [{name: 'url', type: FieldTypes.Url, size: FieldSizes.Grow}],
             destinations: [{name: 'namespace', type: FieldTypes.Text, size: FieldSizes.Normal}, {name: 'server', type: FieldTypes.Text, size: FieldSizes.Grow}],
             resources: [
@@ -90,6 +93,7 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
         };
         this.state = {
             name: props.proj.metadata.name,
+            labels: Object.keys(props.proj.metadata.labels || []).map(key => ({key, value: props.proj.metadata.labels[key]})),
             proj: props.proj,
             ...props.proj.spec,
             fields
@@ -149,6 +153,25 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             ) : null}
                         </div>
                     </div>
+                </div>
+                <div className='project-summary__section'>
+                    <div className='project-summary__label'>LABELS</div>
+                    <Card<{key: string; value: string}>
+                        title='Labels'
+                        fields={this.state.fields.labels}
+                        values={this.state.labels}
+                        save={async pairs => {
+                            const labels: {[name: string]: string} = {};
+                            pairs.forEach(({key, value}) => {
+                                labels[key] = value;
+                            });
+                            const update = this.state.proj;
+                            update.metadata.labels = labels;
+                            const res = await services.projects.updateProj(update);
+                            this.updateProject(res);
+                        }}
+                        fullWidth={true}
+                    />
                 </div>
                 <div className='project-summary__section'>
                     <div className='project-summary__label'>
@@ -315,8 +338,8 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
             const cur = GetProp(proj.spec, key as keyof ProjectSpec);
             SetProp(update, key as keyof ProjectSpec, cur);
         }
+        update.labels = Object.keys(proj.metadata.labels || []).map(key => ({key, value: proj.metadata.labels[key]}));
         this.setState(update);
-        this.setState({name: proj.metadata.name, proj});
     }
     private async save<T>(key: keyof ProjectSpec, values: T[]): Promise<any> {
         const update = {...this.state.proj};
