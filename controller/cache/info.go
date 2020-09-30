@@ -2,6 +2,7 @@ package cache
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
@@ -10,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	k8snode "k8s.io/kubernetes/pkg/util/node"
 
+	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/resource"
 )
@@ -35,6 +37,15 @@ func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 		case kube.IngressKind:
 			populateIngressInfo(un, res)
 			return
+		}
+	}
+
+	for k, v := range un.GetAnnotations() {
+		if strings.HasPrefix(k, common.AnnotationKeyLinkPrefix) {
+			if res.NetworkingInfo == nil {
+				res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{}
+			}
+			res.NetworkingInfo.ExternalURLs = append(res.NetworkingInfo.ExternalURLs, v)
 		}
 	}
 }
@@ -142,7 +153,11 @@ func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	for target := range targetsMap {
 		targets = append(targets, target)
 	}
-	urls := make([]string, 0)
+
+	var urls []string
+	if res.NetworkingInfo != nil {
+		urls = res.NetworkingInfo.ExternalURLs
+	}
 	for url := range urlsSet {
 		urls = append(urls, url)
 	}
