@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/url"
@@ -133,12 +134,13 @@ type operationSettings struct {
 func (s *Service) runRepoOperation(
 	ctx context.Context,
 	revision string,
+	inputParam interface{},
 	repo *v1alpha1.Repository,
 	source *v1alpha1.ApplicationSource,
 	verifyCommit bool,
-	getCached func(revision string) bool,
-	operation func(appPath, repoRoot, revision, verifyResult string) error,
-	settings operationSettings) error {
+	getCached func(revision string, inputParam interface{}, firstInvocation bool) (bool, interface{}, error),
+	operation func(appPath, repoRoot, revision, verifyResult string, inputParam interface{}) (interface{}, error),
+	settings operationSettings) (interface{}, error) {
 
 	var gitClient git.Client
 	var helmClient helm.Client
@@ -148,17 +150,21 @@ func (s *Service) runRepoOperation(
 	if source.IsHelm() {
 		helmClient, revision, err = s.newHelmClientResolveRevision(repo, revision, source.Chart)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	} else {
 		gitClient, revision, err = s.newClientResolveRevision(repo, revision)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
-	if !settings.noCache && getCached(revision) {
-		return nil
+	if !settings.noCache {
+
+		result, obj, err := getCached(revision, inputParam, true)
+		if result {
+			return obj, err
+		}
 	}
 
 	s.metricsServer.IncPendingRepoRequest(repo.Repo)
@@ -167,7 +173,7 @@ func (s *Service) runRepoOperation(
 	if settings.sem != nil {
 		err = settings.sem.Acquire(ctx, 1)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		defer settings.sem.Release(1)
 	}
@@ -175,42 +181,45 @@ func (s *Service) runRepoOperation(
 	if source.IsHelm() {
 		version, err := semver.NewVersion(revision)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if settings.noCache {
 			err = helmClient.CleanChartCache(source.Chart, version)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 		chartPath, closer, err := helmClient.ExtractChart(source.Chart, version)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		defer io.Close(closer)
-		return operation(chartPath, chartPath, revision, "")
+		return operation(chartPath, chartPath, revision, "", inputParam)
 	} else {
 		s.repoLock.Lock(gitClient.Root())
 		defer s.repoLock.Unlock(gitClient.Root())
 		// double-check locking
-		if !settings.noCache && getCached(revision) {
-			return nil
+		if !settings.noCache {
+			result, obj, err := getCached(revision, inputParam, false)
+			if result {
+				return obj, err
+			}
 		}
 		_, err = checkoutRevision(gitClient, revision, log.WithField("repo", repo.Repo))
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if verifyCommit {
 			signature, err = gitClient.VerifyCommitSignature(revision)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 		appPath, err := argopath.Path(gitClient.Root(), source.Path)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		return operation(appPath, gitClient.Root(), revision, signature)
+		return operation(appPath, gitClient.Root(), revision, signature, inputParam)
 	}
 }
 
@@ -218,177 +227,206 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	return s.generateManifest(ctx, q, nil)
 }
 
-func (s *Service) generateManifest(ctx context.Context, q *apiclient.ManifestRequest, testUtil *generateManifestTestUtil) (*apiclient.ManifestResponse, error) {
-	sharedRes := &apiclient.ManifestResponse{}
+func (s *Service) generateManifest(ctx context.Context, q *apiclient.ManifestRequest, testUtilParam *generateManifestTestUtil) (*apiclient.ManifestResponse, error) {
 
-	// Cached manifest generation errors will be returned via this
-	var cachedErrorResponse error = nil
+	runRepoInput := manifestRunOperationParams{
+		req:      q,
+		testUtil: testUtilParam,
+	}
 
-	// Prevent double increments of cached response value when getCached(...) is called twice by this function.
-	incrementedCachedResponses := false
+	resultUncast, err := s.runRepoOperation(ctx, q.Revision, runRepoInput, q.Repo, q.ApplicationSource, q.VerifySignature,
+		s.getManifestCacheEntry, s.runManifestGen, operationSettings{sem: s.parallelismLimitSemaphore, noCache: q.NoCache})
 
-	// getCached returns false if the below 'generate manifests' operation should be run, eg:
-	// - If the cache result is empty for the requested key
-	// - If the cache is not empty, but the cached value is a manifest generation error AND we have not yet met the failure threshold (eg res.NumberOfConsecutiveFailures > 0 && res.NumberOfConsecutiveFailures <  s.initConstants.PauseGenerationAfterFailedGenerationAttempts)
-	// - If the cache is not empty, but the cache value is an error AND that generation error has expired
-	// and returns true otherwise.
-	getCached := func(revision string) bool {
-		err := s.cache.GetManifests(revision, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, &sharedRes)
-		if err == nil {
+	result, ok := resultUncast.(*apiclient.ManifestResponse)
 
-			// The cache contains an existing value
+	if result != nil && !ok {
+		return nil, errors.New("unexpected result type")
+	}
 
-			// If caching of manifest generation errors is enabled, and res is a cached manifest generation error...
-			if s.initConstants.PauseGenerationAfterFailedGenerationAttempts > 0 && sharedRes.FirstFailureTimestamp > 0 {
+	return result, err
+}
 
-				// If we are already in the 'manifest generation caching' state, due to too many consecutive failures...
-				if int(sharedRes.NumberOfConsecutiveFailures) >= s.initConstants.PauseGenerationAfterFailedGenerationAttempts {
+// manifestRunOperationParams is passed into runRepoOperation(...), which passes it to getManifestCacheEntry(...)
+// and runManifestGen(...)
+type manifestRunOperationParams struct {
+	req      *apiclient.ManifestRequest
+	testUtil *generateManifestTestUtil
+}
 
-					// Check if enough time has passed to try generation again (eg to exit the 'manifest generation caching' state)
-					if s.initConstants.PauseGenerationOnFailureForMinutes > 0 {
+// runManifestGenwill be called by runRepoOperation if:
+// - the cache does not contain a value for this key
+// - or, the cache does contain a value for this key, but it is an expired manifest generation entry
+// - or, NoCache is true
+func (s *Service) runManifestGen(appPath, repoRoot, revision, verifyResult string, inputParam interface{}) (interface{}, error) {
 
-						now := time.Now()
-						// Allow substitution of a new current time for unit testing purposes
-						if testUtil != nil && testUtil.currentTime != nil {
-							now = *testUtil.currentTime
-						}
+	getManifestParam, ok := inputParam.(manifestRunOperationParams)
+	if !ok {
+		return nil, errors.New("invalid input parameter passed to function")
+	}
 
-						elapsedTimeInMinutes := int((now.Unix() - sharedRes.FirstFailureTimestamp) / 60)
+	testUtil := getManifestParam.testUtil
+	q := getManifestParam.req
 
-						// After X minutes, reset the cache and retry the operation (eg perhaps the error is ephemeral and has passed)
-						if elapsedTimeInMinutes >= s.initConstants.PauseGenerationOnFailureForMinutes {
-							// We can now try again, so reset the cache state and run the operation below
-							err = s.cache.DeleteManifests(revision, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue)
-							if err != nil {
-								log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), revision, err)
-							}
-							log.Infof("manifest error cache hit and reset: %s/%s", q.ApplicationSource.String(), revision)
-							return false
-						}
-					}
+	outerRes, err := GenerateManifests(appPath, repoRoot, revision, q, false)
+	if err != nil {
 
-					// Check if enough cached responses have been returned to try generation again (eg to exit the 'manifest generation caching' state)
-					if s.initConstants.PauseGenerationOnFailureForRequests > 0 && sharedRes.NumberOfCachedResponsesReturned > 0 {
+		// If manifest generation error caching is enabled
+		if s.initConstants.PauseGenerationAfterFailedGenerationAttempts > 0 {
 
-						if int(sharedRes.NumberOfCachedResponsesReturned) >= s.initConstants.PauseGenerationOnFailureForRequests {
-							// We can now try again, so reset the error cache state and run the operation below
-							err = s.cache.DeleteManifests(revision, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue)
-							if err != nil {
-								log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), revision, err)
-							}
-							log.Infof("manifest error cache hit and reset: %s/%s", q.ApplicationSource.String(), revision)
-							return false
-						}
-					}
-
-					// Otherwise, manifest generation is still paused
-					log.Infof("manifest error cache hit: %s/%s", q.ApplicationSource.String(), revision)
-
-					cachedErrorResponse = fmt.Errorf(cachedManifestGenerationPrefix+": %s", sharedRes.MostRecentError)
-					if testUtil != nil {
-						testUtil.recentCachedRes = sharedRes
-					}
-
-					if !incrementedCachedResponses {
-						// Increment the number of returned cached responses and push that new value to the cache
-						// (if we have not already done so previously in this function)
-						sharedRes.NumberOfCachedResponsesReturned++
-						err = s.cache.SetManifests(revision, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, &sharedRes)
-						if err != nil {
-							log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), revision, err)
-						}
-						incrementedCachedResponses = true
-					}
-
-					return true
-
-				}
-				// Otherwise we are not yet in the manifest generation error state, and not enough consecutive errors have
-				// yet occurred to put us in that state.
-
-				log.Infof("manifest error cache miss: %s/%s", q.ApplicationSource.String(), revision)
-				return false
+			// Retrieve a new copy (if available) of the cached response: this ensures we are updating the latest copy of the cache,
+			// rather than a copy of the cache that occurred before (a potentially lengthy) manifest generation.
+			innerRes := &apiclient.ManifestResponse{}
+			cacheErr := s.cache.GetManifests(revision, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, &innerRes)
+			if cacheErr != nil && cacheErr != reposervercache.ErrCacheMiss {
+				log.Warnf("manifest cache set error %s: %v", q.ApplicationSource.String(), cacheErr)
+				return nil, cacheErr
 			}
 
-			log.Infof("manifest cache hit: %s/%s", q.ApplicationSource.String(), revision)
-			return true
-		}
+			// If this is the first error we have seen, store the time (we only use the first failure, as this
+			// value is used for PauseGenerationOnFailureForMinutes)
+			if innerRes.FirstFailureTimestamp == 0 {
+				now := time.Now()
 
-		if err != reposervercache.ErrCacheMiss {
-			log.Warnf("manifest cache error %s: %v", q.ApplicationSource.String(), err)
-		} else {
-			log.Infof("manifest cache miss: %s/%s", q.ApplicationSource.String(), revision)
-		}
-		return false
-	}
-	err := s.runRepoOperation(ctx, q.Revision, q.Repo, q.ApplicationSource, q.VerifySignature, getCached, func(appPath, repoRoot, revision, verifyResult string) error {
-		// This internal function will be called if:
-		// - the cache does not contain a value for this key
-		// - or, the cache does contain a value for this key, but it is an expired manifest generation entry
-		// - or, NoCache is true
-		cachedErrorResponse = nil
-
-		var err error
-		sharedRes, err = GenerateManifests(appPath, repoRoot, revision, q, false)
-		if err != nil {
-
-			// If manifest generation error caching is enabled
-			if s.initConstants.PauseGenerationAfterFailedGenerationAttempts > 0 {
-
-				// Retrieve a new copy (if available) of the cached response: this ensures we are updating the latest copy of the cache,
-				// rather than a copy of the cache that occurred before (a potentially lengthy) manifest generation.
-				localRes := &apiclient.ManifestResponse{}
-				cacheErr := s.cache.GetManifests(revision, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, &localRes)
-				if cacheErr != nil && cacheErr != reposervercache.ErrCacheMiss {
-					log.Warnf("manifest cache set error %s: %v", q.ApplicationSource.String(), cacheErr)
-					return cacheErr
+				// Allow substitution of a new current time for unit testing purposes
+				if testUtil != nil && testUtil.currentTime != nil {
+					now = *testUtil.currentTime
 				}
 
-				// If this is the first error we have seen, store the time (we only use the first failure, as this
-				// value is used for PauseGenerationOnFailureForMinutes)
-				if localRes.FirstFailureTimestamp == 0 {
-					now := time.Now()
+				innerRes.FirstFailureTimestamp = now.Unix()
+			}
 
+			// Update the cache to include failure information
+			innerRes.NumberOfConsecutiveFailures++
+			innerRes.MostRecentError = err.Error()
+			if testUtil != nil {
+				testUtil.recentCachedRes = innerRes
+			}
+			cacheErr = s.cache.SetManifests(revision, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, &innerRes)
+			if cacheErr != nil {
+				log.Warnf("manifest cache set error %s: %v", q.ApplicationSource.String(), cacheErr)
+				return nil, cacheErr
+			}
+
+		}
+		return nil, err
+	}
+
+	// Otherwise, no error occurred, so ensure the manifest generation error data in the cache entry is reset before we cache the value
+	resetManifestResponseErrorCache(outerRes)
+	outerRes.Revision = revision
+	outerRes.VerifyResult = verifyResult
+	err = s.cache.SetManifests(revision, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, &outerRes)
+	if err != nil {
+		log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), revision, err)
+	}
+	return outerRes, nil
+}
+
+// getManifestCacheEntry returns false if the 'generate manifests' operation should be run by runRepoOperation, eg:
+// - If the cache result is empty for the requested key
+// - If the cache is not empty, but the cached value is a manifest generation error AND we have not yet met the failure threshold (eg res.NumberOfConsecutiveFailures > 0 && res.NumberOfConsecutiveFailures <  s.initConstants.PauseGenerationAfterFailedGenerationAttempts)
+// - If the cache is not empty, but the cache value is an error AND that generation error has expired
+// and returns true otherwise.
+//
+// If true is returned, either the second or third parameter (but not both) will contain a value from the cache.
+func (s *Service) getManifestCacheEntry(revision string, inputParam interface{}, firstInvocation bool) (bool, interface{}, error) {
+	res := &apiclient.ManifestResponse{}
+
+	getManifestParam, ok := inputParam.(manifestRunOperationParams)
+	if !ok {
+		return false, errors.New("invalid input parameter passed to function"), nil
+	}
+
+	q := getManifestParam.req
+	testUtil := getManifestParam.testUtil
+
+	err := s.cache.GetManifests(revision, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, &res)
+	if err == nil {
+
+		// The cache contains an existing value
+
+		// If caching of manifest generation errors is enabled, and res is a cached manifest generation error...
+		if s.initConstants.PauseGenerationAfterFailedGenerationAttempts > 0 && res.FirstFailureTimestamp > 0 {
+
+			// If we are already in the 'manifest generation caching' state, due to too many consecutive failures...
+			if int(res.NumberOfConsecutiveFailures) >= s.initConstants.PauseGenerationAfterFailedGenerationAttempts {
+
+				// Check if enough time has passed to try generation again (eg to exit the 'manifest generation caching' state)
+				if s.initConstants.PauseGenerationOnFailureForMinutes > 0 {
+
+					now := time.Now()
 					// Allow substitution of a new current time for unit testing purposes
 					if testUtil != nil && testUtil.currentTime != nil {
 						now = *testUtil.currentTime
 					}
 
-					localRes.FirstFailureTimestamp = now.Unix()
+					elapsedTimeInMinutes := int((now.Unix() - res.FirstFailureTimestamp) / 60)
+
+					// After X minutes, reset the cache and retry the operation (eg perhaps the error is ephemeral and has passed)
+					if elapsedTimeInMinutes >= s.initConstants.PauseGenerationOnFailureForMinutes {
+						// We can now try again, so reset the cache state and run the operation below
+						err = s.cache.DeleteManifests(revision, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue)
+						if err != nil {
+							log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), revision, err)
+						}
+						log.Infof("manifest error cache hit and reset: %s/%s", q.ApplicationSource.String(), revision)
+						return false, nil, nil
+					}
 				}
 
-				localRes.NumberOfConsecutiveFailures++
-				localRes.MostRecentError = err.Error()
+				// Check if enough cached responses have been returned to try generation again (eg to exit the 'manifest generation caching' state)
+				if s.initConstants.PauseGenerationOnFailureForRequests > 0 && res.NumberOfCachedResponsesReturned > 0 {
+
+					if int(res.NumberOfCachedResponsesReturned) >= s.initConstants.PauseGenerationOnFailureForRequests {
+						// We can now try again, so reset the error cache state and run the operation below
+						err = s.cache.DeleteManifests(revision, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue)
+						if err != nil {
+							log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), revision, err)
+						}
+						log.Infof("manifest error cache hit and reset: %s/%s", q.ApplicationSource.String(), revision)
+						return false, nil, nil
+					}
+				}
+
+				// Otherwise, manifest generation is still paused
+				log.Infof("manifest error cache hit: %s/%s", q.ApplicationSource.String(), revision)
+
+				cachedErrorResponse := fmt.Errorf(cachedManifestGenerationPrefix+": %s", res.MostRecentError)
 				if testUtil != nil {
-					testUtil.recentCachedRes = localRes
+					testUtil.recentCachedRes = res
 				}
 
-				cacheErr = s.cache.SetManifests(revision, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, &localRes)
-				if cacheErr != nil {
-					log.Warnf("manifest cache set error %s: %v", q.ApplicationSource.String(), cacheErr)
-					return cacheErr
+				if firstInvocation {
+					// Increment the number of returned cached responses and push that new value to the cache
+					// (if we have not already done so previously in this function)
+					res.NumberOfCachedResponsesReturned++
+					err = s.cache.SetManifests(revision, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, &res)
+					if err != nil {
+						log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), revision, err)
+					}
 				}
 
-				sharedRes = nil
+				return true, nil, cachedErrorResponse
+
 			}
-			return err
+
+			// Otherwise we are not yet in the manifest generation error state, and not enough consecutive errors have
+			// yet occurred to put us in that state.
+			log.Infof("manifest error cache miss: %s/%s", q.ApplicationSource.String(), revision)
+			return false, res, nil
 		}
 
-		// Otherwise, no error occurred, so ensure the manifest generation error data in the cache entry is reset before we cache the value
-		resetManifestResponseErrorCache(sharedRes)
-		sharedRes.Revision = revision
-		sharedRes.VerifyResult = verifyResult
-		err = s.cache.SetManifests(revision, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, &sharedRes)
-		if err != nil {
-			log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), revision, err)
-		}
-		return nil
-	}, operationSettings{sem: s.parallelismLimitSemaphore, noCache: q.NoCache})
-
-	if cachedErrorResponse != nil {
-		return nil, cachedErrorResponse
+		log.Infof("manifest cache hit: %s/%s", q.ApplicationSource.String(), revision)
+		return true, res, nil
 	}
-	return sharedRes, err
+
+	if err != reposervercache.ErrCacheMiss {
+		log.Warnf("manifest cache error %s: %v", q.ApplicationSource.String(), err)
+	} else {
+		log.Infof("manifest cache miss: %s/%s", q.ApplicationSource.String(), revision)
+	}
+
+	return false, nil, nil
 }
 
 // generateManifestTestUtil allows introspection of the error cache by generateManifest unit tests
@@ -902,26 +940,30 @@ func runConfigManagementPlugin(appPath string, envVars *v1alpha1.Env, q *apiclie
 }
 
 func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppDetailsQuery) (*apiclient.RepoAppDetailsResponse, error) {
-	res := &apiclient.RepoAppDetailsResponse{}
-	getCached := func(revision string) bool {
+
+	getCached := func(revision string, _ interface{}, _ bool) (bool, interface{}, error) {
+		res := &apiclient.RepoAppDetailsResponse{}
 		err := s.cache.GetAppDetails(revision, q.Source, &res)
 		if err == nil {
 			log.Infof("app details cache hit: %s/%s", revision, q.Source.Path)
-			return true
-		} else {
-			if err != reposervercache.ErrCacheMiss {
-				log.Warnf("app details cache error %s: %v", revision, q.Source)
-			} else {
-				log.Infof("app details cache miss: %s/%s", revision, q.Source)
-			}
+			return true, res, nil
 		}
-		return false
+
+		if err != reposervercache.ErrCacheMiss {
+			log.Warnf("app details cache error %s: %v", revision, q.Source)
+		} else {
+			log.Infof("app details cache miss: %s/%s", revision, q.Source)
+		}
+		return false, nil, nil
+
 	}
 
-	err := s.runRepoOperation(ctx, q.Source.TargetRevision, q.Repo, q.Source, false, getCached, func(appPath, repoRoot, revision, verifyResult string) error {
+	resultUncast, err := s.runRepoOperation(ctx, q.Source.TargetRevision, nil, q.Repo, q.Source, false, getCached, func(appPath, repoRoot, revision, verifyResult string, _ interface{}) (interface{}, error) {
+
+		res := &apiclient.RepoAppDetailsResponse{}
 		appSourceType, err := GetAppSourceType(q.Source, appPath)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		res.Type = string(appSourceType)
@@ -931,15 +973,15 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 			var ksonnetAppSpec apiclient.KsonnetAppSpec
 			data, err := ioutil.ReadFile(filepath.Join(appPath, "app.yaml"))
 			if err != nil {
-				return err
+				return nil, err
 			}
 			err = yaml.Unmarshal(data, &ksonnetAppSpec)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			ksApp, err := ksonnet.NewKsonnetApp(appPath)
 			if err != nil {
-				return status.Errorf(codes.FailedPrecondition, "unable to load application from %s: %v", appPath, err)
+				return nil, status.Errorf(codes.FailedPrecondition, "unable to load application from %s: %v", appPath, err)
 			}
 			env := ""
 			if q.Source.Ksonnet != nil {
@@ -947,7 +989,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 			}
 			params, err := ksApp.ListParams(env)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			ksonnetAppSpec.Parameters = params
 			res.Ksonnet = &ksonnetAppSpec
@@ -955,7 +997,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 			res.Helm = &apiclient.HelmAppSpec{}
 			files, err := ioutil.ReadDir(appPath)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			for _, f := range files {
 				if f.IsDir() {
@@ -974,25 +1016,25 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 			}
 			h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos), false, version)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			defer h.Dispose()
 			err = h.Init()
 			if err != nil {
-				return err
+				return nil, err
 			}
 			valuesPath := filepath.Join(appPath, "values.yaml")
 			info, err := os.Stat(valuesPath)
 			if err == nil && !info.IsDir() {
 				bytes, err := ioutil.ReadFile(valuesPath)
 				if err != nil {
-					return err
+					return nil, err
 				}
 				res.Helm.Values = string(bytes)
 			}
 			params, err := h.GetParameters(valueFiles(q))
 			if err != nil {
-				return err
+				return nil, err
 			}
 			for k, v := range params {
 				res.Helm.Parameters = append(res.Helm.Parameters, &v1alpha1.HelmParameter{
@@ -1015,15 +1057,20 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 			k := kustomize.NewKustomizeApp(appPath, q.Repo.GetGitCreds(), q.Repo.Repo, kustomizeBinary)
 			_, images, err := k.Build(q.Source.Kustomize, q.KustomizeOptions)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			res.Kustomize.Images = images
 		}
 		_ = s.cache.SetAppDetails(revision, q.Source, res)
-		return nil
+		return res, nil
 	}, operationSettings{})
 
-	return res, err
+	result, ok := resultUncast.(*apiclient.RepoAppDetailsResponse)
+	if result != nil && !ok {
+		return nil, errors.New("unexpected result type")
+	}
+
+	return result, err
 }
 
 func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServerRevisionMetadataRequest) (*v1alpha1.RevisionMetadata, error) {
