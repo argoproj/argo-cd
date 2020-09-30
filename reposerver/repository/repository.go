@@ -131,6 +131,11 @@ type operationSettings struct {
 }
 
 // runRepoOperation downloads either git folder or helm chart and executes specified operation
+// - Returns a value from the cache if present (by calling getCached(...)); if no value is present, the
+// provide operation(...) is called. The specific return type of this function is determined by the
+// calling function, via the provided  getCached(...) and operation(...) function.
+// - Calling functions can inject custom objects via the inputParam parameter, which will be passed
+// into getCached(...) and operation(...).
 func (s *Service) runRepoOperation(
 	ctx context.Context,
 	revision string,

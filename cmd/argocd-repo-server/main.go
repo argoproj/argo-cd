@@ -29,10 +29,9 @@ const (
 	cliName         = "argocd-repo-server"
 	gnuPGSourcePath = "/app/config/gpg/source"
 
-	// disabled by default
-	defaultPauseGenerationAfterFailedGenerationAttempts = 0
+	defaultPauseGenerationAfterFailedGenerationAttempts = 3
 	defaultPauseGenerationOnFailureForMinutes           = 0
-	defaultPauseGenerationOnFailureForRequests          = 0
+	defaultPauseGenerationOnFailureForRequests          = 12
 )
 
 func getGnuPGSourcePath() string {
