@@ -1,4 +1,5 @@
 import {DataLoader, Tab, Tabs} from 'argo-ui';
+import * as moment from 'moment';
 import * as React from 'react';
 
 import {YamlEditor} from '../../../shared/components';
@@ -23,7 +24,10 @@ export const ApplicationNodeInfo = (props: {
     if (props.node.createdAt) {
         attributes.push({
             title: 'CREATED_AT',
-            value: props.node.createdAt
+            value: moment
+                .utc(props.node.createdAt)
+                .local()
+                .format('MM/DD/YYYY HH:mm:ss')
         });
     }
     if ((props.node.images || []).length) {

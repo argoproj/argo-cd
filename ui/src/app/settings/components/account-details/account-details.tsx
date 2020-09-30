@@ -92,7 +92,7 @@ export const AccountDetails = (props: RouteComponentProps<{name: string}>) => {
                                 <div className='white-box account-details__new-token'>
                                     <h5>New Token:</h5>
                                     <p>{newToken}</p>
-                                    <i className='fa fa-times account-details__remove-token' onClick={() => setNewToken(null)} />
+                                    <i className='fa fa-times account-details__remove-token' title='Remove' onClick={() => setNewToken(null)} />
                                 </div>
                             )}
                             <DataLoader ref={tokensLoaderRef} input={props.match.params.name} load={(name: string) => services.accounts.get(name).then(acc => acc.tokens || [])}>
@@ -117,6 +117,7 @@ export const AccountDetails = (props: RouteComponentProps<{name: string}>) => {
                                                             {(token.expiresAt && <Timestamp date={token.expiresAt * 1000} />) || <span>Never</span>}
                                                             <i
                                                                 className='fa fa-times account-details__remove-token'
+                                                                title='Delete'
                                                                 onClick={async () => {
                                                                     const confirmed = await ctx.popup.confirm(
                                                                         'Delete Token?',

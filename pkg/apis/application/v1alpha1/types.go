@@ -1844,15 +1844,23 @@ func (s *SyncWindows) HasWindows() bool {
 }
 
 func (s *SyncWindows) Active() *SyncWindows {
+	return s.active(time.Now())
+}
+
+func (s *SyncWindows) active(currentTime time.Time) *SyncWindows {
+
+	// If SyncWindows.Active() is called outside of a UTC locale, it should be
+	// first converted to UTC before we scan through the SyncWindows.
+	currentTime = currentTime.In(time.UTC)
+
 	if s.HasWindows() {
 		var active SyncWindows
 		specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
 		for _, w := range *s {
 			schedule, _ := specParser.Parse(w.Schedule)
 			duration, _ := time.ParseDuration(w.Duration)
-			now := time.Now()
-			nextWindow := schedule.Next(now.Add(-duration))
-			if nextWindow.Before(now) {
+			nextWindow := schedule.Next(currentTime.Add(-duration))
+			if nextWindow.Before(currentTime) {
 				active = append(active, w)
 			}
 		}
@@ -1864,6 +1872,15 @@ func (s *SyncWindows) Active() *SyncWindows {
 }
 
 func (s *SyncWindows) InactiveAllows() *SyncWindows {
+	return s.inactiveAllows(time.Now())
+}
+
+func (s *SyncWindows) inactiveAllows(currentTime time.Time) *SyncWindows {
+
+	// If SyncWindows.InactiveAllows() is called outside of a UTC locale, it should be
+	// first converted to UTC before we scan through the SyncWindows.
+	currentTime = currentTime.In(time.UTC)
+
 	if s.HasWindows() {
 		var inactive SyncWindows
 		specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
@@ -1871,9 +1888,8 @@ func (s *SyncWindows) InactiveAllows() *SyncWindows {
 			if w.Kind == "allow" {
 				schedule, sErr := specParser.Parse(w.Schedule)
 				duration, dErr := time.ParseDuration(w.Duration)
-				now := time.Now()
-				nextWindow := schedule.Next(now.Add(-duration))
-				if !nextWindow.Before(now) && sErr == nil && dErr == nil {
+				nextWindow := schedule.Next(currentTime.Add(-duration))
+				if !nextWindow.Before(currentTime) && sErr == nil && dErr == nil {
 					inactive = append(inactive, w)
 				}
 			}
@@ -2043,12 +2059,21 @@ func (w *SyncWindows) manualEnabled() bool {
 }
 
 func (w SyncWindow) Active() bool {
+	return w.active(time.Now())
+}
+
+func (w SyncWindow) active(currentTime time.Time) bool {
+
+	// If SyncWindow.Active() is called outside of a UTC locale, it should be
+	// first converted to UTC before searc
+	currentTime = currentTime.UTC()
+
 	specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
 	schedule, _ := specParser.Parse(w.Schedule)
 	duration, _ := time.ParseDuration(w.Duration)
-	now := time.Now()
-	nextWindow := schedule.Next(now.Add(-duration))
-	return nextWindow.Before(now)
+
+	nextWindow := schedule.Next(currentTime.Add(-duration))
+	return nextWindow.Before(currentTime)
 }
 
 func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []string) error {

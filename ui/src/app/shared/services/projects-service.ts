@@ -113,6 +113,13 @@ export class ProjectsService {
             .then(res => res.body as models.Project);
     }
 
+    public async updateProj(project: models.Project): Promise<models.Project> {
+        return requests
+            .put(`/projects/${project.metadata.name}`)
+            .send({project})
+            .then(res => res.body as models.Project);
+    }
+
     public async update(params: ProjectParams): Promise<models.Project> {
         const proj = await this.get(params.name);
         const update = paramsToProj(params);

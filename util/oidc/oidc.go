@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/pkg/jwt/zjwt"
 	gooidc "github.com/coreos/go-oidc"
 	"github.com/dgrijalva/jwt-go"
 	log "github.com/sirupsen/logrus"
@@ -22,7 +23,6 @@ import (
 	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
 	"github.com/argoproj/argo-cd/util/dex"
 	httputil "github.com/argoproj/argo-cd/util/http"
-	"github.com/argoproj/argo-cd/util/jwt/zjwt"
 	"github.com/argoproj/argo-cd/util/rand"
 	"github.com/argoproj/argo-cd/util/settings"
 )

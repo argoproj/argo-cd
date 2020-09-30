@@ -35,7 +35,7 @@ type ActionMenuItem = MenuItem & {disabled?: boolean};
 
 export class ApplicationDetails extends React.Component<RouteComponentProps<{name: string}>, {page: number}> {
     public static contextTypes = {
-        apis: PropTypes.object
+        apis: PropTypes.object,
     };
 
     private appChanged = new BehaviorSubject<appModels.Application>(null);
@@ -170,6 +170,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                     <div className='application-details__view-type'>
                                                         <i
                                                             className={classNames('fa fa-sitemap', {selected: pref.view === 'tree'})}
+                                                            title='Tree'
                                                             onClick={() => {
                                                                 this.appContext.apis.navigation.goto('.', {view: 'tree'});
                                                                 services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'tree'}});
@@ -177,6 +178,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                         />
                                                         <i
                                                             className={classNames('fa fa-network-wired', {selected: pref.view === 'network'})}
+                                                            title='Network'
                                                             onClick={() => {
                                                                 this.appContext.apis.navigation.goto('.', {view: 'network'});
                                                                 services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'network'}});
@@ -184,6 +186,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                         />
                                                         <i
                                                             className={classNames('fa fa-th-list', {selected: pref.view === 'list'})}
+                                                            title='List'
                                                             onClick={() => {
                                                                 this.appContext.apis.navigation.goto('.', {view: 'list'});
                                                                 services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'list'}});
@@ -478,28 +481,28 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         const nodeArray = graph.nodes();
 
         const replicaSetName = nodeArray
-            .filter(nodeA => graph.node(nodeA).kind === 'Pod')
-            .map(nodeA => graph.node(nodeA).parentRefs)
+            .filter((nodeFiltered) => graph.node(nodeFiltered).kind === 'Pod')
+            .map((nodeMapped) => graph.node(nodeMapped).parentRefs)
             .reduce((prev, curr) => [...prev, ...curr], [])
             .filter((parent: ResourceTreeNode) => parent.kind === 'ReplicaSet')
             .map((n: ResourceTreeNode) => n.name);
 
-        const getRs: string[] = nodeArray
-            .map(nodeA => graph.node(nodeA))
-            .filter(nodeA => replicaSetName.find((name: string) => name === nodeA.name))
-            .map(nodeA => nodeA.uid);
+        const getReplicaSets: string[] = nodeArray
+            .map((nodeMapped) => graph.node(nodeMapped))
+            .filter((nodeFiltered) => replicaSetName.find((name: string) => name === nodeFiltered.name))
+            .map((nodeMapped) => nodeMapped.uid);
 
-        const test = (nodeTest: ResourceTreeNode): boolean => {
-            if (nodeTest.kind !== 'ReplicaSet') {
+        const showReplicaSet = (filterNode: ResourceTreeNode): boolean => {
+            if (filterNode.kind !== 'ReplicaSet') {
                 return true;
             }
-            return getRs.find(uid => uid === nodeTest.uid) !== undefined;
+            return getReplicaSets.find((uid) => uid === filterNode.uid) !== undefined;
         };
 
-        return test(node);
+        return showReplicaSet(node);
     }
 
-    private newFilter(node: ResourceTreeNode, filterList: string[], graph?: dagre.graphlib.Graph): boolean {
+    private filterReplicaSets(node: ResourceTreeNode, filterList: string[], graph?: dagre.graphlib.Graph): boolean {
         if (filterList.length === 0) {
             return true;
         }

@@ -18,15 +18,15 @@ import (
 
 	"github.com/Masterminds/semver"
 	"github.com/argoproj/gitops-engine/pkg/utils/io"
+	"github.com/argoproj/pkg/sync"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 
-	"github.com/argoproj/argo-cd/util"
 	executil "github.com/argoproj/argo-cd/util/exec"
 )
 
 var (
-	globalLock = util.NewKeyLock()
+	globalLock = sync.NewKeyLock()
 )
 
 type Creds struct {
@@ -48,7 +48,7 @@ func NewClient(repoURL string, creds Creds) Client {
 	return NewClientWithLock(repoURL, creds, globalLock)
 }
 
-func NewClientWithLock(repoURL string, creds Creds, repoLock *util.KeyLock) Client {
+func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock) Client {
 	return &nativeHelmChart{
 		repoURL:  repoURL,
 		creds:    creds,
@@ -61,7 +61,7 @@ type nativeHelmChart struct {
 	repoPath string
 	repoURL  string
 	creds    Creds
-	repoLock *util.KeyLock
+	repoLock sync.KeyLock
 }
 
 func fileExist(filePath string) (bool, error) {

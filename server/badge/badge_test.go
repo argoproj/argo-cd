@@ -2,6 +2,7 @@ package badge
 
 import (
 	"context"
+	"fmt"
 	"image/color"
 	"net/http"
 	"net/http/httptest"
@@ -166,7 +167,7 @@ func createApplications(appCombo, projectName []string, namespace string) []*v1a
 		a := strings.Split(v, ":")
 		healthApp := healthStatus(a[0])
 		syncApp := syncStatus(a[1])
-		appName := "App" + string(k)
+		appName := fmt.Sprintf("App %v", k)
 		apps[k] = createApplicationFeatureProjectIsEnabled(healthApp, syncApp, appName, projectName[k], namespace)
 	}
 	return apps

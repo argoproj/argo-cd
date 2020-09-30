@@ -1,0 +1,20 @@
+@import 'node_modules/argo-ui/src/styles/config';
+
+.project-details {
+    .white-box__details-row .fa-times {
+        position: absolute;
+        top: 1em;
+        right: 0;
+        cursor: pointer;
+    }
+
+    .select.argo-field {
+        padding: 0;
+    }
+
+    .white-box {
+        .help-tip {
+            color: $argo-color-gray-6;
+        }
+    }
+}
