@@ -170,7 +170,6 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             const res = await services.projects.updateProj(update);
                             this.updateProject(res);
                         }}
-                        fullWidth={true}
                     />
                 </div>
                 <div className='project-summary__section'>
@@ -185,7 +184,6 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             values={this.state.sourceRepos}
                             save={values => this.save<string>(IterableSpecFieldNames.sourceRepos, values as string[])}
                             help={HelpTips.Sources}
-                            fullWidth={true}
                             emptyItem={''}
                         />
                         <Card<ApplicationDestination>
@@ -194,7 +192,6 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             values={this.state.destinations}
                             save={values => this.save(IterableSpecFieldNames.destinations, values as ApplicationDestination[])}
                             help={HelpTips.Destinations}
-                            fullWidth={true}
                         />
                     </div>
                 </div>
@@ -210,7 +207,6 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             values={this.state.clusterResourceWhitelist}
                             save={values => this.save(IterableSpecFieldNames.clusterResourceWhitelist, values as GroupKind[])}
                             help={HelpTips.ClusterResourceWhitelist}
-                            fullWidth={false}
                         />
                         <Card<GroupKind>
                             title='Allowed Namespace Resources'
@@ -218,7 +214,6 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             values={this.state.namespaceResourceWhitelist}
                             save={values => this.save(IterableSpecFieldNames.namespaceResourceWhitelist, values as GroupKind[])}
                             help={HelpTips.NamespaceResourceWhitelist}
-                            fullWidth={false}
                         />
                     </div>
                 </div>
@@ -234,7 +229,6 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             values={this.state.clusterResourceBlacklist}
                             save={values => this.save(IterableSpecFieldNames.clusterResourceBlacklist, values as GroupKind[])}
                             help={HelpTips.ClusterResourceBlacklist}
-                            fullWidth={false}
                         />
                         <Card<GroupKind>
                             title='Denied Namespace Resources'
@@ -242,7 +236,6 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             values={this.state.namespaceResourceBlacklist}
                             save={values => this.save(IterableSpecFieldNames.namespaceResourceBlacklist, values as GroupKind[])}
                             help={HelpTips.NamespaceResourceBlacklist}
-                            fullWidth={false}
                         />
                     </div>
                 </div>
@@ -258,7 +251,6 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                             values={this.state.signatureKeys}
                             save={values => this.save(IterableSpecFieldNames.signatureKeys, values as ProjectSignatureKey[])}
                             help={HelpTips.SignatureKeys}
-                            fullWidth={false}
                         />
                     </div>
                 </div>
@@ -285,7 +277,6 @@ export class ProjectSummary extends React.Component<SummaryProps, SummaryState> 
                                 }}
                                 help={HelpTips.OrphanedResources}
                                 docs={DocLinks.OrphanedResources}
-                                fullWidth={false}
                             />
                         </div>
                     </div>

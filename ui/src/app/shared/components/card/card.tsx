@@ -13,7 +13,6 @@ interface CardProps<T> {
     save: (values: T[]) => Promise<any>;
     docs?: string;
     help?: string;
-    fullWidth?: boolean;
     disabled?: boolean;
     emptyItem?: T;
 }
