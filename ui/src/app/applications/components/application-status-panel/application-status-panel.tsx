@@ -63,14 +63,14 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                     <div className={`application-status-panel__item-value application-status-panel__item-value--${appOperationState.phase}`}>
                         <a onClick={() => showOperation && showOperation()}>
                             <OperationState app={application} />
+                            <HelpIcon
+                                title={
+                                    'Whether or not your last app sync was successful. It has been ' +
+                                    daysSinceLastSynchronized +
+                                    ' days since last sync. Click for the status of that sync.'
+                                }
+                            />
                         </a>
-                        <HelpIcon
-                            title={
-                                'Whether or not your last app sync was successful. It has been ' +
-                                daysSinceLastSynchronized +
-                                ' days since last sync. Click for the status of that sync.'
-                            }
-                        />
                     </div>
                     {appOperationState.syncResult && appOperationState.syncResult.revision && (
                         <div className='application-status-panel__item-name'>
@@ -86,7 +86,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                             type={application.spec.source.chart && 'helm'}
                             revision={appOperationState.syncResult.revision}
                         />
-                    )) || <div>{appOperationState.message}</div>}
+                    )) || <div className='application-status-panel__item-name'>{appOperationState.message}</div>}
                 </div>
             )}
             {application.status.conditions && (

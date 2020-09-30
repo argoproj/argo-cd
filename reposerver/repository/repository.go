@@ -18,6 +18,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	textutils "github.com/argoproj/gitops-engine/pkg/utils/text"
+	"github.com/argoproj/pkg/sync"
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/ghodss/yaml"
 	"github.com/google/go-jsonnet"
@@ -34,7 +35,6 @@ import (
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	reposervercache "github.com/argoproj/argo-cd/reposerver/cache"
 	"github.com/argoproj/argo-cd/reposerver/metrics"
-	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/app/discovery"
 	argopath "github.com/argoproj/argo-cd/util/app/path"
 	executil "github.com/argoproj/argo-cd/util/exec"
@@ -50,7 +50,7 @@ import (
 
 // Service implements ManifestService interface
 type Service struct {
-	repoLock                  *util.KeyLock
+	repoLock                  sync.KeyLock
 	cache                     *reposervercache.Cache
 	parallelismLimitSemaphore *semaphore.Weighted
 	metricsServer             *metrics.MetricsServer
@@ -64,7 +64,7 @@ func NewService(metricsServer *metrics.MetricsServer, cache *reposervercache.Cac
 	if parallelismLimit > 0 {
 		parallelismLimitSemaphore = semaphore.NewWeighted(parallelismLimit)
 	}
-	repoLock := util.NewKeyLock()
+	repoLock := sync.NewKeyLock()
 	return &Service{
 		parallelismLimitSemaphore: parallelismLimitSemaphore,
 		repoLock:                  repoLock,

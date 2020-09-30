@@ -27,7 +27,7 @@ argocd app delete APPNAME
 To perform a non-cascade delete:
 
 ```bash
-kubetctl delete app APPNAME
+kubectl delete app APPNAME
 ``` 
 
 To perform a cascade delete set the finalizer, e.g. using `kubctl patch`:
