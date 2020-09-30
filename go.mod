@@ -3,7 +3,6 @@ module github.com/argoproj/argo-cd
 go 1.14
 
 require (
-	bou.ke/monkey v1.0.1
 	github.com/Masterminds/semver v1.5.0
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
 	github.com/alicebob/gopher-json v0.0.0-20180125190556-5a6b3ba71ee6 // indirect
@@ -56,6 +55,7 @@ require (
 	github.com/spf13/cobra v1.0.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.6.1
+	github.com/undefinedlabs/go-mpatch v1.0.6
 	github.com/yuin/gopher-lua v0.0.0-20190115140932-732aa6820ec4
 	golang.org/x/crypto v0.0.0-20200220183623-bac4c82f6975
 	golang.org/x/net v0.0.0-20200513185701-a91f0712d120
