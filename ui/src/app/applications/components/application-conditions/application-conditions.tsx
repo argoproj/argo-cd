@@ -10,7 +10,7 @@ export const ApplicationConditions = ({conditions}: {conditions: models.Applicat
     return (
         <div className='application-conditions'>
             <h4>Application conditions</h4>
-            {(conditions.length === 0 && <p>No conditions to report!</p>) || (
+            {(conditions.length === 0 && <p>Application is healthy</p>) || (
                 <div className='argo-table-list'>
                     {conditions.map((condition, index) => (
                         <div className={`argo-table-list__row application-conditions__condition application-conditions__condition--${getConditionCategory(condition)}`} key={index}>

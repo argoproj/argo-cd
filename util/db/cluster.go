@@ -247,11 +247,7 @@ func (db *db) UpdateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 func (db *db) DeleteCluster(ctx context.Context, server string) error {
 	secret, err := db.getClusterSecret(server)
 	if err != nil {
-		if errorStatus, ok := status.FromError(err); ok && errorStatus.Code() == codes.NotFound {
-			return nil
-		} else {
-			return err
-		}
+		return err
 	}
 
 	canDelete := secret.Annotations != nil && secret.Annotations[common.AnnotationKeyManagedBy] == common.AnnotationValueManagedByArgoCD

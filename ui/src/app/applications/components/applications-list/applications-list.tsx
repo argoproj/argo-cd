@@ -192,6 +192,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                     <span className='applications-list__view-type'>
                                         <i
                                             className={classNames('fa fa-th', {selected: pref.appList.view === 'tiles'})}
+                                            title='Tiles'
                                             onClick={() => {
                                                 ctx.navigation.goto('.', {view: 'tiles'});
                                                 services.viewPreferences.updatePreferences({appList: {...pref.appList, view: 'tiles'}});
@@ -199,6 +200,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                         />
                                         <i
                                             className={classNames('fa fa-th-list', {selected: pref.appList.view === 'list'})}
+                                            title='List'
                                             onClick={() => {
                                                 ctx.navigation.goto('.', {view: 'list'});
                                                 services.viewPreferences.updatePreferences({appList: {...pref.appList, view: 'list'}});
@@ -206,6 +208,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                         />
                                         <i
                                             className={classNames('fa fa-chart-pie', {selected: pref.appList.view === 'summary'})}
+                                            title='Summary'
                                             onClick={() => {
                                                 ctx.navigation.goto('.', {view: 'summary'});
                                                 services.viewPreferences.updatePreferences({appList: {...pref.appList, view: 'summary'}});

@@ -107,7 +107,7 @@ class PolicyWrapper extends React.Component<PolicyProps, any> {
                                     {this.props.projName}/{app.metadata.name}
                                 </option>
                             ))}
-                        <option key='wildcard'>{this.props.projName}/*</option>
+                        <option key='wildcard'>{`${this.props.projName}/*`}</option>
                     </datalist>
                     <input
                         className='argo-field'

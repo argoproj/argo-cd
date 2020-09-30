@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	goio "io"
+	"math"
 	"reflect"
 	"sort"
 	"strconv"
@@ -18,6 +19,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
+	"github.com/argoproj/pkg/sync"
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -45,16 +47,20 @@ import (
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	servercache "github.com/argoproj/argo-cd/server/cache"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
 	argoutil "github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/db"
+	"github.com/argoproj/argo-cd/util/env"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/lua"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/session"
 	"github.com/argoproj/argo-cd/util/settings"
+)
+
+var (
+	watchAPIBufferSize = env.ParseNumFromEnv(argocommon.EnvWatchAPIBufferSize, 1000, 0, math.MaxInt32)
 )
 
 // Server provides a Application service
@@ -69,7 +75,7 @@ type Server struct {
 	kubectl        kube.Kubectl
 	db             db.ArgoDB
 	enf            *rbac.Enforcer
-	projectLock    *util.KeyLock
+	projectLock    sync.KeyLock
 	auditLogger    *argo.AuditLogger
 	settingsMgr    *settings.SettingsManager
 	cache          *servercache.Cache
@@ -87,7 +93,7 @@ func NewServer(
 	kubectl kube.Kubectl,
 	db db.ArgoDB,
 	enf *rbac.Enforcer,
-	projectLock *util.KeyLock,
+	projectLock sync.KeyLock,
 	settingsMgr *settings.SettingsManager,
 ) application.ApplicationServiceServer {
 	appBroadcaster := &broadcasterHandler{}
@@ -319,7 +325,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 	appIf := s.appclientset.ArgoprojV1alpha1().Applications(s.ns)
 
 	// subscribe early with buffered channel to ensure we don't miss events
-	events := make(chan *appv1.ApplicationWatchEvent, 100)
+	events := make(chan *appv1.ApplicationWatchEvent, watchAPIBufferSize)
 	unsubscribe := s.appBroadcaster.Subscribe(events, func(event *appv1.ApplicationWatchEvent) bool {
 		return event.Application.Name == q.GetName()
 	})
@@ -669,9 +675,12 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 		}
 	}
 
-	events := make(chan *appv1.ApplicationWatchEvent)
-	if q.ResourceVersion == "" {
-		// mimic watch API behavior: send ADDED events if no resource version provided
+	events := make(chan *appv1.ApplicationWatchEvent, watchAPIBufferSize)
+	// Mimic watch API behavior: send ADDED events if no resource version provided
+	// If watch API is executed for one application when emit event even if resource version is provided
+	// This is required since single app watch API is used for during operations like app syncing and it is
+	// critical to never miss events.
+	if q.ResourceVersion == "" || q.GetName() != "" {
 		apps, err := s.appLister.List(selector)
 		if err != nil {
 			return err
