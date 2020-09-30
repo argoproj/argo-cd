@@ -1,12 +1,16 @@
-import {Popup} from 'argo-ui';
+import {NotificationType, SlidingPanel} from 'argo-ui';
 import * as React from 'react';
+import {FormApi} from 'react-form';
 
-import {DataLoader, EmptyState, Page, Query} from '../../../shared/components';
+import {DataLoader, EmptyState, ErrorNotification, Page, Query} from '../../../shared/components';
 import {Consumer} from '../../../shared/context';
 import {services} from '../../../shared/services';
-import {ProjectCreate} from '../project/create';
+import {ProjectEditPanel} from '../project-edit-panel/project-edit-panel';
 
 export class ProjectsList extends React.Component {
+    private formApi: FormApi;
+    private loader: DataLoader;
+
     public render() {
         return (
             <Consumer>
@@ -18,7 +22,7 @@ export class ProjectsList extends React.Component {
                             actionMenu: {className: 'fa fa-plus', items: [{title: 'New Project', action: () => ctx.navigation.goto('.', {add: true})}]}
                         }}>
                         <div className='projects argo-container'>
-                            <DataLoader load={() => services.projects.list()}>
+                            <DataLoader load={() => services.projects.list()} ref={loader => (this.loader = loader)}>
                                 {projects =>
                                     (projects.length > 0 && (
                                         <div className='argo-table-list argo-table-list--clickable'>
@@ -52,13 +56,37 @@ export class ProjectsList extends React.Component {
                             </DataLoader>
                         </div>
                         <Query>
-                            {params =>
-                                params.get('add') && (
-                                    <Popup title='New Project'>
-                                        <ProjectCreate cancel={() => ctx.navigation.goto('.', {add: null})} callback={proj => ctx.navigation.goto(`./${proj.metadata.name}`)} />
-                                    </Popup>
-                                )
-                            }
+                            {params => (
+                                <SlidingPanel
+                                    isShown={params.get('add') === 'true'}
+                                    onClose={() => ctx.navigation.goto('.', {add: null})}
+                                    header={
+                                        <div>
+                                            <button onClick={() => ctx.navigation.goto('.', {add: null})} className='argo-button argo-button--base-o'>
+                                                Cancel
+                                            </button>{' '}
+                                            <button onClick={() => this.formApi.submitForm(null)} className='argo-button argo-button--base'>
+                                                Create
+                                            </button>
+                                        </div>
+                                    }>
+                                    <ProjectEditPanel
+                                        getApi={api => (this.formApi = api)}
+                                        submit={async projParams => {
+                                            try {
+                                                await services.projects.create(projParams);
+                                                ctx.navigation.goto('.', {add: null});
+                                                this.loader.reload();
+                                            } catch (e) {
+                                                ctx.notifications.show({
+                                                    content: <ErrorNotification title='Unable to create project' e={e} />,
+                                                    type: NotificationType.Error
+                                                });
+                                            }
+                                        }}
+                                    />
+                                </SlidingPanel>
+                            )}
                         </Query>
                     </Page>
                 )}
