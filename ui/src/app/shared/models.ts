@@ -24,8 +24,8 @@ export interface SyncOperationResource {
 }
 
 export interface SyncStrategy {
-    apply: {force?: boolean} | null;
-    hook: {force?: boolean} | null;
+    apply?: {force?: boolean};
+    hook?: {force?: boolean};
 }
 
 export interface SyncOperation {
