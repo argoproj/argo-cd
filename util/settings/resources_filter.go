@@ -21,10 +21,10 @@ func (rf *ResourcesFilter) getExcludedResources() []FilteredResource {
 	return append(coreExcludedResources, rf.ResourceExclusions...)
 }
 
-func (rf *ResourcesFilter) checkResourcePresence(apiGroup, kind, cluster string, filteredResources []FilteredResource) bool {
+func (rf *ResourcesFilter) checkResourcePresence(apiGroup, kind, cluster string, annotation map[string]string, filteredResources []FilteredResource) bool {
 
 	for _, includedResource := range filteredResources {
-		if includedResource.Match(apiGroup, kind, cluster) {
+		if includedResource.Match(apiGroup, kind, cluster, annotation) {
 			return true
 		}
 	}
@@ -32,12 +32,12 @@ func (rf *ResourcesFilter) checkResourcePresence(apiGroup, kind, cluster string,
 	return false
 }
 
-func (rf *ResourcesFilter) isIncludedResource(apiGroup, kind, cluster string) bool {
-	return rf.checkResourcePresence(apiGroup, kind, cluster, rf.ResourceInclusions)
+func (rf *ResourcesFilter) isIncludedResource(apiGroup, kind, cluster string, annotation map[string]string) bool {
+	return rf.checkResourcePresence(apiGroup, kind, cluster, annotation, rf.ResourceInclusions)
 }
 
-func (rf *ResourcesFilter) isExcludedResource(apiGroup, kind, cluster string) bool {
-	return rf.checkResourcePresence(apiGroup, kind, cluster, rf.getExcludedResources())
+func (rf *ResourcesFilter) isExcludedResource(apiGroup, kind, cluster string, annotation map[string]string) bool {
+	return rf.checkResourcePresence(apiGroup, kind, cluster, annotation, rf.getExcludedResources())
 }
 
 // Behavior of this function is as follows:
@@ -64,13 +64,17 @@ func (rf *ResourcesFilter) isExcludedResource(apiGroup, kind, cluster string) bo
 // +-------------+-------------+-------------+
 //
 func (rf *ResourcesFilter) IsExcludedResource(apiGroup, kind, cluster string) bool {
+	return rf.IsExcludedResourceWithAnnotation(apiGroup, kind, cluster, map[string]string{})
+}
+
+func (rf *ResourcesFilter) IsExcludedResourceWithAnnotation(apiGroup, kind, cluster string, annotation map[string]string) bool {
 	// if excluded, do not allow
-	if rf.isExcludedResource(apiGroup, kind, cluster) {
+	if rf.isExcludedResource(apiGroup, kind, cluster, annotation) {
 		return true
 	}
 
 	// if included, do allow
-	if rf.isIncludedResource(apiGroup, kind, cluster) {
+	if rf.isIncludedResource(apiGroup, kind, cluster, annotation) {
 		return false
 	}
 
