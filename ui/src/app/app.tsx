@@ -1,4 +1,4 @@
-import {DataLoader, Layout, NavigationManager, Notifications, NotificationsManager, PageContext, Popup, PopupManager, PopupProps} from 'argo-ui';
+import {DataLoader, Layout, NavigationManager, Notifications, NotificationsManager, PageContext, Popup, PopupManager, PopupProps, Tooltip} from 'argo-ui';
 import {createBrowserHistory} from 'history';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
@@ -9,13 +9,12 @@ import applications from './applications';
 import help from './help';
 import login from './login';
 import settings from './settings';
+import {VersionPanel} from './shared/components/version-info/version-info-panel';
 import {Provider} from './shared/context';
 import {services} from './shared/services';
 import requests from './shared/services/requests';
 import {hashCode} from './shared/utils';
 import userInfo from './user-info';
-import {VersionButton} from './version-info/components/version-info-button';
-import {VersionPanel} from './version-info/components/version-info-panel';
 
 services.viewPreferences.init();
 const bases = document.getElementsByTagName('base');
@@ -187,7 +186,19 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
                                                 ) : (
                                                     <Layout
                                                         navItems={navItems}
-                                                        version={() => <VersionButton version={versionLoader} onClick={() => this.toggleVersionPanel(true)} />}>
+                                                        version={() => (
+                                                            <DataLoader load={() => versionLoader}>
+                                                                {version => (
+                                                                    <React.Fragment>
+                                                                        <Tooltip content={version.Version}>
+                                                                            <a style={{color: 'white'}} onClick={() => this.setState({showVersionPanel: true})}>
+                                                                                {version.Version}
+                                                                            </a>
+                                                                        </Tooltip>
+                                                                    </React.Fragment>
+                                                                )}
+                                                            </DataLoader>
+                                                        )}>
                                                         <route.component {...routeProps} />
                                                     </Layout>
                                                 )
@@ -213,7 +224,7 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
                     </Provider>
                 </PageContext.Provider>
                 <Notifications notifications={this.notificationsManager.notifications} />
-                <VersionPanel version={versionLoader} isShown={this.state.showVersionPanel} onClose={() => this.toggleVersionPanel(false)} />
+                <VersionPanel version={versionLoader} isShown={this.state.showVersionPanel} onClose={() => this.setState({showVersionPanel: false})} />
             </React.Fragment>
         );
     }
@@ -221,8 +232,4 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
     public getChildContext() {
         return {history, apis: {popup: this.popupManager, notifications: this.notificationsManager, navigation: this.navigationManager}};
     }
-
-    public toggleVersionPanel = (isShown: boolean) => {
-        this.setState({showVersionPanel: isShown});
-    };
 }

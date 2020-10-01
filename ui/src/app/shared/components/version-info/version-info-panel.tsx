@@ -1,8 +1,6 @@
 import {DataLoader, SlidingPanel, Tooltip} from 'argo-ui';
 import * as React from 'react';
-import {VersionMessage} from '../../shared/models';
-
-import './version-info.scss';
+import {VersionMessage} from '../../models';
 
 interface VersionPanelProps {
     isShown: boolean;
@@ -26,8 +24,8 @@ export class VersionPanel extends React.Component<VersionPanelProps, {copyState:
                 {version => {
                     return (
                         <SlidingPanel header={this.header} isShown={this.props.isShown} onClose={() => this.props.onClose()} hasCloseButton={true} isNarrow={true}>
-                            <div className='version-info-table argo-table-list'>{this.buildVersionTable(version)}</div>
-                            <div className='version-copy-btn-container'>
+                            <div className='argo-table-list'>{this.buildVersionTable(version)}</div>
+                            <div>
                                 <Tooltip content='Copy all version info as JSON'>{this.getCopyButton(version)}</Tooltip>
                             </div>
                         </SlidingPanel>
@@ -41,9 +39,6 @@ export class VersionPanel extends React.Component<VersionPanelProps, {copyState:
      * Formats the version data and renders the table rows.
      */
     private buildVersionTable(version: VersionMessage): JSX.Element {
-        // match the order/format of `argocd version`
-        // but leave out 'version' from the titles; that's implied by us being in the version info panel.
-        // These key/values are rendered to the user as written in this object
         const formattedVersion = {
             'Argo CD': version.Version,
             'Build Date': version.BuildDate,
@@ -95,7 +90,7 @@ export class VersionPanel extends React.Component<VersionPanelProps, {copyState:
         return (
             <button className='argo-button argo-button--base' onClick={() => this.onCopy(version)}>
                 <i className={'fa ' + img} />
-                {text}
+                &nbsp;{text}
             </button>
         );
     }
