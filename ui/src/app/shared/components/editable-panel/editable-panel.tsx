@@ -4,6 +4,7 @@ import * as React from 'react';
 import {Form, FormApi} from 'react-form';
 
 import {Consumer} from '../../context';
+import {Spinner} from '../spinner';
 
 export interface EditablePanelItem {
     title: string;
@@ -15,13 +16,15 @@ export interface EditablePanelItem {
 }
 
 export interface EditablePanelProps<T> {
-    title?: string;
+    title?: string | React.ReactNode;
     values: T;
     validate?: (values: T) => any;
     save?: (input: T) => Promise<any>;
     items: EditablePanelItem[];
     onModeSwitch?: () => any;
     noReadonlyMode?: boolean;
+    view?: string | React.ReactNode;
+    edit?: (formApi: FormApi) => React.ReactNode;
 }
 
 interface EditablePanelState {
@@ -71,6 +74,7 @@ export class EditablePanel<T = {}> extends React.Component<EditablePanelProps<T>
                                                 disabled={this.state.saving}
                                                 onClick={() => !this.state.saving && this.formApi.submitForm(null)}
                                                 className='argo-button argo-button--base'>
+                                                <Spinner show={this.state.saving} style={{marginRight: '5px'}} />
                                                 Save
                                             </button>{' '}
                                             <button
@@ -88,9 +92,10 @@ export class EditablePanel<T = {}> extends React.Component<EditablePanelProps<T>
                             {this.props.title && <p>{this.props.title}</p>}
                             {(!this.state.edit && (
                                 <React.Fragment>
+                                    {this.props.view}
                                     {this.props.items.map(item => (
                                         <React.Fragment key={item.key || item.title}>
-                                            {item.before && item.before}
+                                            {item.before}
                                             <div className='row white-box__details-row'>
                                                 <div className='columns small-3'>{item.title}</div>
                                                 <div className='columns small-9'>{item.view}</div>
@@ -125,9 +130,10 @@ export class EditablePanel<T = {}> extends React.Component<EditablePanelProps<T>
                                     validateError={this.props.validate}>
                                     {api => (
                                         <React.Fragment>
+                                            {this.props.edit && this.props.edit(api)}
                                             {this.props.items.map(item => (
                                                 <React.Fragment key={item.key || item.title}>
-                                                    {item.before && item.before}
+                                                    {item.before}
                                                     <div className='row white-box__details-row'>
                                                         <div className='columns small-3'>{(item.titleEdit && item.titleEdit(api)) || item.title}</div>
                                                         <div className='columns small-9'>{(item.edit && item.edit(api)) || item.view}</div>
