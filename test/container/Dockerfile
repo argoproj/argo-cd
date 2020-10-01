@@ -1,6 +1,6 @@
 FROM redis:5.0.8 as redis
 
-FROM node:11.15.0 as node
+FROM node:12.18.4 as node
 
 FROM golang:1.14.1 as golang
 

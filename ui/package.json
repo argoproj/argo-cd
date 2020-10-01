@@ -31,7 +31,7 @@
     "classnames": "^2.2.5",
     "color": "^3.1.0",
     "cookie": "^0.3.1",
-    "copy-webpack-plugin": "^4.3.1",
+    "copy-webpack-plugin": "^6.1.1",
     "dagre": "^0.8.2",
     "deepmerge": "^3.2.0",
     "foundation-sites": "^6.4.3",
@@ -70,11 +70,11 @@
     "ts-node": "^4.1.0",
     "tslint": "^5.16.0",
     "tslint-react": "^3.4.0",
-    "typescript": "^3.4.5",
+    "typescript": "^4.0.3",
     "unidiff": "^1.0.2",
-    "webpack": "^4.41.2",
-    "webpack-cli": "^3.2.3",
-    "webpack-dev-server": "^3.2.1"
+    "webpack": "^4.44.2",
+    "webpack-cli": "^3.3.12",
+    "webpack-dev-server": "^3.11.0"
   },
   "resolutions": {
     "@types/react": "16.8.5",
@@ -91,7 +91,7 @@
     "add": "^2.0.6",
     "babel-jest": "^24.9.0",
     "babel-loader": "^8.0.6",
-    "codecov": "^3.6.1",
+    "codecov": "^3.7.2",
     "identity-obj-proxy": "^3.0.0",
     "jest": "^24.9.0",
     "jest-transform-css": "^2.0.0",
@@ -101,6 +101,6 @@
     "ts-jest": "^24.1.0",
     "tslint-config-prettier": "^1.18.0",
     "tslint-plugin-prettier": "^2.0.1",
-    "yarn": "^1.16.0"
+    "yarn": "^1.22.10"
   }
 }
