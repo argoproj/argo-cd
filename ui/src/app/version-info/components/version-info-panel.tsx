@@ -1,6 +1,5 @@
 import {DataLoader, SlidingPanel, Tooltip} from 'argo-ui';
 import * as React from 'react';
-import * as CopyToClipboard from 'react-copy-to-clipboard';
 import {VersionMessage} from '../../shared/models';
 
 import './version-info.scss';
@@ -11,12 +10,14 @@ interface VersionPanelProps {
     version: Promise<VersionMessage>;
 }
 
-export class VersionPanel extends React.Component<VersionPanelProps, {justCopied: boolean}> {
+type CopyState = 'success' | 'failed' | undefined;
+
+export class VersionPanel extends React.Component<VersionPanelProps, {copyState: CopyState}> {
     private readonly header = 'Argo CD Server Version';
 
     constructor(props: VersionPanelProps) {
         super(props);
-        this.state = {justCopied: false};
+        this.state = {copyState: undefined};
     }
 
     public render() {
@@ -25,24 +26,9 @@ export class VersionPanel extends React.Component<VersionPanelProps, {justCopied
                 {version => {
                     return (
                         <SlidingPanel header={this.header} isShown={this.props.isShown} onClose={() => this.props.onClose()} hasCloseButton={true} isNarrow={true}>
-                            <div className='version-info-table argo-table-list'>
-                                {/* <div className='argo-table-list__head'>
-                                    <div className='row'>
-                                        <div className='columns small-4'>Tool</div>
-                                        <div className='columns small-4'>Version</div>
-                                    </div>
-                                </div> */}
-                                {this.buildVersionTable(version)}
-                            </div>
+                            <div className='version-info-table argo-table-list'>{this.buildVersionTable(version)}</div>
                             <div className='version-copy-btn-container'>
-                                <Tooltip content='Copy all version info as JSON'>
-                                    <CopyToClipboard text={JSON.stringify(version, undefined, 4)} onCopy={() => this.onCopy()}>
-                                        <button className='argo-button argo-button--base'>
-                                            <i className={'fa ' + (this.state.justCopied ? 'fa-check' : 'fa-copy')} />
-                                            Copy JSON
-                                        </button>
-                                    </CopyToClipboard>
-                                </Tooltip>
+                                <Tooltip content='Copy all version info as JSON'>{this.getCopyButton(version)}</Tooltip>
                             </div>
                         </SlidingPanel>
                     );
@@ -61,8 +47,6 @@ export class VersionPanel extends React.Component<VersionPanelProps, {justCopied
         const formattedVersion = {
             'Argo CD': version.Version,
             'Build Date': version.BuildDate,
-            // 'Git Commit':
-            // 'Git Tree State':
             'Go': version.GoVersion,
             'Compiler': version.Compiler,
             'Platform': version.Platform,
@@ -94,10 +78,39 @@ export class VersionPanel extends React.Component<VersionPanelProps, {justCopied
         );
     }
 
-    private onCopy(): void {
-        this.setState({justCopied: true});
+    private getCopyButton(version: VersionMessage): JSX.Element {
+        let img: string;
+        let text: string;
+        if (this.state.copyState === 'success') {
+            img = 'fa-check';
+            text = 'Copied';
+        } else if (this.state.copyState === 'failed') {
+            img = 'fa-times';
+            text = 'Copy Failed';
+        } else {
+            img = 'fa-copy';
+            text = 'Copy JSON';
+        }
+
+        return (
+            <button className='argo-button argo-button--base' onClick={() => this.onCopy(version)}>
+                <i className={'fa ' + img} />
+                {text}
+            </button>
+        );
+    }
+
+    private async onCopy(version: VersionMessage): Promise<void> {
+        const stringifiedVersion = JSON.stringify(version, undefined, 4);
+        try {
+            await navigator.clipboard.writeText(stringifiedVersion);
+            this.setState({copyState: 'success'});
+        } catch (err) {
+            this.setState({copyState: 'failed'});
+        }
+
         setTimeout(() => {
-            this.setState({justCopied: false});
-        }, 500);
+            this.setState({copyState: undefined});
+        }, 750);
     }
 }

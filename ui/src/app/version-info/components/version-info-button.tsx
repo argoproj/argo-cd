@@ -20,7 +20,7 @@ export class VersionButton extends React.Component<VersionButtonProps> {
                 {version => (
                     <React.Fragment>
                         <Tooltip content={version.Version}>
-                            <span className='version-info-button' onClick={this.props.onClick}>
+                            <span className='version-info-btn' onClick={this.props.onClick}>
                                 {version.Version}
                             </span>
                         </Tooltip>

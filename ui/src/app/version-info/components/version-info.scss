@@ -1,6 +1,4 @@
-@import 'node_modules/argo-ui/src/styles/config';
-
-.version-info-button {
+.version-info-btn {
     white-space: nowrap;
     cursor: pointer;
 
@@ -10,11 +8,12 @@
 }
 
 .version-copy-btn-container {
-    margin-top: 15px;   // half of the panel's padding
+    margin-top: 15px;
     display: flex;
     flex-direction: row-reverse;
 
     & button {
+        min-width: 20ch;
         & i {
             text-align: center;
             margin-right: 0.5em;
