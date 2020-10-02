@@ -39,7 +39,7 @@ spec:
       prune: true
 ```
 
-## Automatic Pruning with Allow-Empty
+## Automatic Pruning with Allow-Empty (v1.8)
 
 By default (and as a safety mechanism), automated sync with prune have a protection from any automation/human errors 
 when there are no target resources. It prevents application from having empty resources. To allow applications have empty resources, run:
