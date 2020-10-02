@@ -64,6 +64,8 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 			grpc.Creds(credentials.NewTLS(tlsConfig)),
 			grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(unaryInterceptors...)),
 			grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(streamInterceptors...)),
+			grpc.MaxRecvMsgSize(apiclient.MaxGRPCMessageSize),
+			grpc.MaxSendMsgSize(apiclient.MaxGRPCMessageSize),
 		},
 	}, nil
 }
