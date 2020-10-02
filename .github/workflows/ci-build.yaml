@@ -184,7 +184,7 @@ jobs:
       - name: Setup NodeJS
         uses: actions/setup-node@v1
         with:
-          node-version: '11.15.0'
+          node-version: '12.18.4'
       - name: Restore node dependency cache
         id: cache-dependencies
         uses: actions/cache@v1
