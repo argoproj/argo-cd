@@ -887,11 +887,18 @@ func TestSecretKeyRef(t *testing.T) {
           name: GitHub
           config:
             clientID: aabbccddeeff00112233
-            clientSecretSecretRef:
-              name: google
-              key: clientSecret
+            clientSecret: $google:clientSecret
             orgs:
-              - name: your-github-org`,
+              - name: your-github-org
+        # GitLab example
+        - type: gitlab
+          id: gitlab
+          name: GitLab
+          config:
+            clientID: 001122334466aabbccdd
+            clientSecret: $acme:clientSecret
+            orgs:
+              - name: your-gitlab-org`,
 	}
 	cm := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -912,7 +919,16 @@ func TestSecretKeyRef(t *testing.T) {
 			"clientSecret": []byte("deadbeef"),
 		},
 	}
-	kubeClient := fake.NewSimpleClientset(cm, secret)
+	another_secret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "acme",
+			Namespace: "default",
+		},
+		Data: map[string][]byte{
+			"clientSecret": []byte("acme"),
+		},
+	}
+	kubeClient := fake.NewSimpleClientset(cm, secret, another_secret)
 	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
 	cm, err := kubeClient.CoreV1().ConfigMaps("default").Get(context.Background(), common.ArgoCDConfigMapName, metav1.GetOptions{})
 	assert.NoError(t, err)
@@ -924,4 +940,5 @@ func TestSecretKeyRef(t *testing.T) {
 	updatedData, err = settingsManager.updateMapSecretRef(updatedData)
 	assert.NoError(t, err)
 	assert.Contains(t, updatedData["dex.config"], "clientSecret: deadbeef")
+	assert.Contains(t, updatedData["dex.config"], "clientSecret: acme")
 }
