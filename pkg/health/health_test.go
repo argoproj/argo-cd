@@ -91,8 +91,8 @@ func TestPod(t *testing.T) {
 }
 
 func TestApplication(t *testing.T) {
-	assertAppHealth(t, "./testdata/application-healthy.yaml", HealthStatusHealthy)
-	assertAppHealth(t, "./testdata/application-degraded.yaml", HealthStatusDegraded)
+	assert.Nil(t, getHealthStatus("./testdata/application-healthy.yaml", t))
+	assert.Nil(t, getHealthStatus("./testdata/application-degraded.yaml", t))
 }
 
 func TestAPIService(t *testing.T) {
