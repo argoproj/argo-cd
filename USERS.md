@@ -87,3 +87,4 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [New Relic](https://newrelic.com/)
 1. [Sumo Logic](https://sumologic.com/)
 1. [Kinguin](https://www.kinguin.net/)
+1. [VISITS Technologies](https://visits.world/en)
