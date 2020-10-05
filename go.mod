@@ -3,13 +3,12 @@ module github.com/argoproj/argo-cd
 go 1.14
 
 require (
-	bou.ke/monkey v1.0.1
 	github.com/Masterminds/semver v1.5.0
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
 	github.com/alicebob/gopher-json v0.0.0-20180125190556-5a6b3ba71ee6 // indirect
 	github.com/alicebob/miniredis v2.5.0+incompatible
-	github.com/argoproj/gitops-engine v0.1.3-0.20200904164417-c04f859da9b2
-	github.com/argoproj/pkg v0.0.0-20200624215116-23e74cb168fe
+	github.com/argoproj/gitops-engine v0.1.3-0.20201003031953-3a3f6a33d7ee
+	github.com/argoproj/pkg v0.2.0
 	github.com/casbin/casbin v1.9.1
 	github.com/chai2010/gettext-go v0.0.0-20170215093142-bf70f2a70fb1 // indirect
 	github.com/coreos/go-oidc v2.1.0+incompatible
@@ -39,7 +38,7 @@ require (
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.0.1-0.20190118093823-f849b5445de4
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
-	github.com/grpc-ecosystem/grpc-gateway v1.9.5
+	github.com/grpc-ecosystem/grpc-gateway v1.14.6
 	github.com/improbable-eng/grpc-web v0.0.0-20181111100011-16092bd1d58a
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/malexdev/utfutil v0.0.0-20180510171754-00c8d4a8e7a8 // indirect
@@ -56,6 +55,7 @@ require (
 	github.com/spf13/cobra v1.0.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.6.1
+	github.com/undefinedlabs/go-mpatch v1.0.6
 	github.com/yuin/gopher-lua v0.0.0-20190115140932-732aa6820ec4
 	golang.org/x/crypto v0.0.0-20200220183623-bac4c82f6975
 	golang.org/x/net v0.0.0-20200513185701-a91f0712d120
@@ -85,7 +85,7 @@ require (
 
 replace (
 	github.com/golang/protobuf => github.com/golang/protobuf v1.3.2
-	github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc-gateway v1.9.5
+	github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc-gateway v1.12.2
 	github.com/improbable-eng/grpc-web => github.com/improbable-eng/grpc-web v0.0.0-20181111100011-16092bd1d58a
 
 	google.golang.org/grpc => google.golang.org/grpc v1.15.0

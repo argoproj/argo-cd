@@ -19,7 +19,9 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/argoproj/pkg/jwt/zjwt"
+	"github.com/argoproj/pkg/sync"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/go-redis/redis/v8"
 	golang_proto "github.com/golang/protobuf/proto"
 	"github.com/gorilla/handlers"
@@ -38,7 +40,7 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
-	yaml "gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v2"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -79,7 +81,6 @@ import (
 	"github.com/argoproj/argo-cd/server/session"
 	"github.com/argoproj/argo-cd/server/settings"
 	"github.com/argoproj/argo-cd/server/version"
-	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/assets"
 	cacheutil "github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
@@ -89,7 +90,6 @@ import (
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/healthz"
 	httputil "github.com/argoproj/argo-cd/util/http"
-	"github.com/argoproj/argo-cd/util/jwt/zjwt"
 	"github.com/argoproj/argo-cd/util/oidc"
 	"github.com/argoproj/argo-cd/util/rbac"
 	util_session "github.com/argoproj/argo-cd/util/session"
@@ -520,7 +520,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 		loginRateLimiter = session.NewLoginRateLimiter(maxConcurrentLoginRequestsCount)
 	}
 	sessionService := session.NewServer(a.sessionMgr, a, a.policyEnforcer, loginRateLimiter)
-	projectLock := util.NewKeyLock()
+	projectLock := sync.NewKeyLock()
 	applicationService := application.NewServer(
 		a.Namespace,
 		a.KubeClientset,
