@@ -779,9 +779,6 @@ func (mgr *SettingsManager) ensureSynced(forceResync bool) error {
 		return nil
 	}
 
-	if !forceResync && mgr.secrets != nil && mgr.configmaps != nil {
-		return nil
-	}
 	if mgr.initContextCancel != nil {
 		mgr.initContextCancel()
 	}

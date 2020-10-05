@@ -5,7 +5,7 @@ import * as React from 'react';
 import {FormApi, Text} from 'react-form';
 import {RouteComponentProps} from 'react-router';
 
-import {CheckboxField, DataLoader, EditablePanel, ErrorNotification, Page, Query} from '../../../shared/components';
+import {CheckboxField, DataLoader, EditablePanel, ErrorNotification, MapInputField, Page, Query} from '../../../shared/components';
 import {AppContext, Consumer} from '../../../shared/context';
 import {Groups, Project, ResourceKinds} from '../../../shared/models';
 import {CreateJWTTokenParams, DeleteJWTTokenParams, ProjectRoleParams, services} from '../../../shared/services';
@@ -442,6 +442,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
     private async saveProject(updatedProj: Project) {
         try {
             const proj = await services.projects.get(updatedProj.metadata.name);
+            proj.metadata.labels = updatedProj.metadata.labels;
             proj.spec = updatedProj.spec;
             this.loader.setData(await services.projects.updateProj(proj));
         } catch (e) {
@@ -472,6 +473,13 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                             title: 'DESCRIPTION',
                             view: proj.spec.description,
                             edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.description' component={Text} />
+                        },
+                        {
+                            title: 'LABELS',
+                            view: Object.keys(proj.metadata.labels || {})
+                                .map(label => `${label}=${proj.metadata.labels[label]}`)
+                                .join(' '),
+                            edit: (formApi: FormApi) => <FormField formApi={formApi} field='metadata.labels' component={MapInputField} />
                         }
                     ]}
                 />
