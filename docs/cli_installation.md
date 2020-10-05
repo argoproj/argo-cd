@@ -57,12 +57,6 @@ After finishing either of the instructions above, you should now be able to run 
 
 ## Windows
 
-### Chocolatey
-
-```powershell
-choco install argocd
-```
-
 ### Download With Powershell: Invoke-WebRequest
 
 You can view the latest version of Argo CD at the link above or run the following command to grab the version:
@@ -82,4 +76,4 @@ Invoke-WebRequest -Uri $url -OutFile $output
 Also please note you will probably need to move the file into your PATH.
 
 
-After finishing either of the instructions above, you should now be able to run `argocd` commands.
+After finishing the instructions above, you should now be able to run `argocd` commands.
