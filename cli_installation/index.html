@@ -1378,6 +1378,26 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#windows" title="Windows" class="md-nav__link">
+    Windows
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#download-with-powershell-invoke-webrequest" title="Download With Powershell: Invoke-WebRequest" class="md-nav__link">
+    Download With Powershell: Invoke-WebRequest
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
       
       
       
@@ -1439,6 +1459,23 @@
 
 
 <p>After finishing either of the instructions above, you should now be able to run <code>argocd</code> commands.</p>
+<h2 id="windows">Windows<a class="headerlink" href="#windows" title="Permanent link">&para;</a></h2>
+<h3 id="download-with-powershell-invoke-webrequest">Download With Powershell: Invoke-WebRequest<a class="headerlink" href="#download-with-powershell-invoke-webrequest" title="Permanent link">&para;</a></h3>
+<p>You can view the latest version of Argo CD at the link above or run the following command to grab the version:</p>
+<div class="codehilite"><pre><span></span><code><span class="nv">$version</span> <span class="p">=</span> <span class="p">(</span><span class="nb">Invoke-RestMethod</span> <span class="n">https</span><span class="err">:</span><span class="p">//</span><span class="n">api</span><span class="p">.</span><span class="n">github</span><span class="p">.</span><span class="n">com</span><span class="p">/</span><span class="n">repos</span><span class="p">/</span><span class="n">argoproj</span><span class="p">/</span><span class="n">argo-cd</span><span class="p">/</span><span class="n">releases</span><span class="p">/</span><span class="n">latest</span><span class="p">).</span><span class="n">tag_name</span>
+</code></pre></div>
+
+
+<p>Replace <code>$version</code> in the command below with the version of Argo CD you would like to download:</p>
+<div class="codehilite"><pre><span></span><code><span class="nv">$url</span> <span class="p">=</span> <span class="s2">&quot;https://github.com/argoproj/argo-cd/releases/download/&quot;</span> <span class="p">+</span> <span class="nv">$version</span> <span class="p">+</span> <span class="s2">&quot;/argocd-windows-amd64.exe&quot;</span>
+<span class="nv">$output</span> <span class="p">=</span> <span class="s2">&quot;argocd.exe&quot;</span>
+
+<span class="nb">Invoke-WebRequest</span> <span class="n">-Uri</span> <span class="nv">$url</span> <span class="n">-OutFile</span> <span class="nv">$output</span>
+</code></pre></div>
+
+
+<p>Also please note you will probably need to move the file into your PATH.</p>
+<p>After finishing the instructions above, you should now be able to run <code>argocd</code> commands.</p>
                 
                   
                 
