@@ -344,7 +344,7 @@ func (s *Service) getManifestCacheEntry(revision string, inputParam interface{},
 		if s.initConstants.PauseGenerationAfterFailedGenerationAttempts > 0 && res.FirstFailureTimestamp > 0 {
 
 			// If we are already in the 'manifest generation caching' state, due to too many consecutive failures...
-			if int(res.NumberOfConsecutiveFailures) >= s.initConstants.PauseGenerationAfterFailedGenerationAttempts {
+			if res.NumberOfConsecutiveFailures >= s.initConstants.PauseGenerationAfterFailedGenerationAttempts {
 
 				// Check if enough time has passed to try generation again (eg to exit the 'manifest generation caching' state)
 				if s.initConstants.PauseGenerationOnFailureForMinutes > 0 {
@@ -366,7 +366,7 @@ func (s *Service) getManifestCacheEntry(revision string, inputParam interface{},
 				// Check if enough cached responses have been returned to try generation again (eg to exit the 'manifest generation caching' state)
 				if s.initConstants.PauseGenerationOnFailureForRequests > 0 && res.NumberOfCachedResponsesReturned > 0 {
 
-					if int(res.NumberOfCachedResponsesReturned) >= s.initConstants.PauseGenerationOnFailureForRequests {
+					if res.NumberOfCachedResponsesReturned >= s.initConstants.PauseGenerationOnFailureForRequests {
 						// We can now try again, so reset the error cache state and run the operation below
 						err = s.cache.DeleteManifests(revision, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue)
 						if err != nil {
