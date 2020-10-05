@@ -301,7 +301,7 @@ func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 
 					// Internal cache consec failures value should increase with invocations, cached response should stay the same,
 					assert.True(t, cachedManifestResponse.NumberOfConsecutiveFailures == adjustedInvocation+1)
-					assert.True(t, int(cachedManifestResponse.NumberOfCachedResponsesReturned) == 0)
+					assert.True(t, cachedManifestResponse.NumberOfCachedResponsesReturned == 0)
 
 				} else {
 					// GenerateManifest SHOULD return cached errors for the next X responses, where X is the
@@ -312,8 +312,8 @@ func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 					assert.True(t, cachedManifestResponse.FirstFailureTimestamp != 0)
 
 					// Internal cache values should update correctly based on number of return cache entries, concecutive failures should stay the same
-					assert.True(t, int(cachedManifestResponse.NumberOfConsecutiveFailures) == service.initConstants.PauseGenerationAfterFailedGenerationAttempts)
-					assert.True(t, int(cachedManifestResponse.NumberOfCachedResponsesReturned) == (adjustedInvocation-service.initConstants.PauseGenerationAfterFailedGenerationAttempts+1))
+					assert.True(t, cachedManifestResponse.NumberOfConsecutiveFailures == service.initConstants.PauseGenerationAfterFailedGenerationAttempts)
+					assert.True(t, cachedManifestResponse.NumberOfCachedResponsesReturned == (adjustedInvocation-service.initConstants.PauseGenerationAfterFailedGenerationAttempts+1))
 				}
 			}
 		})
