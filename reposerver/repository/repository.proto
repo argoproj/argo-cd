@@ -36,11 +36,6 @@ message ManifestResponse {
     string sourceType = 6;
     // Raw response of git verify-commit operation (always the empty string for Helm)
     string verifyResult = 7;
-    // Caching of manifest generation errors
-    string mostRecentError = 8;
-    int64 firstFailureTimestamp = 9;
-    int32 numberOfConsecutiveFailures = 10;
-    int32 numberOfCachedResponsesReturned = 11;
 }
 
 // ListAppsRequest requests a repository directory structure

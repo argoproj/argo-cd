@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	cacheutil "github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/hash"
 )
@@ -68,11 +69,11 @@ func manifestCacheKey(revision string, appSrc *appv1.ApplicationSource, namespac
 	return fmt.Sprintf("mfst|%s|%s|%s|%s|%d", appLabelKey, appLabelValue, revision, namespace, appSourceKey(appSrc))
 }
 
-func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, namespace string, appLabelKey string, appLabelValue string, res interface{}) error {
+func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, namespace string, appLabelKey string, appLabelValue string, res *CachedManifestResponse) error {
 	return c.cache.GetItem(manifestCacheKey(revision, appSrc, namespace, appLabelKey, appLabelValue), res)
 }
 
-func (c *Cache) SetManifests(revision string, appSrc *appv1.ApplicationSource, namespace string, appLabelKey string, appLabelValue string, res interface{}) error {
+func (c *Cache) SetManifests(revision string, appSrc *appv1.ApplicationSource, namespace string, appLabelKey string, appLabelValue string, res *CachedManifestResponse) error {
 	return c.cache.SetItem(manifestCacheKey(revision, appSrc, namespace, appLabelKey, appLabelValue), res, c.repoCacheExpiration, res == nil)
 }
 
@@ -103,4 +104,14 @@ func (c *Cache) GetRevisionMetadata(repoURL, revision string) (*appv1.RevisionMe
 
 func (c *Cache) SetRevisionMetadata(repoURL, revision string, item *appv1.RevisionMetadata) error {
 	return c.cache.SetItem(revisionMetadataKey(repoURL, revision), item, c.repoCacheExpiration, false)
+}
+
+// CachedManifestResponse represents a cached result of a previous manifest generation operation, including the caching
+// of a manifest generation error, plus additional information on previous failures
+type CachedManifestResponse struct {
+	ManifestResponse                *apiclient.ManifestResponse
+	MostRecentError                 string
+	FirstFailureTimestamp           int64
+	NumberOfConsecutiveFailures     int
+	NumberOfCachedResponsesReturned int
 }
