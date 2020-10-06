@@ -65,6 +65,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Swisscom](https://www.swisscom.ch)
 1. [Swissquote](https://github.com/swissquote)
 1. [Syncier](https://syncier.com/)
+1. [TableCheck](https://tablecheck.com/)
 1. [Tesla](https://tesla.com/)
 1. [ThousandEyes](https://www.thousandeyes.com/)
 1. [Ticketmaster](https://ticketmaster.com)
