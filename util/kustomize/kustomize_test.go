@@ -101,7 +101,7 @@ func TestParseKustomizeBuildOptions(t *testing.T) {
 }
 
 func TestVersion(t *testing.T) {
-	ver, err := Version()
+	ver, err := Version(false)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, ver)
 }
