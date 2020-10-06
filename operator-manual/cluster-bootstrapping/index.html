@@ -1466,10 +1466,9 @@
 <span class="err">└── values.yaml</span>
 </code></pre></div>
 
-
 <p><code>Chart.yaml</code> is boiler-plate.</p>
 <p><code>templates</code> contains one file for each child app, roughly:</p>
-<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<div class="yaml codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Application</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook</span>
@@ -1487,26 +1486,23 @@
     <span class="nt">targetRevision</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">HEAD</span>
 </code></pre></div>
 
-
 <p>The sync policy to automated + prune, so that child apps are automatically created, synced, and deleted when the manifest is changed, but you may wish to disable this. I've also added the finalizer, which will ensure that your apps are deleted correctly.</p>
 <p>Fix the revision to a specific Git commit SHA to make sure that, even if the child apps repo changes, the app will only change when the parent app change that revision. Alternatively, you can set it to HEAD or a branch name.</p>
 <p>As you probably want to override the cluster server, this is a templated values.</p>
 <p><code>values.yaml</code> contains the default values:</p>
-<div class="codehilite"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
+<div class="yaml codehilite"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
   <span class="nt">destination</span><span class="p">:</span>
     <span class="nt">server</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">https://kubernetes.default.svc</span>
 </code></pre></div>
 
-
 <p>Next, you need to create and sync your parent app, e.g. via the CLI:</p>
-<div class="codehilite"><pre><span></span><code>argocd app create apps <span class="se">\</span>
+<div class="bash codehilite"><pre><span></span><code>argocd app create apps <span class="se">\</span>
     --dest-namespace argocd <span class="se">\</span>
     --dest-server https://kubernetes.default.svc <span class="se">\</span>
     --repo https://github.com/argoproj/argocd-example-apps.git <span class="se">\</span>
     --path apps  
 argocd app sync apps  
 </code></pre></div>
-
 
 <p>The parent app will appear as in-sync but the child apps will be out of sync:</p>
 <p><img alt="New App Of Apps" src="../../assets/new-app-of-apps.png" /></p>
@@ -1515,9 +1511,8 @@ argocd app sync apps
 <p>Then select the "out of sync" apps and sync: </p>
 <p><img alt="Sync Apps" src="../../assets/sync-apps.png" /></p>
 <p>Or, via the CLI: </p>
-<div class="codehilite"><pre><span></span><code>argocd app sync -l app.kubernetes.io/instance<span class="o">=</span>apps
+<div class="bash codehilite"><pre><span></span><code>argocd app sync -l app.kubernetes.io/instance<span class="o">=</span>apps
 </code></pre></div>
-
 
 <p>View <a href="https://github.com/argoproj/argocd-example-apps/tree/master/apps">the example on Github</a>.</p>
                 

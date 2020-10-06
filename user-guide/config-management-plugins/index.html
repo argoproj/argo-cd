@@ -1428,7 +1428,7 @@
 <li>Make sure required binaries are available in <code>argocd-repo-server</code> pod. The binaries can be added via volume mounts or using custom image (see <a href="../../operator-manual/custom_tools/">custom_tools</a>).</li>
 <li>Register a new plugin in <code>argocd-cm</code> ConfigMap:</li>
 </ul>
-<div class="codehilite"><pre><span></span><code><span class="nt">data</span><span class="p">:</span>
+<div class="yaml codehilite"><pre><span></span><code><span class="nt">data</span><span class="p">:</span>
   <span class="nt">configManagementPlugins</span><span class="p">:</span> <span class="p p-Indicator">|</span>
     <span class="no">- name: pluginName</span>
       <span class="no">init:                          # Optional command to initialize application source directory</span>
@@ -1439,14 +1439,12 @@
         <span class="no">args: [&quot;sample args&quot;]</span>
 </code></pre></div>
 
-
 <p>The <code>generate</code> command must print a valid YAML stream to stdout. Both <code>init</code> and <code>generate</code> commands are executed inside the application source directory.</p>
 <ul>
 <li>Create an application and specify required config management plugin name.</li>
 </ul>
-<div class="codehilite"><pre><span></span><code>argocd app create &lt;appName&gt; --config-management-plugin &lt;pluginName&gt;
+<div class="bash codehilite"><pre><span></span><code>argocd app create &lt;appName&gt; --config-management-plugin &lt;pluginName&gt;
 </code></pre></div>
-
 
 <p>More config management plugin examples are available in <a href="https://github.com/argoproj/argocd-example-apps/tree/master/plugins">argocd-example-apps</a>.</p>
 <h2 id="environment">Environment<a class="headerlink" href="#environment" title="Permanent link">&para;</a></h2>
@@ -1459,7 +1457,7 @@
 <blockquote>
 <p>v1.2</p>
 </blockquote>
-<div class="codehilite"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
+<div class="yaml codehilite"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
   <span class="nt">source</span><span class="p">:</span>
     <span class="nt">plugin</span><span class="p">:</span>
       <span class="nt">env</span><span class="p">:</span>

@@ -1891,11 +1891,10 @@ The Docker version must be fairly recent, and support multi-stage builds. You sh
 <p>We use <a href="https://codecov.io">CodeCov</a> in our CI pipeline to check for test coverage, and once you submit your PR, it will run and report on the coverage difference as a comment within your PR. If the difference is too high in the negative, i.e. your submission introduced a significant drop in code coverage, the CI check will fail.</p>
 <p>Whenever you develop a new feature or submit a bug fix, please also write appropriate unit tests for it. If you write a completely new module, please aim for at least 80% of coverage.
 If you want to see how much coverage just a specific module (i.e. your new one) has, you can set the <code>TEST_MODULE</code> to the (fully qualified) name of that module with <code>make test</code>, i.e.</p>
-<div class="codehilite"><pre><span></span><code> make <span class="nb">test</span> <span class="nv">TEST_MODULE</span><span class="o">=</span>github.com/argoproj/argo-cd/server/cache
+<div class="bash codehilite"><pre><span></span><code> make <span class="nb">test</span> <span class="nv">TEST_MODULE</span><span class="o">=</span>github.com/argoproj/argo-cd/server/cache
 ...
 ok      github.com/argoproj/argo-cd/server/cache        <span class="m">0</span>.029s  coverage: <span class="m">89</span>.3% of statements
 </code></pre></div>
-
 
 <h2 id="local-vs-virtualized-toolchain">Local vs Virtualized toolchain<a class="headerlink" href="#local-vs-virtualized-toolchain" title="Permanent link">&para;</a></h2>
 <p>ArgoCD provides a fully virtualized development and testing toolchain using Docker images. It is recommended to use those images, as they provide the same runtime environment as the final product and it is much easier to keep up-to-date with changes to the toolchain and dependencies. But as using Docker comes with a slight performance penalty, you might want to setup a local toolchain.</p>
@@ -1940,7 +1939,6 @@ ok      github.com/argoproj/argo-cd/server/cache        <span class="m">0</span>
 <div class="codehilite"><pre><span></span><code><span class="err">The connection to the server 127.0.0.1:6443 was refused - did you specify the right host or port?</span>
 <span class="c">make: *** [Makefile:386: verify-kube-connect] Error 1</span>
 </code></pre></div>
-
 
 <p>you should edit your <code>~/.kube/config</code> and modify the <code>server</code> option to point to your correct K8s API (as described above).</p>
 <h2 id="the-development-cycle">The development cycle<a class="headerlink" href="#the-development-cycle" title="Permanent link">&para;</a></h2>
@@ -1996,9 +1994,8 @@ ok      github.com/argoproj/argo-cd/server/cache        <span class="m">0</span>
 </div>
 <p>For installing the tools required to build and test ArgoCD on your local system, we provide convenient installer scripts. By default, they will install binaries to <code>/usr/local/bin</code> on your system, which might require <code>root</code> privileges.</p>
 <p>You can change the target location by setting the <code>BIN</code> environment before running the installer scripts. For example, you can install the binaries into <code>~/go/bin</code> (which should then be the first component in your <code>PATH</code> environment, i.e. <code>export PATH=~/go/bin:$PATH</code>):</p>
-<div class="codehilite"><pre><span></span><code>make <span class="nv">BIN</span><span class="o">=</span>~/go/bin install-tools-local
+<div class="shell codehilite"><pre><span></span><code>make <span class="nv">BIN</span><span class="o">=</span>~/go/bin install-tools-local
 </code></pre></div>
-
 
 <p>Additionally, you have to install at least the following tools via your OS's package manager (this list might not be always up-to-date):</p>
 <ul>

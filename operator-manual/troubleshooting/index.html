@@ -1444,15 +1444,13 @@ connectivity issues.</p>
 settings on Argo CD used in production by multiple users. Before applying settings you can use <code>argocd-util</code> binary to
 make sure that settings are valid and Argo CD is working as expected. The <code>argocd-util</code> binary is available in <code>argocd</code>
 image and might be used using docker. Example:</p>
-<div class="codehilite"><pre><span></span><code>docker run --rm -it -w /src -v <span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>:/src argoproj/argocd:&lt;version&gt; <span class="se">\</span>
+<div class="bash codehilite"><pre><span></span><code>docker run --rm -it -w /src -v <span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>:/src argoproj/argocd:&lt;version&gt; <span class="se">\</span>
   argocd-util settings validate --argocd-cm-path ./argocd-cm.yaml
 </code></pre></div>
 
-
 <p>If you are using Linux you can extract <code>argocd-util</code> binary from docker image:</p>
-<div class="codehilite"><pre><span></span><code>docker run --rm -it -w /src -v <span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>:/src argocd cp /usr/local/bin/argocd-util ./argocd-util
+<div class="bash codehilite"><pre><span></span><code>docker run --rm -it -w /src -v <span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>:/src argocd cp /usr/local/bin/argocd-util ./argocd-util
 </code></pre></div>
-
 
 <p>The <code>argocd-util settings validate</code> command performs basic settings validation and print short summary
 of each settings group.</p>
@@ -1460,10 +1458,9 @@ of each settings group.</p>
 <p><a href="../../user-guide/diffing/">Diffing customization</a> allows excluding some resource fields from diffing process.
 The diffing customizations are configured in <code>resource.customizations</code> field of <code>argocd-cm</code> ConfigMap.</p>
 <p>The following <code>argocd-util</code> command prints information about fields excluded from diffing in the specified ConfigMap.</p>
-<div class="codehilite"><pre><span></span><code>docker run --rm -it -w /src -v <span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>:/src argoproj/argocd:&lt;version&gt; <span class="se">\</span>
+<div class="bash codehilite"><pre><span></span><code>docker run --rm -it -w /src -v <span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>:/src argoproj/argocd:&lt;version&gt; <span class="se">\</span>
   argocd-util settings resource-overrides ignore-differences ./deploy.yaml --argocd-cm-path ./argocd-cm.yaml
 </code></pre></div>
-
 
 <ul>
 <li>Health Assessment</li>
@@ -1471,10 +1468,9 @@ The diffing customizations are configured in <code>resource.customizations</code
 <p><a href="../../user-guide/diffing/">Health assessment</a> allows excluding some resource fields from diffing process.
 The diffing customizations are configured in <code>resource.customizations</code> field of <code>argocd-cm</code> ConfigMap. </p>
 <p>The following <code>argocd-util</code> command assess resource health using Lua script configured in the specified ConfigMap.</p>
-<div class="codehilite"><pre><span></span><code>docker run --rm -it -w /src -v <span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>:/src argoproj/argocd:&lt;version&gt; <span class="se">\</span>
+<div class="bash codehilite"><pre><span></span><code>docker run --rm -it -w /src -v <span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>:/src argoproj/argocd:&lt;version&gt; <span class="se">\</span>
   argocd-util settings resource-overrides health ./deploy.yaml --argocd-cm-path ./argocd-cm.yaml
 </code></pre></div>
-
 
 <ul>
 <li>Resource Actions</li>
@@ -1482,16 +1478,14 @@ The diffing customizations are configured in <code>resource.customizations</code
 <p>Resource actions allows configuring named Lua script which performs resource modification.</p>
 <p>The following <code>argocd-util</code> command executes action using Lua script configured in the specified ConfigMap and prints
 applied modifications.</p>
-<div class="codehilite"><pre><span></span><code>docker run --rm -it -w /src -v <span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>:/src argoproj/argocd:&lt;version&gt; <span class="se">\</span>
+<div class="bash codehilite"><pre><span></span><code>docker run --rm -it -w /src -v <span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>:/src argoproj/argocd:&lt;version&gt; <span class="se">\</span>
   argocd-util settings resource-overrides run-action /tmp/deploy.yaml restart --argocd-cm-path /private/tmp/argocd-cm.yaml 
 </code></pre></div>
 
-
 <p>The following <code>argocd-util</code> command lists actions available for a given resource using Lua script configured in the specified ConfigMap.</p>
-<div class="codehilite"><pre><span></span><code>docker run --rm -it -w /src -v <span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>:/src argoproj/argocd:&lt;version&gt; <span class="se">\</span>
+<div class="bash codehilite"><pre><span></span><code>docker run --rm -it -w /src -v <span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>:/src argoproj/argocd:&lt;version&gt; <span class="se">\</span>
   argocd-util settings resource-overrides list-actions /tmp/deploy.yaml --argocd-cm-path /private/tmp/argocd-cm.yaml 
 </code></pre></div>
-
 
 <h2 id="cluster-credentials">Cluster credentials<a class="headerlink" href="#cluster-credentials" title="Permanent link">&para;</a></h2>
 <p>The <code>argocd-util kubeconfig</code> is useful if you manually created Secret with cluster credentials and trying need to
@@ -1501,11 +1495,9 @@ troubleshoot connectivity issues. In this case, it is suggested to use the follo
 <span class="err">  $(kubectl get pods -n argocd -l app.kubernetes.io/name=argocd-application-controller -o jsonpath=&#39;{.items[0].metadata.name}&#39;) bash</span>
 </code></pre></div>
 
-
 <p>2 Use <code>argocd-util kubeconfig</code> command to export kubeconfig file from the configured Secret: </p>
 <div class="codehilite"><pre><span></span><code><span class="err">argocd-util kubeconfig https://&lt;api-server-url&gt; /tmp/kubeconfig --namespace argocd</span>
 </code></pre></div>
-
 
 <p>3 Use <code>kubectl</code> to get more details about connection issues, fix them and apply changes back to secret:</p>
 <div class="codehilite"><pre><span></span><code><span class="k">export</span> <span class="n">KUBECONFIG</span><span class="o">=/</span><span class="n">tmp</span><span class="o">/</span><span class="n">kubeconfig</span>

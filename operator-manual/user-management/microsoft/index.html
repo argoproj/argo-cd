@@ -1460,7 +1460,6 @@
 <span class="err">    Secret: some_secret</span>
 </code></pre></div>
 
-
 </li>
 <li>
 <p>Setup permissions for Azure AD Application</p>
@@ -1489,7 +1488,6 @@
             <span class="o">-</span> <span class="n">email</span>
 </code></pre></div>
 
-
 </li>
 <li>
 <p>Edit <code>argocd-secret</code> and configure the <code>data.oidc.azure.clientSecret</code> section:</p>
@@ -1498,7 +1496,6 @@
 <span class="k">data</span><span class="p">:</span>
     <span class="n">oidc</span><span class="p">.</span><span class="n">azure</span><span class="p">.</span><span class="n">clientSecret</span><span class="p">:</span> <span class="err">{</span><span class="n">client_secret</span> <span class="o">|</span> <span class="n">base64_encoded</span><span class="err">}</span>
 </code></pre></div>
-
 
 </li>
 <li>
@@ -1517,7 +1514,6 @@
 <span class="cm">    g, &quot;84ce98d1-e359-4f3b-85af-985b458de3c6&quot;, role:org-admin</span>
 </code></pre></div>
 
-
 </li>
 <li>
 <p>Mapping role from jwt token to argo</p>
@@ -1525,11 +1521,10 @@
 <div class="codehilite"><pre><span></span><code><span class="c">scopes: &#39;[roles, email]&#39;</span>
 </code></pre></div>
 
-
 </li>
 </ol>
 <h2 id="with-dex">With Dex<a class="headerlink" href="#with-dex" title="Permanent link">&para;</a></h2>
-<div class="codehilite"><pre><span></span><code><span class="l l-Scalar l-Scalar-Plain">ConfigMap -&gt; argocd-cm</span>
+<div class="yaml codehilite"><pre><span></span><code><span class="l l-Scalar l-Scalar-Plain">ConfigMap -&gt; argocd-cm</span>
 
 <span class="l l-Scalar l-Scalar-Plain">data</span><span class="p p-Indicator">:</span>
     <span class="nt">dex.config</span><span class="p">:</span> <span class="p p-Indicator">|</span>

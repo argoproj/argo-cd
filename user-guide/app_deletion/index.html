@@ -1426,39 +1426,33 @@
 <p>Apps can be deleted with or without a cascade option. A <strong>cascade delete</strong>, deletes both the app and its resources, rather than only the app. </p>
 <h2 id="deletion-using-argocd">Deletion Using <code>argocd</code><a class="headerlink" href="#deletion-using-argocd" title="Permanent link">&para;</a></h2>
 <p>To perform a non-cascade delete:</p>
-<div class="codehilite"><pre><span></span><code>argocd app delete APPNAME --cascade<span class="o">=</span><span class="nb">false</span>
+<div class="bash codehilite"><pre><span></span><code>argocd app delete APPNAME --cascade<span class="o">=</span><span class="nb">false</span>
 </code></pre></div>
-
 
 <p>To perform a cascade delete:</p>
-<div class="codehilite"><pre><span></span><code>argocd app delete APPNAME --cascade
+<div class="bash codehilite"><pre><span></span><code>argocd app delete APPNAME --cascade
 </code></pre></div>
-
 
 <p>or</p>
-<div class="codehilite"><pre><span></span><code>argocd app delete APPNAME
+<div class="bash codehilite"><pre><span></span><code>argocd app delete APPNAME
 </code></pre></div>
-
 
 <h1 id="deletion-using-kubectl">Deletion Using <code>kubectl</code><a class="headerlink" href="#deletion-using-kubectl" title="Permanent link">&para;</a></h1>
 <p>To perform a non-cascade delete:</p>
-<div class="codehilite"><pre><span></span><code>kubectl delete app APPNAME
+<div class="bash codehilite"><pre><span></span><code>kubectl delete app APPNAME
 </code></pre></div>
 
-
 <p>To perform a cascade delete set the finalizer, e.g. using <code>kubctl patch</code>:</p>
-<div class="codehilite"><pre><span></span><code>kubectl patch app APPNAME  -p <span class="s1">&#39;{&quot;metadata&quot;: {&quot;finalizers&quot;: [&quot;resources-finalizer.argocd.argoproj.io&quot;]}}&#39;</span> --type merge
+<div class="bash codehilite"><pre><span></span><code>kubectl patch app APPNAME  -p <span class="s1">&#39;{&quot;metadata&quot;: {&quot;finalizers&quot;: [&quot;resources-finalizer.argocd.argoproj.io&quot;]}}&#39;</span> --type merge
 kubectl delete app APPNAME 
 </code></pre></div>
 
-
 <h1 id="about-the-deletion-finalizer">About The Deletion Finalizer<a class="headerlink" href="#about-the-deletion-finalizer" title="Permanent link">&para;</a></h1>
 <p>For the technical amongst you, the Argo CD application controller watches for this finalizer:  </p>
-<div class="codehilite"><pre><span></span><code><span class="nt">metadata</span><span class="p">:</span>
+<div class="yaml codehilite"><pre><span></span><code><span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">finalizers</span><span class="p">:</span>
     <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">resources-finalizer.argocd.argoproj.io</span>
 </code></pre></div>
-
 
 <p>Argo CD's app controller watches for this and will then delete both the app and its resources.</p>
 <p>When you invoke <code>argocd app delete</code> with <code>--cascade</code>, the finalizer is added automatically. </p>

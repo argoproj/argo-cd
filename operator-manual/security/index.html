@@ -1604,29 +1604,27 @@ services.</p>
 causes kubernetes to generate a new secret with a new bearer token. The new token can be re-inputted
 to Argo CD by re-running <code>argocd cluster add</code>. Run the following commands against the <em><em>managed</em></em>
 cluster:</p>
-<div class="codehilite"><pre><span></span><code><span class="c1"># run using a kubeconfig for the externally managed cluster</span>
+<div class="bash codehilite"><pre><span></span><code><span class="c1"># run using a kubeconfig for the externally managed cluster</span>
 kubectl delete secret argocd-manager-token-XXXXXX -n kube-system
 argocd cluster add CONTEXTNAME
 </code></pre></div>
 
-
 <p>To revoke Argo CD's access to a managed cluster, delete the RBAC artifacts against the <em><em>managed</em></em>
 cluster, and remove the cluster entry from Argo CD:</p>
-<div class="codehilite"><pre><span></span><code><span class="c1"># run using a kubeconfig for the externally managed cluster</span>
+<div class="bash codehilite"><pre><span></span><code><span class="c1"># run using a kubeconfig for the externally managed cluster</span>
 kubectl delete sa argocd-manager -n kube-system
 kubectl delete clusterrole argocd-manager-role
 kubectl delete clusterrolebinding argocd-manager-role-binding
 argocd cluster rm https://your-kubernetes-cluster-addr
 </code></pre></div>
 
-
 <!-- markdownlint-disable MD027 -->
-
 <blockquote>
 <p>NOTE: for AWS EKS clusters, <a href="https://github.com/kubernetes-sigs/aws-iam-authenticator">aws-iam-authenticator</a>
   is used to authenticate to the external cluster, which uses IAM roles in lieu of locally stored
   tokens, so token rotation is not needed, and revocation is handled through IAM.
-<!-- markdownlint-enable MD027 --></p>
+<!-- markdownlint-enable MD027 -->
+</p>
 </blockquote>
 <h2 id="cluster-rbac">Cluster RBAC<a class="headerlink" href="#cluster-rbac" title="Permanent link">&para;</a></h2>
 <p>By default, Argo CD uses a <a href="https://github.com/argoproj/argo-cd/blob/master/manifests/base/application-controller/argocd-application-controller-role.yaml">clusteradmin level role</a>
@@ -1641,18 +1639,16 @@ ClusterRole used by argocd-server and argocd-application-controller can be modif
 that write privileges are limited to only the namespaces and resources that you wish Argo CD to
 manage.</p>
 <p>To fine-tune privileges of externally managed clusters, edit the ClusterRole of the <code>argocd-manager-role</code></p>
-<div class="codehilite"><pre><span></span><code><span class="c1"># run using a kubeconfig for the externally managed cluster</span>
+<div class="bash codehilite"><pre><span></span><code><span class="c1"># run using a kubeconfig for the externally managed cluster</span>
 kubectl edit clusterrole argocd-manager-role
 </code></pre></div>
 
-
 <p>To fine-tune privileges which Argo CD has against its own cluster (i.e. <code>https://kubernetes.default.svc</code>),
 edit the following cluster roles where Argo CD is running in:</p>
-<div class="codehilite"><pre><span></span><code><span class="c1"># run using a kubeconfig to the cluster Argo CD is running in</span>
+<div class="bash codehilite"><pre><span></span><code><span class="c1"># run using a kubeconfig to the cluster Argo CD is running in</span>
 kubectl edit clusterrole argocd-server
 kubectl edit clusterrole argocd-application-controller
 </code></pre></div>
-
 
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
@@ -1666,7 +1662,7 @@ that happen in a cluster. For example, User A could have made multiple commits t
 manifests, but User B could have just only synced those changes to the cluster sometime later.</p>
 <p>To complement the Git revision history, Argo CD emits Kubernetes Events of application activity,
 indicating the responsible actor when applicable. For example:</p>
-<div class="codehilite"><pre><span></span><code>$ kubectl get events
+<div class="bash codehilite"><pre><span></span><code>$ kubectl get events
 LAST SEEN   FIRST SEEN   COUNT   NAME                         KIND          SUBOBJECT   TYPE      REASON               SOURCE                          MESSAGE
 1m          1m           <span class="m">1</span>       guestbook.157f7c5edd33aeac   Application               Normal    ResourceCreated      argocd-server                   admin created application
 1m          1m           <span class="m">1</span>       guestbook.157f7c5f0f747acf   Application               Normal    ResourceUpdated      argocd-application-controller   Updated sync status:  -&gt; OutOfSync
@@ -1677,7 +1673,6 @@ LAST SEEN   FIRST SEEN   COUNT   NAME                         KIND          SUBO
 1m          1m           <span class="m">1</span>       guestbook.157f7c60af5bc4f0   Application               Normal    ResourceUpdated      argocd-application-controller   Updated health status: Missing -&gt; Progressing
 1m          1m           <span class="m">1</span>       guestbook.157f7c651990e848   Application               Normal    ResourceUpdated      argocd-application-controller   Updated health status: Progressing -&gt; Healthy
 </code></pre></div>
-
 
 <p>These events can be then be persisted for longer periods of time using other tools as
 <a href="https://github.com/GoogleCloudPlatform/k8s-stackdriver/tree/master/event-exporter">Event Exporter</a> or

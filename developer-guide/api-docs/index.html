@@ -1426,25 +1426,23 @@
 <p>You can find the Swagger docs by setting the path to <code>/swagger-ui</code> in your Argo CD UI's. E.g. <a href="http://localhost:8080/swagger-ui">http://localhost:8080/swagger-ui</a>.</p>
 <h2 id="authorization">Authorization<a class="headerlink" href="#authorization" title="Permanent link">&para;</a></h2>
 <p>You'll need to authorize your API using a bearer token. To get a token:</p>
-<div class="codehilite"><pre><span></span><code>$ curl <span class="nv">$ARGOCD_SERVER</span>/api/v1/session -d <span class="s1">$&#39;{&quot;username&quot;:&quot;admin&quot;,&quot;password&quot;:&quot;password&quot;}&#39;</span>
+<div class="bash codehilite"><pre><span></span><code>$ curl <span class="nv">$ARGOCD_SERVER</span>/api/v1/session -d <span class="s1">$&#39;{&quot;username&quot;:&quot;admin&quot;,&quot;password&quot;:&quot;password&quot;}&#39;</span>
 <span class="o">{</span><span class="s2">&quot;token&quot;</span>:<span class="s2">&quot;eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE1Njc4MTIzODcsImlzcyI6ImFyZ29jZCIsIm5iZiI6MTU2NzgxMjM4Nywic3ViIjoiYWRtaW4ifQ.ejyTgFxLhuY9mOBtKhcnvobg3QZXJ4_RusN_KIdVwao&quot;</span><span class="o">}</span> 
 </code></pre></div>
-
 
 <blockquote>
 <p>&lt;=v1.2</p>
 </blockquote>
 <p>Then pass using the HTTP <code>SetCookie</code> header, prefixing with <code>argocd.token</code>:</p>
-<div class="codehilite"><pre><span></span><code>$ curl <span class="nv">$ARGOCD_SERVER</span>/api/v1/applications --cookie <span class="s2">&quot;argocd.token=</span><span class="nv">$ARGOCD_TOKEN</span><span class="s2">&quot;</span> 
+<div class="bash codehilite"><pre><span></span><code>$ curl <span class="nv">$ARGOCD_SERVER</span>/api/v1/applications --cookie <span class="s2">&quot;argocd.token=</span><span class="nv">$ARGOCD_TOKEN</span><span class="s2">&quot;</span> 
 <span class="o">{</span><span class="s2">&quot;metadata&quot;</span>:<span class="o">{</span><span class="s2">&quot;selfLink&quot;</span>:<span class="s2">&quot;/apis/argoproj.io/v1alpha1/namespaces/argocd/applications&quot;</span>,<span class="s2">&quot;resourceVersion&quot;</span>:<span class="s2">&quot;37755&quot;</span><span class="o">}</span>,<span class="s2">&quot;items&quot;</span>:...<span class="o">}</span>
 </code></pre></div>
-
 
 <blockquote>
 <p>v1.3</p>
 </blockquote>
 <p>Then pass using the HTTP <code>Authorization</code> header, prefixing with <code>Bearer</code>:</p>
-<div class="codehilite"><pre><span></span><code>$ curl <span class="nv">$ARGOCD_SERVER</span>/api/v1/applications -H <span class="s2">&quot;Authorization: Bearer </span><span class="nv">$ARGOCD_TOKEN</span><span class="s2">&quot;</span> 
+<div class="bash codehilite"><pre><span></span><code>$ curl <span class="nv">$ARGOCD_SERVER</span>/api/v1/applications -H <span class="s2">&quot;Authorization: Bearer </span><span class="nv">$ARGOCD_TOKEN</span><span class="s2">&quot;</span> 
 <span class="o">{</span><span class="s2">&quot;metadata&quot;</span>:<span class="o">{</span><span class="s2">&quot;selfLink&quot;</span>:<span class="s2">&quot;/apis/argoproj.io/v1alpha1/namespaces/argocd/applications&quot;</span>,<span class="s2">&quot;resourceVersion&quot;</span>:<span class="s2">&quot;37755&quot;</span><span class="o">}</span>,<span class="s2">&quot;items&quot;</span>:...<span class="o">}</span>
 </code></pre></div>
                 

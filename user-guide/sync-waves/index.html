@@ -1460,20 +1460,18 @@
 <p>Within each phase you can have one or more waves, than allows you to ensure certain resources are healthy before subsequent resources are synced.   </p>
 <h2 id="how-do-i-configure-phases">How Do I Configure Phases?<a class="headerlink" href="#how-do-i-configure-phases" title="Permanent link">&para;</a></h2>
 <p>Pre-sync and post-sync can only contain hooks. Apply the hook annotation:</p>
-<div class="codehilite"><pre><span></span><code><span class="nt">metadata</span><span class="p">:</span>
+<div class="yaml codehilite"><pre><span></span><code><span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">annotations</span><span class="p">:</span>
     <span class="nt">argocd.argoproj.io/hook</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">PreSync</span>
 </code></pre></div>
 
-
 <p><a href="../resource_hooks/">Read more about hooks</a>.</p>
 <h2 id="how-do-i-configure-waves">How Do I Configure Waves?<a class="headerlink" href="#how-do-i-configure-waves" title="Permanent link">&para;</a></h2>
 <p>Specify the wave using the following annotation:</p>
-<div class="codehilite"><pre><span></span><code><span class="nt">metadata</span><span class="p">:</span>
+<div class="yaml codehilite"><pre><span></span><code><span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">annotations</span><span class="p">:</span>
     <span class="nt">argocd.argoproj.io/sync-wave</span><span class="p">:</span> <span class="s">&quot;5&quot;</span>
 </code></pre></div>
-
 
 <p>Hooks and resources are assigned to wave zero by default. The wave can be negative, so you can create a wave that runs before all other resources.</p>
 <h2 id="how-does-it-work">How Does It Work?<a class="headerlink" href="#how-does-it-work" title="Permanent link">&para;</a></h2>

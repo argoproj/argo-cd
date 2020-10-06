@@ -1489,7 +1489,7 @@ from your application source code, is highly recommended for the following reaso
 in your Git manifests. For example, if you want the number of your deployment's replicas to be
 managed by <a href="https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/">Horizontal Pod Autoscaler</a>,
 then you would not want to track <code>replicas</code> in Git.</p>
-<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">apps/v1</span>
+<div class="yaml codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">apps/v1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Deployment</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx-deployment</span>
@@ -1506,22 +1506,20 @@ then you would not want to track <code>replicas</code> in Git.</p>
 <span class="nn">...</span>
 </code></pre></div>
 
-
 <h2 id="ensuring-manifests-at-git-revisions-are-truly-immutable">Ensuring Manifests At Git Revisions Are Truly Immutable<a class="headerlink" href="#ensuring-manifests-at-git-revisions-are-truly-immutable" title="Permanent link">&para;</a></h2>
 <p>When using templating tools like <code>helm</code> or <code>kustomize</code>, it is possible for manifests to change
 their meaning from one day to the next. This is typically caused by changes made to an upstream helm
 repository or kustomize base.</p>
 <p>For example, consider the following kustomization.yaml</p>
-<div class="codehilite"><pre><span></span><code><span class="nt">bases</span><span class="p">:</span>
+<div class="yaml codehilite"><pre><span></span><code><span class="nt">bases</span><span class="p">:</span>
 <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">github.com/argoproj/argo-cd//manifests/cluster-install</span>
 </code></pre></div>
-
 
 <p>The above kustomization has a remote base to the HEAD revision of the argo-cd repo. Since this
 is not a stable target, the manifests for this kustomize application can suddenly change meaning, even without
 any changes to your own Git repository.</p>
 <p>A better version would be to use a Git tag or commit SHA. For example:</p>
-<div class="codehilite"><pre><span></span><code><span class="nt">bases</span><span class="p">:</span>
+<div class="yaml codehilite"><pre><span></span><code><span class="nt">bases</span><span class="p">:</span>
 <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">github.com/argoproj/argo-cd//manifests/cluster-install?ref=v0.11.1</span>
 </code></pre></div>
                 

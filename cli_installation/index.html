@@ -1433,58 +1433,49 @@
 <p>You can download the latest Argo CD version from <a href="https://github.com/argoproj/argo-cd/releases/latest">the latest release page of this repository</a>, which will include the <code>argocd</code> CLI.</p>
 <h2 id="linux">Linux<a class="headerlink" href="#linux" title="Permanent link">&para;</a></h2>
 <p>You can view the latest version of Argo CD at the link above or run the following command to grab the version:</p>
-<div class="codehilite"><pre><span></span><code><span class="nv">VERSION</span><span class="o">=</span><span class="k">$(</span>curl --silent <span class="s2">&quot;https://api.github.com/repos/argoproj/argo-cd/releases/latest&quot;</span> <span class="p">|</span> grep <span class="s1">&#39;&quot;tag_name&quot;&#39;</span> <span class="p">|</span> sed -E <span class="s1">&#39;s/.*&quot;([^&quot;]+)&quot;.*/\1/&#39;</span><span class="k">)</span>
+<div class="bash codehilite"><pre><span></span><code><span class="nv">VERSION</span><span class="o">=</span><span class="k">$(</span>curl --silent <span class="s2">&quot;https://api.github.com/repos/argoproj/argo-cd/releases/latest&quot;</span> <span class="p">|</span> grep <span class="s1">&#39;&quot;tag_name&quot;&#39;</span> <span class="p">|</span> sed -E <span class="s1">&#39;s/.*&quot;([^&quot;]+)&quot;.*/\1/&#39;</span><span class="k">)</span>
 </code></pre></div>
-
 
 <p>Replace <code>VERSION</code> in the command below with the version of Argo CD you would like to download:</p>
-<div class="codehilite"><pre><span></span><code>curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/download/<span class="nv">$VERSION</span>/argocd-linux-amd64
+<div class="bash codehilite"><pre><span></span><code>curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/download/<span class="nv">$VERSION</span>/argocd-linux-amd64
 </code></pre></div>
-
 
 <p>Make the <code>argocd</code> CLI executable:</p>
-<div class="codehilite"><pre><span></span><code>chmod +x /usr/local/bin/argocd
+<div class="bash codehilite"><pre><span></span><code>chmod +x /usr/local/bin/argocd
 </code></pre></div>
-
 
 <p>You should now be able to run <code>argocd</code> commands.</p>
 <h2 id="mac">Mac<a class="headerlink" href="#mac" title="Permanent link">&para;</a></h2>
 <h3 id="homebrew">Homebrew<a class="headerlink" href="#homebrew" title="Permanent link">&para;</a></h3>
-<div class="codehilite"><pre><span></span><code>brew install argocd
+<div class="bash codehilite"><pre><span></span><code>brew install argocd
 </code></pre></div>
-
 
 <h3 id="download-with-curl">Download With Curl<a class="headerlink" href="#download-with-curl" title="Permanent link">&para;</a></h3>
 <p>You can view the latest version of Argo CD at the link above or run the following command to grab the version:</p>
-<div class="codehilite"><pre><span></span><code><span class="nv">VERSION</span><span class="o">=</span><span class="k">$(</span>curl --silent <span class="s2">&quot;https://api.github.com/repos/argoproj/argo-cd/releases/latest&quot;</span> <span class="p">|</span> grep <span class="s1">&#39;&quot;tag_name&quot;&#39;</span> <span class="p">|</span> sed -E <span class="s1">&#39;s/.*&quot;([^&quot;]+)&quot;.*/\1/&#39;</span><span class="k">)</span>
+<div class="bash codehilite"><pre><span></span><code><span class="nv">VERSION</span><span class="o">=</span><span class="k">$(</span>curl --silent <span class="s2">&quot;https://api.github.com/repos/argoproj/argo-cd/releases/latest&quot;</span> <span class="p">|</span> grep <span class="s1">&#39;&quot;tag_name&quot;&#39;</span> <span class="p">|</span> sed -E <span class="s1">&#39;s/.*&quot;([^&quot;]+)&quot;.*/\1/&#39;</span><span class="k">)</span>
 </code></pre></div>
-
 
 <p>Replace <code>VERSION</code> in the command below with the version of Argo CD you would like to download:</p>
-<div class="codehilite"><pre><span></span><code>curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/download/<span class="nv">$VERSION</span>/argocd-darwin-amd64
+<div class="bash codehilite"><pre><span></span><code>curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/download/<span class="nv">$VERSION</span>/argocd-darwin-amd64
 </code></pre></div>
-
 
 <p>Make the <code>argocd</code> CLI executable:</p>
-<div class="codehilite"><pre><span></span><code>chmod +x /usr/local/bin/argocd
+<div class="bash codehilite"><pre><span></span><code>chmod +x /usr/local/bin/argocd
 </code></pre></div>
-
 
 <p>After finishing either of the instructions above, you should now be able to run <code>argocd</code> commands.</p>
 <h2 id="windows">Windows<a class="headerlink" href="#windows" title="Permanent link">&para;</a></h2>
 <h3 id="download-with-powershell-invoke-webrequest">Download With Powershell: Invoke-WebRequest<a class="headerlink" href="#download-with-powershell-invoke-webrequest" title="Permanent link">&para;</a></h3>
 <p>You can view the latest version of Argo CD at the link above or run the following command to grab the version:</p>
-<div class="codehilite"><pre><span></span><code><span class="nv">$version</span> <span class="p">=</span> <span class="p">(</span><span class="nb">Invoke-RestMethod</span> <span class="n">https</span><span class="err">:</span><span class="p">//</span><span class="n">api</span><span class="p">.</span><span class="n">github</span><span class="p">.</span><span class="n">com</span><span class="p">/</span><span class="n">repos</span><span class="p">/</span><span class="n">argoproj</span><span class="p">/</span><span class="n">argo-cd</span><span class="p">/</span><span class="n">releases</span><span class="p">/</span><span class="n">latest</span><span class="p">).</span><span class="n">tag_name</span>
+<div class="powershell codehilite"><pre><span></span><code><span class="nv">$version</span> <span class="p">=</span> <span class="p">(</span><span class="nb">Invoke-RestMethod</span> <span class="n">https</span><span class="err">:</span><span class="p">//</span><span class="n">api</span><span class="p">.</span><span class="n">github</span><span class="p">.</span><span class="n">com</span><span class="p">/</span><span class="n">repos</span><span class="p">/</span><span class="n">argoproj</span><span class="p">/</span><span class="n">argo-cd</span><span class="p">/</span><span class="n">releases</span><span class="p">/</span><span class="n">latest</span><span class="p">).</span><span class="n">tag_name</span>
 </code></pre></div>
 
-
 <p>Replace <code>$version</code> in the command below with the version of Argo CD you would like to download:</p>
-<div class="codehilite"><pre><span></span><code><span class="nv">$url</span> <span class="p">=</span> <span class="s2">&quot;https://github.com/argoproj/argo-cd/releases/download/&quot;</span> <span class="p">+</span> <span class="nv">$version</span> <span class="p">+</span> <span class="s2">&quot;/argocd-windows-amd64.exe&quot;</span>
+<div class="powershell codehilite"><pre><span></span><code><span class="nv">$url</span> <span class="p">=</span> <span class="s2">&quot;https://github.com/argoproj/argo-cd/releases/download/&quot;</span> <span class="p">+</span> <span class="nv">$version</span> <span class="p">+</span> <span class="s2">&quot;/argocd-windows-amd64.exe&quot;</span>
 <span class="nv">$output</span> <span class="p">=</span> <span class="s2">&quot;argocd.exe&quot;</span>
 
 <span class="nb">Invoke-WebRequest</span> <span class="n">-Uri</span> <span class="nv">$url</span> <span class="n">-OutFile</span> <span class="nv">$output</span>
 </code></pre></div>
-
 
 <p>Also please note you will probably need to move the file into your PATH.</p>
 <p>After finishing the instructions above, you should now be able to run <code>argocd</code> commands.</p>

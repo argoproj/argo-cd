@@ -1381,21 +1381,18 @@
 <p>You can use <code>argocd-util</code> to import and export all Argo CD data.</p>
 <p>Make sure you have <code>~/.kube/config</code> pointing to your Argo CD cluster.</p>
 <p>Figure out what version of Argo CD you're running:</p>
-<div class="codehilite"><pre><span></span><code>argocd version <span class="p">|</span> grep server
+<div class="bash codehilite"><pre><span></span><code>argocd version <span class="p">|</span> grep server
 <span class="c1"># ...</span>
 <span class="nb">export</span> <span class="nv">VERSION</span><span class="o">=</span>v1.0.1
 </code></pre></div>
 
-
 <p>Export to a backup:</p>
-<div class="codehilite"><pre><span></span><code>docker run -v ~/.kube:/home/argocd/.kube --rm argoproj/argocd:<span class="nv">$VERSION</span> argocd-util <span class="nb">export</span> &gt; backup.yaml
+<div class="bash codehilite"><pre><span></span><code>docker run -v ~/.kube:/home/argocd/.kube --rm argoproj/argocd:<span class="nv">$VERSION</span> argocd-util <span class="nb">export</span> &gt; backup.yaml
 </code></pre></div>
-
 
 <p>Import from a backup:</p>
-<div class="codehilite"><pre><span></span><code>docker run -i -v ~/.kube:/home/argocd/.kube --rm argoproj/argocd:<span class="nv">$VERSION</span> argocd-util import - &lt; backup.yaml
+<div class="bash codehilite"><pre><span></span><code>docker run -i -v ~/.kube:/home/argocd/.kube --rm argoproj/argocd:<span class="nv">$VERSION</span> argocd-util import - &lt; backup.yaml
 </code></pre></div>
-
 
 <div class="admonition note">
 <p class="admonition-title">Note</p>

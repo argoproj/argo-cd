@@ -1602,10 +1602,9 @@
 <h3 id="can-i-retrigger-the-checks-without-pushing-a-new-commit">Can I retrigger the checks without pushing a new commit?<a class="headerlink" href="#can-i-retrigger-the-checks-without-pushing-a-new-commit" title="Permanent link">&para;</a></h3>
 <p>Since the CI pipeline is triggered on Git commits, there is currently no (known) way on how to retrigger the CI checks without pushing a new commit to your branch.</p>
 <p>If you are absolutely sure that the failure was due to a failure in the pipeline, and not an error within the changes you commited, you can push an empty commit to your branch, thus retriggering the pipeline without any code changes. To do so, issue</p>
-<div class="codehilite"><pre><span></span><code>git commit --allow-empty -m <span class="s2">&quot;Retrigger CI pipeline&quot;</span>
+<div class="bash codehilite"><pre><span></span><code>git commit --allow-empty -m <span class="s2">&quot;Retrigger CI pipeline&quot;</span>
 git push origin &lt;yourbranch&gt;
 </code></pre></div>
-
 
 <h3 id="why-does-the-build-step-fail">Why does the build step fail?<a class="headerlink" href="#why-does-the-build-step-fail" title="Permanent link">&para;</a></h3>
 <p>Chances are that it fails for two of the following reasons in the CI while running fine on your machine:</p>

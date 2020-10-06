@@ -1482,24 +1482,28 @@
 <p>https://github.com/argoproj/gitops-engine</p>
 <h3 id="pulling-changes-from-gitops-engine">Pulling changes from <code>gitops-engine</code><a class="headerlink" href="#pulling-changes-from-gitops-engine" title="Permanent link">&para;</a></h3>
 <p>After your GitOps Engine PR has been merged, ArgoCD needs to be updated to pull in the version of the GitOps engine that contains your change.  Here are the steps:</p>
-<ol>
+<ul>
 <li>Retrieve the SHA hash for your commit. You will use this in the next step.</li>
-<li>From the <code>argo-cd</code> folder, run the following command</li>
-</ol>
+<li>
+<p>From the <code>argo-cd</code> folder, run the following command</p>
 <p><code>go get github.com/argoproj/gitops-engine@&lt;git-commit-sha&gt;</code></p>
-<p>If you get an error message <code>invalid version: unknown revision</code> then you got the wrong SHA hash
-3. Run:</p>
+<p>If you get an error message <code>invalid version: unknown revision</code> then you got the wrong SHA hash</p>
+</li>
+<li>
+<p>Run:</p>
 <p><code>go mod tidy</code></p>
-<ol>
+</li>
 <li>
 <p>The following files are changed:</p>
+<ul>
+<li><code>go.mod</code></li>
+<li><code>go.sum</code></li>
+</ul>
 </li>
 <li>
-<p><code>go.mod</code></p>
+<p>Create an ArgoCD PR with a <code>refactor:</code> type in its title for the two file changes.</p>
 </li>
-<li><code>go.sum</code></li>
-<li>Create an ArgoCD PR with a <code>refactor:</code> type in its title for the two file changes.</li>
-</ol>
+</ul>
 <h3 id="tips">Tips:<a class="headerlink" href="#tips" title="Permanent link">&para;</a></h3>
 <ul>
 <li>See https://github.com/argoproj/argo-cd/pull/4434 as an example</li>

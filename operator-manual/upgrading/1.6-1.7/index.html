@@ -1450,7 +1450,7 @@ https://github.com/kubernetes-sigs/yaml for YAML handling to be consistent with 
 This introduced a change of multiline string handling in resource manifests. As a result, YAML manifests with multiline
 strings might become out-of-sync after upgrading and you might have to trigger the syncronization once to resolve it.</p>
 <p>Affected resource example:</p>
-<div class="codehilite"><pre><span></span><code><span class="nn">---</span>
+<div class="yaml codehilite"><pre><span></span><code><span class="nn">---</span>
 <span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
 <span class="nt">metadata</span><span class="p">:</span>
@@ -1459,7 +1459,6 @@ strings might become out-of-sync after upgrading and you might have to trigger t
   <span class="nt">value</span><span class="p">:</span> <span class="p p-Indicator">|+</span> <span class="c1"># block chomping indicator is dropped by Argo CD v1.7 ( same as kubectl apply)</span>
   <span class="l l-Scalar l-Scalar-Plain">hello</span>
 </code></pre></div>
-
 
 <p>From here on you can follow the <a href="../overview/">regular upgrade process</a>.</p>
                 

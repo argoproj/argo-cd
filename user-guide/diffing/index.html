@@ -1469,7 +1469,7 @@ which generates different data every time <code>helm template</code> is invoked.
 The diffing customization can be configured for single or multiple application resources or at a system level.</p>
 <h2 id="application-level-configuration">Application Level Configuration<a class="headerlink" href="#application-level-configuration" title="Permanent link">&para;</a></h2>
 <p>Argo CD allows ignoring differences at a specific JSON path, using <a href="https://tools.ietf.org/html/rfc6902">RFC6902 JSON patches</a>. The following sample application is configured to ignore differences in <code>spec.replicas</code> for all deployments:</p>
-<div class="codehilite"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
+<div class="yaml codehilite"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
   <span class="nt">ignoreDifferences</span><span class="p">:</span>
   <span class="p p-Indicator">-</span> <span class="nt">group</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">apps</span>
     <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Deployment</span>
@@ -1477,9 +1477,8 @@ The diffing customization can be configured for single or multiple application r
     <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">/spec/replicas</span>
 </code></pre></div>
 
-
 <p>The above customization could be narrowed to a resource with the specified name and optional namespace:</p>
-<div class="codehilite"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
+<div class="yaml codehilite"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
   <span class="nt">ignoreDifferences</span><span class="p">:</span>
   <span class="p p-Indicator">-</span> <span class="nt">group</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">apps</span>
     <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Deployment</span>
@@ -1489,12 +1488,11 @@ The diffing customization can be configured for single or multiple application r
     <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">/spec/replicas</span>
 </code></pre></div>
 
-
 <h2 id="system-level-configuration">System-Level Configuration<a class="headerlink" href="#system-level-configuration" title="Permanent link">&para;</a></h2>
 <p>The comparison of resources with well-known issues can be customized at a system level. Ignored differences can be configured for a specified group and kind
 in <code>resource.customizations</code> key of <code>argocd-cm</code> ConfigMap. Following is an example of a customization which ignores the <code>caBundle</code> field
 of a <code>MutatingWebhookConfiguration</code> webhooks:</p>
-<div class="codehilite"><pre><span></span><code><span class="nt">data</span><span class="p">:</span>
+<div class="yaml codehilite"><pre><span></span><code><span class="nt">data</span><span class="p">:</span>
   <span class="nt">resource.customizations</span><span class="p">:</span> <span class="p p-Indicator">|</span>
     <span class="no">admissionregistration.k8s.io/MutatingWebhookConfiguration:</span>
       <span class="no">ignoreDifferences: |</span>
@@ -1502,10 +1500,9 @@ of a <code>MutatingWebhookConfiguration</code> webhooks:</p>
         <span class="no">- /webhooks/0/clientConfig/caBundle</span>
 </code></pre></div>
 
-
 <p>The <code>status</code> field of <code>CustomResourceDefinitions</code> is often stored in Git/Helm manifest and should be ignored during diffing. The <code>ignoreResourceStatusField</code> setting simplifies
 handling that edge case:</p>
-<div class="codehilite"><pre><span></span><code><span class="nt">data</span><span class="p">:</span>
+<div class="yaml codehilite"><pre><span></span><code><span class="nt">data</span><span class="p">:</span>
   <span class="nt">resource.compareoptions</span><span class="p">:</span> <span class="p p-Indicator">|</span>
     <span class="no"># disables status field diffing in specified resource types</span>
     <span class="no"># &#39;crd&#39; - CustomResourceDefinition-s (default)</span>
@@ -1513,7 +1510,6 @@ handling that edge case:</p>
     <span class="no"># &#39;none&#39; - disabled</span>
     <span class="no">ignoreResourceStatusField: crd</span>
 </code></pre></div>
-
 
 <p>By default <code>status</code> field is ignored during diffing for <code>CustomResourceDefinition</code> resource. The behavior can be extended to all resources using <code>all</code> value or disabled using <code>none</code>.</p>
 <h2 id="known-kubernetes-types-in-crds-resource-limits-volume-mounts-etc">Known Kubernetes types in CRDs (Resource limits, Volume mounts etc)<a class="headerlink" href="#known-kubernetes-types-in-crds-resource-limits-volume-mounts-etc" title="Permanent link">&para;</a></h2>
@@ -1523,22 +1519,20 @@ positives during drift detection. </p>
 <p>A typical example is the <code>argoproj.io/Rollout</code> CRD that re-using <code>core/v1/PodSpec</code> data structure. Pod resource requests
 might be reformatted by the custom marshaller of <code>IntOrString</code> data type:</p>
 <p>from:</p>
-<div class="codehilite"><pre><span></span><code><span class="nt">resources</span><span class="p">:</span>
+<div class="yaml codehilite"><pre><span></span><code><span class="nt">resources</span><span class="p">:</span>
   <span class="nt">requests</span><span class="p">:</span>
     <span class="nt">cpu</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">100m</span>
 </code></pre></div>
 
-
 <p>to:</p>
-<div class="codehilite"><pre><span></span><code><span class="nt">resources</span><span class="p">:</span>
+<div class="yaml codehilite"><pre><span></span><code><span class="nt">resources</span><span class="p">:</span>
   <span class="nt">requests</span><span class="p">:</span>
     <span class="nt">cpu</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">0.1</span>
 </code></pre></div>
 
-
 <p>The solution is to specify which CRDs fields are using built-in Kubernetes types in the <code>resource.customizations</code>
 section of <code>argocd-cm</code> ConfigMap:  </p>
-<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<div class="yaml codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
@@ -1553,7 +1547,6 @@ section of <code>argocd-cm</code> ConfigMap:  </p>
       <span class="no">- field: spec.template.spec</span>
         <span class="no">type: core/v1/PodSpec</span>
 </code></pre></div>
-
 
 <p>The list of supported Kubernetes types is available in <a href="https://raw.githubusercontent.com/argoproj/argo-cd/master/util/argo/normalizers/diffing_known_types.txt">diffing_known_types.txt</a></p>
                 

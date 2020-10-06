@@ -1431,15 +1431,14 @@
 <p>Jsonnet apps have access to the <a href="../build-environment/">standard build environment</a> via substitution into <em>TLAs</em> and <em>external variables</em>.
 It is also possible to add a shared libary (e.g. <code>vendor</code> folder) relative to the reposity root.</p>
 <p>E.g. via the CLI:</p>
-<div class="codehilite"><pre><span></span><code>argocd app create APPNAME <span class="se">\</span>
+<div class="bash codehilite"><pre><span></span><code>argocd app create APPNAME <span class="se">\</span>
   --jsonnet-ext-str <span class="s1">&#39;app=${ARGOCD_APP_NAME}&#39;</span> <span class="se">\</span>
   --jsonnet-tla-str <span class="s1">&#39;ns=${ARGOCD_APP_NAMESPACE}&#39;</span> <span class="se">\</span>
   --jsonnet-libs <span class="s1">&#39;vendor&#39;</span>
 </code></pre></div>
 
-
 <p>Or by declarative syntax:</p>
-<div class="codehilite"><pre><span></span><code>  <span class="nt">directory</span><span class="p">:</span>
+<div class="yaml codehilite"><pre><span></span><code>  <span class="nt">directory</span><span class="p">:</span>
     <span class="nt">jsonnet</span><span class="p">:</span>
       <span class="nt">extVars</span><span class="p">:</span>
       <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">app</span>

@@ -1506,7 +1506,6 @@
   <span class="n">verifyRedirect</span><span class="o">:</span> <span class="kc">true</span>
 </code></pre></div>
 
-
 <h2 id="create-a-badge-in-openunison">Create a "Badge" in OpenUnison<a class="headerlink" href="#create-a-badge-in-openunison" title="Permanent link">&para;</a></h2>
 <p>Download <a href="../../../assets/openunison-argocd-url.yaml">the yaml for a <code>PortalUrl</code> object</a> and update the <code>url</code> to point to your ArgoCD instance.  Add the updated <code>PortalUrl</code> to the <code>openunison</code> namespace of your cluster.</p>
 <h2 id="configure-sso-in-argocd">Configure SSO in ArgoCD<a class="headerlink" href="#configure-sso-in-argocd" title="Permanent link">&para;</a></h2>
@@ -1523,7 +1522,6 @@
     <span class="n">clientID</span><span class="o">:</span> <span class="n">argocd</span>
     <span class="n">requestedScopes</span><span class="o">:</span> <span class="o">[</span><span class="s2">&quot;openid&quot;</span><span class="o">,</span> <span class="s2">&quot;profile&quot;</span><span class="o">,</span> <span class="s2">&quot;email&quot;</span><span class="o">,</span> <span class="s2">&quot;groups&quot;</span><span class="o">]</span>
 </code></pre></div>
-
 
 <p>If everything went correctly, login to your OpenUnison instance and there should be a badge for ArgoCD.  Clicking on that badge opens ArgoCD in a new window, already logged in!  Additionally, launching the argocd cli tool will launch a browser to login to OpenUnison.</p>
 <h2 id="configure-argocd-policy">Configure ArgoCD Policy<a class="headerlink" href="#configure-argocd-policy" title="Permanent link">&para;</a></h2>

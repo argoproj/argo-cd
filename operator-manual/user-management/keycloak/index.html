@@ -1430,7 +1430,7 @@ and that the <em>groups</em> claim is in the correct list on the <strong>right</
 <p>Now we can configure the config map and add the oidc configuration to enable our keycloak authentication.
 You can use <code>$ kubectl edit configmap argocd-cm</code>.</p>
 <p>Your ConfigMap should look like this:</p>
-<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<div class="yaml codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
@@ -1444,7 +1444,6 @@ You can use <code>$ kubectl edit configmap argocd-cm</code>.</p>
     <span class="no">requestedScopes: [&quot;openid&quot;, &quot;profile&quot;, &quot;email&quot;, &quot;groups&quot;]</span>
 </code></pre></div>
 
-
 <p>Make sure that:
 - <strong>issuer</strong> ends with the correct realm (in this example <em>Master</em>)
 - <strong>clientID</strong> is set to the Client ID you configured in Keycloak
@@ -1453,7 +1452,7 @@ You can use <code>$ kubectl edit configmap argocd-cm</code>.</p>
 <h2 id="configuring-argocd-policy">Configuring ArgoCD Policy<a class="headerlink" href="#configuring-argocd-policy" title="Permanent link">&para;</a></h2>
 <p>Now that we have an authentication that provides groups we want to apply a policy to these groups.
 We can modify the <em>argocd-rbac-cm</em> ConfigMap using <code>$ kubectl edit configmap argocd-rbac-cm</code>.</p>
-<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<div class="yaml codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-rbac-cm</span>
@@ -1461,7 +1460,6 @@ We can modify the <em>argocd-rbac-cm</em> ConfigMap using <code>$ kubectl edit c
   <span class="nt">policy.csv</span><span class="p">:</span> <span class="p p-Indicator">|</span>
     <span class="no">g, ArgoCDAdmins, role:admin</span>
 </code></pre></div>
-
 
 <p>In this example we give the role <em>role:admin</em> to all users in the group <em>ArgoCDAdmins</em>.</p>
 <h2 id="login">Login<a class="headerlink" href="#login" title="Permanent link">&para;</a></h2>

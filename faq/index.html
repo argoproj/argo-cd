@@ -1647,14 +1647,13 @@ include the fix <a href="https://github.com/kubernetes/kubernetes/pull/67570">ku
 <p>By default the password is set to the name of the server pod, as per <a href="../getting_started/">the getting started guide</a>.</p>
 <p>To change the password, edit the <code>argocd-secret</code> secret and update the <code>admin.password</code> field with a new bcrypt hash. You
 can use a site like https://www.browserling.com/tools/bcrypt to generate a new hash. For example:</p>
-<div class="codehilite"><pre><span></span><code><span class="c1"># bcrypt(password)=$2a$10$rRyBsGSHK6.uc8fntPwVIuLVHgsAhAX7TcdrqW/RADU0uh7CaChLa</span>
+<div class="bash codehilite"><pre><span></span><code><span class="c1"># bcrypt(password)=$2a$10$rRyBsGSHK6.uc8fntPwVIuLVHgsAhAX7TcdrqW/RADU0uh7CaChLa</span>
 kubectl -n argocd patch secret argocd-secret <span class="se">\</span>
   -p <span class="s1">&#39;{&quot;stringData&quot;: {</span>
 <span class="s1">    &quot;admin.password&quot;: &quot;$2a$10$rRyBsGSHK6.uc8fntPwVIuLVHgsAhAX7TcdrqW/RADU0uh7CaChLa&quot;,</span>
 <span class="s1">    &quot;admin.passwordMtime&quot;: &quot;&#39;</span><span class="k">$(</span>date +%FT%T%Z<span class="k">)</span><span class="s1">&#39;&quot;</span>
 <span class="s1">  }}&#39;</span>
 </code></pre></div>
-
 
 <p>Another option is to delete both the <code>admin.password</code> and <code>admin.passwordMtime</code> keys and restart argocd-server. This will set the password back to the pod name as per <a href="../getting_started/">the getting started guide</a>.</p>
 <h2 id="how-to-disable-admin-user">How to disable admin user?<a class="headerlink" href="#how-to-disable-admin-user" title="Permanent link">&para;</a></h2>
@@ -1663,7 +1662,7 @@ kubectl -n argocd patch secret argocd-secret <span class="se">\</span>
 <p>Argo CD might fail to generate Helm chart manifests if the chart has dependencies located in external repositories. To solve the problem you need to make sure that <code>requirements.yaml</code>
 uses only internally available Helm repositories. Even if the chart uses only dependencies from internal repos Helm might decide to refresh <code>stable</code> repo. As workaround override
 <code>stable</code> repo URL in <code>argocd-cm</code> config map:</p>
-<div class="codehilite"><pre><span></span><code><span class="nt">data</span><span class="p">:</span>
+<div class="yaml codehilite"><pre><span></span><code><span class="nt">data</span><span class="p">:</span>
   <span class="c1"># v1.2 or earlier use `helm.repositories`</span>
   <span class="nt">helm.repositories</span><span class="p">:</span> <span class="p p-Indicator">|</span>
     <span class="no">- url: http://&lt;internal-helm-repo-host&gt;:8080</span>
@@ -1675,17 +1674,15 @@ uses only internally available Helm repositories. Even if the chart uses only de
       <span class="no">name: stable</span>
 </code></pre></div>
 
-
 <h2 id="ive-configured-cluster-secret-but-it-does-not-show-up-in-cliui-how-do-i-fix-it">I've configured <a href="../operator-manual/declarative-setup/#clusters">cluster secret</a> but it does not show up in CLI/UI, how do I fix it?<a class="headerlink" href="#ive-configured-cluster-secret-but-it-does-not-show-up-in-cliui-how-do-i-fix-it" title="Permanent link">&para;</a></h2>
 <p>Check if cluster secret has <code>argocd.argoproj.io/secret-type: cluster</code> label. If secret has the label but the cluster is still not visible then make sure it might be a
 permission issue. Try to list clusters using <code>admin</code> user (e.g. <code>argocd login --username admin &amp;&amp; argocd cluster list</code>).</p>
 <h2 id="argo-cd-is-unable-to-connect-to-my-cluster-how-do-i-troubleshoot-it">Argo CD is unable to connect to my cluster, how do I troubleshoot it?<a class="headerlink" href="#argo-cd-is-unable-to-connect-to-my-cluster-how-do-i-troubleshoot-it" title="Permanent link">&para;</a></h2>
 <p>Use the following steps to reconstruct configured cluster config and connect to your cluster manually using kubectl:</p>
-<div class="codehilite"><pre><span></span><code>kubectl <span class="nb">exec</span> -it &lt;argocd-pod-name&gt; bash <span class="c1"># ssh into any argocd server pod</span>
+<div class="bash codehilite"><pre><span></span><code>kubectl <span class="nb">exec</span> -it &lt;argocd-pod-name&gt; bash <span class="c1"># ssh into any argocd server pod</span>
 argocd-util kubeconfig https://&lt;cluster-url&gt; /tmp/config --namespace argocd <span class="c1"># generate your cluster config</span>
 <span class="nv">KUBECONFIG</span><span class="o">=</span>/tmp/config kubectl get pods <span class="c1"># test connection manually</span>
 </code></pre></div>
-
 
 <p>Now you can manually verify that cluster is accessible from the Argo CD pod.</p>
 <h2 id="how-can-i-terminate-a-sync">How Can I Terminate A Sync?<a class="headerlink" href="#how-can-i-terminate-a-sync" title="Permanent link">&para;</a></h2>
@@ -1720,16 +1717,14 @@ You can get the list of groups by opening "developer tools -&gt; network"</p>
 <p>See <a href="https://github.com/argoproj/argo-cd/issues/2165">#2165</a>.</p>
 <h2 id="why-am-i-getting-rpc-error-code-unavailable-desc-transport-is-closing-when-using-the-cli">Why Am I Getting <code>rpc error: code = Unavailable desc = transport is closing</code> When Using The CLI?<a class="headerlink" href="#why-am-i-getting-rpc-error-code-unavailable-desc-transport-is-closing-when-using-the-cli" title="Permanent link">&para;</a></h2>
 <p>Maybe you're behind a proxy that does not support HTTP 2? Try the <code>--grpc-web</code> flag.:</p>
-<div class="codehilite"><pre><span></span><code>argocd ... --grpc-web
+<div class="bash codehilite"><pre><span></span><code>argocd ... --grpc-web
 </code></pre></div>
-
 
 <h2 id="why-am-i-getting-x509-certificate-signed-by-unknown-authority-when-using-the-cli">Why Am I Getting <code>x509: certificate signed by unknown authority</code> When Using The CLI?<a class="headerlink" href="#why-am-i-getting-x509-certificate-signed-by-unknown-authority-when-using-the-cli" title="Permanent link">&para;</a></h2>
 <p>Your not running your server with correct certs.</p>
 <p>If you're not running in a production system (e.g. you're testing Argo CD out), try the <code>--insecure</code> flag:</p>
-<div class="codehilite"><pre><span></span><code>argocd ... --insecure
+<div class="bash codehilite"><pre><span></span><code>argocd ... --insecure
 </code></pre></div>
-
 
 <div class="admonition warning">
 <p class="admonition-title">Do not use <code>--insecure</code> in production</p>

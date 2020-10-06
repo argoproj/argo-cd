@@ -1601,7 +1601,7 @@ accepts only a single value for the backend protocol (e.g. HTTP, HTTPS, GRPC, GR
 <p>In order to expose the Argo CD API server with a single ingress rule and hostname, the
 <code>nginx.ingress.kubernetes.io/ssl-passthrough</code> <a href="https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/annotations/#ssl-passthrough">annotation</a>
 must be used to passthrough TLS connections and terminate TLS at the Argo CD API server.</p>
-<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">extensions/v1beta1</span>
+<div class="yaml codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">extensions/v1beta1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Ingress</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-server-ingress</span>
@@ -1620,13 +1620,12 @@ must be used to passthrough TLS connections and terminate TLS at the Argo CD API
           <span class="nt">servicePort</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">https</span>
 </code></pre></div>
 
-
 <p>The above rule terminates TLS at the Argo CD API server, which detects the protocol being used,
 and responds appropriately. Note that the <code>nginx.ingress.kubernetes.io/ssl-passthrough</code> annotation
 requires that the <code>--enable-ssl-passthrough</code> flag be added to the command line arguments to
 <code>nginx-ingress-controller</code>.</p>
 <h4 id="ssl-passthrough-with-cert-manager-and-lets-encrypt">SSL-Passthrough with cert-manager and Let's Encrypt<a class="headerlink" href="#ssl-passthrough-with-cert-manager-and-lets-encrypt" title="Permanent link">&para;</a></h4>
-<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">extensions/v1beta1</span>
+<div class="yaml codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">extensions/v1beta1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Ingress</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-server-ingress</span>
@@ -1655,12 +1654,11 @@ requires that the <code>--enable-ssl-passthrough</code> flag be added to the com
     <span class="nt">secretName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-secret</span> <span class="c1"># do not change, this is provided by Argo CD</span>
 </code></pre></div>
 
-
 <h3 id="option-2-multiple-ingress-objects-and-hosts">Option 2: Multiple Ingress Objects And Hosts<a class="headerlink" href="#option-2-multiple-ingress-objects-and-hosts" title="Permanent link">&para;</a></h3>
 <p>Since ingress-nginx Ingress supports only a single protocol per Ingress object, an alternative
 way would be to define two Ingress objects. One for HTTP/HTTPS, and the other for gRPC:</p>
 <p>HTTP/HTTPS Ingress:</p>
-<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">extensions/v1beta1</span>
+<div class="yaml codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">extensions/v1beta1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Ingress</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-server-http-ingress</span>
@@ -1683,9 +1681,8 @@ way would be to define two Ingress objects. One for HTTP/HTTPS, and the other fo
     <span class="nt">secretName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-secret</span> <span class="c1"># do not change, this is provided by Argo CD</span>
 </code></pre></div>
 
-
 <p>gRPC Ingress:</p>
-<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">extensions/v1beta1</span>
+<div class="yaml codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">extensions/v1beta1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Ingress</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-server-grpc-ingress</span>
@@ -1707,10 +1704,9 @@ way would be to define two Ingress objects. One for HTTP/HTTPS, and the other fo
     <span class="nt">secretName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-secret</span> <span class="c1"># do not change, this is provided by Argo CD</span>
 </code></pre></div>
 
-
 <p>The API server should then be run with TLS disabled. Edit the <code>argocd-server</code> deployment to add the
 <code>--insecure</code> flag to the argocd-server command:</p>
-<div class="codehilite"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
+<div class="yaml codehilite"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
   <span class="nt">template</span><span class="p">:</span>
     <span class="nt">spec</span><span class="p">:</span>
       <span class="nt">containers</span><span class="p">:</span>
@@ -1724,7 +1720,6 @@ way would be to define two Ingress objects. One for HTTP/HTTPS, and the other fo
         <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">--insecure</span>
 </code></pre></div>
 
-
 <p>The obvious disadvantage to this approach is that this technique requires two separate hostnames for
 the API server -- one for gRPC and the other for HTTP/HTTPS. However it allows TLS termination to
 happen at the ingress controller.</p>
@@ -1733,7 +1728,7 @@ happen at the ingress controller.</p>
 <p>It currently has an advantage over NGINX in that it can terminate both TCP and HTTP connections <em>on the same port</em> meaning you do not require multiple hosts or paths.</p>
 <p>The API server should be run with TLS disabled. Edit the <code>argocd-server</code> deployment to add the <code>--insecure</code> flag to the argocd-server command.</p>
 <h3 id="ingressroute-crd">IngressRoute CRD<a class="headerlink" href="#ingressroute-crd" title="Permanent link">&para;</a></h3>
-<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">traefik.containo.us/v1alpha1</span>
+<div class="yaml codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">traefik.containo.us/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">IngressRoute</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-server</span>
@@ -1760,26 +1755,23 @@ happen at the ingress controller.</p>
     <span class="nt">options</span><span class="p">:</span> <span class="p p-Indicator">{}</span>
 </code></pre></div>
 
-
 <h2 id="aws-application-load-balancers-albs-and-classic-elb-http-mode">AWS Application Load Balancers (ALBs) And Classic ELB (HTTP Mode)<a class="headerlink" href="#aws-application-load-balancers-albs-and-classic-elb-http-mode" title="Permanent link">&para;</a></h2>
 <p>ALBs and Classic ELBs don't fully support HTTP2/gRPC, which is used by the <code>argocd</code> CLI.
 Thus, when using an AWS load balancer, either Classic ELB in
 passthrough mode is needed, or NLBs.</p>
-<div class="codehilite"><pre><span></span><code>$ argocd login &lt;host&gt;:&lt;port&gt; --grpc-web
+<div class="shell codehilite"><pre><span></span><code>$ argocd login &lt;host&gt;:&lt;port&gt; --grpc-web
 </code></pre></div>
-
 
 <h2 id="authenticating-through-multiple-layers-of-authenticating-reverse-proxies">Authenticating through multiple layers of authenticating reverse proxies<a class="headerlink" href="#authenticating-through-multiple-layers-of-authenticating-reverse-proxies" title="Permanent link">&para;</a></h2>
 <p>ArgoCD endpoints may be protected by one or more reverse proxies layers, in that case, you can provide additional headers through the <code>argocd</code> CLI <code>--header</code> parameter to authenticate through those layers.</p>
-<div class="codehilite"><pre><span></span><code>$ argocd login &lt;host&gt;:&lt;port&gt; --header <span class="s1">&#39;x-token1:foo&#39;</span> --header <span class="s1">&#39;x-token2:bar&#39;</span> <span class="c1"># can be repeated multiple times</span>
+<div class="shell codehilite"><pre><span></span><code>$ argocd login &lt;host&gt;:&lt;port&gt; --header <span class="s1">&#39;x-token1:foo&#39;</span> --header <span class="s1">&#39;x-token2:bar&#39;</span> <span class="c1"># can be repeated multiple times</span>
 $ argocd login &lt;host&gt;:&lt;port&gt; --header <span class="s1">&#39;x-token1:foo,x-token2:bar&#39;</span> <span class="c1"># headers can also be comma separated</span>
 </code></pre></div>
-
 
 <h2 id="argocd-server-and-ui-root-path-v153">ArgoCD Server and UI Root Path (v1.5.3)<a class="headerlink" href="#argocd-server-and-ui-root-path-v153" title="Permanent link">&para;</a></h2>
 <p>ArgoCD server and UI can be configured to be available under a non-root path (e.g. <code>/argo-cd</code>).
 To do this, add the <code>--rootpath</code> flag into the <code>argocd-server</code> deployment command:</p>
-<div class="codehilite"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
+<div class="yaml codehilite"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
   <span class="nt">template</span><span class="p">:</span>
     <span class="nt">spec</span><span class="p">:</span>
       <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-server</span>
@@ -1793,7 +1785,6 @@ To do this, add the <code>--rootpath</code> flag into the <code>argocd-server</c
         <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">--rootpath</span>
         <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">/argo-cd</span>
 </code></pre></div>
-
 
 <p>NOTE: The flag <code>--rootpath</code> changes both API Server and UI base URL. 
 Example nginx.conf:</p>
@@ -1822,16 +1813,14 @@ Example nginx.conf:</p>
 <span class="err">}</span>
 </code></pre></div>
 
-
 <p>Flag <code>--grpc-web-root-path</code> is used to provide a non-root path (e.g. /argo-cd)</p>
-<div class="codehilite"><pre><span></span><code>$ argocd login &lt;host&gt;:&lt;port&gt; --grpc-web-root-path /argo-cd
+<div class="shell codehilite"><pre><span></span><code>$ argocd login &lt;host&gt;:&lt;port&gt; --grpc-web-root-path /argo-cd
 </code></pre></div>
-
 
 <h2 id="ui-base-path">UI Base Path<a class="headerlink" href="#ui-base-path" title="Permanent link">&para;</a></h2>
 <p>If the Argo CD UI is available under a non-root path (e.g. <code>/argo-cd</code> instead of <code>/</code>) then the UI path should be configured in the API server.
 To configure the UI path add the <code>--basehref</code> flag into the <code>argocd-server</code> deployment command:</p>
-<div class="codehilite"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
+<div class="yaml codehilite"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
   <span class="nt">template</span><span class="p">:</span>
     <span class="nt">spec</span><span class="p">:</span>
       <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-server</span>
@@ -1845,7 +1834,6 @@ To configure the UI path add the <code>--basehref</code> flag into the <code>arg
         <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">--basehref</span>
         <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">/argo-cd</span>
 </code></pre></div>
-
 
 <p>NOTE: The flag <code>--basehref</code> only changes the UI base URL. The API server will keep using the <code>/</code> path so you need to add a URL rewrite rule to the proxy config.
 Example nginx.conf with URL rewrite:</p>

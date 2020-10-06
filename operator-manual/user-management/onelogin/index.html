@@ -1385,9 +1385,7 @@
 <p>If you're using this IdP please consider <a href="../../../developer-guide/site/">contributing</a> to this document.</p>
 </div>
 <!-- markdownlint-disable MD033 -->
-
 <div style="text-align:center"><img src="../../../assets/argo.png" /></div>
-
 <!-- markdownlint-enable MD033 -->
 
 <h1 id="integrating-onelogin-and-argocd">Integrating OneLogin and ArgoCD<a class="headerlink" href="#integrating-onelogin-and-argocd" title="Permanent link">&para;</a></h1>
@@ -1437,7 +1435,6 @@
 <span class="err">  ],</span>
 </code></pre></div>
 
-
 <h4 id="rules-tab">Rules Tab<a class="headerlink" href="#rules-tab" title="Permanent link">&para;</a></h4>
 <p>To get up and running, you do not need to make modifications to any settings here.</p>
 <h4 id="sso-tab">SSO Tab<a class="headerlink" href="#sso-tab" title="Permanent link">&para;</a></h4>
@@ -1474,7 +1471,6 @@
     <span class="n">requestedScopes</span><span class="o">:</span> <span class="o">[</span><span class="s2">&quot;openid&quot;</span><span class="o">,</span> <span class="s2">&quot;profile&quot;</span><span class="o">,</span> <span class="s2">&quot;email&quot;</span><span class="o">,</span> <span class="s2">&quot;groups&quot;</span><span class="o">]</span>
 </code></pre></div>
 
-
 <p>The "url" key should have a value of the hostname of your Argo project.</p>
 <p>The "clientID" is taken from the SSO tab of the OneLogin application.</p>
 <p>The “issuer” is taken from the SSO tab of the OneLogin application. It is one of the issuer api endpoints.</p>
@@ -1482,7 +1478,6 @@
 <div class="codehilite"><pre><span></span><code>$ <span class="nb">echo</span> -n <span class="s2">&quot;aabbccdd&quot;</span> <span class="p">|</span> base64
 <span class="nv">YWFiYmNjZGQ</span><span class="o">=</span>
 </code></pre></div>
-
 
 <div class="admonition note">
 <p class="admonition-title">If you get an <code>invalid_client</code> error when trying the authenticate with OneLogin, there is a possibility that your client secret was not [correctly] base64 encoded."</p>
@@ -1506,7 +1501,6 @@
 
     <span class="n">g</span><span class="o">,</span> <span class="n">TestEngineering</span><span class="o">,</span> <span class="n">role</span><span class="o">:</span><span class="n">org</span><span class="o">-</span><span class="n">admin</span>
 </code></pre></div>
-
 
 <p>In OneLogin, a user with user role "TestEngineering" will receive ArgoCD admin privileges when they log in to Argo via OneLogin. All other users will receive the readonly role. The key takeaway here is that "TestEngineering" is passed via the Group field in the token (which is specified in the Parameters tab in OneLogin).</p>
                 

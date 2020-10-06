@@ -1501,16 +1501,14 @@
 <p>To read more about it, refer to the official documentation at <a href="https://telepresence.io/">telepresence.io</a> or <a href="https://medium.com/containers-101/development-environment-using-telepresence-634bd7210c26">Medium</a>.</p>
 <h2 id="install-argocd">Install ArgoCD<a class="headerlink" href="#install-argocd" title="Permanent link">&para;</a></h2>
 <p>First of all, install ArgoCD on your cluster</p>
-<div class="codehilite"><pre><span></span><code>kubectl create ns argocd
+<div class="shell codehilite"><pre><span></span><code>kubectl create ns argocd
 curl -sSfL https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml <span class="p">|</span> kubectl apply -n argocd -f -
 </code></pre></div>
 
-
 <h2 id="connect">Connect<a class="headerlink" href="#connect" title="Permanent link">&para;</a></h2>
 <p>Connect to one of the services, for example, to debug the main ArgoCD server run:</p>
-<div class="codehilite"><pre><span></span><code>telepresence --swap-deployment argocd-server --namespace argocd --env-file .envrc.remote --expose <span class="m">8080</span>:8080 --expose <span class="m">8083</span>:8083 --run bash
+<div class="shell codehilite"><pre><span></span><code>telepresence --swap-deployment argocd-server --namespace argocd --env-file .envrc.remote --expose <span class="m">8080</span>:8080 --expose <span class="m">8083</span>:8083 --run bash
 </code></pre></div>
-
 
 <ul>
 <li><code>--swap-deployment</code> changes the argocd-server deployment</li>
@@ -1529,7 +1527,7 @@ curl -sSfL https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/i
 <p>In VSCode use the integrated terminal to run the Telepresence command to connect. Then, to run argocd-server service use the following configuration.
 Make sure to run <code>packr</code> before starting the debugging session to generate the assets. 
 Update the configuration file to point to kubeconfig file: <code>KUBECONFIG=</code> (required)</p>
-<div class="codehilite"><pre><span></span><code>        <span class="p">{</span>
+<div class="json codehilite"><pre><span></span><code>        <span class="p">{</span>
             <span class="nt">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;Launch&quot;</span><span class="p">,</span>
             <span class="nt">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;go&quot;</span><span class="p">,</span>
             <span class="nt">&quot;request&quot;</span><span class="p">:</span> <span class="s2">&quot;launch&quot;</span><span class="p">,</span>

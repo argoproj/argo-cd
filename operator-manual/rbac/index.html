@@ -1525,7 +1525,7 @@ configures a custom role, named <code>org-admin</code>. The role is assigned to 
 <code>your-github-org:your-team</code> group. All other users get the default policy of <code>role:readonly</code>,
 which cannot modify Argo CD settings.</p>
 <p><em>ArgoCD ConfigMap <code>argocd-rbac-cm</code> Example:</em></p>
-<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<div class="yaml codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-rbac-cm</span>
@@ -1543,10 +1543,9 @@ which cannot modify Argo CD settings.</p>
     <span class="no">g, your-github-org:your-team, role:org-admin</span>
 </code></pre></div>
 
-
 <hr />
 <p>Another <code>policy.csv</code> example might look as follows:</p>
-<div class="codehilite"><pre><span></span><code><span class="err">p, role:staging-db-admins, applications, create, staging-db-admins/*, allow</span>
+<div class="csv codehilite"><pre><span></span><code><span class="err">p, role:staging-db-admins, applications, create, staging-db-admins/*, allow</span>
 <span class="err">p, role:staging-db-admins, applications, delete, staging-db-admins/*, allow</span>
 <span class="err">p, role:staging-db-admins, applications, get, staging-db-admins/*, allow</span>
 <span class="err">p, role:staging-db-admins, applications, override, staging-db-admins/*, allow</span>
@@ -1555,7 +1554,6 @@ which cannot modify Argo CD settings.</p>
 <span class="err">p, role:staging-db-admins, projects, get, staging-db-admins, allow</span>
 <span class="err">g, db-admins, role:staging-db-admins</span>
 </code></pre></div>
-
 
 <p>This example defines a <em>role</em> called <code>staging-db-admins</code> with <em>seven permissions</em> that allow that role to perform the <em>actions</em> (<code>create</code>/<code>delete</code>/<code>get</code>/<code>override</code>/<code>sync</code>/<code>update</code> applications, and <code>get</code> appprojects) against <code>*</code> (all) objects in the <code>staging-db-admins</code> Argo CD AppProject.</p>
 <h2 id="anonymous-access">Anonymous Access<a class="headerlink" href="#anonymous-access" title="Permanent link">&para;</a></h2>

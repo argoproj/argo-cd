@@ -1456,11 +1456,10 @@
 <p>v1.1</p>
 </blockquote>
 <p>You may wish to prevent an object from being pruned:</p>
-<div class="codehilite"><pre><span></span><code><span class="nt">metadata</span><span class="p">:</span>
+<div class="yaml codehilite"><pre><span></span><code><span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">annotations</span><span class="p">:</span>
     <span class="nt">argocd.argoproj.io/sync-options</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Prune=false</span>
 </code></pre></div>
-
 
 <p>In the UI, the pod will simply appear as out-of-sync:</p>
 <p><img alt="sync option no prune" src="../../assets/sync-option-no-prune.png" /></p>
@@ -1472,11 +1471,10 @@
 <p>v1.2</p>
 </blockquote>
 <p>For a certain class of objects, it is necessary to <code>kubectl apply</code> them using the <code>--validate=false</code> flag. Examples of this are kubernetes types which uses <code>RawExtension</code>, such as <a href="https://github.com/kubernetes-incubator/service-catalog/blob/master/pkg/apis/servicecatalog/v1beta1/types.go#L497">ServiceCatalog</a>. You can do using this annotations:</p>
-<div class="codehilite"><pre><span></span><code><span class="nt">metadata</span><span class="p">:</span>
+<div class="yaml codehilite"><pre><span></span><code><span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">annotations</span><span class="p">:</span>
     <span class="nt">argocd.argoproj.io/sync-options</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Validate=false</span>
 </code></pre></div>
-
 
 <p>If you want to exclude a whole class of objects globally, consider setting <code>resource.customizations</code> in <a href="../diffing/#system-level-configuration">system level configuration</a>. </p>
 <h2 id="skip-dry-run-for-new-custom-resources-types">Skip Dry Run for new custom resources types<a class="headerlink" href="#skip-dry-run-for-new-custom-resources-types" title="Permanent link">&para;</a></h2>
@@ -1488,11 +1486,10 @@
 2) In some cases the CRD is not part of the sync, but it could be created in another way, e.g. by a controller in the cluster. An example is <a href="https://github.com/open-policy-agent/gatekeeper">gatekeeper</a>,
 which creates CRDs in response to user defined <code>ConstraintTemplates</code>. ArgoCD cannot find the CRD in the sync and will fail with the error <code>the server could not find the requested resource</code>.</p>
 <p>To skip the dry run for missing resource types, use the following annotation:</p>
-<div class="codehilite"><pre><span></span><code><span class="nt">metadata</span><span class="p">:</span>
+<div class="yaml codehilite"><pre><span></span><code><span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">annotations</span><span class="p">:</span>
     <span class="nt">argocd.argoproj.io/sync-options</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">SkipDryRunOnMissingResource=true</span>
 </code></pre></div>
-
 
 <p>The dry run will still be executed if the CRD is already present in the cluster.</p>
                 

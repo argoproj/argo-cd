@@ -1621,7 +1621,7 @@ login history etc. So if you need such features it is strongly recommended to us
 <p>The maximum length of a local account's username is 32.</p>
 <h3 id="create-new-user">Create new user<a class="headerlink" href="#create-new-user" title="Permanent link">&para;</a></h3>
 <p>New users should be defined in <code>argocd-cm</code> ConfigMap:</p>
-<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<div class="yaml codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
@@ -1638,7 +1638,6 @@ login history etc. So if you need such features it is strongly recommended to us
   <span class="nt">accounts.alice.enabled</span><span class="p">:</span> <span class="s">&quot;false&quot;</span>
 </code></pre></div>
 
-
 <p>Each user might have two capabilities:</p>
 <ul>
 <li>apiKey - allows generating authentication tokens for API access</li>
@@ -1646,7 +1645,7 @@ login history etc. So if you need such features it is strongly recommended to us
 </ul>
 <h3 id="disable-admin-user">Disable admin user<a class="headerlink" href="#disable-admin-user" title="Permanent link">&para;</a></h3>
 <p>As soon as additional users are created it is recommended to disable <code>admin</code> user:</p>
-<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<div class="yaml codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
@@ -1658,40 +1657,35 @@ login history etc. So if you need such features it is strongly recommended to us
   <span class="nt">admin.enabled</span><span class="p">:</span> <span class="s">&quot;false&quot;</span>
 </code></pre></div>
 
-
 <h3 id="manage-users">Manage users<a class="headerlink" href="#manage-users" title="Permanent link">&para;</a></h3>
 <p>The Argo CD CLI provides set of commands to set user password and generate tokens.</p>
 <ul>
 <li>Get full users list</li>
 </ul>
-<div class="codehilite"><pre><span></span><code>argocd account list
+<div class="bash codehilite"><pre><span></span><code>argocd account list
 </code></pre></div>
-
 
 <ul>
 <li>Get specific user details</li>
 </ul>
-<div class="codehilite"><pre><span></span><code>argocd account get &lt;username&gt;
+<div class="bash codehilite"><pre><span></span><code>argocd account get &lt;username&gt;
 </code></pre></div>
-
 
 <ul>
 <li>Set user password</li>
 </ul>
-<div class="codehilite"><pre><span></span><code>argocd account update-password <span class="se">\</span>
+<div class="bash codehilite"><pre><span></span><code>argocd account update-password <span class="se">\</span>
   --account &lt;name&gt; <span class="se">\</span>
   --current-password &lt;current-admin&gt; <span class="se">\</span>
   --new-password &lt;new-user-password&gt;
 </code></pre></div>
 
-
 <ul>
 <li>Generate auth token</li>
 </ul>
-<div class="codehilite"><pre><span></span><code><span class="c1"># if flag --account is omitted then Argo CD generates token for current user</span>
+<div class="bash codehilite"><pre><span></span><code><span class="c1"># if flag --account is omitted then Argo CD generates token for current user</span>
 argocd account generate-token --account &lt;username&gt; 
 </code></pre></div>
-
 
 <h3 id="failed-logins-rate-limiting">Failed logins rate limiting<a class="headerlink" href="#failed-logins-rate-limiting" title="Permanent link">&para;</a></h3>
 <p>Argo CD rejects login attempts after too many failed in order to prevent password brute-forcing.
@@ -1746,9 +1740,8 @@ inputted into the Argo CD configmap.</p>
 <p><img alt="OAuth2 Client Config" src="../../assets/oauth2-config.png" title="OAuth2 Client Config" /></p>
 <h3 id="2-configure-argo-cd-for-sso">2. Configure Argo CD for SSO<a class="headerlink" href="#2-configure-argo-cd-for-sso" title="Permanent link">&para;</a></h3>
 <p>Edit the argocd-cm configmap:</p>
-<div class="codehilite"><pre><span></span><code>kubectl edit configmap argocd-cm -n argocd
+<div class="bash codehilite"><pre><span></span><code>kubectl edit configmap argocd-cm -n argocd
 </code></pre></div>
-
 
 <ul>
 <li>In the <code>url</code> key, input the base URL of Argo CD. In this example, it is <code>https://argocd.example.com</code></li>
@@ -1760,7 +1753,7 @@ inputted into the Argo CD configmap.</p>
   <code>connectors.config.orgs</code> list, add one or more GitHub organizations. Any member of the org will
   then be able to login to Argo CD to perform management tasks.</li>
 </ul>
-<div class="codehilite"><pre><span></span><code><span class="nt">data</span><span class="p">:</span>
+<div class="yaml codehilite"><pre><span></span><code><span class="nt">data</span><span class="p">:</span>
   <span class="nt">url</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">https://argocd.example.com</span>
 
   <span class="nt">dex.config</span><span class="p">:</span> <span class="p p-Indicator">|</span>
@@ -1787,7 +1780,6 @@ inputted into the Argo CD configmap.</p>
           <span class="no">- name: your-github-org</span>
 </code></pre></div>
 
-
 <p>After saving, the changes should take affect automatically.</p>
 <p>NOTES:</p>
 <ul>
@@ -1802,7 +1794,7 @@ inputted into the Argo CD configmap.</p>
 <h2 id="existing-oidc-provider">Existing OIDC Provider<a class="headerlink" href="#existing-oidc-provider" title="Permanent link">&para;</a></h2>
 <p>To configure Argo CD to delegate authenticate to your existing OIDC provider, add the OAuth2
 configuration to the <code>argocd-cm</code> ConfigMap under the <code>oidc.config</code> key:</p>
-<div class="codehilite"><pre><span></span><code><span class="nt">data</span><span class="p">:</span>
+<div class="yaml codehilite"><pre><span></span><code><span class="nt">data</span><span class="p">:</span>
   <span class="nt">url</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">https://argocd.example.com</span>
 
   <span class="nt">oidc.config</span><span class="p">:</span> <span class="p p-Indicator">|</span>
@@ -1824,7 +1816,6 @@ configuration to the <code>argocd-cm</code> ConfigMap under the <code>oidc.confi
     <span class="no">cliClientID: vvvvwwwwxxxxyyyyzzzz</span>
 </code></pre></div>
 
-
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>The callback address should be the /auth/callback endpoint of your Argo CD URL 
@@ -1837,7 +1828,7 @@ configuration to the <code>argocd-cm</code> ConfigMap under the <code>oidc.confi
 Individual claims can be requested with <code>requestedIDTokenClaims</code>, see
 <a href="https://connect2id.com/products/server/docs/guides/requesting-openid-claims#claims-parameter">OpenID Connect Claims Parameter</a>
 for details. The Argo CD configuration for claims is as follows:</p>
-<div class="codehilite"><pre><span></span><code>  <span class="nt">oidc.config</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+<div class="yaml codehilite"><pre><span></span><code>  <span class="nt">oidc.config</span><span class="p">:</span> <span class="p p-Indicator">|</span>
     <span class="no">requestedIDTokenClaims:</span>
       <span class="no">email:</span>
         <span class="no">essential: true</span>
@@ -1851,9 +1842,8 @@ for details. The Argo CD configuration for claims is as follows:</p>
         <span class="no">- urn:mace:incommon:iap:bronze</span>
 </code></pre></div>
 
-
 <p>For a simple case this can be:</p>
-<div class="codehilite"><pre><span></span><code>  <span class="nt">oidc.config</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+<div class="yaml codehilite"><pre><span></span><code>  <span class="nt">oidc.config</span><span class="p">:</span> <span class="p p-Indicator">|</span>
     <span class="no">requestedIDTokenClaims: {&quot;groups&quot;: {&quot;essential&quot;: true}}</span>
 </code></pre></div>
                 

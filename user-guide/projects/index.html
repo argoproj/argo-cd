@@ -1528,7 +1528,7 @@ teams. Projects provide the following features:</p>
 <code>default</code> project, which is created automatically and by default, permits deployments from any
 source repo, to any cluster, and all resource Kinds. The default project can be modified, but not
 deleted. When initially created, it's specification is configured to be the most permissive:</p>
-<div class="codehilite"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
+<div class="yaml codehilite"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
   <span class="nt">sourceRepos</span><span class="p">:</span>
   <span class="p p-Indicator">-</span> <span class="s">&#39;*&#39;</span>
   <span class="nt">destinations</span><span class="p">:</span>
@@ -1539,45 +1539,39 @@ deleted. When initially created, it's specification is configured to be the most
     <span class="nt">kind</span><span class="p">:</span> <span class="s">&#39;*&#39;</span>
 </code></pre></div>
 
-
 <h3 id="creating-projects">Creating Projects<a class="headerlink" href="#creating-projects" title="Permanent link">&para;</a></h3>
 <p>Additional projects can be created to give separate teams different levels of access to namespaces.
 The following command creates a new project <code>myproject</code> which can deploy applications to namespace
 <code>mynamespace</code> of cluster <code>https://kubernetes.default.svc</code>. The permitted Git source repository is
 set to <code>https://github.com/argoproj/argocd-example-apps.git</code> repository.</p>
-<div class="codehilite"><pre><span></span><code>argocd proj create myproject -d https://kubernetes.default.svc,mynamespace -s https://github.com/argoproj/argocd-example-apps.git
+<div class="bash codehilite"><pre><span></span><code>argocd proj create myproject -d https://kubernetes.default.svc,mynamespace -s https://github.com/argoproj/argocd-example-apps.git
 </code></pre></div>
-
 
 <h3 id="managing-projects">Managing Projects<a class="headerlink" href="#managing-projects" title="Permanent link">&para;</a></h3>
 <p>Permitted source Git repositories are managed using commands:</p>
-<div class="codehilite"><pre><span></span><code>argocd proj add-source &lt;PROJECT&gt; &lt;REPO&gt;
+<div class="bash codehilite"><pre><span></span><code>argocd proj add-source &lt;PROJECT&gt; &lt;REPO&gt;
 argocd proj remove-source &lt;PROJECT&gt; &lt;REPO&gt;
 </code></pre></div>
 
-
 <p>Permitted destination clusters and namespaces are managed with the commands (for clusters always provide server, the name is not used for matching):</p>
-<div class="codehilite"><pre><span></span><code>argocd proj add-destination &lt;PROJECT&gt; &lt;CLUSTER&gt;,&lt;NAMESPACE&gt;
+<div class="bash codehilite"><pre><span></span><code>argocd proj add-destination &lt;PROJECT&gt; &lt;CLUSTER&gt;,&lt;NAMESPACE&gt;
 argocd proj remove-destination &lt;PROJECT&gt; &lt;CLUSTER&gt;,&lt;NAMESPACE&gt;
 </code></pre></div>
-
 
 <p>Permitted destination K8s resource kinds are managed with the commands. Note that namespaced-scoped
 resources are restricted via a blacklist, whereas cluster-scoped resources are restricted via
 whitelist.</p>
-<div class="codehilite"><pre><span></span><code>argocd proj allow-cluster-resource &lt;PROJECT&gt; &lt;GROUP&gt; &lt;KIND&gt;
+<div class="bash codehilite"><pre><span></span><code>argocd proj allow-cluster-resource &lt;PROJECT&gt; &lt;GROUP&gt; &lt;KIND&gt;
 argocd proj allow-namespace-resource &lt;PROJECT&gt; &lt;GROUP&gt; &lt;KIND&gt;
 argocd proj deny-cluster-resource &lt;PROJECT&gt; &lt;GROUP&gt; &lt;KIND&gt;
 argocd proj deny-namespace-resource &lt;PROJECT&gt; &lt;GROUP&gt; &lt;KIND&gt;
 </code></pre></div>
-
 
 <h3 id="assign-application-to-a-project">Assign Application To A Project<a class="headerlink" href="#assign-application-to-a-project" title="Permanent link">&para;</a></h3>
 <p>The application project can be changed using <code>app set</code> command. In order to change the project of
 an app, the user must have permissions to access the new project.</p>
 <div class="codehilite"><pre><span></span><code><span class="err">argocd app set guestbook-default --project myproject</span>
 </code></pre></div>
-
 
 <h3 id="configuring-rbac-with-projects">Configuring RBAC With Projects<a class="headerlink" href="#configuring-rbac-with-projects" title="Permanent link">&para;</a></h3>
 <p>Once projects have been defined, RBAC rules can be written to restrict access to the applications
@@ -1586,7 +1580,7 @@ both in the GitHub org, <code>some-github-org</code>. There are two projects, <c
 <code>team1</code> can only manage applications in <code>project-a</code>, while <code>team2</code> can only manage applications in
 <code>project-b</code>. Both <code>team1</code> and <code>team2</code> have the ability to manage repositories.</p>
 <p><em>ConfigMap <code>argocd-rbac-cm</code> example:</em></p>
-<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<div class="yaml codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-rbac-cm</span>
@@ -1606,7 +1600,6 @@ both in the GitHub org, <code>some-github-org</code>. There are two projects, <c
     <span class="no">g, some-github-org:team2, org-admin</span>
 </code></pre></div>
 
-
 <h2 id="project-roles">Project Roles<a class="headerlink" href="#project-roles" title="Permanent link">&para;</a></h2>
 <p>Projects include a feature called roles that enable automated access to a project's applications.
 These can be used to give a CI pipeline a restricted set of permissions. For example, a CI system
@@ -1618,7 +1611,7 @@ project.  However, the policies have an option for granting wildcard access to a
 within a project.</p>
 <p>In order to create roles in a project and add policies to a role, a user will need permission to
 update a project.  The following commands can be used to manage a role.</p>
-<div class="codehilite"><pre><span></span><code>argocd proj role list
+<div class="bash codehilite"><pre><span></span><code>argocd proj role list
 argocd proj role get
 argocd proj role create
 argocd proj role delete
@@ -1626,16 +1619,14 @@ argocd proj role add-policy
 argocd proj role remove-policy
 </code></pre></div>
 
-
 <p>Project roles in itself are not useful without generating a token to associate to that role. Argo CD
 supports JWT tokens as the means to authenticate to a role. Since the JWT token is
 associated with a role's policies, any changes to the role's policies will immediately take effect
 for that JWT token.</p>
 <p>The following commands are used to manage the JWT tokens.</p>
-<div class="codehilite"><pre><span></span><code>argocd proj role create-token PROJECT ROLE-NAME
+<div class="bash codehilite"><pre><span></span><code>argocd proj role create-token PROJECT ROLE-NAME
 argocd proj role delete-token PROJECT ROLE-NAME ISSUED-AT
 </code></pre></div>
-
 
 <p>Since the JWT tokens aren't stored in Argo CD, they can only be retrieved when they are created. A
 user can leverage them in the cli by either passing them in using the <code>--auth-token</code> flag or setting
@@ -1646,7 +1637,7 @@ the token has been revoked.</p>
 <p>Below is an example of leveraging a JWT token to access a guestbook application.  It makes the
 assumption that the user already has a project named myproject and an application called
 guestbook-default.</p>
-<div class="codehilite"><pre><span></span><code><span class="nv">PROJ</span><span class="o">=</span>myproject
+<div class="bash codehilite"><pre><span></span><code><span class="nv">PROJ</span><span class="o">=</span>myproject
 <span class="nv">APP</span><span class="o">=</span>guestbook-default
 <span class="nv">ROLE</span><span class="o">=</span>get-role
 argocd proj role create <span class="nv">$PROJ</span> <span class="nv">$ROLE</span>

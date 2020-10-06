@@ -1390,9 +1390,8 @@ active matching <code>allow</code> and an active matching <code>deny</code> then
 UI and the CLI will both display the state of the sync windows. The UI has a panel which will display different colours depending
 on the state. The colours are as follows. <code>Red: sync denied</code>, <code>Orange: manual allowed</code> and <code>Green: sync allowed</code>.</p>
 <p>To display the sync state using the CLI:</p>
-<div class="codehilite"><pre><span></span><code>argocd app get APP
+<div class="bash codehilite"><pre><span></span><code>argocd app get APP
 </code></pre></div>
-
 
 <p>Which will return the sync state and any matching windows.</p>
 <div class="codehilite"><pre><span></span><code><span class="n">Name</span><span class="p">:</span>               <span class="n">guestbook</span>
@@ -1410,18 +1409,16 @@ on the state. The colours are as follows. <code>Red: sync denied</code>, <code>O
 <span class="n">Health</span> <span class="n">Status</span><span class="p">:</span>      <span class="n">Healthy</span>
 </code></pre></div>
 
-
 <p>Windows can be created using the CLI:</p>
-<div class="codehilite"><pre><span></span><code>argocd proj windows add PROJECT <span class="se">\</span>
+<div class="bash codehilite"><pre><span></span><code>argocd proj windows add PROJECT <span class="se">\</span>
     --kind allow <span class="se">\</span>
     --schedule <span class="s2">&quot;0 22 * * *&quot;</span> <span class="se">\</span>
     --duration 1h <span class="se">\</span>
     --applications <span class="s2">&quot;*&quot;</span>
 </code></pre></div>
 
-
 <p>Alternatively, they can be created directly in the <code>AppProject</code> manifest:</p>
-<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<div class="yaml codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">AppProject</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">default</span>
@@ -1446,35 +1443,30 @@ on the state. The colours are as follows. <code>Red: sync denied</code>, <code>O
      <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">cluster1</span>
 </code></pre></div>
 
-
 <p>In order to perform a sync when syncs are being prevented by a window, you can configure the window to allow manual syncs
 using the CLI, UI or directly in the <code>AppProject</code> manifest:</p>
-<div class="codehilite"><pre><span></span><code>argocd proj windows enable-manual-sync PROJECT ID
+<div class="bash codehilite"><pre><span></span><code>argocd proj windows enable-manual-sync PROJECT ID
 </code></pre></div>
-
 
 <p>To disable</p>
-<div class="codehilite"><pre><span></span><code>argocd proj windows disable-manual-sync PROJECT ID
+<div class="bash codehilite"><pre><span></span><code>argocd proj windows disable-manual-sync PROJECT ID
 </code></pre></div>
-
 
 <p>Windows can be listed using the CLI or viewed in the UI:</p>
-<div class="codehilite"><pre><span></span><code>argocd proj windows list PROJECT
+<div class="bash codehilite"><pre><span></span><code>argocd proj windows list PROJECT
 </code></pre></div>
 
-
-<div class="codehilite"><pre><span></span><code>ID  STATUS    KIND   SCHEDULE    DURATION  APPLICATIONS  NAMESPACES  CLUSTERS  MANUALSYNC
+<div class="bash codehilite"><pre><span></span><code>ID  STATUS    KIND   SCHEDULE    DURATION  APPLICATIONS  NAMESPACES  CLUSTERS  MANUALSYNC
 <span class="m">0</span>   Active    allow  * * * * *   1h        -             -           prod1     Disabled
 <span class="m">1</span>   Inactive  deny   * * * * <span class="m">1</span>   3h        -             default     -         Disabled
 <span class="m">2</span>   Inactive  allow  <span class="m">1</span> <span class="m">2</span> * * *   1h        prod-*        -           -         Enabled
 <span class="m">3</span>   Active    deny   * * * * *   1h        -             default     -         Disabled
 </code></pre></div>
 
-
 <p>All fields of a window can be updated using either the CLI or UI. The <code>applications</code>, <code>namespaces</code> and <code>clusters</code> fields
 require the update to contain all of the required values. For example if updating the <code>namespaces</code> field and it already
 contains default and kube-system then the new value would have to include those in the list. </p>
-<div class="codehilite"><pre><span></span><code>argocd proj windows update PROJECT ID --namespaces default,kube-system,prod1
+<div class="bash codehilite"><pre><span></span><code>argocd proj windows update PROJECT ID --namespaces default,kube-system,prod1
 </code></pre></div>
                 
                   
