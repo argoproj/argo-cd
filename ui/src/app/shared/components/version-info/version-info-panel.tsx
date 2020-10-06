@@ -88,9 +88,9 @@ export class VersionPanel extends React.Component<VersionPanelProps, {copyState:
         }
 
         return (
-            <button className='argo-button argo-button--base' onClick={() => this.onCopy(version)}>
+            <button className='argo-button argo-button--base' style={{marginTop: '1em', minWidth: '18ch'}} onClick={() => this.onCopy(version)}>
                 <i className={'fa ' + img} />
-                &nbsp;{text}
+                &nbsp;&nbsp;{text}
             </button>
         );
     }
