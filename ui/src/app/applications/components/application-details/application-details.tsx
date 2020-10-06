@@ -26,6 +26,7 @@ import {PodsLogsViewer} from '../pod-logs-viewer/pod-logs-viewer';
 import * as AppUtils from '../utils';
 import {isSameNode, nodeKey} from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
+import {PodView} from "../application-pod-view/pod-view";
 
 const jsonMergePatch = require('json-merge-patch');
 
@@ -165,6 +166,14 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                 <React.Fragment key='app-list-tools'>
                                                     <div className='application-details__view-type'>
                                                         <i
+                                                            className={classNames('fas fa-th', {selected: pref.view === 'pods'})}
+                                                            title='Pods'
+                                                            onClick={() => {
+                                                                this.appContext.apis.navigation.goto('.', {view: 'pods'});
+                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'pods'}});
+                                                            }}
+                                                        />
+                                                        <i
                                                             className={classNames('fa fa-sitemap', {selected: pref.view === 'tree'})}
                                                             title='Tree'
                                                             onClick={() => {
@@ -229,30 +238,31 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                         services.viewPreferences.updatePreferences({appDetails: {...pref, resourceFilter: []}});
                                                     }}
                                                 />
-                                            )) || (
-                                                <div>
-                                                    {(filteredRes.length > 0 && (
-                                                        <Paginate
-                                                            page={this.state.page}
-                                                            data={filteredRes}
-                                                            onPageChange={page => this.setState({page})}
-                                                            preferencesKey='application-details'>
-                                                            {data => (
-                                                                <ApplicationResourceList
-                                                                    onNodeClick={fullName => this.selectNode(fullName)}
-                                                                    resources={data}
-                                                                    nodeMenu={node => this.renderResourceMenu({...node, root: node}, application)}
-                                                                />
-                                                            )}
-                                                        </Paginate>
-                                                    )) || (
-                                                        <EmptyState icon='fa fa-search'>
-                                                            <h4>No resources found</h4>
-                                                            <h5>Try to change filter criteria</h5>
-                                                        </EmptyState>
-                                                    )}
-                                                </div>
-                                            )}
+                                            )) ||
+                                                (pref.view === 'pods' && <PodView />) || (
+                                                    <div>
+                                                        {(filteredRes.length > 0 && (
+                                                            <Paginate
+                                                                page={this.state.page}
+                                                                data={filteredRes}
+                                                                onPageChange={page => this.setState({page})}
+                                                                preferencesKey='application-details'>
+                                                                {data => (
+                                                                    <ApplicationResourceList
+                                                                        onNodeClick={fullName => this.selectNode(fullName)}
+                                                                        resources={data}
+                                                                        nodeMenu={node => this.renderResourceMenu({...node, root: node}, application)}
+                                                                    />
+                                                                )}
+                                                            </Paginate>
+                                                        )) || (
+                                                            <EmptyState icon='fa fa-search'>
+                                                                <h4>No resources found</h4>
+                                                                <h5>Try to change filter criteria</h5>
+                                                            </EmptyState>
+                                                        )}
+                                                    </div>
+                                                )}
                                         </div>
                                         <SlidingPanel isShown={selectedNode != null || isAppSelected} onClose={() => this.selectNode('')}>
                                             <div>

@@ -1,6 +1,6 @@
 import {BehaviorSubject, Observable} from 'rxjs';
 
-export type AppsDetailsViewType = 'tree' | 'network' | 'list';
+export type AppsDetailsViewType = 'tree' | 'network' | 'list' | 'pods';
 
 export interface AppDetailsPreferences {
     resourceFilter: string[];

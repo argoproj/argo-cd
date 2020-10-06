@@ -1,0 +1,91 @@
+@import 'node_modules/argo-ui/src/styles/config';
+
+$pod-size: 25px;
+$gutter: 3px;
+$pods-per-row: 7;
+$max-rows: 5;
+
+.node {
+  padding: 15px;
+  &__container {
+    display: flex;
+    &--header {
+      margin-bottom: 0.5em;
+    }
+    &--stats {
+      margin-left: -2 * $gutter;
+      margin-right: 4 * $gutter;
+    }
+  }
+  &__label {
+    margin-top: 1em;
+    font-size: 10px;
+    text-align: center;
+  }
+  &__pod-container {
+    flex-direction: column;
+    &__pods {
+      display: flex;
+      flex-direction: row-reverse;
+      flex-wrap: wrap-reverse;
+      align-content: flex-start;
+      height: $max-rows * ($pod-size + $gutter);
+      width: $pods-per-row * ($pod-size + 2 * $gutter);
+      margin-right: -1 * $gutter;
+      margin-bottom: -1 * $gutter;
+    }
+  }
+
+  &__pod {
+    border-radius: 3px;
+    width: $pod-size;
+    height: $pod-size;
+    margin: $gutter;
+    cursor: pointer;
+    &--healthy {
+      background-color: $argo-success-color;
+      &:hover {
+        background-color: $argo-success-color-dark;
+      }
+    }
+    &--out-of-sync {
+      background-color: $argo-status-warning-color;
+      &:hover {
+        background-color: $argo-status-warning-color - #111;
+      }
+    }
+    &--degraded {
+      background-color: $argo-failed-color;
+      &:hover {
+        background-color: $argo-failed-color-dark;
+      }
+    }
+
+    &__stat {
+      flex-direction: column;
+      justify-content: flex-end;
+      &__bar {
+        $stat-width: 18px;
+        align-self: flex-end;
+        background-color: $argo-color-gray-4;
+        height: $max-rows * $pod-size;
+        width: $stat-width;
+        border-radius: 3px;
+        margin: 0 $gutter*2;
+        overflow: hidden;
+        display: flex;
+        cursor: pointer;
+
+        &:hover > &--fill {
+          background-color: $argo-color-teal-6;
+        }
+
+        &--fill {
+          align-self: flex-end;
+          background-color: $argo-color-teal-5;
+          width: $stat-width;
+        }
+      }
+    }
+  }
+}
