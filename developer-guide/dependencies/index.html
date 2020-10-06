@@ -36,7 +36,7 @@
     
     
       
-        <title>E2E Tests - Argo CD - Declarative GitOps CD for Kubernetes</title>
+        <title>Managing Dependencies - Argo CD - Declarative GitOps CD for Kubernetes</title>
       
     
     
@@ -127,7 +127,7 @@
     <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
     <label class="md-overlay" data-md-component="overlay" for="__drawer"></label>
     
-      <a href="#e2e-tests" tabindex="1" class="md-skip">
+      <a href="#managing-dependencies" tabindex="1" class="md-skip">
         Skip to content
       </a>
     
@@ -152,7 +152,7 @@
               Argo CD - Declarative GitOps CD for Kubernetes
             </span>
             <span class="md-header-nav__topic">
-              E2E Tests
+              Managing Dependencies
             </span>
           
         </div>
@@ -1193,6 +1193,18 @@
           
           
 
+
+  <li class="md-nav__item">
+    <a href="../test-e2e/" title="E2E Tests" class="md-nav__link">
+      E2E Tests
+    </a>
+  </li>
+
+        
+          
+          
+          
+
   
 
 
@@ -1204,11 +1216,11 @@
     
     
       <label class="md-nav__link md-nav__link--active" for="__toc">
-        E2E Tests
+        Managing Dependencies
       </label>
     
-    <a href="./" title="E2E Tests" class="md-nav__link md-nav__link--active">
-      E2E Tests
+    <a href="./" title="Managing Dependencies" class="md-nav__link md-nav__link--active">
+      Managing Dependencies
     </a>
     
       
@@ -1222,37 +1234,36 @@
     <ul class="md-nav__list" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#running-tests-locally" title="Running Tests Locally" class="md-nav__link">
-    Running Tests Locally
+  <a href="#gitops-engine-githubcomargoprojgitops-engine" title="GitOps Engine (github.com/argoproj/gitops-engine)" class="md-nav__link">
+    GitOps Engine (github.com/argoproj/gitops-engine)
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#repository" title="Repository" class="md-nav__link">
+    Repository
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#configuration-of-e2e-tests-execution" title="Configuration of E2E Tests execution" class="md-nav__link">
-    Configuration of E2E Tests execution
+        
+          <li class="md-nav__item">
+  <a href="#pulling-changes-from-gitops-engine" title="Pulling changes from gitops-engine" class="md-nav__link">
+    Pulling changes from gitops-engine
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#ci-set-up" title="CI Set-up" class="md-nav__link">
-    CI Set-up
+        
+          <li class="md-nav__item">
+  <a href="#tips" title="Tips:" class="md-nav__link">
+    Tips:
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#test-isolation" title="Test Isolation" class="md-nav__link">
-    Test Isolation
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#troubleshooting" title="Troubleshooting" class="md-nav__link">
-    Troubleshooting
-  </a>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1264,18 +1275,6 @@
   
 </nav>
     
-  </li>
-
-        
-          
-          
-          
-
-
-  <li class="md-nav__item">
-    <a href="../dependencies/" title="Managing Dependencies" class="md-nav__link">
-      Managing Dependencies
-    </a>
   </li>
 
         
@@ -1425,37 +1424,36 @@
     <ul class="md-nav__list" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#running-tests-locally" title="Running Tests Locally" class="md-nav__link">
-    Running Tests Locally
+  <a href="#gitops-engine-githubcomargoprojgitops-engine" title="GitOps Engine (github.com/argoproj/gitops-engine)" class="md-nav__link">
+    GitOps Engine (github.com/argoproj/gitops-engine)
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#repository" title="Repository" class="md-nav__link">
+    Repository
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#configuration-of-e2e-tests-execution" title="Configuration of E2E Tests execution" class="md-nav__link">
-    Configuration of E2E Tests execution
+        
+          <li class="md-nav__item">
+  <a href="#pulling-changes-from-gitops-engine" title="Pulling changes from gitops-engine" class="md-nav__link">
+    Pulling changes from gitops-engine
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#ci-set-up" title="CI Set-up" class="md-nav__link">
-    CI Set-up
+        
+          <li class="md-nav__item">
+  <a href="#tips" title="Tips:" class="md-nav__link">
+    Tips:
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#test-isolation" title="Test Isolation" class="md-nav__link">
-    Test Isolation
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#troubleshooting" title="Troubleshooting" class="md-nav__link">
-    Troubleshooting
-  </a>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1475,61 +1473,38 @@
             <article class="md-content__inner md-typeset">
               
                 
-                  <a href="https://github.com/argoproj/argo-cd/edit/master/docs/developer-guide/test-e2e.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
+                  <a href="https://github.com/argoproj/argo-cd/edit/master/docs/developer-guide/dependencies.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
                 
                 
-                <h1 id="e2e-tests">E2E Tests<a class="headerlink" href="#e2e-tests" title="Permanent link">&para;</a></h1>
-<div class="admonition warning">
-<p class="admonition-title">Warning</p>
-<p>This documentation is out-of-date. Please bear with us while we work to
-update the documentation to reflect reality!</p>
-</div>
-<p>The directory contains E2E tests and test applications. The test assume that Argo CD services are installed into <code>argocd-e2e</code> namespace or cluster in current context. One throw-away
-namespace <code>argocd-e2e***</code> is created prior to tests execute. The throw-away namespace is used as a target namespace for test applications.</p>
-<p>The <code>test/e2e/testdata</code> directory contains various Argo CD applications. Before test execution directory is copies into <code>/tmp/argocd-e2e***</code> temp directory and used in tests as a
-Git repository via file url: <code>file:///tmp/argocd-e2e***</code>.</p>
-<h2 id="running-tests-locally">Running Tests Locally<a class="headerlink" href="#running-tests-locally" title="Permanent link">&para;</a></h2>
+                <h1 id="managing-dependencies">Managing Dependencies<a class="headerlink" href="#managing-dependencies" title="Permanent link">&para;</a></h1>
+<h2 id="gitops-engine-githubcomargoprojgitops-engine">GitOps Engine (<code>github.com/argoproj/gitops-engine</code>)<a class="headerlink" href="#gitops-engine-githubcomargoprojgitops-engine" title="Permanent link">&para;</a></h2>
+<h3 id="repository">Repository<a class="headerlink" href="#repository" title="Permanent link">&para;</a></h3>
+<p>https://github.com/argoproj/gitops-engine</p>
+<h3 id="pulling-changes-from-gitops-engine">Pulling changes from <code>gitops-engine</code><a class="headerlink" href="#pulling-changes-from-gitops-engine" title="Permanent link">&para;</a></h3>
+<p>After your GitOps Engine PR has been merged, ArgoCD needs to be updated to pull in the version of the GitOps engine that contains your change.  Here are the steps:</p>
 <ol>
-<li>Start the e2e version <code>make start-e2e</code> </li>
-<li>Run the tests: <code>make test-e2e</code></li>
+<li>Retrieve the SHA hash for your commit. You will use this in the next step.</li>
+<li>From the <code>argo-cd</code> folder, run the following command</li>
 </ol>
-<p>You can observe the tests by using the UI <a href="http://localhost:8080/applications">http://localhost:8080/applications</a>.</p>
-<h2 id="configuration-of-e2e-tests-execution">Configuration of E2E Tests execution<a class="headerlink" href="#configuration-of-e2e-tests-execution" title="Permanent link">&para;</a></h2>
-<p>The Makefile's <code>start-e2e</code> target starts instances of ArgoCD on your local machine, of which the most will require a network listener. If for whatever reason you already have network services on your machine listening on the same ports, the e2e tests will not be able to run. You can derive from the defaults by setting the following environment variables before you run <code>make start-e2e</code>:</p>
+<p><code>go get github.com/argoproj/gitops-engine@&lt;git-commit-sha&gt;</code></p>
+<p>If you get an error message <code>invalid version: unknown revision</code> then you got the wrong SHA hash
+3. Run:</p>
+<p><code>go mod tidy</code></p>
+<ol>
+<li>
+<p>The following files are changed:</p>
+</li>
+<li>
+<p><code>go.mod</code></p>
+</li>
+<li><code>go.sum</code></li>
+<li>Create an ArgoCD PR with a <code>refactor:</code> type in its title for the two file changes.</li>
+</ol>
+<h3 id="tips">Tips:<a class="headerlink" href="#tips" title="Permanent link">&para;</a></h3>
 <ul>
-<li><code>ARGOCD_E2E_APISERVER_PORT</code>: Listener port for <code>argocd-server</code> (default: <code>8080</code>)</li>
-<li><code>ARGOCD_E2E_REPOSERVER_PORT</code>: Listener port for <code>argocd-reposerver</code> (default: <code>8081</code>)</li>
-<li><code>ARGOCD_E2E_DEX_PORT</code>: Listener port for <code>dex</code> (default: <code>5556</code>)</li>
-<li><code>ARGOCD_E2E_REDIS_PORT</code>: Listener port for <code>redis</code> (default: <code>6379</code>)</li>
-<li><code>ARGOCD_E2E_YARN_CMD</code>: Command to use for starting the UI via Yarn (default: <code>yarn</code>)</li>
+<li>See https://github.com/argoproj/argo-cd/pull/4434 as an example</li>
+<li>The PR might require additional, dependent changes in ArgoCD that are directly impacted by the changes made in the engine.  </li>
 </ul>
-<p>If you have changed the port for <code>argocd-server</code>, be sure to also set <code>ARGOCD_SERVER</code> environment variable to point to that port, e.g. <code>export ARGOCD_SERVER=localhost:8888</code> before running <code>make test-e2e</code> so that the test will communicate to the correct server component.</p>
-<h2 id="ci-set-up">CI Set-up<a class="headerlink" href="#ci-set-up" title="Permanent link">&para;</a></h2>
-<p>The tests are executed by Argo Workflow defined at <code>.argo-ci/ci.yaml</code>. CI job The builds an Argo CD image, deploy argo cd components into throw-away kubernetes cluster provisioned
-using k3s and run e2e tests against it.</p>
-<h2 id="test-isolation">Test Isolation<a class="headerlink" href="#test-isolation" title="Permanent link">&para;</a></h2>
-<p>Some effort has been made to balance test isolation with speed. Tests are isolated as follows as each test gets:</p>
-<ul>
-<li>A random 5 character ID.</li>
-<li>A unique Git repository containing the <code>testdata</code> in <code>/tmp/argocd-e2e/${id}</code>.</li>
-<li>A namespace <code>argocd-e2e-ns-${id}</code>.</li>
-<li>An primary name for the app <code>argocd-e2e-${id}</code>.</li>
-</ul>
-<h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
-<p><strong>Tests fails to delete <code>argocd-e2e-ns-*</code> namespaces.</strong></p>
-<p>This maybe due to the metrics server, run this:</p>
-<div class="codehilite"><pre><span></span><code>kubectl api-resources
-</code></pre></div>
-
-
-<p>If it exits with status code 1, run:</p>
-<div class="codehilite"><pre><span></span><code>kubectl delete apiservice v1beta1.metrics.k8s.io
-</code></pre></div>
-
-
-<p>Remove <code>/spec/finalizers</code> from the namespace</p>
-<div class="codehilite"><pre><span></span><code>kubectl edit ns argocd-e2e-ns-*
-</code></pre></div>
                 
                   
                 
@@ -1550,7 +1525,7 @@ using k3s and run e2e tests against it.</p>
     <div class="md-footer-nav">
       <nav class="md-footer-nav__inner md-grid">
         
-          <a href="../api-docs/" title="API Docs" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
+          <a href="../test-e2e/" title="E2E Tests" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
             <div class="md-flex__cell md-flex__cell--shrink">
               <i class="md-icon md-icon--arrow-back md-footer-nav__button"></i>
             </div>
@@ -1559,19 +1534,19 @@ using k3s and run e2e tests against it.</p>
                 <span class="md-footer-nav__direction">
                   Previous
                 </span>
-                API Docs
+                E2E Tests
               </span>
             </div>
           </a>
         
         
-          <a href="../dependencies/" title="Managing Dependencies" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
+          <a href="../ci/" title="CI" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
             <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
               <span class="md-flex__ellipsis">
                 <span class="md-footer-nav__direction">
                   Next
                 </span>
-                Managing Dependencies
+                CI
               </span>
             </div>
             <div class="md-flex__cell md-flex__cell--shrink">
