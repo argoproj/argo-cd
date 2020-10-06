@@ -10,21 +10,23 @@ https://github.com/argoproj/gitops-engine
 
 After your GitOps Engine PR has been merged, ArgoCD needs to be updated to pull in the version of the GitOps engine that contains your change.  Here are the steps:
 
-1. Retrieve the SHA hash for your commit. You will use this in the next step.
-2. From the `argo-cd` folder, run the following command
+* Retrieve the SHA hash for your commit. You will use this in the next step.
+* From the `argo-cd` folder, run the following command
 
-   `go get github.com/argoproj/gitops-engine@<git-commit-sha>`
-   
-   If you get an error message `invalid version: unknown revision` then you got the wrong SHA hash
-3. Run:
+    `go get github.com/argoproj/gitops-engine@<git-commit-sha>`
 
-   `go mod tidy`
-   
-4. The following files are changed:
+    If you get an error message `invalid version: unknown revision` then you got the wrong SHA hash
 
-   - `go.mod`
-   - `go.sum`
-5. Create an ArgoCD PR with a `refactor:` type in its title for the two file changes.
+* Run:
+
+    `go mod tidy`
+
+* The following files are changed:
+
+    - `go.mod`
+    - `go.sum`
+
+* Create an ArgoCD PR with a `refactor:` type in its title for the two file changes.
 
 ### Tips:
 * See https://github.com/argoproj/argo-cd/pull/4434 as an example
