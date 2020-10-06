@@ -16,6 +16,7 @@ import {ApplicationDeploymentHistory} from '../application-deployment-history/ap
 import {ApplicationNodeInfo} from '../application-node-info/application-node-info';
 import {ApplicationOperationState} from '../application-operation-state/application-operation-state';
 import {ApplicationParameters} from '../application-parameters/application-parameters';
+import {PodView} from '../application-pod-view/pod-view';
 import {ApplicationResourceEvents} from '../application-resource-events/application-resource-events';
 import {ApplicationResourceTree, ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
 import {ApplicationResourcesDiff} from '../application-resources-diff/application-resources-diff';
@@ -26,7 +27,6 @@ import {PodsLogsViewer} from '../pod-logs-viewer/pod-logs-viewer';
 import * as AppUtils from '../utils';
 import {isSameNode, nodeKey} from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
-import {PodView} from "../application-pod-view/pod-view";
 
 const jsonMergePatch = require('json-merge-patch');
 

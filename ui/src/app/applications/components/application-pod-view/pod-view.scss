@@ -5,12 +5,20 @@ $gutter: 3px;
 $pods-per-row: 7;
 $max-rows: 5;
 
+.nodes-container {
+  display: flex;
+  flex-wrap: wrap;
+}
+
 .node {
   padding: 15px;
+  margin: 10px;
   &__container {
     display: flex;
     &--header {
-      margin-bottom: 0.5em;
+      font-size: 16px;
+      margin-bottom: 1em;
+      align-items: center;
     }
     &--stats {
       margin-left: -2 * $gutter;
@@ -29,7 +37,7 @@ $max-rows: 5;
       flex-direction: row-reverse;
       flex-wrap: wrap-reverse;
       align-content: flex-start;
-      height: $max-rows * ($pod-size + $gutter);
+      height: $max-rows * ($pod-size + 2 * $gutter);
       width: $pods-per-row * ($pod-size + 2 * $gutter);
       margin-right: -1 * $gutter;
       margin-bottom: -1 * $gutter;
