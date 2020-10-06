@@ -1207,7 +1207,7 @@
           "ClusterService"
         ],
         "summary": "Update updates a cluster",
-        "operationId": "UpdateMixin6",
+        "operationId": "Update",
         "parameters": [
           {
             "type": "string",
@@ -1449,7 +1449,7 @@
           "ProjectService"
         ],
         "summary": "List returns list of projects",
-        "operationId": "ListMixin7",
+        "operationId": "ListMixin6",
         "parameters": [
           {
             "type": "string",
@@ -1471,7 +1471,7 @@
           "ProjectService"
         ],
         "summary": "Create a new project.",
-        "operationId": "CreateMixin7",
+        "operationId": "CreateMixin6",
         "parameters": [
           {
             "name": "body",
@@ -1498,7 +1498,7 @@
           "ProjectService"
         ],
         "summary": "Get returns a project by name",
-        "operationId": "GetMixin7",
+        "operationId": "GetMixin6",
         "parameters": [
           {
             "type": "string",
@@ -1521,7 +1521,7 @@
           "ProjectService"
         ],
         "summary": "Delete deletes a project",
-        "operationId": "DeleteMixin7",
+        "operationId": "DeleteMixin6",
         "parameters": [
           {
             "type": "string",
@@ -1596,7 +1596,7 @@
           "ProjectService"
         ],
         "summary": "Update updates a project",
-        "operationId": "UpdateMixin7",
+        "operationId": "UpdateMixin6",
         "parameters": [
           {
             "type": "string",
@@ -1630,7 +1630,7 @@
           "ProjectService"
         ],
         "summary": "Create a new project token.",
-        "operationId": "CreateTokenMixin7",
+        "operationId": "CreateToken",
         "parameters": [
           {
             "type": "string",
@@ -1669,7 +1669,7 @@
           "ProjectService"
         ],
         "summary": "Delete a new project token.",
-        "operationId": "DeleteTokenMixin7",
+        "operationId": "DeleteToken",
         "parameters": [
           {
             "type": "string",
@@ -2109,7 +2109,7 @@
           "SessionService"
         ],
         "summary": "Create a new JWT for authentication and set a cookie if using HTTP.",
-        "operationId": "Create",
+        "operationId": "CreateMixin11",
         "parameters": [
           {
             "name": "body",
@@ -2134,7 +2134,7 @@
           "SessionService"
         ],
         "summary": "Delete an existing JWT cookie if using HTTP.",
-        "operationId": "Delete",
+        "operationId": "DeleteMixin11",
         "responses": {
           "200": {
             "description": "A successful response.",

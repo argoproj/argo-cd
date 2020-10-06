@@ -1,6 +1,5 @@
 import {Checkbox as ArgoCheckbox, DropDownMenu, MenuItem, NotificationType, SlidingPanel, Tab, Tabs, TopBarFilter} from 'argo-ui';
 import * as classNames from 'classnames';
-import {} from 'lodash';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import {Checkbox} from 'react-form';
@@ -35,7 +34,7 @@ type ActionMenuItem = MenuItem & {disabled?: boolean};
 
 export class ApplicationDetails extends React.Component<RouteComponentProps<{name: string}>, {page: number}> {
     public static contextTypes = {
-        apis: PropTypes.object,
+        apis: PropTypes.object
     };
 
     private appChanged = new BehaviorSubject<appModels.Application>(null);
@@ -481,22 +480,22 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         const nodeArray = graph.nodes();
 
         const replicaSetName = nodeArray
-            .filter((nodeFiltered) => graph.node(nodeFiltered).kind === 'Pod')
-            .map((nodeMapped) => graph.node(nodeMapped).parentRefs)
+            .filter(nodeFiltered => graph.node(nodeFiltered).kind === 'Pod')
+            .map(nodeMapped => graph.node(nodeMapped).parentRefs)
             .reduce((prev, curr) => [...prev, ...curr], [])
             .filter((parent: ResourceTreeNode) => parent.kind === 'ReplicaSet')
             .map((n: ResourceTreeNode) => n.name);
 
         const getReplicaSets: string[] = nodeArray
-            .map((nodeMapped) => graph.node(nodeMapped))
-            .filter((nodeFiltered) => replicaSetName.find((name: string) => name === nodeFiltered.name))
-            .map((nodeMapped) => nodeMapped.uid);
+            .map(nodeMapped => graph.node(nodeMapped))
+            .filter(nodeFiltered => replicaSetName.find((name: string) => name === nodeFiltered.name))
+            .map(nodeMapped => nodeMapped.uid);
 
         const showReplicaSet = (filterNode: ResourceTreeNode): boolean => {
             if (filterNode.kind !== 'ReplicaSet') {
                 return true;
             }
-            return getReplicaSets.find((uid) => uid === filterNode.uid) !== undefined;
+            return getReplicaSets.find(uid => uid === filterNode.uid) !== undefined;
         };
 
         return showReplicaSet(node);
@@ -517,7 +516,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
 
     private filterTreeNode(node: ResourceTreeNode, filter: {kind: string[]; health: string[]; sync: string[]; filters: string[]}, graph?: dagre.graphlib.Graph): boolean {
         const syncStatuses = filter.sync.map(item => (item === 'OutOfSync' ? ['OutOfSync', 'Unknown'] : [item])).reduce((first, second) => first.concat(second), []);
-        const tester = this.newFilter(node, filter.filters, graph);
+        const tester = this.filterReplicaSets(node, filter.filters, graph);
         return (
             (filter.kind.length === 0 || filter.kind.indexOf(node.kind) > -1) &&
             (syncStatuses.length === 0 || node.root.hook || (node.root.status && syncStatuses.indexOf(node.root.status) > -1)) &&
