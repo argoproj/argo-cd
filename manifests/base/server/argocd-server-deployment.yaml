@@ -20,12 +20,20 @@ spec:
       - name: argocd-server
         image: argoproj/argocd:latest
         imagePullPolicy: Always
-        command: [argocd-server, --staticassets, /shared/app]
+        command:
+        - argocd-server
+        - --staticassets
+        - /shared/app
+        - --loglevel
+        - $(ARGOCD_SERVER_LOG_LEVEL)
         volumeMounts:
         - name: ssh-known-hosts
           mountPath: /app/config/ssh
         - name: tls-certs
           mountPath: /app/config/tls
+        env:
+        - name: ARGOCD_SERVER_LOG_LEVEL
+          value: "info"
         ports:
         - containerPort: 8080
         - containerPort: 8083
