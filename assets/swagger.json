@@ -5223,6 +5223,11 @@
       "type": "object",
       "title": "SyncPolicyAutomated controls the behavior of an automated sync",
       "properties": {
+        "allowEmpty": {
+          "type": "boolean",
+          "format": "boolean",
+          "title": "AllowEmpty allows apps have zero live resources (default: false)"
+        },
         "prune": {
           "type": "boolean",
           "format": "boolean",

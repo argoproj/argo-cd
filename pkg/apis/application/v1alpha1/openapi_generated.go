@@ -3725,6 +3725,13 @@ func schema_pkg_apis_application_v1alpha1_SyncPolicyAutomated(ref common.Referen
 							Format:      "",
 						},
 					},
+					"allowEmpty": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AllowEmpty allows apps have zero live resources (default: false)",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},

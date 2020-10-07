@@ -621,6 +621,12 @@ func setAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 		}
 		spec.SyncPolicy.Automated.SelfHeal = appOpts.selfHeal
 	}
+	if flags.Changed("allow-empty") {
+		if spec.SyncPolicy == nil || spec.SyncPolicy.Automated == nil {
+			log.Fatal("Cannot set --allow-empty: application not configured with automatic sync")
+		}
+		spec.SyncPolicy.Automated.AllowEmpty = appOpts.allowEmpty
+	}
 
 	return visited
 }
@@ -760,6 +766,7 @@ type appOptions struct {
 	syncOptions            []string
 	autoPrune              bool
 	selfHeal               bool
+	allowEmpty             bool
 	namePrefix             string
 	nameSuffix             string
 	directoryRecurse       bool
@@ -798,6 +805,7 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().StringArrayVar(&opts.syncOptions, "sync-option", []string{}, "Add or remove a sync options, e.g add `Prune=false`. Remove using `!` prefix, e.g. `!Prune=false`")
 	command.Flags().BoolVar(&opts.autoPrune, "auto-prune", false, "Set automatic pruning when sync is automated")
 	command.Flags().BoolVar(&opts.selfHeal, "self-heal", false, "Set self healing when sync is automated")
+	command.Flags().BoolVar(&opts.allowEmpty, "allow-empty", false, "Set allow zero live resources when sync is automated")
 	command.Flags().StringVar(&opts.namePrefix, "nameprefix", "", "Kustomize nameprefix")
 	command.Flags().StringVar(&opts.nameSuffix, "namesuffix", "", "Kustomize namesuffix")
 	command.Flags().StringVar(&opts.kustomizeVersion, "kustomize-version", "", "Kustomize version")

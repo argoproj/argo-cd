@@ -1073,6 +1073,9 @@ message SyncPolicyAutomated {
 
   // SelfHeal enables auto-syncing if  (default: false)
   optional bool selfHeal = 2;
+
+  // AllowEmpty allows apps have zero live resources (default: false)
+  optional bool allowEmpty = 3;
 }
 
 // SyncStatus is a comparison result of application spec and deployed application.

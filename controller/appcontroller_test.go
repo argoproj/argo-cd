@@ -288,6 +288,31 @@ func TestAutoSync(t *testing.T) {
 	assert.False(t, app.Operation.Sync.Prune)
 }
 
+func TestAutoSyncNotAllowEmpty(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.SyncPolicy.Automated.Prune = true
+	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
+	syncStatus := argoappv1.SyncStatus{
+		Status:   argoappv1.SyncStatusCodeOutOfSync,
+		Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+	}
+	cond := ctrl.autoSync(app, &syncStatus, []argoappv1.ResourceStatus{})
+	assert.NotNil(t, cond)
+}
+
+func TestAutoSyncAllowEmpty(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.SyncPolicy.Automated.Prune = true
+	app.Spec.SyncPolicy.Automated.AllowEmpty = true
+	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
+	syncStatus := argoappv1.SyncStatus{
+		Status:   argoappv1.SyncStatusCodeOutOfSync,
+		Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+	}
+	cond := ctrl.autoSync(app, &syncStatus, []argoappv1.ResourceStatus{})
+	assert.Nil(t, cond)
+}
+
 func TestSkipAutoSync(t *testing.T) {
 	// Verify we skip when we previously synced to it in our most recent history
 	// Set current to 'aaaaa', desired to 'aaaa' and mark system OutOfSync
