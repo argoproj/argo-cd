@@ -953,6 +953,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#automatic-pruning-with-allow-empty-v18" title="Automatic Pruning with Allow-Empty (v1.8)" class="md-nav__link">
+    Automatic Pruning with Allow-Empty (v1.8)
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#automatic-self-healing" title="Automatic Self-Healing" class="md-nav__link">
     Automatic Self-Healing
   </a>
@@ -1418,6 +1425,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#automatic-pruning-with-allow-empty-v18" title="Automatic Pruning with Allow-Empty (v1.8)" class="md-nav__link">
+    Automatic Pruning with Allow-Empty (v1.8)
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#automatic-self-healing" title="Automatic Self-Healing" class="md-nav__link">
     Automatic Self-Healing
   </a>
@@ -1480,6 +1494,20 @@ automated sync by running:</p>
   <span class="nt">syncPolicy</span><span class="p">:</span>
     <span class="nt">automated</span><span class="p">:</span>
       <span class="nt">prune</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">true</span>
+</code></pre></div>
+
+<h2 id="automatic-pruning-with-allow-empty-v18">Automatic Pruning with Allow-Empty (v1.8)<a class="headerlink" href="#automatic-pruning-with-allow-empty-v18" title="Permanent link">&para;</a></h2>
+<p>By default (and as a safety mechanism), automated sync with prune have a protection from any automation/human errors 
+when there are no target resources. It prevents application from having empty resources. To allow applications have empty resources, run:</p>
+<div class="bash codehilite"><pre><span></span><code>argocd app <span class="nb">set</span> &lt;APPNAME&gt; --allow-empty
+</code></pre></div>
+
+<p>Or by setting the allow empty option to true in the automated sync policy:</p>
+<div class="yaml codehilite"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">syncPolicy</span><span class="p">:</span>
+    <span class="nt">automated</span><span class="p">:</span>
+      <span class="nt">prune</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">true</span>
+      <span class="nt">allowEmpty</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">true</span>
 </code></pre></div>
 
 <h2 id="automatic-self-healing">Automatic Self-Healing<a class="headerlink" href="#automatic-self-healing" title="Permanent link">&para;</a></h2>
