@@ -218,7 +218,11 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	}
 	err := s.runRepoOperation(ctx, q.Revision, q.Repo, q.ApplicationSource, q.VerifySignature, getCached, func(appPath, repoRoot, revision, verifyResult string) error {
 		var err error
-		res, err = GenerateManifests(appPath, repoRoot, revision, q, false)
+
+		gitClient, _ := s.newClient(q.Repo)
+		revisionSHA, _ := gitClient.CommitSHA()
+
+		res, err = GenerateManifests(appPath, repoRoot, revisionSHA, q, false)
 		if err != nil {
 			return err
 		}
