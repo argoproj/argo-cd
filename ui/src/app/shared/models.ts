@@ -797,3 +797,50 @@ export const Groups = [
     'stable.example.com',
     'storage.k8s.io'
 ];
+
+export interface Node {
+    metadata: models.ObjectMeta;
+    status: NodeStatus;
+}
+
+export interface NodeStatus {
+    capacity: ResourceList;
+}
+
+export interface ResourceStat {
+    name: ResourceName;
+    used: number;
+    quantity: number;
+}
+
+export type ResourceList = ResourceStat[];
+
+export enum ResourceName {
+    ResourceCPU = 'cpu',
+    ResourceMemory = 'memory',
+    ResourceStorage = 'storage',
+    ResourceEphemeralStorage = 'ephemeral-storage'
+}
+
+export interface Pod {
+    metadata: models.ObjectMeta;
+    status: PodStatus;
+    spec: PodSpec;
+}
+
+export interface PodSpec {
+    nodeName: string;
+}
+
+export interface PodStatus {
+    phase: PodPhase;
+    message: string;
+}
+
+export enum PodPhase {
+    PodPending = 'Pending',
+    PodRunning = 'Running',
+    PodSucceeded = 'Succeeded',
+    PodFailed = 'Failed',
+    PodUnknown = 'Unknown'
+}

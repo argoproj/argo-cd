@@ -1,6 +1,6 @@
 import {Observable, Observer} from 'rxjs';
+import {Node, Pod, PodPhase, ResourceName} from '../../../shared/models';
 import {Adjectives, Animals} from './names';
-import {Node, Pod, PodStatus} from './pod-view';
 
 const podStatusWeights = {
     Healthy: 0.7,
@@ -17,33 +17,47 @@ function generateName(prefix: string) {
 }
 
 function generateNode(): Node {
-    const n = generateInt(5, 30);
     return {
-        pods: generatePods(n),
-        name: generateName('node'),
-        cpu: {cur: generateInt(0, 100), max: 100, name: 'cpu'},
-        mem: {cur: generateInt(0, 1024), max: 1024, name: 'mem'}
+        metadata: { name:  generateName('node') },
+        status: {
+            capacity: [
+                {
+                    name: ResourceName.ResourceCPU,
+                    used: generateInt(0, 100),
+                    quantity: 100
+                },
+                {
+                    name: ResourceName.ResourceMemory,
+                    used: generateInt(0, 1024),
+                    quantity: 1024
+                }
+            ]
+        }
     };
 }
 
-function generatePodStatus(weights: number[]): PodStatus {
+function generatePodPhase(weights: number[]): PodPhase {
     const sum = weights.reduce((acc, el) => acc + el, 0);
     let accumulator = 0;
     weights = weights.map(item => (accumulator = item + accumulator));
     const rand = Math.random() * sum;
-    return Object.values(PodStatus)[weights.filter(el => el <= rand).length];
+    return Object.values(PodPhase)[weights.filter(el => el <= rand).length];
 }
 
 function podSort(a: Pod, b: Pod): number {
-    return a.name < b.name ? -1 : 1;
+    return a.metadata.name < b.metadata.name ? -1 : 1;
 }
 
-function generatePods(n: number): Pod[] {
+function generatePods(n: number, nodeName: string): Pod[] {
     const pods: Pod[] = [];
     while (n) {
         pods.push({
-            name: generateName('pod').toLowerCase(),
-            status: generatePodStatus(Object.values(podStatusWeights))
+            metadata: {name: generateName('pod').toLowerCase()},
+            spec: {nodeName},
+            status: {
+                phase: generatePodPhase(Object.values(podStatusWeights)),
+                message: ''
+            }
         });
         n--;
     }
@@ -81,7 +95,7 @@ export function GetNodes(x: number, nodes?: Node[]): Observable<Node[]> {
                         .map(p => {
                             const up = {...p};
                             if (generateInt(0, 100) < 5) {
-                                up.status = generatePodStatus(Object.values(podStatusWeights));
+                                up.status = generatePodPhase(Object.values(podStatusWeights));
                             }
                             return up;
                         })

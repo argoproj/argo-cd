@@ -50,22 +50,34 @@ $max-rows: 5;
     height: $pod-size;
     margin: $gutter;
     cursor: pointer;
-    &--healthy {
+    &--succeeded {
       background-color: $argo-success-color;
       &:hover {
         background-color: $argo-success-color-dark;
       }
     }
-    &--out-of-sync {
+    &--pending {
       background-color: $argo-status-warning-color;
       &:hover {
         background-color: $argo-status-warning-color - #111;
       }
     }
-    &--degraded {
+    &--running {
+      background-color: $argo-running-color;
+      &:hover {
+        background-color: $argo-running-color-dark;
+      }
+    }
+    &--failed {
       background-color: $argo-failed-color;
       &:hover {
         background-color: $argo-failed-color-dark;
+      }
+    }
+    &--unknown {
+      background-color: $argo-color-gray-4;
+      &:hover {
+        background-color: $argo-color-gray-6;
       }
     }
 
