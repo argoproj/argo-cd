@@ -1,6 +1,7 @@
 package git
 
 import (
+	"bufio"
 	"crypto/tls"
 	"fmt"
 	"math"
@@ -9,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -328,26 +330,70 @@ func (m *nativeGitClient) Checkout(revision string) error {
 // runs with in-memory storage and is safe to run concurrently, or to be run without a git
 // repository locally cloned.
 func (m *nativeGitClient) LsRemote(revision string) (res string, err error) {
+	var lines []string
+	set := make(map[string]bool)
+	if _, err := os.Stat(m.root + "/.gitmodules"); !os.IsNotExist(err) {
+		gitmodules, err :=os.Open(m.root + "/.gitmodules")
+		if err != nil {
+			return "", err
+		}
+		defer gitmodules.Close()
+
+		scanner := bufio.NewScanner(gitmodules)
+
+		for scanner.Scan() {
+			line := strings.TrimSpace(scanner.Text())
+			if strings.HasPrefix(line,"url") {
+				re := regexp.MustCompile("(https|http|ssh).*(\\.git)")
+				subRepoURL := re.FindString(line)
+				lines = append(lines, subRepoURL)
+				set[subRepoURL] = true
+				fmt.Println(scanner.Text())
+			}
+		}
+	}
+
+	var submoduleRefs []string
+	for key, _ := range set {
+		ref, _ := m.lsRemote("HEAD", key)
+		fmt.Println(key + ":" + ref)
+		submoduleRefs = append(submoduleRefs, ref)
+	}
+
 	for attempt := 0; attempt < maxAttemptsCount; attempt++ {
-		if res, err = m.lsRemote(revision); err == nil {
+		if res, err = m.lsRemote(revision, ""); err == nil && len(submoduleRefs) > 0 {
+			res = res + "-"
+			for _,submoduleRef := range submoduleRefs {
+				res = res + submoduleRef
+			}
 			return
 		}
 	}
 	return
 }
 
-func (m *nativeGitClient) lsRemote(revision string) (string, error) {
+func (m *nativeGitClient) lsRemote(revision string, moduleURL string) (string, error) {
 	if IsCommitSHA(revision) {
 		return revision, nil
+	}
+	commitSHACorrected := strings.Split(revision, "-")
+	if len(commitSHACorrected) > 0 && IsCommitSHA(commitSHACorrected[0]) {
+		revision = commitSHACorrected[0]
 	}
 	repo, err := git.Init(memory.NewStorage(), nil)
 	if err != nil {
 		return "", err
 	}
-	remote, err := repo.CreateRemote(&config.RemoteConfig{
+
+	remoteConfig := &config.RemoteConfig{
 		Name: git.DefaultRemoteName,
 		URLs: []string{m.repoURL},
-	})
+	}
+	if moduleURL != "" {
+		remoteConfig.URLs = []string{moduleURL}
+	}
+	remote, err := repo.CreateRemote(remoteConfig)
+
 	if err != nil {
 		return "", err
 	}

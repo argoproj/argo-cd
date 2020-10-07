@@ -342,7 +342,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	now := metav1.Now()
 
 	if len(localManifests) == 0 {
-		targetObjs, manifestInfo, err = m.getRepoObjs(app, source, appLabelKey, revision, true, verifySignature)
+		targetObjs, manifestInfo, err = m.getRepoObjs(app, source, appLabelKey, revision, noCache, verifySignature)
 		if err != nil {
 			targetObjs = make([]*unstructured.Unstructured, 0)
 			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
