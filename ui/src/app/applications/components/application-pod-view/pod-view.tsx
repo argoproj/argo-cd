@@ -5,12 +5,6 @@ import {Node, Pod, ResourceStat} from '../../../shared/models';
 import {GetNodes} from './pod-view-mock-service';
 import './pod-view.scss';
 
-export interface Stat {
-    name: string;
-    cur: number;
-    max: number;
-}
-
 export class PodView extends React.Component {
     public render() {
         return <DataLoader load={() => GetNodes(5)}>{nodes => <div className='nodes-container'>{nodes.map(n => Node(n))}</div>}</DataLoader>;
@@ -66,11 +60,7 @@ function Node(node: Node) {
                 />
             </div>
             <div className='node__container'>
-                <div className='node__container node__container--stats'>
-                    {node.status.capacity.map(r => {
-                        Stat(r);
-                    })}
-                </div>
+                <div className='node__container node__container--stats'>{node.status.capacity.map(r => Stat(r))}</div>
                 <div className='node__pod-container node__container'>
                     <div className='node__pod-container__pods'>{node.pods.map(p => Pod(p))}</div>
                     <div className='node__label'>PODS</div>
@@ -82,21 +72,21 @@ function Node(node: Node) {
 
 function Pod(pod: Pod) {
     return (
-        <Tooltip content={pod.metadata.name}>
-            <div className={`node__pod node__pod--${pod.status}`} />
+        <Tooltip content={pod.metadata.name} key={pod.metadata.name}>
+            <div className={`node__pod node__pod--${pod.status.phase.toLowerCase()}`} />
         </Tooltip>
     );
 }
 
 function Stat(stat: ResourceStat) {
     return (
-        <div className='node__pod__stat node__container'>
+        <div className='node__pod__stat node__container' key={stat.name}>
             <Tooltip content={`${stat.used} / ${stat.quantity} used`}>
                 <div className='node__pod__stat__bar'>
                     <div className='node__pod__stat__bar--fill' style={{height: `${100 * (stat.used / stat.quantity)}%`}} />
                 </div>
             </Tooltip>
-            <div className='node__label'>{stat.name.toUpperCase()}</div>
+            <div className='node__label'>{stat.name.slice(0, 3).toUpperCase()}</div>
         </div>
     );
 }

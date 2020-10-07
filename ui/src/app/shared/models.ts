@@ -801,6 +801,7 @@ export const Groups = [
 export interface Node {
     metadata: models.ObjectMeta;
     status: NodeStatus;
+    pods: Pod[];
 }
 
 export interface NodeStatus {

@@ -3,9 +3,11 @@ import {Node, Pod, PodPhase, ResourceName} from '../../../shared/models';
 import {Adjectives, Animals} from './names';
 
 const podStatusWeights = {
-    Healthy: 0.7,
-    OutOfSync: 0.2,
-    Degraded: 0.1
+    PodPending: 10,
+    PodRunning: 10,
+    PodSucceeded: 80,
+    PodFailed: 5,
+    PodUnknown: 5
 };
 
 function generateInt(min: number, max: number): number {
@@ -17,8 +19,9 @@ function generateName(prefix: string) {
 }
 
 function generateNode(): Node {
+    const name = generateName('node');
     return {
-        metadata: { name:  generateName('node') },
+        metadata: {name},
         status: {
             capacity: [
                 {
@@ -32,7 +35,8 @@ function generateNode(): Node {
                     quantity: 1024
                 }
             ]
-        }
+        },
+        pods: generatePods(generateInt(10, 25), name)
     };
 }
 
@@ -89,13 +93,17 @@ export function GetNodes(x: number, nodes?: Node[]): Observable<Node[]> {
             } else {
                 nodes = nodes.map(n => {
                     const u = {...n};
-                    u.cpu.cur = Math.round(randomAdjustmentOf(u.cpu.cur, u.cpu.max, 3));
-                    u.mem.cur = Math.round(randomAdjustmentOf(u.mem.cur, u.mem.max, 3));
+                    const cap = u.status.capacity;
+                    u.status.capacity = [];
+                    for (const s of cap) {
+                        s.used = Math.round(randomAdjustmentOf(s.used, s.quantity, 3));
+                        u.status.capacity.push(s);
+                    }
                     u.pods = u.pods
                         .map(p => {
                             const up = {...p};
                             if (generateInt(0, 100) < 5) {
-                                up.status = generatePodPhase(Object.values(podStatusWeights));
+                                up.status.phase = generatePodPhase(Object.values(podStatusWeights));
                             }
                             return up;
                         })
