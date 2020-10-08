@@ -138,17 +138,14 @@ type operationSettings struct {
 // - Returns a value from the cache if present (by calling getCached(...)); if no value is present, the
 // provide operation(...) is called. The specific return type of this function is determined by the
 // calling function, via the provided  getCached(...) and operation(...) function.
-// - Calling functions can inject custom objects via the inputParam parameter, which will be passed
-// into getCached(...) and operation(...).
 func (s *Service) runRepoOperation(
 	ctx context.Context,
 	revision string,
-	inputParam interface{},
 	repo *v1alpha1.Repository,
 	source *v1alpha1.ApplicationSource,
 	verifyCommit bool,
-	getCached func(revision string, inputParam interface{}, firstInvocation bool) (bool, interface{}, error),
-	operation func(appPath, repoRoot, revision, verifyResult string, inputParam interface{}) (interface{}, error),
+	getCached func(revision string, firstInvocation bool) (bool, interface{}, error),
+	operation func(appPath, repoRoot, revision, verifyResult string) (interface{}, error),
 	settings operationSettings) (interface{}, error) {
 
 	var gitClient git.Client
@@ -169,8 +166,7 @@ func (s *Service) runRepoOperation(
 	}
 
 	if !settings.noCache {
-
-		result, obj, err := getCached(revision, inputParam, true)
+		result, obj, err := getCached(revision, true)
 		if result {
 			return obj, err
 		}
@@ -203,13 +199,13 @@ func (s *Service) runRepoOperation(
 			return nil, err
 		}
 		defer io.Close(closer)
-		return operation(chartPath, chartPath, revision, "", inputParam)
+		return operation(chartPath, chartPath, revision, "")
 	} else {
 		s.repoLock.Lock(gitClient.Root())
 		defer s.repoLock.Unlock(gitClient.Root())
 		// double-check locking
 		if !settings.noCache {
-			result, obj, err := getCached(revision, inputParam, false)
+			result, obj, err := getCached(revision, false)
 			if result {
 				return obj, err
 			}
@@ -228,18 +224,17 @@ func (s *Service) runRepoOperation(
 		if err != nil {
 			return nil, err
 		}
-		return operation(appPath, gitClient.Root(), revision, signature, inputParam)
+		return operation(appPath, gitClient.Root(), revision, signature)
 	}
 }
 
 func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
-
-	runRepoInput := manifestRunOperationParams{
-		req: q,
-	}
-
-	resultUncast, err := s.runRepoOperation(ctx, q.Revision, runRepoInput, q.Repo, q.ApplicationSource, q.VerifySignature,
-		s.getManifestCacheEntry, s.runManifestGen, operationSettings{sem: s.parallelismLimitSemaphore, noCache: q.NoCache})
+	resultUncast, err := s.runRepoOperation(ctx, q.Revision, q.Repo, q.ApplicationSource, q.VerifySignature,
+		func(revision string, firstInvocation bool) (bool, interface{}, error) {
+			return s.getManifestCacheEntry(revision, q, firstInvocation)
+		}, func(appPath, repoRoot, revision, verifyResult string) (interface{}, error) {
+			return s.runManifestGen(appPath, repoRoot, revision, verifyResult, q)
+		}, operationSettings{sem: s.parallelismLimitSemaphore, noCache: q.NoCache})
 
 	result, ok := resultUncast.(*apiclient.ManifestResponse)
 	if result != nil && !ok {
@@ -249,26 +244,12 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	return result, err
 }
 
-// manifestRunOperationParams is passed into runRepoOperation(...), which passes it to getManifestCacheEntry(...)
-// and runManifestGen(...)
-type manifestRunOperationParams struct {
-	req *apiclient.ManifestRequest
-}
-
 // runManifestGenwill be called by runRepoOperation if:
 // - the cache does not contain a value for this key
 // - or, the cache does contain a value for this key, but it is an expired manifest generation entry
 // - or, NoCache is true
 // Returns a ManifestResponse, or an error, but not both
-func (s *Service) runManifestGen(appPath, repoRoot, revision, verifyResult string, inputParam interface{}) (interface{}, error) {
-
-	getManifestParam, ok := inputParam.(manifestRunOperationParams)
-	if !ok {
-		return nil, errors.New("invalid input parameter passed to function")
-	}
-
-	q := getManifestParam.req
-
+func (s *Service) runManifestGen(appPath, repoRoot, revision, verifyResult string, q *apiclient.ManifestRequest) (interface{}, error) {
 	manifestGenResult, err := GenerateManifests(appPath, repoRoot, revision, q, false)
 	if err != nil {
 
@@ -325,16 +306,8 @@ func (s *Service) runManifestGen(appPath, repoRoot, revision, verifyResult strin
 // - If the cache is not empty, but the cache value is an error AND that generation error has expired
 // and returns true otherwise.
 // If true is returned, either the second or third parameter (but not both) will contain a value from the cache (a ManifestResponse, or error, respectively)
-func (s *Service) getManifestCacheEntry(revision string, inputParam interface{}, firstInvocation bool) (bool, interface{}, error) {
+func (s *Service) getManifestCacheEntry(revision string, q *apiclient.ManifestRequest, firstInvocation bool) (bool, interface{}, error) {
 	res := cache.CachedManifestResponse{}
-
-	getManifestParam, ok := inputParam.(manifestRunOperationParams)
-	if !ok {
-		return false, nil, errors.New("invalid input parameter passed to function")
-	}
-
-	q := getManifestParam.req
-
 	err := s.cache.GetManifests(revision, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, &res)
 	if err == nil {
 
@@ -910,7 +883,7 @@ func runConfigManagementPlugin(appPath string, envVars *v1alpha1.Env, q *apiclie
 
 func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppDetailsQuery) (*apiclient.RepoAppDetailsResponse, error) {
 
-	getCached := func(revision string, _ interface{}, _ bool) (bool, interface{}, error) {
+	getCached := func(revision string, _ bool) (bool, interface{}, error) {
 		res := &apiclient.RepoAppDetailsResponse{}
 		err := s.cache.GetAppDetails(revision, q.Source, &res)
 		if err == nil {
@@ -927,7 +900,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 
 	}
 
-	resultUncast, err := s.runRepoOperation(ctx, q.Source.TargetRevision, nil, q.Repo, q.Source, false, getCached, func(appPath, repoRoot, revision, verifyResult string, _ interface{}) (interface{}, error) {
+	resultUncast, err := s.runRepoOperation(ctx, q.Source.TargetRevision, q.Repo, q.Source, false, getCached, func(appPath, repoRoot, revision, verifyResult string) (interface{}, error) {
 
 		res := &apiclient.RepoAppDetailsResponse{}
 		appSourceType, err := GetAppSourceType(q.Source, appPath)
