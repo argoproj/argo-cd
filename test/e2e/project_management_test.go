@@ -432,43 +432,6 @@ func TestRemoveOrphanedIgnore(t *testing.T) {
 	assertProjHasEvent(t, proj, "update", argo.EventReasonResourceUpdated)
 }
 
-/*
-func createAndConfigGlobalProject(t *testing.T) {
-	//Create global project
-	projectGlobalName := "proj-g-" + fixture.Name()
-	_, err := fixture.RunCli("proj", "create", projectGlobalName,
-		"--description", "Test description",
-		"-d", "https://192.168.99.100:8443,default",
-		"-d", "https://192.168.99.100:8443,service",
-		"-s", "https://github.com/argoproj/argo-cd.git",
-		"--orphaned-resources")
-	assert.Nil(t, err)
-
-	projGlobal, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Get(context.Background(), projectGlobalName, metav1.GetOptions{})
-	assert.NoError(t, err)
-	projGlobal.Spec.NamespaceResourceBlacklist = []metav1.GroupKind{
-		{Group: "", Kind: "Service"},
-	}
-	fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Update(context.Background(), projGlobal, metav1.UpdateOptions{})
-
-	//Configure global project settings
-	globalProjectsSettings := `data:
-  accounts.config-service: apiKey
-  globalProjects: |
-    - labelSelector:
-        matchExpressions:
-          - key: opt
-            operator: In
-            values:
-              - me
-      projectName: %s`
-
-	_, err = fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
-		"-n", fixture.ArgoCDNamespace,
-		"-p", fmt.Sprintf(globalProjectsSettings, projGlobal.Name))
-	assert.NoError(t, err)
-}
-*/
 func createAndConfigGlobalProject() error {
 	//Create global project
 	projectGlobalName := "proj-g-" + fixture.Name()
