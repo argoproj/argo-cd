@@ -453,7 +453,10 @@ func createAndConfigGlobalProject() error {
 	projGlobal.Spec.NamespaceResourceBlacklist = []metav1.GroupKind{
 		{Group: "", Kind: "Service"},
 	}
-	fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Update(context.Background(), projGlobal, metav1.UpdateOptions{})
+	_, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Update(context.Background(), projGlobal, metav1.UpdateOptions{})
+	if err != nil {
+		return err
+	}
 
 	//Configure global project settings
 	globalProjectsSettings := `data:
@@ -528,7 +531,8 @@ func TestGetVirtualProjectMatch(t *testing.T) {
 
 	//Add a label to this project so that this project match global project selector
 	proj.Labels = map[string]string{"opt": "me"}
-	fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Update(context.Background(), proj, metav1.UpdateOptions{})
+	_, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Update(context.Background(), proj, metav1.UpdateOptions{})
+	assert.NoError(t, err)
 
 	//Create an app belongs to proj project
 	_, err = fixture.RunCli("app", "create", fixture.Name(), "--repo", fixture.RepoURL(fixture.RepoURLTypeFile),

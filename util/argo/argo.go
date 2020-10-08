@@ -468,6 +468,9 @@ func GetAppVirtualProject(proj *argoappv1.AppProject, settingsManager *settings.
 	virtualProj := proj.DeepCopy()
 	for _, gp := range gps {
 		labelMap, err := metav1.LabelSelectorAsMap(&gp.LabelSelector)
+		if err != nil {
+			break
+		}
 		labelSelector := labels.SelectorFromSet(labelMap).String()
 		//Get project list which matches the label selector, then see if proj is a match
 		projList0, err := appclientset.ArgoprojV1alpha1().AppProjects(proj.Namespace).List(context.Background(), metav1.ListOptions{LabelSelector: labelSelector})
@@ -486,22 +489,23 @@ func GetAppVirtualProject(proj *argoappv1.AppProject, settingsManager *settings.
 		}
 		//If proj is a match for this global project setting, then merge with the global project
 		globalProj, err := appclientset.ArgoprojV1alpha1().AppProjects(proj.Namespace).Get(context.Background(), gp.ProjectName, metav1.GetOptions{})
-		virtualProj, err = mergeVirtualProject(virtualProj, globalProj)
 		if err != nil {
 			break
 		}
+		virtualProj = mergeVirtualProject(virtualProj, globalProj)
 	}
 	return virtualProj, err
 }
 
-func mergeVirtualProject(proj *argoappv1.AppProject, globalProj *argoappv1.AppProject) (*argoappv1.AppProject, error) {
+func mergeVirtualProject(proj *argoappv1.AppProject, globalProj *argoappv1.AppProject) *argoappv1.AppProject {
 	if globalProj == nil {
-		return proj, nil
+		return proj
 	}
 	proj.Spec.ClusterResourceWhitelist = append(proj.Spec.ClusterResourceWhitelist, globalProj.Spec.ClusterResourceWhitelist...)
 	proj.Spec.ClusterResourceBlacklist = append(proj.Spec.ClusterResourceBlacklist, globalProj.Spec.ClusterResourceBlacklist...)
 
 	proj.Spec.NamespaceResourceWhitelist = append(proj.Spec.NamespaceResourceWhitelist, globalProj.Spec.NamespaceResourceWhitelist...)
 	proj.Spec.NamespaceResourceBlacklist = append(proj.Spec.NamespaceResourceBlacklist, globalProj.Spec.NamespaceResourceBlacklist...)
-	return proj, nil
+
+	return proj
 }
