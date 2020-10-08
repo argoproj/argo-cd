@@ -239,7 +239,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                     }}
                                                 />
                                             )) ||
-                                                (pref.view === 'pods' && <PodView />) || (
+                                                (pref.view === 'pods' && <PodView name={application.metadata.name} />) || (
                                                     <div>
                                                         {(filteredRes.length > 0 && (
                                                             <Paginate

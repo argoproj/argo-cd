@@ -1,13 +1,29 @@
 import {DataLoader, DropDownMenu, Tooltip} from 'argo-ui';
 import * as React from 'react';
 
-import {Node, Pod, ResourceStat} from '../../../shared/models';
+import {Node, Pod, ResourceNode, ResourceStat} from '../../../shared/models';
+import {services} from '../../../shared/services';
 import {GetNodes} from './pod-view-mock-service';
 import './pod-view.scss';
 
-export class PodView extends React.Component {
+export class PodView extends React.Component<{name: string}> {
     public render() {
-        return <DataLoader load={() => GetNodes(5)}>{nodes => <div className='nodes-container'>{nodes.map(n => Node(n))}</div>}</DataLoader>;
+        return (
+            <React.Fragment>
+                <DataLoader load={() => GetNodes(5)}>{nodes => <div className='nodes-container'>{nodes.map(n => Node(n))}</div>}</DataLoader>
+                <DataLoader load={() => services.applications.resourceTree(this.props.name)}>
+                    {data => (
+                        <div>
+                            {data.nodes.map((d: ResourceNode) => (
+                                <React.Fragment>
+                                    <p>{d.kind === 'Pod' && `${d.name}: ${d.info.map(i => i.value)}`}</p>
+                                </React.Fragment>
+                            ))}
+                        </div>
+                    )}
+                </DataLoader>
+            </React.Fragment>
+        );
     }
 }
 
