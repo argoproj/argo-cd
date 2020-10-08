@@ -5,13 +5,3 @@ metadata:
   labels:
     app.kubernetes.io/name: argocd-cm
     app.kubernetes.io/part-of: argocd
-data:
-  accounts.config-service: apiKey
-  globalProjects: |
-    - labelSelector:
-        matchExpressions:
-          - key: opt
-            operator: NotIn
-            values:
-              - me
-      projectName: maygp
