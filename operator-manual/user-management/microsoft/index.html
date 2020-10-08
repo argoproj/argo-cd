@@ -451,15 +451,42 @@
     <ul class="md-nav__list" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#oidc-without-dex-to-azure-ad" title="OIDC (without Dex) to Azure AD" class="md-nav__link">
-    OIDC (without Dex) to Azure AD
+  <a href="#azure-ad-saml-enterprise-app-auth-using-dex" title="Azure AD SAML Enterprise App Auth using Dex" class="md-nav__link">
+    Azure AD SAML Enterprise App Auth using Dex
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#configure-a-new-azure-ad-enterprise-app" title="Configure a new Azure AD Enterprise App" class="md-nav__link">
+    Configure a new Azure AD Enterprise App
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configure-argo-to-use-the-new-azure-ad-enterprise-app" title="Configure Argo to use the new Azure AD Enterprise App" class="md-nav__link">
+    Configure Argo to use the new Azure AD Enterprise App
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#azure-ad-app-registration-auth-using-oidc" title="Azure AD App Registration Auth using OIDC" class="md-nav__link">
+    Azure AD App Registration Auth using OIDC
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#with-dex" title="With Dex" class="md-nav__link">
-    With Dex
+  <a href="#azure-ad-app-registration-auth-using-dex" title="Azure AD App Registration Auth using Dex" class="md-nav__link">
+    Azure AD App Registration Auth using Dex
   </a>
   
 </li>
@@ -1406,15 +1433,42 @@
     <ul class="md-nav__list" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#oidc-without-dex-to-azure-ad" title="OIDC (without Dex) to Azure AD" class="md-nav__link">
-    OIDC (without Dex) to Azure AD
+  <a href="#azure-ad-saml-enterprise-app-auth-using-dex" title="Azure AD SAML Enterprise App Auth using Dex" class="md-nav__link">
+    Azure AD SAML Enterprise App Auth using Dex
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#configure-a-new-azure-ad-enterprise-app" title="Configure a new Azure AD Enterprise App" class="md-nav__link">
+    Configure a new Azure AD Enterprise App
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configure-argo-to-use-the-new-azure-ad-enterprise-app" title="Configure Argo to use the new Azure AD Enterprise App" class="md-nav__link">
+    Configure Argo to use the new Azure AD Enterprise App
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#azure-ad-app-registration-auth-using-oidc" title="Azure AD App Registration Auth using OIDC" class="md-nav__link">
+    Azure AD App Registration Auth using OIDC
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#with-dex" title="With Dex" class="md-nav__link">
-    With Dex
+  <a href="#azure-ad-app-registration-auth-using-dex" title="Azure AD App Registration Auth using Dex" class="md-nav__link">
+    Azure AD App Registration Auth using Dex
   </a>
   
 </li>
@@ -1439,15 +1493,91 @@
                 
                 
                 <h1 id="microsoft">Microsoft<a class="headerlink" href="#microsoft" title="Permanent link">&para;</a></h1>
-<div class="admonition note">
-<p class="admonition-title">Are you using this? Please contribute!</p>
-<p>If you're using this IdP please consider <a href="../../../developer-guide/site/">contributing</a> to this document.</p>
-</div>
 <ul>
-<li><a href="#oidc-without-dex-to-azure-ad">OIDC (without Dex) to Azure AD</a></li>
-<li><a href="#with-dex">With Dex</a></li>
+<li><a href="#azure-ad-saml-enterprise-app-auth-using-dex">Azure AD SAML Enterprise App Auth using Dex</a></li>
+<li><a href="#azure-ad-app-registration-auth-using-oidc">Azure AD App Registration Auth using OIDC</a></li>
+<li><a href="#azure-ad-app-registration-auth-using-dex">Azure AD App Registration Auth using Dex</a></li>
 </ul>
-<h2 id="oidc-without-dex-to-azure-ad">OIDC (without Dex) to Azure AD<a class="headerlink" href="#oidc-without-dex-to-azure-ad" title="Permanent link">&para;</a></h2>
+<h2 id="azure-ad-saml-enterprise-app-auth-using-dex">Azure AD SAML Enterprise App Auth using Dex<a class="headerlink" href="#azure-ad-saml-enterprise-app-auth-using-dex" title="Permanent link">&para;</a></h2>
+<h3 id="configure-a-new-azure-ad-enterprise-app">Configure a new Azure AD Enterprise App<a class="headerlink" href="#configure-a-new-azure-ad-enterprise-app" title="Permanent link">&para;</a></h3>
+<ol>
+<li>From the <code>Azure Active Directory</code> &gt; <code>Enterprise applications</code> menu, choose <code>+ New application</code></li>
+<li>Select <code>Non-gallery application</code></li>
+<li>Enter a <code>Name</code> for the application (eg. <code>Argo CD</code>), then choose <code>Add</code></li>
+<li>Once the application is created, open it from the <code>Enterprise applications</code> menu.</li>
+<li>From the <code>Users and groups</code> menu of the app, add any users or groups requiring access to the service.</li>
+</ol>
+<p><img alt="Azure Enterprise SAML Users" src="../../../assets/azure-enterprise-users.png" title="Azure Enterprise SAML Users" /></p>
+<ol>
+<li>From the <code>Single sign-on</code> menu, edit the <code>Basic SAML Configuration</code> section as follows (replacing <code>my-argo-cd-url</code> with your Argo URL):</li>
+<li><strong>Identifier (Entity ID):</strong> https://<code>&lt;my-argo-cd-url&gt;</code>/api/dex/callback</li>
+<li><strong>Reply URL (Assertion Consumer Service URL):</strong> https://<code>&lt;my-argo-cd-url&gt;</code>/api/dex/callback</li>
+<li><strong>Sign on URL:</strong> https://<code>&lt;my-argo-cd-url&gt;</code>/auth/login</li>
+<li><strong>Relay State:</strong> <code>&lt;empty&gt;</code></li>
+<li><strong>Logout Url:</strong> <code>&lt;empty&gt;</code></li>
+</ol>
+<p><img alt="Azure Enterprise SAML URLs" src="../../../assets/azure-enterprise-saml-urls.png" title="Azure Enterprise SAML URLs" /></p>
+<ol>
+<li>From the <code>Single sign-on</code> menu, edit the <code>User Attributes &amp; Claims</code> section to create the following claims:</li>
+<li><code>+ Add new claim</code> | <strong>Name:</strong> email | <strong>Source:</strong> Attribute | <strong>Source attribute:</strong> user.mail</li>
+<li><code>+ Add group claim</code> | <strong>Which groups:</strong> All groups | <strong>Source attribute:</strong> Group ID | <strong>Customize:</strong> True | <strong>Name:</strong> Group | <strong>Namespace:</strong> <code>&lt;empty&gt;</code> | <strong>Emit groups as role claims:</strong> False</li>
+<li><em>Note: The <code>Unique User Identifier</code> required claim can be left as the default <code>user.userprincipalname</code></em></li>
+</ol>
+<p><img alt="Azure Enterprise SAML Claims" src="../../../assets/azure-enterprise-claims.png" title="Azure Enterprise SAML Claims" /></p>
+<ol>
+<li>From the <code>Single sign-on</code> menu, download the SAML Signing Certificate (Base64)</li>
+<li>Base64 encode the contents of the downloaded certificate file, for example:</li>
+<li><code>$ cat ArgoCD.cer | base64</code></li>
+<li><em>Keep a copy of the encoded output to be used in the next section.</em></li>
+<li>From the <code>Single sign-on</code> menu, copy the <code>Login URL</code> parameter, to be used in the next section.</li>
+</ol>
+<h3 id="configure-argo-to-use-the-new-azure-ad-enterprise-app">Configure Argo to use the new Azure AD Enterprise App<a class="headerlink" href="#configure-argo-to-use-the-new-azure-ad-enterprise-app" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Edit <code>argo-cm</code> and add the following <code>dex.config</code> to the data section, replacing the <code>caData</code>, <code>my-argo-cd-url</code> and <code>my-login-url</code> your values from the Azure AD App:</li>
+</ol>
+<div class="codehilite"><pre><span></span><code><span class="n">data</span><span class="o">:</span>
+  <span class="n">url</span><span class="o">:</span> <span class="n">https</span><span class="o">://</span><span class="n">my</span><span class="o">-</span><span class="n">argo</span><span class="o">-</span><span class="n">cd</span><span class="o">-</span><span class="n">url</span>
+  <span class="n">dex</span><span class="o">.</span><span class="na">config</span><span class="o">:</span> <span class="o">|</span>
+    <span class="n">logger</span><span class="o">:</span>
+      <span class="n">level</span><span class="o">:</span> <span class="n">debug</span>
+      <span class="n">format</span><span class="o">:</span> <span class="n">json</span>
+    <span class="n">connectors</span><span class="o">:</span>
+    <span class="o">-</span> <span class="n">type</span><span class="o">:</span> <span class="n">saml</span>
+      <span class="n">id</span><span class="o">:</span> <span class="n">saml</span>
+      <span class="n">name</span><span class="o">:</span> <span class="n">saml</span>
+      <span class="n">config</span><span class="o">:</span>
+        <span class="n">entityIssuer</span><span class="o">:</span> <span class="n">https</span><span class="o">://</span><span class="n">my</span><span class="o">-</span><span class="n">argo</span><span class="o">-</span><span class="n">cd</span><span class="o">-</span><span class="n">url</span><span class="sr">/api/dex/</span><span class="n">callback</span>
+        <span class="n">ssoURL</span><span class="o">:</span> <span class="n">https</span><span class="o">://</span><span class="n">my</span><span class="o">-</span><span class="n">login</span><span class="o">-</span><span class="n">url</span> <span class="o">(</span><span class="n">eg</span><span class="o">.</span> <span class="n">https</span><span class="o">://</span><span class="n">login</span><span class="o">.</span><span class="na">microsoftonline</span><span class="o">.</span><span class="na">com</span><span class="sr">/xxxxx/a/s</span><span class="n">aml2</span><span class="o">)</span>
+        <span class="n">caData</span><span class="o">:</span> <span class="o">|</span>
+          <span class="n">MY</span><span class="o">-</span><span class="n">BASE64</span><span class="o">-</span><span class="n">ENCODED</span><span class="o">-</span><span class="n">CERTIFICATE</span><span class="o">-</span><span class="n">DATA</span>
+        <span class="n">redirectURI</span><span class="o">:</span> <span class="n">https</span><span class="o">://</span><span class="n">my</span><span class="o">-</span><span class="n">argo</span><span class="o">-</span><span class="n">cd</span><span class="o">-</span><span class="n">url</span><span class="sr">/api/dex/</span><span class="n">callback</span>
+        <span class="n">usernameAttr</span><span class="o">:</span> <span class="n">email</span>
+        <span class="n">emailAttr</span><span class="o">:</span> <span class="n">email</span>
+        <span class="n">groupAttr</span><span class="o">:</span> <span class="n">Group</span>
+</code></pre></div>
+
+<ol>
+<li>
+<p>Edit <code>argo-rbac-cm</code> to configure permissions, similar to example below.</p>
+</li>
+<li>
+<p>Use Azure AD <code>Group IDs</code> for assigning roles.</p>
+</li>
+<li>See <a href="../../rbac/">RBAC Configurations</a> for more detailed scenarios.</li>
+</ol>
+<div class="codehilite"><pre><span></span><code><span class="err"># example policy</span>
+<span class="err">policy.default: role:readonly</span>
+<span class="err">  policy.csv: |</span>
+<span class="err">    p, role:org-admin, applications, *, */*, allow</span>
+<span class="err">    p, role:org-admin, clusters, get, *, allow</span>
+<span class="err">    p, role:org-admin, repositories, get, *, allow</span>
+<span class="err">    p, role:org-admin, repositories, create, *, allow</span>
+<span class="err">    p, role:org-admin, repositories, update, *, allow</span>
+<span class="err">    p, role:org-admin, repositories, delete, *, allow</span>
+<span class="err">    g, &quot;84ce98d1-e359-4f3b-85af-985b458de3c6&quot;, role:org-admin # (azure group assigned to role)</span>
+</code></pre></div>
+
+<h2 id="azure-ad-app-registration-auth-using-oidc">Azure AD App Registration Auth using OIDC<a class="headerlink" href="#azure-ad-app-registration-auth-using-oidc" title="Permanent link">&para;</a></h2>
 <ol>
 <li>
 <p>Register a new Azure AD Application</p>
@@ -1523,7 +1653,9 @@
 
 </li>
 </ol>
-<h2 id="with-dex">With Dex<a class="headerlink" href="#with-dex" title="Permanent link">&para;</a></h2>
+<h2 id="azure-ad-app-registration-auth-using-dex">Azure AD App Registration Auth using Dex<a class="headerlink" href="#azure-ad-app-registration-auth-using-dex" title="Permanent link">&para;</a></h2>
+<p>Configure a new AD App Registration, as above.</p>
+<p>Then, add the <code>dex.config</code> to <code>argocd-cm</code>:</p>
 <div class="yaml codehilite"><pre><span></span><code><span class="l l-Scalar l-Scalar-Plain">ConfigMap -&gt; argocd-cm</span>
 
 <span class="l l-Scalar l-Scalar-Plain">data</span><span class="p p-Indicator">:</span>
@@ -1537,7 +1669,7 @@
           <span class="no">clientSecret: $MICROSOFT_CLIENT_SECRET</span>
           <span class="no">redirectURI: http://localhost:8080/api/dex/callback</span>
           <span class="no">tenant: ffffffff-ffff-ffff-ffff-ffffffffffff</span>
-          <span class="no">groups: </span>
+          <span class="no">groups:</span>
             <span class="no">- DevOps</span>
 </code></pre></div>
                 
