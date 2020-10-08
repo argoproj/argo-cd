@@ -485,7 +485,7 @@ func TestGetVirtualProjectNoMatch(t *testing.T) {
 	err := createAndConfigGlobalProject()
 	assert.NoError(t, err)
 
-	//Create project which matches global project settings
+	//Create project which does not matche global project settings
 	projectName := "proj-" + fixture.Name()
 	_, err = fixture.RunCli("proj", "create", projectName,
 		"--description", "Test description",
@@ -502,11 +502,11 @@ func TestGetVirtualProjectNoMatch(t *testing.T) {
 		"--path", guestbookPath, "--project", proj.Name, "--dest-server", common.KubernetesInternalAPIServerAddr, "--dest-namespace", fixture.DeploymentNamespace())
 	assert.NoError(t, err)
 
-	//App trying to sync a resouce which is black listed by its own project
+	//App trying to sync a resource which is not blacked listed anywhere
 	_, err = fixture.RunCli("app", "sync", fixture.Name(), "--resource", "apps:Deployment:guestbook-ui", "--timeout", fmt.Sprintf("%v", 10))
 	assert.NoError(t, err)
 
-	//app trying to sync a resouce which is black listed by global project
+	//app trying to sync a resource which is black listed by global project
 	_, err = fixture.RunCli("app", "sync", fixture.Name(), "--resource", ":Service:guestbook-ui", "--timeout", fmt.Sprintf("%v", 10))
 	assert.NoError(t, err)
 
@@ -539,11 +539,11 @@ func TestGetVirtualProjectMatch(t *testing.T) {
 		"--path", guestbookPath, "--project", proj.Name, "--dest-server", common.KubernetesInternalAPIServerAddr, "--dest-namespace", fixture.DeploymentNamespace())
 	assert.NoError(t, err)
 
-	//App trying to sync a resouce which is black listed by its own project
+	//App trying to sync a resource which is not blacked listed anywhere
 	_, err = fixture.RunCli("app", "sync", fixture.Name(), "--resource", "apps:Deployment:guestbook-ui", "--timeout", fmt.Sprintf("%v", 10))
 	assert.NoError(t, err)
 
-	//app trying to sync a resouce which is black listed by global project
+	//app trying to sync a resource which is black listed by global project
 	_, err = fixture.RunCli("app", "sync", fixture.Name(), "--resource", ":Service:guestbook-ui", "--timeout", fmt.Sprintf("%v", 10))
 	assert.Error(t, err)
 
