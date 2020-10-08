@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"strings"
 	"testing"
@@ -429,4 +430,154 @@ func TestRemoveOrphanedIgnore(t *testing.T) {
 	assert.Equal(t, projectName, proj.Name)
 	assert.Equal(t, 0, len(proj.Spec.OrphanedResources.Ignore))
 	assertProjHasEvent(t, proj, "update", argo.EventReasonResourceUpdated)
+}
+
+/*
+func createAndConfigGlobalProject(t *testing.T) {
+	//Create global project
+	projectGlobalName := "proj-g-" + fixture.Name()
+	_, err := fixture.RunCli("proj", "create", projectGlobalName,
+		"--description", "Test description",
+		"-d", "https://192.168.99.100:8443,default",
+		"-d", "https://192.168.99.100:8443,service",
+		"-s", "https://github.com/argoproj/argo-cd.git",
+		"--orphaned-resources")
+	assert.Nil(t, err)
+
+	projGlobal, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Get(context.Background(), projectGlobalName, metav1.GetOptions{})
+	assert.NoError(t, err)
+	projGlobal.Spec.NamespaceResourceBlacklist = []metav1.GroupKind{
+		{Group: "", Kind: "Service"},
+	}
+	fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Update(context.Background(), projGlobal, metav1.UpdateOptions{})
+
+	//Configure global project settings
+	globalProjectsSettings := `data:
+  accounts.config-service: apiKey
+  globalProjects: |
+    - labelSelector:
+        matchExpressions:
+          - key: opt
+            operator: In
+            values:
+              - me
+      projectName: %s`
+
+	_, err = fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
+		"-n", fixture.ArgoCDNamespace,
+		"-p", fmt.Sprintf(globalProjectsSettings, projGlobal.Name))
+	assert.NoError(t, err)
+}
+*/
+func createAndConfigGlobalProject() error {
+	//Create global project
+	projectGlobalName := "proj-g-" + fixture.Name()
+	_, err := fixture.RunCli("proj", "create", projectGlobalName,
+		"--description", "Test description",
+		"-d", "https://192.168.99.100:8443,default",
+		"-d", "https://192.168.99.100:8443,service",
+		"-s", "https://github.com/argoproj/argo-cd.git",
+		"--orphaned-resources")
+	if err != nil {
+		return err
+	}
+
+	projGlobal, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Get(context.Background(), projectGlobalName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	projGlobal.Spec.NamespaceResourceBlacklist = []metav1.GroupKind{
+		{Group: "", Kind: "Service"},
+	}
+	fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Update(context.Background(), projGlobal, metav1.UpdateOptions{})
+
+	//Configure global project settings
+	globalProjectsSettings := `data:
+  accounts.config-service: apiKey
+  globalProjects: |
+    - labelSelector:
+        matchExpressions:
+          - key: opt
+            operator: In
+            values:
+              - me
+      projectName: %s`
+
+	_, err = fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
+		"-n", fixture.ArgoCDNamespace,
+		"-p", fmt.Sprintf(globalProjectsSettings, projGlobal.Name))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func TestGetVirtualProjectNoMatch(t *testing.T) {
+	fixture.EnsureCleanState(t)
+	err := createAndConfigGlobalProject()
+	assert.NoError(t, err)
+
+	//Create project which matches global project settings
+	projectName := "proj-" + fixture.Name()
+	_, err = fixture.RunCli("proj", "create", projectName,
+		"--description", "Test description",
+		"-d", fmt.Sprintf("%s,*", common.KubernetesInternalAPIServerAddr),
+		"-s", "*",
+		"--orphaned-resources")
+	assert.NoError(t, err)
+
+	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Get(context.Background(), projectName, metav1.GetOptions{})
+	assert.NoError(t, err)
+
+	//Create an app belongs to proj project
+	_, err = fixture.RunCli("app", "create", fixture.Name(), "--repo", fixture.RepoURL(fixture.RepoURLTypeFile),
+		"--path", guestbookPath, "--project", proj.Name, "--dest-server", common.KubernetesInternalAPIServerAddr, "--dest-namespace", fixture.DeploymentNamespace())
+	assert.NoError(t, err)
+
+	//App trying to sync a resouce which is black listed by its own project
+	_, err = fixture.RunCli("app", "sync", fixture.Name(), "--resource", "apps:Deployment:guestbook-ui", "--timeout", fmt.Sprintf("%v", 10))
+	assert.NoError(t, err)
+
+	//app trying to sync a resouce which is black listed by global project
+	_, err = fixture.RunCli("app", "sync", fixture.Name(), "--resource", ":Service:guestbook-ui", "--timeout", fmt.Sprintf("%v", 10))
+	assert.NoError(t, err)
+
+}
+
+func TestGetVirtualProjectMatch(t *testing.T) {
+	fixture.EnsureCleanState(t)
+	err := createAndConfigGlobalProject()
+	assert.NoError(t, err)
+
+	//Create project which matches global project settings
+	projectName := "proj-" + fixture.Name()
+	_, err = fixture.RunCli("proj", "create", projectName,
+		"--description", "Test description",
+		"-d", fmt.Sprintf("%s,*", common.KubernetesInternalAPIServerAddr),
+		"-s", "*",
+		"--orphaned-resources")
+	assert.NoError(t, err)
+
+	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Get(context.Background(), projectName, metav1.GetOptions{})
+	assert.NoError(t, err)
+
+	//Add a label to this project so that this project match global project selector
+	proj.Labels = map[string]string{"opt": "me"}
+	fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Update(context.Background(), proj, metav1.UpdateOptions{})
+
+	//Create an app belongs to proj project
+	_, err = fixture.RunCli("app", "create", fixture.Name(), "--repo", fixture.RepoURL(fixture.RepoURLTypeFile),
+		"--path", guestbookPath, "--project", proj.Name, "--dest-server", common.KubernetesInternalAPIServerAddr, "--dest-namespace", fixture.DeploymentNamespace())
+	assert.NoError(t, err)
+
+	//App trying to sync a resouce which is black listed by its own project
+	_, err = fixture.RunCli("app", "sync", fixture.Name(), "--resource", "apps:Deployment:guestbook-ui", "--timeout", fmt.Sprintf("%v", 10))
+	assert.NoError(t, err)
+
+	//app trying to sync a resouce which is black listed by global project
+	_, err = fixture.RunCli("app", "sync", fixture.Name(), "--resource", ":Service:guestbook-ui", "--timeout", fmt.Sprintf("%v", 10))
+	assert.Error(t, err)
+
 }

@@ -14,17 +14,20 @@ import (
 	"google.golang.org/grpc/status"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-cd/common"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/pkg/client/clientset/versioned/typed/application/v1alpha1"
 	applicationsv1 "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/helm"
+	"github.com/argoproj/argo-cd/util/settings"
 )
 
 const (
@@ -454,4 +457,51 @@ func getDestinationServer(ctx context.Context, db db.ArgoDB, clusterName string)
 		return "", fmt.Errorf("there are no clusters with this name: %s", clusterName)
 	}
 	return servers[0], nil
+}
+
+func GetAppVirtualProject(proj *argoappv1.AppProject, settingsManager *settings.SettingsManager, appclientset appclientset.Interface) (*argoappv1.AppProject, error) {
+	gps, err := settingsManager.GetGlobalProjectsSettings()
+	if err != nil {
+		log.Warnf("Failed to get global project settings")
+		return proj, err
+	}
+	virtualProj := proj.DeepCopy()
+	for _, gp := range gps {
+		labelMap, err := metav1.LabelSelectorAsMap(&gp.LabelSelector)
+		labelSelector := labels.SelectorFromSet(labelMap).String()
+		//Get project list which matches the label selector, then see if proj is a match
+		projList0, err := appclientset.ArgoprojV1alpha1().AppProjects(proj.Namespace).List(context.Background(), metav1.ListOptions{LabelSelector: labelSelector})
+		if err != nil {
+			break
+		}
+		var matchMe bool
+		for _, item := range projList0.Items {
+			if item.Name == proj.Name {
+				matchMe = true
+				break
+			}
+		}
+		if !matchMe {
+			break
+		}
+		//If proj is a match for this global project setting, then merge with the global project
+		globalProj, err := appclientset.ArgoprojV1alpha1().AppProjects(proj.Namespace).Get(context.Background(), gp.ProjectName, metav1.GetOptions{})
+		virtualProj, err = mergeVirtualProject(virtualProj, globalProj)
+		if err != nil {
+			break
+		}
+	}
+	return virtualProj, err
+}
+
+func mergeVirtualProject(proj *argoappv1.AppProject, globalProj *argoappv1.AppProject) (*argoappv1.AppProject, error) {
+	if globalProj == nil {
+		return proj, nil
+	}
+	proj.Spec.ClusterResourceWhitelist = append(proj.Spec.ClusterResourceWhitelist, globalProj.Spec.ClusterResourceWhitelist...)
+	proj.Spec.ClusterResourceBlacklist = append(proj.Spec.ClusterResourceBlacklist, globalProj.Spec.ClusterResourceBlacklist...)
+
+	proj.Spec.NamespaceResourceWhitelist = append(proj.Spec.NamespaceResourceWhitelist, globalProj.Spec.NamespaceResourceWhitelist...)
+	proj.Spec.NamespaceResourceBlacklist = append(proj.Spec.NamespaceResourceBlacklist, globalProj.Spec.NamespaceResourceBlacklist...)
+	return proj, nil
 }
