@@ -103,10 +103,6 @@ func (t *syncTask) successful() bool {
 	return t.operationState.Successful()
 }
 
-func (t *syncTask) failed() bool {
-	return t.operationState.Failed()
-}
-
 func (t *syncTask) hookType() common.HookType {
 	if t.isHook() {
 		return common.HookType(t.phase)
@@ -133,6 +129,13 @@ func (t *syncTask) deleteBeforeCreation() bool {
 }
 
 func (t *syncTask) deleteOnPhaseCompletion() bool {
-	return t.liveObj != nil && (t.successful() && t.hasHookDeletePolicy(common.HookDeletePolicyHookSucceeded) ||
-		t.failed() && t.hasHookDeletePolicy(common.HookDeletePolicyHookFailed))
+	return t.deleteOnPhaseFailed() || t.deleteOnPhaseSuccessful()
+}
+
+func (t *syncTask) deleteOnPhaseSuccessful() bool {
+	return t.liveObj != nil && t.hasHookDeletePolicy(common.HookDeletePolicyHookSucceeded)
+}
+
+func (t *syncTask) deleteOnPhaseFailed() bool {
+	return t.liveObj != nil && t.hasHookDeletePolicy(common.HookDeletePolicyHookFailed)
 }

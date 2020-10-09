@@ -774,6 +774,50 @@ func TestRunSync_HooksDeletedAfterPhaseCompleted(t *testing.T) {
 	assert.Equal(t, 2, deletedCount)
 }
 
+func TestRunSync_HooksDeletedAfterPhaseCompletedFailed(t *testing.T) {
+	completedHook1 := newHook(synccommon.HookTypeSync)
+	completedHook1.SetName("completed-hook1")
+	completedHook1.SetNamespace(FakeArgoCDNamespace)
+	_ = Annotate(completedHook1, synccommon.AnnotationKeyHookDeletePolicy, "HookFailed")
+
+	completedHook2 := newHook(synccommon.HookTypeSync)
+	completedHook2.SetNamespace(FakeArgoCDNamespace)
+	completedHook2.SetName("completed-hook2")
+	_ = Annotate(completedHook2, synccommon.AnnotationKeyHookDeletePolicy, "HookFailed")
+
+	syncCtx := newTestSyncCtx(
+		WithInitialState(synccommon.OperationRunning, "", []synccommon.ResourceSyncResult{{
+			ResourceKey: kube.GetResourceKey(completedHook1),
+			HookPhase:   synccommon.OperationSucceeded,
+			SyncPhase:   synccommon.SyncPhaseSync,
+		}, {
+			ResourceKey: kube.GetResourceKey(completedHook2),
+			HookPhase:   synccommon.OperationFailed,
+			SyncPhase:   synccommon.SyncPhaseSync,
+		}}))
+	fakeDynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme())
+	syncCtx.dynamicIf = fakeDynamicClient
+	deletedCount := 0
+	fakeDynamicClient.PrependReactor("delete", "*", func(action testcore.Action) (handled bool, ret runtime.Object, err error) {
+		deletedCount += 1
+		return true, nil, nil
+	})
+	syncCtx.resources = groupResources(ReconciliationResult{
+		Live:   []*unstructured.Unstructured{completedHook1, completedHook2},
+		Target: []*unstructured.Unstructured{nil, nil},
+	})
+	syncCtx.hooks = []*unstructured.Unstructured{completedHook1, completedHook2}
+
+	syncCtx.kubectl = &kubetest.MockKubectlCmd{
+		Commands: map[string]kubetest.KubectlOutput{},
+	}
+
+	syncCtx.Sync()
+
+	assert.Equal(t, synccommon.OperationFailed, syncCtx.phase)
+	assert.Equal(t, 2, deletedCount)
+}
+
 func Test_syncContext_liveObj(t *testing.T) {
 	type fields struct {
 		compareResult ReconciliationResult
