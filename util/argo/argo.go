@@ -14,13 +14,11 @@ import (
 	"google.golang.org/grpc/status"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-cd/common"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/pkg/client/clientset/versioned/typed/application/v1alpha1"
 	applicationsv1 "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
@@ -320,8 +318,12 @@ func APIGroupsToVersions(apiGroups []metav1.APIGroup) []string {
 }
 
 // GetAppProject returns a project from an application
-func GetAppProject(spec *argoappv1.ApplicationSpec, projLister applicationsv1.AppProjectLister, ns string) (*argoappv1.AppProject, error) {
-	return projLister.AppProjects(ns).Get(spec.GetProject())
+func GetAppProject(spec *argoappv1.ApplicationSpec, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager) (*argoappv1.AppProject, error) {
+	projOrig, err := projLister.AppProjects(ns).Get(spec.GetProject())
+	if err != nil {
+		return projOrig, err
+	}
+	return GetAppVirtualProject(projOrig, projLister, settingsManager)
 }
 
 // verifyGenerateManifests verifies a repo path can generate manifests
@@ -459,26 +461,26 @@ func getDestinationServer(ctx context.Context, db db.ArgoDB, clusterName string)
 	return servers[0], nil
 }
 
-func GetAppVirtualProject(proj *argoappv1.AppProject, settingsManager *settings.SettingsManager, appclientset appclientset.Interface) (*argoappv1.AppProject, error) {
+func GetAppVirtualProject(proj *argoappv1.AppProject, projLister applicationsv1.AppProjectLister, settingsManager *settings.SettingsManager) (*argoappv1.AppProject, error) {
 	gps, err := settingsManager.GetGlobalProjectsSettings()
 	if err != nil {
 		log.Warnf("Failed to get global project settings")
 		return proj, err
 	}
 	virtualProj := proj.DeepCopy()
+
 	for _, gp := range gps {
-		labelMap, err := metav1.LabelSelectorAsMap(&gp.LabelSelector)
+		selector, err := metav1.LabelSelectorAsSelector(&gp.LabelSelector)
 		if err != nil {
 			break
 		}
-		labelSelector := labels.SelectorFromSet(labelMap).String()
 		//Get project list which matches the label selector, then see if proj is a match
-		projList0, err := appclientset.ArgoprojV1alpha1().AppProjects(proj.Namespace).List(context.Background(), metav1.ListOptions{LabelSelector: labelSelector})
+		projList0, err := projLister.AppProjects(proj.Namespace).List(selector)
 		if err != nil {
 			break
 		}
 		var matchMe bool
-		for _, item := range projList0.Items {
+		for _, item := range projList0 {
 			if item.Name == proj.Name {
 				matchMe = true
 				break
@@ -488,7 +490,7 @@ func GetAppVirtualProject(proj *argoappv1.AppProject, settingsManager *settings.
 			break
 		}
 		//If proj is a match for this global project setting, then merge with the global project
-		globalProj, err := appclientset.ArgoprojV1alpha1().AppProjects(proj.Namespace).Get(context.Background(), gp.ProjectName, metav1.GetOptions{})
+		globalProj, err := projLister.AppProjects(proj.Namespace).Get(gp.ProjectName)
 		if err != nil {
 			break
 		}

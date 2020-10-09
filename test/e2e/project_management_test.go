@@ -453,6 +453,14 @@ func createAndConfigGlobalProject() error {
 	projGlobal.Spec.NamespaceResourceBlacklist = []metav1.GroupKind{
 		{Group: "", Kind: "Service"},
 	}
+
+	matchingWindow := &v1alpha1.SyncWindow{
+		Kind:     "allow",
+		Schedule: "* * * * *",
+		Duration: "1h",
+	}
+	projGlobal.Spec.SyncWindows = append(projGlobal.Spec.SyncWindows, matchingWindow)
+
 	_, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Update(context.Background(), projGlobal, metav1.UpdateOptions{})
 	if err != nil {
 		return err

@@ -7,12 +7,15 @@ import (
 	"testing"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
+	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
 
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -21,7 +24,9 @@ import (
 	applisters "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/reposerver/apiclient/mocks"
+	"github.com/argoproj/argo-cd/test"
 	dbmocks "github.com/argoproj/argo-cd/util/db/mocks"
+	"github.com/argoproj/argo-cd/util/settings"
 )
 
 func TestRefreshApp(t *testing.T) {
@@ -42,6 +47,43 @@ func TestGetAppProjectWithNoProjDefined(t *testing.T) {
 	projName := "default"
 	namespace := "default"
 
+	var fakeCluster = `
+apiVersion: v1
+data:
+  # {"bearerToken":"fake","tlsClientConfig":{"insecure":true},"awsAuthConfig":null}
+  config: eyJiZWFyZXJUb2tlbiI6ImZha2UiLCJ0bHNDbGllbnRDb25maWciOnsiaW5zZWN1cmUiOnRydWV9LCJhd3NBdXRoQ29uZmlnIjpudWxsfQ==
+  # minikube
+  name: bWluaWt1YmU=
+  # https://localhost:6443
+  server: aHR0cHM6Ly9sb2NhbGhvc3Q6NjQ0Mw==
+kind: Secret
+metadata:
+  labels:
+    argocd.argoproj.io/secret-type: cluster
+  name: some-secret
+  namespace: ` + test.FakeArgoCDNamespace + `
+type: Opaque
+`
+	secret := corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "argocd-secret",
+			Namespace: test.FakeArgoCDNamespace,
+		},
+		Data: map[string][]byte{
+			"admin.password":   []byte("test"),
+			"server.secretkey": []byte("test"),
+		},
+	}
+	cm := corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "argocd-cm",
+			Namespace: test.FakeArgoCDNamespace,
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+	}
+
 	testProj := &argoappv1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: projName, Namespace: namespace},
 	}
@@ -56,7 +98,12 @@ func TestGetAppProjectWithNoProjDefined(t *testing.T) {
 	informer := v1alpha1.NewAppProjectInformer(appClientset, namespace, 0, indexers)
 	go informer.Run(ctx.Done())
 	cache.WaitForCacheSync(ctx.Done(), informer.HasSynced)
-	proj, err := GetAppProject(&testApp.Spec, applisters.NewAppProjectLister(informer.GetIndexer()), namespace)
+
+	var clust corev1.Secret
+	err := yaml.Unmarshal([]byte(fakeCluster), &clust)
+	kubeClient := fake.NewSimpleClientset(&clust, &cm, &secret)
+	settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace)
+	proj, err := GetAppProject(&testApp.Spec, applisters.NewAppProjectLister(informer.GetIndexer()), namespace, settingsMgr)
 	assert.Nil(t, err)
 	assert.Equal(t, proj.Name, projName)
 }

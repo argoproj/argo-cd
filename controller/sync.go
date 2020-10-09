@@ -69,16 +69,10 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		revision = syncOp.Revision
 	}
 
-	projOrig, err := argo.GetAppProject(&app.Spec, listersv1alpha1.NewAppProjectLister(m.projInformer.GetIndexer()), m.namespace)
+	proj, err := argo.GetAppProject(&app.Spec, listersv1alpha1.NewAppProjectLister(m.projInformer.GetIndexer()), m.namespace, m.settingsMgr)
 	if err != nil {
 		state.Phase = common.OperationError
 		state.Message = fmt.Sprintf("Failed to load application project: %v", err)
-		return
-	}
-	proj, err := argo.GetAppVirtualProject(projOrig, m.settingsMgr, m.appclientset)
-	if err != nil {
-		state.Phase = common.OperationError
-		state.Message = fmt.Sprintf("Failed to load virual application project: %v", err)
 		return
 	}
 
