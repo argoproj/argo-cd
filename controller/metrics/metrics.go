@@ -30,6 +30,7 @@ type MetricsServer struct {
 	reconcileHistogram      *prometheus.HistogramVec
 	redisRequestHistogram   *prometheus.HistogramVec
 	registry                *prometheus.Registry
+	hostname                string
 }
 
 const (
@@ -91,12 +92,12 @@ var (
 	kubectlExecCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "argocd_kubectl_exec_total",
 		Help: "Number of kubectl executions",
-	}, []string{"command"})
+	}, []string{"hostname", "command"})
 
 	kubectlExecPendingGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "argocd_kubectl_exec_pending",
 		Help: "Number of pending kubectl executions",
-	}, []string{"command"})
+	}, []string{"hostname", "command"})
 
 	reconcileHistogram = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
@@ -118,7 +119,7 @@ var (
 			Name: "argocd_redis_request_total",
 			Help: "Number of kubernetes requests executed during application reconciliation.",
 		},
-		[]string{"initiator", "failed"},
+		[]string{"hostname", "initiator", "failed"},
 	)
 
 	redisRequestHistogram = prometheus.NewHistogramVec(
@@ -127,14 +128,18 @@ var (
 			Help:    "Redis requests duration.",
 			Buckets: []float64{0.01, 0.05, 0.10, 0.25, .5, 1},
 		},
-		[]string{"initiator"},
+		[]string{"hostname", "initiator"},
 	)
 )
 
 // NewMetricsServer returns a new prometheus server which collects application metrics
-func NewMetricsServer(addr string, appLister applister.ApplicationLister, healthCheck func() error) *MetricsServer {
+func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFilter func(obj interface{}) bool, healthCheck func() error) (*MetricsServer, error) {
+	hostname, err := os.Hostname()
+	if err != nil {
+		return nil, err
+	}
 	mux := http.NewServeMux()
-	registry := NewAppRegistry(appLister)
+	registry := NewAppRegistry(appLister, appFilter)
 	mux.Handle(MetricsPath, promhttp.HandlerFor(prometheus.Gatherers{
 		// contains app controller specific metrics
 		registry,
@@ -166,7 +171,8 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, health
 		clusterEventsCounter:    clusterEventsCounter,
 		redisRequestCounter:     redisRequestCounter,
 		redisRequestHistogram:   redisRequestHistogram,
-	}
+		hostname:                hostname,
+	}, nil
 }
 
 func (m *MetricsServer) RegisterClustersInfoSource(ctx context.Context, source HasClustersInfo) {
@@ -184,15 +190,15 @@ func (m *MetricsServer) IncSync(app *argoappv1.Application, state *argoappv1.Ope
 }
 
 func (m *MetricsServer) IncKubectlExec(command string) {
-	m.kubectlExecCounter.WithLabelValues(command).Inc()
+	m.kubectlExecCounter.WithLabelValues(m.hostname, command).Inc()
 }
 
 func (m *MetricsServer) IncKubectlExecPending(command string) {
-	m.kubectlExecPendingGauge.WithLabelValues(command).Inc()
+	m.kubectlExecPendingGauge.WithLabelValues(m.hostname, command).Inc()
 }
 
 func (m *MetricsServer) DecKubectlExecPending(command string) {
-	m.kubectlExecPendingGauge.WithLabelValues(command).Dec()
+	m.kubectlExecPendingGauge.WithLabelValues(m.hostname, command).Dec()
 }
 
 // IncClusterEventsCount increments the number of cluster events
@@ -215,12 +221,12 @@ func (m *MetricsServer) IncKubernetesRequest(app *argoappv1.Application, server,
 }
 
 func (m *MetricsServer) IncRedisRequest(failed bool) {
-	m.redisRequestCounter.WithLabelValues("argocd-application-controller", strconv.FormatBool(failed)).Inc()
+	m.redisRequestCounter.WithLabelValues(m.hostname, "argocd-application-controller", strconv.FormatBool(failed)).Inc()
 }
 
 // ObserveRedisRequestDuration observes redis request duration
 func (m *MetricsServer) ObserveRedisRequestDuration(duration time.Duration) {
-	m.redisRequestHistogram.WithLabelValues("argocd-application-controller").Observe(duration.Seconds())
+	m.redisRequestHistogram.WithLabelValues(m.hostname, "argocd-application-controller").Observe(duration.Seconds())
 }
 
 // IncReconcile increments the reconcile counter for an application
@@ -229,20 +235,22 @@ func (m *MetricsServer) IncReconcile(app *argoappv1.Application, duration time.D
 }
 
 type appCollector struct {
-	store applister.ApplicationLister
+	store     applister.ApplicationLister
+	appFilter func(obj interface{}) bool
 }
 
 // NewAppCollector returns a prometheus collector for application metrics
-func NewAppCollector(appLister applister.ApplicationLister) prometheus.Collector {
+func NewAppCollector(appLister applister.ApplicationLister, appFilter func(obj interface{}) bool) prometheus.Collector {
 	return &appCollector{
-		store: appLister,
+		store:     appLister,
+		appFilter: appFilter,
 	}
 }
 
 // NewAppRegistry creates a new prometheus registry that collects applications
-func NewAppRegistry(appLister applister.ApplicationLister) *prometheus.Registry {
+func NewAppRegistry(appLister applister.ApplicationLister, appFilter func(obj interface{}) bool) *prometheus.Registry {
 	registry := prometheus.NewRegistry()
-	registry.MustRegister(NewAppCollector(appLister))
+	registry.MustRegister(NewAppCollector(appLister, appFilter))
 	return registry
 }
 
@@ -261,7 +269,9 @@ func (c *appCollector) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 	for _, app := range apps {
-		collectApps(ch, app)
+		if c.appFilter(app) {
+			collectApps(ch, app)
+		}
 	}
 }
 

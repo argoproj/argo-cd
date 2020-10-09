@@ -40,7 +40,7 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
                                 ctx.notifications.show({content: `No apps selected`, type: NotificationType.Error});
                                 return;
                             }
-                            const syncStrategy = (params.applyOnly ? {apply: {force: params.force}} : {hook: {force: params.force}}) as models.SyncStrategy;
+                            const syncStrategy: models.SyncStrategy = params.applyOnly ? {apply: {force: params.force}} : {hook: {force: params.force}};
                             setProgress({percentage: 0, title: 'Starting...'});
                             let i = 0;
                             for (const app of selectedApps) {

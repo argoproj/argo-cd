@@ -34,16 +34,15 @@ func (s *Server) Version(context.Context, *empty.Empty) (*version.VersionMessage
 		}
 	}
 	if s.kustomizeVersion == "" {
-		kustomizeVersion, err := kustomize.Version()
+		kustomizeVersion, err := kustomize.Version(true)
 		if err == nil {
 			s.kustomizeVersion = kustomizeVersion
 		} else {
 			s.kustomizeVersion = err.Error()
 		}
-
 	}
 	if s.helmVersion == "" {
-		helmVersion, err := helm.Version()
+		helmVersion, err := helm.Version(true)
 		if err == nil {
 			s.helmVersion = helmVersion
 		} else {
