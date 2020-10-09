@@ -79,6 +79,7 @@ type Server struct {
 	auditLogger    *argo.AuditLogger
 	settingsMgr    *settings.SettingsManager
 	cache          *servercache.Cache
+	projInformer   cache.SharedIndexInformer
 }
 
 // NewServer returns a new instance of the Application service
@@ -95,6 +96,7 @@ func NewServer(
 	enf *rbac.Enforcer,
 	projectLock sync.KeyLock,
 	settingsMgr *settings.SettingsManager,
+	projInformer cache.SharedIndexInformer,
 ) application.ApplicationServiceServer {
 	appBroadcaster := &broadcasterHandler{}
 	appInformer.AddEventHandler(appBroadcaster)
@@ -113,6 +115,7 @@ func NewServer(
 		projectLock:    projectLock,
 		auditLogger:    argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
 		settingsMgr:    settingsMgr,
+		projInformer:   projInformer,
 	}
 }
 
@@ -1488,7 +1491,7 @@ func (s *Server) GetApplicationSyncWindows(ctx context.Context, q *application.A
 		return nil, err
 	}
 
-	proj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(ctx, a.Spec.Project, metav1.GetOptions{})
+	proj, err := argo.GetAppProject(&a.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), a.Namespace, s.settingsMgr)
 	if err != nil {
 		return nil, err
 	}

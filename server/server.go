@@ -533,7 +533,8 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 		db,
 		a.enf,
 		projectLock,
-		a.settingsMgr)
+		a.settingsMgr,
+		a.projInformer)
 	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr, a.policyEnforcer)
 	settingsService := settings.NewServer(a.settingsMgr, a, a.DisableAuth)
 	accountService := account.NewServer(a.sessionMgr, a.settingsMgr, a.enf)
