@@ -1532,7 +1532,7 @@ and might fail. To avoid failed syncs use <code>ARGOCD_GIT_ATTEMPTS_COUNT</code>
 <p>The <code>argocd-application-controller</code> uses <code>argocd-repo-server</code> to get generated manifests and Kubernetes API server to get actual cluster state.</p>
 <ul>
 <li>
-<p>controller uses two separate queues to process application reconciliation (milliseconds) and app syncing (seconds). Number of queue processors for each queue is controlled by
+<p>each controller replica uses two separate queues to process application reconciliation (milliseconds) and app syncing (seconds). Number of queue processors for each queue is controlled by
 <code>--status-processors</code> (20 by default) and <code>--operation-processors</code> (10 by default) flags. Increase number of processors if your Argo CD instance manages too many applications.
 For 1000 application we use 50 for <code>--status-processors</code> and 25 for <code>--operation-processors</code></p>
 </li>
@@ -1542,12 +1542,12 @@ The app reconciliation fails with <code>Context deadline exceeded</code> error i
 consider scaling up <code>argocd-repo-server</code> deployment.</p>
 </li>
 <li>
-<p>controller uses <code>kubectl</code> fork/exec to push changes into the cluster and to convert resource from preferred version into user specified version
+<p>The controller uses <code>kubectl</code> fork/exec to push changes into the cluster and to convert resource from preferred version into user specified version
 (e.g. Deployment <code>apps/v1</code> into <code>extensions/v1beta1</code>). Same as config management tool <code>kubectl</code> fork/exec might cause pod OOM kill. Use <code>--kubectl-parallelism-limit</code> flag to limit
 number of allowed concurrent kubectl fork/execs.</p>
 </li>
 <li>
-<p>controller uses Kubernetes watch APIs to maintain lightweight Kubernetes cluster cache. This allows to avoid querying Kubernetes during app reconciliation and significantly improve
+<p>The controller uses Kubernetes watch APIs to maintain lightweight Kubernetes cluster cache. This allows to avoid querying Kubernetes during app reconciliation and significantly improve
 performance. For performance reasons controller monitors and caches only preferred the version of a resource. During reconciliation, the controller might have to convert cached resource from
 preferred version into a version of the resource stored in Git. If <code>kubectl convert</code> fails because conversion is not supported than controller fallback to Kubernetes API query which slows down
 reconciliation. In this case advice user-preferred resource version in Git.</p>
@@ -1555,7 +1555,28 @@ reconciliation. In this case advice user-preferred resource version in Git.</p>
 <li>
 <p>The controller polls Git every 3m by default. You can increase this duration using <code>--app-resync seconds</code> to reduce polling.</p>
 </li>
+<li>
+<p>If the controller is managing too many clusters and uses too much memory then you can shard clusters across multiple
+controller replicas. To enable sharding increase the number of replicas in <code>argocd-application-controller</code> <code>StatefulSet</code>
+and repeat number of replicas in <code>ARGOCD_CONTROLLER_REPLICAS</code> environment variable. The strategic merge patch below
+demonstrates changes required to configure two controller replicas.</p>
+</li>
 </ul>
+<div class="yaml codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">apps/v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">StatefulSet</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-application-controller</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">replicas</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">2</span>
+  <span class="nt">template</span><span class="p">:</span>
+    <span class="nt">spec</span><span class="p">:</span>
+      <span class="nt">containers</span><span class="p">:</span>
+      <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-application-controller</span>
+        <span class="nt">env</span><span class="p">:</span>
+        <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ARGOCD_CONTROLLER_REPLICAS</span>
+          <span class="nt">value</span><span class="p">:</span> <span class="s">&quot;2&quot;</span>
+</code></pre></div>
+
 <p><strong>metrics</strong></p>
 <ul>
 <li><code>argocd_app_reconcile</code> - reports application reconciliation duration. Can be used to build reconciliation duration heat map to get high-level reconciliation performance picture.</li>
