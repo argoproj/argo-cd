@@ -941,13 +941,6 @@
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#configuring-rbac-with-projects" title="Configuring RBAC With Projects" class="md-nav__link">
-    Configuring RBAC With Projects
-  </a>
-  
-</li>
-        
       </ul>
     </nav>
   
@@ -956,6 +949,13 @@
         <li class="md-nav__item">
   <a href="#project-roles" title="Project Roles" class="md-nav__link">
     Project Roles
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuring-rbac-with-projects" title="Configuring RBAC With Projects" class="md-nav__link">
+    Configuring RBAC With Projects
   </a>
   
 </li>
@@ -1474,13 +1474,6 @@
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#configuring-rbac-with-projects" title="Configuring RBAC With Projects" class="md-nav__link">
-    Configuring RBAC With Projects
-  </a>
-  
-</li>
-        
       </ul>
     </nav>
   
@@ -1489,6 +1482,13 @@
         <li class="md-nav__item">
   <a href="#project-roles" title="Project Roles" class="md-nav__link">
     Project Roles
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuring-rbac-with-projects" title="Configuring RBAC With Projects" class="md-nav__link">
+    Configuring RBAC With Projects
   </a>
   
 </li>
@@ -1573,33 +1573,6 @@ an app, the user must have permissions to access the new project.</p>
 <div class="codehilite"><pre><span></span><code><span class="err">argocd app set guestbook-default --project myproject</span>
 </code></pre></div>
 
-<h3 id="configuring-rbac-with-projects">Configuring RBAC With Projects<a class="headerlink" href="#configuring-rbac-with-projects" title="Permanent link">&para;</a></h3>
-<p>Once projects have been defined, RBAC rules can be written to restrict access to the applications
-in the project. The following example configures RBAC for two GitHub teams: <code>team1</code> and <code>team2</code>,
-both in the GitHub org, <code>some-github-org</code>. There are two projects, <code>project-a</code> and <code>project-b</code>.
-<code>team1</code> can only manage applications in <code>project-a</code>, while <code>team2</code> can only manage applications in
-<code>project-b</code>. Both <code>team1</code> and <code>team2</code> have the ability to manage repositories.</p>
-<p><em>ConfigMap <code>argocd-rbac-cm</code> example:</em></p>
-<div class="yaml codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
-<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
-<span class="nt">metadata</span><span class="p">:</span>
-  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-rbac-cm</span>
-  <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
-<span class="nt">data</span><span class="p">:</span>
-  <span class="nt">policy.default</span><span class="p">:</span> <span class="s">&quot;&quot;</span>
-  <span class="nt">policy.csv</span><span class="p">:</span> <span class="p p-Indicator">|</span>
-    <span class="no">p, some-github-org:team1, applications, *, project-a/*, allow</span>
-    <span class="no">p, some-github-org:team2, applications, *, project-b/*, allow</span>
-
-    <span class="no">p, role:org-admin, repositories, get, *, allow</span>
-    <span class="no">p, role:org-admin, repositories, create, *, allow</span>
-    <span class="no">p, role:org-admin, repositories, update, *, allow</span>
-    <span class="no">p, role:org-admin, repositories, delete, *, allow</span>
-
-    <span class="no">g, some-github-org:team1, org-admin</span>
-    <span class="no">g, some-github-org:team2, org-admin</span>
-</code></pre></div>
-
 <h2 id="project-roles">Project Roles<a class="headerlink" href="#project-roles" title="Permanent link">&para;</a></h2>
 <p>Projects include a feature called roles that enable automated access to a project's applications.
 These can be used to give a CI pipeline a restricted set of permissions. For example, a CI system
@@ -1666,6 +1639,30 @@ argocd proj role delete-token <span class="nv">$PROJ</span> <span class="nv">$RO
 <span class="c1"># This will fail since the JWT Token was deleted for the project role.</span>
 argocd app get <span class="nv">$APP</span> --auth-token <span class="nv">$JWT</span>
 </code></pre></div>
+
+<h2 id="configuring-rbac-with-projects">Configuring RBAC With Projects<a class="headerlink" href="#configuring-rbac-with-projects" title="Permanent link">&para;</a></h2>
+<p>The project Roles allows configuring RBAC rules scoped to the project. The following sample
+project provides read-only permissions on project applications to any member of <code>my-oidc-group</code> group.</p>
+<p><em>AppProject example:</em></p>
+<div class="yaml codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">AppProject</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">my-project</span>
+  <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">roles</span><span class="p">:</span>
+  <span class="c1"># A role which provides read-only access to all applications in the project</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">read-only</span>
+    <span class="nt">description</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Read-only privileges to my-project</span>
+    <span class="nt">policies</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">p, proj:my-project:read-only, applications, get, my-project/*, allow</span>
+    <span class="nt">groups</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">my-oidc-group</span>
+</code></pre></div>
+
+<p>You can use <code>argocd proj role</code> CLI commands or project details page in the user interface to configure the policy.
+Note that each project role policy rule must be scoped to that project only. Use the <code>argocd-rbac-cm</code> ConfigMap described in
+<a href="../../operator-manual/rbac/">RBAC</a> documentation if you want to configure cross project RBAC rules.</p>
                 
                   
                 
