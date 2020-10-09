@@ -1036,6 +1036,8 @@ type ConnectionState struct {
 
 // Cluster is the definition of a cluster resource
 type Cluster struct {
+	// ID is an internal field cluster identifier. Not exposed via API.
+	ID string `json:"-"`
 	// Server is the API server URL of the Kubernetes cluster
 	Server string `json:"server" protobuf:"bytes,1,opt,name=server"`
 	// Name of the cluster. If omitted, will use the server address
@@ -1054,6 +1056,8 @@ type Cluster struct {
 	RefreshRequestedAt *metav1.Time `json:"refreshRequestedAt,omitempty" protobuf:"bytes,7,opt,name=refreshRequestedAt"`
 	// Holds information about cluster cache
 	Info ClusterInfo `json:"info,omitempty" protobuf:"bytes,8,opt,name=info"`
+	// Shard contains optional shard number. Calculated on the fly by the application controller if not specified.
+	Shard *int64 `json:"shard,omitempty" protobuf:"bytes,9,opt,name=shard"`
 }
 
 func (c *Cluster) Equals(other *Cluster) bool {
@@ -1064,6 +1068,17 @@ func (c *Cluster) Equals(other *Cluster) bool {
 		return false
 	}
 	if strings.Join(c.Namespaces, ",") != strings.Join(other.Namespaces, ",") {
+		return false
+	}
+	var shard int64 = -1
+	if c.Shard != nil {
+		shard = *c.Shard
+	}
+	var otherShard int64 = -1
+	if other.Shard != nil {
+		otherShard = *other.Shard
+	}
+	if shard != otherShard {
 		return false
 	}
 	return reflect.DeepEqual(c.Config, other.Config)

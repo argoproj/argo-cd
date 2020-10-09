@@ -58,7 +58,7 @@ func TestClusterSecretUpdater(t *testing.T) {
 		}
 
 		lister := applisters.NewApplicationLister(appInfomer.GetIndexer()).Applications(fakeNamespace)
-		updater := NewClusterInfoUpdater(nil, argoDB, lister, appCache)
+		updater := NewClusterInfoUpdater(nil, argoDB, lister, appCache, nil)
 
 		err = updater.updateClusterInfo(*cluster, info)
 		assert.NoError(t, err, "Invoking updateClusterInfo failed.")
