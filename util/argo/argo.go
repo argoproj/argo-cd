@@ -474,7 +474,7 @@ func GetAppVirtualProject(proj *argoappv1.AppProject, projLister applicationsv1.
 		if err != nil {
 			break
 		}
-		//Get project list which matches the label selector, then see if proj is a match
+		//Get projects which match the label selector, then see if proj is a match
 		projList0, err := projLister.AppProjects(proj.Namespace).List(selector)
 		if err != nil {
 			break
