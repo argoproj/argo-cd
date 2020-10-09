@@ -61,7 +61,7 @@ data:
         redirectURI: https://my-argo-cd-url/api/dex/callback
         usernameAttr: email
         emailAttr: email
-        groupAttr: Group
+        groupsAttr: Group
 ```
 
 2. Edit `argo-rbac-cm` to configure permissions, similar to example below.
