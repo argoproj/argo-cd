@@ -164,6 +164,10 @@ const (
 	EnvGnuPGHome = "ARGOCD_GNUPGHOME"
 	// EnvWatchAPIBufferSize is the buffer size used to transfer K8S watch events to watch API consumer
 	EnvWatchAPIBufferSize = "ARGOCD_WATCH_API_BUFFER_SIZE"
+	// EnvControllerReplicas is the number of controller replicas
+	EnvControllerReplicas = "ARGOCD_CONTROLLER_REPLICAS"
+	// EnvControllerShard is the shard number that should be handled by controller
+	EnvControllerShard = "ARGOCD_CONTROLLER_SHARD"
 )
 
 const (

@@ -1297,6 +1297,13 @@ func schema_pkg_apis_application_v1alpha1_Cluster(ref common.ReferenceCallback) 
 							Ref:         ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ClusterInfo"),
 						},
 					},
+					"shard": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Shard contains optional shard number. Calculated on the fly by the application controller if not specified.",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
 				},
 				Required: []string{"server", "name", "config"},
 			},

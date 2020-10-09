@@ -362,6 +362,9 @@ message Cluster {
 
   // Holds information about cluster cache
   optional ClusterInfo info = 8;
+
+  // Shard contains optional shard number. Calculated on the fly by the application controller if not specified.
+  optional int64 shard = 9;
 }
 
 message ClusterCacheInfo {
