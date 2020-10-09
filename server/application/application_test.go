@@ -155,6 +155,12 @@ func newTestAppServer(objects ...runtime.Object) *Server {
 		panic("Timed out waiting forfff caches to sync")
 	}
 
+	projInformer := factory.Argoproj().V1alpha1().AppProjects().Informer()
+	go projInformer.Run(ctx.Done())
+	if !k8scache.WaitForCacheSync(ctx.Done(), projInformer.HasSynced) {
+		panic("Timed out waiting forfff caches to sync")
+	}
+
 	server := NewServer(
 		testNamespace,
 		kubeclientset,
@@ -168,6 +174,7 @@ func newTestAppServer(objects ...runtime.Object) *Server {
 		enforcer,
 		sync.NewKeyLock(),
 		settingsMgr,
+		projInformer,
 	)
 	return server.(*Server)
 }
