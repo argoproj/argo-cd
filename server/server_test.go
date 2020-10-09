@@ -633,3 +633,62 @@ func TestTranslateGrpcCookieHeader(t *testing.T) {
 	})
 
 }
+
+func TestInitializeDefaultProject_ProjectDoesNotExist(t *testing.T) {
+	argoCDOpts := ArgoCDServerOpts{
+		Namespace:     test.FakeArgoCDNamespace,
+		KubeClientset: fake.NewSimpleClientset(test.NewFakeConfigMap(), test.NewFakeSecret()),
+		AppClientset:  apps.NewSimpleClientset(),
+	}
+
+	err := initializeDefaultProject(argoCDOpts)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	proj, err := argoCDOpts.AppClientset.ArgoprojV1alpha1().
+		AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), common.DefaultAppProjectName, metav1.GetOptions{})
+
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	assert.Equal(t, proj.Spec, v1alpha1.AppProjectSpec{
+		SourceRepos:              []string{"*"},
+		Destinations:             []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+		ClusterResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
+	})
+}
+
+func TestInitializeDefaultProject_ProjectAlreadyInitialized(t *testing.T) {
+	existingDefaultProject := v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.DefaultAppProjectName,
+			Namespace: test.FakeArgoCDNamespace,
+		},
+		Spec: v1alpha1.AppProjectSpec{
+			SourceRepos:  []string{"some repo"},
+			Destinations: []v1alpha1.ApplicationDestination{{Server: "some cluster", Namespace: "*"}},
+		},
+	}
+
+	argoCDOpts := ArgoCDServerOpts{
+		Namespace:     test.FakeArgoCDNamespace,
+		KubeClientset: fake.NewSimpleClientset(test.NewFakeConfigMap(), test.NewFakeSecret()),
+		AppClientset:  apps.NewSimpleClientset(&existingDefaultProject),
+	}
+
+	err := initializeDefaultProject(argoCDOpts)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	proj, err := argoCDOpts.AppClientset.ArgoprojV1alpha1().
+		AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), common.DefaultAppProjectName, metav1.GetOptions{})
+
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	assert.Equal(t, proj.Spec, existingDefaultProject.Spec)
+}
