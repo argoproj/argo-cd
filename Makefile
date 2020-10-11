@@ -171,8 +171,8 @@ cli: test-tools-image
 cli-local: clean-debug
 	CGO_ENABLED=0 ${PACKR_CMD} build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${CLI_NAME} ./cmd/argocd
 
-.PHONY: cli-docker
-cli-docker:
+.PHONY: cli-argocd
+cli-argocd:
 	go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${CLI_NAME} ./cmd/argocd
 
 .PHONY: release-cli
