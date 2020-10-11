@@ -10,7 +10,7 @@ const path = require('path');
 const isProd = process.env.NODE_ENV === 'production';
 
 const proxyConf = {
-    'target': process.env.ARGOCD_API_URL || 'http://[::1]:8080',
+    'target': process.env.ARGOCD_API_URL || 'http://localhost:8080',
     'secure': false,
 };
 
