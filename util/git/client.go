@@ -66,6 +66,11 @@ type nativeGitClient struct {
 	enableLfs bool
 }
 
+type subModule struct {
+	URL string
+	Branch string
+}
+
 var (
 	maxAttemptsCount = 1
 )
@@ -330,40 +335,38 @@ func (m *nativeGitClient) Checkout(revision string) error {
 // runs with in-memory storage and is safe to run concurrently, or to be run without a git
 // repository locally cloned.
 func (m *nativeGitClient) LsRemote(revision string) (res string, err error) {
-	var lines []string
-	set := make(map[string]bool)
-	if _, err := os.Stat(m.root + "/.gitmodules"); !os.IsNotExist(err) {
-		gitmodules, err :=os.Open(m.root + "/.gitmodules")
-		if err != nil {
-			return "", err
+	set := make(map[subModule]bool)
+	var submoduleRefs []string
+	if os.Getenv(common.EnvGitSubmoduleUpdateChanges) == "true" {
+		gitmodules, err := m.loadGitmodulesFile()
+		if err == nil {
+			scanner := bufio.NewScanner(gitmodules)
+
+			for scanner.Scan() {
+				line := strings.TrimSpace(scanner.Text())
+				module := subModule{
+					URL:    "",
+					Branch: "master",
+				}
+				set[module] = true
+				if strings.HasPrefix(line, "url") {
+					module.URL = m.extractSubmoduleURL(line)
+				}
+				if strings.HasPrefix(line, "branch") {
+					module.Branch = m.extractSubmoduleBranch(line)
+				}
+			}
+
+			submoduleRefs = m.getSubmoduleSHAs(set, submoduleRefs)
 		}
 		defer gitmodules.Close()
-
-		scanner := bufio.NewScanner(gitmodules)
-
-		for scanner.Scan() {
-			line := strings.TrimSpace(scanner.Text())
-			if strings.HasPrefix(line,"url") {
-				re := regexp.MustCompile("(https|http|ssh).*(\\.git)")
-				subRepoURL := re.FindString(line)
-				lines = append(lines, subRepoURL)
-				set[subRepoURL] = true
-				fmt.Println(scanner.Text())
-			}
-		}
 	}
-
-	var submoduleRefs []string
-	for key, _ := range set {
-		ref, _ := m.lsRemote("HEAD", key)
-		fmt.Println(key + ":" + ref)
-		submoduleRefs = append(submoduleRefs, ref)
-	}
-
 	for attempt := 0; attempt < maxAttemptsCount; attempt++ {
 		if res, err = m.lsRemote(revision, ""); err == nil && len(submoduleRefs) > 0 {
-			res = res + "-"
-			for _,submoduleRef := range submoduleRefs {
+			if len(submoduleRefs) > 0 {
+				res = res + "-"
+			}
+			for _, submoduleRef := range submoduleRefs {
 				res = res + submoduleRef
 			}
 			return
@@ -372,13 +375,36 @@ func (m *nativeGitClient) LsRemote(revision string) (res string, err error) {
 	return
 }
 
-func (m *nativeGitClient) lsRemote(revision string, moduleURL string) (string, error) {
-	if IsCommitSHA(revision) {
-		return revision, nil
+func (m *nativeGitClient) loadGitmodulesFile() (*os.File, error) {
+	return os.Open(m.root + "/.gitmodules")
+}
+
+func (m *nativeGitClient) extractSubmoduleURL(line string) string {
+	re := regexp.MustCompile("url\\s*=\\s*")
+	urlPrefix := re.FindString(line)
+	return strings.Trim(line, urlPrefix)
+}
+
+func (m *nativeGitClient) extractSubmoduleBranch(line string) string {
+	re := regexp.MustCompile("branch\\s*=\\s*")
+	branchPrefix := re.FindString(line)
+	return strings.Trim(line, branchPrefix)
+}
+
+
+func (m *nativeGitClient) getSubmoduleSHAs(set map[subModule]bool, submoduleRefs []string) []string {
+	for key, _ := range set {
+		ref, _ := m.lsRemote(key.Branch, key.URL)
+		fmt.Println(key.URL + ":" + key.Branch + ":" + ref)
+		submoduleRefs = append(submoduleRefs, ref)
 	}
+	return submoduleRefs
+}
+
+func (m *nativeGitClient) lsRemote(revision string, moduleURL string) (string, error) {
 	commitSHACorrected := strings.Split(revision, "-")
-	if len(commitSHACorrected) > 0 && IsCommitSHA(commitSHACorrected[0]) {
-		revision = commitSHACorrected[0]
+	if len(commitSHACorrected) > 0 && IsCommitSHA(commitSHACorrected[0]) && moduleURL == "" {
+		return commitSHACorrected[0], nil
 	}
 	repo, err := git.Init(memory.NewStorage(), nil)
 	if err != nil {

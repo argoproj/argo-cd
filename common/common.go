@@ -152,8 +152,8 @@ const (
 	EnvGitAttemptsCount = "ARGOCD_GIT_ATTEMPTS_COUNT"
 	// Overrides git submodule support, true by default
 	EnvGitSubmoduleEnabled = "ARGOCD_GIT_MODULES_ENABLED"
-	// Disables caching of Manifests, so changes in submodules referencing branches will be detected, false by default
-	EnvGitSubmoduleForceRefresh = "ARGOCD_GIT_MODULES_FORCE_REFRESH"
+	// Detects changes in submodules and updates the resources in k8s, false by default
+	EnvGitSubmoduleUpdateChanges = "ARGOCD_GIT_MODULES_UPDATE_CHANGES"
 	// EnvK8sClientQPS is the QPS value used for the kubernetes client (default: 50)
 	EnvK8sClientQPS = "ARGOCD_K8S_CLIENT_QPS"
 	// EnvK8sClientBurst is the burst value used for the kubernetes client (default: twice the client QPS)

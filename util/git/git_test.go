@@ -225,6 +225,12 @@ func TestLsRemote(t *testing.T) {
 	}
 }
 
+func TestLsRemoteWithSubmodulesUpdateEnabled(t *testing.T) {
+	os.Setenv("ARGOCD_GIT_MODULES_UPDATE_CHANGES", "true")
+	TestLsRemote(t)
+	defer os.Setenv("ARGOCD_GIT_MODULES_UPDATE_CHANGES", "false")
+}
+
 // Running this test requires git-lfs to be installed on your machine.
 func TestLFSClient(t *testing.T) {
 

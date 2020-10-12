@@ -136,6 +136,11 @@ func TestGenerateManifestsUseExactRevision(t *testing.T) {
 	assert.Equal(t, gitClient.Calls[0].Arguments[0], "abc")
 }
 
+func TestCorrectRevision(t *testing.T) {
+	correctedTevision := correctRevisionSHA("4e22a3cb21fa447ca362a05a505a69397c8a0d44-4e22a3cb21fa447ca362a05a505a69397c8a0d44")
+	assert.Equal(t, "4e22a3cb21fa447ca362a05a505a69397c8a0d44", correctedTevision)
+}
+
 func TestRecurseManifestsInDir(t *testing.T) {
 	service := newService(".")
 

@@ -20,7 +20,6 @@ require (
 	github.com/evanphx/json-patch v4.9.0+incompatible
 	github.com/fsnotify/fsnotify v1.4.7
 	github.com/ghodss/yaml v1.0.0
-	github.com/go-delve/delve v1.5.0 // indirect
 	github.com/go-openapi/loads v0.19.4
 	github.com/go-openapi/runtime v0.19.4
 	github.com/go-openapi/spec v0.19.3
@@ -41,6 +40,7 @@ require (
 	github.com/grpc-ecosystem/go-grpc-middleware v1.0.1-0.20190118093823-f849b5445de4
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/grpc-ecosystem/grpc-gateway v1.14.6
+	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/improbable-eng/grpc-web v0.0.0-20181111100011-16092bd1d58a
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/malexdev/utfutil v0.0.0-20180510171754-00c8d4a8e7a8 // indirect

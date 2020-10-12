@@ -143,14 +143,7 @@ func (s *Service) runRepoOperation(
 		}
 	}
 
-	var ignoreCache = false
-	fmt.Println("Hello")
-	if  submoduleEnabled := os.Getenv(common.EnvGitSubmoduleEnabled); submoduleEnabled != "false" && os.Getenv(common.EnvGitSubmoduleForceRefresh) == "true" {
-		fmt.Println("Hello from if")
-		ignoreCache = true
-	}
-
-	if !ignoreCache && !settings.noCache && getCached(revision) {
+	if !settings.noCache && getCached(revision) {
 		return nil
 	}
 
@@ -186,7 +179,7 @@ func (s *Service) runRepoOperation(
 		s.repoLock.Lock(gitClient.Root())
 		defer s.repoLock.Unlock(gitClient.Root())
 		// double-check locking
-		if !ignoreCache && !settings.noCache && getCached(revision) {
+		if !settings.noCache && getCached(revision) {
 			return nil
 		}
 		_, err = checkoutRevision(gitClient, revision, log.WithField("repo", repo.Repo))
@@ -226,12 +219,11 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	}
 	err := s.runRepoOperation(ctx, q.Revision, q.Repo, q.ApplicationSource, q.VerifySignature, getCached, func(appPath, repoRoot, revision, verifyResult string) error {
 		var err error
-		res, err = GenerateManifests(appPath, repoRoot, strings.Split(q.Revision, "-")[0], q, false)
+		res, err = GenerateManifests(appPath, repoRoot, correctRevisionSHA(q.Revision), q, false)
 		if err != nil {
 			return err
 		}
-		rvisionSHACorrected := strings.Split(revision, "-")[0]
-		res.Revision = rvisionSHACorrected
+		res.Revision = correctRevisionSHA(revision)
 		res.VerifyResult = verifyResult
 		err = s.cache.SetManifests(revision, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, &res)
 		if err != nil {
@@ -861,7 +853,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 }
 
 func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServerRevisionMetadataRequest) (*v1alpha1.RevisionMetadata, error) {
-	commitSHACorrected := strings.Split(q.Revision, "-")[0]
+	commitSHACorrected := correctRevisionSHA(q.Revision)
 	if !git.IsCommitSHA(commitSHACorrected) {
 		return nil, fmt.Errorf("revision %s must be resolved", q.Revision)
 	}
@@ -991,7 +983,7 @@ func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revisi
 // nolint:unparam
 func checkoutRevision(gitClient git.Client, commitSHA string, logEntry *log.Entry) (string, error) {
 	err := gitClient.Init()
-	commitSHACorrected := strings.Split(commitSHA, "-")[0]
+	commitSHACorrected := correctRevisionSHA(commitSHA)
 	if err != nil {
 		return "", status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
 	}
@@ -1001,11 +993,11 @@ func checkoutRevision(gitClient git.Client, commitSHA string, logEntry *log.Entr
 	}
 	err = gitClient.Checkout(commitSHACorrected)
 	if err != nil {
-		return "", status.Errorf(codes.Internal, "Failed to checkout %s: %v", commitSHA, err)
+		return "", status.Errorf(codes.Internal, "Failed to checkout %s: %v", commitSHACorrected, err)
 	}
 	sha, err := gitClient.CommitSHA()
 	if err == nil && git.IsCommitSHA(commitSHACorrected) && sha != commitSHACorrected {
-		logEntry.Warnf("'git checkout %s' has switched repo to unexpected commit: %s", commitSHA, sha)
+		logEntry.Warnf("'git checkout %s' has switched repo to unexpected commit: %s", commitSHACorrected, sha)
 	}
 	return sha, err
 }
@@ -1026,4 +1018,20 @@ func (s *Service) GetHelmCharts(ctx context.Context, q *apiclient.HelmChartsRequ
 		res.Items = append(res.Items, &chart)
 	}
 	return &res, nil
+}
+
+
+// If ARGOCD_GIT_MODULES_UPDATE_CHANGES is enabled, the revisionSHA
+// is concatenated with the revisionSHAs of the git submodules.
+// To ensure correct checkout and displaying in ui, we need to extract
+// the SHA of the root repository.
+func correctRevisionSHA(revision string) string {
+	if !strings.Contains(revision, "-") {
+		return revision
+	}
+	revisions := strings.Split(revision, "-")
+	if len(revisions) > 0 {
+		return revisions[0]
+	}
+	return revision
 }
