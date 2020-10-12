@@ -92,6 +92,7 @@ nav:
     - developer-guide/debugging-remote-environment.md
     - developer-guide/api-docs.md
     - developer-guide/test-e2e.md
+    - developer-guide/dependencies.md
     - developer-guide/ci.md
     - developer-guide/releasing.md
     - developer-guide/site.md
