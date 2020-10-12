@@ -42,43 +42,10 @@ gpg: Good signature from "GitHub (web-flow commit signing) <noreply@github.com>"
 type clientFunc func(*gitmocks.Client)
 
 func newServiceWithMocks(root string, signed bool) (*Service, *gitmocks.Client) {
-	// service := NewService(metrics.NewMetricsServer(), cache.NewCache(
-	// 	cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Minute)),
-	// 	1*time.Minute,
-	// ), RepoServerInitConstants{ParallelismLimit: 1})
-	// helmClient := &helmmocks.Client{}
-	// gitClient := &gitmocks.Client{}
 	root, err := filepath.Abs(root)
 	if err != nil {
 		panic(err)
 	}
-	// gitClient.On("Init").Return(nil)
-	// gitClient.On("Fetch").Return(nil)
-	// gitClient.On("Checkout", mock.Anything).Return(nil)
-	// gitClient.On("LsRemote", mock.Anything).Return(mock.Anything, nil)
-	// gitClient.On("CommitSHA").Return(mock.Anything, nil)
-	// gitClient.On("Root").Return(root)
-	// if signed {
-	// 	gitClient.On("VerifyCommitSignature", mock.Anything).Return(testSignature, nil)
-	// } else {
-	// 	gitClient.On("VerifyCommitSignature", mock.Anything).Return("", nil)
-	// }
-
-	// chart := "my-chart"
-	// version := semver.MustParse("1.1.0")
-	// helmClient.On("GetIndex").Return(&helm.Index{Entries: map[string]helm.Entries{
-	// 	chart: {{Version: "1.0.0"}, {Version: version.String()}},
-	// }}, nil)
-	// helmClient.On("ExtractChart", chart, version).Return("./testdata/my-chart", io.NopCloser, nil)
-	// helmClient.On("CleanChartCache", chart, version).Return(nil)
-
-	// service.newGitClient = func(rawRepoURL string, creds git.Creds, insecure bool, enableLfs bool) (client git.Client, e error) {
-	// 	return gitClient, nil
-	// }
-	// service.newHelmClient = func(repoURL string, creds helm.Creds) helm.Client {
-	// 	return helmClient
-	// }
-	// return service, gitClient
 	return newServiceWithOpt(root, func(gitClient *gitmocks.Client) {
 		gitClient.On("Init").Return(nil)
 		gitClient.On("Fetch").Return(nil)
@@ -135,26 +102,12 @@ func newServiceWithSignature(root string) *Service {
 }
 
 func newServiceWithCommitSHA(root, revision string) *Service {
-	// service, _ := newServiceWithMocks(root, false)
-	// gitClient := &gitmocks.Client{}
-	// root, err := filepath.Abs(root)
-	// if err != nil {
-	// 	panic(err)
-	// }
-
 	var revisionErr error
 
 	commitSHARegex := regexp.MustCompile("^[0-9A-Fa-f]{40}$")
 	if !commitSHARegex.MatchString(revision) {
 		revisionErr = errors.New("not a commit SHA")
 	}
-
-	// gitClient.On("Init").Return(nil)
-	// gitClient.On("Fetch").Return(nil)
-	// gitClient.On("Checkout", mock.Anything).Return(nil)
-	// gitClient.On("LsRemote", revision).Return(revision, revisionErr)
-	// gitClient.On("CommitSHA").Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
-	// gitClient.On("Root").Return(root)
 
 	service, gitClient := newServiceWithOpt(root, func(gitClient *gitmocks.Client) {
 		gitClient.On("Init").Return(nil)
