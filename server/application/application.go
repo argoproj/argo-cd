@@ -1300,6 +1300,11 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 		if err != nil {
 			return "", "", err
 		}
+		sha, err := gitClient.CommitSHA()
+		// Checking to see if revision matches commit hash, if not (in case of annotated tag) then pointing revision to actual commit sha instead
+		if err == nil && git.IsCommitSHA(revision) && sha != revision {
+			revision = sha
+		}
 		return revision, fmt.Sprintf("%s (%s)", ambiguousRevision, revision), nil
 	}
 }

@@ -163,6 +163,11 @@ func (s *Service) runRepoOperation(
 		if err != nil {
 			return nil, err
 		}
+		sha, err := gitClient.CommitSHA()
+		// Checking to see if revision matches commit hash, if not (in case of annotated tag) then pointing revision to actual commit sha instead
+		if err == nil && git.IsCommitSHA(revision) && sha != revision {
+			revision = sha
+		}
 	}
 
 	if !settings.noCache {
