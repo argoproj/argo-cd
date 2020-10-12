@@ -48,10 +48,10 @@ func newServiceWithMocks(root string, signed bool) (*Service, *gitmocks.Client) 
 	// ), RepoServerInitConstants{ParallelismLimit: 1})
 	// helmClient := &helmmocks.Client{}
 	// gitClient := &gitmocks.Client{}
-	// root, err := filepath.Abs(root)
-	// if err != nil {
-	// 	panic(err)
-	// }
+	root, err := filepath.Abs(root)
+	if err != nil {
+		panic(err)
+	}
 	// gitClient.On("Init").Return(nil)
 	// gitClient.On("Fetch").Return(nil)
 	// gitClient.On("Checkout", mock.Anything).Return(nil)
