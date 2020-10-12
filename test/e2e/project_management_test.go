@@ -453,6 +453,11 @@ func createAndConfigGlobalProject() error {
 	projGlobal.Spec.NamespaceResourceBlacklist = []metav1.GroupKind{
 		{Group: "", Kind: "Service"},
 	}
+
+	projGlobal.Spec.SyncWindows = v1alpha1.SyncWindows{}
+	win := &v1alpha1.SyncWindow{Kind: "deny", Schedule: "* * * * *", Duration: "1h", Applications: []string{"*"}}
+	projGlobal.Spec.SyncWindows = append(projGlobal.Spec.SyncWindows, win)
+
 	_, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Update(context.Background(), projGlobal, metav1.UpdateOptions{})
 	if err != nil {
 		return err
@@ -542,10 +547,11 @@ func TestGetVirtualProjectMatch(t *testing.T) {
 
 	//App trying to sync a resource which is not blacked listed anywhere
 	_, err = fixture.RunCli("app", "sync", fixture.Name(), "--resource", "apps:Deployment:guestbook-ui", "--timeout", fmt.Sprintf("%v", 10))
-	assert.NoError(t, err)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Blocked by sync window")
 
 	//app trying to sync a resource which is black listed by global project
 	_, err = fixture.RunCli("app", "sync", fixture.Name(), "--resource", ":Service:guestbook-ui", "--timeout", fmt.Sprintf("%v", 10))
-	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Blocked by sync window")
 
 }
