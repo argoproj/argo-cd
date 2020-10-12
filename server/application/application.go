@@ -1118,7 +1118,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		return nil, err
 	}
 
-	proj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(ctx, a.Spec.GetProject(), metav1.GetOptions{})
+	proj, err := argo.GetAppProject(&a.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), a.Namespace, s.settingsMgr)
 	if err != nil {
 		if apierr.IsNotFound(err) {
 			return a, status.Errorf(codes.InvalidArgument, "application references project %s which does not exist", a.Spec.Project)
