@@ -576,18 +576,23 @@ func TestGetCachedAppState(t *testing.T) {
 		patched := false
 		watcher := watch.NewFakeWithChanSize(1, true)
 
-		fakeClientSet.ReactionChain = nil
-		fakeClientSet.WatchReactionChain = nil
-		fakeClientSet.AddReactor("patch", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-			patched = true
-			updated := testApp.DeepCopy()
-			updated.ResourceVersion = "2"
-			appServer.appBroadcaster.OnUpdate(testApp, updated)
-			return true, testApp, nil
-		})
-		fakeClientSet.AddWatchReactor("applications", func(action kubetesting.Action) (handled bool, ret watch.Interface, err error) {
-			return true, watcher, nil
-		})
+		// Configure fakeClientSet within lock, before requesting cached app state, to avoid data race
+		{
+			fakeClientSet.Lock()
+			fakeClientSet.ReactionChain = nil
+			fakeClientSet.WatchReactionChain = nil
+			fakeClientSet.AddReactor("patch", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+				patched = true
+				updated := testApp.DeepCopy()
+				updated.ResourceVersion = "2"
+				appServer.appBroadcaster.OnUpdate(testApp, updated)
+				return true, testApp, nil
+			})
+			fakeClientSet.AddWatchReactor("applications", func(action kubetesting.Action) (handled bool, ret watch.Interface, err error) {
+				return true, watcher, nil
+			})
+			fakeClientSet.Unlock()
+		}
 
 		err := appServer.getCachedAppState(context.Background(), testApp, func() error {
 			res := cache.ErrCacheMiss
