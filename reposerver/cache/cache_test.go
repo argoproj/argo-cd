@@ -66,11 +66,11 @@ func TestCache_ListApps(t *testing.T) {
 func TestCache_GetManifests(t *testing.T) {
 	cache := newFixtures().Cache
 	// cache miss
-	value := &apiclient.ManifestResponse{}
+	value := &CachedManifestResponse{}
 	err := cache.GetManifests("my-revision", &ApplicationSource{}, "my-namespace", "my-app-label-key", "my-app-label-value", value)
 	assert.Equal(t, ErrCacheMiss, err)
 	// populate cache
-	res := &apiclient.ManifestResponse{SourceType: "my-source-type"}
+	res := &CachedManifestResponse{ManifestResponse: &apiclient.ManifestResponse{SourceType: "my-source-type"}}
 	err = cache.SetManifests("my-revision", &ApplicationSource{}, "my-namespace", "my-app-label-key", "my-app-label-value", res)
 	assert.NoError(t, err)
 	// cache miss
@@ -91,7 +91,7 @@ func TestCache_GetManifests(t *testing.T) {
 	// cache hit
 	err = cache.GetManifests("my-revision", &ApplicationSource{}, "my-namespace", "my-app-label-key", "my-app-label-value", value)
 	assert.NoError(t, err)
-	assert.Equal(t, &apiclient.ManifestResponse{SourceType: "my-source-type"}, value)
+	assert.Equal(t, &CachedManifestResponse{ManifestResponse: &apiclient.ManifestResponse{SourceType: "my-source-type"}}, value)
 }
 
 func TestCache_GetAppDetails(t *testing.T) {
