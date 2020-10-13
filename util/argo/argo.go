@@ -321,9 +321,9 @@ func APIGroupsToVersions(apiGroups []metav1.APIGroup) []string {
 func GetAppProject(spec *argoappv1.ApplicationSpec, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager) (*argoappv1.AppProject, error) {
 	projOrig, err := projLister.AppProjects(ns).Get(spec.GetProject())
 	if err != nil {
-		return projOrig, err
+		return nil, err
 	}
-	return GetAppVirtualProject(projOrig, projLister, settingsManager)
+	return getAppVirtualProject(projOrig, projLister, settingsManager)
 }
 
 // verifyGenerateManifests verifies a repo path can generate manifests
@@ -461,11 +461,11 @@ func getDestinationServer(ctx context.Context, db db.ArgoDB, clusterName string)
 	return servers[0], nil
 }
 
-func GetAppVirtualProject(proj *argoappv1.AppProject, projLister applicationsv1.AppProjectLister, settingsManager *settings.SettingsManager) (*argoappv1.AppProject, error) {
+func getAppVirtualProject(proj *argoappv1.AppProject, projLister applicationsv1.AppProjectLister, settingsManager *settings.SettingsManager) (*argoappv1.AppProject, error) {
 	gps, err := settingsManager.GetGlobalProjectsSettings()
 	if err != nil {
-		log.Warnf("Failed to get global project settings")
-		return proj, err
+		log.Warnf("Failed to get global project settings: %v", err)
+		return proj, nil
 	}
 	virtualProj := proj.DeepCopy()
 
@@ -475,12 +475,12 @@ func GetAppVirtualProject(proj *argoappv1.AppProject, projLister applicationsv1.
 			break
 		}
 		//Get projects which match the label selector, then see if proj is a match
-		projList0, err := projLister.AppProjects(proj.Namespace).List(selector)
+		projList, err := projLister.AppProjects(proj.Namespace).List(selector)
 		if err != nil {
 			break
 		}
 		var matchMe bool
-		for _, item := range projList0 {
+		for _, item := range projList {
 			if item.Name == proj.Name {
 				matchMe = true
 				break
@@ -496,7 +496,7 @@ func GetAppVirtualProject(proj *argoappv1.AppProject, projLister applicationsv1.
 		}
 		virtualProj = mergeVirtualProject(virtualProj, globalProj)
 	}
-	return virtualProj, err
+	return virtualProj, nil
 }
 
 func mergeVirtualProject(proj *argoappv1.AppProject, globalProj *argoappv1.AppProject) *argoappv1.AppProject {
