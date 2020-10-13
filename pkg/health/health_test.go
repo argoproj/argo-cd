@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/yaml"
 )
@@ -21,12 +22,12 @@ func assertAppHealth(t *testing.T, yamlPath string, expectedStatus HealthStatusC
 
 func getHealthStatus(yamlPath string, t *testing.T) *HealthStatus {
 	yamlBytes, err := ioutil.ReadFile(yamlPath)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	health, err := GetResourceHealth(&obj, nil)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	return health
 }
 
@@ -116,7 +117,7 @@ func TestGetArgoWorkflowHealth(t *testing.T) {
 	}
 
 	health, err := getArgoWorkflowHealth(&sampleWorkflow)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, HealthStatusProgressing, health.Status)
 	assert.Equal(t, "This node is running", health.Message)
 
@@ -133,7 +134,7 @@ func TestGetArgoWorkflowHealth(t *testing.T) {
 	}
 
 	health, err = getArgoWorkflowHealth(&sampleWorkflow)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, HealthStatusHealthy, health.Status)
 	assert.Equal(t, "This node is has succeeded", health.Message)
 }
