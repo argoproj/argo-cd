@@ -341,19 +341,29 @@ func (m *nativeGitClient) LsRemote(revision string) (res string, err error) {
 		gitmodules, err := m.loadGitmodulesFile()
 		if err == nil {
 			scanner := bufio.NewScanner(gitmodules)
-
+			var subModules []subModule
 			for scanner.Scan() {
 				line := strings.TrimSpace(scanner.Text())
-				module := subModule{
-					URL:    "",
-					Branch: "master",
+				re := regexp.MustCompile("\\[\\s*submodule.*\\]")
+				if re.MatchString(line) {
+					log.Info("Get Infos for submodule: " + line)
+					// new submodule starts
+					if len(subModules) > 0 {
+						set[subModules[0]] = true
+						subModules = nil
+					}
+					module := subModule{
+						URL:    "",
+						Branch: "master",
+					}
+					subModules = append(subModules, module)
 				}
-				set[module] = true
+
 				if strings.HasPrefix(line, "url") {
-					module.URL = m.extractSubmoduleURL(line)
+					subModules[0].URL = m.extractSubmoduleURL(line)
 				}
 				if strings.HasPrefix(line, "branch") {
-					module.Branch = m.extractSubmoduleBranch(line)
+					subModules[0].Branch = m.extractSubmoduleBranch(line)
 				}
 			}
 
@@ -382,20 +392,19 @@ func (m *nativeGitClient) loadGitmodulesFile() (*os.File, error) {
 func (m *nativeGitClient) extractSubmoduleURL(line string) string {
 	re := regexp.MustCompile("url\\s*=\\s*")
 	urlPrefix := re.FindString(line)
-	return strings.Trim(line, urlPrefix)
+	return strings.TrimPrefix(line, urlPrefix)
 }
 
 func (m *nativeGitClient) extractSubmoduleBranch(line string) string {
 	re := regexp.MustCompile("branch\\s*=\\s*")
 	branchPrefix := re.FindString(line)
-	return strings.Trim(line, branchPrefix)
+	return strings.TrimPrefix(line, branchPrefix)
 }
 
 
 func (m *nativeGitClient) getSubmoduleSHAs(set map[subModule]bool, submoduleRefs []string) []string {
 	for key, _ := range set {
 		ref, _ := m.lsRemote(key.Branch, key.URL)
-		fmt.Println(key.URL + ":" + key.Branch + ":" + ref)
 		submoduleRefs = append(submoduleRefs, ref)
 	}
 	return submoduleRefs
