@@ -442,13 +442,17 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 				return res, err
 			},
 		})
+		if err != nil {
+			return err
+		}
 
 		defer func() {
 			w.Stop()
 			resourceVersion = ""
 		}()
 
-		shouldResync := time.After(watchResyncTimeout)
+		shouldResync := time.NewTimer(watchResyncTimeout)
+		defer shouldResync.Stop()
 
 		for {
 			select {
@@ -457,7 +461,7 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 				return nil
 
 			// re-synchronize API state and restart watch periodically
-			case <-shouldResync:
+			case <-shouldResync.C:
 				return fmt.Errorf("Resyncing %s on %s during to timeout", api.GroupKind, c.config.Host)
 
 			// re-synchronize API state and restart watch if retry watcher failed to continue watching using provided resource version
@@ -488,10 +492,10 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 						err = runSynced(&c.lock, func() error {
 							return c.startMissingWatches()
 						})
+						if err != nil {
+							c.log.Warnf("Failed to start missing watch: %v", err)
+						}
 					}
-				}
-				if err != nil {
-					c.log.Warnf("Failed to start missing watch: %v", err)
 				}
 			}
 		}
