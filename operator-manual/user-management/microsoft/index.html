@@ -1656,7 +1656,7 @@
 <h2 id="azure-ad-app-registration-auth-using-dex">Azure AD App Registration Auth using Dex<a class="headerlink" href="#azure-ad-app-registration-auth-using-dex" title="Permanent link">&para;</a></h2>
 <p>Configure a new AD App Registration, as above.</p>
 <p>Then, add the <code>dex.config</code> to <code>argocd-cm</code>:</p>
-<div class="yaml codehilite"><pre><span></span><code><span class="l l-Scalar l-Scalar-Plain">ConfigMap -&gt; argocd-cm</span>
+<div class="codehilite"><pre><span></span><code><span class="l l-Scalar l-Scalar-Plain">ConfigMap -&gt; argocd-cm</span>
 
 <span class="l l-Scalar l-Scalar-Plain">data</span><span class="p p-Indicator">:</span>
     <span class="nt">dex.config</span><span class="p">:</span> <span class="p p-Indicator">|</span>

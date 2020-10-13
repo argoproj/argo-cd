@@ -1398,11 +1398,11 @@ please make sure to check upgrading details in  both <a href="../1.3-1.4/">v1.3 
 <p>After reading the relevant notes about possible breaking changes introduced in Argo CD version use the following
 command to upgrade Argo CD. Make sure to replace <code>&lt;version&gt;</code> with the required version number: </p>
 <p><strong>Non-HA</strong>:</p>
-<div class="bash codehilite"><pre><span></span><code>kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/&lt;version&gt;/manifests/install.yaml
+<div class="codehilite"><pre><span></span><code>kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/&lt;version&gt;/manifests/install.yaml
 </code></pre></div>
 
 <p><strong>HA</strong>:</p>
-<div class="bash codehilite"><pre><span></span><code>kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/&lt;version&gt;/manifests/ha/install.yaml
+<div class="codehilite"><pre><span></span><code>kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/&lt;version&gt;/manifests/ha/install.yaml
 </code></pre></div>
 
 <div class="admonition warning">

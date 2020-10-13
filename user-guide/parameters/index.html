@@ -1391,12 +1391,12 @@ overrides feature is provided mainly as a convenience to developers and is inten
 dev/test environments, vs. production environments.</p>
 </div>
 <p>To use parameter overrides, run the <code>argocd app set -p (COMPONENT=)PARAM=VALUE</code> command:</p>
-<div class="bash codehilite"><pre><span></span><code>argocd app <span class="nb">set</span> guestbook -p <span class="nv">guestbook</span><span class="o">=</span><span class="nv">image</span><span class="o">=</span>example/guestbook:abcd123
+<div class="codehilite"><pre><span></span><code>argocd app <span class="nb">set</span> guestbook -p <span class="nv">guestbook</span><span class="o">=</span><span class="nv">image</span><span class="o">=</span>example/guestbook:abcd123
 argocd app sync guestbook
 </code></pre></div>
 
 <p>The <code>PARAM</code> is expected to be a normal YAML path</p>
-<div class="bash codehilite"><pre><span></span><code>argocd app <span class="nb">set</span> guestbook -p <span class="nv">guestbook</span><span class="o">=</span>ingress.enabled<span class="o">=</span><span class="nb">true</span>
+<div class="codehilite"><pre><span></span><code>argocd app <span class="nb">set</span> guestbook -p <span class="nv">guestbook</span><span class="o">=</span>ingress.enabled<span class="o">=</span><span class="nb">true</span>
 argocd app <span class="nb">set</span> guestbook -p <span class="nv">guestbook</span><span class="o">=</span>ingress.hosts<span class="o">[</span><span class="m">0</span><span class="o">]=</span>guestbook.myclusterurl
 </code></pre></div>
 
@@ -1420,7 +1420,7 @@ forking the repository to make the changes. For example, to install Redis from t
 repository and customize the the database password, you would run:</p>
 </li>
 </ol>
-<div class="bash codehilite"><pre><span></span><code>argocd app create redis --repo https://github.com/helm/charts.git --path stable/redis --dest-server https://kubernetes.default.svc --dest-namespace default -p <span class="nv">password</span><span class="o">=</span>abc123
+<div class="codehilite"><pre><span></span><code>argocd app create redis --repo https://github.com/helm/charts.git --path stable/redis --dest-server https://kubernetes.default.svc --dest-namespace default -p <span class="nv">password</span><span class="o">=</span>abc123
 </code></pre></div>
                 
                   

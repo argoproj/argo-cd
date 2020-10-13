@@ -1518,15 +1518,15 @@ using k3s and run e2e tests against it.</p>
 <h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
 <p><strong>Tests fails to delete <code>argocd-e2e-ns-*</code> namespaces.</strong></p>
 <p>This maybe due to the metrics server, run this:</p>
-<div class="bash codehilite"><pre><span></span><code>kubectl api-resources
+<div class="codehilite"><pre><span></span><code>kubectl api-resources
 </code></pre></div>
 
 <p>If it exits with status code 1, run:</p>
-<div class="bash codehilite"><pre><span></span><code>kubectl delete apiservice v1beta1.metrics.k8s.io
+<div class="codehilite"><pre><span></span><code>kubectl delete apiservice v1beta1.metrics.k8s.io
 </code></pre></div>
 
 <p>Remove <code>/spec/finalizers</code> from the namespace</p>
-<div class="bash codehilite"><pre><span></span><code>kubectl edit ns argocd-e2e-ns-*
+<div class="codehilite"><pre><span></span><code>kubectl edit ns argocd-e2e-ns-*
 </code></pre></div>
                 
                   

@@ -1525,7 +1525,7 @@ configures a custom role, named <code>org-admin</code>. The role is assigned to 
 <code>your-github-org:your-team</code> group. All other users get the default policy of <code>role:readonly</code>,
 which cannot modify Argo CD settings.</p>
 <p><em>ArgoCD ConfigMap <code>argocd-rbac-cm</code> Example:</em></p>
-<div class="yaml codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-rbac-cm</span>
@@ -1545,7 +1545,7 @@ which cannot modify Argo CD settings.</p>
 
 <hr />
 <p>Another <code>policy.csv</code> example might look as follows:</p>
-<div class="csv codehilite"><pre><span></span><code><span class="err">p, role:staging-db-admins, applications, create, staging-db-admins/*, allow</span>
+<div class="codehilite"><pre><span></span><code><span class="err">p, role:staging-db-admins, applications, create, staging-db-admins/*, allow</span>
 <span class="err">p, role:staging-db-admins, applications, delete, staging-db-admins/*, allow</span>
 <span class="err">p, role:staging-db-admins, applications, get, staging-db-admins/*, allow</span>
 <span class="err">p, role:staging-db-admins, applications, override, staging-db-admins/*, allow</span>

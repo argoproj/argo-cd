@@ -1579,13 +1579,13 @@
 <p>If you followed the <a href="../contributing/">Contribution Guide</a> in setting up your toolchain, you can run ArgoCD locally with these simple steps:</p>
 <h3 id="install-argocd-resources-to-your-cluster">Install ArgoCD resources to your cluster<a class="headerlink" href="#install-argocd-resources-to-your-cluster" title="Permanent link">&para;</a></h3>
 <p>First push the installation manifest into argocd namespace:</p>
-<div class="shell codehilite"><pre><span></span><code>kubectl create namespace argocd
+<div class="codehilite"><pre><span></span><code>kubectl create namespace argocd
 kubectl apply -n argocd --force -f manifests/install.yaml
 </code></pre></div>
 
 <h3 id="scale-down-any-argocd-instance-in-your-cluster">Scale down any ArgoCD instance in your cluster<a class="headerlink" href="#scale-down-any-argocd-instance-in-your-cluster" title="Permanent link">&para;</a></h3>
 <p>Make sure that ArgoCD is not running in your development cluster by scaling down the deployments:</p>
-<div class="shell codehilite"><pre><span></span><code>kubectl -n argocd scale deployment/argocd-application-controller --replicas <span class="m">0</span>
+<div class="codehilite"><pre><span></span><code>kubectl -n argocd scale statefulset/argocd-application-controller --replicas <span class="m">0</span>
 kubectl -n argocd scale deployment/argocd-dex-server --replicas <span class="m">0</span>
 kubectl -n argocd scale deployment/argocd-repo-server --replicas <span class="m">0</span>
 kubectl -n argocd scale deployment/argocd-server --replicas <span class="m">0</span>
@@ -1594,7 +1594,7 @@ kubectl -n argocd scale deployment/argocd-redis --replicas <span class="m">0</sp
 
 <h3 id="start-local-services">Start local services<a class="headerlink" href="#start-local-services" title="Permanent link">&para;</a></h3>
 <p>Before starting local services, make sure you are present in <code>argocd</code> namespace. When you use the virtualized toolchain, starting local services is as simple as running</p>
-<div class="bash codehilite"><pre><span></span><code>make start
+<div class="codehilite"><pre><span></span><code>make start
 </code></pre></div>
 
 <p>This will start all ArgoCD services and the UI in a Docker container and expose the following ports to your host:</p>
@@ -1604,13 +1604,13 @@ kubectl -n argocd scale deployment/argocd-redis --replicas <span class="m">0</sp
 </ul>
 <p>You can now use either the web UI by pointing your browser to <code>http://localhost:4000</code> or use the CLI against the API at <code>http://localhost:8080</code>. Be sure to use the <code>--insecure</code> and <code>--plaintext</code> options to the CLI.</p>
 <p>As an alternative to using the above command line parameters each time you call <code>argocd</code> CLI, you can set the following environment variables:</p>
-<div class="bash codehilite"><pre><span></span><code><span class="nb">export</span> <span class="nv">ARGOCD_SERVER</span><span class="o">=</span><span class="m">127</span>.0.0.1:8080
+<div class="codehilite"><pre><span></span><code><span class="nb">export</span> <span class="nv">ARGOCD_SERVER</span><span class="o">=</span><span class="m">127</span>.0.0.1:8080
 <span class="nb">export</span> <span class="nv">ARGOCD_OPTS</span><span class="o">=</span><span class="s2">&quot;--plaintext --insecure&quot;</span>
 </code></pre></div>
 
 <h3 id="scale-up-argocd-in-your-cluster">Scale up ArgoCD in your cluster<a class="headerlink" href="#scale-up-argocd-in-your-cluster" title="Permanent link">&para;</a></h3>
 <p>Once you have finished testing your changes locally and want to bring back ArgoCD in your development cluster, simply scale the deployments up again:</p>
-<div class="bash codehilite"><pre><span></span><code>kubectl -n argocd scale deployment/argocd-application-controller --replicas <span class="m">1</span>
+<div class="codehilite"><pre><span></span><code>kubectl -n argocd scale statefulset/argocd-application-controller --replicas <span class="m">1</span>
 kubectl -n argocd scale deployment/argocd-dex-server --replicas <span class="m">1</span>
 kubectl -n argocd scale deployment/argocd-repo-server --replicas <span class="m">1</span>
 kubectl -n argocd scale deployment/argocd-server --replicas <span class="m">1</span>
@@ -1621,25 +1621,25 @@ kubectl -n argocd scale deployment/argocd-redis --replicas <span class="m">1</sp
 <p>For your final tests, it might be necessary to build your own images and run them in your development cluster.</p>
 <h3 id="create-docker-account-and-login">Create Docker account and login<a class="headerlink" href="#create-docker-account-and-login" title="Permanent link">&para;</a></h3>
 <p>You might need to create a account on <a href="https://hub.docker.com">Docker Hub</a> if you don't have one already. Once you created your account, login from your development environment:</p>
-<div class="bash codehilite"><pre><span></span><code>docker login
+<div class="codehilite"><pre><span></span><code>docker login
 </code></pre></div>
 
 <h3 id="create-and-push-docker-images">Create and push Docker images<a class="headerlink" href="#create-and-push-docker-images" title="Permanent link">&para;</a></h3>
 <p>You will need to push the built images to your own Docker namespace:</p>
-<div class="bash codehilite"><pre><span></span><code><span class="nb">export</span> <span class="nv">IMAGE_NAMESPACE</span><span class="o">=</span>youraccount
+<div class="codehilite"><pre><span></span><code><span class="nb">export</span> <span class="nv">IMAGE_NAMESPACE</span><span class="o">=</span>youraccount
 </code></pre></div>
 
 <p>If you don't set <code>IMAGE_TAG</code> in your environment, the default of <code>:latest</code> will be used. To change the tag, export the variable in the environment:</p>
-<div class="bash codehilite"><pre><span></span><code><span class="nb">export</span> <span class="nv">IMAGE_TAG</span><span class="o">=</span><span class="m">1</span>.5.0-myrc
+<div class="codehilite"><pre><span></span><code><span class="nb">export</span> <span class="nv">IMAGE_TAG</span><span class="o">=</span><span class="m">1</span>.5.0-myrc
 </code></pre></div>
 
 <p>Then you can build &amp; push the image in one step:</p>
-<div class="bash codehilite"><pre><span></span><code><span class="nv">DOCKER_PUSH</span><span class="o">=</span><span class="nb">true</span> make image
+<div class="codehilite"><pre><span></span><code><span class="nv">DOCKER_PUSH</span><span class="o">=</span><span class="nb">true</span> make image
 </code></pre></div>
 
 <h3 id="configure-manifests-for-your-image">Configure manifests for your image<a class="headerlink" href="#configure-manifests-for-your-image" title="Permanent link">&para;</a></h3>
 <p>With <code>IMAGE_NAMESPACE</code> and <code>IMAGE_TAG</code> still set, run</p>
-<div class="bash codehilite"><pre><span></span><code>make manifests
+<div class="codehilite"><pre><span></span><code>make manifests
 </code></pre></div>
 
 <p>to build a new set of installation manifests which include your specific image reference.</p>
@@ -1649,7 +1649,7 @@ kubectl -n argocd scale deployment/argocd-redis --replicas <span class="m">1</sp
 </div>
 <h3 id="configure-your-cluster-with-custom-manifests">Configure your cluster with custom manifests<a class="headerlink" href="#configure-your-cluster-with-custom-manifests" title="Permanent link">&para;</a></h3>
 <p>The final step is to push the manifests to your cluster, so it will pull and run your image:</p>
-<div class="bash codehilite"><pre><span></span><code>kubectl apply -n argocd --force -f manifests/install.yaml
+<div class="codehilite"><pre><span></span><code>kubectl apply -n argocd --force -f manifests/install.yaml
 </code></pre></div>
                 
                   

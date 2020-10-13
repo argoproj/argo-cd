@@ -1487,22 +1487,22 @@ update the documentation to reflect reality!</p>
 <p>If your PR fails the <code>codegen</code> CI step, you can either:</p>
 <p>(1) Simple - download the <code>codgen.patch</code> file from CircleCI and apply it:</p>
 <p><img alt="download codegen patch file" src="../../assets/download-codegen-patch-file.png" /></p>
-<div class="bash codehilite"><pre><span></span><code>git apply codegen.patch 
+<div class="codehilite"><pre><span></span><code>git apply codegen.patch 
 git commit -am <span class="s2">&quot;Applies codegen patch&quot;</span>
 </code></pre></div>
 
 <p>(2) Advanced - if you have the tools installed (see the contributing guide), run the following:</p>
-<div class="bash codehilite"><pre><span></span><code>make pre-commit
+<div class="codehilite"><pre><span></span><code>make pre-commit
 git commit -am <span class="s1">&#39;Ran pre-commit checks&#39;</span>
 </code></pre></div>
 
 <h2 id="updating-the-builder-image">Updating The Builder Image<a class="headerlink" href="#updating-the-builder-image" title="Permanent link">&para;</a></h2>
 <p>Login to Docker Hub:</p>
-<div class="bash codehilite"><pre><span></span><code>docker login
+<div class="codehilite"><pre><span></span><code>docker login
 </code></pre></div>
 
 <p>Build image:</p>
-<div class="bash codehilite"><pre><span></span><code>make builder-image <span class="nv">IMAGE_NAMESPACE</span><span class="o">=</span>argoproj <span class="nv">IMAGE_TAG</span><span class="o">=</span>v1.0.0
+<div class="codehilite"><pre><span></span><code>make builder-image <span class="nv">IMAGE_NAMESPACE</span><span class="o">=</span>argoproj <span class="nv">IMAGE_TAG</span><span class="o">=</span>v1.0.0
 </code></pre></div>
 
 <h2 id="public-cd">Public CD<a class="headerlink" href="#public-cd" title="Permanent link">&para;</a></h2>

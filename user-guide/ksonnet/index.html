@@ -1458,13 +1458,13 @@
 <p>Ksonnet has a first class concept of an "environment." To create an application from a ksonnet
 app directory, an environment must be specified. For example, the following command creates the
 "guestbook-default" app, which points to the <code>default</code> environment:</p>
-<div class="bash codehilite"><pre><span></span><code>argocd app create guestbook-default --repo https://github.com/argoproj/argocd-example-apps.git --path guestbook --env default
+<div class="codehilite"><pre><span></span><code>argocd app create guestbook-default --repo https://github.com/argoproj/argocd-example-apps.git --path guestbook --env default
 </code></pre></div>
 
 <h2 id="parameters">Parameters<a class="headerlink" href="#parameters" title="Permanent link">&para;</a></h2>
 <p>Ksonnet parameters all belong to a component. For example, the following are the parameters
 available in the guestbook app, all of which belong to the <code>guestbook-ui</code> component:</p>
-<div class="bash codehilite"><pre><span></span><code>$ ks param list
+<div class="codehilite"><pre><span></span><code>$ ks param list
 COMPONENT    PARAM         <span class="nv">VALUE</span>
 <span class="o">=========</span>    <span class="o">=====</span>         <span class="o">=====</span>
 guestbook-ui containerPort <span class="m">80</span>
@@ -1477,7 +1477,7 @@ guestbook-ui <span class="nb">type</span>          <span class="s2">&quot;LoadBa
 
 <p>When overriding ksonnet parameters in Argo CD, the component name should also be specified in the
 <code>argocd app set</code> command, in the form of <code>-p COMPONENT=PARAM=VALUE</code>. For example:</p>
-<div class="bash codehilite"><pre><span></span><code>argocd app <span class="nb">set</span> guestbook-default -p guestbook-ui<span class="o">=</span><span class="nv">image</span><span class="o">=</span>gcr.io/heptio-images/ks-guestbook-demo:0.1
+<div class="codehilite"><pre><span></span><code>argocd app <span class="nb">set</span> guestbook-default -p guestbook-ui<span class="o">=</span><span class="nv">image</span><span class="o">=</span>gcr.io/heptio-images/ks-guestbook-demo:0.1
 </code></pre></div>
 
 <h2 id="build-environment">Build Environment<a class="headerlink" href="#build-environment" title="Permanent link">&para;</a></h2>

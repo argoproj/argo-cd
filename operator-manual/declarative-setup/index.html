@@ -1724,7 +1724,7 @@ in an environment. It is defined by two key pieces of information:</p>
 <li><code>destination</code> reference to the target cluster and namespace. For the cluster one of server or name can be used, but not both (which will result in an error). Behind the hood when the server is missing, it is being calculated based on the name and then the server is used for any operations.</li>
 </ul>
 <p>A minimal Application spec is as follows:</p>
-<div class="yaml codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Application</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook</span>
@@ -1749,7 +1749,7 @@ in an environment. It is defined by two key pieces of information:</p>
 <p class="admonition-title">Warning</p>
 <p>By default, deleting an application will not perform a cascade delete, thereby deleting its resources. You must add the finalizer if you want this behaviour - which you may well not want.</p>
 </div>
-<div class="yaml codehilite"><pre><span></span><code><span class="nt">metadata</span><span class="p">:</span>
+<div class="codehilite"><pre><span></span><code><span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">finalizers</span><span class="p">:</span>
     <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">resources-finalizer.argocd.argoproj.io</span>
 </code></pre></div>
@@ -1767,7 +1767,7 @@ It is defined by the following key pieces of information:</p>
 <li><code>roles</code> list of entities with definitions of their access to resources within the project.</li>
 </ul>
 <p>An example spec is as follows:</p>
-<div class="yaml codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">AppProject</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">my-project</span>
@@ -1837,7 +1837,7 @@ definition as a Kubernetes manifest.</li>
 <li>Register repository in the <code>argocd-cm</code> config map. Each repository must have <code>url</code> field and, depending on whether you connect using HTTPS or SSH, <code>usernameSecret</code> and <code>passwordSecret</code> (for HTTPS) or <code>sshPrivateKeySecret</code> (for SSH).</li>
 </ol>
 <p>Example for HTTPS:</p>
-<div class="yaml codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
@@ -1857,7 +1857,7 @@ definition as a Kubernetes manifest.</li>
 </code></pre></div>
 
 <p>Example for SSH:</p>
-<div class="yaml codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
@@ -1882,7 +1882,7 @@ definition as a Kubernetes manifest.</li>
 <p>Earlier than v1.4</p>
 </blockquote>
 <p>If you want to use the same credentials for multiple repositories, you can use <code>repository.credentials</code>:</p>
-<div class="yaml codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
@@ -1915,7 +1915,7 @@ definition as a Kubernetes manifest.</li>
 <p>Order your credentials with the most specific at the top and the least specific at the bottom.</p>
 </div>
 <p>A complete example.</p>
-<div class="yaml codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
@@ -1967,7 +1967,7 @@ definition as a Kubernetes manifest.</li>
 <p>v1.4 or later</p>
 </blockquote>
 <p>If you want to use the same credentials for multiple repositories, you can use <code>repository.credentials</code> to configure credential templates. Credential templates can carry the same credentials information as repositories.</p>
-<div class="yaml codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
@@ -2016,7 +2016,7 @@ definition as a Kubernetes manifest.</li>
 <p>You can manage the TLS certificates used to verify the authenticity of your repository servers in a ConfigMap object named <code>argocd-tls-certs-cm</code>. The data section should contain a map, with the repository server's hostname part (not the complete URL) as key, and the certificate(s) in PEM format as data. So, if you connect to a repository with the URL <code>https://server.example.com/repos/my-repo</code>, you should use <code>server.example.com</code> as key. The certificate data should be either the server's certificate (in case of self-signed certificate) or the certificate of the CA that was used to sign the server's certificate. You can configure multiple certificates for each server, e.g. if you are having a certificate roll-over planned.</p>
 <p>If there are no dedicated certificates configured for a repository server, the system's default trust store is used for validating the server's repository. This should be good enough for most (if not all) public Git repository services such as GitLab, GitHub and Bitbucket as well as most privately hosted sites which use certificates from well-known CAs, including Let's Encrypt certificates.</p>
 <p>An example ConfigMap object:</p>
-<div class="yaml codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-tls-certs-cm</span>
@@ -2069,7 +2069,7 @@ definition as a Kubernetes manifest.</li>
 <h3 id="ssh-known-host-public-keys">SSH known host public keys<a class="headerlink" href="#ssh-known-host-public-keys" title="Permanent link">&para;</a></h3>
 <p>If you are connecting repositories via SSH, ArgoCD will need to know the SSH known hosts public key of the repository servers. You can manage the SSH known hosts data in the ConfigMap named <code>argocd-ssh-known-hosts-cm</code>. This ConfigMap contains a single key/value pair, with <code>ssh_known_hosts</code> as the key and the actual public keys of the SSH servers as data. As opposed to TLS configuration, the public key(s) of each single repository server ArgoCD will connect via SSH must be configured, otherwise the connections to the repository will fail. There is no fallback. The data can be copied from any existing <code>ssh_known_hosts</code> file, or from the output of the <code>ssh-keyscan</code> utility. The basic format is <code>&lt;servername&gt; &lt;keydata&gt;</code>, one entry per line.</p>
 <p>An example ConfigMap object:</p>
-<div class="yaml codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-ssh-known-hosts-cm</span>
@@ -2102,7 +2102,7 @@ definition as a Kubernetes manifest.</li>
 <li><code>namespaces</code> - optional comma-separated list of namespaces which are accessible in that cluster. Cluster level resources would be ignored if namespace list is not empty.</li>
 <li><code>config</code> - JSON representation of following data structure:</li>
 </ul>
-<div class="yaml codehilite"><pre><span></span><code><span class="c1"># Basic authentication settings</span>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Basic authentication settings</span>
 <span class="nt">username</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">string</span>
 <span class="nt">password</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">string</span>
 <span class="c1"># Bearer authentication settings</span>
@@ -2128,7 +2128,7 @@ definition as a Kubernetes manifest.</li>
 </code></pre></div>
 
 <p>Cluster secret example:</p>
-<div class="yaml codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Secret</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">mycluster-secret</span>
@@ -2154,7 +2154,7 @@ definition as a Kubernetes manifest.</li>
 may need to configure access credentials and HTTPS settings using <code>usernameSecret</code>, <code>passwordSecret</code>,
 <code>caSecret</code>, <code>certSecret</code> and <code>keySecret</code> fields.</p>
 <p>Example:</p>
-<div class="yaml codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
@@ -2200,11 +2200,11 @@ may need to configure access credentials and HTTPS settings using <code>username
 <li>Restrict ArgoCD's access to certain kinds of resources, e.g. secrets. See <a href="../security/#cluster-rbac">security.md#cluster-rbac</a>.</li>
 </ul>
 <p>To configure this, edit the <code>argcd-cm</code> config map:</p>
-<div class="shell codehilite"><pre><span></span><code>kubectl edit configmap argocd-cm -n argocd
+<div class="codehilite"><pre><span></span><code>kubectl edit configmap argocd-cm -n argocd
 </code></pre></div>
 
 <p>Add <code>resource.exclusions</code>, e.g.:</p>
-<div class="yaml codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="nt">data</span><span class="p">:</span>
   <span class="nt">resource.exclusions</span><span class="p">:</span> <span class="p p-Indicator">|</span>
     <span class="no">- apiGroups:</span>
@@ -2225,7 +2225,7 @@ may need to configure access credentials and HTTPS settings using <code>username
 <p>If all three match, then the resource is ignored.</p>
 <p>In addition to exclusions, you might configure the list of included resources using the <code>resource.inclusions</code> setting.
 By default, all resource group/kinds are included. The <code>resource.inclusions</code> setting allows customizing the list of included group/kinds: </p>
-<div class="yaml codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="nt">data</span><span class="p">:</span>
   <span class="nt">resource.inclusions</span><span class="p">:</span> <span class="p p-Indicator">|</span>
     <span class="no">- apiGroups:</span>
@@ -2254,7 +2254,7 @@ specified in <code>resource.exclusions</code> setting.</p>
 <p>Argo CD is able to manage itself since all settings are represented by Kubernetes manifests. The suggested way is to create <a href="https://github.com/kubernetes-sigs/kustomize">Kustomize</a>
 based application which uses base Argo CD manifests from <a href="https://github.com/argoproj/argo-cd/tree/stable/manifests">https://github.com/argoproj/argo-cd</a> and apply required changes on top.</p>
 <p>Example of <code>kustomization.yaml</code>:</p>
-<div class="yaml codehilite"><pre><span></span><code><span class="nt">bases</span><span class="p">:</span>
+<div class="codehilite"><pre><span></span><code><span class="nt">bases</span><span class="p">:</span>
 <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">github.com/argoproj/argo-cd//manifests/cluster-install?ref=v1.0.1</span>
 
 <span class="c1"># additional resources like ingress rules, cluster and repository secrets.</span>

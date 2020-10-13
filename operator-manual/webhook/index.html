@@ -1517,14 +1517,14 @@ provider's webhook secret configured in step 1.</p>
 </tbody>
 </table>
 <p>Edit the Argo CD kubernetes secret:</p>
-<div class="bash codehilite"><pre><span></span><code>kubectl edit secret argocd-secret -n argocd
+<div class="codehilite"><pre><span></span><code>kubectl edit secret argocd-secret -n argocd
 </code></pre></div>
 
 <p>TIP: for ease of entering secrets, kubernetes supports inputting secrets in the <code>stringData</code> field,
 which saves you the trouble of base64 encoding the values and copying it to the <code>data</code> field.
 Simply copy the shared webhook secret created in step 1, to the corresponding
 GitHub/GitLab/BitBucket key under the <code>stringData</code> field:</p>
-<div class="yaml codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Secret</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-secret</span>

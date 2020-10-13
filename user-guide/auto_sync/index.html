@@ -1471,12 +1471,12 @@ CI/CD pipelines no longer need direct access to the Argo CD API server to perfor
 Instead, the pipeline makes a commit and push to the Git repository with the changes to the
 manifests in the tracking Git repo.</p>
 <p>To configure automated sync run:</p>
-<div class="bash codehilite"><pre><span></span><code>argocd app <span class="nb">set</span> &lt;APPNAME&gt; --sync-policy automated
+<div class="codehilite"><pre><span></span><code>argocd app <span class="nb">set</span> &lt;APPNAME&gt; --sync-policy automated
 </code></pre></div>
 
 <p>Alternatively, if creating the application an application manifest, specify a syncPolicy with an
 <code>automated</code> policy.</p>
-<div class="yaml codehilite"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
+<div class="codehilite"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
   <span class="nt">syncPolicy</span><span class="p">:</span>
     <span class="nt">automated</span><span class="p">:</span> <span class="p p-Indicator">{}</span>
 </code></pre></div>
@@ -1486,11 +1486,11 @@ manifests in the tracking Git repo.</p>
 the resource is no longer defined in Git. To prune the resources, a manual sync can always be
 performed (with pruning checked). Pruning can also be enabled to happen automatically as part of the
 automated sync by running:</p>
-<div class="bash codehilite"><pre><span></span><code>argocd app <span class="nb">set</span> &lt;APPNAME&gt; --auto-prune
+<div class="codehilite"><pre><span></span><code>argocd app <span class="nb">set</span> &lt;APPNAME&gt; --auto-prune
 </code></pre></div>
 
 <p>Or by setting the prune option to true in the automated sync policy:</p>
-<div class="yaml codehilite"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
+<div class="codehilite"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
   <span class="nt">syncPolicy</span><span class="p">:</span>
     <span class="nt">automated</span><span class="p">:</span>
       <span class="nt">prune</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">true</span>
@@ -1499,11 +1499,11 @@ automated sync by running:</p>
 <h2 id="automatic-pruning-with-allow-empty-v18">Automatic Pruning with Allow-Empty (v1.8)<a class="headerlink" href="#automatic-pruning-with-allow-empty-v18" title="Permanent link">&para;</a></h2>
 <p>By default (and as a safety mechanism), automated sync with prune have a protection from any automation/human errors 
 when there are no target resources. It prevents application from having empty resources. To allow applications have empty resources, run:</p>
-<div class="bash codehilite"><pre><span></span><code>argocd app <span class="nb">set</span> &lt;APPNAME&gt; --allow-empty
+<div class="codehilite"><pre><span></span><code>argocd app <span class="nb">set</span> &lt;APPNAME&gt; --allow-empty
 </code></pre></div>
 
 <p>Or by setting the allow empty option to true in the automated sync policy:</p>
-<div class="yaml codehilite"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
+<div class="codehilite"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
   <span class="nt">syncPolicy</span><span class="p">:</span>
     <span class="nt">automated</span><span class="p">:</span>
       <span class="nt">prune</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">true</span>
@@ -1513,11 +1513,11 @@ when there are no target resources. It prevents application from having empty re
 <h2 id="automatic-self-healing">Automatic Self-Healing<a class="headerlink" href="#automatic-self-healing" title="Permanent link">&para;</a></h2>
 <p>By default, changes that are made to the live cluster will not trigger automated sync. To enable automatic sync 
 when the live cluster's state deviates from the state defined in Git, run:</p>
-<div class="bash codehilite"><pre><span></span><code>argocd app <span class="nb">set</span> &lt;APPNAME&gt; --self-heal
+<div class="codehilite"><pre><span></span><code>argocd app <span class="nb">set</span> &lt;APPNAME&gt; --self-heal
 </code></pre></div>
 
 <p>Or by setting the self heal option to true in the automated sync policy:</p>
-<div class="yaml codehilite"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
+<div class="codehilite"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
   <span class="nt">syncPolicy</span><span class="p">:</span>
     <span class="nt">automated</span><span class="p">:</span>
       <span class="nt">selfHeal</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">true</span>

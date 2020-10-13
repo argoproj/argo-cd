@@ -1693,7 +1693,7 @@ adapt your repository URL to be suffixed with <code>.git</code>.</p>
 <h3 id="https-username-and-password-credential">HTTPS Username And Password Credential<a class="headerlink" href="#https-username-and-password-credential" title="Permanent link">&para;</a></h3>
 <p>Private repositories that require a username and password typically have a URL that start with <code>https://</code> rather than <code>git@</code> or <code>ssh://</code>. </p>
 <p>Credentials can be configured using Argo CD CLI:</p>
-<div class="bash codehilite"><pre><span></span><code>argocd repo add https://github.com/argoproj/argocd-example-apps --username &lt;username&gt; --password &lt;password&gt;
+<div class="codehilite"><pre><span></span><code>argocd repo add https://github.com/argoproj/argocd-example-apps --username &lt;username&gt; --password &lt;password&gt;
 </code></pre></div>
 
 <p>or UI:</p>
@@ -1816,7 +1816,7 @@ adapt your repository URL to be suffixed with <code>.git</code>.</p>
 <p>Matching credential template URL prefixes is done on a <em>best match</em> effort, so the longest (best) match will take precedence. The order of definition is not important, as opposed to pre v1.4 configuration.</p>
 </div>
 <p>The following is an example CLI session, depicting repository credential set-up:</p>
-<div class="bash codehilite"><pre><span></span><code><span class="c1"># Try to add a private repository without specifying credentials, will fail</span>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Try to add a private repository without specifying credentials, will fail</span>
 $ argocd repo add https://docker-build/repos/argocd-example-apps
 FATA<span class="o">[</span><span class="m">0000</span><span class="o">]</span> rpc error: <span class="nv">code</span> <span class="o">=</span> Unknown <span class="nv">desc</span> <span class="o">=</span> authentication required 
 
@@ -1862,23 +1862,23 @@ FATA<span class="o">[</span><span class="m">0000</span><span class="o">]</span> 
 </div>
 <h3 id="managing-tls-certificates-using-the-cli">Managing TLS certificates using the CLI<a class="headerlink" href="#managing-tls-certificates-using-the-cli" title="Permanent link">&para;</a></h3>
 <p>You can list all configured TLS certificates by using the <code>argocd cert list</code> command using the <code>--cert-type https</code> modifier:</p>
-<div class="bash codehilite"><pre><span></span><code>$ argocd cert list --cert-type https
+<div class="codehilite"><pre><span></span><code>$ argocd cert list --cert-type https
 HOSTNAME      TYPE   SUBTYPE  FINGERPRINT/SUBJECT
 docker-build  https  rsa      <span class="nv">CN</span><span class="o">=</span>ArgoCD Test CA
 localhost     https  rsa      <span class="nv">CN</span><span class="o">=</span>localhost
 </code></pre></div>
 
 <p>Example for adding  a HTTPS repository to ArgoCD without verifying the server's certificate (<strong>Caution:</strong> This is <strong>not</strong> recommended for production use):</p>
-<div class="bash codehilite"><pre><span></span><code>argocd repo add --insecure-skip-server-verification https://git.example.com/test-repo
+<div class="codehilite"><pre><span></span><code>argocd repo add --insecure-skip-server-verification https://git.example.com/test-repo
 </code></pre></div>
 
 <p>Example for adding a CA certificate contained in file <code>~/myca-cert.pem</code> to properly verify the repository server:</p>
-<div class="bash codehilite"><pre><span></span><code>argocd cert add-tls git.example.com --from ~/myca-cert.pem
+<div class="codehilite"><pre><span></span><code>argocd cert add-tls git.example.com --from ~/myca-cert.pem
 argocd repo add https://git.example.com/test-repo
 </code></pre></div>
 
 <p>You can also add more than one PEM for a server by concatenating them into the input stream. This might be useful if the repository server is about to replace the server certificate, possibly with one signed by a different CA. This way, you can have the old (current) as well as the new (future) certificate co-existing. If you already have the old certificate configured, use the <code>--upsert</code> flag and add the old and the new one in a single run:</p>
-<div class="bash codehilite"><pre><span></span><code>cat cert1.pem cert2.pem <span class="p">|</span> argocd cert add-tls git.example.com --upsert
+<div class="codehilite"><pre><span></span><code>cat cert1.pem cert2.pem <span class="p">|</span> argocd cert add-tls git.example.com --upsert
 </code></pre></div>
 
 <div class="admonition note">
@@ -1886,7 +1886,7 @@ argocd repo add https://git.example.com/test-repo
 <p>To replace an existing certificate for a server, use the <code>--upsert</code> flag to the <code>cert add-tls</code> CLI command. </p>
 </div>
 <p>Finally, TLS certificates can be removed using the <code>argocd cert rm</code> command with the <code>--cert-type https</code> modifier:</p>
-<div class="bash codehilite"><pre><span></span><code>argocd cert rm --cert-type https localhost
+<div class="codehilite"><pre><span></span><code>argocd cert rm --cert-type https localhost
 </code></pre></div>
 
 <h3 id="managing-tls-certificates-using-the-argocd-web-ui">Managing TLS certificates using the ArgoCD web UI<a class="headerlink" href="#managing-tls-certificates-using-the-argocd-web-ui" title="Permanent link">&para;</a></h3>
@@ -1939,7 +1939,7 @@ Please refer to the <a href="../../operator-manual/declarative-setup/#repositori
 </div>
 <h3 id="managing-ssh-known-hosts-using-the-cli">Managing SSH Known Hosts using the CLI<a class="headerlink" href="#managing-ssh-known-hosts-using-the-cli" title="Permanent link">&para;</a></h3>
 <p>You can list all configured SSH known host entries using the <code>argocd cert list</code> command with the <code>--cert-type ssh</code> modifier:</p>
-<div class="bash codehilite"><pre><span></span><code>$ argocd cert list --cert-type ssh
+<div class="codehilite"><pre><span></span><code>$ argocd cert list --cert-type ssh
 HOSTNAME                 TYPE  SUBTYPE              FINGERPRINT/SUBJECT
 bitbucket.org            ssh   ssh-rsa              SHA256:zzXQOXSRBEiUtuE8AikJYKwbHaxvSc0ojez9YXaGp1A
 github.com               ssh   ssh-rsa              SHA256:nThbg6kXUpJWGl7E1IGOCspRomTxdCARLviKw6E5SY8
@@ -1952,19 +1952,19 @@ vs-ssh.visualstudio.com  ssh   ssh-rsa              SHA256:ohD8VZEXGWo6Ez8GSEJQ9
 
 <p>For adding SSH known host entries, the <code>argocd cert add-ssh</code> command can be used. You can either add from a file (using the <code>--from &lt;file&gt;</code> modifier), or by reading <code>stdin</code> when the <code>--batch</code> modifier was specified. In both cases, input must be in <code>known_hosts</code> format as understood by the OpenSSH client.</p>
 <p>Example for adding all available SSH public host keys for a server to ArgoCD, as collected by <code>ssh-keyscan</code>:</p>
-<div class="bash codehilite"><pre><span></span><code>ssh-keyscan server.example.com <span class="p">|</span> argocd cert add-ssh --batch 
+<div class="codehilite"><pre><span></span><code>ssh-keyscan server.example.com <span class="p">|</span> argocd cert add-ssh --batch 
 </code></pre></div>
 
 <p>Example for importing an existing <code>known_hosts</code> file to ArgoCD:</p>
-<div class="bash codehilite"><pre><span></span><code>argocd cert add-ssh --batch --from /etc/ssh/ssh_known_hosts
+<div class="codehilite"><pre><span></span><code>argocd cert add-ssh --batch --from /etc/ssh/ssh_known_hosts
 </code></pre></div>
 
 <p>Finally, SSH known host entries can be removed using the <code>argocd cert rm</code> command with the <code>--cert-type ssh</code> modifier:</p>
-<div class="bash codehilite"><pre><span></span><code>argocd cert rm bitbucket.org --cert-type ssh
+<div class="codehilite"><pre><span></span><code>argocd cert rm bitbucket.org --cert-type ssh
 </code></pre></div>
 
 <p>If you have multiple SSH known host entries for a given host with different key sub-types (e.g. as for gitlab.com in the example above, there are keys of sub-types <code>ssh-rsa</code>, <code>ssh-ed25519</code> and <code>ecdsa-sha2-nistp256</code>) and you want to only remove one of them, you can further narrow down the selection using the <code>--cert-sub-type</code> modifier:</p>
-<div class="bash codehilite"><pre><span></span><code>argocd cert rm gitlab.com --cert-type ssh --cert-sub-type ssh-ed25519
+<div class="codehilite"><pre><span></span><code>argocd cert rm gitlab.com --cert-type ssh --cert-sub-type ssh-ed25519
 </code></pre></div>
 
 <h3 id="managing-ssh-known-hosts-data-using-the-argocd-web-ui">Managing SSH known hosts data using the ArgoCD web UI<a class="headerlink" href="#managing-ssh-known-hosts-data-using-the-argocd-web-ui" title="Permanent link">&para;</a></h3>
@@ -1998,7 +1998,7 @@ vs-ssh.visualstudio.com  ssh   ssh-rsa              SHA256:ohD8VZEXGWo6Ez8GSEJQ9
 <a href="https://github.com/argoproj/argo-cd/issues/1514">#1514</a> only <code>argocd-repo-server</code> deployment has to be customized.</p>
 </div>
 <p>(1) Add repository using Argo CD CLI and <code>--insecure-ignore-host-key</code> flag:</p>
-<div class="bash codehilite"><pre><span></span><code>argocd repo add git@github.com:argoproj/argocd-example-apps.git --ssh-private-key-path ~/.ssh/id_rsa --insecure-ignore-host-key 
+<div class="codehilite"><pre><span></span><code>argocd repo add git@github.com:argoproj/argocd-example-apps.git --ssh-private-key-path ~/.ssh/id_rsa --insecure-ignore-host-key 
 </code></pre></div>
 
 <div class="admonition warning">

@@ -1551,7 +1551,7 @@
 <p>Helm has the ability to use a different, or even multiple "values.yaml" files to derive its
 parameters from. Alternate or multiple values file(s), can be specified using the <code>--values</code>
 flag. The flag can be repeated to support multiple values files:</p>
-<div class="bash codehilite"><pre><span></span><code>argocd app <span class="nb">set</span> helm-guestbook --values values-production.yaml
+<div class="codehilite"><pre><span></span><code>argocd app <span class="nb">set</span> helm-guestbook --values values-production.yaml
 </code></pre></div>
 
 <div class="admonition note">
@@ -1563,22 +1563,22 @@ the Helm chart.</p>
 <h2 id="helm-parameters">Helm Parameters<a class="headerlink" href="#helm-parameters" title="Permanent link">&para;</a></h2>
 <p>Helm has the ability to set parameter values, which override any values in
 a <code>values.yaml</code>. For example, <code>service.type</code> is a common parameter which is exposed in a Helm chart:</p>
-<div class="bash codehilite"><pre><span></span><code>helm template . --set service.type<span class="o">=</span>LoadBalancer
+<div class="codehilite"><pre><span></span><code>helm template . --set service.type<span class="o">=</span>LoadBalancer
 </code></pre></div>
 
 <p>Similarly, Argo CD can override values in the <code>values.yaml</code> parameters using <code>argo app set</code> command,
 in the form of <code>-p PARAM=VALUE</code>. For example:</p>
-<div class="bash codehilite"><pre><span></span><code>argocd app <span class="nb">set</span> helm-guestbook -p service.type<span class="o">=</span>LoadBalancer
+<div class="codehilite"><pre><span></span><code>argocd app <span class="nb">set</span> helm-guestbook -p service.type<span class="o">=</span>LoadBalancer
 </code></pre></div>
 
 <h2 id="helm-release-name">Helm Release Name<a class="headerlink" href="#helm-release-name" title="Permanent link">&para;</a></h2>
 <p>By default, the Helm release name is equal to the Application name to which it belongs. Sometimes, especially on a centralised ArgoCD,
 you may want to override that  name, and it is possible with the <code>release-name</code> flag on the cli:</p>
-<div class="bash codehilite"><pre><span></span><code>argocd app <span class="nb">set</span> helm-guestbook --release-name myRelease
+<div class="codehilite"><pre><span></span><code>argocd app <span class="nb">set</span> helm-guestbook --release-name myRelease
 </code></pre></div>
 
 <p>or using the releaseName for yaml:</p>
-<div class="yaml codehilite"><pre><span></span><code><span class="nt">source</span><span class="p">:</span>
+<div class="codehilite"><pre><span></span><code><span class="nt">source</span><span class="p">:</span>
     <span class="nt">helm</span><span class="p">:</span>
       <span class="nt">releaseName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">myRelease</span>
 </code></pre></div>
@@ -1678,7 +1678,7 @@ is any normal Kubernetes resource annotated with the <code>helm.sh/hook</code> a
 <code>randAlphaNum</code> function. Many helm charts from the <a href="https://github.com/helm/charts">charts repository</a>
 make use of this feature. For example, the following is the secret for the
 <a href="https://github.com/helm/charts/blob/master/stable/redis/templates/secret.yaml">redis helm chart</a>:</p>
-<div class="yaml codehilite"><pre><span></span><code><span class="nt">data</span><span class="p">:</span>
+<div class="codehilite"><pre><span></span><code><span class="nt">data</span><span class="p">:</span>
   <span class="p p-Indicator">{{</span><span class="nv">- if .Values.password</span> <span class="p p-Indicator">}}</span>
   <span class="nt">redis-password</span><span class="p">:</span> <span class="p p-Indicator">{{</span> <span class="nv">.Values.password | b64enc | quote</span> <span class="p p-Indicator">}}</span>
   <span class="p p-Indicator">{{</span><span class="nv">- else</span> <span class="p p-Indicator">}}</span>
@@ -1691,7 +1691,7 @@ the <code>helm template &lt;CHART&gt;</code> command to generate the helm manife
 regenerated every time the comparison is made, any application which makes use of the <code>randAlphaNum</code>
 function will always be in an <code>OutOfSync</code> state. This can be mitigated by explicitly setting a
 value, in the values.yaml such that the value is stable between each comparison. For example:</p>
-<div class="bash codehilite"><pre><span></span><code>argocd app <span class="nb">set</span> redis -p <span class="nv">password</span><span class="o">=</span>abc123
+<div class="codehilite"><pre><span></span><code>argocd app <span class="nb">set</span> redis -p <span class="nv">password</span><span class="o">=</span>abc123
 </code></pre></div>
 
 <h2 id="build-environment">Build Environment<a class="headerlink" href="#build-environment" title="Permanent link">&para;</a></h2>
@@ -1700,12 +1700,12 @@ value, in the values.yaml such that the value is stable between each comparison.
 </blockquote>
 <p>Helm apps have access to the <a href="../build-environment/">standard build environment</a> via substitution as parameters.</p>
 <p>E.g. via the CLI:</p>
-<div class="bash codehilite"><pre><span></span><code>argocd app create APPNAME <span class="se">\</span>
+<div class="codehilite"><pre><span></span><code>argocd app create APPNAME <span class="se">\</span>
   --helm-set-string <span class="s1">&#39;app=${ARGOCD_APP_NAME}&#39;</span>
 </code></pre></div>
 
 <p>Or via declarative syntax:</p>
-<div class="yaml codehilite"><pre><span></span><code>  <span class="nt">spec</span><span class="p">:</span>
+<div class="codehilite"><pre><span></span><code>  <span class="nt">spec</span><span class="p">:</span>
     <span class="nt">source</span><span class="p">:</span>
       <span class="nt">helm</span><span class="p">:</span>
         <span class="nt">parameters</span><span class="p">:</span>
@@ -1745,11 +1745,11 @@ value, in the values.yaml such that the value is stable between each comparison.
 <h2 id="helm-version">Helm Version<a class="headerlink" href="#helm-version" title="Permanent link">&para;</a></h2>
 <p>ArgoCD normally detects which version of Helm to use by looking at the <code>apiVersion</code> in Chart.yaml.</p>
 <p>If needed, it is possible to specifically set the Helm version to template with by setting the <code>helm-version</code> flag on the cli (either v2 or v3):</p>
-<div class="bash codehilite"><pre><span></span><code>argocd app <span class="nb">set</span> helm-guestbook --helm-version v2
+<div class="codehilite"><pre><span></span><code>argocd app <span class="nb">set</span> helm-guestbook --helm-version v2
 </code></pre></div>
 
 <p>Or using declarative syntax:</p>
-<div class="yaml codehilite"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
+<div class="codehilite"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
   <span class="nt">source</span><span class="p">:</span>
     <span class="nt">helm</span><span class="p">:</span>
       <span class="nt">version</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v2</span>

@@ -1517,7 +1517,7 @@ Kubernetes rolling update strategy.</li>
 </ul>
 <h2 id="usage">Usage<a class="headerlink" href="#usage" title="Permanent link">&para;</a></h2>
 <p>Hooks are simply Kubernetes manifests inside your Argo CD Application annotated with <code>argocd.argoproj.io/hook</code>, e.g.:</p>
-<div class="yaml codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">batch/v1</span>
+<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">batch/v1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Job</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">generateName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">schema-migrate-</span>
@@ -1567,7 +1567,7 @@ separated list.</p>
 <p>Hooks are not run during <a href="../selective_sync/">selective sync</a>.</p>
 <h2 id="hook-deletion-policies">Hook Deletion Policies<a class="headerlink" href="#hook-deletion-policies" title="Permanent link">&para;</a></h2>
 <p>Hooks can be deleted in an automatic fashion using the annotation: <code>argocd.argoproj.io/hook-delete-policy</code>.</p>
-<div class="yaml codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">batch/v1</span>
+<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">batch/v1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Job</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">generateName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">integration-test-</span>
@@ -1602,13 +1602,13 @@ separated list.</p>
 <p>As an alternative to hook deletion policies, both Jobs and Argo Workflows support the
 <a href="https://kubernetes.io/docs/concepts/workloads/controllers/ttlafterfinished/"><code>ttlSecondsAfterFinished</code></a>
 field in the spec, which let their respective controllers delete the Job/Workflow after it completes.</p>
-<div class="yaml codehilite"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
+<div class="codehilite"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
   <span class="nt">ttlSecondsAfterFinished</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">600</span>
 </code></pre></div>
 
 <h2 id="using-a-hook-to-send-a-slack-message">Using A Hook To Send A Slack Message<a class="headerlink" href="#using-a-hook-to-send-a-slack-message" title="Permanent link">&para;</a></h2>
 <p>The following example uses the Slack API to send a a Slack message when sync completes or fails: </p>
-<div class="yaml codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">batch/v1</span>
+<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">batch/v1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Job</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">generateName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">app-slack-notification-</span>
@@ -1632,7 +1632,7 @@ field in the spec, which let their respective controllers delete the Job/Workflo
   <span class="nt">backoffLimit</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">2</span>
 </code></pre></div>
 
-<div class="yaml codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">batch/v1</span>
+<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">batch/v1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Job</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">generateName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">app-slack-notification-fail-</span>

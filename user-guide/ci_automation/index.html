@@ -1458,7 +1458,7 @@ config.</p>
 <p>To push new container images into to a cluster managed by Argo CD, the following workflow (or 
 variations), might be used:</p>
 <h2 id="build-and-publish-a-new-container-image">Build And Publish A New Container Image<a class="headerlink" href="#build-and-publish-a-new-container-image" title="Permanent link">&para;</a></h2>
-<div class="bash codehilite"><pre><span></span><code>docker build -t mycompany/guestbook:v2.0 .
+<div class="codehilite"><pre><span></span><code>docker build -t mycompany/guestbook:v2.0 .
 docker push mycompany/guestbook:v2.0
 </code></pre></div>
 
@@ -1469,7 +1469,7 @@ docker push mycompany/guestbook:v2.0
 your application source code), is highly recommended. See <a href="../best_practices/">best practices</a>
 for further rationale.</p>
 </div>
-<div class="bash codehilite"><pre><span></span><code>git clone https://github.com/mycompany/guestbook-config.git
+<div class="codehilite"><pre><span></span><code>git clone https://github.com/mycompany/guestbook-config.git
 <span class="nb">cd</span> guestbook-config
 
 <span class="c1"># kustomize</span>
@@ -1489,7 +1489,7 @@ git push
 <p>For convenience, the argocd CLI can be downloaded directly from the API server. This is
 useful so that the CLI used in the CI pipeline is always kept in-sync and uses argocd binary
 that is always compatible with the Argo CD API server.</p>
-<div class="bash codehilite"><pre><span></span><code><span class="nb">export</span> <span class="nv">ARGOCD_SERVER</span><span class="o">=</span>argocd.mycompany.com
+<div class="codehilite"><pre><span></span><code><span class="nb">export</span> <span class="nv">ARGOCD_SERVER</span><span class="o">=</span>argocd.mycompany.com
 <span class="nb">export</span> <span class="nv">ARGOCD_AUTH_TOKEN</span><span class="o">=</span>&lt;JWT token generated from project&gt;
 curl -sSL -o /usr/local/bin/argocd https://<span class="si">${</span><span class="nv">ARGOCD_SERVER</span><span class="si">}</span>/download/argocd-linux-amd64
 argocd app sync guestbook

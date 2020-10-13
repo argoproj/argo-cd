@@ -1528,7 +1528,7 @@ teams. Projects provide the following features:</p>
 <code>default</code> project, which is created automatically and by default, permits deployments from any
 source repo, to any cluster, and all resource Kinds. The default project can be modified, but not
 deleted. When initially created, it's specification is configured to be the most permissive:</p>
-<div class="yaml codehilite"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
+<div class="codehilite"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
   <span class="nt">sourceRepos</span><span class="p">:</span>
   <span class="p p-Indicator">-</span> <span class="s">&#39;*&#39;</span>
   <span class="nt">destinations</span><span class="p">:</span>
@@ -1544,24 +1544,24 @@ deleted. When initially created, it's specification is configured to be the most
 The following command creates a new project <code>myproject</code> which can deploy applications to namespace
 <code>mynamespace</code> of cluster <code>https://kubernetes.default.svc</code>. The permitted Git source repository is
 set to <code>https://github.com/argoproj/argocd-example-apps.git</code> repository.</p>
-<div class="bash codehilite"><pre><span></span><code>argocd proj create myproject -d https://kubernetes.default.svc,mynamespace -s https://github.com/argoproj/argocd-example-apps.git
+<div class="codehilite"><pre><span></span><code>argocd proj create myproject -d https://kubernetes.default.svc,mynamespace -s https://github.com/argoproj/argocd-example-apps.git
 </code></pre></div>
 
 <h3 id="managing-projects">Managing Projects<a class="headerlink" href="#managing-projects" title="Permanent link">&para;</a></h3>
 <p>Permitted source Git repositories are managed using commands:</p>
-<div class="bash codehilite"><pre><span></span><code>argocd proj add-source &lt;PROJECT&gt; &lt;REPO&gt;
+<div class="codehilite"><pre><span></span><code>argocd proj add-source &lt;PROJECT&gt; &lt;REPO&gt;
 argocd proj remove-source &lt;PROJECT&gt; &lt;REPO&gt;
 </code></pre></div>
 
 <p>Permitted destination clusters and namespaces are managed with the commands (for clusters always provide server, the name is not used for matching):</p>
-<div class="bash codehilite"><pre><span></span><code>argocd proj add-destination &lt;PROJECT&gt; &lt;CLUSTER&gt;,&lt;NAMESPACE&gt;
+<div class="codehilite"><pre><span></span><code>argocd proj add-destination &lt;PROJECT&gt; &lt;CLUSTER&gt;,&lt;NAMESPACE&gt;
 argocd proj remove-destination &lt;PROJECT&gt; &lt;CLUSTER&gt;,&lt;NAMESPACE&gt;
 </code></pre></div>
 
 <p>Permitted destination K8s resource kinds are managed with the commands. Note that namespaced-scoped
 resources are restricted via a blacklist, whereas cluster-scoped resources are restricted via
 whitelist.</p>
-<div class="bash codehilite"><pre><span></span><code>argocd proj allow-cluster-resource &lt;PROJECT&gt; &lt;GROUP&gt; &lt;KIND&gt;
+<div class="codehilite"><pre><span></span><code>argocd proj allow-cluster-resource &lt;PROJECT&gt; &lt;GROUP&gt; &lt;KIND&gt;
 argocd proj allow-namespace-resource &lt;PROJECT&gt; &lt;GROUP&gt; &lt;KIND&gt;
 argocd proj deny-cluster-resource &lt;PROJECT&gt; &lt;GROUP&gt; &lt;KIND&gt;
 argocd proj deny-namespace-resource &lt;PROJECT&gt; &lt;GROUP&gt; &lt;KIND&gt;
@@ -1584,7 +1584,7 @@ project.  However, the policies have an option for granting wildcard access to a
 within a project.</p>
 <p>In order to create roles in a project and add policies to a role, a user will need permission to
 update a project.  The following commands can be used to manage a role.</p>
-<div class="bash codehilite"><pre><span></span><code>argocd proj role list
+<div class="codehilite"><pre><span></span><code>argocd proj role list
 argocd proj role get
 argocd proj role create
 argocd proj role delete
@@ -1597,7 +1597,7 @@ supports JWT tokens as the means to authenticate to a role. Since the JWT token 
 associated with a role's policies, any changes to the role's policies will immediately take effect
 for that JWT token.</p>
 <p>The following commands are used to manage the JWT tokens.</p>
-<div class="bash codehilite"><pre><span></span><code>argocd proj role create-token PROJECT ROLE-NAME
+<div class="codehilite"><pre><span></span><code>argocd proj role create-token PROJECT ROLE-NAME
 argocd proj role delete-token PROJECT ROLE-NAME ISSUED-AT
 </code></pre></div>
 
@@ -1610,7 +1610,7 @@ the token has been revoked.</p>
 <p>Below is an example of leveraging a JWT token to access a guestbook application.  It makes the
 assumption that the user already has a project named myproject and an application called
 guestbook-default.</p>
-<div class="bash codehilite"><pre><span></span><code><span class="nv">PROJ</span><span class="o">=</span>myproject
+<div class="codehilite"><pre><span></span><code><span class="nv">PROJ</span><span class="o">=</span>myproject
 <span class="nv">APP</span><span class="o">=</span>guestbook-default
 <span class="nv">ROLE</span><span class="o">=</span>get-role
 argocd proj role create <span class="nv">$PROJ</span> <span class="nv">$ROLE</span>
@@ -1644,7 +1644,7 @@ argocd app get <span class="nv">$APP</span> --auth-token <span class="nv">$JWT</
 <p>The project Roles allows configuring RBAC rules scoped to the project. The following sample
 project provides read-only permissions on project applications to any member of <code>my-oidc-group</code> group.</p>
 <p><em>AppProject example:</em></p>
-<div class="yaml codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">AppProject</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">my-project</span>

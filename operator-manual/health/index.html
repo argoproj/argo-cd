@@ -1576,7 +1576,7 @@ with at least one value for <code>hostname</code> or <code>IP</code>.</li>
 <p>There are two ways to configure a custom health check. The next two sections describe those ways.</p>
 <h3 id="way-1-define-a-custom-health-check-in-argocd-cm-configmap">Way 1. Define a Custom Health Check in <code>argocd-cm</code> ConfigMap<a class="headerlink" href="#way-1-define-a-custom-health-check-in-argocd-cm-configmap" title="Permanent link">&para;</a></h3>
 <p>Custom health checks can be defined in <code>resource.customizations</code> field of <code>argocd-cm</code>. Following example demonstrates a health check for <code>cert-manager.io/Certificate</code>.</p>
-<div class="yaml codehilite"><pre><span></span><code><span class="nt">data</span><span class="p">:</span>
+<div class="codehilite"><pre><span></span><code><span class="nt">data</span><span class="p">:</span>
   <span class="nt">resource.customizations</span><span class="p">:</span> <span class="p p-Indicator">|</span>
     <span class="no">cert-manager.io/Certificate:</span>
       <span class="no">health.lua: |</span>
@@ -1617,7 +1617,7 @@ with at least one value for <code>hostname</code> or <code>IP</code>.</li>
 </code></pre></div>
 
 <p>Each health check must have tests defined in <code>health_test.yaml</code> file. The <code>health_test.yaml</code> is a YAML file with the following structure:</p>
-<div class="yaml codehilite"><pre><span></span><code><span class="nt">tests</span><span class="p">:</span>
+<div class="codehilite"><pre><span></span><code><span class="nt">tests</span><span class="p">:</span>
 <span class="p p-Indicator">-</span> <span class="nt">healthStatus</span><span class="p">:</span>
     <span class="nt">status</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ExpectedStatus</span>
     <span class="nt">message</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Expected message</span>

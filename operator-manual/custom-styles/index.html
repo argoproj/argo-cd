@@ -1540,7 +1540,7 @@ the argocd-cm configMap.</p>
 <h2 id="adding-styles-via-remote-url">Adding Styles Via Remote URL<a class="headerlink" href="#adding-styles-via-remote-url" title="Permanent link">&para;</a></h2>
 <p>The first method simply requires the addition of the remote URL to the argocd-cm configMap:</p>
 <h3 id="argocd-cm">argocd-cm<a class="headerlink" href="#argocd-cm" title="Permanent link">&para;</a></h3>
-<div class="yaml codehilite"><pre><span></span><code><span class="nn">---</span>
+<div class="codehilite"><pre><span></span><code><span class="nn">---</span>
 <span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
 <span class="nt">metadata</span><span class="p">:</span>
@@ -1556,7 +1556,7 @@ providing the argocd-cm with the properly configured path to that file.  In the 
 the CSS file is actually defined inside of a separate configMap (the same effect could be achieved
 by generating or downloading a CSS file in an initContainer):</p>
 <h3 id="argocd-cm_1">argocd-cm<a class="headerlink" href="#argocd-cm_1" title="Permanent link">&para;</a></h3>
-<div class="yaml codehilite"><pre><span></span><code><span class="nn">---</span>
+<div class="codehilite"><pre><span></span><code><span class="nn">---</span>
 <span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
 <span class="nt">metadata</span><span class="p">:</span>
@@ -1569,7 +1569,7 @@ by generating or downloading a CSS file in an initContainer):</p>
 <p>Note that the <code>cssurl</code> should be specified relative to the "/shared/app" directory; 
 not as an absolute path.</p>
 <h3 id="argocd-styles-cm">argocd-styles-cm<a class="headerlink" href="#argocd-styles-cm" title="Permanent link">&para;</a></h3>
-<div class="yaml codehilite"><pre><span></span><code><span class="nn">---</span>
+<div class="codehilite"><pre><span></span><code><span class="nn">---</span>
 <span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
 <span class="nt">metadata</span><span class="p">:</span>
@@ -1583,7 +1583,7 @@ not as an absolute path.</p>
 </code></pre></div>
 
 <h3 id="argocd-server">argocd-server<a class="headerlink" href="#argocd-server" title="Permanent link">&para;</a></h3>
-<div class="yaml codehilite"><pre><span></span><code><span class="nn">---</span>
+<div class="codehilite"><pre><span></span><code><span class="nn">---</span>
 <span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">apps/v1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Deployment</span>
 <span class="nt">metadata</span><span class="p">:</span>

@@ -1483,7 +1483,7 @@
 <p>Read more about <a href="../private-repositories/">private repos</a>.</p>
 <h2 id="kustomize-build-optionsparameters"><code>kustomize build</code> Options/Parameters<a class="headerlink" href="#kustomize-build-optionsparameters" title="Permanent link">&para;</a></h2>
 <p>To provide build options to <code>kustomize build</code> add a property to the ArgoCD CM under data:</p>
-<div class="yaml codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
@@ -1499,7 +1499,7 @@
 <p>Argo CD supports using multiple kustomize versions simultaneously and specify required version per application.
 To add additional versions make sure required versions are <a href="../../operator-manual/custom_tools/">bundled</a> and then
 use <code>kustomize.version.&lt;version&gt;</code> fields of <code>argocd-cm</code> ConfigMap to register bundled additional versions.   </p>
-<div class="yaml codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
@@ -1513,7 +1513,7 @@ use <code>kustomize.version.&lt;version&gt;</code> fields of <code>argocd-cm</co
 </code></pre></div>
 
 <p>Once new version is configured you can reference it in Application spec as following:</p>
-<div class="yaml codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Application</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook</span>

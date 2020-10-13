@@ -1852,24 +1852,24 @@ permissions for <code>gpgkeys</code> resources.</p>
 <h4 id="listing-all-configured-keys">Listing all configured keys<a class="headerlink" href="#listing-all-configured-keys" title="Permanent link">&para;</a></h4>
 <p>To list all configured keys known to ArgoCD, use the <code>argocd gpg list</code>
 sub-command:</p>
-<div class="bash codehilite"><pre><span></span><code>argocd gpg list
+<div class="codehilite"><pre><span></span><code>argocd gpg list
 </code></pre></div>
 
 <h4 id="show-information-about-a-certain-key">Show information about a certain key<a class="headerlink" href="#show-information-about-a-certain-key" title="Permanent link">&para;</a></h4>
 <p>To get information about a specific key, use the <code>argocd gpg get</code> sub-command:</p>
-<div class="bash codehilite"><pre><span></span><code>argocd gpg get &lt;key-id&gt;
+<div class="codehilite"><pre><span></span><code>argocd gpg get &lt;key-id&gt;
 </code></pre></div>
 
 <h4 id="importing-a-key">Importing a key<a class="headerlink" href="#importing-a-key" title="Permanent link">&para;</a></h4>
 <p>To import a new key to ArgoCD, use the <code>argocd gpg add</code> sub-command:</p>
-<div class="bash codehilite"><pre><span></span><code>argocd gpg add --from &lt;path-to-key&gt;
+<div class="codehilite"><pre><span></span><code>argocd gpg add --from &lt;path-to-key&gt;
 </code></pre></div>
 
 <p>The key to be imported can be either in binary or ASCII-armored format.</p>
 <h4 id="removing-a-key-from-configuration">Removing a key from configuration<a class="headerlink" href="#removing-a-key-from-configuration" title="Permanent link">&para;</a></h4>
 <p>To remove a previously configured key from the configuration, use the
 <code>argocd gpg rm</code> sub-command:</p>
-<div class="bash codehilite"><pre><span></span><code>argocd gpg rm &lt;key-id&gt;
+<div class="codehilite"><pre><span></span><code>argocd gpg rm &lt;key-id&gt;
 </code></pre></div>
 
 <h3 id="manage-public-keys-using-the-web-ui">Manage public keys using the Web UI<a class="headerlink" href="#manage-public-keys-using-the-web-ui" title="Permanent link">&para;</a></h3>
@@ -1883,7 +1883,7 @@ imported in ASCII armored format for now.</p>
 resource, with the public GnuPG key's ID as its name and the ASCII armored
 key data as string value, i.e. the entry for the GitHub's web-flow signing
 key would look like follows:</p>
-<div class="yaml codehilite"><pre><span></span><code><span class="nt">4AEE18F83AFDEB23</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+<div class="codehilite"><pre><span></span><code><span class="nt">4AEE18F83AFDEB23</span><span class="p">:</span> <span class="p p-Indicator">|</span>
     <span class="no">-----BEGIN PGP PUBLIC KEY BLOCK-----</span>
 
     <span class="no">mQENBFmUaEEBCACzXTDt6ZnyaVtueZASBzgnAmK13q9Urgch+sKYeIhdymjuMQta</span>
@@ -1912,20 +1912,20 @@ keys.</p>
 <p>To add a key ID to the list of allowed GnuPG keys for a project, you can use
 the <code>argocd proj add-signature-key</code> command, i.e. the following command would
 add the key ID <code>4AEE18F83AFDEB23</code> to the project named <code>myproj</code>:</p>
-<div class="bash codehilite"><pre><span></span><code>argocd proj add-signature-key myproj 4AEE18F83AFDEB23
+<div class="codehilite"><pre><span></span><code>argocd proj add-signature-key myproj 4AEE18F83AFDEB23
 </code></pre></div>
 
 <h4 id="removing-a-key-id-from-the-list-of-allowed-keys">Removing a key ID from the list of allowed keys<a class="headerlink" href="#removing-a-key-id-from-the-list-of-allowed-keys" title="Permanent link">&para;</a></h4>
 <p>Similarily, you can remove a key ID from the list of allowed GnuPG keys for a
 project using the <code>argocd proj remove-signature-key</code> command, i.e. to remove
 the key added above from project <code>myproj</code>, use the command:</p>
-<div class="bash codehilite"><pre><span></span><code>argocd proj remove-signature-key myproj 4AEE18F83AFDEB23
+<div class="codehilite"><pre><span></span><code>argocd proj remove-signature-key myproj 4AEE18F83AFDEB23
 </code></pre></div>
 
 <h4 id="showing-allowed-key-ids-for-a-project">Showing allowed key IDs for a project<a class="headerlink" href="#showing-allowed-key-ids-for-a-project" title="Permanent link">&para;</a></h4>
 <p>To see which key IDs are allowed for a given project, you can inspect the
 output of the <code>argocd proj get</code> command, i.e for a project named <code>gpg</code>:</p>
-<div class="bash codehilite"><pre><span></span><code>$ argocd proj get gpg
+<div class="codehilite"><pre><span></span><code>$ argocd proj get gpg
 Name:                             gpg
 Description:                      GnuPG verification
 Destinations:                     *,*
@@ -1940,7 +1940,7 @@ Orphaned Resources:               disabled
 <p>You can also explicitly set the currently allowed keys with one or more new keys
 using the <code>argocd proj set</code> command in combination with the <code>--signature-keys</code>
 flag, which you can use to specify a comma separated list of allowed key IDs:</p>
-<div class="bash codehilite"><pre><span></span><code>argocd proj <span class="nb">set</span> myproj --signature-keys 4AEE18F83AFDEB23,07E34825A909B250
+<div class="codehilite"><pre><span></span><code>argocd proj <span class="nb">set</span> myproj --signature-keys 4AEE18F83AFDEB23,07E34825A909B250
 </code></pre></div>
 
 <p>The <code>--signature-keys</code> flag can also be used on project creation, i.e. the
@@ -1957,7 +1957,7 @@ for signature verification. After you have modified your project, click
 <h3 id="configure-using-declarative-setup">Configure using declarative setup<a class="headerlink" href="#configure-using-declarative-setup" title="Permanent link">&para;</a></h3>
 <p>You can specify the key IDs required for signature verification in the project
 manifest within the <code>signatureKeys</code> section, i.e:</p>
-<div class="yaml codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">AppProject</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">gpg</span>
@@ -2005,7 +2005,7 @@ trust DB for the running pod.</p>
 <p>To check whether the keys are actually in sync, you can <code>kubectl exec</code> into the
 repository server's pods and inspect the key ring, which is located at path
 <code>/app/config/gpg/keys</code></p>
-<div class="bash codehilite"><pre><span></span><code>$ kubectl <span class="nb">exec</span> -it argocd-repo-server-7d6bdfdf6d-hzqkg bash
+<div class="codehilite"><pre><span></span><code>$ kubectl <span class="nb">exec</span> -it argocd-repo-server-7d6bdfdf6d-hzqkg bash
 argocd@argocd-repo-server-7d6bdfdf6d-hzqkg:~$ <span class="nv">GNUPGHOME</span><span class="o">=</span>/app/config/gpg/keys gpg --list-keys
 /app/config/gpg/keys/pubring.kbx
 --------------------------------

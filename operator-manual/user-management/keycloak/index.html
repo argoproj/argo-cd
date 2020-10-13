@@ -1430,7 +1430,7 @@ and that the <em>groups</em> claim is in the correct list on the <strong>right</
 <p>Now we can configure the config map and add the oidc configuration to enable our keycloak authentication.
 You can use <code>$ kubectl edit configmap argocd-cm</code>.</p>
 <p>Your ConfigMap should look like this:</p>
-<div class="yaml codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
@@ -1452,7 +1452,7 @@ You can use <code>$ kubectl edit configmap argocd-cm</code>.</p>
 <h2 id="configuring-argocd-policy">Configuring ArgoCD Policy<a class="headerlink" href="#configuring-argocd-policy" title="Permanent link">&para;</a></h2>
 <p>Now that we have an authentication that provides groups we want to apply a policy to these groups.
 We can modify the <em>argocd-rbac-cm</em> ConfigMap using <code>$ kubectl edit configmap argocd-rbac-cm</code>.</p>
-<div class="yaml codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-rbac-cm</span>
