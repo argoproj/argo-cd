@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -22,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	informerv1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-cd/common"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -294,6 +296,9 @@ func clusterToSecret(c *appv1.Cluster, secret *apiv1.Secret) error {
 		return err
 	}
 	data["config"] = configBytes
+	if c.Shard != nil {
+		data["shard"] = []byte(strconv.Itoa(int(*c.Shard)))
+	}
 	secret.Data = data
 
 	if secret.Annotations == nil {
@@ -327,17 +332,27 @@ func secretToCluster(s *apiv1.Secret) *appv1.Cluster {
 	if v, found := s.Annotations[common.AnnotationKeyRefresh]; found {
 		requestedAt, err := time.Parse(time.RFC3339, v)
 		if err != nil {
-			log.Warnf("Error while parsing date: %v", err)
+			log.Warnf("Error while parsing date in cluster secret '%s': %v", s.Name, err)
 		} else {
 			refreshRequestedAt = &metav1.Time{Time: requestedAt}
 		}
 	}
+	var shard *int64
+	if shardStr := s.Data["shard"]; shardStr != nil {
+		if val, err := strconv.Atoi(string(shardStr)); err != nil {
+			log.Warnf("Error while parsing shard in cluster secret '%s': %v", s.Name, err)
+		} else {
+			shard = pointer.Int64Ptr(int64(val))
+		}
+	}
 	cluster := appv1.Cluster{
+		ID:                 string(s.UID),
 		Server:             strings.TrimRight(string(s.Data["server"]), "/"),
 		Name:               string(s.Data["name"]),
 		Namespaces:         namespaces,
 		Config:             config,
 		RefreshRequestedAt: refreshRequestedAt,
+		Shard:              shard,
 	}
 	return &cluster
 }

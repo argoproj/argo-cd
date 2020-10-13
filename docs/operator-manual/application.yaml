@@ -23,6 +23,9 @@ spec:
       parameters:
       - name: "nginx-ingress.controller.service.annotations.external-dns\\.alpha\\.kubernetes\\.io/hostname"
         value: mydomain.example.com
+      - name: "ingress.annotations.kubernetes\\.io/tls-acme"
+        value: "true"
+        forceString: true # ensures that value is treated as a string
 
       # Release name override (defaults to application name)
       releaseName: guestbook

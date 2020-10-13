@@ -362,6 +362,9 @@ message Cluster {
 
   // Holds information about cluster cache
   optional ClusterInfo info = 8;
+
+  // Shard contains optional shard number. Calculated on the fly by the application controller if not specified.
+  optional int64 shard = 9;
 }
 
 message ClusterCacheInfo {
@@ -1073,6 +1076,9 @@ message SyncPolicyAutomated {
 
   // SelfHeal enables auto-syncing if  (default: false)
   optional bool selfHeal = 2;
+
+  // AllowEmpty allows apps have zero live resources (default: false)
+  optional bool allowEmpty = 3;
 }
 
 // SyncStatus is a comparison result of application spec and deployed application.

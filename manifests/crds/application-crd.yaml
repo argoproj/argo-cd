@@ -555,6 +555,9 @@ spec:
                 automated:
                   description: Automated will keep an application synced to the target revision
                   properties:
+                    allowEmpty:
+                      description: 'AllowEmpty allows apps have zero live resources (default: false)'
+                      type: boolean
                     prune:
                       description: 'Prune will prune resources automatically as part of automated sync (default: false)'
                       type: boolean
