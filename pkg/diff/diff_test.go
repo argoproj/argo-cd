@@ -719,6 +719,17 @@ func TestNullCreationTimestamp(t *testing.T) {
 	}
 }
 
+func TestUnsortedEndpoints(t *testing.T) {
+	configUn := unmarshalFile("testdata/endpoints-config.json")
+	liveUn := unmarshalFile("testdata/endpoints-live.json")
+	dr := diff(t, configUn, liveUn, GetDefaultDiffOptions())
+	if !assert.False(t, dr.Modified) {
+		ascii, err := printDiff(dr)
+		assert.Nil(t, err)
+		t.Log(ascii)
+	}
+}
+
 func createSecret(data map[string]string) *unstructured.Unstructured {
 	secret := corev1.Secret{TypeMeta: metav1.TypeMeta{Kind: "Secret"}}
 	if data != nil {

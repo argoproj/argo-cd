@@ -18,10 +18,15 @@ import (
 	"k8s.io/apimachinery/pkg/util/jsonmergepatch"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/kubernetes/pkg/api/endpoints"
+	"k8s.io/kubernetes/pkg/apis/core"
+	v1 "k8s.io/kubernetes/pkg/apis/core/v1"
 
 	jsonutil "github.com/argoproj/gitops-engine/pkg/utils/json"
 	kubescheme "github.com/argoproj/gitops-engine/pkg/utils/kube/scheme"
 )
+
+const couldNotMarshalErrMsg = "Could not unmarshal to object of type %s: %v"
 
 // Holds diffing settings
 type DiffOptions struct {
@@ -370,6 +375,8 @@ func Normalize(un *unstructured.Unstructured, normalizer Normalizer, options Dif
 		NormalizeSecret(un)
 	} else if gvk.Group == "rbac.authorization.k8s.io" && (gvk.Kind == "ClusterRole" || gvk.Kind == "Role") {
 		normalizeRole(un, options)
+	} else if gvk.Group == "" && gvk.Kind == "Endpoints" {
+		normalizeEndpoint(un)
 	}
 
 	if normalizer != nil {
@@ -421,6 +428,41 @@ func NormalizeSecret(un *unstructured.Unstructured) {
 			log.Warnf("failed to set secret.data: %v", err)
 			return
 		}
+	}
+}
+
+// normalizeEndpoint normalizes endpoint meaning that EndpointSubsets are sorted lexicographically
+func normalizeEndpoint(un *unstructured.Unstructured) {
+	if un == nil {
+		return
+	}
+	gvk := un.GroupVersionKind()
+	if gvk.Group != "" || gvk.Kind != "Endpoints" {
+		return
+	}
+	var ep corev1.Endpoints
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &ep)
+	if err != nil {
+		return
+	}
+	var coreEp core.Endpoints
+	err = v1.Convert_v1_Endpoints_To_core_Endpoints(&ep, &coreEp, nil)
+	if err != nil {
+		log.Warnf("Could not convert from v1 to core endpoint type %s: %v", gvk, err)
+		return
+	}
+
+	endpoints.SortSubsets(coreEp.Subsets)
+
+	err = v1.Convert_core_Endpoints_To_v1_Endpoints(&coreEp, &ep, nil)
+	if err != nil {
+		log.Warnf("Could not convert from core to vi endpoint type %s: %v", gvk, err)
+		return
+	}
+	un.Object, err = runtime.DefaultUnstructuredConverter.ToUnstructured(&ep)
+	if err != nil {
+		log.Warnf(couldNotMarshalErrMsg, gvk, err)
+		return
 	}
 }
 
@@ -583,12 +625,12 @@ func remarshal(obj *unstructured.Unstructured) *unstructured.Unstructured {
 	err = json.Unmarshal(data, &unmarshalledObj)
 	if err != nil {
 		// User may have specified an invalid spec in git. Return original object
-		log.Debugf("Could not unmarshal to object of type %s: %v", gvk, err)
+		log.Debugf(couldNotMarshalErrMsg, gvk, err)
 		return obj
 	}
 	unstrBody, err := runtime.DefaultUnstructuredConverter.ToUnstructured(unmarshalledObj)
 	if err != nil {
-		log.Warnf("Could not unmarshal to object of type %s: %v", gvk, err)
+		log.Warnf(couldNotMarshalErrMsg, gvk, err)
 		return obj
 	}
 	// remove all default values specified by custom formatter (e.g. creationTimestamp)
