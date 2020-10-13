@@ -90,6 +90,28 @@ func TestInClusterKubeConfig(t *testing.T) {
 	assert.Empty(t, kubeConfig.AuthInfos[kubeConfig.CurrentContext].TokenFile)
 }
 
+func TestNewKubeConfig_TLSServerName(t *testing.T) {
+	const (
+		host          = "something.test"
+		tlsServerName = "something.else.test"
+	)
+
+	restConfig := &rest.Config{
+		Host: host,
+	}
+	kubeConfig := NewKubeConfig(restConfig, "")
+	assert.Empty(t, kubeConfig.Clusters[host].TLSServerName)
+
+	restConfig = &rest.Config{
+		Host: host,
+		TLSClientConfig: rest.TLSClientConfig{
+			ServerName: tlsServerName,
+		},
+	}
+	kubeConfig = NewKubeConfig(restConfig, "")
+	assert.Equal(t, tlsServerName, kubeConfig.Clusters[host].TLSServerName)
+}
+
 func TestGetDeploymentReplicas(t *testing.T) {
 	manifest := []byte(`
 apiVersion: apps/v1

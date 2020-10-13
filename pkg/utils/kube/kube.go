@@ -222,6 +222,7 @@ func NewKubeConfig(restConfig *rest.Config, namespace string) *clientcmdapi.Conf
 		Clusters: map[string]*clientcmdapi.Cluster{
 			restConfig.Host: {
 				Server:                   restConfig.Host,
+				TLSServerName:            restConfig.TLSClientConfig.ServerName,
 				InsecureSkipTLSVerify:    restConfig.TLSClientConfig.Insecure,
 				CertificateAuthority:     restConfig.TLSClientConfig.CAFile,
 				CertificateAuthorityData: restConfig.TLSClientConfig.CAData,
