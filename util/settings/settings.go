@@ -244,7 +244,7 @@ const (
 	resourceCompareOptionsKey = "resource.compareoptions"
 	// settingUiCssURLKey designates the key for user-defined CSS URL for UI customization
 	settingUiCssURLKey = "ui.cssurl"
-	// projectSpec designates the key for global project settings
+	// globalProjectsKey designates the key for global project settings
 	globalProjectsKey = "globalProjects"
 )
 
