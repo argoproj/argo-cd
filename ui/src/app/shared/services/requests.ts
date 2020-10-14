@@ -70,7 +70,11 @@ export default {
     loadEventSource(url: string): Observable<string> {
         return Observable.create((observer: Observer<any>) => {
             let eventSource = new EventSource(`${apiRoot()}${url}`);
-            eventSource.onmessage = msg => observer.next(msg.data);
+            eventSource.onmessage = msg => {
+              if (JSON.parse(msg.data).result !== "PING") {
+                 observer.next(msg.data);
+              }
+            }
             eventSource.onerror = e => () => {
                 observer.error(e);
                 onError.next(e);

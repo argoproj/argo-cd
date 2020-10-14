@@ -2,6 +2,7 @@ package application
 
 import (
 	"errors"
+	"time"
 
 	// nolint:staticcheck
 	"github.com/golang/protobuf/proto"
@@ -12,6 +13,7 @@ import (
 )
 
 func init() {
+	http.KeepalivePingDuration = 10 * time.Second
 	forward_ApplicationService_PodLogs_0 = http.StreamForwarder
 	forward_ApplicationService_WatchResourceTree_0 = http.StreamForwarder
 	forward_ApplicationService_Watch_0 = http.NewStreamForwarder(func(message proto.Message) (string, error) {
