@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
@@ -118,21 +119,81 @@ func TwoWayDiff(config, live *unstructured.Unstructured) (*DiffResult, error) {
 	}
 }
 
+// generateSchemeDefaultPatch runs the scheme default functions on the given parameter, and
+// return a patch representing the delta vs the origin parameter object.
+func generateSchemeDefaultPatch(kubeObj runtime.Object) ([]byte, error) {
+
+	// 1) Call scheme defaulter functions on a clone of our k8s resource object
+	patched := kubeObj.DeepCopyObject()
+	kubescheme.Scheme.Default(patched)
+
+	// 2) Compare the original object (pre-defaulter funcs) with patched object (post-default funcs),
+	// and generate a patch that can be applied against the original
+	patch, success, err := CreateTwoWayMergePatch(kubeObj, patched, kubeObj.DeepCopyObject())
+
+	// Ignore empty patch: this only means that kubescheme.Scheme.Default(...) made no changes.
+	if string(patch) == "{}" && err == nil {
+		success = true
+	}
+	if err != nil || !success {
+		if err == nil && !success {
+			err = errors.New("empty result")
+		}
+		return nil, err
+	}
+
+	return patch, err
+}
+
 // applyPatch executes kubernetes server side patch:
 // uses corresponding data structure, applies appropriate defaults and executes strategic merge patch
 func applyPatch(liveBytes []byte, patchBytes []byte, newVersionedObject func() (runtime.Object, error)) ([]byte, []byte, error) {
+
+	// Construct an empty instance of the object we are applying a patch against
 	predictedLive, err := newVersionedObject()
 	if err != nil {
 		return nil, nil, err
 	}
+
+	// Apply the patchBytes patch against liveBytes, using predictedLive to indicate the k8s data type
 	predictedLiveBytes, err := strategicpatch.StrategicMergePatch(liveBytes, patchBytes, predictedLive)
 	if err != nil {
 		return nil, nil, err
 	}
 
+	// Unmarshal predictedLiveBytes into predictedLive; note that this will discard JSON fields in predictedLiveBytes
+	// which are not in the predictedLive struct. predictedLive is thus "tainted" and we should not use it directly.
 	if err = json.Unmarshal(predictedLiveBytes, &predictedLive); err == nil {
-		kubescheme.Scheme.Default(predictedLive)
-		predictedLiveBytes, err = json.Marshal(predictedLive)
+
+		// 1) Calls 'kubescheme.Scheme.Default(predictedLive)' and generates a patch containing the delta of that
+		// call, which can then be applied to predictedLiveBytes.
+		//
+		// Why do we do this? Since predictedLive is "tainted" (missing extra fields), we cannot use it to populate
+		// predictedLiveBytes, BUT we still need predictedLive itself in order to call the default scheme functions.
+		// So, we call the default scheme functions on the "tainted" struct, to generate a patch, and then
+		// apply that patch to the untainted JSON.
+		patch, err := generateSchemeDefaultPatch(predictedLive)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// 2) Apply the default-funcs patch against the original "untainted" JSON
+		// This allows us to apply the scheme default values generated above, against JSON that does not fully conform
+		// to its k8s resource type (eg the JSON may contain those invalid fields that we do not wish to discard).
+		predictedLiveBytes, err = strategicpatch.StrategicMergePatch(predictedLiveBytes, patch, predictedLive.DeepCopyObject())
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// 3) Unmarshall into a map[string]interface{}, then back into byte[], to ensure the fields
+		// are sorted in a consistent order (we do the same below, so that they can be
+		// lexicographically compared with one another)
+		var result map[string]interface{}
+		err = json.Unmarshal([]byte(predictedLiveBytes), &result)
+		if err != nil {
+			return nil, nil, err
+		}
+		predictedLiveBytes, err = json.Marshal(result)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -143,12 +204,32 @@ func applyPatch(liveBytes []byte, patchBytes []byte, newVersionedObject func() (
 		return nil, nil, err
 	}
 
+	// As above, unknown JSON fields in liveBytes will be discarded in the unmarshalling to 'live'.
+	// However, this is much less likely since liveBytes is coming from a live k8s instance which
+	// has already accepted those resources. Regardless, we still treat 'live' as tainted.
 	if err = json.Unmarshal(liveBytes, live); err == nil {
-		kubescheme.Scheme.Default(live)
-		liveBytes, err = json.Marshal(live)
+
+		// As above, indirectly apply the schema defaults against liveBytes
+		patch, err := generateSchemeDefaultPatch(live)
 		if err != nil {
 			return nil, nil, err
 		}
+		liveBytes, err = strategicpatch.StrategicMergePatch(liveBytes, patch, live.DeepCopyObject())
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// Ensure the fields are sorted in a consistent order (as above)
+		var result map[string]interface{}
+		err = json.Unmarshal([]byte(liveBytes), &result)
+		if err != nil {
+			return nil, nil, err
+		}
+		liveBytes, err = json.Marshal(result)
+		if err != nil {
+			return nil, nil, err
+		}
+
 	}
 
 	return liveBytes, predictedLiveBytes, nil
@@ -174,12 +255,15 @@ func ThreeWayDiff(orig, config, live *unstructured.Unstructured) (*DiffResult, e
 	}
 
 	var predictedLiveBytes []byte
+	// If orig/config/live represents a registered scheme...
 	if newVersionedObject != nil {
+		// Apply patch while applying scheme defaults
 		liveBytes, predictedLiveBytes, err = applyPatch(liveBytes, patchBytes, newVersionedObject)
 		if err != nil {
 			return nil, err
 		}
 	} else {
+		// Otherwise, merge patch directly as JSON
 		predictedLiveBytes, err = jsonpatch.MergePatch(liveBytes, patchBytes)
 		if err != nil {
 			return nil, err
@@ -616,15 +700,19 @@ func remarshal(obj *unstructured.Unstructured) *unstructured.Unstructured {
 	gvk := obj.GroupVersionKind()
 	item, err := scheme.Scheme.New(obj.GroupVersionKind())
 	if err != nil {
-		// this is common. the scheme is not registered
+		// This is common. the scheme is not registered
 		log.Debugf("Could not create new object of type %s: %v", gvk, err)
 		return obj
 	}
 	// This will drop any omitempty fields, perform resource conversion etc...
 	unmarshalledObj := reflect.New(reflect.TypeOf(item).Elem()).Interface()
-	err = json.Unmarshal(data, &unmarshalledObj)
-	if err != nil {
-		// User may have specified an invalid spec in git. Return original object
+	// Unmarshal data into unmarshalledObj, but detect if there are any unknown fields that are not
+	// found in the target GVK object.
+	decoder := json.NewDecoder(strings.NewReader(string(data)))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&unmarshalledObj); err != nil {
+		// Likely a field present in obj that is not present in the GVK type, or user
+		// may have specified an invalid spec in git, so return original object
 		log.Debugf(couldNotMarshalErrMsg, gvk, err)
 		return obj
 	}
@@ -633,7 +721,7 @@ func remarshal(obj *unstructured.Unstructured) *unstructured.Unstructured {
 		log.Warnf(couldNotMarshalErrMsg, gvk, err)
 		return obj
 	}
-	// remove all default values specified by custom formatter (e.g. creationTimestamp)
+	// Remove all default values specified by custom formatter (e.g. creationTimestamp)
 	unstrBody = jsonutil.RemoveMapFields(obj.Object, unstrBody)
 	return &unstructured.Unstructured{Object: unstrBody}
 }

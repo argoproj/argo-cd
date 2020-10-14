@@ -525,6 +525,38 @@ func TestThreeWayDiffExplicitNamespace(t *testing.T) {
 	t.Log(ascii)
 }
 
+func TestDiffResourceWithInvalidField(t *testing.T) {
+
+	// Diff(...) should not silently discard invalid fields (fields that are not present in the underlying k8s resource).
+
+	leftDep := `{
+			"apiVersion": "v1",
+			"kind": "ConfigMap",
+			"metadata": {
+			  "name": "invalid-cm"
+			},
+			"invalidKey": "asdf"
+		  }`
+	var leftUn unstructured.Unstructured
+	err := json.Unmarshal([]byte(leftDep), &leftUn.Object)
+	if err != nil {
+		panic(err)
+	}
+
+	rightUn := leftUn.DeepCopy()
+	unstructured.RemoveNestedField(rightUn.Object, "invalidKey")
+
+	diffRes := diff(t, &leftUn, rightUn, GetDefaultDiffOptions())
+	assert.True(t, diffRes.Modified)
+	ascii, err := printDiff(diffRes)
+	assert.Nil(t, err)
+
+	assert.True(t, strings.Contains(ascii, "invalidKey"))
+	if ascii != "" {
+		t.Log(ascii)
+	}
+}
+
 func TestRemoveNamespaceAnnotation(t *testing.T) {
 	obj := removeNamespaceAnnotation(&unstructured.Unstructured{Object: map[string]interface{}{
 		"metadata": map[string]interface{}{
