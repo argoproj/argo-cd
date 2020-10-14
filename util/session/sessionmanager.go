@@ -74,10 +74,11 @@ const (
 	SessionManagerClaimsIssuer = "argocd"
 
 	// invalidLoginError, for security purposes, doesn't say whether the username or password was invalid.  This does not mitigate the potential for timing attacks to determine which is which.
-	invalidLoginError    = "Invalid username or password"
-	blankPasswordError   = "Blank passwords are not allowed"
-	accountDisabled      = "Account %s is disabled"
-	usernameTooLongError = "Username is too long (%d bytes max)"
+	invalidLoginError         = "Invalid username or password"
+	blankPasswordError        = "Blank passwords are not allowed"
+	accountDisabled           = "Account %s is disabled"
+	usernameTooLongError      = "Username is too long (%d bytes max)"
+	userDoesNotHaveCapability = "Account %s does not have %s capability"
 )
 
 const (
@@ -399,14 +400,19 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 		_, _ = passwordutil.HashPassword("for_consistent_response_time")
 		return err
 	}
-	if !account.Enabled {
-		return status.Errorf(codes.Unauthenticated, accountDisabled, username)
-	}
 
 	valid, _ := passwordutil.VerifyPassword(password, account.PasswordHash)
 	if !valid {
 		mgr.updateFailureCount(username, true)
 		return InvalidLoginErr
+	}
+
+	if !account.Enabled {
+		return status.Errorf(codes.Unauthenticated, accountDisabled, username)
+	}
+
+	if !account.HasCapability(settings.AccountCapabilityLogin) {
+		return status.Errorf(codes.Unauthenticated, userDoesNotHaveCapability, username, settings.AccountCapabilityLogin)
 	}
 	mgr.updateFailureCount(username, false)
 	return nil
