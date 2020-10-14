@@ -222,7 +222,7 @@ func isSelfReferencedApp(app *appv1.Application, ref v1.ObjectReference) bool {
 }
 
 func (ctrl *ApplicationController) getAppProj(app *appv1.Application) (*appv1.AppProject, error) {
-	return argo.GetAppProject(&app.Spec, applisters.NewAppProjectLister(ctrl.projInformer.GetIndexer()), ctrl.namespace)
+	return argo.GetAppProject(&app.Spec, applisters.NewAppProjectLister(ctrl.projInformer.GetIndexer()), ctrl.namespace, ctrl.settingsMgr)
 }
 
 func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]bool, ref v1.ObjectReference) {
@@ -304,7 +304,7 @@ func isKnownOrphanedResourceExclusion(key kube.ResourceKey, proj *appv1.AppProje
 func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managedResources []*appv1.ResourceDiff) (*appv1.ApplicationTree, error) {
 	nodes := make([]appv1.ResourceNode, 0)
 
-	proj, err := argo.GetAppProject(&a.Spec, applisters.NewAppProjectLister(ctrl.projInformer.GetIndexer()), ctrl.namespace)
+	proj, err := argo.GetAppProject(&a.Spec, applisters.NewAppProjectLister(ctrl.projInformer.GetIndexer()), ctrl.namespace, ctrl.settingsMgr)
 	if err != nil {
 		return nil, err
 	}
