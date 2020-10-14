@@ -401,11 +401,13 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 		return err
 	}
 	if !account.Enabled {
-		return status.Errorf(codes.Unauthenticated, accountDisabled, username)
+		log.Errorf(accountDisabled, username)
+		return InvalidLoginErr
 	}
 
 	if !account.HasCapability(settings.AccountCapabilityLogin) {
-		return status.Errorf(codes.Unauthenticated, userDoesNotHaveCapability, username, settings.AccountCapabilityLogin)
+		log.Errorf(userDoesNotHaveCapability, username, settings.AccountCapabilityLogin)
+		return InvalidLoginErr
 	}
 
 	valid, _ := passwordutil.VerifyPassword(password, account.PasswordHash)
