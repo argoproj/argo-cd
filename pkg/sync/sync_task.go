@@ -25,6 +25,22 @@ type syncTask struct {
 	message        string
 }
 
+// isDependsOn returns true if given task depends on current task and should be executed after
+func (t *syncTask) isDependsOn(other *syncTask) bool {
+	otherObj := other.obj()
+	thisGVK := t.obj().GroupVersionKind()
+	otherGVK := otherObj.GroupVersionKind()
+
+	if isCRDOfGroupKind(thisGVK.Group, thisGVK.Kind, otherObj) {
+		return true
+	}
+
+	if otherGVK.Group == "" && otherGVK.Kind == kube.NamespaceKind && otherObj.GetName() == t.obj().GetNamespace() {
+		return true
+	}
+	return false
+}
+
 func ternary(val bool, a, b string) string {
 	if val {
 		return a

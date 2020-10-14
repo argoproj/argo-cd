@@ -736,20 +736,27 @@ func (sc *syncContext) targetObjs() []*unstructured.Unstructured {
 	return objs
 }
 
+func isCRDOfGroupKind(group string, kind string, obj *unstructured.Unstructured) bool {
+	if kube.IsCRD(obj) {
+		crdGroup, ok, err := unstructured.NestedString(obj.Object, "spec", "group")
+		if err != nil || !ok {
+			return false
+		}
+		crdKind, ok, err := unstructured.NestedString(obj.Object, "spec", "names", "kind")
+		if err != nil || !ok {
+			return false
+		}
+		if group == crdGroup && crdKind == kind {
+			return true
+		}
+	}
+	return false
+}
+
 func (sc *syncContext) hasCRDOfGroupKind(group string, kind string) bool {
 	for _, obj := range sc.targetObjs() {
-		if kube.IsCRD(obj) {
-			crdGroup, ok, err := unstructured.NestedString(obj.Object, "spec", "group")
-			if err != nil || !ok {
-				continue
-			}
-			crdKind, ok, err := unstructured.NestedString(obj.Object, "spec", "names", "kind")
-			if err != nil || !ok {
-				continue
-			}
-			if group == crdGroup && crdKind == kind {
-				return true
-			}
+		if isCRDOfGroupKind(group, kind, obj) {
+			return true
 		}
 	}
 	return false

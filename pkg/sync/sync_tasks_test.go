@@ -368,6 +368,65 @@ func TestSyncNamespaceAgainstCRD(t *testing.T) {
 	assert.Equal(t, syncTasks{namespace, crd}, unsorted)
 }
 
+func TestSyncTasksSort_NamespaceAndObjectInNamespace(t *testing.T) {
+	deployment := &syncTask{
+		phase: common.SyncPhasePreSync,
+		targetObj: &unstructured.Unstructured{
+			Object: map[string]interface{}{
+				"kind": "Job",
+				"metadata": map[string]interface{}{
+					"namespace": "myNamespace",
+					"name":      "mySyncHookJob",
+				},
+			},
+		}}
+	namespace := &syncTask{
+		targetObj: &unstructured.Unstructured{
+			Object: map[string]interface{}{
+				"kind": "Namespace",
+				"metadata": map[string]interface{}{
+					"name": "myNamespace",
+				},
+			},
+		},
+	}
+
+	unsorted := syncTasks{deployment, namespace}
+	sort.Sort(unsorted)
+
+	assert.Equal(t, syncTasks{namespace, deployment}, unsorted)
+}
+
+func TestSyncTasksSort_CRDAndCR(t *testing.T) {
+	crd := &syncTask{
+		phase: common.SyncPhasePreSync,
+		targetObj: &unstructured.Unstructured{
+			Object: map[string]interface{}{
+				"apiVersion": "apiextensions.k8s.io/v1",
+				"kind":       "CustomResourceDefinition",
+				"spec": map[string]interface{}{
+					"group": "argoproj.io",
+					"names": map[string]interface{}{
+						"kind": "Workflow",
+					},
+				},
+			},
+		}}
+	cr := &syncTask{
+		targetObj: &unstructured.Unstructured{
+			Object: map[string]interface{}{
+				"kind":       "Workflow",
+				"apiVersion": "argoproj.io/v1",
+			},
+		},
+	}
+
+	unsorted := syncTasks{cr, crd}
+	sort.Sort(unsorted)
+
+	assert.Equal(t, syncTasks{crd, cr}, unsorted)
+}
+
 func Test_syncTasks_multiStep(t *testing.T) {
 	t.Run("Single", func(t *testing.T) {
 		tasks := syncTasks{{liveObj: Annotate(NewPod(), common.AnnotationSyncWave, "-1"), phase: common.SyncPhaseSync}}
