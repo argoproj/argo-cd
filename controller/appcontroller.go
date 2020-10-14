@@ -700,6 +700,11 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		return nil, err
 	}
 
+	err = argo.ValidateDestination(context.Background(), &app.Spec.Destination, ctrl.db)
+	if err != nil {
+		return nil, err
+	}
+
 	objsMap, err := ctrl.getPermittedAppLiveObjects(app, proj)
 	if err != nil {
 		return nil, err
