@@ -29,7 +29,13 @@ type broadcasterHandler struct {
 }
 
 func (b *broadcasterHandler) notify(event *appv1.ApplicationWatchEvent) {
-	subscribers := b.subscribers
+	// Make a local copy of b.subscribers, then send channel events outside the lock,
+	// to avoid data race on b.subscribers changes
+	subscribers := []*subscriber{}
+	b.lock.Lock()
+	subscribers = append(subscribers, b.subscribers...)
+	b.lock.Unlock()
+
 	for _, s := range subscribers {
 		if s.matches(event) {
 			select {

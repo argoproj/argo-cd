@@ -77,6 +77,11 @@ type GoogleAnalytics struct {
 	AnonymizeUsers bool   `json:"anonymizeUsers,omitempty"`
 }
 
+type GlobalProjectSettings struct {
+	ProjectName   string               `json:"projectName,omitempty"`
+	LabelSelector metav1.LabelSelector `json:"labelSelector,omitempty"`
+}
+
 // Help settings
 type Help struct {
 	// the URL for getting chat help, this will typically be your Slack channel for support
@@ -239,6 +244,8 @@ const (
 	resourceCompareOptionsKey = "resource.compareoptions"
 	// settingUiCssURLKey designates the key for user-defined CSS URL for UI customization
 	settingUiCssURLKey = "ui.cssurl"
+	// globalProjectsKey designates the key for global project settings
+	globalProjectsKey = "globalProjects"
 )
 
 // SettingsManager holds config info for a new manager with which to access Kubernetes ConfigMaps.
@@ -463,7 +470,7 @@ func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.Resource
 		return nil, err
 	}
 	resourceOverrides := map[string]v1alpha1.ResourceOverride{}
-	if value, ok := argoCDCM.Data[resourceCustomizationsKey]; ok {
+	if value, ok := argoCDCM.Data[resourceCustomizationsKey]; ok && value != "" {
 		err := yaml.Unmarshal([]byte(value), &resourceOverrides)
 		if err != nil {
 			return nil, err
@@ -571,24 +578,31 @@ func (mgr *SettingsManager) GetHelmRepositories() ([]HelmRepoCredentials, error)
 }
 
 func (mgr *SettingsManager) GetRepositories() ([]Repository, error) {
-	if mgr.reposCache == nil {
-		argoCDCM, err := mgr.getConfigMap()
+
+	mgr.mutex.Lock()
+	reposCache := mgr.reposCache
+	mgr.mutex.Unlock()
+	if reposCache != nil {
+		return reposCache, nil
+	}
+
+	// Get the config map outside of the lock
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return nil, err
+	}
+
+	mgr.mutex.Lock()
+	defer mgr.mutex.Unlock()
+	repositories := make([]Repository, 0)
+	repositoriesStr := argoCDCM.Data[repositoriesKey]
+	if repositoriesStr != "" {
+		err := yaml.Unmarshal([]byte(repositoriesStr), &repositories)
 		if err != nil {
 			return nil, err
 		}
-
-		mgr.mutex.Lock()
-		defer mgr.mutex.Unlock()
-		repositories := make([]Repository, 0)
-		repositoriesStr := argoCDCM.Data[repositoriesKey]
-		if repositoriesStr != "" {
-			err := yaml.Unmarshal([]byte(repositoriesStr), &repositories)
-			if err != nil {
-				return nil, err
-			}
-		}
-		mgr.reposCache = repositories
 	}
+	mgr.reposCache = repositories
 
 	return mgr.reposCache, nil
 }
@@ -1267,4 +1281,22 @@ func ReplaceStringSecret(val string, secretValues map[string]string) string {
 		return val
 	}
 	return secretVal
+}
+
+// GetGlobalProjectsSettings loads the global project settings from argocd-cm ConfigMap
+func (mgr *SettingsManager) GetGlobalProjectsSettings() ([]GlobalProjectSettings, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return nil, err
+	}
+	globalProjectSettings := make([]GlobalProjectSettings, 0)
+	if value, ok := argoCDCM.Data[globalProjectsKey]; ok {
+		if value != "" {
+			err := yaml.Unmarshal([]byte(value), &globalProjectSettings)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	return globalProjectSettings, nil
 }

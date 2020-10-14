@@ -24,7 +24,7 @@ export const ClusterDetails = (props: RouteComponentProps<{server: string}>) => 
     const loaderRef = React.useRef<DataLoader>();
     const [updating, setUpdating] = React.useState(false);
     return (
-        <DataLoader ref={loaderRef} input={server} load={(url: string) => Observable.interval(1000).flatMap(() => Observable.fromPromise(services.clusters.get(url, '')))}>
+        <DataLoader ref={loaderRef} input={server} load={(url: string) => Observable.timer(0, 1000).flatMap(() => Observable.fromPromise(services.clusters.get(url, '')))}>
             {(cluster: Cluster) => (
                 <Page
                     title={server}
@@ -58,7 +58,7 @@ export const ClusterDetails = (props: RouteComponentProps<{server: string}>) => 
                                 const item = await services.clusters.get(updated.server, '');
                                 item.name = updated.name;
                                 item.namespaces = updated.namespaces;
-                                loaderRef.current.setData(await services.clusters.update(item));
+                                loaderRef.current.setData(await services.clusters.update(item, 'name', 'namespaces'));
                             }}
                             title='GENERAL'
                             items={[

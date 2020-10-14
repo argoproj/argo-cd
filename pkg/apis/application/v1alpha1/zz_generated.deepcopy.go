@@ -684,6 +684,11 @@ func (in *Cluster) DeepCopyInto(out *Cluster) {
 		*out = (*in).DeepCopy()
 	}
 	in.Info.DeepCopyInto(&out.Info)
+	if in.Shard != nil {
+		in, out := &in.Shard, &out.Shard
+		*out = new(int64)
+		**out = **in
+	}
 	return
 }
 
