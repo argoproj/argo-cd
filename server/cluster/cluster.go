@@ -142,16 +142,47 @@ func (s *Server) getCluster(ctx context.Context, q *cluster.ClusterQuery) (*appv
 	return nil, nil
 }
 
+var clusterFieldsByPath = map[string]func(updated *appv1.Cluster, existing *appv1.Cluster){
+	"name": func(updated *appv1.Cluster, existing *appv1.Cluster) {
+		updated.Name = existing.Name
+	},
+	"namespaces": func(updated *appv1.Cluster, existing *appv1.Cluster) {
+		updated.Namespaces = existing.Namespaces
+	},
+	"config": func(updated *appv1.Cluster, existing *appv1.Cluster) {
+		updated.Config = existing.Config
+	},
+	"shard": func(updated *appv1.Cluster, existing *appv1.Cluster) {
+		updated.Shard = existing.Shard
+	},
+}
+
 // Update updates a cluster
 func (s *Server) Update(ctx context.Context, q *cluster.ClusterUpdateRequest) (*appv1.Cluster, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionUpdate, q.Cluster.Server); err != nil {
 		return nil, err
 	}
+
+	if len(q.UpdatedFields) != 0 {
+		existing, err := s.db.GetCluster(ctx, q.Cluster.Server)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, path := range q.UpdatedFields {
+			if updater, ok := clusterFieldsByPath[path]; ok {
+				updater(existing, q.Cluster)
+			}
+		}
+		q.Cluster = existing
+	}
+
 	// Test the token we just created before persisting it
 	serverVersion, err := s.kubectl.GetServerVersion(q.Cluster.RESTConfig())
 	if err != nil {
 		return nil, err
 	}
+
 	clust, err := s.db.UpdateCluster(ctx, q.Cluster)
 	if err != nil {
 		return nil, err
