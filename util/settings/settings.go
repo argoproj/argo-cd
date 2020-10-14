@@ -578,24 +578,31 @@ func (mgr *SettingsManager) GetHelmRepositories() ([]HelmRepoCredentials, error)
 }
 
 func (mgr *SettingsManager) GetRepositories() ([]Repository, error) {
-	if mgr.reposCache == nil {
-		argoCDCM, err := mgr.getConfigMap()
+
+	mgr.mutex.Lock()
+	reposCache := mgr.reposCache
+	mgr.mutex.Unlock()
+	if reposCache != nil {
+		return reposCache, nil
+	}
+
+	// Get the config map outside of the lock
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return nil, err
+	}
+
+	mgr.mutex.Lock()
+	defer mgr.mutex.Unlock()
+	repositories := make([]Repository, 0)
+	repositoriesStr := argoCDCM.Data[repositoriesKey]
+	if repositoriesStr != "" {
+		err := yaml.Unmarshal([]byte(repositoriesStr), &repositories)
 		if err != nil {
 			return nil, err
 		}
-
-		mgr.mutex.Lock()
-		defer mgr.mutex.Unlock()
-		repositories := make([]Repository, 0)
-		repositoriesStr := argoCDCM.Data[repositoriesKey]
-		if repositoriesStr != "" {
-			err := yaml.Unmarshal([]byte(repositoriesStr), &repositories)
-			if err != nil {
-				return nil, err
-			}
-		}
-		mgr.reposCache = repositories
 	}
+	mgr.reposCache = repositories
 
 	return mgr.reposCache, nil
 }
