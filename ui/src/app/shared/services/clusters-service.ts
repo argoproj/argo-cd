@@ -19,9 +19,10 @@ export class ClustersService {
         return requests.get(requestUrl).then(res => res.body as models.Cluster);
     }
 
-    public update(cluster: models.Cluster): Promise<models.Cluster> {
+    public update(cluster: models.Cluster, ...paths: string[]): Promise<models.Cluster> {
         return requests
             .put(`/clusters/${encodeURIComponent(cluster.server)}`)
+            .query({updatedPaths: paths})
             .send(cluster)
             .then(res => res.body as models.Cluster);
     }

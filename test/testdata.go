@@ -1,12 +1,11 @@
 package test
 
 import (
+	"github.com/argoproj/gitops-engine/pkg/utils/testing"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-
-	"github.com/argoproj/gitops-engine/pkg/utils/testing"
 
 	"github.com/argoproj/argo-cd/common"
 	apps "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
