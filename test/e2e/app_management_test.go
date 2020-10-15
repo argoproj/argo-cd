@@ -82,6 +82,7 @@ func TestSyncToSignedCommitKeyWithKnownKey(t *testing.T) {
 		Path(guestbookPath).
 		GPGPublicKeyAdded().
 		Sleep(2).
+		Prune(false).
 		When().
 		AddSignedFile("test.yaml", "null").
 		IgnoreErrors().
