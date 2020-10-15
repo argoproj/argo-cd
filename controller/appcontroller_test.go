@@ -1088,6 +1088,30 @@ func TestProcessRequestedAppOperation_FailedNoRetries(t *testing.T) {
 	assert.Equal(t, string(synccommon.OperationError), phase)
 }
 
+func TestProcessRequestedAppOperation_InvalidDestination(t *testing.T) {
+	app := newFakeAppWithDestMismatch()
+	app.Spec.Project = "test-project"
+	app.Operation = &argoappv1.Operation{
+		Sync: &argoappv1.SyncOperation{},
+	}
+	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	receivedPatch := map[string]interface{}{}
+	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if patchAction, ok := action.(kubetesting.PatchAction); ok {
+			assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+		}
+		return true, nil, nil
+	})
+
+	ctrl.processRequestedAppOperation(app)
+
+	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
+	assert.Equal(t, string(synccommon.OperationFailed), phase)
+	message, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "message")
+	assert.Contains(t, message, "application destination can't have both name and server defined: another-cluster https://localhost:6443")
+}
+
 func TestProcessRequestedAppOperation_FailedHasRetries(t *testing.T) {
 	app := newFakeApp()
 	app.Spec.Project = "invalid-project"
