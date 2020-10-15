@@ -78,10 +78,11 @@ func TestSyncToSignedCommitWithoutKnownKey(t *testing.T) {
 
 func TestSyncToSignedCommitKeyWithKnownKey(t *testing.T) {
 	Given(t).
+		Sleep(2).
 		Project("gpg").
 		Path(guestbookPath).
 		GPGPublicKeyAdded().
-		Sleep(5).
+		Sleep(2).
 		Prune(false).
 		When().
 		AddSignedFile("test.yaml", "null").
