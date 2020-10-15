@@ -5,6 +5,8 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io/ioutil"
+	"k8s.io/client-go/informers"
+	listers "k8s.io/client-go/listers/core/v1"
 	"math"
 	"net"
 	"net/http"
@@ -154,6 +156,8 @@ type ArgoCDServer struct {
 	policyEnforcer *rbacpolicy.RBACPolicyEnforcer
 	appInformer    cache.SharedIndexInformer
 	appLister      applisters.ApplicationNamespaceLister
+	nodeInformer   cache.SharedIndexInformer
+	nodeLister     listers.NodeLister
 
 	// stopCh is the channel which when closed, will shutdown the Argo CD server
 	stopCh chan struct{}
@@ -217,6 +221,10 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 	appInformer := factory.Argoproj().V1alpha1().Applications().Informer()
 	appLister := factory.Argoproj().V1alpha1().Applications().Lister().Applications(opts.Namespace)
 
+	kfactory := informers.NewSharedInformerFactory(opts.KubeClientset, 0)
+	nodeInformer := kfactory.Core().V1().Nodes().Informer()
+	nodeLister := kfactory.Core().V1().Nodes().Lister()
+
 	enf := rbac.NewEnforcer(opts.KubeClientset, opts.Namespace, common.ArgoCDRBACConfigMapName, nil)
 	enf.EnableEnforce(!opts.DisableAuth)
 	err = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
@@ -236,6 +244,8 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 		projInformer:     projInformer,
 		appInformer:      appInformer,
 		appLister:        appLister,
+		nodeInformer:     nodeInformer,
+		nodeLister:       nodeLister,
 		policyEnforcer:   policyEnf,
 	}
 }

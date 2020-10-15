@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	goio "io"
+	listers "k8s.io/client-go/listers/core/v1"
 	"math"
 	"reflect"
 	"sort"
@@ -80,6 +81,7 @@ type Server struct {
 	settingsMgr    *settings.SettingsManager
 	cache          *servercache.Cache
 	projInformer   cache.SharedIndexInformer
+	nodeLister     listers.NodeLister
 }
 
 // NewServer returns a new instance of the Application service
@@ -204,6 +206,20 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 		return nil, err
 	}
 	return updated, nil
+}
+
+// GetNodes returns nodes associated with an application
+func (s* Server) GetNodes(ctx context.Context, q *application.ApplicationQuery) (error) {
+	labelsMap, err := labels.ConvertSelectorToLabelsMap(q.Selector)
+	if err != nil {
+		return err
+	}
+	nodes, err := s.nodeLister.List(labelsMap.AsSelector())
+	if (err != nil) {
+		return err
+	}
+	log.Infof("%+v", nodes)
+	return nil
 }
 
 // GetManifests returns application manifests
