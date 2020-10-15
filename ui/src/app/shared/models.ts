@@ -833,6 +833,7 @@ export enum ResourceName {
 }
 
 export interface Pod {
+    fullName: string;
     metadata: models.ObjectMeta;
     status: PodStatus;
     spec: PodSpec;

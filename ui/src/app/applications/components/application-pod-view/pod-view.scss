@@ -13,11 +13,10 @@ $max-rows: 5;
 .node {
   padding: 15px;
   margin: 10px;
+  margin-bottom: 0 !important;
   &__container {
     display: flex;
     &--header {
-      font-size: 16px;
-      margin-bottom: 1em;
       align-items: center;
     }
     &--stats {
@@ -32,13 +31,15 @@ $max-rows: 5;
   }
   &__pod-container {
     flex-direction: column;
+    height: $max-rows * ($pod-size + 2 * $gutter);
+    width: $pods-per-row * ($pod-size + 2 * $gutter);
     &__pods {
       display: flex;
       flex-direction: row-reverse;
       flex-wrap: wrap-reverse;
       align-content: flex-start;
-      height: $max-rows * ($pod-size + 2 * $gutter);
-      width: $pods-per-row * ($pod-size + 2 * $gutter);
+      height: 100%;
+      width: 100%;
       margin-right: -1 * $gutter;
       margin-bottom: -1 * $gutter;
     }

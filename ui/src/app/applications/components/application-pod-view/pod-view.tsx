@@ -1,97 +1,67 @@
-import {DataLoader, DropDownMenu, Tooltip} from 'argo-ui';
+import {Tooltip} from 'argo-ui';
 import * as React from 'react';
 
-import {Node, Pod, ResourceNode, ResourceStat} from '../../../shared/models';
-import {services} from '../../../shared/services';
-import {GetNodes} from './pod-view-mock-service';
+import {ApplicationTree, Node, NodeStatus, Pod, PodPhase, ResourceNode, ResourceStat} from '../../../shared/models';
+import {nodeKey} from '../utils';
 import './pod-view.scss';
 
-export class PodView extends React.Component<{name: string}> {
+export class PodView extends React.Component<{tree: ApplicationTree; onPodClick: (fullName: string) => void}> {
     public render() {
         return (
             <React.Fragment>
-                <DataLoader load={() => GetNodes(5)}>{nodes => <div className='nodes-container'>{nodes.map(n => Node(n))}</div>}</DataLoader>
-                <DataLoader load={() => services.applications.resourceTree(this.props.name)}>
-                    {data => (
-                        <div>
-                            {data.nodes.map((d: ResourceNode) => (
-                                <React.Fragment>
-                                    <p>{d.kind === 'Pod' && `${d.name}: ${d.info.map(i => i.value)}`}</p>
-                                </React.Fragment>
-                            ))}
+                <div className='nodes-container'>
+                    {(getNodesFromTree(this.props.tree) || []).map(node => (
+                        <div className='node white-box' key={node.metadata.name}>
+                            <div className='node__container node__container--header'>
+                                <span>{(node.metadata.name || 'Unknown').toUpperCase()}</span>
+                                <i className='fa fa-info-circle' style={{marginLeft: 'auto'}} />
+                            </div>
+                            <div className='node__container'>
+                                <div className='node__container node__container--stats'>{(node.status.capacity || []).map(r => Stat(r))}</div>
+                                <div className='node__pod-container node__container'>
+                                    <div className='node__pod-container__pods'>
+                                        {node.pods.map(pod => (
+                                            <Tooltip content={pod.metadata.name} key={pod.metadata.name}>
+                                                <div className={`node__pod node__pod--${pod.status.phase.toLowerCase()}`} onClick={() => this.props.onPodClick(pod.fullName)} />
+                                            </Tooltip>
+                                        ))}
+                                    </div>
+                                    <div className='node__label'>PODS</div>
+                                </div>
+                            </div>
                         </div>
-                    )}
-                </DataLoader>
+                    ))}
+                </div>
             </React.Fragment>
         );
     }
 }
 
-function Node(node: Node) {
-    return (
-        <div className='node white-box' key={node.metadata.name}>
-            <div className='node__container node__container--header'>
-                <span>{node.metadata.name.toUpperCase()}</span>
-                <i className='fa fa-info-circle' style={{marginLeft: 'auto'}} />
-                <DropDownMenu
-                    anchor={() => (
-                        <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
-                            <i className='fa fa-ellipsis-v' />
-                        </button>
-                    )}
-                    items={[
-                        {
-                            title: (
-                                <React.Fragment>
-                                    <i className='fa fa-info-circle' /> Node Details
-                                </React.Fragment>
-                            ),
-                            action: () => null
-                        },
-                        {
-                            title: (
-                                <React.Fragment>
-                                    <i className='fa fa-history' /> History
-                                </React.Fragment>
-                            ),
-                            action: () => null
-                        },
-                        {
-                            title: (
-                                <React.Fragment>
-                                    <i className='fa fa-times-circle' /> Delete
-                                </React.Fragment>
-                            ),
-                            action: () => null
-                        },
-                        {
-                            title: (
-                                <React.Fragment>
-                                    <i className='fa fa-redo' /> Refresh
-                                </React.Fragment>
-                            ),
-                            action: () => null
-                        }
-                    ]}
-                />
-            </div>
-            <div className='node__container'>
-                <div className='node__container node__container--stats'>{node.status.capacity.map(r => Stat(r))}</div>
-                <div className='node__pod-container node__container'>
-                    <div className='node__pod-container__pods'>{node.pods.map(p => Pod(p))}</div>
-                    <div className='node__label'>PODS</div>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-function Pod(pod: Pod) {
-    return (
-        <Tooltip content={pod.metadata.name} key={pod.metadata.name}>
-            <div className={`node__pod node__pod--${pod.status.phase.toLowerCase()}`} />
-        </Tooltip>
-    );
+function getNodesFromTree(tree: ApplicationTree): Node[] {
+    const nodes: {[key: string]: Node} = {};
+    tree.nodes.forEach((d: ResourceNode) => {
+        if (d.kind === 'Pod') {
+            const p: Pod = {
+                fullName: nodeKey(d),
+                metadata: {name: d.name},
+                spec: {nodeName: 'Unknown'},
+                status: {phase: PodPhase.PodUnknown}
+            } as Pod;
+            d.info.forEach(i => {
+                if (i.name === 'Status Reason') {
+                    p.status.phase = (i.value as PodPhase) || PodPhase.PodUnknown;
+                } else if (i.name === 'Node') {
+                    p.spec.nodeName = i.value;
+                }
+            });
+            if (nodes[p.spec.nodeName]) {
+                nodes[p.spec.nodeName].pods.push(p);
+            } else {
+                nodes[p.spec.nodeName] = {metadata: {name: p.spec.nodeName}, status: {} as NodeStatus, pods: [p]};
+            }
+        }
+    });
+    return Object.values(nodes);
 }
 
 function Stat(stat: ResourceStat) {
