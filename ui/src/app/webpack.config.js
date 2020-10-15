@@ -8,6 +8,7 @@ const webpack = require('webpack');
 const path = require('path');
 
 const isProd = process.env.NODE_ENV === 'production';
+console.log(`Bundling in ${isProd ? 'production' : 'development'} mode...`);
 
 const proxyConf = {
     'target': process.env.ARGOCD_API_URL || 'http://localhost:8080',
@@ -81,7 +82,9 @@ const config = {
             // This works by downloading the fonts at bundle time and adding those font-faces to 'fonts.css'.
             name: 'fonts',
             filename: 'fonts.css',
-            local: true,
+            // local: false in dev prevents pulling fonts on each code change
+            // https://github.com/gabiseabra/google-fonts-webpack-plugin/issues/2
+            local: isProd,
             path: 'assets/fonts/google-fonts'
 		})
     ],
