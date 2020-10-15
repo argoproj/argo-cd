@@ -142,7 +142,7 @@ func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 
 				subPath := ""
 				if nestedPath, ok, err := unstructured.NestedString(path, "path"); ok && err == nil {
-					subPath = nestedPath
+					subPath = strings.TrimSuffix(nestedPath, "*")
 				}
 				externalURL += subPath
 				urlsSet[externalURL] = true
