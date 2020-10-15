@@ -14,7 +14,6 @@ export class PodView extends React.Component<{tree: ApplicationTree; onPodClick:
                         <div className='node white-box' key={node.metadata.name}>
                             <div className='node__container node__container--header'>
                                 <span>{(node.metadata.name || 'Unknown').toUpperCase()}</span>
-                                <i className='fa fa-info-circle' style={{marginLeft: 'auto'}} />
                             </div>
                             <div className='node__container'>
                                 <div className='node__container node__container--stats'>{(node.status.capacity || []).map(r => Stat(r))}</div>
