@@ -363,4 +363,4 @@ jobs:
         with:
           name: e2e-server-k8s${{ matrix.k3s-version }}.log
           path: /tmp/e2e-server.log
-        if: ${{ always() }}
+        if: ${{ failure() }}
