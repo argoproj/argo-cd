@@ -166,14 +166,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                 <React.Fragment key='app-list-tools'>
                                                     <div className='application-details__view-type'>
                                                         <i
-                                                            className={classNames('fas fa-th', {selected: pref.view === 'pods'})}
-                                                            title='Pods'
-                                                            onClick={() => {
-                                                                this.appContext.apis.navigation.goto('.', {view: 'pods'});
-                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'pods'}});
-                                                            }}
-                                                        />
-                                                        <i
                                                             className={classNames('fa fa-sitemap', {selected: pref.view === 'tree'})}
                                                             title='Tree'
                                                             onClick={() => {
