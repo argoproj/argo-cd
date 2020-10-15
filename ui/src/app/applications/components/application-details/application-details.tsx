@@ -16,7 +16,6 @@ import {ApplicationDeploymentHistory} from '../application-deployment-history/ap
 import {ApplicationNodeInfo} from '../application-node-info/application-node-info';
 import {ApplicationOperationState} from '../application-operation-state/application-operation-state';
 import {ApplicationParameters} from '../application-parameters/application-parameters';
-import {PodView} from '../application-pod-view/pod-view';
 import {ApplicationResourceEvents} from '../application-resource-events/application-resource-events';
 import {ApplicationResourceTree, ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
 import {ApplicationResourcesDiff} from '../application-resources-diff/application-resources-diff';
@@ -166,14 +165,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                 <React.Fragment key='app-list-tools'>
                                                     <div className='application-details__view-type'>
                                                         <i
-                                                            className={classNames('fas fa-th', {selected: pref.view === 'pods'})}
-                                                            title='Pods'
-                                                            onClick={() => {
-                                                                this.appContext.apis.navigation.goto('.', {view: 'pods'});
-                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'pods'}});
-                                                            }}
-                                                        />
-                                                        <i
                                                             className={classNames('fa fa-sitemap', {selected: pref.view === 'tree'})}
                                                             title='Tree'
                                                             onClick={() => {
@@ -238,31 +229,30 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                         services.viewPreferences.updatePreferences({appDetails: {...pref, resourceFilter: []}});
                                                     }}
                                                 />
-                                            )) ||
-                                                (pref.view === 'pods' && <PodView />) || (
-                                                    <div>
-                                                        {(filteredRes.length > 0 && (
-                                                            <Paginate
-                                                                page={this.state.page}
-                                                                data={filteredRes}
-                                                                onPageChange={page => this.setState({page})}
-                                                                preferencesKey='application-details'>
-                                                                {data => (
-                                                                    <ApplicationResourceList
-                                                                        onNodeClick={fullName => this.selectNode(fullName)}
-                                                                        resources={data}
-                                                                        nodeMenu={node => this.renderResourceMenu({...node, root: node}, application)}
-                                                                    />
-                                                                )}
-                                                            </Paginate>
-                                                        )) || (
-                                                            <EmptyState icon='fa fa-search'>
-                                                                <h4>No resources found</h4>
-                                                                <h5>Try to change filter criteria</h5>
-                                                            </EmptyState>
-                                                        )}
-                                                    </div>
-                                                )}
+                                            )) || (
+                                                <div>
+                                                    {(filteredRes.length > 0 && (
+                                                        <Paginate
+                                                            page={this.state.page}
+                                                            data={filteredRes}
+                                                            onPageChange={page => this.setState({page})}
+                                                            preferencesKey='application-details'>
+                                                            {data => (
+                                                                <ApplicationResourceList
+                                                                    onNodeClick={fullName => this.selectNode(fullName)}
+                                                                    resources={data}
+                                                                    nodeMenu={node => this.renderResourceMenu({...node, root: node}, application)}
+                                                                />
+                                                            )}
+                                                        </Paginate>
+                                                    )) || (
+                                                        <EmptyState icon='fa fa-search'>
+                                                            <h4>No resources found</h4>
+                                                            <h5>Try to change filter criteria</h5>
+                                                        </EmptyState>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
                                         <SlidingPanel isShown={selectedNode != null || isAppSelected} onClose={() => this.selectNode('')}>
                                             <div>
