@@ -2998,7 +2998,7 @@ spec:
         - "10"
         - --redis
         - argocd-redis-ha-haproxy:6379
-        image: argoproj/argocd:v1.7.7
+        image: argoproj/argocd:v1.7.8
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
@@ -3054,7 +3054,7 @@ spec:
         - -n
         - /usr/local/bin/argocd-util
         - /shared
-        image: argoproj/argocd:v1.7.7
+        image: argoproj/argocd:v1.7.8
         imagePullPolicy: Always
         name: copyutil
         volumeMounts:
@@ -3104,7 +3104,7 @@ spec:
         - argocd-repo-server
         - --redis
         - argocd-redis-ha-haproxy:6379
-        image: argoproj/argocd:v1.7.7
+        image: argoproj/argocd:v1.7.8
         imagePullPolicy: Always
         name: argocd-repo-server
         ports:
@@ -3179,7 +3179,7 @@ spec:
         env:
         - name: ARGOCD_API_SERVER_REPLICAS
           value: "2"
-        image: argoproj/argocd:v1.7.7
+        image: argoproj/argocd:v1.7.8
         imagePullPolicy: Always
         name: argocd-server
         ports:
