@@ -394,6 +394,33 @@
     <ul class="md-nav__list" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#ambassador" title="Ambassador" class="md-nav__link">
+    Ambassador
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#option-1-mapping-crd-for-host-based-routing" title="Option 1: Mapping CRD for Host-based Routing" class="md-nav__link">
+    Option 1: Mapping CRD for Host-based Routing
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-2-mapping-crd-for-path-based-routing" title="Option 2: Mapping CRD for Path-based Routing" class="md-nav__link">
+    Option 2: Mapping CRD for Path-based Routing
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#kubernetesingress-nginx" title="kubernetes/ingress-nginx" class="md-nav__link">
     kubernetes/ingress-nginx
   </a>
@@ -1478,6 +1505,33 @@
     <ul class="md-nav__list" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#ambassador" title="Ambassador" class="md-nav__link">
+    Ambassador
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#option-1-mapping-crd-for-host-based-routing" title="Option 1: Mapping CRD for Host-based Routing" class="md-nav__link">
+    Option 1: Mapping CRD for Host-based Routing
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-2-mapping-crd-for-path-based-routing" title="Option 2: Mapping CRD for Path-based Routing" class="md-nav__link">
+    Option 2: Mapping CRD for Path-based Routing
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#kubernetesingress-nginx" title="kubernetes/ingress-nginx" class="md-nav__link">
     kubernetes/ingress-nginx
   </a>
@@ -1592,6 +1646,38 @@ Both protocols are exposed by the argocd-server service object on the following 
 <li>80 - HTTP (redirects to HTTPS)</li>
 </ul>
 <p>There are several ways how Ingress can be configured.</p>
+<h2 id="ambassador"><a href="https://www.getambassador.io/">Ambassador</a><a class="headerlink" href="#ambassador" title="Permanent link">&para;</a></h2>
+<p>The Ambassador Edge Stack can be used as a Kubernetes ingress controller with <a href="https://www.getambassador.io/docs/latest/topics/running/tls/#host">automatic TLS termination</a> and routing capabilities for both the CLI and the UI.</p>
+<p>The API server should be run with TLS disabled. Edit the <code>argocd-server</code> deployment to add the <code>--insecure</code> flag to the argocd-server command.</p>
+<h3 id="option-1-mapping-crd-for-host-based-routing">Option 1: Mapping CRD for Host-based Routing<a class="headerlink" href="#option-1-mapping-crd-for-host-based-routing" title="Permanent link">&para;</a></h3>
+<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">getambassador.io/v2</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Mapping</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-server</span>
+  <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">host</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd.example.com</span>
+  <span class="nt">prefix</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">/</span>
+  <span class="nt">service</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-server:443</span>
+</code></pre></div>
+
+<h3 id="option-2-mapping-crd-for-path-based-routing">Option 2: Mapping CRD for Path-based Routing<a class="headerlink" href="#option-2-mapping-crd-for-path-based-routing" title="Permanent link">&para;</a></h3>
+<p>The API server must be configured to be available under a non-root path (e.g. <code>/argo-cd</code>). Edit the <code>argocd-server</code> deployment to add the <code>--rootpath=/argo-cd</code> flag to the argocd-server command.</p>
+<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">getambassador.io/v2</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Mapping</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-server</span>
+  <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">prefix</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">/argo-cd</span>
+  <span class="nt">rewrite</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">/argo-cd</span>
+  <span class="nt">service</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-server:443</span>
+</code></pre></div>
+
+<p>Login with the <code>argocd</code> CLI using the extra <code>--grpc-web-root-path</code> flag for non-root paths.</p>
+<div class="codehilite"><pre><span></span><code>argocd login &lt;host&gt;:&lt;port&gt; --grpc-web-root-path /argo-cd
+</code></pre></div>
+
 <h2 id="kubernetesingress-nginx"><a href="https://github.com/kubernetes/ingress-nginx">kubernetes/ingress-nginx</a><a class="headerlink" href="#kubernetesingress-nginx" title="Permanent link">&para;</a></h2>
 <h3 id="option-1-ssl-passthrough">Option 1: SSL-Passthrough<a class="headerlink" href="#option-1-ssl-passthrough" title="Permanent link">&para;</a></h3>
 <p>Argo CD serves multiple protocols (gRPC/HTTPS) on the same port (443), this provides a
