@@ -629,20 +629,14 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}, managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
 			kube.GetResourceKey(appObj): appObj,
 		}})
-		patched := false
 		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 		defaultReactor := fakeAppCs.ReactionChain[0]
 		fakeAppCs.ReactionChain = nil
 		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			return defaultReactor.React(action)
 		})
-		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-			patched = true
-			return true, nil, nil
-		})
 		_, err := ctrl.finalizeApplicationDeletion(app)
 		assert.EqualError(t, err, "application destination can't have both name and server defined: another-cluster https://localhost:6443")
-		assert.False(t, patched)
 	})
 }
 
