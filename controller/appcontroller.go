@@ -1332,7 +1332,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 			}
 		}
 		if bAllNeedPrune {
-			message := fmt.Sprintf("Skipping sync attempt to %s: auto-sync will wipe out all resourses", desiredCommitSHA)
+			message := fmt.Sprintf("Skipping sync attempt to %s: auto-sync will wipe out all resources", desiredCommitSHA)
 			logCtx.Warnf(message)
 			return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: message}
 		}
