@@ -618,10 +618,10 @@ func TestValidateDestination(t *testing.T) {
 		}
 
 		db := &dbmocks.ArgoDB{}
-		db.On("ListClusters", context.Background()).Return(nil, fmt.Errorf("an error occured"))
+		db.On("ListClusters", context.Background()).Return(nil, fmt.Errorf("an error occurred"))
 
 		err := ValidateDestination(context.Background(), &dest, db)
-		assert.Equal(t, "unable to find destination server: an error occured", err.Error())
+		assert.Equal(t, "unable to find destination server: an error occurred", err.Error())
 		assert.False(t, dest.IsServerInferred())
 	})
 
