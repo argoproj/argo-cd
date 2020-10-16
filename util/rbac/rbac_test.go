@@ -432,6 +432,7 @@ func TestEnforceErrorMessage(t *testing.T) {
 	assert.Error(t, err)
 	assert.Equal(t, "rpc error: code = PermissionDenied desc = permission denied: project", err.Error())
 
+	// nolint:staticcheck
 	ctx = context.WithValue(context.Background(), "claims", &jwt.StandardClaims{Subject: "proj:default:admin", IssuedAt: 0})
 	err = enf.EnforceErr(ctx.Value("claims"), "project")
 	assert.Error(t, err)
