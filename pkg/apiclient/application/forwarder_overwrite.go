@@ -3,8 +3,10 @@ package application
 import (
 	"errors"
 
-	"github.com/argoproj/pkg/grpc/http"
+	// nolint:staticcheck
 	"github.com/golang/protobuf/proto"
+
+	"github.com/argoproj/pkg/grpc/http"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )

@@ -127,7 +127,7 @@ export const ApplicationParameters = (props: {
                     formApi={formApi}
                     field='spec.source.ksonnet.environment'
                     component={FormSelect}
-                    componentProps={{options: Object.keys(props.details.ksonnet.environments)}}
+                    componentProps={{options: Object.keys(props.details.ksonnet.environments || {})}}
                 />
             )
         });
