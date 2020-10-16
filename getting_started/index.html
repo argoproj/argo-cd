@@ -1701,6 +1701,12 @@ Argo CD API server. This can be retrieved with the command:</p>
 <div class="codehilite"><pre><span></span><code>argocd account update-password
 </code></pre></div>
 
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The initial password is set in a kubernetes secret, named <code>argocd-secret</code>, during ArgoCD's initial start up. This means if you edit
+the deployment in any way which causes a new pod to be deployed, such as disabling TLS on the Argo CD API server. Take note of the initial
+pod name when you first install Argo CD, or reset the password by following <a href="https://argoproj.github.io/argo-cd/faq/#i-forgot-the-admin-password-how-do-i-reset-it">these instructions</a></p>
+</div>
 <h2 id="5-register-a-cluster-to-deploy-apps-to-optional">5. Register A Cluster To Deploy Apps To (Optional)<a class="headerlink" href="#5-register-a-cluster-to-deploy-apps-to-optional" title="Permanent link">&para;</a></h2>
 <p>This step registers a cluster's credentials to Argo CD, and is only necessary when deploying to
 an external cluster. When deploying internally (to the same cluster that Argo CD is running in),
