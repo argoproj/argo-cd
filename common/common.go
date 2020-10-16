@@ -166,6 +166,16 @@ const (
 	EnvGnuPGHome = "ARGOCD_GNUPGHOME"
 	// EnvWatchAPIBufferSize is the buffer size used to transfer K8S watch events to watch API consumer
 	EnvWatchAPIBufferSize = "ARGOCD_WATCH_API_BUFFER_SIZE"
+	// EnvPauseGenerationAfterFailedAttempts will pause manifest generation after the specified number of failed generation attempts
+	EnvPauseGenerationAfterFailedAttempts = "ARGOCD_PAUSE_GEN_AFTER_FAILED_ATTEMPTS"
+	// EnvPauseGenerationMinutes pauses manifest generation for the specified number of minutes, after sufficient manifest generation failures
+	EnvPauseGenerationMinutes = "ARGOCD_PAUSE_GEN_MINUTES"
+	// EnvPauseGenerationRequests pauses manifest generation for the specified number of requests, after sufficient manifest generation failures
+	EnvPauseGenerationRequests = "ARGOCD_PAUSE_GEN_REQUESTS"
+	// EnvControllerReplicas is the number of controller replicas
+	EnvControllerReplicas = "ARGOCD_CONTROLLER_REPLICAS"
+	// EnvControllerShard is the shard number that should be handled by controller
+	EnvControllerShard = "ARGOCD_CONTROLLER_SHARD"
 )
 
 const (
@@ -175,7 +185,7 @@ const (
 	MinClientVersion = "1.4.0"
 	// CacheVersion is a objects version cached using util/cache/cache.go.
 	// Number should be bumped in case of backward incompatible change to make sure cache is invalidated after upgrade.
-	CacheVersion = "1.8.0"
+	CacheVersion = "1.8.1"
 )
 
 // GetGnuPGHomePath retrieves the path to use for GnuPG home directory, which is either taken from GNUPGHOME environment or a default value

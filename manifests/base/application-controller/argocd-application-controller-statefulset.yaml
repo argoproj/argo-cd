@@ -1,5 +1,5 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   labels:
     app.kubernetes.io/name: argocd-application-controller
@@ -7,11 +7,11 @@ metadata:
     app.kubernetes.io/component: application-controller
   name: argocd-application-controller
 spec:
-  strategy:
-    type: Recreate
   selector:
     matchLabels:
       app.kubernetes.io/name: argocd-application-controller
+  serviceName: argocd-application-controller
+  replicas: 1
   template:
     metadata:
       labels:

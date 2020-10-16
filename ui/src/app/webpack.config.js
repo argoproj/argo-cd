@@ -61,13 +61,15 @@ const config = {
             }),
         }),
         new HtmlWebpackPlugin({ template: 'src/app/index.html' }),
-        new CopyWebpackPlugin([{
-            from: 'src/assets', to: 'assets'
-        }, {
-            from: 'node_modules/argo-ui/src/assets', to: 'assets'
-        }, {
-            from: 'node_modules/@fortawesome/fontawesome-free/webfonts', to: 'assets/fonts'
-        }]),
+        new CopyWebpackPlugin({
+            patterns: [{
+                from: 'src/assets', to: 'assets'
+            }, {
+                from: 'node_modules/argo-ui/src/assets', to: 'assets'
+            }, {
+                from: 'node_modules/@fortawesome/fontawesome-free/webfonts', to: 'assets/fonts'
+            }]
+        }),
         new MonacoWebpackPlugin(),
         new GoogleFontsPlugin({
             // config: https://github.com/beyonk-adventures/google-fonts-webpack-plugin

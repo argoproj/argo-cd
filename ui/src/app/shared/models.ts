@@ -24,8 +24,8 @@ export interface SyncOperationResource {
 }
 
 export interface SyncStrategy {
-    apply: {force?: boolean} | null;
-    hook: {force?: boolean} | null;
+    apply?: {force?: boolean};
+    hook?: {force?: boolean};
 }
 
 export interface SyncOperation {
@@ -697,6 +697,15 @@ export interface ApplicationSyncWindowState {
 
 export interface VersionMessage {
     Version: string;
+    BuildDate: string;
+    GoVersion: string;
+    Compiler: string;
+    Platform: string;
+    KsonnetVersion: string;
+    KustomizeVersion: string;
+    HelmVersion: string;
+    KubectlVersion: string;
+    JsonnetVersion: string;
 }
 
 export interface Token {
