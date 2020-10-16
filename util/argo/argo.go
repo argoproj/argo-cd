@@ -323,7 +323,7 @@ func GetAppProject(spec *argoappv1.ApplicationSpec, projLister applicationsv1.Ap
 	if err != nil {
 		return nil, err
 	}
-	return getAppVirtualProject(projOrig, projLister, settingsManager)
+	return GetAppVirtualProject(projOrig, projLister, settingsManager)
 }
 
 // verifyGenerateManifests verifies a repo path can generate manifests
@@ -461,7 +461,7 @@ func getDestinationServer(ctx context.Context, db db.ArgoDB, clusterName string)
 	return servers[0], nil
 }
 
-func getAppVirtualProject(proj *argoappv1.AppProject, projLister applicationsv1.AppProjectLister, settingsManager *settings.SettingsManager) (*argoappv1.AppProject, error) {
+func GetAppVirtualProject(proj *argoappv1.AppProject, projLister applicationsv1.AppProjectLister, settingsManager *settings.SettingsManager) (*argoappv1.AppProject, error) {
 	gps, err := settingsManager.GetGlobalProjectsSettings()
 	if err != nil {
 		log.Warnf("Failed to get global project settings: %v", err)

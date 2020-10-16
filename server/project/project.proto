@@ -95,6 +95,11 @@ service ProjectService {
       option (google.api.http).get = "/api/v1/projects/{name}";
   }
 
+  // Get returns a virtual project by name
+  rpc GetVirtualProject(ProjectQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.AppProject) {
+      option (google.api.http).get = "/api/v1/projects/{name}/virtualproject";
+  }
+
   // Update updates a project
   rpc Update(ProjectUpdateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.AppProject) {
       option (google.api.http) = {

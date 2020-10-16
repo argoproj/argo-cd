@@ -103,6 +103,10 @@ export class ProjectsService {
         return requests.get(`/projects/${name}`).then(res => res.body as models.Project);
     }
 
+    public getVirtualProject(name: string): Promise<models.Project> {
+        return requests.get(`/projects/${name}/virtualproject`).then(res => res.body as models.Project);
+    }
+
     public delete(name: string): Promise<boolean> {
         return requests.delete(`/projects/${name}`).then(() => true);
     }
