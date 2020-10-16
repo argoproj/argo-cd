@@ -67,7 +67,7 @@ type nativeGitClient struct {
 }
 
 type subModule struct {
-	URL string
+	URL    string
 	Branch string
 }
 
@@ -401,9 +401,8 @@ func (m *nativeGitClient) extractSubmoduleBranch(line string) string {
 	return strings.TrimPrefix(line, branchPrefix)
 }
 
-
 func (m *nativeGitClient) getSubmoduleSHAs(set map[subModule]bool, submoduleRefs []string) []string {
-	for key, _ := range set {
+	for key := range set {
 		ref, _ := m.lsRemote(key.Branch, key.URL)
 		submoduleRefs = append(submoduleRefs, ref)
 	}
