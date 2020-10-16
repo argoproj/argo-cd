@@ -538,7 +538,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	}
 
 	// Git has already performed the signature verification via its GPG interface, and the result is available
-	// in the manifest info received from the repository server. We now need to form our oppinion about the result
+	// in the manifest info received from the repository server. We now need to form our opinion about the result
 	// and stop processing if we do not agree about the outcome.
 	if gpg.IsGPGEnabled() && verifySignature && manifestInfo != nil {
 		conditions = append(conditions, verifyGnuPGSignature(revision, project, manifestInfo)...)
