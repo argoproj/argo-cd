@@ -344,7 +344,7 @@ func (m *nativeGitClient) LsRemote(revision string) (res string, err error) {
 			var subModules []subModule
 			for scanner.Scan() {
 				line := strings.TrimSpace(scanner.Text())
-				re := regexp.MustCompile("\\[\\s*submodule.*\\]")
+				re := regexp.MustCompile(`\[\s*submodule.*\]`)
 				if re.MatchString(line) {
 					log.Info("Get Infos for submodule: " + line)
 					// new submodule starts
@@ -390,13 +390,13 @@ func (m *nativeGitClient) loadGitmodulesFile() (*os.File, error) {
 }
 
 func (m *nativeGitClient) extractSubmoduleURL(line string) string {
-	re := regexp.MustCompile("url\\s*=\\s*")
+	re := regexp.MustCompile(`url\s*=\s*`)
 	urlPrefix := re.FindString(line)
 	return strings.TrimPrefix(line, urlPrefix)
 }
 
 func (m *nativeGitClient) extractSubmoduleBranch(line string) string {
-	re := regexp.MustCompile("branch\\s*=\\s*")
+	re := regexp.MustCompile(`branch\s*=\s*`)
 	branchPrefix := re.FindString(line)
 	return strings.TrimPrefix(line, branchPrefix)
 }
