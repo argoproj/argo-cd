@@ -266,7 +266,7 @@ func (m *appStateManager) getComparisonSettings(app *appv1.Application) (string,
 func verifyGnuPGSignature(revision string, project *appv1.AppProject, manifestInfo *apiclient.ManifestResponse) []appv1.ApplicationCondition {
 	now := metav1.Now()
 	conditions := make([]appv1.ApplicationCondition, 0)
-	// We need to have some data in the verificatin result to parse, otherwise there was no signature
+	// We need to have some data in the verification result to parse, otherwise there was no signature
 	if manifestInfo.VerifyResult != "" {
 		verifyResult, err := gpg.ParseGitCommitVerification(manifestInfo.VerifyResult)
 		if err != nil {
