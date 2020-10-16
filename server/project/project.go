@@ -23,7 +23,7 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apiclient/project"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
-	applisters "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
+	listersv1alpha1 "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/util/argo"
 	jwtutil "github.com/argoproj/argo-cd/util/jwt"
@@ -244,7 +244,7 @@ func (s *Server) GetVirtualProject(ctx context.Context, q *project.ProjectQuery)
 		return nil, err
 	}
 
-	return argo.GetAppVirtualProject(projOrig, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.sessionMgr.SettingsMgr)
+	return argo.GetAppVirtualProject(projOrig, listersv1alpha1.NewAppProjectLister(s.projInformer.GetIndexer()), s.sessionMgr.SettingsMgr)
 }
 
 // Update updates a project
