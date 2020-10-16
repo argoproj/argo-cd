@@ -240,7 +240,7 @@ func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 
 	// The same pattern PauseGenerationAfterFailedGenerationAttempts generation attempts, followed by
 	// PauseGenerationOnFailureForRequests cached responses, should apply for various combinations of
-	// both paramters.
+	// both parameters.
 
 	tests := []struct {
 		PauseGenerationAfterFailedGenerationAttempts int
