@@ -470,7 +470,7 @@ func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.Resource
 		return nil, err
 	}
 	resourceOverrides := map[string]v1alpha1.ResourceOverride{}
-	if value, ok := argoCDCM.Data[resourceCustomizationsKey]; ok {
+	if value, ok := argoCDCM.Data[resourceCustomizationsKey]; ok && value != "" {
 		err := yaml.Unmarshal([]byte(value), &resourceOverrides)
 		if err != nil {
 			return nil, err
@@ -638,24 +638,32 @@ func (mgr *SettingsManager) SaveRepositoryCredentials(creds []RepositoryCredenti
 }
 
 func (mgr *SettingsManager) GetRepositoryCredentials() ([]RepositoryCredentials, error) {
-	if mgr.repoCredsCache == nil {
-		argoCDCM, err := mgr.getConfigMap()
+
+	mgr.mutex.Lock()
+	repoCredsCache := mgr.repoCredsCache
+	mgr.mutex.Unlock()
+	if repoCredsCache != nil {
+		return repoCredsCache, nil
+	}
+
+	// Get the config map outside of the lock
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return nil, err
+	}
+
+	mgr.mutex.Lock()
+	defer mgr.mutex.Unlock()
+	creds := make([]RepositoryCredentials, 0)
+	credsStr := argoCDCM.Data[repositoryCredentialsKey]
+	if credsStr != "" {
+		err := yaml.Unmarshal([]byte(credsStr), &creds)
 		if err != nil {
 			return nil, err
 		}
-
-		mgr.mutex.Lock()
-		defer mgr.mutex.Unlock()
-		creds := make([]RepositoryCredentials, 0)
-		credsStr := argoCDCM.Data[repositoryCredentialsKey]
-		if credsStr != "" {
-			err := yaml.Unmarshal([]byte(credsStr), &creds)
-			if err != nil {
-				return nil, err
-			}
-		}
-		mgr.repoCredsCache = creds
 	}
+	mgr.repoCredsCache = creds
+
 	return mgr.repoCredsCache, nil
 }
 
