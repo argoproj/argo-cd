@@ -48,6 +48,8 @@ func StartGPGWatcher(sourcePath string) error {
 									continue
 								} else {
 									log.Errorf("Maximum retries exceeded.")
+									close(done)
+									return
 								}
 							}
 							break
