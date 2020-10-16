@@ -103,7 +103,7 @@ jobs:
           echo "/home/runner/go/bin" >> $GITHUB_PATH
       - name: Add /usr/local/bin to PATH
         run: |
-          echo "/usr/local/bin" >> $GITHUB_PATh
+          echo "/usr/local/bin" >> $GITHUB_PATH
       - name: Restore go build cache
         uses: actions/cache@v1
         with:
@@ -151,7 +151,7 @@ jobs:
           echo "/home/runner/go/bin" >> $GITHUB_PATH
       - name: Add /usr/local/bin to PATH
         run: |
-          echo "/usr/local/bin" >> $GITHUB_PATh
+          echo "/usr/local/bin" >> $GITHUB_PATH
       - name: Download & vendor dependencies
         run: |
           # We need to vendor go modules for codegen yet
@@ -321,7 +321,7 @@ jobs:
           echo "/home/runner/go/bin" >> $GITHUB_PATH
       - name: Add /usr/local/bin to PATH
         run: |
-          echo "/usr/local/bin" >> $GITHUB_PATh
+          echo "/usr/local/bin" >> $GITHUB_PATH
       - name: Download Go dependencies
         run: |
           go mod download
