@@ -50,6 +50,47 @@ dex.config: |
 
 ----
 
+### Private deployment
+It is possible to setup Okta SSO with a private Argo CD installation, where the Okta callback URL is the only publicly exposed endpoint.
+The settings are largely the same with a few changes in the Okta app configuration and the `data.dex.config` section of the `argocd-cm` ConfigMap.
+
+Using this deployment model, the user connects to the private Argo CD UI and the Okta authentication flow seamlessly redirects back to the private UI URL.
+
+Often this public endpoint is exposed through an [Ingress object](../../ingress/#private-argo-cd-ui-with-multiple-ingress-objects-and-byo-certificate).
+
+
+1. Update the URLs in the Okta app's General settings
+    * ![Okta SAML App Split](../../assets/saml-split.png)
+        The `Single sign on URL` field points to the public exposed endpoint, and all other URL fields point to the internal endpoint.
+1. Update the `data.dex.config` section of the `argocd-cm` ConfigMap with the external endpoint reference.
+
+<!-- markdownlint-disable MD046 -->
+```yaml
+dex.config: |
+  logger:
+    level: debug
+  connectors:
+  - type: saml
+    id: okta
+    name: Okta
+    config:
+      ssoURL: https://yourorganization.oktapreview.com/app/yourorganizationsandbox_appnamesaml_2/rghdr9s6hg98s9dse/sso/saml
+      # You need `caData` _OR_ `ca`, but not both.
+      caData: |
+        <CA cert passed through base64 encoding>
+      # You need `caData` _OR_ `ca`, but not both.
+      # Path to mount the secret to the dex container
+      ca: /path/to/ca.pem
+      redirectURI: https://external.path.to.argocd.io/api/dex/callback
+      usernameAttr: email
+      emailAttr: email
+      groupsAttr: group
+```
+<!-- markdownlint-enable MD046 -->
+
+
+
+
 ## OIDC (without Dex)
 
 !!! warning "Do you want groups for RBAC later?"
