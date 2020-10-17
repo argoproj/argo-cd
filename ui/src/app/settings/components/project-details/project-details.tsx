@@ -448,7 +448,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
             this.loader.setData(await services.projects.updateProj(proj));
 
             const virtualProj = await services.projects.getVirtualProject(updatedProj.metadata.name);
-            this.virtualProjectLoader.setData(virtualProj)
+            this.virtualProjectLoader.setData(virtualProj);
         } catch (e) {
             this.appContext.apis.notifications.show({
                 content: <ErrorNotification title='Unable to update project' e={e} />,
@@ -459,7 +459,9 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
 
     private summaryTab(proj: Project) {
         return (
-            <DataLoader load={() => services.projects.getVirtualProject(this.props.match.params.name)} ref={virtualProjectLoader => (this.virtualProjectLoader = virtualProjectLoader)}>
+            <DataLoader
+                load={() => services.projects.getVirtualProject(this.props.match.params.name)}
+                ref={virtualProjectLoader => (this.virtualProjectLoader = virtualProjectLoader)}>
                 {virtualProj => {
                     const gpClusterResourceBlacklist: GroupKind[] = [];
                     const gpClusterResourceWhitelist: GroupKind[] = [];
