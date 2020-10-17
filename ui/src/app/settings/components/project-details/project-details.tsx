@@ -51,6 +51,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
     private projectRoleFormApi: FormApi;
     private projectSyncWindowsFormApi: FormApi;
     private loader: DataLoader;
+    private virtualProjectLoader: DataLoader;
 
     constructor(props: RouteComponentProps<{name: string}>) {
         super(props);
@@ -445,6 +446,9 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
             proj.metadata.labels = updatedProj.metadata.labels;
             proj.spec = updatedProj.spec;
             this.loader.setData(await services.projects.updateProj(proj));
+
+            const virtualProj = await services.projects.getVirtualProject(updatedProj.metadata.name);
+            this.virtualProjectLoader.setData(virtualProj)
         } catch (e) {
             this.appContext.apis.notifications.show({
                 content: <ErrorNotification title='Unable to update project' e={e} />,
@@ -454,14 +458,13 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
     }
 
     private summaryTab(proj: Project) {
-        const gpClusterResourceBlacklist: GroupKind[] = [];
-        const gpClusterResourceWhitelist: GroupKind[] = [];
-        const gpNamespaceResourceBlacklist: GroupKind[] = [];
-        const gpNamespaceResourceWhitelist: GroupKind[] = [];
-
         return (
-            <DataLoader load={() => services.projects.getVirtualProject(this.props.match.params.name)}>
+            <DataLoader load={() => services.projects.getVirtualProject(this.props.match.params.name)} ref={virtualProjectLoader => (this.virtualProjectLoader = virtualProjectLoader)}>
                 {virtualProj => {
+                    const gpClusterResourceBlacklist: GroupKind[] = [];
+                    const gpClusterResourceWhitelist: GroupKind[] = [];
+                    const gpNamespaceResourceBlacklist: GroupKind[] = [];
+                    const gpNamespaceResourceWhitelist: GroupKind[] = [];
                     // From virtualProj get the fields which are not from its own project
                     if (virtualProj.spec.namespaceResourceBlacklist) {
                         virtualProj.spec.namespaceResourceBlacklist.forEach(e => {
