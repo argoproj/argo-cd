@@ -460,19 +460,25 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
         const gpNamespaceResourceWhitelist: GroupKind[] = [];
 
         return (
-            <DataLoader load={() => services.projects.getVirtualProject(this.props.match.params.name)} >
-                {(virtualProj) => {
+            <DataLoader load={() => services.projects.getVirtualProject(this.props.match.params.name)}>
+                {virtualProj => {
                     // From virtualProj get the fields which are not from its own project
                     if (virtualProj.spec.namespaceResourceBlacklist) {
                         virtualProj.spec.namespaceResourceBlacklist.forEach(e => {
-                            if (null == proj.spec.namespaceResourceBlacklist || !proj.spec.namespaceResourceBlacklist.some(item => item.group === e.group && item.kind === e.kind)) {
+                            if (
+                                null == proj.spec.namespaceResourceBlacklist ||
+                                !proj.spec.namespaceResourceBlacklist.some(item => item.group === e.group && item.kind === e.kind)
+                            ) {
                                 gpNamespaceResourceBlacklist.push(e);
                             }
                         });
                     }
                     if (virtualProj.spec.namespaceResourceWhitelist) {
                         virtualProj.spec.namespaceResourceWhitelist.forEach(e => {
-                            if (null == proj.spec.namespaceResourceWhitelist || !proj.spec.namespaceResourceWhitelist.some(item => item.group === e.group && item.kind === e.kind)) {
+                            if (
+                                null == proj.spec.namespaceResourceWhitelist ||
+                                !proj.spec.namespaceResourceWhitelist.some(item => item.group === e.group && item.kind === e.kind)
+                            ) {
                                 gpNamespaceResourceWhitelist.push(e);
                             }
                         });
@@ -524,15 +530,19 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                             <EditablePanel
                                 save={item => this.saveProject(item)}
                                 values={proj}
-                                title={<React.Fragment>SOURCE REPOSITORIES {helpTip('Git repositories where application manifests are permitted to be retrieved from')}</React.Fragment>}
+                                title={
+                                    <React.Fragment>
+                                        SOURCE REPOSITORIES {helpTip('Git repositories where application manifests are permitted to be retrieved from')}
+                                    </React.Fragment>
+                                }
                                 view={
                                     <React.Fragment>
                                         {proj.spec.sourceRepos
                                             ? proj.spec.sourceRepos.map((repo, i) => (
-                                                <div className='row white-box__details-row' key={i}>
-                                                    <div className='columns small-12'>{repo}</div>
-                                                </div>
-                                            ))
+                                                  <div className='row white-box__details-row' key={i}>
+                                                      <div className='columns small-12'>{repo}</div>
+                                                  </div>
+                                              ))
                                             : emptyMessage('source repositories')}
                                     </React.Fragment>
                                 }
@@ -549,7 +559,10 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                                 component={AutocompleteField}
                                                                 componentProps={{items: repos.map(repo => repo.repo)}}
                                                             />
-                                                            <i className='fa fa-times' onClick={() => formApi.setValue('spec.sourceRepos', removeEl(formApi.values.spec.sourceRepos, i))} />
+                                                            <i
+                                                                className='fa fa-times'
+                                                                onClick={() => formApi.setValue('spec.sourceRepos', removeEl(formApi.values.spec.sourceRepos, i))}
+                                                            />
                                                         </div>
                                                     </div>
                                                 ))}
@@ -610,7 +623,10 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                         <div className='columns small-8'>
                                                             <FormField formApi={formApi} field={`spec.destinations[${i}].namespace`} component={AutocompleteField} />
                                                         </div>
-                                                        <i className='fa fa-times' onClick={() => formApi.setValue('spec.destinations', removeEl(formApi.values.spec.destinations, i))} />
+                                                        <i
+                                                            className='fa fa-times'
+                                                            onClick={() => formApi.setValue('spec.destinations', removeEl(formApi.values.spec.destinations, i))}
+                                                        />
                                                     </div>
                                                 ))}
                                                 <button
@@ -636,7 +652,11 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                             <EditablePanel
                                 save={item => this.saveProject(item)}
                                 values={proj}
-                                title={<React.Fragment>CLUSTER RESOURCE ALLOW LIST {helpTip('Cluster-scoped K8s API Groups and Kinds which are permitted to be deployed')}</React.Fragment>}
+                                title={
+                                    <React.Fragment>
+                                        CLUSTER RESOURCE ALLOW LIST {helpTip('Cluster-scoped K8s API Groups and Kinds which are permitted to be deployed')}
+                                    </React.Fragment>
+                                }
                                 view={
                                     <React.Fragment>
                                         {proj.spec.clusterResourceWhitelist ? (
@@ -735,7 +755,11 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                             <EditablePanel
                                 save={item => this.saveProject(item)}
                                 values={proj}
-                                title={<React.Fragment>CLUSTER RESOURCE DENY LIST {helpTip('Cluster-scoped K8s API Groups and Kinds which are not permitted to be deployed')}</React.Fragment>}
+                                title={
+                                    <React.Fragment>
+                                        CLUSTER RESOURCE DENY LIST {helpTip('Cluster-scoped K8s API Groups and Kinds which are not permitted to be deployed')}
+                                    </React.Fragment>
+                                }
                                 view={
                                     <React.Fragment>
                                         {proj.spec.clusterResourceBlacklist ? (
@@ -834,7 +858,11 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                             <EditablePanel
                                 save={item => this.saveProject(item)}
                                 values={proj}
-                                title={<React.Fragment>NAMESPACE RESOURCE ALLOW LIST {helpTip('Namespace-scoped K8s API Groups and Kinds which are permitted to deploy')}</React.Fragment>}
+                                title={
+                                    <React.Fragment>
+                                        NAMESPACE RESOURCE ALLOW LIST {helpTip('Namespace-scoped K8s API Groups and Kinds which are permitted to deploy')}
+                                    </React.Fragment>
+                                }
                                 view={
                                     <React.Fragment>
                                         {proj.spec.namespaceResourceWhitelist ? (
@@ -883,7 +911,9 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                         </div>
                                                         <i
                                                             className='fa fa-times'
-                                                            onClick={() => formApi.setValue('spec.namespaceResourceWhitelist', removeEl(formApi.values.spec.namespaceResourceWhitelist, i))}
+                                                            onClick={() =>
+                                                                formApi.setValue('spec.namespaceResourceWhitelist', removeEl(formApi.values.spec.namespaceResourceWhitelist, i))
+                                                            }
                                                         />
                                                     </div>
                                                 ))}
@@ -990,7 +1020,9 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                         </div>
                                                         <i
                                                             className='fa fa-times'
-                                                            onClick={() => formApi.setValue('spec.namespaceResourceBlacklist', removeEl(formApi.values.spec.namespaceResourceBlacklist, i))}
+                                                            onClick={() =>
+                                                                formApi.setValue('spec.namespaceResourceBlacklist', removeEl(formApi.values.spec.namespaceResourceBlacklist, i))
+                                                            }
                                                         />
                                                     </div>
                                                 ))}
@@ -1044,15 +1076,19 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                             <EditablePanel
                                 save={item => this.saveProject(item)}
                                 values={proj}
-                                title={<React.Fragment>GPG SIGNATURE KEYS {helpTip('IDs of GnuPG keys that commits must be signed with in order to be allowed to sync to')}</React.Fragment>}
+                                title={
+                                    <React.Fragment>
+                                        GPG SIGNATURE KEYS {helpTip('IDs of GnuPG keys that commits must be signed with in order to be allowed to sync to')}
+                                    </React.Fragment>
+                                }
                                 view={
                                     <React.Fragment>
                                         {proj.spec.signatureKeys
                                             ? proj.spec.signatureKeys.map((key, i) => (
-                                                <div className='row white-box__details-row' key={i}>
-                                                    <div className='columns small-12'>{key.keyID}</div>
-                                                </div>
-                                            ))
+                                                  <div className='row white-box__details-row' key={i}>
+                                                      <div className='columns small-12'>{key.keyID}</div>
+                                                  </div>
+                                              ))
                                             : emptyMessage('signature keys')}
                                     </React.Fragment>
                                 }
@@ -1070,7 +1106,10 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                                 componentProps={{items: keys.map(key => key.keyID)}}
                                                             />
                                                         </div>
-                                                        <i className='fa fa-times' onClick={() => formApi.setValue('spec.signatureKeys', removeEl(formApi.values.spec.signatureKeys, i))} />
+                                                        <i
+                                                            className='fa fa-times'
+                                                            onClick={() => formApi.setValue('spec.signatureKeys', removeEl(formApi.values.spec.signatureKeys, i))}
+                                                        />
                                                     </div>
                                                 ))}
                                                 <button
@@ -1095,7 +1134,9 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                             <EditablePanel
                                 save={item => this.saveProject(item)}
                                 values={proj}
-                                title={<React.Fragment>RESOURCE MONITORING {helpTip('Enables monitoring of top level resources in the application target namespace')}</React.Fragment>}
+                                title={
+                                    <React.Fragment>RESOURCE MONITORING {helpTip('Enables monitoring of top level resources in the application target namespace')}</React.Fragment>
+                                }
                                 view={
                                     proj.spec.orphanedResources ? (
                                         <React.Fragment>
@@ -1163,33 +1204,35 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                 <div className='columns small-4'>Name</div>
                                             </div>
                                             {((formApi.values.spec.orphanedResources.ignore || []).length === 0 && <div>Ignore list is empty</div>) ||
-                                            formApi.values.spec.orphanedResources.ignore.map((_: Project, i: number) => (
-                                                <div className='row white-box__details-row' key={i}>
-                                                    <div className='columns small-4'>
-                                                        <FormField
-                                                            formApi={formApi}
-                                                            field={`spec.orphanedResources.ignore[${i}].group`}
-                                                            component={AutocompleteField}
-                                                            componentProps={{items: Groups, filterSuggestions: true}}
+                                                formApi.values.spec.orphanedResources.ignore.map((_: Project, i: number) => (
+                                                    <div className='row white-box__details-row' key={i}>
+                                                        <div className='columns small-4'>
+                                                            <FormField
+                                                                formApi={formApi}
+                                                                field={`spec.orphanedResources.ignore[${i}].group`}
+                                                                component={AutocompleteField}
+                                                                componentProps={{items: Groups, filterSuggestions: true}}
+                                                            />
+                                                        </div>
+                                                        <div className='columns small-4'>
+                                                            <FormField
+                                                                formApi={formApi}
+                                                                field={`spec.orphanedResources.ignore[${i}].kind`}
+                                                                component={AutocompleteField}
+                                                                componentProps={{items: ResourceKinds, filterSuggestions: true}}
+                                                            />
+                                                        </div>
+                                                        <div className='columns small-4'>
+                                                            <FormField formApi={formApi} field={`spec.orphanedResources.ignore[${i}].name`} component={AutocompleteField} />
+                                                        </div>
+                                                        <i
+                                                            className='fa fa-times'
+                                                            onClick={() =>
+                                                                formApi.setValue('spec.orphanedResources.ignore', removeEl(formApi.values.spec.orphanedResources.ignore, i))
+                                                            }
                                                         />
                                                     </div>
-                                                    <div className='columns small-4'>
-                                                        <FormField
-                                                            formApi={formApi}
-                                                            field={`spec.orphanedResources.ignore[${i}].kind`}
-                                                            component={AutocompleteField}
-                                                            componentProps={{items: ResourceKinds, filterSuggestions: true}}
-                                                        />
-                                                    </div>
-                                                    <div className='columns small-4'>
-                                                        <FormField formApi={formApi} field={`spec.orphanedResources.ignore[${i}].name`} component={AutocompleteField} />
-                                                    </div>
-                                                    <i
-                                                        className='fa fa-times'
-                                                        onClick={() => formApi.setValue('spec.orphanedResources.ignore', removeEl(formApi.values.spec.orphanedResources.ignore, i))}
-                                                    />
-                                                </div>
-                                            ))}
+                                                ))}
                                             <br />
                                             <button
                                                 className='argo-button argo-button--base'
@@ -1213,7 +1256,8 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                 items={[]}
                             />
                         </div>
-                    )}}
+                    );
+                }}
             </DataLoader>
         );
     }
