@@ -105,6 +105,7 @@ metadata:
 data:
   policy.csv |
     g, argocd-admins, role:admin
+  scopes: '[email,groups]'
 ```
 
 ## OIDC (without Dex)
