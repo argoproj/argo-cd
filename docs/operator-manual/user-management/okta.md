@@ -10,6 +10,9 @@ A working Single Sign-On configuration using Okta via at least two methods was a
 
 ## SAML (with Dex)
 
+!!! note "Okta app group assignment"
+    The Okta app's **Group Attribute Statements** regex will be used later to map Okta groups to Argo CD RBAC roles.
+
 1. Create a new SAML application in Okta UI.
     * ![Okta SAML App 1](../../assets/saml-1.png)
         I've disabled `App Visibility` because Dex doesn't support Provider-initiated login flows.
@@ -88,8 +91,21 @@ dex.config: |
 ```
 <!-- markdownlint-enable MD046 -->
 
+### Connect Okta Groups to Argo CD Roles
+Argo CD is aware of user memberships of Okta groups that match the *Group Attribute Statements* regex.
+The example above uses the `argocd-*` regex, so Argo CD would be aware of a group named `argocd-admins`.
 
-
+Modify the `argocd-rbac-cm` ConfigMap to connect the `argocd-admins` Okta group to the builtin Argo CD `admin` role.
+<!-- markdownlint-disable MD046 -->
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-rbac-cm
+data:
+  policy.csv |
+    g, argocd-admins, role:admin
+```
 
 ## OIDC (without Dex)
 
@@ -122,3 +138,5 @@ oidc.config: |
   requestedIDTokenClaims: {"groups": {"essential": true}}
 ```
 <!-- markdownlint-enable MD046 -->
+
+
