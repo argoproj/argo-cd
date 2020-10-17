@@ -58,10 +58,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v1
+        uses: golangci/golangci-lint-action@v2
         with:
-          version: v1.26
-          args: --timeout 5m
+          version: v1.29
+          args: --timeout 5m --exclude SA5011
 
   test-go:
     name: Run unit tests for Go packages
@@ -90,9 +90,11 @@ jobs:
         run: |
           git fetch --prune --no-tags --depth=1 origin +refs/heads/*:refs/remotes/origin/*
       - name: Add ~/go/bin to PATH
-        run: echo "::add-path::/home/runner/go/bin"
+        run: |
+          echo "/home/runner/go/bin" >> $GITHUB_PATH
       - name: Add /usr/local/bin to PATH
-        run: echo "::add-path::/usr/local/bin"
+        run: |
+          echo "/usr/local/bin" >> $GITHUB_PATH
       - name: Restore go build cache
         uses: actions/cache@v1
         with:
@@ -135,10 +137,12 @@ jobs:
         run: |
           mkdir -p ~/go/src/github.com/argoproj
           cp -a ../argo-cd ~/go/src/github.com/argoproj
-      - name: Add /usr/local/bin to PATH
-        run: echo "::add-path::/usr/local/bin"
       - name: Add ~/go/bin to PATH
-        run: echo "::add-path::/home/runner/go/bin"
+        run: |
+          echo "/home/runner/go/bin" >> $GITHUB_PATH
+      - name: Add /usr/local/bin to PATH
+        run: |
+          echo "/usr/local/bin" >> $GITHUB_PATH
       - name: Download & vendor dependencies
         run: |
           # We need to vendor go modules for codegen yet
@@ -299,10 +303,12 @@ jobs:
         with:
           path: ~/.cache/go-build
           key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}
-      - name: Add /usr/local/bin to PATH
-        run: echo "::add-path::/usr/local/bin"
       - name: Add ~/go/bin to PATH
-        run: echo "::add-path::/home/runner/go/bin"
+        run: |
+          echo "/home/runner/go/bin" >> $GITHUB_PATH
+      - name: Add /usr/local/bin to PATH
+        run: |
+          echo "/usr/local/bin" >> $GITHUB_PATH
       - name: Download Go dependencies
         run: |
           go mod download
