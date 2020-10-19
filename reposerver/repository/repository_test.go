@@ -46,7 +46,7 @@ func newServiceWithMocks(root string, signed bool) (*Service, *gitmocks.Client) 
 	if err != nil {
 		panic(err)
 	}
-	return newServiceWithOpt(root, func(gitClient *gitmocks.Client) {
+	return newServiceWithOpt(func(gitClient *gitmocks.Client) {
 		gitClient.On("Init").Return(nil)
 		gitClient.On("Fetch").Return(nil)
 		gitClient.On("Checkout", mock.Anything).Return(nil)
@@ -61,11 +61,11 @@ func newServiceWithMocks(root string, signed bool) (*Service, *gitmocks.Client) 
 	})
 }
 
-func newServiceWithOpt(root string, cf clientFunc) (*Service, *gitmocks.Client) {
-	root, err := filepath.Abs(root)
-	if err != nil {
-		panic(err)
-	}
+func newServiceWithOpt(cf clientFunc) (*Service, *gitmocks.Client) {
+	// root, err := filepath.Abs(root)
+	// if err != nil {
+	// 	panic(err)
+	// }
 	helmClient := &helmmocks.Client{}
 	gitClient := &gitmocks.Client{}
 	cf(gitClient)
@@ -109,7 +109,7 @@ func newServiceWithCommitSHA(root, revision string) *Service {
 		revisionErr = errors.New("not a commit SHA")
 	}
 
-	service, gitClient := newServiceWithOpt(root, func(gitClient *gitmocks.Client) {
+	service, gitClient := newServiceWithOpt(func(gitClient *gitmocks.Client) {
 		gitClient.On("Init").Return(nil)
 		gitClient.On("Fetch").Return(nil)
 		gitClient.On("Checkout", mock.Anything).Return(nil)
