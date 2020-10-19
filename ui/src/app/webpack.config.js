@@ -71,7 +71,10 @@ const config = {
                 from: 'node_modules/@fortawesome/fontawesome-free/webfonts', to: 'assets/fonts'
             }]
         }),
-        new MonacoWebpackPlugin(),
+        new MonacoWebpackPlugin({
+            // https://github.com/microsoft/monaco-editor-webpack-plugin#options
+            languages: [ 'yaml' ]
+        }),
         new GoogleFontsPlugin({
             // config: https://github.com/beyonk-adventures/google-fonts-webpack-plugin
             // the upstream version of this plugin is not compatible with webpack 4 so we use this fork
