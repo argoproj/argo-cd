@@ -1745,6 +1745,16 @@ in an environment. It is defined by two key pieces of information:</p>
 <p class="admonition-title">Note</p>
 <p>The namespace must match the namespace of your Argo cd, typically this is <code>argocd</code>.</p>
 </div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>When creating an application from a Helm repository, the <code>chart</code> attribute must be specified instead of the <code>path</code> attribute within <code>spec.source</code>.</p>
+</div>
+<div class="codehilite"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">source</span><span class="p">:</span>
+    <span class="nt">repoURL</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">https://argoproj.github.io/argo-helm</span>
+    <span class="nt">chart</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argo</span>
+</code></pre></div>
+
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p>By default, deleting an application will not perform a cascade delete, thereby deleting its resources. You must add the finalizer if you want this behaviour - which you may well not want.</p>
