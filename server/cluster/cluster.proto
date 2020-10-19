@@ -27,6 +27,7 @@ message ClusterCreateRequest {
 
 message ClusterUpdateRequest {
 	github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster cluster = 1;
+	repeated string updatedFields = 2;
 }
 
 // ClusterService 

@@ -112,6 +112,7 @@ func TestGetResourceFilter(t *testing.T) {
 		ResourceInclusions: []FilteredResource{{APIGroups: []string{"group2"}, Kinds: []string{"kind2"}, Clusters: []string{"cluster2"}}},
 	}, filter)
 }
+
 func TestGetConfigManagementPlugins(t *testing.T) {
 	data := map[string]string{
 		"configManagementPlugins": `
@@ -219,6 +220,17 @@ func TestGetResourceOverrides(t *testing.T) {
 	overrides, err = settingsManager.GetResourceOverrides()
 	assert.NoError(t, err)
 	assert.Equal(t, 0, len(overrides))
+
+}
+
+func TestSettingsManager_GetResourceOverrides_with_empty_string(t *testing.T) {
+	_, settingsManager := fixtures(map[string]string{
+		resourceCustomizationsKey: "",
+	})
+	overrides, err := settingsManager.GetResourceOverrides()
+	assert.NoError(t, err)
+
+	assert.Len(t, overrides, 1)
 }
 
 func TestGetResourceCompareOptions(t *testing.T) {
