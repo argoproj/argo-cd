@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"github.com/argoproj/argo-cd/cmd/argocd/commands"
+
 	"github.com/spf13/cobra/doc"
 )
 
