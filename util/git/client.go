@@ -357,15 +357,12 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 	}
 	//refs, err := remote.List(&git.ListOptions{Auth: auth})
 	refs, err := listRemote(remote, &git.ListOptions{Auth: auth}, m.insecure, m.creds)
-	fmt.Printf("================================== PRINTING OUTPUT OF LIST REMOTE =====================================\n")
-	fmt.Println(refs)
 	if err != nil {
 		return "", err
 	}
 	if revision == "" {
 		revision = "HEAD"
 	}
-	fmt.Printf("================================== REVISION PASSED INTO LS REMOTE %s=====================================\n", revision)
 	// refToHash keeps a maps of remote refs to their hash
 	// (e.g. refs/heads/master -> a67038ae2e9cb9b9b16423702f98b41e36601001)
 	refToHash := make(map[string]string)
@@ -382,13 +379,9 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 		if ref.Type() == plumbing.HashReference {
 			refToHash[refName] = hash
 		}
-		if ref.Name().Short() == "HEAD" {
-			fmt.Printf("================================== HEAD IN LS REMOTE %s=====================================\n", refToHash[ref.Target().String()])
-		}
 		//log.Debugf("%s\t%s", hash, refName)
 		if ref.Name().Short() == revision {
 			if ref.Type() == plumbing.HashReference {
-				fmt.Printf("================================== REVISION FOUND IN LS REMOTE %s=====================================\n", hash)
 				log.Debugf("revision '%s' resolved to '%s'", revision, hash)
 				return hash, nil
 			}
@@ -421,7 +414,6 @@ func (m *nativeGitClient) CommitSHA() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	fmt.Printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ inside commitSHA() %s ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n", strings.TrimSpace(out))
 	return strings.TrimSpace(out), nil
 }
 

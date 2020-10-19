@@ -1,8 +1,6 @@
 package git
 
 import (
-	"fmt"
-
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
@@ -56,22 +54,16 @@ func listRemote(r *git.Remote, o *git.ListOptions, insecure bool, creds Creds) (
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("================================== PRINTING OUTPUT OF ADVERTISED REFERENCES %s =====================================\n", ar)
-	fmt.Println(ar)
 
 	allRefs, err := ar.AllReferences()
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("================================== PRINTING OUTPUT OF ALL REFERENCES %s =====================================\n", allRefs)
-	fmt.Println(allRefs)
 
 	refs, err := allRefs.IterReferences()
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("================================== PRINTING OUTPUT OF ITER REFERENCES %s =====================================\n", refs)
-	fmt.Println(refs)
 
 	var resultRefs []*plumbing.Reference
 	_ = refs.ForEach(func(ref *plumbing.Reference) error {

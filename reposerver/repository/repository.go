@@ -153,7 +153,6 @@ func (s *Service) runRepoOperation(
 	var err error
 	var signature string
 	revision = textutils.FirstNonEmpty(revision, source.TargetRevision)
-	fmt.Printf("================================== INITIAL REVISION %s=====================================\n", revision)
 	if source.IsHelm() {
 		helmClient, revision, err = s.newHelmClientResolveRevision(repo, revision, source.Chart)
 		if err != nil {
@@ -163,13 +162,6 @@ func (s *Service) runRepoOperation(
 		gitClient, revision, err = s.newClientResolveRevision(repo, revision)
 		if err != nil {
 			return nil, err
-		}
-		// fmt.Print("================================== REVISION FROM LS REMOTE %s=====================================", revision)
-		sha, err := gitClient.CommitSHA()
-		fmt.Printf("================================== EXPECTED SHA %s=====================================\n", sha)
-		// Checking to see if revision matches commit hash, if not (in case of annotated tag) then pointing revision to actual commit sha instead
-		if err == nil && git.IsCommitSHA(revision) && sha != revision {
-			revision = sha
 		}
 	}
 
@@ -218,7 +210,7 @@ func (s *Service) runRepoOperation(
 				return obj, err
 			}
 		}
-		_, err = checkoutRevision(gitClient, revision, log.WithField("repo", repo.Repo))
+		revision, err = checkoutRevision(gitClient, revision, log.WithField("repo", repo.Repo))
 		if err != nil {
 			return nil, err
 		}
