@@ -85,7 +85,7 @@ nav:
     - user-guide/app_deletion.md
     - user-guide/best_practices.md
     - user-guide/status-badge.md
-    - user-guide/argocd-cli.md
+    - Command Reference: user-guide/commands/argocd.md
   - Developer Guide:
     - developer-guide/index.md
     - developer-guide/contributing.md
