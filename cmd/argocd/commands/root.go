@@ -38,6 +38,7 @@ func NewCommand() *cobra.Command {
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 		},
+		DisableAutoGenTag: true,
 	}
 
 	command.AddCommand(NewCompletionCommand())

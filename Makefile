@@ -488,3 +488,7 @@ dep-ui: test-tools-image
 
 dep-ui-local:
 	cd ui && yarn install
+
+.PHONY: cmd-docs
+cmd-docs:
+	go run tools/cmd-docs/main.go
