@@ -601,11 +601,11 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type ProjectServiceClient interface {
-	// Create a new project token.
+	// Create a new project token
 	CreateToken(ctx context.Context, in *ProjectTokenCreateRequest, opts ...grpc.CallOption) (*ProjectTokenResponse, error)
-	// Delete a new project token.
+	// Delete a new project token
 	DeleteToken(ctx context.Context, in *ProjectTokenDeleteRequest, opts ...grpc.CallOption) (*EmptyResponse, error)
-	// Create a new project.
+	// Create a new project
 	Create(ctx context.Context, in *ProjectCreateRequest, opts ...grpc.CallOption) (*v1alpha1.AppProject, error)
 	// List returns list of projects
 	List(ctx context.Context, in *ProjectQuery, opts ...grpc.CallOption) (*v1alpha1.AppProjectList, error)
@@ -712,11 +712,11 @@ func (c *projectServiceClient) GetSyncWindowsState(ctx context.Context, in *Sync
 
 // ProjectServiceServer is the server API for ProjectService service.
 type ProjectServiceServer interface {
-	// Create a new project token.
+	// Create a new project token
 	CreateToken(context.Context, *ProjectTokenCreateRequest) (*ProjectTokenResponse, error)
-	// Delete a new project token.
+	// Delete a new project token
 	DeleteToken(context.Context, *ProjectTokenDeleteRequest) (*EmptyResponse, error)
-	// Create a new project.
+	// Create a new project
 	Create(context.Context, *ProjectCreateRequest) (*v1alpha1.AppProject, error)
 	// List returns list of projects
 	List(context.Context, *ProjectQuery) (*v1alpha1.AppProjectList, error)
