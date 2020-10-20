@@ -1174,3 +1174,33 @@ func TestGenerateManifestWithAnnotatedAndRegularGitTagHashes(t *testing.T) {
 	}
 
 }
+
+func TestAllowConcurrent_KsonnetNoParams(t *testing.T) {
+	fn := allowConcurrent(&argoappv1.ApplicationSource{Path: "."})
+
+	assert.True(t, fn("../../test/e2e/testdata/ksonnet"))
+}
+
+func TestAllowConcurrent_KsonnetParams(t *testing.T) {
+	fn := allowConcurrent(&argoappv1.ApplicationSource{Path: ".", Ksonnet: &argoappv1.ApplicationSourceKsonnet{
+		Parameters: []argoappv1.KsonnetParameter{{
+			Name: "test", Component: "test", Value: "1",
+		}},
+	}})
+
+	assert.False(t, fn("../../test/e2e/testdata/ksonnet"))
+}
+
+func TestAllowConcurrent_KustomizeParams(t *testing.T) {
+	fn := allowConcurrent(&argoappv1.ApplicationSource{Path: ".", Kustomize: &argoappv1.ApplicationSourceKustomize{
+		NameSuffix: "test",
+	}})
+
+	assert.False(t, fn("../../test/e2e/testdata/kustomize"))
+}
+
+func TestAllowConcurrent_HelmWithDeps(t *testing.T) {
+	fn := allowConcurrent(&argoappv1.ApplicationSource{Path: "."})
+
+	assert.False(t, fn("../../test/e2e/testdata/helm-with-dependencies"))
+}

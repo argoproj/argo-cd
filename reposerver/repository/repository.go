@@ -55,9 +55,15 @@ const (
 	cachedManifestGenerationPrefix = "Manifest generation error (cached)"
 )
 
+func allow(val bool) func(root string) bool {
+	return func(root string) bool {
+		return val
+	}
+}
+
 // Service implements ManifestService interface
 type Service struct {
-	repoLock                  sync.KeyLock
+	repoLock                  *repositoryLock
 	cache                     *reposervercache.Cache
 	parallelismLimitSemaphore *semaphore.Weighted
 	metricsServer             *metrics.MetricsServer
@@ -81,7 +87,7 @@ func NewService(metricsServer *metrics.MetricsServer, cache *reposervercache.Cac
 	if initConstants.ParallelismLimit > 0 {
 		parallelismLimitSemaphore = semaphore.NewWeighted(initConstants.ParallelismLimit)
 	}
-	repoLock := sync.NewKeyLock()
+	repoLock := NewRepositoryLock()
 	return &Service{
 		parallelismLimitSemaphore: parallelismLimitSemaphore,
 		repoLock:                  repoLock,
@@ -89,7 +95,7 @@ func NewService(metricsServer *metrics.MetricsServer, cache *reposervercache.Cac
 		metricsServer:             metricsServer,
 		newGitClient:              git.NewClient,
 		newHelmClient: func(repoURL string, creds helm.Creds) helm.Client {
-			return helm.NewClientWithLock(repoURL, creds, repoLock)
+			return helm.NewClientWithLock(repoURL, creds, sync.NewKeyLock())
 		},
 		initConstants: initConstants,
 		now:           time.Now,
@@ -110,13 +116,15 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 	s.metricsServer.IncPendingRepoRequest(q.Repo.Repo)
 	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
 
-	s.repoLock.Lock(gitClient.Root())
-	defer s.repoLock.Unlock(gitClient.Root())
+	closer, err := s.repoLock.Lock(gitClient.Root(), commitSHA, allow(true), func() error {
+		return checkoutRevision(gitClient, commitSHA)
+	})
 
-	_, err = checkoutRevision(gitClient, commitSHA, log.WithField("repo", q.Repo.Repo))
 	if err != nil {
 		return nil, err
 	}
+
+	defer io.Close(closer)
 	apps, err := discovery.Discover(gitClient.Root())
 	if err != nil {
 		return nil, err
@@ -130,8 +138,38 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 }
 
 type operationSettings struct {
-	sem     *semaphore.Weighted
-	noCache bool
+	sem             *semaphore.Weighted
+	noCache         bool
+	allowConcurrent func(root string) bool
+}
+
+// allowConcurrent returns true if given application source can be processed concurrently
+func allowConcurrent(source *v1alpha1.ApplicationSource) func(root string) bool {
+	return func(root string) bool {
+		switch {
+		// Kustomize with parameters requires changing kustomization.yaml file
+		case source.Kustomize != nil:
+			return len(source.Kustomize.Images) == 0 &&
+				len(source.Kustomize.CommonLabels) == 0 &&
+				source.Kustomize.NamePrefix == "" &&
+				source.Kustomize.NameSuffix == ""
+		// Kustomize with parameters requires changing params.libsonnet file
+		case source.Ksonnet != nil:
+			return len(source.Ksonnet.Parameters) == 0
+		// Plugin might change anything so unsafe to process concurrently
+		case source.Plugin != nil:
+			return false
+		}
+
+		appPath := path.Join(root, source.Path)
+		appType, err := discovery.AppType(appPath)
+		if err != nil {
+			return false
+		}
+
+		// Helm based apps might downloads dependencies and cannot be process concurrently
+		return v1alpha1.ApplicationSourceType(appType) != v1alpha1.ApplicationSourceTypeHelm
+	}
 }
 
 // runRepoOperation downloads either git folder or helm chart and executes specified operation
@@ -201,18 +239,27 @@ func (s *Service) runRepoOperation(
 		defer io.Close(closer)
 		return operation(chartPath, chartPath, revision, revision, "")
 	} else {
-		s.repoLock.Lock(gitClient.Root())
-		defer s.repoLock.Unlock(gitClient.Root())
+		closer, err := s.repoLock.Lock(gitClient.Root(), revision, settings.allowConcurrent, func() error {
+			return checkoutRevision(gitClient, revision)
+		})
+
+		if err != nil {
+			return err, nil
+		}
+
+		defer io.Close(closer)
+
+		commitSHA, err := gitClient.CommitSHA()
+		if err != nil {
+			return err, nil
+		}
+
 		// double-check locking
 		if !settings.noCache {
 			result, obj, err := getCached(revision, false)
 			if result {
 				return obj, err
 			}
-		}
-		commitSHA, err := checkoutRevision(gitClient, revision, log.WithField("repo", repo.Repo))
-		if err != nil {
-			return nil, err
 		}
 		if verifyCommit {
 			signature, err = gitClient.VerifyCommitSignature(revision)
@@ -236,8 +283,7 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 			return s.getManifestCacheEntry(cacheKey, q, firstInvocation)
 		}, func(appPath, repoRoot, commitSHA, cacheKey, verifyResult string) (interface{}, error) {
 			return s.runManifestGen(appPath, repoRoot, commitSHA, cacheKey, verifyResult, q)
-		}, operationSettings{sem: s.parallelismLimitSemaphore, noCache: q.NoCache})
-
+		}, operationSettings{sem: s.parallelismLimitSemaphore, noCache: q.NoCache, allowConcurrent: allowConcurrent(q.ApplicationSource)})
 	result, ok := resultUncast.(*apiclient.ManifestResponse)
 	if result != nil && !ok {
 		return nil, errors.New("unexpected result type")
@@ -1007,7 +1053,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 		}
 		_ = s.cache.SetAppDetails(revision, q.Source, res)
 		return res, nil
-	}, operationSettings{})
+	}, operationSettings{allowConcurrent: allowConcurrent(q.Source)})
 
 	result, ok := resultUncast.(*apiclient.RepoAppDetailsResponse)
 	if result != nil && !ok {
@@ -1041,13 +1087,15 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 	s.metricsServer.IncPendingRepoRequest(q.Repo.Repo)
 	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
 
-	s.repoLock.Lock(gitClient.Root())
-	defer s.repoLock.Unlock(gitClient.Root())
+	closer, err := s.repoLock.Lock(gitClient.Root(), q.Revision, allow(true), func() error {
+		return checkoutRevision(gitClient, q.Revision)
+	})
 
-	_, err = checkoutRevision(gitClient, q.Revision, log.WithField("repo", q.Repo.Repo))
 	if err != nil {
 		return nil, err
 	}
+
+	defer io.Close(closer)
 
 	m, err := gitClient.RevisionMetadata(q.Revision)
 	if err != nil {
@@ -1145,24 +1193,20 @@ func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revisi
 // checkoutRevision is a convenience function to initialize a repo, fetch, and checkout a revision
 // Returns the 40 character commit SHA after the checkout has been performed
 // nolint:unparam
-func checkoutRevision(gitClient git.Client, commitSHA string, logEntry *log.Entry) (string, error) {
+func checkoutRevision(gitClient git.Client, revision string) error {
 	err := gitClient.Init()
 	if err != nil {
-		return "", status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
+		return status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
 	}
 	err = gitClient.Fetch()
 	if err != nil {
-		return "", status.Errorf(codes.Internal, "Failed to fetch git repo: %v", err)
+		return status.Errorf(codes.Internal, "Failed to fetch git repo: %v", err)
 	}
-	err = gitClient.Checkout(commitSHA)
+	err = gitClient.Checkout(revision)
 	if err != nil {
-		return "", status.Errorf(codes.Internal, "Failed to checkout %s: %v", commitSHA, err)
+		return status.Errorf(codes.Internal, "Failed to checkout %s: %v", revision, err)
 	}
-	sha, err := gitClient.CommitSHA()
-	if err == nil && git.IsCommitSHA(commitSHA) && sha != commitSHA {
-		logEntry.Warnf("'git checkout %s' has switched repo to unexpected commit: %s", commitSHA, sha)
-	}
-	return sha, err
+	return err
 }
 
 func (s *Service) GetHelmCharts(ctx context.Context, q *apiclient.HelmChartsRequest) (*apiclient.HelmChartsResponse, error) {
