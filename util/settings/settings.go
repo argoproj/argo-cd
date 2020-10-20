@@ -833,7 +833,7 @@ func validateExternalURL(u string) error {
 		return fmt.Errorf("Failed to parse URL: %v", err)
 	}
 	if URL.Scheme != "http" && URL.Scheme != "https" {
-		return fmt.Errorf("URL must inlcude http or https protocol")
+		return fmt.Errorf("URL must include http or https protocol")
 	}
 	return nil
 }

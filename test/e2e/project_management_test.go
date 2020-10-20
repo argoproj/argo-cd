@@ -491,7 +491,7 @@ func TestGetVirtualProjectNoMatch(t *testing.T) {
 	err := createAndConfigGlobalProject()
 	assert.NoError(t, err)
 
-	//Create project which does not matche global project settings
+	//Create project which does not match global project settings
 	projectName := "proj-" + fixture.Name()
 	_, err = fixture.RunCli("proj", "create", projectName,
 		"--description", "Test description",

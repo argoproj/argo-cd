@@ -7,7 +7,7 @@ Any file matching `*.jsonnet` in a directory app is treated as a Jsonnet file. A
 > v1.4
 
 Jsonnet apps have access to the [standard build environment](build-environment.md) via substitution into *TLAs* and *external variables*.
-It is also possible to add a shared libary (e.g. `vendor` folder) relative to the reposity root.
+It is also possible to add a shared library (e.g. `vendor` folder) relative to the repository root.
 
 E.g. via the CLI:
 
