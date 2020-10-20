@@ -841,12 +841,17 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type AccountServiceClient interface {
+	// CanI checks if the current account has permission to perform an action
 	CanI(ctx context.Context, in *CanIRequest, opts ...grpc.CallOption) (*CanIResponse, error)
 	// UpdatePassword updates an account's password to a new value
 	UpdatePassword(ctx context.Context, in *UpdatePasswordRequest, opts ...grpc.CallOption) (*UpdatePasswordResponse, error)
+	// ListAccounts returns the list of accounts
 	ListAccounts(ctx context.Context, in *ListAccountRequest, opts ...grpc.CallOption) (*AccountsList, error)
+	// GetAccount returns an account
 	GetAccount(ctx context.Context, in *GetAccountRequest, opts ...grpc.CallOption) (*Account, error)
+	// CreateToken creates a token
 	CreateToken(ctx context.Context, in *CreateTokenRequest, opts ...grpc.CallOption) (*CreateTokenResponse, error)
+	// DeleteToken deletes a token
 	DeleteToken(ctx context.Context, in *DeleteTokenRequest, opts ...grpc.CallOption) (*EmptyResponse, error)
 }
 
@@ -914,12 +919,17 @@ func (c *accountServiceClient) DeleteToken(ctx context.Context, in *DeleteTokenR
 
 // AccountServiceServer is the server API for AccountService service.
 type AccountServiceServer interface {
+	// CanI checks if the current account has permission to perform an action
 	CanI(context.Context, *CanIRequest) (*CanIResponse, error)
 	// UpdatePassword updates an account's password to a new value
 	UpdatePassword(context.Context, *UpdatePasswordRequest) (*UpdatePasswordResponse, error)
+	// ListAccounts returns the list of accounts
 	ListAccounts(context.Context, *ListAccountRequest) (*AccountsList, error)
+	// GetAccount returns an account
 	GetAccount(context.Context, *GetAccountRequest) (*Account, error)
+	// CreateToken creates a token
 	CreateToken(context.Context, *CreateTokenRequest) (*CreateTokenResponse, error)
+	// DeleteToken deletes a token
 	DeleteToken(context.Context, *DeleteTokenRequest) (*EmptyResponse, error)
 }
 
