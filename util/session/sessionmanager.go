@@ -30,7 +30,7 @@ import (
 
 // SessionManager generates and validates JWT tokens for login sessions.
 type SessionManager struct {
-	SettingsMgr                   *settings.SettingsManager
+	settingsMgr                   *settings.SettingsManager
 	client                        *http.Client
 	prov                          oidcutil.Provider
 	storage                       UserStateStorage
@@ -129,7 +129,7 @@ func getLoginFailureWindow() time.Duration {
 // NewSessionManager creates a new session manager from Argo CD settings
 func NewSessionManager(settingsMgr *settings.SettingsManager, dexServerAddr string, storage UserStateStorage) *SessionManager {
 	s := SessionManager{
-		SettingsMgr:                   settingsMgr,
+		settingsMgr:                   settingsMgr,
 		storage:                       storage,
 		sleep:                         time.Sleep,
 		verificationDelayNoiseEnabled: true,
@@ -189,7 +189,7 @@ func (mgr *SessionManager) Create(subject string, secondsBeforeExpiry int64, id 
 func (mgr *SessionManager) signClaims(claims jwt.Claims) (string, error) {
 	log.Infof("Issuing claims: %v", claims)
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	settings, err := mgr.SettingsMgr.GetSettings()
+	settings, err := mgr.settingsMgr.GetSettings()
 	if err != nil {
 		return "", err
 	}
@@ -203,7 +203,7 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, error) {
 	// head of the token to identify which key to use, but the parsed token (head and claims) is provided
 	// to the callback, providing flexibility.
 	var claims jwt.MapClaims
-	settings, err := mgr.SettingsMgr.GetSettings()
+	settings, err := mgr.settingsMgr.GetSettings()
 	if err != nil {
 		return nil, err
 	}
@@ -223,7 +223,7 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, error) {
 		return token.Claims, nil
 	}
 
-	account, err := mgr.SettingsMgr.GetAccount(subject)
+	account, err := mgr.settingsMgr.GetAccount(subject)
 	if err != nil {
 		return nil, err
 	}
@@ -388,7 +388,7 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 		return InvalidLoginErr
 	}
 
-	account, err := mgr.SettingsMgr.GetAccount(username)
+	account, err := mgr.settingsMgr.GetAccount(username)
 	if err != nil {
 		if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
 			mgr.updateFailureCount(username, true)
@@ -453,7 +453,7 @@ func (mgr *SessionManager) provider() (oidcutil.Provider, error) {
 	if mgr.prov != nil {
 		return mgr.prov, nil
 	}
-	settings, err := mgr.SettingsMgr.GetSettings()
+	settings, err := mgr.settingsMgr.GetSettings()
 	if err != nil {
 		return nil, err
 	}

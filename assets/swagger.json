@@ -1565,6 +1565,31 @@
         }
       }
     },
+    "/api/v1/projects/{name}/globalprojects": {
+      "get": {
+        "tags": [
+          "ProjectService"
+        ],
+        "summary": "Get returns a virtual project by name",
+        "operationId": "GetGlobalProjects",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/projectGlobalProjectsResponse"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/projects/{name}/syncwindows": {
       "get": {
         "tags": [
@@ -1585,31 +1610,6 @@
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/projectSyncWindowsResponse"
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/projects/{name}/virtualproject": {
-      "get": {
-        "tags": [
-          "ProjectService"
-        ],
-        "summary": "Get returns a virtual project by name",
-        "operationId": "GetVirtualProject",
-        "parameters": [
-          {
-            "type": "string",
-            "name": "name",
-            "in": "path",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1alpha1AppProject"
             }
           }
         }
@@ -2803,6 +2803,17 @@
     },
     "projectEmptyResponse": {
       "type": "object"
+    },
+    "projectGlobalProjectsResponse": {
+      "type": "object",
+      "properties": {
+        "globalprojects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1AppProject"
+          }
+        }
+      }
     },
     "projectProjectCreateRequest": {
       "description": "ProjectCreateRequest defines project creation parameters.",

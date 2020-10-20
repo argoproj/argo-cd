@@ -461,13 +461,14 @@ func getDestinationServer(ctx context.Context, db db.ArgoDB, clusterName string)
 	return servers[0], nil
 }
 
-func GetAppVirtualProject(proj *argoappv1.AppProject, projLister applicationsv1.AppProjectLister, settingsManager *settings.SettingsManager) (*argoappv1.AppProject, error) {
+func GetGlobalProjects(proj *argoappv1.AppProject, projLister applicationsv1.AppProjectLister, settingsManager *settings.SettingsManager) []*argoappv1.AppProject {
 	gps, err := settingsManager.GetGlobalProjectsSettings()
+	globalProjects := make([]*argoappv1.AppProject, 0)
+
 	if err != nil {
 		log.Warnf("Failed to get global project settings: %v", err)
-		return proj, nil
+		return globalProjects
 	}
-	virtualProj := proj.DeepCopy()
 
 	for _, gp := range gps {
 		selector, err := metav1.LabelSelectorAsSelector(&gp.LabelSelector)
@@ -494,7 +495,18 @@ func GetAppVirtualProject(proj *argoappv1.AppProject, projLister applicationsv1.
 		if err != nil {
 			break
 		}
-		virtualProj = mergeVirtualProject(virtualProj, globalProj)
+		globalProjects = append(globalProjects, globalProj)
+
+	}
+	return globalProjects
+}
+
+func GetAppVirtualProject(proj *argoappv1.AppProject, projLister applicationsv1.AppProjectLister, settingsManager *settings.SettingsManager) (*argoappv1.AppProject, error) {
+	virtualProj := proj.DeepCopy()
+	globalProjects := GetGlobalProjects(proj, projLister, settingsManager)
+
+	for _, gp := range globalProjects {
+		virtualProj = mergeVirtualProject(virtualProj, gp)
 	}
 	return virtualProj, nil
 }

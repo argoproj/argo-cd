@@ -29,6 +29,7 @@ import (
 	jwtutil "github.com/argoproj/argo-cd/util/jwt"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/session"
+	"github.com/argoproj/argo-cd/util/settings"
 )
 
 const (
@@ -47,12 +48,15 @@ type Server struct {
 	projectLock   sync.KeyLock
 	sessionMgr    *session.SessionManager
 	projInformer  cache.SharedIndexInformer
+	settingsMgr   *settings.SettingsManager
 }
 
 // NewServer returns a new instance of the Project service
-func NewServer(ns string, kubeclientset kubernetes.Interface, appclientset appclientset.Interface, enf *rbac.Enforcer, projectLock sync.KeyLock, sessionMgr *session.SessionManager, policyEnf *rbacpolicy.RBACPolicyEnforcer, projInformer cache.SharedIndexInformer) *Server {
+func NewServer(ns string, kubeclientset kubernetes.Interface, appclientset appclientset.Interface, enf *rbac.Enforcer, projectLock sync.KeyLock, sessionMgr *session.SessionManager, policyEnf *rbacpolicy.RBACPolicyEnforcer,
+	projInformer cache.SharedIndexInformer, settingsMgr *settings.SettingsManager) *Server {
 	auditLogger := argo.NewAuditLogger(ns, kubeclientset, "argocd-server")
-	return &Server{enf: enf, policyEnf: policyEnf, appclientset: appclientset, kubeclientset: kubeclientset, ns: ns, projectLock: projectLock, auditLogger: auditLogger, sessionMgr: sessionMgr, projInformer: projInformer}
+	return &Server{enf: enf, policyEnf: policyEnf, appclientset: appclientset, kubeclientset: kubeclientset, ns: ns, projectLock: projectLock, auditLogger: auditLogger, sessionMgr: sessionMgr,
+		projInformer: projInformer, settingsMgr: settingsMgr}
 }
 
 func validateProject(proj *v1alpha1.AppProject) error {
@@ -237,14 +241,18 @@ func (s *Server) Get(ctx context.Context, q *project.ProjectQuery) (*v1alpha1.Ap
 	return proj, err
 }
 
-// GetVirtualProject returns a virtual project by name
-func (s *Server) GetVirtualProject(ctx context.Context, q *project.ProjectQuery) (*v1alpha1.AppProject, error) {
+// GetGlobalProjects returns global projects
+func (s *Server) GetGlobalProjects(ctx context.Context, q *project.ProjectQuery) (*project.GlobalProjectsResponse, error) {
 	projOrig, err := s.Get(ctx, q)
 	if err != nil {
 		return nil, err
 	}
 
-	return argo.GetAppVirtualProject(projOrig, listersv1alpha1.NewAppProjectLister(s.projInformer.GetIndexer()), s.sessionMgr.SettingsMgr)
+	globalProjects := argo.GetGlobalProjects(projOrig, listersv1alpha1.NewAppProjectLister(s.projInformer.GetIndexer()), s.settingsMgr)
+
+	res := &project.GlobalProjectsResponse{}
+	res.Globalprojects = globalProjects
+	return res, nil
 }
 
 // Update updates a project

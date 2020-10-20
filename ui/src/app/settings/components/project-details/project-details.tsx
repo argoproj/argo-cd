@@ -51,7 +51,6 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
     private projectRoleFormApi: FormApi;
     private projectSyncWindowsFormApi: FormApi;
     private loader: DataLoader;
-    private virtualProjectLoader: DataLoader;
 
     constructor(props: RouteComponentProps<{name: string}>) {
         super(props);
@@ -446,9 +445,6 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
             proj.metadata.labels = updatedProj.metadata.labels;
             proj.spec = updatedProj.spec;
             this.loader.setData(await services.projects.updateProj(proj));
-
-            const virtualProj = await services.projects.getVirtualProject(updatedProj.metadata.name);
-            this.virtualProjectLoader.setData(virtualProj);
         } catch (e) {
             this.appContext.apis.notifications.show({
                 content: <ErrorNotification title='Unable to update project' e={e} />,
@@ -459,47 +455,18 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
 
     private summaryTab(proj: Project) {
         return (
-            <DataLoader
-                load={() => services.projects.getVirtualProject(this.props.match.params.name)}
-                ref={virtualProjectLoader => (this.virtualProjectLoader = virtualProjectLoader)}>
-                {virtualProj => {
-                    const gpClusterResourceBlacklist: GroupKind[] = [];
-                    const gpClusterResourceWhitelist: GroupKind[] = [];
-                    const gpNamespaceResourceBlacklist: GroupKind[] = [];
-                    const gpNamespaceResourceWhitelist: GroupKind[] = [];
-                    // From virtualProj get the fields which are not from its own project
-                    if (virtualProj.spec.namespaceResourceBlacklist) {
-                        virtualProj.spec.namespaceResourceBlacklist.forEach(e => {
-                            if (
-                                null == proj.spec.namespaceResourceBlacklist ||
-                                !proj.spec.namespaceResourceBlacklist.some(item => item.group === e.group && item.kind === e.kind)
-                            ) {
-                                gpNamespaceResourceBlacklist.push(e);
-                            }
-                        });
-                    }
-                    if (virtualProj.spec.namespaceResourceWhitelist) {
-                        virtualProj.spec.namespaceResourceWhitelist.forEach(e => {
-                            if (
-                                null == proj.spec.namespaceResourceWhitelist ||
-                                !proj.spec.namespaceResourceWhitelist.some(item => item.group === e.group && item.kind === e.kind)
-                            ) {
-                                gpNamespaceResourceWhitelist.push(e);
-                            }
-                        });
-                    }
-                    if (virtualProj.spec.clusterResourceBlacklist) {
-                        virtualProj.spec.clusterResourceBlacklist.forEach(e => {
-                            if (null == proj.spec.clusterResourceBlacklist || !proj.spec.clusterResourceBlacklist.some(item => item.group === e.group && item.kind === e.kind)) {
-                                gpClusterResourceBlacklist.push(e);
-                            }
-                        });
-                    }
-                    if (virtualProj.spec.clusterResourceWhitelist) {
-                        virtualProj.spec.clusterResourceWhitelist.forEach(e => {
-                            if (null == proj.spec.clusterResourceWhitelist || !proj.spec.clusterResourceWhitelist.some(item => item.group === e.group && item.kind === e.kind)) {
-                                gpClusterResourceWhitelist.push(e);
-                            }
+            <DataLoader load={() => services.projects.getGlobalProjects(this.props.match.params.name)}>
+                {globalProjsState => {
+                    let gpClusterResourceBlacklist: GroupKind[] = [];
+                    let gpClusterResourceWhitelist: GroupKind[] = [];
+                    let gpNamespaceResourceBlacklist: GroupKind[] = [];
+                    let gpNamespaceResourceWhitelist: GroupKind[] = [];
+                    if (globalProjsState.globalprojects) {
+                        globalProjsState.globalprojects.forEach(gp => {
+                            gpNamespaceResourceBlacklist = gpNamespaceResourceBlacklist.concat(gp.spec.namespaceResourceBlacklist);
+                            gpNamespaceResourceWhitelist = gpNamespaceResourceWhitelist.concat(gp.spec.namespaceResourceWhitelist);
+                            gpClusterResourceBlacklist = gpClusterResourceBlacklist.concat(gp.spec.clusterResourceBlacklist);
+                            gpClusterResourceWhitelist = gpClusterResourceWhitelist.concat(gp.spec.clusterResourceWhitelist);
                         });
                     }
                     return (
