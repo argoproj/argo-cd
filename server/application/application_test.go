@@ -9,6 +9,7 @@ import (
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
+	"github.com/argoproj/pkg/sync"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
@@ -34,7 +35,6 @@ import (
 	"github.com/argoproj/argo-cd/reposerver/apiclient/mocks"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/test"
-	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/assets"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
@@ -152,7 +152,13 @@ func newTestAppServer(objects ...runtime.Object) *Server {
 	//ctx, cancel := context.WithCancel(context.Background())
 	go appInformer.Run(ctx.Done())
 	if !k8scache.WaitForCacheSync(ctx.Done(), appInformer.HasSynced) {
-		panic("Timed out waiting forfff caches to sync")
+		panic("Timed out waiting for caches to sync")
+	}
+
+	projInformer := factory.Argoproj().V1alpha1().AppProjects().Informer()
+	go projInformer.Run(ctx.Done())
+	if !k8scache.WaitForCacheSync(ctx.Done(), projInformer.HasSynced) {
+		panic("Timed out waiting for caches to sync")
 	}
 
 	server := NewServer(
@@ -166,8 +172,9 @@ func newTestAppServer(objects ...runtime.Object) *Server {
 		&kubetest.MockKubectlCmd{},
 		db,
 		enforcer,
-		util.NewKeyLock(),
+		sync.NewKeyLock(),
 		settingsMgr,
+		projInformer,
 	)
 	return server.(*Server)
 }
@@ -558,6 +565,7 @@ func TestServer_GetApplicationSyncWindowsState(t *testing.T) {
 
 func TestGetCachedAppState(t *testing.T) {
 	testApp := newTestApp()
+	testApp.ObjectMeta.ResourceVersion = "1"
 	testApp.Spec.Project = "none"
 	appServer := newTestAppServer(testApp)
 
@@ -575,16 +583,24 @@ func TestGetCachedAppState(t *testing.T) {
 		patched := false
 		watcher := watch.NewFakeWithChanSize(1, true)
 
-		fakeClientSet.ReactionChain = nil
-		fakeClientSet.WatchReactionChain = nil
-		fakeClientSet.AddReactor("patch", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-			patched = true
-			watcher.Modify(testApp)
-			return true, nil, nil
-		})
-		fakeClientSet.AddWatchReactor("applications", func(action kubetesting.Action) (handled bool, ret watch.Interface, err error) {
-			return true, watcher, nil
-		})
+		// Configure fakeClientSet within lock, before requesting cached app state, to avoid data race
+		{
+			fakeClientSet.Lock()
+			fakeClientSet.ReactionChain = nil
+			fakeClientSet.WatchReactionChain = nil
+			fakeClientSet.AddReactor("patch", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+				patched = true
+				updated := testApp.DeepCopy()
+				updated.ResourceVersion = "2"
+				appServer.appBroadcaster.OnUpdate(testApp, updated)
+				return true, testApp, nil
+			})
+			fakeClientSet.AddWatchReactor("applications", func(action kubetesting.Action) (handled bool, ret watch.Interface, err error) {
+				return true, watcher, nil
+			})
+			fakeClientSet.Unlock()
+		}
+
 		err := appServer.getCachedAppState(context.Background(), testApp, func() error {
 			res := cache.ErrCacheMiss
 			if retryCount == 1 {

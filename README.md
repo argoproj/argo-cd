@@ -27,6 +27,8 @@ Check live demo at https://cd.apps.argoproj.io/.
 
 ## Community Blogs and Presentations
 
+1. [Environments Based On Pull Requests (PRs): Using Argo CD To Apply GitOps Principles On Previews](https://youtu.be/cpAaI8p4R60)
+1. [Argo CD: Applying GitOps Principles To Manage Production Environment In Kubernetes](https://youtu.be/vpWQeoaiRM4)
 1. [Tutorial: Everything You Need To Become A GitOps Ninja](https://www.youtube.com/watch?v=r50tRQjisxw) 90m tutorial on GitOps and Argo CD.
 1. [Comparison of Argo CD, Spinnaker, Jenkins X, and Tekton](https://www.inovex.de/blog/spinnaker-vs-argo-cd-vs-tekton-vs-jenkins-x/)
 1. [Simplify and Automate Deployments Using GitOps with IBM Multicloud Manager 3.1.2](https://medium.com/ibm-cloud/simplify-and-automate-deployments-using-gitops-with-ibm-multicloud-manager-3-1-2-4395af317359)
@@ -39,3 +41,4 @@ Check live demo at https://cd.apps.argoproj.io/.
 1. [Introduction to Argo CD : Kubernetes DevOps CI/CD](https://www.youtube.com/watch?v=2WSJF7d8dUg&feature=youtu.be)
 1. [GitOps Deployment and Kubernetes - using ArgoCD](https://medium.com/riskified-technology/gitops-deployment-and-kubernetes-f1ab289efa4b)
 1. [Deploy Argo CD with Ingress and TLS in Three Steps: No YAML Yak Shaving Required](https://itnext.io/deploy-argo-cd-with-ingress-and-tls-in-three-steps-no-yaml-yak-shaving-required-bc536d401491)
+1. [GitOps Continuous Delivery with Argo and Codefresh](https://codefresh.io/events/cncf-member-webinar-gitops-continuous-delivery-argo-codefresh/)

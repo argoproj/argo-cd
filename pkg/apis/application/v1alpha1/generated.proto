@@ -286,6 +286,7 @@ message ApplicationStatus {
   optional OperationState operationState = 7;
 
   // ObservedAt indicates when the application state was updated without querying latest git state
+  // Deprecated: controller no longer updates ObservedAt field
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time observedAt = 8;
 
   optional string sourceType = 9;
@@ -361,6 +362,9 @@ message Cluster {
 
   // Holds information about cluster cache
   optional ClusterInfo info = 8;
+
+  // Shard contains optional shard number. Calculated on the fly by the application controller if not specified.
+  optional int64 shard = 9;
 }
 
 message ClusterCacheInfo {
@@ -1072,6 +1076,9 @@ message SyncPolicyAutomated {
 
   // SelfHeal enables auto-syncing if  (default: false)
   optional bool selfHeal = 2;
+
+  // AllowEmpty allows apps have zero live resources (default: false)
+  optional bool allowEmpty = 3;
 }
 
 // SyncStatus is a comparison result of application spec and deployed application.
@@ -1085,7 +1092,7 @@ message SyncStatus {
 
 // SyncStrategy controls the manner in which a sync is performed
 message SyncStrategy {
-  // Apply wil perform a `kubectl apply` to perform the sync.
+  // Apply will perform a `kubectl apply` to perform the sync.
   optional SyncStrategyApply apply = 1;
 
   // Hook will submit any referenced resources to perform the sync. This is the default strategy

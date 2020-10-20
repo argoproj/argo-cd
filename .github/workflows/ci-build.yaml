@@ -67,10 +67,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v1
+        uses: golangci/golangci-lint-action@v2
         with:
-          version: v1.26
-          args: --timeout 5m
+          version: v1.29
+          args: --timeout 5m --exclude SA5011
 
   test-go:
     name: Run unit tests for Go packages
@@ -99,9 +99,11 @@ jobs:
         run: |
           git fetch --prune --no-tags --depth=1 origin +refs/heads/*:refs/remotes/origin/*
       - name: Add ~/go/bin to PATH
-        run: echo "::add-path::/home/runner/go/bin"
+        run: |
+          echo "/home/runner/go/bin" >> $GITHUB_PATH
       - name: Add /usr/local/bin to PATH
-        run: echo "::add-path::/usr/local/bin"
+        run: |
+          echo "/usr/local/bin" >> $GITHUB_PATH
       - name: Restore go build cache
         uses: actions/cache@v1
         with:
@@ -144,10 +146,12 @@ jobs:
         run: |
           mkdir -p ~/go/src/github.com/argoproj
           cp -a ../argo-cd ~/go/src/github.com/argoproj
-      - name: Add /usr/local/bin to PATH
-        run: echo "::add-path::/usr/local/bin"
       - name: Add ~/go/bin to PATH
-        run: echo "::add-path::/home/runner/go/bin"
+        run: |
+          echo "/home/runner/go/bin" >> $GITHUB_PATH
+      - name: Add /usr/local/bin to PATH
+        run: |
+          echo "/usr/local/bin" >> $GITHUB_PATH
       - name: Download & vendor dependencies
         run: |
           # We need to vendor go modules for codegen yet
@@ -184,7 +188,7 @@ jobs:
       - name: Setup NodeJS
         uses: actions/setup-node@v1
         with:
-          node-version: '11.15.0'
+          node-version: '12.18.4'
       - name: Restore node dependency cache
         id: cache-dependencies
         uses: actions/cache@v1
@@ -274,6 +278,9 @@ jobs:
   test-e2e:
     name: Run end-to-end tests
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        k3s-version: [v1.19.2, v1.18.9, v1.17.11, v1.16.15]
     needs: 
       - build-go
     env:
@@ -295,7 +302,7 @@ jobs:
           go-version: '1.14.2'
       - name: Install K3S
         env:
-          INSTALL_K3S_VERSION: v0.5.0
+          INSTALL_K3S_VERSION: ${{ matrix.k3s-version }}+k3s1
         run: |
           set -x
           curl -sfL https://get.k3s.io | sh -
@@ -309,10 +316,12 @@ jobs:
         with:
           path: ~/.cache/go-build
           key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}
-      - name: Add /usr/local/bin to PATH
-        run: echo "::add-path::/usr/local/bin"
       - name: Add ~/go/bin to PATH
-        run: echo "::add-path::/home/runner/go/bin"
+        run: |
+          echo "/home/runner/go/bin" >> $GITHUB_PATH
+      - name: Add /usr/local/bin to PATH
+        run: |
+          echo "/usr/local/bin" >> $GITHUB_PATH
       - name: Download Go dependencies
         run: |
           go mod download
@@ -326,7 +335,7 @@ jobs:
           git config --global user.email "john.doe@example.com"
       - name: Pull Docker image required for tests
         run: |
-          docker pull quay.io/dexidp/dex:v2.22.0
+          docker pull quay.io/dexidp/dex:v2.25.0
           docker pull argoproj/argo-cd-ci-builder:v1.0.0
           docker pull redis:5.0.8-alpine
       - name: Create target directory for binaries in the build-process

@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	goio "io"
+	"math"
 	"reflect"
 	"sort"
 	"strconv"
@@ -17,6 +19,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
+	"github.com/argoproj/pkg/sync"
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -35,6 +38,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/utils/pointer"
 
+	argocommon "github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -43,10 +47,10 @@ import (
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	servercache "github.com/argoproj/argo-cd/server/cache"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
 	argoutil "github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/db"
+	"github.com/argoproj/argo-cd/util/env"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/lua"
@@ -55,21 +59,27 @@ import (
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
+var (
+	watchAPIBufferSize = env.ParseNumFromEnv(argocommon.EnvWatchAPIBufferSize, 1000, 0, math.MaxInt32)
+)
+
 // Server provides a Application service
 type Server struct {
 	ns             string
 	kubeclientset  kubernetes.Interface
 	appclientset   appclientset.Interface
 	appLister      applisters.ApplicationNamespaceLister
+	appInformer    cache.SharedIndexInformer
 	appBroadcaster *broadcasterHandler
 	repoClientset  apiclient.Clientset
 	kubectl        kube.Kubectl
 	db             db.ArgoDB
 	enf            *rbac.Enforcer
-	projectLock    *util.KeyLock
+	projectLock    sync.KeyLock
 	auditLogger    *argo.AuditLogger
 	settingsMgr    *settings.SettingsManager
 	cache          *servercache.Cache
+	projInformer   cache.SharedIndexInformer
 }
 
 // NewServer returns a new instance of the Application service
@@ -84,8 +94,9 @@ func NewServer(
 	kubectl kube.Kubectl,
 	db db.ArgoDB,
 	enf *rbac.Enforcer,
-	projectLock *util.KeyLock,
+	projectLock sync.KeyLock,
 	settingsMgr *settings.SettingsManager,
+	projInformer cache.SharedIndexInformer,
 ) application.ApplicationServiceServer {
 	appBroadcaster := &broadcasterHandler{}
 	appInformer.AddEventHandler(appBroadcaster)
@@ -93,6 +104,7 @@ func NewServer(
 		ns:             namespace,
 		appclientset:   appclientset,
 		appLister:      appLister,
+		appInformer:    appInformer,
 		appBroadcaster: appBroadcaster,
 		kubeclientset:  kubeclientset,
 		cache:          cache,
@@ -103,6 +115,7 @@ func NewServer(
 		projectLock:    projectLock,
 		auditLogger:    argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
 		settingsMgr:    settingsMgr,
+		projInformer:   projInformer,
 	}
 }
 
@@ -132,6 +145,9 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*ap
 		return newItems[i].Name < newItems[j].Name
 	})
 	appList := appv1.ApplicationList{
+		ListMeta: metav1.ListMeta{
+			ResourceVersion: s.appInformer.LastSyncResourceVersion(),
+		},
 		Items: newItems,
 	}
 	return &appList, nil
@@ -301,22 +317,49 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)); err != nil {
 		return nil, err
 	}
-	if q.Refresh != nil {
-		refreshType := appv1.RefreshTypeNormal
-		if *q.Refresh == string(appv1.RefreshTypeHard) {
-			refreshType = appv1.RefreshTypeHard
-		}
-		appIf := s.appclientset.ArgoprojV1alpha1().Applications(s.ns)
-		_, err = argoutil.RefreshApp(appIf, *q.Name, refreshType)
-		if err != nil {
-			return nil, err
-		}
-		a, err = argoutil.WaitForRefresh(ctx, appIf, *q.Name, nil)
-		if err != nil {
-			return nil, err
+	if q.Refresh == nil {
+		return a, nil
+	}
+
+	refreshType := appv1.RefreshTypeNormal
+	if *q.Refresh == string(appv1.RefreshTypeHard) {
+		refreshType = appv1.RefreshTypeHard
+	}
+	appIf := s.appclientset.ArgoprojV1alpha1().Applications(s.ns)
+
+	// subscribe early with buffered channel to ensure we don't miss events
+	events := make(chan *appv1.ApplicationWatchEvent, watchAPIBufferSize)
+	unsubscribe := s.appBroadcaster.Subscribe(events, func(event *appv1.ApplicationWatchEvent) bool {
+		return event.Application.Name == q.GetName()
+	})
+	defer unsubscribe()
+
+	app, err := argoutil.RefreshApp(appIf, *q.Name, refreshType)
+	if err != nil {
+		return nil, err
+	}
+
+	minVersion := 0
+	if minVersion, err = strconv.Atoi(app.ResourceVersion); err != nil {
+		minVersion = 0
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("application refresh deadline exceeded")
+		case event := <-events:
+			if appVersion, err := strconv.Atoi(event.Application.ResourceVersion); err == nil && appVersion > minVersion {
+				annotations := event.Application.GetAnnotations()
+				if annotations == nil {
+					annotations = make(map[string]string)
+				}
+				if _, ok := annotations[argocommon.AnnotationKeyRefresh]; !ok {
+					return &event.Application, nil
+				}
+			}
 		}
 	}
-	return a, nil
 }
 
 // ListResourceEvents returns a list of event resources
@@ -635,13 +678,19 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 		}
 	}
 
-	events := make(chan *appv1.ApplicationWatchEvent)
-	apps, err := s.appLister.List(selector)
-	if err != nil {
-		return err
-	}
-	for i := range apps {
-		sendIfPermitted(*apps[i], watch.Added)
+	events := make(chan *appv1.ApplicationWatchEvent, watchAPIBufferSize)
+	// Mimic watch API behavior: send ADDED events if no resource version provided
+	// If watch API is executed for one application when emit event even if resource version is provided
+	// This is required since single app watch API is used for during operations like app syncing and it is
+	// critical to never miss events.
+	if q.ResourceVersion == "" || q.GetName() != "" {
+		apps, err := s.appLister.List(selector)
+		if err != nil {
+			return err
+		}
+		for i := range apps {
+			sendIfPermitted(*apps[i], watch.Added)
+		}
 	}
 	unsubscribe := s.appBroadcaster.Subscribe(events)
 	defer unsubscribe()
@@ -901,6 +950,26 @@ func (s *Server) ResourceTree(ctx context.Context, q *application.ResourcesQuery
 	return s.getAppResources(ctx, a)
 }
 
+func (s *Server) WatchResourceTree(q *application.ResourcesQuery, ws application.ApplicationService_WatchResourceTreeServer) error {
+	a, err := s.appLister.Get(q.GetApplicationName())
+	if err != nil {
+		return err
+	}
+
+	if err := s.enf.EnforceErr(ws.Context().Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)); err != nil {
+		return err
+	}
+
+	return s.cache.OnAppResourcesTreeChanged(ws.Context(), q.GetApplicationName(), func() error {
+		var tree appv1.ApplicationTree
+		err := s.cache.GetAppResourcesTree(q.GetApplicationName(), &tree)
+		if err != nil {
+			return err
+		}
+		return ws.Send(&tree)
+	})
+}
+
 func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMetadataQuery) (*v1alpha1.RevisionMetadata, error) {
 	a, err := s.appLister.Get(q.GetName())
 	if err != nil {
@@ -996,9 +1065,15 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 	done := make(chan bool)
 	gracefulExit := false
 	go func() {
-		scanner := bufio.NewScanner(stream)
-		for scanner.Scan() {
-			line := scanner.Text()
+		bufReader := bufio.NewReader(stream)
+
+		for {
+			line, err := bufReader.ReadString('\n')
+			if err != nil {
+				// Error or io.EOF
+				break
+			}
+			line = strings.TrimSpace(line) // Remove trailing line ending
 			parts := strings.Split(line, " ")
 			logTime, err := time.Parse(time.RFC3339, parts[0])
 			metaLogTime := metav1.NewTime(logTime)
@@ -1018,11 +1093,11 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 			}
 		}
 		if gracefulExit {
-			logCtx.Info("k8s pod logs scanner completed due to closed grpc context")
-		} else if err := scanner.Err(); err != nil {
-			logCtx.Warnf("k8s pod logs scanner failed with error: %v", err)
+			logCtx.Info("k8s pod logs reader completed due to closed grpc context")
+		} else if err != nil && err != goio.EOF {
+			logCtx.Warnf("k8s pod logs reader failed with error: %v", err)
 		} else {
-			logCtx.Info("k8s pod logs scanner completed with EOF")
+			logCtx.Info("k8s pod logs reader completed with EOF")
 		}
 		close(done)
 	}()
@@ -1043,7 +1118,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		return nil, err
 	}
 
-	proj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(ctx, a.Spec.GetProject(), metav1.GetOptions{})
+	proj, err := argo.GetAppProject(&a.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), a.Namespace, s.settingsMgr)
 	if err != nil {
 		if apierr.IsNotFound(err) {
 			return a, status.Errorf(codes.InvalidArgument, "application references project %s which does not exist", a.Spec.Project)
@@ -1416,7 +1491,7 @@ func (s *Server) GetApplicationSyncWindows(ctx context.Context, q *application.A
 		return nil, err
 	}
 
-	proj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(ctx, a.Spec.Project, metav1.GetOptions{})
+	proj, err := argo.GetAppProject(&a.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), a.Namespace, s.settingsMgr)
 	if err != nil {
 		return nil, err
 	}

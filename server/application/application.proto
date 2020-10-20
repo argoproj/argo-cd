@@ -217,7 +217,7 @@ service ApplicationService {
 		option (google.api.http).get = "/api/v1/applications/{name}/events";
 	}
 
-	// Watch returns stream of application change events.
+	// Watch returns stream of application change events
 	rpc Watch(ApplicationQuery) returns (stream github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationWatchEvent) {
 		option (google.api.http).get = "/api/v1/stream/applications";
 	}
@@ -287,13 +287,21 @@ service ApplicationService {
 		};
 	}
 
+	// ManagedResources returns list of managed resources
 	rpc ManagedResources(ResourcesQuery) returns (ManagedResourcesResponse) {
 		option (google.api.http).get = "/api/v1/applications/{applicationName}/managed-resources";
 	}
 
+	// ResourceTree returns resource tree
 	rpc ResourceTree(ResourcesQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationTree) {
 		option (google.api.http).get = "/api/v1/applications/{applicationName}/resource-tree";
 	}
+
+	// Watch returns stream of application resource tree
+	rpc WatchResourceTree(ResourcesQuery) returns (stream github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationTree) {
+		option (google.api.http).get = "/api/v1/stream/applications/{applicationName}/resource-tree";
+	}
+
 	// Rollback syncs an application to its target state
 	rpc Rollback(ApplicationRollbackRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
 		option (google.api.http) = {
@@ -322,10 +330,12 @@ service ApplicationService {
 		};
 	}
 
+	// ListResourceActions returns list of resource actions
 	rpc ListResourceActions(ApplicationResourceRequest) returns (ResourceActionsListResponse) {
 		option (google.api.http).get = "/api/v1/applications/{name}/resource/actions";
 	}
 
+	// RunResourceAction run resource action
 	rpc RunResourceAction(ResourceActionRunRequest) returns (ApplicationResponse) {
 		option (google.api.http) = {
 			post: "/api/v1/applications/{name}/resource/actions"

@@ -1,6 +1,7 @@
-import * as React from 'react';
-
 import {Checkbox, NotificationType} from 'argo-ui';
+import * as React from 'react';
+import {Observable, Observer, Subscription} from 'rxjs';
+
 import {COLORS, ErrorNotification, Revision} from '../../shared/components';
 import {ContextApis} from '../../shared/context';
 import * as appModels from '../../shared/models';
@@ -205,7 +206,7 @@ export const ResourceResultIcon = ({resource}: {resource: appModels.ResourceResu
         }
         let title: string = resource.message;
         if (resource.message) {
-            title = `${resource.status}: ${resource.message};`;
+            title = `${resource.status}: ${resource.message}`;
         }
         return <i title={title} className={'fa ' + icon} style={{color}} />;
     }
@@ -413,6 +414,15 @@ export function isAppRefreshing(app: appModels.Application) {
     return !!(app.metadata.annotations && app.metadata.annotations[appModels.AnnotationRefreshKey]);
 }
 
+export function setAppRefreshing(app: appModels.Application) {
+    if (!app.metadata.annotations) {
+        app.metadata.annotations = {};
+    }
+    if (!app.metadata.annotations[appModels.AnnotationRefreshKey]) {
+        app.metadata.annotations[appModels.AnnotationRefreshKey] = 'refreshing';
+    }
+}
+
 export function refreshLinkAttrs(app: appModels.Application) {
     return {disabled: isAppRefreshing(app)};
 }
@@ -507,3 +517,42 @@ export const ApplicationSyncWindowStatusIcon = ({project, state}: {project: stri
         </a>
     );
 };
+
+/**
+ * Automatically stops and restarts the given observable when page visibility changes.
+ */
+export function handlePageVisibility<T>(src: () => Observable<T>): Observable<T> {
+    return new Observable<T>((observer: Observer<T>) => {
+        let subscription: Subscription;
+        const ensureUnsubscribed = () => {
+            if (subscription) {
+                subscription.unsubscribe();
+                subscription = null;
+            }
+        };
+        const start = () => {
+            ensureUnsubscribed();
+            subscription = src().subscribe((item: T) => observer.next(item), err => observer.error(err), () => observer.complete());
+        };
+
+        if (!document.hidden) {
+            start();
+        }
+
+        const visibilityChangeSubscription = Observable.fromEvent(document, 'visibilitychange')
+            // wait until user stop clicking back and forth to avoid restarting observable too often
+            .debounceTime(500)
+            .subscribe(() => {
+                if (document.hidden && subscription) {
+                    ensureUnsubscribed();
+                } else if (!document.hidden && !subscription) {
+                    start();
+                }
+            });
+
+        return () => {
+            visibilityChangeSubscription.unsubscribe();
+            ensureUnsubscribed();
+        };
+    });
+}

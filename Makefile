@@ -48,6 +48,7 @@ ARGOCD_LINT_GOGC?=20
 define run-in-test-server
 	docker run --rm -it \
 		--name argocd-test-server \
+		-u $(shell id -u):$(shell id -g) \
 		-e USER_ID=$(shell id -u) \
 		-e HOME=/home/user \
 		-e GOPATH=/go \
@@ -71,7 +72,7 @@ endef
 define run-in-test-client
 	docker run --rm -it \
 	  --name argocd-test-client \
-		-u $(shell id -u) \
+		-u $(shell id -u):$(shell id -g) \
 		-e HOME=/home/user \
 		-e GOPATH=/go \
 		-e ARGOCD_E2E_K3S=$(ARGOCD_E2E_K3S) \
@@ -89,7 +90,7 @@ endef
 
 # 
 define exec-in-test-server
-	docker exec -it -u $(shell id -u) -e ARGOCD_E2E_K3S=$(ARGOCD_E2E_K3S) argocd-test-server $(1)
+	docker exec -it -u $(shell id -u):$(shell id -g) -e ARGOCD_E2E_K3S=$(ARGOCD_E2E_K3S) argocd-test-server $(1)
 endef
 
 PATH:=$(PATH):$(PWD)/hack
@@ -154,8 +155,12 @@ clientgen:
 	export GO111MODULE=off
 	./hack/update-codegen.sh
 
+.PHONY: clidocsgen
+clidocsgen:
+	go run tools/cmd-docs/main.go	
+
 .PHONY: codegen-local
-codegen-local: mod-vendor-local gogen protogen clientgen openapigen manifests-local
+codegen-local: mod-vendor-local gogen protogen clientgen openapigen clidocsgen manifests-local
 	rm -rf vendor/
 
 .PHONY: codegen
@@ -170,7 +175,8 @@ cli: test-tools-image
 cli-local: clean-debug
 	CGO_ENABLED=0 ${PACKR_CMD} build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${CLI_NAME} ./cmd/argocd
 
-.PHONY: cli-docker
+.PHONY: cli-argocd
+cli-argocd:
 	go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${CLI_NAME} ./cmd/argocd
 
 .PHONY: release-cli
@@ -193,7 +199,7 @@ argocd-util: clean-debug
 
 .PHONY: test-tools-image
 test-tools-image:
-	docker build -t $(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE) -f test/container/Dockerfile .
+	docker build --build-arg UID=$(shell id -u) -t $(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE) -f test/container/Dockerfile .
 	docker tag $(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE) $(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE):$(TEST_TOOLS_TAG)
 
 .PHONY: manifests-local
@@ -308,7 +314,7 @@ build: test-tools-image
 
 # Build all Go code (local version)
 .PHONY: build-local
-build-local: 
+build-local:
 	go build -v `go list ./... | grep -v 'resource_customizations\|test/e2e'`
 
 # Run all unit tests
@@ -367,7 +373,6 @@ start-e2e-local:
 	if test -d /tmp/argo-e2e/app/config/gpg; then rm -rf /tmp/argo-e2e/app/config/gpg/*; fi
 	mkdir -p /tmp/argo-e2e/app/config/gpg/keys && chmod 0700 /tmp/argo-e2e/app/config/gpg/keys
 	mkdir -p /tmp/argo-e2e/app/config/gpg/source && chmod 0700 /tmp/argo-e2e/app/config/gpg/source
-	if test "$(USER_ID)" != ""; then chown -R "$(USER_ID)" /tmp/argo-e2e; fi
 	# set paths for locally managed ssh known hosts and tls certs data
 	ARGOCD_SSH_DATA_PATH=/tmp/argo-e2e/app/config/ssh \
 	ARGOCD_TLS_DATA_PATH=/tmp/argo-e2e/app/config/tls \

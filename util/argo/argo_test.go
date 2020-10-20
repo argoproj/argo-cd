@@ -4,19 +4,17 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
-	"strings"
 	"testing"
-	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/watch"
-	testcore "k8s.io/client-go/testing"
+	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
 
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -25,7 +23,9 @@ import (
 	applisters "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/reposerver/apiclient/mocks"
+	"github.com/argoproj/argo-cd/test"
 	dbmocks "github.com/argoproj/argo-cd/util/db/mocks"
+	"github.com/argoproj/argo-cd/util/settings"
 )
 
 func TestRefreshApp(t *testing.T) {
@@ -46,6 +46,16 @@ func TestGetAppProjectWithNoProjDefined(t *testing.T) {
 	projName := "default"
 	namespace := "default"
 
+	cm := corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "argocd-cm",
+			Namespace: test.FakeArgoCDNamespace,
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+	}
+
 	testProj := &argoappv1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: projName, Namespace: namespace},
 	}
@@ -60,36 +70,12 @@ func TestGetAppProjectWithNoProjDefined(t *testing.T) {
 	informer := v1alpha1.NewAppProjectInformer(appClientset, namespace, 0, indexers)
 	go informer.Run(ctx.Done())
 	cache.WaitForCacheSync(ctx.Done(), informer.HasSynced)
-	proj, err := GetAppProject(&testApp.Spec, applisters.NewAppProjectLister(informer.GetIndexer()), namespace)
+
+	kubeClient := fake.NewSimpleClientset(&cm)
+	settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace)
+	proj, err := GetAppProject(&testApp.Spec, applisters.NewAppProjectLister(informer.GetIndexer()), namespace, settingsMgr)
 	assert.Nil(t, err)
 	assert.Equal(t, proj.Name, projName)
-}
-
-func TestWaitForRefresh(t *testing.T) {
-	appClientset := appclientset.NewSimpleClientset()
-
-	// Verify timeout
-	appIf := appClientset.ArgoprojV1alpha1().Applications("default")
-	oneHundredMs := 100 * time.Millisecond
-	app, err := WaitForRefresh(context.Background(), appIf, "test-app", &oneHundredMs)
-	assert.NotNil(t, err)
-	assert.Nil(t, app)
-	assert.Contains(t, strings.ToLower(err.Error()), "deadline exceeded")
-
-	// Verify success
-	var testApp argoappv1.Application
-	testApp.Name = "test-app"
-	testApp.Namespace = "default"
-	appClientset = appclientset.NewSimpleClientset()
-
-	appIf = appClientset.ArgoprojV1alpha1().Applications("default")
-	watcher := watch.NewFake()
-	appClientset.PrependWatchReactor("applications", testcore.DefaultWatchReactor(watcher, nil))
-	// simulate add/update/delete watch events
-	go watcher.Add(&testApp)
-	app, err = WaitForRefresh(context.Background(), appIf, "test-app", &oneHundredMs)
-	assert.Nil(t, err)
-	assert.NotNil(t, app)
 }
 
 func TestContainsSyncResource(t *testing.T) {
@@ -632,10 +618,10 @@ func TestValidateDestination(t *testing.T) {
 		}
 
 		db := &dbmocks.ArgoDB{}
-		db.On("ListClusters", context.Background()).Return(nil, fmt.Errorf("an error occured"))
+		db.On("ListClusters", context.Background()).Return(nil, fmt.Errorf("an error occurred"))
 
 		err := ValidateDestination(context.Background(), &dest, db)
-		assert.Equal(t, "unable to find destination server: an error occured", err.Error())
+		assert.Equal(t, "unable to find destination server: an error occurred", err.Error())
 		assert.False(t, dest.IsServerInferred())
 	})
 

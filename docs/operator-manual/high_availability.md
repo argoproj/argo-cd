@@ -41,7 +41,7 @@ and might fail. To avoid failed syncs use `ARGOCD_GIT_ATTEMPTS_COUNT` environmen
 
 The `argocd-application-controller` uses `argocd-repo-server` to get generated manifests and Kubernetes API server to get actual cluster state.
 
-* controller uses two separate queues to process application reconciliation (milliseconds) and app syncing (seconds). Number of queue processors for each queue is controlled by
+* each controller replica uses two separate queues to process application reconciliation (milliseconds) and app syncing (seconds). Number of queue processors for each queue is controlled by
 `--status-processors` (20 by default) and `--operation-processors` (10 by default) flags. Increase number of processors if your Argo CD instance manages too many applications.
 For 1000 application we use 50 for `--status-processors` and 25 for `--operation-processors`
 
@@ -49,16 +49,37 @@ For 1000 application we use 50 for `--status-processors` and 25 for `--operation
 The app reconciliation fails with `Context deadline exceeded` error if manifest generating taking too much time. As workaround increase value of `--repo-server-timeout-seconds` and
 consider scaling up `argocd-repo-server` deployment.
 
-* controller uses `kubectl` fork/exec to push changes into the cluster and to convert resource from preferred version into user specified version
+* The controller uses `kubectl` fork/exec to push changes into the cluster and to convert resource from preferred version into user specified version
 (e.g. Deployment `apps/v1` into `extensions/v1beta1`). Same as config management tool `kubectl` fork/exec might cause pod OOM kill. Use `--kubectl-parallelism-limit` flag to limit
 number of allowed concurrent kubectl fork/execs.
 
-* controller uses Kubernetes watch APIs to maintain lightweight Kubernetes cluster cache. This allows to avoid querying Kubernetes during app reconciliation and significantly improve
+* The controller uses Kubernetes watch APIs to maintain lightweight Kubernetes cluster cache. This allows to avoid querying Kubernetes during app reconciliation and significantly improve
 performance. For performance reasons controller monitors and caches only preferred the version of a resource. During reconciliation, the controller might have to convert cached resource from
 preferred version into a version of the resource stored in Git. If `kubectl convert` fails because conversion is not supported than controller fallback to Kubernetes API query which slows down
 reconciliation. In this case advice user-preferred resource version in Git.
 
 * The controller polls Git every 3m by default. You can increase this duration using `--app-resync seconds` to reduce polling.
+
+* If the controller is managing too many clusters and uses too much memory then you can shard clusters across multiple
+controller replicas. To enable sharding increase the number of replicas in `argocd-application-controller` `StatefulSet`
+and repeat number of replicas in `ARGOCD_CONTROLLER_REPLICAS` environment variable. The strategic merge patch below
+demonstrates changes required to configure two controller replicas.
+
+```yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: argocd-application-controller
+spec:
+  replicas: 2
+  template:
+    spec:
+      containers:
+      - name: argocd-application-controller
+        env:
+        - name: ARGOCD_CONTROLLER_REPLICAS
+          value: "2"
+```
 
 **metrics**
 

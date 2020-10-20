@@ -54,6 +54,9 @@ Expire-Date: 6m
 %commit
 `
 
+// Canary marker for GNUPGHOME created by Argo CD
+const canaryMarkerFilename = ".argocd-generated"
+
 type PGPKeyID string
 
 func isHexString(s string) bool {
@@ -162,6 +165,39 @@ func writeKeyToFile(keyData string) (string, error) {
 	return f.Name(), nil
 }
 
+// removeKeyRing removes an already initialized keyring from the file system
+// This must only be called on container startup, when no gpg-agent is running
+// yet, otherwise key generation will fail.
+func removeKeyRing(path string) error {
+	_, err := os.Stat(filepath.Join(path, canaryMarkerFilename))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("refusing to remove directory %s: it's not initialized by Argo CD", path)
+		} else {
+			return err
+		}
+	}
+	rd, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer rd.Close()
+	dns, err := rd.Readdirnames(-1)
+	if err != nil {
+		return err
+	}
+	for _, p := range dns {
+		if p == "." || p == ".." {
+			continue
+		}
+		err := os.RemoveAll(filepath.Join(path, p))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // IsGPGEnabled returns true if GPG feature is enabled
 func IsGPGEnabled() bool {
 	if en := os.Getenv("ARGOCD_GPG_ENABLED"); strings.ToLower(en) == "false" || strings.ToLower(en) == "no" {
@@ -197,8 +233,17 @@ func InitializeGnuPG() error {
 			return err
 		}
 	} else {
-		// We can't initialize a second time
-		return fmt.Errorf("%s at %s already initialized, can't initialize again.", common.EnvGnuPGHome, gnuPgHome)
+		// This usually happens with emptyDir mount on container crash - we need to
+		// re-initialize key ring.
+		err = removeKeyRing(gnuPgHome)
+		if err != nil {
+			return fmt.Errorf("re-initializing keyring at %s failed: %v", gnuPgHome, err)
+		}
+	}
+
+	err = ioutil.WriteFile(filepath.Join(gnuPgHome, canaryMarkerFilename), []byte("canary"), 0644)
+	if err != nil {
+		return fmt.Errorf("could not create canary: %v", err)
 	}
 
 	f, err := ioutil.TempFile("", "gpg-key-recipe")

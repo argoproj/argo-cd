@@ -14,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
+	cdcommon "github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/controller/metrics"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	listersv1alpha1 "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
@@ -68,7 +69,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		revision = syncOp.Revision
 	}
 
-	proj, err := argo.GetAppProject(&app.Spec, listersv1alpha1.NewAppProjectLister(m.projInformer.GetIndexer()), m.namespace)
+	proj, err := argo.GetAppProject(&app.Spec, listersv1alpha1.NewAppProjectLister(m.projInformer.GetIndexer()), m.namespace, m.settingsMgr)
 	if err != nil {
 		state.Phase = common.OperationError
 		state.Message = fmt.Sprintf("Failed to load application project: %v", err)
@@ -142,7 +143,13 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 			return len(syncOp.Resources) == 0 || argo.ContainsSyncResource(key.Name, key.Namespace, schema.GroupVersionKind{Kind: key.Kind, Group: key.Group}, syncOp.Resources)
 		}),
 		sync.WithManifestValidation(!syncOp.SyncOptions.HasOption("Validate=false")),
-		sync.WithNamespaceCreation(syncOp.SyncOptions.HasOption("CreateNamespace=true")),
+		sync.WithNamespaceCreation(syncOp.SyncOptions.HasOption("CreateNamespace=true"), func(un *unstructured.Unstructured) bool {
+			if un != nil && kube.GetAppInstanceLabel(un, cdcommon.LabelKeyAppInstance) != "" {
+				kube.UnsetLabel(un, cdcommon.LabelKeyAppInstance)
+				return true
+			}
+			return false
+		}),
 	)
 
 	if err != nil {

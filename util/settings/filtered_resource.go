@@ -26,7 +26,7 @@ func (r FilteredResource) matchKind(kind string) bool {
 	return len(r.Kinds) == 0
 }
 
-func (r FilteredResource) matchCluster(cluster string) bool {
+func (r FilteredResource) MatchCluster(cluster string) bool {
 	for _, excludedCluster := range r.Clusters {
 		if glob.Match(excludedCluster, cluster) {
 			return true
@@ -36,5 +36,5 @@ func (r FilteredResource) matchCluster(cluster string) bool {
 }
 
 func (r FilteredResource) Match(apiGroup, kind, cluster string) bool {
-	return r.matchGroup(apiGroup) && r.matchKind(kind) && r.matchCluster(cluster)
+	return r.matchGroup(apiGroup) && r.matchKind(kind) && r.MatchCluster(cluster)
 }

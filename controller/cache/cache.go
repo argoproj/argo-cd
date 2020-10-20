@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"sync"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/sync/semaphore"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -63,7 +65,8 @@ func NewLiveStateCache(
 	settingsMgr *settings.SettingsManager,
 	kubectl kube.Kubectl,
 	metricsServer *metrics.MetricsServer,
-	onObjectUpdated ObjectUpdatedHandler) LiveStateCache {
+	onObjectUpdated ObjectUpdatedHandler,
+	clusterFilter func(cluster *appv1.Cluster) bool) LiveStateCache {
 
 	return &liveStateCache{
 		appInformer:     appInformer,
@@ -73,6 +76,9 @@ func NewLiveStateCache(
 		kubectl:         kubectl,
 		settingsMgr:     settingsMgr,
 		metricsServer:   metricsServer,
+		// The default limit of 50 is chosen based on experiments.
+		listSemaphore: semaphore.NewWeighted(50),
+		clusterFilter: clusterFilter,
 	}
 }
 
@@ -88,6 +94,11 @@ type liveStateCache struct {
 	kubectl         kube.Kubectl
 	settingsMgr     *settings.SettingsManager
 	metricsServer   *metrics.MetricsServer
+	clusterFilter   func(cluster *appv1.Cluster) bool
+
+	// listSemaphore is used to limit the number of concurrent memory consuming operations on the
+	// k8s list queries results across all clusters to avoid memory spikes during cache initialization.
+	listSemaphore *semaphore.Weighted
 
 	clusters      map[string]clustercache.ClusterCache
 	cacheSettings cacheSettings
@@ -231,7 +242,12 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		return nil, err
 	}
 
+	if !c.canHandleCluster(cluster) {
+		return nil, fmt.Errorf("controller is configured to ignore cluster %s", cluster.Server)
+	}
+
 	clusterCache = clustercache.NewClusterCache(cluster.RESTConfig(),
+		clustercache.SetListSemaphore(c.listSemaphore),
 		clustercache.SetResyncTimeout(common.K8SClusterResyncDuration),
 		clustercache.SetSettings(cacheSettings.clusterSettings),
 		clustercache.SetNamespaces(cluster.Namespaces),
@@ -427,7 +443,19 @@ func (c *liveStateCache) Run(ctx context.Context) error {
 	return nil
 }
 
+func (c *liveStateCache) canHandleCluster(cluster *appv1.Cluster) bool {
+	if c.clusterFilter == nil {
+		return true
+	}
+	return c.clusterFilter(cluster)
+}
+
 func (c *liveStateCache) handleAddEvent(cluster *appv1.Cluster) {
+	if !c.canHandleCluster(cluster) {
+		log.Infof("Ignoring cluster %s", cluster.Server)
+		return
+	}
+
 	c.lock.Lock()
 	_, ok := c.clusters[cluster.Server]
 	c.lock.Unlock()
@@ -446,6 +474,14 @@ func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *a
 	cluster, ok := c.clusters[newCluster.Server]
 	c.lock.Unlock()
 	if ok {
+		if !c.canHandleCluster(newCluster) {
+			cluster.Invalidate()
+			c.lock.Lock()
+			delete(c.clusters, newCluster.Server)
+			c.lock.Unlock()
+			return
+		}
+
 		var updateSettings []clustercache.UpdateSettingsFunc
 		if !reflect.DeepEqual(oldCluster.Config, newCluster.Config) {
 			updateSettings = append(updateSettings, clustercache.SetConfig(newCluster.RESTConfig()))

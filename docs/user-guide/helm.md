@@ -10,7 +10,9 @@ flag. The flag can be repeated to support multiple values files:
 argocd app set helm-guestbook --values values-production.yaml
 ```
 !!! note
-    Values files must be on the same directory or a subdirectory of the Helm application
+    Values files must be in the same git repository as the Helm chart. The files can be in a different 
+    location in which case it can be accessed using a relative path relative to the root directory of 
+    the Helm chart.
 
 ## Helm Parameters
 
@@ -21,7 +23,7 @@ a `values.yaml`. For example, `service.type` is a common parameter which is expo
 helm template . --set service.type=LoadBalancer
 ```
 
-Similarly Argo CD can override values in the `values.yaml` parameters using `argo app set` command,
+Similarly, Argo CD can override values in the `values.yaml` parameters using `argo app set` command,
 in the form of `-p PARAM=VALUE`. For example:
 
 ```bash
@@ -30,7 +32,7 @@ argocd app set helm-guestbook -p service.type=LoadBalancer
 
 ## Helm Release Name
 
-By default the Helm release name is equal to the Application name to which it belongs. Sometimes, especially on a centralised ArgoCD,
+By default, the Helm release name is equal to the Application name to which it belongs. Sometimes, especially on a centralised ArgoCD,
 you may want to override that  name, and it is possible with the `release-name` flag on the cli:
 
 ```bash
@@ -142,9 +144,9 @@ Or via declarative syntax:
 
 > v1.5
 
-Argo CD is un-opinionated on what cloud provider you use and what kind of Helm plugins you are using that's why there is no any plugins delivered with ArgoCD image.
+Argo CD is un-opinionated on what cloud provider you use and what kind of Helm plugins you are using, that's why there are no plugins delivered with the ArgoCD image.
 
-But sometimes it happens you would like to use custom plugin. One of the cases is that you would like to use Google Cloud Storage or Amazon S3 storage to save the Helm charts, for example: https://github.com/hayorov/helm-gcs where you can use `gs://` protocol for Helm chart repository access.
+But sometimes it happens you would like to use a custom plugin. One of the cases is that you would like to use Google Cloud Storage or Amazon S3 storage to save the Helm charts, for example: https://github.com/hayorov/helm-gcs where you can use `gs://` protocol for Helm chart repository access.
 
 In order to do that you have to prepare your own ArgoCD image with installed plugins.
 
@@ -170,6 +172,25 @@ RUN helm plugin install ${GCS_PLUGIN_REPO} --version ${GCS_PLUGIN_VERSION}
 ENV HELM_PLUGINS="/home/argocd/.local/share/helm/plugins/"
 ```
 
-You have to remember about `HELM_PLUGINS` environment property - this is required to works plugins correctly.
+You have to remember about `HELM_PLUGINS` environment property - this is required for plugins to work correctly.
 
 After that you have to use your custom image for ArgoCD installation.
+
+## Helm Version
+
+ArgoCD normally detects which version of Helm to use by looking at the `apiVersion` in Chart.yaml.
+
+If needed, it is possible to specifically set the Helm version to template with by setting the `helm-version` flag on the cli (either v2 or v3):
+
+```bash
+argocd app set helm-guestbook --helm-version v2
+```
+
+Or using declarative syntax:
+
+```yaml
+spec:
+  source:
+    helm:
+      version: v2
+```

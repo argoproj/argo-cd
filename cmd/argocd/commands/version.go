@@ -130,4 +130,5 @@ func printServerVersion(version *version.VersionMessage, short bool) {
 	fmt.Printf("  Kustomize Version: %s\n", version.KustomizeVersion)
 	fmt.Printf("  Helm Version: %s\n", version.HelmVersion)
 	fmt.Printf("  Kubectl Version: %s\n", version.KubectlVersion)
+	fmt.Printf("  Jsonnet Version: %s\n", version.JsonnetVersion)
 }

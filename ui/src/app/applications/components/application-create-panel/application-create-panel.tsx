@@ -120,7 +120,7 @@ export const ApplicationCreatePanel = (props: {
                 key='creation-deps'
                 load={() =>
                     Promise.all([
-                        services.projects.list().then(projects => projects.map(proj => proj.metadata.name).sort()),
+                        services.projects.list('items.metadata.name').then(projects => projects.map(proj => proj.metadata.name).sort()),
                         services.clusters.list().then(clusters => clusters.sort()),
                         services.repos.list()
                     ]).then(([projects, clusters, reposInfo]) => ({projects, clusters, reposInfo}))

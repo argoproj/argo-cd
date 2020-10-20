@@ -6,7 +6,8 @@ import (
 	"reflect"
 	"strings"
 
-	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/argoproj/pkg/sync"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -22,7 +23,6 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
 	jwtutil "github.com/argoproj/argo-cd/util/jwt"
 	"github.com/argoproj/argo-cd/util/rbac"
@@ -42,12 +42,12 @@ type Server struct {
 	appclientset  appclientset.Interface
 	kubeclientset kubernetes.Interface
 	auditLogger   *argo.AuditLogger
-	projectLock   *util.KeyLock
+	projectLock   sync.KeyLock
 	sessionMgr    *session.SessionManager
 }
 
 // NewServer returns a new instance of the Project service
-func NewServer(ns string, kubeclientset kubernetes.Interface, appclientset appclientset.Interface, enf *rbac.Enforcer, projectLock *util.KeyLock, sessionMgr *session.SessionManager, policyEnf *rbacpolicy.RBACPolicyEnforcer) *Server {
+func NewServer(ns string, kubeclientset kubernetes.Interface, appclientset appclientset.Interface, enf *rbac.Enforcer, projectLock sync.KeyLock, sessionMgr *session.SessionManager, policyEnf *rbacpolicy.RBACPolicyEnforcer) *Server {
 	auditLogger := argo.NewAuditLogger(ns, kubeclientset, "argocd-server")
 	return &Server{enf: enf, policyEnf: policyEnf, appclientset: appclientset, kubeclientset: kubeclientset, ns: ns, projectLock: projectLock, auditLogger: auditLogger, sessionMgr: sessionMgr}
 }
@@ -170,7 +170,7 @@ func (s *Server) DeleteToken(ctx context.Context, q *project.ProjectTokenDeleteR
 	return &project.EmptyResponse{}, nil
 }
 
-// Create a new project.
+// Create a new project
 func (s *Server) Create(ctx context.Context, q *project.ProjectCreateRequest) (*v1alpha1.AppProject, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionCreate, q.Project.Name); err != nil {
 		return nil, err
@@ -412,7 +412,6 @@ func (s *Server) NormalizeProjs() error {
 		return status.Errorf(codes.Internal, "Error retrieving project list: %s", err.Error())
 	}
 	for _, proj := range projList.Items {
-		// if !apierr.IsConflict(err), retry 3 times
 		for i := 0; i < 3; i++ {
 			if proj.NormalizeJWTTokens() {
 				_, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(context.Background(), &proj, metav1.UpdateOptions{})
@@ -432,6 +431,8 @@ func (s *Server) NormalizeProjs() error {
 				if i == 2 {
 					return status.Errorf(codes.Internal, "Failed normalize project %s", proj.Name)
 				}
+			} else {
+				break
 			}
 		}
 	}

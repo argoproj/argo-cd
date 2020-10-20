@@ -47,6 +47,39 @@ func Test_setHelmOpt(t *testing.T) {
 	})
 }
 
+func Test_setKustomizeOpt(t *testing.T) {
+	t.Run("No kustomize", func(t *testing.T) {
+		src := v1alpha1.ApplicationSource{}
+		setKustomizeOpt(&src, kustomizeOpts{})
+		assert.Nil(t, src.Kustomize)
+	})
+	t.Run("Name prefix", func(t *testing.T) {
+		src := v1alpha1.ApplicationSource{}
+		setKustomizeOpt(&src, kustomizeOpts{namePrefix: "test-"})
+		assert.Equal(t, &v1alpha1.ApplicationSourceKustomize{NamePrefix: "test-"}, src.Kustomize)
+	})
+	t.Run("Name suffix", func(t *testing.T) {
+		src := v1alpha1.ApplicationSource{}
+		setKustomizeOpt(&src, kustomizeOpts{nameSuffix: "-test"})
+		assert.Equal(t, &v1alpha1.ApplicationSourceKustomize{NameSuffix: "-test"}, src.Kustomize)
+	})
+	t.Run("Images", func(t *testing.T) {
+		src := v1alpha1.ApplicationSource{}
+		setKustomizeOpt(&src, kustomizeOpts{images: []string{"org/image:v1", "org/image:v2"}})
+		assert.Equal(t, &v1alpha1.ApplicationSourceKustomize{Images: v1alpha1.KustomizeImages{v1alpha1.KustomizeImage("org/image:v2")}}, src.Kustomize)
+	})
+	t.Run("Version", func(t *testing.T) {
+		src := v1alpha1.ApplicationSource{}
+		setKustomizeOpt(&src, kustomizeOpts{version: "v0.1"})
+		assert.Equal(t, &v1alpha1.ApplicationSourceKustomize{Version: "v0.1"}, src.Kustomize)
+	})
+	t.Run("Common labels", func(t *testing.T) {
+		src := v1alpha1.ApplicationSource{}
+		setKustomizeOpt(&src, kustomizeOpts{commonLabels: map[string]string{"foo1": "bar1", "foo2": "bar2"}})
+		assert.Equal(t, &v1alpha1.ApplicationSourceKustomize{CommonLabels: map[string]string{"foo1": "bar1", "foo2": "bar2"}}, src.Kustomize)
+	})
+}
+
 func Test_setJsonnetOpt(t *testing.T) {
 	t.Run("TlaSets", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
