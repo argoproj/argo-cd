@@ -419,7 +419,7 @@ func Test_validateExternalURL(t *testing.T) {
 	}{
 		{name: "Valid URL", url: "https://my.domain.com"},
 		{name: "No URL - Valid", url: ""},
-		{name: "Invalid URL", url: "my.domain.com", errMsg: "URL must inlcude http or https protocol"},
+		{name: "Invalid URL", url: "my.domain.com", errMsg: "URL must include http or https protocol"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
