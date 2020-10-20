@@ -152,13 +152,13 @@ func newTestAppServer(objects ...runtime.Object) *Server {
 	//ctx, cancel := context.WithCancel(context.Background())
 	go appInformer.Run(ctx.Done())
 	if !k8scache.WaitForCacheSync(ctx.Done(), appInformer.HasSynced) {
-		panic("Timed out waiting forfff caches to sync")
+		panic("Timed out waiting for caches to sync")
 	}
 
 	projInformer := factory.Argoproj().V1alpha1().AppProjects().Informer()
 	go projInformer.Run(ctx.Done())
 	if !k8scache.WaitForCacheSync(ctx.Done(), projInformer.HasSynced) {
-		panic("Timed out waiting forfff caches to sync")
+		panic("Timed out waiting for caches to sync")
 	}
 
 	server := NewServer(

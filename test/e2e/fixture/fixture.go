@@ -320,7 +320,7 @@ func EnsureCleanState(t *testing.T) {
 		ClusterResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
 	})
 
-	// Create seperate project for testing gpg signature verification
+	// Create separate project for testing gpg signature verification
 	FailOnErr(RunCli("proj", "create", "gpg"))
 	SetProjectSpec("gpg", v1alpha1.AppProjectSpec{
 		OrphanedResources:        nil,

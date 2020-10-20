@@ -1024,7 +1024,7 @@ func TestEnv_Environ(t *testing.T) {
 }
 
 func TestKustomizeImage_Match(t *testing.T) {
-	// no pefix
+	// no prefix
 	assert.False(t, KustomizeImage("foo=1").Match("bar=1"))
 	// mismatched delimiter
 	assert.False(t, KustomizeImage("foo=1").Match("bar:1"))
