@@ -101,6 +101,7 @@ func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRe
 
 }
 
+// CanI checks if the current account has permission to perform an action
 func (s *Server) CanI(ctx context.Context, r *account.CanIRequest) (*account.CanIResponse, error) {
 	if !slice.ContainsString(rbacpolicy.Actions, r.Action, nil) {
 		return nil, status.Errorf(codes.InvalidArgument, "%v does not contain %s", rbacpolicy.Actions, r.Action)
@@ -147,6 +148,7 @@ func (s *Server) ensureHasAccountPermission(ctx context.Context, action string, 
 	return nil
 }
 
+// ListAccounts returns the list of accounts
 func (s *Server) ListAccounts(ctx context.Context, r *account.ListAccountRequest) (*account.AccountsList, error) {
 	resp := account.AccountsList{}
 	accounts, err := s.settingsMgr.GetAccounts()
@@ -164,6 +166,7 @@ func (s *Server) ListAccounts(ctx context.Context, r *account.ListAccountRequest
 	return &resp, nil
 }
 
+// GetAccount returns an account
 func (s *Server) GetAccount(ctx context.Context, r *account.GetAccountRequest) (*account.Account, error) {
 	if err := s.ensureHasAccountPermission(ctx, rbacpolicy.ActionGet, r.Name); err != nil {
 		return nil, err
@@ -175,6 +178,7 @@ func (s *Server) GetAccount(ctx context.Context, r *account.GetAccountRequest) (
 	return toApiAccount(r.Name, *a), nil
 }
 
+// CreateToken creates a token
 func (s *Server) CreateToken(ctx context.Context, r *account.CreateTokenRequest) (*account.CreateTokenResponse, error) {
 	if err := s.ensureHasAccountPermission(ctx, rbacpolicy.ActionUpdate, r.Name); err != nil {
 		return nil, err
@@ -222,6 +226,7 @@ func (s *Server) CreateToken(ctx context.Context, r *account.CreateTokenRequest)
 	return &account.CreateTokenResponse{Token: tokenString}, nil
 }
 
+// DeleteToken deletes a token
 func (s *Server) DeleteToken(ctx context.Context, r *account.DeleteTokenRequest) (*account.EmptyResponse, error) {
 	if err := s.ensureHasAccountPermission(ctx, rbacpolicy.ActionUpdate, r.Name); err != nil {
 		return nil, err

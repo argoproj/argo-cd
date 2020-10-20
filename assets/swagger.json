@@ -17,6 +17,7 @@
         "tags": [
           "AccountService"
         ],
+        "summary": "ListAccounts returns the list of accounts",
         "operationId": "ListAccounts",
         "responses": {
           "200": {
@@ -33,6 +34,7 @@
         "tags": [
           "AccountService"
         ],
+        "summary": "CanI checks if the current account has permission to perform an action",
         "operationId": "CanI",
         "parameters": [
           {
@@ -96,6 +98,7 @@
         "tags": [
           "AccountService"
         ],
+        "summary": "GetAccount returns an account",
         "operationId": "GetAccount",
         "parameters": [
           {
@@ -120,6 +123,7 @@
         "tags": [
           "AccountService"
         ],
+        "summary": "CreateToken creates a token",
         "operationId": "CreateTokenMixin7",
         "parameters": [
           {
@@ -152,6 +156,7 @@
         "tags": [
           "AccountService"
         ],
+        "summary": "DeleteToken deletes a token",
         "operationId": "DeleteTokenMixin7",
         "parameters": [
           {
@@ -294,6 +299,7 @@
         "tags": [
           "ApplicationService"
         ],
+        "summary": "ManagedResources returns list of managed resources",
         "operationId": "ManagedResources",
         "parameters": [
           {
@@ -343,6 +349,7 @@
         "tags": [
           "ApplicationService"
         ],
+        "summary": "ResourceTree returns resource tree",
         "operationId": "ResourceTree",
         "parameters": [
           {
@@ -818,6 +825,7 @@
         "tags": [
           "ApplicationService"
         ],
+        "summary": "ListResourceActions returns list of resource actions",
         "operationId": "ListResourceActions",
         "parameters": [
           {
@@ -865,6 +873,7 @@
         "tags": [
           "ApplicationService"
         ],
+        "summary": "RunResourceAction run resource action",
         "operationId": "RunResourceAction",
         "parameters": [
           {
@@ -1470,7 +1479,7 @@
         "tags": [
           "ProjectService"
         ],
-        "summary": "Create a new project.",
+        "summary": "Create a new project",
         "operationId": "CreateMixin6",
         "parameters": [
           {
@@ -1629,7 +1638,7 @@
         "tags": [
           "ProjectService"
         ],
-        "summary": "Create a new project token.",
+        "summary": "Create a new project token",
         "operationId": "CreateToken",
         "parameters": [
           {
@@ -1668,7 +1677,7 @@
         "tags": [
           "ProjectService"
         ],
-        "summary": "Delete a new project token.",
+        "summary": "Delete a new project token",
         "operationId": "DeleteToken",
         "parameters": [
           {
@@ -2007,6 +2016,7 @@
         "tags": [
           "RepositoryService"
         ],
+        "summary": "GetHelmCharts returns list of helm charts in the specified repository",
         "operationId": "GetHelmCharts",
         "parameters": [
           {
@@ -2108,7 +2118,7 @@
         "tags": [
           "SessionService"
         ],
-        "summary": "Create a new JWT for authentication and set a cookie if using HTTP.",
+        "summary": "Create a new JWT for authentication and set a cookie if using HTTP",
         "operationId": "CreateMixin11",
         "parameters": [
           {
@@ -2133,7 +2143,7 @@
         "tags": [
           "SessionService"
         ],
-        "summary": "Delete an existing JWT cookie if using HTTP.",
+        "summary": "Delete an existing JWT cookie if using HTTP",
         "operationId": "DeleteMixin11",
         "responses": {
           "200": {
@@ -2184,7 +2194,7 @@
         "tags": [
           "ApplicationService"
         ],
-        "summary": "Watch returns stream of application change events.",
+        "summary": "Watch returns stream of application change events",
         "operationId": "Watch",
         "parameters": [
           {
