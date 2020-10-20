@@ -127,7 +127,7 @@ const (
 	// AnnotationKeyLinkPrefix tells the UI to add an external link icon to the application node
 	// that links to the value given in the annotation.
 	// The annotation key must be followed by a unique identifier. Ex: link.argocd.argoproj.io/dashboard
-	// It's valid to have multiple annotions that match the prefix.
+	// It's valid to have multiple annotations that match the prefix.
 	// Values can simply be a url or they can have
 	// an optional link title separated by a "|"
 	// Ex: "http://grafana.example.com/d/yu5UH4MMz/deployments"
