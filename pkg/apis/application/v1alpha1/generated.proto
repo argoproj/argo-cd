@@ -229,6 +229,9 @@ message ApplicationSourceKustomize {
   // CommonLabels adds additional kustomize commonLabels
   map<string, string> commonLabels = 4;
 
+  // CommonAnnotations adds additional kustomize commonAnnotations
+  map<string, string> commonAnnotations = 6;
+
   // Version contains optional Kustomize version
   optional string version = 5;
 }

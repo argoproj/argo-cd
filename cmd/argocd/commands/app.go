@@ -644,11 +644,12 @@ func setKsonnetOpt(src *argoappv1.ApplicationSource, env *string) {
 }
 
 type kustomizeOpts struct {
-	namePrefix   string
-	nameSuffix   string
-	images       []string
-	version      string
-	commonLabels map[string]string
+	namePrefix        string
+	nameSuffix        string
+	images            []string
+	version           string
+	commonLabels      map[string]string
+	commonAnnotations map[string]string
 }
 
 func setKustomizeOpt(src *argoappv1.ApplicationSource, opts kustomizeOpts) {
@@ -659,6 +660,7 @@ func setKustomizeOpt(src *argoappv1.ApplicationSource, opts kustomizeOpts) {
 	src.Kustomize.NamePrefix = opts.namePrefix
 	src.Kustomize.NameSuffix = opts.nameSuffix
 	src.Kustomize.CommonLabels = opts.commonLabels
+	src.Kustomize.CommonAnnotations = opts.commonAnnotations
 	for _, image := range opts.images {
 		src.Kustomize.MergeImage(argoappv1.KustomizeImage(image))
 	}
