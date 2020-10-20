@@ -463,10 +463,18 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                     let gpNamespaceResourceWhitelist: GroupKind[] = [];
                     if (globalProjsState.globalprojects) {
                         globalProjsState.globalprojects.forEach(gp => {
-                            gpNamespaceResourceBlacklist = gpNamespaceResourceBlacklist.concat(gp.spec.namespaceResourceBlacklist);
-                            gpNamespaceResourceWhitelist = gpNamespaceResourceWhitelist.concat(gp.spec.namespaceResourceWhitelist);
-                            gpClusterResourceBlacklist = gpClusterResourceBlacklist.concat(gp.spec.clusterResourceBlacklist);
-                            gpClusterResourceWhitelist = gpClusterResourceWhitelist.concat(gp.spec.clusterResourceWhitelist);
+                            if (gp.spec.namespaceResourceBlacklist) {
+                                gpNamespaceResourceBlacklist = gpNamespaceResourceBlacklist.concat(gp.spec.namespaceResourceBlacklist);
+                            }
+                            if (gp.spec.namespaceResourceWhitelist) {
+                                gpNamespaceResourceWhitelist = gpNamespaceResourceWhitelist.concat(gp.spec.namespaceResourceWhitelist);
+                            }
+                            if (gp.spec.clusterResourceBlacklist) {
+                                gpClusterResourceBlacklist = gpClusterResourceBlacklist.concat(gp.spec.clusterResourceBlacklist);
+                            }
+                            if (gp.spec.clusterResourceWhitelist) {
+                                gpClusterResourceWhitelist = gpClusterResourceWhitelist.concat(gp.spec.clusterResourceWhitelist);
+                            }
                         });
                     }
                     return (
