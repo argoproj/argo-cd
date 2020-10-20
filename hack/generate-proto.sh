@@ -100,7 +100,12 @@ collect_swagger() {
   "info": {
     "title": "Consolidate Services",
     "description": "Description of all APIs",
-    "version": "version not set"
+    "version": "version not set",
+    "contact": {
+      "name": "API Support",
+      "url": "https://github.com/argoproj/argo-cd/wiki/Updating-swagger-API-elements",
+      "email": "please-read-the-url@localhost.localdomain"
+    }
   },
   "paths": {}
 }
