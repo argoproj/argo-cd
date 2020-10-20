@@ -1460,7 +1460,7 @@ rollback to previous version - no data loss is expected.</p>
 <p>As part of v1.7 release, the Kubernetes client library have been upgrade to v1.18.8 as well as we've started using
 https://github.com/kubernetes-sigs/yaml for YAML handling to be consistent with <code>kubectl</code> behavior.
 This introduced a change of multiline string handling in resource manifests. As a result, YAML manifests with multiline
-strings might become out-of-sync after upgrading and you might have to trigger the syncronization once to resolve it.</p>
+strings might become out-of-sync after upgrading and you might have to trigger the synchronization once to resolve it.</p>
 <p>Affected resource example:</p>
 <div class="codehilite"><pre><span></span><code><span class="nn">---</span>
 <span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>

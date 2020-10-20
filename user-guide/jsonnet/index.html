@@ -1441,7 +1441,7 @@
 <p>v1.4</p>
 </blockquote>
 <p>Jsonnet apps have access to the <a href="../build-environment/">standard build environment</a> via substitution into <em>TLAs</em> and <em>external variables</em>.
-It is also possible to add a shared libary (e.g. <code>vendor</code> folder) relative to the reposity root.</p>
+It is also possible to add a shared library (e.g. <code>vendor</code> folder) relative to the repository root.</p>
 <p>E.g. via the CLI:</p>
 <div class="codehilite"><pre><span></span><code>argocd app create APPNAME <span class="se">\</span>
   --jsonnet-ext-str <span class="s1">&#39;app=${ARGOCD_APP_NAME}&#39;</span> <span class="se">\</span>
