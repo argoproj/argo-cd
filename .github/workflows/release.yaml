@@ -163,6 +163,14 @@ jobs:
           echo "${TARGET_VERSION}" > VERSION
           git commit -m "Bump version to ${TARGET_VERSION}" VERSION
 
+      - name: Update README.md link
+        run: |
+          set -ue
+          echo "Bumping Integration tests link"
+          export BASE_VERSION=$(echo ${TARGET_VERSION} | perl -pne 's/^(\d+\.\d+).*/$1/')
+          perl -pi -e 'next if $done; next unless m{Integration.*tests/badge\.svg}; s{(branch(?:=|%3A))[0-9a-zA-Z-.]+}{$1release-$ENV{BASE_VERSION}}g; $done=1' README.md
+          git diff
+          git commit README.md -m "Update
       - name: Generate new set of manifests
         run: |
           set -ue
