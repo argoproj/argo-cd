@@ -111,7 +111,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 		}
 
 		if len(opts.CommonAnnotations) > 0 {
-			//  edit add label foo:bar
+			//  edit add annotation foo:bar
 			args := []string{"edit", "add", "annotation"}
 			arg := ""
 			for annotationName, annotationValue := range opts.CommonAnnotations {

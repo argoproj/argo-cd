@@ -879,6 +879,13 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref common.
 							},
 						},
 					},
+					"version": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Version contains optional Kustomize version",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"commonAnnotations": {
 						SchemaProps: spec.SchemaProps{
 							Description: "CommonAnnotations adds additional kustomize commonAnnotations",
@@ -892,13 +899,6 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref common.
 									},
 								},
 							},
-						},
-					},
-					"version": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Version contains optional Kustomize version",
-							Type:        []string{"string"},
-							Format:      "",
 						},
 					},
 				},
