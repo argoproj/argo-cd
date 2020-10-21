@@ -155,8 +155,12 @@ clientgen:
 	export GO111MODULE=off
 	./hack/update-codegen.sh
 
+.PHONY: clidocsgen
+clidocsgen:
+	go run tools/cmd-docs/main.go	
+
 .PHONY: codegen-local
-codegen-local: mod-vendor-local gogen protogen clientgen openapigen manifests-local
+codegen-local: mod-vendor-local gogen protogen clientgen openapigen clidocsgen manifests-local
 	rm -rf vendor/
 
 .PHONY: codegen

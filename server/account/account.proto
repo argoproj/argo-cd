@@ -76,6 +76,7 @@ message EmptyResponse {}
 
 service AccountService {
 
+	// CanI checks if the current account has permission to perform an action
 	rpc CanI(CanIRequest) returns (CanIResponse) {
 		option (google.api.http).get = "/api/v1/account/can-i/{resource}/{action}/{subresource}";
 	}
@@ -88,14 +89,17 @@ service AccountService {
 		};
 	}
 
+	// ListAccounts returns the list of accounts
 	rpc ListAccounts(ListAccountRequest) returns (AccountsList) {
 		option (google.api.http).get = "/api/v1/account";
 	}
 
+	// GetAccount returns an account
 	rpc GetAccount(GetAccountRequest) returns (Account) {
 		option (google.api.http).get = "/api/v1/account/{name}";
 	}
 
+	// CreateToken creates a token
 	rpc CreateToken(CreateTokenRequest) returns (CreateTokenResponse) {
 		option (google.api.http) = {
 			post: "/api/v1/account/{name}/token"
@@ -103,6 +107,7 @@ service AccountService {
 		};
 	}
 
+	// DeleteToken deletes a token
 	rpc DeleteToken(DeleteTokenRequest) returns (EmptyResponse) {
 		option (google.api.http).delete = "/api/v1/account/{name}/token/{id}";
 	}

@@ -2082,7 +2082,7 @@ func (w SyncWindow) Active() bool {
 func (w SyncWindow) active(currentTime time.Time) bool {
 
 	// If SyncWindow.Active() is called outside of a UTC locale, it should be
-	// first converted to UTC before searc
+	// first converted to UTC before search
 	currentTime = currentTime.UTC()
 
 	specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)

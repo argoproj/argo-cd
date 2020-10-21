@@ -278,7 +278,7 @@ func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 
 	// The same pattern PauseGenerationAfterFailedGenerationAttempts generation attempts, followed by
 	// PauseGenerationOnFailureForRequests cached responses, should apply for various combinations of
-	// both paramters.
+	// both parameters.
 
 	tests := []struct {
 		PauseGenerationAfterFailedGenerationAttempts int
@@ -355,7 +355,7 @@ func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 					// nolint:staticcheck
 					assert.True(t, cachedManifestResponse.FirstFailureTimestamp != 0)
 
-					// Internal cache values should update correctly based on number of return cache entries, concecutive failures should stay the same
+					// Internal cache values should update correctly based on number of return cache entries, consecutive failures should stay the same
 					assert.True(t, cachedManifestResponse.NumberOfConsecutiveFailures == service.initConstants.PauseGenerationAfterFailedGenerationAttempts)
 					assert.True(t, cachedManifestResponse.NumberOfCachedResponsesReturned == (adjustedInvocation-service.initConstants.PauseGenerationAfterFailedGenerationAttempts+1))
 				}

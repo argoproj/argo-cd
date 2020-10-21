@@ -51,6 +51,16 @@ See [application.yaml](application.yaml) for additional fields. As long as you h
 !!! note
     The namespace must match the namespace of your Argo cd, typically this is `argocd`.
 
+!!! note
+    When creating an application from a Helm repository, the `chart` attribute must be specified instead of the `path` attribute within `spec.source`.
+
+```yaml
+spec:
+  source:
+    repoURL: https://argoproj.github.io/argo-helm
+    chart: argo
+```
+
 !!! warning
     By default, deleting an application will not perform a cascade delete, thereby deleting its resources. You must add the finalizer if you want this behaviour - which you may well not want.
 
