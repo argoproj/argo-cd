@@ -145,7 +145,7 @@ func (s *Service) runRepoOperation(
 	source *v1alpha1.ApplicationSource,
 	verifyCommit bool,
 	getCached func(revision string, firstInvocation bool) (bool, interface{}, error),
-	operation func(appPath, repoRoot, revision, verifyResult string) (interface{}, error),
+	operation func(appPath, repoRoot, commitSHA, revision, verifyResult string) (interface{}, error),
 	settings operationSettings) (interface{}, error) {
 
 	var gitClient git.Client
@@ -199,7 +199,7 @@ func (s *Service) runRepoOperation(
 			return nil, err
 		}
 		defer io.Close(closer)
-		return operation(chartPath, chartPath, revision, "")
+		return operation(chartPath, chartPath, revision, revision, "")
 	} else {
 		s.repoLock.Lock(gitClient.Root())
 		defer s.repoLock.Unlock(gitClient.Root())
@@ -210,7 +210,7 @@ func (s *Service) runRepoOperation(
 				return obj, err
 			}
 		}
-		revision, err = checkoutRevision(gitClient, revision, log.WithField("repo", repo.Repo))
+		commitSHA, err := checkoutRevision(gitClient, revision, log.WithField("repo", repo.Repo))
 		if err != nil {
 			return nil, err
 		}
@@ -224,7 +224,7 @@ func (s *Service) runRepoOperation(
 		if err != nil {
 			return nil, err
 		}
-		return operation(appPath, gitClient.Root(), revision, signature)
+		return operation(appPath, gitClient.Root(), commitSHA, revision, signature)
 	}
 }
 
@@ -232,8 +232,8 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	resultUncast, err := s.runRepoOperation(ctx, q.Revision, q.Repo, q.ApplicationSource, q.VerifySignature,
 		func(revision string, firstInvocation bool) (bool, interface{}, error) {
 			return s.getManifestCacheEntry(revision, q, firstInvocation)
-		}, func(appPath, repoRoot, revision, verifyResult string) (interface{}, error) {
-			return s.runManifestGen(appPath, repoRoot, revision, verifyResult, q)
+		}, func(appPath, repoRoot, commitSHA, revision, verifyResult string) (interface{}, error) {
+			return s.runManifestGen(appPath, repoRoot, commitSHA, revision, verifyResult, q)
 		}, operationSettings{sem: s.parallelismLimitSemaphore, noCache: q.NoCache})
 
 	result, ok := resultUncast.(*apiclient.ManifestResponse)
@@ -249,8 +249,8 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 // - or, the cache does contain a value for this key, but it is an expired manifest generation entry
 // - or, NoCache is true
 // Returns a ManifestResponse, or an error, but not both
-func (s *Service) runManifestGen(appPath, repoRoot, revision, verifyResult string, q *apiclient.ManifestRequest) (interface{}, error) {
-	manifestGenResult, err := GenerateManifests(appPath, repoRoot, revision, q, false)
+func (s *Service) runManifestGen(appPath, repoRoot, commitSHA, revision, verifyResult string, q *apiclient.ManifestRequest) (interface{}, error) {
+	manifestGenResult, err := GenerateManifests(appPath, repoRoot, commitSHA, q, false)
 	if err != nil {
 
 		// If manifest generation error caching is enabled
@@ -291,7 +291,7 @@ func (s *Service) runManifestGen(appPath, repoRoot, revision, verifyResult strin
 		FirstFailureTimestamp:           0,
 		MostRecentError:                 "",
 	}
-	manifestGenResult.Revision = revision
+	manifestGenResult.Revision = commitSHA
 	manifestGenResult.VerifyResult = verifyResult
 	err = s.cache.SetManifests(revision, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, &manifestGenCacheEntry)
 	if err != nil {
@@ -900,7 +900,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 
 	}
 
-	resultUncast, err := s.runRepoOperation(ctx, q.Source.TargetRevision, q.Repo, q.Source, false, getCached, func(appPath, repoRoot, revision, verifyResult string) (interface{}, error) {
+	resultUncast, err := s.runRepoOperation(ctx, q.Source.TargetRevision, q.Repo, q.Source, false, getCached, func(appPath, repoRoot, commitSHA, revision, verifyResult string) (interface{}, error) {
 
 		res := &apiclient.RepoAppDetailsResponse{}
 		appSourceType, err := GetAppSourceType(q.Source, appPath)
