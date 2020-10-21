@@ -182,9 +182,14 @@ Note that each project role policy rule must be scoped to that project only. Use
 
 ## Configuring Global Projects
 
-Global projects can be configured to provide configurations that other projects can inherited. 
-For example, global project can be configured to have a namespace allowed resource list.
-All projects, which match `matchExpressions` specified in `argocd-cm` ConfigMap, inherit the namespace allowed resource list from the global project.
+Global projects can be configured to provide configurations that other projects can inherit from. 
+
+Projects, which match `matchExpressions` specified in `argocd-cm` ConfigMap, inherit the following fields from the global project:
+* namespaceResourceBlacklist
+* namespaceResourceWhitelist
+* clusterResourceBlacklist
+* clusterResourceWhitelist
+* SyncWindows
 
 Configure global projects in `argocd-cm` ConfigMap:
 ```yaml
@@ -200,6 +205,6 @@ data:
 kind: ConfigMap
 ``` 
 
-Valid operators you can use are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+Valid operators you can use are: In, NotIn, Exists, DoesNotExist. Gt, and Lt.
 
 projectName: `proj-global-test` should be replaced with your own global project name.
