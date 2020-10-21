@@ -179,3 +179,27 @@ spec:
 You can use `argocd proj role` CLI commands or project details page in the user interface to configure the policy.
 Note that each project role policy rule must be scoped to that project only. Use the `argocd-rbac-cm` ConfigMap described in
 [RBAC](../operator-manual/rbac.md) documentation if you want to configure cross project RBAC rules.
+
+## Configuring Global Projects
+
+Global projects can be configured to provide configurations that other projects can inherited. 
+For example, global project can be configured to have a namespace allowed resource list.
+All projects, which match `matchExpressions` specified in `argocd-cm` ConfigMap, inherit the namespace allowed resource list from the global project.
+
+Configure global projects in `argocd-cm` ConfigMap:
+```yaml
+data:
+  globalProjects: |-
+    - labelSelector:
+        matchExpressions:
+          - key: opt
+            operator: In
+            values:
+              - prod
+      projectName: proj-global-test
+kind: ConfigMap
+``` 
+
+Valid operators you can use are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+
+projectName: `proj-global-test` should be replaced with your own global project name.
