@@ -17,6 +17,7 @@
         "tags": [
           "AccountService"
         ],
+        "summary": "ListAccounts returns the list of accounts",
         "operationId": "ListAccounts",
         "responses": {
           "200": {
@@ -33,6 +34,7 @@
         "tags": [
           "AccountService"
         ],
+        "summary": "CanI checks if the current account has permission to perform an action",
         "operationId": "CanI",
         "parameters": [
           {
@@ -96,6 +98,7 @@
         "tags": [
           "AccountService"
         ],
+        "summary": "GetAccount returns an account",
         "operationId": "GetAccount",
         "parameters": [
           {
@@ -120,7 +123,8 @@
         "tags": [
           "AccountService"
         ],
-        "operationId": "CreateTokenMixin10",
+        "summary": "CreateToken creates a token",
+        "operationId": "CreateTokenMixin7",
         "parameters": [
           {
             "type": "string",
@@ -152,7 +156,8 @@
         "tags": [
           "AccountService"
         ],
-        "operationId": "DeleteTokenMixin10",
+        "summary": "DeleteToken deletes a token",
+        "operationId": "DeleteTokenMixin7",
         "parameters": [
           {
             "type": "string",
@@ -183,7 +188,7 @@
           "ApplicationService"
         ],
         "summary": "List returns list of applications",
-        "operationId": "ListMixin9",
+        "operationId": "ListMixin10",
         "parameters": [
           {
             "type": "string",
@@ -234,7 +239,7 @@
           "ApplicationService"
         ],
         "summary": "Create creates an application",
-        "operationId": "CreateMixin9",
+        "operationId": "CreateMixin10",
         "parameters": [
           {
             "name": "body",
@@ -261,7 +266,7 @@
           "ApplicationService"
         ],
         "summary": "Update updates an application",
-        "operationId": "UpdateMixin9",
+        "operationId": "UpdateMixin10",
         "parameters": [
           {
             "type": "string",
@@ -294,6 +299,7 @@
         "tags": [
           "ApplicationService"
         ],
+        "summary": "ManagedResources returns list of managed resources",
         "operationId": "ManagedResources",
         "parameters": [
           {
@@ -343,6 +349,7 @@
         "tags": [
           "ApplicationService"
         ],
+        "summary": "ResourceTree returns resource tree",
         "operationId": "ResourceTree",
         "parameters": [
           {
@@ -393,7 +400,7 @@
           "ApplicationService"
         ],
         "summary": "Get returns an application by name",
-        "operationId": "GetMixin9",
+        "operationId": "GetMixin10",
         "parameters": [
           {
             "type": "string",
@@ -445,7 +452,7 @@
           "ApplicationService"
         ],
         "summary": "Delete deletes an application",
-        "operationId": "DeleteMixin9",
+        "operationId": "DeleteMixin10",
         "parameters": [
           {
             "type": "string",
@@ -818,6 +825,7 @@
         "tags": [
           "ApplicationService"
         ],
+        "summary": "ListResourceActions returns list of resource actions",
         "operationId": "ListResourceActions",
         "parameters": [
           {
@@ -865,6 +873,7 @@
         "tags": [
           "ApplicationService"
         ],
+        "summary": "RunResourceAction run resource action",
         "operationId": "RunResourceAction",
         "parameters": [
           {
@@ -1153,7 +1162,7 @@
           "ClusterService"
         ],
         "summary": "List returns list of clusters",
-        "operationId": "List",
+        "operationId": "ListMixin1",
         "parameters": [
           {
             "type": "string",
@@ -1180,7 +1189,7 @@
           "ClusterService"
         ],
         "summary": "Create creates a cluster",
-        "operationId": "Create",
+        "operationId": "CreateMixin1",
         "parameters": [
           {
             "name": "body",
@@ -1241,7 +1250,7 @@
           "ClusterService"
         ],
         "summary": "Get returns a cluster by server address",
-        "operationId": "GetMixin2",
+        "operationId": "GetMixin1",
         "parameters": [
           {
             "type": "string",
@@ -1269,7 +1278,7 @@
           "ClusterService"
         ],
         "summary": "Delete deletes a cluster",
-        "operationId": "Delete",
+        "operationId": "DeleteMixin1",
         "parameters": [
           {
             "type": "string",
@@ -1349,7 +1358,7 @@
           "GPGKeyService"
         ],
         "summary": "List all available repository certificates",
-        "operationId": "ListMixin7",
+        "operationId": "List",
         "parameters": [
           {
             "type": "string",
@@ -1372,7 +1381,7 @@
           "GPGKeyService"
         ],
         "summary": "Create one or more GPG public keys in the server's configuration",
-        "operationId": "CreateMixin7",
+        "operationId": "Create",
         "parameters": [
           {
             "description": "Raw key data of the GPG key(s) to create",
@@ -1398,7 +1407,7 @@
           "GPGKeyService"
         ],
         "summary": "Delete specified GPG public key from the server's configuration",
-        "operationId": "DeleteMixin7",
+        "operationId": "Delete",
         "parameters": [
           {
             "type": "string",
@@ -1423,7 +1432,7 @@
           "GPGKeyService"
         ],
         "summary": "Get information about specified GPG public key from the server",
-        "operationId": "GetMixin7",
+        "operationId": "Get",
         "parameters": [
           {
             "type": "string",
@@ -1470,7 +1479,7 @@
         "tags": [
           "ProjectService"
         ],
-        "summary": "Create a new project.",
+        "summary": "Create a new project",
         "operationId": "CreateMixin6",
         "parameters": [
           {
@@ -1565,31 +1574,6 @@
         }
       }
     },
-    "/api/v1/projects/{name}/globalprojects": {
-      "get": {
-        "tags": [
-          "ProjectService"
-        ],
-        "summary": "Get returns a virtual project by name",
-        "operationId": "GetGlobalProjects",
-        "parameters": [
-          {
-            "type": "string",
-            "name": "name",
-            "in": "path",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/projectGlobalProjectsResponse"
-            }
-          }
-        }
-      }
-    },
     "/api/v1/projects/{name}/syncwindows": {
       "get": {
         "tags": [
@@ -1654,7 +1638,7 @@
         "tags": [
           "ProjectService"
         ],
-        "summary": "Create a new project token.",
+        "summary": "Create a new project token",
         "operationId": "CreateToken",
         "parameters": [
           {
@@ -1693,7 +1677,7 @@
         "tags": [
           "ProjectService"
         ],
-        "summary": "Delete a new project token.",
+        "summary": "Delete a new project token",
         "operationId": "DeleteToken",
         "parameters": [
           {
@@ -1939,7 +1923,7 @@
           "RepositoryService"
         ],
         "summary": "Get returns a repository or its credentials",
-        "operationId": "GetMixin3",
+        "operationId": "GetMixin2",
         "parameters": [
           {
             "type": "string",
@@ -2032,6 +2016,7 @@
         "tags": [
           "RepositoryService"
         ],
+        "summary": "GetHelmCharts returns list of helm charts in the specified repository",
         "operationId": "GetHelmCharts",
         "parameters": [
           {
@@ -2133,7 +2118,7 @@
         "tags": [
           "SessionService"
         ],
-        "summary": "Create a new JWT for authentication and set a cookie if using HTTP.",
+        "summary": "Create a new JWT for authentication and set a cookie if using HTTP",
         "operationId": "CreateMixin11",
         "parameters": [
           {
@@ -2158,7 +2143,7 @@
         "tags": [
           "SessionService"
         ],
-        "summary": "Delete an existing JWT cookie if using HTTP.",
+        "summary": "Delete an existing JWT cookie if using HTTP",
         "operationId": "DeleteMixin11",
         "responses": {
           "200": {
@@ -2193,7 +2178,7 @@
           "SettingsService"
         ],
         "summary": "Get returns Argo CD settings",
-        "operationId": "Get",
+        "operationId": "GetMixin4",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2209,7 +2194,7 @@
         "tags": [
           "ApplicationService"
         ],
-        "summary": "Watch returns stream of application change events.",
+        "summary": "Watch returns stream of application change events",
         "operationId": "Watch",
         "parameters": [
           {
@@ -2803,17 +2788,6 @@
     },
     "projectEmptyResponse": {
       "type": "object"
-    },
-    "projectGlobalProjectsResponse": {
-      "type": "object",
-      "properties": {
-        "globalprojects": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/v1alpha1AppProject"
-          }
-        }
-      }
     },
     "projectProjectCreateRequest": {
       "description": "ProjectCreateRequest defines project creation parameters.",
