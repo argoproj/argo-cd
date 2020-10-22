@@ -75,6 +75,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Twilio SendGrid](https://sendgrid.com)
 1. [tZERO](https://www.tzero.com/)
 1. [UBIO](https://ub.io/)
+1. [UFirstGroup](https://www.ufirstgroup.com/en/)
 1. [Universidad Mesoamericana](https://www.umes.edu.gt/)
 1. [Viaduct](https://www.viaduct.ai/)
 1. [Volvo Cars](https://www.volvocars.com/)
