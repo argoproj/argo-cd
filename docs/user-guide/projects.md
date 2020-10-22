@@ -180,7 +180,7 @@ You can use `argocd proj role` CLI commands or project details page in the user 
 Note that each project role policy rule must be scoped to that project only. Use the `argocd-rbac-cm` ConfigMap described in
 [RBAC](../operator-manual/rbac.md) documentation if you want to configure cross project RBAC rules.
 
-## Configuring Global Projects
+## Configuring Global Projects (v1.8)
 
 Global projects can be configured to provide configurations that other projects can inherit from. 
 
