@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 	"text/tabwriter"
+	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/argoproj/gitops-engine/pkg/utils/io"
@@ -199,6 +200,7 @@ func NewProjectRoleDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 func NewProjectRoleCreateTokenCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		expiresIn string
+		tokenID   string
 	)
 	var command = &cobra.Command{
 		Use:   "create-token PROJECT ROLE-NAME",
@@ -212,14 +214,35 @@ func NewProjectRoleCreateTokenCommand(clientOpts *argocdclient.ClientOptions) *c
 			roleName := args[1]
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer io.Close(conn)
+			if expiresIn == "" {
+				expiresIn = "0s"
+			}
 			duration, err := timeutil.ParseDuration(expiresIn)
 			errors.CheckError(err)
-			token, err := projIf.CreateToken(context.Background(), &projectpkg.ProjectTokenCreateRequest{Project: projName, Role: roleName, ExpiresIn: int64(duration.Seconds())})
+			tokenResponse, err := projIf.CreateToken(context.Background(), &projectpkg.ProjectTokenCreateRequest{
+				Project:   projName,
+				Role:      roleName,
+				ExpiresIn: int64(duration.Seconds()),
+				Id:        tokenID,
+			})
 			errors.CheckError(err)
-			fmt.Println(token.Token)
+
+			fmt.Printf("Created token succeeded.\n  Project: %s\n  Role: %s\n", projName, roleName)
+
+			if tokenResponse.Id != "" {
+				expiresAtString := "Never"
+				if tokenResponse.ExpiresAt > 0 {
+					expiresAtString = time.Unix(tokenResponse.ExpiresAt, 0).Format(time.RFC3339)
+				}
+				fmt.Printf("  ID: %s\n  Expires At: %s\n", tokenResponse.Id, expiresAtString)
+			}
+			fmt.Println("  Token: " + tokenResponse.Token)
 		},
 	}
-	command.Flags().StringVarP(&expiresIn, "expires-in", "e", "0s", "Duration before the token will expire. (Default: No expiration)")
+	command.Flags().StringVarP(&expiresIn, "expires-in", "e", "",
+		"Duration before the token will expire, eg \"12h\", \"7d\". (Default: No expiration)",
+	)
+	command.Flags().StringVarP(&tokenID, "id", "i", "", "Token unique identifier. (Default: Random UUID)")
 
 	return command
 }
