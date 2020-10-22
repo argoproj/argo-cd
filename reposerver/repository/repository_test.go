@@ -3,10 +3,12 @@ package repository
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -37,28 +39,40 @@ gpg:                using RSA key 4AEE18F83AFDEB23
 gpg: Good signature from "GitHub (web-flow commit signing) <noreply@github.com>" [ultimate]
 `
 
+type clientFunc func(*gitmocks.Client)
+
 func newServiceWithMocks(root string, signed bool) (*Service, *gitmocks.Client) {
-	service := NewService(metrics.NewMetricsServer(), cache.NewCache(
-		cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Minute)),
-		1*time.Minute,
-	), RepoServerInitConstants{ParallelismLimit: 1})
-	helmClient := &helmmocks.Client{}
-	gitClient := &gitmocks.Client{}
 	root, err := filepath.Abs(root)
 	if err != nil {
 		panic(err)
 	}
-	gitClient.On("Init").Return(nil)
-	gitClient.On("Fetch").Return(nil)
-	gitClient.On("Checkout", mock.Anything).Return(nil)
-	gitClient.On("LsRemote", mock.Anything).Return(mock.Anything, nil)
-	gitClient.On("CommitSHA").Return(mock.Anything, nil)
-	gitClient.On("Root").Return(root)
-	if signed {
-		gitClient.On("VerifyCommitSignature", mock.Anything).Return(testSignature, nil)
-	} else {
-		gitClient.On("VerifyCommitSignature", mock.Anything).Return("", nil)
-	}
+	return newServiceWithOpt(func(gitClient *gitmocks.Client) {
+		gitClient.On("Init").Return(nil)
+		gitClient.On("Fetch").Return(nil)
+		gitClient.On("Checkout", mock.Anything).Return(nil)
+		gitClient.On("LsRemote", mock.Anything).Return(mock.Anything, nil)
+		gitClient.On("CommitSHA").Return(mock.Anything, nil)
+		gitClient.On("Root").Return(root)
+		if signed {
+			gitClient.On("VerifyCommitSignature", mock.Anything).Return(testSignature, nil)
+		} else {
+			gitClient.On("VerifyCommitSignature", mock.Anything).Return("", nil)
+		}
+	})
+}
+
+func newServiceWithOpt(cf clientFunc) (*Service, *gitmocks.Client) {
+	// root, err := filepath.Abs(root)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	helmClient := &helmmocks.Client{}
+	gitClient := &gitmocks.Client{}
+	cf(gitClient)
+	service := NewService(metrics.NewMetricsServer(), cache.NewCache(
+		cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Minute)),
+		1*time.Minute,
+	), RepoServerInitConstants{ParallelismLimit: 1})
 
 	chart := "my-chart"
 	version := semver.MustParse("1.1.0")
@@ -84,6 +98,30 @@ func newService(root string) *Service {
 
 func newServiceWithSignature(root string) *Service {
 	service, _ := newServiceWithMocks(root, true)
+	return service
+}
+
+func newServiceWithCommitSHA(root, revision string) *Service {
+	var revisionErr error
+
+	commitSHARegex := regexp.MustCompile("^[0-9A-Fa-f]{40}$")
+	if !commitSHARegex.MatchString(revision) {
+		revisionErr = errors.New("not a commit SHA")
+	}
+
+	service, gitClient := newServiceWithOpt(func(gitClient *gitmocks.Client) {
+		gitClient.On("Init").Return(nil)
+		gitClient.On("Fetch").Return(nil)
+		gitClient.On("Checkout", mock.Anything).Return(nil)
+		gitClient.On("LsRemote", revision).Return(revision, revisionErr)
+		gitClient.On("CommitSHA").Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
+		gitClient.On("Root").Return(root)
+	})
+
+	service.newGitClient = func(rawRepoURL string, creds git.Creds, insecure bool, enableLfs bool) (client git.Client, e error) {
+		return gitClient, nil
+	}
+
 	return service
 }
 
@@ -1060,4 +1098,79 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 		return
 	}
 	assert.Equal(t, "gcr.io/heptio-images/ks-guestbook-demo:0.2", image)
+}
+
+func TestGenerateManifestWithAnnotatedAndRegularGitTagHashes(t *testing.T) {
+	regularGitTagHash := "632039659e542ed7de0c170a4fcc1c571b288fc0"
+	annotatedGitTaghash := "95249be61b028d566c29d47b19e65c5603388a41"
+	invalidGitTaghash := "invalid-tag"
+	actualCommitSHA := "632039659e542ed7de0c170a4fcc1c571b288fc0"
+
+	tests := []struct {
+		name            string
+		ctx             context.Context
+		manifestRequest *apiclient.ManifestRequest
+		wantError       bool
+		service         *Service
+	}{
+		{
+			name: "Case: Git tag hash matches latest commit SHA (regular tag)",
+			ctx:  context.Background(),
+			manifestRequest: &apiclient.ManifestRequest{
+				Repo: &argoappv1.Repository{},
+				ApplicationSource: &argoappv1.ApplicationSource{
+					TargetRevision: regularGitTagHash,
+				},
+				NoCache: true,
+			},
+			wantError: false,
+			service:   newServiceWithCommitSHA(".", regularGitTagHash),
+		},
+
+		{
+			name: "Case: Git tag hash does not match latest commit SHA (annotated tag)",
+			ctx:  context.Background(),
+			manifestRequest: &apiclient.ManifestRequest{
+				Repo: &argoappv1.Repository{},
+				ApplicationSource: &argoappv1.ApplicationSource{
+					TargetRevision: annotatedGitTaghash,
+				},
+				NoCache: true,
+			},
+			wantError: false,
+			service:   newServiceWithCommitSHA(".", annotatedGitTaghash),
+		},
+
+		{
+			name: "Case: Git tag hash is invalid",
+			ctx:  context.Background(),
+			manifestRequest: &apiclient.ManifestRequest{
+				Repo: &argoappv1.Repository{},
+				ApplicationSource: &argoappv1.ApplicationSource{
+					TargetRevision: invalidGitTaghash,
+				},
+				NoCache: true,
+			},
+			wantError: true,
+			service:   newServiceWithCommitSHA(".", invalidGitTaghash),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			manifestResponse, err := tt.service.GenerateManifest(tt.ctx, tt.manifestRequest)
+			if !tt.wantError {
+				if err == nil {
+					assert.Equal(t, manifestResponse.Revision, actualCommitSHA)
+				} else {
+					t.Errorf("unexpected error")
+				}
+			} else {
+				if err == nil {
+					t.Errorf("expected an error but did not throw one")
+				}
+			}
+
+		})
+	}
+
 }
