@@ -144,8 +144,8 @@ func (s *Service) runRepoOperation(
 	repo *v1alpha1.Repository,
 	source *v1alpha1.ApplicationSource,
 	verifyCommit bool,
-	getCached func(revision string, firstInvocation bool) (bool, interface{}, error),
-	operation func(appPath, repoRoot, revision, verifyResult string) (interface{}, error),
+	getCached func(cacheKey string, firstInvocation bool) (bool, interface{}, error),
+	operation func(appPath, repoRoot, commitSHA, cacheKey, verifyResult string) (interface{}, error),
 	settings operationSettings) (interface{}, error) {
 
 	var gitClient git.Client
@@ -199,7 +199,7 @@ func (s *Service) runRepoOperation(
 			return nil, err
 		}
 		defer io.Close(closer)
-		return operation(chartPath, chartPath, revision, "")
+		return operation(chartPath, chartPath, revision, revision, "")
 	} else {
 		s.repoLock.Lock(gitClient.Root())
 		defer s.repoLock.Unlock(gitClient.Root())
@@ -210,7 +210,7 @@ func (s *Service) runRepoOperation(
 				return obj, err
 			}
 		}
-		_, err = checkoutRevision(gitClient, revision, log.WithField("repo", repo.Repo))
+		commitSHA, err := checkoutRevision(gitClient, revision, log.WithField("repo", repo.Repo))
 		if err != nil {
 			return nil, err
 		}
@@ -224,16 +224,18 @@ func (s *Service) runRepoOperation(
 		if err != nil {
 			return nil, err
 		}
-		return operation(appPath, gitClient.Root(), revision, signature)
+		// Here commitSHA refers to the SHA of the actual commit, whereas revision refers to the branch/tag name etc
+		// We use the commitSHA to generate manifests and store them in cache, and revision to retrieve them from cache
+		return operation(appPath, gitClient.Root(), commitSHA, revision, signature)
 	}
 }
 
 func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
 	resultUncast, err := s.runRepoOperation(ctx, q.Revision, q.Repo, q.ApplicationSource, q.VerifySignature,
-		func(revision string, firstInvocation bool) (bool, interface{}, error) {
-			return s.getManifestCacheEntry(revision, q, firstInvocation)
-		}, func(appPath, repoRoot, revision, verifyResult string) (interface{}, error) {
-			return s.runManifestGen(appPath, repoRoot, revision, verifyResult, q)
+		func(cacheKey string, firstInvocation bool) (bool, interface{}, error) {
+			return s.getManifestCacheEntry(cacheKey, q, firstInvocation)
+		}, func(appPath, repoRoot, commitSHA, cacheKey, verifyResult string) (interface{}, error) {
+			return s.runManifestGen(appPath, repoRoot, commitSHA, cacheKey, verifyResult, q)
 		}, operationSettings{sem: s.parallelismLimitSemaphore, noCache: q.NoCache})
 
 	result, ok := resultUncast.(*apiclient.ManifestResponse)
@@ -249,8 +251,8 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 // - or, the cache does contain a value for this key, but it is an expired manifest generation entry
 // - or, NoCache is true
 // Returns a ManifestResponse, or an error, but not both
-func (s *Service) runManifestGen(appPath, repoRoot, revision, verifyResult string, q *apiclient.ManifestRequest) (interface{}, error) {
-	manifestGenResult, err := GenerateManifests(appPath, repoRoot, revision, q, false)
+func (s *Service) runManifestGen(appPath, repoRoot, commitSHA, cacheKey, verifyResult string, q *apiclient.ManifestRequest) (interface{}, error) {
+	manifestGenResult, err := GenerateManifests(appPath, repoRoot, commitSHA, q, false)
 	if err != nil {
 
 		// If manifest generation error caching is enabled
@@ -259,7 +261,7 @@ func (s *Service) runManifestGen(appPath, repoRoot, revision, verifyResult strin
 			// Retrieve a new copy (if available) of the cached response: this ensures we are updating the latest copy of the cache,
 			// rather than a copy of the cache that occurred before (a potentially lengthy) manifest generation.
 			innerRes := &cache.CachedManifestResponse{}
-			cacheErr := s.cache.GetManifests(revision, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, innerRes)
+			cacheErr := s.cache.GetManifests(cacheKey, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, innerRes)
 			if cacheErr != nil && cacheErr != reposervercache.ErrCacheMiss {
 				log.Warnf("manifest cache set error %s: %v", q.ApplicationSource.String(), cacheErr)
 				return nil, cacheErr
@@ -274,7 +276,7 @@ func (s *Service) runManifestGen(appPath, repoRoot, revision, verifyResult strin
 			// Update the cache to include failure information
 			innerRes.NumberOfConsecutiveFailures++
 			innerRes.MostRecentError = err.Error()
-			cacheErr = s.cache.SetManifests(revision, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, innerRes)
+			cacheErr = s.cache.SetManifests(cacheKey, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, innerRes)
 			if cacheErr != nil {
 				log.Warnf("manifest cache set error %s: %v", q.ApplicationSource.String(), cacheErr)
 				return nil, cacheErr
@@ -291,11 +293,11 @@ func (s *Service) runManifestGen(appPath, repoRoot, revision, verifyResult strin
 		FirstFailureTimestamp:           0,
 		MostRecentError:                 "",
 	}
-	manifestGenResult.Revision = revision
+	manifestGenResult.Revision = commitSHA
 	manifestGenResult.VerifyResult = verifyResult
-	err = s.cache.SetManifests(revision, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, &manifestGenCacheEntry)
+	err = s.cache.SetManifests(cacheKey, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, &manifestGenCacheEntry)
 	if err != nil {
-		log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), revision, err)
+		log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
 	}
 	return manifestGenCacheEntry.ManifestResponse, nil
 }
@@ -306,9 +308,9 @@ func (s *Service) runManifestGen(appPath, repoRoot, revision, verifyResult strin
 // - If the cache is not empty, but the cache value is an error AND that generation error has expired
 // and returns true otherwise.
 // If true is returned, either the second or third parameter (but not both) will contain a value from the cache (a ManifestResponse, or error, respectively)
-func (s *Service) getManifestCacheEntry(revision string, q *apiclient.ManifestRequest, firstInvocation bool) (bool, interface{}, error) {
+func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRequest, firstInvocation bool) (bool, interface{}, error) {
 	res := cache.CachedManifestResponse{}
-	err := s.cache.GetManifests(revision, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, &res)
+	err := s.cache.GetManifests(cacheKey, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, &res)
 	if err == nil {
 
 		// The cache contains an existing value
@@ -327,11 +329,11 @@ func (s *Service) getManifestCacheEntry(revision string, q *apiclient.ManifestRe
 					// After X minutes, reset the cache and retry the operation (eg perhaps the error is ephemeral and has passed)
 					if elapsedTimeInMinutes >= s.initConstants.PauseGenerationOnFailureForMinutes {
 						// We can now try again, so reset the cache state and run the operation below
-						err = s.cache.DeleteManifests(revision, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue)
+						err = s.cache.DeleteManifests(cacheKey, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue)
 						if err != nil {
-							log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), revision, err)
+							log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
 						}
-						log.Infof("manifest error cache hit and reset: %s/%s", q.ApplicationSource.String(), revision)
+						log.Infof("manifest error cache hit and reset: %s/%s", q.ApplicationSource.String(), cacheKey)
 						return false, nil, nil
 					}
 				}
@@ -341,17 +343,17 @@ func (s *Service) getManifestCacheEntry(revision string, q *apiclient.ManifestRe
 
 					if res.NumberOfCachedResponsesReturned >= s.initConstants.PauseGenerationOnFailureForRequests {
 						// We can now try again, so reset the error cache state and run the operation below
-						err = s.cache.DeleteManifests(revision, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue)
+						err = s.cache.DeleteManifests(cacheKey, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue)
 						if err != nil {
-							log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), revision, err)
+							log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
 						}
-						log.Infof("manifest error cache hit and reset: %s/%s", q.ApplicationSource.String(), revision)
+						log.Infof("manifest error cache hit and reset: %s/%s", q.ApplicationSource.String(), cacheKey)
 						return false, nil, nil
 					}
 				}
 
 				// Otherwise, manifest generation is still paused
-				log.Infof("manifest error cache hit: %s/%s", q.ApplicationSource.String(), revision)
+				log.Infof("manifest error cache hit: %s/%s", q.ApplicationSource.String(), cacheKey)
 
 				cachedErrorResponse := fmt.Errorf(cachedManifestGenerationPrefix+": %s", res.MostRecentError)
 
@@ -359,9 +361,9 @@ func (s *Service) getManifestCacheEntry(revision string, q *apiclient.ManifestRe
 					// Increment the number of returned cached responses and push that new value to the cache
 					// (if we have not already done so previously in this function)
 					res.NumberOfCachedResponsesReturned++
-					err = s.cache.SetManifests(revision, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, &res)
+					err = s.cache.SetManifests(cacheKey, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, &res)
 					if err != nil {
-						log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), revision, err)
+						log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
 					}
 				}
 
@@ -371,18 +373,18 @@ func (s *Service) getManifestCacheEntry(revision string, q *apiclient.ManifestRe
 
 			// Otherwise we are not yet in the manifest generation error state, and not enough consecutive errors have
 			// yet occurred to put us in that state.
-			log.Infof("manifest error cache miss: %s/%s", q.ApplicationSource.String(), revision)
+			log.Infof("manifest error cache miss: %s/%s", q.ApplicationSource.String(), cacheKey)
 			return false, res.ManifestResponse, nil
 		}
 
-		log.Infof("manifest cache hit: %s/%s", q.ApplicationSource.String(), revision)
+		log.Infof("manifest cache hit: %s/%s", q.ApplicationSource.String(), cacheKey)
 		return true, res.ManifestResponse, nil
 	}
 
 	if err != reposervercache.ErrCacheMiss {
 		log.Warnf("manifest cache error %s: %v", q.ApplicationSource.String(), err)
 	} else {
-		log.Infof("manifest cache miss: %s/%s", q.ApplicationSource.String(), revision)
+		log.Infof("manifest cache miss: %s/%s", q.ApplicationSource.String(), cacheKey)
 	}
 
 	return false, nil, nil
@@ -900,7 +902,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 
 	}
 
-	resultUncast, err := s.runRepoOperation(ctx, q.Source.TargetRevision, q.Repo, q.Source, false, getCached, func(appPath, repoRoot, revision, verifyResult string) (interface{}, error) {
+	resultUncast, err := s.runRepoOperation(ctx, q.Source.TargetRevision, q.Repo, q.Source, false, getCached, func(appPath, repoRoot, commitSHA, revision, verifyResult string) (interface{}, error) {
 
 		res := &apiclient.RepoAppDetailsResponse{}
 		appSourceType, err := GetAppSourceType(q.Source, appPath)
