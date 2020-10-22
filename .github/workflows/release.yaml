@@ -76,10 +76,10 @@ jobs:
           fi
 
           # Make the variables available in follow-up steps
-          echo "::set-env name=TARGET_VERSION::${TARGET_VERSION}"
-          echo "::set-env name=TARGET_BRANCH::${TARGET_BRANCH}"
-          echo "::set-env name=RELEASE_TAG::${RELEASE_TAG}"
-          echo "::set-env name=PRE_RELEASE::${PRE_RELEASE}"
+          echo "TARGET_VERSION=${TARGET_VERSION}" >> $GITHUB_ENV
+          echo "TARGET_BRANCH=${TARGET_BRANCH}" >> $GITHUB_ENV
+          echo "RELEASE_TAG=${RELEASE_TAG}" >> $GITHUB_ENV
+          echo "PRE_RELEASE=${PRE_RELEASE}" >> $GITHUB_ENV
 
       - name: Check if our release tag has a correct annotation
         run: |
@@ -134,7 +134,7 @@ jobs:
 
           # We store path to temporary release notes file for later reading, we
           # need it when creating release.
-          echo "::set-env name=RELEASE_NOTES::$RELEASE_NOTES"
+          echo "RELEASE_NOTES=${RELEASE_NOTES}" >> $GITHUB_ENV
 
       - name: Setup Golang
         uses: actions/setup-go@v1

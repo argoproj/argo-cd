@@ -1185,7 +1185,7 @@ func TestSyncWithInfos(t *testing.T) {
 //Given: argocd app create does not provide --dest-namespace
 //       Manifest contains resource console which does not require namespace
 //Expect: no app.Status.Conditions
-func TestCreateAppWithNoNameSpaceForGlobalResourse(t *testing.T) {
+func TestCreateAppWithNoNameSpaceForGlobalResource(t *testing.T) {
 	Given(t).
 		Path(globalWithNoNameSpace).
 		When().
