@@ -28,6 +28,7 @@ import {isSameNode, nodeKey} from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
 
 const jsonMergePatch = require('json-merge-patch');
+import {testData} from './data';
 
 require('./application-details.scss');
 
@@ -220,7 +221,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                     selectedNodeFullName={this.selectedNodeKey}
                                                     onNodeClick={fullName => this.selectNode(fullName)}
                                                     nodeMenu={node => this.renderResourceMenu(node, application)}
-                                                    tree={tree}
+                                                    tree={testData as appModels.ApplicationTree}
                                                     app={application}
                                                     showOrphanedResources={pref.orphanedResources}
                                                     useNetworkingHierarchy={pref.view === 'network'}

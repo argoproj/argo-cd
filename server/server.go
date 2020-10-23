@@ -5,8 +5,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io/ioutil"
-	"k8s.io/client-go/informers"
-	listers "k8s.io/client-go/listers/core/v1"
 	"math"
 	"net"
 	"net/http"
@@ -17,6 +15,9 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"k8s.io/client-go/informers"
+	listers "k8s.io/client-go/listers/core/v1"
 
 	// nolint:staticcheck
 	golang_proto "github.com/golang/protobuf/proto"

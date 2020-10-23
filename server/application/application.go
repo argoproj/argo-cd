@@ -6,13 +6,14 @@ import (
 	"errors"
 	"fmt"
 	goio "io"
-	listers "k8s.io/client-go/listers/core/v1"
 	"math"
 	"reflect"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	listers "k8s.io/client-go/listers/core/v1"
 
 	"github.com/Masterminds/semver"
 	"github.com/argoproj/gitops-engine/pkg/diff"
@@ -209,13 +210,13 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 }
 
 // GetNodes returns nodes associated with an application
-func (s* Server) GetNodes(ctx context.Context, q *application.ApplicationQuery) (error) {
+func (s *Server) GetNodes(ctx context.Context, q *application.NodeQuery) error {
 	labelsMap, err := labels.ConvertSelectorToLabelsMap(q.Selector)
 	if err != nil {
 		return err
 	}
 	nodes, err := s.nodeLister.List(labelsMap.AsSelector())
-	if (err != nil) {
+	if err != nil {
 		return err
 	}
 	log.Infof("%+v", nodes)
