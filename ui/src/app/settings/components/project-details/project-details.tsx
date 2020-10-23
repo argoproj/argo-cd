@@ -1,28 +1,11 @@
-import {
-    AutocompleteField,
-    FormField,
-    HelpIcon,
-    NotificationsApi,
-    NotificationType,
-    SlidingPanel,
-    Tabs,
-    Tooltip
-} from 'argo-ui';
+import {AutocompleteField, FormField, HelpIcon, NotificationsApi, NotificationType, SlidingPanel, Tabs, Tooltip} from 'argo-ui';
 import classNames from 'classnames';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import {FormApi, Text} from 'react-form';
 import {RouteComponentProps} from 'react-router';
 
-import {
-    CheckboxField,
-    DataLoader,
-    EditablePanel,
-    ErrorNotification,
-    MapInputField,
-    Page,
-    Query
-} from '../../../shared/components';
+import {CheckboxField, DataLoader, EditablePanel, ErrorNotification, MapInputField, Page, Query} from '../../../shared/components';
 import {AppContext, Consumer} from '../../../shared/context';
 import {GroupKind, Groups, Project, ProjectSpec, ResourceKinds} from '../../../shared/models';
 import {CreateJWTTokenParams, DeleteJWTTokenParams, ProjectRoleParams, services} from '../../../shared/services';
@@ -112,7 +95,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                 return Promise.all([
                                     services.projects.get(this.props.match.params.name),
                                     services.projects.getGlobalProjects(this.props.match.params.name).then(projs =>
-                                        (projs|| []).reduce(
+                                        (projs || []).reduce(
                                             (merged, proj) => {
                                                 merged.clusterResourceBlacklist = merged.clusterResourceBlacklist.concat(proj.spec.clusterResourceBlacklist || []);
                                                 merged.clusterResourceWhitelist = merged.clusterResourceWhitelist.concat(proj.spec.clusterResourceWhitelist || []);
@@ -422,10 +405,10 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                             STATUS
                                             {helpTip(
                                                 'If a window is active or inactive and what the current ' +
-                                                'effect would be if it was assigned to an application, namespace or cluster. ' +
-                                                'Red: no syncs allowed. ' +
-                                                'Yellow: manual syncs allowed. ' +
-                                                'Green: all syncs allowed'
+                                                    'effect would be if it was assigned to an application, namespace or cluster. ' +
+                                                    'Red: no syncs allowed. ' +
+                                                    'Yellow: manual syncs allowed. ' +
+                                                    'Green: all syncs allowed'
                                             )}
                                         </div>
                                         <div className='columns small-2'>
@@ -537,10 +520,10 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                         <React.Fragment>
                             {proj.spec.sourceRepos
                                 ? proj.spec.sourceRepos.map((repo, i) => (
-                                    <div className='row white-box__details-row' key={i}>
-                                        <div className='columns small-12'>{repo}</div>
-                                    </div>
-                                ))
+                                      <div className='row white-box__details-row' key={i}>
+                                          <div className='columns small-12'>{repo}</div>
+                                      </div>
+                                  ))
                                 : emptyMessage('source repositories')}
                         </React.Fragment>
                     }
@@ -713,7 +696,8 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                     items={[]}
                 />
 
-                {globalProj.clusterResourceWhitelist.length > 0 && (<div className='white-box editable-panel'>
+                {globalProj.clusterResourceWhitelist.length > 0 && (
+                    <div className='white-box editable-panel'>
                         <div className='white-box__details'>
                             <p>
                                 CLUSTER RESOURCE ALLOW LIST FROM GLOBAL PROJECT
@@ -817,19 +801,18 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                 {helpTip('Cluster-scoped K8s API Groups and Kinds which are not permitted to be deployed from global project')}
                             </p>
                             <React.Fragment>
-                                    <React.Fragment>
-                                        <div className='row white-box__details-row'>
-                                            <div className='columns small-4'>Kind</div>
-                                            <div className='columns small-8'>Group</div>
+                                <React.Fragment>
+                                    <div className='row white-box__details-row'>
+                                        <div className='columns small-4'>Kind</div>
+                                        <div className='columns small-8'>Group</div>
+                                    </div>
+                                    {globalProj.clusterResourceBlacklist.map((resource, i) => (
+                                        <div className='row white-box__details-row' key={i}>
+                                            <div className='columns small-4'>{resource.kind}</div>
+                                            <div className='columns small-8'>{resource.group}</div>
                                         </div>
-                                        {globalProj.clusterResourceBlacklist.map((resource, i) => (
-                                            <div className='row white-box__details-row' key={i}>
-                                                <div className='columns small-4'>{resource.kind}</div>
-                                                <div className='columns small-8'>{resource.group}</div>
-                                            </div>
-                                        ))}
-                                    </React.Fragment>
-
+                                    ))}
+                                </React.Fragment>
                             </React.Fragment>
                         </div>
                     </div>
@@ -1053,10 +1036,10 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                         <React.Fragment>
                             {proj.spec.signatureKeys
                                 ? proj.spec.signatureKeys.map((key, i) => (
-                                    <div className='row white-box__details-row' key={i}>
-                                        <div className='columns small-12'>{key.keyID}</div>
-                                    </div>
-                                ))
+                                      <div className='row white-box__details-row' key={i}>
+                                          <div className='columns small-12'>{key.keyID}</div>
+                                      </div>
+                                  ))
                                 : emptyMessage('signature keys')}
                         </React.Fragment>
                     }
@@ -1167,33 +1150,33 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                     <div className='columns small-4'>Name</div>
                                 </div>
                                 {((formApi.values.spec.orphanedResources.ignore || []).length === 0 && <div>Ignore list is empty</div>) ||
-                                formApi.values.spec.orphanedResources.ignore.map((_: Project, i: number) => (
-                                    <div className='row white-box__details-row' key={i}>
-                                        <div className='columns small-4'>
-                                            <FormField
-                                                formApi={formApi}
-                                                field={`spec.orphanedResources.ignore[${i}].group`}
-                                                component={AutocompleteField}
-                                                componentProps={{items: Groups, filterSuggestions: true}}
+                                    formApi.values.spec.orphanedResources.ignore.map((_: Project, i: number) => (
+                                        <div className='row white-box__details-row' key={i}>
+                                            <div className='columns small-4'>
+                                                <FormField
+                                                    formApi={formApi}
+                                                    field={`spec.orphanedResources.ignore[${i}].group`}
+                                                    component={AutocompleteField}
+                                                    componentProps={{items: Groups, filterSuggestions: true}}
+                                                />
+                                            </div>
+                                            <div className='columns small-4'>
+                                                <FormField
+                                                    formApi={formApi}
+                                                    field={`spec.orphanedResources.ignore[${i}].kind`}
+                                                    component={AutocompleteField}
+                                                    componentProps={{items: ResourceKinds, filterSuggestions: true}}
+                                                />
+                                            </div>
+                                            <div className='columns small-4'>
+                                                <FormField formApi={formApi} field={`spec.orphanedResources.ignore[${i}].name`} component={AutocompleteField} />
+                                            </div>
+                                            <i
+                                                className='fa fa-times'
+                                                onClick={() => formApi.setValue('spec.orphanedResources.ignore', removeEl(formApi.values.spec.orphanedResources.ignore, i))}
                                             />
                                         </div>
-                                        <div className='columns small-4'>
-                                            <FormField
-                                                formApi={formApi}
-                                                field={`spec.orphanedResources.ignore[${i}].kind`}
-                                                component={AutocompleteField}
-                                                componentProps={{items: ResourceKinds, filterSuggestions: true}}
-                                            />
-                                        </div>
-                                        <div className='columns small-4'>
-                                            <FormField formApi={formApi} field={`spec.orphanedResources.ignore[${i}].name`} component={AutocompleteField} />
-                                        </div>
-                                        <i
-                                            className='fa fa-times'
-                                            onClick={() => formApi.setValue('spec.orphanedResources.ignore', removeEl(formApi.values.spec.orphanedResources.ignore, i))}
-                                        />
-                                    </div>
-                                ))}
+                                    ))}
                                 <br />
                                 <button
                                     className='argo-button argo-button--base'
