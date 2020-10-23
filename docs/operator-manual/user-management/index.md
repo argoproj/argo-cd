@@ -127,7 +127,7 @@ Argo CD embeds and bundles [Dex](https://github.com/coreos/dex) as part of its i
 purpose of delegating authentication to an external identity provider. Multiple types of identity
 providers are supported (OIDC, SAML, LDAP, GitHub, etc...). SSO configuration of Argo CD requires
 editing the `argocd-cm` ConfigMap with
-[Dex connector](https://github.com/coreos/dex/tree/master/Documentation/connectors) settings.
+[Dex connector](https://dexidp.io/docs/connectors/) settings.
 
 This document describes how to configure Argo CD SSO using GitHub (OAuth2) as an example, but the
 steps should be similar for other identity providers.
