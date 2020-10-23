@@ -547,11 +547,13 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 		// This happens after app was deleted, but the work queue still had an entry for it.
 		return
 	}
-	app, ok := obj.(*appv1.Application)
+	origApp, ok := obj.(*appv1.Application)
 	if !ok {
 		log.Warnf("Key '%s' in index is not an application", appKey)
 		return
 	}
+	app := origApp.DeepCopy()
+
 	if app.Operation != nil {
 		ctrl.processRequestedAppOperation(app)
 	} else if app.DeletionTimestamp != nil && app.CascadedDeletion() {

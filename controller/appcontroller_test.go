@@ -630,11 +630,16 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			kube.GetResourceKey(appObj): appObj,
 		}})
 		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-		defaultReactor := fakeAppCs.ReactionChain[0]
-		fakeAppCs.ReactionChain = nil
-		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-			return defaultReactor.React(action)
-		})
+		func() {
+			fakeAppCs.Lock()
+			defer fakeAppCs.Unlock()
+
+			defaultReactor := fakeAppCs.ReactionChain[0]
+			fakeAppCs.ReactionChain = nil
+			fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+				return defaultReactor.React(action)
+			})
+		}()
 		_, err := ctrl.finalizeApplicationDeletion(app)
 		assert.EqualError(t, err, "application destination can't have both name and server defined: another-cluster https://localhost:6443")
 	})
@@ -1091,12 +1096,16 @@ func TestProcessRequestedAppOperation_InvalidDestination(t *testing.T) {
 	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 	receivedPatch := map[string]interface{}{}
-	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		if patchAction, ok := action.(kubetesting.PatchAction); ok {
-			assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
-		}
-		return true, nil, nil
-	})
+	func() {
+		fakeAppCs.Lock()
+		defer fakeAppCs.Unlock()
+		fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			if patchAction, ok := action.(kubetesting.PatchAction); ok {
+				assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+			}
+			return true, nil, nil
+		})
+	}()
 
 	ctrl.processRequestedAppOperation(app)
 
