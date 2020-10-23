@@ -8,12 +8,11 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/errors"
-	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
-
 	"github.com/argoproj/argo-cd/common"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	"github.com/argoproj/argo-cd/pkg/apiclient/version"
+	"github.com/argoproj/argo-cd/util/errors"
+	argoio "github.com/argoproj/argo-cd/util/io"
 )
 
 // NewVersionCmd returns a new `version` command to be used as a sub-command to root

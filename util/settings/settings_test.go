@@ -7,7 +7,6 @@ import (
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 
-	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -260,7 +259,7 @@ func TestGetResourceCompareOptions(t *testing.T) {
 			"resource.compareoptions": "",
 		})
 		compareOptions, err := settingsManager.GetResourceCompareOptions()
-		defaultOptions := diff.GetDefaultDiffOptions()
+		defaultOptions := GetDefaultDiffOptions()
 		assert.NoError(t, err)
 		assert.Equal(t, defaultOptions.IgnoreAggregatedRoles, compareOptions.IgnoreAggregatedRoles)
 	}
@@ -269,7 +268,7 @@ func TestGetResourceCompareOptions(t *testing.T) {
 	{
 		_, settingsManager := fixtures(map[string]string{})
 		compareOptions, err := settingsManager.GetResourceCompareOptions()
-		defaultOptions := diff.GetDefaultDiffOptions()
+		defaultOptions := GetDefaultDiffOptions()
 		assert.NoError(t, err)
 		assert.Equal(t, defaultOptions.IgnoreAggregatedRoles, compareOptions.IgnoreAggregatedRoles)
 	}
