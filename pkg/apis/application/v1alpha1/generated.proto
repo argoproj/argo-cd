@@ -232,6 +232,10 @@ message ApplicationSourceKustomize {
   // CommonLabels adds additional kustomize commonLabels
   map<string, string> commonLabels = 4;
 
+  // ForceCommonLabels force overwrites commonLabel directive if it
+  // already exists within the Kustomize application manifests
+  optional bool forceCommonLabels = 6;
+
   // Version contains optional Kustomize version
   optional string version = 5;
 }

@@ -94,6 +94,9 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 		if len(opts.CommonLabels) > 0 {
 			//  edit add label foo:bar
 			args := []string{"edit", "add", "label"}
+			if opts.ForceCommonLabels {
+				args = append(args, "--force")
+			}
 			arg := ""
 			for labelName, labelValue := range opts.CommonLabels {
 				if arg != "" {

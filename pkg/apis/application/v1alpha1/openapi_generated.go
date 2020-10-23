@@ -879,6 +879,13 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref common.
 							},
 						},
 					},
+					"ForceCommonLabels": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ForceCommonLabels force overwrites commonLabel directive if it already exists within the Kustomize application manifests",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 					"version": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Version contains optional Kustomize version",
@@ -887,6 +894,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref common.
 						},
 					},
 				},
+				Required: []string{"ForceCommonLabels"},
 			},
 		},
 	}

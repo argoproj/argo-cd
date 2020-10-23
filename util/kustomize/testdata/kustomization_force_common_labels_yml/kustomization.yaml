@@ -1,0 +1,4 @@
+resources:
+  - ./deployment.yaml
+commonLabels:
+  foo: bar

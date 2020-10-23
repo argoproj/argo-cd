@@ -57,6 +57,7 @@ argocd app create APPNAME [flags]
       --jsonnet-libs stringArray             Additional jsonnet libs (prefixed by repoRoot)
       --jsonnet-tla-code stringArray         Jsonnet top level code arguments
       --jsonnet-tla-str stringArray          Jsonnet top level string arguments
+      --kustomize-force-common-labels        Force overwrite common labels in Kustomize if it/they already exist
       --kustomize-common-label stringArray   Set common labels in Kustomize
       --kustomize-image stringArray          Kustomize images (e.g. --kustomize-image node:8.15.0 --kustomize-image mysql=mariadb,alpine@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d)
       --kustomize-version string             Kustomize version

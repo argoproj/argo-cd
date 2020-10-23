@@ -3904,6 +3904,11 @@
             "type": "string"
           }
         },
+        "forceCommonLabels": {
+          "type": "boolean",
+          "format": "boolean",
+          "title": "ForceCommonLabels force overwrites commonLabel directive if it\nalready exists within the Kustomize application manifests"
+        },
         "images": {
           "type": "array",
           "title": "Images are kustomize image overrides",
