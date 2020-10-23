@@ -52,6 +52,31 @@ function loadGlobal(name: string) {
                 merged.clusterResourceWhitelist = merged.clusterResourceWhitelist.concat(proj.spec.clusterResourceWhitelist || []);
                 merged.namespaceResourceBlacklist = merged.namespaceResourceBlacklist.concat(proj.spec.namespaceResourceBlacklist || []);
                 merged.namespaceResourceWhitelist = merged.namespaceResourceWhitelist.concat(proj.spec.namespaceResourceWhitelist || []);
+
+                merged.clusterResourceBlacklist = merged.clusterResourceBlacklist.filter((item, index) => {
+                    return index === merged.clusterResourceBlacklist.findIndex(obj => {
+                        return obj.kind === item.kind && obj.group === item.group;
+                    });
+                });
+
+                merged.clusterResourceWhitelist = merged.clusterResourceWhitelist.filter((item, index) => {
+                    return index === merged.clusterResourceWhitelist.findIndex(obj => {
+                        return obj.kind === item.kind && obj.group === item.group
+                    });
+                });
+
+                merged.namespaceResourceBlacklist = merged.namespaceResourceBlacklist.filter((item, index) => {
+                    return index === merged.namespaceResourceBlacklist.findIndex(obj => {
+                        return obj.kind === item.kind && obj.group === item.group
+                    });
+                });
+
+                merged.namespaceResourceWhitelist = merged.namespaceResourceWhitelist.filter((item, index) => {
+                    return index === merged.namespaceResourceWhitelist.findIndex(obj => {
+                        return obj.kind === item.kind && obj.group === item.group
+                    });
+                });
+
                 return merged;
             },
             {
