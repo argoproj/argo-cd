@@ -44,6 +44,31 @@ function emptyMessage(title: string) {
     return <p>Project has no {title}</p>;
 }
 
+function loadGlobal(name: string) {
+    return services.projects.getGlobalProjects(name).then(projs =>
+        (projs || []).reduce(
+            (merged, proj) => {
+                merged.clusterResourceBlacklist = merged.clusterResourceBlacklist.concat(proj.spec.clusterResourceBlacklist || []);
+                merged.clusterResourceWhitelist = merged.clusterResourceWhitelist.concat(proj.spec.clusterResourceWhitelist || []);
+                merged.namespaceResourceBlacklist = merged.namespaceResourceBlacklist.concat(proj.spec.namespaceResourceBlacklist || []);
+                merged.namespaceResourceWhitelist = merged.namespaceResourceWhitelist.concat(proj.spec.namespaceResourceWhitelist || []);
+                return merged;
+            },
+            {
+                clusterResourceBlacklist: new Array<GroupKind>(),
+                namespaceResourceBlacklist: new Array<GroupKind>(),
+                namespaceResourceWhitelist: new Array<GroupKind>(),
+                sourceRepos: [],
+                signatureKeys: [],
+                clusterResourceWhitelist: [],
+                destinations: [],
+                description: '',
+                roles: []
+            }
+        )
+    );
+}
+
 export class ProjectDetails extends React.Component<RouteComponentProps<{name: string}>, ProjectDetailsState> {
     public static contextTypes = {
         apis: PropTypes.object
@@ -92,31 +117,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                         }}>
                         <DataLoader
                             load={() => {
-                                return Promise.all([
-                                    services.projects.get(this.props.match.params.name),
-                                    services.projects.getGlobalProjects(this.props.match.params.name).then(projs =>
-                                        (projs || []).reduce(
-                                            (merged, proj) => {
-                                                merged.clusterResourceBlacklist = merged.clusterResourceBlacklist.concat(proj.spec.clusterResourceBlacklist || []);
-                                                merged.clusterResourceWhitelist = merged.clusterResourceWhitelist.concat(proj.spec.clusterResourceWhitelist || []);
-                                                merged.namespaceResourceBlacklist = merged.namespaceResourceBlacklist.concat(proj.spec.namespaceResourceBlacklist || []);
-                                                merged.namespaceResourceWhitelist = merged.namespaceResourceWhitelist.concat(proj.spec.namespaceResourceWhitelist || []);
-                                                return merged;
-                                            },
-                                            {
-                                                clusterResourceBlacklist: new Array<GroupKind>(),
-                                                namespaceResourceBlacklist: new Array<GroupKind>(),
-                                                namespaceResourceWhitelist: new Array<GroupKind>(),
-                                                sourceRepos: [],
-                                                signatureKeys: [],
-                                                clusterResourceWhitelist: [],
-                                                destinations: [],
-                                                description: '',
-                                                roles: []
-                                            }
-                                        )
-                                    )
-                                ]);
+                                return Promise.all([services.projects.get(this.props.match.params.name), loadGlobal(this.props.match.params.name)]);
                             }}
                             ref={loader => (this.loader = loader)}>
                             {([proj, globalProj]) => (
@@ -472,7 +473,10 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
             const proj = await services.projects.get(updatedProj.metadata.name);
             proj.metadata.labels = updatedProj.metadata.labels;
             proj.spec = updatedProj.spec;
-            this.loader.setData(await services.projects.updateProj(proj));
+
+            const updated = await services.projects.updateProj(proj);
+            const globalProj = await loadGlobal(updatedProj.metadata.name);
+            this.loader.setData([updated, globalProj]);
         } catch (e) {
             this.appContext.apis.notifications.show({
                 content: <ErrorNotification title='Unable to update project' e={e} />,
