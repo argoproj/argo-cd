@@ -1,13 +1,30 @@
-import {AutocompleteField, FormField, HelpIcon, NotificationsApi, NotificationType, SlidingPanel, Tabs, Tooltip} from 'argo-ui';
+import {
+    AutocompleteField,
+    FormField,
+    HelpIcon,
+    NotificationsApi,
+    NotificationType,
+    SlidingPanel,
+    Tabs,
+    Tooltip
+} from 'argo-ui';
 import classNames from 'classnames';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import {FormApi, Text} from 'react-form';
 import {RouteComponentProps} from 'react-router';
 
-import {CheckboxField, DataLoader, EditablePanel, ErrorNotification, MapInputField, Page, Query} from '../../../shared/components';
+import {
+    CheckboxField,
+    DataLoader,
+    EditablePanel,
+    ErrorNotification,
+    MapInputField,
+    Page,
+    Query
+} from '../../../shared/components';
 import {AppContext, Consumer} from '../../../shared/context';
-import {Groups, GroupKind, Project, ProjectSpec, ResourceKinds} from '../../../shared/models';
+import {GroupKind, Groups, Project, ProjectSpec, ResourceKinds} from '../../../shared/models';
 import {CreateJWTTokenParams, DeleteJWTTokenParams, ProjectRoleParams, services} from '../../../shared/services';
 
 import {ProjectEvents} from '../project-events/project-events';
@@ -95,7 +112,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                 return Promise.all([
                                     services.projects.get(this.props.match.params.name),
                                     services.projects.getGlobalProjects(this.props.match.params.name).then(projs =>
-                                        (projs.globalprojects || []).reduce(
+                                        (projs|| []).reduce(
                                             (merged, proj) => {
                                                 merged.clusterResourceBlacklist = merged.clusterResourceBlacklist.concat(proj.spec.clusterResourceBlacklist || []);
                                                 merged.clusterResourceWhitelist = merged.clusterResourceWhitelist.concat(proj.spec.clusterResourceWhitelist || []);
@@ -107,7 +124,12 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                 clusterResourceBlacklist: new Array<GroupKind>(),
                                                 namespaceResourceBlacklist: new Array<GroupKind>(),
                                                 namespaceResourceWhitelist: new Array<GroupKind>(),
-                                                clusterResourceWhitelist: new Array<GroupKind>(),
+                                                sourceRepos: [],
+                                                signatureKeys: [],
+                                                clusterResourceWhitelist: [],
+                                                destinations: [],
+                                                description: '',
+                                                roles: []
                                             }
                                         )
                                     )
@@ -400,10 +422,10 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                             STATUS
                                             {helpTip(
                                                 'If a window is active or inactive and what the current ' +
-                                                    'effect would be if it was assigned to an application, namespace or cluster. ' +
-                                                    'Red: no syncs allowed. ' +
-                                                    'Yellow: manual syncs allowed. ' +
-                                                    'Green: all syncs allowed'
+                                                'effect would be if it was assigned to an application, namespace or cluster. ' +
+                                                'Red: no syncs allowed. ' +
+                                                'Yellow: manual syncs allowed. ' +
+                                                'Green: all syncs allowed'
                                             )}
                                         </div>
                                         <div className='columns small-2'>
@@ -515,10 +537,10 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                         <React.Fragment>
                             {proj.spec.sourceRepos
                                 ? proj.spec.sourceRepos.map((repo, i) => (
-                                      <div className='row white-box__details-row' key={i}>
-                                          <div className='columns small-12'>{repo}</div>
-                                      </div>
-                                  ))
+                                    <div className='row white-box__details-row' key={i}>
+                                        <div className='columns small-12'>{repo}</div>
+                                    </div>
+                                ))
                                 : emptyMessage('source repositories')}
                         </React.Fragment>
                     }
@@ -691,14 +713,13 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                     items={[]}
                 />
 
-                <div className='white-box editable-panel'>
-                    <div className='white-box__details'>
-                        <p>
-                            CLUSTER RESOURCE ALLOW LIST FROM GLOBAL PROJECT
-                            {helpTip('Cluster-scoped K8s API Groups and Kinds which are permitted to be deployed from global project')}
-                        </p>
-                        <React.Fragment>
-                            {globalProj.clusterResourceWhitelist.length > 0 ? (
+                {globalProj.clusterResourceWhitelist.length > 0 && (<div className='white-box editable-panel'>
+                        <div className='white-box__details'>
+                            <p>
+                                CLUSTER RESOURCE ALLOW LIST FROM GLOBAL PROJECT
+                                {helpTip('Cluster-scoped K8s API Groups and Kinds which are permitted to be deployed from global project')}
+                            </p>
+                            <React.Fragment>
                                 <React.Fragment>
                                     <div className='row white-box__details-row'>
                                         <div className='columns small-4'>Kind</div>
@@ -711,12 +732,10 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                         </div>
                                     ))}
                                 </React.Fragment>
-                            ) : (
-                                emptyMessage('cluster resource allow list from global project')
-                            )}
-                        </React.Fragment>
+                            </React.Fragment>
+                        </div>
                     </div>
-                </div>
+                )}
 
                 <EditablePanel
                     save={item => this.saveProject(item)}
@@ -790,32 +809,31 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                     items={[]}
                 />
 
-                <div className='white-box editable-panel'>
-                    <div className='white-box__details'>
-                        <p>
-                            CLUSTER RESOURCE DENY LIST FROM GLOBAL PROJECT
-                            {helpTip('Cluster-scoped K8s API Groups and Kinds which are not permitted to be deployed from global project')}
-                        </p>
-                        <React.Fragment>
-                            {globalProj.clusterResourceBlacklist.length > 0 ? (
-                                <React.Fragment>
-                                    <div className='row white-box__details-row'>
-                                        <div className='columns small-4'>Kind</div>
-                                        <div className='columns small-8'>Group</div>
-                                    </div>
-                                    {globalProj.clusterResourceBlacklist.map((resource, i) => (
-                                        <div className='row white-box__details-row' key={i}>
-                                            <div className='columns small-4'>{resource.kind}</div>
-                                            <div className='columns small-8'>{resource.group}</div>
+                {globalProj.clusterResourceBlacklist.length > 0 && (
+                    <div className='white-box editable-panel'>
+                        <div className='white-box__details'>
+                            <p>
+                                CLUSTER RESOURCE DENY LIST FROM GLOBAL PROJECT
+                                {helpTip('Cluster-scoped K8s API Groups and Kinds which are not permitted to be deployed from global project')}
+                            </p>
+                            <React.Fragment>
+                                    <React.Fragment>
+                                        <div className='row white-box__details-row'>
+                                            <div className='columns small-4'>Kind</div>
+                                            <div className='columns small-8'>Group</div>
                                         </div>
-                                    ))}
-                                </React.Fragment>
-                            ) : (
-                                emptyMessage('cluster resource allow list from global project')
-                            )}
-                        </React.Fragment>
+                                        {globalProj.clusterResourceBlacklist.map((resource, i) => (
+                                            <div className='row white-box__details-row' key={i}>
+                                                <div className='columns small-4'>{resource.kind}</div>
+                                                <div className='columns small-8'>{resource.group}</div>
+                                            </div>
+                                        ))}
+                                    </React.Fragment>
+
+                            </React.Fragment>
+                        </div>
                     </div>
-                </div>
+                )}
 
                 <EditablePanel
                     save={item => this.saveProject(item)}
@@ -893,14 +911,14 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                     items={[]}
                 />
 
-                <div className='white-box editable-panel'>
-                    <div className='white-box__details'>
-                        <p>
-                            NAMESPACE RESOURCE ALLOW LIST FROM GLOBAL PROJECT
-                            {helpTip('Namespace-scoped K8s API Groups and Kinds which are permitted to deploy from global project')}
-                        </p>
-                        <React.Fragment>
-                            {globalProj.namespaceResourceWhitelist.length > 0 ? (
+                {globalProj.namespaceResourceWhitelist.length > 0 && (
+                    <div className='white-box editable-panel'>
+                        <div className='white-box__details'>
+                            <p>
+                                NAMESPACE RESOURCE ALLOW LIST FROM GLOBAL PROJECT
+                                {helpTip('Namespace-scoped K8s API Groups and Kinds which are permitted to deploy from global project')}
+                            </p>
+                            <React.Fragment>
                                 <React.Fragment>
                                     <div className='row white-box__details-row'>
                                         <div className='columns small-4'>Kind</div>
@@ -913,12 +931,10 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                         </div>
                                     ))}
                                 </React.Fragment>
-                            ) : (
-                                emptyMessage('namespace resource allow list from global project')
-                            )}
-                        </React.Fragment>
+                            </React.Fragment>
+                        </div>
                     </div>
-                </div>
+                )}
 
                 <EditablePanel
                     save={item => this.saveProject(item)}
@@ -1000,32 +1016,34 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                     items={[]}
                 />
 
-                <div className='white-box editable-panel'>
-                    <div className='white-box__details'>
-                        <p>
-                            NAMESPACE RESOURCE DENY LIST FROM GLOBAL PROJECT
-                            {helpTip('Namespace-scoped K8s API Groups and Kinds which are prohibited from being deployed from global project')}
-                        </p>
-                        <React.Fragment>
-                            {globalProj.namespaceResourceBlacklist.length > 0 ? (
-                                <React.Fragment>
-                                    <div className='row white-box__details-row'>
-                                        <div className='columns small-4'>Kind</div>
-                                        <div className='columns small-8'>Group</div>
-                                    </div>
-                                    {globalProj.namespaceResourceBlacklist.map((resource, i) => (
-                                        <div className='row white-box__details-row' key={i}>
-                                            <div className='columns small-4'>{resource.kind}</div>
-                                            <div className='columns small-8'>{resource.group}</div>
+                {globalProj.namespaceResourceBlacklist.length > 0 && (
+                    <div className='white-box editable-panel'>
+                        <div className='white-box__details'>
+                            <p>
+                                NAMESPACE RESOURCE DENY LIST FROM GLOBAL PROJECT
+                                {helpTip('Namespace-scoped K8s API Groups and Kinds which are prohibited from being deployed from global project')}
+                            </p>
+                            <React.Fragment>
+                                {globalProj.namespaceResourceBlacklist.length > 0 ? (
+                                    <React.Fragment>
+                                        <div className='row white-box__details-row'>
+                                            <div className='columns small-4'>Kind</div>
+                                            <div className='columns small-8'>Group</div>
                                         </div>
-                                    ))}
-                                </React.Fragment>
-                            ) : (
-                                emptyMessage('namespace resource allow list from global project')
-                            )}
-                        </React.Fragment>
+                                        {globalProj.namespaceResourceBlacklist.map((resource, i) => (
+                                            <div className='row white-box__details-row' key={i}>
+                                                <div className='columns small-4'>{resource.kind}</div>
+                                                <div className='columns small-8'>{resource.group}</div>
+                                            </div>
+                                        ))}
+                                    </React.Fragment>
+                                ) : (
+                                    emptyMessage('namespace resource allow list from global project')
+                                )}
+                            </React.Fragment>
+                        </div>
                     </div>
-                </div>
+                )}
 
                 <EditablePanel
                     save={item => this.saveProject(item)}
@@ -1035,10 +1053,10 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                         <React.Fragment>
                             {proj.spec.signatureKeys
                                 ? proj.spec.signatureKeys.map((key, i) => (
-                                      <div className='row white-box__details-row' key={i}>
-                                          <div className='columns small-12'>{key.keyID}</div>
-                                      </div>
-                                  ))
+                                    <div className='row white-box__details-row' key={i}>
+                                        <div className='columns small-12'>{key.keyID}</div>
+                                    </div>
+                                ))
                                 : emptyMessage('signature keys')}
                         </React.Fragment>
                     }
@@ -1149,33 +1167,33 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                     <div className='columns small-4'>Name</div>
                                 </div>
                                 {((formApi.values.spec.orphanedResources.ignore || []).length === 0 && <div>Ignore list is empty</div>) ||
-                                    formApi.values.spec.orphanedResources.ignore.map((_: Project, i: number) => (
-                                        <div className='row white-box__details-row' key={i}>
-                                            <div className='columns small-4'>
-                                                <FormField
-                                                    formApi={formApi}
-                                                    field={`spec.orphanedResources.ignore[${i}].group`}
-                                                    component={AutocompleteField}
-                                                    componentProps={{items: Groups, filterSuggestions: true}}
-                                                />
-                                            </div>
-                                            <div className='columns small-4'>
-                                                <FormField
-                                                    formApi={formApi}
-                                                    field={`spec.orphanedResources.ignore[${i}].kind`}
-                                                    component={AutocompleteField}
-                                                    componentProps={{items: ResourceKinds, filterSuggestions: true}}
-                                                />
-                                            </div>
-                                            <div className='columns small-4'>
-                                                <FormField formApi={formApi} field={`spec.orphanedResources.ignore[${i}].name`} component={AutocompleteField} />
-                                            </div>
-                                            <i
-                                                className='fa fa-times'
-                                                onClick={() => formApi.setValue('spec.orphanedResources.ignore', removeEl(formApi.values.spec.orphanedResources.ignore, i))}
+                                formApi.values.spec.orphanedResources.ignore.map((_: Project, i: number) => (
+                                    <div className='row white-box__details-row' key={i}>
+                                        <div className='columns small-4'>
+                                            <FormField
+                                                formApi={formApi}
+                                                field={`spec.orphanedResources.ignore[${i}].group`}
+                                                component={AutocompleteField}
+                                                componentProps={{items: Groups, filterSuggestions: true}}
                                             />
                                         </div>
-                                    ))}
+                                        <div className='columns small-4'>
+                                            <FormField
+                                                formApi={formApi}
+                                                field={`spec.orphanedResources.ignore[${i}].kind`}
+                                                component={AutocompleteField}
+                                                componentProps={{items: ResourceKinds, filterSuggestions: true}}
+                                            />
+                                        </div>
+                                        <div className='columns small-4'>
+                                            <FormField formApi={formApi} field={`spec.orphanedResources.ignore[${i}].name`} component={AutocompleteField} />
+                                        </div>
+                                        <i
+                                            className='fa fa-times'
+                                            onClick={() => formApi.setValue('spec.orphanedResources.ignore', removeEl(formApi.values.spec.orphanedResources.ignore, i))}
+                                        />
+                                    </div>
+                                ))}
                                 <br />
                                 <button
                                     className='argo-button argo-button--base'

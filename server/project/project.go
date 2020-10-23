@@ -251,7 +251,7 @@ func (s *Server) GetGlobalProjects(ctx context.Context, q *project.ProjectQuery)
 	globalProjects := argo.GetGlobalProjects(projOrig, listersv1alpha1.NewAppProjectLister(s.projInformer.GetIndexer()), s.settingsMgr)
 
 	res := &project.GlobalProjectsResponse{}
-	res.Globalprojects = globalProjects
+	res.Items = globalProjects
 	return res, nil
 }
 

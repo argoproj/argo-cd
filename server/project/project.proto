@@ -62,7 +62,7 @@ message SyncWindowsResponse {
 }
 
 message GlobalProjectsResponse {
-    repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.AppProject globalprojects = 1;
+    repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.AppProject items = 1;
 }
 
 // ProjectService

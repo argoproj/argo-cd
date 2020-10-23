@@ -471,6 +471,11 @@ func GetGlobalProjects(proj *argoappv1.AppProject, projLister applicationsv1.App
 	}
 
 	for _, gp := range gps {
+		//The project itself is not its own the global project
+		if proj.Name == gp.ProjectName {
+			continue
+		}
+
 		selector, err := metav1.LabelSelectorAsSelector(&gp.LabelSelector)
 		if err != nil {
 			break
@@ -490,7 +495,7 @@ func GetGlobalProjects(proj *argoappv1.AppProject, projLister applicationsv1.App
 		if !matchMe {
 			break
 		}
-		//If proj is a match for this global project setting, then merge with the global project
+		//If proj is a match for this global project setting, then it is its global project
 		globalProj, err := projLister.AppProjects(proj.Namespace).Get(gp.ProjectName)
 		if err != nil {
 			break

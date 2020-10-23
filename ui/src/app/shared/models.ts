@@ -689,10 +689,6 @@ export interface SyncWindowsState {
     windows: SyncWindow[];
 }
 
-export interface GlobalProjectState {
-    globalprojects: Project[];
-}
-
 export interface ApplicationSyncWindowState {
     activeWindows: SyncWindow[];
     assignedWindows: SyncWindow[];

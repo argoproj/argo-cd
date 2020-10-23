@@ -2817,7 +2817,7 @@
     "projectGlobalProjectsResponse": {
       "type": "object",
       "properties": {
-        "globalprojects": {
+        "items": {
           "type": "array",
           "items": {
             "$ref": "#/definitions/v1alpha1AppProject"
