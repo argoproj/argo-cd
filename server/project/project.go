@@ -128,7 +128,7 @@ func (s *Server) CreateToken(ctx context.Context, q *project.ProjectTokenCreateR
 		return nil, err
 	}
 	s.logEvent(prj, ctx, argo.EventReasonResourceCreated, "created token")
-	return &project.ProjectTokenResponse{ExpiresAt: expiresAt, Id: id, Token: jwtToken}, nil
+	return &project.ProjectTokenResponse{Token: jwtToken}, nil
 
 }
 

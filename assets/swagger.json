@@ -2829,13 +2829,6 @@
       "description": "ProjectTokenResponse wraps the created token or returns an empty string if deleted.",
       "type": "object",
       "properties": {
-        "expiresAt": {
-          "type": "string",
-          "format": "int64"
-        },
-        "id": {
-          "type": "string"
-        },
         "token": {
           "type": "string"
         }

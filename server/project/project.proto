@@ -27,7 +27,7 @@ message ProjectTokenDeleteRequest {
     string id = 4;
 }
 
-// ProjectTokenCreateRequest defines project token creation parameters.
+// ProjectTokenCreateRequest defines project token creation parameters. 
 message ProjectTokenCreateRequest {
     string project = 1;
     string description = 2;
@@ -39,9 +39,8 @@ message ProjectTokenCreateRequest {
 // ProjectTokenResponse wraps the created token or returns an empty string if deleted.
 message ProjectTokenResponse {
     string token = 1;
-    int64 expiresAt = 2;
-    string id = 3;
 }
+
 
 // ProjectQuery is a query for Project resources
 message ProjectQuery {
