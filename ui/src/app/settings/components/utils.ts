@@ -21,3 +21,11 @@ export function validExpiresIn(expiresIn: string): boolean {
     }
     return expiresIn.match('^([0-9]+)([smhd])$') !== null;
 }
+
+export function GetProp<T, K extends keyof T>(obj: T, key: K) {
+    return obj[key];
+}
+
+export function SetProp<T, K extends keyof T>(obj: T, key: K, value: any) {
+    obj[key] = value;
+}
