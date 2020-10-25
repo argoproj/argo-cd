@@ -38,7 +38,7 @@ func TestLock_SameRevision(t *testing.T) {
 	initializedTimes := 0
 	init := numberOfInits(&initializedTimes)
 	closer1, done := lockQuickly(func() (io.Closer, error) {
-		return lock.Lock("myRepo", "1", allow(true), init)
+		return lock.Lock("myRepo", "1", true, init)
 	})
 
 	if !assert.True(t, done) {
@@ -46,7 +46,7 @@ func TestLock_SameRevision(t *testing.T) {
 	}
 
 	closer2, done := lockQuickly(func() (io.Closer, error) {
-		return lock.Lock("myRepo", "1", allow(true), init)
+		return lock.Lock("myRepo", "1", true, init)
 	})
 
 	if !assert.True(t, done) {
@@ -66,7 +66,7 @@ func TestLock_DifferentRevisions(t *testing.T) {
 	init := numberOfInits(&initializedTimes)
 
 	closer1, done := lockQuickly(func() (io.Closer, error) {
-		return lock.Lock("myRepo", "1", allow(true), init)
+		return lock.Lock("myRepo", "1", true, init)
 	})
 
 	if !assert.True(t, done) {
@@ -74,7 +74,7 @@ func TestLock_DifferentRevisions(t *testing.T) {
 	}
 
 	_, done = lockQuickly(func() (io.Closer, error) {
-		return lock.Lock("myRepo", "2", allow(true), init)
+		return lock.Lock("myRepo", "2", true, init)
 	})
 
 	if !assert.False(t, done) {
@@ -84,7 +84,7 @@ func TestLock_DifferentRevisions(t *testing.T) {
 	util.Close(closer1)
 
 	_, done = lockQuickly(func() (io.Closer, error) {
-		return lock.Lock("myRepo", "2", allow(true), init)
+		return lock.Lock("myRepo", "2", true, init)
 	})
 
 	if !assert.True(t, done) {
@@ -98,7 +98,7 @@ func TestLock_NoConcurrentWithSameRevision(t *testing.T) {
 	init := numberOfInits(&initializedTimes)
 
 	closer1, done := lockQuickly(func() (io.Closer, error) {
-		return lock.Lock("myRepo", "1", allow(false), init)
+		return lock.Lock("myRepo", "1", false, init)
 	})
 
 	if !assert.True(t, done) {
@@ -106,7 +106,7 @@ func TestLock_NoConcurrentWithSameRevision(t *testing.T) {
 	}
 
 	_, done = lockQuickly(func() (io.Closer, error) {
-		return lock.Lock("myRepo", "1", allow(false), init)
+		return lock.Lock("myRepo", "1", false, init)
 	})
 
 	if !assert.False(t, done) {
@@ -120,7 +120,7 @@ func TestLock_FailedInitialization(t *testing.T) {
 	lock := NewRepositoryLock()
 
 	closer1, done := lockQuickly(func() (io.Closer, error) {
-		return lock.Lock("myRepo", "1", allow(true), func() error {
+		return lock.Lock("myRepo", "1", true, func() error {
 			return errors.New("failed")
 		})
 	})
@@ -132,7 +132,7 @@ func TestLock_FailedInitialization(t *testing.T) {
 	assert.Nil(t, closer1)
 
 	closer2, done := lockQuickly(func() (io.Closer, error) {
-		return lock.Lock("myRepo", "1", allow(true), func() error {
+		return lock.Lock("myRepo", "1", true, func() error {
 			return nil
 		})
 	})
@@ -149,7 +149,7 @@ func TestLock_SameRevisionFirstNotConcurrent(t *testing.T) {
 	initializedTimes := 0
 	init := numberOfInits(&initializedTimes)
 	closer1, done := lockQuickly(func() (io.Closer, error) {
-		return lock.Lock("myRepo", "1", allow(false), init)
+		return lock.Lock("myRepo", "1", false, init)
 	})
 
 	if !assert.True(t, done) {
@@ -157,7 +157,7 @@ func TestLock_SameRevisionFirstNotConcurrent(t *testing.T) {
 	}
 
 	_, done = lockQuickly(func() (io.Closer, error) {
-		return lock.Lock("myRepo", "1", allow(true), init)
+		return lock.Lock("myRepo", "1", true, init)
 	})
 
 	if !assert.False(t, done) {

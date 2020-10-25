@@ -55,12 +55,6 @@ const (
 	cachedManifestGenerationPrefix = "Manifest generation error (cached)"
 )
 
-func allow(val bool) func(root string) bool {
-	return func(root string) bool {
-		return val
-	}
-}
-
 // Service implements ManifestService interface
 type Service struct {
 	repoLock                  *repositoryLock
@@ -116,7 +110,7 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 	s.metricsServer.IncPendingRepoRequest(q.Repo.Repo)
 	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
 
-	closer, err := s.repoLock.Lock(gitClient.Root(), commitSHA, allow(true), func() error {
+	closer, err := s.repoLock.Lock(gitClient.Root(), commitSHA, true, func() error {
 		return checkoutRevision(gitClient, commitSHA)
 	})
 
@@ -140,36 +134,26 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 type operationSettings struct {
 	sem             *semaphore.Weighted
 	noCache         bool
-	allowConcurrent func(root string) bool
+	allowConcurrent bool
 }
 
 // allowConcurrent returns true if given application source can be processed concurrently
-func allowConcurrent(source *v1alpha1.ApplicationSource) func(root string) bool {
-	return func(root string) bool {
-		switch {
-		// Kustomize with parameters requires changing kustomization.yaml file
-		case source.Kustomize != nil:
-			return len(source.Kustomize.Images) == 0 &&
-				len(source.Kustomize.CommonLabels) == 0 &&
-				source.Kustomize.NamePrefix == "" &&
-				source.Kustomize.NameSuffix == ""
-		// Kustomize with parameters requires changing params.libsonnet file
-		case source.Ksonnet != nil:
-			return len(source.Ksonnet.Parameters) == 0
-		// Plugin might change anything so unsafe to process concurrently
-		case source.Plugin != nil:
-			return false
-		}
-
-		appPath := path.Join(root, source.Path)
-		appType, err := discovery.AppType(appPath)
-		if err != nil {
-			return false
-		}
-
-		// Helm based apps might downloads dependencies and cannot be process concurrently
-		return v1alpha1.ApplicationSourceType(appType) != v1alpha1.ApplicationSourceTypeHelm
+func allowConcurrent(source *v1alpha1.ApplicationSource) bool {
+	switch {
+	// Kustomize with parameters requires changing kustomization.yaml file
+	case source.Kustomize != nil:
+		return len(source.Kustomize.Images) == 0 &&
+			len(source.Kustomize.CommonLabels) == 0 &&
+			source.Kustomize.NamePrefix == "" &&
+			source.Kustomize.NameSuffix == ""
+	// Kustomize with parameters requires changing params.libsonnet file
+	case source.Ksonnet != nil:
+		return len(source.Ksonnet.Parameters) == 0
+	// Plugin might change anything so unsafe to process concurrently
+	case source.Plugin != nil:
+		return false
 	}
+	return true
 }
 
 // runRepoOperation downloads either git folder or helm chart and executes specified operation
@@ -444,6 +428,26 @@ func getHelmRepos(repositories []*v1alpha1.Repository) []helm.HelmRepository {
 	return repos
 }
 
+var helmBuildLock = sync.NewKeyLock()
+
+func runHelmBuild(appPath string, h helm.Helm) error {
+	helmBuildLock.Lock(appPath)
+	defer helmBuildLock.Unlock(appPath)
+	markerFile := path.Join(appPath, ".argocd-helm-build")
+	_, err := os.Stat(markerFile)
+	if err == nil {
+		return nil
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+
+	err = h.DependencyBuild()
+	if err != nil {
+		return err
+	}
+	return ioutil.WriteFile(markerFile, []byte("marker"), 0644)
+}
+
 func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool) ([]*unstructured.Unstructured, error) {
 	templateOpts := &helm.TemplateOpts{
 		Name:        q.AppLabelValue,
@@ -540,15 +544,18 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 	if err != nil {
 		return nil, err
 	}
+
 	out, err := h.Template(templateOpts)
 	if err != nil {
 		if !helm.IsMissingDependencyErr(err) {
 			return nil, err
 		}
-		err = h.DependencyBuild()
+
+		err = runHelmBuild(appPath, h)
 		if err != nil {
 			return nil, err
 		}
+
 		out, err = h.Template(templateOpts)
 		if err != nil {
 			return nil, err
@@ -1087,7 +1094,7 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 	s.metricsServer.IncPendingRepoRequest(q.Repo.Repo)
 	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
 
-	closer, err := s.repoLock.Lock(gitClient.Root(), q.Revision, allow(true), func() error {
+	closer, err := s.repoLock.Lock(gitClient.Root(), q.Revision, true, func() error {
 		return checkoutRevision(gitClient, q.Revision)
 	})
 
