@@ -2547,6 +2547,27 @@ func (c *Cluster) RawRestConfig() *rest.Config {
 					Args:       args,
 				},
 			}
+		} else if c.Config.ExecProviderConfig != nil {
+			var env []api.ExecEnvVar
+			if c.Config.ExecProviderConfig.Env != nil {
+				for key, value := range c.Config.ExecProviderConfig.Env {
+					env = append(env, api.ExecEnvVar{
+						Name:  key,
+						Value: value,
+					})
+				}
+			}
+			config = &rest.Config{
+				Host:            c.Server,
+				TLSClientConfig: tlsClientConfig,
+				ExecProvider: &api.ExecConfig{
+					APIVersion: c.Config.ExecProviderConfig.APIVersion,
+					Command:    c.Config.ExecProviderConfig.Command,
+					Args:       c.Config.ExecProviderConfig.Args,
+					Env:        env,
+					InstallHint: c.Config.ExecProviderConfig.InstallHint
+				},
+			}
 		} else {
 			config = &rest.Config{
 				Host:            c.Server,
