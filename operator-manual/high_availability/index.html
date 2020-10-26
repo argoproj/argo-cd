@@ -1520,8 +1520,19 @@
 The <code>--parallelismlimit</code> flag controls how many manifests generations are running concurrently and allows avoiding OOM kills.</p>
 </li>
 <li>
-<p>one instance of <code>argocd-repo-server</code> executes only one operation on one Git repo concurrently. Increase the number of <code>argocd-repo-server</code> replica count if you have a lot of
-applications in the same repository.</p>
+<p>the <code>argocd-repo-server</code> ensures that repository is in the clean state during the manifest generation using config management tools such as Kustomize, Helm
+or custom plugin. If the manifest generation requires to change file in the local repository clone then only one concurrent manifest generation per server
+instance is allowed that might slowdown Argo CD if you have multiple applications (50+) in the same repository. Following are known cases that might cause slowness and workarounds:</p>
+</li>
+<li>
+<p>Multiple Helm based applications pointing to the same directory in one Git repository: ensure that your Helm chart don't have don't have conditional
+<a href="https://helm.sh/docs/chart_best_practices/dependencies/#conditions-and-tags">dependencies</a> and create <code>.argocd-allow-concurrency</code> file in chart directory.</p>
+</li>
+<li>
+<p>Multiple Custom plugin based applications: avoid creating temporal files during manifest generation and and create <code>.argocd-allow-concurrency</code> file in app directory.</p>
+</li>
+<li>
+<p>Multiple Kustomize or Ksonnet applications in same repository with <a href="../../user-guide/parameters/">parameter overrides</a>: sorry, no workaround for now.</p>
 </li>
 <li>
 <p><code>argocd-repo-server</code> clones repository into <code>/tmp</code> ( of path specified in <code>TMPDIR</code> env variable ). Pod might run out of disk space if have too many repository
