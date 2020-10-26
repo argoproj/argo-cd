@@ -1174,27 +1174,3 @@ func TestGenerateManifestWithAnnotatedAndRegularGitTagHashes(t *testing.T) {
 	}
 
 }
-
-func TestAllowConcurrent_KsonnetNoParams(t *testing.T) {
-	res := allowConcurrent(&argoappv1.ApplicationSource{Path: "."})
-
-	assert.True(t, res)
-}
-
-func TestAllowConcurrent_KsonnetParams(t *testing.T) {
-	res := allowConcurrent(&argoappv1.ApplicationSource{Path: ".", Ksonnet: &argoappv1.ApplicationSourceKsonnet{
-		Parameters: []argoappv1.KsonnetParameter{{
-			Name: "test", Component: "test", Value: "1",
-		}},
-	}})
-
-	assert.False(t, res)
-}
-
-func TestAllowConcurrent_KustomizeParams(t *testing.T) {
-	res := allowConcurrent(&argoappv1.ApplicationSource{Path: ".", Kustomize: &argoappv1.ApplicationSourceKustomize{
-		NameSuffix: "test",
-	}})
-
-	assert.False(t, res)
-}

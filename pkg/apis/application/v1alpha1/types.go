@@ -149,6 +149,22 @@ type ApplicationSource struct {
 	Chart string `json:"chart,omitempty" protobuf:"bytes,12,opt,name=chart"`
 }
 
+// AllowsConcurrentProcessing returns true if given application source can be processed concurrently
+func (a *ApplicationSource) AllowsConcurrentProcessing() bool {
+	switch {
+	// Kustomize with parameters requires changing kustomization.yaml file
+	case a.Kustomize != nil:
+		return a.Kustomize.AllowsConcurrentProcessing()
+	// Kustomize with parameters requires changing params.libsonnet file
+	case a.Ksonnet != nil:
+		return a.Ksonnet.AllowsConcurrentProcessing()
+	// Plugin might change anything so unsafe to process concurrently
+	case a.Plugin != nil:
+		return false
+	}
+	return true
+}
+
 func (a *ApplicationSource) IsHelm() bool {
 	return a.Chart != ""
 }
@@ -319,6 +335,13 @@ type ApplicationSourceKustomize struct {
 	Version string `json:"version,omitempty" protobuf:"bytes,5,opt,name=version"`
 }
 
+func (k *ApplicationSourceKustomize) AllowsConcurrentProcessing() bool {
+	return len(k.Images) == 0 &&
+		len(k.CommonLabels) == 0 &&
+		k.NamePrefix == "" &&
+		k.NameSuffix == ""
+}
+
 func (k *ApplicationSourceKustomize) IsZero() bool {
 	return k == nil ||
 		k.NamePrefix == "" &&
@@ -381,6 +404,10 @@ type KsonnetParameter struct {
 	Component string `json:"component,omitempty" protobuf:"bytes,1,opt,name=component"`
 	Name      string `json:"name" protobuf:"bytes,2,opt,name=name"`
 	Value     string `json:"value" protobuf:"bytes,3,opt,name=value"`
+}
+
+func (k *ApplicationSourceKsonnet) AllowsConcurrentProcessing() bool {
+	return len(k.Parameters) == 0
 }
 
 func (k *ApplicationSourceKsonnet) IsZero() bool {

@@ -137,25 +137,6 @@ type operationSettings struct {
 	allowConcurrent bool
 }
 
-// allowConcurrent returns true if given application source can be processed concurrently
-func allowConcurrent(source *v1alpha1.ApplicationSource) bool {
-	switch {
-	// Kustomize with parameters requires changing kustomization.yaml file
-	case source.Kustomize != nil:
-		return len(source.Kustomize.Images) == 0 &&
-			len(source.Kustomize.CommonLabels) == 0 &&
-			source.Kustomize.NamePrefix == "" &&
-			source.Kustomize.NameSuffix == ""
-	// Kustomize with parameters requires changing params.libsonnet file
-	case source.Ksonnet != nil:
-		return len(source.Ksonnet.Parameters) == 0
-	// Plugin might change anything so unsafe to process concurrently
-	case source.Plugin != nil:
-		return false
-	}
-	return true
-}
-
 // runRepoOperation downloads either git folder or helm chart and executes specified operation
 // - Returns a value from the cache if present (by calling getCached(...)); if no value is present, the
 // provide operation(...) is called. The specific return type of this function is determined by the
@@ -267,7 +248,7 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 			return s.getManifestCacheEntry(cacheKey, q, firstInvocation)
 		}, func(appPath, repoRoot, commitSHA, cacheKey, verifyResult string) (interface{}, error) {
 			return s.runManifestGen(appPath, repoRoot, commitSHA, cacheKey, verifyResult, q)
-		}, operationSettings{sem: s.parallelismLimitSemaphore, noCache: q.NoCache, allowConcurrent: allowConcurrent(q.ApplicationSource)})
+		}, operationSettings{sem: s.parallelismLimitSemaphore, noCache: q.NoCache, allowConcurrent: q.ApplicationSource.AllowsConcurrentProcessing()})
 	result, ok := resultUncast.(*apiclient.ManifestResponse)
 	if result != nil && !ok {
 		return nil, errors.New("unexpected result type")
@@ -1060,7 +1041,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 		}
 		_ = s.cache.SetAppDetails(revision, q.Source, res)
 		return res, nil
-	}, operationSettings{allowConcurrent: allowConcurrent(q.Source)})
+	}, operationSettings{allowConcurrent: q.Source.AllowsConcurrentProcessing()})
 
 	result, ok := resultUncast.(*apiclient.RepoAppDetailsResponse)
 	if result != nil && !ok {
