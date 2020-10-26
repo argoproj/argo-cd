@@ -53,6 +53,8 @@ import (
 
 const (
 	cachedManifestGenerationPrefix = "Manifest generation error (cached)"
+	helmDepUpMarkerFile            = ".argocd-helm-dep-up"
+	allowConcurrencyFile           = ".argocd-allow-concurrency"
 )
 
 // Service implements ManifestService interface
@@ -409,19 +411,27 @@ func getHelmRepos(repositories []*v1alpha1.Repository) []helm.HelmRepository {
 	return repos
 }
 
-var helmBuildLock = sync.NewKeyLock()
+func isConcurrencyAllowed(appPath string) bool {
+	if _, err := os.Stat(path.Join(appPath, allowConcurrencyFile)); err == nil {
+		return true
+	}
+	return false
+}
+
+var manifestGenerateLock = sync.NewKeyLock()
 
 // runHelmBuild executes `helm dependency build` in a given path and ensures that it is executed only once
 // if multiple threads are trying to run it.
 // Multiple goroutines might process same helm app in one repo concurrently when repo server process multiple
 // manifest generation requests of the same commit.
 func runHelmBuild(appPath string, h helm.Helm) error {
-	helmBuildLock.Lock(appPath)
-	defer helmBuildLock.Unlock(appPath)
+	manifestGenerateLock.Lock(appPath)
+	defer manifestGenerateLock.Unlock(appPath)
+
 	// the `helm dependency build` is potentially time consuming 1~2 seconds
 	// marker file is used to check if command already run to avoid running it again unnecessary
 	// file is removed when repository re-initialized (e.g. when another commit is processed)
-	markerFile := path.Join(appPath, ".argocd-helm-build")
+	markerFile := path.Join(appPath, helmDepUpMarkerFile)
 	_, err := os.Stat(markerFile)
 	if err == nil {
 		return nil
@@ -437,6 +447,12 @@ func runHelmBuild(appPath string, h helm.Helm) error {
 }
 
 func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool) ([]*unstructured.Unstructured, error) {
+	concurrencyAllowed := isConcurrencyAllowed(appPath)
+	if !concurrencyAllowed {
+		manifestGenerateLock.Lock(appPath)
+		defer manifestGenerateLock.Unlock(appPath)
+	}
+
 	templateOpts := &helm.TemplateOpts{
 		Name:        q.AppLabelValue,
 		Namespace:   q.Namespace,
@@ -539,7 +555,12 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			return nil, err
 		}
 
-		err = runHelmBuild(appPath, h)
+		if concurrencyAllowed {
+			err = runHelmBuild(appPath, h)
+		} else {
+			err = h.DependencyBuild()
+		}
+
 		if err != nil {
 			return nil, err
 		}
@@ -895,6 +916,12 @@ func findPlugin(plugins []*v1alpha1.ConfigManagementPlugin, name string) *v1alph
 }
 
 func runConfigManagementPlugin(appPath string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds) ([]*unstructured.Unstructured, error) {
+	concurrencyAllowed := isConcurrencyAllowed(appPath)
+	if !concurrencyAllowed {
+		manifestGenerateLock.Lock(appPath)
+		defer manifestGenerateLock.Unlock(appPath)
+	}
+
 	plugin := findPlugin(q.Plugins, q.ApplicationSource.Plugin.Name)
 	if plugin == nil {
 		return nil, fmt.Errorf("Config management plugin with name '%s' is not supported.", q.ApplicationSource.Plugin.Name)

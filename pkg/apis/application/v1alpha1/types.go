@@ -158,9 +158,6 @@ func (a *ApplicationSource) AllowsConcurrentProcessing() bool {
 	// Kustomize with parameters requires changing params.libsonnet file
 	case a.Ksonnet != nil:
 		return a.Ksonnet.AllowsConcurrentProcessing()
-	// Plugin might change anything so unsafe to process concurrently
-	case a.Plugin != nil:
-		return false
 	}
 	return true
 }
