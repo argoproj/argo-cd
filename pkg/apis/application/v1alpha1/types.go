@@ -1244,6 +1244,10 @@ type RepoCreds struct {
 	TLSClientCertData string `json:"tlsClientCertData,omitempty" protobuf:"bytes,5,opt,name=tlsClientCertData"`
 	// TLS client cert key for authenticating at the repo server
 	TLSClientCertKey string `json:"tlsClientCertKey,omitempty" protobuf:"bytes,6,opt,name=tlsClientCertKey"`
+	// Name of the secret storing the Github App Private Key PEM data
+	GithubAppPrivateKey string `json:"githubAppPrivateKey,omitempty" protobuf:"bytes,7,opt,name=githubAppPrivateKey"`
+	// Github App ID of the app used to access the repo
+	GithubAppID string `json:"githubAppID,omitempty" protobuf:"bytes,8,opt,name=githubAppID"`
 }
 
 // Repository is a repository holding application configurations
@@ -1276,6 +1280,10 @@ type Repository struct {
 	Name string `json:"name,omitempty" protobuf:"bytes,12,opt,name=name"`
 	// Whether credentials were inherited from a credential set
 	InheritedCreds bool `json:"inheritedCreds,omitempty" protobuf:"bytes,13,opt,name=inheritedCreds"`
+	// Github App Private Key PEM data
+	GithubAppPrivateKey string `json:"githubAppPrivateKey,omitempty" protobuf:"bytes,14,opt,name=githubAppPrivateKey"`
+	// Github App ID of the app used to access the repo
+	GithubAppID string `json:"githubAppID,omitempty" protobuf:"bytes,15,opt,name=githubAppID"`
 }
 
 // IsInsecure returns true if receiver has been configured to skip server verification
@@ -1343,6 +1351,9 @@ func (repo *Repository) GetGitCreds() git.Creds {
 	}
 	if repo.SSHPrivateKey != "" {
 		return git.NewSSHCreds(repo.SSHPrivateKey, getCAPath(repo.Repo), repo.IsInsecure())
+	}
+	if repo.GithubAppPrivateKey != "" && repo.GithubAppID != "" {
+		return git.NewGitHubAppCreds(repo.GithubAppID, repo.GithubAppPrivateKey)
 	}
 	return git.NopCreds{}
 }

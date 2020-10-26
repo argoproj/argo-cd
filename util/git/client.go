@@ -209,6 +209,9 @@ func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
 	case HTTPSCreds:
 		auth := githttp.BasicAuth{Username: creds.username, Password: creds.password}
 		return &auth, nil
+	case GitHubAppCreds:
+		auth := githttp.BasicAuth{Username: "x-access-token", Password: creds.accessToken}
+		return &auth, nil
 	}
 	return nil, nil
 }

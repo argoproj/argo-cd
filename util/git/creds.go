@@ -2,10 +2,13 @@ package git
 
 import (
 	"fmt"
+	"github.com/dgrijalva/jwt-go"
 	"io"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
 	log "github.com/sirupsen/logrus"
@@ -178,4 +181,63 @@ func (c SSHCreds) Environ() (io.Closer, []string, error) {
 	}
 	env = append(env, []string{fmt.Sprintf("GIT_SSH_COMMAND=%s", strings.Join(args, " "))}...)
 	return sshPrivateKeyFile(file.Name()), env, nil
+}
+
+// GitHubAppCreds to authenticate as GitHub application
+type GitHubAppCreds struct {
+	appID string
+	privateKey string
+	accessToken string
+}
+
+func NewGitHubAppCreds(appID string, privateKey string) GitHubAppCreds {
+	return GitHubAppCreds{ appID: appID, privateKey: privateKey}
+}
+
+func (g GitHubAppCreds) Environ() (io.Closer, []string, error) {
+	// NOTE: this function is untested; it is sort-of pseudo code but compiles
+
+	// if this custom token logic doesn't work, we could try to pull in something like go-github
+	// however, it would be neat to avoid that as it should be possible to create a sane process without
+	// pulling in thousands of lines of code tht this project does not need at all
+	// Furthermore, the project already has a dependency that allows for working with tokens
+	// github.com/dgrijalva/jwt-go
+
+	// TODO allow the UI to create github app creds
+
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, jwt.MapClaims{
+		// issued at time
+		"iat": time.Now().Unix(),
+		// JWT expiration time (10 minute maximum)
+		"exp": time.Now().Add(time.Minute*10).Unix(),
+		// GitHub App's identifier
+		"iss": g.appID,
+	})
+	tokenStr, err := token.SignedString(g.privateKey)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// TODO is '/app' a generic endpoint? it is coming from the github docs
+	req, err := http.NewRequest("GET", "https://api.github.com/app", nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", tokenStr))
+	req.Header.Add("Accept", "application/vnd.github.v3+json")
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	defer resp.Body.Close()
+	// TODO check response for success and extract access token
+	_, _ = ioutil.ReadAll(resp.Body)
+	g.accessToken = "token extracted from the response body"
+	// TODO cache the token and implement refresh
+
+	// TODO unclear at this point: do we need to authenticate as installation? see  https://docs.github.com/en/free-pro-team@latest/developers/apps/authenticating-with-github-apps#authenticating-as-an-installation'
+
+	return nil, nil, nil
 }
