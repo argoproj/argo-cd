@@ -1666,10 +1666,6 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/st
 </code></pre></div>
 
 <p>This will create a new namespace, <code>argocd</code>, where Argo CD services and application resources will live.</p>
-<p>On GKE, you will need grant your account the ability to create new cluster roles:</p>
-<div class="codehilite"><pre><span></span><code>kubectl create clusterrolebinding cluster-admin-binding --clusterrole<span class="o">=</span>cluster-admin --user<span class="o">=</span><span class="s2">&quot;</span><span class="k">$(</span>gcloud config get-value account<span class="k">)</span><span class="s2">&quot;</span>
-</code></pre></div>
-
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>If you are not interested in UI, SSO, multi-cluster management and just want to pull changes into the cluster then you can disable
