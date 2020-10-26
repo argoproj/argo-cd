@@ -7,7 +7,7 @@ import {RouteComponentProps} from 'react-router';
 
 import {CheckboxField, DataLoader, EditablePanel, ErrorNotification, MapInputField, Page, Query} from '../../../shared/components';
 import {AppContext, Consumer} from '../../../shared/context';
-import {Groups, Project, ResourceKinds} from '../../../shared/models';
+import {GroupKind, Groups, Project, ProjectSpec, ResourceKinds} from '../../../shared/models';
 import {CreateJWTTokenParams, DeleteJWTTokenParams, ProjectRoleParams, services} from '../../../shared/services';
 
 import {ProjectEvents} from '../project-events/project-events';
@@ -42,6 +42,68 @@ function helpTip(text: string) {
 
 function emptyMessage(title: string) {
     return <p>Project has no {title}</p>;
+}
+
+function loadGlobal(name: string) {
+    return services.projects.getGlobalProjects(name).then(projs =>
+        (projs || []).reduce(
+            (merged, proj) => {
+                merged.clusterResourceBlacklist = merged.clusterResourceBlacklist.concat(proj.spec.clusterResourceBlacklist || []);
+                merged.clusterResourceWhitelist = merged.clusterResourceWhitelist.concat(proj.spec.clusterResourceWhitelist || []);
+                merged.namespaceResourceBlacklist = merged.namespaceResourceBlacklist.concat(proj.spec.namespaceResourceBlacklist || []);
+                merged.namespaceResourceWhitelist = merged.namespaceResourceWhitelist.concat(proj.spec.namespaceResourceWhitelist || []);
+
+                merged.clusterResourceBlacklist = merged.clusterResourceBlacklist.filter((item, index) => {
+                    return (
+                        index ===
+                        merged.clusterResourceBlacklist.findIndex(obj => {
+                            return obj.kind === item.kind && obj.group === item.group;
+                        })
+                    );
+                });
+
+                merged.clusterResourceWhitelist = merged.clusterResourceWhitelist.filter((item, index) => {
+                    return (
+                        index ===
+                        merged.clusterResourceWhitelist.findIndex(obj => {
+                            return obj.kind === item.kind && obj.group === item.group;
+                        })
+                    );
+                });
+
+                merged.namespaceResourceBlacklist = merged.namespaceResourceBlacklist.filter((item, index) => {
+                    return (
+                        index ===
+                        merged.namespaceResourceBlacklist.findIndex(obj => {
+                            return obj.kind === item.kind && obj.group === item.group;
+                        })
+                    );
+                });
+
+                merged.namespaceResourceWhitelist = merged.namespaceResourceWhitelist.filter((item, index) => {
+                    return (
+                        index ===
+                        merged.namespaceResourceWhitelist.findIndex(obj => {
+                            return obj.kind === item.kind && obj.group === item.group;
+                        })
+                    );
+                });
+
+                return merged;
+            },
+            {
+                clusterResourceBlacklist: new Array<GroupKind>(),
+                namespaceResourceBlacklist: new Array<GroupKind>(),
+                namespaceResourceWhitelist: new Array<GroupKind>(),
+                sourceRepos: [],
+                signatureKeys: [],
+                clusterResourceWhitelist: [],
+                destinations: [],
+                description: '',
+                roles: []
+            }
+        )
+    );
 }
 
 export class ProjectDetails extends React.Component<RouteComponentProps<{name: string}>, ProjectDetailsState> {
@@ -90,8 +152,12 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                 ]
                             }
                         }}>
-                        <DataLoader load={() => services.projects.get(this.props.match.params.name)} ref={loader => (this.loader = loader)}>
-                            {proj => (
+                        <DataLoader
+                            load={() => {
+                                return Promise.all([services.projects.get(this.props.match.params.name), loadGlobal(this.props.match.params.name)]);
+                            }}
+                            ref={loader => (this.loader = loader)}>
+                            {([proj, globalProj]) => (
                                 <Query>
                                     {params => (
                                         <div className='project-details'>
@@ -103,7 +169,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                     {
                                                         key: 'summary',
                                                         title: 'Summary',
-                                                        content: this.summaryTab(proj)
+                                                        content: this.summaryTab(proj, globalProj)
                                                     },
                                                     {
                                                         key: 'roles',
@@ -444,7 +510,10 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
             const proj = await services.projects.get(updatedProj.metadata.name);
             proj.metadata.labels = updatedProj.metadata.labels;
             proj.spec = updatedProj.spec;
-            this.loader.setData(await services.projects.updateProj(proj));
+
+            const updated = await services.projects.updateProj(proj);
+            const globalProj = await loadGlobal(updatedProj.metadata.name);
+            this.loader.setData([updated, globalProj]);
         } catch (e) {
             this.appContext.apis.notifications.show({
                 content: <ErrorNotification title='Unable to update project' e={e} />,
@@ -453,7 +522,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
         }
     }
 
-    private summaryTab(proj: Project) {
+    private summaryTab(proj: Project, globalProj: ProjectSpec) {
         return (
             <div className='argo-container'>
                 <EditablePanel
@@ -667,6 +736,32 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                     )}
                     items={[]}
                 />
+
+                {globalProj.clusterResourceWhitelist.length > 0 && (
+                    <div className='white-box editable-panel'>
+                        <div className='white-box__details'>
+                            <p>
+                                CLUSTER RESOURCE ALLOW LIST FROM GLOBAL PROJECT
+                                {helpTip('Cluster-scoped K8s API Groups and Kinds which are permitted to be deployed from global project')}
+                            </p>
+                            <React.Fragment>
+                                <React.Fragment>
+                                    <div className='row white-box__details-row'>
+                                        <div className='columns small-4'>Kind</div>
+                                        <div className='columns small-8'>Group</div>
+                                    </div>
+                                    {globalProj.clusterResourceWhitelist.map((resource, i) => (
+                                        <div className='row white-box__details-row' key={i}>
+                                            <div className='columns small-4'>{resource.kind}</div>
+                                            <div className='columns small-8'>{resource.group}</div>
+                                        </div>
+                                    ))}
+                                </React.Fragment>
+                            </React.Fragment>
+                        </div>
+                    </div>
+                )}
+
                 <EditablePanel
                     save={item => this.saveProject(item)}
                     values={proj}
@@ -738,6 +833,32 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                     )}
                     items={[]}
                 />
+
+                {globalProj.clusterResourceBlacklist.length > 0 && (
+                    <div className='white-box editable-panel'>
+                        <div className='white-box__details'>
+                            <p>
+                                CLUSTER RESOURCE DENY LIST FROM GLOBAL PROJECT
+                                {helpTip('Cluster-scoped K8s API Groups and Kinds which are not permitted to be deployed from global project')}
+                            </p>
+                            <React.Fragment>
+                                <React.Fragment>
+                                    <div className='row white-box__details-row'>
+                                        <div className='columns small-4'>Kind</div>
+                                        <div className='columns small-8'>Group</div>
+                                    </div>
+                                    {globalProj.clusterResourceBlacklist.map((resource, i) => (
+                                        <div className='row white-box__details-row' key={i}>
+                                            <div className='columns small-4'>{resource.kind}</div>
+                                            <div className='columns small-8'>{resource.group}</div>
+                                        </div>
+                                    ))}
+                                </React.Fragment>
+                            </React.Fragment>
+                        </div>
+                    </div>
+                )}
+
                 <EditablePanel
                     save={item => this.saveProject(item)}
                     values={proj}
@@ -813,6 +934,32 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                     )}
                     items={[]}
                 />
+
+                {globalProj.namespaceResourceWhitelist.length > 0 && (
+                    <div className='white-box editable-panel'>
+                        <div className='white-box__details'>
+                            <p>
+                                NAMESPACE RESOURCE ALLOW LIST FROM GLOBAL PROJECT
+                                {helpTip('Namespace-scoped K8s API Groups and Kinds which are permitted to deploy from global project')}
+                            </p>
+                            <React.Fragment>
+                                <React.Fragment>
+                                    <div className='row white-box__details-row'>
+                                        <div className='columns small-4'>Kind</div>
+                                        <div className='columns small-8'>Group</div>
+                                    </div>
+                                    {globalProj.namespaceResourceWhitelist.map((resource, i) => (
+                                        <div className='row white-box__details-row' key={i}>
+                                            <div className='columns small-4'>{resource.kind}</div>
+                                            <div className='columns small-8'>{resource.group}</div>
+                                        </div>
+                                    ))}
+                                </React.Fragment>
+                            </React.Fragment>
+                        </div>
+                    </div>
+                )}
+
                 <EditablePanel
                     save={item => this.saveProject(item)}
                     values={proj}
@@ -892,6 +1039,35 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                     )}
                     items={[]}
                 />
+
+                {globalProj.namespaceResourceBlacklist.length > 0 && (
+                    <div className='white-box editable-panel'>
+                        <div className='white-box__details'>
+                            <p>
+                                NAMESPACE RESOURCE DENY LIST FROM GLOBAL PROJECT
+                                {helpTip('Namespace-scoped K8s API Groups and Kinds which are prohibited from being deployed from global project')}
+                            </p>
+                            <React.Fragment>
+                                {globalProj.namespaceResourceBlacklist.length > 0 ? (
+                                    <React.Fragment>
+                                        <div className='row white-box__details-row'>
+                                            <div className='columns small-4'>Kind</div>
+                                            <div className='columns small-8'>Group</div>
+                                        </div>
+                                        {globalProj.namespaceResourceBlacklist.map((resource, i) => (
+                                            <div className='row white-box__details-row' key={i}>
+                                                <div className='columns small-4'>{resource.kind}</div>
+                                                <div className='columns small-8'>{resource.group}</div>
+                                            </div>
+                                        ))}
+                                    </React.Fragment>
+                                ) : (
+                                    emptyMessage('namespace resource allow list from global project')
+                                )}
+                            </React.Fragment>
+                        </div>
+                    </div>
+                )}
 
                 <EditablePanel
                     save={item => this.saveProject(item)}
