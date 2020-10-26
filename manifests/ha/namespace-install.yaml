@@ -254,6 +254,9 @@ spec:
                             type: string
                           description: CommonLabels adds additional kustomize commonLabels
                           type: object
+                        forceCommonLabels:
+                          description: ForceCommonLabels force overwrites commonLabel directive if it already exists within the Kustomize application manifests
+                          type: boolean
                         images:
                           description: Images are kustomize image overrides
                           items:
@@ -515,6 +518,9 @@ spec:
                         type: string
                       description: CommonLabels adds additional kustomize commonLabels
                       type: object
+                    forceCommonLabels:
+                      description: ForceCommonLabels force overwrites commonLabel directive if it already exists within the Kustomize application manifests
+                      type: boolean
                     images:
                       description: Images are kustomize image overrides
                       items:
@@ -792,6 +798,9 @@ spec:
                               type: string
                             description: CommonLabels adds additional kustomize commonLabels
                             type: object
+                          forceCommonLabels:
+                            description: ForceCommonLabels force overwrites commonLabel directive if it already exists within the Kustomize application manifests
+                            type: boolean
                           images:
                             description: Images are kustomize image overrides
                             items:
@@ -1072,6 +1081,9 @@ spec:
                                     type: string
                                   description: CommonLabels adds additional kustomize commonLabels
                                   type: object
+                                forceCommonLabels:
+                                  description: ForceCommonLabels force overwrites commonLabel directive if it already exists within the Kustomize application manifests
+                                  type: boolean
                                 images:
                                   description: Images are kustomize image overrides
                                   items:
@@ -1330,6 +1342,9 @@ spec:
                                 type: string
                               description: CommonLabels adds additional kustomize commonLabels
                               type: object
+                            forceCommonLabels:
+                              description: ForceCommonLabels force overwrites commonLabel directive if it already exists within the Kustomize application manifests
+                              type: boolean
                             images:
                               description: Images are kustomize image overrides
                               items:
@@ -1585,6 +1600,9 @@ spec:
                                 type: string
                               description: CommonLabels adds additional kustomize commonLabels
                               type: object
+                            forceCommonLabels:
+                              description: ForceCommonLabels force overwrites commonLabel directive if it already exists within the Kustomize application manifests
+                              type: boolean
                             images:
                               description: Images are kustomize image overrides
                               items:

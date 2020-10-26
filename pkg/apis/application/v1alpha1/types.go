@@ -338,11 +338,11 @@ type ApplicationSourceKustomize struct {
 	Images KustomizeImages `json:"images,omitempty" protobuf:"bytes,3,opt,name=images"`
 	// CommonLabels adds additional kustomize commonLabels
 	CommonLabels map[string]string `json:"commonLabels,omitempty" protobuf:"bytes,4,opt,name=commonLabels"`
-	// ForceCommonLabels force overwrites commonLabel directive if it
-	// already exists within the Kustomize application manifests
-	ForceCommonLabels bool `protobuf:"varint,6,opt,name=forceCommonLabels"`
 	// Version contains optional Kustomize version
 	Version string `json:"version,omitempty" protobuf:"bytes,5,opt,name=version"`
+	// ForceCommonLabels force overwrites commonLabel directive if it
+	// already exists within the Kustomize application manifests
+	ForceCommonLabels bool `json:"forceCommonLabels,omitempty" protobuf:"bytes,6,opt,name=forceCommonLabels"`
 }
 
 func (k *ApplicationSourceKustomize) AllowsConcurrentProcessing() bool {
