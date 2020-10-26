@@ -211,14 +211,14 @@ func (s *Service) runRepoOperation(
 		})
 
 		if err != nil {
-			return err, nil
+			return nil, err
 		}
 
 		defer io.Close(closer)
 
 		commitSHA, err := gitClient.CommitSHA()
 		if err != nil {
-			return err, nil
+			return nil, err
 		}
 
 		// double-check locking
