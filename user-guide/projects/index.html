@@ -960,6 +960,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#configuring-global-projects-v18" title="Configuring Global Projects (v1.8)" class="md-nav__link">
+    Configuring Global Projects (v1.8)
+  </a>
+  
+</li>
+      
       
       
       
@@ -1505,6 +1512,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#configuring-global-projects-v18" title="Configuring Global Projects (v1.8)" class="md-nav__link">
+    Configuring Global Projects (v1.8)
+  </a>
+  
+</li>
+      
       
       
       
@@ -1675,6 +1689,29 @@ project provides read-only permissions on project applications to any member of 
 <p>You can use <code>argocd proj role</code> CLI commands or project details page in the user interface to configure the policy.
 Note that each project role policy rule must be scoped to that project only. Use the <code>argocd-rbac-cm</code> ConfigMap described in
 <a href="../../operator-manual/rbac/">RBAC</a> documentation if you want to configure cross project RBAC rules.</p>
+<h2 id="configuring-global-projects-v18">Configuring Global Projects (v1.8)<a class="headerlink" href="#configuring-global-projects-v18" title="Permanent link">&para;</a></h2>
+<p>Global projects can be configured to provide configurations that other projects can inherit from. </p>
+<p>Projects, which match <code>matchExpressions</code> specified in <code>argocd-cm</code> ConfigMap, inherit the following fields from the global project:
+* namespaceResourceBlacklist
+* namespaceResourceWhitelist
+* clusterResourceBlacklist
+* clusterResourceWhitelist
+* SyncWindows</p>
+<p>Configure global projects in <code>argocd-cm</code> ConfigMap:</p>
+<div class="codehilite"><pre><span></span><code><span class="nt">data</span><span class="p">:</span>
+  <span class="nt">globalProjects</span><span class="p">:</span> <span class="p p-Indicator">|-</span>
+    <span class="no">- labelSelector:</span>
+        <span class="no">matchExpressions:</span>
+          <span class="no">- key: opt</span>
+            <span class="no">operator: In</span>
+            <span class="no">values:</span>
+              <span class="no">- prod</span>
+      <span class="no">projectName: proj-global-test</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
+</code></pre></div>
+
+<p>Valid operators you can use are: In, NotIn, Exists, DoesNotExist. Gt, and Lt.</p>
+<p>projectName: <code>proj-global-test</code> should be replaced with your own global project name.</p>
                 
                   
                 

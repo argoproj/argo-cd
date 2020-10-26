@@ -1634,10 +1634,10 @@ argocd cluster rm https://your-kubernetes-cluster-addr
 <blockquote>
 <p>NOTE: for AWS EKS clusters, <a href="https://github.com/kubernetes-sigs/aws-iam-authenticator">aws-iam-authenticator</a>
   is used to authenticate to the external cluster, which uses IAM roles in lieu of locally stored
-  tokens, so token rotation is not needed, and revocation is handled through IAM.
-<!-- markdownlint-enable MD027 -->
-</p>
+  tokens, so token rotation is not needed, and revocation is handled through IAM.</p>
 </blockquote>
+<!-- markdownlint-enable MD027 -->
+
 <h2 id="cluster-rbac">Cluster RBAC<a class="headerlink" href="#cluster-rbac" title="Permanent link">&para;</a></h2>
 <p>By default, Argo CD uses a <a href="https://github.com/argoproj/argo-cd/blob/master/manifests/base/application-controller/argocd-application-controller-role.yaml">clusteradmin level role</a>
 in order to:</p>
