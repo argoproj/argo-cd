@@ -104,12 +104,15 @@ func (s *Server) Get(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.R
 	}
 	// remove secrets
 	item := appsv1.Repository{
-		Repo:      repo.Repo,
-		Type:      rType,
-		Name:      repo.Name,
-		Username:  repo.Username,
-		Insecure:  repo.IsInsecure(),
-		EnableLFS: repo.EnableLFS,
+		Repo:                       repo.Repo,
+		Type:                       rType,
+		Name:                       repo.Name,
+		Username:                   repo.Username,
+		Insecure:                   repo.IsInsecure(),
+		EnableLFS:                  repo.EnableLFS,
+		GithubAppId:                repo.GithubAppId,
+		GithubAppInstallationId:    repo.GithubAppInstallationId,
+		GitHubAppEnterpriseBaseURL: repo.GitHubAppEnterpriseBaseURL,
 	}
 
 	item.ConnectionState = s.getConnectionState(ctx, item.Repo, q.ForceRefresh)
@@ -365,16 +368,20 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 	}
 
 	repo := &appsv1.Repository{
-		Repo:              q.Repo,
-		Type:              q.Type,
-		Name:              q.Name,
-		Username:          q.Username,
-		Password:          q.Password,
-		SSHPrivateKey:     q.SshPrivateKey,
-		Insecure:          q.Insecure,
-		TLSClientCertData: q.TlsClientCertData,
-		TLSClientCertKey:  q.TlsClientCertKey,
-		EnableOCI:         q.EnableOci,
+		Repo:                       q.Repo,
+		Type:                       q.Type,
+		Name:                       q.Name,
+		Username:                   q.Username,
+		Password:                   q.Password,
+		SSHPrivateKey:              q.SshPrivateKey,
+		Insecure:                   q.Insecure,
+		TLSClientCertData:          q.TlsClientCertData,
+		TLSClientCertKey:           q.TlsClientCertKey,
+		EnableOCI:                  q.EnableOci,
+		GithubAppPrivateKey:        q.GithubAppPrivateKey,
+		GithubAppId:                q.GithubAppID,
+		GithubAppInstallationId:    q.GithubAppInstallationID,
+		GitHubAppEnterpriseBaseURL: q.GithubAppEnterpriseBaseUrl,
 	}
 
 	var repoCreds *appsv1.RepoCreds

@@ -2683,6 +2683,32 @@
             "description": "Whether helm-oci support should be enabled for this repo.",
             "name": "enableOci",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Github App Private Key PEM data.",
+            "name": "githubAppPrivateKey",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "format": "int64",
+            "description": "Github App ID of the app used to access the repo.",
+            "name": "githubAppID",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "format": "int64",
+            "description": "Github App Installation ID of the installed GitHub App.",
+            "name": "githubAppInstallationID",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Github App Enterprise base url if empty will default to https://api.github.com.",
+            "name": "githubAppEnterpriseBaseUrl",
+            "in": "query"
           }
         ],
         "responses": {
@@ -5463,6 +5489,24 @@
       "type": "object",
       "title": "RepoCreds holds a repository credentials definition",
       "properties": {
+        "githubAppEnterpriseBaseUrl": {
+          "type": "string",
+          "title": "Github App Enterprise base url if empty will default to https://api.github.com"
+        },
+        "githubAppID": {
+          "type": "string",
+          "format": "int64",
+          "title": "Github App ID of the app used to access the repo"
+        },
+        "githubAppInstallationID": {
+          "type": "string",
+          "format": "int64",
+          "title": "Github App Installation ID of the installed GitHub App"
+        },
+        "githubAppPrivateKey": {
+          "type": "string",
+          "title": "Github App Private Key PEM data"
+        },
         "password": {
           "type": "string",
           "title": "Password for authenticating at the repo server"
@@ -5518,6 +5562,24 @@
         "enableOCI": {
           "type": "boolean",
           "title": "Whether helm-oci support should be enabled for this repo"
+        },
+        "githubAppEnterpriseBaseUrl": {
+          "type": "string",
+          "title": "Github App Enterprise base url if empty will default to https://api.github.com"
+        },
+        "githubAppID": {
+          "type": "string",
+          "format": "int64",
+          "title": "Github App ID of the app used to access the repo"
+        },
+        "githubAppInstallationID": {
+          "type": "string",
+          "format": "int64",
+          "title": "Github App Installation ID of the installed GitHub App"
+        },
+        "githubAppPrivateKey": {
+          "type": "string",
+          "title": "Github App Private Key PEM data"
         },
         "inheritedCreds": {
           "type": "boolean",
