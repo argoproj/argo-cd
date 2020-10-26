@@ -48,7 +48,8 @@ func NewGlobalProjectGenCommand() *cobra.Command {
 			yamlBytes, err := yaml.Marshal(globalProj)
 			errors.CheckError(err)
 
-			ioutil.WriteFile(globalProjectFileName, yamlBytes, 0644)
+			err = ioutil.WriteFile(globalProjectFileName, yamlBytes, 0644)
+			errors.CheckError(err)
 		},
 	}
 	clientConfig = cli.AddKubectlFlagsToCmd(command)
