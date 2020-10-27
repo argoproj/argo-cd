@@ -1,19 +1,20 @@
-## argocd proj role
+## argocd proj role list-tokens
 
-Manage a project's roles
+List tokens for a given role.
 
 ### Synopsis
 
-Manage a project's roles
+List tokens for a given role.
 
 ```
-argocd proj role [flags]
+argocd proj role list-tokens PROJECT ROLE-NAME [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for role
+  -h, --help       help for list-tokens
+  -u, --unixtime   Print timestamps as Unix time instead of converting. Useful for piping into delete-token.
 ```
 
 ### Options inherited from parent commands
@@ -38,16 +39,5 @@ argocd proj role [flags]
 
 ### SEE ALSO
 
-* [argocd proj](argocd_proj.md)	 - Manage projects
-* [argocd proj role add-group](argocd_proj_role_add-group.md)	 - Add a group claim to a project role
-* [argocd proj role add-policy](argocd_proj_role_add-policy.md)	 - Add a policy to a project role
-* [argocd proj role create](argocd_proj_role_create.md)	 - Create a project role
-* [argocd proj role create-token](argocd_proj_role_create-token.md)	 - Create a project token
-* [argocd proj role delete](argocd_proj_role_delete.md)	 - Delete a project role
-* [argocd proj role delete-token](argocd_proj_role_delete-token.md)	 - Delete a project token
-* [argocd proj role get](argocd_proj_role_get.md)	 - Get the details of a specific role
-* [argocd proj role list](argocd_proj_role_list.md)	 - List all the roles in a project
-* [argocd proj role list-tokens](argocd_proj_role_list-tokens.md)	 - List tokens for a given role.
-* [argocd proj role remove-group](argocd_proj_role_remove-group.md)	 - Remove a group claim from a role within a project
-* [argocd proj role remove-policy](argocd_proj_role_remove-policy.md)	 - Remove a policy from a role within a project
+* [argocd proj role](argocd_proj_role.md)	 - Manage a project's roles
 
