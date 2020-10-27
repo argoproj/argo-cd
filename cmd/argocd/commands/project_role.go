@@ -6,10 +6,12 @@ import (
 	"os"
 	"strconv"
 	"text/tabwriter"
+	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	timeutil "github.com/argoproj/pkg/time"
+	jwtgo "github.com/dgrijalva/jwt-go"
 	"github.com/spf13/cobra"
 
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
@@ -195,10 +197,20 @@ func NewProjectRoleDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	return command
 }
 
+func tokenTimeToString(t int64) string {
+	tokenTimeToString := "Never"
+	if t > 0 {
+		tokenTimeToString = time.Unix(t, 0).Format(time.RFC3339)
+	}
+	return tokenTimeToString
+}
+
 // NewProjectRoleCreateTokenCommand returns a new instance of an `argocd proj role create-token` command
 func NewProjectRoleCreateTokenCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		expiresIn string
+		expiresIn       string
+		outputTokenOnly bool
+		tokenID         string
 	)
 	var command = &cobra.Command{
 		Use:   "create-token PROJECT ROLE-NAME",
@@ -212,14 +224,51 @@ func NewProjectRoleCreateTokenCommand(clientOpts *argocdclient.ClientOptions) *c
 			roleName := args[1]
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer io.Close(conn)
+			if expiresIn == "" {
+				expiresIn = "0s"
+			}
 			duration, err := timeutil.ParseDuration(expiresIn)
 			errors.CheckError(err)
-			token, err := projIf.CreateToken(context.Background(), &projectpkg.ProjectTokenCreateRequest{Project: projName, Role: roleName, ExpiresIn: int64(duration.Seconds())})
+			tokenResponse, err := projIf.CreateToken(context.Background(), &projectpkg.ProjectTokenCreateRequest{
+				Project:   projName,
+				Role:      roleName,
+				ExpiresIn: int64(duration.Seconds()),
+				Id:        tokenID,
+			})
 			errors.CheckError(err)
-			fmt.Println(token.Token)
+
+			token, err := jwtgo.Parse(tokenResponse.Token, nil)
+			if token == nil {
+				err = fmt.Errorf("received malformed token %v", err)
+				errors.CheckError(err)
+				return
+			}
+
+			claims := token.Claims.(jwtgo.MapClaims)
+			issuedAt := int64(claims["iat"].(float64))
+			expiresAt := int64(0)
+			if expires, ok := claims["exp"]; ok {
+				expiresAt = int64(expires.(float64))
+			}
+			id := claims["jti"].(string)
+			subject := claims["sub"].(string)
+
+			if !outputTokenOnly {
+				fmt.Printf("Create token succeeded for %s.\n", subject)
+				fmt.Printf("  ID: %s\n  Issued At: %s\n  Expires At: %s\n",
+					id, tokenTimeToString(issuedAt), tokenTimeToString(expiresAt),
+				)
+				fmt.Println("  Token: " + tokenResponse.Token)
+			} else {
+				fmt.Println(tokenResponse.Token)
+			}
 		},
 	}
-	command.Flags().StringVarP(&expiresIn, "expires-in", "e", "0s", "Duration before the token will expire. (Default: No expiration)")
+	command.Flags().StringVarP(&expiresIn, "expires-in", "e", "",
+		"Duration before the token will expire, eg \"12h\", \"7d\". (Default: No expiration)",
+	)
+	command.Flags().StringVarP(&tokenID, "id", "i", "", "Token unique identifier. (Default: Random UUID)")
+	command.Flags().BoolVarP(&outputTokenOnly, "token-only", "t", false, "Output token only - for use in scripts.")
 
 	return command
 }
