@@ -199,6 +199,9 @@ export class ApplicationsFilter extends React.Component<ApplicationsFilterProps,
 
     private getClusterDetail(dest: models.ApplicationDestination): string {
         const cluster = this.props.clusters.find(target => target.name === dest.name || target.server === dest.server);
+        if (!cluster) {
+            return dest.server || dest.name;
+        }
         if (cluster.name === cluster.server) {
             return cluster.name;
         }
