@@ -3,6 +3,7 @@ import * as React from 'react';
 
 import * as models from '../../../shared/models';
 import {ResourceIcon} from '../resource-icon';
+import {ResourceLabel} from '../resource-label';
 import {ComparisonStatusIcon, HealthStatusIcon, nodeKey} from '../utils';
 
 export const ApplicationResourceList = ({
@@ -30,7 +31,11 @@ export const ApplicationResourceList = ({
                 <div key={nodeKey(res)} className='argo-table-list__row' onClick={() => onNodeClick(nodeKey(res))}>
                     <div className='row'>
                         <div className='columns small-1 xxxlarge-1'>
-                            <ResourceIcon kind={res.kind} />
+                            <div className='application-details__resource-icon'>
+                                <ResourceIcon kind={res.kind} />
+                                <br />
+                                <div>{ResourceLabel({kind: res.kind})}</div>
+                            </div>
                         </div>
                         <div className='columns small-2 xxxlarge-2'>{res.name}</div>
                         <div className='columns small-3 xxxlarge-4'>{[res.group, res.kind].filter(item => !!item).join('/')}</div>

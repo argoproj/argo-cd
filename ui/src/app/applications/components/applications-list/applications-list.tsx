@@ -142,8 +142,8 @@ function filterApps(applications: models.Application[], pref: AppsListPreference
             (pref.reposFilter.length === 0 || pref.reposFilter.includes(app.spec.source.repoURL)) &&
             (pref.syncFilter.length === 0 || pref.syncFilter.includes(app.status.sync.status)) &&
             (pref.healthFilter.length === 0 || pref.healthFilter.includes(app.status.health.status)) &&
-            (pref.namespacesFilter.length === 0 || pref.namespacesFilter.some(ns => minimatch(app.spec.destination.namespace, ns))) &&
-            (pref.clustersFilter.length === 0 || pref.clustersFilter.some(server => minimatch(app.spec.destination.server || app.spec.destination.name, server))) &&
+            (pref.namespacesFilter.length === 0 || pref.namespacesFilter.some(ns => app.spec.destination.namespace && minimatch(app.spec.destination.namespace, ns))) &&
+            (pref.clustersFilter.length === 0 || pref.clustersFilter.some(server => server.includes(app.spec.destination.server || app.spec.destination.name))) &&
             (pref.labelsFilter.length === 0 || pref.labelsFilter.every(selector => LabelSelector.match(selector, app.metadata.labels)))
     );
 }
@@ -192,6 +192,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                     <span className='applications-list__view-type'>
                                         <i
                                             className={classNames('fa fa-th', {selected: pref.appList.view === 'tiles'})}
+                                            title='Tiles'
                                             onClick={() => {
                                                 ctx.navigation.goto('.', {view: 'tiles'});
                                                 services.viewPreferences.updatePreferences({appList: {...pref.appList, view: 'tiles'}});
@@ -199,6 +200,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                         />
                                         <i
                                             className={classNames('fa fa-th-list', {selected: pref.appList.view === 'list'})}
+                                            title='List'
                                             onClick={() => {
                                                 ctx.navigation.goto('.', {view: 'list'});
                                                 services.viewPreferences.updatePreferences({appList: {...pref.appList, view: 'list'}});
@@ -206,6 +208,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                         />
                                         <i
                                             className={classNames('fa fa-chart-pie', {selected: pref.appList.view === 'summary'})}
+                                            title='Summary'
                                             onClick={() => {
                                                 ctx.navigation.goto('.', {view: 'summary'});
                                                 services.viewPreferences.updatePreferences({appList: {...pref.appList, view: 'summary'}});
@@ -219,6 +222,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                     {
                                         title: 'New App',
                                         iconClassName: 'fa fa-plus',
+                                        qeId: 'applications-list-button-new-app',
                                         action: () => ctx.navigation.goto('.', {new: '{}'})
                                     },
                                     {
@@ -245,7 +249,10 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                 <EmptyState icon='argo-icon-application'>
                                                     <h4>No applications yet</h4>
                                                     <h5>Create new application to start managing resources in your cluster</h5>
-                                                    <button className='argo-button argo-button--base' onClick={() => ctx.navigation.goto('.', {new: JSON.stringify({})})}>
+                                                    <button
+                                                        qe-id='applications-list-button-create-application'
+                                                        className='argo-button argo-button--base'
+                                                        onClick={() => ctx.navigation.goto('.', {new: JSON.stringify({})})}>
                                                         Create application
                                                     </button>
                                                 </EmptyState>
@@ -288,21 +295,28 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                 </div>
                                                             )}
                                                         </Query>
-                                                        <ApplicationsFilter
-                                                            applications={applications}
-                                                            pref={pref}
-                                                            onChange={newPref => {
-                                                                services.viewPreferences.updatePreferences({appList: newPref});
-                                                                ctx.navigation.goto('.', {
-                                                                    proj: newPref.projectsFilter.join(','),
-                                                                    sync: newPref.syncFilter.join(','),
-                                                                    health: newPref.healthFilter.join(','),
-                                                                    namespace: newPref.namespacesFilter.join(','),
-                                                                    cluster: newPref.clustersFilter.join(','),
-                                                                    labels: newPref.labelsFilter.map(encodeURIComponent).join(',')
-                                                                });
+                                                        <DataLoader load={() => services.clusters.list()}>
+                                                            {clusterList => {
+                                                                return (
+                                                                    <ApplicationsFilter
+                                                                        clusters={clusterList}
+                                                                        applications={applications}
+                                                                        pref={pref}
+                                                                        onChange={newPref => {
+                                                                            services.viewPreferences.updatePreferences({appList: newPref});
+                                                                            ctx.navigation.goto('.', {
+                                                                                proj: newPref.projectsFilter.join(','),
+                                                                                sync: newPref.syncFilter.join(','),
+                                                                                health: newPref.healthFilter.join(','),
+                                                                                namespace: newPref.namespacesFilter.join(','),
+                                                                                cluster: newPref.clustersFilter.join(','),
+                                                                                labels: newPref.labelsFilter.map(encodeURIComponent).join(',')
+                                                                            });
+                                                                        }}
+                                                                    />
+                                                                );
                                                             }}
-                                                        />
+                                                        </DataLoader>
                                                         {syncAppsInput && (
                                                             <ApplicationsSyncPanel
                                                                 key='syncsPanel'
@@ -372,7 +386,11 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                             onClose={() => ctx.navigation.goto('.', {new: null})}
                             header={
                                 <div>
-                                    <button className='argo-button argo-button--base' disabled={isAppCreatePending} onClick={() => createApi && createApi.submitForm(null)}>
+                                    <button
+                                        qe-id='applications-list-button-create'
+                                        className='argo-button argo-button--base'
+                                        disabled={isAppCreatePending}
+                                        onClick={() => createApi && createApi.submitForm(null)}>
                                         <Spinner show={isAppCreatePending} style={{marginRight: '5px'}} />
                                         Create
                                     </button>{' '}

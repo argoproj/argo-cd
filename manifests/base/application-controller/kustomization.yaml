@@ -5,5 +5,5 @@ resources:
 - argocd-application-controller-sa.yaml
 - argocd-application-controller-role.yaml
 - argocd-application-controller-rolebinding.yaml
-- argocd-application-controller-deployment.yaml
+- argocd-application-controller-statefulset.yaml
 - argocd-metrics.yaml

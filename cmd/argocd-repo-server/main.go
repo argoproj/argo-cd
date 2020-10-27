@@ -2,12 +2,12 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"net"
 	"net/http"
 	"os"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/argoproj/pkg/stats"
 	"github.com/go-redis/redis/v8"
 	log "github.com/sirupsen/logrus"
@@ -17,8 +17,11 @@ import (
 	"github.com/argoproj/argo-cd/reposerver"
 	reposervercache "github.com/argoproj/argo-cd/reposerver/cache"
 	"github.com/argoproj/argo-cd/reposerver/metrics"
+	"github.com/argoproj/argo-cd/reposerver/repository"
 	cacheutil "github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/cli"
+	"github.com/argoproj/argo-cd/util/env"
+	"github.com/argoproj/argo-cd/util/errors"
 	"github.com/argoproj/argo-cd/util/gpg"
 	"github.com/argoproj/argo-cd/util/tls"
 )
@@ -27,6 +30,10 @@ const (
 	// CLIName is the name of the CLI
 	cliName         = "argocd-repo-server"
 	gnuPGSourcePath = "/app/config/gpg/source"
+
+	defaultPauseGenerationAfterFailedGenerationAttempts = 3
+	defaultPauseGenerationOnFailureForMinutes           = 0
+	defaultPauseGenerationOnFailureForRequests          = 12
 )
 
 func getGnuPGSourcePath() string {
@@ -35,6 +42,18 @@ func getGnuPGSourcePath() string {
 	} else {
 		return gnuPGSourcePath
 	}
+}
+
+func getPauseGenerationAfterFailedGenerationAttempts() int {
+	return env.ParseNumFromEnv(common.EnvPauseGenerationAfterFailedAttempts, defaultPauseGenerationAfterFailedGenerationAttempts, 0, math.MaxInt32)
+}
+
+func getPauseGenerationOnFailureForMinutes() int {
+	return env.ParseNumFromEnv(common.EnvPauseGenerationMinutes, defaultPauseGenerationOnFailureForMinutes, 0, math.MaxInt32)
+}
+
+func getPauseGenerationOnFailureForRequests() int {
+	return env.ParseNumFromEnv(common.EnvPauseGenerationRequests, defaultPauseGenerationOnFailureForRequests, 0, math.MaxInt32)
 }
 
 func newCommand() *cobra.Command {
@@ -63,7 +82,12 @@ func newCommand() *cobra.Command {
 
 			metricsServer := metrics.NewMetricsServer()
 			cacheutil.CollectMetrics(redisClient, metricsServer)
-			server, err := reposerver.NewServer(metricsServer, cache, tlsConfigCustomizer, parallelismLimit)
+			server, err := reposerver.NewServer(metricsServer, cache, tlsConfigCustomizer, repository.RepoServerInitConstants{
+				ParallelismLimit: parallelismLimit,
+				PauseGenerationAfterFailedGenerationAttempts: getPauseGenerationAfterFailedGenerationAttempts(),
+				PauseGenerationOnFailureForMinutes:           getPauseGenerationOnFailureForMinutes(),
+				PauseGenerationOnFailureForRequests:          getPauseGenerationOnFailureForRequests(),
+			})
 			errors.CheckError(err)
 
 			grpc := server.CreateGRPC()
@@ -101,6 +125,7 @@ func newCommand() *cobra.Command {
 	command.Flags().Int64Var(&parallelismLimit, "parallelismlimit", 0, "Limit on number of concurrent manifests generate requests. Any value less the 1 means no limit.")
 	command.Flags().IntVar(&listenPort, "port", common.DefaultPortRepoServer, "Listen on given port for incoming connections")
 	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortRepoServerMetrics, "Start metrics server on given port")
+
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)
 	cacheSrc = reposervercache.AddCacheFlagsToCmd(&command, func(client *redis.Client) {
 		redisClient = client

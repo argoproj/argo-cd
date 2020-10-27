@@ -15,8 +15,6 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
-	. "github.com/argoproj/gitops-engine/pkg/utils/errors"
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -37,6 +35,8 @@ import (
 	. "github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
 	. "github.com/argoproj/argo-cd/util/argo"
+	. "github.com/argoproj/argo-cd/util/errors"
+	"github.com/argoproj/argo-cd/util/io"
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
@@ -545,7 +545,9 @@ func TestConfigMap(t *testing.T) {
 }
 
 func TestFailedConversion(t *testing.T) {
-
+	if os.Getenv("ARGOCD_E2E_K3S") == "true" {
+		t.SkipNow()
+	}
 	defer func() {
 		FailOnErr(Run("", "kubectl", "delete", "apiservice", "v1beta1.metrics.k8s.io"))
 	}()
@@ -1183,7 +1185,7 @@ func TestSyncWithInfos(t *testing.T) {
 //Given: argocd app create does not provide --dest-namespace
 //       Manifest contains resource console which does not require namespace
 //Expect: no app.Status.Conditions
-func TestCreateAppWithNoNameSpaceForGlobalResourse(t *testing.T) {
+func TestCreateAppWithNoNameSpaceForGlobalResource(t *testing.T) {
 	Given(t).
 		Path(globalWithNoNameSpace).
 		When().

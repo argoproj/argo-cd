@@ -7,6 +7,17 @@ metadata:
     app.kubernetes.io/part-of: argocd
   name: applications.argoproj.io
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .status.sync.status
+    name: Sync Status
+    type: string
+  - JSONPath: .status.health.status
+    name: Health Status
+    type: string
+  - JSONPath: .status.sync.revision
+    name: Revision
+    priority: 10
+    type: string
   group: argoproj.io
   names:
     kind: Application
@@ -17,6 +28,7 @@ spec:
     - apps
     singular: application
   scope: Namespaced
+  subresources: {}
   validation:
     openAPIV3Schema:
       description: Application is a definition of Application resource.
@@ -556,6 +568,9 @@ spec:
                 automated:
                   description: Automated will keep an application synced to the target revision
                   properties:
+                    allowEmpty:
+                      description: 'AllowEmpty allows apps have zero live resources (default: false)'
+                      type: boolean
                     prune:
                       description: 'Prune will prune resources automatically as part of automated sync (default: false)'
                       type: boolean
@@ -2636,53 +2651,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    app.kubernetes.io/component: application-controller
-    app.kubernetes.io/name: argocd-application-controller
-    app.kubernetes.io/part-of: argocd
-  name: argocd-application-controller
-spec:
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: argocd-application-controller
-  strategy:
-    type: Recreate
-  template:
-    metadata:
-      labels:
-        app.kubernetes.io/name: argocd-application-controller
-    spec:
-      containers:
-      - command:
-        - argocd-application-controller
-        - --status-processors
-        - "20"
-        - --operation-processors
-        - "10"
-        - --redis
-        - argocd-redis-ha-haproxy:6379
-        image: argoproj/argocd:latest
-        imagePullPolicy: Always
-        livenessProbe:
-          httpGet:
-            path: /healthz
-            port: 8082
-          initialDelaySeconds: 5
-          periodSeconds: 10
-        name: argocd-application-controller
-        ports:
-        - containerPort: 8082
-        readinessProbe:
-          httpGet:
-            path: /healthz
-            port: 8082
-          initialDelaySeconds: 5
-          periodSeconds: 10
-      serviceAccountName: argocd-application-controller
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  labels:
     app.kubernetes.io/component: dex-server
     app.kubernetes.io/name: argocd-dex-server
     app.kubernetes.io/part-of: argocd
@@ -2700,7 +2668,7 @@ spec:
       - command:
         - /shared/argocd-util
         - rundex
-        image: quay.io/dexidp/dex:v2.22.0
+        image: quay.io/dexidp/dex:v2.25.0
         imagePullPolicy: Always
         name: dex
         ports:
@@ -2954,6 +2922,53 @@ spec:
       - configMap:
           name: argocd-tls-certs-cm
         name: tls-certs
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app.kubernetes.io/component: application-controller
+    app.kubernetes.io/name: argocd-application-controller
+    app.kubernetes.io/part-of: argocd
+  name: argocd-application-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-application-controller
+  serviceName: argocd-application-controller
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: argocd-application-controller
+    spec:
+      containers:
+      - command:
+        - argocd-application-controller
+        - --status-processors
+        - "20"
+        - --operation-processors
+        - "10"
+        - --redis
+        - argocd-redis-ha-haproxy:6379
+        image: argoproj/argocd:latest
+        imagePullPolicy: Always
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8082
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        name: argocd-application-controller
+        ports:
+        - containerPort: 8082
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8082
+          initialDelaySeconds: 5
+          periodSeconds: 10
+      serviceAccountName: argocd-application-controller
 ---
 apiVersion: apps/v1
 kind: StatefulSet

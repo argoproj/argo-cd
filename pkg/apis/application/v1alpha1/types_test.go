@@ -1024,7 +1024,7 @@ func TestEnv_Environ(t *testing.T) {
 }
 
 func TestKustomizeImage_Match(t *testing.T) {
-	// no pefix
+	// no prefix
 	assert.False(t, KustomizeImage("foo=1").Match("bar=1"))
 	// mismatched delimiter
 	assert.False(t, KustomizeImage("foo=1").Match("bar:1"))
@@ -2098,4 +2098,28 @@ func TestRetryStrategy_NextRetryAtCustomBackoff(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, expected.Format(time.RFC850), retryAt.Format(time.RFC850))
 	}
+}
+
+func TestSourceAllowsConcurrentProcessing_KsonnetNoParams(t *testing.T) {
+	src := ApplicationSource{Path: "."}
+
+	assert.True(t, src.AllowsConcurrentProcessing())
+}
+
+func TestSourceAllowsConcurrentProcessing_KsonnetParams(t *testing.T) {
+	src := ApplicationSource{Path: ".", Ksonnet: &ApplicationSourceKsonnet{
+		Parameters: []KsonnetParameter{{
+			Name: "test", Component: "test", Value: "1",
+		}},
+	}}
+
+	assert.False(t, src.AllowsConcurrentProcessing())
+}
+
+func TestSourceAllowsConcurrentProcessing_KustomizeParams(t *testing.T) {
+	src := ApplicationSource{Path: ".", Kustomize: &ApplicationSourceKustomize{
+		NameSuffix: "test",
+	}}
+
+	assert.False(t, src.AllowsConcurrentProcessing())
 }

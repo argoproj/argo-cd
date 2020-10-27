@@ -20,8 +20,6 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/sync/hook"
 	"github.com/argoproj/gitops-engine/pkg/sync/ignore"
-	"github.com/argoproj/gitops-engine/pkg/utils/errors"
-	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
@@ -49,7 +47,9 @@ import (
 	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/config"
+	"github.com/argoproj/argo-cd/util/errors"
 	"github.com/argoproj/argo-cd/util/git"
+	argoio "github.com/argoproj/argo-cd/util/io"
 	argokube "github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/templates"
 	"github.com/argoproj/argo-cd/util/text/label"
@@ -621,6 +621,12 @@ func setAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 		}
 		spec.SyncPolicy.Automated.SelfHeal = appOpts.selfHeal
 	}
+	if flags.Changed("allow-empty") {
+		if spec.SyncPolicy == nil || spec.SyncPolicy.Automated == nil {
+			log.Fatal("Cannot set --allow-empty: application not configured with automatic sync")
+		}
+		spec.SyncPolicy.Automated.AllowEmpty = appOpts.allowEmpty
+	}
 
 	return visited
 }
@@ -760,6 +766,7 @@ type appOptions struct {
 	syncOptions            []string
 	autoPrune              bool
 	selfHeal               bool
+	allowEmpty             bool
 	namePrefix             string
 	nameSuffix             string
 	directoryRecurse       bool
@@ -798,6 +805,7 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().StringArrayVar(&opts.syncOptions, "sync-option", []string{}, "Add or remove a sync options, e.g add `Prune=false`. Remove using `!` prefix, e.g. `!Prune=false`")
 	command.Flags().BoolVar(&opts.autoPrune, "auto-prune", false, "Set automatic pruning when sync is automated")
 	command.Flags().BoolVar(&opts.selfHeal, "self-heal", false, "Set self healing when sync is automated")
+	command.Flags().BoolVar(&opts.allowEmpty, "allow-empty", false, "Set allow zero live resources when sync is automated")
 	command.Flags().StringVar(&opts.namePrefix, "nameprefix", "", "Kustomize nameprefix")
 	command.Flags().StringVar(&opts.nameSuffix, "namesuffix", "", "Kustomize namesuffix")
 	command.Flags().StringVar(&opts.kustomizeVersion, "kustomize-version", "", "Kustomize version")
@@ -1132,7 +1140,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				normalizer, err := argo.NewDiffNormalizer(app.Spec.IgnoreDifferences, overrides)
 				errors.CheckError(err)
 
-				diffRes, err := diff.Diff(item.target, item.live, normalizer, diff.GetDefaultDiffOptions())
+				diffRes, err := diff.Diff(item.target, item.live, diff.WithNormalizer(normalizer))
 				errors.CheckError(err)
 
 				if diffRes.Modified || item.target == nil || item.live == nil {

@@ -3,11 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"math"
 	"os"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/errors"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/pkg/stats"
 	"github.com/go-redis/redis/v8"
 	log "github.com/sirupsen/logrus"
@@ -24,12 +23,16 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/controller"
+	"github.com/argoproj/argo-cd/controller/sharding"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	cacheutil "github.com/argoproj/argo-cd/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
 	"github.com/argoproj/argo-cd/util/cli"
+	"github.com/argoproj/argo-cd/util/env"
+	"github.com/argoproj/argo-cd/util/errors"
+	kubeutil "github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
@@ -84,7 +87,8 @@ func newCommand() *cobra.Command {
 			errors.CheckError(err)
 
 			settingsMgr := settings.NewSettingsManager(ctx, kubeClient, namespace)
-			kubectl := &kube.KubectlCmd{}
+			kubectl := kubeutil.NewKubectl()
+			clusterFilter := getClusterFilter()
 			appController, err := controller.NewApplicationController(
 				namespace,
 				settingsMgr,
@@ -96,7 +100,8 @@ func newCommand() *cobra.Command {
 				resyncDuration,
 				time.Duration(selfHealTimeoutSeconds)*time.Second,
 				metricsPort,
-				kubectlParallelismLimit)
+				kubectlParallelismLimit,
+				clusterFilter)
 			errors.CheckError(err)
 			cacheutil.CollectMetrics(redisClient, appController.GetMetricsServer())
 
@@ -129,6 +134,24 @@ func newCommand() *cobra.Command {
 		redisClient = client
 	})
 	return &command
+}
+
+func getClusterFilter() func(cluster *v1alpha1.Cluster) bool {
+	replicas := env.ParseNumFromEnv(common.EnvControllerReplicas, 0, 0, math.MaxInt32)
+	shard := env.ParseNumFromEnv(common.EnvControllerShard, -1, -math.MaxInt32, math.MaxInt32)
+	var clusterFilter func(cluster *v1alpha1.Cluster) bool
+	if replicas > 1 {
+		if shard < 0 {
+			var err error
+			shard, err = sharding.InferShard()
+			errors.CheckError(err)
+		}
+		log.Infof("Processing clusters from shard %d", shard)
+		clusterFilter = sharding.GetClusterFilter(replicas, shard)
+	} else {
+		log.Info("Processing all cluster shards")
+	}
+	return clusterFilter
 }
 
 func main() {

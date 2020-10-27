@@ -16,7 +16,6 @@ import (
 	"github.com/Masterminds/semver"
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
 	"github.com/argoproj/pkg/sync"
@@ -53,6 +52,7 @@ import (
 	"github.com/argoproj/argo-cd/util/env"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/helm"
+	"github.com/argoproj/argo-cd/util/io"
 	"github.com/argoproj/argo-cd/util/lua"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/session"
@@ -79,6 +79,7 @@ type Server struct {
 	auditLogger    *argo.AuditLogger
 	settingsMgr    *settings.SettingsManager
 	cache          *servercache.Cache
+	projInformer   cache.SharedIndexInformer
 }
 
 // NewServer returns a new instance of the Application service
@@ -95,6 +96,7 @@ func NewServer(
 	enf *rbac.Enforcer,
 	projectLock sync.KeyLock,
 	settingsMgr *settings.SettingsManager,
+	projInformer cache.SharedIndexInformer,
 ) application.ApplicationServiceServer {
 	appBroadcaster := &broadcasterHandler{}
 	appInformer.AddEventHandler(appBroadcaster)
@@ -113,6 +115,7 @@ func NewServer(
 		projectLock:    projectLock,
 		auditLogger:    argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
 		settingsMgr:    settingsMgr,
+		projInformer:   projInformer,
 	}
 }
 
@@ -1115,7 +1118,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		return nil, err
 	}
 
-	proj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(ctx, a.Spec.GetProject(), metav1.GetOptions{})
+	proj, err := argo.GetAppProject(&a.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), a.Namespace, s.settingsMgr)
 	if err != nil {
 		if apierr.IsNotFound(err) {
 			return a, status.Errorf(codes.InvalidArgument, "application references project %s which does not exist", a.Spec.Project)
@@ -1488,7 +1491,7 @@ func (s *Server) GetApplicationSyncWindows(ctx context.Context, q *application.A
 		return nil, err
 	}
 
-	proj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(ctx, a.Spec.Project, metav1.GetOptions{})
+	proj, err := argo.GetAppProject(&a.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), a.Namespace, s.settingsMgr)
 	if err != nil {
 		return nil, err
 	}

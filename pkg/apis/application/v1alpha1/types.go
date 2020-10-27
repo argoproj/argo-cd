@@ -46,6 +46,9 @@ import (
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:resource:path=applications,shortName=app;apps
+// +kubebuilder:printcolumn:name="Sync Status",type=string,JSONPath=`.status.sync.status`
+// +kubebuilder:printcolumn:name="Health Status",type=string,JSONPath=`.status.health.status`
+// +kubebuilder:printcolumn:name="Revision",type=string,JSONPath=`.status.sync.revision`,priority=10
 type Application struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
@@ -144,6 +147,19 @@ type ApplicationSource struct {
 	Plugin *ApplicationSourcePlugin `json:"plugin,omitempty" protobuf:"bytes,11,opt,name=plugin"`
 	// Chart is a Helm chart name
 	Chart string `json:"chart,omitempty" protobuf:"bytes,12,opt,name=chart"`
+}
+
+// AllowsConcurrentProcessing returns true if given application source can be processed concurrently
+func (a *ApplicationSource) AllowsConcurrentProcessing() bool {
+	switch {
+	// Kustomize with parameters requires changing kustomization.yaml file
+	case a.Kustomize != nil:
+		return a.Kustomize.AllowsConcurrentProcessing()
+	// Kustomize with parameters requires changing params.libsonnet file
+	case a.Ksonnet != nil:
+		return a.Ksonnet.AllowsConcurrentProcessing()
+	}
+	return true
 }
 
 func (a *ApplicationSource) IsHelm() bool {
@@ -316,6 +332,13 @@ type ApplicationSourceKustomize struct {
 	Version string `json:"version,omitempty" protobuf:"bytes,5,opt,name=version"`
 }
 
+func (k *ApplicationSourceKustomize) AllowsConcurrentProcessing() bool {
+	return len(k.Images) == 0 &&
+		len(k.CommonLabels) == 0 &&
+		k.NamePrefix == "" &&
+		k.NameSuffix == ""
+}
+
 func (k *ApplicationSourceKustomize) IsZero() bool {
 	return k == nil ||
 		k.NamePrefix == "" &&
@@ -378,6 +401,10 @@ type KsonnetParameter struct {
 	Component string `json:"component,omitempty" protobuf:"bytes,1,opt,name=component"`
 	Name      string `json:"name" protobuf:"bytes,2,opt,name=name"`
 	Value     string `json:"value" protobuf:"bytes,3,opt,name=value"`
+}
+
+func (k *ApplicationSourceKsonnet) AllowsConcurrentProcessing() bool {
+	return len(k.Parameters) == 0
 }
 
 func (k *ApplicationSourceKsonnet) IsZero() bool {
@@ -656,6 +683,8 @@ type SyncPolicyAutomated struct {
 	Prune bool `json:"prune,omitempty" protobuf:"bytes,1,opt,name=prune"`
 	// SelfHeal enables auto-syncing if  (default: false)
 	SelfHeal bool `json:"selfHeal,omitempty" protobuf:"bytes,2,opt,name=selfHeal"`
+	// AllowEmpty allows apps have zero live resources (default: false)
+	AllowEmpty bool `json:"allowEmpty,omitempty" protobuf:"bytes,3,opt,name=allowEmpty"`
 }
 
 // SyncStrategy controls the manner in which a sync is performed
@@ -1034,6 +1063,8 @@ type ConnectionState struct {
 
 // Cluster is the definition of a cluster resource
 type Cluster struct {
+	// ID is an internal field cluster identifier. Not exposed via API.
+	ID string `json:"-"`
 	// Server is the API server URL of the Kubernetes cluster
 	Server string `json:"server" protobuf:"bytes,1,opt,name=server"`
 	// Name of the cluster. If omitted, will use the server address
@@ -1052,6 +1083,8 @@ type Cluster struct {
 	RefreshRequestedAt *metav1.Time `json:"refreshRequestedAt,omitempty" protobuf:"bytes,7,opt,name=refreshRequestedAt"`
 	// Holds information about cluster cache
 	Info ClusterInfo `json:"info,omitempty" protobuf:"bytes,8,opt,name=info"`
+	// Shard contains optional shard number. Calculated on the fly by the application controller if not specified.
+	Shard *int64 `json:"shard,omitempty" protobuf:"bytes,9,opt,name=shard"`
 }
 
 func (c *Cluster) Equals(other *Cluster) bool {
@@ -1062,6 +1095,17 @@ func (c *Cluster) Equals(other *Cluster) bool {
 		return false
 	}
 	if strings.Join(c.Namespaces, ",") != strings.Join(other.Namespaces, ",") {
+		return false
+	}
+	var shard int64 = -1
+	if c.Shard != nil {
+		shard = *c.Shard
+	}
+	var otherShard int64 = -1
+	if other.Shard != nil {
+		otherShard = *other.Shard
+	}
+	if shard != otherShard {
 		return false
 	}
 	return reflect.DeepEqual(c.Config, other.Config)
@@ -2065,7 +2109,7 @@ func (w SyncWindow) Active() bool {
 func (w SyncWindow) active(currentTime time.Time) bool {
 
 	// If SyncWindow.Active() is called outside of a UTC locale, it should be
-	// first converted to UTC before searc
+	// first converted to UTC before search
 	currentTime = currentTime.UTC()
 
 	specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)

@@ -23,19 +23,21 @@ const (
 )
 
 type clusterInfoUpdater struct {
-	infoSource metrics.HasClustersInfo
-	db         db.ArgoDB
-	appLister  v1alpha1.ApplicationNamespaceLister
-	cache      *appstatecache.Cache
+	infoSource    metrics.HasClustersInfo
+	db            db.ArgoDB
+	appLister     v1alpha1.ApplicationNamespaceLister
+	cache         *appstatecache.Cache
+	clusterFilter func(cluster *appv1.Cluster) bool
 }
 
 func NewClusterInfoUpdater(
 	infoSource metrics.HasClustersInfo,
 	db db.ArgoDB,
 	appLister v1alpha1.ApplicationNamespaceLister,
-	cache *appstatecache.Cache) *clusterInfoUpdater {
+	cache *appstatecache.Cache,
+	clusterFilter func(cluster *appv1.Cluster) bool) *clusterInfoUpdater {
 
-	return &clusterInfoUpdater{infoSource, db, appLister, cache}
+	return &clusterInfoUpdater{infoSource, db, appLister, cache, clusterFilter}
 }
 
 func (c *clusterInfoUpdater) Run(ctx context.Context) {
@@ -63,13 +65,24 @@ func (c *clusterInfoUpdater) updateClusters() {
 	if err != nil {
 		log.Warnf("Failed to save clusters info: %v", err)
 	}
-	_ = kube.RunAllAsync(len(clusters.Items), func(i int) error {
-		cluster := clusters.Items[i]
+	var clustersFiltered []appv1.Cluster
+	if c.clusterFilter == nil {
+		clustersFiltered = clusters.Items
+	} else {
+		for i := range clusters.Items {
+			if c.clusterFilter(&clusters.Items[i]) {
+				clustersFiltered = append(clustersFiltered, clusters.Items[i])
+			}
+		}
+	}
+	_ = kube.RunAllAsync(len(clustersFiltered), func(i int) error {
+		cluster := clustersFiltered[i]
 		if err := c.updateClusterInfo(cluster, infoByServer[cluster.Server]); err != nil {
 			log.Warnf("Failed to save clusters info: %v", err)
 		}
 		return nil
 	})
+	log.Debugf("Successfully saved info of %d clusters", len(clustersFiltered))
 }
 
 func (c *clusterInfoUpdater) updateClusterInfo(cluster appv1.Cluster, info *cache.ClusterInfo) error {

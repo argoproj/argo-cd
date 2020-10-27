@@ -1,6 +1,6 @@
 FROM redis:5.0.8 as redis
 
-FROM node:11.15.0 as node
+FROM node:12.18.4 as node
 
 FROM golang:1.14.1 as golang
 
@@ -66,7 +66,7 @@ COPY --from=redis /usr/local/bin/* /usr/local/bin/
 # Copy node binaries
 COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
 COPY --from=node /usr/local/bin/node /usr/local/bin
-COPY --from=node /opt/yarn-v1.15.2 /opt/yarn-v1.15.2
+COPY --from=node /opt/yarn-v1.22.4 /opt/yarn-v1.22.4
 
 # Entrypoint is required for container's user management
 COPY ./test/container/uid_entrypoint.sh /usr/local/bin
@@ -74,7 +74,7 @@ COPY ./test/container/uid_entrypoint.sh /usr/local/bin
 ARG UID
 
 # Prepare user configuration & build environments
-RUN useradd -u ${UID} -d /home/user -s /bin/bash user && \
+RUN useradd -l -u ${UID} -d /home/user -s /bin/bash user && \
     echo "user ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/user && \
     HELM_HOME=/home/user/.helm helm2 init --client-only && \
     HOME=/home/user git config --global user.name "ArgoCD Test User" && \
@@ -95,7 +95,7 @@ RUN useradd -u ${UID} -d /home/user -s /bin/bash user && \
     ln -s /usr/local/bin/node /usr/local/bin/nodejs && \
     ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm && \
     ln -s /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx && \
-    ln -s /opt/yarn-v1.15.2/bin/yarn /usr/local/bin/yarn && \
-    ln -s /opt/yarn-v1.15.2/bin/yarnpkg /usr/local/bin/yarnpkg
+    ln -s /opt/yarn-v1.22.4/bin/yarn /usr/local/bin/yarn && \
+    ln -s /opt/yarn-v1.22.4/bin/yarnpkg /usr/local/bin/yarnpkg
 
 ENTRYPOINT ["/usr/local/bin/uid_entrypoint.sh"]
