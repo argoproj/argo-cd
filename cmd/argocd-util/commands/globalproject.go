@@ -37,14 +37,15 @@ func NewGlobalProjectGenCommand() *cobra.Command {
 		out          string
 	)
 	var command = &cobra.Command{
-		Use:   "globalproject CLUSTERROLE_PATH",
-		Short: "Generates global project for the specified clusterRole",
+		Use:   "generate-allow-list CLUSTERROLE_PATH PROJ_NAME",
+		Short: "Generates project allow list from the specified clusterRole file",
 		Run: func(c *cobra.Command, args []string) {
-			if len(args) != 1 {
+			if len(args) != 2 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
 			clusterRoleFileName := args[0]
+			projName := args[1]
 
 			var writer io.Writer
 			if out == "-" {
@@ -62,7 +63,7 @@ func NewGlobalProjectGenCommand() *cobra.Command {
 				}()
 			}
 
-			globalProj := generateGlobalProject(clientConfig, clusterRoleFileName)
+			globalProj := generateGlobalProject(clientConfig, clusterRoleFileName, projName)
 
 			yamlBytes, err := yaml.Marshal(globalProj)
 			errors.CheckError(err)
@@ -77,7 +78,7 @@ func NewGlobalProjectGenCommand() *cobra.Command {
 	return command
 }
 
-func generateGlobalProject(clientConfig clientcmd.ClientConfig, clusterRoleFileName string) v1alpha1.AppProject {
+func generateGlobalProject(clientConfig clientcmd.ClientConfig, clusterRoleFileName string, projName string) v1alpha1.AppProject {
 	yamlBytes, err := ioutil.ReadFile(clusterRoleFileName)
 	errors.CheckError(err)
 	var obj unstructured.Unstructured
@@ -135,13 +136,8 @@ func generateGlobalProject(clientConfig clientcmd.ClientConfig, clusterRoleFileN
 			Kind:       "AppProject",
 			APIVersion: "argoproj.io/v1alpha1",
 		},
-		ObjectMeta: metav1.ObjectMeta{Name: "argocd-global-iksm"},
-		Spec: v1alpha1.AppProjectSpec{
-			Destinations: []v1alpha1.ApplicationDestination{
-				{Namespace: "*", Server: "https://kubernetes.default.svc"},
-			},
-			SourceRepos: []string{"*"},
-		},
+		ObjectMeta: metav1.ObjectMeta{Name: projName},
+		Spec:       v1alpha1.AppProjectSpec{},
 	}
 	globalProj.Spec.NamespaceResourceWhitelist = resourceList
 	return globalProj

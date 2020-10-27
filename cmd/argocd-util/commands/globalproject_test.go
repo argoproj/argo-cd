@@ -52,6 +52,6 @@ func TestGlobalProjectGen(t *testing.T) {
 		}()
 	}
 
-	globalProj := generateGlobalProject(clientConfig, "test_clusterrole.yaml")
+	globalProj := generateGlobalProject(clientConfig, "testdata/test_clusterrole.yaml", "testproj")
 	assert.True(t, len(globalProj.Spec.NamespaceResourceWhitelist) > 0)
 }
