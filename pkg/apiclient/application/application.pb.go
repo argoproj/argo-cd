@@ -2052,7 +2052,7 @@ type ApplicationServiceClient interface {
 	List(ctx context.Context, in *ApplicationQuery, opts ...grpc.CallOption) (*v1alpha1.ApplicationList, error)
 	// ListResourceEvents returns a list of event resources
 	ListResourceEvents(ctx context.Context, in *ApplicationResourceEventsQuery, opts ...grpc.CallOption) (*v11.EventList, error)
-	// Watch returns stream of application change events.
+	// Watch returns stream of application change events
 	Watch(ctx context.Context, in *ApplicationQuery, opts ...grpc.CallOption) (ApplicationService_WatchClient, error)
 	// Create creates an application
 	Create(ctx context.Context, in *ApplicationCreateRequest, opts ...grpc.CallOption) (*v1alpha1.Application, error)
@@ -2074,7 +2074,9 @@ type ApplicationServiceClient interface {
 	Delete(ctx context.Context, in *ApplicationDeleteRequest, opts ...grpc.CallOption) (*ApplicationResponse, error)
 	// Sync syncs an application to its target state
 	Sync(ctx context.Context, in *ApplicationSyncRequest, opts ...grpc.CallOption) (*v1alpha1.Application, error)
+	// ManagedResources returns list of managed resources
 	ManagedResources(ctx context.Context, in *ResourcesQuery, opts ...grpc.CallOption) (*ManagedResourcesResponse, error)
+	// ResourceTree returns resource tree
 	ResourceTree(ctx context.Context, in *ResourcesQuery, opts ...grpc.CallOption) (*v1alpha1.ApplicationTree, error)
 	// Watch returns stream of application resource tree
 	WatchResourceTree(ctx context.Context, in *ResourcesQuery, opts ...grpc.CallOption) (ApplicationService_WatchResourceTreeClient, error)
@@ -2086,7 +2088,9 @@ type ApplicationServiceClient interface {
 	GetResource(ctx context.Context, in *ApplicationResourceRequest, opts ...grpc.CallOption) (*ApplicationResourceResponse, error)
 	// PatchResource patch single application resource
 	PatchResource(ctx context.Context, in *ApplicationResourcePatchRequest, opts ...grpc.CallOption) (*ApplicationResourceResponse, error)
+	// ListResourceActions returns list of resource actions
 	ListResourceActions(ctx context.Context, in *ApplicationResourceRequest, opts ...grpc.CallOption) (*ResourceActionsListResponse, error)
+	// RunResourceAction run resource action
 	RunResourceAction(ctx context.Context, in *ResourceActionRunRequest, opts ...grpc.CallOption) (*ApplicationResponse, error)
 	// DeleteResource deletes a single application resource
 	DeleteResource(ctx context.Context, in *ApplicationResourceDeleteRequest, opts ...grpc.CallOption) (*ApplicationResponse, error)
@@ -2393,7 +2397,7 @@ type ApplicationServiceServer interface {
 	List(context.Context, *ApplicationQuery) (*v1alpha1.ApplicationList, error)
 	// ListResourceEvents returns a list of event resources
 	ListResourceEvents(context.Context, *ApplicationResourceEventsQuery) (*v11.EventList, error)
-	// Watch returns stream of application change events.
+	// Watch returns stream of application change events
 	Watch(*ApplicationQuery, ApplicationService_WatchServer) error
 	// Create creates an application
 	Create(context.Context, *ApplicationCreateRequest) (*v1alpha1.Application, error)
@@ -2415,7 +2419,9 @@ type ApplicationServiceServer interface {
 	Delete(context.Context, *ApplicationDeleteRequest) (*ApplicationResponse, error)
 	// Sync syncs an application to its target state
 	Sync(context.Context, *ApplicationSyncRequest) (*v1alpha1.Application, error)
+	// ManagedResources returns list of managed resources
 	ManagedResources(context.Context, *ResourcesQuery) (*ManagedResourcesResponse, error)
+	// ResourceTree returns resource tree
 	ResourceTree(context.Context, *ResourcesQuery) (*v1alpha1.ApplicationTree, error)
 	// Watch returns stream of application resource tree
 	WatchResourceTree(*ResourcesQuery, ApplicationService_WatchResourceTreeServer) error
@@ -2427,7 +2433,9 @@ type ApplicationServiceServer interface {
 	GetResource(context.Context, *ApplicationResourceRequest) (*ApplicationResourceResponse, error)
 	// PatchResource patch single application resource
 	PatchResource(context.Context, *ApplicationResourcePatchRequest) (*ApplicationResourceResponse, error)
+	// ListResourceActions returns list of resource actions
 	ListResourceActions(context.Context, *ApplicationResourceRequest) (*ResourceActionsListResponse, error)
+	// RunResourceAction run resource action
 	RunResourceAction(context.Context, *ResourceActionRunRequest) (*ApplicationResponse, error)
 	// DeleteResource deletes a single application resource
 	DeleteResource(context.Context, *ApplicationResourceDeleteRequest) (*ApplicationResponse, error)

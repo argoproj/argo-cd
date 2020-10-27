@@ -17,6 +17,7 @@
         "tags": [
           "AccountService"
         ],
+        "summary": "ListAccounts returns the list of accounts",
         "operationId": "ListAccounts",
         "responses": {
           "200": {
@@ -33,6 +34,7 @@
         "tags": [
           "AccountService"
         ],
+        "summary": "CanI checks if the current account has permission to perform an action",
         "operationId": "CanI",
         "parameters": [
           {
@@ -96,6 +98,7 @@
         "tags": [
           "AccountService"
         ],
+        "summary": "GetAccount returns an account",
         "operationId": "GetAccount",
         "parameters": [
           {
@@ -120,6 +123,7 @@
         "tags": [
           "AccountService"
         ],
+        "summary": "CreateToken creates a token",
         "operationId": "CreateToken",
         "parameters": [
           {
@@ -152,6 +156,7 @@
         "tags": [
           "AccountService"
         ],
+        "summary": "DeleteToken deletes a token",
         "operationId": "DeleteToken",
         "parameters": [
           {
@@ -294,6 +299,7 @@
         "tags": [
           "ApplicationService"
         ],
+        "summary": "ManagedResources returns list of managed resources",
         "operationId": "ManagedResources",
         "parameters": [
           {
@@ -343,6 +349,7 @@
         "tags": [
           "ApplicationService"
         ],
+        "summary": "ResourceTree returns resource tree",
         "operationId": "ResourceTree",
         "parameters": [
           {
@@ -818,6 +825,7 @@
         "tags": [
           "ApplicationService"
         ],
+        "summary": "ListResourceActions returns list of resource actions",
         "operationId": "ListResourceActions",
         "parameters": [
           {
@@ -865,6 +873,7 @@
         "tags": [
           "ApplicationService"
         ],
+        "summary": "RunResourceAction run resource action",
         "operationId": "RunResourceAction",
         "parameters": [
           {
@@ -1470,7 +1479,7 @@
         "tags": [
           "ProjectService"
         ],
-        "summary": "Create a new project.",
+        "summary": "Create a new project",
         "operationId": "CreateMixin8",
         "parameters": [
           {
@@ -1565,6 +1574,31 @@
         }
       }
     },
+    "/api/v1/projects/{name}/globalprojects": {
+      "get": {
+        "tags": [
+          "ProjectService"
+        ],
+        "summary": "Get returns a virtual project by name",
+        "operationId": "GetGlobalProjects",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/projectGlobalProjectsResponse"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/projects/{name}/syncwindows": {
       "get": {
         "tags": [
@@ -1629,7 +1663,7 @@
         "tags": [
           "ProjectService"
         ],
-        "summary": "Create a new project token.",
+        "summary": "Create a new project token",
         "operationId": "CreateTokenMixin8",
         "parameters": [
           {
@@ -1668,7 +1702,7 @@
         "tags": [
           "ProjectService"
         ],
-        "summary": "Delete a new project token.",
+        "summary": "Delete a new project token",
         "operationId": "DeleteTokenMixin8",
         "parameters": [
           {
@@ -2007,6 +2041,7 @@
         "tags": [
           "RepositoryService"
         ],
+        "summary": "GetHelmCharts returns list of helm charts in the specified repository",
         "operationId": "GetHelmCharts",
         "parameters": [
           {
@@ -2108,7 +2143,7 @@
         "tags": [
           "SessionService"
         ],
-        "summary": "Create a new JWT for authentication and set a cookie if using HTTP.",
+        "summary": "Create a new JWT for authentication and set a cookie if using HTTP",
         "operationId": "CreateMixin7",
         "parameters": [
           {
@@ -2133,7 +2168,7 @@
         "tags": [
           "SessionService"
         ],
-        "summary": "Delete an existing JWT cookie if using HTTP.",
+        "summary": "Delete an existing JWT cookie if using HTTP",
         "operationId": "DeleteMixin7",
         "responses": {
           "200": {
@@ -2184,7 +2219,7 @@
         "tags": [
           "ApplicationService"
         ],
-        "summary": "Watch returns stream of application change events.",
+        "summary": "Watch returns stream of application change events",
         "operationId": "Watch",
         "parameters": [
           {
@@ -2778,6 +2813,17 @@
     },
     "projectEmptyResponse": {
       "type": "object"
+    },
+    "projectGlobalProjectsResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1AppProject"
+          }
+        }
+      }
     },
     "projectProjectCreateRequest": {
       "description": "ProjectCreateRequest defines project creation parameters.",
@@ -3649,7 +3695,7 @@
     },
     "v1alpha1Application": {
       "type": "object",
-      "title": "Application is a definition of Application resource.\n+genclient\n+genclient:noStatus\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object\n+kubebuilder:resource:path=applications,shortName=app;apps",
+      "title": "Application is a definition of Application resource.\n+genclient\n+genclient:noStatus\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object\n+kubebuilder:resource:path=applications,shortName=app;apps\n+kubebuilder:printcolumn:name=\"Sync Status\",type=string,JSONPath=`.status.sync.status`\n+kubebuilder:printcolumn:name=\"Health Status\",type=string,JSONPath=`.status.health.status`\n+kubebuilder:printcolumn:name=\"Revision\",type=string,JSONPath=`.status.sync.revision`,priority=10",
       "properties": {
         "metadata": {
           "$ref": "#/definitions/v1ObjectMeta"

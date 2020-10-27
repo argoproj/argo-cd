@@ -197,8 +197,14 @@ func CreateSecret(username, password string) string {
 	return secretName
 }
 
+// Convinience wrapper for updating argocd-cm
 func updateSettingConfigMap(updater func(cm *corev1.ConfigMap) error) {
-	cm, err := KubeClientset.CoreV1().ConfigMaps(ArgoCDNamespace).Get(context.Background(), common.ArgoCDConfigMapName, v1.GetOptions{})
+	updateGenericConfigMap(common.ArgoCDConfigMapName, updater)
+}
+
+// Updates a given config map in argocd-e2e namespace
+func updateGenericConfigMap(name string, updater func(cm *corev1.ConfigMap) error) {
+	cm, err := KubeClientset.CoreV1().ConfigMaps(ArgoCDNamespace).Get(context.Background(), name, v1.GetOptions{})
 	errors.CheckError(err)
 	if cm.Data == nil {
 		cm.Data = make(map[string]string)
@@ -309,6 +315,12 @@ func EnsureCleanState(t *testing.T) {
 
 	// reset settings
 	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data = map[string]string{}
+		return nil
+	})
+
+	// reset gpg-keys config map
+	updateGenericConfigMap(common.ArgoCDGPGKeysConfigMapName, func(cm *corev1.ConfigMap) error {
 		cm.Data = map[string]string{}
 		return nil
 	})

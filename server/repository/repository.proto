@@ -114,6 +114,7 @@ service RepositoryService {
 		};
 	}
 
+	// GetHelmCharts returns list of helm charts in the specified repository
 	rpc GetHelmCharts(RepoQuery) returns (repository.HelmChartsResponse) {
 		option (google.api.http).get = "/api/v1/repositories/{repo}/helmcharts";
 	}
