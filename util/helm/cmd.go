@@ -65,8 +65,7 @@ func (c Cmd) run(args ...string) (string, error) {
 	}
 
 	if c.IsHelmOci {
-		cmd.Env = append(cmd.Env,
-			fmt.Sprintf("HELM_EXPERIMENTAL_OCI=1"))
+		cmd.Env = append(cmd.Env, "HELM_EXPERIMENTAL_OCI=1")
 	}
 	return executil.RunWithRedactor(cmd, redactor)
 }
@@ -110,6 +109,9 @@ func (c *Cmd) Login(repo string, creds Creds) (string, error) {
 		args = append(args, "--key-file", filePath)
 	}
 
+	if creds.InsecureSkipVerify {
+		args = append(args, "--insecure")
+	}
 	return c.run(args...)
 }
 

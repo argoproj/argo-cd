@@ -140,7 +140,7 @@ func (s *Server) ListRepositories(ctx context.Context, q *repositorypkg.RepoQuer
 				Username:  repo.Username,
 				Insecure:  repo.IsInsecure(),
 				EnableLFS: repo.EnableLFS,
-				EnableOci: repo.EnableOci,
+				EnableOCI: repo.EnableOCI,
 			})
 		}
 	}
@@ -346,7 +346,7 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 		Insecure:          q.Insecure,
 		TLSClientCertData: q.TlsClientCertData,
 		TLSClientCertKey:  q.TlsClientCertKey,
-		EnableOci:         q.EnableOci,
+		EnableOCI:         q.EnableOci,
 	}
 
 	var repoCreds *appsv1.RepoCreds

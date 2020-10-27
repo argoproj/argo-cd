@@ -131,7 +131,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			repo.InsecureIgnoreHostKey = insecureIgnoreHostKey
 			repo.Insecure = insecureSkipServerVerification
 			repo.EnableLFS = enableLfs
-			repo.EnableOci = enableOci
+			repo.EnableOCI = enableOci
 
 			if repo.Type == "helm" && repo.Name == "" {
 				errors.CheckError(fmt.Errorf("Must specify --name for repos of type 'helm'"))
@@ -163,7 +163,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				TlsClientCertData: repo.TLSClientCertData,
 				TlsClientCertKey:  repo.TLSClientCertKey,
 				Insecure:          repo.IsInsecure(),
-				EnableOci:         repo.EnableOci,
+				EnableOci:         repo.EnableOCI,
 			}
 			_, err := repoIf.ValidateAccess(context.Background(), &repoAccessReq)
 			errors.CheckError(err)
@@ -229,7 +229,7 @@ func printRepoTable(repos appsv1.Repositories) {
 				hasCreds = "true"
 			}
 		}
-		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%v\t%v\t%v\t%s\t%s\t%s\n", r.Type, r.Name, r.Repo, r.IsInsecure(), r.EnableOci, r.EnableLFS, hasCreds, r.ConnectionState.Status, r.ConnectionState.Message)
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%v\t%v\t%v\t%s\t%s\t%s\n", r.Type, r.Name, r.Repo, r.IsInsecure(), r.EnableOCI, r.EnableLFS, hasCreds, r.ConnectionState.Status, r.ConnectionState.Message)
 	}
 	_ = w.Flush()
 }

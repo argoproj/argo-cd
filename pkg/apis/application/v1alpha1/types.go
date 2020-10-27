@@ -1314,7 +1314,7 @@ type Repository struct {
 	// Whether credentials were inherited from a credential set
 	InheritedCreds bool `json:"inheritedCreds,omitempty" protobuf:"bytes,13,opt,name=inheritedCreds"`
 	// Whether helm-oci support should be enabled for this repo
-	EnableOci bool `json:"enableOci,omitempty" protobuf:"bytes,14,opt,name=enableOci"`
+	EnableOCI bool `json:"enableOCI,omitempty" protobuf:"bytes,14,opt,name=enableOCI"`
 }
 
 // IsInsecure returns true if receiver has been configured to skip server verification

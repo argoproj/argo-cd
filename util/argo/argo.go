@@ -134,9 +134,9 @@ func TestRepoWithKnownType(repo *argoappv1.Repository, isHelm bool, isHelmOci bo
 	}
 
 	if isHelmOci {
-		repo.EnableOci = true
+		repo.EnableOCI = true
 	} else {
-		repo.EnableOci = false
+		repo.EnableOCI = false
 	}
 	return TestRepo(repo)
 }
@@ -147,11 +147,11 @@ func TestRepo(repo *argoappv1.Repository) error {
 			return git.TestRepo(repo.Repo, repo.GetGitCreds(), repo.IsInsecure(), repo.IsLFSEnabled())
 		},
 		"helm": func() error {
-			if repo.EnableOci {
-				_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOci).TestHelmOCI()
+			if repo.EnableOCI {
+				_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI).TestHelmOCI()
 				return err
 			} else {
-				_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOci).GetIndex()
+				_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI).GetIndex()
 				return err
 			}
 		},

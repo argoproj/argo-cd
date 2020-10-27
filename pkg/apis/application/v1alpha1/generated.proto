@@ -739,7 +739,7 @@ message Repository {
   optional bool inheritedCreds = 13;
 
   // Whether helm-oci support should be enabled for this repo
-  optional bool enableOci = 14;
+  optional bool enableOCI = 14;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate

@@ -1190,7 +1190,7 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 }
 
 func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revision string, chart string) (helm.Client, string, error) {
-	helmClient := s.newHelmClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOci)
+	helmClient := s.newHelmClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI)
 	if helm.IsVersion(revision) {
 		return helmClient, revision, nil
 	}
@@ -1233,7 +1233,7 @@ func checkoutRevision(gitClient git.Client, revision string) error {
 }
 
 func (s *Service) GetHelmCharts(ctx context.Context, q *apiclient.HelmChartsRequest) (*apiclient.HelmChartsResponse, error) {
-	index, err := s.newHelmClient(q.Repo.Repo, q.Repo.GetHelmCreds(), q.Repo.EnableOci).GetIndex()
+	index, err := s.newHelmClient(q.Repo.Repo, q.Repo.GetHelmCreds(), q.Repo.EnableOCI).GetIndex()
 	if err != nil {
 		return nil, err
 	}

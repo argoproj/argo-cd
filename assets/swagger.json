@@ -4682,7 +4682,7 @@
           "format": "boolean",
           "title": "Whether git-lfs support should be enabled for this repo"
         },
-        "enableOci": {
+        "enableOCI": {
           "type": "boolean",
           "format": "boolean",
           "title": "Whether helm-oci support should be enabled for this repo"
