@@ -36,7 +36,7 @@
     
     
       
-        <title>Argocd proj role - Argo CD - Declarative GitOps CD for Kubernetes</title>
+        <title>Argocd proj role list tokens - Argo CD - Declarative GitOps CD for Kubernetes</title>
       
     
     
@@ -127,7 +127,7 @@
     <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
     <label class="md-overlay" data-md-component="overlay" for="__drawer"></label>
     
-      <a href="#argocd-proj-role" tabindex="1" class="md-skip">
+      <a href="#argocd-proj-role-list-tokens" tabindex="1" class="md-skip">
         Skip to content
       </a>
     
@@ -152,7 +152,7 @@
               Argo CD - Declarative GitOps CD for Kubernetes
             </span>
             <span class="md-header-nav__topic">
-              Argocd proj role
+              Argocd proj role list tokens
             </span>
           
         </div>
@@ -1367,8 +1367,8 @@
     <ul class="md-nav__list" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#argocd-proj-role" title="argocd proj role" class="md-nav__link">
-    argocd proj role
+  <a href="#argocd-proj-role-list-tokens" title="argocd proj role list-tokens" class="md-nav__link">
+    argocd proj role list-tokens
   </a>
   
     <nav class="md-nav">
@@ -1423,20 +1423,21 @@
             <article class="md-content__inner md-typeset">
               
                 
-                  <a href="https://github.com/argoproj/argo-cd/edit/master/docs/user-guide/commands/argocd_proj_role.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
+                  <a href="https://github.com/argoproj/argo-cd/edit/master/docs/user-guide/commands/argocd_proj_role_list-tokens.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
                 
                 
-                  <h1>Argocd proj role</h1>
+                  <h1>Argocd proj role list tokens</h1>
                 
-                <h2 id="argocd-proj-role">argocd proj role<a class="headerlink" href="#argocd-proj-role" title="Permanent link">&para;</a></h2>
-<p>Manage a project's roles</p>
+                <h2 id="argocd-proj-role-list-tokens">argocd proj role list-tokens<a class="headerlink" href="#argocd-proj-role-list-tokens" title="Permanent link">&para;</a></h2>
+<p>List tokens for a given role.</p>
 <h3 id="synopsis">Synopsis<a class="headerlink" href="#synopsis" title="Permanent link">&para;</a></h3>
-<p>Manage a project's roles</p>
-<div class="codehilite"><pre><span></span><code><span class="n">argocd</span><span class="w"> </span><span class="n">proj</span><span class="w"> </span><span class="k">role</span><span class="w"> </span><span class="o">[</span><span class="n">flags</span><span class="o">]</span><span class="w"></span>
+<p>List tokens for a given role.</p>
+<div class="codehilite"><pre><span></span><code><span class="n">argocd</span><span class="w"> </span><span class="n">proj</span><span class="w"> </span><span class="k">role</span><span class="w"> </span><span class="n">list</span><span class="o">-</span><span class="n">tokens</span><span class="w"> </span><span class="n">PROJECT</span><span class="w"> </span><span class="k">ROLE</span><span class="o">-</span><span class="n">NAME</span><span class="w"> </span><span class="o">[</span><span class="n">flags</span><span class="o">]</span><span class="w"></span>
 </code></pre></div>
 
 <h3 id="options">Options<a class="headerlink" href="#options" title="Permanent link">&para;</a></h3>
-<div class="codehilite"><pre><span></span><code><span class="err">  -h, --help   help for role</span>
+<div class="codehilite"><pre><span></span><code><span class="err">  -h, --help       help for list-tokens</span>
+<span class="err">  -u, --unixtime   Print timestamps as Unix time instead of converting. Useful for piping into delete-token.</span>
 </code></pre></div>
 
 <h3 id="options-inherited-from-parent-commands">Options inherited from parent commands<a class="headerlink" href="#options-inherited-from-parent-commands" title="Permanent link">&para;</a></h3>
@@ -1459,18 +1460,7 @@
 
 <h3 id="see-also">SEE ALSO<a class="headerlink" href="#see-also" title="Permanent link">&para;</a></h3>
 <ul>
-<li><a href="../argocd_proj/">argocd proj</a>  - Manage projects</li>
-<li><a href="../argocd_proj_role_add-group/">argocd proj role add-group</a>    - Add a group claim to a project role</li>
-<li><a href="../argocd_proj_role_add-policy/">argocd proj role add-policy</a>  - Add a policy to a project role</li>
-<li><a href="../argocd_proj_role_create/">argocd proj role create</a>  - Create a project role</li>
-<li><a href="../argocd_proj_role_create-token/">argocd proj role create-token</a>  - Create a project token</li>
-<li><a href="../argocd_proj_role_delete/">argocd proj role delete</a>  - Delete a project role</li>
-<li><a href="../argocd_proj_role_delete-token/">argocd proj role delete-token</a>  - Delete a project token</li>
-<li><a href="../argocd_proj_role_get/">argocd proj role get</a>    - Get the details of a specific role</li>
-<li><a href="../argocd_proj_role_list/">argocd proj role list</a>  - List all the roles in a project</li>
-<li><a href="../argocd_proj_role_list-tokens/">argocd proj role list-tokens</a>    - List tokens for a given role.</li>
-<li><a href="../argocd_proj_role_remove-group/">argocd proj role remove-group</a>  - Remove a group claim from a role within a project</li>
-<li><a href="../argocd_proj_role_remove-policy/">argocd proj role remove-policy</a>    - Remove a policy from a role within a project</li>
+<li><a href="../argocd_proj_role/">argocd proj role</a>    - Manage a project's roles</li>
 </ul>
                 
                   
