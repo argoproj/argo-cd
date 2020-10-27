@@ -7,6 +7,7 @@ import * as models from '../../../shared/models';
 import {AppsListPreferences, services} from '../../../shared/services';
 
 export interface ApplicationsFilterProps {
+    clusters: models.Cluster[];
     applications: models.Application[];
     pref: AppsListPreferences;
     onChange: (pref: AppsListPreferences) => any;
@@ -167,10 +168,10 @@ export class ApplicationsFilter extends React.Component<ApplicationsFilterProps,
                             <ul>
                                 <li>
                                     <TagsInput
-                                        placeholder='https://kubernetes.default.svc'
-                                        autocomplete={Array.from(
-                                            new Set(applications.map(app => app.spec.destination.server || app.spec.destination.name).filter(item => !!item))
-                                        ).filter(ns => pref.clustersFilter.indexOf(ns) === -1)}
+                                        placeholder='in-cluster (https://kubernetes.default.svc)'
+                                        autocomplete={Array.from(new Set(applications.map(app => this.getClusterDetail(app.spec.destination)).filter(item => !!item))).filter(
+                                            ns => pref.clustersFilter.indexOf(ns) === -1
+                                        )}
                                         tags={pref.clustersFilter}
                                         onChange={selected => onChange({...pref, clustersFilter: selected})}
                                     />
@@ -194,5 +195,16 @@ export class ApplicationsFilter extends React.Component<ApplicationsFilterProps,
                 </div>
             </div>
         );
+    }
+
+    private getClusterDetail(dest: models.ApplicationDestination): string {
+        const cluster = this.props.clusters.find(target => target.name === dest.name || target.server === dest.server);
+        if (!cluster) {
+            return dest.server || dest.name;
+        }
+        if (cluster.name === cluster.server) {
+            return cluster.name;
+        }
+        return `${cluster.name} (${cluster.server})`;
     }
 }

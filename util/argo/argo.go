@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -25,6 +24,7 @@ import (
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/helm"
+	"github.com/argoproj/argo-cd/util/io"
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
@@ -323,7 +323,7 @@ func GetAppProject(spec *argoappv1.ApplicationSpec, projLister applicationsv1.Ap
 	if err != nil {
 		return nil, err
 	}
-	return getAppVirtualProject(projOrig, projLister, settingsManager)
+	return GetAppVirtualProject(projOrig, projLister, settingsManager)
 }
 
 // verifyGenerateManifests verifies a repo path can generate manifests
@@ -461,15 +461,21 @@ func getDestinationServer(ctx context.Context, db db.ArgoDB, clusterName string)
 	return servers[0], nil
 }
 
-func getAppVirtualProject(proj *argoappv1.AppProject, projLister applicationsv1.AppProjectLister, settingsManager *settings.SettingsManager) (*argoappv1.AppProject, error) {
+func GetGlobalProjects(proj *argoappv1.AppProject, projLister applicationsv1.AppProjectLister, settingsManager *settings.SettingsManager) []*argoappv1.AppProject {
 	gps, err := settingsManager.GetGlobalProjectsSettings()
+	globalProjects := make([]*argoappv1.AppProject, 0)
+
 	if err != nil {
 		log.Warnf("Failed to get global project settings: %v", err)
-		return proj, nil
+		return globalProjects
 	}
-	virtualProj := proj.DeepCopy()
 
 	for _, gp := range gps {
+		//The project itself is not its own the global project
+		if proj.Name == gp.ProjectName {
+			continue
+		}
+
 		selector, err := metav1.LabelSelectorAsSelector(&gp.LabelSelector)
 		if err != nil {
 			break
@@ -489,12 +495,23 @@ func getAppVirtualProject(proj *argoappv1.AppProject, projLister applicationsv1.
 		if !matchMe {
 			break
 		}
-		//If proj is a match for this global project setting, then merge with the global project
+		//If proj is a match for this global project setting, then it is its global project
 		globalProj, err := projLister.AppProjects(proj.Namespace).Get(gp.ProjectName)
 		if err != nil {
 			break
 		}
-		virtualProj = mergeVirtualProject(virtualProj, globalProj)
+		globalProjects = append(globalProjects, globalProj)
+
+	}
+	return globalProjects
+}
+
+func GetAppVirtualProject(proj *argoappv1.AppProject, projLister applicationsv1.AppProjectLister, settingsManager *settings.SettingsManager) (*argoappv1.AppProject, error) {
+	virtualProj := proj.DeepCopy()
+	globalProjects := GetGlobalProjects(proj, projLister, settingsManager)
+
+	for _, gp := range globalProjects {
+		virtualProj = mergeVirtualProject(virtualProj, gp)
 	}
 	return virtualProj, nil
 }

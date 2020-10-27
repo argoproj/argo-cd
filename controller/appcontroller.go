@@ -13,11 +13,11 @@ import (
 	"sync"
 	"time"
 
+	logutils "github.com/argoproj/argo-cd/util/log"
+
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/gitops-engine/pkg/utils/errors"
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
@@ -49,6 +49,7 @@ import (
 	"github.com/argoproj/argo-cd/util/argo"
 	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
 	"github.com/argoproj/argo-cd/util/db"
+	"github.com/argoproj/argo-cd/util/errors"
 	"github.com/argoproj/argo-cd/util/glob"
 	settings_util "github.com/argoproj/argo-cd/util/settings"
 )
@@ -195,7 +196,7 @@ func (ctrl *ApplicationController) GetMetricsServer() *metrics.MetricsServer {
 	return ctrl.metricsServer
 }
 
-func (ctrl *ApplicationController) onKubectlRun(command string) (io.Closer, error) {
+func (ctrl *ApplicationController) onKubectlRun(command string) (kube.CleanupFunc, error) {
 	ctrl.metricsServer.IncKubectlExec(command)
 	if ctrl.kubectlSemaphore != nil {
 		if err := ctrl.kubectlSemaphore.Acquire(context.Background(), 1); err != nil {
@@ -203,13 +204,12 @@ func (ctrl *ApplicationController) onKubectlRun(command string) (io.Closer, erro
 		}
 		ctrl.metricsServer.IncKubectlExecPending(command)
 	}
-	return io.NewCloser(func() error {
+	return func() {
 		if ctrl.kubectlSemaphore != nil {
 			ctrl.kubectlSemaphore.Release(1)
 			ctrl.metricsServer.DecKubectlExecPending(command)
 		}
-		return nil
-	}), nil
+	}, nil
 }
 
 func isSelfReferencedApp(app *appv1.Application, ref v1.ObjectReference) bool {
@@ -409,7 +409,10 @@ func (ctrl *ApplicationController) managedResources(comparisonResult *comparison
 			if err != nil {
 				return nil, err
 			}
-			resDiffPtr, err := diff.Diff(target, live, comparisonResult.diffNormalizer, compareOptions)
+			resDiffPtr, err := diff.Diff(target, live,
+				diff.WithNormalizer(comparisonResult.diffNormalizer),
+				diff.WithLogr(logutils.NewLogrusLogger(log.New())),
+				diff.IgnoreAggregatedRoles(compareOptions.IgnoreAggregatedRoles))
 			if err != nil {
 				return nil, err
 			}
@@ -914,7 +917,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 }
 
 func (ctrl *ApplicationController) setOperationState(app *appv1.Application, state *appv1.OperationState) {
-	kube.RetryUntilSucceed(context.Background(), updateOperationStateTimeout, "Update application operation state", func() error {
+	kube.RetryUntilSucceed(context.Background(), updateOperationStateTimeout, "Update application operation state", logutils.NewLogrusLogger(log.New()), func() error {
 		if state.Phase == "" {
 			// expose any bugs where we neglect to set phase
 			panic("no phase was set")

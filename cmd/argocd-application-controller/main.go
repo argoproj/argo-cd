@@ -7,8 +7,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/errors"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/pkg/stats"
 	"github.com/go-redis/redis/v8"
 	log "github.com/sirupsen/logrus"
@@ -33,6 +31,8 @@ import (
 	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/env"
+	"github.com/argoproj/argo-cd/util/errors"
+	kubeutil "github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
@@ -87,7 +87,7 @@ func newCommand() *cobra.Command {
 			errors.CheckError(err)
 
 			settingsMgr := settings.NewSettingsManager(ctx, kubeClient, namespace)
-			kubectl := &kube.KubectlCmd{}
+			kubectl := kubeutil.NewKubectl()
 			clusterFilter := getClusterFilter()
 			appController, err := controller.NewApplicationController(
 				namespace,
