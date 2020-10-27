@@ -5,8 +5,9 @@ import (
 	"testing"
 
 	"github.com/Masterminds/semver"
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/argoproj/argo-cd/util/io"
 )
 
 func TestIndex(t *testing.T) {

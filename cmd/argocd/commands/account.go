@@ -10,8 +10,6 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/errors"
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	timeutil "github.com/argoproj/pkg/time"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
@@ -23,6 +21,8 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/util/cli"
+	"github.com/argoproj/argo-cd/util/errors"
+	"github.com/argoproj/argo-cd/util/io"
 	"github.com/argoproj/argo-cd/util/localconfig"
 	sessionutil "github.com/argoproj/argo-cd/util/session"
 )
