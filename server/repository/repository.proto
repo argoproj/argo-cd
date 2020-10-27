@@ -63,6 +63,8 @@ message RepoAccessQuery {
 	string type = 9;
 	// The name of the repo
 	string name = 10;
+	// Whether helm-oci support should be enabled for this repo
+	bool enableOci = 11;
 }
 
 message RepoResponse {}

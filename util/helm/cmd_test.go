@@ -13,7 +13,7 @@ func Test_cmd_redactor(t *testing.T) {
 }
 
 func TestCmd_template_kubeVersion(t *testing.T) {
-	cmd, err := NewCmdWithVersion(".", HelmV3)
+	cmd, err := NewCmdWithVersion(".", HelmV3, false)
 	assert.NoError(t, err)
 	s, err := cmd.template("testdata/redis", &TemplateOpts{
 		KubeVersion: "1.14",

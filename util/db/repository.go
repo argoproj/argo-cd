@@ -66,6 +66,7 @@ func (db *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*apps
 		InsecureIgnoreHostKey: r.IsInsecure(),
 		Insecure:              r.IsInsecure(),
 		EnableLFS:             r.EnableLFS,
+		EnableOci:             r.EnableOCI,
 	}
 	err = db.updateRepositorySecrets(&repoInfo, r)
 	if err != nil {
@@ -147,6 +148,7 @@ func (db *db) credentialsToRepository(repoInfo settings.Repository) (*appsv1.Rep
 		InsecureIgnoreHostKey: repoInfo.InsecureIgnoreHostKey,
 		Insecure:              repoInfo.Insecure,
 		EnableLFS:             repoInfo.EnableLFS,
+		EnableOCI:             repoInfo.EnableOci,
 	}
 	err := db.unmarshalFromSecretsStr(map[*string]*apiv1.SecretKeySelector{
 		&repo.Username:          repoInfo.UsernameSecret,

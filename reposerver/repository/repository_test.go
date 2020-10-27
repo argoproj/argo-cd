@@ -86,7 +86,7 @@ func newServiceWithOpt(cf clientFunc) (*Service, *gitmocks.Client) {
 	service.newGitClient = func(rawRepoURL string, creds git.Creds, insecure bool, enableLfs bool) (client git.Client, e error) {
 		return gitClient, nil
 	}
-	service.newHelmClient = func(repoURL string, creds helm.Creds) helm.Client {
+	service.newHelmClient = func(repoURL string, creds helm.Creds, enableOci bool) helm.Client {
 		return helmClient
 	}
 	return service, gitClient
