@@ -1528,7 +1528,7 @@ Kubernetes rolling update strategy.</li>
 <li>Using a <code>SyncFail</code> hook to run clean-up or finalizer logic if a Sync operation fails. <em><code>SyncFail</code> hooks are only available starting in v1.2</em></li>
 </ul>
 <h2 id="usage">Usage<a class="headerlink" href="#usage" title="Permanent link">&para;</a></h2>
-<p>Hooks are simply Kubernetes manifests inside your Argo CD Application annotated with <code>argocd.argoproj.io/hook</code>, e.g.:</p>
+<p>Hooks are simply Kubernetes manifests tracked in the source repository of your Argo CD Application annotated with <code>argocd.argoproj.io/hook</code>, e.g.:</p>
 <div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">batch/v1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Job</span>
 <span class="nt">metadata</span><span class="p">:</span>
