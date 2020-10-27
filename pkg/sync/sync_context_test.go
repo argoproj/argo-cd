@@ -11,7 +11,6 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
 	. "github.com/argoproj/gitops-engine/pkg/utils/testing"
 	testingutils "github.com/argoproj/gitops-engine/pkg/utils/testing"
-	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -21,6 +20,7 @@ import (
 	"k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/rest"
 	testcore "k8s.io/client-go/testing"
+	"k8s.io/klog/v2/klogr"
 )
 
 func newTestSyncCtx(opts ...SyncOpt) *syncContext {
@@ -46,7 +46,7 @@ func newTestSyncCtx(opts ...SyncOpt) *syncContext {
 		namespace: FakeArgoCDNamespace,
 		revision:  "FooBarBaz",
 		disco:     fakeDisco,
-		log:       log.WithFields(log.Fields{"application": "fake-app"}),
+		log:       klogr.New().WithValues("application", "fake-app"),
 		resources: map[kube.ResourceKey]reconciledResource{},
 		syncRes:   map[string]synccommon.ResourceSyncResult{},
 		validate:  true,
@@ -872,7 +872,7 @@ func Test_syncContext_hasCRDOfGroupKind(t *testing.T) {
 }
 
 func Test_setRunningPhase_healthyState(t *testing.T) {
-	sc := syncContext{log: log.WithFields(log.Fields{"application": "fake-app"})}
+	sc := syncContext{log: klogr.New().WithValues("application", "fake-app")}
 
 	sc.setRunningPhase([]*syncTask{{targetObj: NewPod()}, {targetObj: NewPod()}, {targetObj: NewPod()}}, false)
 
@@ -880,7 +880,7 @@ func Test_setRunningPhase_healthyState(t *testing.T) {
 }
 
 func Test_setRunningPhase_runningHooks(t *testing.T) {
-	sc := syncContext{log: log.WithFields(log.Fields{"application": "fake-app"})}
+	sc := syncContext{log: klogr.New().WithValues("application", "fake-app")}
 
 	sc.setRunningPhase([]*syncTask{{targetObj: newHook(synccommon.HookTypeSyncFail)}}, false)
 
@@ -888,7 +888,7 @@ func Test_setRunningPhase_runningHooks(t *testing.T) {
 }
 
 func Test_setRunningPhase_pendingDeletion(t *testing.T) {
-	sc := syncContext{log: log.WithFields(log.Fields{"application": "fake-app"})}
+	sc := syncContext{log: klogr.New().WithValues("application", "fake-app")}
 
 	sc.setRunningPhase([]*syncTask{{targetObj: NewPod()}, {targetObj: NewPod()}, {targetObj: NewPod()}}, true)
 

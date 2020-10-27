@@ -14,16 +14,15 @@ import (
 	"text/tabwriter"
 	"time"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/go-logr/logr"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/klog/v2/klogr"
 
 	"github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/engine"
 	"github.com/argoproj/gitops-engine/pkg/sync"
-	"github.com/argoproj/gitops-engine/pkg/utils/errors"
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 )
 
@@ -32,10 +31,9 @@ const (
 )
 
 func main() {
-	if err := newCmd().Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
+	log := klogr.New() // Delegates to klog
+	err := newCmd(log).Execute()
+	checkError(err, log)
 }
 
 type resourceInfo struct {
@@ -98,7 +96,7 @@ func (s *settings) parseManifests() ([]*unstructured.Unstructured, string, error
 	return res, string(revision), nil
 }
 
-func newCmd() *cobra.Command {
+func newCmd(log logr.Logger) *cobra.Command {
 	var (
 		clientConfig  clientcmd.ClientConfig
 		paths         []string
@@ -117,10 +115,10 @@ func newCmd() *cobra.Command {
 			}
 			s := settings{args[0], paths}
 			config, err := clientConfig.ClientConfig()
-			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
+			checkError(err, log)
 			if namespace == "" {
 				namespace, _, err = clientConfig.Namespace()
-				errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
+				checkError(err, log)
 			}
 
 			var namespaces []string
@@ -129,6 +127,7 @@ func newCmd() *cobra.Command {
 			}
 			clusterCache := cache.NewClusterCache(config,
 				cache.SetNamespaces(namespaces),
+				cache.SetLogr(log),
 				cache.SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (info interface{}, cacheManifest bool) {
 					// store gc mark of every resource
 					gcMark := un.GetAnnotations()[annotationGCMark]
@@ -138,43 +137,42 @@ func newCmd() *cobra.Command {
 					return
 				}),
 			)
-			gitOpsEngine := engine.NewEngine(config, clusterCache)
-			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
+			gitOpsEngine := engine.NewEngine(config, clusterCache, engine.WithLogr(log))
+			checkError(err, log)
 
-			closer, err := gitOpsEngine.Run()
-			errors.CheckErrorWithCode(err, errors.ErrorCommandSpecific)
-
-			defer io.Close(closer)
+			cleanup, err := gitOpsEngine.Run()
+			checkError(err, log)
+			defer cleanup()
 
 			resync := make(chan bool)
 			go func() {
 				ticker := time.NewTicker(time.Second * time.Duration(resyncSeconds))
 				for {
 					<-ticker.C
-					log.Infof("Synchronization triggered by timer")
+					log.Info("Synchronization triggered by timer")
 					resync <- true
 				}
 			}()
 			http.HandleFunc("/api/v1/sync", func(writer http.ResponseWriter, request *http.Request) {
-				log.Infof("Synchronization triggered by API call")
+				log.Info("Synchronization triggered by API call")
 				resync <- true
 			})
 			go func() {
-				errors.CheckErrorWithCode(http.ListenAndServe(fmt.Sprintf("0.0.0.0:%d", port), nil), errors.ErrorCommandSpecific)
+				checkError(http.ListenAndServe(fmt.Sprintf("0.0.0.0:%d", port), nil), log)
 			}()
 
 			for ; true; <-resync {
 				target, revision, err := s.parseManifests()
 				if err != nil {
-					log.Warnf("failed to parse target state: %v", err)
+					log.Error(err, "Failed to parse target state")
 					continue
 				}
 
 				result, err := gitOpsEngine.Sync(context.Background(), target, func(r *cache.Resource) bool {
 					return r.Info.(*resourceInfo).gcMark == s.getGCMark(r.ResourceKey())
-				}, revision, namespace, sync.WithPrune(prune))
+				}, revision, namespace, sync.WithPrune(prune), sync.WithLogr(log))
 				if err != nil {
-					log.Warnf("failed to synchronize cluster state: %v", err)
+					log.Error(err, "Failed to synchronize cluster state")
 					continue
 				}
 				w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
@@ -208,4 +206,12 @@ func addKubectlFlagsToCmd(cmd *cobra.Command) clientcmd.ClientConfig {
 	cmd.PersistentFlags().StringVar(&loadingRules.ExplicitPath, "kubeconfig", "", "Path to a kube config. Only required if out-of-cluster")
 	clientcmd.BindOverrideFlags(&overrides, cmd.PersistentFlags(), kflags)
 	return clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, &overrides, os.Stdin)
+}
+
+// checkError is a convenience function to check if an error is non-nil and exit if it was
+func checkError(err error, log logr.Logger) {
+	if err != nil {
+		log.Error(err, "Fatal error")
+		os.Exit(1)
+	}
 }

@@ -5,14 +5,13 @@ The package provide functions that allows to compare set of Kubernetes resources
 package diff
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
-	"strings"
 
 	jsonpatch "github.com/evanphx/json-patch"
-	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -28,12 +27,6 @@ import (
 )
 
 const couldNotMarshalErrMsg = "Could not unmarshal to object of type %s: %v"
-
-// Holds diffing settings
-type DiffOptions struct {
-	// If set to true then differences caused by aggregated roles in RBAC resources are ignored.
-	IgnoreAggregatedRoles bool `json:"ignoreAggregatedRoles,omitempty"`
-}
 
 // Holds diffing result of two resources
 type DiffResult struct {
@@ -68,32 +61,30 @@ func GetNoopNormalizer() Normalizer {
 	return &noopNormalizer{}
 }
 
-// Returns the default diff options
-func GetDefaultDiffOptions() DiffOptions {
-	return DiffOptions{
-		IgnoreAggregatedRoles: false,
-	}
-}
-
 // Diff performs a diff on two unstructured objects. If the live object happens to have a
 // "kubectl.kubernetes.io/last-applied-configuration", then perform a three way diff.
-func Diff(config, live *unstructured.Unstructured, normalizer Normalizer, options DiffOptions) (*DiffResult, error) {
+func Diff(config, live *unstructured.Unstructured, opts ...Option) (*DiffResult, error) {
+	o := applyOptions(opts)
 	if config != nil {
-		config = remarshal(config)
-		Normalize(config, normalizer, options)
+		config = remarshal(config, o)
+		Normalize(config, opts...)
 	}
 	if live != nil {
-		live = remarshal(live)
-		Normalize(live, normalizer, options)
+		live = remarshal(live, o)
+		Normalize(live, opts...)
 	}
-	orig := GetLastAppliedConfigAnnotation(live)
-	if orig != nil && config != nil {
-		Normalize(orig, normalizer, options)
-		dr, err := ThreeWayDiff(orig, config, live)
-		if err == nil {
-			return dr, nil
+	orig, err := GetLastAppliedConfigAnnotation(live)
+	if err != nil {
+		o.log.V(1).Info(fmt.Sprintf("Failed to get last applied configuration: %v", err))
+	} else {
+		if orig != nil && config != nil {
+			Normalize(orig, opts...)
+			dr, err := ThreeWayDiff(orig, config, live)
+			if err == nil {
+				return dr, nil
+			}
+			o.log.V(1).Info("three-way diff calculation failed: %v. Falling back to two-way diff", err)
 		}
-		log.Debugf("three-way diff calculation failed: %v. Falling back to two-way diff", err)
 	}
 	return TwoWayDiff(config, live)
 }
@@ -398,33 +389,29 @@ func threeWayMergePatch(orig, config, live *unstructured.Unstructured) ([]byte, 
 	}
 }
 
-func GetLastAppliedConfigAnnotation(live *unstructured.Unstructured) *unstructured.Unstructured {
+func GetLastAppliedConfigAnnotation(live *unstructured.Unstructured) (*unstructured.Unstructured, error) {
 	if live == nil {
-		return nil
+		return nil, nil
 	}
 	annots := live.GetAnnotations()
-	if annots == nil {
-		return nil
-	}
 	lastAppliedStr, ok := annots[corev1.LastAppliedConfigAnnotation]
 	if !ok {
-		return nil
+		return nil, nil
 	}
 	var obj unstructured.Unstructured
 	err := json.Unmarshal([]byte(lastAppliedStr), &obj)
 	if err != nil {
-		log.Warnf("Failed to unmarshal %s in %s", corev1.LastAppliedConfigAnnotation, live.GetName())
-		return nil
+		return nil, fmt.Errorf("failed to unmarshal %s in %s: %v", corev1.LastAppliedConfigAnnotation, live.GetName(), err)
 	}
-	return &obj
+	return &obj, nil
 }
 
 // DiffArray performs a diff on a list of unstructured objects. Objects are expected to match
 // environments
-func DiffArray(configArray, liveArray []*unstructured.Unstructured, normalizer Normalizer, options DiffOptions) (*DiffResultList, error) {
+func DiffArray(configArray, liveArray []*unstructured.Unstructured, opts ...Option) (*DiffResultList, error) {
 	numItems := len(configArray)
 	if len(liveArray) != numItems {
-		return nil, fmt.Errorf("left and right arrays have mismatched lengths")
+		return nil, errors.New("left and right arrays have mismatched lengths")
 	}
 
 	diffResultList := DiffResultList{
@@ -433,7 +420,7 @@ func DiffArray(configArray, liveArray []*unstructured.Unstructured, normalizer N
 	for i := 0; i < numItems; i++ {
 		config := configArray[i]
 		live := liveArray[i]
-		diffRes, err := Diff(config, live, normalizer, options)
+		diffRes, err := Diff(config, live, opts...)
 		if err != nil {
 			return nil, err
 		}
@@ -445,10 +432,11 @@ func DiffArray(configArray, liveArray []*unstructured.Unstructured, normalizer N
 	return &diffResultList, nil
 }
 
-func Normalize(un *unstructured.Unstructured, normalizer Normalizer, options DiffOptions) {
+func Normalize(un *unstructured.Unstructured, opts ...Option) {
 	if un == nil {
 		return
 	}
+	o := applyOptions(opts)
 
 	// creationTimestamp is sometimes set to null in the config when exported (e.g. SealedSecrets)
 	// Removing the field allows a cleaner diff.
@@ -456,24 +444,22 @@ func Normalize(un *unstructured.Unstructured, normalizer Normalizer, options Dif
 
 	gvk := un.GroupVersionKind()
 	if gvk.Group == "" && gvk.Kind == "Secret" {
-		NormalizeSecret(un)
+		NormalizeSecret(un, opts...)
 	} else if gvk.Group == "rbac.authorization.k8s.io" && (gvk.Kind == "ClusterRole" || gvk.Kind == "Role") {
-		normalizeRole(un, options)
+		normalizeRole(un, o)
 	} else if gvk.Group == "" && gvk.Kind == "Endpoints" {
-		normalizeEndpoint(un)
+		normalizeEndpoint(un, o)
 	}
 
-	if normalizer != nil {
-		err := normalizer.Normalize(un)
-		if err != nil {
-			log.Warnf("Failed to normalize %s/%s/%s: %v", un.GroupVersionKind(), un.GetNamespace(), un.GetName(), err)
-		}
+	err := o.normalizer.Normalize(un)
+	if err != nil {
+		o.log.Error(err, fmt.Sprintf("Failed to normalize %s/%s/%s", un.GroupVersionKind(), un.GetNamespace(), un.GetName()))
 	}
 }
 
 // NormalizeSecret mutates the supplied object and encodes stringData to data, and converts nils to
 // empty strings. If the object is not a secret, or is an invalid secret, then returns the same object.
-func NormalizeSecret(un *unstructured.Unstructured) {
+func NormalizeSecret(un *unstructured.Unstructured, opts ...Option) {
 	if un == nil {
 		return
 	}
@@ -481,9 +467,11 @@ func NormalizeSecret(un *unstructured.Unstructured) {
 	if gvk.Group != "" || gvk.Kind != "Secret" {
 		return
 	}
+	o := applyOptions(opts)
 	var secret corev1.Secret
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &secret)
 	if err != nil {
+		o.log.Error(err, "Failed to convert from unstructured into Secret")
 		return
 	}
 	// We normalize nils to empty string to handle: https://github.com/argoproj/argo-cd/issues/943
@@ -503,20 +491,20 @@ func NormalizeSecret(un *unstructured.Unstructured) {
 	}
 	newObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&secret)
 	if err != nil {
-		log.Warnf("object unable to convert from secret: %v", err)
+		o.log.Error(err, "object unable to convert from secret")
 		return
 	}
 	if secret.Data != nil {
 		err = unstructured.SetNestedField(un.Object, newObj["data"], "data")
 		if err != nil {
-			log.Warnf("failed to set secret.data: %v", err)
+			o.log.Error(err, "failed to set secret.data")
 			return
 		}
 	}
 }
 
 // normalizeEndpoint normalizes endpoint meaning that EndpointSubsets are sorted lexicographically
-func normalizeEndpoint(un *unstructured.Unstructured) {
+func normalizeEndpoint(un *unstructured.Unstructured, o options) {
 	if un == nil {
 		return
 	}
@@ -527,12 +515,13 @@ func normalizeEndpoint(un *unstructured.Unstructured) {
 	var ep corev1.Endpoints
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &ep)
 	if err != nil {
+		o.log.Error(err, "Failed to convert from unstructured into Endpoints")
 		return
 	}
 	var coreEp core.Endpoints
 	err = v1.Convert_v1_Endpoints_To_core_Endpoints(&ep, &coreEp, nil)
 	if err != nil {
-		log.Warnf("Could not convert from v1 to core endpoint type %s: %v", gvk, err)
+		o.log.Error(err, "Could not convert from v1 to core endpoint type %s", gvk)
 		return
 	}
 
@@ -540,18 +529,19 @@ func normalizeEndpoint(un *unstructured.Unstructured) {
 
 	err = v1.Convert_core_Endpoints_To_v1_Endpoints(&coreEp, &ep, nil)
 	if err != nil {
-		log.Warnf("Could not convert from core to vi endpoint type %s: %v", gvk, err)
+		o.log.Error(err, "Could not convert from core to vi endpoint type %s", gvk)
 		return
 	}
-	un.Object, err = runtime.DefaultUnstructuredConverter.ToUnstructured(&ep)
+	newObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&ep)
 	if err != nil {
-		log.Warnf(couldNotMarshalErrMsg, gvk, err)
+		o.log.Info(fmt.Sprintf(couldNotMarshalErrMsg, gvk, err))
 		return
 	}
+	un.Object = newObj
 }
 
 // normalizeRole mutates the supplied Role/ClusterRole and sets rules to null if it is an empty list or an aggregated role
-func normalizeRole(un *unstructured.Unstructured, options DiffOptions) {
+func normalizeRole(un *unstructured.Unstructured, o options) {
 	if un == nil {
 		return
 	}
@@ -561,12 +551,12 @@ func normalizeRole(un *unstructured.Unstructured, options DiffOptions) {
 	}
 
 	// Check whether the role we're checking is an aggregation role. If it is, we ignore any differences in rules.
-	if options.IgnoreAggregatedRoles {
+	if o.ignoreAggregatedRoles {
 		aggrIf, ok := un.Object["aggregationRule"]
 		if ok {
 			_, ok = aggrIf.(map[string]interface{})
 			if !ok {
-				log.Infof("Malformed aggregrationRule in resource '%s', won't modify.", un.GetName())
+				o.log.Info(fmt.Sprintf("Malformed aggregrationRule in resource '%s', won't modify.", un.GetName()))
 			} else {
 				un.Object["rules"] = nil
 			}
@@ -610,7 +600,7 @@ func CreateTwoWayMergePatch(orig, new, dataStruct interface{}) ([]byte, bool, er
 func HideSecretData(target *unstructured.Unstructured, live *unstructured.Unstructured) (*unstructured.Unstructured, *unstructured.Unstructured, error) {
 	var orig *unstructured.Unstructured
 	if live != nil {
-		orig = GetLastAppliedConfigAnnotation(live)
+		orig, _ = GetLastAppliedConfigAnnotation(live)
 		live = live.DeepCopy()
 	}
 	if target != nil {
@@ -691,7 +681,7 @@ func toString(val interface{}) string {
 // and allows to find differences between actual and target states more accurately.
 // Remarshalling also strips any type information (e.g. float64 vs. int) from the unstructured
 // object. This is important for diffing since it will cause godiff to report a false difference.
-func remarshal(obj *unstructured.Unstructured) *unstructured.Unstructured {
+func remarshal(obj *unstructured.Unstructured, o options) *unstructured.Unstructured {
 	obj = stripTypeInformation(obj)
 	data, err := json.Marshal(obj)
 	if err != nil {
@@ -701,24 +691,24 @@ func remarshal(obj *unstructured.Unstructured) *unstructured.Unstructured {
 	item, err := scheme.Scheme.New(obj.GroupVersionKind())
 	if err != nil {
 		// This is common. the scheme is not registered
-		log.Debugf("Could not create new object of type %s: %v", gvk, err)
+		o.log.V(1).Info(fmt.Sprintf("Could not create new object of type %s: %v", gvk, err))
 		return obj
 	}
 	// This will drop any omitempty fields, perform resource conversion etc...
 	unmarshalledObj := reflect.New(reflect.TypeOf(item).Elem()).Interface()
 	// Unmarshal data into unmarshalledObj, but detect if there are any unknown fields that are not
 	// found in the target GVK object.
-	decoder := json.NewDecoder(strings.NewReader(string(data)))
+	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&unmarshalledObj); err != nil {
 		// Likely a field present in obj that is not present in the GVK type, or user
 		// may have specified an invalid spec in git, so return original object
-		log.Debugf(couldNotMarshalErrMsg, gvk, err)
+		o.log.V(1).Info(fmt.Sprintf(couldNotMarshalErrMsg, gvk, err))
 		return obj
 	}
 	unstrBody, err := runtime.DefaultUnstructuredConverter.ToUnstructured(unmarshalledObj)
 	if err != nil {
-		log.Warnf(couldNotMarshalErrMsg, gvk, err)
+		o.log.V(1).Info(fmt.Sprintf(couldNotMarshalErrMsg, gvk, err))
 		return obj
 	}
 	// Remove all default values specified by custom formatter (e.g. creationTimestamp)

@@ -10,7 +10,8 @@ import (
 	"strings"
 	"time"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/go-logr/logr"
+
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -178,7 +179,6 @@ func ServerResourceForGroupVersionKind(disco discovery.DiscoveryInterface, gvk s
 	}
 	for _, r := range resources.APIResources {
 		if r.Kind == gvk.Kind {
-			log.Debugf("Chose API '%s' for %s", r.Name, gvk)
 			return &r, nil
 		}
 	}
@@ -370,19 +370,19 @@ func GetDeploymentReplicas(u *unstructured.Unstructured) *int64 {
 }
 
 // RetryUntilSucceed keep retrying given action with specified interval until action succeed or specified context is done.
-func RetryUntilSucceed(ctx context.Context, interval time.Duration, desc string, action func() error) {
+func RetryUntilSucceed(ctx context.Context, interval time.Duration, desc string, log logr.Logger, action func() error) {
 	pollErr := wait.PollImmediateUntil(interval, func() (bool /*done*/, error) {
-		log.Debugf("Start %s", desc)
+		log.V(1).Info("Start %s", desc)
 		err := action()
 		if err == nil {
-			log.Debugf("Completed %s", desc)
+			log.V(1).Info("Completed %s", desc)
 			return true, nil
 		}
-		log.Debugf("Failed to %s: %+v, retrying in %v", desc, err, interval)
+		log.V(1).Info("Failed to %s: %+v, retrying in %v", desc, err, interval)
 		return false, nil
 	}, ctx.Done())
 	if pollErr != nil {
 		// The only error that can happen here is wait.ErrWaitTimeout if ctx is done.
-		log.Debugf("Stop retrying %s", desc)
+		log.V(1).Info("Stop retrying %s", desc)
 	}
 }

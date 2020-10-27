@@ -1,15 +1,15 @@
 package cache
 
 import (
-	"reflect"
 	"time"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/rest"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/gitops-engine/pkg/utils/tracing"
 )
 
 type noopSettings struct {
@@ -50,30 +50,21 @@ func SetPopulateResourceInfoHandler(handler OnPopulateResourceInfoHandler) Updat
 // SetSettings updates caching settings
 func SetSettings(settings Settings) UpdateSettingsFunc {
 	return func(cache *clusterCache) {
-		if !reflect.DeepEqual(cache.settings, settings) {
-			log.WithField("server", cache.config.Host).Infof("Changing cluster cache settings to: %v", settings)
-			cache.settings = Settings{settings.ResourceHealthOverride, settings.ResourcesFilter}
-		}
+		cache.settings = Settings{settings.ResourceHealthOverride, settings.ResourcesFilter}
 	}
 }
 
 // SetNamespaces updates list of monitored namespaces
 func SetNamespaces(namespaces []string) UpdateSettingsFunc {
 	return func(cache *clusterCache) {
-		if !reflect.DeepEqual(cache.namespaces, namespaces) {
-			log.WithField("server", cache.config.Host).Infof("Changing cluster namespaces to: %v", namespaces)
-			cache.namespaces = namespaces
-		}
+		cache.namespaces = namespaces
 	}
 }
 
 // SetConfig updates cluster rest config
 func SetConfig(config *rest.Config) UpdateSettingsFunc {
 	return func(cache *clusterCache) {
-		if !reflect.DeepEqual(cache.config, config) {
-			log.WithField("server", cache.config.Host).Infof("Changing cluster config to: %v", config)
-			cache.config = config
-		}
+		cache.config = config
 	}
 }
 
@@ -103,5 +94,24 @@ func SetListSemaphore(listSemaphore WeightedSemaphore) UpdateSettingsFunc {
 func SetResyncTimeout(timeout time.Duration) UpdateSettingsFunc {
 	return func(cache *clusterCache) {
 		cache.resyncTimeout = timeout
+	}
+}
+
+// SetLogr sets the logger to use.
+func SetLogr(log logr.Logger) UpdateSettingsFunc {
+	return func(cache *clusterCache) {
+		cache.log = log
+		if kcmd, ok := cache.kubectl.(*kube.KubectlCmd); ok {
+			kcmd.Log = log
+		}
+	}
+}
+
+// SetTracer sets the tracer to use.
+func SetTracer(tracer tracing.Tracer) UpdateSettingsFunc {
+	return func(cache *clusterCache) {
+		if kcmd, ok := cache.kubectl.(*kube.KubectlCmd); ok {
+			kcmd.Tracer = tracer
+		}
 	}
 }

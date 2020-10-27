@@ -4,7 +4,8 @@ go 1.14
 
 require (
 	github.com/evanphx/json-patch v4.9.0+incompatible
-	github.com/sirupsen/logrus v1.6.0
+	github.com/go-logr/logr v0.2.0
+	github.com/golang/mock v1.4.4
 	github.com/spf13/cobra v1.0.0
 	github.com/stretchr/testify v1.6.1
 	golang.org/x/sync v0.0.0-20200625203802-6e8e738ad208
@@ -13,6 +14,7 @@ require (
 	k8s.io/apimachinery v0.19.2
 	k8s.io/cli-runtime v0.19.2
 	k8s.io/client-go v0.19.2
+	k8s.io/klog/v2 v2.2.0
 	k8s.io/kube-aggregator v0.19.2
 	k8s.io/kubectl v0.19.2
 	k8s.io/kubernetes v1.19.2

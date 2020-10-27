@@ -1,12 +1,13 @@
 package kube
 
 import (
-	"regexp"
 	"testing"
 
-	testingutils "github.com/argoproj/gitops-engine/pkg/utils/testing"
-
 	"github.com/stretchr/testify/assert"
+	"k8s.io/klog/v2/klogr"
+
+	testingutils "github.com/argoproj/gitops-engine/pkg/utils/testing"
+	"github.com/argoproj/gitops-engine/pkg/utils/tracing"
 )
 
 var (
@@ -14,7 +15,10 @@ var (
 )
 
 func TestConvertToVersion(t *testing.T) {
-	kubectl := KubectlCmd{}
+	kubectl := KubectlCmd{
+		Log:    klogr.New(),
+		Tracer: tracing.NopTracer{},
+	}
 	t.Run("AppsDeployment", func(t *testing.T) {
 		newObj, err := kubectl.ConvertToVersion(testingutils.UnstructuredFromFile("testdata/appsdeployment.yaml"), "extensions", "v1beta1")
 		if assert.NoError(t, err) {
@@ -54,12 +58,4 @@ func TestConvertToVersion(t *testing.T) {
 			assert.Equal(t, "v1", gvk.Version)
 		}
 	})
-}
-
-func TestVersion(t *testing.T) {
-	ver, err := Version()
-	assert.NoError(t, err)
-	SemverRegexValidation := `^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*)?(\+[0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*)?$`
-	re := regexp.MustCompile(SemverRegexValidation)
-	assert.True(t, re.MatchString(ver))
 }

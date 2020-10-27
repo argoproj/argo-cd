@@ -7,11 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"os/exec"
-	"regexp"
 	"strings"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/go-logr/logr"
 	"golang.org/x/sync/errgroup"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -34,6 +32,10 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/tracing"
 )
 
+type CleanupFunc func()
+
+type OnKubectlRunFunc func(command string) (CleanupFunc, error)
+
 type Kubectl interface {
 	ApplyResource(ctx context.Context, config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRunStrategy cmdutil.DryRunStrategy, force, validate bool) (string, error)
 	ConvertToVersion(obj *unstructured.Unstructured, group, version string) (*unstructured.Unstructured, error)
@@ -44,11 +46,13 @@ type Kubectl interface {
 	GetAPIGroups(config *rest.Config) ([]metav1.APIGroup, error)
 	GetServerVersion(config *rest.Config) (string, error)
 	NewDynamicClient(config *rest.Config) (dynamic.Interface, error)
-	SetOnKubectlRun(onKubectlRun func(command string) (io.Closer, error))
+	SetOnKubectlRun(onKubectlRun OnKubectlRunFunc)
 }
 
 type KubectlCmd struct {
-	OnKubectlRun func(command string) (io.Closer, error)
+	Log          logr.Logger
+	Tracer       tracing.Tracer
+	OnKubectlRun OnKubectlRunFunc
 }
 
 type APIResourceInfo struct {
@@ -59,7 +63,7 @@ type APIResourceInfo struct {
 
 type filterFunc func(apiResource *metav1.APIResource) bool
 
-func filterAPIResources(config *rest.Config, resourceFilter ResourceFilter, filter filterFunc) ([]APIResourceInfo, error) {
+func (k *KubectlCmd) filterAPIResources(config *rest.Config, resourceFilter ResourceFilter, filter filterFunc) ([]APIResourceInfo, error) {
 	disco, err := discovery.NewDiscoveryClientForConfig(config)
 	if err != nil {
 		return nil, err
@@ -70,7 +74,7 @@ func filterAPIResources(config *rest.Config, resourceFilter ResourceFilter, filt
 		if len(serverResources) == 0 {
 			return nil, err
 		}
-		log.Warnf("Partial success when performing preferred resource discovery: %v", err)
+		k.Log.Error(err, "Partial success when performing preferred resource discovery")
 	}
 	apiResIfs := make([]APIResourceInfo, 0)
 	for _, apiResourcesList := range serverResources {
@@ -125,9 +129,9 @@ func (k *KubectlCmd) GetAPIGroups(config *rest.Config) ([]metav1.APIGroup, error
 }
 
 func (k *KubectlCmd) GetAPIResources(config *rest.Config, resourceFilter ResourceFilter) ([]APIResourceInfo, error) {
-	span := tracing.StartSpan("GetAPIResources")
+	span := k.Tracer.StartSpan("GetAPIResources")
 	defer span.Finish()
-	apiResIfs, err := filterAPIResources(config, resourceFilter, func(apiResource *metav1.APIResource) bool {
+	apiResIfs, err := k.filterAPIResources(config, resourceFilter, func(apiResource *metav1.APIResource) bool {
 		return isSupportedVerb(apiResource, listVerb) && isSupportedVerb(apiResource, watchVerb)
 	})
 	if err != nil {
@@ -138,7 +142,7 @@ func (k *KubectlCmd) GetAPIResources(config *rest.Config, resourceFilter Resourc
 
 // GetResource returns resource
 func (k *KubectlCmd) GetResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error) {
-	span := tracing.StartSpan("GetResource")
+	span := k.Tracer.StartSpan("GetResource")
 	span.SetBaggageItem("kind", gvk.Kind)
 	span.SetBaggageItem("name", name)
 	defer span.Finish()
@@ -161,7 +165,7 @@ func (k *KubectlCmd) GetResource(ctx context.Context, config *rest.Config, gvk s
 
 // PatchResource patches resource
 func (k *KubectlCmd) PatchResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, patchType types.PatchType, patchBytes []byte) (*unstructured.Unstructured, error) {
-	span := tracing.StartSpan("PatchResource")
+	span := k.Tracer.StartSpan("PatchResource")
 	span.SetBaggageItem("kind", gvk.Kind)
 	span.SetBaggageItem("name", name)
 	defer span.Finish()
@@ -184,7 +188,7 @@ func (k *KubectlCmd) PatchResource(ctx context.Context, config *rest.Config, gvk
 
 // DeleteResource deletes resource
 func (k *KubectlCmd) DeleteResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, forceDelete bool) error {
-	span := tracing.StartSpan("DeleteResource")
+	span := k.Tracer.StartSpan("DeleteResource")
 	span.SetBaggageItem("kind", gvk.Kind)
 	span.SetBaggageItem("name", name)
 	defer span.Finish()
@@ -215,11 +219,11 @@ func (k *KubectlCmd) DeleteResource(ctx context.Context, config *rest.Config, gv
 
 // ApplyResource performs an apply of a unstructured resource
 func (k *KubectlCmd) ApplyResource(ctx context.Context, config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRunStrategy cmdutil.DryRunStrategy, force, validate bool) (string, error) {
-	span := tracing.StartSpan("ApplyResource")
+	span := k.Tracer.StartSpan("ApplyResource")
 	span.SetBaggageItem("kind", obj.GetKind())
 	span.SetBaggageItem("name", obj.GetName())
 	defer span.Finish()
-	log.Infof("Applying resource %s/%s in cluster: %s, namespace: %s", obj.GetKind(), obj.GetName(), config.Host, namespace)
+	k.Log.Info(fmt.Sprintf("Applying resource %s/%s in cluster: %s, namespace: %s", obj.GetKind(), obj.GetName(), config.Host, namespace))
 	f, err := ioutil.TempFile(io.TempDir, "")
 	if err != nil {
 		return "", fmt.Errorf("Failed to generate temp file for kubeconfig: %v", err)
@@ -247,7 +251,7 @@ func (k *KubectlCmd) ApplyResource(ctx context.Context, config *rest.Config, obj
 	defer io.DeleteFile(manifestFile.Name())
 
 	// log manifest
-	if log.IsLevelEnabled(log.DebugLevel) {
+	if k.Log.V(1).Enabled() {
 		var obj unstructured.Unstructured
 		err := json.Unmarshal(manifestBytes, &obj)
 		if err != nil {
@@ -261,7 +265,7 @@ func (k *KubectlCmd) ApplyResource(ctx context.Context, config *rest.Config, obj
 		if err != nil {
 			return "", err
 		}
-		log.Debug(string(redactedBytes))
+		k.Log.V(1).Info(string(redactedBytes))
 	}
 
 	var out []string
@@ -270,12 +274,14 @@ func (k *KubectlCmd) ApplyResource(ctx context.Context, config *rest.Config, obj
 		// `kubectl apply`, which cannot tolerate changes in roleRef, which is an immutable field.
 		// See: https://github.com/kubernetes/kubernetes/issues/66353
 		// `auth reconcile` will delete and recreate the resource if necessary
-		closer, err := k.processKubectlRun("auth")
-		if err != nil {
-			return "", err
-		}
-		outReconcile, err := k.authReconcile(ctx, config, f.Name(), manifestFile.Name(), namespace, dryRunStrategy)
-		io.Close(closer)
+		outReconcile, err := func() (string, error) {
+			cleanup, err := k.processKubectlRun("auth")
+			if err != nil {
+				return "", err
+			}
+			defer cleanup()
+			return k.authReconcile(ctx, config, f.Name(), manifestFile.Name(), namespace, dryRunStrategy)
+		}()
 		if err != nil {
 			return "", err
 		}
@@ -284,11 +290,11 @@ func (k *KubectlCmd) ApplyResource(ctx context.Context, config *rest.Config, obj
 		// last-applied-configuration annotation in the object.
 	}
 
-	closer, err := k.processKubectlRun("apply")
+	cleanup, err := k.processKubectlRun("apply")
 	if err != nil {
 		return "", err
 	}
-	defer io.Close(closer)
+	defer cleanup()
 
 	// Run kubectl apply
 	fact, ioStreams := kubeCmdFactory(f.Name(), namespace)
@@ -441,30 +447,9 @@ func (k *KubectlCmd) authReconcile(ctx context.Context, config *rest.Config, kub
 	return strings.Join(out, ". "), nil
 }
 
-func Version() (string, error) {
-	span := tracing.StartSpan("Version")
-	defer span.Finish()
-	cmd := exec.Command("kubectl", "version", "--client")
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("could not get kubectl version: %s", err)
-	}
-
-	re := regexp.MustCompile(`GitVersion:"([a-zA-Z0-9\.\-]+)"`)
-	matches := re.FindStringSubmatch(string(out))
-	if len(matches) != 2 {
-		return "", errors.New("could not get kubectl version")
-	}
-	version := matches[1]
-	if version[0] != 'v' {
-		version = "v" + version
-	}
-	return strings.TrimSpace(version), nil
-}
-
 // ConvertToVersion converts an unstructured object into the specified group/version
 func (k *KubectlCmd) ConvertToVersion(obj *unstructured.Unstructured, group string, version string) (*unstructured.Unstructured, error) {
-	span := tracing.StartSpan("ConvertToVersion")
+	span := k.Tracer.StartSpan("ConvertToVersion")
 	from := obj.GroupVersionKind().GroupVersion()
 	span.SetBaggageItem("from", from.String())
 	span.SetBaggageItem("to", schema.GroupVersion{Group: group, Version: version}.String())
@@ -476,7 +461,7 @@ func (k *KubectlCmd) ConvertToVersion(obj *unstructured.Unstructured, group stri
 }
 
 func (k *KubectlCmd) GetServerVersion(config *rest.Config) (string, error) {
-	span := tracing.StartSpan("GetServerVersion")
+	span := k.Tracer.StartSpan("GetServerVersion")
 	defer span.Finish()
 	client, err := discovery.NewDiscoveryClientForConfig(config)
 	if err != nil {
@@ -493,17 +478,14 @@ func (k *KubectlCmd) NewDynamicClient(config *rest.Config) (dynamic.Interface, e
 	return dynamic.NewForConfig(config)
 }
 
-func (k *KubectlCmd) processKubectlRun(cmd string) (io.Closer, error) {
+func (k *KubectlCmd) processKubectlRun(cmd string) (CleanupFunc, error) {
 	if k.OnKubectlRun != nil {
 		return k.OnKubectlRun(cmd)
 	}
-	return io.NewCloser(func() error {
-		return nil
-		// do nothing
-	}), nil
+	return func() {}, nil
 }
 
-func (k *KubectlCmd) SetOnKubectlRun(onKubectlRun func(command string) (io.Closer, error)) {
+func (k *KubectlCmd) SetOnKubectlRun(onKubectlRun OnKubectlRunFunc) {
 	k.OnKubectlRun = onKubectlRun
 }
 

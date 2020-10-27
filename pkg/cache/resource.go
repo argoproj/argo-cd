@@ -1,7 +1,8 @@
 package cache
 
 import (
-	log "github.com/sirupsen/logrus"
+	"fmt"
+
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -84,14 +85,14 @@ func newResourceKeySet(set map[kube.ResourceKey]bool, keys ...kube.ResourceKey) 
 	return newSet
 }
 
-func (r *Resource) iterateChildren(ns map[kube.ResourceKey]*Resource, parents map[kube.ResourceKey]bool, action func(child *Resource, namespaceResources map[kube.ResourceKey]*Resource)) {
+func (r *Resource) iterateChildren(ns map[kube.ResourceKey]*Resource, parents map[kube.ResourceKey]bool, action func(err error, child *Resource, namespaceResources map[kube.ResourceKey]*Resource)) {
 	for childKey, child := range ns {
 		if r.isParentOf(ns[childKey]) {
 			if parents[childKey] {
 				key := r.ResourceKey()
-				log.Warnf("Circular dependency detected. %s is child and parent of %s", childKey.String(), key.String())
+				action(fmt.Errorf("circular dependency detected. %s is child and parent of %s", childKey.String(), key.String()), child, ns)
 			} else {
-				action(child, ns)
+				action(nil, child, ns)
 				child.iterateChildren(ns, newResourceKeySet(parents, r.ResourceKey()), action)
 			}
 		}

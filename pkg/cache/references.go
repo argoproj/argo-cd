@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -52,7 +51,7 @@ func (c *clusterCache) resolveResourceReferences(un *unstructured.Unstructured) 
 
 	case (un.GroupVersionKind().Group == "apps" || un.GroupVersionKind().Group == "extensions") && un.GetKind() == kube.StatefulSetKind:
 		if refs, err := isStatefulSetChild(un); err != nil {
-			log.Errorf("Failed to extract StatefulSet %s/%s PVC references: %v", un.GetNamespace(), un.GetName(), err)
+			c.log.Error(err, fmt.Sprintf("Failed to extract StatefulSet %s/%s PVC references", un.GetNamespace(), un.GetName()))
 		} else {
 			isInferredParentOf = refs
 		}

@@ -12,10 +12,9 @@ package engine
 import (
 	"context"
 	"fmt"
-	"io"
 	"time"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/rest"
 
@@ -23,7 +22,6 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/sync"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
-	ioutil "github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 )
 
@@ -31,9 +29,11 @@ const (
 	operationRefreshTimeout = time.Second * 1
 )
 
+type StopFunc func()
+
 type GitOpsEngine interface {
 	// Run initializes engine
-	Run() (io.Closer, error)
+	Run() (StopFunc, error)
 	// Synchronizes resources in the cluster
 	Sync(ctx context.Context, resources []*unstructured.Unstructured, isManaged func(r *cache.Resource) bool, revision string, namespace string, opts ...sync.SyncOpt) ([]common.ResourceSyncResult, error)
 }
@@ -42,27 +42,29 @@ type gitOpsEngine struct {
 	config  *rest.Config
 	cache   cache.ClusterCache
 	kubectl kube.Kubectl
+	log     logr.Logger
 }
 
 // NewEngine creates new instances of the GitOps engine
-func NewEngine(config *rest.Config, clusterCache cache.ClusterCache) GitOpsEngine {
+func NewEngine(config *rest.Config, clusterCache cache.ClusterCache, opts ...Option) GitOpsEngine {
+	o := applyOptions(opts)
 	return &gitOpsEngine{
 		config:  config,
-		kubectl: &kube.KubectlCmd{},
 		cache:   clusterCache,
+		kubectl: o.kubectl,
+		log:     o.log,
 	}
 }
 
-func (e *gitOpsEngine) Run() (io.Closer, error) {
+func (e *gitOpsEngine) Run() (StopFunc, error) {
 	err := e.cache.EnsureSynced()
 	if err != nil {
 		return nil, err
 	}
 
-	return ioutil.NewCloser(func() error {
+	return func() {
 		e.cache.Invalidate()
-		return nil
-	}), nil
+	}, nil
 }
 
 func (e *gitOpsEngine) Sync(ctx context.Context,
@@ -77,12 +79,12 @@ func (e *gitOpsEngine) Sync(ctx context.Context,
 		return nil, err
 	}
 	result := sync.Reconcile(resources, managedResources, namespace, e.cache)
-	diffRes, err := diff.DiffArray(result.Target, result.Live, diff.GetNoopNormalizer(), diff.GetDefaultDiffOptions())
+	diffRes, err := diff.DiffArray(result.Target, result.Live, diff.WithLogr(e.log))
 	if err != nil {
 		return nil, err
 	}
 	opts = append(opts, sync.WithSkipHooks(!diffRes.Modified))
-	syncCtx, err := sync.NewSyncContext(revision, result, e.config, e.config, e.kubectl, namespace, log.NewEntry(log.New()), opts...)
+	syncCtx, err := sync.NewSyncContext(revision, result, e.config, e.config, e.kubectl, namespace, opts...)
 	if err != nil {
 		return nil, err
 	}

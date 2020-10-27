@@ -13,7 +13,6 @@ import (
 	"k8s.io/client-go/rest"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 )
 
@@ -92,5 +91,5 @@ func (k *MockKubectlCmd) GetAPIGroups(config *rest.Config) ([]metav1.APIGroup, e
 	return k.APIGroups, nil
 }
 
-func (k *MockKubectlCmd) SetOnKubectlRun(onKubectlRun func(command string) (io.Closer, error)) {
+func (k *MockKubectlCmd) SetOnKubectlRun(onKubectlRun kube.OnKubectlRunFunc) {
 }

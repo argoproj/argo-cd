@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/go-logr/logr"
 	"golang.org/x/sync/semaphore"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,8 +23,10 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/pager"
 	watchutil "k8s.io/client-go/tools/watch"
+	"k8s.io/klog/v2/klogr"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/gitops-engine/pkg/utils/tracing"
 )
 
 const (
@@ -110,21 +112,25 @@ type WeightedSemaphore interface {
 
 // NewClusterCache creates new instance of cluster cache
 func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) *clusterCache {
+	log := klogr.New()
 	cache := &clusterCache{
-		resyncTimeout:           clusterResyncTimeout,
-		settings:                Settings{ResourceHealthOverride: &noopSettings{}, ResourcesFilter: &noopSettings{}},
-		apisMeta:                make(map[schema.GroupKind]*apiMeta),
-		listPageSize:            defaultListPageSize,
-		listPageBufferSize:      defaultListPageBufferSize,
-		listSemaphore:           semaphore.NewWeighted(defaultListSemaphoreWeight),
-		resources:               make(map[kube.ResourceKey]*Resource),
-		nsIndex:                 make(map[string]map[kube.ResourceKey]*Resource),
-		config:                  config,
-		kubectl:                 &kube.KubectlCmd{},
+		resyncTimeout:      clusterResyncTimeout,
+		settings:           Settings{ResourceHealthOverride: &noopSettings{}, ResourcesFilter: &noopSettings{}},
+		apisMeta:           make(map[schema.GroupKind]*apiMeta),
+		listPageSize:       defaultListPageSize,
+		listPageBufferSize: defaultListPageBufferSize,
+		listSemaphore:      semaphore.NewWeighted(defaultListSemaphoreWeight),
+		resources:          make(map[kube.ResourceKey]*Resource),
+		nsIndex:            make(map[string]map[kube.ResourceKey]*Resource),
+		config:             config,
+		kubectl: &kube.KubectlCmd{
+			Log:    log,
+			Tracer: tracing.NopTracer{},
+		},
 		syncTime:                nil,
 		resourceUpdatedHandlers: map[uint64]OnResourceUpdatedHandler{},
 		eventHandlers:           map[uint64]OnEventHandler{},
-		log:                     log.WithField("server", config.Host),
+		log:                     log,
 	}
 	for i := range opts {
 		opts[i](cache)
@@ -154,7 +160,7 @@ type clusterCache struct {
 	nsIndex   map[string]map[kube.ResourceKey]*Resource
 
 	kubectl    kube.Kubectl
-	log        *log.Entry
+	log        logr.Logger
 	config     *rest.Config
 	namespaces []string
 	settings   Settings
@@ -315,7 +321,7 @@ func (c *clusterCache) Invalidate(opts ...UpdateSettingsFunc) {
 	}
 	c.apisMeta = nil
 	c.namespacedResources = nil
-	c.log.Warnf("invalidated cluster")
+	c.log.Info("Invalidated cluster")
 }
 
 func (c *clusterCache) synced() bool {
@@ -336,7 +342,7 @@ func (c *clusterCache) stopWatching(gk schema.GroupKind, ns string) {
 		info.watchCancel()
 		delete(c.apisMeta, gk)
 		c.replaceResourceCache(gk, nil, ns)
-		c.log.Warnf("Stop watching: %s not found", gk)
+		c.log.Info(fmt.Sprintf("Stop watching: %s not found", gk))
 	}
 }
 
@@ -398,7 +404,7 @@ func (c *clusterCache) listResources(ctx context.Context, resClient dynamic.Reso
 }
 
 func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo, resClient dynamic.ResourceInterface, ns string, resourceVersion string) {
-	kube.RetryUntilSucceed(ctx, watchResourcesRetryTimeout, fmt.Sprintf("watch %s on %s", api.GroupKind, c.config.Host), func() (err error) {
+	kube.RetryUntilSucceed(ctx, watchResourcesRetryTimeout, fmt.Sprintf("watch %s on %s", api.GroupKind, c.config.Host), c.log, func() (err error) {
 		defer func() {
 			if r := recover(); r != nil {
 				err = fmt.Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
@@ -493,7 +499,7 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 							return c.startMissingWatches()
 						})
 						if err != nil {
-							c.log.Warnf("Failed to start missing watch: %v", err)
+							c.log.Error(err, "Failed to start missing watch")
 						}
 					}
 				}
@@ -586,8 +592,7 @@ func (c *clusterCache) sync() error {
 	})
 
 	if err != nil {
-		log.Errorf("Failed to sync cluster %s: %v", c.config.Host, err)
-		return err
+		return fmt.Errorf("failed to sync cluster %s: %v", c.config.Host, err)
 	}
 
 	c.log.Info("Cluster successfully synced")
@@ -653,7 +658,13 @@ func (c *clusterCache) IterateHierarchy(key kube.ResourceKey, action func(resour
 				})
 				child := children[0]
 				action(child, nsNodes)
-				child.iterateChildren(nsNodes, map[kube.ResourceKey]bool{res.ResourceKey(): true}, action)
+				child.iterateChildren(nsNodes, map[kube.ResourceKey]bool{res.ResourceKey(): true}, func(err error, child *Resource, namespaceResources map[kube.ResourceKey]*Resource) {
+					if err != nil {
+						c.log.V(2).Info(err.Error())
+						return
+					}
+					action(child, namespaceResources)
+				})
 			}
 		}
 	}
@@ -744,7 +755,7 @@ func (c *clusterCache) GetManagedLiveObjs(targetObjs []*unstructured.Unstructure
 			converted, err := c.kubectl.ConvertToVersion(managedObj, targetObj.GroupVersionKind().Group, targetObj.GroupVersionKind().Version)
 			if err != nil {
 				// fallback to loading resource from kubernetes if conversion fails
-				log.Debugf("Failed to convert resource: %v", err)
+				c.log.V(1).Info(fmt.Sprintf("Failed to convert resource: %v", err))
 				managedObj, err = c.kubectl.GetResource(context.TODO(), c.config, targetObj.GroupVersionKind(), managedObj.GetName(), managedObj.GetNamespace())
 				if err != nil {
 					if errors.IsNotFound(err) {
