@@ -41,7 +41,7 @@ type Kubectl interface {
 	ConvertToVersion(obj *unstructured.Unstructured, group, version string) (*unstructured.Unstructured, error)
 	DeleteResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, forceDelete bool) error
 	GetResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error)
-	PatchResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, patchType types.PatchType, patchBytes []byte) (*unstructured.Unstructured, error)
+	PatchResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, patchType types.PatchType, patchBytes []byte, subresources ...string) (*unstructured.Unstructured, error)
 	GetAPIResources(config *rest.Config, resourceFilter ResourceFilter) ([]APIResourceInfo, error)
 	GetAPIGroups(config *rest.Config) ([]metav1.APIGroup, error)
 	GetServerVersion(config *rest.Config) (string, error)
@@ -164,7 +164,7 @@ func (k *KubectlCmd) GetResource(ctx context.Context, config *rest.Config, gvk s
 }
 
 // PatchResource patches resource
-func (k *KubectlCmd) PatchResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, patchType types.PatchType, patchBytes []byte) (*unstructured.Unstructured, error) {
+func (k *KubectlCmd) PatchResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, patchType types.PatchType, patchBytes []byte, subresources ...string) (*unstructured.Unstructured, error) {
 	span := k.Tracer.StartSpan("PatchResource")
 	span.SetBaggageItem("kind", gvk.Kind)
 	span.SetBaggageItem("name", name)
@@ -183,7 +183,7 @@ func (k *KubectlCmd) PatchResource(ctx context.Context, config *rest.Config, gvk
 	}
 	resource := gvk.GroupVersion().WithResource(apiResource.Name)
 	resourceIf := ToResourceInterface(dynamicIf, apiResource, resource, namespace)
-	return resourceIf.Patch(ctx, name, patchType, patchBytes, metav1.PatchOptions{})
+	return resourceIf.Patch(ctx, name, patchType, patchBytes, metav1.PatchOptions{}, subresources...)
 }
 
 // DeleteResource deletes resource
