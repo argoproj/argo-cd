@@ -180,19 +180,31 @@ export const ApplicationCreatePanel = (props: {
                                                     </button>
                                                 )}
                                                 <div className='argo-form-row'>
-                                                    <FormField formApi={api} label='Application Name' field='metadata.name' component={Text} />
+                                                    <FormField
+                                                        formApi={api}
+                                                        label='Application Name'
+                                                        qeId='application-create-field-app-name'
+                                                        field='metadata.name'
+                                                        component={Text}
+                                                    />
                                                 </div>
                                                 <div className='argo-form-row'>
                                                     <FormField
                                                         formApi={api}
                                                         label='Project'
+                                                        qeId='application-create-field-project'
                                                         field='spec.project'
                                                         component={AutocompleteField}
                                                         componentProps={{items: projects}}
                                                     />
                                                 </div>
                                                 <div className='argo-form-row'>
-                                                    <FormField formApi={api} field='spec.syncPolicy.automated' component={AutoSyncFormField} />
+                                                    <FormField
+                                                        formApi={api}
+                                                        field='spec.syncPolicy.automated'
+                                                        qeId='application-create-field-sync-policy'
+                                                        component={AutoSyncFormField}
+                                                    />
                                                 </div>
                                                 <div className='argo-form-row'>
                                                     <label>Sync Options</label>
@@ -210,6 +222,7 @@ export const ApplicationCreatePanel = (props: {
                                                         <FormField
                                                             formApi={api}
                                                             label='Repository URL'
+                                                            qeId='application-create-field-repository-url'
                                                             field='spec.source.repoURL'
                                                             component={AutocompleteField}
                                                             componentProps={{items: repos}}
@@ -228,6 +241,7 @@ export const ApplicationCreatePanel = (props: {
                                                                             {repoType.toUpperCase()} <i className='fa fa-caret-down' />
                                                                         </p>
                                                                     )}
+                                                                    qeId='application-create-dropdown-source-repository'
                                                                     items={['git', 'helm'].map((type: 'git' | 'helm') => ({
                                                                         title: type.toUpperCase(),
                                                                         action: () => {
@@ -265,6 +279,7 @@ export const ApplicationCreatePanel = (props: {
                                                                     <FormField
                                                                         formApi={api}
                                                                         label='Path'
+                                                                        qeId='application-create-field-path'
                                                                         field='spec.source.path'
                                                                         component={AutocompleteField}
                                                                         componentProps={{
@@ -326,6 +341,7 @@ export const ApplicationCreatePanel = (props: {
                                                             <FormField
                                                                 formApi={api}
                                                                 label='Cluster URL'
+                                                                qeId='application-create-field-cluster-url'
                                                                 field='spec.destination.server'
                                                                 componentProps={{items: clusters.map(cluster => cluster.server)}}
                                                                 component={AutocompleteField}
@@ -336,6 +352,7 @@ export const ApplicationCreatePanel = (props: {
                                                             <FormField
                                                                 formApi={api}
                                                                 label='Cluster Name'
+                                                                qeId='application-create-field-cluster-name'
                                                                 field='spec.destination.name'
                                                                 componentProps={{items: clusters.map(cluster => cluster.name)}}
                                                                 component={AutocompleteField}
@@ -350,6 +367,7 @@ export const ApplicationCreatePanel = (props: {
                                                                         {destFormat} <i className='fa fa-caret-down' />
                                                                     </p>
                                                                 )}
+                                                                qeId='application-create-dropdown-destination'
                                                                 items={['URL', 'NAME'].map((type: 'URL' | 'NAME') => ({
                                                                     title: type,
                                                                     action: () => {
@@ -370,7 +388,13 @@ export const ApplicationCreatePanel = (props: {
                                                     </div>
                                                 </div>
                                                 <div className='argo-form-row'>
-                                                    <FormField formApi={api} label='Namespace' field='spec.destination.namespace' component={Text} />
+                                                    <FormField
+                                                        qeId='application-create-field-namespace'
+                                                        formApi={api}
+                                                        label='Namespace'
+                                                        field='spec.destination.namespace'
+                                                        component={Text}
+                                                    />
                                                 </div>
                                             </div>
                                         );
@@ -430,6 +454,7 @@ export const ApplicationCreatePanel = (props: {
                                                                         {type} <i className='fa fa-caret-down' />
                                                                     </p>
                                                                 )}
+                                                                qeId='application-create-dropdown-source'
                                                                 items={appTypes.map(item => ({
                                                                     title: item.type,
                                                                     action: () => {

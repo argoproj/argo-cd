@@ -85,7 +85,7 @@ export const OperationPhaseIcon = ({app}: {app: appModels.Application}) => {
             color = COLORS.operation.running;
             break;
     }
-    return <i title={getOperationStateTitle(app)} className={className} style={{color}} />;
+    return <i title={getOperationStateTitle(app)} qe-id='utils-operations-status-title' className={className} style={{color}} />;
 };
 
 export const ComparisonStatusIcon = ({status, resource, label}: {status: appModels.SyncStatusCode; resource?: {requiresPruning?: boolean}; label?: boolean}) => {
@@ -114,7 +114,7 @@ export const ComparisonStatusIcon = ({status, resource, label}: {status: appMode
     }
     return (
         <React.Fragment>
-            <i title={title} className={className} style={{color}} /> {label && title}
+            <i qe-id='utils-sync-status-title' title={title} className={className} style={{color}} /> {label && title}
         </React.Fragment>
     );
 };
@@ -179,7 +179,7 @@ export const HealthStatusIcon = ({state}: {state: appModels.HealthStatus}) => {
     if (state.message) {
         title = `${state.status}: ${state.message};`;
     }
-    return <i title={title} className={'fa ' + icon} style={{color}} />;
+    return <i qe-id='utils-health-status-title' title={title} className={'fa ' + icon} style={{color}} />;
 };
 
 export const ResourceResultIcon = ({resource}: {resource: appModels.ResourceResult}) => {
