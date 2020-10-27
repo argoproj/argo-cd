@@ -196,13 +196,16 @@ func TestGetIstioVirtualServiceInfo(t *testing.T) {
 	assert.Equal(t, 0, len(info.Info))
 	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
 		TargetRefs: []v1alpha1.ResourceRef{
-			{	Kind:      kube.ServiceKind,
+			{
+				Kind:      kube.ServiceKind,
 				Name:      "service_full",
 				Namespace: "demo"},
-			{	Kind:      kube.ServiceKind,
+			{
+				Kind:      kube.ServiceKind,
 				Name:      "service_namespace",
 				Namespace: "namespace"},
-			{	Kind:      kube.ServiceKind,
+			{
+				Kind:      kube.ServiceKind,
 				Name:      "service",
 				Namespace: "demo"},
 		},
