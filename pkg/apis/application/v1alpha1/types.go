@@ -1287,7 +1287,7 @@ type Repository struct {
 	// Github App ID of the app used to access the repo
 	GithubAppID string `json:"githubAppID,omitempty" protobuf:"bytes,15,opt,name=githubAppID"`
 	// Github App Enterprise base url if empty will default to https://api.github.com
-	GitHubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty" protobuf:"bytes,9,opt,name=githubAppEnterpriseBaseUrl"`
+	GitHubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty" protobuf:"bytes,16,opt,name=githubAppEnterpriseBaseUrl"`
 }
 
 // IsInsecure returns true if receiver has been configured to skip server verification
