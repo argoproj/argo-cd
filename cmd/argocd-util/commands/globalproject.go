@@ -1,8 +1,11 @@
 package commands
 
 import (
+	"bufio"
+	"io"
 	"io/ioutil"
 	"os"
+	"strings"
 
 	"github.com/ghodss/yaml"
 	"github.com/spf13/cobra"
@@ -31,28 +34,46 @@ import (
 func NewGlobalProjectGenCommand() *cobra.Command {
 	var (
 		clientConfig clientcmd.ClientConfig
+		out          string
 	)
 	var command = &cobra.Command{
-		Use:   "globalproject CLUSTERROLE_PATH OUTPUT_PATH",
+		Use:   "globalproject CLUSTERROLE_PATH",
 		Short: "Generates global project for the specified clusterRole",
 		Run: func(c *cobra.Command, args []string) {
-			if len(args) != 2 {
+			if len(args) != 1 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
 			clusterRoleFileName := args[0]
-			globalProjectFileName := args[1]
+
+			var writer io.Writer
+			if out == "-" {
+				writer = os.Stdout
+			} else {
+				f, err := os.Create(out)
+				errors.CheckError(err)
+				bw := bufio.NewWriter(f)
+				writer = bw
+				defer func() {
+					err = bw.Flush()
+					errors.CheckError(err)
+					err = f.Close()
+					errors.CheckError(err)
+				}()
+			}
 
 			globalProj := generateGlobalProject(clientConfig, clusterRoleFileName)
 
 			yamlBytes, err := yaml.Marshal(globalProj)
 			errors.CheckError(err)
 
-			err = ioutil.WriteFile(globalProjectFileName, yamlBytes, 0644)
+			_, err = writer.Write(yamlBytes)
 			errors.CheckError(err)
 		},
 	}
 	clientConfig = cli.AddKubectlFlagsToCmd(command)
+	command.Flags().StringVarP(&out, "out", "o", "-", "Output to the specified file instead of stdout")
+
 	return command
 }
 
@@ -77,8 +98,21 @@ func generateGlobalProject(clientConfig clientcmd.ClientConfig, clusterRoleFileN
 	resourceList := make([]metav1.GroupKind, 0)
 	for _, rule := range clusterRole.Rules {
 		if len(rule.APIGroups) <= 0 {
-			break
+			continue
 		}
+
+		canCreate := false
+		for _, verb := range rule.Verbs {
+			if strings.ToLower(verb) == strings.ToLower("Create") {
+				canCreate = true
+				break
+			}
+		}
+
+		if !canCreate {
+			continue
+		}
+
 		ruleApiGroup := rule.APIGroups[0]
 		for _, ruleResource := range rule.Resources {
 			for _, apiResourcesList := range serverResources {
