@@ -12,7 +12,7 @@ Kubernetes rolling update strategy.
 
 ## Usage
 
-Hooks are simply Kubernetes manifests inside your Argo CD Application annotated with `argocd.argoproj.io/hook`, e.g.:
+Hooks are simply Kubernetes manifests tracked in the source repository of your Argo CD Application annotated with `argocd.argoproj.io/hook`, e.g.:
 
 ```yaml
 apiVersion: batch/v1
