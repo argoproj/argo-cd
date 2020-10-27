@@ -37,6 +37,7 @@ import (
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/util/cert"
 	"github.com/argoproj/argo-cd/util/git"
+	"github.com/argoproj/argo-cd/util/glob"
 	"github.com/argoproj/argo-cd/util/helm"
 )
 
@@ -45,6 +46,9 @@ import (
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:resource:path=applications,shortName=app;apps
+// +kubebuilder:printcolumn:name="Sync Status",type=string,JSONPath=`.status.sync.status`
+// +kubebuilder:printcolumn:name="Health Status",type=string,JSONPath=`.status.health.status`
+// +kubebuilder:printcolumn:name="Revision",type=string,JSONPath=`.status.sync.revision`,priority=10
 type Application struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
@@ -145,6 +149,19 @@ type ApplicationSource struct {
 	Chart string `json:"chart,omitempty" protobuf:"bytes,12,opt,name=chart"`
 }
 
+// AllowsConcurrentProcessing returns true if given application source can be processed concurrently
+func (a *ApplicationSource) AllowsConcurrentProcessing() bool {
+	switch {
+	// Kustomize with parameters requires changing kustomization.yaml file
+	case a.Kustomize != nil:
+		return a.Kustomize.AllowsConcurrentProcessing()
+	// Kustomize with parameters requires changing params.libsonnet file
+	case a.Ksonnet != nil:
+		return a.Ksonnet.AllowsConcurrentProcessing()
+	}
+	return true
+}
+
 func (a *ApplicationSource) IsHelm() bool {
 	return a.Chart != ""
 }
@@ -200,6 +217,8 @@ type ApplicationSourceHelm struct {
 	Values string `json:"values,omitempty" protobuf:"bytes,4,opt,name=values"`
 	// FileParameters are file parameters to the helm template
 	FileParameters []HelmFileParameter `json:"fileParameters,omitempty" protobuf:"bytes,5,opt,name=fileParameters"`
+	// Version is the Helm version to use for templating with
+	Version string `json:"version,omitempty" protobuf:"bytes,6,opt,name=version"`
 }
 
 // HelmParameter is a parameter to a helm template
@@ -274,7 +293,7 @@ func (in *ApplicationSourceHelm) AddFileParameter(p HelmFileParameter) {
 }
 
 func (h *ApplicationSourceHelm) IsZero() bool {
-	return h == nil || (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0 && len(h.FileParameters) == 0 && h.Values == ""
+	return h == nil || (h.Version == "") && (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0 && len(h.FileParameters) == 0 && h.Values == ""
 }
 
 type KustomizeImage string
@@ -321,6 +340,13 @@ type ApplicationSourceKustomize struct {
 	CommonLabels map[string]string `json:"commonLabels,omitempty" protobuf:"bytes,4,opt,name=commonLabels"`
 	// Version contains optional Kustomize version
 	Version string `json:"version,omitempty" protobuf:"bytes,5,opt,name=version"`
+}
+
+func (k *ApplicationSourceKustomize) AllowsConcurrentProcessing() bool {
+	return len(k.Images) == 0 &&
+		len(k.CommonLabels) == 0 &&
+		k.NamePrefix == "" &&
+		k.NameSuffix == ""
 }
 
 func (k *ApplicationSourceKustomize) IsZero() bool {
@@ -387,6 +413,10 @@ type KsonnetParameter struct {
 	Value     string `json:"value" protobuf:"bytes,3,opt,name=value"`
 }
 
+func (k *ApplicationSourceKsonnet) AllowsConcurrentProcessing() bool {
+	return len(k.Parameters) == 0
+}
+
 func (k *ApplicationSourceKsonnet) IsZero() bool {
 	return k == nil || k.Environment == "" && len(k.Parameters) == 0
 }
@@ -434,6 +464,7 @@ type ApplicationStatus struct {
 	ReconciledAt   *metav1.Time    `json:"reconciledAt,omitempty" protobuf:"bytes,6,opt,name=reconciledAt"`
 	OperationState *OperationState `json:"operationState,omitempty" protobuf:"bytes,7,opt,name=operationState"`
 	// ObservedAt indicates when the application state was updated without querying latest git state
+	// Deprecated: controller no longer updates ObservedAt field
 	ObservedAt *metav1.Time          `json:"observedAt,omitempty" protobuf:"bytes,8,opt,name=observedAt"`
 	SourceType ApplicationSourceType `json:"sourceType,omitempty" protobuf:"bytes,9,opt,name=sourceType"`
 	Summary    ApplicationSummary    `json:"summary,omitempty" protobuf:"bytes,10,opt,name=summary"`
@@ -662,11 +693,13 @@ type SyncPolicyAutomated struct {
 	Prune bool `json:"prune,omitempty" protobuf:"bytes,1,opt,name=prune"`
 	// SelfHeal enables auto-syncing if  (default: false)
 	SelfHeal bool `json:"selfHeal,omitempty" protobuf:"bytes,2,opt,name=selfHeal"`
+	// AllowEmpty allows apps have zero live resources (default: false)
+	AllowEmpty bool `json:"allowEmpty,omitempty" protobuf:"bytes,3,opt,name=allowEmpty"`
 }
 
 // SyncStrategy controls the manner in which a sync is performed
 type SyncStrategy struct {
-	// Apply wil perform a `kubectl apply` to perform the sync.
+	// Apply will perform a `kubectl apply` to perform the sync.
 	Apply *SyncStrategyApply `json:"apply,omitempty" protobuf:"bytes,1,opt,name=apply"`
 	// Hook will submit any referenced resources to perform the sync. This is the default strategy
 	Hook *SyncStrategyHook `json:"hook,omitempty" protobuf:"bytes,2,opt,name=hook"`
@@ -1040,6 +1073,8 @@ type ConnectionState struct {
 
 // Cluster is the definition of a cluster resource
 type Cluster struct {
+	// ID is an internal field cluster identifier. Not exposed via API.
+	ID string `json:"-"`
 	// Server is the API server URL of the Kubernetes cluster
 	Server string `json:"server" protobuf:"bytes,1,opt,name=server"`
 	// Name of the cluster. If omitted, will use the server address
@@ -1058,6 +1093,8 @@ type Cluster struct {
 	RefreshRequestedAt *metav1.Time `json:"refreshRequestedAt,omitempty" protobuf:"bytes,7,opt,name=refreshRequestedAt"`
 	// Holds information about cluster cache
 	Info ClusterInfo `json:"info,omitempty" protobuf:"bytes,8,opt,name=info"`
+	// Shard contains optional shard number. Calculated on the fly by the application controller if not specified.
+	Shard *int64 `json:"shard,omitempty" protobuf:"bytes,9,opt,name=shard"`
 }
 
 func (c *Cluster) Equals(other *Cluster) bool {
@@ -1068,6 +1105,17 @@ func (c *Cluster) Equals(other *Cluster) bool {
 		return false
 	}
 	if strings.Join(c.Namespaces, ",") != strings.Join(other.Namespaces, ",") {
+		return false
+	}
+	var shard int64 = -1
+	if c.Shard != nil {
+		shard = *c.Shard
+	}
+	var otherShard int64 = -1
+	if other.Shard != nil {
+		otherShard = *other.Shard
+	}
+	if shard != otherShard {
 		return false
 	}
 	return reflect.DeepEqual(c.Config, other.Config)
@@ -1852,15 +1900,23 @@ func (s *SyncWindows) HasWindows() bool {
 }
 
 func (s *SyncWindows) Active() *SyncWindows {
+	return s.active(time.Now())
+}
+
+func (s *SyncWindows) active(currentTime time.Time) *SyncWindows {
+
+	// If SyncWindows.Active() is called outside of a UTC locale, it should be
+	// first converted to UTC before we scan through the SyncWindows.
+	currentTime = currentTime.In(time.UTC)
+
 	if s.HasWindows() {
 		var active SyncWindows
 		specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
 		for _, w := range *s {
 			schedule, _ := specParser.Parse(w.Schedule)
 			duration, _ := time.ParseDuration(w.Duration)
-			now := time.Now()
-			nextWindow := schedule.Next(now.Add(-duration))
-			if nextWindow.Before(now) {
+			nextWindow := schedule.Next(currentTime.Add(-duration))
+			if nextWindow.Before(currentTime) {
 				active = append(active, w)
 			}
 		}
@@ -1872,6 +1928,15 @@ func (s *SyncWindows) Active() *SyncWindows {
 }
 
 func (s *SyncWindows) InactiveAllows() *SyncWindows {
+	return s.inactiveAllows(time.Now())
+}
+
+func (s *SyncWindows) inactiveAllows(currentTime time.Time) *SyncWindows {
+
+	// If SyncWindows.InactiveAllows() is called outside of a UTC locale, it should be
+	// first converted to UTC before we scan through the SyncWindows.
+	currentTime = currentTime.In(time.UTC)
+
 	if s.HasWindows() {
 		var inactive SyncWindows
 		specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
@@ -1879,9 +1944,8 @@ func (s *SyncWindows) InactiveAllows() *SyncWindows {
 			if w.Kind == "allow" {
 				schedule, sErr := specParser.Parse(w.Schedule)
 				duration, dErr := time.ParseDuration(w.Duration)
-				now := time.Now()
-				nextWindow := schedule.Next(now.Add(-duration))
-				if !nextWindow.Before(now) && sErr == nil && dErr == nil {
+				nextWindow := schedule.Next(currentTime.Add(-duration))
+				if !nextWindow.Before(currentTime) && sErr == nil && dErr == nil {
 					inactive = append(inactive, w)
 				}
 			}
@@ -2051,12 +2115,21 @@ func (w *SyncWindows) manualEnabled() bool {
 }
 
 func (w SyncWindow) Active() bool {
+	return w.active(time.Now())
+}
+
+func (w SyncWindow) active(currentTime time.Time) bool {
+
+	// If SyncWindow.Active() is called outside of a UTC locale, it should be
+	// first converted to UTC before search
+	currentTime = currentTime.UTC()
+
 	specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
 	schedule, _ := specParser.Parse(w.Schedule)
 	duration, _ := time.ParseDuration(w.Duration)
-	now := time.Now()
-	nextWindow := schedule.Next(now.Add(-duration))
-	return nextWindow.Before(now)
+
+	nextWindow := schedule.Next(currentTime.Add(-duration))
+	return nextWindow.Before(currentTime)
 }
 
 func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []string) error {
@@ -2387,14 +2460,11 @@ func (proj *AppProject) RemoveFinalizer() {
 	setFinalizer(&proj.ObjectMeta, common.ResourcesFinalizerName, false)
 }
 
-func globMatch(pattern string, val string) bool {
+func globMatch(pattern string, val string, separators ...rune) bool {
 	if pattern == "*" {
 		return true
 	}
-	if ok, err := filepath.Match(pattern, val); ok && err == nil {
-		return true
-	}
-	return false
+	return glob.Match(pattern, val, separators...)
 }
 
 // IsSourcePermitted validates if the provided application's source is a one of the allowed sources for the project.
@@ -2402,7 +2472,7 @@ func (proj AppProject) IsSourcePermitted(src ApplicationSource) bool {
 	srcNormalized := git.NormalizeGitURL(src.RepoURL)
 	for _, repoURL := range proj.Spec.SourceRepos {
 		normalized := git.NormalizeGitURL(repoURL)
-		if globMatch(normalized, srcNormalized) {
+		if globMatch(normalized, srcNormalized, '/') {
 			return true
 		}
 	}
@@ -2617,7 +2687,7 @@ func jwtTokensCombine(tokens1 []JWTToken, tokens2 []JWTToken) []JWTToken {
 		tokensMap[token.ID] = token
 	}
 
-	tokens := []JWTToken{}
+	var tokens []JWTToken
 	for _, v := range tokensMap {
 		tokens = append(tokens, v)
 	}

@@ -127,7 +127,7 @@ Argo CD embeds and bundles [Dex](https://github.com/coreos/dex) as part of its i
 purpose of delegating authentication to an external identity provider. Multiple types of identity
 providers are supported (OIDC, SAML, LDAP, GitHub, etc...). SSO configuration of Argo CD requires
 editing the `argocd-cm` ConfigMap with
-[Dex connector](https://github.com/coreos/dex/tree/master/Documentation/connectors) settings.
+[Dex connector](https://dexidp.io/docs/connectors/) settings.
 
 This document describes how to configure Argo CD SSO using GitHub (OAuth2) as an example, but the
 steps should be similar for other identity providers.
@@ -194,7 +194,9 @@ After saving, the changes should take affect automatically.
 NOTES:
 
 * Any values which start with '$' will look to a key in argocd-secret of the same name (minus the $),
-  to obtain the actual value. This allows you to store the `clientSecret` as a kubernetes secret.
+  to obtain the actual value. This allows you to store the `clientSecret` as a kubernetes secret. 
+  Kubernetes secrets must be base64 encoded. To base64 encode your secret, you can run 
+  `printf RAW_STRING | base64`.
 * There is no need to set `redirectURI` in the `connectors.config` as shown in the dex documentation.
   Argo CD will automatically use the correct `redirectURI` for any OAuth2 connectors, to match the
   correct external callback URL (e.g. `https://argocd.example.com/api/dex/callback`)

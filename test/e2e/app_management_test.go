@@ -249,8 +249,6 @@ func TestTrackAppStateAndSyncApp(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
-		Expect(Success(fmt.Sprintf("apps  Deployment  %s          guestbook-ui  OutOfSync  Missing", DeploymentNamespace()))).
-		Expect(Success(fmt.Sprintf("Service  %s          guestbook-ui  OutOfSync  Missing", DeploymentNamespace()))).
 		Expect(Success(fmt.Sprintf("Service     %s  guestbook-ui  Synced ", DeploymentNamespace()))).
 		Expect(Success(fmt.Sprintf("apps   Deployment  %s  guestbook-ui  Synced", DeploymentNamespace()))).
 		Expect(Event(EventReasonResourceUpdated, "sync")).
@@ -547,7 +545,9 @@ func TestConfigMap(t *testing.T) {
 }
 
 func TestFailedConversion(t *testing.T) {
-
+	if os.Getenv("ARGOCD_E2E_K3S") == "true" {
+		t.SkipNow()
+	}
 	defer func() {
 		FailOnErr(Run("", "kubectl", "delete", "apiservice", "v1beta1.metrics.k8s.io"))
 	}()
@@ -1185,7 +1185,7 @@ func TestSyncWithInfos(t *testing.T) {
 //Given: argocd app create does not provide --dest-namespace
 //       Manifest contains resource console which does not require namespace
 //Expect: no app.Status.Conditions
-func TestCreateAppWithNoNameSpaceForGlobalResourse(t *testing.T) {
+func TestCreateAppWithNoNameSpaceForGlobalResource(t *testing.T) {
 	Given(t).
 		Path(globalWithNoNameSpace).
 		When().
@@ -1382,4 +1382,25 @@ func TestCreateDisableValidation(t *testing.T) {
 		When().
 		AppSet("--path", "baddir3", "--validate=false")
 
+}
+
+func TestCreateFromPartialFile(t *testing.T) {
+	partialApp :=
+		`spec:
+  syncPolicy:
+    automated: {prune: true }`
+
+	path := "helm-values"
+	Given(t).
+		When().
+		// app should be auto-synced once created
+		CreateFromPartialFile(partialApp, "--path", path, "--helm-set", "foo=foo").
+		Then().
+		Expect(Success("")).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(NoConditions()).
+		And(func(app *Application) {
+			assert.Equal(t, path, app.Spec.Source.Path)
+			assert.Equal(t, []HelmParameter{{Name: "foo", Value: "foo"}}, app.Spec.Source.Helm.Parameters)
+		})
 }

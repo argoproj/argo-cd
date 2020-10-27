@@ -218,31 +218,6 @@ spec:
                 type: object
               type: array
           type: object
-        status:
-          description: AppProjectStatus contains information about appproj
-          properties:
-            jwtTokensByRole:
-              additionalProperties:
-                properties:
-                  items:
-                    items:
-                      description: JWTToken holds the issuedAt and expiresAt values of a token
-                      properties:
-                        exp:
-                          format: int64
-                          type: integer
-                        iat:
-                          format: int64
-                          type: integer
-                        id:
-                          type: string
-                      required:
-                      - iat
-                      type: object
-                    type: array
-                type: object
-              type: object
-          type: object
       required:
       - metadata
       - spec

@@ -23,11 +23,9 @@ jobs:
       DRY_RUN: false
       # Whether a draft release should be created, instead of public one
       DRAFT_RELEASE: false
-      # The name of the repository containing tap formulae
-      TAP_REPOSITORY: argoproj/homebrew-tap
       # Whether to update homebrew with this release as well
       # Set RELEASE_HOMEBREW_TOKEN secret in repository for this to work - needs
-      # access to public repositories (or homebrew-tap repo specifically)
+      # access to public repositories
       UPDATE_HOMEBREW: false
       # Name of the GitHub user for Git config
       GIT_USERNAME: argo-bot
@@ -78,10 +76,10 @@ jobs:
           fi
 
           # Make the variables available in follow-up steps
-          echo "::set-env name=TARGET_VERSION::${TARGET_VERSION}"
-          echo "::set-env name=TARGET_BRANCH::${TARGET_BRANCH}"
-          echo "::set-env name=RELEASE_TAG::${RELEASE_TAG}"
-          echo "::set-env name=PRE_RELEASE::${PRE_RELEASE}"
+          echo "TARGET_VERSION=${TARGET_VERSION}" >> $GITHUB_ENV
+          echo "TARGET_BRANCH=${TARGET_BRANCH}" >> $GITHUB_ENV
+          echo "RELEASE_TAG=${RELEASE_TAG}" >> $GITHUB_ENV
+          echo "PRE_RELEASE=${PRE_RELEASE}" >> $GITHUB_ENV
 
       - name: Check if our release tag has a correct annotation
         run: |
@@ -136,7 +134,7 @@ jobs:
 
           # We store path to temporary release notes file for later reading, we
           # need it when creating release.
-          echo "::set-env name=RELEASE_NOTES::$RELEASE_NOTES"
+          echo "RELEASE_NOTES=${RELEASE_NOTES}" >> $GITHUB_ENV
 
       - name: Setup Golang
         uses: actions/setup-go@v1
@@ -258,28 +256,13 @@ jobs:
           asset_content_type: application/octet-stream
         if: ${{ env.DRY_RUN != 'true' }}
 
-      - name: Check out homebrew tap repository
-        uses: actions/checkout@v2
+      - name: Update homebrew formula
         env:
           HOMEBREW_TOKEN: ${{ secrets.RELEASE_HOMEBREW_TOKEN }}
+        uses: dawidd6/action-homebrew-bump-formula@v3
         with:
-          repository: ${{ env.TAP_REPOSITORY }}
-          path: homebrew-tap
-          fetch-depth: 0
-          token: ${{ env.HOMEBREW_TOKEN }}
-        if: ${{ env.HOMEBREW_TOKEN != '' && env.UPDATE_HOMEBREW == 'true' && env.PRE_RELEASE != 'true' }}
-
-      - name: Update homebrew tap formula
-        env:
-          HOMEBREW_TOKEN: ${{ secrets.RELEASE_HOMEBREW_TOKEN }}
-        run: |
-          set -ue
-          cd homebrew-tap
-          ./update.sh argocd ${TARGET_VERSION}
-          git commit -am "Update argocd to ${TARGET_VERSION}"
-          git push
-          cd ..
-          rm -rf homebrew-tap
+          token: ${{env.HOMEBREW_TOKEN}}
+          formula: argocd
         if: ${{ env.HOMEBREW_TOKEN != '' && env.UPDATE_HOMEBREW == 'true' && env.PRE_RELEASE != 'true' }}
 
       - name: Delete original request tag from repository

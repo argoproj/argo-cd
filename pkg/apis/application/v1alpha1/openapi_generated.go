@@ -724,6 +724,13 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceHelm(ref common.Refer
 							},
 						},
 					},
+					"version": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Version is the Helm version to use for templating with",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
@@ -1058,7 +1065,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationStatus(ref common.Reference
 					},
 					"observedAt": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ObservedAt indicates when the application state was updated without querying latest git state",
+							Description: "ObservedAt indicates when the application state was updated without querying latest git state Deprecated: controller no longer updates ObservedAt field",
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
@@ -1288,6 +1295,13 @@ func schema_pkg_apis_application_v1alpha1_Cluster(ref common.ReferenceCallback) 
 						SchemaProps: spec.SchemaProps{
 							Description: "Holds information about cluster cache",
 							Ref:         ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ClusterInfo"),
+						},
+					},
+					"shard": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Shard contains optional shard number. Calculated on the fly by the application controller if not specified.",
+							Type:        []string{"integer"},
+							Format:      "int64",
 						},
 					},
 				},
@@ -3725,6 +3739,13 @@ func schema_pkg_apis_application_v1alpha1_SyncPolicyAutomated(ref common.Referen
 							Format:      "",
 						},
 					},
+					"allowEmpty": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AllowEmpty allows apps have zero live resources (default: false)",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
@@ -3773,7 +3794,7 @@ func schema_pkg_apis_application_v1alpha1_SyncStrategy(ref common.ReferenceCallb
 				Properties: map[string]spec.Schema{
 					"apply": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Apply wil perform a `kubectl apply` to perform the sync.",
+							Description: "Apply will perform a `kubectl apply` to perform the sync.",
 							Ref:         ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncStrategyApply"),
 						},
 					},

@@ -1,15 +1,15 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-bases:
+
+images:
+- name: argoproj/argocd
+  newName: argoproj/argocd
+  newTag: latest
+resources:
 - ./application-controller
 - ./dex
 - ./repo-server
 - ./server
 - ./config
 - ./redis
-
-images:
-- name: argoproj/argocd
-  newName: argoproj/argocd
-  newTag: latest

@@ -49,3 +49,14 @@ func TestResourceInclusionsExclusionNonMutex(t *testing.T) {
 	assert.True(t, filter.IsExcludedResource("not-whitelisted-resource", "whitelisted-kind", ""))
 	assert.True(t, filter.IsExcludedResource("not-whitelisted-resource", "", ""))
 }
+
+func TestResourceInclusionsExclusionMultiCluster(t *testing.T) {
+	filter := ResourcesFilter{
+		ResourceInclusions: []FilteredResource{{APIGroups: []string{"whitelisted-resource"}, Clusters: []string{"cluster-one"}}},
+		ResourceExclusions: []FilteredResource{{APIGroups: []string{"whitelisted-resource"}, Clusters: []string{"cluster-two"}}},
+	}
+
+	assert.False(t, filter.IsExcludedResource("whitelisted-resource", "", "cluster-one"))
+	assert.True(t, filter.IsExcludedResource("whitelisted-resource", "", "cluster-two"))
+	assert.False(t, filter.IsExcludedResource("whitelisted-resource", "", "cluster-three"))
+}

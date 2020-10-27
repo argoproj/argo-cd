@@ -98,6 +98,7 @@ func newFakeController(data *fakeData) *ApplicationController {
 		time.Minute,
 		common.DefaultPortArgoCDMetrics,
 		0,
+		nil,
 	)
 	if err != nil {
 		panic(err)
@@ -286,6 +287,31 @@ func TestAutoSync(t *testing.T) {
 	assert.NotNil(t, app.Operation)
 	assert.NotNil(t, app.Operation.Sync)
 	assert.False(t, app.Operation.Sync.Prune)
+}
+
+func TestAutoSyncNotAllowEmpty(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.SyncPolicy.Automated.Prune = true
+	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
+	syncStatus := argoappv1.SyncStatus{
+		Status:   argoappv1.SyncStatusCodeOutOfSync,
+		Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+	}
+	cond := ctrl.autoSync(app, &syncStatus, []argoappv1.ResourceStatus{})
+	assert.NotNil(t, cond)
+}
+
+func TestAutoSyncAllowEmpty(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.SyncPolicy.Automated.Prune = true
+	app.Spec.SyncPolicy.Automated.AllowEmpty = true
+	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
+	syncStatus := argoappv1.SyncStatus{
+		Status:   argoappv1.SyncStatusCodeOutOfSync,
+		Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+	}
+	cond := ctrl.autoSync(app, &syncStatus, []argoappv1.ResourceStatus{})
+	assert.Nil(t, cond)
 }
 
 func TestSkipAutoSync(t *testing.T) {
@@ -576,15 +602,11 @@ func TestFinalizeAppDeletion(t *testing.T) {
 	})
 
 	t.Run("DeleteWithDestinationClusterName", func(t *testing.T) {
-		app := newFakeApp()
-		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
-		app.Spec.Destination.Name = "minikube"
-		app.Spec.Destination.Server = ""
+		app := newFakeAppWithDestName()
 		appObj := kube.MustToUnstructured(&app)
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}, managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
 			kube.GetResourceKey(appObj): appObj,
 		}})
-
 		patched := false
 		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 		defaultReactor := fakeAppCs.ReactionChain[0]
@@ -599,6 +621,27 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		_, err := ctrl.finalizeApplicationDeletion(app)
 		assert.NoError(t, err)
 		assert.True(t, patched)
+	})
+
+	t.Run("ErrorOnBothDestNameAndServer", func(t *testing.T) {
+		app := newFakeAppWithDestMismatch()
+		appObj := kube.MustToUnstructured(&app)
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}, managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+			kube.GetResourceKey(appObj): appObj,
+		}})
+		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+		func() {
+			fakeAppCs.Lock()
+			defer fakeAppCs.Unlock()
+
+			defaultReactor := fakeAppCs.ReactionChain[0]
+			fakeAppCs.ReactionChain = nil
+			fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+				return defaultReactor.React(action)
+			})
+		}()
+		_, err := ctrl.finalizeApplicationDeletion(app)
+		assert.EqualError(t, err, "application destination can't have both name and server defined: another-cluster https://localhost:6443")
 	})
 }
 
@@ -901,26 +944,6 @@ func TestRefreshAppConditions(t *testing.T) {
 		assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, app.Status.Conditions[0].Type)
 		assert.Equal(t, "Application referencing project wrong project which does not exist", app.Status.Conditions[0].Message)
 	})
-
-	t.Run("NoErrorConditionsWithDestNameOnly", func(t *testing.T) {
-		app := newFakeAppWithDestName()
-		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}})
-
-		_, hasErrors := ctrl.refreshAppConditions(app)
-		assert.False(t, hasErrors)
-		assert.Len(t, app.Status.Conditions, 0)
-	})
-
-	t.Run("ErrorOnBothDestNameAndServer", func(t *testing.T) {
-		app := newFakeAppWithDestMismatch()
-		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}})
-
-		_, hasErrors := ctrl.refreshAppConditions(app)
-		assert.True(t, hasErrors)
-		assert.Len(t, app.Status.Conditions, 1)
-		assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, app.Status.Conditions[0].Type)
-		assert.Equal(t, "application destination can't have both name and server defined: another-cluster https://localhost:6443", app.Status.Conditions[0].Message)
-	})
 }
 
 func TestUpdateReconciledAt(t *testing.T) {
@@ -962,7 +985,7 @@ func TestUpdateReconciledAt(t *testing.T) {
 
 		_, updated, err = unstructured.NestedString(receivedPatch, "status", "observedAt")
 		assert.NoError(t, err)
-		assert.True(t, updated)
+		assert.False(t, updated)
 	})
 
 	t.Run("NotUpdatedOnPartialReconciliation", func(t *testing.T) {
@@ -978,9 +1001,29 @@ func TestUpdateReconciledAt(t *testing.T) {
 
 		_, updated, err = unstructured.NestedString(receivedPatch, "status", "observedAt")
 		assert.NoError(t, err)
-		assert.True(t, updated)
+		assert.False(t, updated)
 	})
 
+}
+
+func TestCanProcessApp_DestNameIsValid(t *testing.T) {
+	app := newFakeAppWithDestName()
+	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}})
+
+	ok := ctrl.canProcessApp(app)
+	assert.True(t, ok)
+	assert.Len(t, app.Status.Conditions, 0)
+}
+
+func TestCanProcessApp_BothDestNameAndServer(t *testing.T) {
+	app := newFakeAppWithDestMismatch()
+	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}})
+
+	ok := ctrl.canProcessApp(app)
+	assert.False(t, ok)
+	assert.Len(t, app.Status.Conditions, 1)
+	assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, app.Status.Conditions[0].Type)
+	assert.Equal(t, "application destination can't have both name and server defined: another-cluster https://localhost:6443", app.Status.Conditions[0].Message)
 }
 
 func TestFinalizeProjectDeletion_HasApplications(t *testing.T) {
@@ -1042,6 +1085,34 @@ func TestProcessRequestedAppOperation_FailedNoRetries(t *testing.T) {
 
 	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
 	assert.Equal(t, string(synccommon.OperationError), phase)
+}
+
+func TestProcessRequestedAppOperation_InvalidDestination(t *testing.T) {
+	app := newFakeAppWithDestMismatch()
+	app.Spec.Project = "test-project"
+	app.Operation = &argoappv1.Operation{
+		Sync: &argoappv1.SyncOperation{},
+	}
+	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	receivedPatch := map[string]interface{}{}
+	func() {
+		fakeAppCs.Lock()
+		defer fakeAppCs.Unlock()
+		fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			if patchAction, ok := action.(kubetesting.PatchAction); ok {
+				assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+			}
+			return true, nil, nil
+		})
+	}()
+
+	ctrl.processRequestedAppOperation(app)
+
+	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
+	assert.Equal(t, string(synccommon.OperationFailed), phase)
+	message, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "message")
+	assert.Contains(t, message, "application destination can't have both name and server defined: another-cluster https://localhost:6443")
 }
 
 func TestProcessRequestedAppOperation_FailedHasRetries(t *testing.T) {

@@ -38,7 +38,7 @@ the groups scope. Make sure to set the __Name__ as well as the __Token Claim Nam
 
 We can now configure the client to provide the _groups_ scope. You can now assign the _groups_ scope either to the __Assigned Default Client Scopes__ 
 or to the __Assigned Optional Client Scopes__. If you put it in the Optional category you will need to make sure that ArgoCD requests the scope in
-it's OIDC configuation. 
+it's OIDC configuration. 
 
 ![Keycloak client scope](../../assets/keycloak-client-scope.png "Keycloak client scope")
 
@@ -51,7 +51,7 @@ Create a group called _ArgoCDAdmins_ and have your current user join the group.
 
 ![Keycloak user group](../../assets/keycloak-user-group.png "Keycloak user group")
 
-## Confguring ArgoCD OIDC
+## Configuring ArgoCD OIDC
 
 Let's start by storing the client secret you generated earlier in the argocd secret _argocd-secret_.
 

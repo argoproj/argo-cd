@@ -2,6 +2,8 @@ package commands
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"os"
@@ -192,6 +194,11 @@ func oauth2Login(ctx context.Context, port int, oidcSettings *settingspkg.OIDCCo
 		completionChan <- errMsg
 	}
 
+	// PKCE implementation of https://tools.ietf.org/html/rfc7636
+	codeVerifier := rand.RandStringCharset(43, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
+	codeChallengeHash := sha256.Sum256([]byte(codeVerifier))
+	codeChallenge := base64.RawURLEncoding.EncodeToString(codeChallengeHash[:])
+
 	// Authorization redirect callback from OAuth2 auth flow.
 	// Handles both implicit and authorization code flow
 	callbackHandler := func(w http.ResponseWriter, r *http.Request) {
@@ -231,7 +238,8 @@ func oauth2Login(ctx context.Context, port int, oidcSettings *settingspkg.OIDCCo
 				handleErr(w, fmt.Sprintf("no code in request: %q", r.Form))
 				return
 			}
-			tok, err := oauth2conf.Exchange(ctx, code)
+			opts := []oauth2.AuthCodeOption{oauth2.SetAuthURLParam("code_verifier", codeVerifier)}
+			tok, err := oauth2conf.Exchange(ctx, code, opts...)
 			if err != nil {
 				handleErr(w, err.Error())
 				return
@@ -267,6 +275,8 @@ func oauth2Login(ctx context.Context, port int, oidcSettings *settingspkg.OIDCCo
 
 	switch grantType {
 	case oidcutil.GrantTypeAuthorizationCode:
+		opts = append(opts, oauth2.SetAuthURLParam("code_challenge", codeChallenge))
+		opts = append(opts, oauth2.SetAuthURLParam("code_challenge_method", "S256"))
 		url = oauth2conf.AuthCodeURL(stateNonce, opts...)
 	case oidcutil.GrantTypeImplicit:
 		url = oidcutil.ImplicitFlowURL(oauth2conf, stateNonce, opts...)

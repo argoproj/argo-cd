@@ -687,6 +687,7 @@ type RepositoryServiceClient interface {
 	ListApps(ctx context.Context, in *RepoAppsQuery, opts ...grpc.CallOption) (*RepoAppsResponse, error)
 	// GetAppDetails returns application details by given path
 	GetAppDetails(ctx context.Context, in *RepoAppDetailsQuery, opts ...grpc.CallOption) (*apiclient.RepoAppDetailsResponse, error)
+	// GetHelmCharts returns list of helm charts in the specified repository
 	GetHelmCharts(ctx context.Context, in *RepoQuery, opts ...grpc.CallOption) (*apiclient.HelmChartsResponse, error)
 	// Create creates a repo or a repo credential set
 	Create(ctx context.Context, in *RepoCreateRequest, opts ...grpc.CallOption) (*v1alpha1.Repository, error)
@@ -845,6 +846,7 @@ type RepositoryServiceServer interface {
 	ListApps(context.Context, *RepoAppsQuery) (*RepoAppsResponse, error)
 	// GetAppDetails returns application details by given path
 	GetAppDetails(context.Context, *RepoAppDetailsQuery) (*apiclient.RepoAppDetailsResponse, error)
+	// GetHelmCharts returns list of helm charts in the specified repository
 	GetHelmCharts(context.Context, *RepoQuery) (*apiclient.HelmChartsResponse, error)
 	// Create creates a repo or a repo credential set
 	Create(context.Context, *RepoCreateRequest) (*v1alpha1.Repository, error)

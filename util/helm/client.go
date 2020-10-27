@@ -21,13 +21,13 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/io"
+	"github.com/argoproj/pkg/sync"
 
-	"github.com/argoproj/argo-cd/util"
 	executil "github.com/argoproj/argo-cd/util/exec"
 )
 
 var (
-	globalLock = util.NewKeyLock()
+	globalLock = sync.NewKeyLock()
 )
 
 type Creds struct {
@@ -50,7 +50,7 @@ func NewClient(repoURL string, creds Creds, enableOci bool) Client {
 	return NewClientWithLock(repoURL, creds, globalLock, enableOci)
 }
 
-func NewClientWithLock(repoURL string, creds Creds, repoLock *util.KeyLock, enableOci bool) Client {
+func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, enableOci bool) Client {
 	return &nativeHelmChart{
 		repoURL:   repoURL,
 		creds:     creds,
@@ -64,7 +64,7 @@ type nativeHelmChart struct {
 	repoPath  string
 	repoURL   string
 	creds     Creds
-	repoLock  *util.KeyLock
+	repoLock  sync.KeyLock
 	enableOci bool
 }
 

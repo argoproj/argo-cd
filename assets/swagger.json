@@ -5,10 +5,6 @@
   "produces": [
     "application/json"
   ],
-  "schemes": [
-    "http",
-    "https"
-  ],
   "swagger": "2.0",
   "info": {
     "description": "Description of all APIs",
@@ -21,6 +17,7 @@
         "tags": [
           "AccountService"
         ],
+        "summary": "ListAccounts returns the list of accounts",
         "operationId": "ListAccounts",
         "responses": {
           "200": {
@@ -37,6 +34,7 @@
         "tags": [
           "AccountService"
         ],
+        "summary": "CanI checks if the current account has permission to perform an action",
         "operationId": "CanI",
         "parameters": [
           {
@@ -100,6 +98,7 @@
         "tags": [
           "AccountService"
         ],
+        "summary": "GetAccount returns an account",
         "operationId": "GetAccount",
         "parameters": [
           {
@@ -124,7 +123,8 @@
         "tags": [
           "AccountService"
         ],
-        "operationId": "CreateTokenMixin10",
+        "summary": "CreateToken creates a token",
+        "operationId": "CreateToken",
         "parameters": [
           {
             "type": "string",
@@ -156,7 +156,8 @@
         "tags": [
           "AccountService"
         ],
-        "operationId": "DeleteTokenMixin10",
+        "summary": "DeleteToken deletes a token",
+        "operationId": "DeleteToken",
         "parameters": [
           {
             "type": "string",
@@ -187,7 +188,7 @@
           "ApplicationService"
         ],
         "summary": "List returns list of applications",
-        "operationId": "ListMixin9",
+        "operationId": "List",
         "parameters": [
           {
             "type": "string",
@@ -238,7 +239,7 @@
           "ApplicationService"
         ],
         "summary": "Create creates an application",
-        "operationId": "CreateMixin9",
+        "operationId": "Create",
         "parameters": [
           {
             "name": "body",
@@ -265,7 +266,7 @@
           "ApplicationService"
         ],
         "summary": "Update updates an application",
-        "operationId": "UpdateMixin9",
+        "operationId": "Update",
         "parameters": [
           {
             "type": "string",
@@ -298,6 +299,7 @@
         "tags": [
           "ApplicationService"
         ],
+        "summary": "ManagedResources returns list of managed resources",
         "operationId": "ManagedResources",
         "parameters": [
           {
@@ -347,6 +349,7 @@
         "tags": [
           "ApplicationService"
         ],
+        "summary": "ResourceTree returns resource tree",
         "operationId": "ResourceTree",
         "parameters": [
           {
@@ -397,7 +400,7 @@
           "ApplicationService"
         ],
         "summary": "Get returns an application by name",
-        "operationId": "GetMixin9",
+        "operationId": "Get",
         "parameters": [
           {
             "type": "string",
@@ -449,7 +452,7 @@
           "ApplicationService"
         ],
         "summary": "Delete deletes an application",
-        "operationId": "DeleteMixin9",
+        "operationId": "Delete",
         "parameters": [
           {
             "type": "string",
@@ -667,7 +670,16 @@
           "200": {
             "description": "A successful response.(streaming responses)",
             "schema": {
-              "$ref": "#/x-stream-definitions/applicationLogEntry"
+              "type": "object",
+              "title": "Stream result of applicationLogEntry",
+              "properties": {
+                "error": {
+                  "$ref": "#/definitions/runtimeStreamError"
+                },
+                "result": {
+                  "$ref": "#/definitions/applicationLogEntry"
+                }
+              }
             }
           }
         }
@@ -813,6 +825,7 @@
         "tags": [
           "ApplicationService"
         ],
+        "summary": "ListResourceActions returns list of resource actions",
         "operationId": "ListResourceActions",
         "parameters": [
           {
@@ -860,6 +873,7 @@
         "tags": [
           "ApplicationService"
         ],
+        "summary": "RunResourceAction run resource action",
         "operationId": "RunResourceAction",
         "parameters": [
           {
@@ -1148,7 +1162,7 @@
           "ClusterService"
         ],
         "summary": "List returns list of clusters",
-        "operationId": "List",
+        "operationId": "ListMixin3",
         "parameters": [
           {
             "type": "string",
@@ -1175,7 +1189,7 @@
           "ClusterService"
         ],
         "summary": "Create creates a cluster",
-        "operationId": "Create",
+        "operationId": "CreateMixin3",
         "parameters": [
           {
             "name": "body",
@@ -1202,7 +1216,7 @@
           "ClusterService"
         ],
         "summary": "Update updates a cluster",
-        "operationId": "Update",
+        "operationId": "UpdateMixin3",
         "parameters": [
           {
             "type": "string",
@@ -1236,7 +1250,7 @@
           "ClusterService"
         ],
         "summary": "Get returns a cluster by server address",
-        "operationId": "GetMixin2",
+        "operationId": "GetMixin3",
         "parameters": [
           {
             "type": "string",
@@ -1264,7 +1278,7 @@
           "ClusterService"
         ],
         "summary": "Delete deletes a cluster",
-        "operationId": "Delete",
+        "operationId": "DeleteMixin3",
         "parameters": [
           {
             "type": "string",
@@ -1344,7 +1358,7 @@
           "GPGKeyService"
         ],
         "summary": "List all available repository certificates",
-        "operationId": "ListMixin7",
+        "operationId": "ListMixin4",
         "parameters": [
           {
             "type": "string",
@@ -1367,7 +1381,7 @@
           "GPGKeyService"
         ],
         "summary": "Create one or more GPG public keys in the server's configuration",
-        "operationId": "CreateMixin7",
+        "operationId": "CreateMixin4",
         "parameters": [
           {
             "description": "Raw key data of the GPG key(s) to create",
@@ -1393,7 +1407,7 @@
           "GPGKeyService"
         ],
         "summary": "Delete specified GPG public key from the server's configuration",
-        "operationId": "DeleteMixin7",
+        "operationId": "DeleteMixin4",
         "parameters": [
           {
             "type": "string",
@@ -1418,7 +1432,7 @@
           "GPGKeyService"
         ],
         "summary": "Get information about specified GPG public key from the server",
-        "operationId": "GetMixin7",
+        "operationId": "GetMixin4",
         "parameters": [
           {
             "type": "string",
@@ -1444,7 +1458,7 @@
           "ProjectService"
         ],
         "summary": "List returns list of projects",
-        "operationId": "ListMixin6",
+        "operationId": "ListMixin5",
         "parameters": [
           {
             "type": "string",
@@ -1465,8 +1479,8 @@
         "tags": [
           "ProjectService"
         ],
-        "summary": "Create a new project.",
-        "operationId": "CreateMixin6",
+        "summary": "Create a new project",
+        "operationId": "CreateMixin5",
         "parameters": [
           {
             "name": "body",
@@ -1493,7 +1507,7 @@
           "ProjectService"
         ],
         "summary": "Get returns a project by name",
-        "operationId": "GetMixin6",
+        "operationId": "GetMixin5",
         "parameters": [
           {
             "type": "string",
@@ -1516,7 +1530,7 @@
           "ProjectService"
         ],
         "summary": "Delete deletes a project",
-        "operationId": "DeleteMixin6",
+        "operationId": "DeleteMixin5",
         "parameters": [
           {
             "type": "string",
@@ -1560,6 +1574,31 @@
         }
       }
     },
+    "/api/v1/projects/{name}/globalprojects": {
+      "get": {
+        "tags": [
+          "ProjectService"
+        ],
+        "summary": "Get returns a virtual project by name",
+        "operationId": "GetGlobalProjects",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/projectGlobalProjectsResponse"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/projects/{name}/syncwindows": {
       "get": {
         "tags": [
@@ -1591,7 +1630,7 @@
           "ProjectService"
         ],
         "summary": "Update updates a project",
-        "operationId": "UpdateMixin6",
+        "operationId": "UpdateMixin5",
         "parameters": [
           {
             "type": "string",
@@ -1624,8 +1663,8 @@
         "tags": [
           "ProjectService"
         ],
-        "summary": "Create a new project token.",
-        "operationId": "CreateToken",
+        "summary": "Create a new project token",
+        "operationId": "CreateTokenMixin5",
         "parameters": [
           {
             "type": "string",
@@ -1663,8 +1702,8 @@
         "tags": [
           "ProjectService"
         ],
-        "summary": "Delete a new project token.",
-        "operationId": "DeleteToken",
+        "summary": "Delete a new project token",
+        "operationId": "DeleteTokenMixin5",
         "parameters": [
           {
             "type": "string",
@@ -1909,7 +1948,7 @@
           "RepositoryService"
         ],
         "summary": "Get returns a repository or its credentials",
-        "operationId": "GetMixin3",
+        "operationId": "GetMixin7",
         "parameters": [
           {
             "type": "string",
@@ -2002,6 +2041,7 @@
         "tags": [
           "RepositoryService"
         ],
+        "summary": "GetHelmCharts returns list of helm charts in the specified repository",
         "operationId": "GetHelmCharts",
         "parameters": [
           {
@@ -2103,8 +2143,8 @@
         "tags": [
           "SessionService"
         ],
-        "summary": "Create a new JWT for authentication and set a cookie if using HTTP.",
-        "operationId": "CreateMixin11",
+        "summary": "Create a new JWT for authentication and set a cookie if using HTTP",
+        "operationId": "CreateMixin8",
         "parameters": [
           {
             "name": "body",
@@ -2128,8 +2168,8 @@
         "tags": [
           "SessionService"
         ],
-        "summary": "Delete an existing JWT cookie if using HTTP.",
-        "operationId": "DeleteMixin11",
+        "summary": "Delete an existing JWT cookie if using HTTP",
+        "operationId": "DeleteMixin8",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2163,7 +2203,7 @@
           "SettingsService"
         ],
         "summary": "Get returns Argo CD settings",
-        "operationId": "Get",
+        "operationId": "GetMixin10",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2179,7 +2219,7 @@
         "tags": [
           "ApplicationService"
         ],
-        "summary": "Watch returns stream of application change events.",
+        "summary": "Watch returns stream of application change events",
         "operationId": "Watch",
         "parameters": [
           {
@@ -2221,7 +2261,75 @@
           "200": {
             "description": "A successful response.(streaming responses)",
             "schema": {
-              "$ref": "#/x-stream-definitions/v1alpha1ApplicationWatchEvent"
+              "type": "object",
+              "title": "Stream result of v1alpha1ApplicationWatchEvent",
+              "properties": {
+                "error": {
+                  "$ref": "#/definitions/runtimeStreamError"
+                },
+                "result": {
+                  "$ref": "#/definitions/v1alpha1ApplicationWatchEvent"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/stream/applications/{applicationName}/resource-tree": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "Watch returns stream of application resource tree",
+        "operationId": "WatchResourceTree",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "applicationName",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "name",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "version",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "group",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "kind",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.(streaming responses)",
+            "schema": {
+              "type": "object",
+              "title": "Stream result of v1alpha1ApplicationTree",
+              "properties": {
+                "error": {
+                  "$ref": "#/definitions/runtimeStreamError"
+                },
+                "result": {
+                  "$ref": "#/definitions/v1alpha1ApplicationTree"
+                }
+              }
             }
           }
         }
@@ -2706,6 +2814,17 @@
     "projectEmptyResponse": {
       "type": "object"
     },
+    "projectGlobalProjectsResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1AppProject"
+          }
+        }
+      }
+    },
     "projectProjectCreateRequest": {
       "description": "ProjectCreateRequest defines project creation parameters.",
       "type": "object",
@@ -3153,10 +3272,6 @@
         },
         "lastObservedTime": {
           "$ref": "#/definitions/v1MicroTime"
-        },
-        "state": {
-          "type": "string",
-          "title": "State of this Series: Ongoing or Finished\nDeprecated. Planned removal for 1.18"
         }
       }
     },
@@ -3175,7 +3290,7 @@
       }
     },
     "v1FieldsV1": {
-      "description": "FieldsV1 stores a set of fields in a data structure like a Trie, in JSON format.\n\nEach key is either a '.' representing the field itself, and will always map to an empty set,\nor a string representing a sub-field or item. The string will follow one of these four formats:\n'f:<name>', where <name> is the name of a field in a struct, or key in a map\n'v:<value>', where <value> is the exact json formatted value of a list item\n'i:<index>', where <index> is position of a item in a list\n'k:<keys>', where <keys> is a map of  a list item's key fields to their unique values\nIf a key maps to an empty Fields value, the field that key represents is part of the set.\n\nThe exact format is defined in sigs.k8s.io/structured-merge-diff",
+      "description": "FieldsV1 stores a set of fields in a data structure like a Trie, in JSON format.\n\nEach key is either a '.' representing the field itself, and will always map to an empty set,\nor a string representing a sub-field or item. The string will follow one of these four formats:\n'f:<name>', where <name> is the name of a field in a struct, or key in a map\n'v:<value>', where <value> is the exact json formatted value of a list item\n'i:<index>', where <index> is position of a item in a list\n'k:<keys>', where <keys> is a map of  a list item's key fields to their unique values\nIf a key maps to an empty Fields value, the field that key represents is part of the set.\n\nThe exact format is defined in sigs.k8s.io/structured-merge-diff\n+protobuf.options.(gogoproto.goproto_stringer)=false",
       "type": "object",
       "properties": {
         "Raw": {
@@ -3340,7 +3455,7 @@
           "title": "Name must be unique within a namespace. Is required when creating resources, although\nsome resources may allow a client to request the generation of an appropriate name\nautomatically. Name is primarily intended for creation idempotence and configuration\ndefinition.\nCannot be updated.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#names\n+optional"
         },
         "namespace": {
-          "description": "Namespace defines the space within each name must be unique. An empty namespace is\nequivalent to the \"default\" namespace, but \"default\" is the canonical representation.\nNot all objects are required to be scoped to a namespace - the value of this field for\nthose objects will be empty.\n\nMust be a DNS_LABEL.\nCannot be updated.\nMore info: http://kubernetes.io/docs/user-guide/namespaces\n+optional",
+          "description": "Namespace defines the space within which each name must be unique. An empty namespace is\nequivalent to the \"default\" namespace, but \"default\" is the canonical representation.\nNot all objects are required to be scoped to a namespace - the value of this field for\nthose objects will be empty.\n\nMust be a DNS_LABEL.\nCannot be updated.\nMore info: http://kubernetes.io/docs/user-guide/namespaces\n+optional",
           "type": "string"
         },
         "ownerReferences": {
@@ -3580,7 +3695,7 @@
     },
     "v1alpha1Application": {
       "type": "object",
-      "title": "Application is a definition of Application resource.\n+genclient\n+genclient:noStatus\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object\n+kubebuilder:resource:path=applications,shortName=app;apps",
+      "title": "Application is a definition of Application resource.\n+genclient\n+genclient:noStatus\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object\n+kubebuilder:resource:path=applications,shortName=app;apps\n+kubebuilder:printcolumn:name=\"Sync Status\",type=string,JSONPath=`.status.sync.status`\n+kubebuilder:printcolumn:name=\"Health Status\",type=string,JSONPath=`.status.health.status`\n+kubebuilder:printcolumn:name=\"Revision\",type=string,JSONPath=`.status.sync.revision`,priority=10",
       "properties": {
         "metadata": {
           "$ref": "#/definitions/v1ObjectMeta"
@@ -3727,6 +3842,10 @@
         "values": {
           "type": "string",
           "title": "Values is Helm values, typically defined as a block"
+        },
+        "version": {
+          "type": "string",
+          "title": "Version is the Helm version to use for templating with"
         }
       }
     },
@@ -4008,6 +4127,11 @@
         "serverVersion": {
           "type": "string",
           "title": "DEPRECATED: use Info.ServerVersion field instead.\nThe server version"
+        },
+        "shard": {
+          "description": "Shard contains optional shard number. Calculated on the fly by the application controller if not specified.",
+          "type": "string",
+          "format": "int64"
         }
       }
     },
@@ -5151,6 +5275,11 @@
       "type": "object",
       "title": "SyncPolicyAutomated controls the behavior of an automated sync",
       "properties": {
+        "allowEmpty": {
+          "type": "boolean",
+          "format": "boolean",
+          "title": "AllowEmpty allows apps have zero live resources (default: false)"
+        },
         "prune": {
           "type": "boolean",
           "format": "boolean",
@@ -5307,6 +5436,9 @@
           "type": "string"
         },
         "HelmVersion": {
+          "type": "string"
+        },
+        "JsonnetVersion": {
           "type": "string"
         },
         "KsonnetVersion": {

@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app.kubernetes.io/name: argocd-application-controller
+    app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/component: application-controller
+  name: argocd-application-controller
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-application-controller
+  serviceName: argocd-application-controller
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: argocd-application-controller
+    spec:
+      containers:
+      - command:
+        - argocd-application-controller
+        - --status-processors
+        - "20"
+        - --operation-processors
+        - "10"
+        image: argoproj/argocd:latest
+        imagePullPolicy: Always
+        name: argocd-application-controller
+        ports:
+        - containerPort: 8082
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8082
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8082
+          initialDelaySeconds: 5
+          periodSeconds: 10
+      serviceAccountName: argocd-application-controller

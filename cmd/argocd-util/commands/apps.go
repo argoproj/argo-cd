@@ -9,7 +9,6 @@ import (
 	"sort"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/ghodss/yaml"
@@ -147,7 +146,7 @@ func diffReconcileResults(res1 reconcileResults, res2 reconcileResults) error {
 	})
 	for _, item := range pairs {
 		printLine(item.name)
-		_ = diff.PrintDiff(item.name, item.first, item.second)
+		_ = cli.PrintDiff(item.name, item.first, item.second)
 	}
 
 	return nil
@@ -277,9 +276,15 @@ func reconcileApplications(
 
 	appLister := appInformerFactory.Argoproj().V1alpha1().Applications().Lister()
 	projLister := appInformerFactory.Argoproj().V1alpha1().AppProjects().Lister()
-	server := metrics.NewMetricsServer("", appLister, func() error {
+	server, err := metrics.NewMetricsServer("", appLister, func(obj interface{}) bool {
+		return true
+	}, func() error {
 		return nil
 	})
+
+	if err != nil {
+		return nil, err
+	}
 	stateCache := createLiveStateCache(argoDB, appInformer, settingsMgr, server)
 	if err := stateCache.Init(); err != nil {
 		return nil, err
@@ -328,5 +333,5 @@ func reconcileApplications(
 }
 
 func newLiveStateCache(argoDB db.ArgoDB, appInformer kubecache.SharedIndexInformer, settingsMgr *settings.SettingsManager, server *metrics.MetricsServer) cache.LiveStateCache {
-	return cache.NewLiveStateCache(argoDB, appInformer, settingsMgr, &kube.KubectlCmd{}, server, func(managedByApp map[string]bool, ref apiv1.ObjectReference) {})
+	return cache.NewLiveStateCache(argoDB, appInformer, settingsMgr, &kube.KubectlCmd{}, server, func(managedByApp map[string]bool, ref apiv1.ObjectReference) {}, nil)
 }

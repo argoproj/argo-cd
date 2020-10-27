@@ -112,6 +112,7 @@ func TestGetResourceFilter(t *testing.T) {
 		ResourceInclusions: []FilteredResource{{APIGroups: []string{"group2"}, Kinds: []string{"kind2"}, Clusters: []string{"cluster2"}}},
 	}, filter)
 }
+
 func TestGetConfigManagementPlugins(t *testing.T) {
 	data := map[string]string{
 		"configManagementPlugins": `
@@ -219,6 +220,17 @@ func TestGetResourceOverrides(t *testing.T) {
 	overrides, err = settingsManager.GetResourceOverrides()
 	assert.NoError(t, err)
 	assert.Equal(t, 0, len(overrides))
+
+}
+
+func TestSettingsManager_GetResourceOverrides_with_empty_string(t *testing.T) {
+	_, settingsManager := fixtures(map[string]string{
+		resourceCustomizationsKey: "",
+	})
+	overrides, err := settingsManager.GetResourceOverrides()
+	assert.NoError(t, err)
+
+	assert.Len(t, overrides, 1)
 }
 
 func TestGetResourceCompareOptions(t *testing.T) {
@@ -396,5 +408,27 @@ func TestRedirectURL(t *testing.T) {
 		dexRedirectURL, err := settings.DexRedirectURL()
 		assert.NoError(t, err)
 		assert.Equal(t, expected[1], dexRedirectURL)
+	}
+}
+
+func Test_validateExternalURL(t *testing.T) {
+	tests := []struct {
+		name   string
+		url    string
+		errMsg string
+	}{
+		{name: "Valid URL", url: "https://my.domain.com"},
+		{name: "No URL - Valid", url: ""},
+		{name: "Invalid URL", url: "my.domain.com", errMsg: "URL must include http or https protocol"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateExternalURL(tt.url)
+			if tt.errMsg != "" {
+				assert.EqualError(t, err, tt.errMsg)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
 	}
 }

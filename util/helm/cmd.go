@@ -23,7 +23,15 @@ type Cmd struct {
 	IsHelmOci bool
 }
 
-func NewCmd(workDir string) (*Cmd, error) {
+func NewCmd(workDir string, version string) (*Cmd, error) {
+	if version != "" {
+		switch version {
+		case "v2":
+			return NewCmdWithVersion(workDir, HelmV2, false)
+		case "v3":
+			return NewCmdWithVersion(workDir, HelmV3, false)
+		}
+	}
 	helmVersion, err := getHelmVersion(workDir)
 	if err != nil {
 		return nil, err

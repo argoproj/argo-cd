@@ -6,7 +6,7 @@ We want to make contributing to ArgoCD as simple and smooth as possible.
 
 This guide shall help you in setting up your build & test environment, so that you can start developing and testing bug fixes and feature enhancements without having to make too much effort in setting up a local toolchain.
 
-If you want to to submit a PR, please read this document carefully, as it contains important information guiding you through our PR quality gates.
+If you want to submit a PR, please read this document carefully, as it contains important information guiding you through our PR quality gates.
 
 As is the case with the development process, this document is under constant change. If you notice any error, or if you think this document is out-of-date, or if you think it is missing something: Feel free to submit a PR or submit a bug to our GitHub issue tracker.
 
@@ -76,7 +76,7 @@ After you have submitted your PR, and whenever you push new commits to that bran
 * Run a Go linter on the code (`make lint`)
 * Run the unit tests (`make test`)
 * Run the End-to-End tests (`make test-e2e`)
-* Build and lint the UI code (`make ui`)
+* Build and lint the UI code (`make lint-ui`)
 * Build the `argocd` CLI (`make cli`)
 
 If any of these tests in the CI pipeline fail, it means that some of your contribution is considered faulty (or a test might be flaky, see below).

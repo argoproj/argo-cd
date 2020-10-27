@@ -12,6 +12,7 @@ import (
 type MetricsServer struct {
 	handler                  http.Handler
 	gitRequestCounter        *prometheus.CounterVec
+	gitRequestHistogram      *prometheus.HistogramVec
 	repoPendingRequestsGauge *prometheus.GaugeVec
 	redisRequestCounter      *prometheus.CounterVec
 	redisRequestHistogram    *prometheus.HistogramVec
@@ -24,7 +25,7 @@ const (
 	GitRequestTypeFetch    = "fetch"
 )
 
-// NewMetricsServer returns a new prometheus server which collects application metrics
+// NewMetricsServer returns a new prometheus server which collects application metrics.
 func NewMetricsServer() *MetricsServer {
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}))
@@ -38,6 +39,16 @@ func NewMetricsServer() *MetricsServer {
 		[]string{"repo", "request_type"},
 	)
 	registry.MustRegister(gitRequestCounter)
+
+	gitRequestHistogram := prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "argocd_git_request_duration_seconds",
+			Help:    "Git requests duration seconds.",
+			Buckets: []float64{0.1, 0.25, .5, 1, 2, 4, 10, 20},
+		},
+		[]string{"repo", "request_type"},
+	)
+	registry.MustRegister(gitRequestHistogram)
 
 	repoPendingRequestsGauge := prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
@@ -59,8 +70,8 @@ func NewMetricsServer() *MetricsServer {
 
 	redisRequestHistogram := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name:    "argocd_redis_request_duration",
-			Help:    "Redis requests duration.",
+			Name:    "argocd_redis_request_duration_seconds",
+			Help:    "Redis requests duration seconds.",
 			Buckets: []float64{0.1, 0.25, .5, 1, 2},
 		},
 		[]string{"initiator"},
@@ -70,6 +81,7 @@ func NewMetricsServer() *MetricsServer {
 	return &MetricsServer{
 		handler:                  promhttp.HandlerFor(registry, promhttp.HandlerOpts{}),
 		gitRequestCounter:        gitRequestCounter,
+		gitRequestHistogram:      gitRequestHistogram,
 		repoPendingRequestsGauge: repoPendingRequestsGauge,
 		redisRequestCounter:      redisRequestCounter,
 		redisRequestHistogram:    redisRequestHistogram,
@@ -87,6 +99,10 @@ func (m *MetricsServer) IncGitRequest(repo string, requestType GitRequestType) {
 
 func (m *MetricsServer) IncPendingRepoRequest(repo string) {
 	m.repoPendingRequestsGauge.WithLabelValues(repo).Inc()
+}
+
+func (m *MetricsServer) ObserveGitRequestDuration(repo string, requestType GitRequestType, duration time.Duration) {
+	m.gitRequestHistogram.WithLabelValues(repo, string(requestType)).Observe(duration.Seconds())
 }
 
 func (m *MetricsServer) DecPendingRepoRequest(repo string) {

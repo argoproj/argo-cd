@@ -2,6 +2,7 @@ package cache
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
@@ -10,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	k8snode "k8s.io/kubernetes/pkg/util/node"
 
+	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/resource"
 )
@@ -35,6 +37,15 @@ func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 		case kube.IngressKind:
 			populateIngressInfo(un, res)
 			return
+		}
+	}
+
+	for k, v := range un.GetAnnotations() {
+		if strings.HasPrefix(k, common.AnnotationKeyLinkPrefix) {
+			if res.NetworkingInfo == nil {
+				res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{}
+			}
+			res.NetworkingInfo.ExternalURLs = append(res.NetworkingInfo.ExternalURLs, v)
 		}
 	}
 }
@@ -112,37 +123,29 @@ func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 					}] = true
 				}
 
-				if port, ok, err := unstructured.NestedFieldNoCopy(path, "backend", "servicePort"); ok && err == nil && host != "" && host != nil {
-					stringPort := ""
-					switch typedPod := port.(type) {
-					case int64:
-						stringPort = fmt.Sprintf("%d", typedPod)
-					case float64:
-						stringPort = fmt.Sprintf("%d", int64(typedPod))
-					case string:
-						stringPort = typedPod
-					default:
-						stringPort = fmt.Sprintf("%v", port)
+				stringPort := "http"
+				if tls, ok, err := unstructured.NestedSlice(un.Object, "spec", "tls"); ok && err == nil {
+					for i := range tls {
+						tlsline, ok := tls[i].(map[string]interface{})
+						secretName := tlsline["secretName"]
+						if ok && secretName != nil {
+							stringPort = "https"
+						}
+						tlshost := tlsline["host"]
+						if tlshost == host {
+							stringPort = "https"
+						}
 					}
-
-					var externalURL string
-					switch stringPort {
-					case "80", "http":
-						externalURL = fmt.Sprintf("http://%s", host)
-					case "443", "https":
-						externalURL = fmt.Sprintf("https://%s", host)
-					default:
-						externalURL = fmt.Sprintf("http://%s:%s", host, stringPort)
-					}
-
-					subPath := ""
-					if nestedPath, ok, err := unstructured.NestedString(path, "path"); ok && err == nil {
-						subPath = nestedPath
-					}
-
-					externalURL += subPath
-					urlsSet[externalURL] = true
 				}
+
+				externalURL := fmt.Sprintf("%s://%s", stringPort, host)
+
+				subPath := ""
+				if nestedPath, ok, err := unstructured.NestedString(path, "path"); ok && err == nil {
+					subPath = strings.TrimSuffix(nestedPath, "*")
+				}
+				externalURL += subPath
+				urlsSet[externalURL] = true
 			}
 		}
 	}
@@ -150,7 +153,11 @@ func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	for target := range targetsMap {
 		targets = append(targets, target)
 	}
-	urls := make([]string, 0)
+
+	var urls []string
+	if res.NetworkingInfo != nil {
+		urls = res.NetworkingInfo.ExternalURLs
+	}
 	for url := range urlsSet {
 		urls = append(urls, url)
 	}

@@ -28,6 +28,7 @@ import (
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/helm"
+	"github.com/argoproj/argo-cd/util/settings"
 )
 
 const (
@@ -363,8 +364,12 @@ func APIGroupsToVersions(apiGroups []metav1.APIGroup) []string {
 }
 
 // GetAppProject returns a project from an application
-func GetAppProject(spec *argoappv1.ApplicationSpec, projLister applicationsv1.AppProjectLister, ns string) (*argoappv1.AppProject, error) {
-	return projLister.AppProjects(ns).Get(spec.GetProject())
+func GetAppProject(spec *argoappv1.ApplicationSpec, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager) (*argoappv1.AppProject, error) {
+	projOrig, err := projLister.AppProjects(ns).Get(spec.GetProject())
+	if err != nil {
+		return nil, err
+	}
+	return GetAppVirtualProject(projOrig, projLister, settingsManager)
 }
 
 // verifyGenerateManifests verifies a repo path can generate manifests
@@ -500,4 +505,74 @@ func getDestinationServer(ctx context.Context, db db.ArgoDB, clusterName string)
 		return "", fmt.Errorf("there are no clusters with this name: %s", clusterName)
 	}
 	return servers[0], nil
+}
+
+func GetGlobalProjects(proj *argoappv1.AppProject, projLister applicationsv1.AppProjectLister, settingsManager *settings.SettingsManager) []*argoappv1.AppProject {
+	gps, err := settingsManager.GetGlobalProjectsSettings()
+	globalProjects := make([]*argoappv1.AppProject, 0)
+
+	if err != nil {
+		log.Warnf("Failed to get global project settings: %v", err)
+		return globalProjects
+	}
+
+	for _, gp := range gps {
+		//The project itself is not its own the global project
+		if proj.Name == gp.ProjectName {
+			continue
+		}
+
+		selector, err := metav1.LabelSelectorAsSelector(&gp.LabelSelector)
+		if err != nil {
+			break
+		}
+		//Get projects which match the label selector, then see if proj is a match
+		projList, err := projLister.AppProjects(proj.Namespace).List(selector)
+		if err != nil {
+			break
+		}
+		var matchMe bool
+		for _, item := range projList {
+			if item.Name == proj.Name {
+				matchMe = true
+				break
+			}
+		}
+		if !matchMe {
+			break
+		}
+		//If proj is a match for this global project setting, then it is its global project
+		globalProj, err := projLister.AppProjects(proj.Namespace).Get(gp.ProjectName)
+		if err != nil {
+			break
+		}
+		globalProjects = append(globalProjects, globalProj)
+
+	}
+	return globalProjects
+}
+
+func GetAppVirtualProject(proj *argoappv1.AppProject, projLister applicationsv1.AppProjectLister, settingsManager *settings.SettingsManager) (*argoappv1.AppProject, error) {
+	virtualProj := proj.DeepCopy()
+	globalProjects := GetGlobalProjects(proj, projLister, settingsManager)
+
+	for _, gp := range globalProjects {
+		virtualProj = mergeVirtualProject(virtualProj, gp)
+	}
+	return virtualProj, nil
+}
+
+func mergeVirtualProject(proj *argoappv1.AppProject, globalProj *argoappv1.AppProject) *argoappv1.AppProject {
+	if globalProj == nil {
+		return proj
+	}
+	proj.Spec.ClusterResourceWhitelist = append(proj.Spec.ClusterResourceWhitelist, globalProj.Spec.ClusterResourceWhitelist...)
+	proj.Spec.ClusterResourceBlacklist = append(proj.Spec.ClusterResourceBlacklist, globalProj.Spec.ClusterResourceBlacklist...)
+
+	proj.Spec.NamespaceResourceWhitelist = append(proj.Spec.NamespaceResourceWhitelist, globalProj.Spec.NamespaceResourceWhitelist...)
+	proj.Spec.NamespaceResourceBlacklist = append(proj.Spec.NamespaceResourceBlacklist, globalProj.Spec.NamespaceResourceBlacklist...)
+
+	proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, globalProj.Spec.SyncWindows...)
+
+	return proj
 }
