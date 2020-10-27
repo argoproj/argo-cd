@@ -38,8 +38,6 @@ func TestGlobalProjectGen(t *testing.T) {
 				Kind: "Service",
 			}
 			resourceList := []*metav1.APIResourceList{{APIResources: []metav1.APIResource{res}}}
-			patchSeverPreferedResources.Unpatch()
-			defer patchSeverPreferedResources.Patch()
 			return resourceList, nil
 		})
 		assert.NoError(t, err)
