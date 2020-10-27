@@ -3,12 +3,12 @@ package session
 import (
 	"context"
 
-	util "github.com/argoproj/gitops-engine/pkg/utils/io"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	"github.com/argoproj/argo-cd/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
+	util "github.com/argoproj/argo-cd/util/io"
 	sessionmgr "github.com/argoproj/argo-cd/util/session"
 )
 

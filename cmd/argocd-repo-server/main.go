@@ -8,7 +8,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/argoproj/pkg/stats"
 	"github.com/go-redis/redis/v8"
 	log "github.com/sirupsen/logrus"
@@ -22,6 +21,7 @@ import (
 	cacheutil "github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/env"
+	"github.com/argoproj/argo-cd/util/errors"
 	"github.com/argoproj/argo-cd/util/gpg"
 	"github.com/argoproj/argo-cd/util/tls"
 )

@@ -9,9 +9,8 @@ import (
 	"path/filepath"
 	"regexp"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
-
 	executil "github.com/argoproj/argo-cd/util/exec"
+	"github.com/argoproj/argo-cd/util/io"
 )
 
 // A thin wrapper around the "helm" command, adding logging and error translation.

@@ -15,9 +15,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/argoproj/argo-cd/util/kube"
-
-	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/coreos/go-oidc"
 	"github.com/dgrijalva/jwt-go"
 	log "github.com/sirupsen/logrus"
@@ -43,6 +40,8 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
+	argoio "github.com/argoproj/argo-cd/util/io"
+	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/localconfig"
 	oidcutil "github.com/argoproj/argo-cd/util/oidc"
 	tls_util "github.com/argoproj/argo-cd/util/tls"

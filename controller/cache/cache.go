@@ -23,6 +23,7 @@ import (
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/db"
+	logutils "github.com/argoproj/argo-cd/util/log"
 	"github.com/argoproj/argo-cd/util/lua"
 	"github.com/argoproj/argo-cd/util/settings"
 )
@@ -264,6 +265,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 			// want the full resource to be available in our cache (to diff), so we store all CRDs
 			return res, res.AppName != "" || un.GroupVersionKind().Kind == kube.CustomResourceDefinitionKind
 		}),
+		clustercache.SetLogr(logutils.NewLogrusLogger(log.WithField("server", cluster.Server))),
 	)
 
 	_ = clusterCache.OnResourceUpdated(func(newRes *clustercache.Resource, oldRes *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) {
@@ -434,7 +436,7 @@ func (c *liveStateCache) Init() error {
 func (c *liveStateCache) Run(ctx context.Context) error {
 	go c.watchSettings(ctx)
 
-	kube.RetryUntilSucceed(ctx, clustercache.ClusterRetryTimeout, "watch clusters", func() error {
+	kube.RetryUntilSucceed(ctx, clustercache.ClusterRetryTimeout, "watch clusters", logutils.NewLogrusLogger(log.New()), func() error {
 		return c.db.WatchClusters(ctx, c.handleAddEvent, c.handleModEvent, c.handleDeleteEvent)
 	})
 

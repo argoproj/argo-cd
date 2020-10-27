@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
@@ -18,6 +17,7 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apiclient/account"
 	sessionpkg "github.com/argoproj/argo-cd/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/server/session"
+	"github.com/argoproj/argo-cd/util/errors"
 	"github.com/argoproj/argo-cd/util/password"
 	"github.com/argoproj/argo-cd/util/rbac"
 	sessionutil "github.com/argoproj/argo-cd/util/session"

@@ -12,7 +12,6 @@ import (
 	hookutil "github.com/argoproj/gitops-engine/pkg/sync/hook"
 	"github.com/argoproj/gitops-engine/pkg/sync/ignore"
 	resourceutil "github.com/argoproj/gitops-engine/pkg/sync/resource"
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	kubeutil "github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,6 +31,7 @@ import (
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/gpg"
 	argohealth "github.com/argoproj/argo-cd/util/health"
+	"github.com/argoproj/argo-cd/util/io"
 	"github.com/argoproj/argo-cd/util/settings"
 	"github.com/argoproj/argo-cd/util/stats"
 )
@@ -426,12 +426,15 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	compareOptions, err := m.settingsMgr.GetResourceCompareOptions()
 	if err != nil {
 		log.Warnf("Could not get compare options from ConfigMap (assuming defaults): %v", err)
-		compareOptions = diff.GetDefaultDiffOptions()
+		compareOptions = settings.GetDefaultDiffOptions()
 	}
 
 	logCtx.Debugf("built managed objects list")
 	// Do the actual comparison
-	diffResults, err := diff.DiffArray(reconciliation.Target, reconciliation.Live, diffNormalizer, compareOptions)
+	diffResults, err := diff.DiffArray(
+		reconciliation.Target, reconciliation.Live,
+		diff.WithNormalizer(diffNormalizer),
+		diff.IgnoreAggregatedRoles(compareOptions.IgnoreAggregatedRoles))
 	if err != nil {
 		diffResults = &diff.DiffResultList{}
 		failedToLoadObjs = true

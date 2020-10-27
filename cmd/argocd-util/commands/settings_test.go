@@ -10,9 +10,9 @@ import (
 	"testing"
 
 	"github.com/argoproj/argo-cd/common"
+	utils "github.com/argoproj/argo-cd/util/io"
 	"github.com/argoproj/argo-cd/util/settings"
 
-	utils "github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

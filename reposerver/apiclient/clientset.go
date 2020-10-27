@@ -4,7 +4,6 @@ import (
 	"crypto/tls"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	log "github.com/sirupsen/logrus"
@@ -12,6 +11,7 @@ import (
 	"google.golang.org/grpc/credentials"
 
 	argogrpc "github.com/argoproj/argo-cd/util/grpc"
+	"github.com/argoproj/argo-cd/util/io"
 )
 
 const (

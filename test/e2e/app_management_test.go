@@ -15,8 +15,6 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
-	. "github.com/argoproj/gitops-engine/pkg/utils/errors"
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -37,6 +35,8 @@ import (
 	. "github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
 	. "github.com/argoproj/argo-cd/util/argo"
+	. "github.com/argoproj/argo-cd/util/errors"
+	"github.com/argoproj/argo-cd/util/io"
 	"github.com/argoproj/argo-cd/util/settings"
 )
 

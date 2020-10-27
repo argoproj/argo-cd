@@ -4,7 +4,8 @@ import (
 	"context"
 	"time"
 
-	ioutil "github.com/argoproj/gitops-engine/pkg/utils/io"
+	ioutil "github.com/argoproj/argo-cd/util/io"
+
 	rediscache "github.com/go-redis/cache/v8"
 	"github.com/go-redis/redis/v8"
 )

@@ -9,8 +9,6 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/errors"
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
@@ -22,6 +20,8 @@ import (
 	clusterpkg "github.com/argoproj/argo-cd/pkg/apiclient/cluster"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/clusterauth"
+	"github.com/argoproj/argo-cd/util/errors"
+	"github.com/argoproj/argo-cd/util/io"
 )
 
 // NewClusterCommand returns a new instance of an `argocd cluster` command

@@ -10,11 +10,11 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
-	. "github.com/argoproj/gitops-engine/pkg/utils/errors"
 
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
+	. "github.com/argoproj/argo-cd/util/errors"
 )
 
 func TestPreSyncHookSuccessful(t *testing.T) {

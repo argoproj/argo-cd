@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/util/errors"
 	"github.com/argoproj/argo-cd/util/grpc"
 )
 

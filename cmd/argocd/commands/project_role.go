@@ -8,8 +8,6 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/errors"
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	timeutil "github.com/argoproj/pkg/time"
 	jwtgo "github.com/dgrijalva/jwt-go"
 	"github.com/spf13/cobra"
@@ -17,6 +15,8 @@ import (
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	projectpkg "github.com/argoproj/argo-cd/pkg/apiclient/project"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/errors"
+	"github.com/argoproj/argo-cd/util/io"
 )
 
 const (
