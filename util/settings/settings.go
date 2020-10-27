@@ -15,7 +15,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	apiv1 "k8s.io/api/core/v1"
@@ -282,7 +281,7 @@ const (
 )
 
 type ArgoCDDiffOptions struct {
-	diff.DiffOptions
+	IgnoreAggregatedRoles bool `json:"ignoreAggregatedRoles,omitempty"`
 
 	// If set to true then differences caused by status are ignored.
 	IgnoreResourceStatusField IgnoreStatus `json:"ignoreResourceStatusField,omitempty"`
@@ -520,10 +519,14 @@ func addStatusOverrideToGK(resourceOverrides map[string]v1alpha1.ResourceOverrid
 	}
 }
 
+func GetDefaultDiffOptions() ArgoCDDiffOptions {
+	return ArgoCDDiffOptions{IgnoreAggregatedRoles: false}
+}
+
 // GetResourceCompareOptions loads the resource compare options settings from the ConfigMap
-func (mgr *SettingsManager) GetResourceCompareOptions() (diff.DiffOptions, error) {
+func (mgr *SettingsManager) GetResourceCompareOptions() (ArgoCDDiffOptions, error) {
 	// We have a sane set of default diff options
-	diffOptions := diff.GetDefaultDiffOptions()
+	diffOptions := GetDefaultDiffOptions()
 
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {

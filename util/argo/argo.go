@@ -18,8 +18,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
-
 	"github.com/argoproj/argo-cd/common"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/pkg/client/clientset/versioned/typed/application/v1alpha1"
@@ -28,6 +26,7 @@ import (
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/helm"
+	"github.com/argoproj/argo-cd/util/io"
 	"github.com/argoproj/argo-cd/util/settings"
 )
 

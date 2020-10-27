@@ -11,8 +11,6 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/argoproj/gitops-engine/pkg/utils/errors"
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/argoproj/pkg/errors"
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/ghodss/yaml"
@@ -29,7 +27,9 @@ import (
 	sessionpkg "github.com/argoproj/argo-cd/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
+	. "github.com/argoproj/argo-cd/util/errors"
 	grpcutil "github.com/argoproj/argo-cd/util/grpc"
+	"github.com/argoproj/argo-cd/util/io"
 	"github.com/argoproj/argo-cd/util/rand"
 	"github.com/argoproj/argo-cd/util/settings"
 )

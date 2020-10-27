@@ -31,8 +31,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
-
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
@@ -45,6 +43,7 @@ import (
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/gpg"
 	"github.com/argoproj/argo-cd/util/helm"
+	"github.com/argoproj/argo-cd/util/io"
 	"github.com/argoproj/argo-cd/util/ksonnet"
 	argokube "github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/kustomize"

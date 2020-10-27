@@ -20,7 +20,6 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/sync/hook"
 	"github.com/argoproj/gitops-engine/pkg/sync/ignore"
-	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
@@ -31,8 +30,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
-
-	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/controller"
@@ -50,7 +47,9 @@ import (
 	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/config"
+	"github.com/argoproj/argo-cd/util/errors"
 	"github.com/argoproj/argo-cd/util/git"
+	argoio "github.com/argoproj/argo-cd/util/io"
 	argokube "github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/templates"
 	"github.com/argoproj/argo-cd/util/text/label"
@@ -1141,7 +1140,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				normalizer, err := argo.NewDiffNormalizer(app.Spec.IgnoreDifferences, overrides)
 				errors.CheckError(err)
 
-				diffRes, err := diff.Diff(item.target, item.live, normalizer, diff.GetDefaultDiffOptions())
+				diffRes, err := diff.Diff(item.target, item.live, diff.WithNormalizer(normalizer))
 				errors.CheckError(err)
 
 				if diffRes.Modified || item.target == nil || item.live == nil {

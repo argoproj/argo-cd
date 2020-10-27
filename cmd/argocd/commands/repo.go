@@ -7,18 +7,17 @@ import (
 	"os"
 	"text/tabwriter"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
 
 	"github.com/argoproj/argo-cd/common"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	repositorypkg "github.com/argoproj/argo-cd/pkg/apiclient/repository"
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/cli"
+	"github.com/argoproj/argo-cd/util/errors"
 	"github.com/argoproj/argo-cd/util/git"
+	"github.com/argoproj/argo-cd/util/io"
 )
 
 // NewRepoCommand returns a new instance of an `argocd repo` command

@@ -37,8 +37,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/utils/pointer"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
-
 	argocommon "github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -54,6 +52,7 @@ import (
 	"github.com/argoproj/argo-cd/util/env"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/helm"
+	"github.com/argoproj/argo-cd/util/io"
 	"github.com/argoproj/argo-cd/util/lua"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/session"

@@ -12,8 +12,6 @@ import (
 	"google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
-
 	"github.com/argoproj/argo-cd/common"
 	repositorypkg "github.com/argoproj/argo-cd/pkg/apiclient/repository"
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -22,6 +20,7 @@ import (
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/db"
+	"github.com/argoproj/argo-cd/util/io"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/settings"
 )
