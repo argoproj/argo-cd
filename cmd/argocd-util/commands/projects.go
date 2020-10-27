@@ -28,7 +28,7 @@ func NewProjectsCommand() *cobra.Command {
 	}
 
 	command.AddCommand(NewUpdatePolicyRuleCommand())
-	command.AddCommand(NewGlobalProjectGenCommand())
+	command.AddCommand(NewProjectAllowListGenCommand())
 	return command
 }
 

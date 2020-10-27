@@ -12,7 +12,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-func TestGlobalProjectGen(t *testing.T) {
+func TestProjectAllowListGen(t *testing.T) {
 	useMock := true
 	rules := clientcmd.NewDefaultClientConfigLoadingRules()
 	overrides := &clientcmd.ConfigOverrides{}
@@ -52,6 +52,6 @@ func TestGlobalProjectGen(t *testing.T) {
 		}()
 	}
 
-	globalProj := generateGlobalProject(clientConfig, "testdata/test_clusterrole.yaml", "testproj")
+	globalProj := generateProjectAllowList(clientConfig, "testdata/test_clusterrole.yaml", "testproj")
 	assert.True(t, len(globalProj.Spec.NamespaceResourceWhitelist) > 0)
 }

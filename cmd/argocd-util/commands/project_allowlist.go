@@ -30,8 +30,8 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/azure"
 )
 
-// NewGlobalProjectGenCommand generates a project from clusterRole
-func NewGlobalProjectGenCommand() *cobra.Command {
+// NewProjectAllowListGenCommand generates a project from clusterRole
+func NewProjectAllowListGenCommand() *cobra.Command {
 	var (
 		clientConfig clientcmd.ClientConfig
 		out          string
@@ -63,7 +63,7 @@ func NewGlobalProjectGenCommand() *cobra.Command {
 				}()
 			}
 
-			globalProj := generateGlobalProject(clientConfig, clusterRoleFileName, projName)
+			globalProj := generateProjectAllowList(clientConfig, clusterRoleFileName, projName)
 
 			yamlBytes, err := yaml.Marshal(globalProj)
 			errors.CheckError(err)
@@ -78,7 +78,7 @@ func NewGlobalProjectGenCommand() *cobra.Command {
 	return command
 }
 
-func generateGlobalProject(clientConfig clientcmd.ClientConfig, clusterRoleFileName string, projName string) v1alpha1.AppProject {
+func generateProjectAllowList(clientConfig clientcmd.ClientConfig, clusterRoleFileName string, projName string) v1alpha1.AppProject {
 	yamlBytes, err := ioutil.ReadFile(clusterRoleFileName)
 	errors.CheckError(err)
 	var obj unstructured.Unstructured
