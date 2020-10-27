@@ -103,7 +103,7 @@ func generateGlobalProject(clientConfig clientcmd.ClientConfig, clusterRoleFileN
 
 		canCreate := false
 		for _, verb := range rule.Verbs {
-			if strings.ToLower(verb) == strings.ToLower("Create") {
+			if strings.EqualFold(verb, "Create") {
 				canCreate = true
 				break
 			}

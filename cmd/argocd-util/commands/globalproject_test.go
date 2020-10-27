@@ -24,13 +24,11 @@ func TestGlobalProjectGen(t *testing.T) {
 			return nil, nil
 		})
 		assert.NoError(t, err)
-		defer patchClientConfig.Unpatch()
 
 		patch, err := mpatch.PatchMethod(discovery.NewDiscoveryClientForConfig, func(c *restclient.Config) (*discovery.DiscoveryClient, error) {
 			return &discovery.DiscoveryClient{LegacyPrefix: "/api"}, nil
 		})
 		assert.NoError(t, err)
-		defer patch.Unpatch()
 
 		var patchSeverPreferedResources *mpatch.Patch
 		discoClient := &discovery.DiscoveryClient{}
@@ -39,16 +37,23 @@ func TestGlobalProjectGen(t *testing.T) {
 				Name: "services",
 				Kind: "Service",
 			}
-
 			resourceList := []*metav1.APIResourceList{{APIResources: []metav1.APIResource{res}}}
 			patchSeverPreferedResources.Unpatch()
 			defer patchSeverPreferedResources.Patch()
 			return resourceList, nil
 		})
-		defer patchSeverPreferedResources.Unpatch()
+		assert.NoError(t, err)
+
+		defer func() {
+			err = patchClientConfig.Unpatch()
+			assert.NoError(t, err)
+			err = patch.Unpatch()
+			assert.NoError(t, err)
+			err = patchSeverPreferedResources.Unpatch()
+			err = patch.Unpatch()
+		}()
 	}
 
 	globalProj := generateGlobalProject(clientConfig, "test_clusterrole.yaml")
 	assert.True(t, len(globalProj.Spec.NamespaceResourceWhitelist) > 0)
-
 }
