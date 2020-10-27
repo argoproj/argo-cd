@@ -41,12 +41,15 @@ const (
 	cliName = "argocd-application-controller"
 	// Default time in seconds for application resync period
 	defaultAppResyncPeriod = 180
+	// Default time in seconds for application hard resync period
+	defaultAppHardResyncPeriod = 0
 )
 
 func newCommand() *cobra.Command {
 	var (
 		clientConfig             clientcmd.ClientConfig
 		appResyncPeriod          int64
+		appHardResyncPeriod      int64
 		repoServerAddress        string
 		repoServerTimeoutSeconds int
 		selfHealTimeoutSeconds   int
@@ -79,6 +82,7 @@ func newCommand() *cobra.Command {
 			errors.CheckError(err)
 
 			resyncDuration := time.Duration(appResyncPeriod) * time.Second
+			hardResyncDuration := time.Duration(appHardResyncPeriod) * time.Second
 			repoClientset := apiclient.NewRepoServerClientset(repoServerAddress, repoServerTimeoutSeconds)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
@@ -98,6 +102,7 @@ func newCommand() *cobra.Command {
 				cache,
 				kubectl,
 				resyncDuration,
+				hardResyncDuration,
 				time.Duration(selfHealTimeoutSeconds)*time.Second,
 				metricsPort,
 				kubectlParallelismLimit,
@@ -120,6 +125,7 @@ func newCommand() *cobra.Command {
 
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
 	command.Flags().Int64Var(&appResyncPeriod, "app-resync", defaultAppResyncPeriod, "Time period in seconds for application resync.")
+	command.Flags().Int64Var(&appHardResyncPeriod, "app-hard-resync", defaultAppHardResyncPeriod, "Time period in seconds for application hard resync.")
 	command.Flags().StringVar(&repoServerAddress, "repo-server", common.DefaultRepoServerAddr, "Repo server address.")
 	command.Flags().IntVar(&repoServerTimeoutSeconds, "repo-server-timeout-seconds", 60, "Repo server RPC call timeout seconds.")
 	command.Flags().IntVar(&statusProcessors, "status-processors", 1, "Number of application status processors")
