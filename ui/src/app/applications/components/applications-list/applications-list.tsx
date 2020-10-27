@@ -222,6 +222,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                     {
                                         title: 'New App',
                                         iconClassName: 'fa fa-plus',
+                                        qeId: 'applications-list-button-new-app',
                                         action: () => ctx.navigation.goto('.', {new: '{}'})
                                     },
                                     {
@@ -248,7 +249,10 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                 <EmptyState icon='argo-icon-application'>
                                                     <h4>No applications yet</h4>
                                                     <h5>Create new application to start managing resources in your cluster</h5>
-                                                    <button className='argo-button argo-button--base' onClick={() => ctx.navigation.goto('.', {new: JSON.stringify({})})}>
+                                                    <button
+                                                        qe-id='applications-list-button-create-application'
+                                                        className='argo-button argo-button--base'
+                                                        onClick={() => ctx.navigation.goto('.', {new: JSON.stringify({})})}>
                                                         Create application
                                                     </button>
                                                 </EmptyState>
@@ -382,7 +386,11 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                             onClose={() => ctx.navigation.goto('.', {new: null})}
                             header={
                                 <div>
-                                    <button className='argo-button argo-button--base' disabled={isAppCreatePending} onClick={() => createApi && createApi.submitForm(null)}>
+                                    <button
+                                        qe-id='applications-list-button-create'
+                                        className='argo-button argo-button--base'
+                                        disabled={isAppCreatePending}
+                                        onClick={() => createApi && createApi.submitForm(null)}>
                                         <Spinner show={isAppCreatePending} style={{marginRight: '5px'}} />
                                         Create
                                     </button>{' '}
