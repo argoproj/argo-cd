@@ -30,8 +30,10 @@ message ApplicationQuery {
 
 message NodeQuery {
 	// get nodes associated with this application
-	optional string application = 1;
+	optional string name = 1;
 }
+
+message NodeResponse {}
 
 message RevisionMetadataQuery{
 	// the application's name
@@ -352,5 +354,10 @@ service ApplicationService {
 	// PodLogs returns stream of log entries for the specified pod. Pod
 	rpc PodLogs(ApplicationPodLogsQuery) returns (stream LogEntry) {
 		option (google.api.http).get = "/api/v1/applications/{name}/pods/{podName}/logs";
+	}
+
+	// ListNodes returns nodes associated with an application
+	rpc ListNodes(NodeQuery) returns (NodeResponse) {
+		option (google.api.http).get = "/api/v1/applications/{name}/nodes";
 	}
 }

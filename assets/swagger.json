@@ -571,6 +571,32 @@
         }
       }
     },
+    "/api/v1/applications/{name}/nodes": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "ListNodes returns nodes associated with an application",
+        "operationId": "ListNodes",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "get nodes associated with this application",
+            "name": "name",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/applicationNodeResponse"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applications/{name}/operation": {
       "delete": {
         "tags": [
@@ -2572,6 +2598,9 @@
           }
         }
       }
+    },
+    "applicationNodeResponse": {
+      "type": "object"
     },
     "applicationOperationTerminateResponse": {
       "type": "object"

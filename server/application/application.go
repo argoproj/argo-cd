@@ -211,11 +211,7 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 
 // GetNodes returns nodes associated with an application
 func (s *Server) GetNodes(ctx context.Context, q *application.NodeQuery) error {
-	labelsMap, err := labels.ConvertSelectorToLabelsMap(q.Selector)
-	if err != nil {
-		return err
-	}
-	nodes, err := s.nodeLister.List(labelsMap.AsSelector())
+	nodes, err := s.nodeLister.List()
 	if err != nil {
 		return err
 	}
