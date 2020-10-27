@@ -31,12 +31,16 @@ argocd repo add REPOURL [flags]
   # Add a private Helm repository named 'stable' via HTTPS
   argocd repo add https://kubernetes-charts.storage.googleapis.com --type helm --name stable --username test --password test
 
+  # Add a private Helm OCI-based repository named 'stable' via HTTPS
+  argocd repo add helm-oci-registry.cn-zhangjiakou.cr.aliyuncs.com --type helm --name stable --enable-oci --username test --password test
+
 ```
 
 ### Options
 
 ```
       --enable-lfs                          enable git-lfs (Large File Support) on this repository
+      --enable-oci                          enable helm-oci (Helm OCI-Based Repository)
   -h, --help                                help for add
       --insecure-ignore-host-key            disables SSH strict host key checking (deprecated, use --insecure-skip-server-verification instead)
       --insecure-skip-server-verification   disables server certificate and host key checks
