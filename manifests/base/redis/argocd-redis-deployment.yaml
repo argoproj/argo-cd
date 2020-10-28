@@ -20,6 +20,7 @@ spec:
         runAsGroup: 1000
         fsGroup: 1000
         runAsNonRoot: true
+      serviceAccountName: argocd-redis        
       containers:
       - name: redis
         image: redis:5.0.8

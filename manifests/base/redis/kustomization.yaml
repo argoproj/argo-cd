@@ -3,6 +3,9 @@ kind: Kustomization
 
 resources:
 - argocd-redis-deployment.yaml
+- argocd-redis-role.yaml
+- argocd-redis-rolebinding.yaml
+- argocd-redis-sa.yaml
 - argocd-redis-service.yaml
 
 vars:
