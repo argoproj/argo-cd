@@ -17,7 +17,6 @@ import (
 
 	"github.com/Masterminds/semver"
 	"github.com/TomOnTime/utfutil"
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	textutils "github.com/argoproj/gitops-engine/pkg/utils/text"
 	"github.com/argoproj/pkg/sync"
@@ -44,6 +43,7 @@ import (
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/gpg"
 	"github.com/argoproj/argo-cd/util/helm"
+	"github.com/argoproj/argo-cd/util/io"
 	"github.com/argoproj/argo-cd/util/ksonnet"
 	argokube "github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/kustomize"
@@ -64,7 +64,7 @@ type Service struct {
 	parallelismLimitSemaphore *semaphore.Weighted
 	metricsServer             *metrics.MetricsServer
 	newGitClient              func(rawRepoURL string, creds git.Creds, insecure bool, enableLfs bool) (git.Client, error)
-	newHelmClient             func(repoURL string, creds helm.Creds) helm.Client
+	newHelmClient             func(repoURL string, creds helm.Creds, enableOci bool) helm.Client
 	initConstants             RepoServerInitConstants
 	// now is usually just time.Now, but may be replaced by unit tests for testing purposes
 	now func() time.Time
@@ -90,8 +90,8 @@ func NewService(metricsServer *metrics.MetricsServer, cache *reposervercache.Cac
 		cache:                     cache,
 		metricsServer:             metricsServer,
 		newGitClient:              git.NewClient,
-		newHelmClient: func(repoURL string, creds helm.Creds) helm.Client {
-			return helm.NewClientWithLock(repoURL, creds, sync.NewKeyLock())
+		newHelmClient: func(repoURL string, creds helm.Creds, enableOci bool) helm.Client {
+			return helm.NewClientWithLock(repoURL, creds, sync.NewKeyLock(), enableOci)
 		},
 		initConstants: initConstants,
 		now:           time.Now,
@@ -1189,7 +1189,7 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 }
 
 func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revision string, chart string) (helm.Client, string, error) {
-	helmClient := s.newHelmClient(repo.Repo, repo.GetHelmCreds())
+	helmClient := s.newHelmClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI)
 	if helm.IsVersion(revision) {
 		return helmClient, revision, nil
 	}
@@ -1232,7 +1232,7 @@ func checkoutRevision(gitClient git.Client, revision string) error {
 }
 
 func (s *Service) GetHelmCharts(ctx context.Context, q *apiclient.HelmChartsRequest) (*apiclient.HelmChartsResponse, error) {
-	index, err := s.newHelmClient(q.Repo.Repo, q.Repo.GetHelmCreds()).GetIndex()
+	index, err := s.newHelmClient(q.Repo.Repo, q.Repo.GetHelmCreds(), q.Repo.EnableOCI).GetIndex()
 	if err != nil {
 		return nil, err
 	}

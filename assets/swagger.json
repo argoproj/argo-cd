@@ -188,7 +188,7 @@
           "ApplicationService"
         ],
         "summary": "List returns list of applications",
-        "operationId": "ListMixin11",
+        "operationId": "List",
         "parameters": [
           {
             "type": "string",
@@ -239,7 +239,7 @@
           "ApplicationService"
         ],
         "summary": "Create creates an application",
-        "operationId": "CreateMixin11",
+        "operationId": "Create",
         "parameters": [
           {
             "name": "body",
@@ -266,7 +266,7 @@
           "ApplicationService"
         ],
         "summary": "Update updates an application",
-        "operationId": "UpdateMixin11",
+        "operationId": "Update",
         "parameters": [
           {
             "type": "string",
@@ -400,7 +400,7 @@
           "ApplicationService"
         ],
         "summary": "Get returns an application by name",
-        "operationId": "GetMixin11",
+        "operationId": "Get",
         "parameters": [
           {
             "type": "string",
@@ -452,7 +452,7 @@
           "ApplicationService"
         ],
         "summary": "Delete deletes an application",
-        "operationId": "DeleteMixin11",
+        "operationId": "Delete",
         "parameters": [
           {
             "type": "string",
@@ -1162,7 +1162,7 @@
           "ClusterService"
         ],
         "summary": "List returns list of clusters",
-        "operationId": "ListMixin2",
+        "operationId": "ListMixin3",
         "parameters": [
           {
             "type": "string",
@@ -1189,7 +1189,7 @@
           "ClusterService"
         ],
         "summary": "Create creates a cluster",
-        "operationId": "CreateMixin2",
+        "operationId": "CreateMixin3",
         "parameters": [
           {
             "name": "body",
@@ -1216,7 +1216,7 @@
           "ClusterService"
         ],
         "summary": "Update updates a cluster",
-        "operationId": "Update",
+        "operationId": "UpdateMixin3",
         "parameters": [
           {
             "type": "string",
@@ -1250,7 +1250,7 @@
           "ClusterService"
         ],
         "summary": "Get returns a cluster by server address",
-        "operationId": "GetMixin2",
+        "operationId": "GetMixin3",
         "parameters": [
           {
             "type": "string",
@@ -1278,7 +1278,7 @@
           "ClusterService"
         ],
         "summary": "Delete deletes a cluster",
-        "operationId": "DeleteMixin2",
+        "operationId": "DeleteMixin3",
         "parameters": [
           {
             "type": "string",
@@ -2203,7 +2203,7 @@
           "SettingsService"
         ],
         "summary": "Get returns Argo CD settings",
-        "operationId": "GetMixin3",
+        "operationId": "GetMixin10",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -4688,6 +4688,11 @@
           "type": "boolean",
           "format": "boolean",
           "title": "Whether git-lfs support should be enabled for this repo"
+        },
+        "enableOCI": {
+          "type": "boolean",
+          "format": "boolean",
+          "title": "Whether helm-oci support should be enabled for this repo"
         },
         "inheritedCreds": {
           "type": "boolean",

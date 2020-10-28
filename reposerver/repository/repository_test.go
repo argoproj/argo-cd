@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver"
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -33,6 +32,7 @@ import (
 	gitmocks "github.com/argoproj/argo-cd/util/git/mocks"
 	"github.com/argoproj/argo-cd/util/helm"
 	helmmocks "github.com/argoproj/argo-cd/util/helm/mocks"
+	"github.com/argoproj/argo-cd/util/io"
 )
 
 const testSignature = `gpg: Signature made Wed Feb 26 23:22:34 2020 CET
@@ -86,7 +86,7 @@ func newServiceWithOpt(cf clientFunc) (*Service, *gitmocks.Client) {
 	service.newGitClient = func(rawRepoURL string, creds git.Creds, insecure bool, enableLfs bool) (client git.Client, e error) {
 		return gitClient, nil
 	}
-	service.newHelmClient = func(repoURL string, creds helm.Creds) helm.Client {
+	service.newHelmClient = func(repoURL string, creds helm.Creds, enableOci bool) helm.Client {
 		return helmClient
 	}
 	return service, gitClient
