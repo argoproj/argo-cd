@@ -156,9 +156,9 @@ make: *** [Makefile:386: verify-kube-connect] Error 1
 
 you should edit your `~/.kube/config` and modify the `server` option to point to your correct K8s API (as described above).
 
-### If using k3d to spin-up your Kubernetes cluster
+### Using k3d
 
-Because it's running in a docker container, you're dealing with docker's internal networking rules when using k3d. This is the cost of a fully self-contained, disposable k8s cluster. The following steps should help with a successful `make verify-kube-connect` execution.
+k3d is a lightweight wrapper to run [k3s](https://github.com/rancher/k3s), a minimal Kubernetes distribution, in docker. Because it's running in a docker container, you're dealing with docker's internal networking rules when using k3d. A typical Kubernetes cluster running on your local machine is part of the same network that you're on so you can access it using **kubectl**. However, a Kubernetes cluster running within a docker container (in this case, the one launched by make) cannot access 0.0.0.0 from inside the container itself, when 0.0.0.0 is a network resource outside the container itself (and/or the container's network). This is the cost of a fully self-contained, disposable Kubernetes cluster. The following steps should help with a successful `make verify-kube-connect` execution.
 
 1. Find the actual external IP of your host. You can do so by executing `ifconfig` on Mac/Linux and `ipconfig` on Windows. For most users, the following command works to find the IP address.
 
