@@ -133,7 +133,7 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src}
 
 	// update this value if we add/remove manifests
-	const countOfManifests = 26
+	const countOfManifests = 29
 
 	res1, err := service.GenerateManifest(context.Background(), &q)
 
