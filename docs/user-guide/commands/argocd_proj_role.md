@@ -47,6 +47,7 @@ argocd proj role [flags]
 * [argocd proj role delete-token](argocd_proj_role_delete-token.md)	 - Delete a project token
 * [argocd proj role get](argocd_proj_role_get.md)	 - Get the details of a specific role
 * [argocd proj role list](argocd_proj_role_list.md)	 - List all the roles in a project
+* [argocd proj role list-tokens](argocd_proj_role_list-tokens.md)	 - List tokens for a given role.
 * [argocd proj role remove-group](argocd_proj_role_remove-group.md)	 - Remove a group claim from a role within a project
 * [argocd proj role remove-policy](argocd_proj_role_remove-policy.md)	 - Remove a policy from a role within a project
 
