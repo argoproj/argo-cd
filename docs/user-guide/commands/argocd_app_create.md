@@ -45,6 +45,7 @@ argocd app create APPNAME [flags]
       --dest-server string                   K8s cluster URL (e.g. https://kubernetes.default.svc)
       --directory-recurse                    Recurse directory
       --env string                           Application environment to monitor
+      --exclusions stringArray               Set file exclusions
   -f, --file string                          Filename or URL to Kubernetes manifests for the app
       --helm-chart string                    Helm Chart name
       --helm-set stringArray                 Helm set values on the command line (can be repeated to set several values: --helm-set key1=val1 --helm-set key2=val2)
