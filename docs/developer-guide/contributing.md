@@ -156,6 +156,29 @@ make: *** [Makefile:386: verify-kube-connect] Error 1
 
 you should edit your `~/.kube/config` and modify the `server` option to point to your correct K8s API (as described above).
 
+## If using k3d to spin-up your Kubernetes cluster
+
+Because it's running in a docker container, you're dealing with docker's internal networking rules when using k3d. This is the cost of a fully self-contained, disposable k8s cluster. The following steps should help with a successful `make verify-kube-connect` execution.
+
+1. Find the actual external IP of your host. You can do so by executing `ifconfig` on Mac/Linux and `ipconfig` on Windows. For most users, the following command works to find the IP address.
+
+```
+IP=`ifconfig en0 | grep inet | grep -v inet6 | awk '{print $2}'`
+echo $IP
+```
+
+2. Edit your ~/.kube/config and replace 0.0.0.0 with the above IP address.
+
+3. Execute a `kubectl version` to make sure you can still connect to the Kubernetes API server via this new IP. If not, go back to step 1.
+
+4. Run `make verify-kube-connect` and check if it works.
+
+5. Finally, so that you don't have to keep updating your kube-config whenever you spin up a new k3d cluster, add `--api-port $IP:6550` to your **k3d cluster create** command, where $IP is the value from step 1. An example command is provided here.
+
+```
+k3d cluster create my-cluster --wait --k3s-server-arg '--disable=traefik' --api-port $IP:6550 -p 443:443@loadbalancer
+```
+
 ## The development cycle
 
 When you have developed and possibly manually tested the code you want to contribute, you should ensure that everything will build correctly. Commit your changes to the local copy of your Git branch and perform the following steps:
