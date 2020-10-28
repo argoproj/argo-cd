@@ -19,11 +19,17 @@ import (
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/reposerver/cache"
 	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
+type settingsSource interface {
+	GetAppInstanceLabelKey() (string, error)
+}
+
 type ArgoCDWebhookHandler struct {
+	cache           *cache.Cache
 	ns              string
 	appClientset    appclientset.Interface
 	github          *github.Webhook
@@ -31,10 +37,10 @@ type ArgoCDWebhookHandler struct {
 	bitbucket       *bitbucket.Webhook
 	bitbucketserver *bitbucketserver.Webhook
 	gogs            *gogs.Webhook
+	settingsSrc     settingsSource
 }
 
-func NewHandler(namespace string, appClientset appclientset.Interface, set *settings.ArgoCDSettings) *ArgoCDWebhookHandler {
-
+func NewHandler(namespace string, appClientset appclientset.Interface, set *settings.ArgoCDSettings, settingsSrc settingsSource, cache *cache.Cache) *ArgoCDWebhookHandler {
 	githubWebhook, err := github.New(github.Options.Secret(set.WebhookGitHubSecret))
 	if err != nil {
 		log.Warnf("Unable to init the Github webhook")
@@ -64,6 +70,8 @@ func NewHandler(namespace string, appClientset appclientset.Interface, set *sett
 		bitbucket:       bitbucketWebhook,
 		bitbucketserver: bitbucketserverWebhook,
 		gogs:            gogsWebhook,
+		settingsSrc:     settingsSrc,
+		cache:           cache,
 	}
 
 	return &acdWebhook
@@ -71,7 +79,7 @@ func NewHandler(namespace string, appClientset appclientset.Interface, set *sett
 
 // affectedRevisionInfo examines a payload from a webhook event, and extracts the repo web URL,
 // the revision, and whether or not this affected origin/HEAD (the default branch of the repository)
-func affectedRevisionInfo(payloadIf interface{}) (webURLs []string, revision string, touchedHead bool, changedFiles []string) {
+func affectedRevisionInfo(payloadIf interface{}) (webURLs []string, revision string, change changeInfo, touchedHead bool, changedFiles []string) {
 	parseRef := func(ref string) string {
 		refParts := strings.SplitN(ref, "/", 3)
 		return refParts[len(refParts)-1]
@@ -82,6 +90,8 @@ func affectedRevisionInfo(payloadIf interface{}) (webURLs []string, revision str
 		// See: https://developer.github.com/v3/activity/events/types/#pushevent
 		webURLs = append(webURLs, payload.Repository.HTMLURL)
 		revision = parseRef(payload.Ref)
+		change.shaAfter = parseRef(payload.After)
+		change.shaBefore = parseRef(payload.Before)
 		touchedHead = bool(payload.Repository.DefaultBranch == revision)
 		for _, commit := range payload.Commits {
 			changedFiles = append(changedFiles, commit.Added...)
@@ -92,6 +102,8 @@ func affectedRevisionInfo(payloadIf interface{}) (webURLs []string, revision str
 		// See: https://docs.gitlab.com/ee/user/project/integrations/webhooks.html
 		webURLs = append(webURLs, payload.Project.WebURL)
 		revision = parseRef(payload.Ref)
+		change.shaAfter = parseRef(payload.After)
+		change.shaBefore = parseRef(payload.Before)
 		touchedHead = bool(payload.Project.DefaultBranch == revision)
 		for _, commit := range payload.Commits {
 			changedFiles = append(changedFiles, commit.Added...)
@@ -103,6 +115,8 @@ func affectedRevisionInfo(payloadIf interface{}) (webURLs []string, revision str
 		// NOTE: this is untested
 		webURLs = append(webURLs, payload.Project.WebURL)
 		revision = parseRef(payload.Ref)
+		change.shaAfter = parseRef(payload.After)
+		change.shaBefore = parseRef(payload.Before)
 		touchedHead = bool(payload.Project.DefaultBranch == revision)
 		for _, commit := range payload.Commits {
 			changedFiles = append(changedFiles, commit.Added...)
@@ -154,6 +168,8 @@ func affectedRevisionInfo(payloadIf interface{}) (webURLs []string, revision str
 	case gogsclient.PushPayload:
 		webURLs = append(webURLs, payload.Repo.HTMLURL)
 		revision = parseRef(payload.Ref)
+		change.shaAfter = parseRef(payload.After)
+		change.shaBefore = parseRef(payload.Before)
 		touchedHead = bool(payload.Repo.DefaultBranch == revision)
 		for _, commit := range payload.Commits {
 			changedFiles = append(changedFiles, commit.Added...)
@@ -161,12 +177,17 @@ func affectedRevisionInfo(payloadIf interface{}) (webURLs []string, revision str
 			changedFiles = append(changedFiles, commit.Removed...)
 		}
 	}
-	return webURLs, revision, touchedHead, changedFiles
+	return webURLs, revision, change, touchedHead, changedFiles
+}
+
+type changeInfo struct {
+	shaBefore string
+	shaAfter  string
 }
 
 // HandleEvent handles webhook events for repo push events
 func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
-	webURLs, revision, touchedHead, changedFiles := affectedRevisionInfo(payload)
+	webURLs, revision, change, touchedHead, changedFiles := affectedRevisionInfo(payload)
 	// NOTE: the webURL does not include the .git extension
 	if len(webURLs) == 0 {
 		log.Info("Ignoring webhook event")
@@ -179,6 +200,12 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 	apps, err := appIf.List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		log.Warnf("Failed to list applications: %v", err)
+		return
+	}
+
+	appInstanceLabelKey, err := a.settingsSrc.GetAppInstanceLabelKey()
+	if err != nil {
+		log.Warnf("Failed to get appInstanceLabelKey: %v", err)
 		return
 	}
 
@@ -197,11 +224,20 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 		}
 
 		for _, app := range apps.Items {
-			if appRevisionHasChanged(&app, revision, touchedHead) && appUsesURL(&app, webURL, repoRegexp) && appFilesHaveChanged(&app, changedFiles) {
-				_, err = argo.RefreshApp(appIf, app.ObjectMeta.Name, v1alpha1.RefreshTypeNormal)
-				if err != nil {
-					log.Warnf("Failed to refresh app '%s' for controller reprocessing: %v", app.ObjectMeta.Name, err)
-					continue
+			if appRevisionHasChanged(&app, revision, touchedHead) && appUsesURL(&app, webURL, repoRegexp) {
+				if appFilesHaveChanged(&app, changedFiles) {
+					_, err = argo.RefreshApp(appIf, app.ObjectMeta.Name, v1alpha1.RefreshTypeNormal)
+					if err != nil {
+						log.Warnf("Failed to refresh app '%s' for controller reprocessing: %v", app.ObjectMeta.Name, err)
+						continue
+					}
+				} else if change.shaBefore != "" && change.shaAfter != "" {
+					var cachedManifests cache.CachedManifestResponse
+					if err := a.cache.GetManifests(change.shaBefore, &app.Spec.Source, app.Spec.Destination.Namespace, appInstanceLabelKey, app.Name, &cachedManifests); err == nil {
+						if err = a.cache.SetManifests(change.shaAfter, &app.Spec.Source, app.Spec.Destination.Namespace, appInstanceLabelKey, app.Name, &cachedManifests); err != nil {
+							log.Warnf("Failed to store cached manifests of previous revision for app '%s': %v", app.Name, err)
+						}
+					}
 				}
 			}
 		}
@@ -224,7 +260,7 @@ func getAppRefreshPrefix(app *v1alpha1.Application) string {
 }
 
 func appFilesHaveChanged(app *v1alpha1.Application, changedFiles []string) bool {
-	// an ampty slice of changed files means that the payload didn't include a list
+	// an empty slice of changed files means that the payload didn't include a list
 	// of changed files and w have to assume that a refresh is required
 	if len(changedFiles) == 0 {
 		return true
@@ -259,7 +295,7 @@ func appRevisionHasChanged(app *v1alpha1.Application, revision string, touchedHe
 		}
 	}
 
-	return targetRev != revision
+	return targetRev == revision
 }
 
 func appUsesURL(app *v1alpha1.Application, webURL string, repoRegexp *regexp.Regexp) bool {

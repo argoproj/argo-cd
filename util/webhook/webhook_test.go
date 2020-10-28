@@ -6,21 +6,35 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
+	"github.com/argoproj/argo-cd/reposerver/cache"
+	cacheutil "github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
+type fakeSettingsSrc struct {
+}
+
+func (f fakeSettingsSrc) GetAppInstanceLabelKey() (string, error) {
+	return "mycompany.com/appname", nil
+}
+
 func NewMockHandler() *ArgoCDWebhookHandler {
 	appClientset := appclientset.NewSimpleClientset()
-	return NewHandler("", appClientset, &settings.ArgoCDSettings{})
+	return NewHandler("", appClientset, &settings.ArgoCDSettings{}, &fakeSettingsSrc{}, cache.NewCache(
+		cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Hour)),
+		1*time.Minute,
+	))
 }
+
 func TestGitHubCommitEvent(t *testing.T) {
 	hook := test.NewGlobal()
 	h := NewMockHandler()
@@ -124,18 +138,18 @@ func Test_getAppRefreshPrefix(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSpec{
 					Source: v1alpha1.ApplicationSource{
-						Path: "soource/path",
+						Path: "source/path",
 					},
 				},
 			},
-			"soource/path",
+			"source/path",
 		},
 		{
 			"use explicit path",
 			&v1alpha1.Application{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						"argocd.argoproj.io/refresh-prefix": "explicit/refresh/prefix",
+						common.AnnotationKeyRefreshPrefix: "explicit/refresh/prefix",
 					},
 				},
 				Spec: v1alpha1.ApplicationSpec{
@@ -152,12 +166,12 @@ func Test_getAppRefreshPrefix(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
 						"argocd.argoproj.io/refresh-on-path-updates-only": "true",
-						"argocd.argoproj.io/refresh-prefix":               "explicit/refresh/prefix",
+						common.AnnotationKeyRefreshPrefix:                 "explicit/refresh/prefix",
 					},
 				},
 				Spec: v1alpha1.ApplicationSpec{
 					Source: v1alpha1.ApplicationSource{
-						Path: "soource/path",
+						Path: "source/path",
 					},
 				},
 			},
