@@ -330,9 +330,10 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             nodeByKey.set(treeNodeKey(node), resourceNode);
         });
     const nodes = Array.from(nodeByKey.values());
-    let roots: ResourceTreeNode[] = null;
+    let roots: ResourceTreeNode[] = [];
     const childrenByParentKey = new Map<string, ResourceTreeNode[]>();
     if (props.useNetworkingHierarchy) {
+        // Network view
         const hasParents = new Set<string>();
         const networkNodes = nodes.filter(node => node.networkingInfo);
         networkNodes.forEach(parent => {
@@ -344,27 +345,6 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             });
         });
         roots = networkNodes.filter(node => !hasParents.has(treeNodeKey(node)));
-    } else {
-        const managedKeys = new Set(props.app.status.resources.map(nodeKey));
-        nodes.forEach(child => {
-            (child.parentRefs || []).forEach(parent => {
-                const children = childrenByParentKey.get(treeNodeKey(parent)) || [];
-                children.push(child);
-                childrenByParentKey.set(treeNodeKey(parent), children);
-            });
-        });
-        roots = nodes.filter(node => (node.parentRefs || []).length === 0 || managedKeys.has(nodeKey(node))).sort(compareNodes);
-    }
-
-    function processNode(node: ResourceTreeNode, root: ResourceTreeNode, colors?: string[]) {
-        graph.setNode(treeNodeKey(node), {...node, width: NODE_WIDTH, height: NODE_HEIGHT, root});
-        (childrenByParentKey.get(treeNodeKey(node)) || []).sort(compareNodes).forEach(child => {
-            graph.setEdge(treeNodeKey(node), treeNodeKey(child), {colors});
-            processNode(child, root, colors);
-        });
-    }
-
-    if (props.useNetworkingHierarchy) {
         const externalRoots = roots.filter(root => (root.networkingInfo.ingress || []).length > 0).sort(compareNodes);
         const internalRoots = roots.filter(root => (root.networkingInfo.ingress || []).length === 0).sort(compareNodes);
         const colorsBySource = new Map<string, string>();
@@ -413,14 +393,44 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             filterGraph(props.app, externalRoots.length > 0 ? EXTERNAL_TRAFFIC_NODE : INTERNAL_TRAFFIC_NODE, graph, props.nodeFilter);
         }
     } else {
-        roots.sort(compareNodes).forEach(node => processNode(node, node));
+        // Tree view
+        const managedKeys = new Set(props.app.status.resources.map(nodeKey));
+        const orphans: ResourceTreeNode[] = [];
+        nodes.forEach(node => {
+            if ((node.parentRefs || []).length === 0 || managedKeys.has(nodeKey(node))) {
+                roots.push(node);
+            } else {
+                orphans.push(node);
+                node.parentRefs.forEach(parent => {
+                    const children = childrenByParentKey.get(treeNodeKey(parent)) || [];
+                    children.push(node);
+                    childrenByParentKey.set(treeNodeKey(parent), children);
+                });
+            }
+        });
+        roots.sort(compareNodes).forEach(node => {
+            processNode(node, node);
+            graph.setEdge(appNodeKey(props.app), treeNodeKey(node));
+        });
+        orphans.sort(compareNodes).forEach(node => {
+            processNode(node, node);
+        });
         graph.setNode(appNodeKey(props.app), {...appNode, width: NODE_WIDTH, height: NODE_HEIGHT});
-        roots.forEach(root => graph.setEdge(appNodeKey(props.app), treeNodeKey(root)));
         if (props.nodeFilter) {
             filterGraph(props.app, appNodeKey(props.app), graph, props.nodeFilter);
         }
     }
 
+    function processNode(node: ResourceTreeNode, root: ResourceTreeNode, colors?: string[]) {
+        graph.setNode(treeNodeKey(node), {...node, width: NODE_WIDTH, height: NODE_HEIGHT, root});
+        (childrenByParentKey.get(treeNodeKey(node)) || []).sort(compareNodes).forEach(child => {
+            if (treeNodeKey(child) === treeNodeKey(root)) {
+                return;
+            }
+            graph.setEdge(treeNodeKey(node), treeNodeKey(child), {colors});
+            processNode(child, root, colors);
+        });
+    }
     dagre.layout(graph);
 
     const edges: {from: string; to: string; lines: Line[]; backgroundImage?: string}[] = [];
