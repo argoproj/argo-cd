@@ -542,6 +542,8 @@ func setAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			setHelmOpt(&spec.Source, helmOpts{helmSetFiles: appOpts.helmSetFiles})
 		case "directory-recurse":
 			spec.Source.Directory = &argoappv1.ApplicationSourceDirectory{Recurse: appOpts.directoryRecurse}
+		case "exclusions":
+			spec.Source.Directory = &argoappv1.ApplicationSourceDirectory{Exclusions: appOpts.exclusions}
 		case "config-management-plugin":
 			spec.Source.Plugin = &argoappv1.ApplicationSourcePlugin{Name: appOpts.configManagementPlugin}
 		case "dest-name":
@@ -780,6 +782,7 @@ type appOptions struct {
 	kustomizeVersion       string
 	kustomizeCommonLabels  []string
 	validate               bool
+	exclusions             []string
 }
 
 func addAppFlags(command *cobra.Command, opts *appOptions) {
@@ -819,6 +822,7 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().StringArrayVar(&opts.kustomizeImages, "kustomize-image", []string{}, "Kustomize images (e.g. --kustomize-image node:8.15.0 --kustomize-image mysql=mariadb,alpine@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d)")
 	command.Flags().BoolVar(&opts.validate, "validate", true, "Validation of repo and cluster")
 	command.Flags().StringArrayVar(&opts.kustomizeCommonLabels, "kustomize-common-label", []string{}, "Set common labels in Kustomize")
+	command.Flags().StringArrayVar(&opts.exclusions, "exclusions", []string{}, "Set file exclusions")
 }
 
 // NewApplicationUnsetCommand returns a new instance of an `argocd app unset` command
