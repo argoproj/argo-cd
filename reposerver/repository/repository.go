@@ -806,6 +806,14 @@ func findManifests(appPath string, repoRoot string, env *v1alpha1.Env, directory
 		if !manifestFile.MatchString(f.Name()) {
 			return nil
 		}
+
+		for _, exclusion := range directory.Exclusions {
+			exclusionExp := regexp.MustCompile(exclusion)
+			if exclusionExp.MatchString(f.Name()) {
+				return nil
+			}
+		}
+
 		out, err := utfutil.ReadFile(path, utfutil.UTF8)
 		if err != nil {
 			return err

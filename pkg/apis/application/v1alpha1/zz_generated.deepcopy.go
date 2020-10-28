@@ -331,6 +331,11 @@ func (in *ApplicationSource) DeepCopy() *ApplicationSource {
 func (in *ApplicationSourceDirectory) DeepCopyInto(out *ApplicationSourceDirectory) {
 	*out = *in
 	in.Jsonnet.DeepCopyInto(&out.Jsonnet)
+	if in.Exclusions != nil {
+		in, out := &in.Exclusions, &out.Exclusions
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 
