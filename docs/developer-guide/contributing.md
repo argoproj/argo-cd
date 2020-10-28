@@ -156,7 +156,7 @@ make: *** [Makefile:386: verify-kube-connect] Error 1
 
 you should edit your `~/.kube/config` and modify the `server` option to point to your correct K8s API (as described above).
 
-## If using k3d to spin-up your Kubernetes cluster
+### If using k3d to spin-up your Kubernetes cluster
 
 Because it's running in a docker container, you're dealing with docker's internal networking rules when using k3d. This is the cost of a fully self-contained, disposable k8s cluster. The following steps should help with a successful `make verify-kube-connect` execution.
 
