@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -21,6 +22,7 @@ import (
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver/cache"
 	"github.com/argoproj/argo-cd/util/argo"
+	"github.com/argoproj/argo-cd/util/security"
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
@@ -137,8 +139,8 @@ func affectedRevisionInfo(payloadIf interface{}) (webURLs []string, revision str
 		// payload alone. To be safe, we just return true and let the controller check for himself.
 		touchedHead = true
 
-		// Bitbucket does not include a list of changed files anywhere in it's payload
-		// so we cannot update changedFiles for this type of payload
+	// Bitbucket does not include a list of changed files anywhere in it's payload
+	// so we cannot update changedFiles for this type of payload
 	case bitbucketserver.RepositoryReferenceChangedPayload:
 
 		// Webhook module does not parse the inner links
@@ -244,19 +246,22 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 	}
 }
 
-func getAppRefreshPrefix(app *v1alpha1.Application) string {
-	// an explicitPrefix setting always takes precence
-	if explicitPrefix := app.Annotations[common.AnnotationKeyRefreshPrefix]; explicitPrefix != "" {
-		return explicitPrefix
+func getAppRefreshPaths(app *v1alpha1.Application) []string {
+	var paths []string
+	if val, ok := app.Annotations[common.AnnotationKeyManifestGeneratePaths]; ok && val != "" {
+		for _, item := range strings.Split(val, ";") {
+			if item == "" {
+				continue
+			}
+			if filepath.IsAbs(item) {
+				item = item[1:]
+			} else {
+				item = filepath.Clean(filepath.Join(app.Spec.Source.Path, item))
+			}
+			paths = append(paths, item)
+		}
 	}
-
-	// use app path when asked
-	if app.Annotations[common.AnnotationKeyRefreshPathUpdatesOnly] == "true" {
-		return app.Spec.Source.Path
-	}
-
-	// default to an empty prefix
-	return ""
+	return paths
 }
 
 func appFilesHaveChanged(app *v1alpha1.Application, changedFiles []string) bool {
@@ -267,24 +272,36 @@ func appFilesHaveChanged(app *v1alpha1.Application, changedFiles []string) bool 
 	}
 
 	// Check to see if the app has requested refreshes only on a specific prefix
-	refreshPrefix := getAppRefreshPrefix(app)
+	refreshPaths := getAppRefreshPaths(app)
 
-	if refreshPrefix == "" {
-		// Apps without a given prefix should always be refreshed, regardless of changed files
+	if len(refreshPaths) == 0 {
+		// Apps without a given refreshed paths always be refreshed, regardless of changed files
 		// this is the "default" behavior
 		return true
 	}
 
-	// At last one changed file must have match the given prefix
+	// At last one changed file must be under refresh path
 	for _, f := range changedFiles {
-		if strings.HasPrefix(f, refreshPrefix) {
-			log.WithField("application", app.Name).Debugf("Application uses files that have changed")
-			return true
+		f = ensureAbsPath(f)
+		for _, item := range refreshPaths {
+			item = ensureAbsPath(item)
+
+			if _, err := security.EnforceToCurrentRoot(item, f); err == nil {
+				log.WithField("application", app.Name).Debugf("Application uses files that have changed")
+				return true
+			}
 		}
 	}
 
 	log.WithField("application", app.Name).Debugf("Application does not use any of the files that have changed")
 	return false
+}
+
+func ensureAbsPath(input string) string {
+	if !filepath.IsAbs(input) {
+		return string(filepath.Separator) + input
+	}
+	return input
 }
 
 func appRevisionHasChanged(app *v1alpha1.Application, revision string, touchedHead bool) bool {
