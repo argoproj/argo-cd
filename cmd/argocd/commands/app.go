@@ -125,7 +125,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	argocd app create nginx-ingress --repo https://kubernetes-charts.storage.googleapis.com --helm-chart nginx-ingress --revision 1.24.3 --dest-namespace default --dest-server https://kubernetes.default.svc
 
 	# Create a Kustomize app
-	argocd app create kustomize-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path kustomize-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --kustomize-image gcr.io/heptio-images/ks-guestbook-demo=0.1
+	argocd app create kustomize-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path kustomize-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --kustomize-image gcr.io/heptio-images/ks-guestbook-demo:0.1
 
 	# Create a app using a custom tool:
 	argocd app create ksane --repo https://github.com/argoproj/argocd-example-apps.git --path plugins/kasane --dest-namespace default --dest-server https://kubernetes.default.svc --config-management-plugin kasane
@@ -564,6 +564,10 @@ func setAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			parsedLabels, err := label.Parse(appOpts.kustomizeCommonLabels)
 			errors.CheckError(err)
 			setKustomizeOpt(&spec.Source, kustomizeOpts{commonLabels: parsedLabels})
+		case "kustomize-common-annotation":
+			parsedAnnotations, err := label.Parse(appOpts.kustomizeCommonAnnotations)
+			errors.CheckError(err)
+			setKustomizeOpt(&spec.Source, kustomizeOpts{commonAnnotations: parsedAnnotations})
 		case "jsonnet-tla-str":
 			setJsonnetOpt(&spec.Source, appOpts.jsonnetTlaStr, false)
 		case "jsonnet-tla-code":
@@ -644,21 +648,33 @@ func setKsonnetOpt(src *argoappv1.ApplicationSource, env *string) {
 }
 
 type kustomizeOpts struct {
-	namePrefix   string
-	nameSuffix   string
-	images       []string
-	version      string
-	commonLabels map[string]string
+	namePrefix        string
+	nameSuffix        string
+	images            []string
+	version           string
+	commonLabels      map[string]string
+	commonAnnotations map[string]string
 }
 
 func setKustomizeOpt(src *argoappv1.ApplicationSource, opts kustomizeOpts) {
 	if src.Kustomize == nil {
 		src.Kustomize = &argoappv1.ApplicationSourceKustomize{}
 	}
-	src.Kustomize.Version = opts.version
-	src.Kustomize.NamePrefix = opts.namePrefix
-	src.Kustomize.NameSuffix = opts.nameSuffix
-	src.Kustomize.CommonLabels = opts.commonLabels
+	if opts.version != "" {
+		src.Kustomize.Version = opts.version
+	}
+	if opts.namePrefix != "" {
+		src.Kustomize.NamePrefix = opts.namePrefix
+	}
+	if opts.nameSuffix != "" {
+		src.Kustomize.NameSuffix = opts.nameSuffix
+	}
+	if opts.commonLabels != nil {
+		src.Kustomize.CommonLabels = opts.commonLabels
+	}
+	if opts.commonAnnotations != nil {
+		src.Kustomize.CommonAnnotations = opts.commonAnnotations
+	}
 	for _, image := range opts.images {
 		src.Kustomize.MergeImage(argoappv1.KustomizeImage(image))
 	}
@@ -744,42 +760,43 @@ func setJsonnetOptLibs(src *argoappv1.ApplicationSource, libs []string) {
 }
 
 type appOptions struct {
-	repoURL                string
-	appPath                string
-	chart                  string
-	env                    string
-	revision               string
-	revisionHistoryLimit   int
-	destName               string
-	destServer             string
-	destNamespace          string
-	parameters             []string
-	valuesFiles            []string
-	values                 string
-	releaseName            string
-	helmSets               []string
-	helmSetStrings         []string
-	helmSetFiles           []string
-	helmVersion            string
-	project                string
-	syncPolicy             string
-	syncOptions            []string
-	autoPrune              bool
-	selfHeal               bool
-	allowEmpty             bool
-	namePrefix             string
-	nameSuffix             string
-	directoryRecurse       bool
-	configManagementPlugin string
-	jsonnetTlaStr          []string
-	jsonnetTlaCode         []string
-	jsonnetExtVarStr       []string
-	jsonnetExtVarCode      []string
-	jsonnetLibs            []string
-	kustomizeImages        []string
-	kustomizeVersion       string
-	kustomizeCommonLabels  []string
-	validate               bool
+	repoURL                    string
+	appPath                    string
+	chart                      string
+	env                        string
+	revision                   string
+	revisionHistoryLimit       int
+	destName                   string
+	destServer                 string
+	destNamespace              string
+	parameters                 []string
+	valuesFiles                []string
+	values                     string
+	releaseName                string
+	helmSets                   []string
+	helmSetStrings             []string
+	helmSetFiles               []string
+	helmVersion                string
+	project                    string
+	syncPolicy                 string
+	syncOptions                []string
+	autoPrune                  bool
+	selfHeal                   bool
+	allowEmpty                 bool
+	namePrefix                 string
+	nameSuffix                 string
+	directoryRecurse           bool
+	configManagementPlugin     string
+	jsonnetTlaStr              []string
+	jsonnetTlaCode             []string
+	jsonnetExtVarStr           []string
+	jsonnetExtVarCode          []string
+	jsonnetLibs                []string
+	kustomizeImages            []string
+	kustomizeVersion           string
+	kustomizeCommonLabels      []string
+	kustomizeCommonAnnotations []string
+	validate                   bool
 }
 
 func addAppFlags(command *cobra.Command, opts *appOptions) {
@@ -819,6 +836,7 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().StringArrayVar(&opts.kustomizeImages, "kustomize-image", []string{}, "Kustomize images (e.g. --kustomize-image node:8.15.0 --kustomize-image mysql=mariadb,alpine@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d)")
 	command.Flags().BoolVar(&opts.validate, "validate", true, "Validation of repo and cluster")
 	command.Flags().StringArrayVar(&opts.kustomizeCommonLabels, "kustomize-common-label", []string{}, "Set common labels in Kustomize")
+	command.Flags().StringArrayVar(&opts.kustomizeCommonAnnotations, "kustomize-common-annotation", []string{}, "Set common labels in Kustomize")
 }
 
 // NewApplicationUnsetCommand returns a new instance of an `argocd app unset` command
