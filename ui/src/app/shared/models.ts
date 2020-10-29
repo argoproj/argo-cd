@@ -475,6 +475,9 @@ export interface Cluster {
         awsAuthConfig?: {
             clusterName: string;
         };
+        execProviderConfig?: {
+            command: string;
+        }
     };
     info?: {
         applicationsCount: number;
