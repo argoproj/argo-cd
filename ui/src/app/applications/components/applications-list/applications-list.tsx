@@ -6,7 +6,7 @@ import {RouteComponentProps} from 'react-router';
 import {Observable} from 'rxjs';
 
 import {ClusterCtx, DataLoader, EmptyState, ObservableQuery, Page, Paginate, Query, Spinner} from '../../../shared/components';
-import {Consumer} from '../../../shared/context';
+import {Consumer, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {AppsListPreferences, AppsListViewType, services} from '../../../shared/services';
 import {ApplicationCreatePanel} from '../application-create-panel/application-create-panel';
@@ -179,6 +179,18 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
         services.applications.get(appName, 'normal');
     }
 
+    function onFilterPrefChanged(ctx: ContextApis, newPref: AppsListPreferences) {
+        services.viewPreferences.updatePreferences({appList: newPref});
+        ctx.navigation.goto('.', {
+            proj: newPref.projectsFilter.join(','),
+            sync: newPref.syncFilter.join(','),
+            health: newPref.healthFilter.join(','),
+            namespace: newPref.namespacesFilter.join(','),
+            cluster: newPref.clustersFilter.join(','),
+            labels: newPref.labelsFilter.map(encodeURIComponent).join(',')
+        });
+    }
+
     return (
         <ClusterCtx.Provider value={clusters}>
             <Consumer>
@@ -278,6 +290,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                                     }
                                                                                 }}
                                                                                 className='argo-field'
+                                                                                placeholder='Search applications...'
                                                                             />
                                                                         )}
                                                                         renderItem={item => (
@@ -302,21 +315,12 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                         clusters={clusterList}
                                                                         applications={applications}
                                                                         pref={pref}
-                                                                        onChange={newPref => {
-                                                                            services.viewPreferences.updatePreferences({appList: newPref});
-                                                                            ctx.navigation.goto('.', {
-                                                                                proj: newPref.projectsFilter.join(','),
-                                                                                sync: newPref.syncFilter.join(','),
-                                                                                health: newPref.healthFilter.join(','),
-                                                                                namespace: newPref.namespacesFilter.join(','),
-                                                                                cluster: newPref.clustersFilter.join(','),
-                                                                                labels: newPref.labelsFilter.map(encodeURIComponent).join(',')
-                                                                            });
-                                                                        }}
+                                                                        onChange={newPref => onFilterPrefChanged(ctx, newPref)}
                                                                     />
                                                                 );
                                                             }}
                                                         </DataLoader>
+
                                                         {syncAppsInput && (
                                                             <ApplicationsSyncPanel
                                                                 key='syncsPanel'
@@ -333,8 +337,17 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                 page={pref.page}
                                                                 emptyState={() => (
                                                                     <EmptyState icon='fa fa-search'>
-                                                                        <h4>No applications found</h4>
-                                                                        <h5>Try to change filter criteria</h5>
+                                                                        <h4>No matching applications found</h4>
+                                                                        <h5>
+                                                                            Change filter criteria or&nbsp;
+                                                                            <a
+                                                                                onClick={() => {
+                                                                                    AppsListPreferences.clearFilters(pref);
+                                                                                    onFilterPrefChanged(ctx, pref);
+                                                                                }}>
+                                                                                clear filters
+                                                                            </a>
+                                                                        </h5>
                                                                     </EmptyState>
                                                                 )}
                                                                 data={filterApps(applications, pref, pref.search)}
