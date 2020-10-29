@@ -10,24 +10,25 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/pkg/apiclient/session"
-
-	"google.golang.org/grpc/metadata"
-
 	"github.com/dgrijalva/jwt-go"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc/metadata"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apiclient"
 	applicationpkg "github.com/argoproj/argo-cd/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	apps "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
+	servercache "github.com/argoproj/argo-cd/server/cache"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/test"
 	"github.com/argoproj/argo-cd/util/assets"
+	cacheutil "github.com/argoproj/argo-cd/util/cache"
+	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
 	"github.com/argoproj/argo-cd/util/rbac"
 )
 
@@ -45,6 +46,15 @@ func fakeServer() *ArgoCDServer {
 		DisableAuth:     true,
 		StaticAssetsDir: "../test/testdata/static",
 		XFrameOptions:   "sameorigin",
+		Cache: servercache.NewCache(
+			appstatecache.NewCache(
+				cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Hour)),
+				1*time.Minute,
+			),
+			1*time.Minute,
+			1*time.Minute,
+			1*time.Minute,
+		),
 	}
 	return NewServer(context.Background(), argoCDOpts)
 }
