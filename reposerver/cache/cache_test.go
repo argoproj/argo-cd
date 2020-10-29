@@ -129,7 +129,7 @@ func TestCachedManifestResponse_HashBehavior(t *testing.T) {
 
 	inMemCache := cacheutil.NewInMemoryCache(1 * time.Hour)
 
-	thing := NewCache(
+	repoCache := NewCache(
 		cacheutil.NewCache(inMemCache),
 		1*time.Minute,
 	)
@@ -151,7 +151,10 @@ func TestCachedManifestResponse_HashBehavior(t *testing.T) {
 		NumberOfCachedResponsesReturned: 0,
 		NumberOfConsecutiveFailures:     0,
 	}
-	thing.SetManifests(response.Revision, appSrc, response.Namespace, appKey, appValue, store)
+	err := repoCache.SetManifests(response.Revision, appSrc, response.Namespace, appKey, appValue, store)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Get the cache entry of the set value directly from the in memory cache, and check the values
 	var cacheKey string
@@ -179,7 +182,7 @@ func TestCachedManifestResponse_HashBehavior(t *testing.T) {
 
 	// Retrieve the value using 'GetManifests' and confirm it works
 	retrievedVal := &CachedManifestResponse{}
-	err := thing.GetManifests(response.Revision, appSrc, response.Namespace, appKey, appValue, retrievedVal)
+	err = repoCache.GetManifests(response.Revision, appSrc, response.Namespace, appKey, appValue, retrievedVal)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -202,7 +205,7 @@ func TestCachedManifestResponse_HashBehavior(t *testing.T) {
 
 	// Retrieve the value using GetManifests and confirm it returns a cache miss
 	retrievedVal = &CachedManifestResponse{}
-	err = thing.GetManifests(response.Revision, appSrc, response.Namespace, appKey, appValue, retrievedVal)
+	err = repoCache.GetManifests(response.Revision, appSrc, response.Namespace, appKey, appValue, retrievedVal)
 
 	assert.True(t, err == cacheutil.ErrCacheMiss)
 
