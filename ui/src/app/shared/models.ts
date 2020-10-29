@@ -477,7 +477,7 @@ export interface Cluster {
         };
         execProviderConfig?: {
             command: string;
-        }
+        };
     };
     info?: {
         applicationsCount: number;
