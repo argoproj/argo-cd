@@ -21,15 +21,8 @@ The `argocd-repo-server` is responsible for cloning Git repository, keeping it u
 The `--parallelismlimit` flag controls how many manifests generations are running concurrently and allows avoiding OOM kills.
 
 * the `argocd-repo-server` ensures that repository is in the clean state during the manifest generation using config management tools such as Kustomize, Helm
-or custom plugin. If the manifest generation requires to change file in the local repository clone then only one concurrent manifest generation per server
-instance is allowed that might slowdown Argo CD if you have multiple applications (50+) in the same repository. Following are known cases that might cause slowness and workarounds:
-
-  * Multiple Helm based applications pointing to the same directory in one Git repository: ensure that your Helm chart don't have don't have conditional
-[dependencies](https://helm.sh/docs/chart_best_practices/dependencies/#conditions-and-tags) and create `.argocd-allow-concurrency` file in chart directory.
-
-  * Multiple Custom plugin based applications: avoid creating temporal files during manifest generation and and create `.argocd-allow-concurrency` file in app directory.
-
-  * Multiple Kustomize or Ksonnet applications in same repository with [parameter overrides](../user-guide/parameters.md): sorry, no workaround for now.
+or custom plugin. As a result Git repositories with multiple applications might be affect repository server performance.
+Read [Monorepo Scaling Considerations](#monorepo-scaling-considerations) for more information.
 
 * `argocd-repo-server` clones repository into `/tmp` ( of path specified in `TMPDIR` env variable ). Pod might run out of disk space if have too many repository
 or repositories has a lot of files. To avoid this problem mount persistent volume.
@@ -102,3 +95,91 @@ The `argocd-server` is stateless and probably least likely to cause issues. You 
 ### argocd-dex-server, argocd-redis
 
 The `argocd-dex-server` uses an in-memory database, and two or more instances would have inconsistent data. `argocd-redis` is pre-configured with the understanding of only three total redis servers/sentinels.
+
+## Monorepo Scaling Considerations
+
+Argo CD repo server maintains one repository clone locally and use it for application manifest generation. If the manifest generation requires to change a file in the local repository clone then only one concurrent manifest generation per server instance is allowed. This limitation might significantly slowdown Argo CD if you have a mono repository with multiple applications (50+).
+
+### Enable Concurrent Processing
+
+Argo CD determines if manifest generation might change local files in the local repository clone based on config management tool and application settings.
+If the manifest generation has no side effects then requests are processed in parallel without the performance penalty. Following are known cases that might cause slowness and workarounds:
+
+  * **Multiple Helm based applications pointing to the same directory in one Git repository:** ensure that your Helm chart don't have don't have conditional
+[dependencies](https://helm.sh/docs/chart_best_practices/dependencies/#conditions-and-tags) and create `.argocd-allow-concurrency` file in chart directory.
+
+  * **Multiple Custom plugin based applications:** avoid creating temporal files during manifest generation and and create `.argocd-allow-concurrency` file in app directory.
+
+  * **Multiple Kustomize or Ksonnet applications in same repository with [parameter overrides](../user-guide/parameters.md):** sorry, no workaround for now.
+
+
+### Webhook and Manifest Paths Annotation
+
+Argo CD aggressively caches generated manifests and uses repository commit SHA as a cache key. A new commit to the Git repository invalidates cache for all applications configured in the repository
+that again negatively affect mono repositories with multiple applications. You might use [webhooks ⧉](https://github.com/argoproj/argo-cd/tree/master/docs/operator-manual/webhook) and `argocd.argoproj.io/manifest-generate-paths` Application
+CRD annotation to solve this problem and improve performance.
+
+The `argocd.argoproj.io/manifest-generate-paths` contains a semicolon-separated list of paths within the Git repository that are used during manifest generation. The webhook compares paths specified in the annotation
+with the changed files specified in the webhook payload. If non of the changed files are located in the paths then webhook don't trigger application reconciliation and re-uses previously generated manifests cache for a new commit.
+
+Installations that use a different repo for each app are **not** subject to this behavior and will likely get no benefit from using these annotations.
+
+!!! note
+    Installations with a large number of apps should also set the `--app-resync` flag in the `argocd-application-controller` process to a larger value to reduce automatic refreshes based on git polling. The exact value is a trade-off between reduced work and app sync in case of a missed webhook event. For most cases `1800` (30m) or `3600` (1h) is a good trade-off.
+
+
+!!! note
+    Application manifest paths annotation support depends on the git provider used for the Application. It is currently only supported for GitHub, GitLab, and Gogs based repos
+
+* **Relative path** The annotation might contains relative path. In this case the path is considered relative to the path specified in the application source:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: guestbook
+  namespace: argocd
+  annotations:
+    # resolves to the 'guestbook' directory
+    argocd.argoproj.io/manifest-generate-paths: .
+spec:
+  source:
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+    targetRevision: HEAD
+    path: guestbook
+# ...
+```
+* **Absolute path** The annotation value might be an absolute path started from '/'. In this case path is considered as an absolute path within the Git repository:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: guestbook
+  annotations:
+    argocd.argoproj.io/manifest-generate-paths: /guestbook
+spec:
+  source:
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+    targetRevision: HEAD
+    path: guestbook
+# ...
+```
+
+* **Multiple paths** It is possible to put multiple paths into the annotation. Paths must be separated with a semicolon (`;`):
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: guestbook
+  annotations:
+    # resolves to 'my-application' and 'shared'
+    argocd.argoproj.io/manifest-generate-paths: .;../shared
+spec:
+  source:
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+    targetRevision: HEAD
+    path: my-application
+# ...
+```
