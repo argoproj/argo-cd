@@ -195,7 +195,8 @@ func TestGetIstioVirtualServiceInfo(t *testing.T) {
 	info := &ResourceInfo{}
 	populateNodeInfo(testIstioVirtualService, info)
 	assert.Equal(t, 0, len(info.Info))
-	require.Len(t, info.NetworkingInfo.TargetRefs, 3)
+	require.NotNil(t, info.NetworkingInfo)
+	require.NotNil(t, info.NetworkingInfo.TargetRefs)
 	assert.Contains(t, info.NetworkingInfo.TargetRefs, v1alpha1.ResourceRef{
 		Kind:      kube.ServiceKind,
 		Name:      "service_full",
