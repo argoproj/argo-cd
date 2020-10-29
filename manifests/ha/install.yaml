@@ -253,6 +253,11 @@ spec:
                     kustomize:
                       description: Kustomize holds kustomize specific options
                       properties:
+                        commonAnnotations:
+                          additionalProperties:
+                            type: string
+                          description: CommonAnnotations adds additional kustomize commonAnnotations
+                          type: object
                         commonLabels:
                           additionalProperties:
                             type: string
@@ -518,6 +523,11 @@ spec:
                 kustomize:
                   description: Kustomize holds kustomize specific options
                   properties:
+                    commonAnnotations:
+                      additionalProperties:
+                        type: string
+                      description: CommonAnnotations adds additional kustomize commonAnnotations
+                      type: object
                     commonLabels:
                       additionalProperties:
                         type: string
@@ -799,6 +809,11 @@ spec:
                       kustomize:
                         description: Kustomize holds kustomize specific options
                         properties:
+                          commonAnnotations:
+                            additionalProperties:
+                              type: string
+                            description: CommonAnnotations adds additional kustomize commonAnnotations
+                            type: object
                           commonLabels:
                             additionalProperties:
                               type: string
@@ -1083,6 +1098,11 @@ spec:
                             kustomize:
                               description: Kustomize holds kustomize specific options
                               properties:
+                                commonAnnotations:
+                                  additionalProperties:
+                                    type: string
+                                  description: CommonAnnotations adds additional kustomize commonAnnotations
+                                  type: object
                                 commonLabels:
                                   additionalProperties:
                                     type: string
@@ -1345,6 +1365,11 @@ spec:
                         kustomize:
                           description: Kustomize holds kustomize specific options
                           properties:
+                            commonAnnotations:
+                              additionalProperties:
+                                type: string
+                              description: CommonAnnotations adds additional kustomize commonAnnotations
+                              type: object
                             commonLabels:
                               additionalProperties:
                                 type: string
@@ -1604,6 +1629,11 @@ spec:
                         kustomize:
                           description: Kustomize holds kustomize specific options
                           properties:
+                            commonAnnotations:
+                              additionalProperties:
+                                type: string
+                              description: CommonAnnotations adds additional kustomize commonAnnotations
+                              type: object
                             commonLabels:
                               additionalProperties:
                                 type: string

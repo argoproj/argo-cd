@@ -253,6 +253,11 @@ spec:
                     kustomize:
                       description: Kustomize holds kustomize specific options
                       properties:
+                        commonAnnotations:
+                          additionalProperties:
+                            type: string
+                          description: CommonAnnotations adds additional kustomize commonAnnotations
+                          type: object
                         commonLabels:
                           additionalProperties:
                             type: string
@@ -518,6 +523,11 @@ spec:
                 kustomize:
                   description: Kustomize holds kustomize specific options
                   properties:
+                    commonAnnotations:
+                      additionalProperties:
+                        type: string
+                      description: CommonAnnotations adds additional kustomize commonAnnotations
+                      type: object
                     commonLabels:
                       additionalProperties:
                         type: string
@@ -799,6 +809,11 @@ spec:
                       kustomize:
                         description: Kustomize holds kustomize specific options
                         properties:
+                          commonAnnotations:
+                            additionalProperties:
+                              type: string
+                            description: CommonAnnotations adds additional kustomize commonAnnotations
+                            type: object
                           commonLabels:
                             additionalProperties:
                               type: string
@@ -1083,6 +1098,11 @@ spec:
                             kustomize:
                               description: Kustomize holds kustomize specific options
                               properties:
+                                commonAnnotations:
+                                  additionalProperties:
+                                    type: string
+                                  description: CommonAnnotations adds additional kustomize commonAnnotations
+                                  type: object
                                 commonLabels:
                                   additionalProperties:
                                     type: string
@@ -1345,6 +1365,11 @@ spec:
                         kustomize:
                           description: Kustomize holds kustomize specific options
                           properties:
+                            commonAnnotations:
+                              additionalProperties:
+                                type: string
+                              description: CommonAnnotations adds additional kustomize commonAnnotations
+                              type: object
                             commonLabels:
                               additionalProperties:
                                 type: string
@@ -1604,6 +1629,11 @@ spec:
                         kustomize:
                           description: Kustomize holds kustomize specific options
                           properties:
+                            commonAnnotations:
+                              additionalProperties:
+                                type: string
+                              description: CommonAnnotations adds additional kustomize commonAnnotations
+                              type: object
                             commonLabels:
                               additionalProperties:
                                 type: string
@@ -1931,6 +1961,15 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   labels:
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/name: argocd-redis
+    app.kubernetes.io/part-of: argocd
+  name: argocd-redis
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
     app.kubernetes.io/component: server
     app.kubernetes.io/name: argocd-server
     app.kubernetes.io/part-of: argocd
@@ -1993,6 +2032,24 @@ rules:
   - get
   - list
   - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/name: argocd-redis
+    app.kubernetes.io/part-of: argocd
+  name: argocd-redis
+rules:
+- apiGroups:
+  - security.openshift.io
+  resourceNames:
+  - nonroot
+  resources:
+  - securitycontextconstraints
+  verbs:
+  - use
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -2068,6 +2125,22 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: argocd-dex-server
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/name: argocd-redis
+    app.kubernetes.io/part-of: argocd
+  name: argocd-redis
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: argocd-redis
+subjects:
+- kind: ServiceAccount
+  name: argocd-redis
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -2342,6 +2415,7 @@ spec:
         runAsGroup: 1000
         runAsNonRoot: true
         runAsUser: 1000
+      serviceAccountName: argocd-redis
 ---
 apiVersion: apps/v1
 kind: Deployment

@@ -340,6 +340,8 @@ type ApplicationSourceKustomize struct {
 	CommonLabels map[string]string `json:"commonLabels,omitempty" protobuf:"bytes,4,opt,name=commonLabels"`
 	// Version contains optional Kustomize version
 	Version string `json:"version,omitempty" protobuf:"bytes,5,opt,name=version"`
+	// CommonAnnotations adds additional kustomize commonAnnotations
+	CommonAnnotations map[string]string `json:"commonAnnotations,omitempty" protobuf:"bytes,6,opt,name=commonAnnotations"`
 }
 
 func (k *ApplicationSourceKustomize) AllowsConcurrentProcessing() bool {
@@ -355,7 +357,8 @@ func (k *ApplicationSourceKustomize) IsZero() bool {
 			k.NameSuffix == "" &&
 			k.Version == "" &&
 			len(k.Images) == 0 &&
-			len(k.CommonLabels) == 0
+			len(k.CommonLabels) == 0 &&
+			len(k.CommonAnnotations) == 0
 }
 
 // either updates or adds the images

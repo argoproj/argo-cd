@@ -447,6 +447,13 @@ func (in *ApplicationSourceKustomize) DeepCopyInto(out *ApplicationSourceKustomi
 			(*out)[key] = val
 		}
 	}
+	if in.CommonAnnotations != nil {
+		in, out := &in.CommonAnnotations, &out.CommonAnnotations
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	return
 }
 

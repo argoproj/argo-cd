@@ -754,42 +754,43 @@ func setJsonnetOptLibs(src *argoappv1.ApplicationSource, libs []string) {
 }
 
 type appOptions struct {
-	repoURL                string
-	appPath                string
-	chart                  string
-	env                    string
-	revision               string
-	revisionHistoryLimit   int
-	destName               string
-	destServer             string
-	destNamespace          string
-	parameters             []string
-	valuesFiles            []string
-	values                 string
-	releaseName            string
-	helmSets               []string
-	helmSetStrings         []string
-	helmSetFiles           []string
-	helmVersion            string
-	project                string
-	syncPolicy             string
-	syncOptions            []string
-	autoPrune              bool
-	selfHeal               bool
-	allowEmpty             bool
-	namePrefix             string
-	nameSuffix             string
-	directoryRecurse       bool
-	configManagementPlugin string
-	jsonnetTlaStr          []string
-	jsonnetTlaCode         []string
-	jsonnetExtVarStr       []string
-	jsonnetExtVarCode      []string
-	jsonnetLibs            []string
-	kustomizeImages        []string
-	kustomizeVersion       string
-	kustomizeCommonLabels  []string
-	validate               bool
+	repoURL                    string
+	appPath                    string
+	chart                      string
+	env                        string
+	revision                   string
+	revisionHistoryLimit       int
+	destName                   string
+	destServer                 string
+	destNamespace              string
+	parameters                 []string
+	valuesFiles                []string
+	values                     string
+	releaseName                string
+	helmSets                   []string
+	helmSetStrings             []string
+	helmSetFiles               []string
+	helmVersion                string
+	project                    string
+	syncPolicy                 string
+	syncOptions                []string
+	autoPrune                  bool
+	selfHeal                   bool
+	allowEmpty                 bool
+	namePrefix                 string
+	nameSuffix                 string
+	directoryRecurse           bool
+	configManagementPlugin     string
+	jsonnetTlaStr              []string
+	jsonnetTlaCode             []string
+	jsonnetExtVarStr           []string
+	jsonnetExtVarCode          []string
+	jsonnetLibs                []string
+	kustomizeImages            []string
+	kustomizeVersion           string
+	kustomizeCommonLabels      []string
+	kustomizeCommonAnnotations []string
+	validate                   bool
 	exclusions             []string
 }
 
@@ -830,6 +831,7 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().StringArrayVar(&opts.kustomizeImages, "kustomize-image", []string{}, "Kustomize images (e.g. --kustomize-image node:8.15.0 --kustomize-image mysql=mariadb,alpine@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d)")
 	command.Flags().BoolVar(&opts.validate, "validate", true, "Validation of repo and cluster")
 	command.Flags().StringArrayVar(&opts.kustomizeCommonLabels, "kustomize-common-label", []string{}, "Set common labels in Kustomize")
+	command.Flags().StringArrayVar(&opts.kustomizeCommonAnnotations, "kustomize-common-annotation", []string{}, "Set common labels in Kustomize")
 	command.Flags().StringArrayVar(&opts.exclusions, "exclusions", []string{}, "Set file exclusions")
 }
 
