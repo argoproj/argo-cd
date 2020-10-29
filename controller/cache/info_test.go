@@ -9,6 +9,7 @@ import (
 	"github.com/argoproj/pkg/errors"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
@@ -194,22 +195,23 @@ func TestGetIstioVirtualServiceInfo(t *testing.T) {
 	info := &ResourceInfo{}
 	populateNodeInfo(testIstioVirtualService, info)
 	assert.Equal(t, 0, len(info.Info))
-	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
-		TargetRefs: []v1alpha1.ResourceRef{
-			{
-				Kind:      kube.ServiceKind,
-				Name:      "service_full",
-				Namespace: "demo"},
-			{
-				Kind:      kube.ServiceKind,
-				Name:      "service_namespace",
-				Namespace: "namespace"},
-			{
-				Kind:      kube.ServiceKind,
-				Name:      "service",
-				Namespace: "demo"},
-		},
-	}, info.NetworkingInfo)
+	require.NotNil(t, info.NetworkingInfo)
+	require.NotNil(t, info.NetworkingInfo.TargetRefs)
+	assert.Contains(t, info.NetworkingInfo.TargetRefs, v1alpha1.ResourceRef{
+		Kind:      kube.ServiceKind,
+		Name:      "service_full",
+		Namespace: "demo",
+	})
+	assert.Contains(t, info.NetworkingInfo.TargetRefs, v1alpha1.ResourceRef{
+		Kind:      kube.ServiceKind,
+		Name:      "service_namespace",
+		Namespace: "namespace",
+	})
+	assert.Contains(t, info.NetworkingInfo.TargetRefs, v1alpha1.ResourceRef{
+		Kind:      kube.ServiceKind,
+		Name:      "service",
+		Namespace: "demo",
+	})
 }
 
 func TestGetIngressInfo(t *testing.T) {
