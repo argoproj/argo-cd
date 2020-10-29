@@ -9,26 +9,26 @@ import (
 	"path/filepath"
 	"regexp"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
-
 	executil "github.com/argoproj/argo-cd/util/exec"
+	"github.com/argoproj/argo-cd/util/io"
 )
 
 // A thin wrapper around the "helm" command, adding logging and error translation.
 type Cmd struct {
 	HelmVer
-	helmHome string
-	WorkDir  string
-	IsLocal  bool
+	helmHome  string
+	WorkDir   string
+	IsLocal   bool
+	IsHelmOci bool
 }
 
 func NewCmd(workDir string, version string) (*Cmd, error) {
 	if version != "" {
 		switch version {
 		case "v2":
-			return NewCmdWithVersion(workDir, HelmV2)
+			return NewCmdWithVersion(workDir, HelmV2, false)
 		case "v3":
-			return NewCmdWithVersion(workDir, HelmV3)
+			return NewCmdWithVersion(workDir, HelmV3, false)
 		}
 	}
 	helmVersion, err := getHelmVersion(workDir)
@@ -36,15 +36,15 @@ func NewCmd(workDir string, version string) (*Cmd, error) {
 		return nil, err
 	}
 
-	return NewCmdWithVersion(workDir, *helmVersion)
+	return NewCmdWithVersion(workDir, *helmVersion, false)
 }
 
-func NewCmdWithVersion(workDir string, version HelmVer) (*Cmd, error) {
+func NewCmdWithVersion(workDir string, version HelmVer, isHelmOci bool) (*Cmd, error) {
 	tmpDir, err := ioutil.TempDir("", "helm")
 	if err != nil {
 		return nil, err
 	}
-	return &Cmd{WorkDir: workDir, helmHome: tmpDir, HelmVer: version}, err
+	return &Cmd{WorkDir: workDir, helmHome: tmpDir, HelmVer: version, IsHelmOci: isHelmOci}, err
 }
 
 var redactor = func(text string) string {
@@ -62,6 +62,10 @@ func (c Cmd) run(args ...string) (string, error) {
 			fmt.Sprintf("XDG_DATA_HOME=%s/data", c.helmHome),
 			fmt.Sprintf("HELM_HOME=%s", c.helmHome))
 	}
+
+	if c.IsHelmOci {
+		cmd.Env = append(cmd.Env, "HELM_EXPERIMENTAL_OCI=1")
+	}
 	return executil.RunWithRedactor(cmd, redactor)
 }
 
@@ -70,6 +74,71 @@ func (c *Cmd) Init() (string, error) {
 		return c.run("init", "--client-only", "--skip-refresh")
 	}
 	return "", nil
+}
+
+func (c *Cmd) Login(repo string, creds Creds) (string, error) {
+	args := []string{"registry", "login"}
+	args = append(args, repo)
+
+	if creds.Username != "" {
+		args = append(args, "--username", creds.Username)
+	}
+
+	if creds.Password != "" {
+		args = append(args, "--password", creds.Password)
+	}
+
+	if creds.CAPath != "" {
+		args = append(args, "--ca-file", creds.CAPath)
+	}
+	if len(creds.CertData) > 0 {
+		filePath, closer, err := writeToTmp(creds.CertData)
+		if err != nil {
+			return "", err
+		}
+		defer io.Close(closer)
+		args = append(args, "--cert-file", filePath)
+	}
+	if len(creds.KeyData) > 0 {
+		filePath, closer, err := writeToTmp(creds.KeyData)
+		if err != nil {
+			return "", err
+		}
+		defer io.Close(closer)
+		args = append(args, "--key-file", filePath)
+	}
+
+	if creds.InsecureSkipVerify {
+		args = append(args, "--insecure")
+	}
+	return c.run(args...)
+}
+
+func (c *Cmd) Logout(repo string, creds Creds) (string, error) {
+	args := []string{"registry", "logout"}
+	args = append(args, repo)
+
+	if creds.CAPath != "" {
+		args = append(args, "--ca-file", creds.CAPath)
+	}
+	if len(creds.CertData) > 0 {
+		filePath, closer, err := writeToTmp(creds.CertData)
+		if err != nil {
+			return "", err
+		}
+		defer io.Close(closer)
+		args = append(args, "--cert-file", filePath)
+	}
+	if len(creds.KeyData) > 0 {
+		filePath, closer, err := writeToTmp(creds.KeyData)
+		if err != nil {
+			return "", err
+		}
+		defer io.Close(closer)
+		args = append(args, "--key-file", filePath)
+	}
+
+	return c.run(args...)
 }
 
 func (c *Cmd) RepoAdd(name string, url string, opts Creds) (string, error) {
@@ -142,17 +211,27 @@ func writeToTmp(data []byte) (string, io.Closer, error) {
 }
 
 func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds) (string, error) {
-	args := []string{c.pullCommand, "--destination", destination}
+	args := []string{}
 
-	if version != "" {
-		args = append(args, "--version", version)
+	if _, _, isHelmOci := IsHelmOci(chartName); isHelmOci {
+		args = append(args, "chart", "pull")
+		repoUrl := fmt.Sprintf(repo + "/" + chartName + ":" + version)
+		args = append(args, repoUrl)
+	} else {
+		args = append(args, c.pullCommand, "--destination", destination)
+		if version != "" {
+			args = append(args, "--version", version)
+		}
+		if creds.Username != "" {
+			args = append(args, "--username", creds.Username)
+		}
+		if creds.Password != "" {
+			args = append(args, "--password", creds.Password)
+		}
+
+		args = append(args, "--repo", repo, chartName)
 	}
-	if creds.Username != "" {
-		args = append(args, "--username", creds.Username)
-	}
-	if creds.Password != "" {
-		args = append(args, "--password", creds.Password)
-	}
+
 	if creds.CAPath != "" {
 		args = append(args, "--ca-file", creds.CAPath)
 	}
@@ -173,8 +252,32 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds) (
 		args = append(args, "--key-file", filePath)
 	}
 
-	args = append(args, "--repo", repo, chartName)
 	return c.run(args...)
+}
+
+func (c *Cmd) Export(repo, chartName, version, destination string) (string, error) {
+	output := ""
+	var err error
+	args := []string{"chart", "export"}
+	repoUrl := fmt.Sprintf(repo + "/" + chartName + ":" + version)
+	args = append(args, repoUrl, "--destination", destination)
+
+	output, err = c.run(args...)
+	if err != nil {
+		return "", err
+	}
+
+	// tar helm chart
+	repoNamespace, repoName, _ := IsHelmOci(chartName)
+	cmd := exec.Command("tar", "-zcvf", repoNamespace+"-"+repoName+"-"+version+".tgz", repoName)
+	cmd.Dir = destination
+	_, err = executil.Run(cmd)
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = os.RemoveAll(destination + "/" + repoName) }()
+
+	return output, nil
 }
 
 func (c *Cmd) dependencyBuild() (string, error) {

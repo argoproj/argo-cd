@@ -12,8 +12,6 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/errors"
-	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
 	humanize "github.com/dustin/go-humanize"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
@@ -28,8 +26,10 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/config"
+	"github.com/argoproj/argo-cd/util/errors"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/gpg"
+	argoio "github.com/argoproj/argo-cd/util/io"
 )
 
 type projectOpts struct {

@@ -27,7 +27,11 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                     onClose={() => hide()}
                     header={
                         <div>
-                            <button className='argo-button argo-button--base' disabled={isPending} onClick={() => form.submitForm(null)}>
+                            <button
+                                qe-id='application-sync-panel-button-synchronize'
+                                className='argo-button argo-button--base'
+                                disabled={isPending}
+                                onClick={() => form.submitForm(null)}>
                                 <Spinner show={isPending} style={{marginRight: '5px'}} />
                                 Synchronize
                             </button>{' '}

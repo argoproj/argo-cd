@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
 	log "github.com/sirupsen/logrus"
@@ -21,6 +20,7 @@ import (
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/db"
+	"github.com/argoproj/argo-cd/util/io"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/settings"
 )
@@ -139,6 +139,7 @@ func (s *Server) ListRepositories(ctx context.Context, q *repositorypkg.RepoQuer
 				Username:  repo.Username,
 				Insecure:  repo.IsInsecure(),
 				EnableLFS: repo.EnableLFS,
+				EnableOCI: repo.EnableOCI,
 			})
 		}
 	}
@@ -344,6 +345,7 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 		Insecure:          q.Insecure,
 		TLSClientCertData: q.TlsClientCertData,
 		TLSClientCertKey:  q.TlsClientCertKey,
+		EnableOCI:         q.EnableOci,
 	}
 
 	var repoCreds *appsv1.RepoCreds

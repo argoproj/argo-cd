@@ -10,11 +10,11 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/Masterminds/semver"
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -32,6 +32,7 @@ import (
 	gitmocks "github.com/argoproj/argo-cd/util/git/mocks"
 	"github.com/argoproj/argo-cd/util/helm"
 	helmmocks "github.com/argoproj/argo-cd/util/helm/mocks"
+	"github.com/argoproj/argo-cd/util/io"
 )
 
 const testSignature = `gpg: Signature made Wed Feb 26 23:22:34 2020 CET
@@ -85,7 +86,7 @@ func newServiceWithOpt(cf clientFunc) (*Service, *gitmocks.Client) {
 	service.newGitClient = func(rawRepoURL string, creds git.Creds, insecure bool, enableLfs bool) (client git.Client, e error) {
 		return gitClient, nil
 	}
-	service.newHelmClient = func(repoURL string, creds helm.Creds) helm.Client {
+	service.newHelmClient = func(repoURL string, creds helm.Creds, enableOci bool) helm.Client {
 		return helmClient
 	}
 	return service, gitClient
@@ -132,7 +133,7 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src}
 
 	// update this value if we add/remove manifests
-	const countOfManifests = 26
+	const countOfManifests = 29
 
 	res1, err := service.GenerateManifest(context.Background(), &q)
 
@@ -1173,4 +1174,28 @@ func TestGenerateManifestWithAnnotatedAndRegularGitTagHashes(t *testing.T) {
 		})
 	}
 
+}
+
+func TestHelmDependencyWithConcurrency(t *testing.T) {
+	cleanup := func() {
+		_ = os.Remove(filepath.Join("../../util/helm/testdata/helm2-dependency", helmDepUpMarkerFile))
+		_ = os.RemoveAll(filepath.Join("../../util/helm/testdata/helm2-dependency", "charts"))
+	}
+	cleanup()
+	defer cleanup()
+
+	var wg sync.WaitGroup
+	wg.Add(3)
+	for i := 0; i < 3; i++ {
+		go func() {
+			res, err := helmTemplate("../../util/helm/testdata/helm2-dependency", "../..", nil, &apiclient.ManifestRequest{
+				ApplicationSource: &argoappv1.ApplicationSource{},
+			}, false)
+
+			assert.NoError(t, err)
+			assert.NotNil(t, res)
+			wg.Done()
+		}()
+	}
+	wg.Wait()
 }

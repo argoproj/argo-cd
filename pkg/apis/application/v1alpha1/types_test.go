@@ -2101,36 +2101,26 @@ func TestRetryStrategy_NextRetryAtCustomBackoff(t *testing.T) {
 	}
 }
 
-func TestClusterRawRestConfig_MapsExecProvider(t *testing.T) {
-	cluster := Cluster{
-		Server: "https://test-server:8443",
-		Config: ClusterConfig{
-			TLSClientConfig: TLSClientConfig{},
-			ExecProviderConfig: &ExecProviderConfig{
-				Command:     "cmd",
-				Args:        []string{"--one", "--two"},
-				Env:         map[string]string{"FOO": "bar", "TEST": "value"},
-				APIVersion:  "client.authentication.k8s.io/v1beta1",
-				InstallHint: "This is an install hint",
-			},
-		},
-	}
+func TestSourceAllowsConcurrentProcessing_KsonnetNoParams(t *testing.T) {
+	src := ApplicationSource{Path: "."}
 
-	result := cluster.RawRestConfig()
+	assert.True(t, src.AllowsConcurrentProcessing())
+}
 
-	assert.Equal(t, "cmd", result.ExecProvider.Command)
+func TestSourceAllowsConcurrentProcessing_KsonnetParams(t *testing.T) {
+	src := ApplicationSource{Path: ".", Ksonnet: &ApplicationSourceKsonnet{
+		Parameters: []KsonnetParameter{{
+			Name: "test", Component: "test", Value: "1",
+		}},
+	}}
 
-	assert.Equal(t, 2, len(result.ExecProvider.Args))
-	assert.Equal(t, "--one", result.ExecProvider.Args[0])
+	assert.False(t, src.AllowsConcurrentProcessing())
+}
 
-	expectedEnv := []api.ExecEnvVar{
-		{Name: "FOO", Value: "bar"},
-		{Name: "TEST", Value: "value"},
-	}
-	if !reflect.DeepEqual(expectedEnv, result.ExecProvider.Env) {
-		t.Errorf("ExecProvider.Env got = %v, want %v", expectedEnv, result.ExecProvider.Env)
-	}
+func TestSourceAllowsConcurrentProcessing_KustomizeParams(t *testing.T) {
+	src := ApplicationSource{Path: ".", Kustomize: &ApplicationSourceKustomize{
+		NameSuffix: "test",
+	}}
 
-	assert.Equal(t, "client.authentication.k8s.io/v1beta1", result.ExecProvider.APIVersion)
-	assert.Equal(t, "This is an install hint", result.ExecProvider.InstallHint)
+	assert.False(t, src.AllowsConcurrentProcessing())
 }

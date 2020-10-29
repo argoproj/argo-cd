@@ -1574,6 +1574,31 @@
         }
       }
     },
+    "/api/v1/projects/{name}/globalprojects": {
+      "get": {
+        "tags": [
+          "ProjectService"
+        ],
+        "summary": "Get returns a virtual project by name",
+        "operationId": "GetGlobalProjects",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/projectGlobalProjectsResponse"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/projects/{name}/syncwindows": {
       "get": {
         "tags": [
@@ -2801,6 +2826,17 @@
     },
     "projectEmptyResponse": {
       "type": "object"
+    },
+    "projectGlobalProjectsResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1AppProject"
+          }
+        }
+      }
     },
     "projectProjectCreateRequest": {
       "description": "ProjectCreateRequest defines project creation parameters.",
@@ -4680,6 +4716,11 @@
           "type": "boolean",
           "format": "boolean",
           "title": "Whether git-lfs support should be enabled for this repo"
+        },
+        "enableOCI": {
+          "type": "boolean",
+          "format": "boolean",
+          "title": "Whether helm-oci support should be enabled for this repo"
         },
         "inheritedCreds": {
           "type": "boolean",

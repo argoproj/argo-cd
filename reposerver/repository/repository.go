@@ -17,7 +17,6 @@ import (
 
 	"github.com/Masterminds/semver"
 	"github.com/TomOnTime/utfutil"
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	textutils "github.com/argoproj/gitops-engine/pkg/utils/text"
 	"github.com/argoproj/pkg/sync"
@@ -44,6 +43,7 @@ import (
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/gpg"
 	"github.com/argoproj/argo-cd/util/helm"
+	"github.com/argoproj/argo-cd/util/io"
 	"github.com/argoproj/argo-cd/util/ksonnet"
 	argokube "github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/kustomize"
@@ -53,16 +53,18 @@ import (
 
 const (
 	cachedManifestGenerationPrefix = "Manifest generation error (cached)"
+	helmDepUpMarkerFile            = ".argocd-helm-dep-up"
+	allowConcurrencyFile           = ".argocd-allow-concurrency"
 )
 
 // Service implements ManifestService interface
 type Service struct {
-	repoLock                  sync.KeyLock
+	repoLock                  *repositoryLock
 	cache                     *reposervercache.Cache
 	parallelismLimitSemaphore *semaphore.Weighted
 	metricsServer             *metrics.MetricsServer
 	newGitClient              func(rawRepoURL string, creds git.Creds, insecure bool, enableLfs bool) (git.Client, error)
-	newHelmClient             func(repoURL string, creds helm.Creds) helm.Client
+	newHelmClient             func(repoURL string, creds helm.Creds, enableOci bool) helm.Client
 	initConstants             RepoServerInitConstants
 	// now is usually just time.Now, but may be replaced by unit tests for testing purposes
 	now func() time.Time
@@ -81,15 +83,15 @@ func NewService(metricsServer *metrics.MetricsServer, cache *reposervercache.Cac
 	if initConstants.ParallelismLimit > 0 {
 		parallelismLimitSemaphore = semaphore.NewWeighted(initConstants.ParallelismLimit)
 	}
-	repoLock := sync.NewKeyLock()
+	repoLock := NewRepositoryLock()
 	return &Service{
 		parallelismLimitSemaphore: parallelismLimitSemaphore,
 		repoLock:                  repoLock,
 		cache:                     cache,
 		metricsServer:             metricsServer,
 		newGitClient:              git.NewClient,
-		newHelmClient: func(repoURL string, creds helm.Creds) helm.Client {
-			return helm.NewClientWithLock(repoURL, creds, repoLock)
+		newHelmClient: func(repoURL string, creds helm.Creds, enableOci bool) helm.Client {
+			return helm.NewClientWithLock(repoURL, creds, sync.NewKeyLock(), enableOci)
 		},
 		initConstants: initConstants,
 		now:           time.Now,
@@ -110,13 +112,15 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 	s.metricsServer.IncPendingRepoRequest(q.Repo.Repo)
 	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
 
-	s.repoLock.Lock(gitClient.Root())
-	defer s.repoLock.Unlock(gitClient.Root())
+	closer, err := s.repoLock.Lock(gitClient.Root(), commitSHA, true, func() error {
+		return checkoutRevision(gitClient, commitSHA)
+	})
 
-	_, err = checkoutRevision(gitClient, commitSHA, log.WithField("repo", q.Repo.Repo))
 	if err != nil {
 		return nil, err
 	}
+
+	defer io.Close(closer)
 	apps, err := discovery.Discover(gitClient.Root())
 	if err != nil {
 		return nil, err
@@ -130,8 +134,9 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 }
 
 type operationSettings struct {
-	sem     *semaphore.Weighted
-	noCache bool
+	sem             *semaphore.Weighted
+	noCache         bool
+	allowConcurrent bool
 }
 
 // runRepoOperation downloads either git folder or helm chart and executes specified operation
@@ -201,18 +206,27 @@ func (s *Service) runRepoOperation(
 		defer io.Close(closer)
 		return operation(chartPath, chartPath, revision, revision, "")
 	} else {
-		s.repoLock.Lock(gitClient.Root())
-		defer s.repoLock.Unlock(gitClient.Root())
+		closer, err := s.repoLock.Lock(gitClient.Root(), revision, settings.allowConcurrent, func() error {
+			return checkoutRevision(gitClient, revision)
+		})
+
+		if err != nil {
+			return nil, err
+		}
+
+		defer io.Close(closer)
+
+		commitSHA, err := gitClient.CommitSHA()
+		if err != nil {
+			return nil, err
+		}
+
 		// double-check locking
 		if !settings.noCache {
 			result, obj, err := getCached(revision, false)
 			if result {
 				return obj, err
 			}
-		}
-		commitSHA, err := checkoutRevision(gitClient, revision, log.WithField("repo", repo.Repo))
-		if err != nil {
-			return nil, err
 		}
 		if verifyCommit {
 			signature, err = gitClient.VerifyCommitSignature(revision)
@@ -236,8 +250,7 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 			return s.getManifestCacheEntry(cacheKey, q, firstInvocation)
 		}, func(appPath, repoRoot, commitSHA, cacheKey, verifyResult string) (interface{}, error) {
 			return s.runManifestGen(appPath, repoRoot, commitSHA, cacheKey, verifyResult, q)
-		}, operationSettings{sem: s.parallelismLimitSemaphore, noCache: q.NoCache})
-
+		}, operationSettings{sem: s.parallelismLimitSemaphore, noCache: q.NoCache, allowConcurrent: q.ApplicationSource.AllowsConcurrentProcessing()})
 	result, ok := resultUncast.(*apiclient.ManifestResponse)
 	if result != nil && !ok {
 		return nil, errors.New("unexpected result type")
@@ -398,7 +411,48 @@ func getHelmRepos(repositories []*v1alpha1.Repository) []helm.HelmRepository {
 	return repos
 }
 
+func isConcurrencyAllowed(appPath string) bool {
+	if _, err := os.Stat(path.Join(appPath, allowConcurrencyFile)); err == nil {
+		return true
+	}
+	return false
+}
+
+var manifestGenerateLock = sync.NewKeyLock()
+
+// runHelmBuild executes `helm dependency build` in a given path and ensures that it is executed only once
+// if multiple threads are trying to run it.
+// Multiple goroutines might process same helm app in one repo concurrently when repo server process multiple
+// manifest generation requests of the same commit.
+func runHelmBuild(appPath string, h helm.Helm) error {
+	manifestGenerateLock.Lock(appPath)
+	defer manifestGenerateLock.Unlock(appPath)
+
+	// the `helm dependency build` is potentially time consuming 1~2 seconds
+	// marker file is used to check if command already run to avoid running it again unnecessary
+	// file is removed when repository re-initialized (e.g. when another commit is processed)
+	markerFile := path.Join(appPath, helmDepUpMarkerFile)
+	_, err := os.Stat(markerFile)
+	if err == nil {
+		return nil
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+
+	err = h.DependencyBuild()
+	if err != nil {
+		return err
+	}
+	return ioutil.WriteFile(markerFile, []byte("marker"), 0644)
+}
+
 func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool) ([]*unstructured.Unstructured, error) {
+	concurrencyAllowed := isConcurrencyAllowed(appPath)
+	if !concurrencyAllowed {
+		manifestGenerateLock.Lock(appPath)
+		defer manifestGenerateLock.Unlock(appPath)
+	}
+
 	templateOpts := &helm.TemplateOpts{
 		Name:        q.AppLabelValue,
 		Namespace:   q.Namespace,
@@ -494,15 +548,23 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 	if err != nil {
 		return nil, err
 	}
+
 	out, err := h.Template(templateOpts)
 	if err != nil {
 		if !helm.IsMissingDependencyErr(err) {
 			return nil, err
 		}
-		err = h.DependencyBuild()
+
+		if concurrencyAllowed {
+			err = runHelmBuild(appPath, h)
+		} else {
+			err = h.DependencyBuild()
+		}
+
 		if err != nil {
 			return nil, err
 		}
+
 		out, err = h.Template(templateOpts)
 		if err != nil {
 			return nil, err
@@ -854,6 +916,12 @@ func findPlugin(plugins []*v1alpha1.ConfigManagementPlugin, name string) *v1alph
 }
 
 func runConfigManagementPlugin(appPath string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds) ([]*unstructured.Unstructured, error) {
+	concurrencyAllowed := isConcurrencyAllowed(appPath)
+	if !concurrencyAllowed {
+		manifestGenerateLock.Lock(appPath)
+		defer manifestGenerateLock.Unlock(appPath)
+	}
+
 	plugin := findPlugin(q.Plugins, q.ApplicationSource.Plugin.Name)
 	if plugin == nil {
 		return nil, fmt.Errorf("Config management plugin with name '%s' is not supported.", q.ApplicationSource.Plugin.Name)
@@ -1007,7 +1075,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 		}
 		_ = s.cache.SetAppDetails(revision, q.Source, res)
 		return res, nil
-	}, operationSettings{})
+	}, operationSettings{allowConcurrent: q.Source.AllowsConcurrentProcessing()})
 
 	result, ok := resultUncast.(*apiclient.RepoAppDetailsResponse)
 	if result != nil && !ok {
@@ -1041,13 +1109,15 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 	s.metricsServer.IncPendingRepoRequest(q.Repo.Repo)
 	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
 
-	s.repoLock.Lock(gitClient.Root())
-	defer s.repoLock.Unlock(gitClient.Root())
+	closer, err := s.repoLock.Lock(gitClient.Root(), q.Revision, true, func() error {
+		return checkoutRevision(gitClient, q.Revision)
+	})
 
-	_, err = checkoutRevision(gitClient, q.Revision, log.WithField("repo", q.Repo.Repo))
 	if err != nil {
 		return nil, err
 	}
+
+	defer io.Close(closer)
 
 	m, err := gitClient.RevisionMetadata(q.Revision)
 	if err != nil {
@@ -1119,7 +1189,7 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 }
 
 func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revision string, chart string) (helm.Client, string, error) {
-	helmClient := s.newHelmClient(repo.Repo, repo.GetHelmCreds())
+	helmClient := s.newHelmClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI)
 	if helm.IsVersion(revision) {
 		return helmClient, revision, nil
 	}
@@ -1145,28 +1215,24 @@ func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revisi
 // checkoutRevision is a convenience function to initialize a repo, fetch, and checkout a revision
 // Returns the 40 character commit SHA after the checkout has been performed
 // nolint:unparam
-func checkoutRevision(gitClient git.Client, commitSHA string, logEntry *log.Entry) (string, error) {
+func checkoutRevision(gitClient git.Client, revision string) error {
 	err := gitClient.Init()
 	if err != nil {
-		return "", status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
+		return status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
 	}
 	err = gitClient.Fetch()
 	if err != nil {
-		return "", status.Errorf(codes.Internal, "Failed to fetch git repo: %v", err)
+		return status.Errorf(codes.Internal, "Failed to fetch git repo: %v", err)
 	}
-	err = gitClient.Checkout(commitSHA)
+	err = gitClient.Checkout(revision)
 	if err != nil {
-		return "", status.Errorf(codes.Internal, "Failed to checkout %s: %v", commitSHA, err)
+		return status.Errorf(codes.Internal, "Failed to checkout %s: %v", revision, err)
 	}
-	sha, err := gitClient.CommitSHA()
-	if err == nil && git.IsCommitSHA(commitSHA) && sha != commitSHA {
-		logEntry.Warnf("'git checkout %s' has switched repo to unexpected commit: %s", commitSHA, sha)
-	}
-	return sha, err
+	return err
 }
 
 func (s *Service) GetHelmCharts(ctx context.Context, q *apiclient.HelmChartsRequest) (*apiclient.HelmChartsResponse, error) {
-	index, err := s.newHelmClient(q.Repo.Repo, q.Repo.GetHelmCreds()).GetIndex()
+	index, err := s.newHelmClient(q.Repo.Repo, q.Repo.GetHelmCreds(), q.Repo.EnableOCI).GetIndex()
 	if err != nil {
 		return nil, err
 	}
