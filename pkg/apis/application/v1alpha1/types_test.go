@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/tools/clientcmd/api"
 )
 
 func TestAppProject_IsSourcePermitted(t *testing.T) {
@@ -2098,4 +2099,38 @@ func TestRetryStrategy_NextRetryAtCustomBackoff(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, expected.Format(time.RFC850), retryAt.Format(time.RFC850))
 	}
+}
+
+func TestClusterRawRestConfig_MapsExecProvider(t *testing.T) {
+	cluster := Cluster{
+		Server: "https://test-server:8443",
+		Config: ClusterConfig{
+			TLSClientConfig: TLSClientConfig{},
+			ExecProviderConfig: &ExecProviderConfig{
+				Command:     "cmd",
+				Args:        []string{"--one", "--two"},
+				Env:         map[string]string{"FOO": "bar", "TEST": "value"},
+				APIVersion:  "client.authentication.k8s.io/v1beta1",
+				InstallHint: "This is an install hint",
+			},
+		},
+	}
+
+	result := cluster.RawRestConfig()
+
+	assert.Equal(t, "cmd", result.ExecProvider.Command)
+
+	assert.Equal(t, 2, len(result.ExecProvider.Args))
+	assert.Equal(t, "--one", result.ExecProvider.Args[0])
+
+	expectedEnv := []api.ExecEnvVar{
+		{Name: "FOO", Value: "bar"},
+		{Name: "TEST", Value: "value"},
+	}
+	if !reflect.DeepEqual(expectedEnv, result.ExecProvider.Env) {
+		t.Errorf("ExecProvider.Env got = %v, want %v", expectedEnv, result.ExecProvider.Env)
+	}
+
+	assert.Equal(t, "client.authentication.k8s.io/v1beta1", result.ExecProvider.APIVersion)
+	assert.Equal(t, "This is an install hint", result.ExecProvider.InstallHint)
 }
