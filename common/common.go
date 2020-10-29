@@ -124,6 +124,12 @@ const (
 	// ResourcesFinalizerName the finalizer value which we inject to finalize deletion of an application
 	ResourcesFinalizerName = "resources-finalizer.argocd.argoproj.io"
 
+	// AnnotationKeyManifestGeneratePaths is an annotation that contains a list of semicolon-separated paths in the
+	// manifests repository that affects the manifest generation. Paths might be either relative or absolute. The
+	// absolute path means an absolute path within the repository and the relative path is relative to the application
+	// source path within the repository.
+	AnnotationKeyManifestGeneratePaths = "argocd.argoproj.io/manifest-generate-paths"
+
 	// AnnotationKeyLinkPrefix tells the UI to add an external link icon to the application node
 	// that links to the value given in the annotation.
 	// The annotation key must be followed by a unique identifier. Ex: link.argocd.argoproj.io/dashboard
