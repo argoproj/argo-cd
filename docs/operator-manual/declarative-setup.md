@@ -482,6 +482,8 @@ tlsClientConfig:
     serverName: string
 ```
 
+Note that if you specify a command to run under `execProviderConfig`, that command must be available in the ArgoCD image. See [BYOI (Build Your Own Image)](custom_tools.md#byoi-build-your-own-image).
+
 Cluster secret example:
 
 ```yaml
