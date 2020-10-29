@@ -1056,13 +1056,14 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 		SinceSeconds: sinceSeconds,
 		SinceTime:    q.SinceTime,
 		TailLines:    tailLines,
-	}).Stream(context.Background())
+	}).Stream(ws.Context())
 	if err != nil {
 		return err
 	}
 	logCtx := log.WithField("application", q.Name)
 	defer io.Close(stream)
 	done := make(chan bool)
+	reachedEOF := false
 	gracefulExit := false
 	go func() {
 		bufReader := bufio.NewReader(stream)
@@ -1098,14 +1099,22 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 			logCtx.Warnf("k8s pod logs reader failed with error: %v", err)
 		} else {
 			logCtx.Info("k8s pod logs reader completed with EOF")
+			reachedEOF = true
 		}
 		close(done)
 	}()
+
 	select {
 	case <-ws.Context().Done():
 		logCtx.Info("client pod logs grpc context closed")
 		gracefulExit = true
 	case <-done:
+	}
+
+	if reachedEOF || gracefulExit {
+		if err := ws.Send(&application.LogEntry{Last: true}); err != nil {
+			logCtx.Warnf("Unable to send stream message notifying about last log message: %v", err)
+		}
 	}
 	return nil
 }
