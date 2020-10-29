@@ -1404,3 +1404,14 @@ func TestCreateFromPartialFile(t *testing.T) {
 			assert.Equal(t, []HelmParameter{{Name: "foo", Value: "foo"}}, app.Spec.Source.Helm.Parameters)
 		})
 }
+func TestAppCreationWithExclusions(t *testing.T) {
+	Given(t).
+		Path("app-exclusions").
+		When().
+		Create("--exclusions", "^\\.", "--directory-recurse").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy))
+}

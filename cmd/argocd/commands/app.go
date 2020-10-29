@@ -541,9 +541,17 @@ func setAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 		case "helm-set-file":
 			setHelmOpt(&spec.Source, helmOpts{helmSetFiles: appOpts.helmSetFiles})
 		case "directory-recurse":
-			spec.Source.Directory = &argoappv1.ApplicationSourceDirectory{Recurse: appOpts.directoryRecurse}
+			if spec.Source.Directory != nil {
+				spec.Source.Directory.Recurse = appOpts.directoryRecurse
+			} else {
+				spec.Source.Directory = &argoappv1.ApplicationSourceDirectory{Recurse: appOpts.directoryRecurse}
+			}
 		case "exclusions":
-			spec.Source.Directory = &argoappv1.ApplicationSourceDirectory{Exclusions: appOpts.exclusions}
+			if spec.Source.Directory != nil {
+				spec.Source.Directory.Exclusions = appOpts.exclusions
+			} else {
+				spec.Source.Directory = &argoappv1.ApplicationSourceDirectory{Exclusions: appOpts.exclusions}
+			}
 		case "config-management-plugin":
 			spec.Source.Plugin = &argoappv1.ApplicationSourcePlugin{Name: appOpts.configManagementPlugin}
 		case "dest-name":
