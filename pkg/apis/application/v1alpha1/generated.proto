@@ -234,6 +234,9 @@ message ApplicationSourceKustomize {
 
   // Version contains optional Kustomize version
   optional string version = 5;
+
+  // CommonAnnotations adds additional kustomize commonAnnotations
+  map<string, string> commonAnnotations = 6;
 }
 
 // ApplicationSourcePlugin holds config management plugin specific options

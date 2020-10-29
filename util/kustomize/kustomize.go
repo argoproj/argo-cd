@@ -109,6 +109,25 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 				return nil, nil, err
 			}
 		}
+
+		if len(opts.CommonAnnotations) > 0 {
+			//  edit add annotation foo:bar
+			args := []string{"edit", "add", "annotation"}
+			arg := ""
+			for annotationName, annotationValue := range opts.CommonAnnotations {
+				if arg != "" {
+					arg += ","
+				}
+				arg += fmt.Sprintf("%s:%s", annotationName, annotationValue)
+			}
+			args = append(args, arg)
+			cmd := exec.Command(k.getBinaryPath(), args...)
+			cmd.Dir = k.path
+			_, err := executil.Run(cmd)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
 	}
 
 	var cmd *exec.Cmd
