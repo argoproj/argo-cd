@@ -2592,6 +2592,10 @@
         "content": {
           "type": "string"
         },
+        "last": {
+          "type": "boolean",
+          "format": "boolean"
+        },
         "timeStamp": {
           "$ref": "#/definitions/v1Time"
         }

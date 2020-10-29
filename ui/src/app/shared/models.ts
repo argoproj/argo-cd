@@ -386,6 +386,7 @@ export interface AppProjectStatus {
 export interface LogEntry {
     content: string;
     timeStamp: models.Time;
+    last: boolean;
 }
 
 // describes plugin settings

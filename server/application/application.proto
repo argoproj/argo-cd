@@ -163,6 +163,7 @@ message ApplicationPodLogsQuery {
 message LogEntry {
 	required string content = 1 [(gogoproto.nullable) = false];
 	required k8s.io.apimachinery.pkg.apis.meta.v1.Time timeStamp = 2 [(gogoproto.nullable) = false];
+	required bool last = 3 [(gogoproto.nullable) = false];
 }
 
 message OperationTerminateRequest {
