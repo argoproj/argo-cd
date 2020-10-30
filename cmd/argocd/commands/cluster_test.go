@@ -45,7 +45,8 @@ func Test_newCluster(t *testing.T) {
 		Host: "test-endpoint.example.com",
 	},
 		"test-bearer-token",
-		&v1alpha1.AWSAuthConfig{})
+		&v1alpha1.AWSAuthConfig{},
+		&v1alpha1.ExecProviderConfig{})
 
 	assert.Equal(t, "test-cert-data", string(clusterWithData.Config.CertData))
 	assert.Equal(t, "test-key-data", string(clusterWithData.Config.KeyData))
@@ -62,7 +63,8 @@ func Test_newCluster(t *testing.T) {
 		Host: "test-endpoint.example.com",
 	},
 		"test-bearer-token",
-		&v1alpha1.AWSAuthConfig{})
+		&v1alpha1.AWSAuthConfig{},
+		&v1alpha1.ExecProviderConfig{})
 
 	assert.True(t, strings.Contains(string(clusterWithFiles.Config.CertData), "test-cert-data"))
 	assert.True(t, strings.Contains(string(clusterWithFiles.Config.KeyData), "test-key-data"))
@@ -77,7 +79,8 @@ func Test_newCluster(t *testing.T) {
 		Host: "test-endpoint.example.com",
 	},
 		"test-bearer-token",
-		&v1alpha1.AWSAuthConfig{})
+		&v1alpha1.AWSAuthConfig{},
+		&v1alpha1.ExecProviderConfig{})
 
 	assert.Equal(t, "test-bearer-token", clusterWithBearerToken.Config.BearerToken)
 }

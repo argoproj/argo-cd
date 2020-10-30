@@ -68,7 +68,10 @@ export const ClusterDetails = (props: RouteComponentProps<{server: string}>) => 
                                 },
                                 {
                                     title: 'CREDENTIALS TYPE',
-                                    view: (cluster.config.awsAuthConfig && `IAM AUTH (cluster name: ${cluster.config.awsAuthConfig.clusterName})`) || 'Token/Basic Auth'
+                                    view:
+                                        (cluster.config.awsAuthConfig && `IAM AUTH (cluster name: ${cluster.config.awsAuthConfig.clusterName})`) ||
+                                        (cluster.config.execProviderConfig && `External provider (command: ${cluster.config.execProviderConfig.command})`) ||
+                                        'Token/Basic Auth'
                                 },
                                 {
                                     title: 'NAME',
