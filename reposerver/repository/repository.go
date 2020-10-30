@@ -98,6 +98,37 @@ func NewService(metricsServer *metrics.MetricsServer, cache *reposervercache.Cac
 	}
 }
 
+// List a subset of the refs (currently, branches and tags) of a git repo
+func (s *Service) ListRefs(ctx context.Context, q *apiclient.ListRefsRequest) (*apiclient.Refs, error) {
+	gitClient, err := s.newClient(q.Repo)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO check cache
+
+	s.metricsServer.IncPendingRepoRequest(q.Repo.Repo)
+	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
+
+	// TODO is locking necessary here? We are not modifying the repository, just running an ls-remote
+
+	//s.repoLock.Lock(gitClient.Root())
+
+	refs, err := gitClient.LsRefs()
+	if err != nil {
+		return nil, err
+	}
+
+	res := apiclient.Refs{
+		Branches: refs.Branches,
+		Tags:     refs.Tags,
+	}
+
+	// TODO save in cache
+
+	return &res, nil
+}
+
 // ListApps lists the contents of a GitHub repo
 func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*apiclient.AppList, error) {
 	gitClient, commitSHA, err := s.newClientResolveRevision(q.Repo, q.Revision)

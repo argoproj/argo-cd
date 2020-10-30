@@ -368,3 +368,30 @@ func TestNewFactory(t *testing.T) {
 		assert.Equal(t, commitSHA, commitSHA2)
 	}
 }
+
+func TestListRevisions(t *testing.T) {
+	dir, err := ioutil.TempDir("", "test-list-revisions")
+	if err != nil {
+		panic(err.Error())
+	}
+	defer os.RemoveAll(dir)
+
+	repoUrl := "https://github.com/argoproj/argo-cd.git"
+	client, err := NewClientExt(repoUrl, dir, NopCreds{}, false, false)
+	assert.NoError(t, err)
+
+	lsResult, err := client.LsRefs()
+	assert.NoError(t, err)
+
+	testBranch := "master"
+	testTag := "v1.0.0"
+
+	assert.Contains(t, lsResult.Branches, testBranch)
+	assert.Contains(t, lsResult.Tags, testTag)
+	assert.NotContains(t, lsResult.Branches, testTag)
+	assert.NotContains(t, lsResult.Tags, testBranch)
+
+	//fmt.Printf("BRANCHES: %s\n", strings.Join(lsResult.Branches, ", "))
+	//fmt.Printf("TAGS: %s\n", strings.Join(lsResult.Tags, ", "))
+	//fmt.Printf("%d branches, %d tags\n", len(lsResult.Branches), len(lsResult.Tags))
+}

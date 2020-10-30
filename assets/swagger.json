@@ -2069,6 +2069,38 @@
         }
       }
     },
+    "/api/v1/repositories/{repo}/refs": {
+      "get": {
+        "tags": [
+          "RepositoryService"
+        ],
+        "operationId": "ListRefs",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Repo URL for query",
+            "name": "repo",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "boolean",
+            "format": "boolean",
+            "description": "Whether to force a cache refresh on repo's connection state.",
+            "name": "forceRefresh",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/repositoryRefs"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/repositories/{repo}/validate": {
       "post": {
         "tags": [
@@ -3067,6 +3099,24 @@
         "verifyResult": {
           "type": "string",
           "title": "Raw response of git verify-commit operation (always the empty string for Helm)"
+        }
+      }
+    },
+    "repositoryRefs": {
+      "type": "object",
+      "title": "A subset of the repository's named refs",
+      "properties": {
+        "branches": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
