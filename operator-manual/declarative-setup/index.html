@@ -2133,6 +2133,18 @@ definition as a Kubernetes manifest.</li>
 <span class="nt">awsAuthConfig</span><span class="p">:</span>
     <span class="nt">clusterName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">string</span>
     <span class="nt">roleARN</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">string</span>
+<span class="c1"># Configure external command to supply client credentials</span>
+<span class="c1"># See https://godoc.org/k8s.io/client-go/tools/clientcmd/api#ExecConfig</span>
+<span class="nt">execProviderConfig</span><span class="p">:</span>
+    <span class="nt">command</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">string</span>
+    <span class="nt">args</span><span class="p">:</span> <span class="p p-Indicator">[</span>
+      <span class="nv">string</span>
+    <span class="p p-Indicator">]</span>
+    <span class="nt">env</span><span class="p">:</span> <span class="p p-Indicator">{</span>
+<span class="nt">      key</span><span class="p">:</span> <span class="nv">value</span>
+    <span class="p p-Indicator">}</span>
+    <span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">string</span>
+    <span class="nt">installHint</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">string</span>
 <span class="c1"># Transport layer security configuration settings</span>
 <span class="nt">tlsClientConfig</span><span class="p">:</span>
     <span class="c1"># PEM-encoded bytes (typically read from a client certificate file).</span>
@@ -2149,6 +2161,7 @@ definition as a Kubernetes manifest.</li>
     <span class="nt">serverName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">string</span>
 </code></pre></div>
 
+<p>Note that if you specify a command to run under <code>execProviderConfig</code>, that command must be available in the ArgoCD image. See <a href="../custom_tools/#byoi-build-your-own-image">BYOI (Build Your Own Image)</a>.</p>
 <p>Cluster secret example:</p>
 <div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Secret</span>
