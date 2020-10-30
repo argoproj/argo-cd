@@ -1297,6 +1297,13 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#using-k3d" title="Using k3d" class="md-nav__link">
+    Using k3d
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1719,6 +1726,13 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#using-k3d" title="Using k3d" class="md-nav__link">
+    Using k3d
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1953,6 +1967,36 @@ ok      github.com/argoproj/argo-cd/server/cache        <span class="m">0</span>
 </code></pre></div>
 
 <p>you should edit your <code>~/.kube/config</code> and modify the <code>server</code> option to point to your correct K8s API (as described above).</p>
+<h3 id="using-k3d">Using k3d<a class="headerlink" href="#using-k3d" title="Permanent link">&para;</a></h3>
+<p>k3d is a lightweight wrapper to run <a href="https://github.com/rancher/k3s">k3s</a>, a minimal Kubernetes distribution, in docker. Because it's running in a docker container, you're dealing with docker's internal networking rules when using k3d. A typical Kubernetes cluster running on your local machine is part of the same network that you're on so you can access it using <strong>kubectl</strong>. However, a Kubernetes cluster running within a docker container (in this case, the one launched by make) cannot access 0.0.0.0 from inside the container itself, when 0.0.0.0 is a network resource outside the container itself (and/or the container's network). This is the cost of a fully self-contained, disposable Kubernetes cluster. The following steps should help with a successful <code>make verify-kube-connect</code> execution.</p>
+<ol>
+<li>Find your host IP by executing <code>ifconfig</code> on Mac/Linux and <code>ipconfig</code> on Windows. For most users, the following command works to find the IP address.</li>
+</ol>
+<p>For Mac:</p>
+<div class="codehilite"><pre><span></span><code><span class="err">IP=`ifconfig en0 | grep inet | grep -v inet6 | awk &#39;{print $2}&#39;`</span>
+<span class="err">echo $IP</span>
+</code></pre></div>
+
+<p>For Linux:</p>
+<div class="codehilite"><pre><span></span><code><span class="err">IP=`ifconfig eth0 | grep inet | grep -v inet6 | awk &#39;{print $2}&#39;`</span>
+<span class="err">echo $IP</span>
+</code></pre></div>
+
+<p>Keep in mind that this IP is dynamically assigned by the router so if your router restarts for any reason, your IP might change.</p>
+<ol>
+<li>
+<p>Edit your ~/.kube/config and replace 0.0.0.0 with the above IP address.</p>
+</li>
+<li>
+<p>Execute a <code>kubectl version</code> to make sure you can still connect to the Kubernetes API server via this new IP. Run <code>make verify-kube-connect</code> and check if it works.</p>
+</li>
+<li>
+<p>Finally, so that you don't have to keep updating your kube-config whenever you spin up a new k3d cluster, add <code>--api-port $IP:6550</code> to your <strong>k3d cluster create</strong> command, where $IP is the value from step 1. An example command is provided here.</p>
+</li>
+</ol>
+<div class="codehilite"><pre><span></span><code><span class="n">k3d</span> <span class="n">cluster</span> <span class="n">create</span> <span class="n">my</span><span class="o">-</span><span class="n">cluster</span> <span class="o">--</span><span class="n">wait</span> <span class="o">--</span><span class="n">k3s</span><span class="o">-</span><span class="n">server</span><span class="o">-</span><span class="n">arg</span> <span class="s1">&#39;--disable=traefik&#39;</span> <span class="o">--</span><span class="n">api</span><span class="o">-</span><span class="n">port</span> <span class="o">$</span><span class="n">IP</span><span class="p">:</span><span class="mi">6550</span> <span class="o">-</span><span class="n">p</span> <span class="mi">443</span><span class="p">:</span><span class="mi">443</span><span class="err">@</span><span class="n">loadbalancer</span>
+</code></pre></div>
+
 <h2 id="the-development-cycle">The development cycle<a class="headerlink" href="#the-development-cycle" title="Permanent link">&para;</a></h2>
 <p>When you have developed and possibly manually tested the code you want to contribute, you should ensure that everything will build correctly. Commit your changes to the local copy of your Git branch and perform the following steps:</p>
 <h3 id="pull-in-all-build-dependencies">Pull in all build dependencies<a class="headerlink" href="#pull-in-all-build-dependencies" title="Permanent link">&para;</a></h3>
