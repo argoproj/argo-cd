@@ -174,8 +174,19 @@ export const ApplicationCreatePanel = (props: {
                                         const generalPanel = () => (
                                             <div className='white-box'>
                                                 <p>GENERAL</p>
+                                                {/*
+                                                    Need to specify "type='button'" because the default type 'submit'
+                                                    will activate yaml mode whenever enter is pressed while in the panel.
+                                                    This causes problems with some entry fields that require enter to be
+                                                    pressed for the value to be accepted.
+
+                                                    See https://github.com/argoproj/argo-cd/issues/4576
+                                                */}
                                                 {!yamlMode && (
-                                                    <button className='argo-button argo-button--base application-create-panel__yaml-button' onClick={() => setYamlMode(true)}>
+                                                    <button
+                                                        type='button'
+                                                        className='argo-button argo-button--base application-create-panel__yaml-button'
+                                                        onClick={() => setYamlMode(true)}>
                                                         Edit as YAML
                                                     </button>
                                                 )}
