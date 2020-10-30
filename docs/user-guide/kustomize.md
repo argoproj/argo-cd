@@ -6,6 +6,7 @@ The following configuration options are available for Kustomize:
 * `nameSuffix` is a suffix appended to resources for Kustomize apps
 * `images` is a list of Kustomize image overrides
 * `commonLabels` is a string map of an additional labels
+* `commonAnnotations` is a string map of an additional annotations
     
 To use Kustomize with an overlay, point your path to the overlay.
 
