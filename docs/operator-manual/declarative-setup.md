@@ -454,6 +454,18 @@ bearerToken: string
 awsAuthConfig:
     clusterName: string
     roleARN: string
+# Configure external command to supply client credentials
+# See https://godoc.org/k8s.io/client-go/tools/clientcmd/api#ExecConfig
+execProviderConfig:
+    command: string
+    args: [
+      string
+    ]
+    env: {
+      key: value
+    }
+    apiVersion: string
+    installHint: string
 # Transport layer security configuration settings
 tlsClientConfig:
     # PEM-encoded bytes (typically read from a client certificate file).
@@ -469,6 +481,8 @@ tlsClientConfig:
     # server is used.
     serverName: string
 ```
+
+Note that if you specify a command to run under `execProviderConfig`, that command must be available in the ArgoCD image. See [BYOI (Build Your Own Image)](custom_tools.md#byoi-build-your-own-image).
 
 Cluster secret example:
 
