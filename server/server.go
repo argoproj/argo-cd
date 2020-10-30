@@ -65,6 +65,7 @@ import (
 	appinformer "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
 	applisters "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
 	repoapiclient "github.com/argoproj/argo-cd/reposerver/apiclient"
+	repocache "github.com/argoproj/argo-cd/reposerver/cache"
 	"github.com/argoproj/argo-cd/server/account"
 	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/server/badge"
@@ -687,7 +688,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	a.registerDexHandlers(mux)
 
 	// Webhook handler for git events
-	acdWebhookHandler := webhook.NewHandler(a.Namespace, a.AppClientset, a.settings)
+	acdWebhookHandler := webhook.NewHandler(a.Namespace, a.AppClientset, a.settings, a.settingsMgr, repocache.NewCache(a.Cache.GetCache(), 24*time.Hour))
 	mux.HandleFunc("/api/webhook", acdWebhookHandler.Handler)
 
 	// Serve cli binaries directly from API server

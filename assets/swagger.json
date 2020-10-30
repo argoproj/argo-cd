@@ -1358,7 +1358,7 @@
           "GPGKeyService"
         ],
         "summary": "List all available repository certificates",
-        "operationId": "ListMixin4",
+        "operationId": "List",
         "parameters": [
           {
             "type": "string",
@@ -1381,7 +1381,7 @@
           "GPGKeyService"
         ],
         "summary": "Create one or more GPG public keys in the server's configuration",
-        "operationId": "CreateMixin4",
+        "operationId": "Create",
         "parameters": [
           {
             "description": "Raw key data of the GPG key(s) to create",
@@ -1407,7 +1407,7 @@
           "GPGKeyService"
         ],
         "summary": "Delete specified GPG public key from the server's configuration",
-        "operationId": "DeleteMixin4",
+        "operationId": "Delete",
         "parameters": [
           {
             "type": "string",
@@ -1432,7 +1432,7 @@
           "GPGKeyService"
         ],
         "summary": "Get information about specified GPG public key from the server",
-        "operationId": "GetMixin4",
+        "operationId": "Get",
         "parameters": [
           {
             "type": "string",
@@ -1458,7 +1458,7 @@
           "ProjectService"
         ],
         "summary": "List returns list of projects",
-        "operationId": "ListMixin5",
+        "operationId": "ListMixin8",
         "parameters": [
           {
             "type": "string",
@@ -1480,7 +1480,7 @@
           "ProjectService"
         ],
         "summary": "Create a new project",
-        "operationId": "CreateMixin5",
+        "operationId": "CreateMixin8",
         "parameters": [
           {
             "name": "body",
@@ -1507,7 +1507,7 @@
           "ProjectService"
         ],
         "summary": "Get returns a project by name",
-        "operationId": "GetMixin5",
+        "operationId": "GetMixin8",
         "parameters": [
           {
             "type": "string",
@@ -1530,7 +1530,7 @@
           "ProjectService"
         ],
         "summary": "Delete deletes a project",
-        "operationId": "DeleteMixin5",
+        "operationId": "DeleteMixin8",
         "parameters": [
           {
             "type": "string",
@@ -1630,7 +1630,7 @@
           "ProjectService"
         ],
         "summary": "Update updates a project",
-        "operationId": "UpdateMixin5",
+        "operationId": "UpdateMixin8",
         "parameters": [
           {
             "type": "string",
@@ -1664,7 +1664,7 @@
           "ProjectService"
         ],
         "summary": "Create a new project token",
-        "operationId": "CreateTokenMixin5",
+        "operationId": "CreateTokenMixin8",
         "parameters": [
           {
             "type": "string",
@@ -1703,7 +1703,7 @@
           "ProjectService"
         ],
         "summary": "Delete a new project token",
-        "operationId": "DeleteTokenMixin5",
+        "operationId": "DeleteTokenMixin8",
         "parameters": [
           {
             "type": "string",
@@ -1948,7 +1948,7 @@
           "RepositoryService"
         ],
         "summary": "Get returns a repository or its credentials",
-        "operationId": "GetMixin7",
+        "operationId": "GetMixin6",
         "parameters": [
           {
             "type": "string",
@@ -2144,7 +2144,7 @@
           "SessionService"
         ],
         "summary": "Create a new JWT for authentication and set a cookie if using HTTP",
-        "operationId": "CreateMixin8",
+        "operationId": "CreateMixin7",
         "parameters": [
           {
             "name": "body",
@@ -2169,7 +2169,7 @@
           "SessionService"
         ],
         "summary": "Delete an existing JWT cookie if using HTTP",
-        "operationId": "DeleteMixin8",
+        "operationId": "DeleteMixin7",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2591,6 +2591,10 @@
       "properties": {
         "content": {
           "type": "string"
+        },
+        "last": {
+          "type": "boolean",
+          "format": "boolean"
         },
         "timeStamp": {
           "$ref": "#/definitions/v1Time"
@@ -3897,6 +3901,13 @@
       "type": "object",
       "title": "ApplicationSourceKustomize holds kustomize specific options",
       "properties": {
+        "commonAnnotations": {
+          "type": "object",
+          "title": "CommonAnnotations adds additional kustomize commonAnnotations",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
         "commonLabels": {
           "type": "object",
           "title": "CommonLabels adds additional kustomize commonLabels",
