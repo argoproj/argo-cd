@@ -152,8 +152,4 @@ func Test_setAppSpecOptions(t *testing.T) {
 		assert.NoError(t, f.SetFlag("sync-option", "!a=1"))
 		assert.Nil(t, f.spec.SyncPolicy)
 	})
-	t.Run("Exclusions", func(t *testing.T) {
-		assert.NoError(t, f.SetFlag("exclusions", "^\\."))
-		assert.Contains(t, f.spec.Source.Directory.Exclusions, "^\\.")
-	})
 }

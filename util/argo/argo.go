@@ -482,8 +482,8 @@ func NormalizeApplicationSpec(spec *argoappv1.ApplicationSpec) *argoappv1.Applic
 		spec.Source.Ksonnet = nil
 	}
 	if spec.Source.Directory != nil && spec.Source.Directory.IsZero() {
-		if spec.Source.Directory.Exclusions != nil {
-			spec.Source.Directory = &argoappv1.ApplicationSourceDirectory{Exclusions: spec.Source.Directory.Exclusions}
+		if spec.Source.Directory.Exclude != "" {
+			spec.Source.Directory = &argoappv1.ApplicationSourceDirectory{Exclude: spec.Source.Directory.Exclude}
 		} else {
 			spec.Source.Directory = nil
 		}

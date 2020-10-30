@@ -6,7 +6,6 @@ API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/appli
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,AppProjectSpec,Roles
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,AppProjectSpec,SignatureKeys
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,AppProjectSpec,SourceRepos
-API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ApplicationSourceDirectory,Exclusions
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ApplicationSourceHelm,FileParameters
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ApplicationSourceHelm,Parameters
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ApplicationSourceHelm,ValueFiles
@@ -53,6 +52,7 @@ API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/appli
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,TLSClientConfig,CertData
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,TLSClientConfig,KeyData
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,rawResourceOverride,KnownTypeFields
+API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ApplicationSourceDirectory,Exclude
 API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ApplicationSourceJsonnet,TLAs
 API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ClusterCacheInfo,APIsCount
 API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ConnectionState,ModifiedAt

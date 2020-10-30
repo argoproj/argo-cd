@@ -546,11 +546,11 @@ func setAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			} else {
 				spec.Source.Directory = &argoappv1.ApplicationSourceDirectory{Recurse: appOpts.directoryRecurse}
 			}
-		case "exclusions":
+		case "directory-exclusions":
 			if spec.Source.Directory != nil {
-				spec.Source.Directory.Exclusions = appOpts.exclusions
+				spec.Source.Directory.Exclude = appOpts.directoryExclusions
 			} else {
-				spec.Source.Directory = &argoappv1.ApplicationSourceDirectory{Exclusions: appOpts.exclusions}
+				spec.Source.Directory = &argoappv1.ApplicationSourceDirectory{Exclude: appOpts.directoryExclusions}
 			}
 		case "config-management-plugin":
 			spec.Source.Plugin = &argoappv1.ApplicationSourcePlugin{Name: appOpts.configManagementPlugin}
@@ -807,7 +807,7 @@ type appOptions struct {
 	kustomizeCommonLabels      []string
 	kustomizeCommonAnnotations []string
 	validate                   bool
-	exclusions                 []string
+	directoryExclusions        string
 }
 
 func addAppFlags(command *cobra.Command, opts *appOptions) {
@@ -848,7 +848,7 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().BoolVar(&opts.validate, "validate", true, "Validation of repo and cluster")
 	command.Flags().StringArrayVar(&opts.kustomizeCommonLabels, "kustomize-common-label", []string{}, "Set common labels in Kustomize")
 	command.Flags().StringArrayVar(&opts.kustomizeCommonAnnotations, "kustomize-common-annotation", []string{}, "Set common labels in Kustomize")
-	command.Flags().StringArrayVar(&opts.exclusions, "exclusions", []string{}, "Set file exclusions")
+	command.Flags().StringVar(&opts.directoryExclusions, "directory-exclusions", "", "Set file exclusions")
 }
 
 // NewApplicationUnsetCommand returns a new instance of an `argocd app unset` command

@@ -3805,11 +3805,8 @@
     "v1alpha1ApplicationSourceDirectory": {
       "type": "object",
       "properties": {
-        "exclusions": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
+        "Exclude": {
+          "type": "string"
         },
         "jsonnet": {
           "$ref": "#/definitions/v1alpha1ApplicationSourceJsonnet"
