@@ -307,9 +307,7 @@ func ensureAbsPath(input string) string {
 func appRevisionHasChanged(app *v1alpha1.Application, revision string, touchedHead bool) bool {
 	targetRev := app.Spec.Source.TargetRevision
 	if targetRev == "HEAD" || targetRev == "" { // revision is head
-		if !touchedHead { // and head has not updated
-			return false // revision has not changed
-		}
+		return touchedHead
 	}
 
 	return targetRev == revision
