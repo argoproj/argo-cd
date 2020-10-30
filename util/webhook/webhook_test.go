@@ -155,3 +155,25 @@ func Test_getAppRefreshPrefix(t *testing.T) {
 		})
 	}
 }
+
+func TestAppRevisionHasChanged(t *testing.T) {
+	assert.True(t, appRevisionHasChanged(&v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{
+		Source: v1alpha1.ApplicationSource{},
+	}}, "master", true))
+
+	assert.False(t, appRevisionHasChanged(&v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{
+		Source: v1alpha1.ApplicationSource{},
+	}}, "master", false))
+
+	assert.False(t, appRevisionHasChanged(&v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{
+		Source: v1alpha1.ApplicationSource{
+			TargetRevision: "dev",
+		},
+	}}, "master", true))
+
+	assert.True(t, appRevisionHasChanged(&v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{
+		Source: v1alpha1.ApplicationSource{
+			TargetRevision: "dev",
+		},
+	}}, "dev", false))
+}
