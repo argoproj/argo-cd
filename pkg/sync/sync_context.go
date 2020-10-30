@@ -135,6 +135,13 @@ func WithLogr(log logr.Logger) SyncOpt {
 	}
 }
 
+// WithSyncWaveHook sets a callback that is invoked after application of every wave
+func WithSyncWaveHook(syncWaveHook common.SyncWaveHook) SyncOpt {
+	return func(ctx *syncContext) {
+		ctx.syncWaveHook = syncWaveHook
+	}
+}
+
 //  NewSyncContext creates new instance of a SyncContext
 func NewSyncContext(
 	revision string,
@@ -261,6 +268,8 @@ type syncContext struct {
 
 	createNamespace   bool
 	namespaceModifier func(*unstructured.Unstructured) bool
+
+	syncWaveHook common.SyncWaveHook
 }
 
 func (sc *syncContext) setRunningPhase(tasks []*syncTask, isPendingDeletion bool) {
@@ -387,6 +396,7 @@ func (sc *syncContext) Sync() {
 	// remove any tasks not in this wave
 	phase := tasks.phase()
 	wave := tasks.wave()
+	finalWave := phase == tasks.lastPhase() && wave == tasks.lastWave()
 
 	// if it is the last phase/wave and the only remaining tasks are non-hooks, the we are successful
 	// EVEN if those objects subsequently degraded
@@ -400,6 +410,17 @@ func (sc *syncContext) Sync() {
 
 	sc.log.WithValues("tasks", tasks).V(1).Info("Wet-run")
 	runState := sc.runTasks(tasks, false)
+
+	if sc.syncWaveHook != nil && runState != failed {
+		err := sc.syncWaveHook(phase, wave, finalWave)
+		if err != nil {
+			sc.deleteHooks(hooksPendingDeletionFailed)
+			sc.setOperationPhase(common.OperationFailed, fmt.Sprintf("SyncWaveHook failed: %v", err))
+			sc.log.Error(err, "SyncWaveHook failed")
+			return
+		}
+	}
+
 	switch runState {
 	case failed:
 		sc.deleteHooks(hooksPendingDeletionFailed)
@@ -787,7 +808,7 @@ func (sc *syncContext) Terminate() {
 				sc.setResourceResult(task, "", common.OperationFailed, fmt.Sprintf("Failed to delete: %v", err))
 				terminateSuccessful = false
 			} else {
-				sc.setResourceResult(task, "", common.OperationSucceeded, fmt.Sprintf("Deleted"))
+				sc.setResourceResult(task, "", common.OperationSucceeded, "Deleted")
 			}
 		} else {
 			sc.setResourceResult(task, "", phase, msg)

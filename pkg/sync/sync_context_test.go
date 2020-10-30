@@ -1,16 +1,11 @@
 package sync
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"testing"
 
-	"github.com/argoproj/gitops-engine/pkg/health"
-	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
-	. "github.com/argoproj/gitops-engine/pkg/utils/testing"
-	testingutils "github.com/argoproj/gitops-engine/pkg/utils/testing"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -21,6 +16,13 @@ import (
 	"k8s.io/client-go/rest"
 	testcore "k8s.io/client-go/testing"
 	"k8s.io/klog/v2/klogr"
+
+	"github.com/argoproj/gitops-engine/pkg/health"
+	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
+	. "github.com/argoproj/gitops-engine/pkg/utils/testing"
+	testingutils "github.com/argoproj/gitops-engine/pkg/utils/testing"
 )
 
 func newTestSyncCtx(opts ...SyncOpt) *syncContext {
@@ -893,4 +895,98 @@ func Test_setRunningPhase_pendingDeletion(t *testing.T) {
 	sc.setRunningPhase([]*syncTask{{targetObj: NewPod()}, {targetObj: NewPod()}, {targetObj: NewPod()}}, true)
 
 	assert.Equal(t, "waiting for deletion of /Pod/my-pod and 2 more resources", sc.message)
+}
+
+func TestSyncWaveHook(t *testing.T) {
+	syncCtx := newTestSyncCtx(WithOperationSettings(false, false, false, false))
+	pod1 := NewPod()
+	pod1.SetName("pod-1")
+	pod1.SetAnnotations(map[string]string{synccommon.AnnotationSyncWave: "-1"})
+	pod2 := NewPod()
+	pod2.SetName("pod-2")
+	pod3 := NewPod()
+	pod3.SetName("pod-3")
+	pod3.SetAnnotations(map[string]string{synccommon.AnnotationKeyHook: "PostSync"})
+
+	syncCtx.resources = groupResources(ReconciliationResult{
+		Live:   []*unstructured.Unstructured{nil, nil},
+		Target: []*unstructured.Unstructured{pod1, pod2},
+	})
+	syncCtx.hooks = []*unstructured.Unstructured{pod3}
+
+	called := false
+	syncCtx.syncWaveHook = func(phase synccommon.SyncPhase, wave int, final bool) error {
+		called = true
+		assert.Equal(t, synccommon.SyncPhaseSync, string(phase))
+		assert.Equal(t, -1, wave)
+		assert.False(t, final)
+		return nil
+	}
+	syncCtx.Sync()
+	assert.True(t, called)
+
+	// call sync again, it should not invoke the SyncWaveHook callback since we only should be
+	// doing this after an apply, and not every reconciliation
+	called = false
+	syncCtx.syncWaveHook = func(phase synccommon.SyncPhase, wave int, final bool) error {
+		called = true
+		return nil
+	}
+	syncCtx.Sync()
+	assert.False(t, called)
+
+	// complete wave -1, then call Sync again. Verify we invoke another SyncWaveHook call after applying wave 0
+	_, _, results := syncCtx.GetState()
+	pod1Res := results[0]
+	pod1Res.HookPhase = synccommon.OperationSucceeded
+	syncCtx.syncRes[resourceResultKey(pod1Res.ResourceKey, synccommon.SyncPhaseSync)] = pod1Res
+	called = false
+	syncCtx.syncWaveHook = func(phase synccommon.SyncPhase, wave int, final bool) error {
+		called = true
+		assert.Equal(t, synccommon.SyncPhaseSync, string(phase))
+		assert.Equal(t, 0, wave)
+		assert.False(t, final)
+		return nil
+	}
+	syncCtx.Sync()
+	assert.True(t, called)
+
+	// complete wave 0. after applying PostSync, we should perform callback and final should be set true
+	_, _, results = syncCtx.GetState()
+	pod2Res := results[1]
+	pod2Res.HookPhase = synccommon.OperationSucceeded
+	syncCtx.syncRes[resourceResultKey(pod2Res.ResourceKey, synccommon.SyncPhaseSync)] = pod2Res
+	called = false
+	syncCtx.syncWaveHook = func(phase synccommon.SyncPhase, wave int, final bool) error {
+		called = true
+		assert.Equal(t, synccommon.SyncPhasePostSync, string(phase))
+		assert.Equal(t, 0, wave)
+		assert.True(t, final)
+		return nil
+	}
+	syncCtx.Sync()
+	assert.True(t, called)
+}
+
+func TestSyncWaveHookFail(t *testing.T) {
+	syncCtx := newTestSyncCtx(WithOperationSettings(false, false, false, false))
+	pod1 := NewPod()
+	pod1.SetName("pod-1")
+
+	syncCtx.resources = groupResources(ReconciliationResult{
+		Live:   []*unstructured.Unstructured{nil},
+		Target: []*unstructured.Unstructured{pod1},
+	})
+
+	called := false
+	syncCtx.syncWaveHook = func(phase synccommon.SyncPhase, wave int, final bool) error {
+		called = true
+		return errors.New("intentional error")
+	}
+	syncCtx.Sync()
+	assert.True(t, called)
+	phase, msg, results := syncCtx.GetState()
+	assert.Equal(t, synccommon.OperationFailed, phase)
+	assert.Equal(t, "SyncWaveHook failed: intentional error", msg)
+	assert.Equal(t, synccommon.OperationRunning, results[0].HookPhase)
 }

@@ -83,7 +83,7 @@ func Diff(config, live *unstructured.Unstructured, opts ...Option) (*DiffResult,
 			if err == nil {
 				return dr, nil
 			}
-			o.log.V(1).Info("three-way diff calculation failed: %v. Falling back to two-way diff", err)
+			o.log.V(1).Info(fmt.Sprintf("three-way diff calculation failed: %v. Falling back to two-way diff", err))
 		}
 	}
 	return TwoWayDiff(config, live)

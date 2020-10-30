@@ -29,6 +29,11 @@ type PermissionValidator func(un *unstructured.Unstructured, res *metav1.APIReso
 
 type SyncPhase string
 
+// SyncWaveHook is a callback function which will be invoked after each sync wave is successfully
+// applied during a sync operation. The callback indicates which phase and wave it had just
+// executed, and whether or not that wave was the final one.
+type SyncWaveHook func(phase SyncPhase, wave int, final bool) error
+
 const (
 	SyncPhasePreSync  = "PreSync"
 	SyncPhaseSync     = "Sync"
