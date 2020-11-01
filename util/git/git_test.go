@@ -376,8 +376,8 @@ func TestListRevisions(t *testing.T) {
 	}
 	defer os.RemoveAll(dir)
 
-	repoUrl := "https://github.com/argoproj/argo-cd.git"
-	client, err := NewClientExt(repoUrl, dir, NopCreds{}, false, false)
+	repoURL := "https://github.com/argoproj/argo-cd.git"
+	client, err := NewClientExt(repoURL, dir, NopCreds{}, false, false)
 	assert.NoError(t, err)
 
 	lsResult, err := client.LsRefs()
@@ -390,8 +390,4 @@ func TestListRevisions(t *testing.T) {
 	assert.Contains(t, lsResult.Tags, testTag)
 	assert.NotContains(t, lsResult.Branches, testTag)
 	assert.NotContains(t, lsResult.Tags, testBranch)
-
-	//fmt.Printf("BRANCHES: %s\n", strings.Join(lsResult.Branches, ", "))
-	//fmt.Printf("TAGS: %s\n", strings.Join(lsResult.Tags, ", "))
-	//fmt.Printf("%d branches, %d tags\n", len(lsResult.Branches), len(lsResult.Tags))
 }

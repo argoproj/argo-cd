@@ -105,14 +105,8 @@ func (s *Service) ListRefs(ctx context.Context, q *apiclient.ListRefsRequest) (*
 		return nil, err
 	}
 
-	// TODO check cache
-
 	s.metricsServer.IncPendingRepoRequest(q.Repo.Repo)
 	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
-
-	// TODO is locking necessary here? We are not modifying the repository, just running an ls-remote
-
-	//s.repoLock.Lock(gitClient.Root())
 
 	refs, err := gitClient.LsRefs()
 	if err != nil {
@@ -123,8 +117,6 @@ func (s *Service) ListRefs(ctx context.Context, q *apiclient.ListRefsRequest) (*
 		Branches: refs.Branches,
 		Tags:     refs.Tags,
 	}
-
-	// TODO save in cache
 
 	return &res, nil
 }

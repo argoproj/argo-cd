@@ -20,15 +20,10 @@ export class RevisionFormField extends React.PureComponent<RevisionFormFieldProp
                     input={{repoURL: this.props.repoURL}}
                     load={async (src: any): Promise<string[]> => {
                         if (src.repoURL) {
-                            try {
-                                const revisionsRes = await services.repos.revisions(src.repoURL);
-                                // tslint:disable-next-line: prettier
-                                return [ 'HEAD' ]
-                                    .concat(revisionsRes.branches)
-                                    .concat(revisionsRes.tags);
-                            } catch (err) {
-                                // no-op
-                            }
+                            return services.repos
+                                .revisions(src.repoURL)
+                                .then(revisionsRes => ['HEAD'].concat(revisionsRes.branches).concat(revisionsRes.tags))
+                                .catch(() => []);
                         }
                         return [];
                     }}>
