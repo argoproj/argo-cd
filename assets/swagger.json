@@ -1358,7 +1358,11 @@
           "GPGKeyService"
         ],
         "summary": "List all available repository certificates",
+<<<<<<< HEAD
         "operationId": "ListMixin11",
+=======
+        "operationId": "ListMixin4",
+>>>>>>> b9954e55ac5151fd84ee86b9757edd7ee15c097a
         "parameters": [
           {
             "type": "string",
@@ -1381,7 +1385,11 @@
           "GPGKeyService"
         ],
         "summary": "Create one or more GPG public keys in the server's configuration",
+<<<<<<< HEAD
         "operationId": "CreateMixin11",
+=======
+        "operationId": "CreateMixin4",
+>>>>>>> b9954e55ac5151fd84ee86b9757edd7ee15c097a
         "parameters": [
           {
             "description": "Raw key data of the GPG key(s) to create",
@@ -1407,7 +1415,11 @@
           "GPGKeyService"
         ],
         "summary": "Delete specified GPG public key from the server's configuration",
+<<<<<<< HEAD
         "operationId": "DeleteMixin11",
+=======
+        "operationId": "DeleteMixin4",
+>>>>>>> b9954e55ac5151fd84ee86b9757edd7ee15c097a
         "parameters": [
           {
             "type": "string",
@@ -1432,7 +1444,11 @@
           "GPGKeyService"
         ],
         "summary": "Get information about specified GPG public key from the server",
+<<<<<<< HEAD
         "operationId": "GetMixin11",
+=======
+        "operationId": "GetMixin4",
+>>>>>>> b9954e55ac5151fd84ee86b9757edd7ee15c097a
         "parameters": [
           {
             "type": "string",
@@ -1458,7 +1474,11 @@
           "ProjectService"
         ],
         "summary": "List returns list of projects",
+<<<<<<< HEAD
         "operationId": "List",
+=======
+        "operationId": "ListMixin5",
+>>>>>>> b9954e55ac5151fd84ee86b9757edd7ee15c097a
         "parameters": [
           {
             "type": "string",
@@ -1480,7 +1500,11 @@
           "ProjectService"
         ],
         "summary": "Create a new project",
+<<<<<<< HEAD
         "operationId": "Create",
+=======
+        "operationId": "CreateMixin5",
+>>>>>>> b9954e55ac5151fd84ee86b9757edd7ee15c097a
         "parameters": [
           {
             "name": "body",
@@ -1507,7 +1531,11 @@
           "ProjectService"
         ],
         "summary": "Get returns a project by name",
+<<<<<<< HEAD
         "operationId": "GetMixin2",
+=======
+        "operationId": "GetMixin5",
+>>>>>>> b9954e55ac5151fd84ee86b9757edd7ee15c097a
         "parameters": [
           {
             "type": "string",
@@ -1530,7 +1558,11 @@
           "ProjectService"
         ],
         "summary": "Delete deletes a project",
+<<<<<<< HEAD
         "operationId": "Delete",
+=======
+        "operationId": "DeleteMixin5",
+>>>>>>> b9954e55ac5151fd84ee86b9757edd7ee15c097a
         "parameters": [
           {
             "type": "string",
@@ -1630,7 +1662,11 @@
           "ProjectService"
         ],
         "summary": "Update updates a project",
+<<<<<<< HEAD
         "operationId": "Update",
+=======
+        "operationId": "UpdateMixin5",
+>>>>>>> b9954e55ac5151fd84ee86b9757edd7ee15c097a
         "parameters": [
           {
             "type": "string",
@@ -1664,7 +1700,11 @@
           "ProjectService"
         ],
         "summary": "Create a new project token",
+<<<<<<< HEAD
         "operationId": "CreateToken",
+=======
+        "operationId": "CreateTokenMixin5",
+>>>>>>> b9954e55ac5151fd84ee86b9757edd7ee15c097a
         "parameters": [
           {
             "type": "string",
@@ -1703,7 +1743,11 @@
           "ProjectService"
         ],
         "summary": "Delete a new project token",
+<<<<<<< HEAD
         "operationId": "DeleteToken",
+=======
+        "operationId": "DeleteTokenMixin5",
+>>>>>>> b9954e55ac5151fd84ee86b9757edd7ee15c097a
         "parameters": [
           {
             "type": "string",
@@ -1948,7 +1992,11 @@
           "RepositoryService"
         ],
         "summary": "Get returns a repository or its credentials",
+<<<<<<< HEAD
         "operationId": "Get",
+=======
+        "operationId": "GetMixin7",
+>>>>>>> b9954e55ac5151fd84ee86b9757edd7ee15c097a
         "parameters": [
           {
             "type": "string",
@@ -2069,6 +2117,38 @@
         }
       }
     },
+    "/api/v1/repositories/{repo}/refs": {
+      "get": {
+        "tags": [
+          "RepositoryService"
+        ],
+        "operationId": "ListRefs",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Repo URL for query",
+            "name": "repo",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "boolean",
+            "format": "boolean",
+            "description": "Whether to force a cache refresh on repo's connection state.",
+            "name": "forceRefresh",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/repositoryRefs"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/repositories/{repo}/validate": {
       "post": {
         "tags": [
@@ -2144,7 +2224,11 @@
           "SessionService"
         ],
         "summary": "Create a new JWT for authentication and set a cookie if using HTTP",
+<<<<<<< HEAD
         "operationId": "CreateMixin5",
+=======
+        "operationId": "CreateMixin8",
+>>>>>>> b9954e55ac5151fd84ee86b9757edd7ee15c097a
         "parameters": [
           {
             "name": "body",
@@ -2169,7 +2253,11 @@
           "SessionService"
         ],
         "summary": "Delete an existing JWT cookie if using HTTP",
+<<<<<<< HEAD
         "operationId": "DeleteMixin5",
+=======
+        "operationId": "DeleteMixin8",
+>>>>>>> b9954e55ac5151fd84ee86b9757edd7ee15c097a
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2626,6 +2714,19 @@
         }
       }
     },
+    "applicationv1alpha1EnvEntry": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "the name, usually uppercase"
+        },
+        "value": {
+          "type": "string",
+          "title": "the value"
+        }
+      }
+    },
     "clusterClusterResponse": {
       "type": "object"
     },
@@ -3074,6 +3175,24 @@
         "verifyResult": {
           "type": "string",
           "title": "Raw response of git verify-commit operation (always the empty string for Helm)"
+        }
+      }
+    },
+    "repositoryRefs": {
+      "type": "object",
+      "title": "A subset of the repository's named refs",
+      "properties": {
+        "branches": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
@@ -3946,7 +4065,7 @@
         "env": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/v1alpha1EnvEntry"
+            "$ref": "#/definitions/applicationv1alpha1EnvEntry"
           }
         },
         "name": {
@@ -4178,6 +4297,9 @@
           "description": "Server requires Bearer authentication. This client will not attempt to use\nrefresh tokens for an OAuth2 flow.\nTODO: demonstrate an OAuth2 compatible client.",
           "type": "string"
         },
+        "execProviderConfig": {
+          "$ref": "#/definitions/v1alpha1ExecProviderConfig"
+        },
         "password": {
           "type": "string"
         },
@@ -4283,16 +4405,35 @@
         }
       }
     },
-    "v1alpha1EnvEntry": {
+    "v1alpha1ExecProviderConfig": {
       "type": "object",
+      "title": "ExecProviderConfig is config used to call an external command to perform cluster authentication\nSee: https://godoc.org/k8s.io/client-go/tools/clientcmd/api#ExecConfig",
       "properties": {
-        "name": {
+        "apiVersion": {
           "type": "string",
-          "title": "the name, usually uppercase"
+          "title": "Preferred input version of the ExecInfo"
         },
-        "value": {
+        "args": {
+          "type": "array",
+          "title": "Arguments to pass to the command when executing it",
+          "items": {
+            "type": "string"
+          }
+        },
+        "command": {
           "type": "string",
-          "title": "the value"
+          "title": "Command to execute"
+        },
+        "env": {
+          "type": "object",
+          "title": "Env defines additional environment variables to expose to the process",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "installHint": {
+          "type": "string",
+          "title": "This text is shown to the user when the executable doesn't seem to be present"
         }
       }
     },
