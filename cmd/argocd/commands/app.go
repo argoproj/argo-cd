@@ -541,7 +541,17 @@ func setAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 		case "helm-set-file":
 			setHelmOpt(&spec.Source, helmOpts{helmSetFiles: appOpts.helmSetFiles})
 		case "directory-recurse":
-			spec.Source.Directory = &argoappv1.ApplicationSourceDirectory{Recurse: appOpts.directoryRecurse}
+			if spec.Source.Directory != nil {
+				spec.Source.Directory.Recurse = appOpts.directoryRecurse
+			} else {
+				spec.Source.Directory = &argoappv1.ApplicationSourceDirectory{Recurse: appOpts.directoryRecurse}
+			}
+		case "directory-exclude":
+			if spec.Source.Directory != nil {
+				spec.Source.Directory.Exclude = appOpts.directoryExclude
+			} else {
+				spec.Source.Directory = &argoappv1.ApplicationSourceDirectory{Exclude: appOpts.directoryExclude}
+			}
 		case "config-management-plugin":
 			spec.Source.Plugin = &argoappv1.ApplicationSourcePlugin{Name: appOpts.configManagementPlugin}
 		case "dest-name":
@@ -797,6 +807,7 @@ type appOptions struct {
 	kustomizeCommonLabels      []string
 	kustomizeCommonAnnotations []string
 	validate                   bool
+	directoryExclude           string
 }
 
 func addAppFlags(command *cobra.Command, opts *appOptions) {
@@ -837,6 +848,7 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().BoolVar(&opts.validate, "validate", true, "Validation of repo and cluster")
 	command.Flags().StringArrayVar(&opts.kustomizeCommonLabels, "kustomize-common-label", []string{}, "Set common labels in Kustomize")
 	command.Flags().StringArrayVar(&opts.kustomizeCommonAnnotations, "kustomize-common-annotation", []string{}, "Set common labels in Kustomize")
+	command.Flags().StringVar(&opts.directoryExclude, "directory-exclude", "", "Set glob expression used to exclude files from application source path")
 }
 
 // NewApplicationUnsetCommand returns a new instance of an `argocd app unset` command
@@ -2335,7 +2347,7 @@ func filterResources(command *cobra.Command, resources []*argoappv1.ResourceDiff
 		if resourceName != "" && resourceName != obj.GetName() {
 			continue
 		}
-		if kind != gvk.Kind {
+		if kind != "" && kind != gvk.Kind {
 			continue
 		}
 		deepCopy := obj.DeepCopy()

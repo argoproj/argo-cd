@@ -2069,6 +2069,38 @@
         }
       }
     },
+    "/api/v1/repositories/{repo}/refs": {
+      "get": {
+        "tags": [
+          "RepositoryService"
+        ],
+        "operationId": "ListRefs",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Repo URL for query",
+            "name": "repo",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "boolean",
+            "format": "boolean",
+            "description": "Whether to force a cache refresh on repo's connection state.",
+            "name": "forceRefresh",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/repositoryRefs"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/repositories/{repo}/validate": {
       "post": {
         "tags": [
@@ -2626,6 +2658,19 @@
         }
       }
     },
+    "applicationv1alpha1EnvEntry": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "the name, usually uppercase"
+        },
+        "value": {
+          "type": "string",
+          "title": "the value"
+        }
+      }
+    },
     "clusterClusterResponse": {
       "type": "object"
     },
@@ -3071,6 +3116,24 @@
         "verifyResult": {
           "type": "string",
           "title": "Raw response of git verify-commit operation (always the empty string for Helm)"
+        }
+      }
+    },
+    "repositoryRefs": {
+      "type": "object",
+      "title": "A subset of the repository's named refs",
+      "properties": {
+        "branches": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
@@ -3805,6 +3868,9 @@
     "v1alpha1ApplicationSourceDirectory": {
       "type": "object",
       "properties": {
+        "exclude": {
+          "type": "string"
+        },
         "jsonnet": {
           "$ref": "#/definitions/v1alpha1ApplicationSourceJsonnet"
         },
@@ -3943,7 +4009,7 @@
         "env": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/v1alpha1EnvEntry"
+            "$ref": "#/definitions/applicationv1alpha1EnvEntry"
           }
         },
         "name": {
@@ -4175,6 +4241,9 @@
           "description": "Server requires Bearer authentication. This client will not attempt to use\nrefresh tokens for an OAuth2 flow.\nTODO: demonstrate an OAuth2 compatible client.",
           "type": "string"
         },
+        "execProviderConfig": {
+          "$ref": "#/definitions/v1alpha1ExecProviderConfig"
+        },
         "password": {
           "type": "string"
         },
@@ -4280,16 +4349,35 @@
         }
       }
     },
-    "v1alpha1EnvEntry": {
+    "v1alpha1ExecProviderConfig": {
       "type": "object",
+      "title": "ExecProviderConfig is config used to call an external command to perform cluster authentication\nSee: https://godoc.org/k8s.io/client-go/tools/clientcmd/api#ExecConfig",
       "properties": {
-        "name": {
+        "apiVersion": {
           "type": "string",
-          "title": "the name, usually uppercase"
+          "title": "Preferred input version of the ExecInfo"
         },
-        "value": {
+        "args": {
+          "type": "array",
+          "title": "Arguments to pass to the command when executing it",
+          "items": {
+            "type": "string"
+          }
+        },
+        "command": {
           "type": "string",
-          "title": "the value"
+          "title": "Command to execute"
+        },
+        "env": {
+          "type": "object",
+          "title": "Env defines additional environment variables to expose to the process",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "installHint": {
+          "type": "string",
+          "title": "This text is shown to the user when the executable doesn't seem to be present"
         }
       }
     },

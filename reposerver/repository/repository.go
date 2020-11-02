@@ -41,6 +41,7 @@ import (
 	argopath "github.com/argoproj/argo-cd/util/app/path"
 	executil "github.com/argoproj/argo-cd/util/exec"
 	"github.com/argoproj/argo-cd/util/git"
+	"github.com/argoproj/argo-cd/util/glob"
 	"github.com/argoproj/argo-cd/util/gpg"
 	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/io"
@@ -96,6 +97,29 @@ func NewService(metricsServer *metrics.MetricsServer, cache *reposervercache.Cac
 		initConstants: initConstants,
 		now:           time.Now,
 	}
+}
+
+// List a subset of the refs (currently, branches and tags) of a git repo
+func (s *Service) ListRefs(ctx context.Context, q *apiclient.ListRefsRequest) (*apiclient.Refs, error) {
+	gitClient, err := s.newClient(q.Repo)
+	if err != nil {
+		return nil, err
+	}
+
+	s.metricsServer.IncPendingRepoRequest(q.Repo.Repo)
+	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
+
+	refs, err := gitClient.LsRefs()
+	if err != nil {
+		return nil, err
+	}
+
+	res := apiclient.Refs{
+		Branches: refs.Branches,
+		Tags:     refs.Tags,
+	}
+
+	return &res, nil
 }
 
 // ListApps lists the contents of a GitHub repo
@@ -806,6 +830,12 @@ func findManifests(appPath string, repoRoot string, env *v1alpha1.Env, directory
 		if !manifestFile.MatchString(f.Name()) {
 			return nil
 		}
+
+		fileNameWithPath := filepath.Join(appPath, f.Name())
+		if glob.Match(directory.Exclude, fileNameWithPath) {
+			return nil
+		}
+
 		out, err := utfutil.ReadFile(path, utfutil.UTF8)
 		if err != nil {
 			return err

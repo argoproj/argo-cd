@@ -1404,3 +1404,98 @@ func TestCreateFromPartialFile(t *testing.T) {
 			assert.Equal(t, []HelmParameter{{Name: "foo", Value: "foo"}}, app.Spec.Source.Helm.Parameters)
 		})
 }
+func TestAppCreationWithExclude(t *testing.T) {
+	Given(t).
+		Path("app-exclusions").
+		When().
+		Create("--directory-exclude", "**/.*", "--directory-recurse").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy))
+}
+
+// Ensure actions work when using a resource action that modifies status and/or spec
+func TestCRDStatusSubresourceAction(t *testing.T) {
+	actions := `
+discovery.lua: |
+  actions = {}
+  actions["update-spec"] = {["disabled"] = false}
+  actions["update-status"] = {["disabled"] = false}
+  actions["update-both"] = {["disabled"] = false}
+  return actions
+definitions:
+- name: update-both
+  action.lua: |
+    obj.spec = {}
+    obj.spec.foo = "update-both"
+    obj.status = {}
+    obj.status.bar = "update-both"
+    return obj
+- name: update-spec
+  action.lua: |
+    obj.spec = {}
+    obj.spec.foo = "update-spec"
+    return obj
+- name: update-status
+  action.lua: |
+    obj.status = {}
+    obj.status.bar = "update-status"
+    return obj
+`
+	Given(t).
+		Path("crd-subresource").
+		And(func() {
+			SetResourceOverrides(map[string]ResourceOverride{
+				"argoproj.io/StatusSubResource": {
+					Actions: actions,
+				},
+				"argoproj.io/NonStatusSubResource": {
+					Actions: actions,
+				},
+			})
+		}).
+		When().Create().Sync().Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		Then().
+		// tests resource actions on a CRD using status subresource
+		And(func(app *Application) {
+			_, err := RunCli("app", "actions", "run", app.Name, "--kind", "StatusSubResource", "update-both")
+			assert.NoError(t, err)
+			text := FailOnErr(Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "statussubresources", "status-subresource", "-o", "jsonpath={.spec.foo}")).(string)
+			assert.Equal(t, "update-both", text)
+			text = FailOnErr(Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "statussubresources", "status-subresource", "-o", "jsonpath={.status.bar}")).(string)
+			assert.Equal(t, "update-both", text)
+
+			_, err = RunCli("app", "actions", "run", app.Name, "--kind", "StatusSubResource", "update-spec")
+			assert.NoError(t, err)
+			text = FailOnErr(Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "statussubresources", "status-subresource", "-o", "jsonpath={.spec.foo}")).(string)
+			assert.Equal(t, "update-spec", text)
+
+			_, err = RunCli("app", "actions", "run", app.Name, "--kind", "StatusSubResource", "update-status")
+			assert.NoError(t, err)
+			text = FailOnErr(Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "statussubresources", "status-subresource", "-o", "jsonpath={.status.bar}")).(string)
+			assert.Equal(t, "update-status", text)
+		}).
+		// tests resource actions on a CRD *not* using status subresource
+		And(func(app *Application) {
+			_, err := RunCli("app", "actions", "run", app.Name, "--kind", "NonStatusSubResource", "update-both")
+			assert.NoError(t, err)
+			text := FailOnErr(Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "nonstatussubresources", "non-status-subresource", "-o", "jsonpath={.spec.foo}")).(string)
+			assert.Equal(t, "update-both", text)
+			text = FailOnErr(Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "nonstatussubresources", "non-status-subresource", "-o", "jsonpath={.status.bar}")).(string)
+			assert.Equal(t, "update-both", text)
+
+			_, err = RunCli("app", "actions", "run", app.Name, "--kind", "NonStatusSubResource", "update-spec")
+			assert.NoError(t, err)
+			text = FailOnErr(Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "nonstatussubresources", "non-status-subresource", "-o", "jsonpath={.spec.foo}")).(string)
+			assert.Equal(t, "update-spec", text)
+
+			_, err = RunCli("app", "actions", "run", app.Name, "--kind", "NonStatusSubResource", "update-status")
+			assert.NoError(t, err)
+			text = FailOnErr(Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "nonstatussubresources", "non-status-subresource", "-o", "jsonpath={.status.bar}")).(string)
+			assert.Equal(t, "update-status", text)
+		})
+}
