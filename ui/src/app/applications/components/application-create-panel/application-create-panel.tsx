@@ -7,6 +7,7 @@ import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ApplicationParameters} from '../application-parameters/application-parameters';
 import {ApplicationSyncOptionsField} from '../application-sync-options';
+import {RevisionFormField} from '../revision-form-field/revision-form-field';
 
 const jsonMergePatch = require('json-merge-patch');
 
@@ -272,8 +273,7 @@ export const ApplicationCreatePanel = (props: {
                                                 {(repoType === 'git' && (
                                                     <React.Fragment>
                                                         <div className='argo-form-row'>
-                                                            <FormField formApi={api} label='Revision' field='spec.source.targetRevision' component={Text} />
-                                                            <RevisionHelpIcon type='git' />
+                                                            <RevisionFormField formApi={api} helpIconTop={'2em'} repoURL={app.spec.source.repoURL} />
                                                         </div>
                                                         <div className='argo-form-row'>
                                                             <DataLoader
