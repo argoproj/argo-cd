@@ -1448,9 +1448,6 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 		return nil, err
 	}
 
-	s.logAppEvent(a, ctx, argo.EventReasonResourceActionRan, fmt.Sprintf("ran action %s on resource %s/%s/%s", q.Action, res.Group, res.Kind, res.Name))
-	s.logResourceEvent(res, ctx, argo.EventReasonResourceActionRan, fmt.Sprintf("ran action %s", q.Action))
-
 	newObjBytes, err := json.Marshal(newObj)
 	if err != nil {
 		return nil, err
@@ -1469,11 +1466,74 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 		return &application.ApplicationResponse{}, nil
 	}
 
-	_, err = s.kubectl.PatchResource(ctx, config, newObj.GroupVersionKind(), newObj.GetName(), newObj.GetNamespace(), types.MergePatchType, diffBytes)
+	// The following logic detects if the resource action makes a modification to status and/or spec.
+	// If status was modified, we attempt to patch the status using status subresource, in case the
+	// CRD is configured using the status subresource feature. See:
+	// https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#status-subresource
+	// If status subresource is in use, the patch has to be split into two:
+	// * one to update spec (and other non-status fields)
+	// * the other to update only status.
+	nonStatusPatch, statusPatch, err := splitStatusPatch(diffBytes)
 	if err != nil {
 		return nil, err
 	}
+	if statusPatch != nil {
+		_, err = s.kubectl.PatchResource(ctx, config, newObj.GroupVersionKind(), newObj.GetName(), newObj.GetNamespace(), types.MergePatchType, diffBytes, "status")
+		if err != nil {
+			if !apierr.IsNotFound(err) {
+				return nil, err
+			}
+			// K8s API server returns 404 NotFound when the CRD does not support the status subresource
+			// if we get here, the CRD does not use the status subresource. We will fall back to a normal patch
+		} else {
+			// If we get here, the CRD does use the status subresource, so we must patch status and
+			// spec separately. update the diffBytes to the spec-only patch and fall through.
+			diffBytes = nonStatusPatch
+		}
+	}
+	if diffBytes != nil {
+		_, err = s.kubectl.PatchResource(ctx, config, newObj.GroupVersionKind(), newObj.GetName(), newObj.GetNamespace(), types.MergePatchType, diffBytes)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	s.logAppEvent(a, ctx, argo.EventReasonResourceActionRan, fmt.Sprintf("ran action %s on resource %s/%s/%s", q.Action, res.Group, res.Kind, res.Name))
+	s.logResourceEvent(res, ctx, argo.EventReasonResourceActionRan, fmt.Sprintf("ran action %s", q.Action))
 	return &application.ApplicationResponse{}, nil
+}
+
+// splitStatusPatch splits a patch into two: one for a non-status patch, and the status-only patch.
+// Returns nil for either if the patch doesn't have modifications to non-status, or status, respectively.
+func splitStatusPatch(patch []byte) ([]byte, []byte, error) {
+	var obj map[string]interface{}
+	err := json.Unmarshal(patch, &obj)
+	if err != nil {
+		return nil, nil, err
+	}
+	var nonStatusPatch, statusPatch []byte
+	if statusVal, ok := obj["status"]; ok {
+		// calculate the status-only patch
+		statusObj := map[string]interface{}{
+			"status": statusVal,
+		}
+		statusPatch, err = json.Marshal(statusObj)
+		if err != nil {
+			return nil, nil, err
+		}
+		// remove status, and calculate the non-status patch
+		delete(obj, "status")
+		if len(obj) > 0 {
+			nonStatusPatch, err = json.Marshal(obj)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+	} else {
+		// status was not modified in patch
+		nonStatusPatch = patch
+	}
+	return nonStatusPatch, statusPatch, nil
 }
 
 func (s *Server) plugins() ([]*v1alpha1.ConfigManagementPlugin, error) {

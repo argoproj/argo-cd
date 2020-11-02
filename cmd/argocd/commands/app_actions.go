@@ -100,7 +100,6 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 		case "":
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 			fmt.Fprintf(w, "GROUP\tKIND\tNAME\tACTION\tDISABLED\n")
-			fmt.Println()
 			for _, action := range availableActions {
 				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", action.Group, action.Kind, action.Name, action.Action, strconv.FormatBool(action.Disabled))
 			}

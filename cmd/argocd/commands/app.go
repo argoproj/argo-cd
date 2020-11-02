@@ -2335,7 +2335,7 @@ func filterResources(command *cobra.Command, resources []*argoappv1.ResourceDiff
 		if resourceName != "" && resourceName != obj.GetName() {
 			continue
 		}
-		if kind != gvk.Kind {
+		if kind != "" && kind != gvk.Kind {
 			continue
 		}
 		deepCopy := obj.DeepCopy()
