@@ -357,7 +357,9 @@ func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 					assert.True(t, cachedManifestResponse.FirstFailureTimestamp != 0)
 
 					// Internal cache values should update correctly based on number of return cache entries, consecutive failures should stay the same
+					// nolint:staticcheck
 					assert.True(t, cachedManifestResponse.NumberOfConsecutiveFailures == service.initConstants.PauseGenerationAfterFailedGenerationAttempts)
+					// nolint:staticcheck
 					assert.True(t, cachedManifestResponse.NumberOfCachedResponsesReturned == (adjustedInvocation-service.initConstants.PauseGenerationAfterFailedGenerationAttempts+1))
 				}
 			}

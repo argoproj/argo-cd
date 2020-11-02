@@ -532,6 +532,11 @@ export interface RepoAppDetails {
     directory?: {};
 }
 
+export interface RefsInfo {
+    branches: string[];
+    tags: string[];
+}
+
 export interface AppInfo {
     type: string;
     path: string;
