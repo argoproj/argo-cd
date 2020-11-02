@@ -656,6 +656,12 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceDirectory(ref common.
 							Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSourceJsonnet"),
 						},
 					},
+					"exclude": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
 				},
 			},
 		},
