@@ -3,6 +3,8 @@ package controller
 import (
 	"context"
 	"fmt"
+	"os"
+	"strconv"
 	"sync/atomic"
 	"time"
 
@@ -25,6 +27,12 @@ import (
 )
 
 var syncIdPrefix uint64 = 0
+
+const (
+	// EnvVarSyncWaveDelay is an environment variable which controls the delay in seconds between
+	// each sync-wave
+	EnvVarSyncWaveDelay = "ARGOCD_SYNC_WAVE_DELAY"
+)
 
 func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState) {
 	// Sync requests might be requested with ambiguous revisions (e.g. master, HEAD, v1.2.3).
@@ -158,6 +166,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 			}
 			return false
 		}),
+		sync.WithSyncWaveHook(delayBetweenSyncWaves),
 	)
 
 	if err != nil {
@@ -199,4 +208,26 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 			state.Message = fmt.Sprintf("failed to record sync to history: %v", err)
 		}
 	}
+}
+
+// delayBetweenSyncWaves is a gitops-engine SyncWaveHook which introduces an artificial delay
+// between each sync wave. We introduce an artificial delay in order give other controllers a
+// _chance_ to react to the spec change that we just applied. This is important because without
+// this, Argo CD will likely assess resource health too quickly (against the stale object), causing
+// hooks to fire prematurely. See: https://github.com/argoproj/argo-cd/issues/4669.
+// Note, this is not foolproof, since a proper fix would require the CRD record
+// status.observedGeneration coupled with a health.lua that verifies
+// status.observedGeneration == metadata.generation
+func delayBetweenSyncWaves(phase common.SyncPhase, wave int, finalWave bool) error {
+	if !finalWave {
+		delaySec := 2
+		if delaySecStr := os.Getenv(EnvVarSyncWaveDelay); delaySecStr != "" {
+			if val, err := strconv.Atoi(delaySecStr); err == nil {
+				delaySec = val
+			}
+		}
+		duration := time.Duration(delaySec) * time.Second
+		time.Sleep(duration)
+	}
+	return nil
 }

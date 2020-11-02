@@ -36,17 +36,6 @@ func TestFixingDegradedApp(t *testing.T) {
 		When().
 		Sync().
 		Then().
-		Expect(OperationPhaseIs(OperationFailed)).
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		Expect(HealthIs(health.HealthStatusMissing)).
-		Expect(ResourceResultNumbering(1)).
-		Expect(ResourceSyncStatusIs("Pod", "pod-1", SyncStatusCodeSynced)).
-		Expect(ResourceHealthIs("Pod", "pod-1", health.HealthStatusHealthy)).
-		Expect(ResourceSyncStatusIs("Pod", "pod-2", SyncStatusCodeOutOfSync)).
-		Expect(ResourceHealthIs("Pod", "pod-2", health.HealthStatusMissing)).
-		When().
-		Sync().
-		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
