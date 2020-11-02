@@ -3818,7 +3818,7 @@
     "v1alpha1ApplicationSourceDirectory": {
       "type": "object",
       "properties": {
-        "Exclude": {
+        "exclude": {
           "type": "string"
         },
         "jsonnet": {

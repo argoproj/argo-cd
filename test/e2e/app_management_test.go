@@ -1408,7 +1408,7 @@ func TestAppCreationWithExclusions(t *testing.T) {
 	Given(t).
 		Path("app-exclusions").
 		When().
-		Create("--directory-exclusions", "**/.*", "--directory-recurse").
+		Create("--directory-exclude", "**/.*", "--directory-recurse").
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).

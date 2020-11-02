@@ -808,7 +808,7 @@ func findManifests(appPath string, repoRoot string, env *v1alpha1.Env, directory
 			return nil
 		}
 
-		fileNameWithPath := fmt.Sprintf("%s%s%s", appPath, string(filepath.Separator), f.Name())
+		fileNameWithPath := filepath.Join(appPath, f.Name())
 		if glob.Match(directory.Exclude, fileNameWithPath) {
 			return nil
 		}

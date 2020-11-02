@@ -132,7 +132,7 @@ spec:
                     directory:
                       description: Directory holds path/directory specific options
                       properties:
-                        Exclude:
+                        exclude:
                           type: string
                         jsonnet:
                           description: ApplicationSourceJsonnet holds jsonnet specific options
@@ -400,7 +400,7 @@ spec:
                 directory:
                   description: Directory holds path/directory specific options
                   properties:
-                    Exclude:
+                    exclude:
                       type: string
                     jsonnet:
                       description: ApplicationSourceJsonnet holds jsonnet specific options
@@ -684,7 +684,7 @@ spec:
                       directory:
                         description: Directory holds path/directory specific options
                         properties:
-                          Exclude:
+                          exclude:
                             type: string
                           jsonnet:
                             description: ApplicationSourceJsonnet holds jsonnet specific options
@@ -971,7 +971,7 @@ spec:
                             directory:
                               description: Directory holds path/directory specific options
                               properties:
-                                Exclude:
+                                exclude:
                                   type: string
                                 jsonnet:
                                   description: ApplicationSourceJsonnet holds jsonnet specific options
@@ -1236,7 +1236,7 @@ spec:
                         directory:
                           description: Directory holds path/directory specific options
                           properties:
-                            Exclude:
+                            exclude:
                               type: string
                             jsonnet:
                               description: ApplicationSourceJsonnet holds jsonnet specific options
@@ -1498,7 +1498,7 @@ spec:
                         directory:
                           description: Directory holds path/directory specific options
                           properties:
-                            Exclude:
+                            exclude:
                               type: string
                             jsonnet:
                               description: ApplicationSourceJsonnet holds jsonnet specific options

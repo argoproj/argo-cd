@@ -175,7 +175,7 @@ message ApplicationSourceDirectory {
 
   optional ApplicationSourceJsonnet jsonnet = 2;
 
-  optional string Exclude = 3;
+  optional string exclude = 3;
 }
 
 // ApplicationSourceHelm holds helm specific options
