@@ -15,15 +15,15 @@ changes to the manifests in Git.
 To use parameter overrides, run the `argocd app set -p (COMPONENT=)PARAM=VALUE` command:
 
 ```bash
-argocd app set guestbook -p guestbook=image=example/guestbook:abcd123
+argocd app set guestbook -p image=example/guestbook:abcd123
 argocd app sync guestbook
 ```
 
 The `PARAM` is expected to be a normal YAML path
 
 ```bash
-argocd app set guestbook -p guestbook=ingress.enabled=true
-argocd app set guestbook -p guestbook=ingress.hosts[0]=guestbook.myclusterurl
+argocd app set guestbook -p ingress.enabled=true
+argocd app set guestbook -p ingress.hosts[0]=guestbook.myclusterurl
 ```
 
 The following are situations where parameter overrides would be useful:
@@ -34,7 +34,7 @@ case, the application would expose a parameter named `image`, whose value used i
 environment contains a placeholder value (e.g. `example/guestbook:replaceme`). The placeholder value
 would be determined externally (outside of Git) such as a build system. Then, as part of the build
 pipeline, the parameter value of the `image` would be continually updated to the freshly built image
-(e.g. `argocd app set guestbook -p guestbook=image=example/guestbook:abcd123`). A sync operation
+(e.g. `argocd app set guestbook -p image=example/guestbook:abcd123`). A sync operation
 would result in the application being redeployed with the new image.
 
 2. A repository of Helm manifests is already publicly available (e.g. https://github.com/helm/charts).
