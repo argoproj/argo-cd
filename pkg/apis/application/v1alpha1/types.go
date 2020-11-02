@@ -427,6 +427,7 @@ func (k *ApplicationSourceKsonnet) IsZero() bool {
 type ApplicationSourceDirectory struct {
 	Recurse bool                     `json:"recurse,omitempty" protobuf:"bytes,1,opt,name=recurse"`
 	Jsonnet ApplicationSourceJsonnet `json:"jsonnet,omitempty" protobuf:"bytes,2,opt,name=jsonnet"`
+	Exclude string                   `json:"exclude,omitempty" protobuf:"bytes,3,opt,name=exclude"`
 }
 
 func (d *ApplicationSourceDirectory) IsZero() bool {

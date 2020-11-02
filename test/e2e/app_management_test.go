@@ -1404,6 +1404,17 @@ func TestCreateFromPartialFile(t *testing.T) {
 			assert.Equal(t, []HelmParameter{{Name: "foo", Value: "foo"}}, app.Spec.Source.Helm.Parameters)
 		})
 }
+func TestAppCreationWithExclude(t *testing.T) {
+	Given(t).
+		Path("app-exclusions").
+		When().
+		Create("--directory-exclude", "**/.*", "--directory-recurse").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy))
+}
 
 // Ensure actions work when using a resource action that modifies status and/or spec
 func TestCRDStatusSubresourceAction(t *testing.T) {

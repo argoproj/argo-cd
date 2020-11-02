@@ -41,6 +41,7 @@ import (
 	argopath "github.com/argoproj/argo-cd/util/app/path"
 	executil "github.com/argoproj/argo-cd/util/exec"
 	"github.com/argoproj/argo-cd/util/git"
+	"github.com/argoproj/argo-cd/util/glob"
 	"github.com/argoproj/argo-cd/util/gpg"
 	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/io"
@@ -829,6 +830,12 @@ func findManifests(appPath string, repoRoot string, env *v1alpha1.Env, directory
 		if !manifestFile.MatchString(f.Name()) {
 			return nil
 		}
+
+		fileNameWithPath := filepath.Join(appPath, f.Name())
+		if glob.Match(directory.Exclude, fileNameWithPath) {
+			return nil
+		}
+
 		out, err := utfutil.ReadFile(path, utfutil.UTF8)
 		if err != nil {
 			return err

@@ -1,0 +1,14 @@
+metadata:
+  labels:
+    app.kubernetes.io/instance: a-single-pod
+    foo: bar
+  name: helloBot
+spec:
+  containers:
+    - name: hello
+      image: busybox
+      command:
+        - sh
+      args:
+        - -c
+        - "echo HI && tail -f /dev/null"

@@ -43,6 +43,7 @@ argocd app create APPNAME [flags]
       --dest-name string                          K8s cluster Name (e.g. minikube)
       --dest-namespace string                     K8s target namespace (overrides the namespace specified in the ksonnet app.yaml)
       --dest-server string                        K8s cluster URL (e.g. https://kubernetes.default.svc)
+      --directory-exclude string                  Set glob expression used to exclude files from application source path
       --directory-recurse                         Recurse directory
       --env string                                Application environment to monitor
   -f, --file string                               Filename or URL to Kubernetes manifests for the app
