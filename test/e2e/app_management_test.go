@@ -1404,7 +1404,7 @@ func TestCreateFromPartialFile(t *testing.T) {
 			assert.Equal(t, []HelmParameter{{Name: "foo", Value: "foo"}}, app.Spec.Source.Helm.Parameters)
 		})
 }
-func TestAppCreationWithExclusions(t *testing.T) {
+func TestAppCreationWithExclude(t *testing.T) {
 	Given(t).
 		Path("app-exclusions").
 		When().
