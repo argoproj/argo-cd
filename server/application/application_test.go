@@ -622,3 +622,34 @@ func TestGetCachedAppState(t *testing.T) {
 		assert.Equal(t, randomError, err)
 	})
 }
+
+func TestSplitStatusPatch(t *testing.T) {
+	specPatch := `{"spec":{"aaa":"bbb"}}`
+	statusPatch := `{"status":{"ccc":"ddd"}}`
+	{
+		nonStatus, status, err := splitStatusPatch([]byte(specPatch))
+		assert.NoError(t, err)
+		assert.Equal(t, specPatch, string(nonStatus))
+		assert.Nil(t, status)
+	}
+	{
+		nonStatus, status, err := splitStatusPatch([]byte(statusPatch))
+		assert.NoError(t, err)
+		assert.Nil(t, nonStatus)
+		assert.Equal(t, statusPatch, string(status))
+	}
+	{
+		bothPatch := `{"spec":{"aaa":"bbb"},"status":{"ccc":"ddd"}}`
+		nonStatus, status, err := splitStatusPatch([]byte(bothPatch))
+		assert.NoError(t, err)
+		assert.Equal(t, specPatch, string(nonStatus))
+		assert.Equal(t, statusPatch, string(status))
+	}
+	{
+		otherFields := `{"operation":{"eee":"fff"},"spec":{"aaa":"bbb"},"status":{"ccc":"ddd"}}`
+		nonStatus, status, err := splitStatusPatch([]byte(otherFields))
+		assert.NoError(t, err)
+		assert.Equal(t, `{"operation":{"eee":"fff"},"spec":{"aaa":"bbb"}}`, string(nonStatus))
+		assert.Equal(t, statusPatch, string(status))
+	}
+}
