@@ -1403,13 +1403,13 @@ overrides feature is provided mainly as a convenience to developers and is inten
 dev/test environments, vs. production environments.</p>
 </div>
 <p>To use parameter overrides, run the <code>argocd app set -p (COMPONENT=)PARAM=VALUE</code> command:</p>
-<div class="codehilite"><pre><span></span><code>argocd app <span class="nb">set</span> guestbook -p <span class="nv">guestbook</span><span class="o">=</span><span class="nv">image</span><span class="o">=</span>example/guestbook:abcd123
+<div class="codehilite"><pre><span></span><code>argocd app <span class="nb">set</span> guestbook -p <span class="nv">image</span><span class="o">=</span>example/guestbook:abcd123
 argocd app sync guestbook
 </code></pre></div>
 
 <p>The <code>PARAM</code> is expected to be a normal YAML path</p>
-<div class="codehilite"><pre><span></span><code>argocd app <span class="nb">set</span> guestbook -p <span class="nv">guestbook</span><span class="o">=</span>ingress.enabled<span class="o">=</span><span class="nb">true</span>
-argocd app <span class="nb">set</span> guestbook -p <span class="nv">guestbook</span><span class="o">=</span>ingress.hosts<span class="o">[</span><span class="m">0</span><span class="o">]=</span>guestbook.myclusterurl
+<div class="codehilite"><pre><span></span><code>argocd app <span class="nb">set</span> guestbook -p ingress.enabled<span class="o">=</span><span class="nb">true</span>
+argocd app <span class="nb">set</span> guestbook -p ingress.hosts<span class="o">[</span><span class="m">0</span><span class="o">]=</span>guestbook.myclusterurl
 </code></pre></div>
 
 <p>The following are situations where parameter overrides would be useful:</p>
@@ -1421,7 +1421,7 @@ case, the application would expose a parameter named <code>image</code>, whose v
 environment contains a placeholder value (e.g. <code>example/guestbook:replaceme</code>). The placeholder value
 would be determined externally (outside of Git) such as a build system. Then, as part of the build
 pipeline, the parameter value of the <code>image</code> would be continually updated to the freshly built image
-(e.g. <code>argocd app set guestbook -p guestbook=image=example/guestbook:abcd123</code>). A sync operation
+(e.g. <code>argocd app set guestbook -p image=example/guestbook:abcd123</code>). A sync operation
 would result in the application being redeployed with the new image.</p>
 </li>
 <li>
