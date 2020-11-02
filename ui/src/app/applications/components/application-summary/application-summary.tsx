@@ -8,6 +8,7 @@ import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 
 import {ApplicationSyncOptionsField} from '../application-sync-options';
+import {RevisionFormField} from '../revision-form-field/revision-form-field';
 import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage} from '../utils';
 
 require('./application-summary.scss');
@@ -187,12 +188,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                   {
                       title: 'TARGET REVISION',
                       view: <Revision repoUrl={app.spec.source.repoURL} revision={app.spec.source.targetRevision || 'HEAD'} />,
-                      edit: (formApi: FormApi) => (
-                          <React.Fragment>
-                              <FormField formApi={formApi} field='spec.source.targetRevision' component={Text} componentProps={{placeholder: 'HEAD'}} />
-                              <RevisionHelpIcon type='git' top='0' />{' '}
-                          </React.Fragment>
-                      )
+                      edit: (formApi: FormApi) => <RevisionFormField helpIconTop={'0'} hideLabel={true} formApi={formApi} repoURL={app.spec.source.repoURL} />
                   },
                   {
                       title: 'PATH',
