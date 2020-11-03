@@ -311,6 +311,7 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	if reason != "" {
 		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Status Reason", Value: reason})
 	}
+	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Node", Value: fmt.Sprintf("%s", pod.Spec.NodeName)})
 	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Containers", Value: fmt.Sprintf("%d/%d", readyContainers, totalContainers)})
 	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{Labels: un.GetLabels()}
 }
