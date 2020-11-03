@@ -847,6 +847,11 @@ func (s *Server) GetResource(ctx context.Context, q *application.ApplicationReso
 	if err != nil {
 		return nil, err
 	}
+
+	// make sure to use specified resource version if provided
+	if q.Version != "" {
+		res.Version = q.Version
+	}
 	obj, err := s.kubectl.GetResource(ctx, config, res.GroupKindVersion(), res.Name, res.Namespace)
 	if err != nil {
 		return nil, err
