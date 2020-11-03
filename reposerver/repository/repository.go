@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -873,7 +874,20 @@ func findManifests(appPath string, repoRoot string, env *v1alpha1.Env, directory
 		} else {
 			yamlObjs, err := kube.SplitYAML(out)
 			if err != nil {
-				return status.Errorf(codes.FailedPrecondition, "Failed to unmarshal %q: %v", f.Name(), err)
+				if len(yamlObjs) > 0 {
+					// If we get here, we had a multiple objects in a single YAML file which had some
+					// valid k8s objects, but errors parsing others (within the same file). It's very
+					// likely the user messed up a portion of the YAML, so report on that.
+					return status.Errorf(codes.FailedPrecondition, "Failed to unmarshal %q: %v", f.Name(), err)
+				}
+				// Otherwise, let's see if it looks like a resource, if yes, we return error
+				if bytes.Contains(out, []byte("apiVersion:")) &&
+					bytes.Contains(out, []byte("kind:")) &&
+					bytes.Contains(out, []byte("metadata:")) {
+					return status.Errorf(codes.FailedPrecondition, "Failed to unmarshal %q: %v", f.Name(), err)
+				}
+				// Otherwise, it might be a unrelated YAML file which we will ignore
+				return nil
 			}
 			objs = append(objs, yamlObjs...)
 		}
