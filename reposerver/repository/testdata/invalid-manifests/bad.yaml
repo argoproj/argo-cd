@@ -1,0 +1,4 @@
+apiVersion: v1
+kind: ConfigMapList
+metadata: badData
+Here are invalid data
