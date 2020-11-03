@@ -163,6 +163,7 @@ message ApplicationPodLogsQuery {
 message LogEntry {
 	required string content = 1 [(gogoproto.nullable) = false];
 	required k8s.io.apimachinery.pkg.apis.meta.v1.Time timeStamp = 2 [(gogoproto.nullable) = false];
+	required bool last = 3 [(gogoproto.nullable) = false];
 }
 
 message OperationTerminateRequest {
@@ -217,7 +218,7 @@ service ApplicationService {
 		option (google.api.http).get = "/api/v1/applications/{name}/events";
 	}
 
-	// Watch returns stream of application change events.
+	// Watch returns stream of application change events
 	rpc Watch(ApplicationQuery) returns (stream github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationWatchEvent) {
 		option (google.api.http).get = "/api/v1/stream/applications";
 	}
@@ -287,10 +288,12 @@ service ApplicationService {
 		};
 	}
 
+	// ManagedResources returns list of managed resources
 	rpc ManagedResources(ResourcesQuery) returns (ManagedResourcesResponse) {
 		option (google.api.http).get = "/api/v1/applications/{applicationName}/managed-resources";
 	}
 
+	// ResourceTree returns resource tree
 	rpc ResourceTree(ResourcesQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationTree) {
 		option (google.api.http).get = "/api/v1/applications/{applicationName}/resource-tree";
 	}
@@ -328,10 +331,12 @@ service ApplicationService {
 		};
 	}
 
+	// ListResourceActions returns list of resource actions
 	rpc ListResourceActions(ApplicationResourceRequest) returns (ResourceActionsListResponse) {
 		option (google.api.http).get = "/api/v1/applications/{name}/resource/actions";
 	}
 
+	// RunResourceAction run resource action
 	rpc RunResourceAction(ResourceActionRunRequest) returns (ApplicationResponse) {
 		option (google.api.http) = {
 			post: "/api/v1/applications/{name}/resource/actions"

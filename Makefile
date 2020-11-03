@@ -155,8 +155,12 @@ clientgen:
 	export GO111MODULE=off
 	./hack/update-codegen.sh
 
+.PHONY: clidocsgen
+clidocsgen:
+	go run tools/cmd-docs/main.go	
+
 .PHONY: codegen-local
-codegen-local: mod-vendor-local gogen protogen clientgen openapigen manifests-local
+codegen-local: mod-vendor-local gogen protogen clientgen openapigen clidocsgen manifests-local
 	rm -rf vendor/
 
 .PHONY: codegen
@@ -379,7 +383,7 @@ start-e2e-local:
 	ARGOCD_ZJWT_FEATURE_FLAG=always \
 	ARGOCD_IN_CI=$(ARGOCD_IN_CI) \
 	ARGOCD_E2E_TEST=true \
-		goreman -f $(ARGOCD_PROCFILE) start
+		goreman -f $(ARGOCD_PROCFILE) start ${ARGOCD_START}
 
 # Cleans VSCode debug.test files from sub-dirs to prevent them from being included in packr boxes
 .PHONY: clean-debug

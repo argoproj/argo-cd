@@ -8,6 +8,7 @@ const webpack = require('webpack');
 const path = require('path');
 
 const isProd = process.env.NODE_ENV === 'production';
+console.log(`Bundling in ${isProd ? 'production' : 'development'} mode...`);
 
 const proxyConf = {
     'target': process.env.ARGOCD_API_URL || 'http://localhost:8080',
@@ -68,9 +69,14 @@ const config = {
                 from: 'node_modules/argo-ui/src/assets', to: 'assets'
             }, {
                 from: 'node_modules/@fortawesome/fontawesome-free/webfonts', to: 'assets/fonts'
+            }, {
+                from: 'node_modules/redoc/bundles/redoc.standalone.js', to: 'assets/scripts/redoc.standalone.js'
             }]
         }),
-        new MonacoWebpackPlugin(),
+        new MonacoWebpackPlugin({
+            // https://github.com/microsoft/monaco-editor-webpack-plugin#options
+            languages: [ 'yaml' ]
+        }),
         new GoogleFontsPlugin({
             // config: https://github.com/beyonk-adventures/google-fonts-webpack-plugin
             // the upstream version of this plugin is not compatible with webpack 4 so we use this fork
@@ -81,7 +87,9 @@ const config = {
             // This works by downloading the fonts at bundle time and adding those font-faces to 'fonts.css'.
             name: 'fonts',
             filename: 'fonts.css',
-            local: true,
+            // local: false in dev prevents pulling fonts on each code change
+            // https://github.com/gabiseabra/google-fonts-webpack-plugin/issues/2
+            local: isProd,
             path: 'assets/fonts/google-fonts'
 		})
     ],

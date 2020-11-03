@@ -7,7 +7,6 @@ import (
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 
-	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -260,7 +259,7 @@ func TestGetResourceCompareOptions(t *testing.T) {
 			"resource.compareoptions": "",
 		})
 		compareOptions, err := settingsManager.GetResourceCompareOptions()
-		defaultOptions := diff.GetDefaultDiffOptions()
+		defaultOptions := GetDefaultDiffOptions()
 		assert.NoError(t, err)
 		assert.Equal(t, defaultOptions.IgnoreAggregatedRoles, compareOptions.IgnoreAggregatedRoles)
 	}
@@ -269,7 +268,7 @@ func TestGetResourceCompareOptions(t *testing.T) {
 	{
 		_, settingsManager := fixtures(map[string]string{})
 		compareOptions, err := settingsManager.GetResourceCompareOptions()
-		defaultOptions := diff.GetDefaultDiffOptions()
+		defaultOptions := GetDefaultDiffOptions()
 		assert.NoError(t, err)
 		assert.Equal(t, defaultOptions.IgnoreAggregatedRoles, compareOptions.IgnoreAggregatedRoles)
 	}
@@ -419,7 +418,7 @@ func Test_validateExternalURL(t *testing.T) {
 	}{
 		{name: "Valid URL", url: "https://my.domain.com"},
 		{name: "No URL - Valid", url: ""},
-		{name: "Invalid URL", url: "my.domain.com", errMsg: "URL must inlcude http or https protocol"},
+		{name: "Invalid URL", url: "my.domain.com", errMsg: "URL must include http or https protocol"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

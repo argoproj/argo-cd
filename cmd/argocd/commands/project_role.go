@@ -6,15 +6,17 @@ import (
 	"os"
 	"strconv"
 	"text/tabwriter"
+	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/errors"
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	timeutil "github.com/argoproj/pkg/time"
+	jwtgo "github.com/dgrijalva/jwt-go"
 	"github.com/spf13/cobra"
 
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	projectpkg "github.com/argoproj/argo-cd/pkg/apiclient/project"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/errors"
+	"github.com/argoproj/argo-cd/util/io"
 )
 
 const (
@@ -36,6 +38,7 @@ func NewProjectRoleCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 	roleCommand.AddCommand(NewProjectRoleCreateCommand(clientOpts))
 	roleCommand.AddCommand(NewProjectRoleDeleteCommand(clientOpts))
 	roleCommand.AddCommand(NewProjectRoleCreateTokenCommand(clientOpts))
+	roleCommand.AddCommand(NewProjectRoleListTokensCommand(clientOpts))
 	roleCommand.AddCommand(NewProjectRoleDeleteTokenCommand(clientOpts))
 	roleCommand.AddCommand(NewProjectRoleAddPolicyCommand(clientOpts))
 	roleCommand.AddCommand(NewProjectRoleRemovePolicyCommand(clientOpts))
@@ -195,14 +198,25 @@ func NewProjectRoleDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	return command
 }
 
+func tokenTimeToString(t int64) string {
+	tokenTimeToString := "Never"
+	if t > 0 {
+		tokenTimeToString = time.Unix(t, 0).Format(time.RFC3339)
+	}
+	return tokenTimeToString
+}
+
 // NewProjectRoleCreateTokenCommand returns a new instance of an `argocd proj role create-token` command
 func NewProjectRoleCreateTokenCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		expiresIn string
+		expiresIn       string
+		outputTokenOnly bool
+		tokenID         string
 	)
 	var command = &cobra.Command{
-		Use:   "create-token PROJECT ROLE-NAME",
-		Short: "Create a project token",
+		Use:     "create-token PROJECT ROLE-NAME",
+		Short:   "Create a project token",
+		Aliases: []string{"token-create"},
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 2 {
 				c.HelpFunc()(c, args)
@@ -212,23 +226,112 @@ func NewProjectRoleCreateTokenCommand(clientOpts *argocdclient.ClientOptions) *c
 			roleName := args[1]
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer io.Close(conn)
+			if expiresIn == "" {
+				expiresIn = "0s"
+			}
 			duration, err := timeutil.ParseDuration(expiresIn)
 			errors.CheckError(err)
-			token, err := projIf.CreateToken(context.Background(), &projectpkg.ProjectTokenCreateRequest{Project: projName, Role: roleName, ExpiresIn: int64(duration.Seconds())})
+			tokenResponse, err := projIf.CreateToken(context.Background(), &projectpkg.ProjectTokenCreateRequest{
+				Project:   projName,
+				Role:      roleName,
+				ExpiresIn: int64(duration.Seconds()),
+				Id:        tokenID,
+			})
 			errors.CheckError(err)
-			fmt.Println(token.Token)
+
+			token, err := jwtgo.Parse(tokenResponse.Token, nil)
+			if token == nil {
+				err = fmt.Errorf("received malformed token %v", err)
+				errors.CheckError(err)
+				return
+			}
+
+			claims := token.Claims.(jwtgo.MapClaims)
+			issuedAt := int64(claims["iat"].(float64))
+			expiresAt := int64(0)
+			if expires, ok := claims["exp"]; ok {
+				expiresAt = int64(expires.(float64))
+			}
+			id := claims["jti"].(string)
+			subject := claims["sub"].(string)
+
+			if !outputTokenOnly {
+				fmt.Printf("Create token succeeded for %s.\n", subject)
+				fmt.Printf("  ID: %s\n  Issued At: %s\n  Expires At: %s\n",
+					id, tokenTimeToString(issuedAt), tokenTimeToString(expiresAt),
+				)
+				fmt.Println("  Token: " + tokenResponse.Token)
+			} else {
+				fmt.Println(tokenResponse.Token)
+			}
 		},
 	}
-	command.Flags().StringVarP(&expiresIn, "expires-in", "e", "0s", "Duration before the token will expire. (Default: No expiration)")
+	command.Flags().StringVarP(&expiresIn, "expires-in", "e", "",
+		"Duration before the token will expire, eg \"12h\", \"7d\". (Default: No expiration)",
+	)
+	command.Flags().StringVarP(&tokenID, "id", "i", "", "Token unique identifier. (Default: Random UUID)")
+	command.Flags().BoolVarP(&outputTokenOnly, "token-only", "t", false, "Output token only - for use in scripts.")
 
+	return command
+}
+
+func NewProjectRoleListTokensCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var (
+		useUnixTime bool
+	)
+	var command = &cobra.Command{
+		Use:     "list-tokens PROJECT ROLE-NAME",
+		Short:   "List tokens for a given role.",
+		Aliases: []string{"list-token", "token-list"},
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 2 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			projName := args[0]
+			roleName := args[1]
+
+			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
+			defer io.Close(conn)
+
+			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
+			errors.CheckError(err)
+			role, _, err := proj.GetRoleByName(roleName)
+			errors.CheckError(err)
+
+			if len(role.JWTTokens) == 0 {
+				fmt.Printf("No tokens for %s.%s\n", projName, roleName)
+				return
+			}
+
+			writer := tabwriter.NewWriter(os.Stdout, 0, 0, 4, ' ', 0)
+			_, err = fmt.Fprintf(writer, "ID\tISSUED AT\tEXPIRES AT\n")
+			errors.CheckError(err)
+
+			tokenRowFormat := "%s\t%v\t%v\n"
+			for _, token := range role.JWTTokens {
+				if useUnixTime {
+					_, _ = fmt.Fprintf(writer, tokenRowFormat, token.ID, token.IssuedAt, token.ExpiresAt)
+				} else {
+					_, _ = fmt.Fprintf(writer, tokenRowFormat, token.ID, tokenTimeToString(token.IssuedAt), tokenTimeToString(token.ExpiresAt))
+				}
+			}
+			err = writer.Flush()
+			errors.CheckError(err)
+		},
+	}
+	command.Flags().BoolVarP(&useUnixTime, "unixtime", "u", false,
+		"Print timestamps as Unix time instead of converting. Useful for piping into delete-token.",
+	)
 	return command
 }
 
 // NewProjectRoleDeleteTokenCommand returns a new instance of an `argocd proj role delete-token` command
 func NewProjectRoleDeleteTokenCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
-		Use:   "delete-token PROJECT ROLE-NAME ISSUED-AT",
-		Short: "Delete a project token",
+		Use:     "delete-token PROJECT ROLE-NAME ISSUED-AT",
+		Short:   "Delete a project token",
+		Aliases: []string{"token-delete", "remove-token"},
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 3 {
 				c.HelpFunc()(c, args)

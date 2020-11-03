@@ -8,6 +8,48 @@ Both protocols are exposed by the argocd-server service object on the following 
 
 There are several ways how Ingress can be configured.
 
+## [Ambassador](https://www.getambassador.io/)
+
+The Ambassador Edge Stack can be used as a Kubernetes ingress controller with [automatic TLS termination](https://www.getambassador.io/docs/latest/topics/running/tls/#host) and routing capabilities for both the CLI and the UI.
+
+The API server should be run with TLS disabled. Edit the `argocd-server` deployment to add the `--insecure` flag to the argocd-server command.
+
+### Option 1: Mapping CRD for Host-based Routing
+```yaml
+apiVersion: getambassador.io/v2
+kind: Mapping
+metadata:
+  name: argocd-server
+  namespace: argocd
+spec:
+  host: argocd.example.com
+  prefix: /
+  service: argocd-server:443
+```
+
+### Option 2: Mapping CRD for Path-based Routing
+
+The API server must be configured to be available under a non-root path (e.g. `/argo-cd`). Edit the `argocd-server` deployment to add the `--rootpath=/argo-cd` flag to the argocd-server command.
+
+```yaml
+apiVersion: getambassador.io/v2
+kind: Mapping
+metadata:
+  name: argocd-server
+  namespace: argocd
+spec:
+  prefix: /argo-cd
+  rewrite: /argo-cd
+  service: argocd-server:443
+```
+
+Login with the `argocd` CLI using the extra `--grpc-web-root-path` flag for non-root paths.
+
+```shell
+argocd login <host>:<port> --grpc-web-root-path /argo-cd
+```
+
+
 ## [kubernetes/ingress-nginx](https://github.com/kubernetes/ingress-nginx)
 
 ### Option 1: SSL-Passthrough
