@@ -11,8 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/errors"
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/coreos/go-oidc"
 	"github.com/dgrijalva/jwt-go"
 	log "github.com/sirupsen/logrus"
@@ -24,7 +22,9 @@ import (
 	sessionpkg "github.com/argoproj/argo-cd/pkg/apiclient/session"
 	settingspkg "github.com/argoproj/argo-cd/pkg/apiclient/settings"
 	"github.com/argoproj/argo-cd/util/cli"
+	"github.com/argoproj/argo-cd/util/errors"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
+	"github.com/argoproj/argo-cd/util/io"
 	"github.com/argoproj/argo-cd/util/localconfig"
 	oidcutil "github.com/argoproj/argo-cd/util/oidc"
 	"github.com/argoproj/argo-cd/util/rand"

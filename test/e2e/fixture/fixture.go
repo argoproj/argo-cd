@@ -11,8 +11,6 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/argoproj/gitops-engine/pkg/utils/errors"
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/argoproj/pkg/errors"
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/ghodss/yaml"
@@ -29,7 +27,9 @@ import (
 	sessionpkg "github.com/argoproj/argo-cd/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
+	. "github.com/argoproj/argo-cd/util/errors"
 	grpcutil "github.com/argoproj/argo-cd/util/grpc"
+	"github.com/argoproj/argo-cd/util/io"
 	"github.com/argoproj/argo-cd/util/rand"
 	"github.com/argoproj/argo-cd/util/settings"
 )
@@ -197,8 +197,14 @@ func CreateSecret(username, password string) string {
 	return secretName
 }
 
+// Convinience wrapper for updating argocd-cm
 func updateSettingConfigMap(updater func(cm *corev1.ConfigMap) error) {
-	cm, err := KubeClientset.CoreV1().ConfigMaps(ArgoCDNamespace).Get(context.Background(), common.ArgoCDConfigMapName, v1.GetOptions{})
+	updateGenericConfigMap(common.ArgoCDConfigMapName, updater)
+}
+
+// Updates a given config map in argocd-e2e namespace
+func updateGenericConfigMap(name string, updater func(cm *corev1.ConfigMap) error) {
+	cm, err := KubeClientset.CoreV1().ConfigMaps(ArgoCDNamespace).Get(context.Background(), name, v1.GetOptions{})
 	errors.CheckError(err)
 	if cm.Data == nil {
 		cm.Data = make(map[string]string)
@@ -313,6 +319,12 @@ func EnsureCleanState(t *testing.T) {
 		return nil
 	})
 
+	// reset gpg-keys config map
+	updateGenericConfigMap(common.ArgoCDGPGKeysConfigMapName, func(cm *corev1.ConfigMap) error {
+		cm.Data = map[string]string{}
+		return nil
+	})
+
 	SetProjectSpec("default", v1alpha1.AppProjectSpec{
 		OrphanedResources:        nil,
 		SourceRepos:              []string{"*"},
@@ -320,7 +332,7 @@ func EnsureCleanState(t *testing.T) {
 		ClusterResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
 	})
 
-	// Create seperate project for testing gpg signature verification
+	// Create separate project for testing gpg signature verification
 	FailOnErr(RunCli("proj", "create", "gpg"))
 	SetProjectSpec("gpg", v1alpha1.AppProjectSpec{
 		OrphanedResources:        nil,

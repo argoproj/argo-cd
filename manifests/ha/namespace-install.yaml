@@ -7,6 +7,17 @@ metadata:
     app.kubernetes.io/part-of: argocd
   name: applications.argoproj.io
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .status.sync.status
+    name: Sync Status
+    type: string
+  - JSONPath: .status.health.status
+    name: Health Status
+    type: string
+  - JSONPath: .status.sync.revision
+    name: Revision
+    priority: 10
+    type: string
   group: argoproj.io
   names:
     kind: Application
@@ -17,6 +28,7 @@ spec:
     - apps
     singular: application
   scope: Namespaced
+  subresources: {}
   validation:
     openAPIV3Schema:
       description: Application is a definition of Application resource.
@@ -120,6 +132,8 @@ spec:
                     directory:
                       description: Directory holds path/directory specific options
                       properties:
+                        exclude:
+                          type: string
                         jsonnet:
                           description: ApplicationSourceJsonnet holds jsonnet specific options
                           properties:
@@ -237,6 +251,11 @@ spec:
                     kustomize:
                       description: Kustomize holds kustomize specific options
                       properties:
+                        commonAnnotations:
+                          additionalProperties:
+                            type: string
+                          description: CommonAnnotations adds additional kustomize commonAnnotations
+                          type: object
                         commonLabels:
                           additionalProperties:
                             type: string
@@ -381,6 +400,8 @@ spec:
                 directory:
                   description: Directory holds path/directory specific options
                   properties:
+                    exclude:
+                      type: string
                     jsonnet:
                       description: ApplicationSourceJsonnet holds jsonnet specific options
                       properties:
@@ -498,6 +519,11 @@ spec:
                 kustomize:
                   description: Kustomize holds kustomize specific options
                   properties:
+                    commonAnnotations:
+                      additionalProperties:
+                        type: string
+                      description: CommonAnnotations adds additional kustomize commonAnnotations
+                      type: object
                     commonLabels:
                       additionalProperties:
                         type: string
@@ -658,6 +684,8 @@ spec:
                       directory:
                         description: Directory holds path/directory specific options
                         properties:
+                          exclude:
+                            type: string
                           jsonnet:
                             description: ApplicationSourceJsonnet holds jsonnet specific options
                             properties:
@@ -775,6 +803,11 @@ spec:
                       kustomize:
                         description: Kustomize holds kustomize specific options
                         properties:
+                          commonAnnotations:
+                            additionalProperties:
+                              type: string
+                            description: CommonAnnotations adds additional kustomize commonAnnotations
+                            type: object
                           commonLabels:
                             additionalProperties:
                               type: string
@@ -938,6 +971,8 @@ spec:
                             directory:
                               description: Directory holds path/directory specific options
                               properties:
+                                exclude:
+                                  type: string
                                 jsonnet:
                                   description: ApplicationSourceJsonnet holds jsonnet specific options
                                   properties:
@@ -1055,6 +1090,11 @@ spec:
                             kustomize:
                               description: Kustomize holds kustomize specific options
                               properties:
+                                commonAnnotations:
+                                  additionalProperties:
+                                    type: string
+                                  description: CommonAnnotations adds additional kustomize commonAnnotations
+                                  type: object
                                 commonLabels:
                                   additionalProperties:
                                     type: string
@@ -1196,6 +1236,8 @@ spec:
                         directory:
                           description: Directory holds path/directory specific options
                           properties:
+                            exclude:
+                              type: string
                             jsonnet:
                               description: ApplicationSourceJsonnet holds jsonnet specific options
                               properties:
@@ -1313,6 +1355,11 @@ spec:
                         kustomize:
                           description: Kustomize holds kustomize specific options
                           properties:
+                            commonAnnotations:
+                              additionalProperties:
+                                type: string
+                              description: CommonAnnotations adds additional kustomize commonAnnotations
+                              type: object
                             commonLabels:
                               additionalProperties:
                                 type: string
@@ -1451,6 +1498,8 @@ spec:
                         directory:
                           description: Directory holds path/directory specific options
                           properties:
+                            exclude:
+                              type: string
                             jsonnet:
                               description: ApplicationSourceJsonnet holds jsonnet specific options
                               properties:
@@ -1568,6 +1617,11 @@ spec:
                         kustomize:
                           description: Kustomize holds kustomize specific options
                           properties:
+                            commonAnnotations:
+                              additionalProperties:
+                                type: string
+                              description: CommonAnnotations adds additional kustomize commonAnnotations
+                              type: object
                             commonLabels:
                               additionalProperties:
                                 type: string

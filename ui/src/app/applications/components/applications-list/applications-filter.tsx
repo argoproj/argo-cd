@@ -1,4 +1,4 @@
-import {Checkbox, DataLoader} from 'argo-ui';
+import {Checkbox, DataLoader, Tooltip} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
 
@@ -105,16 +105,38 @@ export class ApplicationsFilter extends React.Component<ApplicationsFilterProps,
                     values.add(app.metadata.labels[label]);
                 })
             );
+
+        const filtersCount = AppsListPreferences.countEnabledFilters(pref);
+
         return (
             <div className={classNames('applications-list__filters-container', {'applications-list__filters-container--expanded': this.state.expanded})}>
-                <i
-                    onClick={() => this.setState({expanded: !this.state.expanded})}
-                    className={classNames('fa applications-list__filters-expander', {'fa-chevron-up': this.state.expanded, 'fa-chevron-down': !this.state.expanded})}
-                />
-                <p className='applications-list__filters-container-title'>Filter By:</p>
-                <div className='row'>
+                <div className={classNames('applications-list__filters-title', {'applications-list__filters-title--expanded': this.state.expanded})}>
+                    <Tooltip content='Filters'>
+                        <i className='fa fa-filter' />
+                    </Tooltip>
+                    <div style={{marginLeft: 'auto'}} />
+                    <div className='applications-list__filters-title__counter tags-input__tag' style={filtersCount === 0 ? {display: 'none'} : {}}>
+                        {filtersCount} Filter{filtersCount === 1 ? '' : 's'}
+                        <Tooltip content='Clear Filters'>
+                            <i
+                                className='fa fa-times'
+                                onClick={() => {
+                                    AppsListPreferences.clearFilters(this.props.pref);
+                                    this.props.onChange(this.props.pref);
+                                }}
+                            />
+                        </Tooltip>
+                    </div>
+                    <Tooltip content={(this.state.expanded ? 'Collapse' : 'Expand') + ' Filters'}>
+                        <i
+                            className={classNames('fa applications-list__filters-title__expander', {'fa-chevron-up': this.state.expanded, 'fa-chevron-down': !this.state.expanded})}
+                            onClick={() => this.setState({expanded: !this.state.expanded})}
+                        />
+                    </Tooltip>
+                </div>
+                <div className='applications-list__filters-container-contents row'>
                     <div className='columns small-12 medium-3 xxlarge-12'>
-                        <p>Sync</p>
+                        <div className='applications-list__filter-title'>Sync</div>
                         <ItemsFilter
                             selected={pref.syncFilter}
                             onChange={selected => onChange({...pref, syncFilter: selected})}
@@ -123,7 +145,7 @@ export class ApplicationsFilter extends React.Component<ApplicationsFilterProps,
                         />
                     </div>
                     <div className='columns small-12 medium-3 xxlarge-12'>
-                        <p>Health</p>
+                        <div className='applications-list__filter-title'>Health</div>
                         <ItemsFilter
                             selected={pref.healthFilter}
                             onChange={selected => onChange({...pref, healthFilter: selected})}
@@ -133,7 +155,7 @@ export class ApplicationsFilter extends React.Component<ApplicationsFilterProps,
                     </div>
                     <div className='columns small-12 medium-6 xxlarge-12'>
                         <div className='applications-list__filter'>
-                            <p>Labels</p>
+                            <div className='applications-list__filter-title'>Labels</div>
                             <ul>
                                 <li>
                                     <TagsInput
@@ -144,7 +166,7 @@ export class ApplicationsFilter extends React.Component<ApplicationsFilterProps,
                                     />
                                 </li>
                             </ul>
-                            <p>Projects</p>
+                            <div className='applications-list__filter-title'>Projects</div>
                             <ul>
                                 <li>
                                     <DataLoader load={() => services.projects.list('items.metadata.name')}>
@@ -164,7 +186,7 @@ export class ApplicationsFilter extends React.Component<ApplicationsFilterProps,
                                     </DataLoader>
                                 </li>
                             </ul>
-                            <p>Clusters</p>
+                            <div className='applications-list__filter-title'>Clusters</div>
                             <ul>
                                 <li>
                                     <TagsInput
@@ -177,7 +199,7 @@ export class ApplicationsFilter extends React.Component<ApplicationsFilterProps,
                                     />
                                 </li>
                             </ul>
-                            <p>Namespaces</p>
+                            <div className='applications-list__filter-title'>Namespaces</div>
                             <ul>
                                 <li>
                                     <TagsInput
@@ -199,6 +221,12 @@ export class ApplicationsFilter extends React.Component<ApplicationsFilterProps,
 
     private getClusterDetail(dest: models.ApplicationDestination): string {
         const cluster = this.props.clusters.find(target => target.name === dest.name || target.server === dest.server);
+<<<<<<< HEAD
+=======
+        if (!cluster) {
+            return dest.server || dest.name;
+        }
+>>>>>>> master
         if (cluster.name === cluster.server) {
             return cluster.name;
         }

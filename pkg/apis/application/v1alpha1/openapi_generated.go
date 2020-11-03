@@ -46,6 +46,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ConfigManagementPlugin":           schema_pkg_apis_application_v1alpha1_ConfigManagementPlugin(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ConnectionState":                  schema_pkg_apis_application_v1alpha1_ConnectionState(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.EnvEntry":                         schema_pkg_apis_application_v1alpha1_EnvEntry(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ExecProviderConfig":               schema_pkg_apis_application_v1alpha1_ExecProviderConfig(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.GnuPGPublicKey":                   schema_pkg_apis_application_v1alpha1_GnuPGPublicKey(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.GnuPGPublicKeyList":               schema_pkg_apis_application_v1alpha1_GnuPGPublicKeyList(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HealthStatus":                     schema_pkg_apis_application_v1alpha1_HealthStatus(ref),
@@ -655,6 +656,12 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceDirectory(ref common.
 							Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSourceJsonnet"),
 						},
 					},
+					"exclude": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
 				},
 			},
 		},
@@ -884,6 +891,21 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref common.
 							Description: "Version contains optional Kustomize version",
 							Type:        []string{"string"},
 							Format:      "",
+						},
+					},
+					"commonAnnotations": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CommonAnnotations adds additional kustomize commonAnnotations",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Type:   []string{"string"},
+										Format: "",
+									},
+								},
+							},
 						},
 					},
 				},
@@ -1386,12 +1408,18 @@ func schema_pkg_apis_application_v1alpha1_ClusterConfig(ref common.ReferenceCall
 							Ref:         ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.AWSAuthConfig"),
 						},
 					},
+					"execProviderConfig": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ExecProviderConfig contains configuration for an exec provider",
+							Ref:         ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ExecProviderConfig"),
+						},
+					},
 				},
 				Required: []string{"tlsClientConfig"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.AWSAuthConfig", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.TLSClientConfig"},
+			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.AWSAuthConfig", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ExecProviderConfig", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.TLSClientConfig"},
 	}
 }
 
@@ -1649,6 +1677,69 @@ func schema_pkg_apis_application_v1alpha1_EnvEntry(ref common.ReferenceCallback)
 					},
 				},
 				Required: []string{"name", "value"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_ExecProviderConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ExecProviderConfig is config used to call an external command to perform cluster authentication See: https://godoc.org/k8s.io/client-go/tools/clientcmd/api#ExecConfig",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"command": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Command to execute",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"args": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Arguments to pass to the command when executing it",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Type:   []string{"string"},
+										Format: "",
+									},
+								},
+							},
+						},
+					},
+					"env": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Env defines additional environment variables to expose to the process",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Type:   []string{"string"},
+										Format: "",
+									},
+								},
+							},
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Preferred input version of the ExecInfo",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"installHint": {
+						SchemaProps: spec.SchemaProps{
+							Description: "This text is shown to the user when the executable doesn't seem to be present",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
 			},
 		},
 	}
@@ -2529,6 +2620,13 @@ func schema_pkg_apis_application_v1alpha1_Repository(ref common.ReferenceCallbac
 					"inheritedCreds": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Whether credentials were inherited from a credential set",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"enableOCI": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Whether helm-oci support should be enabled for this repo",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
