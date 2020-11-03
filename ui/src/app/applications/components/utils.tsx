@@ -556,3 +556,11 @@ export function handlePageVisibility<T>(src: () => Observable<T>): Observable<T>
         };
     });
 }
+
+export function parseApiVersion(apiVersion: string): {group: string; version: string} {
+    const parts = apiVersion.split('/');
+    if (parts.length > 1) {
+        return {group: parts[0], version: parts[1]};
+    }
+    return {version: parts[0], group: ''};
+}
