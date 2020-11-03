@@ -22,7 +22,7 @@ export class RevisionFormField extends React.PureComponent<RevisionFormFieldProp
                         if (src.repoURL) {
                             return services.repos
                                 .revisions(src.repoURL)
-                                .then(revisionsRes => ['HEAD'].concat(revisionsRes.branches).concat(revisionsRes.tags))
+                                .then(revisionsRes => ['HEAD'].concat(revisionsRes.branches || []).concat(revisionsRes.tags || []))
                                 .catch(() => []);
                         }
                         return [];
