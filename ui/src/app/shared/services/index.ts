@@ -41,5 +41,5 @@ export const services: Services = {
     gpgkeys: new GnuPGPublicKeyService()
 };
 
-export {ProjectParams, ProjectRoleParams, CreateJWTTokenParams, DeleteJWTTokenParams, JWTTokenResponse} from './projects-service';
+export {ProjectRoleParams, CreateJWTTokenParams, DeleteJWTTokenParams, JWTTokenResponse} from './projects-service';
 export * from './view-preferences-service';

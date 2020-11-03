@@ -1,15 +1,14 @@
-import {NotificationType, SlidingPanel} from 'argo-ui';
+import {FormField, NotificationType, SlidingPanel} from 'argo-ui';
 import * as React from 'react';
-import {FormApi} from 'react-form';
+import {Form, FormApi, Text} from 'react-form';
 
 import {DataLoader, EmptyState, ErrorNotification, Page, Query} from '../../../shared/components';
 import {Consumer} from '../../../shared/context';
+import {Project} from '../../../shared/models';
 import {services} from '../../../shared/services';
-import {ProjectEditPanel} from '../project-edit-panel/project-edit-panel';
 
 export class ProjectsList extends React.Component {
     private formApi: FormApi;
-    private loader: DataLoader;
 
     public render() {
         return (
@@ -22,7 +21,7 @@ export class ProjectsList extends React.Component {
                             actionMenu: {className: 'fa fa-plus', items: [{title: 'New Project', action: () => ctx.navigation.goto('.', {add: true})}]}
                         }}>
                         <div className='projects argo-container'>
-                            <DataLoader load={() => services.projects.list()} ref={loader => (this.loader = loader)}>
+                            <DataLoader load={() => services.projects.list()}>
                                 {projects =>
                                     (projects.length > 0 && (
                                         <div className='argo-table-list argo-table-list--clickable'>
@@ -60,6 +59,7 @@ export class ProjectsList extends React.Component {
                                 <SlidingPanel
                                     isShown={params.get('add') === 'true'}
                                     onClose={() => ctx.navigation.goto('.', {add: null})}
+                                    isMiddle={true}
                                     header={
                                         <div>
                                             <button onClick={() => ctx.navigation.goto('.', {add: null})} className='argo-button argo-button--base-o'>
@@ -70,21 +70,37 @@ export class ProjectsList extends React.Component {
                                             </button>
                                         </div>
                                     }>
-                                    <ProjectEditPanel
+                                    <Form
+                                        defaultValues={{metadata: {}, spec: {}}}
                                         getApi={api => (this.formApi = api)}
-                                        submit={async projParams => {
+                                        validateError={(p: Project) => ({
+                                            'metadata.name': !p.metadata.name && 'Project name is required'
+                                        })}
+                                        onSubmit={async (proj: Project) => {
                                             try {
-                                                await services.projects.create(projParams);
-                                                ctx.navigation.goto('.', {add: null});
-                                                this.loader.reload();
+                                                await services.projects.create(proj);
+                                                ctx.navigation.goto(`./${proj.metadata.name}`, {add: null});
                                             } catch (e) {
                                                 ctx.notifications.show({
                                                     content: <ErrorNotification title='Unable to create project' e={e} />,
                                                     type: NotificationType.Error
                                                 });
                                             }
-                                        }}
-                                    />
+                                        }}>
+                                        {api => (
+                                            <form onSubmit={api.submitForm} role='form' className='width-control'>
+                                                <div className='white-box'>
+                                                    <p>GENERAL</p>
+                                                    <div className='argo-form-row'>
+                                                        <FormField formApi={api} label='Name' field='metadata.name' component={Text} />
+                                                    </div>
+                                                    <div className='argo-form-row'>
+                                                        <FormField formApi={api} label='Description' field='spec.description' component={Text} />
+                                                    </div>
+                                                </div>
+                                            </form>
+                                        )}
+                                    </Form>
                                 </SlidingPanel>
                             )}
                         </Query>
