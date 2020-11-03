@@ -1121,8 +1121,20 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 	}
 	metadata, err := s.cache.GetRevisionMetadata(q.Repo.Repo, q.Revision)
 	if err == nil {
-		log.Infof("revision metadata cache hit: %s/%s", q.Repo.Repo, q.Revision)
-		return metadata, nil
+		// The logic here is that if a signature check on metadata is requested,
+		// but there is none in the cache, we handle as if we have a cache miss
+		// and re-generate the meta data. Otherwise, if there is signature info
+		// in the metadata, but none was requested, we remove it from the data
+		// that we return.
+		if q.CheckSignature && metadata.SignatureInfo == "" {
+			log.Infof("revision metadata cache hit, but need to regenerate due to missing signature info: %s/%s", q.Repo.Repo, q.Revision)
+		} else {
+			log.Infof("revision metadata cache hit: %s/%s", q.Repo.Repo, q.Revision)
+			if !q.CheckSignature {
+				metadata.SignatureInfo = ""
+			}
+			return metadata, nil
+		}
 	} else {
 		if err != reposervercache.ErrCacheMiss {
 			log.Warnf("revision metadata cache error %s/%s: %v", q.Repo.Repo, q.Revision, err)
@@ -1156,7 +1168,7 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 
 	// Run gpg verify-commit on the revision
 	signatureInfo := ""
-	if gpg.IsGPGEnabled() {
+	if gpg.IsGPGEnabled() && q.CheckSignature {
 		cs, err := gitClient.VerifyCommitSignature(q.Revision)
 		if err != nil {
 			log.Debugf("Could not verify commit signature: %v", err)
