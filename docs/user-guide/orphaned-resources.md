@@ -14,6 +14,6 @@ Before enabling feature you might consider disabling warning. In this case appli
 
 Not every resource in the Kubernetes cluster is controlled by the end user. Following resources are never considered as orphaned:
 
-* Namespaced resources blacklisted in the project. Usually, such resources are managed by cluster administrators and not supposed to be modified by namespace user.
+* Namespaced resources denied in the project. Usually, such resources are managed by cluster administrators and not supposed to be modified by namespace user.
 * `ServiceAccount` with name `default` ( and corresponding auto-generated `ServiceAccountToken` ).
 * `Service` with name `kubernetes` in the `default` namespace.
