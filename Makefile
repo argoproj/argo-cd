@@ -302,7 +302,7 @@ mod-vendor-local: mod-download-local
 
 # Deprecated - replace by install-local-tools
 .PHONY: install-lint-tools
-install-lint-tools: ensure-gopath
+install-lint-tools:
 	./hack/install.sh lint-tools
 
 # Run linter on the code
@@ -323,7 +323,7 @@ lint-ui: test-tools-image
 	$(call run-in-test-client,make lint-ui-local)
 
 .PHONY: lint-ui-local
-lint-ui-local: ensure-gopath
+lint-ui-local:
 	cd ui && yarn lint
 
 # Build all Go code
@@ -407,11 +407,11 @@ start-e2e-local:
 
 # Cleans VSCode debug.test files from sub-dirs to prevent them from being included in packr boxes
 .PHONY: clean-debug
-clean-debug: ensure-gopath
+clean-debug:
 	-find ${CURRENT_DIR} -name debug.test | xargs rm -f
 
 .PHONY: clean
-clean: ensure-gopath clean-debug
+clean: clean-debug
 	-rm -rf ${CURRENT_DIR}/dist
 
 .PHONY: start
@@ -444,7 +444,7 @@ pre-commit: codegen build lint test
 pre-commit-local: codegen-local build-local lint-local test-local
 
 .PHONY: release-precheck
-release-precheck: ensure-gopath manifests
+release-precheck: manifests
 	@if [ "$(GIT_TREE_STATE)" != "clean" ]; then echo 'git tree state is $(GIT_TREE_STATE)' ; exit 1; fi
 	@if [ -z "$(GIT_TAG)" ]; then echo 'commit must be tagged to perform release' ; exit 1; fi
 	@if [ "$(GIT_TAG)" != "v`cat VERSION`" ]; then echo 'VERSION does not match git tag'; exit 1; fi
