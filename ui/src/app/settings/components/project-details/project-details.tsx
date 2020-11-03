@@ -511,7 +511,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
             proj.metadata.labels = updatedProj.metadata.labels;
             proj.spec = updatedProj.spec;
 
-            const updated = await services.projects.updateProj(proj);
+            const updated = await services.projects.update(proj);
             const globalProj = await loadGlobal(updatedProj.metadata.name);
             this.loader.setData([updated, globalProj]);
         } catch (e) {
