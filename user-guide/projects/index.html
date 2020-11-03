@@ -1585,8 +1585,8 @@ argocd proj remove-destination &lt;PROJECT&gt; &lt;CLUSTER&gt;,&lt;NAMESPACE&gt;
 </code></pre></div>
 
 <p>Permitted destination K8s resource kinds are managed with the commands. Note that namespaced-scoped
-resources are restricted via a blacklist, whereas cluster-scoped resources are restricted via
-whitelist.</p>
+resources are restricted via a deny list, whereas cluster-scoped resources are restricted via
+allow list.</p>
 <div class="codehilite"><pre><span></span><code>argocd proj allow-cluster-resource &lt;PROJECT&gt; &lt;GROUP&gt; &lt;KIND&gt;
 argocd proj allow-namespace-resource &lt;PROJECT&gt; &lt;GROUP&gt; &lt;KIND&gt;
 argocd proj deny-cluster-resource &lt;PROJECT&gt; &lt;GROUP&gt; &lt;KIND&gt;

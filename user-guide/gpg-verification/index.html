@@ -1938,14 +1938,14 @@ the key added above from project <code>myproj</code>, use the command:</p>
 <p>To see which key IDs are allowed for a given project, you can inspect the
 output of the <code>argocd proj get</code> command, i.e for a project named <code>gpg</code>:</p>
 <div class="codehilite"><pre><span></span><code>$ argocd proj get gpg
-Name:                             gpg
-Description:                      GnuPG verification
-Destinations:                     *,*
-Repositories:                     *
-Whitelisted Cluster Resources:    */*
-Blacklisted Namespaced Resources: &lt;none&gt;
-Signature keys:                   4AEE18F83AFDEB23, 07E34825A909B250
-Orphaned Resources:               disabled
+Name:                        gpg
+Description:                 GnuPG verification
+Destinations:                *,*
+Repositories:                *
+Allowed Cluster Resources:   */*
+Denied Namespaced Resources: &lt;none&gt;
+Signature keys:              4AEE18F83AFDEB23, 07E34825A909B250
+Orphaned Resources:          disabled
 </code></pre></div>
 
 <h4 id="override-list-of-key-ids">Override list of key IDs<a class="headerlink" href="#override-list-of-key-ids" title="Permanent link">&para;</a></h4>

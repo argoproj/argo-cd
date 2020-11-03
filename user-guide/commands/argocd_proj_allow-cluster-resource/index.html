@@ -1429,15 +1429,15 @@
                   <h1>Argocd proj allow cluster resource</h1>
                 
                 <h2 id="argocd-proj-allow-cluster-resource">argocd proj allow-cluster-resource<a class="headerlink" href="#argocd-proj-allow-cluster-resource" title="Permanent link">&para;</a></h2>
-<p>Adds a cluster-scoped API resource to the whitelist and removes it from blacklist</p>
+<p>Adds a cluster-scoped API resource to the allow list and removes it from deny list</p>
 <h3 id="synopsis">Synopsis<a class="headerlink" href="#synopsis" title="Permanent link">&para;</a></h3>
-<p>Adds a cluster-scoped API resource to the whitelist and removes it from blacklist</p>
+<p>Adds a cluster-scoped API resource to the allow list and removes it from deny list</p>
 <div class="codehilite"><pre><span></span><code><span class="n">argocd</span><span class="w"> </span><span class="n">proj</span><span class="w"> </span><span class="n">allow</span><span class="o">-</span><span class="n">cluster</span><span class="o">-</span><span class="n">resource</span><span class="w"> </span><span class="n">PROJECT</span><span class="w"> </span><span class="k">GROUP</span><span class="w"> </span><span class="n">KIND</span><span class="w"> </span><span class="o">[</span><span class="n">flags</span><span class="o">]</span><span class="w"></span>
 </code></pre></div>
 
 <h3 id="options">Options<a class="headerlink" href="#options" title="Permanent link">&para;</a></h3>
 <div class="codehilite"><pre><span></span><code><span class="err">  -h, --help          help for allow-cluster-resource</span>
-<span class="err">  -l, --list string   Use blacklist or whitelist. This can only be &#39;white&#39; or &#39;black&#39; (default &quot;white&quot;)</span>
+<span class="err">  -l, --list string   Use deny list or allow list. This can only be &#39;allow&#39; or &#39;deny&#39; (default &quot;allow&quot;)</span>
 </code></pre></div>
 
 <h3 id="options-inherited-from-parent-commands">Options inherited from parent commands<a class="headerlink" href="#options-inherited-from-parent-commands" title="Permanent link">&para;</a></h3>

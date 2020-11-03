@@ -1429,15 +1429,15 @@
                   <h1>Argocd proj allow namespace resource</h1>
                 
                 <h2 id="argocd-proj-allow-namespace-resource">argocd proj allow-namespace-resource<a class="headerlink" href="#argocd-proj-allow-namespace-resource" title="Permanent link">&para;</a></h2>
-<p>Removes a namespaced API resource from the blacklist or add a namespaced API resource to the whitelist</p>
+<p>Removes a namespaced API resource from the deny list or add a namespaced API resource to the allow list</p>
 <h3 id="synopsis">Synopsis<a class="headerlink" href="#synopsis" title="Permanent link">&para;</a></h3>
-<p>Removes a namespaced API resource from the blacklist or add a namespaced API resource to the whitelist</p>
+<p>Removes a namespaced API resource from the deny list or add a namespaced API resource to the allow list</p>
 <div class="codehilite"><pre><span></span><code><span class="n">argocd</span><span class="w"> </span><span class="n">proj</span><span class="w"> </span><span class="n">allow</span><span class="o">-</span><span class="n">namespace</span><span class="o">-</span><span class="n">resource</span><span class="w"> </span><span class="n">PROJECT</span><span class="w"> </span><span class="k">GROUP</span><span class="w"> </span><span class="n">KIND</span><span class="w"> </span><span class="o">[</span><span class="n">flags</span><span class="o">]</span><span class="w"></span>
 </code></pre></div>
 
 <h3 id="options">Options<a class="headerlink" href="#options" title="Permanent link">&para;</a></h3>
 <div class="codehilite"><pre><span></span><code><span class="err">  -h, --help          help for allow-namespace-resource</span>
-<span class="err">  -l, --list string   Use blacklist or whitelist. This can only be &#39;white&#39; or &#39;black&#39; (default &quot;black&quot;)</span>
+<span class="err">  -l, --list string   Use deny list or allow list. This can only be &#39;allow&#39; or &#39;deny&#39; (default &quot;deny&quot;)</span>
 </code></pre></div>
 
 <h3 id="options-inherited-from-parent-commands">Options inherited from parent commands<a class="headerlink" href="#options-inherited-from-parent-commands" title="Permanent link">&para;</a></h3>

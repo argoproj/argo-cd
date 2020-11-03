@@ -1444,7 +1444,7 @@ will get a warning condition. The orphaned resources can be located using the ap
 <h2 id="exceptions">Exceptions<a class="headerlink" href="#exceptions" title="Permanent link">&para;</a></h2>
 <p>Not every resource in the Kubernetes cluster is controlled by the end user. Following resources are never considered as orphaned:</p>
 <ul>
-<li>Namespaced resources blacklisted in the project. Usually, such resources are managed by cluster administrators and not supposed to be modified by namespace user.</li>
+<li>Namespaced resources denied in the project. Usually, such resources are managed by cluster administrators and not supposed to be modified by namespace user.</li>
 <li><code>ServiceAccount</code> with name <code>default</code> ( and corresponding auto-generated <code>ServiceAccountToken</code> ).</li>
 <li><code>Service</code> with name <code>kubernetes</code> in the <code>default</code> namespace.</li>
 </ul>
