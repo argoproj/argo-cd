@@ -81,6 +81,8 @@ message RepoServerRevisionMetadataRequest {
     github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
     // the revision within the repo
     string revision = 2;
+    // whether to check signature on revision
+    bool checkSignature = 3;
 }
 
 // KsonnetAppSpec contains Ksonnet app response
