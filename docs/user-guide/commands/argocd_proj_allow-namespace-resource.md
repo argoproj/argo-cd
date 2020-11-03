@@ -1,10 +1,10 @@
 ## argocd proj allow-namespace-resource
 
-Removes a namespaced API resource from the blacklist or add a namespaced API resource to the whitelist
+Removes a namespaced API resource from the deny list or add a namespaced API resource to the allow list
 
 ### Synopsis
 
-Removes a namespaced API resource from the blacklist or add a namespaced API resource to the whitelist
+Removes a namespaced API resource from the deny list or add a namespaced API resource to the allow list
 
 ```
 argocd proj allow-namespace-resource PROJECT GROUP KIND [flags]
@@ -14,7 +14,7 @@ argocd proj allow-namespace-resource PROJECT GROUP KIND [flags]
 
 ```
   -h, --help          help for allow-namespace-resource
-  -l, --list string   Use blacklist or whitelist. This can only be 'white' or 'black' (default "black")
+  -l, --list string   Use deny list or allow list. This can only be 'allow' or 'deny' (default "deny")
 ```
 
 ### Options inherited from parent commands

@@ -228,7 +228,7 @@ func (ctrl *ApplicationController) getAppProj(app *appv1.Application) (*appv1.Ap
 func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]bool, ref v1.ObjectReference) {
 	// if namespaced resource is not managed by any app it might be orphaned resource of some other apps
 	if len(managedByApp) == 0 && ref.Namespace != "" {
-		// retrieve applications which monitor orphaned resources in the same namespace and refresh them unless resource is blacklisted in app project
+		// retrieve applications which monitor orphaned resources in the same namespace and refresh them unless resource is denied in app project
 		if objs, err := ctrl.appInformer.GetIndexer().ByIndex(orphanedIndex, ref.Namespace); err == nil {
 			for i := range objs {
 				app, ok := objs[i].(*appv1.Application)

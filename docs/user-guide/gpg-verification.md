@@ -187,14 +187,14 @@ output of the `argocd proj get` command, i.e for a project named `gpg`:
 
 ```bash
 $ argocd proj get gpg
-Name:                             gpg
-Description:                      GnuPG verification
-Destinations:                     *,*
-Repositories:                     *
-Whitelisted Cluster Resources:    */*
-Blacklisted Namespaced Resources: <none>
-Signature keys:                   4AEE18F83AFDEB23, 07E34825A909B250
-Orphaned Resources:               disabled
+Name:                        gpg
+Description:                 GnuPG verification
+Destinations:                *,*
+Repositories:                *
+Allowed Cluster Resources:   */*
+Denied Namespaced Resources: <none>
+Signature keys:              4AEE18F83AFDEB23, 07E34825A909B250
+Orphaned Resources:          disabled
 ```
 
 #### Override list of key IDs
