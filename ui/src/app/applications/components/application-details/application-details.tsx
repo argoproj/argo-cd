@@ -267,7 +267,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                             const controlled = managedResources.find(item => isSameNode(selectedNode, item));
                                                             const summary = application.status.resources.find(item => isSameNode(selectedNode, item));
                                                             const controlledState = (controlled && summary && {summary, state: controlled}) || null;
-                                                            const liveState = await services.applications.getResource(application.metadata.name, selectedNode).catch(() => null);
+                                                            const resQuery = {...selectedNode};
+                                                            if (controlled && controlled.targetState) {
+                                                                resQuery.version = AppUtils.parseApiVersion(controlled.targetState.apiVersion).version;
+                                                            }
+                                                            const liveState = await services.applications.getResource(application.metadata.name, resQuery).catch(() => null);
                                                             const events =
                                                                 (liveState &&
                                                                     (await services.applications.resourceEvents(application.metadata.name, {
