@@ -188,6 +188,17 @@ func TestRecurseManifestsInDir(t *testing.T) {
 	assert.Equal(t, 2, len(res1.Manifests))
 }
 
+func TestInvalidManifestsInDir(t *testing.T) {
+	service := newService(".")
+
+	src := argoappv1.ApplicationSource{Path: "./testdata/invalid-manifests", Directory: &argoappv1.ApplicationSourceDirectory{Recurse: true}}
+
+	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src}
+
+	_, err := service.GenerateManifest(context.Background(), &q)
+	assert.NotNil(t, err)
+}
+
 func TestGenerateJsonnetManifestInDir(t *testing.T) {
 	service := newService(".")
 
@@ -963,8 +974,9 @@ func TestGetRevisionMetadata(t *testing.T) {
 	}, nil)
 
 	res, err := service.GetRevisionMetadata(context.Background(), &apiclient.RepoServerRevisionMetadataRequest{
-		Repo:     &argoappv1.Repository{},
-		Revision: "c0b400fc458875d925171398f9ba9eabd5529923",
+		Repo:           &argoappv1.Repository{},
+		Revision:       "c0b400fc458875d925171398f9ba9eabd5529923",
+		CheckSignature: true,
 	})
 
 	assert.NoError(t, err)
@@ -972,7 +984,34 @@ func TestGetRevisionMetadata(t *testing.T) {
 	assert.Equal(t, now, res.Date.Time)
 	assert.Equal(t, "author", res.Author)
 	assert.EqualValues(t, []string{"tag1", "tag2"}, res.Tags)
+	assert.NotEmpty(t, res.SignatureInfo)
 
+	// Cache hit - signature info should not be in result
+	res, err = service.GetRevisionMetadata(context.Background(), &apiclient.RepoServerRevisionMetadataRequest{
+		Repo:           &argoappv1.Repository{},
+		Revision:       "c0b400fc458875d925171398f9ba9eabd5529923",
+		CheckSignature: false,
+	})
+	assert.NoError(t, err)
+	assert.Empty(t, res.SignatureInfo)
+
+	// Enforce cache miss - signature info should not be in result
+	res, err = service.GetRevisionMetadata(context.Background(), &apiclient.RepoServerRevisionMetadataRequest{
+		Repo:           &argoappv1.Repository{},
+		Revision:       "c0b400fc458875d925171398f9ba9eabd5529924",
+		CheckSignature: false,
+	})
+	assert.NoError(t, err)
+	assert.Empty(t, res.SignatureInfo)
+
+	// Cache hit on previous entry that did not have signature info
+	res, err = service.GetRevisionMetadata(context.Background(), &apiclient.RepoServerRevisionMetadataRequest{
+		Repo:           &argoappv1.Repository{},
+		Revision:       "c0b400fc458875d925171398f9ba9eabd5529924",
+		CheckSignature: true,
+	})
+	assert.NoError(t, err)
+	assert.NotEmpty(t, res.SignatureInfo)
 }
 
 func TestGetSignatureVerificationResult(t *testing.T) {
