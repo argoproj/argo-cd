@@ -3,8 +3,9 @@ package smoke
 import (
 	"testing"
 
-	"github.com/argoproj/argo-cd/util/errors"
 	"gotest.tools/assert"
+
+	"github.com/argoproj/argo-cd/util/errors"
 )
 
 func TestCreateApp(t *testing.T) {
