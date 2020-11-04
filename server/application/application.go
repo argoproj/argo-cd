@@ -213,6 +213,25 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 
 // ListNodes returns nodes associated with an application
 func (s *Server) ListNodes(ctx context.Context, q *application.NodeQuery) (*v1.NodeList, error) {
+	a, err := s.appLister.Get(*q.Name)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)); err != nil {
+		return nil, err
+	}
+	tree, err := s.getAppResources(ctx, a)
+	if err != nil {
+		return nil, err
+	}
+	nodeRefs := make(map[string]bool)
+	for _, node := range tree.Nodes {
+		for _, item := range node.Info {
+			if item.Name == "Node" {
+				nodeRefs[item.Value] = true
+			}
+		}
+	}
 	nodes, err := s.nodeLister.List(labels.Everything())
 	if err != nil {
 		return nil, err
@@ -220,7 +239,14 @@ func (s *Server) ListNodes(ctx context.Context, q *application.NodeQuery) (*v1.N
 	items := make([]v1.Node, 0)
 	for _, n := range nodes {
 		cur := *n
+		hostname := cur.ObjectMeta.Labels["kubernetes.io/hostname"]
+		if !nodeRefs[hostname] {
+			continue
+		}
 		items = append(items, v1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{"kubernetes.io/hostname": hostname},
+			},
 			Status: v1.NodeStatus{
 				Capacity:    cur.Status.Capacity,
 				Allocatable: cur.Status.Allocatable,
@@ -229,7 +255,6 @@ func (s *Server) ListNodes(ctx context.Context, q *application.NodeQuery) (*v1.N
 					Architecture:    cur.Status.NodeInfo.Architecture,
 					KernelVersion:   cur.Status.NodeInfo.KernelVersion,
 				},
-				Addresses: cur.Status.Addresses,
 			},
 		})
 	}
