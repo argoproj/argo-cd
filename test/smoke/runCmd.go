@@ -1,4 +1,4 @@
-package helper
+package smoke
 
 import (
 	"os/exec"
