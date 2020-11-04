@@ -12,8 +12,6 @@ Such token can be used to automatically create applications, projects etc.
 * Additional users for a very small team when SSO integration is overkill. The local users don't provide advanced features such as groups,
 login history etc. So if you need such features it is strongly recommended to use SSO.
 
-!!! warning "Make sure to read about security limitations related to local users in [security considerations](../../security_considerations.md) document"
-
 !!! note
     When you create local users, each of those users will need additional [RBAC rules](../rbac.md) set up, otherwise they will fall back to the default policy specified by `policy.default` field of the `argocd-rbac-cm` ConfigMap.
 
