@@ -16,12 +16,12 @@ import (
 	"strings"
 	"time"
 
+	"k8s.io/client-go/informers"
+	listers "k8s.io/client-go/listers/core/v1"
+
 	// nolint:staticcheck
 	golang_proto "github.com/golang/protobuf/proto"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/errors"
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/pkg/jwt/zjwt"
 	"github.com/argoproj/pkg/sync"
 	"github.com/dgrijalva/jwt-go"
@@ -68,6 +68,7 @@ import (
 	appinformer "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
 	applisters "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
 	repoapiclient "github.com/argoproj/argo-cd/reposerver/apiclient"
+	repocache "github.com/argoproj/argo-cd/reposerver/cache"
 	"github.com/argoproj/argo-cd/server/account"
 	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/server/badge"
@@ -89,9 +90,12 @@ import (
 	"github.com/argoproj/argo-cd/util/dex"
 	dexutil "github.com/argoproj/argo-cd/util/dex"
 	"github.com/argoproj/argo-cd/util/env"
+	"github.com/argoproj/argo-cd/util/errors"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/healthz"
 	httputil "github.com/argoproj/argo-cd/util/http"
+	"github.com/argoproj/argo-cd/util/io"
+	kubeutil "github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/oidc"
 	"github.com/argoproj/argo-cd/util/rbac"
 	util_session "github.com/argoproj/argo-cd/util/session"
@@ -154,6 +158,8 @@ type ArgoCDServer struct {
 	policyEnforcer *rbacpolicy.RBACPolicyEnforcer
 	appInformer    cache.SharedIndexInformer
 	appLister      applisters.ApplicationNamespaceLister
+	nodeInformer   cache.SharedIndexInformer
+	nodeLister     listers.NodeLister
 
 	// stopCh is the channel which when closed, will shutdown the Argo CD server
 	stopCh chan struct{}
@@ -217,6 +223,10 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 	appInformer := factory.Argoproj().V1alpha1().Applications().Informer()
 	appLister := factory.Argoproj().V1alpha1().Applications().Lister().Applications(opts.Namespace)
 
+	kfactory := informers.NewSharedInformerFactory(opts.KubeClientset, 0)
+	nodeInformer := kfactory.Core().V1().Nodes().Informer()
+	nodeLister := kfactory.Core().V1().Nodes().Lister()
+
 	enf := rbac.NewEnforcer(opts.KubeClientset, opts.Namespace, common.ArgoCDRBACConfigMapName, nil)
 	enf.EnableEnforce(!opts.DisableAuth)
 	err = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
@@ -236,6 +246,8 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 		projInformer:     projInformer,
 		appInformer:      appInformer,
 		appLister:        appLister,
+		nodeInformer:     nodeInformer,
+		nodeLister:       nodeLister,
 		policyEnforcer:   policyEnf,
 	}
 }
@@ -320,6 +332,8 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
 
 	go a.projInformer.Run(ctx.Done())
 	go a.appInformer.Run(ctx.Done())
+	go a.nodeInformer.Run(ctx.Done())
+
 	go func() { a.checkServeErr("grpcS", grpcS.Serve(grpcL)) }()
 	go func() { a.checkServeErr("httpS", httpS.Serve(httpL)) }()
 	if a.useTLS() {
@@ -330,7 +344,7 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
 	go a.rbacPolicyLoader(ctx)
 	go func() { a.checkServeErr("tcpm", tcpm.Serve()) }()
 	go func() { a.checkServeErr("metrics", metricsServ.ListenAndServe()) }()
-	if !cache.WaitForCacheSync(ctx.Done(), a.projInformer.HasSynced, a.appInformer.HasSynced) {
+	if !cache.WaitForCacheSync(ctx.Done(), a.projInformer.HasSynced, a.appInformer.HasSynced, a.nodeInformer.HasSynced) {
 		log.Fatal("Timed out waiting for project cache to sync")
 	}
 
@@ -516,7 +530,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	)))
 	grpcS := grpc.NewServer(sOpts...)
 	db := db.NewDB(a.Namespace, a.settingsMgr, a.KubeClientset)
-	kubectl := &kube.KubectlCmd{}
+	kubectl := kubeutil.NewKubectl()
 	clusterService := cluster.NewServer(db, a.enf, a.Cache, kubectl)
 	repoService := repository.NewServer(a.RepoClientset, db, a.enf, a.Cache, a.settingsMgr)
 	repoCredsService := repocreds.NewServer(a.RepoClientset, db, a.enf, a.settingsMgr)
@@ -539,8 +553,9 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 		a.enf,
 		projectLock,
 		a.settingsMgr,
-		a.projInformer)
-	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr, a.policyEnforcer)
+		a.projInformer,
+		a.nodeLister)
+	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr, a.policyEnforcer, a.projInformer, a.settingsMgr)
 	settingsService := settings.NewServer(a.settingsMgr, a, a.DisableAuth)
 	accountService := account.NewServer(a.sessionMgr, a.settingsMgr, a.enf)
 	certificateService := certificate.NewServer(a.RepoClientset, db, a.enf)
@@ -687,7 +702,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	a.registerDexHandlers(mux)
 
 	// Webhook handler for git events
-	acdWebhookHandler := webhook.NewHandler(a.Namespace, a.AppClientset, a.settings)
+	acdWebhookHandler := webhook.NewHandler(a.Namespace, a.AppClientset, a.settings, a.settingsMgr, repocache.NewCache(a.Cache.GetCache(), 24*time.Hour))
 	mux.HandleFunc("/api/webhook", acdWebhookHandler.Handler)
 
 	// Serve cli binaries directly from API server

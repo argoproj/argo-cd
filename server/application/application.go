@@ -13,10 +13,11 @@ import (
 	"strings"
 	"time"
 
+	listers "k8s.io/client-go/listers/core/v1"
+
 	"github.com/Masterminds/semver"
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
 	"github.com/argoproj/pkg/sync"
@@ -53,6 +54,7 @@ import (
 	"github.com/argoproj/argo-cd/util/env"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/helm"
+	"github.com/argoproj/argo-cd/util/io"
 	"github.com/argoproj/argo-cd/util/lua"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/session"
@@ -80,6 +82,7 @@ type Server struct {
 	settingsMgr    *settings.SettingsManager
 	cache          *servercache.Cache
 	projInformer   cache.SharedIndexInformer
+	nodeLister     listers.NodeLister
 }
 
 // NewServer returns a new instance of the Application service
@@ -97,6 +100,7 @@ func NewServer(
 	projectLock sync.KeyLock,
 	settingsMgr *settings.SettingsManager,
 	projInformer cache.SharedIndexInformer,
+	nodeLister listers.NodeLister,
 ) application.ApplicationServiceServer {
 	appBroadcaster := &broadcasterHandler{}
 	appInformer.AddEventHandler(appBroadcaster)
@@ -116,6 +120,7 @@ func NewServer(
 		auditLogger:    argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
 		settingsMgr:    settingsMgr,
 		projInformer:   projInformer,
+		nodeLister:     nodeLister,
 	}
 }
 
@@ -204,6 +209,58 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 		return nil, err
 	}
 	return updated, nil
+}
+
+// ListNodes returns nodes associated with an application
+func (s *Server) ListNodes(ctx context.Context, q *application.NodeQuery) (*v1.NodeList, error) {
+	a, err := s.appLister.Get(*q.Name)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)); err != nil {
+		return nil, err
+	}
+	tree, err := s.getAppResources(ctx, a)
+	if err != nil {
+		return nil, err
+	}
+	nodeRefs := make(map[string]bool)
+	for _, node := range tree.Nodes {
+		for _, item := range node.Info {
+			if item.Name == "Node" {
+				nodeRefs[item.Value] = true
+			}
+		}
+	}
+	nodes, err := s.nodeLister.List(labels.Everything())
+	if err != nil {
+		return nil, err
+	}
+	items := make([]v1.Node, 0)
+	for _, n := range nodes {
+		cur := *n
+		hostname := cur.ObjectMeta.Labels["kubernetes.io/hostname"]
+		if !nodeRefs[hostname] {
+			continue
+		}
+		items = append(items, v1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{"kubernetes.io/hostname": hostname},
+			},
+			Status: v1.NodeStatus{
+				Capacity:    cur.Status.Capacity,
+				Allocatable: cur.Status.Allocatable,
+				NodeInfo: v1.NodeSystemInfo{
+					OperatingSystem: cur.Status.NodeInfo.OperatingSystem,
+					Architecture:    cur.Status.NodeInfo.Architecture,
+					KernelVersion:   cur.Status.NodeInfo.KernelVersion,
+				},
+			},
+		})
+	}
+	return &v1.NodeList{
+		Items: items,
+	}, nil
 }
 
 // GetManifests returns application manifests
@@ -1056,13 +1113,14 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 		SinceSeconds: sinceSeconds,
 		SinceTime:    q.SinceTime,
 		TailLines:    tailLines,
-	}).Stream(context.Background())
+	}).Stream(ws.Context())
 	if err != nil {
 		return err
 	}
 	logCtx := log.WithField("application", q.Name)
 	defer io.Close(stream)
 	done := make(chan bool)
+	reachedEOF := false
 	gracefulExit := false
 	go func() {
 		bufReader := bufio.NewReader(stream)
@@ -1098,14 +1156,22 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 			logCtx.Warnf("k8s pod logs reader failed with error: %v", err)
 		} else {
 			logCtx.Info("k8s pod logs reader completed with EOF")
+			reachedEOF = true
 		}
 		close(done)
 	}()
+
 	select {
 	case <-ws.Context().Done():
 		logCtx.Info("client pod logs grpc context closed")
 		gracefulExit = true
 	case <-done:
+	}
+
+	if reachedEOF || gracefulExit {
+		if err := ws.Send(&application.LogEntry{Last: true}); err != nil {
+			logCtx.Warnf("Unable to send stream message notifying about last log message: %v", err)
+		}
 	}
 	return nil
 }
@@ -1268,7 +1334,7 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 		if helm.IsVersion(ambiguousRevision) {
 			return ambiguousRevision, ambiguousRevision, nil
 		}
-		client := helm.NewClient(repo.Repo, repo.GetHelmCreds())
+		client := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI)
 		index, err := client.GetIndex()
 		if err != nil {
 			return "", "", err
@@ -1439,9 +1505,6 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 		return nil, err
 	}
 
-	s.logAppEvent(a, ctx, argo.EventReasonResourceActionRan, fmt.Sprintf("ran action %s on resource %s/%s/%s", q.Action, res.Group, res.Kind, res.Name))
-	s.logResourceEvent(res, ctx, argo.EventReasonResourceActionRan, fmt.Sprintf("ran action %s", q.Action))
-
 	newObjBytes, err := json.Marshal(newObj)
 	if err != nil {
 		return nil, err
@@ -1460,11 +1523,74 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 		return &application.ApplicationResponse{}, nil
 	}
 
-	_, err = s.kubectl.PatchResource(ctx, config, newObj.GroupVersionKind(), newObj.GetName(), newObj.GetNamespace(), types.MergePatchType, diffBytes)
+	// The following logic detects if the resource action makes a modification to status and/or spec.
+	// If status was modified, we attempt to patch the status using status subresource, in case the
+	// CRD is configured using the status subresource feature. See:
+	// https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#status-subresource
+	// If status subresource is in use, the patch has to be split into two:
+	// * one to update spec (and other non-status fields)
+	// * the other to update only status.
+	nonStatusPatch, statusPatch, err := splitStatusPatch(diffBytes)
 	if err != nil {
 		return nil, err
 	}
+	if statusPatch != nil {
+		_, err = s.kubectl.PatchResource(ctx, config, newObj.GroupVersionKind(), newObj.GetName(), newObj.GetNamespace(), types.MergePatchType, diffBytes, "status")
+		if err != nil {
+			if !apierr.IsNotFound(err) {
+				return nil, err
+			}
+			// K8s API server returns 404 NotFound when the CRD does not support the status subresource
+			// if we get here, the CRD does not use the status subresource. We will fall back to a normal patch
+		} else {
+			// If we get here, the CRD does use the status subresource, so we must patch status and
+			// spec separately. update the diffBytes to the spec-only patch and fall through.
+			diffBytes = nonStatusPatch
+		}
+	}
+	if diffBytes != nil {
+		_, err = s.kubectl.PatchResource(ctx, config, newObj.GroupVersionKind(), newObj.GetName(), newObj.GetNamespace(), types.MergePatchType, diffBytes)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	s.logAppEvent(a, ctx, argo.EventReasonResourceActionRan, fmt.Sprintf("ran action %s on resource %s/%s/%s", q.Action, res.Group, res.Kind, res.Name))
+	s.logResourceEvent(res, ctx, argo.EventReasonResourceActionRan, fmt.Sprintf("ran action %s", q.Action))
 	return &application.ApplicationResponse{}, nil
+}
+
+// splitStatusPatch splits a patch into two: one for a non-status patch, and the status-only patch.
+// Returns nil for either if the patch doesn't have modifications to non-status, or status, respectively.
+func splitStatusPatch(patch []byte) ([]byte, []byte, error) {
+	var obj map[string]interface{}
+	err := json.Unmarshal(patch, &obj)
+	if err != nil {
+		return nil, nil, err
+	}
+	var nonStatusPatch, statusPatch []byte
+	if statusVal, ok := obj["status"]; ok {
+		// calculate the status-only patch
+		statusObj := map[string]interface{}{
+			"status": statusVal,
+		}
+		statusPatch, err = json.Marshal(statusObj)
+		if err != nil {
+			return nil, nil, err
+		}
+		// remove status, and calculate the non-status patch
+		delete(obj, "status")
+		if len(obj) > 0 {
+			nonStatusPatch, err = json.Marshal(obj)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+	} else {
+		// status was not modified in patch
+		nonStatusPatch = patch
+	}
+	return nonStatusPatch, statusPatch, nil
 }
 
 func (s *Server) plugins() ([]*v1alpha1.ConfigManagementPlugin, error) {

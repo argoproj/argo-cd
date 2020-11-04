@@ -355,9 +355,9 @@ const _ = grpc.SupportPackageIsVersion4
 type SessionServiceClient interface {
 	// Get the current user's info
 	GetUserInfo(ctx context.Context, in *GetUserInfoRequest, opts ...grpc.CallOption) (*GetUserInfoResponse, error)
-	// Create a new JWT for authentication and set a cookie if using HTTP.
+	// Create a new JWT for authentication and set a cookie if using HTTP
 	Create(ctx context.Context, in *SessionCreateRequest, opts ...grpc.CallOption) (*SessionResponse, error)
-	// Delete an existing JWT cookie if using HTTP.
+	// Delete an existing JWT cookie if using HTTP
 	Delete(ctx context.Context, in *SessionDeleteRequest, opts ...grpc.CallOption) (*SessionResponse, error)
 }
 
@@ -400,9 +400,9 @@ func (c *sessionServiceClient) Delete(ctx context.Context, in *SessionDeleteRequ
 type SessionServiceServer interface {
 	// Get the current user's info
 	GetUserInfo(context.Context, *GetUserInfoRequest) (*GetUserInfoResponse, error)
-	// Create a new JWT for authentication and set a cookie if using HTTP.
+	// Create a new JWT for authentication and set a cookie if using HTTP
 	Create(context.Context, *SessionCreateRequest) (*SessionResponse, error)
-	// Delete an existing JWT cookie if using HTTP.
+	// Delete an existing JWT cookie if using HTTP
 	Delete(context.Context, *SessionDeleteRequest) (*SessionResponse, error)
 }
 

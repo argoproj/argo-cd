@@ -43,7 +43,7 @@ export function Paginate<T>({page, onPageChange, children, data, emptyState, pre
                                 <DropDownMenu
                                     anchor={() => (
                                         <a>
-                                            page size: {pageSize === -1 ? 'all' : pageSize} <i className='fa fa-caret-down' />
+                                            Items per page: {pageSize === -1 ? 'all' : pageSize} <i className='fa fa-caret-down' />
                                         </a>
                                     )}
                                     items={[5, 10, 15, 20, -1].map(count => ({

@@ -15,7 +15,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	apiv1 "k8s.io/api/core/v1"
@@ -167,6 +166,8 @@ type Repository struct {
 	TLSClientCertDataSecret *apiv1.SecretKeySelector `json:"tlsClientCertDataSecret,omitempty"`
 	// Name of the secret storing the TLS client cert's key data
 	TLSClientCertKeySecret *apiv1.SecretKeySelector `json:"tlsClientCertKeySecret,omitempty"`
+	// Whether the repo is helm-oci enabled. Git only.
+	EnableOci bool `json:"enableOci,omitempty"`
 }
 
 // Credential template for accessing repositories
@@ -280,7 +281,7 @@ const (
 )
 
 type ArgoCDDiffOptions struct {
-	diff.DiffOptions
+	IgnoreAggregatedRoles bool `json:"ignoreAggregatedRoles,omitempty"`
 
 	// If set to true then differences caused by status are ignored.
 	IgnoreResourceStatusField IgnoreStatus `json:"ignoreResourceStatusField,omitempty"`
@@ -518,10 +519,14 @@ func addStatusOverrideToGK(resourceOverrides map[string]v1alpha1.ResourceOverrid
 	}
 }
 
+func GetDefaultDiffOptions() ArgoCDDiffOptions {
+	return ArgoCDDiffOptions{IgnoreAggregatedRoles: false}
+}
+
 // GetResourceCompareOptions loads the resource compare options settings from the ConfigMap
-func (mgr *SettingsManager) GetResourceCompareOptions() (diff.DiffOptions, error) {
+func (mgr *SettingsManager) GetResourceCompareOptions() (ArgoCDDiffOptions, error) {
 	// We have a sane set of default diff options
-	diffOptions := diff.GetDefaultDiffOptions()
+	diffOptions := GetDefaultDiffOptions()
 
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
@@ -638,24 +643,32 @@ func (mgr *SettingsManager) SaveRepositoryCredentials(creds []RepositoryCredenti
 }
 
 func (mgr *SettingsManager) GetRepositoryCredentials() ([]RepositoryCredentials, error) {
-	if mgr.repoCredsCache == nil {
-		argoCDCM, err := mgr.getConfigMap()
+
+	mgr.mutex.Lock()
+	repoCredsCache := mgr.repoCredsCache
+	mgr.mutex.Unlock()
+	if repoCredsCache != nil {
+		return repoCredsCache, nil
+	}
+
+	// Get the config map outside of the lock
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return nil, err
+	}
+
+	mgr.mutex.Lock()
+	defer mgr.mutex.Unlock()
+	creds := make([]RepositoryCredentials, 0)
+	credsStr := argoCDCM.Data[repositoryCredentialsKey]
+	if credsStr != "" {
+		err := yaml.Unmarshal([]byte(credsStr), &creds)
 		if err != nil {
 			return nil, err
 		}
-
-		mgr.mutex.Lock()
-		defer mgr.mutex.Unlock()
-		creds := make([]RepositoryCredentials, 0)
-		credsStr := argoCDCM.Data[repositoryCredentialsKey]
-		if credsStr != "" {
-			err := yaml.Unmarshal([]byte(credsStr), &creds)
-			if err != nil {
-				return nil, err
-			}
-		}
-		mgr.repoCredsCache = creds
 	}
+	mgr.repoCredsCache = creds
+
 	return mgr.repoCredsCache, nil
 }
 
@@ -825,7 +838,7 @@ func validateExternalURL(u string) error {
 		return fmt.Errorf("Failed to parse URL: %v", err)
 	}
 	if URL.Scheme != "http" && URL.Scheme != "https" {
-		return fmt.Errorf("URL must inlcude http or https protocol")
+		return fmt.Errorf("URL must include http or https protocol")
 	}
 	return nil
 }

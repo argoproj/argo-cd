@@ -94,6 +94,9 @@ message AppProjectStatus {
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:resource:path=applications,shortName=app;apps
+// +kubebuilder:printcolumn:name="Sync Status",type=string,JSONPath=`.status.sync.status`
+// +kubebuilder:printcolumn:name="Health Status",type=string,JSONPath=`.status.health.status`
+// +kubebuilder:printcolumn:name="Revision",type=string,JSONPath=`.status.sync.revision`,priority=10
 message Application {
   optional k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
 
@@ -171,6 +174,8 @@ message ApplicationSourceDirectory {
   optional bool recurse = 1;
 
   optional ApplicationSourceJsonnet jsonnet = 2;
+
+  optional string exclude = 3;
 }
 
 // ApplicationSourceHelm holds helm specific options
@@ -231,6 +236,9 @@ message ApplicationSourceKustomize {
 
   // Version contains optional Kustomize version
   optional string version = 5;
+
+  // CommonAnnotations adds additional kustomize commonAnnotations
+  map<string, string> commonAnnotations = 6;
 }
 
 // ApplicationSourcePlugin holds config management plugin specific options
@@ -396,6 +404,9 @@ message ClusterConfig {
 
   // AWSAuthConfig contains IAM authentication configuration
   optional AWSAuthConfig awsAuthConfig = 5;
+
+  // ExecProviderConfig contains configuration for an exec provider
+  optional ExecProviderConfig execProviderConfig = 6;
 }
 
 message ClusterInfo {
@@ -462,6 +473,25 @@ message EnvEntry {
 
   // the value
   optional string value = 2;
+}
+
+// ExecProviderConfig is config used to call an external command to perform cluster authentication
+// See: https://godoc.org/k8s.io/client-go/tools/clientcmd/api#ExecConfig
+message ExecProviderConfig {
+  // Command to execute
+  optional string command = 1;
+
+  // Arguments to pass to the command when executing it
+  repeated string args = 2;
+
+  // Env defines additional environment variables to expose to the process
+  map<string, string> env = 3;
+
+  // Preferred input version of the ExecInfo
+  optional string apiVersion = 4;
+
+  // This text is shown to the user when the executable doesn't seem to be present
+  optional string installHint = 5;
 }
 
 // GnuPGPublicKey is a representation of a GnuPG public key
@@ -734,6 +764,9 @@ message Repository {
 
   // Whether credentials were inherited from a credential set
   optional bool inheritedCreds = 13;
+
+  // Whether helm-oci support should be enabled for this repo
+  optional bool enableOCI = 14;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate

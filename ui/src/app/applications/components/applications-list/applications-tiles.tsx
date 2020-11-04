@@ -5,6 +5,7 @@ import * as React from 'react';
 import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 
+import {Cluster} from '../../../shared/components';
 import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';
 import {OperationState} from '../utils';
@@ -16,13 +17,6 @@ export interface ApplicationTilesProps {
     syncApplication: (appName: string) => any;
     refreshApplication: (appName: string) => any;
     deleteApplication: (appName: string) => any;
-}
-
-function getDestination(dest: models.ApplicationDestination) {
-    if (dest.server === undefined) {
-        return dest.name;
-    }
-    return dest.server;
 }
 
 export const ApplicationTiles = ({applications, syncApplication, refreshApplication, deleteApplication}: ApplicationTilesProps) => (
@@ -81,7 +75,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                         <div className='columns small-3' title='Status:'>
                                             Status:
                                         </div>
-                                        <div className='columns small-9'>
+                                        <div className='columns small-9' qe-id='applications-tiles-health-status'>
                                             <AppUtils.HealthStatusIcon state={app.status.health} /> {app.status.health.status}
                                             &nbsp;
                                             <AppUtils.ComparisonStatusIcon status={app.status.sync.status} /> {app.status.sync.status}
@@ -125,7 +119,9 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                         <div className='columns small-3' title='Destination:'>
                                             Destination:
                                         </div>
-                                        <div className='columns small-9'>{getDestination(app.spec.destination)}</div>
+                                        <div className='columns small-9'>
+                                            <Cluster server={app.spec.destination.server} name={app.spec.destination.name} />
+                                        </div>
                                     </div>
                                     <div className='row'>
                                         <div className='columns small-3' title='Namespace:'>
@@ -137,6 +133,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                         <div className='columns applications-list__entry--actions'>
                                             <a
                                                 className='argo-button argo-button--base'
+                                                qe-id='applications-tiles-button-sync'
                                                 onClick={e => {
                                                     e.stopPropagation();
                                                     syncApplication(app.metadata.name);
@@ -146,6 +143,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                             &nbsp;
                                             <a
                                                 className='argo-button argo-button--base'
+                                                qe-id='applications-tiles-button-refresh'
                                                 {...AppUtils.refreshLinkAttrs(app)}
                                                 onClick={e => {
                                                     e.stopPropagation();
@@ -157,6 +155,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                             &nbsp;
                                             <a
                                                 className='argo-button argo-button--base'
+                                                qe-id='applications-tiles-button-delete'
                                                 onClick={e => {
                                                     e.stopPropagation();
                                                     deleteApplication(app.metadata.name);

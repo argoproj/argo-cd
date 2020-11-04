@@ -57,7 +57,7 @@ If everything went correctly, login to your OpenUnison instance and there should
 
 ## Configure ArgoCD Policy
 
-OpenUnison places groups in the `groups` claim.  These claims will show up when you click on the user-info section of the ArgoCD portal.  If you're using LDAP, Active Directory, or Active Directory Federation Services the groups will provided to  ArgoCD as full Distinguished Names (DN).  Since a DN containers commas (`,`) you'll need to quote the group name in your policy.  For instance to assign `CN=k8s_login_ckuster_admins,CN=Users,DC=ent2k12,DC=domain,DC=com` as an adminsistrator would look like:
+OpenUnison places groups in the `groups` claim.  These claims will show up when you click on the user-info section of the ArgoCD portal.  If you're using LDAP, Active Directory, or Active Directory Federation Services the groups will provided to  ArgoCD as full Distinguished Names (DN).  Since a DN containers commas (`,`) you'll need to quote the group name in your policy.  For instance to assign `CN=k8s_login_cluster_admins,CN=Users,DC=ent2k12,DC=domain,DC=com` as an administrator would look like:
 
 ```
 apiVersion: v1
@@ -67,5 +67,5 @@ metadata:
   namespace: argocd
 data:
   policy.csv: |
-    g, "CN=k8s_login_ckuster_admins,CN=Users,DC=ent2k12,DC=domain,DC=com", role:admin
+    g, "CN=k8s_login_cluster_admins,CN=Users,DC=ent2k12,DC=domain,DC=com", role:admin
 ```

@@ -82,7 +82,7 @@ func (c *clusterInfoUpdater) updateClusters() {
 		}
 		return nil
 	})
-	log.Infof("Successfully saved info of %d clusters", len(clustersFiltered))
+	log.Debugf("Successfully saved info of %d clusters", len(clustersFiltered))
 }
 
 func (c *clusterInfoUpdater) updateClusterInfo(cluster appv1.Cluster, info *cache.ClusterInfo) error {

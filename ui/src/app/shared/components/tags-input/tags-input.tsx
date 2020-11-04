@@ -10,9 +10,20 @@ export interface TagsInputProps {
     placeholder?: string;
 }
 
+interface TagsInputState {
+    tags: string[];
+    input: string;
+    focused: boolean;
+}
+
 require('./tags-input.scss');
 
-export class TagsInput extends React.Component<TagsInputProps, {tags: string[]; input: string; focused: boolean}> {
+export class TagsInput extends React.Component<TagsInputProps, TagsInputState> {
+    public static getDerivedStateFromProps(props: TagsInputProps, state: TagsInputState) {
+        state.tags = props.tags;
+        return state;
+    }
+
     private inputEl: HTMLInputElement;
     private autocompleteApi: AutocompleteApi;
 

@@ -34,6 +34,10 @@ func (w *gitClientWrapper) LsRemote(revision string) (string, error) {
 	return sha, err
 }
 
+func (w *gitClientWrapper) LsRefs() (*git.Refs, error) {
+	return w.client.LsRefs()
+}
+
 func (w *gitClientWrapper) LsFiles(path string) ([]string, error) {
 	return w.client.LsFiles(path)
 }

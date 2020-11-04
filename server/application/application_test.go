@@ -7,7 +7,6 @@ import (
 	"time"
 
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
 	"github.com/argoproj/pkg/sync"
 	"github.com/dgrijalva/jwt-go"
@@ -38,6 +37,7 @@ import (
 	"github.com/argoproj/argo-cd/util/assets"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
+	"github.com/argoproj/argo-cd/util/errors"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/settings"
 )
@@ -152,13 +152,13 @@ func newTestAppServer(objects ...runtime.Object) *Server {
 	//ctx, cancel := context.WithCancel(context.Background())
 	go appInformer.Run(ctx.Done())
 	if !k8scache.WaitForCacheSync(ctx.Done(), appInformer.HasSynced) {
-		panic("Timed out waiting forfff caches to sync")
+		panic("Timed out waiting for caches to sync")
 	}
 
 	projInformer := factory.Argoproj().V1alpha1().AppProjects().Informer()
 	go projInformer.Run(ctx.Done())
 	if !k8scache.WaitForCacheSync(ctx.Done(), projInformer.HasSynced) {
-		panic("Timed out waiting forfff caches to sync")
+		panic("Timed out waiting for caches to sync")
 	}
 
 	server := NewServer(
@@ -621,4 +621,35 @@ func TestGetCachedAppState(t *testing.T) {
 		})
 		assert.Equal(t, randomError, err)
 	})
+}
+
+func TestSplitStatusPatch(t *testing.T) {
+	specPatch := `{"spec":{"aaa":"bbb"}}`
+	statusPatch := `{"status":{"ccc":"ddd"}}`
+	{
+		nonStatus, status, err := splitStatusPatch([]byte(specPatch))
+		assert.NoError(t, err)
+		assert.Equal(t, specPatch, string(nonStatus))
+		assert.Nil(t, status)
+	}
+	{
+		nonStatus, status, err := splitStatusPatch([]byte(statusPatch))
+		assert.NoError(t, err)
+		assert.Nil(t, nonStatus)
+		assert.Equal(t, statusPatch, string(status))
+	}
+	{
+		bothPatch := `{"spec":{"aaa":"bbb"},"status":{"ccc":"ddd"}}`
+		nonStatus, status, err := splitStatusPatch([]byte(bothPatch))
+		assert.NoError(t, err)
+		assert.Equal(t, specPatch, string(nonStatus))
+		assert.Equal(t, statusPatch, string(status))
+	}
+	{
+		otherFields := `{"operation":{"eee":"fff"},"spec":{"aaa":"bbb"},"status":{"ccc":"ddd"}}`
+		nonStatus, status, err := splitStatusPatch([]byte(otherFields))
+		assert.NoError(t, err)
+		assert.Equal(t, `{"operation":{"eee":"fff"},"spec":{"aaa":"bbb"}}`, string(nonStatus))
+		assert.Equal(t, statusPatch, string(status))
+	}
 }

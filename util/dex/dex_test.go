@@ -209,9 +209,9 @@ func Test_GenerateDexConfig(t *testing.T) {
 		assert.True(t, ok)
 		assert.Equal(t, 3, len(clients))
 
-		customCient := clients[2].(map[string]interface{})
-		assert.Equal(t, "argo-workflow", customCient["id"].(string))
-		assert.Equal(t, 1, len(customCient["redirectURIs"].([]interface{})))
+		customClient := clients[2].(map[string]interface{})
+		assert.Equal(t, "argo-workflow", customClient["id"].(string))
+		assert.Equal(t, 1, len(customClient["redirectURIs"].([]interface{})))
 	})
 }
 
