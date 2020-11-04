@@ -5,6 +5,17 @@ $gutter: 3px;
 $pods-per-row: 7;
 $max-rows: 5;
 
+.pod-view {
+  &__settings {
+    align-items: center;
+    display: flex;
+    margin-bottom: 1em;
+    &__section {
+      margin: 0 10px;
+    }
+  }
+}
+
 .nodes-container {
   display: flex;
   flex-wrap: wrap;
@@ -40,43 +51,53 @@ $max-rows: 5;
       align-content: flex-start;
       height: 100%;
       width: 100%;
+      background-color: $argo-color-gray-3;
+      border-radius: 3px;
+      padding: $gutter*2;
       margin-right: -1 * $gutter;
       margin-bottom: -1 * $gutter;
     }
   }
-
+  
   &__pod {
     border-radius: 3px;
     width: $pod-size;
     height: $pod-size;
     margin: $gutter;
     cursor: pointer;
-    &--succeeded {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    i.fa {
+      color: white !important;
+    }
+    &--succeeded, &--healthy {
       background-color: $argo-success-color;
       &:hover {
         background-color: $argo-success-color-dark;
       }
     }
-    &--pending {
+    &--pending, &--suspended {
       background-color: $argo-status-warning-color;
       &:hover {
         background-color: $argo-status-warning-color - #111;
       }
     }
-    &--running {
+    &--running, &--progressing {
       background-color: $argo-running-color;
       &:hover {
         background-color: $argo-running-color-dark;
       }
     }
-    &--failed {
+    &--failed, &--degraded {
       background-color: $argo-failed-color;
+      border: 2px inset rgba(0,0,0,0.3);
       &:hover {
         background-color: $argo-failed-color-dark;
       }
     }
-    &--unknown {
-      background-color: $argo-color-gray-4;
+    &--unknown, &--missing {
+      background-color: $argo-color-gray-5;
       &:hover {
         background-color: $argo-color-gray-6;
       }
@@ -86,24 +107,24 @@ $max-rows: 5;
       flex-direction: column;
       justify-content: flex-end;
       &__bar {
-        $stat-width: 18px;
+        $stat-width: 12px;
         align-self: flex-end;
         background-color: $argo-color-gray-4;
         height: $max-rows * $pod-size;
         width: $stat-width;
-        border-radius: 3px;
+        border-radius: 2px;
         margin: 0 $gutter*2;
         overflow: hidden;
         display: flex;
         cursor: pointer;
 
         &:hover > &--fill {
-          background-color: $argo-color-teal-6;
+          background-color: $argo-color-gray-8;
         }
 
         &--fill {
           align-self: flex-end;
-          background-color: $argo-color-teal-5;
+          background-color: $argo-color-gray-7;
           width: $stat-width;
         }
       }

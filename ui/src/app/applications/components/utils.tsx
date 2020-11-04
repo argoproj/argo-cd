@@ -182,6 +182,28 @@ export const HealthStatusIcon = ({state}: {state: appModels.HealthStatus}) => {
     return <i qe-id='utils-health-status-title' title={title} className={'fa ' + icon} style={{color}} />;
 };
 
+export const PodPhaseIcon = ({state}: {state: appModels.PodPhase}) => {
+    let className = '';
+    switch (state) {
+        case appModels.PodPhase.PodSucceeded:
+            className = 'fa fa-check';
+            break;
+        case appModels.PodPhase.PodRunning:
+            className = 'fa fa-circle-notch fa-spin';
+            break;
+        case appModels.PodPhase.PodPending:
+            className = 'fa fa-circle-notch fa-spin';
+            break;
+        case appModels.PodPhase.PodFailed:
+            className = 'fa fa-times';
+            break;
+        default:
+            className = 'fa fa-question-circle';
+            break;
+    }
+    return <i qe-id='utils-pod-phase-icon' className={className} />;
+};
+
 export const ResourceResultIcon = ({resource}: {resource: appModels.ResourceResult}) => {
     let color = COLORS.sync_result.unknown;
     let icon = 'fa-question-circle';

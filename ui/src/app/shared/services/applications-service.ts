@@ -83,6 +83,12 @@ export class ApplicationsService {
             });
     }
 
+    public getNodes(name: string): Promise<models.Node[]> {
+        return requests.get(`/applications/${name}/nodes`).then(res => {
+            return (res.body.items as models.Node[]) || [];
+        });
+    }
+
     public getManifest(name: string, revision: string): Promise<models.ManifestResponse> {
         return requests
             .get(`/applications/${name}/manifests`)

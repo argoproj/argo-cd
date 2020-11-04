@@ -166,6 +166,14 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                 <React.Fragment key='app-list-tools'>
                                                     <div className='application-details__view-type'>
                                                         <i
+                                                            className={classNames('fa fa-th', {selected: pref.view === 'tree'})}
+                                                            title='Pods'
+                                                            onClick={() => {
+                                                                this.appContext.apis.navigation.goto('.', {view: 'pods'});
+                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'pods'}});
+                                                            }}
+                                                        />
+                                                        <i
                                                             className={classNames('fa fa-sitemap', {selected: pref.view === 'tree'})}
                                                             title='Tree'
                                                             onClick={() => {
@@ -231,7 +239,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                     }}
                                                 />
                                             )) ||
-                                                (pref.view === 'pods' && <PodView tree={tree} onPodClick={fullName => this.selectNode(fullName)} />) || (
+                                                (pref.view === 'pods' && <PodView tree={tree} app={application} onPodClick={fullName => this.selectNode(fullName)} />) || (
                                                     <div>
                                                         {(filteredRes.length > 0 && (
                                                             <Paginate

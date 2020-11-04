@@ -824,15 +824,19 @@ export interface Node {
 
 export interface NodeStatus {
     capacity: ResourceList;
+    allocatable: ResourceList;
+    nodeInfo: NodeInfo;
 }
 
-export interface ResourceStat {
-    name: ResourceName;
-    used: number;
-    quantity: number;
+export interface NodeInfo {
+    architecture: string;
+    operatingSystem: string;
+    kernelVersion: string;
 }
 
-export type ResourceList = ResourceStat[];
+export type ResourceList = {
+    [key in ResourceName]: number;
+};
 
 export enum ResourceName {
     ResourceCPU = 'cpu',
@@ -846,6 +850,7 @@ export interface Pod {
     metadata: models.ObjectMeta;
     status: PodStatus;
     spec: PodSpec;
+    health: HealthStatusCode;
 }
 
 export interface PodSpec {
