@@ -9,7 +9,7 @@ require (
 	github.com/alicebob/miniredis v2.5.0+incompatible
 	github.com/argoproj/gitops-engine v0.1.3-0.20201030194627-cfdefa46b20c
 	github.com/argoproj/pkg v0.2.0
-	github.com/bombsimon/logrusr v0.0.0-20200131103305-03a291ce59b4
+	github.com/bombsimon/logrusr v1.0.0
 	github.com/casbin/casbin v1.9.1
 	github.com/chai2010/gettext-go v0.0.0-20170215093142-bf70f2a70fb1 // indirect
 	github.com/coreos/go-oidc v2.1.0+incompatible
