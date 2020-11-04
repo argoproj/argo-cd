@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -41,6 +42,7 @@ import (
 	argopath "github.com/argoproj/argo-cd/util/app/path"
 	executil "github.com/argoproj/argo-cd/util/exec"
 	"github.com/argoproj/argo-cd/util/git"
+	"github.com/argoproj/argo-cd/util/glob"
 	"github.com/argoproj/argo-cd/util/gpg"
 	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/io"
@@ -829,6 +831,12 @@ func findManifests(appPath string, repoRoot string, env *v1alpha1.Env, directory
 		if !manifestFile.MatchString(f.Name()) {
 			return nil
 		}
+
+		fileNameWithPath := filepath.Join(appPath, f.Name())
+		if glob.Match(directory.Exclude, fileNameWithPath) {
+			return nil
+		}
+
 		out, err := utfutil.ReadFile(path, utfutil.UTF8)
 		if err != nil {
 			return err
@@ -866,7 +874,20 @@ func findManifests(appPath string, repoRoot string, env *v1alpha1.Env, directory
 		} else {
 			yamlObjs, err := kube.SplitYAML(out)
 			if err != nil {
-				return status.Errorf(codes.FailedPrecondition, "Failed to unmarshal %q: %v", f.Name(), err)
+				if len(yamlObjs) > 0 {
+					// If we get here, we had a multiple objects in a single YAML file which had some
+					// valid k8s objects, but errors parsing others (within the same file). It's very
+					// likely the user messed up a portion of the YAML, so report on that.
+					return status.Errorf(codes.FailedPrecondition, "Failed to unmarshal %q: %v", f.Name(), err)
+				}
+				// Otherwise, let's see if it looks like a resource, if yes, we return error
+				if bytes.Contains(out, []byte("apiVersion:")) &&
+					bytes.Contains(out, []byte("kind:")) &&
+					bytes.Contains(out, []byte("metadata:")) {
+					return status.Errorf(codes.FailedPrecondition, "Failed to unmarshal %q: %v", f.Name(), err)
+				}
+				// Otherwise, it might be a unrelated YAML file which we will ignore
+				return nil
 			}
 			objs = append(objs, yamlObjs...)
 		}
@@ -1114,8 +1135,20 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 	}
 	metadata, err := s.cache.GetRevisionMetadata(q.Repo.Repo, q.Revision)
 	if err == nil {
-		log.Infof("revision metadata cache hit: %s/%s", q.Repo.Repo, q.Revision)
-		return metadata, nil
+		// The logic here is that if a signature check on metadata is requested,
+		// but there is none in the cache, we handle as if we have a cache miss
+		// and re-generate the meta data. Otherwise, if there is signature info
+		// in the metadata, but none was requested, we remove it from the data
+		// that we return.
+		if q.CheckSignature && metadata.SignatureInfo == "" {
+			log.Infof("revision metadata cache hit, but need to regenerate due to missing signature info: %s/%s", q.Repo.Repo, q.Revision)
+		} else {
+			log.Infof("revision metadata cache hit: %s/%s", q.Repo.Repo, q.Revision)
+			if !q.CheckSignature {
+				metadata.SignatureInfo = ""
+			}
+			return metadata, nil
+		}
 	} else {
 		if err != reposervercache.ErrCacheMiss {
 			log.Warnf("revision metadata cache error %s/%s: %v", q.Repo.Repo, q.Revision, err)
@@ -1149,7 +1182,7 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 
 	// Run gpg verify-commit on the revision
 	signatureInfo := ""
-	if gpg.IsGPGEnabled() {
+	if gpg.IsGPGEnabled() && q.CheckSignature {
 		cs, err := gitClient.VerifyCommitSignature(q.Revision)
 		if err != nil {
 			log.Debugf("Could not verify commit signature: %v", err)
