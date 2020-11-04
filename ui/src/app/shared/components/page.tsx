@@ -53,7 +53,15 @@ export class Page extends React.Component<{title: string; toolbar?: Toolbar | Ob
         if (logout) {
             await services.users.logout();
         }
-        this.appContext.history.push('/login');
+        const authSettings = await services.authService.settings();
+        if(authSettings.oidcConfig.iss !== 'argocd') {
+            var logoutURL = authSettings.oidcConfig.logoutURL + "?id_token_hint=xyz"
+            this.appContext.history.push(logoutURL);
+        } else {
+            this.appContext.history.push('/login');
+        }
+        // this.appContext.history.push('/login');
+        
     }
 
     private get appContext(): AppContext {

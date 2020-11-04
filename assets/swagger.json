@@ -1358,11 +1358,7 @@
           "GPGKeyService"
         ],
         "summary": "List all available repository certificates",
-<<<<<<< HEAD
         "operationId": "ListMixin11",
-=======
-        "operationId": "ListMixin4",
->>>>>>> b9954e55ac5151fd84ee86b9757edd7ee15c097a
         "parameters": [
           {
             "type": "string",
@@ -1385,11 +1381,7 @@
           "GPGKeyService"
         ],
         "summary": "Create one or more GPG public keys in the server's configuration",
-<<<<<<< HEAD
         "operationId": "CreateMixin11",
-=======
-        "operationId": "CreateMixin4",
->>>>>>> b9954e55ac5151fd84ee86b9757edd7ee15c097a
         "parameters": [
           {
             "description": "Raw key data of the GPG key(s) to create",
@@ -1415,11 +1407,7 @@
           "GPGKeyService"
         ],
         "summary": "Delete specified GPG public key from the server's configuration",
-<<<<<<< HEAD
         "operationId": "DeleteMixin11",
-=======
-        "operationId": "DeleteMixin4",
->>>>>>> b9954e55ac5151fd84ee86b9757edd7ee15c097a
         "parameters": [
           {
             "type": "string",
@@ -1444,11 +1432,7 @@
           "GPGKeyService"
         ],
         "summary": "Get information about specified GPG public key from the server",
-<<<<<<< HEAD
         "operationId": "GetMixin11",
-=======
-        "operationId": "GetMixin4",
->>>>>>> b9954e55ac5151fd84ee86b9757edd7ee15c097a
         "parameters": [
           {
             "type": "string",
@@ -1474,11 +1458,7 @@
           "ProjectService"
         ],
         "summary": "List returns list of projects",
-<<<<<<< HEAD
         "operationId": "List",
-=======
-        "operationId": "ListMixin5",
->>>>>>> b9954e55ac5151fd84ee86b9757edd7ee15c097a
         "parameters": [
           {
             "type": "string",
@@ -1500,11 +1480,7 @@
           "ProjectService"
         ],
         "summary": "Create a new project",
-<<<<<<< HEAD
         "operationId": "Create",
-=======
-        "operationId": "CreateMixin5",
->>>>>>> b9954e55ac5151fd84ee86b9757edd7ee15c097a
         "parameters": [
           {
             "name": "body",
@@ -1531,11 +1507,7 @@
           "ProjectService"
         ],
         "summary": "Get returns a project by name",
-<<<<<<< HEAD
         "operationId": "GetMixin2",
-=======
-        "operationId": "GetMixin5",
->>>>>>> b9954e55ac5151fd84ee86b9757edd7ee15c097a
         "parameters": [
           {
             "type": "string",
@@ -1558,11 +1530,7 @@
           "ProjectService"
         ],
         "summary": "Delete deletes a project",
-<<<<<<< HEAD
         "operationId": "Delete",
-=======
-        "operationId": "DeleteMixin5",
->>>>>>> b9954e55ac5151fd84ee86b9757edd7ee15c097a
         "parameters": [
           {
             "type": "string",
@@ -1662,11 +1630,7 @@
           "ProjectService"
         ],
         "summary": "Update updates a project",
-<<<<<<< HEAD
         "operationId": "Update",
-=======
-        "operationId": "UpdateMixin5",
->>>>>>> b9954e55ac5151fd84ee86b9757edd7ee15c097a
         "parameters": [
           {
             "type": "string",
@@ -1700,11 +1664,7 @@
           "ProjectService"
         ],
         "summary": "Create a new project token",
-<<<<<<< HEAD
         "operationId": "CreateToken",
-=======
-        "operationId": "CreateTokenMixin5",
->>>>>>> b9954e55ac5151fd84ee86b9757edd7ee15c097a
         "parameters": [
           {
             "type": "string",
@@ -1743,11 +1703,7 @@
           "ProjectService"
         ],
         "summary": "Delete a new project token",
-<<<<<<< HEAD
         "operationId": "DeleteToken",
-=======
-        "operationId": "DeleteTokenMixin5",
->>>>>>> b9954e55ac5151fd84ee86b9757edd7ee15c097a
         "parameters": [
           {
             "type": "string",
@@ -1992,11 +1948,7 @@
           "RepositoryService"
         ],
         "summary": "Get returns a repository or its credentials",
-<<<<<<< HEAD
         "operationId": "Get",
-=======
-        "operationId": "GetMixin7",
->>>>>>> b9954e55ac5151fd84ee86b9757edd7ee15c097a
         "parameters": [
           {
             "type": "string",
@@ -2059,7 +2011,7 @@
         "tags": [
           "RepositoryService"
         ],
-        "summary": "ListApps returns list of apps in the repo",
+        "summary": "ListApps returns list of apps in the repe",
         "operationId": "ListApps",
         "parameters": [
           {
@@ -2224,11 +2176,7 @@
           "SessionService"
         ],
         "summary": "Create a new JWT for authentication and set a cookie if using HTTP",
-<<<<<<< HEAD
         "operationId": "CreateMixin5",
-=======
-        "operationId": "CreateMixin8",
->>>>>>> b9954e55ac5151fd84ee86b9757edd7ee15c097a
         "parameters": [
           {
             "name": "body",
@@ -2253,11 +2201,7 @@
           "SessionService"
         ],
         "summary": "Delete an existing JWT cookie if using HTTP",
-<<<<<<< HEAD
         "operationId": "DeleteMixin5",
-=======
-        "operationId": "DeleteMixin8",
->>>>>>> b9954e55ac5151fd84ee86b9757edd7ee15c097a
         "responses": {
           "200": {
             "description": "A successful response.",
