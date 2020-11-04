@@ -1,10 +1,10 @@
 ## argocd proj deny-cluster-resource
 
-Removes a cluster-scoped API resource from the whitelist and adds it to blacklist
+Removes a cluster-scoped API resource from the allow list and adds it to deny list
 
 ### Synopsis
 
-Removes a cluster-scoped API resource from the whitelist and adds it to blacklist
+Removes a cluster-scoped API resource from the allow list and adds it to deny list
 
 ```
 argocd proj deny-cluster-resource PROJECT GROUP KIND [flags]
@@ -14,7 +14,7 @@ argocd proj deny-cluster-resource PROJECT GROUP KIND [flags]
 
 ```
   -h, --help          help for deny-cluster-resource
-  -l, --list string   Use blacklist or whitelist. This can only be 'white' or 'black' (default "white")
+  -l, --list string   Use deny list or allow list. This can only be 'allow' or 'deny' (default "allow")
 ```
 
 ### Options inherited from parent commands

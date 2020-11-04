@@ -847,6 +847,11 @@ func (s *Server) GetResource(ctx context.Context, q *application.ApplicationReso
 	if err != nil {
 		return nil, err
 	}
+
+	// make sure to use specified resource version if provided
+	if q.Version != "" {
+		res.Version = q.Version
+	}
 	obj, err := s.kubectl.GetResource(ctx, config, res.GroupKindVersion(), res.Name, res.Namespace)
 	if err != nil {
 		return nil, err
@@ -982,12 +987,22 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 	if err != nil {
 		return nil, err
 	}
+	// We need to get some information with the project associated to the app,
+	// so we'll know whether GPG signatures are enforced.
+	proj, err := argo.GetAppProject(&a.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), a.Namespace, s.settingsMgr)
+	if err != nil {
+		return nil, err
+	}
 	conn, repoClient, err := s.repoClientset.NewRepoServerClient()
 	if err != nil {
 		return nil, err
 	}
 	defer io.Close(conn)
-	return repoClient.GetRevisionMetadata(ctx, &apiclient.RepoServerRevisionMetadataRequest{Repo: repo, Revision: q.GetRevision()})
+	return repoClient.GetRevisionMetadata(ctx, &apiclient.RepoServerRevisionMetadataRequest{
+		Repo:           repo,
+		Revision:       q.GetRevision(),
+		CheckSignature: len(proj.Spec.SignatureKeys) > 0,
+	})
 }
 
 func isMatchingResource(q *application.ResourcesQuery, key kube.ResourceKey) bool {
