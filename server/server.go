@@ -334,10 +334,6 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
 	go a.appInformer.Run(ctx.Done())
 	go a.nodeInformer.Run(ctx.Done())
 
-	if !cache.WaitForCacheSync(ctx.Done(), a.nodeInformer.HasSynced) {
-		log.Fatal("Timed out waiting for node cache to sync")
-	}
-
 	go func() { a.checkServeErr("grpcS", grpcS.Serve(grpcL)) }()
 	go func() { a.checkServeErr("httpS", httpS.Serve(httpL)) }()
 	if a.useTLS() {
@@ -348,7 +344,7 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
 	go a.rbacPolicyLoader(ctx)
 	go func() { a.checkServeErr("tcpm", tcpm.Serve()) }()
 	go func() { a.checkServeErr("metrics", metricsServ.ListenAndServe()) }()
-	if !cache.WaitForCacheSync(ctx.Done(), a.projInformer.HasSynced, a.appInformer.HasSynced) {
+	if !cache.WaitForCacheSync(ctx.Done(), a.projInformer.HasSynced, a.appInformer.HasSynced, a.nodeInformer.HasSynced) {
 		log.Fatal("Timed out waiting for project cache to sync")
 	}
 
