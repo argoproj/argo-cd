@@ -29,7 +29,7 @@ message ApplicationQuery {
 }
 
 message NodeQuery {
-	// get nodes associated with this application
+	// the application's name
 	optional string name = 1;
 }
 
