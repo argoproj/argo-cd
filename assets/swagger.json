@@ -400,7 +400,7 @@
           "ApplicationService"
         ],
         "summary": "Get returns an application by name",
-        "operationId": "Get",
+        "operationId": "GetMixin1",
         "parameters": [
           {
             "type": "string",
@@ -1188,7 +1188,11 @@
           "ClusterService"
         ],
         "summary": "List returns list of clusters",
+<<<<<<< HEAD
         "operationId": "ListMixin3",
+=======
+        "operationId": "ListMixin5",
+>>>>>>> master
         "parameters": [
           {
             "type": "string",
@@ -1215,7 +1219,11 @@
           "ClusterService"
         ],
         "summary": "Create creates a cluster",
+<<<<<<< HEAD
         "operationId": "CreateMixin3",
+=======
+        "operationId": "CreateMixin5",
+>>>>>>> master
         "parameters": [
           {
             "name": "body",
@@ -1242,7 +1250,11 @@
           "ClusterService"
         ],
         "summary": "Update updates a cluster",
+<<<<<<< HEAD
         "operationId": "UpdateMixin3",
+=======
+        "operationId": "UpdateMixin5",
+>>>>>>> master
         "parameters": [
           {
             "type": "string",
@@ -1276,7 +1288,11 @@
           "ClusterService"
         ],
         "summary": "Get returns a cluster by server address",
+<<<<<<< HEAD
         "operationId": "GetMixin3",
+=======
+        "operationId": "GetMixin5",
+>>>>>>> master
         "parameters": [
           {
             "type": "string",
@@ -1304,7 +1320,11 @@
           "ClusterService"
         ],
         "summary": "Delete deletes a cluster",
+<<<<<<< HEAD
         "operationId": "DeleteMixin3",
+=======
+        "operationId": "DeleteMixin5",
+>>>>>>> master
         "parameters": [
           {
             "type": "string",
@@ -1384,7 +1404,11 @@
           "GPGKeyService"
         ],
         "summary": "List all available repository certificates",
+<<<<<<< HEAD
         "operationId": "ListMixin4",
+=======
+        "operationId": "ListMixin2",
+>>>>>>> master
         "parameters": [
           {
             "type": "string",
@@ -1407,7 +1431,11 @@
           "GPGKeyService"
         ],
         "summary": "Create one or more GPG public keys in the server's configuration",
+<<<<<<< HEAD
         "operationId": "CreateMixin4",
+=======
+        "operationId": "CreateMixin2",
+>>>>>>> master
         "parameters": [
           {
             "description": "Raw key data of the GPG key(s) to create",
@@ -1433,7 +1461,11 @@
           "GPGKeyService"
         ],
         "summary": "Delete specified GPG public key from the server's configuration",
+<<<<<<< HEAD
         "operationId": "DeleteMixin4",
+=======
+        "operationId": "DeleteMixin2",
+>>>>>>> master
         "parameters": [
           {
             "type": "string",
@@ -1458,7 +1490,11 @@
           "GPGKeyService"
         ],
         "summary": "Get information about specified GPG public key from the server",
+<<<<<<< HEAD
         "operationId": "GetMixin4",
+=======
+        "operationId": "GetMixin2",
+>>>>>>> master
         "parameters": [
           {
             "type": "string",
@@ -1974,7 +2010,11 @@
           "RepositoryService"
         ],
         "summary": "Get returns a repository or its credentials",
+<<<<<<< HEAD
         "operationId": "GetMixin7",
+=======
+        "operationId": "Get",
+>>>>>>> master
         "parameters": [
           {
             "type": "string",
@@ -2261,7 +2301,11 @@
           "SettingsService"
         ],
         "summary": "Get returns Argo CD settings",
+<<<<<<< HEAD
         "operationId": "GetMixin10",
+=======
+        "operationId": "GetMixin8",
+>>>>>>> master
         "responses": {
           "200": {
             "description": "A successful response.",
