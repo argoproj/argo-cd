@@ -3248,7 +3248,7 @@ spec:
         - /data/conf/redis.conf
         command:
         - redis-server
-        image: redis:5.0.8-alpine
+        image: redis:5.0.10-alpine
         imagePullPolicy: IfNotPresent
         livenessProbe:
           initialDelaySeconds: 15
@@ -3266,7 +3266,7 @@ spec:
         - /data/conf/sentinel.conf
         command:
         - redis-sentinel
-        image: redis:5.0.8-alpine
+        image: redis:5.0.10-alpine
         imagePullPolicy: IfNotPresent
         livenessProbe:
           initialDelaySeconds: 15
@@ -3292,7 +3292,7 @@ spec:
           value: 896627000a81c7bdad8dbdcffd39728c9c17b309
         - name: SENTINEL_ID_2
           value: 3acbca861108bc47379b71b1d87d1c137dce591f
-        image: redis:5.0.8-alpine
+        image: redis:5.0.10-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
         resources: {}

@@ -8,4 +8,4 @@ redis-ha:
   haproxy:
     enabled: true
   image:
-    tag: 5.0.8-alpine
+    tag: 5.0.10-alpine
