@@ -647,7 +647,7 @@ spec:
       serviceAccountName: argocd-redis-ha
       initContainers:
       - name: config-init
-        image: redis:5.0.8-alpine
+        image: redis:5.0.10-alpine
         imagePullPolicy: IfNotPresent
         resources:
           {}
@@ -674,7 +674,7 @@ spec:
           mountPath: /data
       containers:
       - name: redis
-        image: redis:5.0.8-alpine
+        image: redis:5.0.10-alpine
         imagePullPolicy: IfNotPresent
         command:
         - redis-server
@@ -694,7 +694,7 @@ spec:
         - mountPath: /data
           name: data
       - name: sentinel
-        image: redis:5.0.8-alpine
+        image: redis:5.0.10-alpine
         imagePullPolicy: IfNotPresent
         command:
           - redis-sentinel
