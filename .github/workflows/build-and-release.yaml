@@ -1,0 +1,108 @@
+name: Build and release
+
+on:
+  push:
+
+env:
+  DOCKER_REPOSITORY: dixneuf19
+  DOCKER_TAG: v1.7.8
+  TARGET_PLATFORMS: linux/arm64
+  IMAGE_NAME: argocd
+
+jobs:
+  build_and_release:
+    runs-on: ubuntu-20.04
+    steps:
+      # Get the repository's code
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+        with:
+          platforms: ${{ env.TARGET_PLATFORMS }}
+
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v1
+        with: 
+          version: latest # in production, fix the version of your dependencies
+
+      - name: Available platforms
+        run: echo ${{ steps.buildx.outputs.platforms }}
+
+      # Actually faster without caching
+
+      # - name: Cache Docker layers
+      #   uses: actions/cache@v2
+      #   with:
+      #     path: /tmp/.buildx-cache
+      #     key: ${{ runner.os }}-buildx-${{ github.sha }}
+      #     restore-keys: |
+      #       ${{ runner.os }}-buildx-
+
+      # Build the images
+      - name: Build docker
+        uses: docker/build-push-action@v2
+        with:
+          push: false
+          tags: ${{ env.DOCKER_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ env.DOCKER_TAG }}
+          platforms: ${{ env.TARGET_PLATFORMS }}
+          build-args: |
+            BUILD_ALL_CLIS="false"
+          # cache-from: type=local,src=/tmp/.buildx-cache
+          # cache-to: type=local,dest=/tmp/.buildx-cache
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ env.DOCKER_REPOSITORY }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Push the images
+      - name: Push docker images
+        uses: docker/build-push-action@v2
+        with:
+          push: true
+          tags: ${{ env.DOCKER_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ env.DOCKER_TAG }}
+          platforms: ${{ env.TARGET_PLATFORMS }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache
+
+
+  deploy:
+    runs-on: ubuntu-20.04
+    if: github.ref == 'refs/heads/master'
+    needs:
+      - build_and_release
+    steps:
+      # Get the repository's code
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      # set up kubectl
+      - uses: azure/setup-kubectl@v1
+        with:
+          version: "v1.18.4" # default is latest stable
+
+      # Configure kubectl.
+      - name: Configure kubectl
+        run: echo "${{ secrets.KUBE_CONFIG_B64 }}" | base64 --decode > kubeconfig.yml
+
+      - uses: azure/setup-helm@v1
+        with:
+          version: "v3.2.0" # default is latest stable
+
+      - name: Add helm repo
+        run: |
+          helm repo add $HELM_REPOSITORY_NAME $HELM_REPOSITORY_URL
+          helm repo update
+
+      # deploy helm release
+      - name: Deploy Helm release
+        run: |
+          helm upgrade -i --wait --kubeconfig kubeconfig.yml \
+            ${HELM_RELEASE_NAME} ${HELM_REPOSITORY_NAME}/${HELM_CHART_NAME} \
+            -f values.yaml \
+            --namespace ${HELM_NAMESPACE} \
+            --set image.repository=${DOCKER_REPOSITORY}/${IMAGE_NAME} --set image.tag=${{ env.DOCKER_TAG }}
