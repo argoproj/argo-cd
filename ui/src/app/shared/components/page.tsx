@@ -1,6 +1,7 @@
 import {DataLoader, Page as ArgoPage, Toolbar, Utils} from 'argo-ui';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
+import { Redirect } from 'react-router-dom';
 import {BehaviorSubject, Observable} from 'rxjs';
 import {AppContext} from '../context';
 import {services} from '../services';
@@ -55,8 +56,7 @@ export class Page extends React.Component<{title: string; toolbar?: Toolbar | Ob
         }
         const authSettings = await services.authService.settings();
         if(authSettings.oidcConfig.iss !== 'argocd') {
-            var logoutURL = authSettings.oidcConfig.logoutURL + "?id_token_hint=xyz"
-            this.appContext.history.push(logoutURL);
+            this.appContext.history.push('/api/logout');           
         } else {
             this.appContext.history.push('/login');
         }
