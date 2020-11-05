@@ -9,6 +9,13 @@ A set HA of manifests are provided for users who wish to run Argo CD in a highly
 !!! note
     The HA installation will require at least three different nodes due to pod anti-affinity roles in the specs.
  
+
+In OpenShift clusters, `argocd-redis-ha` service accounts need to be granted `nonroot` Security Context Constraints (SCC) by running the following OpenShift commands which allow Redis containers to run as non-root users.
+```shell
+oc adm policy add-scc-to-user nonroot -z argocd-redis-ha
+oc adm policy add-scc-to-user nonroot -z argocd-redis-ha-haproxy
+```
+
 ## Scaling Up
 
 ### argocd-repo-server
