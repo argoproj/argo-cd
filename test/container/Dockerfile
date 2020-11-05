@@ -1,4 +1,4 @@
-FROM redis:5.0.8 as redis
+FROM redis:5.0.10 as redis
 
 FROM node:12.18.4 as node
 
