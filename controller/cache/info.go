@@ -6,7 +6,6 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
-	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -314,17 +313,16 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Status Reason", Value: reason})
 	}
 
-	req, _ := resourcehelper.PodRequestsAndLimits(&pod)
-	reqf := ""
-	// limitf := ""
-
-	for l, q := range req {
-		reqf += fmt.Sprintf("%s: $d, ", l, q.AsDec())
-	}
-	log.Infof("%+v", reqf)
+	req, limit := resourcehelper.PodRequestsAndLimits(&pod)
+	cpuReq, cpuLimit, memoryReq, memoryLimit := req[v1.ResourceCPU], limit[v1.ResourceCPU], req[v1.ResourceMemory], limit[v1.ResourceMemory]
 
 	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Node", Value: fmt.Sprintf("%s", pod.Spec.NodeName)})
-	// res.Info = append(res.Info, v1alpha1.InfoItem{Name: "ResourceRequests", Value: fmt.Sprintf("%s", pod.Spec.Containers)})
+
+	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Resource.CpuReq", Value: fmt.Sprintf("%d", cpuReq.MilliValue())})
+	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Resource.CpuLimit", Value: fmt.Sprintf("%d", cpuLimit.MilliValue())})
+	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Resource.MemoryReq", Value: fmt.Sprintf("%d", memoryReq.Value())})
+	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Resource.MemoryLimit", Value: fmt.Sprintf("%d", memoryLimit.Value())})
+
 	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Containers", Value: fmt.Sprintf("%d/%d", readyContainers, totalContainers)})
 	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{Labels: un.GetLabels()}
 }
