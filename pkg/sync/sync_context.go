@@ -177,6 +177,7 @@ func NewSyncContext(
 		namespace:           namespace,
 		log:                 klogr.New(),
 		validate:            true,
+		startedAt:           time.Now(),
 		syncRes:             map[string]common.ResourceSyncResult{},
 		permissionValidator: func(_ *unstructured.Unstructured, _ *metav1.APIResource) error {
 			return nil
