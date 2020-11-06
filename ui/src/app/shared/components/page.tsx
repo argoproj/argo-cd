@@ -57,8 +57,8 @@ export class Page extends React.Component<{title: string; toolbar?: Toolbar | Ob
         }
         const authSettings = await services.authService.settings();
         if(authSettings.oidcConfig.iss !== 'argocd') {
-            // fetch('/api/logout',  { method: 'POST', redirect: 'follow'})
-            this.appContext.history.push('/api/logout');           
+            fetch('/api/logout',  { method: 'POST', redirect: 'follow'})
+            // this.appContext.history.push('/api/logout');           
         } else {
             this.appContext.history.push('/login');
         }

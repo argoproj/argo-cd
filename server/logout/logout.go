@@ -42,7 +42,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	md, _ := metadata.FromIncomingContext(h.ctx)
 	tokenString := getToken(md)
 	fmt.Printf("=================================== TOKEN STRING IN LOGOUT %s =============================\n", tokenString)
-
+	var token = "eyJraWQiOiJYQi1MM3ZFdHhYWXJLcmRSQnVEV0NwdnZsSnk3SEJVb2d5N253M1U1Z1ZZIiwiYWxnIjoiUlMyNTYifQ.eyJzdWIiOiIwMHVqNnM1NDVyNU5peVNLcjVkNSIsIm5hbWUiOiJqZCByIiwiZW1haWwiOiJqYWlkZWVwMTdydWx6QGdtYWlsLmNvbSIsInZlciI6MSwiaXNzIjoiaHR0cHM6Ly9kZXYtNTY5NTA5OC5va3RhLmNvbSIsImF1ZCI6IjBvYWowM2FmSEtqN3laWXJwNWQ1IiwiaWF0IjoxNjA0Njc5MDY2LCJleHAiOjE2MDQ2ODI2NjYsImp0aSI6IklELmFVeVk1eUFxaW43OVcxZ3JYSEx5NlpvZnJObTFkNER5LUtPV0tOTmZkOE0iLCJhbXIiOlsicHdkIl0sImlkcCI6IjAwb2lnaGZmdkpRTDYzWjhoNWQ1IiwicHJlZmVycmVkX3VzZXJuYW1lIjoiamFpZGVlcDE3cnVsekBnbWFpbC5jb20iLCJhdXRoX3RpbWUiOjE2MDQ2NzkwNjUsImF0X2hhc2giOiJNRXdXd0RuVkJPa3NuQTkyS0JLZlJ3In0.WtuKR4EW6l8mZWkbEAx37SGHumUgnkgaerxzXjsIhnksDa0cR33GAFHckq_z2LTsc0cf-ldbg3kYInASCkLJ62HlX7fE4G4_aJ85E95ZDx2fI3R55CxdLF1ixz7l8ryzKu3EBQjkKxKq1cqg-wmgtMSOG7LMpKcUQALeb_K76gU00DLgIJwT6Vl7H5aq3xE9TP42FhAj5-JsLxihlKaHEq6PCYFvQgh809rdMCTpepCiDeqPSi1cLpcRHh3IWpdhhSZvUWGLmiR_Z5Ro8XUV0mjzRVUAJVwVa3qKzWR-KeXjWTkbWamG0HALGPSEOAoe9kRr0ULsm_wyqPLDB8OS4g"
+	// var Bearer = "Bearer " + token
 	// argoCDSettings, err := h.settingsMgr.GetSettings()
 	// if err != nil {
 	// }
@@ -52,8 +53,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// // _, err = http.Get(logoutURL)
 	// fmt.Printf(logoutURL)
-	_, _ = http.Get("http://golang.org/")
-	http.Redirect(w, r, "https://dev-5695098.okta.com/oauth2/v1/logout?id_token_hint=eyJraWQiOiJYQi1MM3ZFdHhYWXJLcmRSQnVEV0NwdnZsSnk3SEJVb2d5N253M1U1Z1ZZIiwiYWxnIjoiUlMyNTYifQ.eyJzdWIiOiIwMHVqNnM1NDVyNU5peVNLcjVkNSIsIm5hbWUiOiJqZCByIiwiZW1haWwiOiJqYWlkZWVwMTdydWx6QGdtYWlsLmNvbSIsInZlciI6MSwiaXNzIjoiaHR0cHM6Ly9kZXYtNTY5NTA5OC5va3RhLmNvbSIsImF1ZCI6IjBvYWowM2FmSEtqN3laWXJwNWQ1IiwiaWF0IjoxNjA0NTEwNTc2LCJleHAiOjE2MDQ1MTQxNzYsImp0aSI6IklELi1zVk14bGVMUjdQMzdQUURhdmtkTXJmcmxyZzdCb0Z5UjFZckVZT1BsSFEiLCJhbXIiOlsicHdkIl0sImlkcCI6IjAwb2lnaGZmdkpRTDYzWjhoNWQ1IiwicHJlZmVycmVkX3VzZXJuYW1lIjoiamFpZGVlcDE3cnVsekBnbWFpbC5jb20iLCJhdXRoX3RpbWUiOjE2MDQ1MDUwOTgsImF0X2hhc2giOiJ3aUo0dFFkZTg5ME1vTTd5eVlJU2xRIn0.Nh6qUIb7IhaGoefYql0Dp40DIH3JCsGT-kw6tds4s9gxwdCG9FNKgpV7dBC0U9KOd2WX8vKreb_-OE2q7ze01xpnt1yYpVvgZpLYmkHSDJJBwM-WaCfCxaBsNUZx7HFZSw_RFscMJ5Gw1vd-JJm151XSzVKcPlHi65arC-W6ueI4BbzVWXOGhU1miocwV1PWgxyqn1inn5_GJoXdvUm2iIL3xPOz3NCFKSJ_L7PDSxqd7KHh0hynykaCeYE2F0-g2V67rsfUfgoM6oPXxDvKmSWDn-6gOH5AZiTysKxoEb0b_IludiN366AvF4Naty7n0GjR81ivtNkq2AclqGiZkQ", http.StatusSeeOther)
+	// r.Header.Add("Authorization", token)
+	http.Redirect(w, r, "https://dev-5695098.okta.com/oauth2/v1/logout?id_token_hint="+token+"&post_logout_redirect_uri=http://localhost:4000/login", http.StatusSeeOther)
 
 }
 
