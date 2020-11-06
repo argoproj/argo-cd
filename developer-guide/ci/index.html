@@ -1563,7 +1563,7 @@ git push origin &lt;yourbranch&gt;
 <p>If the codegen step fails with "Check nothing has changed...", chances are high that you did not run <code>make codegen</code>, or did not commit the changes it made. You should double check by running <code>make codegen</code> followed by <code>git status</code> in the local working copy of your branch. Commit any changes and push them to your GH branch to have the CI check it again.</p>
 <p>A second common case for this is, when you modified any of the auto generated assets, as these will be overwritten upon <code>make codegen</code>.</p>
 <p>Generally, this step runs <code>codegen</code> and compares the outcome against the Git branch it has checked out. If there are differences, the step will fail.</p>
-<p>See <a href="faq#what-checked-in-code-is-generated-and-how-is-it-generated">What checked-in code is generated and where does it come from?</a> for more information.</p>
+<p>See <a href="../faq/#what-checked-in-code-is-generated-and-how-is-it-generated">What checked-in code is generated and where does it come from?</a> for more information.</p>
 <h3 id="why-does-the-lint-step-fail">Why does the lint step fail?<a class="headerlink" href="#why-does-the-lint-step-fail" title="Permanent link">&para;</a></h3>
 <p>Your code failed to lint correctly, or modifications were performed by the <code>golangci-lint</code> process.</p>
 <ul>
