@@ -1,4 +1,12 @@
 hs = {}
+
+function messageOrDefault(field, default)
+    if field ~= nil then
+      return field
+    end
+    return default
+  end
+
 if obj.status ~= nil then
     if obj.status.phase == "Pending" then
         hs.status = "Progressing"
@@ -10,31 +18,19 @@ if obj.status ~= nil then
     end
     if obj.status.phase == "Successful" then
         hs.status = "Healthy"
-        hs.message = "Analysis run completed successfully"
+        hs.message = messageOrDefault(obj.status.message, "Analysis run completed successfully")
     end
     if obj.status.phase == "Failed" then
         hs.status = "Degraded"
-        if obj.status.message ~= nil then
-            hs.message = obj.status.message
-        else
-            hs.message = "Analysis run failed"
-        end
+        hs.message = messageOrDefault(obj.status.message, "Analysis run failed")
     end
     if obj.status.phase == "Error" then
         hs.status = "Degraded"
-        if obj.status.message ~= nil then
-            hs.message = obj.status.message
-        else
-            hs.message = "Analysis run had an error"
-        end
+        hs.message = messageOrDefault(obj.status.message, "Analysis run had an error")
     end
     if obj.status.phase == "Inconclusive" then
         hs.status = "Unknown"
-        if obj.status.message ~= nil then
-            hs.message = obj.status.message
-        else
-            hs.message = "Analysis run was inconclusive"
-        end
+        hs.message = messageOrDefault(obj.status.message, "Analysis run was inconclusive")
     end
     return hs
 end
