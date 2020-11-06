@@ -1,10 +1,11 @@
 import {DataLoader, Page as ArgoPage, Toolbar, Utils} from 'argo-ui';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
-import { Redirect } from 'react-router-dom';
 import {BehaviorSubject, Observable} from 'rxjs';
 import {AppContext} from '../context';
 import {services} from '../services';
+import requests from '../services/requests';
+
 
 const mostRecentLoggedIn = new BehaviorSubject<boolean>(false);
 
@@ -56,6 +57,7 @@ export class Page extends React.Component<{title: string; toolbar?: Toolbar | Ob
         }
         const authSettings = await services.authService.settings();
         if(authSettings.oidcConfig.iss !== 'argocd') {
+            // fetch('/api/logout',  { method: 'POST', redirect: 'follow'})
             this.appContext.history.push('/api/logout');           
         } else {
             this.appContext.history.push('/login');
