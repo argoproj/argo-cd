@@ -96,3 +96,8 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Speee](https://speee.jp/)
 1. [VISITS Technologies](https://visits.world/en)
 1. [Qonto](https://qonto.com)
+1. [openEuler](https://openeuler.org)
+1. [MindSpore](https://mindspore.cn)
+1. [openLooKeng](https://openlookeng.io)
+1. [openGauss](https://opengauss.org/)
+
