@@ -158,6 +158,12 @@ func TestIsValidRedirect(t *testing.T) {
 			redirectURL: "https://localhost",
 			allowedURLs: []string{"https://localhost:80"},
 		},
+		{
+			name:        "Invalid redirect URL because of CRLF in path",
+			valid:       false,
+			redirectURL: "https://localhost:80/argocd\r\n",
+			allowedURLs: []string{"https://localhost:80/argocd\r\n"},
+		},
 	}
 
 	for _, tt := range tests {

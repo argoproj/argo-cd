@@ -198,6 +198,10 @@ func isValidRedirectURL(redirectURL string, allowedURLs []string) bool {
 	if r.Path == "" {
 		r.Path = "/"
 	}
+	// Prevent CLRF in the redirectURL
+	if strings.ContainsAny(r.Path, "\r\n") {
+		return false
+	}
 	for _, baseURL := range allowedURLs {
 		b, err := url.Parse(baseURL)
 		if err != nil {
