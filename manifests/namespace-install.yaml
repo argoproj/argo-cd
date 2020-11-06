@@ -2393,7 +2393,7 @@ spec:
         - ""
         - --appendonly
         - "no"
-        image: redis:5.0.8
+        image: redis:5.0.10-alpine
         imagePullPolicy: Always
         name: redis
         ports:
