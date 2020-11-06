@@ -89,7 +89,7 @@ export const OperationPhaseIcon = ({app}: {app: appModels.Application}) => {
 };
 
 export const ComparisonStatusIcon = ({status, resource, label}: {status: appModels.SyncStatusCode; resource?: {requiresPruning?: boolean}; label?: boolean}) => {
-    let className = 'fa fa-question-circle';
+    let className = 'fa fa-ghost';
     let color = COLORS.sync.unknown;
     let title: string = 'Unknown';
 
@@ -155,7 +155,7 @@ export function syncStatusMessage(app: appModels.Application) {
 
 export const HealthStatusIcon = ({state}: {state: appModels.HealthStatus}) => {
     let color = COLORS.health.unknown;
-    let icon = 'fa-question-circle';
+    let icon = 'fa-ghost';
 
     switch (state.status) {
         case appModels.HealthStatuses.Healthy:
@@ -184,7 +184,7 @@ export const HealthStatusIcon = ({state}: {state: appModels.HealthStatus}) => {
 
 export const ResourceResultIcon = ({resource}: {resource: appModels.ResourceResult}) => {
     let color = COLORS.sync_result.unknown;
-    let icon = 'fa-question-circle';
+    let icon = 'fa-ghost';
 
     if (!resource.hookType && resource.status) {
         switch (resource.status) {
@@ -461,7 +461,7 @@ export const SyncWindowStatusIcon = ({state, window}: {state: appModels.SyncWind
             color = COLORS.sync_window.allow;
             break;
         default:
-            className = 'fa fa-question-circle';
+            className = 'fa fa-ghost';
             color = COLORS.sync_window.unknown;
             current = 'Unknown';
             break;
