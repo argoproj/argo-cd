@@ -76,7 +76,7 @@ exports[`HealthStatusIcon.Healthy 1`] = `
 
 exports[`HealthStatusIcon.Missing 1`] = `
 <i
-  className="fa fa-question-circle"
+  className="fa fa-ghost"
   qe-id="utils-health-status-title"
   style={
     Object {
@@ -115,7 +115,7 @@ exports[`HealthStatusIcon.Suspended 1`] = `
 
 exports[`HealthStatusIcon.Unknown 1`] = `
 <i
-  className="fa fa-question-circle"
+  className="fa fa-ghost"
   qe-id="utils-health-status-title"
   style={
     Object {
