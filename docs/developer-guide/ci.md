@@ -33,7 +33,7 @@ A second common case for this is, when you modified any of the auto generated as
 
 Generally, this step runs `codegen` and compares the outcome against the Git branch it has checked out. If there are differences, the step will fail.
 
-See [What checked-in code is generated and where does it come from?](faq#what-checked-in-code-is-generated-and-how-is-it-generated) for more information.
+See [What checked-in code is generated and where does it come from?](faq.md#what-checked-in-code-is-generated-and-how-is-it-generated) for more information.
 
 ### Why does the lint step fail?
 
