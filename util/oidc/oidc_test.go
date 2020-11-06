@@ -111,6 +111,12 @@ func TestIsValidRedirect(t *testing.T) {
 			allowedURLs: []string{"https://localhost:4000/"},
 		},
 		{
+			name:        "Empty URL",
+			valid:       true,
+			redirectURL: "",
+			allowedURLs: []string{"https://localhost:4000/"},
+		},
+		{
 			name:        "Trailing single slash and empty suffix are handled the same",
 			valid:       true,
 			redirectURL: "https://localhost:4000/",
