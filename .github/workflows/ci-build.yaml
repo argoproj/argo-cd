@@ -181,15 +181,10 @@ jobs:
           go mod download
       - name: Run all unit tests
         run: make test-race-local
-      - name: Generate code coverage artifacts
-        uses: actions/upload-artifact@v2
-        with:
-          name: code-coverage
-          path: coverage.out
       - name: Generate test results artifacts
         uses: actions/upload-artifact@v2
         with:
-          name: test-results
+          name: race-results
           path: test-results/
 
   codegen:
