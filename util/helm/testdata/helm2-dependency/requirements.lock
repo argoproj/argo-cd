@@ -1,6 +1,6 @@
 dependencies:
 - name: mariadb
-  repository: https://charts.helm.sh/stable
-  version: 4.4.2
-digest: sha256:c07f89818ebcd92a4dbaff719ebedc14e2569ee27447d3abf739e2dd11d13fcb
-generated: "2020-11-03T09:04:00.781031-08:00"
+  repository: https://charts.bitnami.com/bitnami
+  version: 8.0.7
+digest: sha256:6af34a77f088f79d80297001290927808d81346210ef1336ea5d26a1099213f2
+generated: "2020-11-07T16:37:58.659489501+01:00"
