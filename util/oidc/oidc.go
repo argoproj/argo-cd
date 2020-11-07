@@ -185,7 +185,7 @@ func (a *ClientApp) verifyAppState(state string) (*OIDCState, error) {
 //
 // In order to be considered valid,the protocol and host (including port) have
 // to match and if allowed path is not "/", redirectURL's path must be within
-// allowed URL's part
+// allowed URL's path.
 func isValidRedirectURL(redirectURL string, allowedURLs []string) bool {
 	if redirectURL == "" {
 		return true
@@ -214,9 +214,9 @@ func isValidRedirectURL(redirectURL string, allowedURLs []string) bool {
 		// scheme and host are mandatory to match.
 		if b.Scheme == r.Scheme && b.Host == r.Host {
 			// If path of redirectURL and allowedURL match, redirectURL is allowed
-			if b.Path == r.Path {
-				return true
-			}
+			//if b.Path == r.Path {
+			//	return true
+			//}
 			// If path of redirectURL is within allowed URL's path, redirectURL is allowed
 			if strings.HasPrefix(path.Clean(r.Path), b.Path) {
 				return true
