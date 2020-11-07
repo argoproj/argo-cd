@@ -94,6 +94,7 @@ func TestHelmGetParamsValueFiles(t *testing.T) {
 
 func TestHelmDependencyBuild(t *testing.T) {
 	testCases := map[string]string{"Helm": "dependency", "Helm2": "helm2-dependency"}
+	helmRepos := []HelmRepository{{Name: "bitnami", Repo: "https://charts.bitnami.com/bitnami"}}
 	for name := range testCases {
 		t.Run(name, func(t *testing.T) {
 			chart := testCases[name]
@@ -103,7 +104,7 @@ func TestHelmDependencyBuild(t *testing.T) {
 			}
 			clean()
 			defer clean()
-			h, err := NewHelmApp(fmt.Sprintf("./testdata/%s", chart), nil, false, "")
+			h, err := NewHelmApp(fmt.Sprintf("./testdata/%s", chart), helmRepos, false, "")
 			assert.NoError(t, err)
 			err = h.Init()
 			assert.NoError(t, err)

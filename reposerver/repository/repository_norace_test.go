@@ -27,12 +27,14 @@ func TestHelmDependencyWithConcurrency(t *testing.T) {
 	cleanup()
 	defer cleanup()
 
+	helmRepo := argoappv1.Repository{Name: "bitnami", Type: "helm", Repo: "https://charts.bitnami.com/bitnami"}
 	var wg sync.WaitGroup
 	wg.Add(3)
 	for i := 0; i < 3; i++ {
 		go func() {
 			res, err := helmTemplate("../../util/helm/testdata/helm2-dependency", "../..", nil, &apiclient.ManifestRequest{
 				ApplicationSource: &argoappv1.ApplicationSource{},
+				Repos:             []*argoappv1.Repository{&helmRepo},
 			}, false)
 
 			assert.NoError(t, err)
