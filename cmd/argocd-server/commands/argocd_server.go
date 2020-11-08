@@ -63,9 +63,10 @@ func NewCommand() *cobra.Command {
 		frameOptions             string
 	)
 	var command = &cobra.Command{
-		Use:   cliName,
-		Short: "Run the argocd API server",
-		Long:  "Run the argocd API server",
+		Use:               cliName,
+		Short:             "Run the argocd API server",
+		Long:              "Run the argocd API server",
+		DisableAutoGenTag: true,
 		Run: func(c *cobra.Command, args []string) {
 			cli.SetLogFormat(logFormat)
 			cli.SetLogLevel(logLevel)
