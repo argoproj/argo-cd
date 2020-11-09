@@ -53,17 +53,16 @@ export class Page extends React.Component<{title: string; toolbar?: Toolbar | Ob
 
     private async goToLogin(logout = false) {
         if (logout) {
+            const authSettings = await services.authService.settings();
+            if(authSettings.oidcConfig.iss !== 'argocd') {
+                fetch('/api/logout',  {  credentials: "same-origin", method: 'GET'}).then(response => response.text())
+                .then(data => window.location.href = data);
+            } else {
+                this.appContext.history.push('/login');
+            }
             await services.users.logout();
         }
-        const authSettings = await services.authService.settings();
-        if(authSettings.oidcConfig.iss !== 'argocd') {
-            fetch('/api/logout',  { method: 'POST', redirect: 'follow'})
-            // this.appContext.history.push('/api/logout');           
-        } else {
-            this.appContext.history.push('/login');
-        }
-        // this.appContext.history.push('/login');
-        
+                
     }
 
     private get appContext(): AppContext {

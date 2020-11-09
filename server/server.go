@@ -618,10 +618,6 @@ func compressHandler(handler http.Handler) http.Handler {
 // newHTTPServer returns the HTTP server to serve HTTP/HTTPS requests. This is implemented
 // using grpc-gateway as a proxy to the gRPC server.
 func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandler http.Handler) *http.Server {
-	md, _ := metadata.FromIncomingContext(ctx)
-	tokenString := getToken(md)
-	fmt.Printf("=================================== TOKEN STRING IN NEW HTTP SREVER %s =============================\n", tokenString)
-
 	endpoint := fmt.Sprintf("localhost:%d", port)
 	mux := http.NewServeMux()
 	httpS := http.Server{
@@ -630,7 +626,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 			handler: mux,
 			urlToHandler: map[string]http.Handler{
 				"/api/badge":  badge.NewHandler(a.AppClientset, a.settingsMgr, a.Namespace),
-				"/api/logout": logout.NewHandler(ctx, a.AppClientset, a.settingsMgr, a.Namespace),
+				"/api/logout": logout.NewHandler(a.AppClientset, a.settingsMgr, a.Namespace),
 			},
 			contentTypeToHandler: map[string]http.Handler{
 				"application/grpc-web+proto": grpcWebHandler,
@@ -942,7 +938,6 @@ type handlerSwitcher struct {
 
 func (s *handlerSwitcher) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if urlHandler, ok := s.urlToHandler[r.URL.Path]; ok {
-		fmt.Printf("=================================== URL PATH %s =============================\n", r.URL.Path)
 		urlHandler.ServeHTTP(w, r)
 	} else if contentHandler, ok := s.contentTypeToHandler[r.Header.Get("content-type")]; ok {
 		contentHandler.ServeHTTP(w, r)
