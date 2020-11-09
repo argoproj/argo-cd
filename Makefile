@@ -19,6 +19,9 @@ GOCACHE?=$(HOME)/.cache/go-build
 
 DOCKER_SRCDIR?=$(GOPATH)/src
 DOCKER_WORKDIR?=/go/src/github.com/argoproj/argo-cd
+DOCKER_SMOKE_WORKDIR?=/go/src/github.com/argoproj/argo-cd/test/container/Dockerfile.smoke
+
+
 
 ARGOCD_PROCFILE?=Procfile
 
@@ -68,6 +71,34 @@ define run-in-test-server
 		bash -c "$(1)"
 endef
 
+# Runs smoke test in test server
+define run-smoke-test-server
+	docker run --rm -it \
+		--name argocd-smoke-test \
+		-u $(shell id -u):$(shell id -g) \
+		-e USER_ID=$(shell id -u) \
+		-e HOME=/home/user \
+		-e GOPATH=/go \
+		-e GOCACHE=/tmp/go-build-cache \
+		-e ARGOCD_IN_CI=$(ARGOCD_IN_CI) \
+		-e ARGOCD_E2E_TEST=$(ARGOCD_E2E_TEST) \
+		-e ARGOCD_E2E_YARN_HOST=$(ARGOCD_E2E_YARN_HOST) \
+		-e ARGOCD_SMOKE_URL=$(ARGOCD_SMOKE_URL) \
+		-e ARGOCD_SMOKE_USERNAME=$(ARGOCD_SMOKE_USERNAME) \
+		-e ARGOCD_SMOKE_PASSWORD=$(ARGOCD_SMOKE_PASSWORD) \
+		-v ${DOCKER_SMOKE_WORKDIR}:/go/src${VOLUME_MOUNT} \
+		-v ${DOCKER_SMOKE_TESTS}:/go/src${VOLUME_MOUNT} \
+		-v ${GOPATH}/pkg/mod:/go/pkg/mod${VOLUME_MOUNT} \
+		-v ${GOCACHE}:/tmp/go-build-cache${VOLUME_MOUNT} \
+		-v ${HOME}/.kube:/home/user/.kube${VOLUME_MOUNT} \
+		-v /tmp:/tmp${VOLUME_MOUNT} \
+		-w ${DOCKER_SMOKE_WORKDIR} \
+		-p ${ARGOCD_E2E_APISERVER_PORT}:8080 \
+		-p 4000:4000 \
+		$(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE):$(TEST_TOOLS_TAG) \
+		bash -c "$(1)"
+endef
+
 # Runs any command in the argocd-test-utils container in client mode
 define run-in-test-client
 	docker run --rm -it \
@@ -88,9 +119,16 @@ define run-in-test-client
 		bash -c "$(1)"
 endef
 
+
+
 # 
 define exec-in-test-server
 	docker exec -it -u $(shell id -u):$(shell id -g) -e ARGOCD_E2E_K3S=$(ARGOCD_E2E_K3S) argocd-test-server $(1)
+endef
+
+# 
+define exec-in-smoke-server
+	docker exec -it -u $(shell id -u):$(shell id -g) -e ARGOCD_SMOKE_URL=$(ARGOCD_SMOKE_URL) -e ARGOCD_SMOKE_USERNAME=$(ARGOCD_SMOKE_USERNAME) -e ARGOCD_SMOKE_PASSWORD=$(ARGOCD_SMOKE_PASSWORD) argocd-smoke-test $(1)
 endef
 
 PATH:=$(PATH):$(PWD)/hack
@@ -347,6 +385,20 @@ test-e2e-local: cli-local
 	# NO_PROXY ensures all tests don't go out through a proxy if one is configured on the test system
 	export GO111MODULE=off
 	ARGOCD_GPG_ENABLED=true NO_PROXY=* ./hack/test.sh -timeout 20m -v ./test/e2e
+
+# Run the Smoke test suite (local version)
+.PHONY: test-smoke-local
+test-smoke-local: cli-local
+	. ./test/smoke/checkFlags.sh
+	# NO_PROXY ensures all tests don't go out through a proxy if one is configured on the test system
+	export GO111MODULE=off
+	ARGOCD_GPG_ENABLED=true NO_PROXY=* ./hack/test.sh -timeout 20m -v ./test/smoke
+
+# Run the smoke test suite. Smoke test servers, username and password must be provided as flag(s)
+.PHONY: test-smoke
+test-smoke: 
+	$(call exec-in-smoke-server,make test-smoke-local)
+
 
 # Spawns a shell in the test server container for debugging purposes
 debug-test-server: test-tools-image

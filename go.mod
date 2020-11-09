@@ -42,6 +42,7 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway v1.14.6
 	github.com/improbable-eng/grpc-web v0.0.0-20181111100011-16092bd1d58a
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
+	github.com/kisielk/godepgraph v0.0.0-20190626013829-57a7e4a651a9 // indirect
 	github.com/malexdev/utfutil v0.0.0-20180510171754-00c8d4a8e7a8 // indirect
 	github.com/mwitkow/go-conntrack v0.0.0-20190716064945-2f068394615f // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible
