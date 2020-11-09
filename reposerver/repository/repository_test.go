@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -242,15 +241,17 @@ func TestGenerateKsonnetManifest(t *testing.T) {
 func TestGenerateHelmChartWithDependencies(t *testing.T) {
 	service := newService("../..")
 
+	helmRepo := argoappv1.Repository{Name: "bitnami", Type: "helm", Repo: "https://charts.bitnami.com/bitnami"}
 	q := apiclient.ManifestRequest{
 		Repo: &argoappv1.Repository{},
 		ApplicationSource: &argoappv1.ApplicationSource{
 			Path: "./util/helm/testdata/helm2-dependency",
 		},
+		Repos: []*argoappv1.Repository{&helmRepo},
 	}
 	res1, err := service.GenerateManifest(context.Background(), &q)
 	assert.Nil(t, err)
-	assert.Len(t, res1.Manifests, 12)
+	assert.Len(t, res1.Manifests, 10)
 }
 
 func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
@@ -1215,28 +1216,4 @@ func TestGenerateManifestWithAnnotatedAndRegularGitTagHashes(t *testing.T) {
 		})
 	}
 
-}
-
-func TestHelmDependencyWithConcurrency(t *testing.T) {
-	cleanup := func() {
-		_ = os.Remove(filepath.Join("../../util/helm/testdata/helm2-dependency", helmDepUpMarkerFile))
-		_ = os.RemoveAll(filepath.Join("../../util/helm/testdata/helm2-dependency", "charts"))
-	}
-	cleanup()
-	defer cleanup()
-
-	var wg sync.WaitGroup
-	wg.Add(3)
-	for i := 0; i < 3; i++ {
-		go func() {
-			res, err := helmTemplate("../../util/helm/testdata/helm2-dependency", "../..", nil, &apiclient.ManifestRequest{
-				ApplicationSource: &argoappv1.ApplicationSource{},
-			}, false)
-
-			assert.NoError(t, err)
-			assert.NotNil(t, res)
-			wg.Done()
-		}()
-	}
-	wg.Wait()
 }

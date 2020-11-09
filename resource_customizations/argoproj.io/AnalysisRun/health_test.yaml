@@ -39,3 +39,7 @@ tests:
     status: Unknown
     message: "Status Message: Assessed as Inconclusive"
   inputPath: testdata/inconclusiveAnalysisRunWithStatusMessage.yaml
+- healthStatus:
+    status: Healthy
+    message: "run terminated"
+  inputPath: testdata/terminatedAnalysisRun.yaml
