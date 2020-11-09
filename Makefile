@@ -19,7 +19,7 @@ GOCACHE?=$(HOME)/.cache/go-build
 
 DOCKER_SRCDIR?=$(GOPATH)/src
 DOCKER_WORKDIR?=/go/src/github.com/argoproj/argo-cd
-DOCKER_SMOKE_WORKDIR?=/go/src/github.com/argoproj/argo-cd/test/container/Dockerfile.smoke
+DOCKER_SMOKE_WORKDIR?=/go/src/github.com/argoproj/argo-cd
 
 
 
@@ -240,6 +240,12 @@ test-tools-image:
 	docker build --build-arg UID=$(shell id -u) -t $(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE) -f test/container/Dockerfile .
 	docker tag $(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE) $(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE):$(TEST_TOOLS_TAG)
 
+.PHONY: test-smoke-image
+test-smoke-image:
+	docker build --build-arg UID=$(shell id -u) -t $(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE) -f test/container/Dockerfile.smoke .
+	docker tag $(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE) $(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE):$(TEST_TOOLS_TAG)
+
+
 .PHONY: manifests-local
 manifests-local:
 	./hack/update-manifests.sh
@@ -436,6 +442,13 @@ start-e2e-local:
 	ARGOCD_IN_CI=$(ARGOCD_IN_CI) \
 	ARGOCD_E2E_TEST=true \
 		goreman -f $(ARGOCD_PROCFILE) start ${ARGOCD_START}
+
+# Starts smoke server in a container
+.PHONY: start-smoke
+start-smoke: test-tools-image
+	docker version
+	mkdir -p ${GOCACHE}
+	$(call run-smoke-test-server,make test-smoke-local)
 
 # Cleans VSCode debug.test files from sub-dirs to prevent them from being included in packr boxes
 .PHONY: clean-debug
