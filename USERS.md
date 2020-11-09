@@ -5,6 +5,7 @@ As the Argo Community grows, we'd like to keep track of our users. Please send a
 Currently, the following organizations are **officially** using Argo CD:
 
 1. [127Labs](https://127labs.com/)
+1. [3Rein](https://www.3rein.com/)
 1. [Adevinta](https://www.adevinta.com/)
 1. [AppDirect](https://www.appdirect.com)
 1. [ANSTO - Australian Synchrotron](https://www.synchrotron.org.au/)
