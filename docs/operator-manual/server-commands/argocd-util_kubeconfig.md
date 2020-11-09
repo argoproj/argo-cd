@@ -35,5 +35,5 @@ argocd-util kubeconfig CLUSTER_URL OUTPUT_PATH [flags]
 
 ### SEE ALSO
 
-* [argocd-util](argocd-util.md)	 - argocd-util has internal tools used by Argo CD
+* [argocd-util](argocd-util.md)	 - argocd-util tools used by Argo CD
 

@@ -38,7 +38,7 @@ argocd-util settings [flags]
 
 ### SEE ALSO
 
-* [argocd-util](argocd-util.md)	 - argocd-util has internal tools used by Argo CD
+* [argocd-util](argocd-util.md)	 - argocd-util tools used by Argo CD
 * [argocd-util settings resource-overrides](argocd-util_settings_resource-overrides.md)	 - Troubleshoot resource overrides
 * [argocd-util settings validate](argocd-util_settings_validate.md)	 - Validate settings
 
