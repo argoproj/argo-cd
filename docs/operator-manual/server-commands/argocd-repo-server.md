@@ -1,10 +1,10 @@
 ## argocd-repo-server
 
-Run argocd-repo-server
+Run ArgoCD Repository Server
 
 ### Synopsis
 
-Run argocd-repo-server
+ArgoCD Repository Server is an internal service which maintains a local cache of the Git repository holding the application manifests, and is responsible for generating and returning the Kubernetes manifests.  This command runs Repository Server in the foreground.  It can be configured by following options.
 
 ```
 argocd-repo-server [flags]

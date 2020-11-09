@@ -64,8 +64,8 @@ func NewCommand() *cobra.Command {
 	)
 	var command = &cobra.Command{
 		Use:               cliName,
-		Short:             "Run the argocd API server",
-		Long:              "Run the argocd API server",
+		Short:             "Run the ArgoCD API server",
+		Long:              "The API server is a gRPC/REST server which exposes the API consumed by the Web UI, CLI, and CI/CD systems.  This command runs API server in the foreground.  It can be configured by following options.",
 		DisableAutoGenTag: true,
 		Run: func(c *cobra.Command, args []string) {
 			cli.SetLogFormat(logFormat)

@@ -1,10 +1,10 @@
 ## argocd-application-controller
 
-application-controller is a controller to operate on applications CRD
+Run ArgoCD Application Controller
 
 ### Synopsis
 
-application-controller is a controller to operate on applications CRD
+ArgoCD application controller is a Kubernetes controller that continuously monitors running applications and compares the current, live state against the desired target state (as specified in the repo). This command runs Application Controller in the foreground.  It can be configured by following options.
 
 ```
 argocd-application-controller [flags]

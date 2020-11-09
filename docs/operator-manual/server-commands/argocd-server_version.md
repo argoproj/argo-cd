@@ -41,5 +41,5 @@ argocd-server version [flags]
 
 ### SEE ALSO
 
-* [argocd-server](argocd-server.md)	 - Run the argocd API server
+* [argocd-server](argocd-server.md)	 - Run the ArgoCD API server
 

@@ -1,10 +1,10 @@
 ## argocd-server
 
-Run the argocd API server
+Run the ArgoCD API server
 
 ### Synopsis
 
-Run the argocd API server
+The API server is a gRPC/REST server which exposes the API consumed by the Web UI, CLI, and CI/CD systems.  This command runs API server in the foreground.  It can be configured by following options.
 
 ```
 argocd-server [flags]
