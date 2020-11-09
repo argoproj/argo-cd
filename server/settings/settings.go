@@ -126,7 +126,6 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 			ClientID:    oidcConfig.ClientID,
 			CLIClientID: oidcConfig.CLIClientID,
 			Scopes:      oidcConfig.RequestedScopes,
-			LogoutURL:   oidcConfig.LogoutURL,
 		}
 		if len(argoCDSettings.OIDCConfig().RequestedIDTokenClaims) > 0 {
 			set.OIDCConfig.IDTokenClaims = argoCDSettings.OIDCConfig().RequestedIDTokenClaims

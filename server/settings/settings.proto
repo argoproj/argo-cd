@@ -69,7 +69,6 @@ message OIDCConfig {
     string cliClientID = 4 [(gogoproto.customname) = "CLIClientID"];
     repeated string scopes = 5;
     map<string, github.com.argoproj.argo_cd.server.settings.oidc.Claim> idTokenClaims = 6 [(gogoproto.customname) = "IDTokenClaims"];
-    string logoutURL = 7;
 }
 
 // SettingsService

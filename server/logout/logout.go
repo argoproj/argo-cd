@@ -23,14 +23,16 @@ type Handler struct {
 }
 
 var (
-	tokenPattern     = regexp.MustCompile(`{{token}}`)
-	tokenNamePattern = regexp.MustCompile(tokenPrefix)
-	token            string
-	tokenPrefix      = common.AuthCookieName + "="
+	tokenPattern             = regexp.MustCompile(`{{token}}`)
+	logoutRedirectURLPattern = regexp.MustCompile(`{{logoutRedirectURL}}`)
+	tokenNamePattern         = regexp.MustCompile(tokenPrefix)
+	token                    string
+	tokenPrefix              = common.AuthCookieName + "="
 )
 
-func constructLogoutURL(logoutURL, token string) string {
-	return tokenPattern.ReplaceAllString(logoutURL, token)
+func constructLogoutURL(logoutURL, token, logoutRedirectURL string) string {
+	constructedLogoutURL := tokenPattern.ReplaceAllString(logoutURL, token)
+	return logoutRedirectURLPattern.ReplaceAllString(constructedLogoutURL, logoutRedirectURL)
 }
 
 //ServeHTTP constructs the logout URL for OIDC provider by using the ID token
@@ -42,20 +44,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			tokenString = fmt.Sprintf("%s", tokenNamePattern.ReplaceAllString(cookie, ""))
 		}
 	}
-	// tokenString := tokenNamePattern.ReplaceAllString(r.Header["Cookie"], "")
-	// fmt.Printf("EXTRACTED TOKEN: %s", tokenString)
 	argoCDSettings, err := h.settingsMgr.GetSettings()
 	if err != nil {
 	}
 
 	OIDCConfig := argoCDSettings.OIDCConfig()
-	logoutURL := constructLogoutURL(OIDCConfig.LogoutURL, tokenString)
+	logoutURL := constructLogoutURL(OIDCConfig.LogoutURL, tokenString, OIDCConfig.LogoutRedirectURL)
 
 	w.Write([]byte(logoutURL))
-
-	// // _, err = http.Get(logoutURL)
-	// fmt.Printf(logoutURL)
-	// r.Header.Add("Authorization", token)
-	// http.Redirect(w, r, "https://dev-5695098.okta.com/oauth2/v1/logout?id_token_hint="+token+"&post_logout_redirect_uri=http://localhost:4000/login", http.StatusSeeOther)
-
 }

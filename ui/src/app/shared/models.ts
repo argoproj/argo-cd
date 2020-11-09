@@ -409,8 +409,6 @@ export interface AuthSettings {
     };
     oidcConfig: {
         name: string;
-        iss: string;
-        logoutURL: string;
     };
     help: {
         chatUrl: string;
