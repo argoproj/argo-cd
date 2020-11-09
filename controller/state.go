@@ -413,7 +413,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 			if appInstanceName != "" && appInstanceName != app.Name {
 				conditions = append(conditions, v1alpha1.ApplicationCondition{
 					Type:               v1alpha1.ApplicationConditionSharedResourceWarning,
-					Message:            fmt.Sprintf("%s/%s is part of a different application: %s", liveObj.GetKind(), liveObj.GetName(), appInstanceName),
+					Message:            fmt.Sprintf("%s/%s is part of applications %s and %s", liveObj.GetKind(), liveObj.GetName(), app.Name, appInstanceName),
 					LastTransitionTime: &now,
 				})
 			}
