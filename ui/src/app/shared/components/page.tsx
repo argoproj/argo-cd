@@ -60,8 +60,7 @@ export class Page extends React.Component<{title: string; toolbar?: Toolbar | Ob
                 this.appContext.history.push('/login');
             }
             await services.users.logout();
-        }
-        else {
+        } else {
             this.appContext.history.push('/login');
         }
     }
