@@ -1691,12 +1691,14 @@ Note that each project role policy rule must be scoped to that project only. Use
 <a href="../../operator-manual/rbac/">RBAC</a> documentation if you want to configure cross project RBAC rules.</p>
 <h2 id="configuring-global-projects-v18">Configuring Global Projects (v1.8)<a class="headerlink" href="#configuring-global-projects-v18" title="Permanent link">&para;</a></h2>
 <p>Global projects can be configured to provide configurations that other projects can inherit from. </p>
-<p>Projects, which match <code>matchExpressions</code> specified in <code>argocd-cm</code> ConfigMap, inherit the following fields from the global project:
-* namespaceResourceBlacklist
-* namespaceResourceWhitelist
-* clusterResourceBlacklist
-* clusterResourceWhitelist
-* SyncWindows</p>
+<p>Projects, which match <code>matchExpressions</code> specified in <code>argocd-cm</code> ConfigMap, inherit the following fields from the global project:</p>
+<ul>
+<li>namespaceResourceBlacklist</li>
+<li>namespaceResourceWhitelist</li>
+<li>clusterResourceBlacklist</li>
+<li>clusterResourceWhitelist</li>
+<li>SyncWindows</li>
+</ul>
 <p>Configure global projects in <code>argocd-cm</code> ConfigMap:</p>
 <div class="codehilite"><pre><span></span><code><span class="nt">data</span><span class="p">:</span>
   <span class="nt">globalProjects</span><span class="p">:</span> <span class="p p-Indicator">|-</span>
