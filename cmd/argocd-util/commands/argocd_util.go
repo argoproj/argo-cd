@@ -55,9 +55,10 @@ func NewCommand() *cobra.Command {
 	)
 
 	var command = &cobra.Command{
-		Use:   cliName,
-		Short: "argocd-util tools used by Argo CD",
-		Long:  "argocd-util has internal utility tools used by Argo CD",
+		Use:               cliName,
+		Short:             "argocd-util tools used by Argo CD",
+		Long:              "argocd-util has internal utility tools used by Argo CD",
+		DisableAutoGenTag: true,
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 		},
