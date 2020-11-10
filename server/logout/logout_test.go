@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/argoproj/argo-cd/common"
+
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-cd/util/settings"
 	"github.com/stretchr/testify/assert"
