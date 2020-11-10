@@ -48,6 +48,11 @@ nav:
     - operator-manual/metrics.md
     - operator-manual/notifications.md
     - operator-manual/troubleshooting.md
+    - Server Configuration Parameters:
+      - operator-manual/server-commands/argocd-server.md
+      - operator-manual/server-commands/argocd-application-controller.md
+      - operator-manual/server-commands/argocd-repo-server.md
+    - argocd-util Tools: operator-manual/server-commands/argocd-util.md
     - Upgrading:
         - operator-manual/upgrading/overview.md
         - operator-manual/upgrading/1.6-1.7.md
