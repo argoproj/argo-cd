@@ -8,7 +8,7 @@ A set HA of manifests are provided for users who wish to run Argo CD in a highly
 
 !!! note
     The HA installation will require at least three different nodes due to pod anti-affinity roles in the specs.
- 
+
 ## Scaling Up
 
 ### argocd-repo-server

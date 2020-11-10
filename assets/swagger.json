@@ -124,7 +124,11 @@
           "AccountService"
         ],
         "summary": "CreateToken creates a token",
+<<<<<<< HEAD
+        "operationId": "CreateTokenMixin7",
+=======
         "operationId": "CreateToken",
+>>>>>>> e2d5d488... feat(server): Add endpoint for node information (#4746)
         "parameters": [
           {
             "type": "string",
@@ -157,7 +161,7 @@
           "AccountService"
         ],
         "summary": "DeleteToken deletes a token",
-        "operationId": "DeleteToken",
+        "operationId": "DeleteTokenMixin7",
         "parameters": [
           {
             "type": "string",
@@ -188,7 +192,7 @@
           "ApplicationService"
         ],
         "summary": "List returns list of applications",
-        "operationId": "List",
+        "operationId": "ListMixin10",
         "parameters": [
           {
             "type": "string",
@@ -239,7 +243,11 @@
           "ApplicationService"
         ],
         "summary": "Create creates an application",
+<<<<<<< HEAD
+        "operationId": "CreateMixin10",
+=======
         "operationId": "Create",
+>>>>>>> e2d5d488... feat(server): Add endpoint for node information (#4746)
         "parameters": [
           {
             "name": "body",
@@ -266,7 +274,11 @@
           "ApplicationService"
         ],
         "summary": "Update updates an application",
+<<<<<<< HEAD
+        "operationId": "UpdateMixin10",
+=======
         "operationId": "Update",
+>>>>>>> e2d5d488... feat(server): Add endpoint for node information (#4746)
         "parameters": [
           {
             "type": "string",
@@ -400,7 +412,11 @@
           "ApplicationService"
         ],
         "summary": "Get returns an application by name",
+<<<<<<< HEAD
+        "operationId": "GetMixin10",
+=======
         "operationId": "Get",
+>>>>>>> e2d5d488... feat(server): Add endpoint for node information (#4746)
         "parameters": [
           {
             "type": "string",
@@ -452,7 +468,11 @@
           "ApplicationService"
         ],
         "summary": "Delete deletes an application",
+<<<<<<< HEAD
+        "operationId": "DeleteMixin10",
+=======
         "operationId": "Delete",
+>>>>>>> e2d5d488... feat(server): Add endpoint for node information (#4746)
         "parameters": [
           {
             "type": "string",
@@ -1188,7 +1208,11 @@
           "ClusterService"
         ],
         "summary": "List returns list of clusters",
+<<<<<<< HEAD
+        "operationId": "ListMixin1",
+=======
         "operationId": "ListMixin3",
+>>>>>>> e2d5d488... feat(server): Add endpoint for node information (#4746)
         "parameters": [
           {
             "type": "string",
@@ -1215,7 +1239,11 @@
           "ClusterService"
         ],
         "summary": "Create creates a cluster",
+<<<<<<< HEAD
+        "operationId": "CreateMixin1",
+=======
         "operationId": "CreateMixin3",
+>>>>>>> e2d5d488... feat(server): Add endpoint for node information (#4746)
         "parameters": [
           {
             "name": "body",
@@ -1276,7 +1304,11 @@
           "ClusterService"
         ],
         "summary": "Get returns a cluster by server address",
+<<<<<<< HEAD
+        "operationId": "GetMixin1",
+=======
         "operationId": "GetMixin3",
+>>>>>>> e2d5d488... feat(server): Add endpoint for node information (#4746)
         "parameters": [
           {
             "type": "string",
@@ -1304,7 +1336,11 @@
           "ClusterService"
         ],
         "summary": "Delete deletes a cluster",
+<<<<<<< HEAD
+        "operationId": "DeleteMixin1",
+=======
         "operationId": "DeleteMixin3",
+>>>>>>> e2d5d488... feat(server): Add endpoint for node information (#4746)
         "parameters": [
           {
             "type": "string",
@@ -1384,7 +1420,11 @@
           "GPGKeyService"
         ],
         "summary": "List all available repository certificates",
+<<<<<<< HEAD
+        "operationId": "List",
+=======
         "operationId": "ListMixin4",
+>>>>>>> e2d5d488... feat(server): Add endpoint for node information (#4746)
         "parameters": [
           {
             "type": "string",
@@ -1407,7 +1447,11 @@
           "GPGKeyService"
         ],
         "summary": "Create one or more GPG public keys in the server's configuration",
+<<<<<<< HEAD
+        "operationId": "Create",
+=======
         "operationId": "CreateMixin4",
+>>>>>>> e2d5d488... feat(server): Add endpoint for node information (#4746)
         "parameters": [
           {
             "description": "Raw key data of the GPG key(s) to create",
@@ -1433,7 +1477,11 @@
           "GPGKeyService"
         ],
         "summary": "Delete specified GPG public key from the server's configuration",
+<<<<<<< HEAD
+        "operationId": "Delete",
+=======
         "operationId": "DeleteMixin4",
+>>>>>>> e2d5d488... feat(server): Add endpoint for node information (#4746)
         "parameters": [
           {
             "type": "string",
@@ -1458,7 +1506,11 @@
           "GPGKeyService"
         ],
         "summary": "Get information about specified GPG public key from the server",
+<<<<<<< HEAD
+        "operationId": "Get",
+=======
         "operationId": "GetMixin4",
+>>>>>>> e2d5d488... feat(server): Add endpoint for node information (#4746)
         "parameters": [
           {
             "type": "string",
@@ -1974,7 +2026,11 @@
           "RepositoryService"
         ],
         "summary": "Get returns a repository or its credentials",
+<<<<<<< HEAD
+        "operationId": "GetMixin2",
+=======
         "operationId": "GetMixin7",
+>>>>>>> e2d5d488... feat(server): Add endpoint for node information (#4746)
         "parameters": [
           {
             "type": "string",
@@ -2261,7 +2317,11 @@
           "SettingsService"
         ],
         "summary": "Get returns Argo CD settings",
+<<<<<<< HEAD
+        "operationId": "GetMixin4",
+=======
         "operationId": "GetMixin10",
+>>>>>>> e2d5d488... feat(server): Add endpoint for node information (#4746)
         "responses": {
           "200": {
             "description": "A successful response.",

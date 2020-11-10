@@ -5,6 +5,7 @@ As the Argo Community grows, we'd like to keep track of our users. Please send a
 Currently, the following organizations are **officially** using Argo CD:
 
 1. [127Labs](https://127labs.com/)
+1. [3Rein](https://www.3rein.com/)
 1. [Adevinta](https://www.adevinta.com/)
 1. [AppDirect](https://www.appdirect.com)
 1. [ANSTO - Australian Synchrotron](https://www.synchrotron.org.au/)
@@ -96,3 +97,9 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Speee](https://speee.jp/)
 1. [VISITS Technologies](https://visits.world/en)
 1. [Qonto](https://qonto.com)
+1. [openEuler](https://openeuler.org)
+1. [MindSpore](https://mindspore.cn)
+1. [openLooKeng](https://openlookeng.io)
+1. [openGauss](https://opengauss.org/)
+1. [Virtuo](https://www.govirtuo.com/)
+

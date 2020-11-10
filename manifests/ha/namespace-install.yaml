@@ -1976,6 +1976,25 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   labels:
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/name: argocd-redis-haproxy
+    app.kubernetes.io/part-of: argocd
+  name: argocd-redis-haproxy
+  namespace: argocd
+rules:
+- apiGroups:
+  - security.openshift.io
+  resourceNames:
+  - nonroot
+  resources:
+  - securitycontextconstraints
+  verbs:
+  - use
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
     app.kubernetes.io/component: application-controller
     app.kubernetes.io/name: argocd-application-controller
     app.kubernetes.io/part-of: argocd
@@ -2045,6 +2064,14 @@ rules:
   - endpoints
   verbs:
   - get
+- apiGroups:
+  - security.openshift.io
+  resourceNames:
+  - nonroot
+  resources:
+  - securitycontextconstraints
+  verbs:
+  - use
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -2088,6 +2115,23 @@ rules:
   verbs:
   - create
   - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/name: argocd-redis-haproxy
+    app.kubernetes.io/part-of: argocd
+  name: argocd-redis-haproxy
+  namespace: argocd
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: argocd-redis-haproxy
+subjects:
+- kind: ServiceAccount
+  name: argocd-redis-haproxy
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -3053,7 +3097,7 @@ spec:
         - /data/conf/redis.conf
         command:
         - redis-server
-        image: redis:5.0.8-alpine
+        image: redis:5.0.10-alpine
         imagePullPolicy: IfNotPresent
         livenessProbe:
           initialDelaySeconds: 15
@@ -3071,7 +3115,7 @@ spec:
         - /data/conf/sentinel.conf
         command:
         - redis-sentinel
-        image: redis:5.0.8-alpine
+        image: redis:5.0.10-alpine
         imagePullPolicy: IfNotPresent
         livenessProbe:
           initialDelaySeconds: 15
@@ -3097,7 +3141,7 @@ spec:
           value: 896627000a81c7bdad8dbdcffd39728c9c17b309
         - name: SENTINEL_ID_2
           value: 3acbca861108bc47379b71b1d87d1c137dce591f
-        image: redis:5.0.8-alpine
+        image: redis:5.0.10-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
         resources: {}

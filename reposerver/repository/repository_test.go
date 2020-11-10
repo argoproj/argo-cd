@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -188,6 +187,17 @@ func TestRecurseManifestsInDir(t *testing.T) {
 	assert.Equal(t, 2, len(res1.Manifests))
 }
 
+func TestInvalidManifestsInDir(t *testing.T) {
+	service := newService(".")
+
+	src := argoappv1.ApplicationSource{Path: "./testdata/invalid-manifests", Directory: &argoappv1.ApplicationSourceDirectory{Recurse: true}}
+
+	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src}
+
+	_, err := service.GenerateManifest(context.Background(), &q)
+	assert.NotNil(t, err)
+}
+
 func TestGenerateJsonnetManifestInDir(t *testing.T) {
 	service := newService(".")
 
@@ -231,15 +241,17 @@ func TestGenerateKsonnetManifest(t *testing.T) {
 func TestGenerateHelmChartWithDependencies(t *testing.T) {
 	service := newService("../..")
 
+	helmRepo := argoappv1.Repository{Name: "bitnami", Type: "helm", Repo: "https://charts.bitnami.com/bitnami"}
 	q := apiclient.ManifestRequest{
 		Repo: &argoappv1.Repository{},
 		ApplicationSource: &argoappv1.ApplicationSource{
 			Path: "./util/helm/testdata/helm2-dependency",
 		},
+		Repos: []*argoappv1.Repository{&helmRepo},
 	}
 	res1, err := service.GenerateManifest(context.Background(), &q)
 	assert.Nil(t, err)
-	assert.Len(t, res1.Manifests, 12)
+	assert.Len(t, res1.Manifests, 10)
 }
 
 func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
@@ -963,8 +975,9 @@ func TestGetRevisionMetadata(t *testing.T) {
 	}, nil)
 
 	res, err := service.GetRevisionMetadata(context.Background(), &apiclient.RepoServerRevisionMetadataRequest{
-		Repo:     &argoappv1.Repository{},
-		Revision: "c0b400fc458875d925171398f9ba9eabd5529923",
+		Repo:           &argoappv1.Repository{},
+		Revision:       "c0b400fc458875d925171398f9ba9eabd5529923",
+		CheckSignature: true,
 	})
 
 	assert.NoError(t, err)
@@ -972,7 +985,34 @@ func TestGetRevisionMetadata(t *testing.T) {
 	assert.Equal(t, now, res.Date.Time)
 	assert.Equal(t, "author", res.Author)
 	assert.EqualValues(t, []string{"tag1", "tag2"}, res.Tags)
+	assert.NotEmpty(t, res.SignatureInfo)
 
+	// Cache hit - signature info should not be in result
+	res, err = service.GetRevisionMetadata(context.Background(), &apiclient.RepoServerRevisionMetadataRequest{
+		Repo:           &argoappv1.Repository{},
+		Revision:       "c0b400fc458875d925171398f9ba9eabd5529923",
+		CheckSignature: false,
+	})
+	assert.NoError(t, err)
+	assert.Empty(t, res.SignatureInfo)
+
+	// Enforce cache miss - signature info should not be in result
+	res, err = service.GetRevisionMetadata(context.Background(), &apiclient.RepoServerRevisionMetadataRequest{
+		Repo:           &argoappv1.Repository{},
+		Revision:       "c0b400fc458875d925171398f9ba9eabd5529924",
+		CheckSignature: false,
+	})
+	assert.NoError(t, err)
+	assert.Empty(t, res.SignatureInfo)
+
+	// Cache hit on previous entry that did not have signature info
+	res, err = service.GetRevisionMetadata(context.Background(), &apiclient.RepoServerRevisionMetadataRequest{
+		Repo:           &argoappv1.Repository{},
+		Revision:       "c0b400fc458875d925171398f9ba9eabd5529924",
+		CheckSignature: true,
+	})
+	assert.NoError(t, err)
+	assert.NotEmpty(t, res.SignatureInfo)
 }
 
 func TestGetSignatureVerificationResult(t *testing.T) {
@@ -1176,28 +1216,4 @@ func TestGenerateManifestWithAnnotatedAndRegularGitTagHashes(t *testing.T) {
 		})
 	}
 
-}
-
-func TestHelmDependencyWithConcurrency(t *testing.T) {
-	cleanup := func() {
-		_ = os.Remove(filepath.Join("../../util/helm/testdata/helm2-dependency", helmDepUpMarkerFile))
-		_ = os.RemoveAll(filepath.Join("../../util/helm/testdata/helm2-dependency", "charts"))
-	}
-	cleanup()
-	defer cleanup()
-
-	var wg sync.WaitGroup
-	wg.Add(3)
-	for i := 0; i < 3; i++ {
-		go func() {
-			res, err := helmTemplate("../../util/helm/testdata/helm2-dependency", "../..", nil, &apiclient.ManifestRequest{
-				ApplicationSource: &argoappv1.ApplicationSource{},
-			}, false)
-
-			assert.NoError(t, err)
-			assert.NotNil(t, res)
-			wg.Done()
-		}()
-	}
-	wg.Wait()
 }

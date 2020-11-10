@@ -43,6 +43,15 @@ ARGOCD_TEST_E2E?=true
 
 ARGOCD_LINT_GOGC?=20
 
+# Depending on where we are (legacy or non-legacy pwd), we need to use
+# different Docker volume mounts for our source tree
+LEGACY_PATH=$(GOPATH)/src/github.com/argoproj/argo-cd
+ifeq ("$(PWD)","$(LEGACY_PATH)")
+DOCKER_SRC_MOUNT="$(DOCKER_SRCDIR):/go/src$(VOLUME_MOUNT)"
+else
+DOCKER_SRC_MOUNT="$(PWD):/go/src/github.com/argoproj/argo-cd$(VOLUME_MOUNT)"
+endif
+
 # Runs any command in the argocd-test-utils container in server mode
 # Server mode container will start with uid 0 and drop privileges during runtime
 define run-in-test-server
@@ -56,7 +65,7 @@ define run-in-test-server
 		-e ARGOCD_IN_CI=$(ARGOCD_IN_CI) \
 		-e ARGOCD_E2E_TEST=$(ARGOCD_E2E_TEST) \
 		-e ARGOCD_E2E_YARN_HOST=$(ARGOCD_E2E_YARN_HOST) \
-		-v ${DOCKER_SRCDIR}:/go/src${VOLUME_MOUNT} \
+		-v ${DOCKER_SRC_MOUNT} \
 		-v ${GOPATH}/pkg/mod:/go/pkg/mod${VOLUME_MOUNT} \
 		-v ${GOCACHE}:/tmp/go-build-cache${VOLUME_MOUNT} \
 		-v ${HOME}/.kube:/home/user/.kube${VOLUME_MOUNT} \
@@ -78,7 +87,7 @@ define run-in-test-client
 		-e ARGOCD_E2E_K3S=$(ARGOCD_E2E_K3S) \
 		-e GOCACHE=/tmp/go-build-cache \
 		-e ARGOCD_LINT_GOGC=$(ARGOCD_LINT_GOGC) \
-		-v ${DOCKER_SRCDIR}:/go/src${VOLUME_MOUNT} \
+		-v ${DOCKER_SRC_MOUNT} \
 		-v ${GOPATH}/pkg/mod:/go/pkg/mod${VOLUME_MOUNT} \
 		-v ${GOCACHE}:/tmp/go-build-cache${VOLUME_MOUNT} \
 		-v ${HOME}/.kube:/home/user/.kube${VOLUME_MOUNT} \
@@ -135,32 +144,43 @@ endif
 .PHONY: all
 all: cli image argocd-util
 
+# We have some legacy requirements for being checked out within $GOPATH.
+# The ensure-gopath target can be used as dependency to ensure we are running
+# within these boundaries.
+.PHONY: ensure-gopath
+ensure-gopath:
+ifneq ("$(PWD)","$(LEGACY_PATH)")
+	@echo "Due to legacy requirements for codegen, repository needs to be checked out within \$$GOPATH"
+	@echo "Location of this repo should be '$(LEGACY_PATH)' but is '$(PWD)'"
+	@exit 1
+endif
+
 .PHONY: gogen
-gogen:
+gogen: ensure-gopath
 	export GO111MODULE=off
 	go generate ./util/argo/...
 
 .PHONY: protogen
-protogen:
+protogen: ensure-gopath
 	export GO111MODULE=off
 	./hack/generate-proto.sh
 
 .PHONY: openapigen
-openapigen:
+openapigen: ensure-gopath
 	export GO111MODULE=off
 	./hack/update-openapi.sh
 
 .PHONY: clientgen
-clientgen:
+clientgen: ensure-gopath
 	export GO111MODULE=off
 	./hack/update-codegen.sh
 
 .PHONY: clidocsgen
-clidocsgen:
+clidocsgen: ensure-gopath
 	go run tools/cmd-docs/main.go	
 
 .PHONY: codegen-local
-codegen-local: mod-vendor-local gogen protogen clientgen openapigen clidocsgen manifests-local
+codegen-local: ensure-gopath mod-vendor-local gogen protogen clientgen openapigen clidocsgen manifests-local
 	rm -rf vendor/
 
 .PHONY: codegen
@@ -335,10 +355,24 @@ test-local:
 		./hack/test.sh -coverprofile=coverage.out "$(TEST_MODULE)"; \
 	fi
 
+.PHONY: test-race
+test-race: test-tools-image
+	mkdir -p $(GOCACHE)
+	$(call run-in-test-client,make TEST_MODULE=$(TEST_MODULE) test-race-local)
+
+# Run all unit tests, with data race detection, skipping known failures (local version)
+.PHONY: test-race-local
+test-race-local:
+	if test "$(TEST_MODULE)" = ""; then \
+		./hack/test.sh -race -coverprofile=coverage.out `go list ./... | grep -v 'test/e2e'`; \
+	else \
+		./hack/test.sh -race -coverprofile=coverage.out "$(TEST_MODULE)"; \
+	fi
+
 # Run the E2E test suite. E2E test servers (see start-e2e target) must be
 # started before.
 .PHONY: test-e2e
-test-e2e: 
+test-e2e:
 	$(call exec-in-test-server,make test-e2e-local)
 
 # Run the E2E test suite (local version)
@@ -365,7 +399,7 @@ start-e2e: test-tools-image
 
 # Starts e2e server locally (or within a container)
 .PHONY: start-e2e-local
-start-e2e-local: 
+start-e2e-local:
 	kubectl create ns argocd-e2e || true
 	kubectl config set-context --current --namespace=argocd-e2e
 	kustomize build test/manifests/base | kubectl apply -f -
