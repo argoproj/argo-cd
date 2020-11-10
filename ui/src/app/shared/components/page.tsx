@@ -4,8 +4,6 @@ import * as React from 'react';
 import {BehaviorSubject, Observable} from 'rxjs';
 import {AppContext} from '../context';
 import {services} from '../services';
-import requests from '../services/requests';
-
 
 const mostRecentLoggedIn = new BehaviorSubject<boolean>(false);
 
