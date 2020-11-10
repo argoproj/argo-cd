@@ -1,7 +1,6 @@
-package server
+package logout
 
 import (
-	"fmt"
 	"net/http"
 	"regexp"
 	"strings"
@@ -26,7 +25,6 @@ var (
 	tokenPattern             = regexp.MustCompile(`{{token}}`)
 	logoutRedirectURLPattern = regexp.MustCompile(`{{logoutRedirectURL}}`)
 	tokenNamePattern         = regexp.MustCompile(tokenPrefix)
-	token                    string
 	tokenPrefix              = common.AuthCookieName + "="
 )
 
@@ -35,21 +33,37 @@ func constructLogoutURL(logoutURL, token, logoutRedirectURL string) string {
 	return logoutRedirectURLPattern.ReplaceAllString(constructedLogoutURL, logoutRedirectURL)
 }
 
-//ServeHTTP constructs the logout URL for OIDC provider by using the ID token
-//and redirect URL and invalidates the OIDC session on logout from argoCD
+// ServeHTTP constructs the logout URL for OIDC provider by using the ID token and logout redirect url if present
+// and returns it to the ui
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var tokenString string
+	var OIDCConfig *settings.OIDCConfig
 	for _, cookie := range r.Header["Cookie"] {
 		if strings.HasPrefix(cookie, tokenPrefix) {
-			tokenString = fmt.Sprintf("%s", tokenNamePattern.ReplaceAllString(cookie, ""))
+			tokenString = tokenNamePattern.ReplaceAllString(cookie, "")
+			break
 		}
 	}
-	argoCDSettings, err := h.settingsMgr.GetSettings()
-	if err != nil {
+	if tokenString == "" {
+		w.WriteHeader(http.StatusInternalServerError)
+		http.Error(w, "Failed to retrieve auth token", http.StatusInternalServerError)
 	}
 
-	OIDCConfig := argoCDSettings.OIDCConfig()
-	logoutURL := constructLogoutURL(OIDCConfig.LogoutURL, tokenString, OIDCConfig.LogoutRedirectURL)
+	argoCDSettings, err := h.settingsMgr.GetSettings()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		http.Error(w, http.StatusText(http.StatusInternalServerError),
+			http.StatusInternalServerError)
+	}
 
-	w.Write([]byte(logoutURL))
+	if argoCDSettings.OIDCConfig() == nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		http.Error(w, "Failed to retrieve oidc config settings", http.StatusInternalServerError)
+	} else {
+		OIDCConfig = argoCDSettings.OIDCConfig()
+		logoutURL := constructLogoutURL(OIDCConfig.LogoutURL, tokenString, OIDCConfig.LogoutRedirectURL)
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(logoutURL))
+	}
+
 }
