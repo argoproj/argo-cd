@@ -262,3 +262,34 @@ For a simple case this can be:
   oidc.config: |
     requestedIDTokenClaims: {"groups": {"essential": true}}
 ```
+### Configuring a custom logout URL for your OIDC provider
+
+Optionally, if your OIDC provider exposes a logout API and you wish to configure a custom logout URL for the purposes of invalidating 
+any active session post logout, you can do so by specifying it as follows:
+
+```yaml
+  oidc.config: |
+    name: example-OIDC-provider
+    issuer: https://example-OIDC-provider.com
+    clientID: xxxxxxxxx
+    clientSecret: xxxxxxxxx
+    requestedScopes: ["openid", "profile", "email", "groups"]
+    requestedIDTokenClaims: {"groups": {"essential": true}}
+    logoutURL: https://example-OIDC-provider.com/logout?id_token_hint={{token}}
+```
+If you also wish to configure a post logout redirect URL, you can do so by specifying it as follows:
+
+```yaml
+  oidc.config: |
+    name: example-OIDC-provider
+    issuer: https://example-OIDC-provider.com
+    clientID: xxxxxxxxx
+    clientSecret: xxxxxxxxxxx
+    requestedScopes: ["openid", "profile", "email", "groups"]
+    requestedIDTokenClaims: {"groups": {"essential": true}}
+    logoutURL: https://example-OIDC-provider.com/logout?id_token_hint={{token}}&post_logout_redirect_uri={{logoutRedirectURL}}
+    logoutRedirectURL: http://my-application.com/login
+```
+
+!!! note
+   The post logout redirect URI may need to be whitelisted against your OIDC provider's client settings for ArgoCD.
