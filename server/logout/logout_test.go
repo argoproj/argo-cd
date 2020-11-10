@@ -7,14 +7,14 @@ import (
 	"testing"
 
 	"github.com/argoproj/argo-cd/common"
-
-	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-cd/util/settings"
 	"github.com/stretchr/testify/assert"
+	"k8s.io/client-go/kubernetes/fake"
+
+	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes/fake"
 )
 
 var (
