@@ -21,7 +21,8 @@ import (
 
 func NewProjectsCommand() *cobra.Command {
 	var command = &cobra.Command{
-		Use: "projects",
+		Use:   "projects",
+		Short: "Utility commands operate on ArgoCD Projects",
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 		},

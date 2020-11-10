@@ -37,7 +37,8 @@ import (
 
 func NewAppsCommand() *cobra.Command {
 	var command = &cobra.Command{
-		Use: "apps",
+		Use:   "apps",
+		Short: "Utility commands operate on ArgoCD applications",
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 		},
