@@ -56,7 +56,7 @@ export class Page extends React.Component<{title: string; toolbar?: Toolbar | Ob
             const userInfo = await services.users.get(); 
             if(userInfo.iss !== 'argocd') {
                 fetch('/api/logout',  {  credentials: "same-origin", method: 'GET'}).then(response => response.text())
-                .then(data => window.location.href = data);
+                .then(data => window.location.href = data == ""? '/login':data);
             } else {
                 this.appContext.history.push('/login');
             }
