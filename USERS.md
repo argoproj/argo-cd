@@ -101,4 +101,5 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [MindSpore](https://mindspore.cn)
 1. [openLooKeng](https://openlookeng.io)
 1. [openGauss](https://opengauss.org/)
+1. [Virtuo](https://www.govirtuo.com/)
 
