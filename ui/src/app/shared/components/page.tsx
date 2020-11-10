@@ -51,17 +51,18 @@ export class Page extends React.Component<{title: string; toolbar?: Toolbar | Ob
 
     private async goToLogin(logout = false) {
         if (logout) {
-            const userInfo = await services.users.get(); 
-            if(userInfo.iss !== 'argocd') {
-                fetch('/api/logout',  {  credentials: "same-origin", method: 'GET'}).then(response => response.text())
-                .then(data => window.location.href = data == ""? '/login':data);
+            const userInfo = await services.users.get();
+            if (userInfo.iss !== 'argocd') {
+                fetch('/api/logout',  {credentials: 'same-origin', method: 'GET'})
+                .then(response => response.text())
+                .then(data => window.location.href = data === ''? '/login':data);
             } else {
                 this.appContext.history.push('/login');
             }
             await services.users.logout();
         }
         else {
-            this.appContext.history.push('/login');
+        this.appContext.history.push('/login');
         }      
     }
 
