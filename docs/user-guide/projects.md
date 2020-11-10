@@ -185,6 +185,7 @@ Note that each project role policy rule must be scoped to that project only. Use
 Global projects can be configured to provide configurations that other projects can inherit from. 
 
 Projects, which match `matchExpressions` specified in `argocd-cm` ConfigMap, inherit the following fields from the global project:
+
 * namespaceResourceBlacklist
 * namespaceResourceWhitelist
 * clusterResourceBlacklist
