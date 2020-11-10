@@ -63,7 +63,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		OIDCConfig = argoCDSettings.OIDCConfig()
 		logoutURL := constructLogoutURL(OIDCConfig.LogoutURL, tokenString, OIDCConfig.LogoutRedirectURL)
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(logoutURL))
+		_, _ = w.Write([]byte(logoutURL))
 	}
 
 }
