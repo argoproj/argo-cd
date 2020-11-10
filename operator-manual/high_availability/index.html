@@ -1636,11 +1636,6 @@
 <p class="admonition-title">Note</p>
 <p>The HA installation will require at least three different nodes due to pod anti-affinity roles in the specs.</p>
 </div>
-<p>In OpenShift clusters, <code>argocd-redis-ha</code> service accounts need to be granted <code>nonroot</code> Security Context Constraints (SCC) by running the following OpenShift commands which allow Redis containers to run as non-root users.</p>
-<div class="codehilite"><pre><span></span><code>$ oc adm policy add-scc-to-user nonroot -z argocd-redis-ha
-$ oc adm policy add-scc-to-user nonroot -z argocd-redis-ha-haproxy
-</code></pre></div>
-
 <h2 id="scaling-up">Scaling Up<a class="headerlink" href="#scaling-up" title="Permanent link">&para;</a></h2>
 <h3 id="argocd-repo-server">argocd-repo-server<a class="headerlink" href="#argocd-repo-server" title="Permanent link">&para;</a></h3>
 <p><strong>settings:</strong></p>
