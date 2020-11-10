@@ -1,0 +1,28 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/name: argocd-redis-haproxy
+    app.kubernetes.io/part-of: argocd
+  name: argocd-redis-haproxy
+  namespace: argocd
+rules: []
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/name: argocd-redis-haproxy
+    app.kubernetes.io/part-of: argocd
+  name: argocd-redis-haproxy
+  namespace: argocd
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: argocd-redis-haproxy
+subjects:
+- kind: ServiceAccount
+  name: argocd-redis-haproxy
+
