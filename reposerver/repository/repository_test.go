@@ -241,6 +241,13 @@ func TestGenerateKsonnetManifest(t *testing.T) {
 func TestGenerateHelmChartWithDependencies(t *testing.T) {
 	service := newService("../..")
 
+	cleanup := func() {
+		_ = os.Remove(filepath.Join("../../util/helm/testdata/helm2-dependency", helmDepUpMarkerFile))
+		_ = os.RemoveAll(filepath.Join("../../util/helm/testdata/helm2-dependency", "charts"))
+	}
+	cleanup()
+	defer cleanup()
+
 	helmRepo := argoappv1.Repository{Name: "bitnami", Type: "helm", Repo: "https://charts.bitnami.com/bitnami"}
 	q := apiclient.ManifestRequest{
 		Repo: &argoappv1.Repository{},
