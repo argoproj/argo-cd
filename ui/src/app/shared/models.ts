@@ -319,9 +319,14 @@ export interface LoadBalancerIngress {
     ip: string;
 }
 
+export interface InfoItem {
+    name: string;
+    value: string;
+}
+
 export interface ResourceNode extends ResourceRef {
     parentRefs: ResourceRef[];
-    info: {name: string; value: string}[];
+    info: InfoItem[];
     networkingInfo?: ResourceNetworkingInfo;
     images?: string[];
     resourceVersion: string;
@@ -819,13 +824,18 @@ export const Groups = [
 export interface Node {
     metadata: models.ObjectMeta;
     status: NodeStatus;
+    metrics: ResourceList;
     pods: Pod[];
 }
 
+export interface Metric {
+    request: number;
+    limit: number;
+}
+
 export interface NodeStatus {
-    capacity: ResourceList;
-    allocatable: ResourceList;
     nodeInfo: NodeInfo;
+    capacity: {[key in ResourceName]?: string};
 }
 
 export interface NodeInfo {
@@ -835,14 +845,13 @@ export interface NodeInfo {
 }
 
 export type ResourceList = {
-    [key in ResourceName]: number;
+    [key in ResourceName]?: Metric;
 };
 
 export enum ResourceName {
     ResourceCPU = 'cpu',
     ResourceMemory = 'memory',
-    ResourceStorage = 'storage',
-    ResourceEphemeralStorage = 'ephemeral-storage'
+    ResourceStorage = 'storage'
 }
 
 export interface Pod {

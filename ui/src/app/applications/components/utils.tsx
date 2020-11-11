@@ -182,6 +182,30 @@ export const HealthStatusIcon = ({state}: {state: appModels.HealthStatus}) => {
     return <i qe-id='utils-health-status-title' title={title} className={'fa ' + icon} style={{color}} />;
 };
 
+export const PodHealthIcon = ({state}: {state: appModels.HealthStatus}) => {
+    let icon = 'fa-question-circle';
+
+    switch (state.status) {
+        case appModels.HealthStatuses.Healthy:
+            icon = 'fa-check';
+            break;
+        case appModels.HealthStatuses.Suspended:
+            icon = 'fa-check';
+            break;
+        case appModels.HealthStatuses.Degraded:
+            icon = 'fa-times';
+            break;
+        case appModels.HealthStatuses.Progressing:
+            icon = 'fa fa-circle-notch fa-spin';
+            break;
+    }
+    let title: string = state.status;
+    if (state.message) {
+        title = `${state.status}: ${state.message};`;
+    }
+    return <i qe-id='utils-health-status-title' title={title} className={'fa ' + icon} />;
+};
+
 export const PodPhaseIcon = ({state}: {state: appModels.PodPhase}) => {
     let className = '';
     switch (state) {

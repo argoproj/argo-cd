@@ -35,6 +35,19 @@ $max-rows: 5;
       margin-right: 4 * $gutter;
     }
   }
+  &__info {
+    margin: 1em 0;
+    padding: 10px;
+    border-radius: 3px;
+    background-color: $argo-color-gray-3;
+    div {
+      display: flex;
+      & div:last-child {
+        font-weight: 500;
+        margin-left: auto;
+      }
+    }
+  }
   &__label {
     margin-top: 1em;
     font-size: 10px;
@@ -104,28 +117,31 @@ $max-rows: 5;
     }
 
     &__stat {
-      flex-direction: column;
-      justify-content: flex-end;
       &__bar {
-        $stat-width: 12px;
-        align-self: flex-end;
         background-color: $argo-color-gray-4;
         height: $max-rows * $pod-size;
-        width: $stat-width;
+        width: 12px;
+        position: relative;
         border-radius: 2px;
         margin: 0 $gutter*2;
         overflow: hidden;
-        display: flex;
         cursor: pointer;
 
         &:hover > &--fill {
           background-color: $argo-color-gray-8;
+          &--secondary {
+            background-color: $argo-color-teal-7;
+          }
         }
 
         &--fill {
-          align-self: flex-end;
+          position: absolute;
           background-color: $argo-color-gray-7;
-          width: $stat-width;
+          width: 100%;
+          bottom: 0;
+          &--secondary {
+            background-color: $argo-color-teal-6;
+          }
         }
       }
     }

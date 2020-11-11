@@ -1,9 +1,9 @@
 import {Tooltip, DataLoader, Checkbox} from 'argo-ui';
 import * as React from 'react';
 
-import {ApplicationTree, Application, Node, Pod, PodPhase, ResourceName} from '../../../shared/models';
+import {ApplicationTree, Application, Node, Pod, PodPhase, ResourceName, ResourceList, InfoItem, Metric} from '../../../shared/models';
 import {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
-import {nodeKey, HealthStatusIcon, PodPhaseIcon} from '../utils';
+import {nodeKey, PodPhaseIcon, PodHealthIcon} from '../utils';
 import './pod-view.scss';
 import {services} from '../../../shared/services';
 import {GetNodes} from './pod-view-mock-service';
@@ -70,15 +70,17 @@ export class PodView extends React.Component<PodViewProps, PodViewState> {
                             {(this.state.demoMode ? nodes : populateNodesFromTree(nodes || [], this.props.tree)).map(node => (
                                 <div className='node white-box' key={node.metadata.name}>
                                     <div className='node__container--header'>
-                                        <div>{(node.metadata.labels['kubernetes.io/hostname'] || 'Unknown').toUpperCase()}</div>
-                                        <div>
-                                            {node.status.nodeInfo.kernelVersion}, {node.status.nodeInfo.operatingSystem}, {node.status.nodeInfo.architecture}
+                                        <div><b>{(node.metadata.labels['kubernetes.io/hostname'] || 'Unknown').toUpperCase()}</b></div>
+                                        <div className='node__info'>
+                                            <div>Kernel Version:<div>{node.status.nodeInfo.kernelVersion}</div></div>
+                                            <div>Operating System:<div>{node.status.nodeInfo.operatingSystem}</div></div>
+                                            <div>Architecture: <div>{node.status.nodeInfo.architecture}</div></div>
                                         </div>
                                     </div>
                                     <div className='node__container'>
                                         <div className='node__container node__container--stats'>
-                                            {(Object.keys(node.status.capacity || {}) || []).map(r =>
-                                                Stat(r as ResourceName, node.status.capacity[r as ResourceName], node.status.allocatable[r as ResourceName])
+                                            {(Object.keys(node.metrics || {}) || []).map(r =>
+                                                Stat(r as ResourceName, node.metrics[r as ResourceName], parseInt(node.status.capacity[r as ResourceName], 10) * 1000)
                                             )}
                                         </div>
                                         <div className='node__pod-container node__container'>
@@ -87,17 +89,22 @@ export class PodView extends React.Component<PodViewProps, PodViewState> {
                                                     <Tooltip
                                                         content={
                                                             <div>
-                                                                {pod.metadata.name}, {pod.status.phase}
+                                                                {pod.metadata.name}
+                                                                <div>Phase: {pod.status.phase}</div>
+                                                                <div>Health: {pod.health}</div>
                                                             </div>
                                                         }
                                                         key={pod.metadata.name}>
                                                         <div
-                                                            className={`node__pod node__pod--${(this.state.podColorMode ? pod.status.phase.replace('Pod', '') : pod.health).toLowerCase()}`}
+                                                            className={`node__pod node__pod--${(this.state.podColorMode
+                                                                ? pod.status.phase.replace('Pod', '')
+                                                                : pod.health
+                                                            ).toLowerCase()}`}
                                                             onClick={() => this.props.onPodClick(pod.fullName)}>
                                                             {this.state.podColorMode ? (
                                                                 <PodPhaseIcon state={pod.status.phase} />
                                                             ) : (
-                                                                <HealthStatusIcon state={{status: pod.health, message: ''}} />
+                                                                <PodHealthIcon state={{status: pod.health, message: ''}} />
                                                             )}
                                                         </div>
                                                     </Tooltip>
@@ -143,26 +150,58 @@ function populateNodesFromTree(nodes: Node[], tree: ApplicationTree): Node[] {
                 }
             });
             if (nodeRefs[p.spec.nodeName]) {
-                nodeRefs[p.spec.nodeName].pods.push(p);
+                const curNode = nodeRefs[p.spec.nodeName];
+                curNode.metrics = mergeResourceLists(curNode.metrics, InfoToResourceList(d.info));
+                curNode.pods.push(p);
             }
         }
     });
     return Object.values(nodeRefs);
 }
 
-function Stat(name: ResourceName, capacity: number, allocatable: number) {
+function InfoToResourceList(items: InfoItem[]): ResourceList {
+    const resources = {} as ResourceList;
+    items
+        .filter(item => item.name.includes('Resource.'))
+        .forEach(item => {
+            const name = item.name.replace(/Resource.|Limit|Req/gi, '').toLowerCase() as ResourceName;
+            resources[name] = resources[name] || ({} as Metric);
+            if (item.name.includes('Limit')) {
+                resources[name].limit = parseInt(item.value, 10);
+            } else {
+                resources[name].request = parseInt(item.value, 10);
+            }
+        });
+    return resources;
+}
+
+function mergeResourceLists(a: ResourceList, b: ResourceList): ResourceList {
+    if (!a || !b) {
+        return !a ? b : a;
+    }
+    const res = a;
+    (Object.keys(b) as ResourceName[]).forEach(key => {
+        res[key].limit += b[key].limit;
+        res[key].request += b[key].request;
+    });
+    return res;
+}
+
+function Stat(name: ResourceName, metric: Metric, capacity: number) {
     return (
-        <div className='node__pod__stat node__container' key={name}>
+        <div className='node__pod__stat' key={name}>
             <Tooltip
                 key={name}
                 content={
                     <React.Fragment>
                         <div>{name}:</div>
-                        <div>{`${allocatable} / ${capacity} available`}</div>
+                        <div>{`${metric.request} / ${metric.limit}`}</div>
+                        <div>Capacity: {capacity}</div>
                     </React.Fragment>
                 }>
                 <div className='node__pod__stat__bar'>
-                    <div className='node__pod__stat__bar--fill' style={{height: `${100 * ((capacity - allocatable) / capacity)}%`}} />
+                    <div className='node__pod__stat__bar--fill' style={{height: `${100 * (metric.limit / capacity)}%`}} />
+                    <div className='node__pod__stat__bar--fill node__pod__stat__bar--fill--secondary' style={{height: `${100 * (metric.request / capacity)}%`}} />
                 </div>
             </Tooltip>
             <div className='node__label'>{name.slice(0, 3).toUpperCase()}</div>

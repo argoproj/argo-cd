@@ -38,17 +38,13 @@ function generateNode(): Node {
                 kernelVersion: '4.19.76-linuxkit'
             },
             capacity: {
-                'cpu': 6,
-                'memory': 1024,
-                'storage': 60000,
-                'ephemeral-storage': 5000
-            },
-            allocatable: {
-                'cpu': generateInt(0, 6),
-                'memory': generateInt(0, 1024),
-                'storage': generateInt(0, 60000),
-                'ephemeral-storage': generateInt(0, 5000)
+                cpu: '2',
+                memory: '2.048k'
             }
+        },
+        metrics: {
+            cpu: {request: generateInt(0, 1000), limit: 1000},
+            memory: {request: generateInt(0, 1024), limit: 1024}
         },
         pods
     };
@@ -90,6 +86,5 @@ export function GetNodes(x: number): Node[] {
     for (let i = 0; i < x; i++) {
         nodes[i] = generateNode();
     }
-    console.log(nodes);
     return nodes;
 }
