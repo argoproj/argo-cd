@@ -86,7 +86,7 @@ argocd account update-password \
 * Generate auth token
 ```bash
 # if flag --account is omitted then Argo CD generates token for current user
-argocd account generate-token --account <username> 
+argocd account generate-token --account <username>
 ```
 
 ### Failed logins rate limiting
@@ -106,7 +106,7 @@ regardless of the time frame they happened.
 cache. Default: 1000
 
 * `ARGOCD_MAX_CONCURRENT_LOGIN_REQUESTS_COUNT`: Limits max number of concurrent login requests.
-If set to 0 then limit is disabled. Default: 50. 
+If set to 0 then limit is disabled. Default: 50.
 
 ## SSO
 
@@ -117,7 +117,8 @@ There are two ways that SSO can be configured:
   organizations and teams to OIDC groups claims).
 
 * [Existing OIDC provider](#existing-oidc-provider) - use this if you already have an OIDC provider which you are using (e.g.
-  [Okta](okta.md), [OneLogin](onelogin.md), [Auth0](auth0.md), [Microsoft](microsoft.md), [Keycloak](keycloak.md)), where you manage your users, groups, and memberships.
+  [Okta](okta.md), [OneLogin](onelogin.md), [Auth0](auth0.md), [Microsoft](microsoft.md), [Keycloak](keycloak.md),
+  [Google (G Suite)](google.md)), where you manage your users, groups, and memberships.
 
 ## Dex
 
@@ -192,8 +193,8 @@ After saving, the changes should take affect automatically.
 NOTES:
 
 * Any values which start with '$' will look to a key in argocd-secret of the same name (minus the $),
-  to obtain the actual value. This allows you to store the `clientSecret` as a kubernetes secret. 
-  Kubernetes secrets must be base64 encoded. To base64 encode your secret, you can run 
+  to obtain the actual value. This allows you to store the `clientSecret` as a kubernetes secret.
+  Kubernetes secrets must be base64 encoded. To base64 encode your secret, you can run
   `printf RAW_STRING | base64`.
 * There is no need to set `redirectURI` in the `connectors.config` as shown in the dex documentation.
   Argo CD will automatically use the correct `redirectURI` for any OAuth2 connectors, to match the
@@ -228,7 +229,7 @@ data:
 ```
 
 !!! note
-    The callback address should be the /auth/callback endpoint of your Argo CD URL 
+    The callback address should be the /auth/callback endpoint of your Argo CD URL
     (e.g. https://argocd.example.com/auth/callback).
 
 ### Requesting additional ID token claims
