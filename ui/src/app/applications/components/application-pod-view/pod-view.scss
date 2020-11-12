@@ -104,7 +104,7 @@ $max-rows: 5;
     }
     &--failed, &--degraded {
       background-color: $argo-failed-color;
-      border: 2px inset rgba(0,0,0,0.3);
+      border: 2px solid rgba(0,0,0,0.3);
       &:hover {
         background-color: $argo-failed-color-dark;
       }

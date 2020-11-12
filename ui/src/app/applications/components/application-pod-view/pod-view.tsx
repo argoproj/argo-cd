@@ -80,7 +80,7 @@ export class PodView extends React.Component<PodViewProps, PodViewState> {
                                     <div className='node__container'>
                                         <div className='node__container node__container--stats'>
                                             {(Object.keys(node.metrics || {}) || []).map(r =>
-                                                Stat(r as ResourceName, node.metrics[r as ResourceName], parseInt(node.status.capacity[r as ResourceName], 10) * 1000)
+                                                Stat(r as ResourceName, node.metrics[r as ResourceName])
                                             )}
                                         </div>
                                         <div className='node__pod-container node__container'>
@@ -187,7 +187,7 @@ function mergeResourceLists(a: ResourceList, b: ResourceList): ResourceList {
     return res;
 }
 
-function Stat(name: ResourceName, metric: Metric, capacity: number) {
+function Stat(name: ResourceName, metric: Metric) {
     return (
         <div className='node__pod__stat' key={name}>
             <Tooltip
@@ -196,12 +196,10 @@ function Stat(name: ResourceName, metric: Metric, capacity: number) {
                     <React.Fragment>
                         <div>{name}:</div>
                         <div>{`${metric.request} / ${metric.limit}`}</div>
-                        <div>Capacity: {capacity}</div>
                     </React.Fragment>
                 }>
                 <div className='node__pod__stat__bar'>
-                    <div className='node__pod__stat__bar--fill' style={{height: `${100 * (metric.limit / capacity)}%`}} />
-                    <div className='node__pod__stat__bar--fill node__pod__stat__bar--fill--secondary' style={{height: `${100 * (metric.request / capacity)}%`}} />
+                    <div className='node__pod__stat__bar--fill' style={{height: `${100 * (metric.request / metric.limit)}%`}} />
                 </div>
             </Tooltip>
             <div className='node__label'>{name.slice(0, 3).toUpperCase()}</div>
