@@ -610,6 +610,18 @@
 
 
   <li class="md-nav__item">
+    <a href="google/" title="Google" class="md-nav__link">
+      Google
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
     <a href="../rbac/" title="RBAC Configuration" class="md-nav__link">
       RBAC Configuration
     </a>
@@ -1765,7 +1777,7 @@ login history etc. So if you need such features it is strongly recommended to us
 <li>Generate auth token</li>
 </ul>
 <div class="codehilite"><pre><span></span><code><span class="c1"># if flag --account is omitted then Argo CD generates token for current user</span>
-argocd account generate-token --account &lt;username&gt; 
+argocd account generate-token --account &lt;username&gt;
 </code></pre></div>
 
 <h3 id="failed-logins-rate-limiting">Failed logins rate limiting<a class="headerlink" href="#failed-logins-rate-limiting" title="Permanent link">&para;</a></h3>
@@ -1788,7 +1800,7 @@ cache. Default: 1000</p>
 </li>
 <li>
 <p><code>ARGOCD_MAX_CONCURRENT_LOGIN_REQUESTS_COUNT</code>: Limits max number of concurrent login requests.
-If set to 0 then limit is disabled. Default: 50. </p>
+If set to 0 then limit is disabled. Default: 50.</p>
 </li>
 </ul>
 <h2 id="sso">SSO<a class="headerlink" href="#sso" title="Permanent link">&para;</a></h2>
@@ -1801,7 +1813,8 @@ If set to 0 then limit is disabled. Default: 50. </p>
 </li>
 <li>
 <p><a href="#existing-oidc-provider">Existing OIDC provider</a> - use this if you already have an OIDC provider which you are using (e.g.
-  <a href="okta/">Okta</a>, <a href="onelogin/">OneLogin</a>, <a href="auth0/">Auth0</a>, <a href="microsoft/">Microsoft</a>, <a href="keycloak/">Keycloak</a>), where you manage your users, groups, and memberships.</p>
+  <a href="okta/">Okta</a>, <a href="onelogin/">OneLogin</a>, <a href="auth0/">Auth0</a>, <a href="microsoft/">Microsoft</a>, <a href="keycloak/">Keycloak</a>,
+  <a href="google/">Google (G Suite)</a>), where you manage your users, groups, and memberships.</p>
 </li>
 </ul>
 <h2 id="dex">Dex<a class="headerlink" href="#dex" title="Permanent link">&para;</a></h2>
@@ -1865,8 +1878,8 @@ inputted into the Argo CD configmap.</p>
 <p>NOTES:</p>
 <ul>
 <li>Any values which start with '$' will look to a key in argocd-secret of the same name (minus the $),
-  to obtain the actual value. This allows you to store the <code>clientSecret</code> as a kubernetes secret. 
-  Kubernetes secrets must be base64 encoded. To base64 encode your secret, you can run 
+  to obtain the actual value. This allows you to store the <code>clientSecret</code> as a kubernetes secret.
+  Kubernetes secrets must be base64 encoded. To base64 encode your secret, you can run
   <code>printf RAW_STRING | base64</code>.</li>
 <li>There is no need to set <code>redirectURI</code> in the <code>connectors.config</code> as shown in the dex documentation.
   Argo CD will automatically use the correct <code>redirectURI</code> for any OAuth2 connectors, to match the
@@ -1899,7 +1912,7 @@ configuration to the <code>argocd-cm</code> ConfigMap under the <code>oidc.confi
 
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>The callback address should be the /auth/callback endpoint of your Argo CD URL 
+<p>The callback address should be the /auth/callback endpoint of your Argo CD URL
 (e.g. https://argocd.example.com/auth/callback).</p>
 </div>
 <h3 id="requesting-additional-id-token-claims">Requesting additional ID token claims<a class="headerlink" href="#requesting-additional-id-token-claims" title="Permanent link">&para;</a></h3>
