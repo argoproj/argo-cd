@@ -112,7 +112,7 @@ export class PodView extends React.Component<PodViewProps, {demoMode: boolean}> 
                                                     <div className='node__container--header'>
                                                         <div>
                                                             <b>
-                                                                <i className='fa fa-hdd' />
+                                                                {iconForGroupType(podPrefs.sortMode)}
                                                                 &nbsp;
                                                                 {(node.name || 'Unknown').toUpperCase()}
                                                             </b>
@@ -267,6 +267,15 @@ function mergeResourceLists(a: ResourceList, b: ResourceList): ResourceList {
         res[key].request += b[key].request;
     });
     return res;
+}
+
+function iconForGroupType(type: PodGroupType) {
+    switch (type) {
+        case 'node':
+            return <i className='fa fa-hdd' />;
+        default:
+            return <i className='fa fa-code-branch' />;
+    }
 }
 
 function Info(items: InfoItem[]) {
