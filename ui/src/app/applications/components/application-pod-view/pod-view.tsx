@@ -120,11 +120,13 @@ export class PodView extends React.Component<PodViewProps, {demoMode: boolean}> 
                                                         {Info(node.info)}
                                                     </div>
                                                     <div className='node__container'>
-                                                        <div className='node__container node__container--stats'>
-                                                            {(Object.keys((node as Node).metrics || {}) || []).map((r) =>
-                                                                Stat(r as ResourceName, (node as Node).metrics[r as ResourceName])
-                                                            )}
-                                                        </div>
+                                                        {Object.keys((node as Node).metrics || {}).length > 0 && (
+                                                            <div className='node__container node__container--stats'>
+                                                                {Object.keys((node as Node).metrics || {}).map((r) =>
+                                                                    Stat(r as ResourceName, (node as Node).metrics[r as ResourceName])
+                                                                )}
+                                                            </div>
+                                                        )}
                                                         <div className='node__pod-container node__container'>
                                                             <div className='node__pod-container__pods'>
                                                                 {node.pods.map((pod) => (
