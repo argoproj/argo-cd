@@ -35,6 +35,9 @@ var verificationStartMatch = regexp.MustCompile(`^gpg: Signature made ([a-zA-Z0-
 // Regular expression to match the key ID of a commit signature verification
 var verificationKeyIDMatch = regexp.MustCompile(`^gpg:\s+using\s([A-Za-z]+)\skey\s([a-zA-Z0-9]+)$`)
 
+// Regular expression to match possible additional fields of a commit signature verification
+var verificationAdditionalFields = regexp.MustCompile(`^gpg:\s+issuer\s.+$`)
+
 // Regular expression to match the signature status of a commit signature verification
 var verificationStatusMatch = regexp.MustCompile(`^gpg: ([a-zA-Z]+) signature from "([^"]+)" \[([a-zA-Z]+)\]$`)
 
@@ -587,6 +590,15 @@ func ParseGitCommitVerification(signature string) (PGPVerifyResult, error) {
 			}
 
 			linesParsed += 1
+
+			// Skip additional fields
+			for verificationAdditionalFields.MatchString(scanner.Text()) {
+				if !scanner.Scan() {
+					return PGPVerifyResult{}, fmt.Errorf("Unexpected end-of-file while parsing commit verification output.")
+				}
+
+				linesParsed += 1
+			}
 
 			if strings.HasPrefix(scanner.Text(), "gpg: Can't check signature: ") {
 				result.Result = VerifyResultInvalid

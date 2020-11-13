@@ -316,7 +316,22 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 
 	// Signature with unknown key - considered invalid
 	{
-		c, err := ioutil.ReadFile("testdata/unknown_signature.txt")
+		c, err := ioutil.ReadFile("testdata/unknown_signature1.txt")
+		if err != nil {
+			panic(err.Error())
+		}
+		res, err := ParseGitCommitVerification(string(c))
+		assert.NoError(t, err)
+		assert.Equal(t, "4AEE18F83AFDEB23", res.KeyID)
+		assert.Equal(t, "RSA", res.Cipher)
+		assert.Equal(t, TrustUnknown, res.Trust)
+		assert.Equal(t, "Mon Aug 26 20:59:48 2019 CEST", res.Date)
+		assert.Equal(t, VerifyResultInvalid, res.Result)
+	}
+
+	// Signature with unknown key and additional fields - considered invalid
+	{
+		c, err := ioutil.ReadFile("testdata/unknown_signature2.txt")
 		if err != nil {
 			panic(err.Error())
 		}
