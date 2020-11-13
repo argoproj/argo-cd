@@ -3,7 +3,6 @@ package logout
 import (
 	"net/http"
 	"regexp"
-	"strings"
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
@@ -25,8 +24,6 @@ var (
 	tokenPattern             = regexp.MustCompile(`{{token}}`)
 	logoutRedirectURLPattern = regexp.MustCompile(`{{logoutRedirectURL}}`)
 	validJWTPattern          = regexp.MustCompile(`[a-zA-Z0-9-_]+\.[a-zA-Z0-9-_]+\.[a-zA-Z0-9-_]+`)
-	tokenNamePattern         = regexp.MustCompile(tokenPrefix)
-	tokenPrefix              = common.AuthCookieName + "="
 )
 
 func constructLogoutURL(logoutURL, token, logoutRedirectURL string) string {
@@ -39,12 +36,14 @@ func constructLogoutURL(logoutURL, token, logoutRedirectURL string) string {
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var tokenString string
 	var OIDCConfig *settings.OIDCConfig
-	for _, cookie := range r.Header["Cookie"] {
-		if strings.HasPrefix(cookie, tokenPrefix) {
-			tokenString = tokenNamePattern.ReplaceAllString(cookie, "")
+
+	for _, cookie := range r.Cookies() {
+		if cookie.Name == common.AuthCookieName {
+			tokenString = cookie.Value
 			break
 		}
 	}
+
 	if tokenString == "" {
 		w.WriteHeader(http.StatusInternalServerError)
 		http.Error(w, "Failed to retrieve auth token", http.StatusInternalServerError)
