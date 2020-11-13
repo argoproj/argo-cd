@@ -6,7 +6,7 @@ const podStatusWeights = {
     PodRunning: 10,
     PodSucceeded: 80,
     PodFailed: 5,
-    PodUnknown: 5
+    PodUnknown: 5,
 };
 
 const podHealthWeights = {
@@ -15,7 +15,7 @@ const podHealthWeights = {
     Suspended: 5,
     Healthy: 70,
     Degraded: 20,
-    Missing: 0
+    Missing: 0,
 };
 
 function generateInt(min: number, max: number): number {
@@ -35,27 +35,27 @@ function generateNode(): Node {
             nodeInfo: {
                 operatingSystem: 'linux',
                 architecture: 'amd64',
-                kernelVersion: '4.19.76-linuxkit'
+                kernelVersion: '4.19.76-linuxkit',
             },
             capacity: {
                 cpu: '2',
-                memory: '2.048k'
-            }
+                memory: '2.048k',
+            },
         },
         metrics: {
             cpu: {request: generateInt(0, 1000), limit: 1000},
-            memory: {request: generateInt(0, 1024), limit: 1024}
+            memory: {request: generateInt(0, 1024), limit: 1024},
         },
-        pods
+        pods,
     };
 }
 
 function getValuesFromWeights(weights: number[], values: string[]): string {
     const sum = weights.reduce((acc, el) => acc + el, 0);
     let accumulator = 0;
-    weights = weights.map(item => (accumulator = item + accumulator));
+    weights = weights.map((item) => (accumulator = item + accumulator));
     const rand = Math.random() * sum;
-    return values[weights.filter(el => el <= rand).length];
+    return values[weights.filter((el) => el <= rand).length];
 }
 
 function podSort(a: Pod, b: Pod): number {
@@ -71,9 +71,9 @@ function generatePods(n: number, nodeName: string): Pod[] {
             spec: {nodeName},
             status: {
                 phase: getValuesFromWeights(Object.values(podStatusWeights), Object.values(PodPhase)) as PodPhase,
-                message: ''
+                message: '',
             },
-            health: getValuesFromWeights(Object.values(podHealthWeights), Object.values(HealthStatuses)) as HealthStatusCode
+            health: getValuesFromWeights(Object.values(podHealthWeights), Object.values(HealthStatuses)) as HealthStatusCode,
         });
         n--;
     }

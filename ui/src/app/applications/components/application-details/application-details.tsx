@@ -36,7 +36,7 @@ type ActionMenuItem = MenuItem & {disabled?: boolean};
 
 export class ApplicationDetails extends React.Component<RouteComponentProps<{name: string}>, {page: number}> {
     public static contextTypes = {
-        apis: PropTypes.object
+        apis: PropTypes.object,
     };
 
     private appChanged = new BehaviorSubject<appModels.Application>(null);
@@ -77,20 +77,20 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
     public render() {
         return (
             <ObservableQuery>
-                {q => (
+                {(q) => (
                     <DataLoader
-                        errorRenderer={error => <Page title='Application Details'>{error}</Page>}
+                        errorRenderer={(error) => <Page title='Application Details'>{error}</Page>}
                         loadingRenderer={() => <Page title='Application Details'>Loading...</Page>}
                         input={this.props.match.params.name}
-                        load={name =>
-                            Observable.combineLatest(this.loadAppInfo(name), services.viewPreferences.getPreferences(), q).map(items => {
+                        load={(name) =>
+                            Observable.combineLatest(this.loadAppInfo(name), services.viewPreferences.getPreferences(), q).map((items) => {
                                 const pref = items[1].appDetails;
                                 const params = items[2];
                                 if (params.get('resource') != null) {
                                     pref.resourceFilter = params
                                         .get('resource')
                                         .split(',')
-                                        .filter(item => !!item);
+                                        .filter((item) => !!item);
                                 }
                                 if (params.get('view') != null) {
                                     pref.view = params.get('view') as AppsDetailsViewType;
@@ -103,13 +103,13 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                         }>
                         {({application, tree, pref}: {application: appModels.Application; tree: appModels.ApplicationTree; pref: AppDetailsPreferences}) => {
                             tree.nodes = tree.nodes || [];
-                            const kindsSet = new Set<string>(tree.nodes.map(item => item.kind));
+                            const kindsSet = new Set<string>(tree.nodes.map((item) => item.kind));
                             const treeFilter = this.getTreeFilter(pref.resourceFilter);
-                            treeFilter.kind.forEach(kind => {
+                            treeFilter.kind.forEach((kind) => {
                                 kindsSet.add(kind);
                             });
                             const kinds = Array.from(kindsSet);
-                            const noKindsFilter = pref.resourceFilter.filter(item => item.indexOf('kind:') !== 0);
+                            const noKindsFilter = pref.resourceFilter.filter((item) => item.indexOf('kind:') !== 0);
                             const refreshing = application.metadata.annotations && application.metadata.annotations[appModels.AnnotationRefreshKey];
 
                             const filter: TopBarFilter<string> = {
@@ -125,20 +125,20 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                     {value: 'health:Missing', label: 'Missing'},
                                     {value: 'health:Unknown', label: 'Unknown'},
                                     {
-                                        content: setSelection => (
+                                        content: (setSelection) => (
                                             <div>
-                                                Kinds <a onClick={() => setSelection(noKindsFilter.concat(kinds.map(kind => `kind:${kind}`)))}>all</a> /{' '}
+                                                Kinds <a onClick={() => setSelection(noKindsFilter.concat(kinds.map((kind) => `kind:${kind}`)))}>all</a> /{' '}
                                                 <a onClick={() => setSelection(noKindsFilter)}>none</a>
                                             </div>
-                                        )
+                                        ),
                                     },
-                                    ...kinds.sort().map(kind => ({value: `kind:${kind}`, label: kind}))
+                                    ...kinds.sort().map((kind) => ({value: `kind:${kind}`, label: kind})),
                                 ],
                                 selectedValues: pref.resourceFilter,
-                                selectionChanged: items => {
+                                selectionChanged: (items) => {
                                     this.appContext.apis.navigation.goto('.', {resource: `${items.join(',')}`});
                                     services.viewPreferences.updatePreferences({appDetails: {...pref, resourceFilter: items}});
-                                }
+                                },
                             };
 
                             const appNodesByName = this.groupAppNodesByKey(application, tree);
@@ -149,7 +149,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                             const conditions = application.status.conditions || [];
                             const syncResourceKey = new URLSearchParams(this.props.history.location.search).get('deploy');
                             const tab = new URLSearchParams(this.props.history.location.search).get('tab');
-                            const filteredRes = application.status.resources.filter(res => {
+                            const filteredRes = application.status.resources.filter((res) => {
                                 const resNode: ResourceTreeNode = {...res, root: null, info: null, parentRefs: [], resourceVersion: '', uid: ''};
                                 resNode.root = resNode;
                                 return this.filterTreeNode(resNode, treeFilter);
@@ -166,7 +166,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                 <React.Fragment key='app-list-tools'>
                                                     <div className='application-details__view-type'>
                                                         <i
-                                                            className={classNames('fa fa-th', {selected: pref.view === 'tree'})}
+                                                            className={classNames('fa fa-th', {selected: pref.view === 'pods'})}
                                                             title='Pods'
                                                             onClick={() => {
                                                                 this.appContext.apis.navigation.goto('.', {view: 'pods'});
@@ -199,7 +199,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                         />
                                                     </div>
                                                 </React.Fragment>
-                                            )
+                                            ),
                                         }}>
                                         <div className='application-details__status-panel'>
                                             <ApplicationStatusPanel
@@ -215,7 +215,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                     <ArgoCheckbox
                                                         checked={!!pref.orphanedResources}
                                                         id='orphanedFilter'
-                                                        onChange={val => {
+                                                        onChange={(val) => {
                                                             this.appContext.apis.navigation.goto('.', {orphaned: val});
                                                             services.viewPreferences.updatePreferences({appDetails: {...pref, orphanedResources: val}});
                                                         }}
@@ -225,10 +225,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                             )}
                                             {((pref.view === 'tree' || pref.view === 'network') && (
                                                 <ApplicationResourceTree
-                                                    nodeFilter={node => this.filterTreeNode(node, treeFilter)}
+                                                    nodeFilter={(node) => this.filterTreeNode(node, treeFilter)}
                                                     selectedNodeFullName={this.selectedNodeKey}
-                                                    onNodeClick={fullName => this.selectNode(fullName)}
-                                                    nodeMenu={node => this.renderResourceMenu(node, application)}
+                                                    onNodeClick={(fullName) => this.selectNode(fullName)}
+                                                    nodeMenu={(node) => this.renderResourceMenu(node, application)}
                                                     tree={tree}
                                                     app={application}
                                                     showOrphanedResources={pref.orphanedResources}
@@ -239,19 +239,19 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                     }}
                                                 />
                                             )) ||
-                                                (pref.view === 'pods' && <PodView tree={tree} app={application} onPodClick={fullName => this.selectNode(fullName)} />) || (
+                                                (pref.view === 'pods' && <PodView tree={tree} app={application} onPodClick={(fullName) => this.selectNode(fullName)} />) || (
                                                     <div>
                                                         {(filteredRes.length > 0 && (
                                                             <Paginate
                                                                 page={this.state.page}
                                                                 data={filteredRes}
-                                                                onPageChange={page => this.setState({page})}
+                                                                onPageChange={(page) => this.setState({page})}
                                                                 preferencesKey='application-details'>
-                                                                {data => (
+                                                                {(data) => (
                                                                     <ApplicationResourceList
-                                                                        onNodeClick={fullName => this.selectNode(fullName)}
+                                                                        onNodeClick={(fullName) => this.selectNode(fullName)}
                                                                         resources={data}
-                                                                        nodeMenu={node => this.renderResourceMenu({...node, root: node}, application)}
+                                                                        nodeMenu={(node) => this.renderResourceMenu({...node, root: node}, application)}
                                                                     />
                                                                 )}
                                                             </Paginate>
@@ -272,10 +272,15 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                         input={selectedNode.resourceVersion}
                                                         load={async () => {
                                                             const managedResources = await services.applications.managedResources(application.metadata.name, {
-                                                                id: {name: selectedNode.name, namespace: selectedNode.namespace, kind: selectedNode.kind, group: selectedNode.group}
+                                                                id: {
+                                                                    name: selectedNode.name,
+                                                                    namespace: selectedNode.namespace,
+                                                                    kind: selectedNode.kind,
+                                                                    group: selectedNode.group,
+                                                                },
                                                             });
-                                                            const controlled = managedResources.find(item => isSameNode(selectedNode, item));
-                                                            const summary = application.status.resources.find(item => isSameNode(selectedNode, item));
+                                                            const controlled = managedResources.find((item) => isSameNode(selectedNode, item));
+                                                            const summary = application.status.resources.find((item) => isSameNode(selectedNode, item));
                                                             const controlledState = (controlled && summary && {summary, state: controlled}) || null;
                                                             const resQuery = {...selectedNode};
                                                             if (controlled && controlled.targetState) {
@@ -287,13 +292,13 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                                     (await services.applications.resourceEvents(application.metadata.name, {
                                                                         name: liveState.metadata.name,
                                                                         namespace: liveState.metadata.namespace,
-                                                                        uid: liveState.metadata.uid
+                                                                        uid: liveState.metadata.uid,
                                                                     }))) ||
                                                                 [];
 
                                                             return {controlledState, liveState, events};
                                                         }}>
-                                                        {data => (
+                                                        {(data) => (
                                                             <Tabs
                                                                 navTransparent={true}
                                                                 tabs={this.getResourceTabs(application, selectedNode, data.liveState, data.events, [
@@ -307,11 +312,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                                                 controlled={data.controlledState}
                                                                                 node={selectedNode}
                                                                             />
-                                                                        )
-                                                                    }
+                                                                        ),
+                                                                    },
                                                                 ])}
                                                                 selectedTabKey={tab}
-                                                                onTabSelected={selected => this.appContext.apis.navigation.goto('.', {tab: selected})}
+                                                                onTabSelected={(selected) => this.appContext.apis.navigation.goto('.', {tab: selected})}
                                                             />
                                                         )}
                                                     </DataLoader>
@@ -323,7 +328,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                             {
                                                                 title: 'SUMMARY',
                                                                 key: 'summary',
-                                                                content: <ApplicationSummary app={application} updateApp={app => this.updateApp(app)} />
+                                                                content: <ApplicationSummary app={application} updateApp={(app) => this.updateApp(app)} />,
                                                             },
                                                             {
                                                                 title: 'PARAMETERS',
@@ -332,16 +337,20 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                                     <DataLoader
                                                                         key='appDetails'
                                                                         input={application.spec.source}
-                                                                        load={src =>
+                                                                        load={(src) =>
                                                                             services.repos
                                                                                 .appDetails(src)
                                                                                 .catch(() => ({type: 'Directory' as appModels.AppSourceType, path: application.spec.source.path}))
                                                                         }>
                                                                         {(details: appModels.RepoAppDetails) => (
-                                                                            <ApplicationParameters save={app => this.updateApp(app)} application={application} details={details} />
+                                                                            <ApplicationParameters
+                                                                                save={(app) => this.updateApp(app)}
+                                                                                application={application}
+                                                                                details={details}
+                                                                            />
                                                                         )}
                                                                     </DataLoader>
-                                                                )
+                                                                ),
                                                             },
                                                             {
                                                                 title: 'MANIFEST',
@@ -350,7 +359,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                                     <YamlEditor
                                                                         minHeight={800}
                                                                         input={application.spec}
-                                                                        onSave={async patch => {
+                                                                        onSave={async (patch) => {
                                                                             const spec = JSON.parse(JSON.stringify(application.spec));
                                                                             return services.applications.updateSpec(
                                                                                 application.metadata.name,
@@ -358,7 +367,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                                             );
                                                                         }}
                                                                     />
-                                                                )
+                                                                ),
                                                             },
                                                             {
                                                                 icon: 'fa fa-file-medical',
@@ -375,22 +384,22 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                                                     'items.group',
                                                                                     'items.kind',
                                                                                     'items.namespace',
-                                                                                    'items.name'
-                                                                                ]
+                                                                                    'items.name',
+                                                                                ],
                                                                             })
                                                                         }>
-                                                                        {managedResources => <ApplicationResourcesDiff states={managedResources} />}
+                                                                        {(managedResources) => <ApplicationResourcesDiff states={managedResources} />}
                                                                     </DataLoader>
-                                                                )
+                                                                ),
                                                             },
                                                             {
                                                                 title: 'EVENTS',
                                                                 key: 'event',
-                                                                content: <ApplicationResourceEvents applicationName={application.metadata.name} />
-                                                            }
+                                                                content: <ApplicationResourceEvents applicationName={application.metadata.name} />,
+                                                            },
                                                         ]}
                                                         selectedTabKey={tab}
-                                                        onTabSelected={selected => this.appContext.apis.navigation.goto('.', {tab: selected})}
+                                                        onTabSelected={(selected) => this.appContext.apis.navigation.goto('.', {tab: selected})}
                                                     />
                                                 )}
                                             </div>
@@ -401,8 +410,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                 <ApplicationDeploymentHistory
                                                     app={application}
                                                     selectedRollbackDeploymentIndex={this.selectedRollbackDeploymentIndex}
-                                                    rollbackApp={info => this.rollbackApplication(info, application)}
-                                                    selectDeployment={i => this.setRollbackPanelVisible(i)}
+                                                    rollbackApp={(info) => this.rollbackApplication(info, application)}
+                                                    selectDeployment={(i) => this.setRollbackPanelVisible(i)}
                                                 />
                                             )}
                                         </SlidingPanel>
@@ -429,35 +438,35 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
             {
                 iconClassName: 'fa fa-info-circle',
                 title: <span className='show-for-medium'>App Details</span>,
-                action: () => this.selectNode(fullName)
+                action: () => this.selectNode(fullName),
             },
             {
                 iconClassName: 'fa fa-file-medical',
                 title: <span className='show-for-medium'>App Diff</span>,
                 action: () => this.selectNode(fullName, 0, 'diff'),
-                disabled: app.status.sync.status === SyncStatuses.Synced
+                disabled: app.status.sync.status === SyncStatuses.Synced,
             },
             {
                 iconClassName: 'fa fa-sync',
                 title: <span className='show-for-medium'>Sync</span>,
-                action: () => this.showDeploy('all')
+                action: () => this.showDeploy('all'),
             },
             {
                 iconClassName: 'fa fa-info-circle',
                 title: <span className='show-for-medium'>Sync Status</span>,
                 action: () => this.setOperationStatusVisible(true),
-                disabled: !app.status.operationState
+                disabled: !app.status.operationState,
             },
             {
                 iconClassName: 'fa fa-history',
                 title: <span className='show-for-medium'>History and rollback</span>,
                 action: () => this.setRollbackPanelVisible(0),
-                disabled: !app.status.operationState
+                disabled: !app.status.operationState,
             },
             {
                 iconClassName: 'fa fa-times-circle',
                 title: <span className='show-for-medium'>Delete</span>,
-                action: () => this.deleteApplication()
+                action: () => this.deleteApplication(),
             },
             {
                 iconClassName: classNames('fa fa-redo', {'status-icon--spin': !!refreshing}),
@@ -468,8 +477,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                             items={[
                                 {
                                     title: 'Hard Refresh',
-                                    action: () => !refreshing && services.applications.get(app.metadata.name, 'hard')
-                                }
+                                    action: () => !refreshing && services.applications.get(app.metadata.name, 'hard'),
+                                },
                             ]}
                             anchor={() => <i className='fa fa-caret-down' />}
                         />
@@ -482,13 +491,13 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                         AppUtils.setAppRefreshing(app);
                         this.appChanged.next(app);
                     }
-                }
-            }
+                },
+            },
         ];
     }
 
     private filterTreeNode(node: ResourceTreeNode, filter: {kind: string[]; health: string[]; sync: string[]}): boolean {
-        const syncStatuses = filter.sync.map(item => (item === 'OutOfSync' ? ['OutOfSync', 'Unknown'] : [item])).reduce((first, second) => first.concat(second), []);
+        const syncStatuses = filter.sync.map((item) => (item === 'OutOfSync' ? ['OutOfSync', 'Unknown'] : [item])).reduce((first, second) => first.concat(second), []);
 
         return (
             (filter.kind.length === 0 || filter.kind.indexOf(node.kind) > -1) &&
@@ -499,26 +508,26 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
 
     private loadAppInfo(name: string): Observable<{application: appModels.Application; tree: appModels.ApplicationTree}> {
         return Observable.fromPromise(services.applications.get(name))
-            .flatMap(app => {
+            .flatMap((app) => {
                 const fallbackTree = {
-                    nodes: app.status.resources.map(res => ({...res, parentRefs: [], info: [], resourceVersion: '', uid: ''})),
-                    orphanedNodes: []
+                    nodes: app.status.resources.map((res) => ({...res, parentRefs: [], info: [], resourceVersion: '', uid: ''})),
+                    orphanedNodes: [],
                 } as appModels.ApplicationTree;
                 return Observable.combineLatest(
                     Observable.merge(
                         Observable.from([app]),
-                        this.appChanged.filter(item => !!item),
+                        this.appChanged.filter((item) => !!item),
                         AppUtils.handlePageVisibility(() =>
                             services.applications
                                 .watch({name})
-                                .map(watchEvent => {
+                                .map((watchEvent) => {
                                     if (watchEvent.type === 'DELETED') {
                                         this.onAppDeleted();
                                     }
                                     return watchEvent.application;
                                 })
                                 .repeat()
-                                .retryWhen(errors => errors.delay(500))
+                                .retryWhen((errors) => errors.delay(500))
                         )
                     ),
                     Observable.merge(
@@ -528,7 +537,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                             services.applications
                                 .watchResourceTree(name)
                                 .repeat()
-                                .retryWhen(errors => errors.delay(500))
+                                .retryWhen((errors) => errors.delay(500))
                         )
                     )
                 );
@@ -553,7 +562,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
 
     private groupAppNodesByKey(application: appModels.Application, tree: appModels.ApplicationTree) {
         const nodeByKey = new Map<string, appModels.ResourceDiff | appModels.ResourceNode | appModels.Application>();
-        tree.nodes.concat(tree.orphanedNodes || []).forEach(node => nodeByKey.set(nodeKey(node), node));
+        tree.nodes.concat(tree.orphanedNodes || []).forEach((node) => nodeByKey.set(nodeKey(node), node));
         nodeByKey.set(nodeKey({group: 'argoproj.io', kind: application.kind, name: application.metadata.name, namespace: application.metadata.namespace}), application);
         return nodeByKey;
     }
@@ -623,7 +632,7 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
         } catch (e) {
             this.appContext.apis.notifications.show({
                 content: <ErrorNotification title='Unable to rollback application' e={e} />,
-                type: NotificationType.Error
+                type: NotificationType.Error,
             });
         }
     }
@@ -642,8 +651,8 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
                 ...((isRoot && [
                     {
                         title: 'Sync',
-                        action: () => this.showDeploy(nodeKey(resource))
-                    }
+                        action: () => this.showDeploy(nodeKey(resource)),
+                    },
                 ]) ||
                     []),
                 {
@@ -670,20 +679,20 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
                                     } catch (e) {
                                         this.appContext.apis.notifications.show({
                                             content: <ErrorNotification title='Unable to delete resource' e={e} />,
-                                            type: NotificationType.Error
+                                            type: NotificationType.Error,
                                         });
                                     }
-                                }
+                                },
                             }
                         );
-                    }
-                }
+                    },
+                },
             ];
             const resourceActions = services.applications
                 .getResourceActions(application.metadata.name, resource)
-                .then(actions =>
+                .then((actions) =>
                     items.concat(
-                        actions.map(action => ({
+                        actions.map((action) => ({
                             title: action.name,
                             disabled: !!action.disabled,
                             action: async () => {
@@ -698,10 +707,10 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
                                 } catch (e) {
                                     this.appContext.apis.notifications.show({
                                         content: <ErrorNotification title='Unable to execute resource action' e={e} />,
-                                        type: NotificationType.Error
+                                        type: NotificationType.Error,
                                     });
                                 }
-                            }
+                            },
                         }))
                     )
                 )
@@ -710,13 +719,13 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
         }
         return (
             <DataLoader load={() => menuItems}>
-                {items => (
+                {(items) => (
                     <ul>
                         {items.map((item, i) => (
                             <li
                                 className={classNames('application-details__action-menu', {disabled: item.disabled})}
                                 key={i}
-                                onClick={e => {
+                                onClick={(e) => {
                                     e.stopPropagation();
                                     if (!item.disabled) {
                                         item.action();
@@ -738,7 +747,7 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
 
     private getResourceTabs(application: appModels.Application, node: appModels.ResourceNode, state: appModels.State, events: appModels.Event[], tabs: Tab[]) {
         if (state) {
-            const numErrors = events.filter(event => event.type !== 'Normal').reduce((total, event) => total + event.count, 0);
+            const numErrors = events.filter((event) => event.type !== 'Normal').reduce((total, event) => total + event.count, 0);
             tabs.push({
                 title: 'EVENTS',
                 badge: (numErrors > 0 && numErrors) || null,
@@ -747,7 +756,7 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
                     <div className='application-resource-events'>
                         <EventsList events={events} />
                     </div>
-                )
+                ),
             });
         }
         if (node.kind === 'Pod' && state) {
@@ -755,13 +764,13 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
                 {
                     offset: 0,
                     title: 'INIT CONTAINERS',
-                    containers: state.spec.initContainers || []
+                    containers: state.spec.initContainers || [],
                 },
                 {
                     offset: (state.spec.initContainers || []).length,
                     title: 'CONTAINERS',
-                    containers: state.spec.containers || []
-                }
+                    containers: state.spec.containers || [],
+                },
             ];
             tabs = tabs.concat([
                 {
@@ -771,7 +780,7 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
                         <div className='application-details__tab-content-full-height'>
                             <div className='row'>
                                 <div className='columns small-3 medium-2'>
-                                    {containerGroups.map(group => (
+                                    {containerGroups.map((group) => (
                                         <div key={group.title} style={{marginBottom: '1em'}}>
                                             {group.containers.length > 0 && <p>{group.title}:</p>}
                                             {group.containers.map((container: any, i: number) => (
@@ -791,8 +800,8 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
                                 </div>
                             </div>
                         </div>
-                    )
-                }
+                    ),
+                },
             ]);
         }
         return tabs;

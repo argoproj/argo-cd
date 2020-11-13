@@ -1,4 +1,5 @@
 import {BehaviorSubject, Observable} from 'rxjs';
+import {PodGroupType} from '../models';
 
 export type AppsDetailsViewType = 'tree' | 'network' | 'list' | 'pods';
 
@@ -9,22 +10,22 @@ export interface AppDetailsPreferences {
     inlineDiff: boolean;
     compactDiff: boolean;
     orphanedResources: boolean;
+    podView: PodViewPreferences;
+}
+
+export type PodColorMode = 'health' | 'phase';
+
+export interface PodViewPreferences {
+    colorMode: PodColorMode;
+    sortMode: PodGroupType;
 }
 
 export type AppsListViewType = 'tiles' | 'list' | 'summary';
 
 export class AppsListPreferences {
     public static countEnabledFilters(pref: AppsListPreferences) {
-        // tslint:disable-next-line: prettier
-        return [
-            pref.clustersFilter,
-            pref.healthFilter,
-            pref.labelsFilter,
-            pref.namespacesFilter,
-            pref.projectsFilter,
-            pref.reposFilter,
-            pref.syncFilter
-        ].reduce((count, filter) => {
+        return [pref.clustersFilter, pref.healthFilter, pref.labelsFilter, pref.namespacesFilter, pref.projectsFilter, pref.reposFilter, pref.syncFilter].reduce(
+            (count, filter) => {
                 if (filter && filter.length > 0) {
                     return count + 1;
                 }
@@ -73,7 +74,11 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         inlineDiff: false,
         compactDiff: false,
         resourceView: 'manifest',
-        orphanedResources: false
+        orphanedResources: false,
+        podView: {
+            colorMode: 'health',
+            sortMode: 'node',
+        },
     },
     appList: {
         view: 'tiles' as AppsListViewType,
@@ -83,9 +88,9 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         clustersFilter: new Array<string>(),
         reposFilter: new Array<string>(),
         syncFilter: new Array<string>(),
-        healthFilter: new Array<string>()
+        healthFilter: new Array<string>(),
     },
-    pageSizes: {}
+    pageSizes: {},
 };
 
 export class ViewPreferencesService {
