@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -708,7 +709,9 @@ func TestRunSync_HooksNotDeletedIfPhaseNotCompleted(t *testing.T) {
 			ResourceKey: kube.GetResourceKey(inProgressHook),
 			HookPhase:   synccommon.OperationRunning,
 			SyncPhase:   synccommon.SyncPhasePreSync,
-		}}))
+		}},
+			metav1.Now(),
+		))
 	fakeDynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme())
 	syncCtx.dynamicIf = fakeDynamicClient
 	deletedCount := 0
@@ -752,7 +755,9 @@ func TestRunSync_HooksDeletedAfterPhaseCompleted(t *testing.T) {
 			ResourceKey: kube.GetResourceKey(completedHook2),
 			HookPhase:   synccommon.OperationSucceeded,
 			SyncPhase:   synccommon.SyncPhasePreSync,
-		}}))
+		}},
+			metav1.Now(),
+		))
 	fakeDynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme())
 	syncCtx.dynamicIf = fakeDynamicClient
 	deletedCount := 0
@@ -796,7 +801,9 @@ func TestRunSync_HooksDeletedAfterPhaseCompletedFailed(t *testing.T) {
 			ResourceKey: kube.GetResourceKey(completedHook2),
 			HookPhase:   synccommon.OperationFailed,
 			SyncPhase:   synccommon.SyncPhaseSync,
-		}}))
+		}},
+			metav1.Now(),
+		))
 	fakeDynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme())
 	syncCtx.dynamicIf = fakeDynamicClient
 	deletedCount := 0

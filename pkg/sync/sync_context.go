@@ -71,11 +71,12 @@ func WithHealthOverride(override health.HealthOverride) SyncOpt {
 }
 
 // WithInitialState sets sync operation initial state
-func WithInitialState(phase common.OperationPhase, message string, results []common.ResourceSyncResult) SyncOpt {
+func WithInitialState(phase common.OperationPhase, message string, results []common.ResourceSyncResult, startedAt metav1.Time) SyncOpt {
 	return func(ctx *syncContext) {
 		ctx.phase = phase
 		ctx.message = message
 		ctx.syncRes = map[string]common.ResourceSyncResult{}
+		ctx.startedAt = startedAt.Time
 		for i := range results {
 			ctx.syncRes[resourceResultKey(results[i].ResourceKey, results[i].SyncPhase)] = results[i]
 		}
