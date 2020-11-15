@@ -9,6 +9,7 @@ on:
   pull_request:
     branches:
       - 'master'
+      - 'release-1.7'
 
 jobs:
   build-docker:
