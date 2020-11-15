@@ -71,7 +71,31 @@ discoveryTests:
       disabled: true
     - name: promote-full
       disabled: true
-- inputPath: testdata/aborted_rollout.yaml
+- inputPath: testdata/v0.9_aborted_rollout.yaml
+  result:
+    - name: restart
+      disabled: false
+    - name: resume
+      disabled: true
+    - name: abort
+      disabled: true
+    - name: retry
+      disabled: false
+    - name: promote-full
+      disabled: false
+- inputPath: testdata/v0.9_aborted_bg_rollout.yaml
+  result:
+    - name: restart
+      disabled: false
+    - name: resume
+      disabled: true
+    - name: abort
+      disabled: true
+    - name: retry
+      disabled: false
+    - name: promote-full
+      disabled: true
+- inputPath: testdata/aborted_bg_rollout.yaml
   result:
     - name: restart
       disabled: false
@@ -97,8 +121,11 @@ actionTests:
   inputPath: testdata/rollout_not_restarted.yaml
   expectedOutputPath: testdata/rollout_restarted.yaml
 - action: retry
-  inputPath: testdata/aborted_rollout.yaml
+  inputPath: testdata/v0.9_aborted_rollout.yaml
   expectedOutputPath: testdata/retried_rollout.yaml
+- action: promote-full
+  inputPath: testdata/v0.9_aborted_rollout.yaml
+  expectedOutputPath: testdata/v0.9_promote-full_rollout.yaml
 - action: promote-full
   inputPath: testdata/aborted_rollout.yaml
   expectedOutputPath: testdata/promote-full_rollout.yaml

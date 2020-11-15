@@ -1,15 +1,13 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
-  annotations:
-    rollout.argoproj.io/revision: "2"
-  creationTimestamp: "2020-11-13T08:25:35Z"
-  generation: 3
+  creationTimestamp: "2020-11-13T00:44:55Z"
+  generation: 1
   name: basic
   namespace: argocd-e2e
-  resourceVersion: "201579"
+  resourceVersion: "182108"
   selfLink: /apis/argoproj.io/v1alpha1/namespaces/argocd-e2e/rollouts/basic
-  uid: 201161e2-c761-4e52-91a1-d4872be9ead4
+  uid: 34e4bbfc-222c-4968-bd60-2b30ae81110d
 spec:
   replicas: 1
   selector:
@@ -27,7 +25,7 @@ spec:
         app: basic
     spec:
       containers:
-      - image: nginx:1.18-alpine
+      - image: nginx:1.19-alpine
         name: basic
         resources:
           requests:
@@ -35,29 +33,28 @@ spec:
             memory: 16Mi
 status:
   HPAReplicas: 1
-  abort: true
-  abortedAt: "2020-11-13T08:25:53Z"
   availableReplicas: 1
   blueGreen: {}
   canary: {}
   conditions:
-  - lastTransitionTime: "2020-11-13T08:25:36Z"
-    lastUpdateTime: "2020-11-13T08:25:36Z"
+  - lastTransitionTime: "2020-11-13T00:48:20Z"
+    lastUpdateTime: "2020-11-13T00:48:22Z"
+    message: ReplicaSet "basic-754cb84d5" has successfully progressed.
+    reason: NewReplicaSetAvailable
+    status: "True"
+    type: Progressing
+  - lastTransitionTime: "2020-11-13T00:48:22Z"
+    lastUpdateTime: "2020-11-13T00:48:22Z"
     message: Rollout has minimum availability
     reason: AvailableReason
     status: "True"
     type: Available
-  - lastTransitionTime: "2020-11-13T08:25:53Z"
-    lastUpdateTime: "2020-11-13T08:25:53Z"
-    message: Rollout is aborted
-    reason: RolloutAborted
-    status: "False"
-    type: Progressing
-  currentPodHash: 75fdb4ccf6
+  currentPodHash: 754cb84d5
   currentStepHash: 757f5f97b
-  currentStepIndex: 0
-  observedGeneration: "3"
+  currentStepIndex: 2
+  observedGeneration: "abc123"  ##  <---- uses legacy observedGeneration hash
   readyReplicas: 1
   replicas: 1
   selector: app=basic
   stableRS: 754cb84d5
+  updatedReplicas: 1
