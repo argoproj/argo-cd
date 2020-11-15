@@ -103,4 +103,4 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [openGauss](https://opengauss.org/)
 1. [Virtuo](https://www.govirtuo.com/)
 1. [WeMo Scooter](https://www.wemoscooter.com/)
-
+1. [Codefresh](https://www.codefresh.io/)
