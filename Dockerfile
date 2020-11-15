@@ -4,7 +4,7 @@ ARG BASE_IMAGE=debian:10-slim
 # Initial stage which pulls prepares build dependencies and CLI tooling we need for our final image
 # Also used as the image in CI jobs so needs all dependencies
 ####################################################################################################
-FROM golang:1.14.1 as builder
+FROM golang:1.14.12 as builder
 
 RUN echo 'deb http://deb.debian.org/debian buster-backports main' >> /etc/apt/sources.list
 
@@ -103,7 +103,7 @@ RUN NODE_ENV='production' yarn build
 ####################################################################################################
 # Argo CD Build stage which performs the actual build of Argo CD binaries
 ####################################################################################################
-FROM golang:1.14.1 as argocd-build
+FROM golang:1.14.12 as argocd-build
 
 COPY --from=builder /usr/local/bin/packr /usr/local/bin/packr
 
