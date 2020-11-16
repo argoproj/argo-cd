@@ -1071,9 +1071,45 @@
       
     
     
+      <label class="md-nav__link md-nav__link--active" for="__toc">
+        Parameter Overrides
+      </label>
+    
     <a href="./" title="Parameter Overrides" class="md-nav__link md-nav__link--active">
       Parameter Overrides
     </a>
+    
+      
+<nav class="md-nav md-nav--secondary">
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">Table of contents</label>
+    <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#when-to-use-overrides" title="When To Use Overrides?" class="md-nav__link">
+    When To Use Overrides?
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#store-overrides-in-git" title="Store Overrides In Git" class="md-nav__link">
+    Store Overrides In Git
+  </a>
+  
+</li>
+      
+      
+      
+      
+      
+    </ul>
+  
+</nav>
     
   </li>
 
@@ -1460,6 +1496,29 @@
     
   
   
+    <label class="md-nav__title" for="__toc">Table of contents</label>
+    <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#when-to-use-overrides" title="When To Use Overrides?" class="md-nav__link">
+    When To Use Overrides?
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#store-overrides-in-git" title="Store Overrides In Git" class="md-nav__link">
+    Store Overrides In Git
+  </a>
+  
+</li>
+      
+      
+      
+      
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -1474,9 +1533,9 @@
                 
                 
                 <h1 id="parameter-overrides">Parameter Overrides<a class="headerlink" href="#parameter-overrides" title="Permanent link">&para;</a></h1>
-<p>Argo CD provides a mechanism to override the parameters of a ksonnet/helm app. This provides flexibility
-in having most of the application manifests defined in Git, while leaving room for <em>some</em> parts of the 
-k8s manifests determined dynamically, or outside of Git. It also serves as an alternative way of 
+<p>Argo CD provides a mechanism to override the parameters of Argo CD applications that leverages config management
+tools. This provides flexibility in having most of the application manifests defined in Git, while leaving room
+for <em>some</em> parts of the  k8s manifests determined dynamically, or outside of Git. It also serves as an alternative way of
 redeploying an application by changing application parameters via Argo CD, instead of making the 
 changes to the manifests in Git.</p>
 <div class="admonition tip">
@@ -1496,6 +1555,9 @@ argocd app sync guestbook
 argocd app <span class="nb">set</span> guestbook -p ingress.hosts<span class="o">[</span><span class="m">0</span><span class="o">]=</span>guestbook.myclusterurl
 </code></pre></div>
 
+<p>The <code>argocd app set</code> <a href="../commands/argocd_app_set/">command</a> supports more tool-specific flags such as <code>--kustomize-image</code>, <code>--jsonnet-ext-var-str</code> etc
+flags. You can also specify overrides directly in the source field on application spec. Read more about supported options in corresponded tool <a href="../application_sources/">documentation</a>.</p>
+<h2 id="when-to-use-overrides">When To Use Overrides?<a class="headerlink" href="#when-to-use-overrides" title="Permanent link">&para;</a></h2>
 <p>The following are situations where parameter overrides would be useful:</p>
 <ol>
 <li>
@@ -1518,6 +1580,29 @@ repository and customize the the database password, you would run:</p>
 </ol>
 <div class="codehilite"><pre><span></span><code>argocd app create redis --repo https://github.com/helm/charts.git --path stable/redis --dest-server https://kubernetes.default.svc --dest-namespace default -p <span class="nv">password</span><span class="o">=</span>abc123
 </code></pre></div>
+
+<h2 id="store-overrides-in-git">Store Overrides In Git<a class="headerlink" href="#store-overrides-in-git" title="Permanent link">&para;</a></h2>
+<p>The config management tool specific overrides can be specified in <code>.argocd-source.yaml</code> file stored in the source application
+directory in the Git repository.</p>
+<div class="admonition warn">
+<p class="admonition-title">Warn</p>
+<p>The <code>.argocd-source</code> is a beta feature and subject to change.</p>
+</div>
+<p>The <code>.argocd-source.yaml</code> file is used during manifest generation and overrides
+application source fields, such as <code>kustomize</code>, <code>helm</code> etc.</p>
+<p>Example:</p>
+<div class="codehilite"><pre><span></span><code><span class="nt">kustomize</span><span class="p">:</span>
+  <span class="nt">images</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">gcr.io/heptio-images/ks-guestbook-demo:0.2</span>
+</code></pre></div>
+
+<p>The <code>.argocd-source</code> is trying to solve two following main use cases:</p>
+<ul>
+<li>Provide the unifed way to "override" application parameters in Git and enable the "write back" feature
+for projects like <a href="https://github.com/argoproj-labs/argocd-image-updater">argocd-image-updater</a>.</li>
+<li>Support "discovering" applications in the Git repository by projects like <a href="https://github.com/argoproj-labs/applicationset">applicationset</a>
+(see <a href="https://github.com/argoproj-labs/applicationset/blob/master/examples/git-files-discovery.yaml">git files generator</a>)</li>
+</ul>
                 
                   
                 
