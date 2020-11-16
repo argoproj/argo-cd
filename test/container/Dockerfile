@@ -2,7 +2,7 @@ FROM redis:5.0.3 as redis
 
 FROM node:11.15.0 as node
 
-FROM golang:1.14.1 as golang
+FROM golang:1.14.12 as golang
 
 FROM debian:10-slim
 
