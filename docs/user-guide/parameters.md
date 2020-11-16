@@ -1,8 +1,8 @@
 # Parameter Overrides
 
-Argo CD provides a mechanism to override the parameters of a ksonnet/helm app. This provides flexibility
-in having most of the application manifests defined in Git, while leaving room for *some* parts of the 
-k8s manifests determined dynamically, or outside of Git. It also serves as an alternative way of 
+Argo CD provides a mechanism to override the parameters of Argo CD applications that leverages config management
+tools. This provides flexibility in having most of the application manifests defined in Git, while leaving room
+for *some* parts of the  k8s manifests determined dynamically, or outside of Git. It also serves as an alternative way of
 redeploying an application by changing application parameters via Argo CD, instead of making the 
 changes to the manifests in Git.
 
@@ -26,6 +26,11 @@ argocd app set guestbook -p ingress.enabled=true
 argocd app set guestbook -p ingress.hosts[0]=guestbook.myclusterurl
 ```
 
+The `argocd app set` [command](./commands/argocd_app_set.md) supports more tool-specific flags such as `--kustomize-image`, `--jsonnet-ext-var-str` etc
+flags. You can also specify overrides directly in the source field on application spec. Read more about supported options in corresponded tool [documentation](./application_sources.md).
+
+## When To Use Overrides?
+
 The following are situations where parameter overrides would be useful:
 
 1. A team maintains a "dev" environment, which needs to be continually updated with the latest
@@ -46,3 +51,29 @@ repository and customize the the database password, you would run:
 ```bash
 argocd app create redis --repo https://github.com/helm/charts.git --path stable/redis --dest-server https://kubernetes.default.svc --dest-namespace default -p password=abc123
 ```
+
+## Store Overrides In Git
+
+The config management tool specific overrides can be specified in `.argocd-source.yaml` file stored in the source application
+directory in the Git repository.
+
+!!! warn
+    The `.argocd-source` is a beta feature and subject to change.
+
+The `.argocd-source.yaml` file is used during manifest generation and overrides
+application source fields, such as `kustomize`, `helm` etc.
+
+Example:
+
+```yaml
+kustomize:
+  images:
+    - gcr.io/heptio-images/ks-guestbook-demo:0.2
+```
+
+The `.argocd-source` is trying to solve two following main use cases:
+
+- Provide the unifed way to "override" application parameters in Git and enable the "write back" feature
+for projects like [argocd-image-updater](https://github.com/argoproj-labs/argocd-image-updater).
+- Support "discovering" applications in the Git repository by projects like [applicationset](https://github.com/argoproj-labs/applicationset)
+(see [git files generator](https://github.com/argoproj-labs/applicationset/blob/master/examples/git-files-discovery.yaml))
