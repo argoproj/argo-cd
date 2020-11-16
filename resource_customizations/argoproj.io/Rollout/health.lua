@@ -52,11 +52,18 @@ function checkPaused(obj)
 end
 
 hs = {}
-if obj.status == nil then
+if obj.status == nil or obj.status.observedGeneration == nil then
   hs.status = "Progressing"
-  hs.message = "Waiting for rollout to finish: status has not been reconciled."
+  hs.message = "Waiting for rollout spec update to be observed"
   return hs
 end
+
+generation = tonumber(obj.status.observedGeneration)
+if generation ~= nil and generation ~= obj.metadata.generation then
+  hs.status = "Progressing"
+  hs.message = "Waiting for rollout spec update to be observed"
+  return hs
+end  
 
 for _, condition in ipairs(obj.status.conditions) do
   if condition.type == "InvalidSpec" then

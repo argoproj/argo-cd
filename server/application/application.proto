@@ -236,7 +236,7 @@ service ApplicationService {
 		option (google.api.http).get = "/api/v1/applications/{name}";
 	}
 
-	// Get returns an application by name
+	// Get returns sync windows of the application
 	rpc GetApplicationSyncWindows (ApplicationSyncWindowsQuery) returns (ApplicationSyncWindowsResponse) {
 		option (google.api.http).get = "/api/v1/applications/{name}/syncwindows";
 	}
