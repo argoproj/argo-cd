@@ -96,3 +96,86 @@ func TestHandleCallback(t *testing.T) {
 
 	assert.Equal(t, "login-failed: &lt;script&gt;alert(&#39;hello&#39;)&lt;/script&gt;\n", w.Body.String())
 }
+
+func TestIsValidRedirect(t *testing.T) {
+	var tests = []struct {
+		name        string
+		valid       bool
+		redirectURL string
+		allowedURLs []string
+	}{
+		{
+			name:        "Single allowed valid URL",
+			valid:       true,
+			redirectURL: "https://localhost:4000",
+			allowedURLs: []string{"https://localhost:4000/"},
+		},
+		{
+			name:        "Empty URL",
+			valid:       true,
+			redirectURL: "",
+			allowedURLs: []string{"https://localhost:4000/"},
+		},
+		{
+			name:        "Trailing single slash and empty suffix are handled the same",
+			valid:       true,
+			redirectURL: "https://localhost:4000/",
+			allowedURLs: []string{"https://localhost:4000"},
+		},
+		{
+			name:        "Multiple valid URLs with one allowed",
+			valid:       true,
+			redirectURL: "https://localhost:4000",
+			allowedURLs: []string{"https://wherever:4000", "https://localhost:4000"},
+		},
+		{
+			name:        "Multiple valid URLs with none allowed",
+			valid:       false,
+			redirectURL: "https://localhost:4000",
+			allowedURLs: []string{"https://wherever:4000", "https://invalid:4000"},
+		},
+		{
+			name:        "Invalid redirect URL because path prefix does not match",
+			valid:       false,
+			redirectURL: "https://localhost:4000/applications",
+			allowedURLs: []string{"https://localhost:4000/argocd"},
+		},
+		{
+			name:        "Valid redirect URL because prefix matches",
+			valid:       true,
+			redirectURL: "https://localhost:4000/argocd/applications",
+			allowedURLs: []string{"https://localhost:4000/argocd"},
+		},
+		{
+			name:        "Invalid redirect URL because resolved path does not match prefix",
+			valid:       false,
+			redirectURL: "https://localhost:4000/argocd/../applications",
+			allowedURLs: []string{"https://localhost:4000/argocd"},
+		},
+		{
+			name:        "Invalid redirect URL because scheme mismatch",
+			valid:       false,
+			redirectURL: "http://localhost:4000",
+			allowedURLs: []string{"https://localhost:4000"},
+		},
+		{
+			name:        "Invalid redirect URL because port mismatch",
+			valid:       false,
+			redirectURL: "https://localhost",
+			allowedURLs: []string{"https://localhost:80"},
+		},
+		{
+			name:        "Invalid redirect URL because of CRLF in path",
+			valid:       false,
+			redirectURL: "https://localhost:80/argocd\r\n",
+			allowedURLs: []string{"https://localhost:80/argocd\r\n"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res := isValidRedirectURL(tt.redirectURL, tt.allowedURLs)
+			assert.Equal(t, res, tt.valid)
+		})
+	}
+}
