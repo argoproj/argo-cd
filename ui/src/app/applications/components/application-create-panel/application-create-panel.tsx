@@ -272,9 +272,7 @@ export const ApplicationCreatePanel = (props: {
                                                 </div>
                                                 {(repoType === 'git' && (
                                                     <React.Fragment>
-                                                        <div className='argo-form-row'>
-                                                            <RevisionFormField formApi={api} helpIconTop={'2em'} repoURL={app.spec.source.repoURL} />
-                                                        </div>
+                                                        <RevisionFormField formApi={api} helpIconTop={'2.5em'} repoURL={app.spec.source.repoURL} />
                                                         <div className='argo-form-row'>
                                                             <DataLoader
                                                                 input={{repoURL: app.spec.source.repoURL, revision: app.spec.source.targetRevision}}
