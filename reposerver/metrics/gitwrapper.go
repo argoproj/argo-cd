@@ -29,7 +29,7 @@ func (w *gitClientWrapper) LsRemote(revision string) (string, error) {
 	if sha != revision {
 		// This is true only if specified revision is a tag, branch or HEAD and client had to use 'ls-remote'
 		w.metricsServer.IncGitRequest(w.repo, GitRequestTypeLsRemote)
-		defer w.metricsServer.ObserveGitRequestDuration(w.repo, GitRequestTypeFetch, time.Since(startTime))
+		defer w.metricsServer.ObserveGitRequestDuration(w.repo, GitRequestTypeLsRemote, time.Since(startTime))
 	}
 	return sha, err
 }
