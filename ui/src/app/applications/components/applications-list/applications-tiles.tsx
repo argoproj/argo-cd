@@ -30,7 +30,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                     applications-list__entry applications-list__entry--comparison-${app.status.sync.status}
                     applications-list__entry--health-${app.status.health.status}`}>
                             <div className='row' onClick={e => ctx.navigation.goto(`/applications/${app.metadata.name}`, {}, {event: e})}>
-                                <div className='columns small-12 applications-list__info'>
+                                <div className={'columns small-12 applications-list__info qe-applications-list-' + app.metadata.name}>
                                     <div className='applications-list__external-link'>
                                         <ApplicationURLs urls={app.status.summary.externalURLs} />
                                     </div>
