@@ -2,12 +2,16 @@ package logout
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"testing"
 
 	"github.com/argoproj/argo-cd/common"
+
+	"github.com/dgrijalva/jwt-go"
 
 	"github.com/argoproj/argo-cd/util/session"
 
@@ -25,6 +29,7 @@ import (
 )
 
 var (
+	validJWTPattern                      = regexp.MustCompile(`[a-zA-Z0-9-_]+\.[a-zA-Z0-9-_]+\.[a-zA-Z0-9-_]+`)
 	baseURL                              = "http://localhost:4000"
 	baseLogoutURL                        = "http://localhost:4000/logout"
 	baseLogoutURLwithToken               = "http://localhost:4000/logout?id_token_hint={{token}}"
@@ -152,11 +157,23 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 	settingsManagerWithOIDCConfig := settings.NewSettingsManager(context.Background(), kubeClientWithOIDCConfig, "default")
 	settingsManagerWithoutOIDCConfig := settings.NewSettingsManager(context.Background(), kubeClientWithoutOIDCConfig, "default")
 
-	sessionManagerWithOIDCCOnfig := session.NewSessionManager(settingsManagerWithOIDCConfig, "", session.NewInMemoryUserStateStorage())
-	sessionManagerWithoutOIDCConfig := session.NewSessionManager(settingsManagerWithoutOIDCConfig, "", session.NewInMemoryUserStateStorage())
+	sessionManager := session.NewSessionManager(settingsManagerWithOIDCConfig, "", session.NewInMemoryUserStateStorage())
 
-	OIDCHandler := NewHandler(appclientset.NewSimpleClientset(), settingsManagerWithOIDCConfig, sessionManagerWithOIDCCOnfig, "", "default")
-	nonOIDCHandler := NewHandler(appclientset.NewSimpleClientset(), settingsManagerWithoutOIDCConfig, sessionManagerWithoutOIDCConfig, "", "default")
+	OIDCHandler := NewHandler(appclientset.NewSimpleClientset(), settingsManagerWithOIDCConfig, sessionManager, "", "default")
+	OIDCHandler.verifyToken = func(tokenString string) (jwt.Claims, error) {
+		if !validJWTPattern.MatchString(tokenString) {
+			return nil, errors.New("invalid jwt")
+		}
+		return &jwt.StandardClaims{Issuer: "okta"}, nil
+	}
+
+	nonOIDCHandler := NewHandler(appclientset.NewSimpleClientset(), settingsManagerWithoutOIDCConfig, sessionManager, "", "default")
+	nonOIDCHandler.verifyToken = func(tokenString string) (jwt.Claims, error) {
+		if !validJWTPattern.MatchString(tokenString) {
+			return nil, errors.New("invalid jwt")
+		}
+		return &jwt.StandardClaims{Issuer: session.SessionManagerClaimsIssuer}, nil
+	}
 
 	OIDCTokenHeader := make(map[string][]string)
 	OIDCTokenHeader["Cookie"] = []string{"argocd.token=" + OIDCToken}
@@ -176,6 +193,7 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 	assert.NoError(t, err)
 	requestWithInvalidToken.Header = invalidHeader
 	invalidRequest, err := http.NewRequest("GET", "http://localhost:4000/api/logout", nil)
+	assert.NoError(t, err)
 
 	tests := []struct {
 		name              string
@@ -186,36 +204,36 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 		expectedLogoutURL string
 		wantErr           bool
 	}{
-		// {
-		// 	name:              "Case: OIDC logout request with valid token",
-		// 	handler:           OIDCHandler,
-		// 	request:           OIDCRequest,
-		// 	responseRecorder:  httptest.NewRecorder(),
-		// 	expectedLogoutURL: expectedOIDCLogoutURL,
-		// 	wantErr:           false,
-		// },
-		// {
-		// 	name:              "Case: non-OIDC logout request with valid token",
-		// 	handler:           nonOIDCHandler,
-		// 	request:           nonOIDCRequest,
-		// 	responseRecorder:  httptest.NewRecorder(),
-		// 	expectedLogoutURL: expectedNonOIDCLogoutURL,
-		// 	wantErr:           false,
-		// },
+		{
+			name:              "Case: OIDC logout request with valid token",
+			handler:           OIDCHandler,
+			request:           OIDCRequest,
+			responseRecorder:  httptest.NewRecorder(),
+			expectedLogoutURL: expectedOIDCLogoutURL,
+			wantErr:           false,
+		},
+		{
+			name:              "Case: non-OIDC logout request with valid token",
+			handler:           nonOIDCHandler,
+			request:           nonOIDCRequest,
+			responseRecorder:  httptest.NewRecorder(),
+			expectedLogoutURL: expectedNonOIDCLogoutURL,
+			wantErr:           false,
+		},
 		{
 			name:              "Case: Logout request with invalid token",
 			handler:           nonOIDCHandler,
 			request:           requestWithInvalidToken,
 			responseRecorder:  httptest.NewRecorder(),
 			expectedLogoutURL: expectedNonOIDCLogoutURL,
-			wantErr:           true,
+			wantErr:           false,
 		},
 		{
 			name:              "Case: Logout request with missing token",
 			handler:           OIDCHandler,
 			request:           invalidRequest,
 			responseRecorder:  httptest.NewRecorder(),
-			expectedLogoutURL: expectedOIDCLogoutURL,
+			expectedLogoutURL: expectedNonOIDCLogoutURL,
 			wantErr:           true,
 		},
 	}
@@ -231,7 +249,7 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 				if tt.wantErr {
 					t.Errorf("expected error but did not get one")
 				} else {
-					assert.Equal(t, tt.expectedLogoutURL, tt.responseRecorder.HeaderMap.Get("Location"))
+					assert.Equal(t, tt.expectedLogoutURL, tt.responseRecorder.Result().Header["Location"][0])
 				}
 
 			}
