@@ -1228,6 +1228,11 @@ func groupObjsForDiff(resources *application.ManagedResourcesResponse, objs map[
 		}
 	}
 	for key, local := range objs {
+		if key.Kind == kube.SecretKind && key.Group == "" {
+			// Don't bother comparing secrets, argo-cd doesn't have access to k8s secret data
+			delete(objs, key)
+			continue
+		}
 		items = append(items, objKeyLiveTarget{key, nil, local})
 	}
 	return items
