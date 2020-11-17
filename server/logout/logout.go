@@ -1,6 +1,7 @@
 package logout
 
 import (
+	"fmt"
 	"net/http"
 	"reflect"
 	"regexp"
@@ -43,7 +44,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	argocdCookie, err := r.Cookie(common.AuthCookieName)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		http.Error(w, "Failed to retrieve ArgoCD auth token", http.StatusBadRequest)
+		http.Error(w, "Failed to retrieve ArgoCD auth token: "+fmt.Sprintf("%s", err), http.StatusBadRequest)
 		return
 	}
 
@@ -52,7 +53,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	claims, err := h.sessionMgr.VerifyToken(tokenString)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		http.Error(w, "Failed to verify token", http.StatusBadRequest)
+		http.Error(w, "Failed to verify token: "+fmt.Sprintf("%s", err), http.StatusBadRequest)
 		return
 	}
 
@@ -66,7 +67,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	argoCDSettings, err := h.settingsMgr.GetSettings()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		http.Error(w, "Failed to retrieve argoCD settings", http.StatusInternalServerError)
+		http.Error(w, "Failed to retrieve argoCD settings: "+fmt.Sprintf("%s", err), http.StatusInternalServerError)
 		return
 	}
 
