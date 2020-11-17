@@ -1097,6 +1097,12 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					}
 				}
 				for key, local := range localObjs {
+					if key.Kind == kube.SecretKind && key.Group == "" {
+						// Don't bother comparing secrets, argo-cd doesn't have access to k8s secret data
+						delete(localObjs, key)
+						continue
+					}
+
 					items = append(items, struct {
 						key    kube.ResourceKey
 						live   *unstructured.Unstructured
