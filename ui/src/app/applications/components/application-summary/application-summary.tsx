@@ -248,11 +248,13 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
             title: 'URLs',
             view: (
                 <React.Fragment>
-                    {urls.map(item => (
-                        <a key={item} href={item} target='__blank'>
-                            {item} &nbsp;
-                        </a>
-                    ))}
+                    {urls
+                        .map(item => item.split('|'))
+                        .map((parts, i) => (
+                            <a key={i} href={parts.length > 1 ? parts[1] : parts[0]} target='__blank'>
+                                {parts[0]} &nbsp;
+                            </a>
+                        ))}
                 </React.Fragment>
             )
         });
