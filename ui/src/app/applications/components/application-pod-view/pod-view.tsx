@@ -1,11 +1,15 @@
-import {Checkbox, DataLoader, Tooltip} from 'argo-ui';
+import {Checkbox, DataLoader, DropDownMenu, NotificationType, Tooltip} from 'argo-ui';
 import * as React from 'react';
-
+import * as PropTypes from 'prop-types';
+import {Checkbox as ReactCheckbox} from 'react-form';
 import {Application, ApplicationTree, InfoItem, Metric, Node, Pod, PodGroup, PodGroupType, PodPhase, ResourceList, ResourceName} from '../../../shared/models';
 import {PodViewPreferences, services} from '../../../shared/services';
+import {ErrorNotification} from '../../../shared/components';
 import {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
 import {nodeKey, PodHealthIcon, PodPhaseIcon} from '../utils';
 import {GetNodes} from './pod-view-mock-service';
+import {AppContext} from '../../../shared/context';
+
 import './pod-view.scss';
 
 interface PodViewProps {
@@ -21,6 +25,12 @@ export class PodView extends React.Component<PodViewProps, {demoMode: boolean}> 
             demoMode: false,
         };
     }
+    private get appContext(): AppContext {
+        return this.context as AppContext;
+    }
+    public static contextTypes = {
+        apis: PropTypes.object,
+    };
     public render() {
         return (
             <DataLoader load={() => services.viewPreferences.getPreferences()}>
@@ -63,37 +73,36 @@ export class PodView extends React.Component<PodViewProps, {demoMode: boolean}> 
                                 </div>
                                 <div className='pod-view__settings__section'>
                                     SORT BY:&nbsp;
-                                    <span>
-                                        <Checkbox
-                                            checked={podPrefs.sortMode === 'node'}
-                                            onChange={() =>
-                                                services.viewPreferences.updatePreferences({appDetails: {...prefs.appDetails, podView: {...podPrefs, sortMode: 'node'}}})
-                                            }
-                                        />
-                                        &nbsp;Node
-                                    </span>
-                                    &nbsp;
-                                    <span>
-                                        <Checkbox
-                                            checked={podPrefs.sortMode === 'parentResource'}
-                                            onChange={() =>
-                                                services.viewPreferences.updatePreferences({appDetails: {...prefs.appDetails, podView: {...podPrefs, sortMode: 'parentResource'}}})
-                                            }
-                                        />
-                                        &nbsp;Parent Resource
-                                    </span>
-                                    &nbsp;
-                                    <span>
-                                        <Checkbox
-                                            checked={podPrefs.sortMode === 'topLevelResource'}
-                                            onChange={() =>
-                                                services.viewPreferences.updatePreferences({
-                                                    appDetails: {...prefs.appDetails, podView: {...podPrefs, sortMode: 'topLevelResource'}},
-                                                })
-                                            }
-                                        />
-                                        &nbsp;Top Level Resource
-                                    </span>
+                                    <DropDownMenu
+                                        anchor={() => (
+                                            <button className='argo-button argo-button--base-o'>
+                                                {labelForSortMode(podPrefs.sortMode)}&nbsp;&nbsp;
+                                                <i className='fa fa-chevron-circle-down' />
+                                            </button>
+                                        )}
+                                        items={[
+                                            {
+                                                title: <React.Fragment>{podPrefs.sortMode === 'node' && <i className='fa fa-check' />} Node</React.Fragment>,
+                                                action: () =>
+                                                    services.viewPreferences.updatePreferences({appDetails: {...prefs.appDetails, podView: {...podPrefs, sortMode: 'node'}}}),
+                                            },
+                                            {
+                                                title: <React.Fragment>{podPrefs.sortMode === 'parentResource' && <i className='fa fa-check' />} Parent Resource</React.Fragment>,
+                                                action: () =>
+                                                    services.viewPreferences.updatePreferences({
+                                                        appDetails: {...prefs.appDetails, podView: {...podPrefs, sortMode: 'parentResource'}},
+                                                    }),
+                                            },
+                                            {
+                                                title: (
+                                                    <React.Fragment>{podPrefs.sortMode === 'topLevelResource' && <i className='fa fa-check' />} Top Level Resource</React.Fragment>
+                                                ),
+                                                action: () =>
+                                                    services.viewPreferences.updatePreferences({
+                                                        appDetails: {...prefs.appDetails, podView: {...podPrefs, sortMode: 'topLevelResource'}},
+                                                    }),
+                                            },
+                                        ]}></DropDownMenu>
                                 </div>
                             </div>
                             <DataLoader
@@ -130,28 +139,79 @@ export class PodView extends React.Component<PodViewProps, {demoMode: boolean}> 
                                                         <div className='node__pod-container node__container'>
                                                             <div className='node__pod-container__pods'>
                                                                 {node.pods.map((pod) => (
-                                                                    <Tooltip
-                                                                        content={
-                                                                            <div>
-                                                                                {pod.metadata.name}
-                                                                                <div>Phase: {pod.status.phase}</div>
-                                                                                <div>Health: {pod.health}</div>
-                                                                            </div>
-                                                                        }
-                                                                        key={pod.metadata.name}>
-                                                                        <div
-                                                                            className={`node__pod node__pod--${(podPrefs.colorMode === 'phase'
-                                                                                ? (pod.status.phase || '').replace('Pod', '')
-                                                                                : pod.health
-                                                                            ).toLowerCase()}`}
-                                                                            onClick={() => this.props.onPodClick(pod.fullName)}>
-                                                                            {podPrefs.colorMode === 'phase' ? (
-                                                                                <PodPhaseIcon state={pod.status.phase} />
-                                                                            ) : (
-                                                                                <PodHealthIcon state={{status: pod.health, message: ''}} />
-                                                                            )}
-                                                                        </div>
-                                                                    </Tooltip>
+                                                                    <DropDownMenu
+                                                                        anchor={() => (
+                                                                            <Tooltip
+                                                                                content={
+                                                                                    <div>
+                                                                                        {pod.metadata.name}
+                                                                                        <div>Phase: {pod.status.phase}</div>
+                                                                                        <div>Health: {pod.health}</div>
+                                                                                    </div>
+                                                                                }
+                                                                                key={pod.metadata.name}>
+                                                                                <div
+                                                                                    className={`node__pod node__pod--${(podPrefs.colorMode === 'phase'
+                                                                                        ? (pod.status.phase || '').replace('Pod', '')
+                                                                                        : pod.health
+                                                                                    ).toLowerCase()}`}>
+                                                                                    {podPrefs.colorMode === 'phase' ? (
+                                                                                        <PodPhaseIcon state={pod.status.phase} />
+                                                                                    ) : (
+                                                                                        <PodHealthIcon state={{status: pod.health, message: ''}} />
+                                                                                    )}
+                                                                                </div>
+                                                                            </Tooltip>
+                                                                        )}
+                                                                        items={[
+                                                                            {
+                                                                                title: (
+                                                                                    <React.Fragment>
+                                                                                        <i className='fa fa-info-circle' /> Info
+                                                                                    </React.Fragment>
+                                                                                ),
+                                                                                action: () => this.props.onPodClick(pod.fullName),
+                                                                            },
+                                                                            {
+                                                                                title: (
+                                                                                    <React.Fragment>
+                                                                                        <i className='fa fa-trash' /> Delete
+                                                                                    </React.Fragment>
+                                                                                ),
+                                                                                action: async () => {
+                                                                                    this.appContext.apis.popup.prompt(
+                                                                                        'Delete pod',
+                                                                                        () => (
+                                                                                            <div>
+                                                                                                <p>Are your sure you want to delete Pod '{pod.name}'?</p>
+                                                                                                <div className='argo-form-row' style={{paddingLeft: '30px'}}>
+                                                                                                    <ReactCheckbox id='force-delete-checkbox' field='force' />
+                                                                                                    <label htmlFor='force-delete-checkbox'>Force delete</label>
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        ),
+                                                                                        {
+                                                                                            submit: async (vals, _, close) => {
+                                                                                                try {
+                                                                                                    await services.applications.deleteResource(
+                                                                                                        this.props.app.metadata.name,
+                                                                                                        pod,
+                                                                                                        !!vals.force
+                                                                                                    );
+                                                                                                    this.loader.reload();
+                                                                                                    close();
+                                                                                                } catch (e) {
+                                                                                                    this.appContext.apis.notifications.show({
+                                                                                                        content: <ErrorNotification title='Unable to delete resource' e={e} />,
+                                                                                                        type: NotificationType.Error,
+                                                                                                    });
+                                                                                                }
+                                                                                            },
+                                                                                        }
+                                                                                    );
+                                                                                },
+                                                                            },
+                                                                        ]}></DropDownMenu>
                                                                 ))}
                                                             </div>
                                                             <div className='node__label'>PODS</div>
@@ -193,6 +253,7 @@ export class PodView extends React.Component<PodViewProps, {demoMode: boolean}> 
         (tree.nodes || []).forEach((d: ResourceTreeNode) => {
             if (d.kind === 'Pod') {
                 const p: Pod = {
+                    ...d,
                     fullName: nodeKey(d),
                     metadata: {name: d.name},
                     spec: {nodeName: 'Unknown'},
@@ -234,6 +295,8 @@ export class PodView extends React.Component<PodViewProps, {demoMode: boolean}> 
                             groupRefs[ref.name].pods.push(p);
                         }
                     });
+                } else if (sortMode === 'topLevelResource') {
+                    d.parentRefs.forEach;
                 }
             }
         });
@@ -255,6 +318,17 @@ function InfoToResourceList(items: InfoItem[]): ResourceList {
             }
         });
     return resources;
+}
+
+function labelForSortMode(mode: PodGroupType) {
+    switch (mode) {
+        case 'node':
+            return 'Node';
+        case 'parentResource':
+            return 'Parent Resource';
+        case 'topLevelResource':
+            return 'Top Level Resource';
+    }
 }
 
 function mergeResourceLists(a: ResourceList, b: ResourceList): ResourceList {

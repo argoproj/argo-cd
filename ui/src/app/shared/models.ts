@@ -863,7 +863,7 @@ export enum ResourceName {
     ResourceStorage = 'storage',
 }
 
-export interface Pod {
+export interface Pod extends ResourceNode {
     fullName: string;
     metadata: models.ObjectMeta;
     status: PodStatus;

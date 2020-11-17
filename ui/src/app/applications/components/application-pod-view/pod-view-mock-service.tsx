@@ -1,4 +1,4 @@
-import {Node, Pod, PodPhase, HealthStatuses, HealthStatusCode} from '../../../shared/models';
+import {Node, Pod, PodPhase, HealthStatuses, HealthStatusCode, ResourceNode} from '../../../shared/models';
 import {Adjectives, Animals} from './names';
 
 const podStatusWeights = {
@@ -64,8 +64,10 @@ function podSort(a: Pod, b: Pod): number {
 
 function generatePods(n: number, nodeName: string): Pod[] {
     const pods: Pod[] = [];
+    const d = {} as ResourceNode;
     while (n) {
         pods.push({
+            ...d,
             fullName: '',
             metadata: {name: generateName('pod').toLowerCase()},
             spec: {nodeName},
