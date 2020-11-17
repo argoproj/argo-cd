@@ -17,7 +17,6 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/argoproj/argo/util"
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/sync/hook"
@@ -2483,7 +2482,7 @@ func showApplicationPodLogs(c *cobra.Command, args []string, clientOpts *argocdc
 
 	acdClient := argocdclient.NewClientOrDie(clientOpts)
 	conn, appIf := acdClient.NewApplicationClientOrDie()
-	defer util.Close(conn)
+	defer argoio.Close(conn)
 	appName := args[0]
 
 	appResourceTree, err := appIf.ResourceTree(
