@@ -5,7 +5,7 @@ import * as React from 'react';
 import {FormApi, Text} from 'react-form';
 import {RouteComponentProps} from 'react-router';
 
-import {CheckboxField, DataLoader, EditablePanel, ErrorNotification, MapInputField, Page, Query} from '../../../shared/components';
+import {BadgePanel, CheckboxField, DataLoader, EditablePanel, ErrorNotification, MapInputField, Page, Query} from '../../../shared/components';
 import {AppContext, Consumer} from '../../../shared/context';
 import {GroupKind, Groups, Project, ProjectSpec, ResourceKinds} from '../../../shared/models';
 import {CreateJWTTokenParams, DeleteJWTTokenParams, ProjectRoleParams, services} from '../../../shared/services';
@@ -848,6 +848,8 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                     }
                     items={[]}
                 />
+
+                <BadgePanel project={proj.metadata.name} />
             </div>
         );
     }
