@@ -97,9 +97,9 @@ argocd cluster add
 ```
 
 Choose a context name from the list and supply it to `argocd cluster add CONTEXTNAME`. For example,
-for docker-for-desktop context, run:
+for docker-desktop context, run:
 ```bash
-argocd cluster add docker-for-desktop
+argocd cluster add docker-desktop
 ```
 
 The above command installs a ServiceAccount (`argocd-manager`), into the kube-system namespace of 
