@@ -12,19 +12,35 @@ There are several ways how Ingress can be configured.
 
 The Ambassador Edge Stack can be used as a Kubernetes ingress controller with [automatic TLS termination](https://www.getambassador.io/docs/latest/topics/running/tls/#host) and routing capabilities for both the CLI and the UI.
 
-The API server should be run with TLS disabled. Edit the `argocd-server` deployment to add the `--insecure` flag to the argocd-server command.
+The API server should be run with TLS disabled. Edit the `argocd-server` deployment to add the `--insecure` flag to the argocd-server command. Given the `argocd` CLI includes the port number in the request `host` header, 2 Mappings are required.
 
 ### Option 1: Mapping CRD for Host-based Routing
 ```yaml
 apiVersion: getambassador.io/v2
 kind: Mapping
 metadata:
-  name: argocd-server
+  name: argocd-server-ui
   namespace: argocd
 spec:
   host: argocd.example.com
   prefix: /
   service: argocd-server:443
+---
+apiVersion: getambassador.io/v2
+kind: Mapping
+metadata:
+  name: argocd-server-cli
+  namespace: argocd
+spec:
+  host: argocd.example.com:443
+  prefix: /
+  service: argocd-server:443
+```
+
+Login with the `argocd` CLI using the extra `--grpc-web-root-path` flag for gRPC-web.
+
+```shell
+argocd login <host>:<port> --grpc-web-root-path /
 ```
 
 ### Option 2: Mapping CRD for Path-based Routing
