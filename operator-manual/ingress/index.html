@@ -1744,17 +1744,31 @@ Both protocols are exposed by the argocd-server service object on the following 
 <p>There are several ways how Ingress can be configured.</p>
 <h2 id="ambassador"><a href="https://www.getambassador.io/">Ambassador</a><a class="headerlink" href="#ambassador" title="Permanent link">&para;</a></h2>
 <p>The Ambassador Edge Stack can be used as a Kubernetes ingress controller with <a href="https://www.getambassador.io/docs/latest/topics/running/tls/#host">automatic TLS termination</a> and routing capabilities for both the CLI and the UI.</p>
-<p>The API server should be run with TLS disabled. Edit the <code>argocd-server</code> deployment to add the <code>--insecure</code> flag to the argocd-server command.</p>
+<p>The API server should be run with TLS disabled. Edit the <code>argocd-server</code> deployment to add the <code>--insecure</code> flag to the argocd-server command. Given the <code>argocd</code> CLI includes the port number in the request <code>host</code> header, 2 Mappings are required.</p>
 <h3 id="option-1-mapping-crd-for-host-based-routing">Option 1: Mapping CRD for Host-based Routing<a class="headerlink" href="#option-1-mapping-crd-for-host-based-routing" title="Permanent link">&para;</a></h3>
 <div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">getambassador.io/v2</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Mapping</span>
 <span class="nt">metadata</span><span class="p">:</span>
-  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-server</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-server-ui</span>
   <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
 <span class="nt">spec</span><span class="p">:</span>
   <span class="nt">host</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd.example.com</span>
   <span class="nt">prefix</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">/</span>
   <span class="nt">service</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-server:443</span>
+<span class="nn">---</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">getambassador.io/v2</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Mapping</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-server-cli</span>
+  <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">host</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd.example.com:443</span>
+  <span class="nt">prefix</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">/</span>
+  <span class="nt">service</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-server:443</span>
+</code></pre></div>
+
+<p>Login with the <code>argocd</code> CLI using the extra <code>--grpc-web-root-path</code> flag for gRPC-web.</p>
+<div class="codehilite"><pre><span></span><code>argocd login &lt;host&gt;:&lt;port&gt; --grpc-web-root-path /
 </code></pre></div>
 
 <h3 id="option-2-mapping-crd-for-path-based-routing">Option 2: Mapping CRD for Path-based Routing<a class="headerlink" href="#option-2-mapping-crd-for-path-based-routing" title="Permanent link">&para;</a></h3>
