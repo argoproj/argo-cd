@@ -506,6 +506,8 @@ func getDestinationServer(ctx context.Context, db db.ArgoDB, clusterName string)
 		return "", fmt.Errorf("there are %d clusters with the same name: %v", len(servers), servers)
 	} else if len(servers) == 0 {
 		return "", fmt.Errorf("there are no clusters with this name: %s", clusterName)
+	} else if servers[0] == "" {
+		return "", fmt.Errorf("invalid server for cluster: %s", clusterName)
 	}
 	return servers[0], nil
 }

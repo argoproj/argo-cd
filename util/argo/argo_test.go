@@ -669,4 +669,23 @@ func TestValidateDestination(t *testing.T) {
 		assert.False(t, dest.IsServerInferred())
 	})
 
+	t.Run("Validate invalid server address for destination cluster", func(t *testing.T) {
+		dest := argoappv1.ApplicationDestination{
+			Name: "minikube",
+		}
+
+		db := &dbmocks.ArgoDB{}
+		db.On("ListClusters", context.Background()).Return(&argoappv1.ClusterList{
+			Items: []argoappv1.Cluster{
+				{
+					Name:   "minikube",
+					Server: "",
+				},
+			},
+		}, nil)
+
+		err := ValidateDestination(context.Background(), &dest, db)
+		assert.Equal(t, "unable to find destination server: invalid server for cluster: minikube", err.Error())
+		assert.False(t, dest.IsServerInferred())
+	})
 }
