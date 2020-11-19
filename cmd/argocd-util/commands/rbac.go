@@ -271,6 +271,10 @@ func checkPolicy(subject, action, resource, subResource, builtinPolicy, userPoli
 		}
 	}
 	if userPolicy != "" {
+		if err := rbac.ValidatePolicy(userPolicy); err != nil {
+			log.Fatalf("invalid user policy: %v", err)
+			return false
+		}
 		if err := enf.SetUserPolicy(userPolicy); err != nil {
 			log.Fatalf("could not set user policy: %v", err)
 			return false
