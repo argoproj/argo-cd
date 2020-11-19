@@ -1,5 +1,67 @@
 # Changelog
 
+## v1.7.9 (2020-11-17)
+
+- fix: improve commit verification tolerance (#4825)
+- fix: argocd diff --local should not print data of local secrets (#4850)
+- fix(ui): stack overflow crash of resource tree view for large applications (#4685)
+- chore: Update golang to v1.14.12 [backport to release-1.7] (#4834)
+- chore: Update redis to 5.0.10 (#4767)
+- chore: Replace deprecated GH actions directives for integration tests (#4589)
+
+## v1.7.8 (2020-10-15)
+
+- fix(logging.go): changing marshaler for JSON logging to use gogo (#4319)
+- fix: login with apiKey capability (#4557)
+- fix: api-server should not try creating default project it is exists already (#4517)
+- fix: JS error on application list page if app has no namespace (#4499)
+
+
+## v1.7.7 (2020-09-28)
+
+- fix: Support transition from a git managed namespace to auto create (#4401)
+- fix: reduce memory spikes during cluster cache refresh (#4298)
+- fix: No error/warning condition if application destination namespace not monitored by Argo CD (#4329)
+- fix: Fix local diff/sync of apps using cluster name (#4201)
+
+## v1.7.6 (2020-09-18)
+
+- fix: Added cluster authentication to AKS clusters (#4265)
+- fix: swagger UI stuck loading (#4377)
+- fix: prevent 'argocd app sync' hangs if sync is completed too quickly (#4373)
+- fix: argocd app wait/sync might stuck (#4350)
+- fix: failed syncs are not retried soon enough (#4353)
+
+## v1.7.5 (2020-09-15)
+
+- fix: app create with -f should not ignore other options (#4322)
+- fix: limit concurrent list requests accross all clusters (#4328)
+- fix: fix possible deadlock in /v1/api/stream/applications and /v1/api/application APIs (#4315)
+- fix: WatchResourceTree does not enforce RBAC (#4311)
+- fix: app refresh API should use app resource version (#4303)
+- fix: use informer instead of k8s watch to ensure app is refreshed (#4290)
+
+
+## v1.7.4 (2020-09-04)
+
+- fix: automatically stop watch API requests when page is hidden (#4269)
+- fix: upgrade gitops-engine dependency (issues #4242, #1881) (#4268)
+- fix: application stream API should not return 'ADDED' events if resource version is provided (#4260)
+- fix: return parsing error (#3942)
+- fix: JS error when using cluster filter in the /application view (#4247)
+- fix: improve applications list page client side performance (#4244)
+
+## v1.7.3 (2020-09-01)
+
+- fix: application details page crash when app is deleted (#4229)
+- fix: api-server unnecessary normalize projects on every start (#4219)
+- fix: load only project names in UI (#4217)
+- fix: Re-create already initialized ARGOCD_GNUPGHOME on startup (#4214) (#4223)
+- fix: Add openshift as a dex connector type which requires a redirectURI (#4222)
+- fix: Replace status.observedAt with redis pub/sub channels for resource tree updates (#1340) (#4208)
+- fix: cache inconsistency of child resources (#4053) (#4202)
+- fix: do not include kube-api check in application liveness flow (#4163)
+
 ## v1.7.2 (2020-08-27)
 
 - fix: Sync hangs with cert-manager on latest RC (#4105)
