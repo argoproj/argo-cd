@@ -832,6 +832,7 @@ export interface PodGroup extends Partial<ResourceRef> {
 
 export interface Node {
     metadata?: models.ObjectMeta;
+    name: string;
     status?: NodeStatus;
     metrics: ResourceList;
     pods: Pod[];

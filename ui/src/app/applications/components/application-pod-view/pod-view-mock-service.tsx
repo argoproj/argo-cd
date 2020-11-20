@@ -31,6 +31,7 @@ function generateNode(): Node {
     const pods = generatePods(generateInt(10, 25), name);
     return {
         metadata: {labels: {'kubernetes.io/hostname': name}},
+        name,
         status: {
             nodeInfo: {
                 operatingSystem: 'linux',

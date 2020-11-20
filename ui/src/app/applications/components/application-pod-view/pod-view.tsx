@@ -9,6 +9,7 @@ import {ResourceTreeNode} from '../application-resource-tree/application-resourc
 import {nodeKey, PodHealthIcon, PodPhaseIcon} from '../utils';
 import {GetNodes} from './pod-view-mock-service';
 import {AppContext} from '../../../shared/context';
+import {ResourceIcon} from '../resource-icon';
 
 import './pod-view.scss';
 
@@ -119,12 +120,22 @@ export class PodView extends React.Component<PodViewProps, {demoMode: boolean}> 
                                             {(this.state.demoMode ? (nodes as PodGroup[]) : this.processTree(podPrefs.sortMode, nodes)).map((node) => (
                                                 <div className='node white-box' key={node.name}>
                                                     <div className='node__container--header'>
-                                                        <div>
+                                                        <div style={{display: 'flex', alignItems: 'center'}}>
                                                             <b>
                                                                 {iconForGroupType(podPrefs.sortMode)}
                                                                 &nbsp;
                                                                 {(node.name || 'Unknown').toUpperCase()}
                                                             </b>
+                                                            {podPrefs.sortMode !== 'node' && (
+                                                                <ResourceIcon
+                                                                    kind={node.kind}
+                                                                    customStyle={{
+                                                                        marginLeft: 'auto',
+                                                                        width: '25px',
+                                                                        height: '25px',
+                                                                    }}
+                                                                />
+                                                            )}
                                                         </div>
                                                         {Info(node.info)}
                                                     </div>
@@ -236,6 +247,8 @@ export class PodView extends React.Component<PodViewProps, {demoMode: boolean}> 
             return [];
         }
         const groupRefs: {[key: string]: PodGroup} = {};
+        const parentsFor: {[key: string]: PodGroup[]} = {};
+
         if (sortMode === 'node' && nodes) {
             nodes.forEach((node) => {
                 const name = node.metadata ? (node.metadata.labels ? node.metadata.labels['kubernetes.io/hostname'] : 'Unknown') : 'Unknown';
@@ -250,7 +263,23 @@ export class PodView extends React.Component<PodViewProps, {demoMode: boolean}> 
                 groupRefs[name] = n;
             });
         }
+
         (tree.nodes || []).forEach((d: ResourceTreeNode) => {
+            if (sortMode === 'topLevelResource') {
+                parentsFor[d.name] = d.parentRefs as PodGroup[];
+                if ((d.parentRefs || []).length === 0) {
+                    const g = {} as PodGroup;
+                    g.name = d.name;
+                    g.info = [];
+                    g.kind = d.kind;
+                    g.info.push({name: 'Kind', value: d.kind || 'Unknown'});
+                    g.info.push({name: 'Namespace', value: d.namespace || 'Unknown'});
+                    g.info.push({name: 'Version', value: d.version || 'Unknown'});
+                    g.pods = [];
+                    groupRefs[d.name] = g;
+                }
+            }
+
             if (d.kind === 'Pod') {
                 const p: Pod = {
                     ...d,
@@ -289,18 +318,23 @@ export class PodView extends React.Component<PodViewProps, {demoMode: boolean}> 
                             g.info = [];
                             g.info.push({name: 'Kind', value: g.kind || 'Unknown'});
                             g.info.push({name: 'Namespace', value: g.namespace || 'Unknown'});
-                            g.info.push({name: 'Version', value: g.version || 'Unknown'});
                             groupRefs[ref.name] = g;
                         } else {
                             groupRefs[ref.name].pods.push(p);
                         }
                     });
                 } else if (sortMode === 'topLevelResource') {
-                    d.parentRefs.forEach;
+                    let cur = d.name;
+                    let parents = parentsFor[d.name];
+                    while ((parents || []).length > 0) {
+                        cur = parents[0].name;
+                        parents = parentsFor[cur];
+                    }
+                    groupRefs[cur].pods.push(p);
                 }
             }
         });
-        return Object.values(groupRefs);
+        return Object.values(groupRefs).sort((a, b) => (a.name > b.name ? 1 : a.name === b.name ? 0 : -1));
     }
 }
 
