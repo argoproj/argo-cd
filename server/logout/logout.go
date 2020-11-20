@@ -76,16 +76,18 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	claims, err := h.verifyToken(tokenString)
 	if err != nil {
 		http.Redirect(w, r, logoutRedirectURL, http.StatusSeeOther)
+		return
 	}
 
 	mapClaims, err := jwtutil.MapClaims(claims)
 	if err != nil {
 		http.Redirect(w, r, logoutRedirectURL, http.StatusSeeOther)
+		return
 	}
 
 	issuer := jwtutil.GetField(mapClaims, "iss")
 
-	if argoCDSettings.OIDCConfig() == nil || issuer == session.SessionManagerClaimsIssuer {
+	if argoCDSettings.OIDCConfig() == nil || argoCDSettings.OIDCConfig().LogoutURL == "" || issuer == session.SessionManagerClaimsIssuer {
 		http.Redirect(w, r, logoutRedirectURL, http.StatusSeeOther)
 	} else {
 		oidcConfig = argoCDSettings.OIDCConfig()
