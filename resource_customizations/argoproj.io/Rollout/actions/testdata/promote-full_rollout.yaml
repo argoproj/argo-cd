@@ -2,80 +2,63 @@ apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
   annotations:
-    rollout.argoproj.io/revision: '4'
-  creationTimestamp: '2020-11-06T09:09:54Z'
-  generation: 76
-  labels:
-    app.kubernetes.io/instance: rollouts-demo
-  name: rollout-canary
-  namespace: default
-  resourceVersion: '4977'
-  selfLink: /apis/argoproj.io/v1alpha1/namespaces/default/rollouts/rollout-canary
-  uid: a5047899-8288-43c2-95d7-a8e0a8b45ed6
+    rollout.argoproj.io/revision: "2"
+  creationTimestamp: "2020-11-13T08:25:35Z"
+  generation: 3
+  name: basic
+  namespace: argocd-e2e
+  resourceVersion: "201579"
+  selfLink: /apis/argoproj.io/v1alpha1/namespaces/argocd-e2e/rollouts/basic
+  uid: 201161e2-c761-4e52-91a1-d4872be9ead4
 spec:
-  replicas: 2
-  restartAt: '2020-11-06T10:03:31Z'
-  revisionHistoryLimit: 2
+  replicas: 1
   selector:
     matchLabels:
-      app: rollout-canary
+      app: basic
   strategy:
     canary:
       steps:
-        - setWeight: 1
-        - pause: {}
+      - setWeight: 50
+      - pause: {}
   template:
     metadata:
-      annotations:
-        restart: asdfaaa
+      creationTimestamp: null
       labels:
-        app: rollout-canary
+        app: basic
     spec:
       containers:
-        - image: 'nginx:1.19-alpine'
-          imagePullPolicy: Always
-          lifecycle:
-            postStart:
-              exec:
-                command:
-                  - sleep
-                  - '30'
-            preStop:
-              exec:
-                command:
-                  - sleep
-                  - '30'
-          name: rollouts-demo
-          ports:
-            - containerPort: 8080
-          resources: {}
+      - image: nginx:1.18-alpine
+        name: basic
+        resources:
+          requests:
+            cpu: 1m
+            memory: 16Mi
 status:
-  HPAReplicas: 2
-  abort: null
-  abortedAt: '2020-11-06T10:08:32Z'
-  availableReplicas: 2
+  promoteFull: true
+  HPAReplicas: 1
+  abort: true
+  abortedAt: "2020-11-13T08:25:53Z"
+  availableReplicas: 1
   blueGreen: {}
-  canary:
-    stableRS: 69d59f5445
+  canary: {}
   conditions:
-    - lastTransitionTime: '2020-11-06T10:06:38Z'
-      lastUpdateTime: '2020-11-06T10:06:38Z'
-      message: Rollout has minimum availability
-      reason: AvailableReason
-      status: 'True'
-      type: Available
-    - lastTransitionTime: '2020-11-06T10:08:32Z'
-      lastUpdateTime: '2020-11-06T10:08:32Z'
-      message: Rollout is aborted
-      reason: RolloutAborted
-      status: 'False'
-      type: Progressing
-  currentPodHash: 7797495b94
-  currentStepHash: 566d47875b
-  currentStepIndex: 2
-  observedGeneration: 74dbb4676d
-  readyReplicas: 2
-  replicas: 2
-  restartedAt: '2020-11-06T10:03:31Z'
-  selector: app=rollout-canary
-  stableRS: 69d59f5445
+  - lastTransitionTime: "2020-11-13T08:25:36Z"
+    lastUpdateTime: "2020-11-13T08:25:36Z"
+    message: Rollout has minimum availability
+    reason: AvailableReason
+    status: "True"
+    type: Available
+  - lastTransitionTime: "2020-11-13T08:25:53Z"
+    lastUpdateTime: "2020-11-13T08:25:53Z"
+    message: Rollout is aborted
+    reason: RolloutAborted
+    status: "False"
+    type: Progressing
+  currentPodHash: 75fdb4ccf6
+  currentStepHash: 757f5f97b
+  currentStepIndex: 0
+  observedGeneration: "3"
+  readyReplicas: 1
+  replicas: 1
+  selector: app=basic
+  stableRS: 754cb84d5

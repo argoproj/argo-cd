@@ -2066,7 +2066,7 @@ type ApplicationServiceClient interface {
 	Create(ctx context.Context, in *ApplicationCreateRequest, opts ...grpc.CallOption) (*v1alpha1.Application, error)
 	// Get returns an application by name
 	Get(ctx context.Context, in *ApplicationQuery, opts ...grpc.CallOption) (*v1alpha1.Application, error)
-	// Get returns an application by name
+	// Get returns sync windows of the application
 	GetApplicationSyncWindows(ctx context.Context, in *ApplicationSyncWindowsQuery, opts ...grpc.CallOption) (*ApplicationSyncWindowsResponse, error)
 	// Get the meta-data (author, date, tags, message) for a specific revision of the application
 	RevisionMetadata(ctx context.Context, in *RevisionMetadataQuery, opts ...grpc.CallOption) (*v1alpha1.RevisionMetadata, error)
@@ -2411,7 +2411,7 @@ type ApplicationServiceServer interface {
 	Create(context.Context, *ApplicationCreateRequest) (*v1alpha1.Application, error)
 	// Get returns an application by name
 	Get(context.Context, *ApplicationQuery) (*v1alpha1.Application, error)
-	// Get returns an application by name
+	// Get returns sync windows of the application
 	GetApplicationSyncWindows(context.Context, *ApplicationSyncWindowsQuery) (*ApplicationSyncWindowsResponse, error)
 	// Get the meta-data (author, date, tags, message) for a specific revision of the application
 	RevisionMetadata(context.Context, *RevisionMetadataQuery) (*v1alpha1.RevisionMetadata, error)
