@@ -97,6 +97,7 @@ type OIDCConfig struct {
 	CLIClientID            string                 `json:"cliClientID,omitempty"`
 	RequestedScopes        []string               `json:"requestedScopes,omitempty"`
 	RequestedIDTokenClaims map[string]*oidc.Claim `json:"requestedIDTokenClaims,omitempty"`
+	LogoutURL              string                 `json:"logoutURL,omitempty"`
 }
 
 // DEPRECATED. Helm repository credentials are now managed using RepoCredentials
