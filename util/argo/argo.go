@@ -301,7 +301,6 @@ func ValidateDestination(ctx context.Context, dest *argoappv1.ApplicationDestina
 	return nil
 }
 
-
 func SetDestinationServer(ctx context.Context, dest *argoappv1.ApplicationDestination, db db.ArgoDB) error {
 	if dest.Name != "" && dest.Server == "" {
 		server, err := getDestinationServer(ctx, db, dest.Name)
