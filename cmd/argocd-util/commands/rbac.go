@@ -133,15 +133,21 @@ argocd-util rbac can someuser create application 'default/app' --default-role ro
 
 			var newDefaultRole string
 
-			namespace, _, err := clientConfig.Namespace()
-			if err != nil {
-				log.Fatalf("could not create k8s client: %v", err)
-			}
-			restConfig, err := clientConfig.ClientConfig()
+			namespace, nsOverride, err := clientConfig.Namespace()
 			if err != nil {
 				log.Fatalf("could not create k8s client: %v", err)
 			}
 
+			// Exactly one of --namespace or --policy-file must be given.
+			if (!nsOverride && policyFile == "") || (nsOverride && policyFile != "") {
+				c.HelpFunc()(c, args)
+				log.Fatalf("please provide exactly one of --policy-file or --namespace")
+			}
+
+			restConfig, err := clientConfig.ClientConfig()
+			if err != nil {
+				log.Fatalf("could not create k8s client: %v", err)
+			}
 			realClientset, err := kubernetes.NewForConfig(restConfig)
 			if err != nil {
 				log.Fatalf("could not create k8s client: %v", err)
