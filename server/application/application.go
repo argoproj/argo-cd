@@ -576,11 +576,12 @@ func (s *Server) Patch(ctx context.Context, q *application.ApplicationPatchReque
 		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("Patch type '%s' is not supported", q.PatchType))
 	}
 
-	err = json.Unmarshal(patchApp, &app)
+	newApp := &v1alpha1.Application{}
+	err = json.Unmarshal(patchApp, newApp)
 	if err != nil {
 		return nil, err
 	}
-	return s.validateAndUpdateApp(ctx, app, false, true)
+	return s.validateAndUpdateApp(ctx, newApp, false, true)
 }
 
 // Delete removes an application and all associated resources

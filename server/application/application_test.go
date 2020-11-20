@@ -215,12 +215,36 @@ spec:
     name: fake-cluster
 `
 
+const fakeAppWithAnnotations = `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: test-app
+  namespace: default
+  annotations:
+    test.annotation: test
+spec:
+  source:
+    path: some/path
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+    targetRevision: HEAD
+    ksonnet:
+      environment: default
+  destination:
+    namespace: ` + test.FakeDestNamespace + `
+    server: https://cluster-api.com
+`
+
 func newTestAppWithDestName(opts ...func(app *appsv1.Application)) *appsv1.Application {
 	return createTestApp(fakeAppWithDestName, opts...)
 }
 
 func newTestApp(opts ...func(app *appsv1.Application)) *appsv1.Application {
 	return createTestApp(fakeApp, opts...)
+}
+
+func newTestAppWithAnnotations(opts ...func(app *appsv1.Application)) *appsv1.Application {
+	return createTestApp(fakeAppWithAnnotations, opts...)
 }
 
 func createTestApp(testApp string, opts ...func(app *appsv1.Application)) *appsv1.Application {
@@ -499,7 +523,7 @@ p, admin, applications, update, my-proj/test-app, allow
 }
 
 func TestAppJsonPatch(t *testing.T) {
-	testApp := newTestApp()
+	testApp := newTestAppWithAnnotations()
 	ctx := context.Background()
 	// nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.StandardClaims{Subject: "admin"})
@@ -517,6 +541,10 @@ func TestAppJsonPatch(t *testing.T) {
 	app, err = appServer.Patch(ctx, &application.ApplicationPatchRequest{Name: &testApp.Name, Patch: `[{"op": "replace", "path": "/spec/source/path", "value": "foo"}]`})
 	assert.NoError(t, err)
 	assert.Equal(t, "foo", app.Spec.Source.Path)
+
+	app, err = appServer.Patch(ctx, &application.ApplicationPatchRequest{Name: &testApp.Name, Patch: `[{"op": "remove", "path": "/metadata/annotations/test.annotation"}]`})
+	assert.NoError(t, err)
+	assert.NotContains(t, app.Annotations, "test.annotation")
 }
 
 func TestAppMergePatch(t *testing.T) {
