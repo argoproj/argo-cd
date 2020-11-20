@@ -54,6 +54,7 @@ var validRBACResources map[string]bool = map[string]bool{
 
 // List of allowed RBAC actions
 var validRBACActions map[string]bool = map[string]bool{
+	rbacpolicy.ActionAction:   true,
 	rbacpolicy.ActionCreate:   true,
 	rbacpolicy.ActionDelete:   true,
 	rbacpolicy.ActionGet:      true,
@@ -72,6 +73,7 @@ func NewRBACCommand() *cobra.Command {
 		},
 	}
 	command.AddCommand(NewRBACCanCommand())
+	command.AddCommand(NewRBACValidateCommand())
 	return command
 }
 
@@ -117,7 +119,7 @@ argocd-util rbac can someuser create application 'default/app' --default-role ro
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) < 3 || len(args) > 4 {
 				c.HelpFunc()(c, args)
-				os.Exit(0)
+				os.Exit(1)
 			}
 			subject = args[0]
 			action = args[1]
@@ -179,6 +181,41 @@ argocd-util rbac can someuser create application 'default/app' --default-role ro
 	command.Flags().BoolVar(&useBuiltin, "use-builtin-policy", true, "whether to also use builtin-policy")
 	command.Flags().BoolVar(&strict, "strict", true, "whether to perform strict check on action and resource names")
 	command.Flags().BoolVarP(&quiet, "quiet", "q", false, "quiet mode - do not print results to stdout")
+	return command
+}
+
+// NewRBACValidateCommand returns a new rbac validate command
+func NewRBACValidateCommand() *cobra.Command {
+	var (
+		policyFile string
+	)
+
+	var command = &cobra.Command{
+		Use:   "validate --policy-file=POLICYFILE",
+		Short: "Validate RBAC policy",
+		Long: `
+Validates an RBAC policy for being syntactically correct. The policy must be
+a local file, and in either CSV or K8s ConfigMap format.
+`,
+		Run: func(c *cobra.Command, args []string) {
+			if policyFile == "" {
+				c.HelpFunc()(c, args)
+				log.Fatalf("Please specify policy to validate using --policy-file")
+			}
+			userPolicy, _ := getPolicy(policyFile, nil, "")
+			if userPolicy != "" {
+				if err := rbac.ValidatePolicy(userPolicy); err == nil {
+					fmt.Printf("Policy is valid.\n")
+					os.Exit(0)
+				} else {
+					fmt.Printf("Policy is invalid: %v\n", err)
+					os.Exit(1)
+				}
+			}
+		},
+	}
+
+	command.Flags().StringVar(&policyFile, "policy-file", "", "path to the policy file to use")
 	return command
 }
 
