@@ -1736,6 +1736,11 @@ non-preferred version and causes performance issues.</li>
 </ul>
 <h3 id="argocd-server">argocd-server<a class="headerlink" href="#argocd-server" title="Permanent link">&para;</a></h3>
 <p>The <code>argocd-server</code> is stateless and probably least likely to cause issues. You might consider increasing number of replicas to 3 or more to ensure there is no downtime during upgrades.</p>
+<p><strong>settings:</strong></p>
+<ul>
+<li>The <code>ARGOCD_GRPC_MAX_SIZE_MB</code> environment variable allows specifying the max size of the server response message in megabytes.
+The default value is 200. You might need to increase for an Argo CD instance that manages 3000+ applications.    </li>
+</ul>
 <h3 id="argocd-dex-server-argocd-redis">argocd-dex-server, argocd-redis<a class="headerlink" href="#argocd-dex-server-argocd-redis" title="Permanent link">&para;</a></h3>
 <p>The <code>argocd-dex-server</code> uses an in-memory database, and two or more instances would have inconsistent data. <code>argocd-redis</code> is pre-configured with the understanding of only three total redis servers/sentinels.</p>
 <h2 id="monorepo-scaling-considerations">Monorepo Scaling Considerations<a class="headerlink" href="#monorepo-scaling-considerations" title="Permanent link">&para;</a></h2>
