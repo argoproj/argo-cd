@@ -760,6 +760,10 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 		if len(conditions) > 0 {
 			return status.Errorf(codes.InvalidArgument, "application spec is invalid: %s", argo.FormatAppConditions(conditions))
 		}
+	} else {
+		if err := argo.SetDestinationServer(ctx, &app.Spec.Destination, s.db); err != nil {
+			return err
+		}
 	}
 
 	conditions, err = argo.ValidatePermissions(ctx, &app.Spec, proj, s.db)

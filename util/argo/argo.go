@@ -301,6 +301,21 @@ func ValidateDestination(ctx context.Context, dest *argoappv1.ApplicationDestina
 	return nil
 }
 
+
+func SetDestinationServer(ctx context.Context, dest *argoappv1.ApplicationDestination, db db.ArgoDB) error {
+	if dest.Name != "" && dest.Server == "" {
+		server, err := getDestinationServer(ctx, db, dest.Name)
+		if err != nil {
+			return fmt.Errorf("unable to find destination server: %v", err)
+		}
+		if server == "" {
+			return fmt.Errorf("application references destination cluster %s which does not exist", dest.Name)
+		}
+		dest.SetInferredServer(server)
+	}
+	return nil
+}
+
 // ValidatePermissions ensures that the referenced cluster has been added to Argo CD and the app source repo and destination namespace/cluster are permitted in app project
 func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, proj *argoappv1.AppProject, db db.ArgoDB) ([]argoappv1.ApplicationCondition, error) {
 	conditions := make([]argoappv1.ApplicationCondition, 0)
@@ -506,8 +521,6 @@ func getDestinationServer(ctx context.Context, db db.ArgoDB, clusterName string)
 		return "", fmt.Errorf("there are %d clusters with the same name: %v", len(servers), servers)
 	} else if len(servers) == 0 {
 		return "", fmt.Errorf("there are no clusters with this name: %s", clusterName)
-	} else if servers[0] == "" {
-		return "", fmt.Errorf("invalid server for cluster: %s", clusterName)
 	}
 	return servers[0], nil
 }
