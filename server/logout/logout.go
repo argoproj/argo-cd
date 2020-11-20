@@ -6,11 +6,12 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/dgrijalva/jwt-go"
+
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/util/session"
 	"github.com/argoproj/argo-cd/util/settings"
-	"github.com/dgrijalva/jwt-go"
 
 	jwtutil "github.com/argoproj/argo-cd/util/jwt"
 )
