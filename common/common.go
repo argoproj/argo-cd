@@ -85,6 +85,8 @@ const (
 	DexAPIEndpoint = "/api/dex"
 	// LoginEndpoint is Argo CD's shorthand login endpoint which redirects to dex's OAuth 2.0 provider's consent page
 	LoginEndpoint = "/auth/login"
+	// LogoutEndpoint is Argo CD's shorthand logout endpoint which invalidates OIDC session after logout
+	LogoutEndpoint = "/auth/logout"
 	// CallbackEndpoint is Argo CD's final callback endpoint we reach after OAuth 2.0 login flow has been completed
 	CallbackEndpoint = "/auth/callback"
 	// DexCallbackEndpoint is Argo CD's final callback endpoint when Dex is configured
