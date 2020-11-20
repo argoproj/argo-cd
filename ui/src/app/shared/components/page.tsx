@@ -1,9 +1,9 @@
-import { DataLoader, Page as ArgoPage, Toolbar, Utils } from 'argo-ui';
+import {DataLoader, Page as ArgoPage, Toolbar, Utils} from 'argo-ui';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
-import { BehaviorSubject, Observable } from 'rxjs';
-import { AppContext } from '../context';
-import { services } from '../services';
+import {BehaviorSubject, Observable} from 'rxjs';
+import {AppContext} from '../context';
+import {services} from '../services';
 
 const mostRecentLoggedIn = new BehaviorSubject<boolean>(false);
 
@@ -12,7 +12,7 @@ function isLoggedIn(): Observable<boolean> {
     return mostRecentLoggedIn;
 }
 
-export class Page extends React.Component<{ title: string; toolbar?: Toolbar | Observable<Toolbar> }> {
+export class Page extends React.Component<{title: string; toolbar?: Toolbar | Observable<Toolbar>}> {
     public static contextTypes = {
         router: PropTypes.object,
         history: PropTypes.object
@@ -34,10 +34,10 @@ export class Page extends React.Component<{ title: string; toolbar?: Toolbar | O
                                             Log out
                                         </a>
                                     ) : (
-                                            <a key='login' onClick={() => this.goToLogin(false)}>
-                                                Log in
-                                            </a>
-                                        )
+                                        <a key='login' onClick={() => this.goToLogin(false)}>
+                                            Log in
+                                        </a>
+                                    )
                                 }
                             </DataLoader>
                         ];

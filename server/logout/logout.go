@@ -8,10 +8,11 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
-	jwtutil "github.com/argoproj/argo-cd/util/jwt"
 	"github.com/argoproj/argo-cd/util/session"
 	"github.com/argoproj/argo-cd/util/settings"
 	"github.com/dgrijalva/jwt-go"
+
+	jwtutil "github.com/argoproj/argo-cd/util/jwt"
 )
 
 //NewHandler creates handler serving to do api/logout endpoint
