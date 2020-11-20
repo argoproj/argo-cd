@@ -92,6 +92,11 @@ non-preferred version and causes performance issues.
 
 The `argocd-server` is stateless and probably least likely to cause issues. You might consider increasing number of replicas to 3 or more to ensure there is no downtime during upgrades.
 
+**settings:**
+
+* The `ARGOCD_GRPC_MAX_SIZE_MB` environment variable allows specifying the max size of the server response message in megabytes.
+The default value is 200. You might need to increase for an Argo CD instance that manages 3000+ applications.    
+
 ### argocd-dex-server, argocd-redis
 
 The `argocd-dex-server` uses an in-memory database, and two or more instances would have inconsistent data. `argocd-redis` is pre-configured with the understanding of only three total redis servers/sentinels.
