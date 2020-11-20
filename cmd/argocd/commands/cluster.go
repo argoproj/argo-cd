@@ -3,18 +3,16 @@ package commands
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
-	"sort"
 	"strings"
 	"text/tabwriter"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
+	cmdutil "github.com/argoproj/argo-cd/cmd/util"
 	"github.com/argoproj/argo-cd/common"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	clusterpkg "github.com/argoproj/argo-cd/pkg/apiclient/cluster"
@@ -80,7 +78,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			var configAccess clientcmd.ConfigAccess = pathOpts
 			if len(args) == 0 {
 				log.Error("Choose a context name from:")
-				printKubeContexts(configAccess)
+				cmdutil.PrintKubeContexts(configAccess)
 				os.Exit(1)
 			}
 			config, err := configAccess.GetStartingConfig()
@@ -121,7 +119,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 				if serviceAccount != "" {
 					managerBearerToken, err = clusterauth.GetServiceAccountBearerToken(clientset, systemNamespace, serviceAccount)
 				} else {
-					managerBearerToken, err = clusterauth.InstallClusterManagerRBAC(clientset, systemNamespace, namespaces)
+					managerBearerToken, _, err = clusterauth.InstallClusterManagerRBAC(clientset, systemNamespace, namespaces)
 				}
 				errors.CheckError(err)
 			}
@@ -130,7 +128,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			if name != "" {
 				contextName = name
 			}
-			clst := newCluster(contextName, namespaces, conf, managerBearerToken, awsAuthConf, execProviderConf)
+			clst := cmdutil.NewCluster(contextName, namespaces, conf, managerBearerToken, awsAuthConf, execProviderConf)
 			if inCluster {
 				clst.Server = common.KubernetesInternalAPIServerAddr
 			}
@@ -162,90 +160,6 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 	command.Flags().StringVar(&execProviderAPIVersion, "exec-command-api-version", "", "Preferred input version of the ExecInfo for the --exec-command")
 	command.Flags().StringVar(&execProviderInstallHint, "exec-command-install-hint", "", "Text shown to the user when the --exec-command executable doesn't seem to be present")
 	return command
-}
-
-func printKubeContexts(ca clientcmd.ConfigAccess) {
-	config, err := ca.GetStartingConfig()
-	errors.CheckError(err)
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	defer func() { _ = w.Flush() }()
-	columnNames := []string{"CURRENT", "NAME", "CLUSTER", "SERVER"}
-	_, err = fmt.Fprintf(w, "%s\n", strings.Join(columnNames, "\t"))
-	errors.CheckError(err)
-
-	// sort names so output is deterministic
-	contextNames := make([]string, 0)
-	for name := range config.Contexts {
-		contextNames = append(contextNames, name)
-	}
-	sort.Strings(contextNames)
-
-	if config.Clusters == nil {
-		return
-	}
-
-	for _, name := range contextNames {
-		// ignore malformed kube config entries
-		context := config.Contexts[name]
-		if context == nil {
-			continue
-		}
-		cluster := config.Clusters[context.Cluster]
-		if cluster == nil {
-			continue
-		}
-		prefix := " "
-		if config.CurrentContext == name {
-			prefix = "*"
-		}
-		_, err := fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", prefix, name, context.Cluster, cluster.Server)
-		errors.CheckError(err)
-	}
-}
-
-func newCluster(name string, namespaces []string, conf *rest.Config, managerBearerToken string, awsAuthConf *argoappv1.AWSAuthConfig, execProviderConf *argoappv1.ExecProviderConfig) *argoappv1.Cluster {
-	tlsClientConfig := argoappv1.TLSClientConfig{
-		Insecure:   conf.TLSClientConfig.Insecure,
-		ServerName: conf.TLSClientConfig.ServerName,
-		CAData:     conf.TLSClientConfig.CAData,
-		CertData:   conf.TLSClientConfig.CertData,
-		KeyData:    conf.TLSClientConfig.KeyData,
-	}
-	if len(conf.TLSClientConfig.CAData) == 0 && conf.TLSClientConfig.CAFile != "" {
-		data, err := ioutil.ReadFile(conf.TLSClientConfig.CAFile)
-		errors.CheckError(err)
-		tlsClientConfig.CAData = data
-	}
-	if len(conf.TLSClientConfig.CertData) == 0 && conf.TLSClientConfig.CertFile != "" {
-		data, err := ioutil.ReadFile(conf.TLSClientConfig.CertFile)
-		errors.CheckError(err)
-		tlsClientConfig.CertData = data
-	}
-	if len(conf.TLSClientConfig.KeyData) == 0 && conf.TLSClientConfig.KeyFile != "" {
-		data, err := ioutil.ReadFile(conf.TLSClientConfig.KeyFile)
-		errors.CheckError(err)
-		tlsClientConfig.KeyData = data
-	}
-
-	clst := argoappv1.Cluster{
-		Server:     conf.Host,
-		Name:       name,
-		Namespaces: namespaces,
-		Config: argoappv1.ClusterConfig{
-			TLSClientConfig:    tlsClientConfig,
-			AWSAuthConfig:      awsAuthConf,
-			ExecProviderConfig: execProviderConf,
-		},
-	}
-
-	// Bearer token will preferentially be used for auth if present,
-	// Even in presence of key/cert credentials
-	// So set bearer token only if the key/cert data is absent
-	if len(tlsClientConfig.CertData) == 0 || len(tlsClientConfig.KeyData) == 0 {
-		clst.Config.BearerToken = managerBearerToken
-	}
-
-	return &clst
 }
 
 // NewClusterGetCommand returns a new instance of an `argocd cluster get` command

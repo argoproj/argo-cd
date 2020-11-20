@@ -50,7 +50,7 @@ func CreateServiceAccount(
 	clientset kubernetes.Interface,
 	serviceAccountName string,
 	namespace string,
-) error {
+) (*corev1.ServiceAccount, error) {
 	serviceAccount := corev1.ServiceAccount{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -61,36 +61,37 @@ func CreateServiceAccount(
 			Namespace: namespace,
 		},
 	}
-	_, err := clientset.CoreV1().ServiceAccounts(namespace).Create(context.Background(), &serviceAccount, metav1.CreateOptions{})
+	sa, err := clientset.CoreV1().ServiceAccounts(namespace).Create(context.Background(), &serviceAccount, metav1.CreateOptions{})
 	if err != nil {
 		if !apierr.IsAlreadyExists(err) {
-			return fmt.Errorf("Failed to create service account %q in namespace %q: %v", serviceAccountName, namespace, err)
+			return nil, fmt.Errorf("Failed to create service account %q in namespace %q: %v", serviceAccountName, namespace, err)
 		}
 		log.Infof("ServiceAccount %q already exists in namespace %q", serviceAccountName, namespace)
-		return nil
+		return nil, nil
 	}
 	log.Infof("ServiceAccount %q created in namespace %q", serviceAccountName, namespace)
-	return nil
+	return sa, nil
 }
 
-func upsert(kind string, name string, create func() (interface{}, error), update func() (interface{}, error)) error {
-	_, err := create()
+func upsert(kind string, name string, create func() (interface{}, error), update func() (interface{}, error)) (interface{}, error) {
+	var obj interface{}
+	obj, err := create()
 	if err != nil {
 		if !apierr.IsAlreadyExists(err) {
-			return fmt.Errorf("Failed to create %s %q: %v", kind, name, err)
+			return nil, fmt.Errorf("Failed to create %s %q: %v", kind, name, err)
 		}
-		_, err = update()
+		obj, err = update()
 		if err != nil {
-			return fmt.Errorf("Failed to update %s %q: %v", kind, name, err)
+			return nil, fmt.Errorf("Failed to update %s %q: %v", kind, name, err)
 		}
 		log.Infof("%s %q updated", kind, name)
 	} else {
 		log.Infof("%s %q created", kind, name)
 	}
-	return nil
+	return obj, nil
 }
 
-func upsertClusterRole(clientset kubernetes.Interface, name string, rules []rbacv1.PolicyRule) error {
+func upsertClusterRole(clientset kubernetes.Interface, name string, rules []rbacv1.PolicyRule) (interface{}, error) {
 	clusterRole := rbacv1.ClusterRole{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
@@ -108,7 +109,7 @@ func upsertClusterRole(clientset kubernetes.Interface, name string, rules []rbac
 	})
 }
 
-func upsertRole(clientset kubernetes.Interface, name string, namespace string, rules []rbacv1.PolicyRule) error {
+func upsertRole(clientset kubernetes.Interface, name string, namespace string, rules []rbacv1.PolicyRule) (interface{}, error) {
 	role := rbacv1.Role{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
@@ -126,7 +127,7 @@ func upsertRole(clientset kubernetes.Interface, name string, namespace string, r
 	})
 }
 
-func upsertClusterRoleBinding(clientset kubernetes.Interface, name string, clusterRoleName string, subject rbacv1.Subject) error {
+func upsertClusterRoleBinding(clientset kubernetes.Interface, name string, clusterRoleName string, subject rbacv1.Subject) (interface{}, error) {
 	roleBinding := rbacv1.ClusterRoleBinding{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
@@ -149,7 +150,7 @@ func upsertClusterRoleBinding(clientset kubernetes.Interface, name string, clust
 	})
 }
 
-func upsertRoleBinding(clientset kubernetes.Interface, name string, roleName string, namespace string, subject rbacv1.Subject) error {
+func upsertRoleBinding(clientset kubernetes.Interface, name string, roleName string, namespace string, subject rbacv1.Subject) (interface{}, error) {
 	roleBinding := rbacv1.RoleBinding{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
@@ -172,47 +173,81 @@ func upsertRoleBinding(clientset kubernetes.Interface, name string, roleName str
 	})
 }
 
-// InstallClusterManagerRBAC installs RBAC resources for a cluster manager to operate a cluster. Returns a token
-func InstallClusterManagerRBAC(clientset kubernetes.Interface, ns string, namespaces []string) (string, error) {
+type RBACResources struct {
+	ServiceAccount     *corev1.ServiceAccount
+	ClusterRole        *rbacv1.ClusterRole
+	ClusterRoleBinding *rbacv1.ClusterRoleBinding
+	Role               *rbacv1.Role
+	RoleBinding        *rbacv1.RoleBinding
+}
 
-	err := CreateServiceAccount(clientset, ArgoCDManagerServiceAccount, ns)
+// InstallClusterManagerRBAC installs RBAC resources for a cluster manager to operate a cluster. Returns a token
+func InstallClusterManagerRBAC(clientset kubernetes.Interface, ns string, namespaces []string) (string, *RBACResources, error) {
+	rbacResources := &RBACResources{}
+
+	sa, err := CreateServiceAccount(clientset, ArgoCDManagerServiceAccount, ns)
 	if err != nil {
-		return "", err
+		return "", rbacResources, err
 	}
+	rbacResources.ServiceAccount = sa
 
 	if len(namespaces) == 0 {
-		err = upsertClusterRole(clientset, ArgoCDManagerClusterRole, ArgoCDManagerClusterPolicyRules)
+		resource, err := upsertClusterRole(clientset, ArgoCDManagerClusterRole, ArgoCDManagerClusterPolicyRules)
 		if err != nil {
-			return "", err
+			return "", rbacResources, err
 		}
+		clusterRole, ok := resource.(*rbacv1.ClusterRole)
+		if !ok {
+			return "", rbacResources, fmt.Errorf("invalid rbac cluster role type")
+		}
+		rbacResources.ClusterRole = clusterRole
 
-		err = upsertClusterRoleBinding(clientset, ArgoCDManagerClusterRoleBinding, ArgoCDManagerClusterRole, rbacv1.Subject{
+		resource, err = upsertClusterRoleBinding(clientset, ArgoCDManagerClusterRoleBinding, ArgoCDManagerClusterRole, rbacv1.Subject{
 			Kind:      rbacv1.ServiceAccountKind,
 			Name:      ArgoCDManagerServiceAccount,
 			Namespace: ns,
 		})
 		if err != nil {
-			return "", err
+			return "", rbacResources, err
 		}
+		clusterRoleBinding, ok := resource.(*rbacv1.ClusterRoleBinding)
+		if !ok {
+			return "", rbacResources, fmt.Errorf("invalid rbac cluster role binding type")
+		}
+		rbacResources.ClusterRoleBinding = clusterRoleBinding
 	} else {
 		for _, namespace := range namespaces {
-			err = upsertRole(clientset, ArgoCDManagerClusterRole, namespace, ArgoCDManagerNamespacePolicyRules)
+			resource, err := upsertRole(clientset, ArgoCDManagerClusterRole, namespace, ArgoCDManagerNamespacePolicyRules)
 			if err != nil {
-				return "", err
+				return "", rbacResources, err
 			}
+			role, ok := resource.(*rbacv1.Role)
+			if !ok {
+				return "", rbacResources, fmt.Errorf("invalid rbac role type")
+			}
+			rbacResources.Role = role
 
-			err = upsertRoleBinding(clientset, ArgoCDManagerClusterRoleBinding, ArgoCDManagerClusterRole, namespace, rbacv1.Subject{
+			resource, err = upsertRoleBinding(clientset, ArgoCDManagerClusterRoleBinding, ArgoCDManagerClusterRole, namespace, rbacv1.Subject{
 				Kind:      rbacv1.ServiceAccountKind,
 				Name:      ArgoCDManagerServiceAccount,
 				Namespace: ns,
 			})
 			if err != nil {
-				return "", err
+				return "", rbacResources, err
 			}
+			roleBinding, ok := resource.(*rbacv1.RoleBinding)
+			if !ok {
+				return "", rbacResources, fmt.Errorf("invalid rbac role binding type")
+			}
+			rbacResources.RoleBinding = roleBinding
 		}
 	}
 
-	return GetServiceAccountBearerToken(clientset, ns, ArgoCDManagerServiceAccount)
+	token, err := GetServiceAccountBearerToken(clientset, ns, ArgoCDManagerServiceAccount)
+	if err != nil {
+		return "", rbacResources, err
+	}
+	return token, rbacResources, nil
 }
 
 // GetServiceAccountBearerToken will attempt to get the provided service account until it

@@ -1,15 +1,18 @@
 package commands
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"sort"
 	"time"
 
 	"github.com/ghodss/yaml"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	apiv1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -19,6 +22,7 @@ import (
 	kubecache "k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 
+	cmdutil "github.com/argoproj/argo-cd/cmd/util"
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/controller"
 	"github.com/argoproj/argo-cd/controller/cache"
@@ -334,4 +338,116 @@ func reconcileApplications(
 
 func newLiveStateCache(argoDB db.ArgoDB, appInformer kubecache.SharedIndexInformer, settingsMgr *settings.SettingsManager, server *metrics.MetricsServer) cache.LiveStateCache {
 	return cache.NewLiveStateCache(argoDB, appInformer, settingsMgr, kubeutil.NewKubectl(), server, func(managedByApp map[string]bool, ref apiv1.ObjectReference) {}, nil)
+}
+
+// NewGenAppConfigCommand generates declarative configuration file for given application
+func NewGenAppConfigCommand() *cobra.Command {
+	var (
+		appOpts      cmdutil.AppOptions
+		fileURL      string
+		appName      string
+		labels       []string
+		clientConfig clientcmd.ClientConfig
+		outputFormat string
+	)
+	var command = &cobra.Command{
+		Use:   "app-create APPNAME",
+		Short: "Generate declarative config for an application",
+		Example: `
+	# Generate declarative config for a directory app
+	argocd-util config app create guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --directory-recurse
+
+	# Generate declarative config for a Jsonnet app
+	argocd-util configapp create jsonnet-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path jsonnet-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --jsonnet-ext-str replicas=2
+
+	# Generate declarative config for a Helm app
+	argocd-util config app create helm-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path helm-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --helm-set replicaCount=2
+
+	# Generate declarative config for a Helm app from a Helm repo
+	argocd-util config app create nginx-ingress --repo https://kubernetes-charts.storage.googleapis.com --helm-chart nginx-ingress --revision 1.24.3 --dest-namespace default --dest-server https://kubernetes.default.svc
+
+	# Generate declarative config for a Kustomize app
+	argocd-util config app create kustomize-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path kustomize-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --kustomize-image gcr.io/heptio-images/ks-guestbook-demo:0.1
+
+	# Generate declarative config for a app using a custom tool:
+	argocd-util config app create ksane --repo https://github.com/argoproj/argocd-example-apps.git --path plugins/kasane --dest-namespace default --dest-server https://kubernetes.default.svc --config-management-plugin kasane
+`,
+		Run: func(c *cobra.Command, args []string) {
+			var app v1alpha1.Application
+			if fileURL == "-" {
+				// read stdin
+				reader := bufio.NewReader(os.Stdin)
+				err := config.UnmarshalReader(reader, &app)
+				if err != nil {
+					log.Fatalf("unable to read manifest from stdin: %v", err)
+				}
+			} else if fileURL != "" {
+				// read uri
+				parsedURL, err := url.ParseRequestURI(fileURL)
+				if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
+					err = config.UnmarshalLocalFile(fileURL, &app)
+				} else {
+					err = config.UnmarshalRemoteFile(fileURL, &app)
+				}
+				errors.CheckError(err)
+				if len(args) == 1 && args[0] != app.Name {
+					log.Fatalf("app name '%s' does not match app spec metadata.name '%s'", args[0], app.Name)
+				}
+				if appName != "" && appName != app.Name {
+					app.Name = appName
+				}
+				if app.Name == "" {
+					log.Fatalf("app.Name is empty. --name argument can be used to provide app.Name")
+				}
+				cmdutil.SetAppSpecOptions(c.Flags(), &app.Spec, &appOpts)
+				cmdutil.SetParameterOverrides(&app, appOpts.Parameters)
+				cmdutil.SetLabels(&app, labels)
+			} else {
+				// read arguments
+				if len(args) == 1 {
+					if appName != "" && appName != args[0] {
+						log.Fatalf("--name argument '%s' does not match app name %s", appName, args[0])
+					}
+					appName = args[0]
+				}
+				app = v1alpha1.Application{
+					ObjectMeta: v1.ObjectMeta{
+						Name: appName,
+					},
+				}
+				cmdutil.SetAppSpecOptions(c.Flags(), &app.Spec, &appOpts)
+				cmdutil.SetParameterOverrides(&app, appOpts.Parameters)
+				cmdutil.SetLabels(&app, labels)
+			}
+			if app.Name == "" {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+
+			// TODO: validate app request
+
+			cfg, err := clientConfig.ClientConfig()
+			errors.CheckError(err)
+			namespace, _, err := clientConfig.Namespace()
+			errors.CheckError(err)
+
+			appClientset := appclientset.NewForConfigOrDie(cfg)
+			created, err := appClientset.ArgoprojV1alpha1().Applications(namespace).Create(context.Background(), &app, v1.CreateOptions{DryRun: []string{v1.DryRunAll}})
+			errors.CheckError(err)
+
+			errors.CheckError(cmdutil.PrintResource(created, outputFormat))
+		},
+	}
+	clientConfig = cli.AddKubectlFlagsToCmd(command)
+	command.Flags().StringVar(&appName, "name", "", "A name for the app, ignored if a file is set (DEPRECATED)")
+	command.Flags().StringVarP(&fileURL, "file", "f", "", "Filename or URL to Kubernetes manifests for the app")
+	command.Flags().StringArrayVarP(&labels, "label", "l", []string{}, "Labels to apply to the app")
+	command.Flags().StringVar(&outputFormat, "o", "yaml", "Output format (yaml|json)")
+
+	// Only complete files with appropriate extension.
+	err := command.Flags().SetAnnotation("file", cobra.BashCompFilenameExt, []string{"json", "yaml", "yml"})
+	errors.CheckError(err)
+
+	cmdutil.AddAppFlags(command, &appOpts)
+	return command
 }

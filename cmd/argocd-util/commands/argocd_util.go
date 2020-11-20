@@ -52,6 +52,7 @@ func NewCommand() *cobra.Command {
 	var (
 		logFormat string
 		logLevel  string
+		pathOpts  = clientcmd.NewDefaultPathOptions()
 	)
 
 	var command = &cobra.Command{
@@ -74,6 +75,7 @@ func NewCommand() *cobra.Command {
 	command.AddCommand(NewSettingsCommand())
 	command.AddCommand(NewAppsCommand())
 	command.AddCommand(NewRBACCommand())
+	command.AddCommand(NewGenerateConfigCommand(pathOpts))
 
 	command.Flags().StringVar(&logFormat, "logformat", "text", "Set the logging format. One of: text|json")
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
@@ -673,4 +675,19 @@ func redactor(dirtyString string) string {
 	data, err := yaml.Marshal(config)
 	errors.CheckError(err)
 	return string(data)
+}
+
+func NewGenerateConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command {
+	var command = &cobra.Command{
+		Use:   "gencfg",
+		Short: "Generate declarative configuration files",
+		Run: func(c *cobra.Command, args []string) {
+			c.HelpFunc()(c, args)
+		},
+	}
+	command.AddCommand(NewGenAppConfigCommand())
+	command.AddCommand(NewGenProjectConfigCommand())
+	command.AddCommand(NewGenClusterConfigCommand(pathOpts))
+
+	return command
 }

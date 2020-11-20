@@ -101,7 +101,7 @@ func (db *db) ListClusters(ctx context.Context) (*appv1.ClusterList, error) {
 
 // CreateCluster creates a cluster
 func (db *db) CreateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Cluster, error) {
-	secName, err := serverToSecretName(c.Server)
+	secName, err := ServerToSecretName(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +117,7 @@ func (db *db) CreateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 		},
 	}
 
-	if err = clusterToSecret(c, clusterSecret); err != nil {
+	if err = ClusterToSecret(c, clusterSecret); err != nil {
 		return nil, err
 	}
 	clusterSecret, err = db.kubeclientset.CoreV1().Secrets(db.ns).Create(ctx, clusterSecret, metav1.CreateOptions{})
@@ -234,7 +234,7 @@ func (db *db) UpdateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 		}
 		return nil, err
 	}
-	if err := clusterToSecret(c, clusterSecret); err != nil {
+	if err := ClusterToSecret(c, clusterSecret); err != nil {
 		return nil, err
 	}
 
@@ -268,7 +268,7 @@ func (db *db) DeleteCluster(ctx context.Context, server string) error {
 
 // serverToSecretName hashes server address to the secret name using a formula.
 // Part of the server address is incorporated for debugging purposes
-func serverToSecretName(server string) (string, error) {
+func ServerToSecretName(server string) (string, error) {
 	serverURL, err := url.ParseRequestURI(server)
 	if err != nil {
 		return "", err
@@ -280,7 +280,7 @@ func serverToSecretName(server string) (string, error) {
 }
 
 // clusterToData converts a cluster object to string data for serialization to a secret
-func clusterToSecret(c *appv1.Cluster, secret *apiv1.Secret) error {
+func ClusterToSecret(c *appv1.Cluster, secret *apiv1.Secret) error {
 	data := make(map[string][]byte)
 	data["server"] = []byte(strings.TrimRight(c.Server, "/"))
 	if c.Name == "" {

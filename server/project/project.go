@@ -59,7 +59,7 @@ func NewServer(ns string, kubeclientset kubernetes.Interface, appclientset appcl
 		projInformer: projInformer, settingsMgr: settingsMgr}
 }
 
-func validateProject(proj *v1alpha1.AppProject) error {
+func ValidateProject(proj *v1alpha1.AppProject) error {
 	err := proj.ValidateProject()
 	if err != nil {
 		return err
@@ -77,7 +77,7 @@ func (s *Server) CreateToken(ctx context.Context, q *project.ProjectTokenCreateR
 	if err != nil {
 		return nil, err
 	}
-	err = validateProject(prj)
+	err = ValidateProject(prj)
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +145,7 @@ func (s *Server) DeleteToken(ctx context.Context, q *project.ProjectTokenDeleteR
 	if err != nil {
 		return nil, err
 	}
-	err = validateProject(prj)
+	err = ValidateProject(prj)
 	if err != nil {
 		return nil, err
 	}
@@ -183,7 +183,7 @@ func (s *Server) Create(ctx context.Context, q *project.ProjectCreateRequest) (*
 		return nil, err
 	}
 	q.Project.NormalizePolicies()
-	err := validateProject(q.Project)
+	err := ValidateProject(q.Project)
 	if err != nil {
 		return nil, err
 	}
@@ -262,7 +262,7 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 	}
 	q.Project.NormalizePolicies()
 	q.Project.NormalizeJWTTokens()
-	err := validateProject(q.Project)
+	err := ValidateProject(q.Project)
 	if err != nil {
 		return nil, err
 	}

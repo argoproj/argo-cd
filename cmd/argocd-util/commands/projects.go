@@ -1,22 +1,29 @@
 package commands
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"github.com/argoproj/argo-cd/pkg/apis/application"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
-	appclient "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/typed/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/cli"
-	"github.com/argoproj/argo-cd/util/errors"
-
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/clientcmd"
+
+	cmdutil "github.com/argoproj/argo-cd/cmd/util"
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
+	appclient "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/typed/application/v1alpha1"
+	"github.com/argoproj/argo-cd/server/project"
+	"github.com/argoproj/argo-cd/util/cli"
+	"github.com/argoproj/argo-cd/util/config"
+	"github.com/argoproj/argo-cd/util/errors"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 )
 
 func NewProjectsCommand() *cobra.Command {
@@ -191,4 +198,84 @@ func updateProjects(projIf appclient.AppProjectInterface, projectGlob string, ro
 		}
 	}
 	return nil
+}
+
+func NewGenProjectConfigCommand() *cobra.Command {
+	var (
+		opts         cmdutil.ProjectOpts
+		fileURL      string
+		clientConfig clientcmd.ClientConfig
+		outputFormat string
+	)
+	var command = &cobra.Command{
+		Use:   "proj-create APPNAME",
+		Short: "Generate declarative config for a project",
+		Run: func(c *cobra.Command, args []string) {
+			var proj v1alpha1.AppProject
+			fmt.Printf("EE: %d/%v\n", len(opts.SignatureKeys), opts.SignatureKeys)
+			if fileURL == "-" {
+				// read stdin
+				reader := bufio.NewReader(os.Stdin)
+				err := config.UnmarshalReader(reader, &proj)
+				if err != nil {
+					log.Fatalf("unable to read manifest from stdin: %v", err)
+				}
+			} else if fileURL != "" {
+				// read uri
+				parsedURL, err := url.ParseRequestURI(fileURL)
+				if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
+					err = config.UnmarshalLocalFile(fileURL, &proj)
+				} else {
+					err = config.UnmarshalRemoteFile(fileURL, &proj)
+				}
+				errors.CheckError(err)
+				if len(args) == 1 && args[0] != proj.Name {
+					log.Fatalf("project name '%s' does not match project spec metadata.name '%s'", args[0], proj.Name)
+				}
+			} else {
+				// read arguments
+				if len(args) == 0 {
+					c.HelpFunc()(c, args)
+					os.Exit(1)
+				}
+				projName := args[0]
+				proj = v1alpha1.AppProject{
+					ObjectMeta: v1.ObjectMeta{Name: projName},
+					Spec: v1alpha1.AppProjectSpec{
+						Description:       opts.Description,
+						Destinations:      opts.GetDestinations(),
+						SourceRepos:       opts.Sources,
+						SignatureKeys:     opts.GetSignatureKeys(),
+						OrphanedResources: cmdutil.GetOrphanedResourcesSettings(c, opts),
+					},
+				}
+			}
+
+			// validate project request
+			err := project.ValidateProject(&proj)
+			errors.CheckError(err)
+
+			cfg, err := clientConfig.ClientConfig()
+			errors.CheckError(err)
+			namespace, _, err := clientConfig.Namespace()
+			errors.CheckError(err)
+
+			appClientset := appclientset.NewForConfigOrDie(cfg)
+			created, err := appClientset.ArgoprojV1alpha1().AppProjects(namespace).Create(context.Background(), &proj, v1.CreateOptions{DryRun: []string{v1.DryRunAll}})
+			errors.CheckError(err)
+
+			created.Kind = application.AppProjectKind
+			created.APIVersion = application.Group + "/v1aplha1"
+			errors.CheckError(cmdutil.PrintResource(created, outputFormat))
+		},
+	}
+	clientConfig = cli.AddKubectlFlagsToCmd(command)
+	command.Flags().StringVarP(&fileURL, "file", "f", "", "Filename or URL to Kubernetes manifests for the project")
+	command.Flags().StringVar(&outputFormat, "o", "yaml", "Output format (yaml|json)")
+	err := command.Flags().SetAnnotation("file", cobra.BashCompFilenameExt, []string{"json", "yaml", "yml"})
+	if err != nil {
+		log.Fatal(err)
+	}
+	cmdutil.AddProjFlags(command, &opts)
+	return command
 }

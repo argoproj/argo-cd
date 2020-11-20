@@ -75,7 +75,7 @@ func TestCreateServiceAccount(t *testing.T) {
 
 	t.Run("New SA", func(t *testing.T) {
 		cs := fake.NewSimpleClientset(ns)
-		err := CreateServiceAccount(cs, "argocd-manager", "kube-system")
+		_, err := CreateServiceAccount(cs, "argocd-manager", "kube-system")
 		assert.NoError(t, err)
 		rsa, err := cs.CoreV1().ServiceAccounts("kube-system").Get(context.Background(), "argocd-manager", metav1.GetOptions{})
 		assert.NoError(t, err)
@@ -84,7 +84,7 @@ func TestCreateServiceAccount(t *testing.T) {
 
 	t.Run("SA exists already", func(t *testing.T) {
 		cs := fake.NewSimpleClientset(ns, sa)
-		err := CreateServiceAccount(cs, "argocd-manager", "kube-system")
+		_, err := CreateServiceAccount(cs, "argocd-manager", "kube-system")
 		assert.NoError(t, err)
 		rsa, err := cs.CoreV1().ServiceAccounts("kube-system").Get(context.Background(), "argocd-manager", metav1.GetOptions{})
 		assert.NoError(t, err)
@@ -93,7 +93,7 @@ func TestCreateServiceAccount(t *testing.T) {
 
 	t.Run("Invalid name", func(t *testing.T) {
 		cs := fake.NewSimpleClientset(ns)
-		err := CreateServiceAccount(cs, "", "kube-system")
+		_, err := CreateServiceAccount(cs, "", "kube-system")
 		assert.NoError(t, err)
 		rsa, err := cs.CoreV1().ServiceAccounts("kube-system").Get(context.Background(), "argocd-manager", metav1.GetOptions{})
 		assert.Error(t, err)
@@ -102,7 +102,7 @@ func TestCreateServiceAccount(t *testing.T) {
 
 	t.Run("Invalid namespace", func(t *testing.T) {
 		cs := fake.NewSimpleClientset()
-		err := CreateServiceAccount(cs, "argocd-manager", "invalid")
+		_, err := CreateServiceAccount(cs, "argocd-manager", "invalid")
 		assert.NoError(t, err)
 		rsa, err := cs.CoreV1().ServiceAccounts("invalid").Get(context.Background(), "argocd-manager", metav1.GetOptions{})
 		assert.NoError(t, err)
@@ -145,7 +145,7 @@ func TestInstallClusterManagerRBAC(t *testing.T) {
 
 	t.Run("Cluster Scope - Success", func(t *testing.T) {
 		cs := fake.NewSimpleClientset(ns, secret, sa)
-		token, err := InstallClusterManagerRBAC(cs, "test", nil)
+		token, _, err := InstallClusterManagerRBAC(cs, "test", nil)
 		assert.NoError(t, err)
 		assert.Equal(t, "foobar", token)
 	})
@@ -154,14 +154,14 @@ func TestInstallClusterManagerRBAC(t *testing.T) {
 		nsecret := secret.DeepCopy()
 		nsecret.Data = make(map[string][]byte)
 		cs := fake.NewSimpleClientset(ns, nsecret, sa)
-		token, err := InstallClusterManagerRBAC(cs, "test", nil)
+		token, _, err := InstallClusterManagerRBAC(cs, "test", nil)
 		assert.Error(t, err)
 		assert.Empty(t, token)
 	})
 
 	t.Run("Namespace Scope - Success", func(t *testing.T) {
 		cs := fake.NewSimpleClientset(ns, secret, sa)
-		token, err := InstallClusterManagerRBAC(cs, "test", []string{"nsa"})
+		token, _, err := InstallClusterManagerRBAC(cs, "test", []string{"nsa"})
 		assert.NoError(t, err)
 		assert.Equal(t, "foobar", token)
 	})
@@ -170,7 +170,7 @@ func TestInstallClusterManagerRBAC(t *testing.T) {
 		nsecret := secret.DeepCopy()
 		nsecret.Data = make(map[string][]byte)
 		cs := fake.NewSimpleClientset(ns, nsecret, sa)
-		token, err := InstallClusterManagerRBAC(cs, "test", []string{"nsa"})
+		token, _, err := InstallClusterManagerRBAC(cs, "test", []string{"nsa"})
 		assert.Error(t, err)
 		assert.Empty(t, token)
 	})
