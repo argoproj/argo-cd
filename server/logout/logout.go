@@ -7,20 +7,14 @@ import (
 	"strings"
 
 	"github.com/argoproj/argo-cd/common"
-
 	"github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
-
 	jwtutil "github.com/argoproj/argo-cd/util/jwt"
-
 	"github.com/argoproj/argo-cd/util/session"
-
 	"github.com/argoproj/argo-cd/util/settings"
-
 	"github.com/dgrijalva/jwt-go"
 )
 
 //NewHandler creates handler serving to do api/logout endpoint
-
 func NewHandler(appClientset versioned.Interface, settingsMrg *settings.SettingsManager, sessionMgr *session.SessionManager, rootPath, namespace string) *Handler {
 	return &Handler{
 		appClientset: appClientset,
@@ -53,7 +47,7 @@ func constructLogoutURL(logoutURL, token, logoutRedirectURL string) string {
 // and redirects user to '/login' for argocd issued sessions
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var tokenString string
-	var OIDCConfig *settings.OIDCConfig
+	var oidcConfig *settings.OIDCConfig
 
 	argoCDSettings, err := h.settingsMgr.GetSettings()
 	if err != nil {
@@ -61,6 +55,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to retrieve argoCD settings: "+fmt.Sprintf("%s", err), http.StatusInternalServerError)
 		return
 	}
+
+	logoutRedirectURL := strings.TrimRight(strings.TrimLeft(argoCDSettings.URL, "/"), "/") + strings.TrimRight(strings.TrimLeft(h.rootPath, "/"), "/")
 
 	argocdCookie, err := r.Cookie(common.AuthCookieName)
 	if err != nil {
@@ -71,34 +67,27 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	tokenString = argocdCookie.Value
 
+	argocdCookie.Value = ""
+	argocdCookie.Path = fmt.Sprintf("/%s", strings.TrimRight(strings.TrimLeft(h.rootPath, "/"), "/"))
+	w.Header().Set("Set-Cookie", argocdCookie.String())
+
 	claims, err := h.verifyToken(tokenString)
 	if err != nil {
-		cookie := fmt.Sprintf("%s=", common.AuthCookieName)
-		w.Header().Set("Set-Cookie", cookie)
-		redirectURL := argoCDSettings.URL + "/login"
-		http.Redirect(w, r, redirectURL, http.StatusSeeOther)
+		http.Redirect(w, r, logoutRedirectURL, http.StatusSeeOther)
 	}
 
 	mapClaims, err := jwtutil.MapClaims(claims)
 	if err != nil {
-		cookie := fmt.Sprintf("%s=", common.AuthCookieName)
-		w.Header().Set("Set-Cookie", cookie)
-		redirectURL := argoCDSettings.URL + "/login"
-		http.Redirect(w, r, redirectURL, http.StatusSeeOther)
+		http.Redirect(w, r, logoutRedirectURL, http.StatusSeeOther)
 	}
 
 	issuer := jwtutil.GetField(mapClaims, "iss")
 
-	cookie := fmt.Sprintf("%s=", common.AuthCookieName)
-	w.Header().Set("Set-Cookie", cookie)
-
 	if argoCDSettings.OIDCConfig() == nil || issuer == session.SessionManagerClaimsIssuer {
-		redirectURL := argoCDSettings.URL + "/login"
-		http.Redirect(w, r, redirectURL, http.StatusSeeOther)
+		http.Redirect(w, r, logoutRedirectURL, http.StatusSeeOther)
 	} else {
-		OIDCConfig = argoCDSettings.OIDCConfig()
-		LogoutRedirectURL := argoCDSettings.URL + strings.TrimRight(strings.TrimLeft(h.rootPath, "/"), "/")
-		logoutURL := constructLogoutURL(OIDCConfig.LogoutURL, tokenString, LogoutRedirectURL)
+		oidcConfig = argoCDSettings.OIDCConfig()
+		logoutURL := constructLogoutURL(oidcConfig.LogoutURL, tokenString, logoutRedirectURL)
 		http.Redirect(w, r, logoutURL, http.StatusSeeOther)
 	}
 }
