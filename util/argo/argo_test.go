@@ -668,4 +668,5 @@ func TestValidateDestination(t *testing.T) {
 		assert.Equal(t, "unable to find destination server: there are 2 clusters with the same name: [https://127.0.0.1:2443 https://127.0.0.1:8443]", err.Error())
 		assert.False(t, dest.IsServerInferred())
 	})
+
 }
