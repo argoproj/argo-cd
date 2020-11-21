@@ -1750,7 +1750,7 @@ The default value is 200. You might need to increase for an Argo CD instance tha
 If the manifest generation has no side effects then requests are processed in parallel without the performance penalty. Following are known cases that might cause slowness and workarounds:</p>
 <ul>
 <li>
-<p><strong>Multiple Helm based applications pointing to the same directory in one Git repository:</strong> ensure that your Helm chart don't have don't have conditional
+<p><strong>Multiple Helm based applications pointing to the same directory in one Git repository:</strong> ensure that your Helm chart don't have conditional
 <a href="https://helm.sh/docs/chart_best_practices/dependencies/#conditions-and-tags">dependencies</a> and create <code>.argocd-allow-concurrency</code> file in chart directory.</p>
 </li>
 <li>
