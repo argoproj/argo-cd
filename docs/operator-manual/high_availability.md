@@ -110,7 +110,7 @@ Argo CD repo server maintains one repository clone locally and use it for applic
 Argo CD determines if manifest generation might change local files in the local repository clone based on config management tool and application settings.
 If the manifest generation has no side effects then requests are processed in parallel without the performance penalty. Following are known cases that might cause slowness and workarounds:
 
-  * **Multiple Helm based applications pointing to the same directory in one Git repository:** ensure that your Helm chart don't have don't have conditional
+  * **Multiple Helm based applications pointing to the same directory in one Git repository:** ensure that your Helm chart don't have conditional
 [dependencies](https://helm.sh/docs/chart_best_practices/dependencies/#conditions-and-tags) and create `.argocd-allow-concurrency` file in chart directory.
 
   * **Multiple Custom plugin based applications:** avoid creating temporal files during manifest generation and and create `.argocd-allow-concurrency` file in app directory.
