@@ -41,7 +41,11 @@ data:
 
     ![Google Admin Service Provider Details](../../assets/google-admin-service-provider-details.png "A screenshot of the Google Service Provider Details")
 
-6. Finish creating the application.
+6. Add SAML Attribute Mapping, Map `Primary email` to `name` and `Primary Email` to `email`. and click `ADD MAPPING` button.
+
+    ![Google Admin SAML Attribute Mapping Details](../../assets/google-admin-saml-attribute-mapping-details.png "A screenshot of the Google Admin SAML Attribut Mapping Details")
+
+7. Finish creating the application.
 
 ### Configure Argo to use the new Google SAML App
 
