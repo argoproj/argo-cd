@@ -105,4 +105,4 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [WeMo Scooter](https://www.wemoscooter.com/)
 1. [Codefresh](https://www.codefresh.io/)
 1. [Keptn](https://keptn.sh)
-1. [PAOCLOUD](https://www.paocloud.co.th)
+1. [PAOCLOUD COMPANY LIMITED](https://www.paocloud.co.th)
