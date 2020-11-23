@@ -36,7 +36,7 @@
     
     
       
-        <title>Overview - Argo CD - Declarative GitOps CD for Kubernetes</title>
+        <title>v1.7 to 1.8 - Argo CD - Declarative GitOps CD for Kubernetes</title>
       
     
     
@@ -127,7 +127,7 @@
     <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
     <label class="md-overlay" data-md-component="overlay" for="__drawer"></label>
     
-      <a href="#overview" tabindex="1" class="md-skip">
+      <a href="#v17-to-18" tabindex="1" class="md-skip">
         Skip to content
       </a>
     
@@ -152,7 +152,7 @@
               Argo CD - Declarative GitOps CD for Kubernetes
             </span>
             <span class="md-header-nav__topic">
-              Overview
+              v1.7 to 1.8
             </span>
           
         </div>
@@ -308,12 +308,10 @@
       
       
 
-  
 
-
-  <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+  <li class="md-nav__item md-nav__item--nested">
     
-      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-5" type="checkbox" id="nav-5" checked>
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-5" type="checkbox" id="nav-5">
     
     <label class="md-nav__link" for="nav-5">
       Operator Manual
@@ -725,12 +723,10 @@
           
           
 
-  
 
-
-  <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+  <li class="md-nav__item md-nav__item--nested">
     
-      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-5-20" type="checkbox" id="nav-5-20" checked>
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-5-20" type="checkbox" id="nav-5-20">
     
     <label class="md-nav__link" for="nav-5-20">
       Upgrading
@@ -746,20 +742,11 @@
           
           
 
-  
 
-
-  <li class="md-nav__item md-nav__item--active">
-    
-    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
-    
-      
-    
-    
-    <a href="./" title="Overview" class="md-nav__link md-nav__link--active">
+  <li class="md-nav__item">
+    <a href="../overview/" title="Overview" class="md-nav__link">
       Overview
     </a>
-    
   </li>
 
         
@@ -1462,6 +1449,29 @@
     
   
   
+    <label class="md-nav__title" for="__toc">Table of contents</label>
+    <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-argocd-application-controller-converted-to-statefulset" title="The argocd-application-controller converted to StatefulSet" class="md-nav__link">
+    The argocd-application-controller converted to StatefulSet
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#health-assessement-of-argoprojioapplication-crd-has-been-removed" title="Health assessement of argoproj.io/Application CRD has been removed" class="md-nav__link">
+    Health assessement of argoproj.io/Application CRD has been removed
+  </a>
+  
+</li>
+      
+      
+      
+      
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -1472,53 +1482,43 @@
             <article class="md-content__inner md-typeset">
               
                 
-                  <a href="https://github.com/argoproj/argo-cd/edit/master/docs/operator-manual/upgrading/overview.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
+                  <a href="https://github.com/argoproj/argo-cd/edit/master/docs/operator-manual/upgrading/1.7-1.8.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
                 
                 
-                <h1 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h1>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>This section contains information on upgrading Argo CD. Before upgrading please make sure to read details about
-the breaking changes between Argo CD versions. </p>
-</div>
-<p>Argo CD uses the semver versioning and ensures that following rules:</p>
-<ul>
-<li>The patch release does not introduce any breaking changes. So if you are upgrading from v1.5.1 to v1.5.3
- there should be no special instructions to follow.</li>
-<li>The minor release might introduce minor changes with a workaround. If you are upgrading from v1.3.0 to v1.5.2
-please make sure to check upgrading details in  both <a href="../1.3-1.4/">v1.3 to v1.4</a>  and  <a href="../1.4-1.5/">v1.4 to v1.5</a>
- upgrading instructions.</li>
-<li>The major release introduces backward incompatible behavior changes. It is recommended to take a backup of
- Argo CD settings using disaster recovery <a href="../../disaster_recovery/">guide</a>.</li>
-</ul>
-<p>After reading the relevant notes about possible breaking changes introduced in Argo CD version use the following
-command to upgrade Argo CD. Make sure to replace <code>&lt;version&gt;</code> with the required version number: </p>
-<p><strong>Non-HA</strong>:</p>
-<div class="codehilite"><pre><span></span><code>kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/&lt;version&gt;/manifests/install.yaml
+                <h1 id="v17-to-18">v1.7 to 1.8<a class="headerlink" href="#v17-to-18" title="Permanent link">&para;</a></h1>
+<h2 id="the-argocd-application-controller-converted-to-statefulset">The argocd-application-controller converted to StatefulSet<a class="headerlink" href="#the-argocd-application-controller-converted-to-statefulset" title="Permanent link">&para;</a></h2>
+<p>The <code>argocd-application-controller</code> has been converted to StatefulSet. That means you need to manually delete <code>argocd-application-controller</code> Deployment after upgrading.
+Similarly if you decided to rollback to v1.7 don't forget to delete <code>argocd-application-controller</code> StatefulSet.</p>
+<h2 id="health-assessement-of-argoprojioapplication-crd-has-been-removed">Health assessement of argoproj.io/Application CRD has been removed<a class="headerlink" href="#health-assessement-of-argoprojioapplication-crd-has-been-removed" title="Permanent link">&para;</a></h2>
+<p>The health assessement of <code>argoproj.io/Application</code> CRD has been removed (see <a href="https://github.com/argoproj/argo-cd/issues/3781">#3781</a> for more information).
+You might need to restore it if you are using app-of-apps pattern and orchestrating syncronization using sync waves. Add the following resource customization in
+<code>argocd-cm</code> ConfigMap:</p>
+<div class="codehilite"><pre><span></span><code><span class="nn">---</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
+  <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
+  <span class="nt">labels</span><span class="p">:</span>
+    <span class="nt">app.kubernetes.io/name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
+    <span class="nt">app.kubernetes.io/part-of</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
+<span class="nt">data</span><span class="p">:</span>
+  <span class="nt">resource.customizations</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+    <span class="no">argoproj.io/Application:</span>
+      <span class="no">health.lua: |</span>
+        <span class="no">hs = {}</span>
+        <span class="no">hs.status = &quot;Healthy&quot;</span>
+        <span class="no">hs.message = &quot;&quot;</span>
+        <span class="no">if obj.status ~= nil then</span>
+          <span class="no">if obj.status.health ~= nil then</span>
+            <span class="no">hs.status = obj.status.health.status</span>
+            <span class="no">hs.message = obj.status.health.message</span>
+          <span class="no">end</span>
+        <span class="no">end</span>
+        <span class="no">return hs</span>
 </code></pre></div>
 
-<p><strong>HA</strong>:</p>
-<div class="codehilite"><pre><span></span><code>kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/&lt;version&gt;/manifests/ha/install.yaml
-</code></pre></div>
-
-<div class="admonition warning">
-<p class="admonition-title">Warning</p>
-<p>Even though some releases require only image change it is still recommended to apply whole manifests set.
-Manifest changes might include important parameter modifications and applying the whole set will protect you from
-introducing misconfiguration. </p>
-</div>
-<hr/>
-
-<ul>
-<li><a href="../1.7-1.8/">v1.7 to v1.8</a> </li>
-<li><a href="../1.6-1.7/">v1.6 to v1.7</a> </li>
-<li><a href="../1.5-1.6/">v1.5 to v1.6</a> </li>
-<li><a href="../1.4-1.5/">v1.4 to v1.5</a> </li>
-<li><a href="../1.3-1.4/">v1.3 to v1.4</a> </li>
-<li><a href="../1.2-1.3/">v1.2 to v1.3</a></li>
-<li><a href="../1.1-1.2/">v1.1 to v1.2</a> </li>
-<li><a href="../1.0-1.1/">v1.0 to v1.1</a> </li>
-</ul>
+<p>From here on you can follow the <a href="../overview/">regular upgrade process</a>.</p>
                 
                   
                 
@@ -1535,41 +1535,6 @@ introducing misconfiguration. </p>
       
         
 <footer class="md-footer">
-  
-    <div class="md-footer-nav">
-      <nav class="md-footer-nav__inner md-grid">
-        
-          <a href="../../server-commands/argocd-util/" title="argocd-util Tools" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
-            <div class="md-flex__cell md-flex__cell--shrink">
-              <i class="md-icon md-icon--arrow-back md-footer-nav__button"></i>
-            </div>
-            <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
-              <span class="md-flex__ellipsis">
-                <span class="md-footer-nav__direction">
-                  Previous
-                </span>
-                argocd-util Tools
-              </span>
-            </div>
-          </a>
-        
-        
-          <a href="../1.6-1.7/" title="v1.6 to 1.7" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
-            <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
-              <span class="md-flex__ellipsis">
-                <span class="md-footer-nav__direction">
-                  Next
-                </span>
-                v1.6 to 1.7
-              </span>
-            </div>
-            <div class="md-flex__cell md-flex__cell--shrink">
-              <i class="md-icon md-icon--arrow-forward md-footer-nav__button"></i>
-            </div>
-          </a>
-        
-      </nav>
-    </div>
   
   <div class="md-footer-meta md-typeset">
     <div class="md-footer-meta__inner md-grid">
