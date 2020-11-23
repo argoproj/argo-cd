@@ -188,6 +188,10 @@
             position: absolute;
             bottom: 0.6em;
             left: -1.5em;
+            cursor: pointer;
+            &:hover {
+                color: $argo-color-gray-6;
+            }    
         }
         i.fa-times {
             cursor: pointer;

@@ -163,6 +163,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
     const [createApi, setCreateApi] = React.useState(null);
     const clusters = React.useMemo(() => services.clusters.list(), []);
     const [isAppCreatePending, setAppCreatePending] = React.useState(false);
+    const searchBar = React.useRef<HTMLDivElement>(null);
 
     const loaderRef = React.useRef<DataLoader>();
     function refreshApp(appName: string) {
@@ -273,8 +274,15 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                     <div className='columns small-12 xxlarge-2'>
                                                         <Query>
                                                             {q => (
-                                                                <div className='applications-list__search'>
-                                                                    <i className='fa fa-search' />
+                                                                <div className='applications-list__search' ref={searchBar}>
+                                                                    <i
+                                                                        className='fa fa-search'
+                                                                        onClick={() => {
+                                                                            if (searchBar.current) {
+                                                                                searchBar.current.querySelector('input').focus();
+                                                                            }
+                                                                        }}
+                                                                    />
                                                                     {q.get('search') && (
                                                                         <i className='fa fa-times' onClick={() => ctx.navigation.goto('.', {search: null}, {replace: true})} />
                                                                     )}
