@@ -1,5 +1,63 @@
 # Changelog
 
+## v1.8.0 (Unreleased)
+
+### Mono-Repository Improvements
+
+Enhanced performance during manifest generation from mono-repository - the repository that represents the
+desired state of the whole cluster and contains hundreds of applications. The improved argocd-repo-server
+now able to concurrently generate manifests from the same repository and for the same commit SHA. This
+might provide 10x performance improvement of manifests generation.
+
+### Annotation Based Path Detection
+
+The feature that allows specifying which source repository directories influence the application manifest generation
+using the `argocd.argoproj.io/manifest-generate-paths` annotation. The annotation improves the Git webhook handler
+behavior. The webhook avoids related applications reconciliation if no related files have been changed by the Git commit
+and even allows to skip manifests generation for new commit by re-using generation manifests for the previous commit.
+
+### Horizontal Controller Scaling
+
+This release allows scaling the `argocd-application-controller` horizontally. This allows you to manage as many Kubernetes clusters
+as needed using a single Argo CD instance.
+
+## New Core Functionality Features
+
+Besides performance improvements, Argo CD got a lot of usability enhancements and new features:
+
+* Namespace and CRD creation [#4354](https://github.com/argoproj/argo-cd/issues/4354)
+* Unknown fields of built-in K8S types [#1787](https://github.com/argoproj/argo-cd/issues/1787)
+* Endpoints Diffing [#1816](https://github.com/argoproj/argo-cd/issues/1816)
+* Better compatibility with Helm Hooks [#1816](https://github.com/argoproj/argo-cd/issues/1816)
+* App-of-Apps Health Assessment [#3781](https://github.com/argoproj/argo-cd/issues/3781)
+
+## Global Projects
+
+This release makes it easy to manage an Argo CD that has hundreds of Projects. Instead of duplicating the same organization-wide rules in all projects
+you can put such rules into one project and make this project “global” for all other projects. Rules defined in the global project are inherited by all
+other projects and therefore don’t have to be duplicated. The sample below demonstrates how you can create a global project and specify which project should
+inherit global project rules using Kubernetes labels. 
+
+## User Interface Improvements
+
+The Argo CD user interface is an important part of a project and we keep working hard on improving the user experience. Here is an incomplete list of implemented improvements:
+
+* Improved Applications Filters [#4622](https://github.com/argoproj/argo-cd/issues/4622)
+* Git tags and branches autocompletion [#4713](https://github.com/argoproj/argo-cd/issues/4713)
+* Project Details Page [#4400](https://github.com/argoproj/argo-cd/issues/4400)
+* New version information panel [#4376](https://github.com/argoproj/argo-cd/issues/4376)
+* Progress Indicators [#4411](https://github.com/argoproj/argo-cd/issues/4411)
+* External links annotations [#4380](https://github.com/argoproj/argo-cd/issues/4380) and more!
+
+## Config Management Tools Enhancements
+
+* OCI Based Repositories [#4018](https://github.com/argoproj/argo-cd/issues/4018)
+* Configurable Helm Versions [#4111](https://github.com/argoproj/argo-cd/issues/4111)
+
+## Bug fixes and under the hood changes
+
+In addition to new features and enhancements, we’ve fixed more than 50 bugs and upgraded third-party components and libraries that Argo CD relies on.
+
 ## v1.7.9 (2020-11-17)
 
 - fix: improve commit verification tolerance (#4825)
