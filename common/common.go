@@ -182,6 +182,8 @@ const (
 	EnvControllerReplicas = "ARGOCD_CONTROLLER_REPLICAS"
 	// EnvControllerShard is the shard number that should be handled by controller
 	EnvControllerShard = "ARGOCD_CONTROLLER_SHARD"
+	// EnvEnableGRPCTimeHistogramEnv enables gRPC metrics collection
+	EnvEnableGRPCTimeHistogramEnv = "ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM"
 )
 
 const (

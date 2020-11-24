@@ -2,6 +2,9 @@ package reposerver
 
 import (
 	"crypto/tls"
+	"os"
+
+	"github.com/argoproj/argo-cd/common"
 
 	versionpkg "github.com/argoproj/argo-cd/pkg/apiclient/version"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
@@ -49,7 +52,9 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 	tlsConfig := &tls.Config{Certificates: []tls.Certificate{*cert}}
 	tlsConfCustomizer(tlsConfig)
 
-	grpc_prometheus.EnableHandlingTimeHistogram()
+	if os.Getenv(common.EnvEnableGRPCTimeHistogramEnv) == "true" {
+		grpc_prometheus.EnableHandlingTimeHistogram()
+	}
 
 	serverLog := log.NewEntry(log.StandardLogger())
 	streamInterceptors := []grpc.StreamServerInterceptor{grpc_logrus.StreamServerInterceptor(serverLog), grpc_prometheus.StreamServerInterceptor, grpc_util.PanicLoggerStreamServerInterceptor(serverLog)}
