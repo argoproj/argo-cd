@@ -878,7 +878,7 @@ func findManifests(appPath string, repoRoot string, env *v1alpha1.Env, directory
 			if err != nil {
 				return err
 			}
-			jsonStr, err := vm.EvaluateSnippet(path, string(out))
+			jsonStr, err := vm.EvaluateFile(path)
 			if err != nil {
 				return status.Errorf(codes.FailedPrecondition, "Failed to evaluate jsonnet %q: %v", f.Name(), err)
 			}
