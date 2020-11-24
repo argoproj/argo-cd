@@ -661,7 +661,7 @@ func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.Manifest
 
 		for _, target := range targets {
 			if q.AppLabelKey != "" && q.AppLabelValue != "" && !kube.IsCRD(target) {
-				err = argokube.SetAppInstanceLabel(target, q.AppLabelKey, q.AppLabelValue)
+				err = argokube.SetAppInstanceIdentifier(target, q.AppLabelKey, q.AppLabelValue)
 				if err != nil {
 					return nil, err
 				}

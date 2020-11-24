@@ -61,7 +61,7 @@ func TestSetLabels(t *testing.T) {
 		err := yaml.Unmarshal([]byte(yamlStr), &obj)
 		assert.Nil(t, err)
 
-		err = SetAppInstanceLabel(&obj, common.LabelKeyAppInstance, "my-app")
+		err = SetAppInstanceIdentifier(&obj, common.LabelKeyAppInstance, "my-app")
 		assert.Nil(t, err)
 
 		manifestBytes, err := json.MarshalIndent(obj.Object, "", "  ")
@@ -90,7 +90,7 @@ func TestSetLegacyLabels(t *testing.T) {
 		err := yaml.Unmarshal([]byte(yamlStr), &obj)
 		assert.Nil(t, err)
 
-		err = SetAppInstanceLabel(&obj, common.LabelKeyLegacyApplicationName, "my-app")
+		err = SetAppInstanceIdentifier(&obj, common.LabelKeyLegacyApplicationName, "my-app")
 		assert.Nil(t, err)
 
 		manifestBytes, err := json.MarshalIndent(obj.Object, "", "  ")
@@ -114,7 +114,7 @@ func TestSetLegacyJobLabel(t *testing.T) {
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
 	assert.Nil(t, err)
-	err = SetAppInstanceLabel(&obj, common.LabelKeyLegacyApplicationName, "my-app")
+	err = SetAppInstanceIdentifier(&obj, common.LabelKeyLegacyApplicationName, "my-app")
 	assert.Nil(t, err)
 
 	manifestBytes, err := json.MarshalIndent(obj.Object, "", "  ")
@@ -140,7 +140,7 @@ func TestSetSvcLabel(t *testing.T) {
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
 	assert.Nil(t, err)
-	err = SetAppInstanceLabel(&obj, common.LabelKeyAppInstance, "my-app")
+	err = SetAppInstanceIdentifier(&obj, common.LabelKeyAppInstance, "my-app")
 	assert.Nil(t, err)
 
 	manifestBytes, err := json.MarshalIndent(obj.Object, "", "  ")
