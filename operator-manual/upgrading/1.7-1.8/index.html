@@ -1466,6 +1466,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#grpc-metrics-are-disabled-by-default" title="gRPC metrics are disabled by default" class="md-nav__link">
+    gRPC metrics are disabled by default
+  </a>
+  
+</li>
+      
       
       
       
@@ -1518,6 +1525,10 @@ You might need to restore it if you are using app-of-apps pattern and orchestrat
         <span class="no">return hs</span>
 </code></pre></div>
 
+<h2 id="grpc-metrics-are-disabled-by-default">gRPC metrics are disabled by default<a class="headerlink" href="#grpc-metrics-are-disabled-by-default" title="Permanent link">&para;</a></h2>
+<p>The gRPC metrics are not exposed by default by <code>argocd-server</code> and <code>argocd-repo-server</code> anymore. These metrics appear
+to be too expensive so we've decided to disable them by default. Metrics can be enabled using
+<code>ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM=true</code> environment variable.  </p>
 <p>From here on you can follow the <a href="../overview/">regular upgrade process</a>.</p>
                 
                   
