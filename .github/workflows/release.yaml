@@ -44,7 +44,7 @@ jobs:
           # Target version must match major.minor.patch and optional -rcX suffix
           # where X must be a number.
           TARGET_VERSION=${SOURCE_TAG#*release-v}
-          if ! echo ${TARGET_VERSION} | egrep '^[0-9]+\.[0-9]+\.[0-9]+(-rc[0-9]+)*$'; then
+          if ! echo "${TARGET_VERSION}" | egrep '^[0-9]+\.[0-9]+\.[0-9]+(-rc[0-9]+)*$'; then
             echo "::error::Target version '${TARGET_VERSION}' is malformed, refusing to continue." >&2
             exit 1
           fi
@@ -101,16 +101,16 @@ jobs:
             # Whatever is in commit history for the tag, we only want that
             # annotation from our tag. We discard everything else.
             if test "$begin" = "false"; then
-              if echo $line | grep -q "tag ${SOURCE_TAG#refs/tags/}"; then begin="true"; fi
+              if echo "$line" | grep -q "tag ${SOURCE_TAG#refs/tags/}"; then begin="true"; fi
               continue
             fi
             if test "$prefix" = "true"; then
                   if test -z "$line"; then prefix=false; fi
             else
-                  if echo $line | egrep -q '^commit [0-9a-f]+'; then
+                  if echo "$line" | egrep -q '^commit [0-9a-f]+'; then
                           break
                   fi
-                  echo $line >> ${RELEASE_NOTES}
+                  echo "$line" >> ${RELEASE_NOTES}
             fi
           done
 
