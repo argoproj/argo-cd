@@ -65,6 +65,106 @@ Login with the `argocd` CLI using the extra `--grpc-web-root-path` flag for non-
 argocd login <host>:<port> --grpc-web-root-path /argo-cd
 ```
 
+## [Contour](https://projectcontour.io/)
+The Contour ingress controller can terminate TLS ingress traffic at the edge.
+
+The Argo CD API server should be run with TLS disabled. Edit the `argocd-server` Deployment to add the `--insecure` flag to the argocd-server container command.
+
+It is also possible to provide an internal-only ingress path and an external-only ingress path by deploying two instances of Contour: one behind a private-subnet LoadBalancer service and one behind a public-subnet LoadBalancer service. The private Contour deployment will pick up Ingresses annotated with `kubernetes.io/ingress.class: contour-external` and the public Contour deployment will pick up Ingresses annotated with `kubernetes.io/ingress.class: contour-external`.
+
+This provides the opportunity to deploy the Argo CD UI privately but still allow for SSO callbacks to succeed.
+
+### Private Argo CD UI with  Multiple Ingress Objects and BYO Certificate
+Since Contour Ingress supports only a single protocol per Ingress object, define three Ingress objects. One for private HTTP/HTTPS, one for private gRPC, and one for public HTTPS SSO callbacks.
+
+Internal HTTP/HTTPS Ingress:
+```yaml
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: argocd-server-http
+  annotations:
+    kubernetes.io/ingress.class: contour-internal
+    ingress.kubernetes.io/force-ssl-redirect: "true"
+spec:
+  rules:
+  - host: internal.path.to.argocd.io
+    http:
+      paths:
+      - backend:
+          serviceName: argocd-server
+          servicePort: http
+  tls:
+  - hosts:
+    - internal.path.to.argocd.io
+    secretName: your-certificate-name
+```
+
+Internal gRPC Ingress:
+```yaml
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: argocd-server-grpc
+  annotations:
+    kubernetes.io/ingress.class: contour-internal
+spec:
+  rules:
+  - host: grpc-internal.path.to.argocd.io
+    http:
+      paths:
+      - backend:
+          serviceName: argocd-server
+          servicePort: https
+  tls:
+  - hosts:
+    - grpc-internal.path.to.argocd.io
+    secretName: your-certificate-name
+```
+
+External HTTPS SSO Callback Ingress:
+```yaml
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: argocd-server-external-callback-http
+  annotations:
+    kubernetes.io/ingress.class: contour-external
+    ingress.kubernetes.io/force-ssl-redirect: "true"
+spec:
+  rules:
+  - host: external.path.to.argocd.io
+    http:
+      paths:
+      - path: /api/dex/callback
+        backend:
+          serviceName: argocd-server
+          servicePort: http
+  tls:
+  - hosts:
+    - external.path.to.argocd.io
+    secretName: your-certificate-name
+```
+
+The argocd-server Service needs to be annotated with `projectcontour.io/upstream-protocol.h2c: "https,443"` to wire up the gRPC protocol proxying.
+
+The API server should then be run with TLS disabled. Edit the `argocd-server` deployment to add the
+`--insecure` flag to the argocd-server command:
+
+```yaml
+spec:
+  template:
+    spec:
+      containers:
+      - name: argocd-server
+        command:
+        - /argocd-server
+        - --staticassets
+        - /shared/app
+        - --repo-server
+        - argocd-repo-server:8081
+        - --insecure
+```
 
 ## [kubernetes/ingress-nginx](https://github.com/kubernetes/ingress-nginx)
 
