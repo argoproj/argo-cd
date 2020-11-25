@@ -467,6 +467,26 @@
     SAML (with Dex)
   </a>
   
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#private-deployment" title="Private deployment" class="md-nav__link">
+    Private deployment
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#connect-okta-groups-to-argo-cd-roles" title="Connect Okta Groups to Argo CD Roles" class="md-nav__link">
+    Connect Okta Groups to Argo CD Roles
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1506,6 +1526,26 @@
     SAML (with Dex)
   </a>
   
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#private-deployment" title="Private deployment" class="md-nav__link">
+    Private deployment
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#connect-okta-groups-to-argo-cd-roles" title="Connect Okta Groups to Argo CD Roles" class="md-nav__link">
+    Connect Okta Groups to Argo CD Roles
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1545,6 +1585,10 @@
 <li><a href="#oidc-without-dex">OIDC (without Dex)</a></li>
 </ul>
 <h2 id="saml-with-dex">SAML (with Dex)<a class="headerlink" href="#saml-with-dex" title="Permanent link">&para;</a></h2>
+<div class="admonition note">
+<p class="admonition-title">Okta app group assignment</p>
+<p>The Okta app's <strong>Group Attribute Statements</strong> regex will be used later to map Okta groups to Argo CD RBAC roles.</p>
+</div>
 <ol>
 <li>Create a new SAML application in Okta UI.<ul>
 <li><img alt="Okta SAML App 1" src="../../../assets/saml-1.png" />
@@ -1557,7 +1601,9 @@
 </ul>
 </li>
 <li>Copy the SSO URL to the <code>argocd-cm</code> in the data.oicd</li>
-<li>Download the CA certificate to use in the <code>argocd-cm</code> configuration.  If you are using this in the caData field, you will need to pass the entire certificate (including <code>-----BEGIN CERTIFICATE-----</code> and <code>-----END CERTIFICATE-----</code> stanzas) through base64 encoding, for example, <code>base64 my_cert.pem</code>.<ul>
+<li>Download the CA certificate to use in the <code>argocd-cm</code> configuration.<ul>
+<li>If you are using this in the caData field, you will need to pass the entire certificate (including <code>-----BEGIN CERTIFICATE-----</code> and <code>-----END CERTIFICATE-----</code> stanzas) through base64 encoding, for example, <code>base64 my_cert.pem</code>.</li>
+<li>If you are using the ca field and storing the CA certificate separately as a secret, you will need to mount the secret to the <code>dex</code> container in the <code>argocd-dex-server</code> Deployment.</li>
 <li><img alt="Okta SAML App 4" src="../../../assets/saml-4.png" /></li>
 </ul>
 </li>
@@ -1579,6 +1625,7 @@
       <span class="no">caData: |</span>
         <span class="no">&lt;CA cert passed through base64 encoding&gt;</span>
       <span class="no"># You need `caData` _OR_ `ca`, but not both.</span>
+      <span class="no"># Path to mount the secret to the dex container</span>
       <span class="no">ca: /path/to/ca.pem</span>
       <span class="no">redirectURI: https://ui.argocd.yourorganization.net/api/dex/callback</span>
       <span class="no">usernameAttr: email</span>
@@ -1589,6 +1636,60 @@
 <!-- markdownlint-enable MD046 -->
 
 <hr />
+<h3 id="private-deployment">Private deployment<a class="headerlink" href="#private-deployment" title="Permanent link">&para;</a></h3>
+<p>It is possible to setup Okta SSO with a private Argo CD installation, where the Okta callback URL is the only publicly exposed endpoint.
+The settings are largely the same with a few changes in the Okta app configuration and the <code>data.dex.config</code> section of the <code>argocd-cm</code> ConfigMap.</p>
+<p>Using this deployment model, the user connects to the private Argo CD UI and the Okta authentication flow seamlessly redirects back to the private UI URL.</p>
+<p>Often this public endpoint is exposed through an <a href="../../ingress/#private-argo-cd-ui-with-multiple-ingress-objects-and-byo-certificate">Ingress object</a>.</p>
+<ol>
+<li>Update the URLs in the Okta app's General settings<ul>
+<li><img alt="Okta SAML App Split" src="../../../assets/saml-split.png" />
+    The <code>Single sign on URL</code> field points to the public exposed endpoint, and all other URL fields point to the internal endpoint.</li>
+</ul>
+</li>
+<li>Update the <code>data.dex.config</code> section of the <code>argocd-cm</code> ConfigMap with the external endpoint reference.</li>
+</ol>
+<!-- markdownlint-disable MD046 -->
+
+<div class="codehilite"><pre><span></span><code><span class="nt">dex.config</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+  <span class="no">logger:</span>
+    <span class="no">level: debug</span>
+  <span class="no">connectors:</span>
+  <span class="no">- type: saml</span>
+    <span class="no">id: okta</span>
+    <span class="no">name: Okta</span>
+    <span class="no">config:</span>
+      <span class="no">ssoURL: https://yourorganization.oktapreview.com/app/yourorganizationsandbox_appnamesaml_2/rghdr9s6hg98s9dse/sso/saml</span>
+      <span class="no"># You need `caData` _OR_ `ca`, but not both.</span>
+      <span class="no">caData: |</span>
+        <span class="no">&lt;CA cert passed through base64 encoding&gt;</span>
+      <span class="no"># You need `caData` _OR_ `ca`, but not both.</span>
+      <span class="no"># Path to mount the secret to the dex container</span>
+      <span class="no">ca: /path/to/ca.pem</span>
+      <span class="no">redirectURI: https://external.path.to.argocd.io/api/dex/callback</span>
+      <span class="no">usernameAttr: email</span>
+      <span class="no">emailAttr: email</span>
+      <span class="no">groupsAttr: group</span>
+</code></pre></div>
+
+<!-- markdownlint-enable MD046 -->
+
+<h3 id="connect-okta-groups-to-argo-cd-roles">Connect Okta Groups to Argo CD Roles<a class="headerlink" href="#connect-okta-groups-to-argo-cd-roles" title="Permanent link">&para;</a></h3>
+<p>Argo CD is aware of user memberships of Okta groups that match the <em>Group Attribute Statements</em> regex.
+The example above uses the <code>argocd-*</code> regex, so Argo CD would be aware of a group named <code>argocd-admins</code>.</p>
+<p>Modify the <code>argocd-rbac-cm</code> ConfigMap to connect the <code>argocd-admins</code> Okta group to the builtin Argo CD <code>admin</code> role.</p>
+<!-- markdownlint-disable MD046 -->
+
+<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-rbac-cm</span>
+<span class="nt">data</span><span class="p">:</span>
+  <span class="l l-Scalar l-Scalar-Plain">policy.csv |</span>
+    <span class="l l-Scalar l-Scalar-Plain">g, argocd-admins, role:admin</span>
+  <span class="l l-Scalar l-Scalar-Plain">scopes</span><span class="p p-Indicator">:</span> <span class="s">&#39;[email,groups]&#39;</span>
+</code></pre></div>
+
 <h2 id="oidc-without-dex">OIDC (without Dex)<a class="headerlink" href="#oidc-without-dex" title="Permanent link">&para;</a></h2>
 <div class="admonition warning">
 <p class="admonition-title">Do you want groups for RBAC later?</p>

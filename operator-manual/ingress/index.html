@@ -421,6 +421,26 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#contour" title="Contour" class="md-nav__link">
+    Contour
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#private-argo-cd-ui-with-multiple-ingress-objects-and-byo-certificate" title="Private Argo CD UI with  Multiple Ingress Objects and BYO Certificate" class="md-nav__link">
+    Private Argo CD UI with  Multiple Ingress Objects and BYO Certificate
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#kubernetesingress-nginx" title="kubernetes/ingress-nginx" class="md-nav__link">
     kubernetes/ingress-nginx
   </a>
@@ -1628,6 +1648,26 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#contour" title="Contour" class="md-nav__link">
+    Contour
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#private-argo-cd-ui-with-multiple-ingress-objects-and-byo-certificate" title="Private Argo CD UI with  Multiple Ingress Objects and BYO Certificate" class="md-nav__link">
+    Private Argo CD UI with  Multiple Ingress Objects and BYO Certificate
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#kubernetesingress-nginx" title="kubernetes/ingress-nginx" class="md-nav__link">
     kubernetes/ingress-nginx
   </a>
@@ -1786,6 +1826,96 @@ Both protocols are exposed by the argocd-server service object on the following 
 
 <p>Login with the <code>argocd</code> CLI using the extra <code>--grpc-web-root-path</code> flag for non-root paths.</p>
 <div class="codehilite"><pre><span></span><code>argocd login &lt;host&gt;:&lt;port&gt; --grpc-web-root-path /argo-cd
+</code></pre></div>
+
+<h2 id="contour"><a href="https://projectcontour.io/">Contour</a><a class="headerlink" href="#contour" title="Permanent link">&para;</a></h2>
+<p>The Contour ingress controller can terminate TLS ingress traffic at the edge.</p>
+<p>The Argo CD API server should be run with TLS disabled. Edit the <code>argocd-server</code> Deployment to add the <code>--insecure</code> flag to the argocd-server container command.</p>
+<p>It is also possible to provide an internal-only ingress path and an external-only ingress path by deploying two instances of Contour: one behind a private-subnet LoadBalancer service and one behind a public-subnet LoadBalancer service. The private Contour deployment will pick up Ingresses annotated with <code>kubernetes.io/ingress.class: contour-external</code> and the public Contour deployment will pick up Ingresses annotated with <code>kubernetes.io/ingress.class: contour-external</code>.</p>
+<p>This provides the opportunity to deploy the Argo CD UI privately but still allow for SSO callbacks to succeed.</p>
+<h3 id="private-argo-cd-ui-with-multiple-ingress-objects-and-byo-certificate">Private Argo CD UI with  Multiple Ingress Objects and BYO Certificate<a class="headerlink" href="#private-argo-cd-ui-with-multiple-ingress-objects-and-byo-certificate" title="Permanent link">&para;</a></h3>
+<p>Since Contour Ingress supports only a single protocol per Ingress object, define three Ingress objects. One for private HTTP/HTTPS, one for private gRPC, and one for public HTTPS SSO callbacks.</p>
+<p>Internal HTTP/HTTPS Ingress:</p>
+<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">extensions/v1beta1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Ingress</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-server-http</span>
+  <span class="nt">annotations</span><span class="p">:</span>
+    <span class="nt">kubernetes.io/ingress.class</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">contour-internal</span>
+    <span class="nt">ingress.kubernetes.io/force-ssl-redirect</span><span class="p">:</span> <span class="s">&quot;true&quot;</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">rules</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">host</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">internal.path.to.argocd.io</span>
+    <span class="nt">http</span><span class="p">:</span>
+      <span class="nt">paths</span><span class="p">:</span>
+      <span class="p p-Indicator">-</span> <span class="nt">backend</span><span class="p">:</span>
+          <span class="nt">serviceName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-server</span>
+          <span class="nt">servicePort</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">http</span>
+  <span class="nt">tls</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">hosts</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">internal.path.to.argocd.io</span>
+    <span class="nt">secretName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">your-certificate-name</span>
+</code></pre></div>
+
+<p>Internal gRPC Ingress:</p>
+<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">extensions/v1beta1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Ingress</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-server-grpc</span>
+  <span class="nt">annotations</span><span class="p">:</span>
+    <span class="nt">kubernetes.io/ingress.class</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">contour-internal</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">rules</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">host</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">grpc-internal.path.to.argocd.io</span>
+    <span class="nt">http</span><span class="p">:</span>
+      <span class="nt">paths</span><span class="p">:</span>
+      <span class="p p-Indicator">-</span> <span class="nt">backend</span><span class="p">:</span>
+          <span class="nt">serviceName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-server</span>
+          <span class="nt">servicePort</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">https</span>
+  <span class="nt">tls</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">hosts</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">grpc-internal.path.to.argocd.io</span>
+    <span class="nt">secretName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">your-certificate-name</span>
+</code></pre></div>
+
+<p>External HTTPS SSO Callback Ingress:</p>
+<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">extensions/v1beta1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Ingress</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-server-external-callback-http</span>
+  <span class="nt">annotations</span><span class="p">:</span>
+    <span class="nt">kubernetes.io/ingress.class</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">contour-external</span>
+    <span class="nt">ingress.kubernetes.io/force-ssl-redirect</span><span class="p">:</span> <span class="s">&quot;true&quot;</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">rules</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">host</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">external.path.to.argocd.io</span>
+    <span class="nt">http</span><span class="p">:</span>
+      <span class="nt">paths</span><span class="p">:</span>
+      <span class="p p-Indicator">-</span> <span class="nt">path</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">/api/dex/callback</span>
+        <span class="nt">backend</span><span class="p">:</span>
+          <span class="nt">serviceName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-server</span>
+          <span class="nt">servicePort</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">http</span>
+  <span class="nt">tls</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">hosts</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">external.path.to.argocd.io</span>
+    <span class="nt">secretName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">your-certificate-name</span>
+</code></pre></div>
+
+<p>The argocd-server Service needs to be annotated with <code>projectcontour.io/upstream-protocol.h2c: "https,443"</code> to wire up the gRPC protocol proxying.</p>
+<p>The API server should then be run with TLS disabled. Edit the <code>argocd-server</code> deployment to add the
+<code>--insecure</code> flag to the argocd-server command:</p>
+<div class="codehilite"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">template</span><span class="p">:</span>
+    <span class="nt">spec</span><span class="p">:</span>
+      <span class="nt">containers</span><span class="p">:</span>
+      <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-server</span>
+        <span class="nt">command</span><span class="p">:</span>
+        <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">/argocd-server</span>
+        <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">--staticassets</span>
+        <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">/shared/app</span>
+        <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">--repo-server</span>
+        <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">argocd-repo-server:8081</span>
+        <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">--insecure</span>
 </code></pre></div>
 
 <h2 id="kubernetesingress-nginx"><a href="https://github.com/kubernetes/ingress-nginx">kubernetes/ingress-nginx</a><a class="headerlink" href="#kubernetesingress-nginx" title="Permanent link">&para;</a></h2>
