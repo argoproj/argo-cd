@@ -454,6 +454,18 @@ func createAndConfigGlobalProject() error {
 		{Group: "", Kind: "Service"},
 	}
 
+	projGlobal.Spec.NamespaceResourceWhitelist = []metav1.GroupKind{
+		{Group: "", Kind: "Deployment"},
+	}
+
+	projGlobal.Spec.ClusterResourceWhitelist = []metav1.GroupKind{
+		{Group: "", Kind: "Job"},
+	}
+
+	projGlobal.Spec.ClusterResourceBlacklist = []metav1.GroupKind{
+		{Group: "", Kind: "Pod"},
+	}
+
 	projGlobal.Spec.SyncWindows = v1alpha1.SyncWindows{}
 	win := &v1alpha1.SyncWindow{Kind: "deny", Schedule: "* * * * *", Duration: "1h", Applications: []string{"*"}}
 	projGlobal.Spec.SyncWindows = append(projGlobal.Spec.SyncWindows, win)
@@ -491,7 +503,7 @@ func TestGetVirtualProjectNoMatch(t *testing.T) {
 	err := createAndConfigGlobalProject()
 	assert.NoError(t, err)
 
-	//Create project which does not matche global project settings
+	//Create project which does not match global project settings
 	projectName := "proj-" + fixture.Name()
 	_, err = fixture.RunCli("proj", "create", projectName,
 		"--description", "Test description",

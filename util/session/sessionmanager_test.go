@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
@@ -19,6 +18,7 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/util/errors"
 	"github.com/argoproj/argo-cd/util/password"
 	"github.com/argoproj/argo-cd/util/settings"
 )
@@ -231,26 +231,6 @@ func TestCacheValueGetters(t *testing.T) {
 		os.Setenv(envLoginMaxCacheSize, "")
 	})
 
-}
-
-func TestRandomPasswordVerificationDelay(t *testing.T) {
-	var sleptFor time.Duration
-	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("password", true), "argocd")
-	mgr := newSessionManager(settingsMgr, NewInMemoryUserStateStorage())
-	mgr.verificationDelayNoiseEnabled = true
-	mgr.sleep = func(d time.Duration) {
-		sleptFor = d
-	}
-	for i := 0; i < 10; i++ {
-		sleptFor = 0
-		start := time.Now()
-		if !assert.NoError(t, mgr.VerifyUsernamePassword("admin", "password")) {
-			return
-		}
-		totalDuration := time.Since(start) + sleptFor
-		assert.GreaterOrEqual(t, totalDuration.Nanoseconds(), verificationDelayNoiseMin.Nanoseconds())
-		assert.LessOrEqual(t, totalDuration.Nanoseconds(), verificationDelayNoiseMax.Nanoseconds())
-	}
 }
 
 func TestLoginRateLimiter(t *testing.T) {

@@ -3,7 +3,7 @@
 Argo CD is un-opinionated about how secrets are managed. There's many ways to do it and there's no one-size-fits-all solution. Here's some ways people are doing GitOps secrets:
 
 * [Bitnami Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets)
-* [Godaddy Kubernetes External Secrets](https://github.com/godaddy/kubernetes-external-secrets)
+* [GoDaddy Kubernetes External Secrets](https://github.com/godaddy/kubernetes-external-secrets)
 * [External Secrets Operator](https://github.com/ContainerSolutions/externalsecret-operator)
 * [Hashicorp Vault](https://www.vaultproject.io)
 * [Banzai Cloud Bank-Vaults](https://github.com/banzaicloud/bank-vaults)

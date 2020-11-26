@@ -12,7 +12,6 @@ import (
 	hookutil "github.com/argoproj/gitops-engine/pkg/sync/hook"
 	"github.com/argoproj/gitops-engine/pkg/sync/ignore"
 	resourceutil "github.com/argoproj/gitops-engine/pkg/sync/resource"
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	kubeutil "github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,6 +31,7 @@ import (
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/gpg"
 	argohealth "github.com/argoproj/argo-cd/util/health"
+	"github.com/argoproj/argo-cd/util/io"
 	"github.com/argoproj/argo-cd/util/settings"
 	"github.com/argoproj/argo-cd/util/stats"
 )
@@ -266,7 +266,7 @@ func (m *appStateManager) getComparisonSettings(app *appv1.Application) (string,
 func verifyGnuPGSignature(revision string, project *appv1.AppProject, manifestInfo *apiclient.ManifestResponse) []appv1.ApplicationCondition {
 	now := metav1.Now()
 	conditions := make([]appv1.ApplicationCondition, 0)
-	// We need to have some data in the verificatin result to parse, otherwise there was no signature
+	// We need to have some data in the verification result to parse, otherwise there was no signature
 	if manifestInfo.VerifyResult != "" {
 		verifyResult, err := gpg.ParseGitCommitVerification(manifestInfo.VerifyResult)
 		if err != nil {
@@ -413,7 +413,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 			if appInstanceName != "" && appInstanceName != app.Name {
 				conditions = append(conditions, v1alpha1.ApplicationCondition{
 					Type:               v1alpha1.ApplicationConditionSharedResourceWarning,
-					Message:            fmt.Sprintf("%s/%s is part of a different application: %s", liveObj.GetKind(), liveObj.GetName(), appInstanceName),
+					Message:            fmt.Sprintf("%s/%s is part of applications %s and %s", liveObj.GetKind(), liveObj.GetName(), app.Name, appInstanceName),
 					LastTransitionTime: &now,
 				})
 			}
@@ -426,12 +426,15 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	compareOptions, err := m.settingsMgr.GetResourceCompareOptions()
 	if err != nil {
 		log.Warnf("Could not get compare options from ConfigMap (assuming defaults): %v", err)
-		compareOptions = diff.GetDefaultDiffOptions()
+		compareOptions = settings.GetDefaultDiffOptions()
 	}
 
 	logCtx.Debugf("built managed objects list")
 	// Do the actual comparison
-	diffResults, err := diff.DiffArray(reconciliation.Target, reconciliation.Live, diffNormalizer, compareOptions)
+	diffResults, err := diff.DiffArray(
+		reconciliation.Target, reconciliation.Live,
+		diff.WithNormalizer(diffNormalizer),
+		diff.IgnoreAggregatedRoles(compareOptions.IgnoreAggregatedRoles))
 	if err != nil {
 		diffResults = &diff.DiffResultList{}
 		failedToLoadObjs = true
@@ -538,7 +541,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	}
 
 	// Git has already performed the signature verification via its GPG interface, and the result is available
-	// in the manifest info received from the repository server. We now need to form our oppinion about the result
+	// in the manifest info received from the repository server. We now need to form our opinion about the result
 	// and stop processing if we do not agree about the outcome.
 	if gpg.IsGPGEnabled() && verifySignature && manifestInfo != nil {
 		conditions = append(conditions, verifyGnuPGSignature(revision, project, manifestInfo)...)

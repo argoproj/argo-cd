@@ -3,16 +3,17 @@ package repository
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/Masterminds/semver"
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -30,6 +31,7 @@ import (
 	gitmocks "github.com/argoproj/argo-cd/util/git/mocks"
 	"github.com/argoproj/argo-cd/util/helm"
 	helmmocks "github.com/argoproj/argo-cd/util/helm/mocks"
+	"github.com/argoproj/argo-cd/util/io"
 )
 
 const testSignature = `gpg: Signature made Wed Feb 26 23:22:34 2020 CET
@@ -37,28 +39,40 @@ gpg:                using RSA key 4AEE18F83AFDEB23
 gpg: Good signature from "GitHub (web-flow commit signing) <noreply@github.com>" [ultimate]
 `
 
+type clientFunc func(*gitmocks.Client)
+
 func newServiceWithMocks(root string, signed bool) (*Service, *gitmocks.Client) {
-	service := NewService(metrics.NewMetricsServer(), cache.NewCache(
-		cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Minute)),
-		1*time.Minute,
-	), RepoServerInitConstants{ParallelismLimit: 1})
-	helmClient := &helmmocks.Client{}
-	gitClient := &gitmocks.Client{}
 	root, err := filepath.Abs(root)
 	if err != nil {
 		panic(err)
 	}
-	gitClient.On("Init").Return(nil)
-	gitClient.On("Fetch").Return(nil)
-	gitClient.On("Checkout", mock.Anything).Return(nil)
-	gitClient.On("LsRemote", mock.Anything).Return(mock.Anything, nil)
-	gitClient.On("CommitSHA").Return(mock.Anything, nil)
-	gitClient.On("Root").Return(root)
-	if signed {
-		gitClient.On("VerifyCommitSignature", mock.Anything).Return(testSignature, nil)
-	} else {
-		gitClient.On("VerifyCommitSignature", mock.Anything).Return("", nil)
-	}
+	return newServiceWithOpt(func(gitClient *gitmocks.Client) {
+		gitClient.On("Init").Return(nil)
+		gitClient.On("Fetch").Return(nil)
+		gitClient.On("Checkout", mock.Anything).Return(nil)
+		gitClient.On("LsRemote", mock.Anything).Return(mock.Anything, nil)
+		gitClient.On("CommitSHA").Return(mock.Anything, nil)
+		gitClient.On("Root").Return(root)
+		if signed {
+			gitClient.On("VerifyCommitSignature", mock.Anything).Return(testSignature, nil)
+		} else {
+			gitClient.On("VerifyCommitSignature", mock.Anything).Return("", nil)
+		}
+	})
+}
+
+func newServiceWithOpt(cf clientFunc) (*Service, *gitmocks.Client) {
+	// root, err := filepath.Abs(root)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	helmClient := &helmmocks.Client{}
+	gitClient := &gitmocks.Client{}
+	cf(gitClient)
+	service := NewService(metrics.NewMetricsServer(), cache.NewCache(
+		cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Minute)),
+		1*time.Minute,
+	), RepoServerInitConstants{ParallelismLimit: 1})
 
 	chart := "my-chart"
 	version := semver.MustParse("1.1.0")
@@ -71,7 +85,7 @@ func newServiceWithMocks(root string, signed bool) (*Service, *gitmocks.Client) 
 	service.newGitClient = func(rawRepoURL string, creds git.Creds, insecure bool, enableLfs bool) (client git.Client, e error) {
 		return gitClient, nil
 	}
-	service.newHelmClient = func(repoURL string, creds helm.Creds) helm.Client {
+	service.newHelmClient = func(repoURL string, creds helm.Creds, enableOci bool) helm.Client {
 		return helmClient
 	}
 	return service, gitClient
@@ -87,6 +101,30 @@ func newServiceWithSignature(root string) *Service {
 	return service
 }
 
+func newServiceWithCommitSHA(root, revision string) *Service {
+	var revisionErr error
+
+	commitSHARegex := regexp.MustCompile("^[0-9A-Fa-f]{40}$")
+	if !commitSHARegex.MatchString(revision) {
+		revisionErr = errors.New("not a commit SHA")
+	}
+
+	service, gitClient := newServiceWithOpt(func(gitClient *gitmocks.Client) {
+		gitClient.On("Init").Return(nil)
+		gitClient.On("Fetch").Return(nil)
+		gitClient.On("Checkout", mock.Anything).Return(nil)
+		gitClient.On("LsRemote", revision).Return(revision, revisionErr)
+		gitClient.On("CommitSHA").Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
+		gitClient.On("Root").Return(root)
+	})
+
+	service.newGitClient = func(rawRepoURL string, creds git.Creds, insecure bool, enableLfs bool) (client git.Client, e error) {
+		return gitClient, nil
+	}
+
+	return service
+}
+
 func TestGenerateYamlManifestInDir(t *testing.T) {
 	service := newService("../..")
 
@@ -94,7 +132,7 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src}
 
 	// update this value if we add/remove manifests
-	const countOfManifests = 26
+	const countOfManifests = 29
 
 	res1, err := service.GenerateManifest(context.Background(), &q)
 
@@ -154,6 +192,17 @@ func TestRecurseManifestsInDir(t *testing.T) {
 	assert.Equal(t, 2, len(res1.Manifests))
 }
 
+func TestInvalidManifestsInDir(t *testing.T) {
+	service := newService(".")
+
+	src := argoappv1.ApplicationSource{Path: "./testdata/invalid-manifests", Directory: &argoappv1.ApplicationSourceDirectory{Recurse: true}}
+
+	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src}
+
+	_, err := service.GenerateManifest(context.Background(), &q)
+	assert.NotNil(t, err)
+}
+
 func TestGenerateJsonnetManifestInDir(t *testing.T) {
 	service := newService(".")
 
@@ -197,15 +246,24 @@ func TestGenerateKsonnetManifest(t *testing.T) {
 func TestGenerateHelmChartWithDependencies(t *testing.T) {
 	service := newService("../..")
 
+	cleanup := func() {
+		_ = os.Remove(filepath.Join("../../util/helm/testdata/helm2-dependency", helmDepUpMarkerFile))
+		_ = os.RemoveAll(filepath.Join("../../util/helm/testdata/helm2-dependency", "charts"))
+	}
+	cleanup()
+	defer cleanup()
+
+	helmRepo := argoappv1.Repository{Name: "bitnami", Type: "helm", Repo: "https://charts.bitnami.com/bitnami"}
 	q := apiclient.ManifestRequest{
 		Repo: &argoappv1.Repository{},
 		ApplicationSource: &argoappv1.ApplicationSource{
 			Path: "./util/helm/testdata/helm2-dependency",
 		},
+		Repos: []*argoappv1.Repository{&helmRepo},
 	}
 	res1, err := service.GenerateManifest(context.Background(), &q)
 	assert.Nil(t, err)
-	assert.Len(t, res1.Manifests, 12)
+	assert.Len(t, res1.Manifests, 10)
 }
 
 func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
@@ -245,7 +303,7 @@ func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 
 	// The same pattern PauseGenerationAfterFailedGenerationAttempts generation attempts, followed by
 	// PauseGenerationOnFailureForRequests cached responses, should apply for various combinations of
-	// both paramters.
+	// both parameters.
 
 	tests := []struct {
 		PauseGenerationAfterFailedGenerationAttempts int
@@ -301,11 +359,15 @@ func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 					assert.True(t, !isCachedError)
 
 					assert.True(t, cachedManifestResponse != nil)
+					// nolint:staticcheck
 					assert.True(t, cachedManifestResponse.ManifestResponse == nil)
+					// nolint:staticcheck
 					assert.True(t, cachedManifestResponse.FirstFailureTimestamp != 0)
 
 					// Internal cache consec failures value should increase with invocations, cached response should stay the same,
+					// nolint:staticcheck
 					assert.True(t, cachedManifestResponse.NumberOfConsecutiveFailures == adjustedInvocation+1)
+					// nolint:staticcheck
 					assert.True(t, cachedManifestResponse.NumberOfCachedResponsesReturned == 0)
 
 				} else {
@@ -313,11 +375,15 @@ func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 					// PauseGenerationOnFailureForRequests constant
 					assert.True(t, isCachedError)
 					assert.True(t, cachedManifestResponse != nil)
+					// nolint:staticcheck
 					assert.True(t, cachedManifestResponse.ManifestResponse == nil)
+					// nolint:staticcheck
 					assert.True(t, cachedManifestResponse.FirstFailureTimestamp != 0)
 
-					// Internal cache values should update correctly based on number of return cache entries, concecutive failures should stay the same
+					// Internal cache values should update correctly based on number of return cache entries, consecutive failures should stay the same
+					// nolint:staticcheck
 					assert.True(t, cachedManifestResponse.NumberOfConsecutiveFailures == service.initConstants.PauseGenerationAfterFailedGenerationAttempts)
+					// nolint:staticcheck
 					assert.True(t, cachedManifestResponse.NumberOfCachedResponsesReturned == (adjustedInvocation-service.initConstants.PauseGenerationAfterFailedGenerationAttempts+1))
 				}
 			}
@@ -921,8 +987,9 @@ func TestGetRevisionMetadata(t *testing.T) {
 	}, nil)
 
 	res, err := service.GetRevisionMetadata(context.Background(), &apiclient.RepoServerRevisionMetadataRequest{
-		Repo:     &argoappv1.Repository{},
-		Revision: "c0b400fc458875d925171398f9ba9eabd5529923",
+		Repo:           &argoappv1.Repository{},
+		Revision:       "c0b400fc458875d925171398f9ba9eabd5529923",
+		CheckSignature: true,
 	})
 
 	assert.NoError(t, err)
@@ -930,7 +997,34 @@ func TestGetRevisionMetadata(t *testing.T) {
 	assert.Equal(t, now, res.Date.Time)
 	assert.Equal(t, "author", res.Author)
 	assert.EqualValues(t, []string{"tag1", "tag2"}, res.Tags)
+	assert.NotEmpty(t, res.SignatureInfo)
 
+	// Cache hit - signature info should not be in result
+	res, err = service.GetRevisionMetadata(context.Background(), &apiclient.RepoServerRevisionMetadataRequest{
+		Repo:           &argoappv1.Repository{},
+		Revision:       "c0b400fc458875d925171398f9ba9eabd5529923",
+		CheckSignature: false,
+	})
+	assert.NoError(t, err)
+	assert.Empty(t, res.SignatureInfo)
+
+	// Enforce cache miss - signature info should not be in result
+	res, err = service.GetRevisionMetadata(context.Background(), &apiclient.RepoServerRevisionMetadataRequest{
+		Repo:           &argoappv1.Repository{},
+		Revision:       "c0b400fc458875d925171398f9ba9eabd5529924",
+		CheckSignature: false,
+	})
+	assert.NoError(t, err)
+	assert.Empty(t, res.SignatureInfo)
+
+	// Cache hit on previous entry that did not have signature info
+	res, err = service.GetRevisionMetadata(context.Background(), &apiclient.RepoServerRevisionMetadataRequest{
+		Repo:           &argoappv1.Repository{},
+		Revision:       "c0b400fc458875d925171398f9ba9eabd5529924",
+		CheckSignature: true,
+	})
+	assert.NoError(t, err)
+	assert.NotEmpty(t, res.SignatureInfo)
 }
 
 func TestGetSignatureVerificationResult(t *testing.T) {
@@ -1059,4 +1153,79 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 		return
 	}
 	assert.Equal(t, "gcr.io/heptio-images/ks-guestbook-demo:0.2", image)
+}
+
+func TestGenerateManifestWithAnnotatedAndRegularGitTagHashes(t *testing.T) {
+	regularGitTagHash := "632039659e542ed7de0c170a4fcc1c571b288fc0"
+	annotatedGitTaghash := "95249be61b028d566c29d47b19e65c5603388a41"
+	invalidGitTaghash := "invalid-tag"
+	actualCommitSHA := "632039659e542ed7de0c170a4fcc1c571b288fc0"
+
+	tests := []struct {
+		name            string
+		ctx             context.Context
+		manifestRequest *apiclient.ManifestRequest
+		wantError       bool
+		service         *Service
+	}{
+		{
+			name: "Case: Git tag hash matches latest commit SHA (regular tag)",
+			ctx:  context.Background(),
+			manifestRequest: &apiclient.ManifestRequest{
+				Repo: &argoappv1.Repository{},
+				ApplicationSource: &argoappv1.ApplicationSource{
+					TargetRevision: regularGitTagHash,
+				},
+				NoCache: true,
+			},
+			wantError: false,
+			service:   newServiceWithCommitSHA(".", regularGitTagHash),
+		},
+
+		{
+			name: "Case: Git tag hash does not match latest commit SHA (annotated tag)",
+			ctx:  context.Background(),
+			manifestRequest: &apiclient.ManifestRequest{
+				Repo: &argoappv1.Repository{},
+				ApplicationSource: &argoappv1.ApplicationSource{
+					TargetRevision: annotatedGitTaghash,
+				},
+				NoCache: true,
+			},
+			wantError: false,
+			service:   newServiceWithCommitSHA(".", annotatedGitTaghash),
+		},
+
+		{
+			name: "Case: Git tag hash is invalid",
+			ctx:  context.Background(),
+			manifestRequest: &apiclient.ManifestRequest{
+				Repo: &argoappv1.Repository{},
+				ApplicationSource: &argoappv1.ApplicationSource{
+					TargetRevision: invalidGitTaghash,
+				},
+				NoCache: true,
+			},
+			wantError: true,
+			service:   newServiceWithCommitSHA(".", invalidGitTaghash),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			manifestResponse, err := tt.service.GenerateManifest(tt.ctx, tt.manifestRequest)
+			if !tt.wantError {
+				if err == nil {
+					assert.Equal(t, manifestResponse.Revision, actualCommitSHA)
+				} else {
+					t.Errorf("unexpected error")
+				}
+			} else {
+				if err == nil {
+					t.Errorf("expected an error but did not throw one")
+				}
+			}
+
+		})
+	}
+
 }

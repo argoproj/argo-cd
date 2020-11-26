@@ -16,7 +16,6 @@ import (
 	"github.com/Masterminds/semver"
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
 	"github.com/argoproj/pkg/sync"
@@ -53,6 +52,7 @@ import (
 	"github.com/argoproj/argo-cd/util/env"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/helm"
+	"github.com/argoproj/argo-cd/util/io"
 	"github.com/argoproj/argo-cd/util/lua"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/session"
@@ -576,11 +576,12 @@ func (s *Server) Patch(ctx context.Context, q *application.ApplicationPatchReque
 		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("Patch type '%s' is not supported", q.PatchType))
 	}
 
-	err = json.Unmarshal(patchApp, &app)
+	newApp := &v1alpha1.Application{}
+	err = json.Unmarshal(patchApp, newApp)
 	if err != nil {
 		return nil, err
 	}
-	return s.validateAndUpdateApp(ctx, app, false, true)
+	return s.validateAndUpdateApp(ctx, newApp, false, true)
 }
 
 // Delete removes an application and all associated resources
@@ -747,12 +748,12 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 		return err
 	}
 
+	if err := argo.ValidateDestination(ctx, &app.Spec.Destination, s.db); err != nil {
+		return status.Errorf(codes.InvalidArgument, "application destination spec is invalid: %s", err.Error())
+	}
+
 	var conditions []appv1.ApplicationCondition
 	if validate {
-		if err := argo.ValidateDestination(ctx, &app.Spec.Destination, s.db); err != nil {
-			return status.Errorf(codes.InvalidArgument, "application destination spec is invalid: %s", err.Error())
-		}
-
 		conditions, err = argo.ValidateRepo(ctx, app, s.repoClientset, s.db, kustomizeOptions, plugins, s.kubectl)
 		if err != nil {
 			return err
@@ -846,6 +847,11 @@ func (s *Server) GetResource(ctx context.Context, q *application.ApplicationReso
 	res, config, _, err := s.getAppResource(ctx, rbacpolicy.ActionGet, q)
 	if err != nil {
 		return nil, err
+	}
+
+	// make sure to use specified resource version if provided
+	if q.Version != "" {
+		res.Version = q.Version
 	}
 	obj, err := s.kubectl.GetResource(ctx, config, res.GroupKindVersion(), res.Name, res.Namespace)
 	if err != nil {
@@ -982,12 +988,22 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 	if err != nil {
 		return nil, err
 	}
+	// We need to get some information with the project associated to the app,
+	// so we'll know whether GPG signatures are enforced.
+	proj, err := argo.GetAppProject(&a.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), a.Namespace, s.settingsMgr)
+	if err != nil {
+		return nil, err
+	}
 	conn, repoClient, err := s.repoClientset.NewRepoServerClient()
 	if err != nil {
 		return nil, err
 	}
 	defer io.Close(conn)
-	return repoClient.GetRevisionMetadata(ctx, &apiclient.RepoServerRevisionMetadataRequest{Repo: repo, Revision: q.GetRevision()})
+	return repoClient.GetRevisionMetadata(ctx, &apiclient.RepoServerRevisionMetadataRequest{
+		Repo:           repo,
+		Revision:       q.GetRevision(),
+		CheckSignature: len(proj.Spec.SignatureKeys) > 0,
+	})
 }
 
 func isMatchingResource(q *application.ResourcesQuery, key kube.ResourceKey) bool {
@@ -1056,13 +1072,14 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 		SinceSeconds: sinceSeconds,
 		SinceTime:    q.SinceTime,
 		TailLines:    tailLines,
-	}).Stream(context.Background())
+	}).Stream(ws.Context())
 	if err != nil {
 		return err
 	}
 	logCtx := log.WithField("application", q.Name)
 	defer io.Close(stream)
 	done := make(chan bool)
+	reachedEOF := false
 	gracefulExit := false
 	go func() {
 		bufReader := bufio.NewReader(stream)
@@ -1098,14 +1115,22 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 			logCtx.Warnf("k8s pod logs reader failed with error: %v", err)
 		} else {
 			logCtx.Info("k8s pod logs reader completed with EOF")
+			reachedEOF = true
 		}
 		close(done)
 	}()
+
 	select {
 	case <-ws.Context().Done():
 		logCtx.Info("client pod logs grpc context closed")
 		gracefulExit = true
 	case <-done:
+	}
+
+	if reachedEOF || gracefulExit {
+		if err := ws.Send(&application.LogEntry{Last: true}); err != nil {
+			logCtx.Warnf("Unable to send stream message notifying about last log message: %v", err)
+		}
 	}
 	return nil
 }
@@ -1268,7 +1293,7 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 		if helm.IsVersion(ambiguousRevision) {
 			return ambiguousRevision, ambiguousRevision, nil
 		}
-		client := helm.NewClient(repo.Repo, repo.GetHelmCreds())
+		client := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI)
 		index, err := client.GetIndex()
 		if err != nil {
 			return "", "", err
@@ -1439,9 +1464,6 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 		return nil, err
 	}
 
-	s.logAppEvent(a, ctx, argo.EventReasonResourceActionRan, fmt.Sprintf("ran action %s on resource %s/%s/%s", q.Action, res.Group, res.Kind, res.Name))
-	s.logResourceEvent(res, ctx, argo.EventReasonResourceActionRan, fmt.Sprintf("ran action %s", q.Action))
-
 	newObjBytes, err := json.Marshal(newObj)
 	if err != nil {
 		return nil, err
@@ -1460,11 +1482,74 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 		return &application.ApplicationResponse{}, nil
 	}
 
-	_, err = s.kubectl.PatchResource(ctx, config, newObj.GroupVersionKind(), newObj.GetName(), newObj.GetNamespace(), types.MergePatchType, diffBytes)
+	// The following logic detects if the resource action makes a modification to status and/or spec.
+	// If status was modified, we attempt to patch the status using status subresource, in case the
+	// CRD is configured using the status subresource feature. See:
+	// https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#status-subresource
+	// If status subresource is in use, the patch has to be split into two:
+	// * one to update spec (and other non-status fields)
+	// * the other to update only status.
+	nonStatusPatch, statusPatch, err := splitStatusPatch(diffBytes)
 	if err != nil {
 		return nil, err
 	}
+	if statusPatch != nil {
+		_, err = s.kubectl.PatchResource(ctx, config, newObj.GroupVersionKind(), newObj.GetName(), newObj.GetNamespace(), types.MergePatchType, diffBytes, "status")
+		if err != nil {
+			if !apierr.IsNotFound(err) {
+				return nil, err
+			}
+			// K8s API server returns 404 NotFound when the CRD does not support the status subresource
+			// if we get here, the CRD does not use the status subresource. We will fall back to a normal patch
+		} else {
+			// If we get here, the CRD does use the status subresource, so we must patch status and
+			// spec separately. update the diffBytes to the spec-only patch and fall through.
+			diffBytes = nonStatusPatch
+		}
+	}
+	if diffBytes != nil {
+		_, err = s.kubectl.PatchResource(ctx, config, newObj.GroupVersionKind(), newObj.GetName(), newObj.GetNamespace(), types.MergePatchType, diffBytes)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	s.logAppEvent(a, ctx, argo.EventReasonResourceActionRan, fmt.Sprintf("ran action %s on resource %s/%s/%s", q.Action, res.Group, res.Kind, res.Name))
+	s.logResourceEvent(res, ctx, argo.EventReasonResourceActionRan, fmt.Sprintf("ran action %s", q.Action))
 	return &application.ApplicationResponse{}, nil
+}
+
+// splitStatusPatch splits a patch into two: one for a non-status patch, and the status-only patch.
+// Returns nil for either if the patch doesn't have modifications to non-status, or status, respectively.
+func splitStatusPatch(patch []byte) ([]byte, []byte, error) {
+	var obj map[string]interface{}
+	err := json.Unmarshal(patch, &obj)
+	if err != nil {
+		return nil, nil, err
+	}
+	var nonStatusPatch, statusPatch []byte
+	if statusVal, ok := obj["status"]; ok {
+		// calculate the status-only patch
+		statusObj := map[string]interface{}{
+			"status": statusVal,
+		}
+		statusPatch, err = json.Marshal(statusObj)
+		if err != nil {
+			return nil, nil, err
+		}
+		// remove status, and calculate the non-status patch
+		delete(obj, "status")
+		if len(obj) > 0 {
+			nonStatusPatch, err = json.Marshal(obj)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+	} else {
+		// status was not modified in patch
+		nonStatusPatch = patch
+	}
+	return nonStatusPatch, statusPatch, nil
 }
 
 func (s *Server) plugins() ([]*v1alpha1.ConfigManagementPlugin, error) {

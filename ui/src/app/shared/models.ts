@@ -386,6 +386,7 @@ export interface AppProjectStatus {
 export interface LogEntry {
     content: string;
     timeStamp: models.Time;
+    last: boolean;
 }
 
 // describes plugin settings
@@ -475,6 +476,9 @@ export interface Cluster {
         awsAuthConfig?: {
             clusterName: string;
         };
+        execProviderConfig?: {
+            command: string;
+        };
     };
     info?: {
         applicationsCount: number;
@@ -526,6 +530,11 @@ export interface RepoAppDetails {
     kustomize?: KustomizeAppSpec;
     plugin?: PluginAppSpec;
     directory?: {};
+}
+
+export interface RefsInfo {
+    branches: string[];
+    tags: string[];
 }
 
 export interface AppInfo {
@@ -734,7 +743,7 @@ export interface GnuPGPublicKeyList extends ItemsList<GnuPGPublicKey> {}
 // https://kubernetes.io/docs/reference/kubectl/overview/#resource-types
 
 export const ResourceKinds = [
-    'ANY',
+    '*',
     'Binding',
     'ComponentStatus',
     'ConfigMap',

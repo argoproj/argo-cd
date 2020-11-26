@@ -17,6 +17,7 @@
         "tags": [
           "AccountService"
         ],
+        "summary": "ListAccounts returns the list of accounts",
         "operationId": "ListAccounts",
         "responses": {
           "200": {
@@ -33,6 +34,7 @@
         "tags": [
           "AccountService"
         ],
+        "summary": "CanI checks if the current account has permission to perform an action",
         "operationId": "CanI",
         "parameters": [
           {
@@ -96,6 +98,7 @@
         "tags": [
           "AccountService"
         ],
+        "summary": "GetAccount returns an account",
         "operationId": "GetAccount",
         "parameters": [
           {
@@ -120,6 +123,7 @@
         "tags": [
           "AccountService"
         ],
+        "summary": "CreateToken creates a token",
         "operationId": "CreateToken",
         "parameters": [
           {
@@ -152,6 +156,7 @@
         "tags": [
           "AccountService"
         ],
+        "summary": "DeleteToken deletes a token",
         "operationId": "DeleteToken",
         "parameters": [
           {
@@ -294,6 +299,7 @@
         "tags": [
           "ApplicationService"
         ],
+        "summary": "ManagedResources returns list of managed resources",
         "operationId": "ManagedResources",
         "parameters": [
           {
@@ -343,6 +349,7 @@
         "tags": [
           "ApplicationService"
         ],
+        "summary": "ResourceTree returns resource tree",
         "operationId": "ResourceTree",
         "parameters": [
           {
@@ -818,6 +825,7 @@
         "tags": [
           "ApplicationService"
         ],
+        "summary": "ListResourceActions returns list of resource actions",
         "operationId": "ListResourceActions",
         "parameters": [
           {
@@ -865,6 +873,7 @@
         "tags": [
           "ApplicationService"
         ],
+        "summary": "RunResourceAction run resource action",
         "operationId": "RunResourceAction",
         "parameters": [
           {
@@ -1029,7 +1038,7 @@
         "tags": [
           "ApplicationService"
         ],
-        "summary": "Get returns an application by name",
+        "summary": "Get returns sync windows of the application",
         "operationId": "GetApplicationSyncWindows",
         "parameters": [
           {
@@ -1470,7 +1479,7 @@
         "tags": [
           "ProjectService"
         ],
-        "summary": "Create a new project.",
+        "summary": "Create a new project",
         "operationId": "CreateMixin5",
         "parameters": [
           {
@@ -1565,6 +1574,31 @@
         }
       }
     },
+    "/api/v1/projects/{name}/globalprojects": {
+      "get": {
+        "tags": [
+          "ProjectService"
+        ],
+        "summary": "Get returns a virtual project by name",
+        "operationId": "GetGlobalProjects",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/projectGlobalProjectsResponse"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/projects/{name}/syncwindows": {
       "get": {
         "tags": [
@@ -1629,7 +1663,7 @@
         "tags": [
           "ProjectService"
         ],
-        "summary": "Create a new project token.",
+        "summary": "Create a new project token",
         "operationId": "CreateTokenMixin5",
         "parameters": [
           {
@@ -1668,7 +1702,7 @@
         "tags": [
           "ProjectService"
         ],
-        "summary": "Delete a new project token.",
+        "summary": "Delete a new project token",
         "operationId": "DeleteTokenMixin5",
         "parameters": [
           {
@@ -1977,7 +2011,7 @@
         "tags": [
           "RepositoryService"
         ],
-        "summary": "ListApps returns list of apps in the repo",
+        "summary": "ListApps returns list of apps in the repe",
         "operationId": "ListApps",
         "parameters": [
           {
@@ -2007,6 +2041,7 @@
         "tags": [
           "RepositoryService"
         ],
+        "summary": "GetHelmCharts returns list of helm charts in the specified repository",
         "operationId": "GetHelmCharts",
         "parameters": [
           {
@@ -2029,6 +2064,38 @@
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/repositoryHelmChartsResponse"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/repositories/{repo}/refs": {
+      "get": {
+        "tags": [
+          "RepositoryService"
+        ],
+        "operationId": "ListRefs",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Repo URL for query",
+            "name": "repo",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "boolean",
+            "format": "boolean",
+            "description": "Whether to force a cache refresh on repo's connection state.",
+            "name": "forceRefresh",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/repositoryRefs"
             }
           }
         }
@@ -2108,7 +2175,7 @@
         "tags": [
           "SessionService"
         ],
-        "summary": "Create a new JWT for authentication and set a cookie if using HTTP.",
+        "summary": "Create a new JWT for authentication and set a cookie if using HTTP",
         "operationId": "CreateMixin8",
         "parameters": [
           {
@@ -2133,7 +2200,7 @@
         "tags": [
           "SessionService"
         ],
-        "summary": "Delete an existing JWT cookie if using HTTP.",
+        "summary": "Delete an existing JWT cookie if using HTTP",
         "operationId": "DeleteMixin8",
         "responses": {
           "200": {
@@ -2184,7 +2251,7 @@
         "tags": [
           "ApplicationService"
         ],
-        "summary": "Watch returns stream of application change events.",
+        "summary": "Watch returns stream of application change events",
         "operationId": "Watch",
         "parameters": [
           {
@@ -2557,6 +2624,10 @@
         "content": {
           "type": "string"
         },
+        "last": {
+          "type": "boolean",
+          "format": "boolean"
+        },
         "timeStamp": {
           "$ref": "#/definitions/v1Time"
         }
@@ -2584,6 +2655,19 @@
           "items": {
             "$ref": "#/definitions/v1alpha1ResourceAction"
           }
+        }
+      }
+    },
+    "applicationv1alpha1EnvEntry": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "the name, usually uppercase"
+        },
+        "value": {
+          "type": "string",
+          "title": "the value"
         }
       }
     },
@@ -2778,6 +2862,17 @@
     },
     "projectEmptyResponse": {
       "type": "object"
+    },
+    "projectGlobalProjectsResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1AppProject"
+          }
+        }
+      }
     },
     "projectProjectCreateRequest": {
       "description": "ProjectCreateRequest defines project creation parameters.",
@@ -3021,6 +3116,24 @@
         "verifyResult": {
           "type": "string",
           "title": "Raw response of git verify-commit operation (always the empty string for Helm)"
+        }
+      }
+    },
+    "repositoryRefs": {
+      "type": "object",
+      "title": "A subset of the repository's named refs",
+      "properties": {
+        "branches": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
@@ -3649,7 +3762,7 @@
     },
     "v1alpha1Application": {
       "type": "object",
-      "title": "Application is a definition of Application resource.\n+genclient\n+genclient:noStatus\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object\n+kubebuilder:resource:path=applications,shortName=app;apps",
+      "title": "Application is a definition of Application resource.\n+genclient\n+genclient:noStatus\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object\n+kubebuilder:resource:path=applications,shortName=app;apps\n+kubebuilder:printcolumn:name=\"Sync Status\",type=string,JSONPath=`.status.sync.status`\n+kubebuilder:printcolumn:name=\"Health Status\",type=string,JSONPath=`.status.health.status`\n+kubebuilder:printcolumn:name=\"Revision\",type=string,JSONPath=`.status.sync.revision`,priority=10",
       "properties": {
         "metadata": {
           "$ref": "#/definitions/v1ObjectMeta"
@@ -3755,6 +3868,9 @@
     "v1alpha1ApplicationSourceDirectory": {
       "type": "object",
       "properties": {
+        "exclude": {
+          "type": "string"
+        },
         "jsonnet": {
           "$ref": "#/definitions/v1alpha1ApplicationSourceJsonnet"
         },
@@ -3851,6 +3967,13 @@
       "type": "object",
       "title": "ApplicationSourceKustomize holds kustomize specific options",
       "properties": {
+        "commonAnnotations": {
+          "type": "object",
+          "title": "CommonAnnotations adds additional kustomize commonAnnotations",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
         "commonLabels": {
           "type": "object",
           "title": "CommonLabels adds additional kustomize commonLabels",
@@ -3886,7 +4009,7 @@
         "env": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/v1alpha1EnvEntry"
+            "$ref": "#/definitions/applicationv1alpha1EnvEntry"
           }
         },
         "name": {
@@ -4118,6 +4241,9 @@
           "description": "Server requires Bearer authentication. This client will not attempt to use\nrefresh tokens for an OAuth2 flow.\nTODO: demonstrate an OAuth2 compatible client.",
           "type": "string"
         },
+        "execProviderConfig": {
+          "$ref": "#/definitions/v1alpha1ExecProviderConfig"
+        },
         "password": {
           "type": "string"
         },
@@ -4223,16 +4349,35 @@
         }
       }
     },
-    "v1alpha1EnvEntry": {
+    "v1alpha1ExecProviderConfig": {
       "type": "object",
+      "title": "ExecProviderConfig is config used to call an external command to perform cluster authentication\nSee: https://godoc.org/k8s.io/client-go/tools/clientcmd/api#ExecConfig",
       "properties": {
-        "name": {
+        "apiVersion": {
           "type": "string",
-          "title": "the name, usually uppercase"
+          "title": "Preferred input version of the ExecInfo"
         },
-        "value": {
+        "args": {
+          "type": "array",
+          "title": "Arguments to pass to the command when executing it",
+          "items": {
+            "type": "string"
+          }
+        },
+        "command": {
           "type": "string",
-          "title": "the value"
+          "title": "Command to execute"
+        },
+        "env": {
+          "type": "object",
+          "title": "Env defines additional environment variables to expose to the process",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "installHint": {
+          "type": "string",
+          "title": "This text is shown to the user when the executable doesn't seem to be present"
         }
       }
     },
@@ -4635,6 +4780,11 @@
           "type": "boolean",
           "format": "boolean",
           "title": "Whether git-lfs support should be enabled for this repo"
+        },
+        "enableOCI": {
+          "type": "boolean",
+          "format": "boolean",
+          "title": "Whether helm-oci support should be enabled for this repo"
         },
         "inheritedCreds": {
           "type": "boolean",

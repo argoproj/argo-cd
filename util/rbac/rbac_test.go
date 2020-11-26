@@ -17,8 +17,8 @@ import (
 )
 
 const (
-	fakeConfgMapName = "fake-cm"
-	fakeNamespace    = "fake-ns"
+	fakeConfigMapName = "fake-cm"
+	fakeNamespace     = "fake-ns"
 )
 
 var (
@@ -34,7 +34,7 @@ func fakeConfigMap() *apiv1.ConfigMap {
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fakeConfgMapName,
+			Name:      fakeConfigMapName,
 			Namespace: fakeNamespace,
 		},
 		Data: make(map[string]string),
@@ -45,7 +45,7 @@ func fakeConfigMap() *apiv1.ConfigMap {
 // TestBuiltinPolicyEnforcer tests the builtin policy rules
 func TestBuiltinPolicyEnforcer(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
-	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
 	err := enf.syncUpdate(fakeConfigMap(), noOpUpdate)
 	assert.Nil(t, err)
 
@@ -79,113 +79,10 @@ func TestBuiltinPolicyEnforcer(t *testing.T) {
 	}
 }
 
-// TestPolicyInformer verifies the informer will get updated with a new configmap
-func TestPolicyInformer(t *testing.T) {
-	cm := fakeConfigMap()
-	cm.Data[ConfigMapPolicyCSVKey] = "p, admin, applications, delete, */*, allow"
-	kubeclientset := fake.NewSimpleClientset(cm)
-	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
-
-	ctx := context.Background()
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	go enf.runInformer(ctx, func(cm *apiv1.ConfigMap) error {
-		return nil
-	})
-
-	loaded := false
-	for i := 1; i <= 20; i++ {
-		if enf.Enforce("admin", "applications", "delete", "foo/bar") {
-			loaded = true
-			break
-		}
-		time.Sleep(50 * time.Millisecond)
-	}
-	assert.True(t, loaded, "Policy update failed to load")
-
-	// update the configmap and update policy
-	delete(cm.Data, ConfigMapPolicyCSVKey)
-	err := enf.syncUpdate(cm, noOpUpdate)
-	assert.Nil(t, err)
-	assert.False(t, enf.Enforce("admin", "applications", "delete", "foo/bar"))
-}
-
-// TestResourceActionWildcards verifies the ability to use wildcards in resources and actions
-func TestResourceActionWildcards(t *testing.T) {
-	kubeclientset := fake.NewSimpleClientset(fakeConfigMap())
-	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
-	policy := `
-p, alice, *, get, foo/obj, allow
-p, bob, repositories, *, foo/obj, allow
-p, cathy, *, *, foo/obj, allow
-p, dave, applications, get, foo/obj, allow
-p, dave, applications/*, get, foo/obj, allow
-p, eve, *, get, foo/obj, deny
-p, mallory, repositories, *, foo/obj, deny
-p, mallory, repositories, *, foo/obj, allow
-p, mike, *, *, foo/obj, allow
-p, mike, *, *, foo/obj, deny
-p, trudy, applications, get, foo/obj, allow
-p, trudy, applications/*, get, foo/obj, allow
-p, trudy, applications/secrets, get, foo/obj, deny
-p, danny, applications, get, */obj, allow
-p, danny, applications, get, proj1/a*p1, allow
-`
-	_ = enf.SetUserPolicy(policy)
-
-	// Verify the resource wildcard
-	assert.True(t, enf.Enforce("alice", "applications", "get", "foo/obj"))
-	assert.True(t, enf.Enforce("alice", "applications/resources", "get", "foo/obj"))
-	assert.False(t, enf.Enforce("alice", "applications/resources", "delete", "foo/obj"))
-
-	// Verify action wildcards work
-	assert.True(t, enf.Enforce("bob", "repositories", "get", "foo/obj"))
-	assert.True(t, enf.Enforce("bob", "repositories", "delete", "foo/obj"))
-	assert.False(t, enf.Enforce("bob", "applications", "get", "foo/obj"))
-
-	// Verify resource and action wildcards work in conjunction
-	assert.True(t, enf.Enforce("cathy", "repositories", "get", "foo/obj"))
-	assert.True(t, enf.Enforce("cathy", "repositories", "delete", "foo/obj"))
-	assert.True(t, enf.Enforce("cathy", "applications", "get", "foo/obj"))
-	assert.True(t, enf.Enforce("cathy", "applications/resources", "delete", "foo/obj"))
-
-	// Verify wildcards with sub-resources
-	assert.True(t, enf.Enforce("dave", "applications", "get", "foo/obj"))
-	assert.True(t, enf.Enforce("dave", "applications/logs", "get", "foo/obj"))
-
-	// Verify the resource wildcard
-	assert.False(t, enf.Enforce("eve", "applications", "get", "foo/obj"))
-	assert.False(t, enf.Enforce("eve", "applications/resources", "get", "foo/obj"))
-	assert.False(t, enf.Enforce("eve", "applications/resources", "delete", "foo/obj"))
-
-	// Verify action wildcards work
-	assert.False(t, enf.Enforce("mallory", "repositories", "get", "foo/obj"))
-	assert.False(t, enf.Enforce("mallory", "repositories", "delete", "foo/obj"))
-	assert.False(t, enf.Enforce("mallory", "applications", "get", "foo/obj"))
-
-	// Verify resource and action wildcards work in conjunction
-	assert.False(t, enf.Enforce("mike", "repositories", "get", "foo/obj"))
-	assert.False(t, enf.Enforce("mike", "repositories", "delete", "foo/obj"))
-	assert.False(t, enf.Enforce("mike", "applications", "get", "foo/obj"))
-	assert.False(t, enf.Enforce("mike", "applications/resources", "delete", "foo/obj"))
-
-	// Verify wildcards with sub-resources
-	assert.True(t, enf.Enforce("trudy", "applications", "get", "foo/obj"))
-	assert.True(t, enf.Enforce("trudy", "applications/logs", "get", "foo/obj"))
-	assert.False(t, enf.Enforce("trudy", "applications/secrets", "get", "foo/obj"))
-
-	// Verify trailing wildcards don't grant full access
-	assert.True(t, enf.Enforce("danny", "applications", "get", "foo/obj"))
-	assert.True(t, enf.Enforce("danny", "applications", "get", "bar/obj"))
-	assert.False(t, enf.Enforce("danny", "applications", "get", "foo/bar"))
-	assert.True(t, enf.Enforce("danny", "applications", "get", "proj1/app1"))
-	assert.False(t, enf.Enforce("danny", "applications", "get", "proj1/app2"))
-}
-
 // TestProjectIsolationEnforcement verifies the ability to create Project specific policies
 func TestProjectIsolationEnforcement(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset(fakeConfigMap())
-	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
 	policy := `
 p, role:foo-admin, *, *, foo/*, allow
 p, role:bar-admin, *, *, bar/*, allow
@@ -205,7 +102,7 @@ g, bob, role:bar-admin
 // TestProjectReadOnly verifies the ability to have a read only role in a Project
 func TestProjectReadOnly(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset(fakeConfigMap())
-	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
 	policy := `
 p, role:foo-readonly, *, get, foo/*, allow
 g, alice, role:foo-readonly
@@ -221,7 +118,7 @@ g, alice, role:foo-readonly
 // TestDefaultRole tests the ability to set a default role
 func TestDefaultRole(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
-	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
 	err := enf.syncUpdate(fakeConfigMap(), noOpUpdate)
 	assert.Nil(t, err)
 	_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
@@ -235,7 +132,7 @@ func TestDefaultRole(t *testing.T) {
 // TestURLAsObjectName tests the ability to have a URL as an object name
 func TestURLAsObjectName(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
-	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
 	err := enf.syncUpdate(fakeConfigMap(), noOpUpdate)
 	assert.Nil(t, err)
 	policy := `
@@ -255,7 +152,7 @@ p, cathy, repositories, *, foo/*, allow
 
 func TestEnableDisableEnforce(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset(fakeConfigMap())
-	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
 	policy := `
 p, alice, *, get, foo/obj, allow
 p, mike, *, get, foo/obj, deny
@@ -283,7 +180,7 @@ p, mike, *, get, foo/obj, deny
 
 func TestUpdatePolicy(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset(fakeConfigMap())
-	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
 
 	_ = enf.SetUserPolicy("p, alice, *, get, foo/obj, allow")
 	assert.True(t, enf.Enforce("alice", "applications", "get", "foo/obj"))
@@ -313,14 +210,14 @@ func TestUpdatePolicy(t *testing.T) {
 func TestNoPolicy(t *testing.T) {
 	cm := fakeConfigMap()
 	kubeclientset := fake.NewSimpleClientset(cm)
-	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
 	assert.False(t, enf.Enforce("admin", "applications", "delete", "foo/bar"))
 }
 
 // TestClaimsEnforcerFunc tests
 func TestClaimsEnforcerFunc(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
-	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
 	claims := jwt.StandardClaims{
 		Subject: "foo",
 	}
@@ -335,7 +232,7 @@ func TestClaimsEnforcerFunc(t *testing.T) {
 // enforcing a runtime policy
 func TestDefaultRoleWithRuntimePolicy(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
-	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
 	err := enf.syncUpdate(fakeConfigMap(), noOpUpdate)
 	assert.Nil(t, err)
 	runtimePolicy := assets.BuiltinPolicyCSV
@@ -348,7 +245,7 @@ func TestDefaultRoleWithRuntimePolicy(t *testing.T) {
 // take effect when enforcing a runtime policy
 func TestClaimsEnforcerFuncWithRuntimePolicy(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
-	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
 	err := enf.syncUpdate(fakeConfigMap(), noOpUpdate)
 	assert.Nil(t, err)
 	runtimePolicy := assets.BuiltinPolicyCSV
@@ -366,7 +263,7 @@ func TestClaimsEnforcerFuncWithRuntimePolicy(t *testing.T) {
 func TestInvalidRuntimePolicy(t *testing.T) {
 	cm := fakeConfigMap()
 	kubeclientset := fake.NewSimpleClientset(cm)
-	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
 	err := enf.syncUpdate(fakeConfigMap(), noOpUpdate)
 	assert.Nil(t, err)
 	_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
@@ -400,7 +297,7 @@ func TestValidatePolicy(t *testing.T) {
 // TestEnforceErrorMessage ensures we give descriptive error message
 func TestEnforceErrorMessage(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
-	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
 	err := enf.syncUpdate(fakeConfigMap(), noOpUpdate)
 	assert.Nil(t, err)
 
@@ -412,6 +309,7 @@ func TestEnforceErrorMessage(t *testing.T) {
 	assert.Error(t, err)
 	assert.Equal(t, "rpc error: code = PermissionDenied desc = permission denied", err.Error())
 
+	// nolint:staticcheck
 	ctx := context.WithValue(context.Background(), "claims", &jwt.StandardClaims{Subject: "proj:default:admin"})
 	err = enf.EnforceErr(ctx.Value("claims"), "project")
 	assert.Error(t, err)
@@ -419,16 +317,19 @@ func TestEnforceErrorMessage(t *testing.T) {
 
 	iat := time.Unix(int64(1593035962), 0).Format(time.RFC3339)
 	exp := fmt.Sprintf("rpc error: code = PermissionDenied desc = permission denied: project, sub: proj:default:admin, iat: %s", iat)
+	// nolint:staticcheck
 	ctx = context.WithValue(context.Background(), "claims", &jwt.StandardClaims{Subject: "proj:default:admin", IssuedAt: 1593035962})
 	err = enf.EnforceErr(ctx.Value("claims"), "project")
 	assert.Error(t, err)
 	assert.Equal(t, exp, err.Error())
 
+	// nolint:staticcheck
 	ctx = context.WithValue(context.Background(), "claims", &jwt.StandardClaims{ExpiresAt: 1})
 	err = enf.EnforceErr(ctx.Value("claims"), "project")
 	assert.Error(t, err)
 	assert.Equal(t, "rpc error: code = PermissionDenied desc = permission denied: project", err.Error())
 
+	// nolint:staticcheck
 	ctx = context.WithValue(context.Background(), "claims", &jwt.StandardClaims{Subject: "proj:default:admin", IssuedAt: 0})
 	err = enf.EnforceErr(ctx.Value("claims"), "project")
 	assert.Error(t, err)

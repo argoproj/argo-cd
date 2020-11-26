@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -38,12 +39,20 @@ type RevisionMetadata struct {
 	Message string
 }
 
+// this should match reposerver/repository/repository.proto/RefsList
+type Refs struct {
+	Branches []string
+	Tags     []string
+	// heads and remotes are also refs, but are not needed at this time.
+}
+
 // Client is a generic git client interface
 type Client interface {
 	Root() string
 	Init() error
 	Fetch() error
 	Checkout(revision string) error
+	LsRefs() (*Refs, error)
 	LsRemote(revision string) (string, error)
 	LsFiles(path string) ([]string, error)
 	LsLargeFiles() ([]string, error)
@@ -329,6 +338,58 @@ func (m *nativeGitClient) Checkout(revision string) error {
 	return nil
 }
 
+func (m *nativeGitClient) getRefs(moduleURL string) ([]*plumbing.Reference, error) {
+	repo, err := git.Init(memory.NewStorage(), nil)
+	if err != nil {
+		return nil, err
+	}
+	url := moduleURL
+	if url == "" {
+		url = m.repoURL
+	}
+	remote, err := repo.CreateRemote(&config.RemoteConfig{
+		Name: git.DefaultRemoteName,
+		URLs: []string{url},
+	})
+	if err != nil {
+		return nil, err
+	}
+	auth, err := newAuth(m.repoURL, m.creds)
+	if err != nil {
+		return nil, err
+	}
+	return listRemote(remote, &git.ListOptions{Auth: auth}, m.insecure, m.creds)
+}
+
+func (m *nativeGitClient) LsRefs() (*Refs, error) {
+	refs, err := m.getRefs("")
+
+	if err != nil {
+		return nil, err
+	}
+
+	sortedRefs := &Refs{
+		Branches: []string{},
+		Tags:     []string{},
+	}
+
+	for _, revision := range refs {
+		if revision.Name().IsBranch() {
+			sortedRefs.Branches = append(sortedRefs.Branches, revision.Name().Short())
+		} else if revision.Name().IsTag() {
+			sortedRefs.Tags = append(sortedRefs.Tags, revision.Name().Short())
+		}
+	}
+
+	log.Debugf("LsRefs resolved %d branches and %d tags on repository", len(sortedRefs.Branches), len(sortedRefs.Tags))
+
+	// Would prefer to sort by last modified date but that info does not appear to be available without resolving each ref
+	sort.Strings(sortedRefs.Branches)
+	sort.Strings(sortedRefs.Tags)
+
+	return sortedRefs, nil
+}
+
 // LsRemote resolves the commit SHA of a specific branch, tag, or HEAD. If the supplied revision
 // does not resolve, and "looks" like a 7+ hexadecimal commit SHA, it return the revision string.
 // Otherwise, it returns an error indicating that the revision could not be resolved. This method
@@ -414,29 +475,9 @@ func (m *nativeGitClient) lsRemote(revision string, moduleURL string) (string, e
 	if len(commitSHACorrected) > 0 && IsCommitSHA(commitSHACorrected[0]) && moduleURL == "" {
 		return commitSHACorrected[0], nil
 	}
-	repo, err := git.Init(memory.NewStorage(), nil)
-	if err != nil {
-		return "", err
-	}
 
-	remoteConfig := &config.RemoteConfig{
-		Name: git.DefaultRemoteName,
-		URLs: []string{m.repoURL},
-	}
-	if moduleURL != "" {
-		remoteConfig.URLs = []string{moduleURL}
-	}
-	remote, err := repo.CreateRemote(remoteConfig)
+	refs, err := m.getRefs(moduleURL)
 
-	if err != nil {
-		return "", err
-	}
-	auth, err := newAuth(m.repoURL, m.creds)
-	if err != nil {
-		return "", err
-	}
-	//refs, err := remote.List(&git.ListOptions{Auth: auth})
-	refs, err := listRemote(remote, &git.ListOptions{Auth: auth}, m.insecure, m.creds)
 	if err != nil {
 		return "", err
 	}
