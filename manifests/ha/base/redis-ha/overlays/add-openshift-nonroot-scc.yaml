@@ -1,0 +1,11 @@
+- op: add
+  path: /rules/-
+  value:
+    apiGroups:
+    - security.openshift.io
+    resourceNames:
+    - nonroot
+    resources:
+    - securitycontextconstraints
+    verbs:
+    - use

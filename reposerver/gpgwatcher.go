@@ -11,6 +11,8 @@ import (
 	"github.com/argoproj/argo-cd/util/gpg"
 )
 
+const maxRecreateRetries = 5
+
 // StartGPGWatcher watches a given directory for creation and deletion of files and syncs the GPG keyring
 func StartGPGWatcher(sourcePath string) error {
 	log.Infof("Starting GPG sync watcher on directory '%s'", sourcePath)
@@ -31,13 +33,26 @@ func StartGPGWatcher(sourcePath string) error {
 				}
 				if event.Op&fsnotify.Create == fsnotify.Create || event.Op&fsnotify.Remove == fsnotify.Remove {
 					// In case our watched path is re-created (i.e. during e2e tests), we need to watch again
+					// For more robustness, we retry re-creating the watcher up to maxRecreateRetries
 					if event.Name == sourcePath && event.Op&fsnotify.Remove == fsnotify.Remove {
 						log.Warnf("Re-creating watcher on %s", sourcePath)
-						time.Sleep(1 * time.Second)
-						err = watcher.Add(sourcePath)
-						if err != nil {
-							log.Errorf("Error re-creating watcher on %s: %v", sourcePath, err)
-							return
+						attempt := 0
+						for {
+							err = watcher.Add(sourcePath)
+							if err != nil {
+								log.Errorf("Error re-creating watcher on %s: %v", sourcePath, err)
+								if attempt < maxRecreateRetries {
+									attempt += 1
+									log.Infof("Retrying to re-create watcher, attempt %d of %d", attempt, maxRecreateRetries)
+									time.Sleep(1 * time.Second)
+									continue
+								} else {
+									log.Errorf("Maximum retries exceeded.")
+									close(done)
+									return
+								}
+							}
+							break
 						}
 						// Force sync because we probably missed an event
 						forceSync = true

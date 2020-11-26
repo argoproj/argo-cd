@@ -60,7 +60,7 @@ export const ApplicationsSummary = ({applications}: {applications: models.Applic
     return (
         <div className='white-box applications-list__summary'>
             <div className='row'>
-                <div className='columns large-4 small-12'>
+                <div className='columns large-3 small-12'>
                     <div className='white-box__details'>
                         <p className='row'>SUMMARY</p>
                         {attributes.map(attr => (
@@ -75,18 +75,22 @@ export const ApplicationsSummary = ({applications}: {applications: models.Applic
                 </div>
                 {charts.map(chart => (
                     <React.Fragment key={chart.title}>
-                        <div className='columns large-3 small-4'>
-                            <h4 style={{textAlign: 'center'}}>{chart.title}</h4>
-                            <PieChart data={chart.data} />
-                        </div>
-                        <div className='columns large-1 small-2'>
-                            <ul>
-                                {Array.from(chart.legend.keys()).map(key => (
-                                    <li style={{color: chart.legend.get(key)}} key={key}>
-                                        {key}
-                                    </li>
-                                ))}
-                            </ul>
+                        <div className='columns large-4 small-12'>
+                            <div className='row'>
+                                <div className='columns large-10 small-6'>
+                                    <h4 style={{textAlign: 'center'}}>{chart.title}</h4>
+                                    <PieChart data={chart.data} />
+                                </div>
+                                <div className='columns large-1 small-1'>
+                                    <ul>
+                                        {Array.from(chart.legend.keys()).map(key => (
+                                            <li style={{color: chart.legend.get(key)}} key={key}>
+                                                {key}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            </div>
                         </div>
                     </React.Fragment>
                 ))}

@@ -116,6 +116,10 @@ var noOpHealthCheck = func() error {
 	return nil
 }
 
+var appFilter = func(obj interface{}) bool {
+	return true
+}
+
 func newFakeApp(fakeAppYAML string) *argoappv1.Application {
 	var app argoappv1.Application
 	err := yaml.Unmarshal([]byte(fakeAppYAML), &app)
@@ -146,7 +150,8 @@ func newFakeLister(fakeAppYAMLs ...string) (context.CancelFunc, applister.Applic
 func testApp(t *testing.T, fakeAppYAMLs []string, expectedResponse string) {
 	cancel, appLister := newFakeLister(fakeAppYAMLs...)
 	defer cancel()
-	metricsServ := NewMetricsServer("localhost:8082", appLister, noOpHealthCheck)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck)
+	assert.NoError(t, err)
 	req, err := http.NewRequest("GET", "/metrics", nil)
 	assert.NoError(t, err)
 	rr := httptest.NewRecorder()
@@ -217,7 +222,8 @@ argocd_app_sync_status{name="my-app",namespace="argocd",project="important-proje
 func TestMetricsSyncCounter(t *testing.T) {
 	cancel, appLister := newFakeLister()
 	defer cancel()
-	metricsServ := NewMetricsServer("localhost:8082", appLister, noOpHealthCheck)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck)
+	assert.NoError(t, err)
 
 	appSyncTotal := `
 # HELP argocd_app_sync_total Number of application syncs.
@@ -257,7 +263,9 @@ func assertMetricsPrinted(t *testing.T, expectedLines, body string) {
 func TestReconcileMetrics(t *testing.T) {
 	cancel, appLister := newFakeLister()
 	defer cancel()
-	metricsServ := NewMetricsServer("localhost:8082", appLister, noOpHealthCheck)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck)
+	assert.NoError(t, err)
+
 	appReconcileMetrics := `
 # HELP argocd_app_reconcile Application reconciliation performance.
 # TYPE argocd_app_reconcile histogram

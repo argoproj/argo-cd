@@ -54,3 +54,25 @@ func (i *InMemoryCache) OnUpdated(ctx context.Context, key string, callback func
 func (i *InMemoryCache) NotifyUpdated(key string) error {
 	return nil
 }
+
+// Items return a list of items in the cache; requires passing a constructor function
+// so that the items can be decoded from gob format.
+func (i *InMemoryCache) Items(createNewObject func() interface{}) (map[string]interface{}, error) {
+
+	result := map[string]interface{}{}
+
+	for key, value := range i.memCache.Items() {
+
+		buf := value.Object.(bytes.Buffer)
+		obj := createNewObject()
+		err := gob.NewDecoder(&buf).Decode(obj)
+		if err != nil {
+			return nil, err
+		}
+
+		result[key] = obj
+
+	}
+
+	return result, nil
+}

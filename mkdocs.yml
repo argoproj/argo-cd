@@ -35,6 +35,7 @@ nav:
       - operator-manual/user-management/onelogin.md
       - operator-manual/user-management/keycloak.md
       - operator-manual/user-management/openunison.md
+      - operator-manual/user-management/google.md
       - operator-manual/rbac.md
     - operator-manual/security.md
     - operator-manual/cluster-bootstrapping.md
@@ -48,6 +49,11 @@ nav:
     - operator-manual/metrics.md
     - operator-manual/notifications.md
     - operator-manual/troubleshooting.md
+    - Server Configuration Parameters:
+      - operator-manual/server-commands/argocd-server.md
+      - operator-manual/server-commands/argocd-application-controller.md
+      - operator-manual/server-commands/argocd-repo-server.md
+    - argocd-util Tools: operator-manual/server-commands/argocd-util.md
     - Upgrading:
         - operator-manual/upgrading/overview.md
         - operator-manual/upgrading/1.6-1.7.md
@@ -85,6 +91,7 @@ nav:
     - user-guide/app_deletion.md
     - user-guide/best_practices.md
     - user-guide/status-badge.md
+    - Command Reference: user-guide/commands/argocd.md
   - Developer Guide:
     - developer-guide/index.md
     - developer-guide/contributing.md
@@ -92,6 +99,7 @@ nav:
     - developer-guide/debugging-remote-environment.md
     - developer-guide/api-docs.md
     - developer-guide/test-e2e.md
+    - developer-guide/dependencies.md
     - developer-guide/ci.md
     - developer-guide/releasing.md
     - developer-guide/site.md

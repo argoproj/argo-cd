@@ -55,8 +55,8 @@ argocd proj remove-destination <PROJECT> <CLUSTER>,<NAMESPACE>
 ```
 
 Permitted destination K8s resource kinds are managed with the commands. Note that namespaced-scoped
-resources are restricted via a blacklist, whereas cluster-scoped resources are restricted via
-whitelist.
+resources are restricted via a deny list, whereas cluster-scoped resources are restricted via
+allow list.
 
 ```bash
 argocd proj allow-cluster-resource <PROJECT> <GROUP> <KIND>
@@ -72,37 +72,6 @@ an app, the user must have permissions to access the new project.
 
 ```
 argocd app set guestbook-default --project myproject
-```
-
-### Configuring RBAC With Projects
-
-Once projects have been defined, RBAC rules can be written to restrict access to the applications
-in the project. The following example configures RBAC for two GitHub teams: `team1` and `team2`,
-both in the GitHub org, `some-github-org`. There are two projects, `project-a` and `project-b`.
-`team1` can only manage applications in `project-a`, while `team2` can only manage applications in
-`project-b`. Both `team1` and `team2` have the ability to manage repositories.
-
-*ConfigMap `argocd-rbac-cm` example:*
-
-```yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: argocd-rbac-cm
-  namespace: argocd
-data:
-  policy.default: ""
-  policy.csv: |
-    p, some-github-org:team1, applications, *, project-a/*, allow
-    p, some-github-org:team2, applications, *, project-b/*, allow
-
-    p, role:org-admin, repositories, get, *, allow
-    p, role:org-admin, repositories, create, *, allow
-    p, role:org-admin, repositories, update, *, allow
-    p, role:org-admin, repositories, delete, *, allow
-
-    g, some-github-org:team1, org-admin
-    g, some-github-org:team2, org-admin
 ```
 
 ## Project Roles
@@ -183,3 +152,60 @@ argocd proj role delete-token $PROJ $ROLE <id field from the last command>
 argocd app get $APP --auth-token $JWT
 ```
 
+## Configuring RBAC With Projects
+
+The project Roles allows configuring RBAC rules scoped to the project. The following sample
+project provides read-only permissions on project applications to any member of `my-oidc-group` group.
+
+*AppProject example:*
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: my-project
+  namespace: argocd
+spec:
+  roles:
+  # A role which provides read-only access to all applications in the project
+  - name: read-only
+    description: Read-only privileges to my-project
+    policies:
+    - p, proj:my-project:read-only, applications, get, my-project/*, allow
+    groups:
+    - my-oidc-group
+```
+
+You can use `argocd proj role` CLI commands or project details page in the user interface to configure the policy.
+Note that each project role policy rule must be scoped to that project only. Use the `argocd-rbac-cm` ConfigMap described in
+[RBAC](../operator-manual/rbac.md) documentation if you want to configure cross project RBAC rules.
+
+## Configuring Global Projects (v1.8)
+
+Global projects can be configured to provide configurations that other projects can inherit from. 
+
+Projects, which match `matchExpressions` specified in `argocd-cm` ConfigMap, inherit the following fields from the global project:
+
+* namespaceResourceBlacklist
+* namespaceResourceWhitelist
+* clusterResourceBlacklist
+* clusterResourceWhitelist
+* SyncWindows
+
+Configure global projects in `argocd-cm` ConfigMap:
+```yaml
+data:
+  globalProjects: |-
+    - labelSelector:
+        matchExpressions:
+          - key: opt
+            operator: In
+            values:
+              - prod
+      projectName: proj-global-test
+kind: ConfigMap
+``` 
+
+Valid operators you can use are: In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+
+projectName: `proj-global-test` should be replaced with your own global project name.

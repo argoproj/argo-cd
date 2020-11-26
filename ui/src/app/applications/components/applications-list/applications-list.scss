@@ -66,54 +66,66 @@
         }
     }
 
-    &__filters-expander {
-        position: absolute;
-        top: 0.75em;
-        right: 1em;
-        cursor: pointer;
-    }
+    $filters-container-collapsed-height: 3em;
+    $filters-container-box-shadow: 1px 1px 3px $argo-color-gray-5;
 
     &__filters-container {
-        max-height: 2.5em;
+        max-height: $filters-container-collapsed-height;
         overflow: hidden;
         position: relative;
         border-radius: $border-radius;
-        box-shadow: 1px 1px 3px $argo-color-gray-5;
+        box-shadow: $filters-container-box-shadow;
         padding: 0 1em 0.75em 1em;
         margin: 33px 0;
         background-color: white;
         transition: max-height 0.25s cubic-bezier(0, 1, 0, 1);
 
-        ul, a, p {
+        ul {
             margin: 0;
-        }
-
-        p {
-            margin-top: 1em;
-            color: $argo-color-gray-6;
-            text-transform: uppercase;
-        }
-
-        &::before {
-            content: 'FILTERS';
-            display: block;
-            color: $argo-color-gray-6;
-            padding-bottom: 1em;
-            margin-top: 0.5em;
         }
 
         &--expanded {
             max-height: calc(1.55em * 17);
             transition: max-height 1s ease-in-out;
-            &::before {
-                display: none;
-            }
         }
     }
 
-    &__filters-container-title {
-        border-bottom: 1px solid $argo-color-gray-3;
-        margin-bottom: 1em;
+    $filters-title-border-bottom: 1px solid $argo-color-gray-3;
+
+    &__filters-title {
+        height: $filters-container-collapsed-height;
+        padding: 0.25em 0;
+        display: flex;
+        align-items: center;
+
+        &--expanded {
+            border-bottom: $filters-title-border-bottom;
+        }
+
+        &__counter {
+            margin-right: 0;
+            width: 10ch;
+        }
+
+        &__expander {
+            cursor: pointer;
+            margin-left: 1em;
+        }
+    }
+
+    @include breakpoint(xxlarge up) {
+        &__filters-container {
+            max-height: 100%;
+            transition: max-height 0.5s ease-in-out;
+        }
+
+        &__filters-title {
+            border-bottom: $filters-title-border-bottom;
+        }
+
+        &__filters-title__expander {
+            display: none;
+        }
     }
 
     &__filter {
@@ -123,10 +135,6 @@
         max-height: calc(1.55em * 14);
         transition: max-height 0.25s cubic-bezier(0, 1, 0, 1);
         overflow-y: auto;
-    }
-
-    &__filter-expander {
-        display: none;
     }
 
     &__view-type {
@@ -145,30 +153,10 @@
         }
     }
 
-    @include breakpoint(xxlarge up) {
-        &__summary {
-            margin-top: 5.3em;
-        }
-
-        &__filter-expander {
-            display: inline;
-        }
-
-        &__filter--expanded {
-            max-height: 1000px;
-            transition: max-height 0.5s ease-in-out;
-        }
-
-        &__filters-expander {
-            display: none;
-        }
-
-        &__filters-container {
-            max-height: 10000px;
-            &::before {
-                display: none;
-            }
-        }
+    &__filter-title {
+        margin: 0.5em 0 0 0;
+        color: $argo-color-gray-6;
+        text-transform: uppercase;
     }
 
     &__filter-label {
@@ -200,6 +188,10 @@
             position: absolute;
             bottom: 0.6em;
             left: -1.5em;
+            cursor: pointer;
+            &:hover {
+                color: $argo-color-gray-6;
+            }    
         }
         i.fa-times {
             cursor: pointer;

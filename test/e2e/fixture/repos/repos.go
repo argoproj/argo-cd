@@ -3,9 +3,8 @@ package repos
 import (
 	"path/filepath"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/errors"
-
 	"github.com/argoproj/argo-cd/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/util/errors"
 )
 
 var (

@@ -86,8 +86,16 @@ func (h *helm) Dispose() {
 	h.cmd.Close()
 }
 
-func Version() (string, error) {
-	cmd := exec.Command("helm", "version", "--client")
+func Version(shortForm bool) (string, error) {
+	executable := "helm"
+	cmdArgs := []string{"version", "--client"}
+	if shortForm {
+		cmdArgs = append(cmdArgs, "--short")
+	}
+	cmd := exec.Command(executable, cmdArgs...)
+	// example version output:
+	// long: "version.BuildInfo{Version:\"v3.3.1\", GitCommit:\"249e5215cde0c3fa72e27eb7a30e8d55c9696144\", GitTreeState:\"clean\", GoVersion:\"go1.14.7\"}"
+	// short: "v3.3.1+g249e521"
 	version, err := executil.RunWithRedactor(cmd, redactor)
 	if err != nil {
 		return "", fmt.Errorf("could not get helm version: %s", err)
