@@ -111,7 +111,7 @@ func TestAppOfAppsHealth(t *testing.T) {
 		degradedAndHealthyLiveObjects := []*unstructured.Unstructured{degradedApp, healthyApp}
 		healthStatus, err := SetApplicationHealth(degradedAndHealthyStatuses, degradedAndHealthyLiveObjects, nil, noFilter)
 		assert.NoError(t, err)
-		assert.Equal(t, health.HealthStatusDegraded, healthStatus.Status)
+		assert.Equal(t, health.HealthStatusHealthy, healthStatus.Status)
 	}
 
 }

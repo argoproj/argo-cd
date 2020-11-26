@@ -2,6 +2,7 @@ package cache
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
@@ -10,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	k8snode "k8s.io/kubernetes/pkg/util/node"
 
+	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/resource"
 )
@@ -35,6 +37,21 @@ func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 		case kube.IngressKind:
 			populateIngressInfo(un, res)
 			return
+		}
+	case "networking.istio.io":
+		switch gvk.Kind {
+		case "VirtualService":
+			populateIstioVirtualServiceInfo(un, res)
+			return
+		}
+	}
+
+	for k, v := range un.GetAnnotations() {
+		if strings.HasPrefix(k, common.AnnotationKeyLinkPrefix) {
+			if res.NetworkingInfo == nil {
+				res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{}
+			}
+			res.NetworkingInfo.ExternalURLs = append(res.NetworkingInfo.ExternalURLs, v)
 		}
 	}
 }
@@ -131,7 +148,7 @@ func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 
 				subPath := ""
 				if nestedPath, ok, err := unstructured.NestedString(path, "path"); ok && err == nil {
-					subPath = nestedPath
+					subPath = strings.TrimSuffix(nestedPath, "*")
 				}
 				externalURL += subPath
 				urlsSet[externalURL] = true
@@ -142,11 +159,62 @@ func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	for target := range targetsMap {
 		targets = append(targets, target)
 	}
-	urls := make([]string, 0)
+
+	var urls []string
+	if res.NetworkingInfo != nil {
+		urls = res.NetworkingInfo.ExternalURLs
+	}
 	for url := range urlsSet {
 		urls = append(urls, url)
 	}
 	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetRefs: targets, Ingress: ingress, ExternalURLs: urls}
+}
+
+func populateIstioVirtualServiceInfo(un *unstructured.Unstructured, res *ResourceInfo) {
+	targetsMap := make(map[v1alpha1.ResourceRef]bool)
+
+	if rules, ok, err := unstructured.NestedSlice(un.Object, "spec", "http"); ok && err == nil {
+		for i := range rules {
+			rule, ok := rules[i].(map[string]interface{})
+			if !ok {
+				continue
+			}
+			routes, ok, err := unstructured.NestedSlice(rule, "route")
+			if !ok || err != nil {
+				continue
+			}
+			for i := range routes {
+				route, ok := routes[i].(map[string]interface{})
+				if !ok {
+					continue
+				}
+
+				if hostName, ok, err := unstructured.NestedString(route, "destination", "host"); ok && err == nil {
+					hostSplits := strings.Split(hostName, ".")
+					serviceName := hostSplits[0]
+
+					var namespace string
+					if len(hostSplits) >= 2 {
+						namespace = hostSplits[1]
+					} else {
+						namespace = un.GetNamespace()
+					}
+
+					targetsMap[v1alpha1.ResourceRef{
+						Kind:      kube.ServiceKind,
+						Name:      serviceName,
+						Namespace: namespace,
+					}] = true
+				}
+			}
+		}
+	}
+	targets := make([]v1alpha1.ResourceRef, 0)
+	for target := range targetsMap {
+		targets = append(targets, target)
+	}
+
+	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetRefs: targets}
 }
 
 func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {

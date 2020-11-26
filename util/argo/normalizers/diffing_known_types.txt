@@ -48,6 +48,7 @@ core/v1/EnvVarSource
 core/v1/EphemeralContainer
 core/v1/EphemeralContainerCommon
 core/v1/EphemeralContainers
+core/v1/EphemeralVolumeSource
 core/v1/Event
 core/v1/EventList
 core/v1/EventSeries
@@ -109,6 +110,7 @@ core/v1/PersistentVolumeClaimCondition
 core/v1/PersistentVolumeClaimList
 core/v1/PersistentVolumeClaimSpec
 core/v1/PersistentVolumeClaimStatus
+core/v1/PersistentVolumeClaimTemplate
 core/v1/PersistentVolumeClaimVolumeSource
 core/v1/PersistentVolumeList
 core/v1/PersistentVolumeSource
@@ -165,6 +167,7 @@ core/v1/ScaleIOPersistentVolumeSource
 core/v1/ScaleIOVolumeSource
 core/v1/ScopeSelector
 core/v1/ScopedResourceSelectorRequirement
+core/v1/SeccompProfile
 core/v1/Secret
 core/v1/SecretEnvSource
 core/v1/SecretKeySelector

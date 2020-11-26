@@ -1,11 +1,19 @@
 tests:
 - healthStatus:
     status: Progressing
-    message: "Waiting for roll out to finish: More replicas need to be updated"
+    message: "Waiting for rollout spec update to be observed"
   inputPath: testdata/newRolloutWithoutStatus.yaml
 - healthStatus:
+    status: Progressing
+    message: "Waiting for rollout spec update to be observed"
+  inputPath: testdata/progressing_newGeneration.yaml
+- healthStatus:
+    status: Healthy
+    message: ""
+  inputPath: testdata/healthy_legacy_v0.9_observedGeneration.yaml
+- healthStatus:
     status: Degraded
-    message: Rollout has missing field '.Spec.Strategy.Type'
+    message: "The Rollout \"basic\" is invalid: spec.strategy.strategy: Required value: Rollout has missing field '.spec.strategy.canary or .spec.strategy.blueGreen'"
   inputPath: testdata/degraded_invalidSpec.yaml
 - healthStatus:
     status: Degraded
@@ -18,7 +26,6 @@ tests:
 #BlueGreen
 - healthStatus:
     status: Healthy
-    message: The active Service is serving traffic to the current pod spec
   inputPath: testdata/bluegreen/healthy_servingActiveService.yaml
 - healthStatus:
     status: Progressing
@@ -31,7 +38,7 @@ tests:
 #Canary
 - healthStatus:
     status: Progressing
-    message: Waiting for rollout to finish steps
+    message: "Waiting for roll out to finish: More replicas need to be updated"
   inputPath: testdata/canary/progressing_setWeightStep.yaml
 - healthStatus:
     status: Progressing
@@ -47,21 +54,17 @@ tests:
   inputPath: testdata/suspended_userPause.yaml
 - healthStatus:
     status: Healthy
-    message: The rollout has completed all steps
   inputPath: testdata/canary/healthy_executedAllStepsPreV0.8.yaml
 - healthStatus:
      status: Healthy
-     message: The rollout has completed all steps
   inputPath: testdata/canary/healthy_executedAllSteps.yaml
 - healthStatus:
     status: Progressing
-    message: 'Waiting for roll out to finish: old replicas are pending termination'
+    message: 'Waiting for roll out to finish: updated replicas are still becoming available'
   inputPath: testdata/canary/progressing_noSteps.yaml
 - healthStatus:
     status: Healthy
-    message: The rollout has completed canary deployment
   inputPath: testdata/canary/healthy_noSteps.yaml
 - healthStatus:
     status: Healthy
-    message: The rollout has completed canary deployment
   inputPath: testdata/canary/healthy_emptyStepsList.yaml

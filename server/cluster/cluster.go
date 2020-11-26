@@ -142,16 +142,47 @@ func (s *Server) getCluster(ctx context.Context, q *cluster.ClusterQuery) (*appv
 	return nil, nil
 }
 
+var clusterFieldsByPath = map[string]func(updated *appv1.Cluster, existing *appv1.Cluster){
+	"name": func(updated *appv1.Cluster, existing *appv1.Cluster) {
+		updated.Name = existing.Name
+	},
+	"namespaces": func(updated *appv1.Cluster, existing *appv1.Cluster) {
+		updated.Namespaces = existing.Namespaces
+	},
+	"config": func(updated *appv1.Cluster, existing *appv1.Cluster) {
+		updated.Config = existing.Config
+	},
+	"shard": func(updated *appv1.Cluster, existing *appv1.Cluster) {
+		updated.Shard = existing.Shard
+	},
+}
+
 // Update updates a cluster
 func (s *Server) Update(ctx context.Context, q *cluster.ClusterUpdateRequest) (*appv1.Cluster, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionUpdate, q.Cluster.Server); err != nil {
 		return nil, err
 	}
+
+	if len(q.UpdatedFields) != 0 {
+		existing, err := s.db.GetCluster(ctx, q.Cluster.Server)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, path := range q.UpdatedFields {
+			if updater, ok := clusterFieldsByPath[path]; ok {
+				updater(existing, q.Cluster)
+			}
+		}
+		q.Cluster = existing
+	}
+
 	// Test the token we just created before persisting it
 	serverVersion, err := s.kubectl.GetServerVersion(q.Cluster.RESTConfig())
 	if err != nil {
 		return nil, err
 	}
+
 	clust, err := s.db.UpdateCluster(ctx, q.Cluster)
 	if err != nil {
 		return nil, err
@@ -243,6 +274,14 @@ func (s *Server) toAPIResponse(clust *appv1.Cluster) *appv1.Cluster {
 	clust.Config.Password = ""
 	clust.Config.BearerToken = ""
 	clust.Config.TLSClientConfig.KeyData = nil
+	if clust.Config.ExecProviderConfig != nil {
+		// We can't know what the user has put into args or
+		// env vars on the exec provider that might be sensitive
+		// (e.g. --private-key=XXX, PASSWORD=XXX)
+		// Implicitly assumes the command executable name is non-sensitive
+		clust.Config.ExecProviderConfig.Env = make(map[string]string)
+		clust.Config.ExecProviderConfig.Args = nil
+	}
 	// populate deprecated fields for backward compatibility
 	clust.ServerVersion = clust.Info.ServerVersion
 	clust.ConnectionState = clust.Info.ConnectionState

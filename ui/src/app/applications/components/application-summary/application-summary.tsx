@@ -2,12 +2,13 @@ import {AutocompleteField, DropDownMenu, FormField, FormSelect, HelpIcon, PopupA
 import * as React from 'react';
 import {FormApi, Text} from 'react-form';
 import {Cluster, DataLoader, EditablePanel, EditablePanelItem, Expandable, MapInputField, Repo, Revision, RevisionHelpIcon} from '../../../shared/components';
-import {Spinner} from '../../../shared/components';
-import {Consumer, Context} from '../../../shared/context';
+import {BadgePanel, Spinner} from '../../../shared/components';
+import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 
 import {ApplicationSyncOptionsField} from '../application-sync-options';
+import {RevisionFormField} from '../revision-form-field/revision-form-field';
 import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage} from '../utils';
 
 require('./application-summary.scss');
@@ -187,12 +188,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                   {
                       title: 'TARGET REVISION',
                       view: <Revision repoUrl={app.spec.source.repoURL} revision={app.spec.source.targetRevision || 'HEAD'} />,
-                      edit: (formApi: FormApi) => (
-                          <React.Fragment>
-                              <FormField formApi={formApi} field='spec.source.targetRevision' component={Text} componentProps={{placeholder: 'HEAD'}} />
-                              <RevisionHelpIcon type='git' top='0' />{' '}
-                          </React.Fragment>
-                      )
+                      edit: (formApi: FormApi) => <RevisionFormField helpIconTop={'0'} hideLabel={true} formApi={formApi} repoURL={app.spec.source.repoURL} />
                   },
                   {
                       title: 'PATH',
@@ -252,11 +248,13 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
             title: 'URLs',
             view: (
                 <React.Fragment>
-                    {urls.map(item => (
-                        <a key={item} href={item} target='__blank'>
-                            {item} &nbsp;
-                        </a>
-                    ))}
+                    {urls
+                        .map(item => item.split('|'))
+                        .map((parts, i) => (
+                            <a key={i} href={parts.length > 1 ? parts[1] : parts[0]} target='__blank'>
+                                {parts[0]} &nbsp;
+                            </a>
+                        ))}
                 </React.Fragment>
             )
         });
@@ -380,10 +378,6 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
             view: null as any,
             edit: null
         });
-    const [badgeType, setBadgeType] = React.useState('URL');
-    const context = React.useContext(Context);
-    const badgeURL = `${location.protocol}//${location.host}${context.baseHref}api/badge?name=${props.app.metadata.name}&revision=true`;
-    const appURL = `${location.protocol}//${location.host}${context.baseHref}applications/${props.app.metadata.name}`;
 
     return (
         <div className='application-summary'>
@@ -500,48 +494,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                     </div>
                 )}
             </Consumer>
-            <DataLoader load={() => services.authService.settings()}>
-                {settings =>
-                    (settings.statusBadgeEnabled && (
-                        <div className='white-box'>
-                            <div className='white-box__details'>
-                                <p>
-                                    Status Badge <img src={badgeURL} />{' '}
-                                </p>
-                                <div className='white-box__details-row'>
-                                    <DropDownMenu
-                                        anchor={() => (
-                                            <p>
-                                                {badgeType} <i className='fa fa-caret-down' />
-                                            </p>
-                                        )}
-                                        items={['URL', 'Markdown', 'Textile', 'Rdoc', 'AsciiDoc'].map(type => ({title: type, action: () => setBadgeType(type)}))}
-                                    />
-                                    <textarea
-                                        onClick={e => (e.target as HTMLInputElement).select()}
-                                        className='application-summary__badge'
-                                        readOnly={true}
-                                        value={
-                                            badgeType === 'URL'
-                                                ? badgeURL
-                                                : badgeType === 'Markdown'
-                                                ? `[![App Status](${badgeURL})](${appURL})`
-                                                : badgeType === 'Textile'
-                                                ? `!${badgeURL}!:${appURL}`
-                                                : badgeType === 'Rdoc'
-                                                ? `{<img src="${badgeURL}" alt="App Status" />}[${appURL}]`
-                                                : badgeType === 'AsciiDoc'
-                                                ? `image:${badgeURL}["App Status", link="${appURL}"]`
-                                                : ''
-                                        }
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    )) ||
-                    null
-                }
-            </DataLoader>
+            <BadgePanel app={props.app.metadata.name} />
             <EditablePanel save={props.updateApp} values={app} title='Info' items={infoItems} onModeSwitch={() => setAdjustedCount(0)} />
         </div>
     );

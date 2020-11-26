@@ -85,6 +85,8 @@ const (
 	DexAPIEndpoint = "/api/dex"
 	// LoginEndpoint is Argo CD's shorthand login endpoint which redirects to dex's OAuth 2.0 provider's consent page
 	LoginEndpoint = "/auth/login"
+	// LogoutEndpoint is Argo CD's shorthand logout endpoint which invalidates OIDC session after logout
+	LogoutEndpoint = "/auth/logout"
 	// CallbackEndpoint is Argo CD's final callback endpoint we reach after OAuth 2.0 login flow has been completed
 	CallbackEndpoint = "/auth/callback"
 	// DexCallbackEndpoint is Argo CD's final callback endpoint when Dex is configured
@@ -123,6 +125,22 @@ const (
 	AnnotationValueManagedByArgoCD = "argocd.argoproj.io"
 	// ResourcesFinalizerName the finalizer value which we inject to finalize deletion of an application
 	ResourcesFinalizerName = "resources-finalizer.argocd.argoproj.io"
+
+	// AnnotationKeyManifestGeneratePaths is an annotation that contains a list of semicolon-separated paths in the
+	// manifests repository that affects the manifest generation. Paths might be either relative or absolute. The
+	// absolute path means an absolute path within the repository and the relative path is relative to the application
+	// source path within the repository.
+	AnnotationKeyManifestGeneratePaths = "argocd.argoproj.io/manifest-generate-paths"
+
+	// AnnotationKeyLinkPrefix tells the UI to add an external link icon to the application node
+	// that links to the value given in the annotation.
+	// The annotation key must be followed by a unique identifier. Ex: link.argocd.argoproj.io/dashboard
+	// It's valid to have multiple annotations that match the prefix.
+	// Values can simply be a url or they can have
+	// an optional link title separated by a "|"
+	// Ex: "http://grafana.example.com/d/yu5UH4MMz/deployments"
+	// Ex: "Go to Dashboard|http://grafana.example.com/d/yu5UH4MMz/deployments"
+	AnnotationKeyLinkPrefix = "link.argocd.argoproj.io/"
 )
 
 // Environment variables for tuning and debugging Argo CD
@@ -154,6 +172,18 @@ const (
 	EnvGnuPGHome = "ARGOCD_GNUPGHOME"
 	// EnvWatchAPIBufferSize is the buffer size used to transfer K8S watch events to watch API consumer
 	EnvWatchAPIBufferSize = "ARGOCD_WATCH_API_BUFFER_SIZE"
+	// EnvPauseGenerationAfterFailedAttempts will pause manifest generation after the specified number of failed generation attempts
+	EnvPauseGenerationAfterFailedAttempts = "ARGOCD_PAUSE_GEN_AFTER_FAILED_ATTEMPTS"
+	// EnvPauseGenerationMinutes pauses manifest generation for the specified number of minutes, after sufficient manifest generation failures
+	EnvPauseGenerationMinutes = "ARGOCD_PAUSE_GEN_MINUTES"
+	// EnvPauseGenerationRequests pauses manifest generation for the specified number of requests, after sufficient manifest generation failures
+	EnvPauseGenerationRequests = "ARGOCD_PAUSE_GEN_REQUESTS"
+	// EnvControllerReplicas is the number of controller replicas
+	EnvControllerReplicas = "ARGOCD_CONTROLLER_REPLICAS"
+	// EnvControllerShard is the shard number that should be handled by controller
+	EnvControllerShard = "ARGOCD_CONTROLLER_SHARD"
+	// EnvEnableGRPCTimeHistogramEnv enables gRPC metrics collection
+	EnvEnableGRPCTimeHistogramEnv = "ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM"
 )
 
 const (
@@ -163,7 +193,7 @@ const (
 	MinClientVersion = "1.4.0"
 	// CacheVersion is a objects version cached using util/cache/cache.go.
 	// Number should be bumped in case of backward incompatible change to make sure cache is invalidated after upgrade.
-	CacheVersion = "1.8.0"
+	CacheVersion = "1.8.1"
 )
 
 // GetGnuPGHomePath retrieves the path to use for GnuPG home directory, which is either taken from GNUPGHOME environment or a default value

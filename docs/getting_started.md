@@ -17,12 +17,6 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/st
 
 This will create a new namespace, `argocd`, where Argo CD services and application resources will live.
 
-On GKE, you will need grant your account the ability to create new cluster roles:
-    
-```bash
-kubectl create clusterrolebinding cluster-admin-binding --clusterrole=cluster-admin --user="$(gcloud config get-value account)"
-```
-
 !!! note
     If you are not interested in UI, SSO, multi-cluster management and just want to pull changes into the cluster then you can disable
     authentication using `--disable-auth` flag and access Argo CD via CLI using `--port-forward` or `--port-forward-namespace` flags
@@ -86,6 +80,10 @@ Change the password using the command:
 argocd account update-password
 ```
 
+!!! note
+    The initial password is set in a kubernetes secret, named `argocd-secret`, during ArgoCD's initial start up. This means if you edit
+    the deployment in any way which causes a new pod to be deployed, such as disabling TLS on the Argo CD API server. Take note of the initial
+    pod name when you first install Argo CD, or reset the password by following [these instructions](https://argoproj.github.io/argo-cd/faq/#i-forgot-the-admin-password-how-do-i-reset-it)
 
 ## 5. Register A Cluster To Deploy Apps To (Optional)
 
@@ -99,9 +97,9 @@ argocd cluster add
 ```
 
 Choose a context name from the list and supply it to `argocd cluster add CONTEXTNAME`. For example,
-for docker-for-desktop context, run:
+for docker-desktop context, run:
 ```bash
-argocd cluster add docker-for-desktop
+argocd cluster add docker-desktop
 ```
 
 The above command installs a ServiceAccount (`argocd-manager`), into the kube-system namespace of 

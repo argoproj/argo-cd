@@ -3,16 +3,17 @@ package repository
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/Masterminds/semver"
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -24,11 +25,13 @@ import (
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/reposerver/cache"
 	"github.com/argoproj/argo-cd/reposerver/metrics"
+	fileutil "github.com/argoproj/argo-cd/test/fixture/path"
 	cacheutil "github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/git"
 	gitmocks "github.com/argoproj/argo-cd/util/git/mocks"
 	"github.com/argoproj/argo-cd/util/helm"
 	helmmocks "github.com/argoproj/argo-cd/util/helm/mocks"
+	"github.com/argoproj/argo-cd/util/io"
 )
 
 const testSignature = `gpg: Signature made Wed Feb 26 23:22:34 2020 CET
@@ -36,28 +39,40 @@ gpg:                using RSA key 4AEE18F83AFDEB23
 gpg: Good signature from "GitHub (web-flow commit signing) <noreply@github.com>" [ultimate]
 `
 
+type clientFunc func(*gitmocks.Client)
+
 func newServiceWithMocks(root string, signed bool) (*Service, *gitmocks.Client) {
-	service := NewService(metrics.NewMetricsServer(), cache.NewCache(
-		cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Minute)),
-		1*time.Minute,
-	), 1)
-	helmClient := &helmmocks.Client{}
-	gitClient := &gitmocks.Client{}
 	root, err := filepath.Abs(root)
 	if err != nil {
 		panic(err)
 	}
-	gitClient.On("Init").Return(nil)
-	gitClient.On("Fetch").Return(nil)
-	gitClient.On("Checkout", mock.Anything).Return(nil)
-	gitClient.On("LsRemote", mock.Anything).Return(mock.Anything, nil)
-	gitClient.On("CommitSHA").Return(mock.Anything, nil)
-	gitClient.On("Root").Return(root)
-	if signed {
-		gitClient.On("VerifyCommitSignature", mock.Anything).Return(testSignature, nil)
-	} else {
-		gitClient.On("VerifyCommitSignature", mock.Anything).Return("", nil)
-	}
+	return newServiceWithOpt(func(gitClient *gitmocks.Client) {
+		gitClient.On("Init").Return(nil)
+		gitClient.On("Fetch").Return(nil)
+		gitClient.On("Checkout", mock.Anything).Return(nil)
+		gitClient.On("LsRemote", mock.Anything).Return(mock.Anything, nil)
+		gitClient.On("CommitSHA").Return(mock.Anything, nil)
+		gitClient.On("Root").Return(root)
+		if signed {
+			gitClient.On("VerifyCommitSignature", mock.Anything).Return(testSignature, nil)
+		} else {
+			gitClient.On("VerifyCommitSignature", mock.Anything).Return("", nil)
+		}
+	})
+}
+
+func newServiceWithOpt(cf clientFunc) (*Service, *gitmocks.Client) {
+	// root, err := filepath.Abs(root)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	helmClient := &helmmocks.Client{}
+	gitClient := &gitmocks.Client{}
+	cf(gitClient)
+	service := NewService(metrics.NewMetricsServer(), cache.NewCache(
+		cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Minute)),
+		1*time.Minute,
+	), RepoServerInitConstants{ParallelismLimit: 1})
 
 	chart := "my-chart"
 	version := semver.MustParse("1.1.0")
@@ -70,7 +85,7 @@ func newServiceWithMocks(root string, signed bool) (*Service, *gitmocks.Client) 
 	service.newGitClient = func(rawRepoURL string, creds git.Creds, insecure bool, enableLfs bool) (client git.Client, e error) {
 		return gitClient, nil
 	}
-	service.newHelmClient = func(repoURL string, creds helm.Creds) helm.Client {
+	service.newHelmClient = func(repoURL string, creds helm.Creds, enableOci bool) helm.Client {
 		return helmClient
 	}
 	return service, gitClient
@@ -86,6 +101,30 @@ func newServiceWithSignature(root string) *Service {
 	return service
 }
 
+func newServiceWithCommitSHA(root, revision string) *Service {
+	var revisionErr error
+
+	commitSHARegex := regexp.MustCompile("^[0-9A-Fa-f]{40}$")
+	if !commitSHARegex.MatchString(revision) {
+		revisionErr = errors.New("not a commit SHA")
+	}
+
+	service, gitClient := newServiceWithOpt(func(gitClient *gitmocks.Client) {
+		gitClient.On("Init").Return(nil)
+		gitClient.On("Fetch").Return(nil)
+		gitClient.On("Checkout", mock.Anything).Return(nil)
+		gitClient.On("LsRemote", revision).Return(revision, revisionErr)
+		gitClient.On("CommitSHA").Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
+		gitClient.On("Root").Return(root)
+	})
+
+	service.newGitClient = func(rawRepoURL string, creds git.Creds, insecure bool, enableLfs bool) (client git.Client, e error) {
+		return gitClient, nil
+	}
+
+	return service
+}
+
 func TestGenerateYamlManifestInDir(t *testing.T) {
 	service := newService("../..")
 
@@ -93,7 +132,7 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src}
 
 	// update this value if we add/remove manifests
-	const countOfManifests = 26
+	const countOfManifests = 29
 
 	res1, err := service.GenerateManifest(context.Background(), &q)
 
@@ -148,6 +187,17 @@ func TestRecurseManifestsInDir(t *testing.T) {
 	assert.Equal(t, 2, len(res1.Manifests))
 }
 
+func TestInvalidManifestsInDir(t *testing.T) {
+	service := newService(".")
+
+	src := argoappv1.ApplicationSource{Path: "./testdata/invalid-manifests", Directory: &argoappv1.ApplicationSourceDirectory{Recurse: true}}
+
+	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src}
+
+	_, err := service.GenerateManifest(context.Background(), &q)
+	assert.NotNil(t, err)
+}
+
 func TestGenerateJsonnetManifestInDir(t *testing.T) {
 	service := newService(".")
 
@@ -191,15 +241,349 @@ func TestGenerateKsonnetManifest(t *testing.T) {
 func TestGenerateHelmChartWithDependencies(t *testing.T) {
 	service := newService("../..")
 
+	cleanup := func() {
+		_ = os.Remove(filepath.Join("../../util/helm/testdata/helm2-dependency", helmDepUpMarkerFile))
+		_ = os.RemoveAll(filepath.Join("../../util/helm/testdata/helm2-dependency", "charts"))
+	}
+	cleanup()
+	defer cleanup()
+
+	helmRepo := argoappv1.Repository{Name: "bitnami", Type: "helm", Repo: "https://charts.bitnami.com/bitnami"}
 	q := apiclient.ManifestRequest{
 		Repo: &argoappv1.Repository{},
 		ApplicationSource: &argoappv1.ApplicationSource{
 			Path: "./util/helm/testdata/helm2-dependency",
 		},
+		Repos: []*argoappv1.Repository{&helmRepo},
 	}
 	res1, err := service.GenerateManifest(context.Background(), &q)
 	assert.Nil(t, err)
-	assert.Len(t, res1.Manifests, 12)
+	assert.Len(t, res1.Manifests, 10)
+}
+
+func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
+
+	// Returns the state of the manifest generation cache, by querying the cache for the previously set result
+	getRecentCachedEntry := func(service *Service, manifestRequest *apiclient.ManifestRequest) *cache.CachedManifestResponse {
+		assert.NotNil(t, service)
+		assert.NotNil(t, manifestRequest)
+
+		cachedManifestResponse := &cache.CachedManifestResponse{}
+		err := service.cache.GetManifests(mock.Anything, manifestRequest.ApplicationSource, manifestRequest.Namespace, manifestRequest.AppLabelKey, manifestRequest.AppLabelValue, cachedManifestResponse)
+		assert.Nil(t, err)
+		return cachedManifestResponse
+	}
+
+	// Example:
+	// With repo server (test) parameters:
+	// - PauseGenerationAfterFailedGenerationAttempts: 2
+	// - PauseGenerationOnFailureForRequests: 4
+	// - TotalCacheInvocations: 10
+	//
+	// After 2 manifest generation failures in a row, the next 4 manifest generation requests should be cached,
+	// with the next 2 after that being uncached. Here's how it looks...
+	//
+	//  request count) result
+	// --------------------------
+	// 1) Attempt to generate manifest, fails.
+	// 2) Second attempt to generate manifest, fails.
+	// 3) Return cached error attempt from #2
+	// 4) Return cached error attempt from #2
+	// 5) Return cached error attempt from #2
+	// 6) Return cached error attempt from #2. Max response limit hit, so reset cache entry.
+	// 7) Attempt to generate manifest, fails.
+	// 8) Attempt to generate manifest, fails.
+	// 9) Return cached error attempt from #8
+	// 10) Return cached error attempt from #8
+
+	// The same pattern PauseGenerationAfterFailedGenerationAttempts generation attempts, followed by
+	// PauseGenerationOnFailureForRequests cached responses, should apply for various combinations of
+	// both parameters.
+
+	tests := []struct {
+		PauseGenerationAfterFailedGenerationAttempts int
+		PauseGenerationOnFailureForRequests          int
+		TotalCacheInvocations                        int
+	}{
+		{2, 4, 10},
+		{3, 5, 10},
+		{1, 2, 5},
+	}
+	for _, tt := range tests {
+		testName := fmt.Sprintf("gen-attempts-%d-pause-%d-total-%d", tt.PauseGenerationAfterFailedGenerationAttempts, tt.PauseGenerationOnFailureForRequests, tt.TotalCacheInvocations)
+		t.Run(testName, func(t *testing.T) {
+			service := newService(".")
+
+			service.initConstants = RepoServerInitConstants{
+				ParallelismLimit: 1,
+				PauseGenerationAfterFailedGenerationAttempts: tt.PauseGenerationAfterFailedGenerationAttempts,
+				PauseGenerationOnFailureForMinutes:           0,
+				PauseGenerationOnFailureForRequests:          tt.PauseGenerationOnFailureForRequests,
+			}
+
+			totalAttempts := service.initConstants.PauseGenerationAfterFailedGenerationAttempts + service.initConstants.PauseGenerationOnFailureForRequests
+
+			for invocationCount := 0; invocationCount < tt.TotalCacheInvocations; invocationCount++ {
+				adjustedInvocation := invocationCount % totalAttempts
+
+				fmt.Printf("%d )-------------------------------------------\n", invocationCount)
+
+				manifestRequest := &apiclient.ManifestRequest{
+					Repo:          &argoappv1.Repository{},
+					AppLabelValue: "test",
+					ApplicationSource: &argoappv1.ApplicationSource{
+						Path: "./testdata/invalid-helm",
+					},
+				}
+
+				res, err := service.GenerateManifest(context.Background(), manifestRequest)
+
+				// Verify invariant: res != nil xor err != nil
+				if err != nil {
+					assert.True(t, res == nil, "both err and res are non-nil res: %v   err: %v", res, err)
+				} else {
+					assert.True(t, res != nil, "both err and res are nil")
+				}
+
+				cachedManifestResponse := getRecentCachedEntry(service, manifestRequest)
+
+				isCachedError := err != nil && strings.HasPrefix(err.Error(), cachedManifestGenerationPrefix)
+
+				if adjustedInvocation < service.initConstants.PauseGenerationAfterFailedGenerationAttempts {
+					// GenerateManifest should not return cached errors for the first X responses, where X is the FailGenAttempts constants
+					assert.True(t, !isCachedError)
+
+					assert.True(t, cachedManifestResponse != nil)
+					// nolint:staticcheck
+					assert.True(t, cachedManifestResponse.ManifestResponse == nil)
+					// nolint:staticcheck
+					assert.True(t, cachedManifestResponse.FirstFailureTimestamp != 0)
+
+					// Internal cache consec failures value should increase with invocations, cached response should stay the same,
+					// nolint:staticcheck
+					assert.True(t, cachedManifestResponse.NumberOfConsecutiveFailures == adjustedInvocation+1)
+					// nolint:staticcheck
+					assert.True(t, cachedManifestResponse.NumberOfCachedResponsesReturned == 0)
+
+				} else {
+					// GenerateManifest SHOULD return cached errors for the next X responses, where X is the
+					// PauseGenerationOnFailureForRequests constant
+					assert.True(t, isCachedError)
+					assert.True(t, cachedManifestResponse != nil)
+					// nolint:staticcheck
+					assert.True(t, cachedManifestResponse.ManifestResponse == nil)
+					// nolint:staticcheck
+					assert.True(t, cachedManifestResponse.FirstFailureTimestamp != 0)
+
+					// Internal cache values should update correctly based on number of return cache entries, consecutive failures should stay the same
+					// nolint:staticcheck
+					assert.True(t, cachedManifestResponse.NumberOfConsecutiveFailures == service.initConstants.PauseGenerationAfterFailedGenerationAttempts)
+					// nolint:staticcheck
+					assert.True(t, cachedManifestResponse.NumberOfCachedResponsesReturned == (adjustedInvocation-service.initConstants.PauseGenerationAfterFailedGenerationAttempts+1))
+				}
+			}
+		})
+	}
+}
+
+func TestManifestGenErrorCacheFileContentsChange(t *testing.T) {
+
+	tmpDir, err := ioutil.TempDir("", "repository-test-")
+	assert.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
+
+	service := newService(tmpDir)
+
+	service.initConstants = RepoServerInitConstants{
+		ParallelismLimit: 1,
+		PauseGenerationAfterFailedGenerationAttempts: 2,
+		PauseGenerationOnFailureForMinutes:           0,
+		PauseGenerationOnFailureForRequests:          4,
+	}
+
+	for step := 0; step < 3; step++ {
+
+		// step 1) Attempt to generate manifests against invalid helm chart (should return uncached error)
+		// step 2) Attempt to generate manifest against valid helm chart (should succeed and return valid response)
+		// step 3) Attempt to generate manifest against invalid helm chart (should return cached value from step 2)
+
+		errorExpected := step%2 == 0
+
+		// Ensure that the target directory will succeed or fail, so we can verify the cache correctly handles it
+		err = os.RemoveAll(tmpDir)
+		assert.NoError(t, err)
+		err = os.MkdirAll(tmpDir, 0777)
+		assert.NoError(t, err)
+		if errorExpected {
+			// Copy invalid helm chart into temporary directory, ensuring manifest generation will fail
+			err = fileutil.CopyDir("./testdata/invalid-helm", tmpDir)
+			assert.NoError(t, err)
+
+		} else {
+			// Copy valid helm chart into temporary directory, ensuring generation will succeed
+			err = fileutil.CopyDir("./testdata/my-chart", tmpDir)
+			assert.NoError(t, err)
+		}
+
+		res, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+			Repo:          &argoappv1.Repository{},
+			AppLabelValue: "test",
+			ApplicationSource: &argoappv1.ApplicationSource{
+				Path: ".",
+			},
+		})
+
+		fmt.Println("-", step, "-", res != nil, err != nil, errorExpected)
+		fmt.Println("    err: ", err)
+		fmt.Println("    res: ", res)
+
+		if step < 2 {
+			assert.True(t, (err != nil) == errorExpected, "error return value and error expected did not match")
+			assert.True(t, (res != nil) == !errorExpected, "GenerateManifest return value and expected value did not match")
+		}
+
+		if step == 2 {
+			assert.True(t, err == nil, "error ret val was non-nil on step 3")
+			assert.True(t, res != nil, "GenerateManifest ret val was nil on step 3")
+		}
+	}
+}
+
+func TestManifestGenErrorCacheByMinutesElapsed(t *testing.T) {
+
+	tests := []struct {
+		// Test with a range of pause expiration thresholds
+		PauseGenerationOnFailureForMinutes int
+	}{
+		{1}, {2}, {10}, {24 * 60},
+	}
+	for _, tt := range tests {
+		testName := fmt.Sprintf("pause-time-%d", tt.PauseGenerationOnFailureForMinutes)
+		t.Run(testName, func(t *testing.T) {
+			service := newService(".")
+
+			// Here we simulate the passage of time by overriding the now() function of Service
+			currentTime := time.Now()
+			service.now = func() time.Time {
+				return currentTime
+			}
+
+			service.initConstants = RepoServerInitConstants{
+				ParallelismLimit: 1,
+				PauseGenerationAfterFailedGenerationAttempts: 1,
+				PauseGenerationOnFailureForMinutes:           tt.PauseGenerationOnFailureForMinutes,
+				PauseGenerationOnFailureForRequests:          0,
+			}
+
+			// 1) Put the cache into the failure state
+			for x := 0; x < 2; x++ {
+				res, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+					Repo:          &argoappv1.Repository{},
+					AppLabelValue: "test",
+					ApplicationSource: &argoappv1.ApplicationSource{
+						Path: "./testdata/invalid-helm",
+					},
+				})
+
+				assert.True(t, err != nil && res == nil)
+
+				// Ensure that the second invocation triggers the cached error state
+				if x == 1 {
+					assert.True(t, strings.HasPrefix(err.Error(), cachedManifestGenerationPrefix))
+				}
+
+			}
+
+			// 2) Jump forward X-1 minutes in time, where X is the expiration boundary
+			currentTime = currentTime.Add(time.Duration(tt.PauseGenerationOnFailureForMinutes-1) * time.Minute)
+			res, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+				Repo:          &argoappv1.Repository{},
+				AppLabelValue: "test",
+				ApplicationSource: &argoappv1.ApplicationSource{
+					Path: "./testdata/invalid-helm",
+				},
+			})
+
+			// 3) Ensure that the cache still returns a cached copy of the last error
+			assert.True(t, err != nil && res == nil)
+			assert.True(t, strings.HasPrefix(err.Error(), cachedManifestGenerationPrefix))
+
+			// 4) Jump forward 2 minutes in time, such that the pause generation time has elapsed and we should return to normal state
+			currentTime = currentTime.Add(2 * time.Minute)
+
+			res, err = service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+				Repo:          &argoappv1.Repository{},
+				AppLabelValue: "test",
+				ApplicationSource: &argoappv1.ApplicationSource{
+					Path: "./testdata/invalid-helm",
+				},
+			})
+
+			// 5) Ensure that the service no longer returns a cached copy of the last error
+			assert.True(t, err != nil && res == nil)
+			assert.True(t, !strings.HasPrefix(err.Error(), cachedManifestGenerationPrefix))
+
+		})
+	}
+
+}
+
+func TestManifestGenErrorCacheRespectsNoCache(t *testing.T) {
+
+	service := newService(".")
+
+	service.initConstants = RepoServerInitConstants{
+		ParallelismLimit: 1,
+		PauseGenerationAfterFailedGenerationAttempts: 1,
+		PauseGenerationOnFailureForMinutes:           0,
+		PauseGenerationOnFailureForRequests:          4,
+	}
+
+	// 1) Put the cache into the failure state
+	for x := 0; x < 2; x++ {
+		res, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+			Repo:          &argoappv1.Repository{},
+			AppLabelValue: "test",
+			ApplicationSource: &argoappv1.ApplicationSource{
+				Path: "./testdata/invalid-helm",
+			},
+		})
+
+		assert.True(t, err != nil && res == nil)
+
+		// Ensure that the second invocation is cached
+		if x == 1 {
+			assert.True(t, strings.HasPrefix(err.Error(), cachedManifestGenerationPrefix))
+		}
+	}
+
+	// 2) Call generateManifest with NoCache enabled
+	res, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+		Repo:          &argoappv1.Repository{},
+		AppLabelValue: "test",
+		ApplicationSource: &argoappv1.ApplicationSource{
+			Path: "./testdata/invalid-helm",
+		},
+		NoCache: true,
+	})
+
+	// 3) Ensure that the cache returns a new generation attempt, rather than a previous cached error
+	assert.True(t, err != nil && res == nil)
+	assert.True(t, !strings.HasPrefix(err.Error(), cachedManifestGenerationPrefix))
+
+	// 4) Call generateManifest
+	res, err = service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+		Repo:          &argoappv1.Repository{},
+		AppLabelValue: "test",
+		ApplicationSource: &argoappv1.ApplicationSource{
+			Path: "./testdata/invalid-helm",
+		},
+	})
+
+	// 5) Ensure that the subsequent invocation, after nocache, is cached
+	assert.True(t, err != nil && res == nil)
+	assert.True(t, strings.HasPrefix(err.Error(), cachedManifestGenerationPrefix))
+
 }
 
 func TestGenerateHelmWithValues(t *testing.T) {
@@ -598,8 +982,9 @@ func TestGetRevisionMetadata(t *testing.T) {
 	}, nil)
 
 	res, err := service.GetRevisionMetadata(context.Background(), &apiclient.RepoServerRevisionMetadataRequest{
-		Repo:     &argoappv1.Repository{},
-		Revision: "c0b400fc458875d925171398f9ba9eabd5529923",
+		Repo:           &argoappv1.Repository{},
+		Revision:       "c0b400fc458875d925171398f9ba9eabd5529923",
+		CheckSignature: true,
 	})
 
 	assert.NoError(t, err)
@@ -607,7 +992,34 @@ func TestGetRevisionMetadata(t *testing.T) {
 	assert.Equal(t, now, res.Date.Time)
 	assert.Equal(t, "author", res.Author)
 	assert.EqualValues(t, []string{"tag1", "tag2"}, res.Tags)
+	assert.NotEmpty(t, res.SignatureInfo)
 
+	// Cache hit - signature info should not be in result
+	res, err = service.GetRevisionMetadata(context.Background(), &apiclient.RepoServerRevisionMetadataRequest{
+		Repo:           &argoappv1.Repository{},
+		Revision:       "c0b400fc458875d925171398f9ba9eabd5529923",
+		CheckSignature: false,
+	})
+	assert.NoError(t, err)
+	assert.Empty(t, res.SignatureInfo)
+
+	// Enforce cache miss - signature info should not be in result
+	res, err = service.GetRevisionMetadata(context.Background(), &apiclient.RepoServerRevisionMetadataRequest{
+		Repo:           &argoappv1.Repository{},
+		Revision:       "c0b400fc458875d925171398f9ba9eabd5529924",
+		CheckSignature: false,
+	})
+	assert.NoError(t, err)
+	assert.Empty(t, res.SignatureInfo)
+
+	// Cache hit on previous entry that did not have signature info
+	res, err = service.GetRevisionMetadata(context.Background(), &apiclient.RepoServerRevisionMetadataRequest{
+		Repo:           &argoappv1.Repository{},
+		Revision:       "c0b400fc458875d925171398f9ba9eabd5529924",
+		CheckSignature: true,
+	})
+	assert.NoError(t, err)
+	assert.NotEmpty(t, res.SignatureInfo)
 }
 
 func TestGetSignatureVerificationResult(t *testing.T) {
@@ -736,4 +1148,79 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 		return
 	}
 	assert.Equal(t, "gcr.io/heptio-images/ks-guestbook-demo:0.2", image)
+}
+
+func TestGenerateManifestWithAnnotatedAndRegularGitTagHashes(t *testing.T) {
+	regularGitTagHash := "632039659e542ed7de0c170a4fcc1c571b288fc0"
+	annotatedGitTaghash := "95249be61b028d566c29d47b19e65c5603388a41"
+	invalidGitTaghash := "invalid-tag"
+	actualCommitSHA := "632039659e542ed7de0c170a4fcc1c571b288fc0"
+
+	tests := []struct {
+		name            string
+		ctx             context.Context
+		manifestRequest *apiclient.ManifestRequest
+		wantError       bool
+		service         *Service
+	}{
+		{
+			name: "Case: Git tag hash matches latest commit SHA (regular tag)",
+			ctx:  context.Background(),
+			manifestRequest: &apiclient.ManifestRequest{
+				Repo: &argoappv1.Repository{},
+				ApplicationSource: &argoappv1.ApplicationSource{
+					TargetRevision: regularGitTagHash,
+				},
+				NoCache: true,
+			},
+			wantError: false,
+			service:   newServiceWithCommitSHA(".", regularGitTagHash),
+		},
+
+		{
+			name: "Case: Git tag hash does not match latest commit SHA (annotated tag)",
+			ctx:  context.Background(),
+			manifestRequest: &apiclient.ManifestRequest{
+				Repo: &argoappv1.Repository{},
+				ApplicationSource: &argoappv1.ApplicationSource{
+					TargetRevision: annotatedGitTaghash,
+				},
+				NoCache: true,
+			},
+			wantError: false,
+			service:   newServiceWithCommitSHA(".", annotatedGitTaghash),
+		},
+
+		{
+			name: "Case: Git tag hash is invalid",
+			ctx:  context.Background(),
+			manifestRequest: &apiclient.ManifestRequest{
+				Repo: &argoappv1.Repository{},
+				ApplicationSource: &argoappv1.ApplicationSource{
+					TargetRevision: invalidGitTaghash,
+				},
+				NoCache: true,
+			},
+			wantError: true,
+			service:   newServiceWithCommitSHA(".", invalidGitTaghash),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			manifestResponse, err := tt.service.GenerateManifest(tt.ctx, tt.manifestRequest)
+			if !tt.wantError {
+				if err == nil {
+					assert.Equal(t, manifestResponse.Revision, actualCommitSHA)
+				} else {
+					t.Errorf("unexpected error")
+				}
+			} else {
+				if err == nil {
+					t.Errorf("expected an error but did not throw one")
+				}
+			}
+
+		})
+	}
+
 }

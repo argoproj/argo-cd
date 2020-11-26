@@ -9,8 +9,6 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/errors"
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
@@ -22,6 +20,8 @@ import (
 	clusterpkg "github.com/argoproj/argo-cd/pkg/apiclient/cluster"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/clusterauth"
+	"github.com/argoproj/argo-cd/util/errors"
+	"github.com/argoproj/argo-cd/util/io"
 )
 
 // NewClusterCommand returns a new instance of an `argocd cluster` command
@@ -58,14 +58,20 @@ func NewClusterCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientc
 // NewClusterAddCommand returns a new instance of an `argocd cluster add` command
 func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientcmd.PathOptions) *cobra.Command {
 	var (
-		inCluster       bool
-		upsert          bool
-		serviceAccount  string
-		awsRoleArn      string
-		awsClusterName  string
-		systemNamespace string
-		namespaces      []string
-		name            string
+		inCluster               bool
+		upsert                  bool
+		serviceAccount          string
+		awsRoleArn              string
+		awsClusterName          string
+		systemNamespace         string
+		namespaces              []string
+		name                    string
+		shard                   int64
+		execProviderCommand     string
+		execProviderArgs        []string
+		execProviderEnv         map[string]string
+		execProviderAPIVersion  string
+		execProviderInstallHint string
 	)
 	var command = &cobra.Command{
 		Use:   "add CONTEXT",
@@ -94,10 +100,19 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 
 			managerBearerToken := ""
 			var awsAuthConf *argoappv1.AWSAuthConfig
+			var execProviderConf *argoappv1.ExecProviderConfig
 			if awsClusterName != "" {
 				awsAuthConf = &argoappv1.AWSAuthConfig{
 					ClusterName: awsClusterName,
 					RoleARN:     awsRoleArn,
+				}
+			} else if execProviderCommand != "" {
+				execProviderConf = &argoappv1.ExecProviderConfig{
+					Command:     execProviderCommand,
+					Args:        execProviderArgs,
+					Env:         execProviderEnv,
+					APIVersion:  execProviderAPIVersion,
+					InstallHint: execProviderInstallHint,
 				}
 			} else {
 				// Install RBAC resources for managing the cluster
@@ -115,9 +130,12 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			if name != "" {
 				contextName = name
 			}
-			clst := newCluster(contextName, namespaces, conf, managerBearerToken, awsAuthConf)
+			clst := newCluster(contextName, namespaces, conf, managerBearerToken, awsAuthConf, execProviderConf)
 			if inCluster {
 				clst.Server = common.KubernetesInternalAPIServerAddr
+			}
+			if shard >= 0 {
+				clst.Shard = &shard
 			}
 			clstCreateReq := clusterpkg.ClusterCreateRequest{
 				Cluster: clst,
@@ -137,6 +155,12 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 	command.Flags().StringVar(&systemNamespace, "system-namespace", common.DefaultSystemNamespace, "Use different system namespace")
 	command.Flags().StringArrayVar(&namespaces, "namespace", nil, "List of namespaces which are allowed to manage")
 	command.Flags().StringVar(&name, "name", "", "Overwrite the cluster name")
+	command.Flags().Int64Var(&shard, "shard", -1, "Cluster shard number; inferred from hostname if not set")
+	command.Flags().StringVar(&execProviderCommand, "exec-command", "", "Command to run to provide client credentials to the cluster. You may need to build a custom ArgoCD image to ensure the command is available at runtime.")
+	command.Flags().StringArrayVar(&execProviderArgs, "exec-command-args", nil, "Arguments to supply to the --exec-command command")
+	command.Flags().StringToStringVar(&execProviderEnv, "exec-command-env", nil, "Environment vars to set when running the --exec-command command")
+	command.Flags().StringVar(&execProviderAPIVersion, "exec-command-api-version", "", "Preferred input version of the ExecInfo for the --exec-command")
+	command.Flags().StringVar(&execProviderInstallHint, "exec-command-install-hint", "", "Text shown to the user when the --exec-command executable doesn't seem to be present")
 	return command
 }
 
@@ -179,7 +203,7 @@ func printKubeContexts(ca clientcmd.ConfigAccess) {
 	}
 }
 
-func newCluster(name string, namespaces []string, conf *rest.Config, managerBearerToken string, awsAuthConf *argoappv1.AWSAuthConfig) *argoappv1.Cluster {
+func newCluster(name string, namespaces []string, conf *rest.Config, managerBearerToken string, awsAuthConf *argoappv1.AWSAuthConfig, execProviderConf *argoappv1.ExecProviderConfig) *argoappv1.Cluster {
 	tlsClientConfig := argoappv1.TLSClientConfig{
 		Insecure:   conf.TLSClientConfig.Insecure,
 		ServerName: conf.TLSClientConfig.ServerName,
@@ -208,8 +232,9 @@ func newCluster(name string, namespaces []string, conf *rest.Config, managerBear
 		Name:       name,
 		Namespaces: namespaces,
 		Config: argoappv1.ClusterConfig{
-			TLSClientConfig: tlsClientConfig,
-			AWSAuthConfig:   awsAuthConf,
+			TLSClientConfig:    tlsClientConfig,
+			AWSAuthConfig:      awsAuthConf,
+			ExecProviderConfig: execProviderConf,
 		},
 	}
 

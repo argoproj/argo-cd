@@ -162,9 +162,24 @@ export class ApplicationsService {
     }
 
     public getContainerLogs(applicationName: string, namespace: string, podName: string, containerName: string): Observable<models.LogEntry> {
-        return requests
+        const entries = requests
             .loadEventSource(`/applications/${applicationName}/pods/${podName}/logs?container=${containerName}&follow=true&namespace=${namespace}`)
             .map(data => JSON.parse(data).result as models.LogEntry);
+        return new Observable(observer => {
+            const subscription = entries.subscribe(
+                entry => {
+                    if (entry.last) {
+                        observer.complete();
+                        subscription.unsubscribe();
+                    } else {
+                        observer.next(entry);
+                    }
+                },
+                err => observer.error(err),
+                () => observer.complete()
+            );
+            return () => subscription.unsubscribe();
+        });
     }
 
     public getResource(name: string, resource: models.ResourceNode): Promise<models.State> {

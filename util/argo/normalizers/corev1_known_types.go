@@ -154,6 +154,9 @@ func init() {
 	knownTypes["core/v1/EphemeralContainers"] = func() interface{} {
 		return &corev1.EphemeralContainers{}
 	}
+	knownTypes["core/v1/EphemeralVolumeSource"] = func() interface{} {
+		return &corev1.EphemeralVolumeSource{}
+	}
 	knownTypes["core/v1/Event"] = func() interface{} {
 		return &corev1.Event{}
 	}
@@ -337,6 +340,9 @@ func init() {
 	knownTypes["core/v1/PersistentVolumeClaimStatus"] = func() interface{} {
 		return &corev1.PersistentVolumeClaimStatus{}
 	}
+	knownTypes["core/v1/PersistentVolumeClaimTemplate"] = func() interface{} {
+		return &corev1.PersistentVolumeClaimTemplate{}
+	}
 	knownTypes["core/v1/PersistentVolumeClaimVolumeSource"] = func() interface{} {
 		return &corev1.PersistentVolumeClaimVolumeSource{}
 	}
@@ -504,6 +510,9 @@ func init() {
 	}
 	knownTypes["core/v1/ScopedResourceSelectorRequirement"] = func() interface{} {
 		return &corev1.ScopedResourceSelectorRequirement{}
+	}
+	knownTypes["core/v1/SeccompProfile"] = func() interface{} {
+		return &corev1.SeccompProfile{}
 	}
 	knownTypes["core/v1/Secret"] = func() interface{} {
 		return &corev1.Secret{}

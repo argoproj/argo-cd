@@ -26,7 +26,7 @@ spec:
           name: static-files
       containers:
       - name: dex
-        image: quay.io/dexidp/dex:v2.22.0
+        image: quay.io/dexidp/dex:v2.25.0
         imagePullPolicy: Always
         command: [/shared/argocd-util, rundex]
         ports:
@@ -39,3 +39,12 @@ spec:
       volumes:
       - emptyDir: {}
         name: static-files
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 5
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/part-of: argocd
+              topologyKey: kubernetes.io/hostname
