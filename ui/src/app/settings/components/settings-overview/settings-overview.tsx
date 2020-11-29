@@ -36,10 +36,15 @@ const settings = [
         title: 'Accounts',
         description: 'Configure Accounts',
         path: './accounts'
+    },
+    {
+        title: 'UI settings',
+        description: 'Configure the UI',
+        path: './uisettings'
     }
 ];
 
-export const SettingsOverview: React.StatelessComponent = (props: any, context: AppContext) => (
+export const SettingsOverview: React.FunctionComponent = (props: any, context: AppContext) => (
     <Page title='Settings' toolbar={{breadcrumbs: [{title: 'Settings'}]}}>
         <div className='settings-overview'>
             <div className='argo-container'>
