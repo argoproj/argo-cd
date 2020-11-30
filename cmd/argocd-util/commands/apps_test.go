@@ -89,7 +89,7 @@ func TestGetReconcileResults_Refresh(t *testing.T) {
 	deployment := test.NewDeployment()
 	kubeClientset := kubefake.NewSimpleClientset(deployment, &cm)
 	clusterCache := clustermocks.ClusterCache{}
-	clusterCache.On("IsNamespaced", mock.Anything).Return(true, nil)
+	clusterCache.On("IsNamespaced", mock.Anything, mock.Anything).Return(true, nil)
 	repoServerClient := mocks.RepoServerServiceClient{}
 	repoServerClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(&apiclient.ManifestResponse{
 		Manifests: []string{test.DeploymentManifest},
@@ -99,10 +99,10 @@ func TestGetReconcileResults_Refresh(t *testing.T) {
 	liveStateCache.On("GetManagedLiveObjs", mock.Anything, mock.Anything).Return(map[kube.ResourceKey]*unstructured.Unstructured{
 		kube.GetResourceKey(deployment): deployment,
 	}, nil)
-	liveStateCache.On("GetVersionsInfo", mock.Anything).Return("v1.2.3", nil, nil)
+	liveStateCache.On("GetVersionsInfo", mock.Anything, mock.Anything).Return("v1.2.3", nil, nil)
 	liveStateCache.On("Init").Return(nil, nil)
-	liveStateCache.On("GetClusterCache", mock.Anything).Return(&clusterCache, nil)
-	liveStateCache.On("IsNamespaced", mock.Anything, mock.Anything).Return(true, nil)
+	liveStateCache.On("GetClusterCache", mock.Anything, mock.Anything).Return(&clusterCache, nil)
+	liveStateCache.On("IsNamespaced", mock.Anything, mock.Anything, mock.Anything).Return(true, nil)
 
 	result, err := reconcileApplications(kubeClientset, appClientset, "default", &repoServerClientset, "",
 		func(argoDB db.ArgoDB, appInformer cache.SharedIndexInformer, settingsMgr *settings.SettingsManager, server *metrics.MetricsServer) statecache.LiveStateCache {

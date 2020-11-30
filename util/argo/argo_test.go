@@ -251,7 +251,7 @@ func TestValidateRepo(t *testing.T) {
 
 	db.On("GetRepository", context.Background(), app.Spec.Source.RepoURL).Return(repo, nil)
 	db.On("ListHelmRepositories", context.Background()).Return(helmRepos, nil)
-	db.On("GetCluster", context.Background(), app.Spec.Destination.Server).Return(cluster, nil)
+	db.On("GetCluster", context.Background(), app.Spec.Destination.Server, app.Spec.Destination.Name).Return(cluster, nil)
 
 	var receivedRequest *apiclient.ManifestRequest
 
@@ -412,7 +412,7 @@ func TestValidatePermissions(t *testing.T) {
 		}
 		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443"}
 		db := &dbmocks.ArgoDB{}
-		db.On("GetCluster", context.Background(), spec.Destination.Server).Return(cluster, nil)
+		db.On("GetCluster", context.Background(), spec.Destination.Server, spec.Destination.Name).Return(cluster, nil)
 		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
 		assert.NoError(t, err)
 		assert.Len(t, conditions, 1)
@@ -445,7 +445,7 @@ func TestValidatePermissions(t *testing.T) {
 		}
 		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443"}
 		db := &dbmocks.ArgoDB{}
-		db.On("GetCluster", context.Background(), spec.Destination.Server).Return(cluster, nil)
+		db.On("GetCluster", context.Background(), spec.Destination.Server, spec.Destination.Name).Return(cluster, nil)
 		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
 		assert.NoError(t, err)
 		assert.Len(t, conditions, 1)
@@ -477,7 +477,7 @@ func TestValidatePermissions(t *testing.T) {
 			},
 		}
 		db := &dbmocks.ArgoDB{}
-		db.On("GetCluster", context.Background(), spec.Destination.Server).Return(nil, status.Errorf(codes.NotFound, "Cluster does not exist"))
+		db.On("GetCluster", context.Background(), spec.Destination.Server, spec.Destination.Name).Return(nil, status.Errorf(codes.NotFound, "Cluster does not exist"))
 		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
 		assert.NoError(t, err)
 		assert.Len(t, conditions, 1)
@@ -509,7 +509,7 @@ func TestValidatePermissions(t *testing.T) {
 			},
 		}
 		db := &dbmocks.ArgoDB{}
-		db.On("GetCluster", context.Background(), spec.Destination.Server).Return(nil, fmt.Errorf("Unknown error occurred"))
+		db.On("GetCluster", context.Background(), spec.Destination.Server, spec.Destination.Name).Return(nil, fmt.Errorf("Unknown error occurred"))
 		_, err := ValidatePermissions(context.Background(), &spec, &proj, db)
 		assert.Error(t, err)
 	})

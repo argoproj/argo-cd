@@ -21,11 +21,11 @@ type ArgoDB interface {
 		handleModEvent func(oldCluster *appv1.Cluster, newCluster *appv1.Cluster),
 		handleDeleteEvent func(clusterServer string)) error
 	// Get returns a cluster from a query
-	GetCluster(ctx context.Context, server string) (*appv1.Cluster, error)
+	GetCluster(ctx context.Context, server string, name string) (*appv1.Cluster, error)
 	// UpdateCluster updates a cluster
 	UpdateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Cluster, error)
 	// DeleteCluster deletes a cluster by name
-	DeleteCluster(ctx context.Context, server string) error
+	DeleteCluster(ctx context.Context, server string, name string) error
 
 	// ListRepositories lists repositories
 	ListRepositories(ctx context.Context) ([]*appv1.Repository, error)

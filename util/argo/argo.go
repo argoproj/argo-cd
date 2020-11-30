@@ -240,7 +240,7 @@ func ValidateRepo(
 
 	enrichSpec(spec, appDetails)
 
-	cluster, err := db.GetCluster(context.Background(), spec.Destination.Server)
+	cluster, err := db.GetCluster(context.Background(), spec.Destination.Server, spec.Destination.Name)
 	if err != nil {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
@@ -334,7 +334,7 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 			})
 		}
 		// Ensure the k8s cluster the app is referencing, is configured in Argo CD
-		_, err := db.GetCluster(ctx, spec.Destination.Server)
+		_, err := db.GetCluster(ctx, spec.Destination.Server, spec.Destination.Name)
 		if err != nil {
 			if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
 				conditions = append(conditions, argoappv1.ApplicationCondition{

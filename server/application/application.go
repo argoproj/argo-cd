@@ -779,7 +779,7 @@ func (s *Server) getApplicationClusterConfig(ctx context.Context, a *appv1.Appli
 	if err := argo.ValidateDestination(ctx, &a.Spec.Destination, s.db); err != nil {
 		return nil, err
 	}
-	clst, err := s.db.GetCluster(ctx, a.Spec.Destination.Server)
+	clst, err := s.db.GetCluster(ctx, a.Spec.Destination.Server, a.Spec.Destination.Name)
 	if err != nil {
 		return nil, err
 	}

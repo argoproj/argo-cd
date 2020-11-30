@@ -76,7 +76,7 @@ func (s *Server) Create(ctx context.Context, q *cluster.ClusterCreateRequest) (*
 	clust, err := s.db.CreateCluster(ctx, c)
 	if status.Convert(err).Code() == codes.AlreadyExists {
 		// act idempotent if existing spec matches new spec
-		existing, getErr := s.db.GetCluster(ctx, c.Server)
+		existing, getErr := s.db.GetCluster(ctx, c.Server, c.Name)
 		if getErr != nil {
 			return nil, status.Errorf(codes.Internal, "unable to check existing cluster details: %v", getErr)
 		}
@@ -118,7 +118,7 @@ func (s *Server) Get(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Clust
 func (s *Server) getCluster(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Cluster, error) {
 
 	if q.Server != "" {
-		c, err := s.db.GetCluster(ctx, q.Server)
+		c, err := s.db.GetCluster(ctx, q.Server, q.Name)
 		if err != nil {
 			return nil, err
 		}
@@ -164,7 +164,7 @@ func (s *Server) Update(ctx context.Context, q *cluster.ClusterUpdateRequest) (*
 	}
 
 	if len(q.UpdatedFields) != 0 {
-		existing, err := s.db.GetCluster(ctx, q.Cluster.Server)
+		existing, err := s.db.GetCluster(ctx, q.Cluster.Server, q.Cluster.Name)
 		if err != nil {
 			return nil, err
 		}
@@ -205,7 +205,7 @@ func (s *Server) Delete(ctx context.Context, q *cluster.ClusterQuery) (*cluster.
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionDelete, q.Server); err != nil {
 		return nil, err
 	}
-	err := s.db.DeleteCluster(ctx, q.Server)
+	err := s.db.DeleteCluster(ctx, q.Server, q.Name)
 	return &cluster.ClusterResponse{}, err
 }
 
@@ -216,7 +216,7 @@ func (s *Server) RotateAuth(ctx context.Context, q *cluster.ClusterQuery) (*clus
 	}
 	logCtx := log.WithField("cluster", q.Server)
 	logCtx.Info("Rotating auth")
-	clust, err := s.db.GetCluster(ctx, q.Server)
+	clust, err := s.db.GetCluster(ctx, q.Server, q.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -293,7 +293,7 @@ func (s *Server) InvalidateCache(ctx context.Context, q *cluster.ClusterQuery) (
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionUpdate, q.Server); err != nil {
 		return nil, err
 	}
-	cls, err := s.db.GetCluster(ctx, q.Server)
+	cls, err := s.db.GetCluster(ctx, q.Server, q.Name)
 	if err != nil {
 		return nil, err
 	}

@@ -141,12 +141,12 @@ func (_m *ArgoDB) CreateRepositoryCredentials(ctx context.Context, r *v1alpha1.R
 }
 
 // DeleteCluster provides a mock function with given fields: ctx, server
-func (_m *ArgoDB) DeleteCluster(ctx context.Context, server string) error {
-	ret := _m.Called(ctx, server)
+func (_m *ArgoDB) DeleteCluster(ctx context.Context, server string, name string) error {
+	ret := _m.Called(ctx, server, name)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
-		r0 = rf(ctx, server)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
+		r0 = rf(ctx, server, name)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -197,12 +197,12 @@ func (_m *ArgoDB) DeleteRepositoryCredentials(ctx context.Context, name string) 
 }
 
 // GetCluster provides a mock function with given fields: ctx, server
-func (_m *ArgoDB) GetCluster(ctx context.Context, server string) (*v1alpha1.Cluster, error) {
-	ret := _m.Called(ctx, server)
+func (_m *ArgoDB) GetCluster(ctx context.Context, server string, name string) (*v1alpha1.Cluster, error) {
+	ret := _m.Called(ctx, server, name)
 
 	var r0 *v1alpha1.Cluster
-	if rf, ok := ret.Get(0).(func(context.Context, string) *v1alpha1.Cluster); ok {
-		r0 = rf(ctx, server)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) *v1alpha1.Cluster); ok {
+		r0 = rf(ctx, server, name)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*v1alpha1.Cluster)
@@ -210,8 +210,8 @@ func (_m *ArgoDB) GetCluster(ctx context.Context, server string) (*v1alpha1.Clus
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, server)
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, server, name)
 	} else {
 		r1 = ret.Error(1)
 	}
