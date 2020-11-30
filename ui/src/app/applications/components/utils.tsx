@@ -164,7 +164,7 @@ export const HealthStatusIcon = ({state}: {state: appModels.HealthStatus}) => {
             break;
         case appModels.HealthStatuses.Suspended:
             color = COLORS.health.suspended;
-            icon = 'fa-heart';
+            icon = 'fa-pause-circle';
             break;
         case appModels.HealthStatuses.Degraded:
             color = COLORS.health.degraded;
