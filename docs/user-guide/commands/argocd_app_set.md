@@ -41,6 +41,7 @@ argocd app set APPNAME [flags]
       --namesuffix string                         Kustomize namesuffix
   -p, --parameter stringArray                     set a parameter override (e.g. -p guestbook=image=example/guestbook:latest)
       --path string                               Path in repository to the app directory, ignored if a file is set
+      --plugin-env stringArray                    Additional plugin envs
       --project string                            Application project name
       --release-name string                       Helm release-name
       --repo string                               Repository URL, ignored if a file is set

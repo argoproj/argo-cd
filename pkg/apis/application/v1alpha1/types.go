@@ -99,6 +99,17 @@ func (a *EnvEntry) IsZero() bool {
 	return a == nil || a.Name == "" && a.Value == ""
 }
 
+func NewEnvEntry(text string) (*EnvEntry, error) {
+	parts := strings.SplitN(text, "=", 2)
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("Expected env entry of the form: param=value. Received: %s", text)
+	}
+	return &EnvEntry{
+		Name:  parts[0],
+		Value: parts[1],
+	}, nil
+}
+
 type Env []*EnvEntry
 
 func (e Env) IsZero() bool {
@@ -442,6 +453,20 @@ type ApplicationSourcePlugin struct {
 
 func (c *ApplicationSourcePlugin) IsZero() bool {
 	return c == nil || c.Name == "" && c.Env.IsZero()
+}
+
+func (c *ApplicationSourcePlugin) AddEnvEntry(e *EnvEntry) {
+	found := false
+	for i, ce := range c.Env {
+		if ce.Name == e.Name {
+			found = true
+			c.Env[i] = e
+			break
+		}
+	}
+	if !found {
+		c.Env = append(c.Env, e)
+	}
 }
 
 // ApplicationDestination contains deployment destination information
