@@ -460,6 +460,20 @@ func TestAppWithSecrets(t *testing.T) {
 		And(func(app *Application) {
 			diffOutput := FailOnErr(RunCli("app", "diff", app.Name)).(string)
 			assert.Empty(t, diffOutput)
+		}).
+		// verify not committed secret also ignore during diffing
+		When().
+		WriteFile("secret3.yaml", `
+apiVersion: v1
+kind: Secret
+metadata:
+  name: test-secret3
+stringData:
+  username: test-username`).
+		Then().
+		And(func(app *Application) {
+			diffOutput := FailOnErr(RunCli("app", "diff", app.Name, "--local", "testdata/secrets")).(string)
+			assert.Empty(t, diffOutput)
 		})
 }
 

@@ -4,7 +4,7 @@ import * as React from 'react';
 import {BehaviorSubject, Observable} from 'rxjs';
 import {AppContext} from '../context';
 import {services} from '../services';
-
+import requests from '../services/requests';
 const mostRecentLoggedIn = new BehaviorSubject<boolean>(false);
 
 function isLoggedIn(): Observable<boolean> {
@@ -51,9 +51,10 @@ export class Page extends React.Component<{title: string; toolbar?: Toolbar | Ob
 
     private async goToLogin(logout = false) {
         if (logout) {
-            await services.users.logout();
+            window.location.href = requests.toAbsURL('/auth/logout');
+        } else {
+            this.appContext.history.push('/login');
         }
-        this.appContext.history.push('/login');
     }
 
     private get appContext(): AppContext {

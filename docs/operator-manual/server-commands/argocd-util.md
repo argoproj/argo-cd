@@ -26,6 +26,7 @@ argocd-util [flags]
 * [argocd-util import](argocd-util_import.md)	 - Import Argo CD data from stdin (specify `-') or a file
 * [argocd-util kubeconfig](argocd-util_kubeconfig.md)	 - Generates kubeconfig for the specified cluster
 * [argocd-util projects](argocd-util_projects.md)	 - Utility commands operate on ArgoCD Projects
+* [argocd-util rbac](argocd-util_rbac.md)	 - Validate and test RBAC configuration
 * [argocd-util rundex](argocd-util_rundex.md)	 - Runs dex generating a config using settings from the Argo CD configmap and secret
 * [argocd-util settings](argocd-util_settings.md)	 - Provides set of commands for settings validation and troubleshooting
 * [argocd-util version](argocd-util_version.md)	 - Print version information

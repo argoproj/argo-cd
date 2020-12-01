@@ -633,11 +633,12 @@ func (s *Server) Patch(ctx context.Context, q *application.ApplicationPatchReque
 		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("Patch type '%s' is not supported", q.PatchType))
 	}
 
-	err = json.Unmarshal(patchApp, &app)
+	newApp := &v1alpha1.Application{}
+	err = json.Unmarshal(patchApp, newApp)
 	if err != nil {
 		return nil, err
 	}
-	return s.validateAndUpdateApp(ctx, app, false, true)
+	return s.validateAndUpdateApp(ctx, newApp, false, true)
 }
 
 // Delete removes an application and all associated resources
@@ -804,12 +805,12 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 		return err
 	}
 
+	if err := argo.ValidateDestination(ctx, &app.Spec.Destination, s.db); err != nil {
+		return status.Errorf(codes.InvalidArgument, "application destination spec is invalid: %s", err.Error())
+	}
+
 	var conditions []appv1.ApplicationCondition
 	if validate {
-		if err := argo.ValidateDestination(ctx, &app.Spec.Destination, s.db); err != nil {
-			return status.Errorf(codes.InvalidArgument, "application destination spec is invalid: %s", err.Error())
-		}
-
 		conditions, err = argo.ValidateRepo(ctx, app, s.repoClientset, s.db, kustomizeOptions, plugins, s.kubectl)
 		if err != nil {
 			return err
