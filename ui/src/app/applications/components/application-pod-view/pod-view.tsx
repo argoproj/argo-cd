@@ -314,7 +314,9 @@ export class PodView extends React.Component<PodViewProps> {
                 }
             }
         });
-        return Object.values(groupRefs).sort((a, b) => (a.name > b.name ? 1 : a.name === b.name ? 0 : -1));
+        return Object.values(groupRefs)
+            .sort((a, b) => (a.name > b.name ? 1 : a.name === b.name ? 0 : -1))
+            .filter((i) => (i.pods || []).length > 0);
     }
 }
 
