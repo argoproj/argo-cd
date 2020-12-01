@@ -10,6 +10,9 @@ A working Single Sign-On configuration using Okta via at least two methods was a
 
 ## SAML (with Dex)
 
+!!! note "Okta app group assignment"
+    The Okta app's **Group Attribute Statements** regex will be used later to map Okta groups to Argo CD RBAC roles.
+
 1. Create a new SAML application in Okta UI.
     * ![Okta SAML App 1](../../assets/saml-1.png)
         I've disabled `App Visibility` because Dex doesn't support Provider-initiated login flows.
@@ -17,7 +20,9 @@ A working Single Sign-On configuration using Okta via at least two methods was a
 1. Click `View setup instructions` after creating the application in Okta.
     * ![Okta SAML App 3](../../assets/saml-3.png)
 1. Copy the SSO URL to the `argocd-cm` in the data.oicd
-1. Download the CA certificate to use in the `argocd-cm` configuration.  If you are using this in the caData field, you will need to pass the entire certificate (including `-----BEGIN CERTIFICATE-----` and `-----END CERTIFICATE-----` stanzas) through base64 encoding, for example, `base64 my_cert.pem`.
+1. Download the CA certificate to use in the `argocd-cm` configuration.
+    * If you are using this in the caData field, you will need to pass the entire certificate (including `-----BEGIN CERTIFICATE-----` and `-----END CERTIFICATE-----` stanzas) through base64 encoding, for example, `base64 my_cert.pem`.
+    * If you are using the ca field and storing the CA certificate separately as a secret, you will need to mount the secret to the `dex` container in the `argocd-dex-server` Deployment.
     * ![Okta SAML App 4](../../assets/saml-4.png)
 1. Edit the `argocd-cm` and configure the `data.dex.config` section:
 
@@ -37,6 +42,7 @@ dex.config: |
       caData: |
         <CA cert passed through base64 encoding>
       # You need `caData` _OR_ `ca`, but not both.
+      # Path to mount the secret to the dex container
       ca: /path/to/ca.pem
       redirectURI: https://ui.argocd.yourorganization.net/api/dex/callback
       usernameAttr: email
@@ -46,6 +52,61 @@ dex.config: |
 <!-- markdownlint-enable MD046 -->
 
 ----
+
+### Private deployment
+It is possible to setup Okta SSO with a private Argo CD installation, where the Okta callback URL is the only publicly exposed endpoint.
+The settings are largely the same with a few changes in the Okta app configuration and the `data.dex.config` section of the `argocd-cm` ConfigMap.
+
+Using this deployment model, the user connects to the private Argo CD UI and the Okta authentication flow seamlessly redirects back to the private UI URL.
+
+Often this public endpoint is exposed through an [Ingress object](../../ingress/#private-argo-cd-ui-with-multiple-ingress-objects-and-byo-certificate).
+
+
+1. Update the URLs in the Okta app's General settings
+    * ![Okta SAML App Split](../../assets/saml-split.png)
+        The `Single sign on URL` field points to the public exposed endpoint, and all other URL fields point to the internal endpoint.
+1. Update the `data.dex.config` section of the `argocd-cm` ConfigMap with the external endpoint reference.
+
+<!-- markdownlint-disable MD046 -->
+```yaml
+dex.config: |
+  logger:
+    level: debug
+  connectors:
+  - type: saml
+    id: okta
+    name: Okta
+    config:
+      ssoURL: https://yourorganization.oktapreview.com/app/yourorganizationsandbox_appnamesaml_2/rghdr9s6hg98s9dse/sso/saml
+      # You need `caData` _OR_ `ca`, but not both.
+      caData: |
+        <CA cert passed through base64 encoding>
+      # You need `caData` _OR_ `ca`, but not both.
+      # Path to mount the secret to the dex container
+      ca: /path/to/ca.pem
+      redirectURI: https://external.path.to.argocd.io/api/dex/callback
+      usernameAttr: email
+      emailAttr: email
+      groupsAttr: group
+```
+<!-- markdownlint-enable MD046 -->
+
+### Connect Okta Groups to Argo CD Roles
+Argo CD is aware of user memberships of Okta groups that match the *Group Attribute Statements* regex.
+The example above uses the `argocd-*` regex, so Argo CD would be aware of a group named `argocd-admins`.
+
+Modify the `argocd-rbac-cm` ConfigMap to connect the `argocd-admins` Okta group to the builtin Argo CD `admin` role.
+<!-- markdownlint-disable MD046 -->
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-rbac-cm
+data:
+  policy.csv |
+    g, argocd-admins, role:admin
+  scopes: '[email,groups]'
+```
 
 ## OIDC (without Dex)
 
@@ -78,3 +139,5 @@ oidc.config: |
   requestedIDTokenClaims: {"groups": {"essential": true}}
 ```
 <!-- markdownlint-enable MD046 -->
+
+
