@@ -7,7 +7,7 @@ import {Redirect, Route, RouteComponentProps, Router, Switch} from 'react-router
 
 import applications from './applications';
 import help from './help';
-import {Banner} from './ui-banner/ui-banner'
+import {Banner} from './ui-banner/ui-banner';
 import login from './login';
 import settings from './settings';
 import {VersionPanel} from './shared/components/version-info/version-info-panel';
@@ -30,11 +30,6 @@ const routes: {[path: string]: {component: React.ComponentType<RouteComponentPro
     '/user-info': {component: userInfo.component},
     '/help': {component: help.component}
 };
-
-const bannerItems = {
-    apiUrl:" https://api.mocki.io/v1/b837272d",
-    fields:["maintenance","newRelease", "announcements"]
-}
 
 const navItems = [
     {
@@ -206,7 +201,7 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
                                                             </DataLoader>
                                                         )}>
                                                         <route.component {...routeProps} />
-                                                        <Banner items={bannerItems}/>
+                                                        <Banner />
                                                     </Layout>
                                                 )
                                             }

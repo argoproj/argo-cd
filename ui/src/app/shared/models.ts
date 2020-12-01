@@ -717,6 +717,17 @@ export interface VersionMessage {
     JsonnetVersion: string;
 }
 
+export interface BannerMessage {
+    newRelease: bannercomponents;
+    maintenance: bannercomponents;
+    announcements: bannercomponents;
+}
+
+export interface bannercomponents {
+    url: string;
+    description: string;
+}
+
 export interface Token {
     id: string;
     issuedAt: number;

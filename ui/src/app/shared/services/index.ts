@@ -10,6 +10,7 @@ import {RepoCredsService} from './repocreds-service';
 import {UserService} from './user-service';
 import {VersionService} from './version-service';
 import {ViewPreferencesService} from './view-preferences-service';
+import {BannerService} from './banner_ui';
 
 export interface Services {
     applications: ApplicationsService;
@@ -24,6 +25,7 @@ export interface Services {
     version: VersionService;
     accounts: AccountsService;
     gpgkeys: GnuPGPublicKeyService;
+    bannerUI: BannerService;
 }
 
 export const services: Services = {
@@ -38,7 +40,8 @@ export const services: Services = {
     viewPreferences: new ViewPreferencesService(),
     version: new VersionService(),
     accounts: new AccountsService(),
-    gpgkeys: new GnuPGPublicKeyService()
+    gpgkeys: new GnuPGPublicKeyService(),
+    bannerUI: new BannerService()
 };
 
 export {ProjectRoleParams, CreateJWTTokenParams, DeleteJWTTokenParams, JWTTokenResponse} from './projects-service';

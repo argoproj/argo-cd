@@ -1,25 +1,25 @@
 .ui_banner {
     line-height: 50px;
     background: linear-gradient(to bottom, #333, #444, #555, #666, #999);
-    box-shadow: inset -2px 0 4px 0 rgba(0,0,0,0.59);
+    box-shadow: inset -2px 0 4px 0 rgba(0, 0, 0, 0.59);
     transition: right .5s;
     position: fixed;
     width: 100%;
-    z-index:12;
+    z-index: 12;
     align-items: center;
     opacity: 0.9;
     text-align: center;
     color: #ffffff;
     font-size: smaller;
     scroll-behavior: unset;
-    bottom:0;
+    bottom: 0;
 
     &__close {
         display: block;
         position: absolute;
         cursor: pointer;
         top: 0%;
-        right:0%;
+        right: 0%;
         z-index: 1;
         border-radius: 50%;
         color: #ffffff;
@@ -34,19 +34,20 @@
             background-color: #DEE6EB;
         }
     }
-    &__text{
+
+    &__text {
         overflow: visible;
         display: flex;
         list-style-type: none;
-        margin:10px;
-        padding:10px; 
+        margin: 10px;
+        padding: 10px;
         justify-content: space-between;
 
     }
-    &__items{
+
+    &__items {
         &:hover {
             color: #DEE6EB;
         }
     }
 }
-
