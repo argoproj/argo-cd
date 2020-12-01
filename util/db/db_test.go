@@ -368,6 +368,43 @@ func TestUpdateRepositoryWithManagedSecrets(t *testing.T) {
 	assert.Equal(t, "- url: https://github.com/argoproj/argocd-example-apps", strings.Trim(cm.Data["repositories"], "\n"))
 }
 
+func TestRepositoryCredentialsTrim(t *testing.T) {
+	config := map[string]string{
+		"repositories": `
+- url: https://github.com/argoproj/argocd-example-apps
+  usernameSecret:
+    name: managed-secret
+    key: username
+  passwordSecret:
+    name: managed-secret
+    key: password
+  sshPrivateKeySecret:
+    name: managed-secret
+    key: sshPrivateKey
+`}
+	clientset := getClientset(config, &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "managed-secret",
+			Namespace: testNamespace,
+			Annotations: map[string]string{
+				common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+			},
+		},
+		Data: map[string][]byte{
+			username:      []byte("test-username\n\n"),
+			password:      []byte("test-password\r\r"),
+			sshPrivateKey: []byte("test-ssh-private-key\n\r"),
+		},
+	})
+	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
+
+	repo, err := db.GetRepository(context.Background(), "https://github.com/argoproj/argocd-example-apps")
+	assert.Nil(t, err)
+	assert.Equal(t, "test-username", repo.Username)
+	assert.Equal(t, "test-password", repo.Password)
+	assert.Equal(t, "test-ssh-private-key", repo.SSHPrivateKey)
+}
+
 func TestGetClusterSuccessful(t *testing.T) {
 	server := "my-cluster"
 	name := "my-name"
