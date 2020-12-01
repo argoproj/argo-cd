@@ -563,6 +563,33 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#validating-and-testing-your-rbac-policies" title="Validating and testing your RBAC policies" class="md-nav__link">
+    Validating and testing your RBAC policies
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#validating-a-policy" title="Validating a policy" class="md-nav__link">
+    Validating a policy
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#testing-a-policy" title="Testing a policy" class="md-nav__link">
+    Testing a policy
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
       
       
       
@@ -1569,6 +1596,33 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#validating-and-testing-your-rbac-policies" title="Validating and testing your RBAC policies" class="md-nav__link">
+    Validating and testing your RBAC policies
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#validating-a-policy" title="Validating a policy" class="md-nav__link">
+    Validating a policy
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#testing-a-policy" title="Testing a policy" class="md-nav__link">
+    Testing a policy
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
       
       
       
@@ -1655,6 +1709,69 @@ which cannot modify Argo CD settings.</p>
 <h2 id="anonymous-access">Anonymous Access<a class="headerlink" href="#anonymous-access" title="Permanent link">&para;</a></h2>
 <p>The anonymous access to Argo CD can be enabled using <code>users.anonymous.enabled</code> field in <code>argocd-cm</code> (see <a href="../argocd-cm.yaml">argocd-cm.yaml</a>).
 The anonymous users get default role permissions specified by <code>policy.default</code> in <code>argocd-rbac-cm.yaml</code>. For read-only access you'll want <code>policy.default: role:readonly</code> as above</p>
+<h2 id="validating-and-testing-your-rbac-policies">Validating and testing your RBAC policies<a class="headerlink" href="#validating-and-testing-your-rbac-policies" title="Permanent link">&para;</a></h2>
+<p>If you want to ensure that your RBAC policies are working as expected, you can
+use the <code>argocd-util rbac</code> command to validate them. This tool allows you to
+test whether a certain role or subject can perform the requested action with a
+policy that's not live yet in the system, i.e. from a local file or config map.
+Additionally, it can be used against the live policy in the cluster your Argo
+CD is running in.</p>
+<p>To check whether your new policy is valid and understood by Argo CD's RBAC
+implementation, you can use the <code>argocd-util rbac validate</code> command.</p>
+<h3 id="validating-a-policy">Validating a policy<a class="headerlink" href="#validating-a-policy" title="Permanent link">&para;</a></h3>
+<p>To validate a policy stored in a local text file:</p>
+<div class="codehilite"><pre><span></span><code>argocd-util rbac validate --policy-file somepolicy.csv
+</code></pre></div>
+
+<p>To validate a policy stored in a local K8s ConfigMap definition in a YAML file:</p>
+<div class="codehilite"><pre><span></span><code>argocd-util rbac validate --policy-file argocd-rbac-cm.yaml
+</code></pre></div>
+
+<p>To validate a policy stored in K8s, used by Argo CD in namespace <code>argocd</code>,
+ensure that your current context in <code>~/.kube/config</code> is pointing to your
+Argo CD cluster and give appropriate namespace:</p>
+<div class="codehilite"><pre><span></span><code>argocd-util rbac validate --namespace argocd
+</code></pre></div>
+
+<h3 id="testing-a-policy">Testing a policy<a class="headerlink" href="#testing-a-policy" title="Permanent link">&para;</a></h3>
+<p>To test whether a role or subject (group or local user) has sufficient
+permissions to execute certain actions on certain resources, you can
+use the <code>argocd-util rbac can</code> command. Its general syntax is</p>
+<div class="codehilite"><pre><span></span><code>argocd-util rbac can SOMEROLE ACTION RESOURCE SUBRESOURCE <span class="o">[</span>flags<span class="o">]</span>
+</code></pre></div>
+
+<p>Given the example from the above ConfigMap, which defines the role
+<code>role:org-admin</code>, and is stored on your local system as <code>argocd-rbac-cm-yaml</code>,
+you can test whether that role can do something like follows:</p>
+<div class="codehilite"><pre><span></span><code>$ argocd-util rbac can role:org-admin get applications --policy-file argocd-rbac-cm.yaml
+Yes
+$ argocd-util rbac can role:org-admin get clusters --policy-file argocd-rbac-cm.yaml
+Yes
+$ argocd-util rbac can role:org-admin create clusters <span class="s1">&#39;somecluster&#39;</span> --policy-file argocd-rbac-cm.yaml
+No
+$ argocd-util rbac can role:org-admin create applications <span class="s1">&#39;someproj/someapp&#39;</span> --policy-file argocd-rbac-cm.yaml
+Yes
+</code></pre></div>
+
+<p>Another example,  given the policy above from <code>policy.csv</code>, which defines the
+role <code>role:staging-db-admins</code> and associates the group <code>db-admins</code> with it.
+Policy is stored locally as <code>policy.csv</code>:</p>
+<p>You can test against the role:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Plain policy, without a default role defined</span>
+$ argocd-util rbac can role:stagin-db-admins get applications --policy-file policy.csv
+No
+$ argocd-util rbac can role:staging-db-admins get applications <span class="s1">&#39;staging-db-admins/*&#39;</span> --policy-file policy.csv
+Yes
+<span class="c1"># Argo CD augments a builtin policy with two roles defined, the default role</span>
+<span class="c1"># being &#39;role:readonly&#39; - You can include a named default role to use:</span>
+$ argocd-util rbac can role:stagin-db-admins get applications --policy-file policy.csv --default-role role:readonly
+Yes
+</code></pre></div>
+
+<p>Or against the group defined:</p>
+<div class="codehilite"><pre><span></span><code>$ argocd-util rbac can db-admins get applications <span class="s1">&#39;staging-db-admins/*&#39;</span> --policy-file policy.csv
+Yes
+</code></pre></div>
                 
                   
                 
