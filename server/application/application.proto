@@ -65,6 +65,7 @@ message ApplicationUpdateRequest {
 message ApplicationDeleteRequest {
 	required string name = 1;
 	optional bool cascade = 2;
+	optional bool force = 3;
 }
 
 // ApplicationSyncRequest is a request to apply the config state to live state

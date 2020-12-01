@@ -22,6 +22,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/sync/ignore"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/ghodss/yaml"
+	"github.com/mattn/go-isatty"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -1242,6 +1243,7 @@ func groupObjsForDiff(resources *application.ManagedResourcesResponse, objs map[
 func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		cascade bool
+		force   bool
 	)
 	var command = &cobra.Command{
 		Use:   "delete APPNAME",
@@ -1253,6 +1255,9 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			}
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer argoio.Close(conn)
+			var isTerminal bool = isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
+			var isConfirmAll bool = false
+			var numOfApps = len(args)
 			for _, appName := range args {
 				appDeleteReq := applicationpkg.ApplicationDeleteRequest{
 					Name: &appName,
@@ -1260,12 +1265,44 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				if c.Flag("cascade").Changed {
 					appDeleteReq.Cascade = &cascade
 				}
-				_, err := appIf.Delete(context.Background(), &appDeleteReq)
-				errors.CheckError(err)
+				if c.Flag("force").Changed {
+					appDeleteReq.Force = &force
+				}
+				if cascade && isTerminal && !force {
+					var confirmAnswer string = "n"
+					var lowercaseAnswer string
+					if numOfApps == 1 {
+						fmt.Println("Are you sure you want to delete '" + appName + "' and all its resources? [y/n]")
+						fmt.Scan(&confirmAnswer)
+						lowercaseAnswer = strings.ToLower(confirmAnswer)
+					} else {
+						if !isConfirmAll {
+							fmt.Println("Are you sure you want to delete '" + appName + "' and all its resources? [y/n/A] where 'A' is to delete all specified apps and their resources without prompting")
+							fmt.Scan(&confirmAnswer)
+							lowercaseAnswer = strings.ToLower(confirmAnswer)
+							if numOfApps > 1 && (lowercaseAnswer == "a" || lowercaseAnswer == "all") {
+								lowercaseAnswer = "y"
+								isConfirmAll = true
+							}
+						} else {
+							lowercaseAnswer = "y"
+						}
+					}
+					if lowercaseAnswer == "y" || lowercaseAnswer == "yes" {
+						_, err := appIf.Delete(context.Background(), &appDeleteReq)
+						errors.CheckError(err)
+					} else {
+						fmt.Println("The command to delete '" + appName + "' was cancelled.")
+					}
+				} else {
+					_, err := appIf.Delete(context.Background(), &appDeleteReq)
+					errors.CheckError(err)
+				}
 			}
 		},
 	}
 	command.Flags().BoolVar(&cascade, "cascade", true, "Perform a cascaded deletion of all application resources")
+	command.Flags().BoolVar(&force, "force", false, "Turn off prompting to confirm cascaded deletion of application resources")
 	return command
 }
 

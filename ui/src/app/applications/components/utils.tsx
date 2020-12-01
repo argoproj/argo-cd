@@ -27,7 +27,7 @@ export async function deleteApplication(appName: string, apis: ContextApis): Pro
     const confirmationForm = class extends React.Component<{}, {cascade: boolean}> {
         constructor(props: any) {
             super(props);
-            this.state = {cascade: true};
+            this.state = {cascade: false};
         }
 
         public render() {
