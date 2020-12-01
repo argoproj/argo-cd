@@ -2423,6 +2423,17 @@ func (source *ApplicationSource) ExplicitType() (*ApplicationSourceType, error) 
 
 // Equals compares two instances of ApplicationDestination and return true if instances are equal.
 func (dest ApplicationDestination) Equals(other ApplicationDestination) bool {
+	// ignore destination cluster name and isServerInferred fields during comparison
+	// since server URL is inferred from cluster name
+	if dest.isServerInferred {
+		dest.Server = ""
+		dest.isServerInferred = false
+	}
+
+	if other.isServerInferred {
+		other.Server = ""
+		other.isServerInferred = false
+	}
 	return reflect.DeepEqual(dest, other)
 }
 
