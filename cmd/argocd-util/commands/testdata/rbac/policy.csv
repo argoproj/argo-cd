@@ -1,0 +1,9 @@
+p, role:user, clusters, get, *, allow
+p, role:user, clusters, get, https://kubernetes*, deny
+p, role:user, projects, get, *, allow
+p, role:user, applications, get, *, allow
+p, role:user, applications, create, */*, allow
+p, role:user, applications, delete, *, allow
+p, role:user, applications, delete, */guestbook, deny
+p, role:test, certificates, get, *, allow
+g, test, role:user

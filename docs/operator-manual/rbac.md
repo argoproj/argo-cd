@@ -80,3 +80,87 @@ This example defines a *role* called `staging-db-admins` with *seven permissions
 
 The anonymous access to Argo CD can be enabled using `users.anonymous.enabled` field in `argocd-cm` (see [argocd-cm.yaml](argocd-cm.yaml)).
 The anonymous users get default role permissions specified by `policy.default` in `argocd-rbac-cm.yaml`. For read-only access you'll want `policy.default: role:readonly` as above
+
+## Validating and testing your RBAC policies
+
+If you want to ensure that your RBAC policies are working as expected, you can
+use the `argocd-util rbac` command to validate them. This tool allows you to
+test whether a certain role or subject can perform the requested action with a
+policy that's not live yet in the system, i.e. from a local file or config map.
+Additionally, it can be used against the live policy in the cluster your Argo
+CD is running in.
+
+To check whether your new policy is valid and understood by Argo CD's RBAC
+implementation, you can use the `argocd-util rbac validate` command.
+
+### Validating a policy
+
+To validate a policy stored in a local text file:
+
+```shell
+argocd-util rbac validate --policy-file somepolicy.csv
+```
+
+To validate a policy stored in a local K8s ConfigMap definition in a YAML file:
+
+```shell
+argocd-util rbac validate --policy-file argocd-rbac-cm.yaml
+```
+
+To validate a policy stored in K8s, used by Argo CD in namespace `argocd`,
+ensure that your current context in `~/.kube/config` is pointing to your
+Argo CD cluster and give appropriate namespace:
+
+```shell
+argocd-util rbac validate --namespace argocd
+```
+
+### Testing a policy
+
+To test whether a role or subject (group or local user) has sufficient
+permissions to execute certain actions on certain resources, you can
+use the `argocd-util rbac can` command. Its general syntax is
+
+```shell
+argocd-util rbac can SOMEROLE ACTION RESOURCE SUBRESOURCE [flags]
+```
+
+Given the example from the above ConfigMap, which defines the role
+`role:org-admin`, and is stored on your local system as `argocd-rbac-cm-yaml`,
+you can test whether that role can do something like follows:
+
+```shell
+$ argocd-util rbac can role:org-admin get applications --policy-file argocd-rbac-cm.yaml
+Yes
+$ argocd-util rbac can role:org-admin get clusters --policy-file argocd-rbac-cm.yaml
+Yes
+$ argocd-util rbac can role:org-admin create clusters 'somecluster' --policy-file argocd-rbac-cm.yaml
+No
+$ argocd-util rbac can role:org-admin create applications 'someproj/someapp' --policy-file argocd-rbac-cm.yaml
+Yes
+```
+
+Another example,  given the policy above from `policy.csv`, which defines the
+role `role:staging-db-admins` and associates the group `db-admins` with it.
+Policy is stored locally as `policy.csv`:
+
+You can test against the role:
+
+```shell
+# Plain policy, without a default role defined
+$ argocd-util rbac can role:stagin-db-admins get applications --policy-file policy.csv
+No
+$ argocd-util rbac can role:staging-db-admins get applications 'staging-db-admins/*' --policy-file policy.csv
+Yes
+# Argo CD augments a builtin policy with two roles defined, the default role
+# being 'role:readonly' - You can include a named default role to use:
+$ argocd-util rbac can role:stagin-db-admins get applications --policy-file policy.csv --default-role role:readonly
+Yes
+```
+
+Or against the group defined:
+
+```shell
+$ argocd-util rbac can db-admins get applications 'staging-db-admins/*' --policy-file policy.csv
+Yes
+```
