@@ -2155,3 +2155,45 @@ func TestSourceAllowsConcurrentProcessing_KustomizeParams(t *testing.T) {
 
 	assert.False(t, src.AllowsConcurrentProcessing())
 }
+
+func TestIsResourceInList(t *testing.T) {
+	resourceList := []metav1.GroupKind{
+		{Group: "sample.group.test", Kind: "Alpha"},
+		{Group: "sample.group.test", Kind: "Beta"},
+		{Group: "sample.group.test", Kind: "Gamma"},
+	}
+
+	tests := []struct {
+		name string
+		res  metav1.GroupKind
+		want bool
+	}{
+		{
+			name: "Resource present in list",
+			res:  metav1.GroupKind{Group: "sample.group.test", Kind: "Gamma"},
+			want: true,
+		},
+		{
+			name: "Resource absent in list",
+			res:  metav1.GroupKind{Group: "sample", Kind: "test"},
+			want: false,
+		},
+		{
+			name: "Valid Wildcard pattern",
+			res:  metav1.GroupKind{Group: "*.group.test", Kind: "*"},
+			want: true,
+		},
+		{
+			name: "Invalid Wildcard pattern",
+			res:  metav1.GroupKind{Group: "---", Kind: "*"},
+			want: false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got := isResourceInList(test.res, resourceList)
+			assert.Equal(t, test.want, got)
+		})
+	}
+}

@@ -2498,9 +2498,9 @@ func (spec ApplicationSpec) GetRevisionHistoryLimit() int {
 
 func isResourceInList(res metav1.GroupKind, list []metav1.GroupKind) bool {
 	for _, item := range list {
-		ok, err := filepath.Match(item.Kind, res.Kind)
+		ok, err := filepath.Match(res.Kind, item.Kind)
 		if ok && err == nil {
-			ok, err = filepath.Match(item.Group, res.Group)
+			ok, err = filepath.Match(res.Group, item.Group)
 			if ok && err == nil {
 				return true
 			}
