@@ -7,7 +7,6 @@ import {PodViewPreferences, services} from '../../../shared/services';
 import {ErrorNotification} from '../../../shared/components';
 import {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
 import {nodeKey, PodHealthIcon, PodPhaseIcon} from '../utils';
-import {GetNodes} from './pod-view-mock-service';
 import {AppContext} from '../../../shared/context';
 import {ResourceIcon} from '../resource-icon';
 
@@ -18,14 +17,8 @@ interface PodViewProps {
     onPodClick: (fullName: string) => void;
     app: Application;
 }
-export class PodView extends React.Component<PodViewProps, {demoMode: boolean}> {
+export class PodView extends React.Component<PodViewProps> {
     private loader: DataLoader;
-    constructor(props: PodViewProps) {
-        super(props);
-        this.state = {
-            demoMode: false,
-        };
-    }
     private get appContext(): AppContext {
         return this.context as AppContext;
     }
@@ -61,16 +54,6 @@ export class PodView extends React.Component<PodViewProps, {demoMode: boolean}> 
                                         />
                                         &nbsp;Health
                                     </span>
-                                </div>
-                                <div className='pod-view__settings__section'>
-                                    <button
-                                        className={`argo-button argo-button--${this.state.demoMode ? 'base' : 'base-o'}`}
-                                        onClick={() => {
-                                            this.setState({demoMode: !this.state.demoMode});
-                                            this.loader.reload();
-                                        }}>
-                                        DEMO MODE
-                                    </button>
                                 </div>
                                 <div className='pod-view__settings__section'>
                                     SORT BY:&nbsp;
@@ -109,15 +92,12 @@ export class PodView extends React.Component<PodViewProps, {demoMode: boolean}> 
                             <DataLoader
                                 ref={(loader) => (this.loader = loader)}
                                 load={async () => {
-                                    if (podPrefs.sortMode === 'node') {
-                                        return this.state.demoMode ? GetNodes(5) : services.applications.getNodes(this.props.app.metadata.name);
-                                    }
-                                    return null;
+                                    return podPrefs.sortMode === 'node' ? services.applications.getNodes(this.props.app.metadata.name) : null;
                                 }}>
                                 {(nodes) => {
                                     return (
                                         <div className='nodes-container'>
-                                            {(this.state.demoMode ? (nodes as PodGroup[]) : this.processTree(podPrefs.sortMode, nodes)).map((node) => (
+                                            {this.processTree(podPrefs.sortMode, nodes).map((node) => (
                                                 <div className='node white-box' key={node.name}>
                                                     <div className='node__container--header'>
                                                         <div style={{display: 'flex', alignItems: 'center'}}>
