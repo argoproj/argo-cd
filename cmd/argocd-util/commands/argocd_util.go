@@ -679,7 +679,7 @@ func redactor(dirtyString string) string {
 
 func NewGenerateConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command {
 	var command = &cobra.Command{
-		Use:   "gencfg",
+		Use:   "config",
 		Short: "Generate declarative configuration files",
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)

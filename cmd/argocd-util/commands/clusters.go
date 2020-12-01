@@ -2,7 +2,6 @@ package commands
 
 import (
 	"context"
-	"fmt"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"os"
 
@@ -23,21 +22,8 @@ import (
 
 func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command {
 	var (
-		inCluster               bool
-		upsert                  bool
-		serviceAccount          string
-		awsRoleArn              string
-		awsClusterName          string
-		systemNamespace         string
-		namespaces              []string
-		name                    string
-		shard                   int64
-		execProviderCommand     string
-		execProviderArgs        []string
-		execProviderEnv         map[string]string
-		execProviderAPIVersion  string
-		execProviderInstallHint string
-		outputFormat            string
+		clusterOpts  cmdutil.ClusterOptions
+		outputFormat string
 	)
 	var command = &cobra.Command{
 		Use:   "cluster-add CONTEXT",
@@ -70,37 +56,37 @@ func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command 
 			var awsAuthConf *argoappv1.AWSAuthConfig
 			var execProviderConf *argoappv1.ExecProviderConfig
 			var rbacResources *clusterauth.RBACResources
-			if awsClusterName != "" {
+			if clusterOpts.AwsClusterName != "" {
 				awsAuthConf = &argoappv1.AWSAuthConfig{
-					ClusterName: awsClusterName,
-					RoleARN:     awsRoleArn,
+					ClusterName: clusterOpts.AwsClusterName,
+					RoleARN:     clusterOpts.AwsRoleArn,
 				}
-			} else if execProviderCommand != "" {
+			} else if clusterOpts.ExecProviderCommand != "" {
 				execProviderConf = &argoappv1.ExecProviderConfig{
-					Command:     execProviderCommand,
-					Args:        execProviderArgs,
-					Env:         execProviderEnv,
-					APIVersion:  execProviderAPIVersion,
-					InstallHint: execProviderInstallHint,
+					Command:     clusterOpts.ExecProviderCommand,
+					Args:        clusterOpts.ExecProviderArgs,
+					Env:         clusterOpts.ExecProviderEnv,
+					APIVersion:  clusterOpts.ExecProviderAPIVersion,
+					InstallHint: clusterOpts.ExecProviderInstallHint,
 				}
 			} else {
 				// Install RBAC resources for managing the cluster
-				if serviceAccount != "" {
-					managerBearerToken, err = clusterauth.GetServiceAccountBearerToken(clientset, systemNamespace, serviceAccount)
+				if clusterOpts.ServiceAccount != "" {
+					managerBearerToken, err = clusterauth.GetServiceAccountBearerToken(clientset, clusterOpts.SystemNamespace, clusterOpts.ServiceAccount)
 				} else {
-					managerBearerToken, rbacResources, err = clusterauth.InstallClusterManagerRBAC(clientset, systemNamespace, namespaces)
+					managerBearerToken, rbacResources, err = clusterauth.InstallClusterManagerRBAC(clientset, clusterOpts.SystemNamespace, clusterOpts.Namespaces)
 				}
 				errors.CheckError(err)
 			}
-			if name != "" {
-				contextName = name
+			if clusterOpts.Name != "" {
+				contextName = clusterOpts.Name
 			}
-			clst := cmdutil.NewCluster(contextName, namespaces, conf, managerBearerToken, awsAuthConf, execProviderConf)
-			if inCluster {
+			clst := cmdutil.NewCluster(contextName, clusterOpts.Namespaces, conf, managerBearerToken, awsAuthConf, execProviderConf)
+			if clusterOpts.InCluster {
 				clst.Server = common.KubernetesInternalAPIServerAddr
 			}
-			if shard >= 0 {
-				clst.Shard = &shard
+			if clusterOpts.Shard >= 0 {
+				clst.Shard = &clusterOpts.Shard
 			}
 
 			namespace, _, err := clientConfig.Namespace()
@@ -135,21 +121,8 @@ func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command 
 		},
 	}
 	command.PersistentFlags().StringVar(&pathOpts.LoadingRules.ExplicitPath, pathOpts.ExplicitFileFlag, pathOpts.LoadingRules.ExplicitPath, "use a particular kubeconfig file")
-	command.Flags().BoolVar(&inCluster, "in-cluster", false, "Indicates Argo CD resides inside this cluster and should connect using the internal k8s hostname (kubernetes.default.svc)")
-	command.Flags().BoolVar(&upsert, "upsert", false, "Override an existing cluster with the same name even if the spec differs")
-	command.Flags().StringVar(&serviceAccount, "service-account", "", fmt.Sprintf("System namespace service account to use for kubernetes resource management. If not set then default \"%s\" SA will be created", clusterauth.ArgoCDManagerServiceAccount))
-	command.Flags().StringVar(&awsClusterName, "aws-cluster-name", "", "AWS Cluster name if set then aws cli eks token command will be used to access cluster")
-	command.Flags().StringVar(&awsRoleArn, "aws-role-arn", "", "Optional AWS role arn. If set then AWS IAM Authenticator assume a role to perform cluster operations instead of the default AWS credential provider chain.")
-	command.Flags().StringVar(&systemNamespace, "system-namespace", common.DefaultSystemNamespace, "Use different system namespace")
-	command.Flags().StringArrayVar(&namespaces, "namespace", nil, "List of namespaces which are allowed to manage")
-	command.Flags().StringVar(&name, "name", "", "Overwrite the cluster name")
-	command.Flags().Int64Var(&shard, "shard", -1, "Cluster shard number; inferred from hostname if not set")
-	command.Flags().StringVar(&execProviderCommand, "exec-command", "", "Command to run to provide client credentials to the cluster. You may need to build a custom ArgoCD image to ensure the command is available at runtime.")
-	command.Flags().StringArrayVar(&execProviderArgs, "exec-command-args", nil, "Arguments to supply to the --exec-command command")
-	command.Flags().StringToStringVar(&execProviderEnv, "exec-command-env", nil, "Environment vars to set when running the --exec-command command")
-	command.Flags().StringVar(&execProviderAPIVersion, "exec-command-api-version", "", "Preferred input version of the ExecInfo for the --exec-command")
-	command.Flags().StringVar(&execProviderInstallHint, "exec-command-install-hint", "", "Text shown to the user when the --exec-command executable doesn't seem to be present")
 	command.Flags().StringVar(&outputFormat, "o", "yaml", "Output format (yaml|json)")
+	cmdutil.AddClusterFlags(command, &clusterOpts)
 	return command
 }
 

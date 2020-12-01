@@ -8,10 +8,13 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/spf13/cobra"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
+	"github.com/argoproj/argo-cd/common"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/clusterauth"
 	"github.com/argoproj/argo-cd/util/errors"
 )
 
@@ -97,4 +100,38 @@ func NewCluster(name string, namespaces []string, conf *rest.Config, managerBear
 	}
 
 	return &clst
+}
+
+type ClusterOptions struct {
+	InCluster               bool
+	Upsert                  bool
+	ServiceAccount          string
+	AwsRoleArn              string
+	AwsClusterName          string
+	SystemNamespace         string
+	Namespaces              []string
+	Name                    string
+	Shard                   int64
+	ExecProviderCommand     string
+	ExecProviderArgs        []string
+	ExecProviderEnv         map[string]string
+	ExecProviderAPIVersion  string
+	ExecProviderInstallHint string
+}
+
+func AddClusterFlags(command *cobra.Command, opts *ClusterOptions) {
+	command.Flags().BoolVar(&opts.InCluster, "in-cluster", false, "Indicates Argo CD resides inside this cluster and should connect using the internal k8s hostname (kubernetes.default.svc)")
+	command.Flags().BoolVar(&opts.Upsert, "upsert", false, "Override an existing cluster with the same name even if the spec differs")
+	command.Flags().StringVar(&opts.ServiceAccount, "service-account", "", fmt.Sprintf("System namespace service account to use for kubernetes resource management. If not set then default \"%s\" SA will be created", clusterauth.ArgoCDManagerServiceAccount))
+	command.Flags().StringVar(&opts.AwsClusterName, "aws-cluster-name", "", "AWS Cluster name if set then aws cli eks token command will be used to access cluster")
+	command.Flags().StringVar(&opts.AwsRoleArn, "aws-role-arn", "", "Optional AWS role arn. If set then AWS IAM Authenticator assume a role to perform cluster operations instead of the default AWS credential provider chain.")
+	command.Flags().StringVar(&opts.SystemNamespace, "system-namespace", common.DefaultSystemNamespace, "Use different system namespace")
+	command.Flags().StringArrayVar(&opts.Namespaces, "namespace", nil, "List of namespaces which are allowed to manage")
+	command.Flags().StringVar(&opts.Name, "name", "", "Overwrite the cluster name")
+	command.Flags().Int64Var(&opts.Shard, "shard", -1, "Cluster shard number; inferred from hostname if not set")
+	command.Flags().StringVar(&opts.ExecProviderCommand, "exec-command", "", "Command to run to provide client credentials to the cluster. You may need to build a custom ArgoCD image to ensure the command is available at runtime.")
+	command.Flags().StringArrayVar(&opts.ExecProviderArgs, "exec-command-args", nil, "Arguments to supply to the --exec-command command")
+	command.Flags().StringToStringVar(&opts.ExecProviderEnv, "exec-command-env", nil, "Environment vars to set when running the --exec-command command")
+	command.Flags().StringVar(&opts.ExecProviderAPIVersion, "exec-command-api-version", "", "Preferred input version of the ExecInfo for the --exec-command")
+	command.Flags().StringVar(&opts.ExecProviderInstallHint, "exec-command-install-hint", "", "Text shown to the user when the --exec-command executable doesn't seem to be present")
 }
