@@ -7,6 +7,7 @@ import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 
+import * as moment from 'moment';
 import {ApplicationSyncOptionsField} from '../application-sync-options';
 import {RevisionFormField} from '../revision-form-field/revision-form-field';
 import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage} from '../utils';
@@ -126,6 +127,13 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
             title: 'NAMESPACE',
             view: app.spec.destination.namespace,
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.destination.namespace' component={Text} />
+        },
+        {
+            title: 'CREATED_AT',
+            view: moment
+                .utc(app.metadata.creationTimestamp)
+                .local()
+                .format('MM/DD/YYYY HH:mm:ss')
         },
         {
             title: 'REPO URL',
