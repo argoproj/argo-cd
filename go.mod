@@ -8,7 +8,7 @@ require (
 	github.com/alicebob/gopher-json v0.0.0-20180125190556-5a6b3ba71ee6 // indirect
 	github.com/alicebob/miniredis v2.5.0+incompatible
 	github.com/argoproj/gitops-engine v0.2.1
-	github.com/argoproj/pkg v0.2.0
+	github.com/argoproj/pkg v0.3.0
 	github.com/bombsimon/logrusr v1.0.0
 	github.com/casbin/casbin v1.9.1
 	github.com/chai2010/gettext-go v0.0.0-20170215093142-bf70f2a70fb1 // indirect

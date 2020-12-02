@@ -307,7 +307,7 @@ func reconcileApplications(
 	for _, app := range appsList.Items {
 		if prevServer != app.Spec.Destination.Server {
 			if prevServer != "" {
-				if clusterCache, err := stateCache.GetClusterCache(prevServer); err == nil {
+				if clusterCache, err := stateCache.GetClusterCache(prevServer, app.Spec.Destination.Name); err == nil {
 					clusterCache.Invalidate()
 				}
 			}

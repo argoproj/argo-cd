@@ -313,7 +313,7 @@ func TestGetClusterSuccessful(t *testing.T) {
 	})
 
 	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
-	cluster, err := db.GetCluster(context.Background(), server)
+	cluster, err := db.GetCluster(context.Background(), server, name)
 	assert.NoError(t, err)
 	assert.Equal(t, server, cluster.Server)
 	assert.Equal(t, name, cluster.Name)
@@ -324,7 +324,7 @@ func TestGetNonExistingCluster(t *testing.T) {
 	clientset := getClientset(nil)
 
 	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
-	_, err := db.GetCluster(context.Background(), server)
+	_, err := db.GetCluster(context.Background(), server, "")
 	assert.NotNil(t, err)
 	status, ok := status.FromError(err)
 	assert.True(t, ok)
@@ -370,7 +370,7 @@ func TestDeleteClusterWithManagedSecret(t *testing.T) {
 	})
 
 	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
-	err := db.DeleteCluster(context.Background(), clusterURL)
+	err := db.DeleteCluster(context.Background(), clusterURL, clusterName)
 	assert.Nil(t, err)
 
 	_, err = clientset.CoreV1().Secrets(testNamespace).Get(context.Background(), clusterName, metav1.GetOptions{})
@@ -398,7 +398,7 @@ func TestDeleteClusterWithUnmanagedSecret(t *testing.T) {
 	})
 
 	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
-	err := db.DeleteCluster(context.Background(), clusterURL)
+	err := db.DeleteCluster(context.Background(), clusterURL, clusterName)
 	assert.Nil(t, err)
 
 	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(context.Background(), clusterName, metav1.GetOptions{})

@@ -149,7 +149,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		return nil, nil, err
 	}
 	ts.AddCheckpoint("build_options_ms")
-	serverVersion, apiGroups, err := m.liveStateCache.GetVersionsInfo(app.Spec.Destination.Server)
+	serverVersion, apiGroups, err := m.liveStateCache.GetVersionsInfo(app.Spec.Destination.Server, app.Spec.Destination.Name)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -369,7 +369,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	ts.AddCheckpoint("git_ms")
 
 	var infoProvider kubeutil.ResourceInfoProvider
-	infoProvider, err = m.liveStateCache.GetClusterCache(app.Spec.Destination.Server)
+	infoProvider, err = m.liveStateCache.GetClusterCache(app.Spec.Destination.Server, app.Spec.Destination.Name)
 	if err != nil {
 		infoProvider = &resourceInfoProviderStub{}
 	}
@@ -489,7 +489,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 			resState.Status = v1alpha1.SyncStatusCodeSynced
 		}
 		// set unknown status to all resource that are not permitted in the app project
-		isNamespaced, err := m.liveStateCache.IsNamespaced(app.Spec.Destination.Server, gvk.GroupKind())
+		isNamespaced, err := m.liveStateCache.IsNamespaced(app.Spec.Destination.Server, app.Spec.Destination.Name, gvk.GroupKind())
 		if !project.IsGroupKindPermitted(gvk.GroupKind(), isNamespaced && err == nil) {
 			resState.Status = v1alpha1.SyncStatusCodeUnknown
 		}

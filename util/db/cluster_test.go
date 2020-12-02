@@ -115,7 +115,7 @@ func TestDeleteUnknownCluster(t *testing.T) {
 	})
 	settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
 	db := NewDB(fakeNamespace, settingsManager, kubeclientset)
-	assert.EqualError(t, db.DeleteCluster(context.Background(), "http://unknown"), `rpc error: code = NotFound desc = cluster "http://unknown" not found`)
+	assert.EqualError(t, db.DeleteCluster(context.Background(), "http://unknown", ""), `rpc error: code = NotFound desc = cluster "http://unknown" not found`)
 }
 
 func runWatchTest(t *testing.T, db ArgoDB, actions []func(old *v1alpha1.Cluster, new *v1alpha1.Cluster)) {
