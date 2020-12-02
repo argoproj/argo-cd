@@ -12,6 +12,10 @@ tests:
     message: ""
   inputPath: testdata/healthy_legacy_v0.9_observedGeneration.yaml
 - healthStatus:
+    status: Healthy
+    message: ""
+  inputPath: testdata/healthy_legacy_v0.9_observedGeneration_numeric.yaml
+- healthStatus:
     status: Degraded
     message: "The Rollout \"basic\" is invalid: spec.strategy.strategy: Required value: Rollout has missing field '.spec.strategy.canary or .spec.strategy.blueGreen'"
   inputPath: testdata/degraded_invalidSpec.yaml
