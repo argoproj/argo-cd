@@ -74,7 +74,7 @@ func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command 
 				if clusterOpts.ServiceAccount != "" {
 					managerBearerToken, err = clusterauth.GetServiceAccountBearerToken(clientset, clusterOpts.SystemNamespace, clusterOpts.ServiceAccount)
 				} else {
-					managerBearerToken, rbacResources, err = clusterauth.InstallClusterManagerRBAC(clientset, clusterOpts.SystemNamespace, clusterOpts.Namespaces)
+					rbacResources, err = clusterauth.GenerateClusterManagerRBAC(clientset, clusterOpts.SystemNamespace, clusterOpts.Namespaces)
 				}
 				errors.CheckError(err)
 			}
@@ -95,7 +95,6 @@ func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command 
 			errors.CheckError(err)
 			secret.Kind = kube.SecretKind
 			secret.APIVersion = "v1"
-
 			err = cmdutil.PrintResource(secret, outputFormat)
 			errors.CheckError(err)
 			if rbacResources != nil && rbacResources.ServiceAccount != nil {

@@ -37,6 +37,11 @@ const (
 	tlsClientCertKey = "tlsClientCertKey"
 )
 
+type UpsertOptions struct {
+	// When present, indicates that modifications should not be persisted.
+	DryRun bool
+}
+
 func (db *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error) {
 	repos, err := db.settingsMgr.GetRepositories()
 	if err != nil {
@@ -68,7 +73,7 @@ func (db *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*apps
 		EnableLFS:             r.EnableLFS,
 		EnableOci:             r.EnableOCI,
 	}
-	err = db.updateRepositorySecrets(&repoInfo, r)
+	_, err = db.UpdateRepositorySecrets(&repoInfo, r, UpsertOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -187,7 +192,7 @@ func (db *db) UpdateRepository(ctx context.Context, r *appsv1.Repository) (*apps
 	}
 
 	repoInfo := repos[index]
-	err = db.updateRepositorySecrets(&repoInfo, r)
+	_, err = db.UpdateRepositorySecrets(&repoInfo, r, UpsertOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -216,13 +221,13 @@ func (db *db) DeleteRepository(ctx context.Context, repoURL string) error {
 	if index < 0 {
 		return status.Errorf(codes.NotFound, "repo '%s' not found", repoURL)
 	}
-	err = db.updateRepositorySecrets(&repos[index], &appsv1.Repository{
+	_, err = db.UpdateRepositorySecrets(&repos[index], &appsv1.Repository{
 		SSHPrivateKey:     "",
 		Password:          "",
 		Username:          "",
 		TLSClientCertData: "",
 		TLSClientCertKey:  "",
-	})
+	}, UpsertOptions{})
 	if err != nil {
 		return err
 	}
@@ -363,7 +368,7 @@ func (db *db) updateCredentialsSecret(credsInfo *settings.RepositoryCredentials,
 	credsInfo.TLSClientCertDataSecret = setSecretData(credSecretPrefix, r.Repo, secretsData, credsInfo.TLSClientCertDataSecret, r.TLSClientCertData, tlsClientCertData)
 	credsInfo.TLSClientCertKeySecret = setSecretData(credSecretPrefix, r.Repo, secretsData, credsInfo.TLSClientCertKeySecret, r.TLSClientCertKey, tlsClientCertKey)
 	for k, v := range secretsData {
-		err := db.upsertSecret(k, v)
+		_, err := db.upsertSecret(k, v, UpsertOptions{})
 		if err != nil {
 			return err
 		}
@@ -371,7 +376,7 @@ func (db *db) updateCredentialsSecret(credsInfo *settings.RepositoryCredentials,
 	return nil
 }
 
-func (db *db) updateRepositorySecrets(repoInfo *settings.Repository, r *appsv1.Repository) error {
+func (db *db) UpdateRepositorySecrets(repoInfo *settings.Repository, r *appsv1.Repository, upsertOpts UpsertOptions) ([]*apiv1.Secret, error) {
 	secretsData := make(map[string]map[string][]byte)
 
 	repoInfo.UsernameSecret = setSecretData(repoSecretPrefix, r.Repo, secretsData, repoInfo.UsernameSecret, r.Username, username)
@@ -379,13 +384,15 @@ func (db *db) updateRepositorySecrets(repoInfo *settings.Repository, r *appsv1.R
 	repoInfo.SSHPrivateKeySecret = setSecretData(repoSecretPrefix, r.Repo, secretsData, repoInfo.SSHPrivateKeySecret, r.SSHPrivateKey, sshPrivateKey)
 	repoInfo.TLSClientCertDataSecret = setSecretData(repoSecretPrefix, r.Repo, secretsData, repoInfo.TLSClientCertDataSecret, r.TLSClientCertData, tlsClientCertData)
 	repoInfo.TLSClientCertKeySecret = setSecretData(repoSecretPrefix, r.Repo, secretsData, repoInfo.TLSClientCertKeySecret, r.TLSClientCertKey, tlsClientCertKey)
+	secrets := make([]*apiv1.Secret, 0)
 	for k, v := range secretsData {
-		err := db.upsertSecret(k, v)
+		s, err := db.upsertSecret(k, v, UpsertOptions{DryRun: upsertOpts.DryRun})
 		if err != nil {
-			return err
+			return nil, err
 		}
+		secrets = append(secrets, s)
 	}
-	return nil
+	return secrets, nil
 }
 
 // Set data to be stored in a given secret used for repository credentials and templates.
@@ -417,14 +424,18 @@ func setSecretData(prefix string, url string, secretsData map[string]map[string]
 	return secretKey
 }
 
-func (db *db) upsertSecret(name string, data map[string][]byte) error {
+func (db *db) upsertSecret(name string, data map[string][]byte, options UpsertOptions) (*apiv1.Secret, error) {
 	secret, err := db.kubeclientset.CoreV1().Secrets(db.ns).Get(context.Background(), name, metav1.GetOptions{})
 	if err != nil {
 		if apierr.IsNotFound(err) {
 			if len(data) == 0 {
-				return nil
+				return nil, nil
 			}
-			_, err = db.kubeclientset.CoreV1().Secrets(db.ns).Create(context.Background(), &apiv1.Secret{
+			createOpts := metav1.CreateOptions{}
+			if options.DryRun {
+				createOpts.DryRun = []string{metav1.DryRunAll}
+			}
+			secret, err = db.kubeclientset.CoreV1().Secrets(db.ns).Create(context.Background(), &apiv1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: name,
 					Annotations: map[string]string{
@@ -432,9 +443,9 @@ func (db *db) upsertSecret(name string, data map[string][]byte) error {
 					},
 				},
 				Data: data,
-			}, metav1.CreateOptions{})
+			}, createOpts)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 	} else {
@@ -452,17 +463,21 @@ func (db *db) upsertSecret(name string, data map[string][]byte) error {
 			isManagedByArgo := (secret.Annotations != nil && secret.Annotations[common.AnnotationKeyManagedBy] == common.AnnotationValueManagedByArgoCD) ||
 				(secret.Labels != nil && secret.Labels[common.LabelKeySecretType] == "repository")
 			if isManagedByArgo {
-				return db.kubeclientset.CoreV1().Secrets(db.ns).Delete(context.Background(), name, metav1.DeleteOptions{})
+				return secret, db.kubeclientset.CoreV1().Secrets(db.ns).Delete(context.Background(), name, metav1.DeleteOptions{})
 			}
-			return nil
+			return secret, nil
 		} else {
-			_, err = db.kubeclientset.CoreV1().Secrets(db.ns).Update(context.Background(), secret, metav1.UpdateOptions{})
+			updateOpts := metav1.UpdateOptions{}
+			if options.DryRun {
+				updateOpts.DryRun = []string{metav1.DryRunAll}
+			}
+			secret, err = db.kubeclientset.CoreV1().Secrets(db.ns).Update(context.Background(), secret, updateOpts)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 	}
-	return nil
+	return secret, nil
 }
 
 func getRepositoryIndex(repos []settings.Repository, repoURL string) int {

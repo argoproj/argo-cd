@@ -688,6 +688,7 @@ func NewGenerateConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command {
 	command.AddCommand(NewGenAppConfigCommand())
 	command.AddCommand(NewGenProjectConfigCommand())
 	command.AddCommand(NewGenClusterConfigCommand(pathOpts))
+	command.AddCommand(NewGenRepoConfigCommand())
 
 	return command
 }

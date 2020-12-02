@@ -66,6 +66,9 @@ type ArgoDB interface {
 	AddGPGPublicKey(ctx context.Context, keyData string) (map[string]*appv1.GnuPGPublicKey, []string, error)
 	// DeleteGPGPublicKey removes a GPG public key from the configuration
 	DeleteGPGPublicKey(ctx context.Context, keyID string) error
+
+	// UpdateRepositorySecrets updates secrets for repository
+	UpdateRepositorySecrets(repoInfo *settings.Repository, r *appv1.Repository, upsertOpts UpsertOptions) ([]*v1.Secret, error)
 }
 
 type db struct {

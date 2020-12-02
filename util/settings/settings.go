@@ -205,7 +205,7 @@ const (
 	// settingURLKey designates the key where Argo CD's external URL is set
 	settingURLKey = "url"
 	// repositoriesKey designates the key where ArgoCDs repositories list is set
-	repositoriesKey = "repositories"
+	RepositoriesKey = "repositories"
 	// repositoryCredentialsKey designates the key where ArgoCDs repositories credentials list is set
 	repositoryCredentialsKey = "repository.credentials"
 	// helmRepositoriesKey designates the key where list of helm repositories is set
@@ -346,7 +346,7 @@ func (mgr *SettingsManager) updateSecret(callback func(*apiv1.Secret) error) err
 }
 
 func (mgr *SettingsManager) updateConfigMap(callback func(*apiv1.ConfigMap) error) error {
-	argoCDCM, err := mgr.getConfigMap()
+	argoCDCM, err := mgr.GetConfigMap()
 	createCM := false
 	if err != nil {
 		if !apierr.IsNotFound(err) {
@@ -377,12 +377,12 @@ func (mgr *SettingsManager) updateConfigMap(callback func(*apiv1.ConfigMap) erro
 		return err
 	}
 
-	mgr.invalidateCache()
+	mgr.InvalidateCache()
 
 	return mgr.ResyncInformers()
 }
 
-func (mgr *SettingsManager) getConfigMap() (*apiv1.ConfigMap, error) {
+func (mgr *SettingsManager) GetConfigMap() (*apiv1.ConfigMap, error) {
 	err := mgr.ensureSynced(false)
 	if err != nil {
 		return nil, err
@@ -413,7 +413,7 @@ func (mgr *SettingsManager) GetConfigMapByName(configMapName string) (*apiv1.Con
 }
 
 func (mgr *SettingsManager) GetResourcesFilter() (*ResourcesFilter, error) {
-	argoCDCM, err := mgr.getConfigMap()
+	argoCDCM, err := mgr.GetConfigMap()
 	if err != nil {
 		return nil, err
 	}
@@ -439,7 +439,7 @@ func (mgr *SettingsManager) GetResourcesFilter() (*ResourcesFilter, error) {
 }
 
 func (mgr *SettingsManager) GetAppInstanceLabelKey() (string, error) {
-	argoCDCM, err := mgr.getConfigMap()
+	argoCDCM, err := mgr.GetConfigMap()
 	if err != nil {
 		return "", err
 	}
@@ -451,7 +451,7 @@ func (mgr *SettingsManager) GetAppInstanceLabelKey() (string, error) {
 }
 
 func (mgr *SettingsManager) GetConfigManagementPlugins() ([]v1alpha1.ConfigManagementPlugin, error) {
-	argoCDCM, err := mgr.getConfigMap()
+	argoCDCM, err := mgr.GetConfigMap()
 	if err != nil {
 		return nil, err
 	}
@@ -467,7 +467,7 @@ func (mgr *SettingsManager) GetConfigManagementPlugins() ([]v1alpha1.ConfigManag
 
 // GetResourceOverrides loads Resource Overrides from argocd-cm ConfigMap
 func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.ResourceOverride, error) {
-	argoCDCM, err := mgr.getConfigMap()
+	argoCDCM, err := mgr.GetConfigMap()
 	if err != nil {
 		return nil, err
 	}
@@ -529,7 +529,7 @@ func (mgr *SettingsManager) GetResourceCompareOptions() (ArgoCDDiffOptions, erro
 	// We have a sane set of default diff options
 	diffOptions := GetDefaultDiffOptions()
 
-	argoCDCM, err := mgr.getConfigMap()
+	argoCDCM, err := mgr.GetConfigMap()
 	if err != nil {
 		return diffOptions, err
 	}
@@ -546,7 +546,7 @@ func (mgr *SettingsManager) GetResourceCompareOptions() (ArgoCDDiffOptions, erro
 
 // GetKustomizeSettings loads the kustomize settings from argocd-cm ConfigMap
 func (mgr *SettingsManager) GetKustomizeSettings() (*KustomizeSettings, error) {
-	argoCDCM, err := mgr.getConfigMap()
+	argoCDCM, err := mgr.GetConfigMap()
 	if err != nil {
 		return nil, err
 	}
@@ -568,7 +568,7 @@ func (mgr *SettingsManager) GetKustomizeSettings() (*KustomizeSettings, error) {
 
 // DEPRECATED. Helm repository credentials are now managed using RepoCredentials
 func (mgr *SettingsManager) GetHelmRepositories() ([]HelmRepoCredentials, error) {
-	argoCDCM, err := mgr.getConfigMap()
+	argoCDCM, err := mgr.GetConfigMap()
 	if err != nil {
 		return nil, err
 	}
@@ -593,7 +593,7 @@ func (mgr *SettingsManager) GetRepositories() ([]Repository, error) {
 	}
 
 	// Get the config map outside of the lock
-	argoCDCM, err := mgr.getConfigMap()
+	argoCDCM, err := mgr.GetConfigMap()
 	if err != nil {
 		return nil, err
 	}
@@ -601,7 +601,7 @@ func (mgr *SettingsManager) GetRepositories() ([]Repository, error) {
 	mgr.mutex.Lock()
 	defer mgr.mutex.Unlock()
 	repositories := make([]Repository, 0)
-	repositoriesStr := argoCDCM.Data[repositoriesKey]
+	repositoriesStr := argoCDCM.Data[RepositoriesKey]
 	if repositoriesStr != "" {
 		err := yaml.Unmarshal([]byte(repositoriesStr), &repositories)
 		if err != nil {
@@ -620,9 +620,9 @@ func (mgr *SettingsManager) SaveRepositories(repos []Repository) error {
 			if err != nil {
 				return err
 			}
-			argoCDCM.Data[repositoriesKey] = string(yamlStr)
+			argoCDCM.Data[RepositoriesKey] = string(yamlStr)
 		} else {
-			delete(argoCDCM.Data, repositoriesKey)
+			delete(argoCDCM.Data, RepositoriesKey)
 		}
 		return nil
 	})
@@ -653,7 +653,7 @@ func (mgr *SettingsManager) GetRepositoryCredentials() ([]RepositoryCredentials,
 	}
 
 	// Get the config map outside of the lock
-	argoCDCM, err := mgr.getConfigMap()
+	argoCDCM, err := mgr.GetConfigMap()
 	if err != nil {
 		return nil, err
 	}
@@ -674,7 +674,7 @@ func (mgr *SettingsManager) GetRepositoryCredentials() ([]RepositoryCredentials,
 }
 
 func (mgr *SettingsManager) GetGoogleAnalytics() (*GoogleAnalytics, error) {
-	argoCDCM, err := mgr.getConfigMap()
+	argoCDCM, err := mgr.GetConfigMap()
 	if err != nil {
 		return nil, err
 	}
@@ -685,7 +685,7 @@ func (mgr *SettingsManager) GetGoogleAnalytics() (*GoogleAnalytics, error) {
 }
 
 func (mgr *SettingsManager) GetHelp() (*Help, error) {
-	argoCDCM, err := mgr.getConfigMap()
+	argoCDCM, err := mgr.GetConfigMap()
 	if err != nil {
 		return nil, err
 	}
@@ -727,7 +727,7 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 }
 
 // Clears cached settings on configmap/secret change
-func (mgr *SettingsManager) invalidateCache() {
+func (mgr *SettingsManager) InvalidateCache() {
 	mgr.mutex.Lock()
 	defer mgr.mutex.Unlock()
 
@@ -743,7 +743,7 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 
 	eventHandler := cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(oldObj, newObj interface{}) {
-			mgr.invalidateCache()
+			mgr.InvalidateCache()
 		},
 	}
 	indexers := cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}
@@ -1299,7 +1299,7 @@ func ReplaceStringSecret(val string, secretValues map[string]string) string {
 
 // GetGlobalProjectsSettings loads the global project settings from argocd-cm ConfigMap
 func (mgr *SettingsManager) GetGlobalProjectsSettings() ([]GlobalProjectSettings, error) {
-	argoCDCM, err := mgr.getConfigMap()
+	argoCDCM, err := mgr.GetConfigMap()
 	if err != nil {
 		return nil, err
 	}
