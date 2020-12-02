@@ -1,6 +1,6 @@
 if obj.status ~= nil then
     generation = tonumber(obj.status.observedGeneration)
-    if generation == nil then
+    if generation == nil or generation > obj.metadata.generation then
         -- rollouts v0.9 and below
         obj.status.abort = nil
         if obj.spec.strategy.canary.steps ~= nil then
