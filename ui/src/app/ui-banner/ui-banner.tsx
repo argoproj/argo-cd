@@ -3,29 +3,39 @@ import {DataLoader} from '../shared/components';
 import {services} from '../shared/services';
 
 require('./ui-banner.scss');
+var crypto = require('crypto');
 export class Banner extends React.Component {
     state = {
-        bannerVisible: false,
-        currentBannerState: '',
-        nextBannerState: ''
+        bannerVisible: false
     };
-    setBanner = () => {
+    private setBanner() {
         this.setState({
             bannerVisible: false
         });
-    };
-    checkBannerUpdate = () => {
+    }
+    private checkBannerUpdate() {
         services.bannerUI.banner().then(response => {
-            this.setState({nextBannerState: response.announcements.description + response.maintenance.description + response.newRelease.description});
+            let nextBannerState = this.createHash(response.announcements.description + response.maintenance.description + response.newRelease.description);
             services.viewPreferences.getPreferences().subscribe(items => {
-                this.setState({currentBannerState: items.isBannerVisible});
+                let currentBannerState = items.isBannerVisible;
+                console.log(currentBannerState, 'this', nextBannerState);
+                if (currentBannerState !== nextBannerState) {
+                    services.viewPreferences.updatePreferences({
+                        isBannerVisible: nextBannerState
+                    });
+                    this.setState({bannerVisible: true});
+                }
             });
-            if (this.state.currentBannerState !== this.state.nextBannerState) {
-                services.viewPreferences.updatePreferences({isBannerVisible: this.state.nextBannerState});
-                this.setState({bannerVisible: true});
-            }
         });
-    };
+    }
+
+    private createHash(val: string): string {
+        return crypto
+            .createHash('md5')
+            .update(val)
+            .digest('hex');
+    }
+
     async componentDidMount() {
         await this.checkBannerUpdate();
     }
