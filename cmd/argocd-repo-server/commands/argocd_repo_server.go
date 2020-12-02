@@ -32,8 +32,8 @@ const (
 	gnuPGSourcePath = "/app/config/gpg/source"
 
 	defaultPauseGenerationAfterFailedGenerationAttempts = 3
-	defaultPauseGenerationOnFailureForMinutes           = 0
-	defaultPauseGenerationOnFailureForRequests          = 12
+	defaultPauseGenerationOnFailureForMinutes           = 60
+	defaultPauseGenerationOnFailureForRequests          = 0
 )
 
 func getGnuPGSourcePath() string {
