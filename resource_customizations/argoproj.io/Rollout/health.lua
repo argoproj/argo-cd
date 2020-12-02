@@ -51,15 +51,23 @@ function checkPaused(obj)
   return nil
 end
 
-hs = {}
-if obj.status == nil or obj.status.observedGeneration == nil then
-  hs.status = "Progressing"
-  hs.message = "Waiting for rollout spec update to be observed"
-  return hs
+-- isGenerationObserved determines if the rollout spec has been observed by the controller. This
+-- only applies to v0.10 rollout which uses a numeric status.observedGeneration. For v0.9 rollouts
+-- and below this function always returns true.
+function isGenerationObserved(obj)
+  if obj.status == nil then
+    return false
+  end
+  observedGeneration = tonumber(obj.status.observedGeneration)
+  if observedGeneration == nil or observedGeneration > obj.metadata.generation then
+    -- if we get here, the rollout is a v0.9 rollout
+    return true
+  end
+  return observedGeneration == obj.metadata.generation
 end
 
-generation = tonumber(obj.status.observedGeneration)
-if generation ~= nil and generation ~= obj.metadata.generation then
+hs = {}
+if not isGenerationObserved(obj) then
   hs.status = "Progressing"
   hs.message = "Waiting for rollout spec update to be observed"
   return hs
