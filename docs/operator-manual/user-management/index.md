@@ -9,7 +9,7 @@ The local users/accounts feature serves two main use-cases:
 
 * Auth tokens for Argo CD management automation. It is possible to configure an API account with limited permissions and generate an authentication token.
 Such token can be used to automatically create applications, projects etc.
-* Additional users for a very small team when SSO integration is overkill. The local users don't provide advanced features such as groups,
+* Additional users for a very small team where use of SSO integration might be considered an overkill. The local users don't provide advanced features such as groups,
 login history etc. So if you need such features it is strongly recommended to use SSO.
 
 !!! note
