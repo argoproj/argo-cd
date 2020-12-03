@@ -767,7 +767,7 @@ func mergeSourceParameters(source *v1alpha1.ApplicationSource, path string) erro
 func GetAppSourceType(source *v1alpha1.ApplicationSource, path string) (v1alpha1.ApplicationSourceType, error) {
 	err := mergeSourceParameters(source, path)
 	if err != nil {
-		return "", fmt.Errorf("error while parsing .argocd-app.yaml: %v", err)
+		return "", fmt.Errorf("error while parsing .argocd-source.yaml: %v", err)
 	}
 
 	appSourceType, err := source.ExplicitType()
