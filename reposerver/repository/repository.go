@@ -862,23 +862,12 @@ func findManifests(appPath string, repoRoot string, env *v1alpha1.Env, directory
 			return nil
 		}
 
-		out, err := utfutil.ReadFile(path, utfutil.UTF8)
-		if err != nil {
-			return err
-		}
-		if strings.HasSuffix(f.Name(), ".json") {
-			var obj unstructured.Unstructured
-			err = json.Unmarshal(out, &obj)
-			if err != nil {
-				return status.Errorf(codes.FailedPrecondition, "Failed to unmarshal %q: %v", f.Name(), err)
-			}
-			objs = append(objs, &obj)
-		} else if strings.HasSuffix(f.Name(), ".jsonnet") {
+		if strings.HasSuffix(f.Name(), ".jsonnet") {
 			vm, err := makeJsonnetVm(appPath, repoRoot, directory.Jsonnet, env)
 			if err != nil {
 				return err
 			}
-			jsonStr, err := vm.EvaluateSnippet(path, string(out))
+			jsonStr, err := vm.EvaluateFile(path)
 			if err != nil {
 				return status.Errorf(codes.FailedPrecondition, "Failed to evaluate jsonnet %q: %v", f.Name(), err)
 			}
@@ -897,24 +886,37 @@ func findManifests(appPath string, repoRoot string, env *v1alpha1.Env, directory
 				objs = append(objs, &jsonObj)
 			}
 		} else {
-			yamlObjs, err := kube.SplitYAML(out)
+			out, err := utfutil.ReadFile(path, utfutil.UTF8)
 			if err != nil {
-				if len(yamlObjs) > 0 {
-					// If we get here, we had a multiple objects in a single YAML file which had some
-					// valid k8s objects, but errors parsing others (within the same file). It's very
-					// likely the user messed up a portion of the YAML, so report on that.
-					return status.Errorf(codes.FailedPrecondition, "Failed to unmarshal %q: %v", f.Name(), err)
-				}
-				// Otherwise, let's see if it looks like a resource, if yes, we return error
-				if bytes.Contains(out, []byte("apiVersion:")) &&
-					bytes.Contains(out, []byte("kind:")) &&
-					bytes.Contains(out, []byte("metadata:")) {
-					return status.Errorf(codes.FailedPrecondition, "Failed to unmarshal %q: %v", f.Name(), err)
-				}
-				// Otherwise, it might be a unrelated YAML file which we will ignore
-				return nil
+				return err
 			}
-			objs = append(objs, yamlObjs...)
+			if strings.HasSuffix(f.Name(), ".json") {
+				var obj unstructured.Unstructured
+				err = json.Unmarshal(out, &obj)
+				if err != nil {
+					return status.Errorf(codes.FailedPrecondition, "Failed to unmarshal %q: %v", f.Name(), err)
+				}
+				objs = append(objs, &obj)
+			} else {
+				yamlObjs, err := kube.SplitYAML(out)
+				if err != nil {
+					if len(yamlObjs) > 0 {
+						// If we get here, we had a multiple objects in a single YAML file which had some
+						// valid k8s objects, but errors parsing others (within the same file). It's very
+						// likely the user messed up a portion of the YAML, so report on that.
+						return status.Errorf(codes.FailedPrecondition, "Failed to unmarshal %q: %v", f.Name(), err)
+					}
+					// Otherwise, let's see if it looks like a resource, if yes, we return error
+					if bytes.Contains(out, []byte("apiVersion:")) &&
+						bytes.Contains(out, []byte("kind:")) &&
+						bytes.Contains(out, []byte("metadata:")) {
+						return status.Errorf(codes.FailedPrecondition, "Failed to unmarshal %q: %v", f.Name(), err)
+					}
+					// Otherwise, it might be a unrelated YAML file which we will ignore
+					return nil
+				}
+				objs = append(objs, yamlObjs...)
+			}
 		}
 		return nil
 	})
