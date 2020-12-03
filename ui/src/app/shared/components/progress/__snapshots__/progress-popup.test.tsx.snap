@@ -8,7 +8,7 @@ exports[`ProgressPopup.0% 1`] = `
     className="popup-container"
   >
     <div
-      className="row popup-container__header"
+      className="row popup-container__header popup-container__header__normal"
     >
       
     </div>
@@ -16,7 +16,7 @@ exports[`ProgressPopup.0% 1`] = `
       className="row popup-container__body"
     >
       <div
-        className="columns large-12"
+        className="columns large-12 popup-container__body__hasNoIcon"
       >
         <div
           style={
@@ -66,7 +66,7 @@ exports[`ProgressPopup.50% 1`] = `
     className="popup-container"
   >
     <div
-      className="row popup-container__header"
+      className="row popup-container__header popup-container__header__normal"
     >
       My Title
     </div>
@@ -74,7 +74,7 @@ exports[`ProgressPopup.50% 1`] = `
       className="row popup-container__body"
     >
       <div
-        className="columns large-12"
+        className="columns large-12 popup-container__body__hasNoIcon"
       >
         <div
           style={
@@ -124,7 +124,7 @@ exports[`ProgressPopup.100% 1`] = `
     className="popup-container"
   >
     <div
-      className="row popup-container__header"
+      className="row popup-container__header popup-container__header__normal"
     >
       
     </div>
@@ -132,7 +132,7 @@ exports[`ProgressPopup.100% 1`] = `
       className="row popup-container__body"
     >
       <div
-        className="columns large-12"
+        className="columns large-12 popup-container__body__hasNoIcon"
       >
         <div
           style={
