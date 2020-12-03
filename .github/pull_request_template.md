@@ -6,4 +6,9 @@ Checklist:
 * [ ] Does this PR require documentation updates?
 * [ ] I've updated documentation as required by this PR.
 * [ ] Optional. My organization is added to USERS.md.
-* [ ] I've signed the CLA and my build is green ([troubleshooting builds](https://argoproj.github.io/argo-cd/developer-guide/ci/)). 
+* [ ] I have signed off all my commits as required by [DCO](https://github.com/argoproj/argoproj/tree/master/community#contributing-to-argo)
+* [ ] My build is green ([troubleshooting builds](https://argoproj.github.io/argo-cd/developer-guide/ci/)). 
+
+**Note on DCO:**
+
+If the DCO action in the integration test fails, one or more of your commits are not signed off. Please click on the *Details* link next to the DCO action for instructions on how to resolve this.
