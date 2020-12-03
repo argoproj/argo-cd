@@ -1481,7 +1481,7 @@
 You will create a client within Keycloak and configure ArgoCD to use Keycloak for authentication, using groups set in Keycloak
 to determine privileges in Argo.</p>
 <h2 id="creating-a-new-client-in-keycloak">Creating a new client in Keycloak<a class="headerlink" href="#creating-a-new-client-in-keycloak" title="Permanent link">&para;</a></h2>
-<p>First we need to setup a new client. Start by logging into your keycloak server, select the realm you want to use (Master by default)
+<p>First we need to setup a new client. Start by logging into your keycloak server, select the realm you want to use (<code>master</code> by default)
 and then go to <strong>Clients</strong> and click the <strong>create</strong> button top right.</p>
 <p><img alt="Keycloak add client" src="../../../assets/keycloak-add-client.png" title="Keycloak add client" /></p>
 <p>Configure the client by setting the <strong>Access Type</strong> to <em>confidential</em> and set the Valid Redirect URIs to the callback url for your ArgoCD
@@ -1534,14 +1534,14 @@ You can use <code>$ kubectl edit configmap argocd-cm</code>.</p>
   <span class="nt">url</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">https://argocd.example.com</span>
   <span class="nt">oidc.config</span><span class="p">:</span> <span class="p p-Indicator">|</span>
     <span class="no">name: Keycloak</span>
-    <span class="no">issuer: https://keycloak.example.com/auth/realms/Master</span>
+    <span class="no">issuer: https://keycloak.example.com/auth/realms/master</span>
     <span class="no">clientID: argocd</span>
     <span class="no">clientSecret: $oidc.keycloak.clientSecret</span>
     <span class="no">requestedScopes: [&quot;openid&quot;, &quot;profile&quot;, &quot;email&quot;, &quot;groups&quot;]</span>
 </code></pre></div>
 
 <p>Make sure that:
-- <strong>issuer</strong> ends with the correct realm (in this example <em>Master</em>)
+- <strong>issuer</strong> ends with the correct realm (in this example <em>master</em>)
 - <strong>clientID</strong> is set to the Client ID you configured in Keycloak
 - <strong>clientSecret</strong> points to the right key you created in the <em>argocd-secret</em> Secret
 - <strong>requestedScopes</strong> contains the <em>groups</em> claim if you didn't add it to the Default scopes</p>
