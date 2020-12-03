@@ -1026,7 +1026,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 
 	getCached := func(revision string, _ bool) (bool, interface{}, error) {
 		res := &apiclient.RepoAppDetailsResponse{}
-		err := s.cache.GetAppDetails(revision, q.Source, &res)
+		err := s.cache.GetAppDetails(revision, q.Source, res)
 		if err == nil {
 			log.Infof("app details cache hit: %s/%s", revision, q.Source.Path)
 			return true, res, nil
