@@ -140,6 +140,12 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*ap
 			newItems = append(newItems, *a)
 		}
 	}
+	if q.Name != nil {
+		newItems, err = argoutil.FilterByName(newItems, *q.Name)
+		if err != nil {
+			return nil, err
+		}
+	}
 	newItems = argoutil.FilterByProjects(newItems, q.Projects)
 	sort.Slice(newItems, func(i, j int) bool {
 		return newItems[i].Name < newItems[j].Name
