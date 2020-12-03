@@ -127,11 +127,11 @@ func appDetailsCacheKey(revision string, appSrc *appv1.ApplicationSource) string
 	return fmt.Sprintf("appdetails|%s|%d", revision, appSourceKey(appSrc))
 }
 
-func (c *Cache) GetAppDetails(revision string, appSrc *appv1.ApplicationSource, res interface{}) error {
+func (c *Cache) GetAppDetails(revision string, appSrc *appv1.ApplicationSource, res *apiclient.RepoAppDetailsResponse) error {
 	return c.cache.GetItem(appDetailsCacheKey(revision, appSrc), res)
 }
 
-func (c *Cache) SetAppDetails(revision string, appSrc *appv1.ApplicationSource, res interface{}) error {
+func (c *Cache) SetAppDetails(revision string, appSrc *appv1.ApplicationSource, res *apiclient.RepoAppDetailsResponse) error {
 	return c.cache.SetItem(appDetailsCacheKey(revision, appSrc), res, c.repoCacheExpiration, res == nil)
 }
 
