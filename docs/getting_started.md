@@ -149,6 +149,8 @@ After filling out the information above, click **Create** at the top of the UI t
 
 ## 7. Sync (Deploy) The Application
 
+### From CLI:
+
 Once the guestbook application is created, you can now view its status:
 
 ```bash
