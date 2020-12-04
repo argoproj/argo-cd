@@ -1685,9 +1685,9 @@ The example above uses the <code>argocd-*</code> regex, so Argo CD would be awar
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-rbac-cm</span>
 <span class="nt">data</span><span class="p">:</span>
-  <span class="l l-Scalar l-Scalar-Plain">policy.csv |</span>
-    <span class="l l-Scalar l-Scalar-Plain">g, argocd-admins, role:admin</span>
-  <span class="l l-Scalar l-Scalar-Plain">scopes</span><span class="p p-Indicator">:</span> <span class="s">&#39;[email,groups]&#39;</span>
+  <span class="nt">policy.csv</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+    <span class="no">g, argocd-admins, role:admin</span>
+  <span class="nt">scopes</span><span class="p">:</span> <span class="s">&#39;[email,groups]&#39;</span>
 </code></pre></div>
 
 <h2 id="oidc-without-dex">OIDC (without Dex)<a class="headerlink" href="#oidc-without-dex" title="Permanent link">&para;</a></h2>
