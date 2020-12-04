@@ -670,3 +670,42 @@ func TestValidateDestination(t *testing.T) {
 	})
 
 }
+
+func TestFilterByName(t *testing.T) {
+	apps := []argoappv1.Application{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "foo",
+			},
+			Spec: argoappv1.ApplicationSpec{
+				Project: "fooproj",
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "bar",
+			},
+			Spec: argoappv1.ApplicationSpec{
+				Project: "barproj",
+			},
+		},
+	}
+
+	t.Run("Name is empty string", func(t *testing.T) {
+		res, err := FilterByName(apps, "")
+		assert.NoError(t, err)
+		assert.Len(t, res, 2)
+	})
+
+	t.Run("Single app by name", func(t *testing.T) {
+		res, err := FilterByName(apps, "foo")
+		assert.NoError(t, err)
+		assert.Len(t, res, 1)
+	})
+
+	t.Run("No such app", func(t *testing.T) {
+		res, err := FilterByName(apps, "foobar")
+		assert.Error(t, err)
+		assert.Len(t, res, 0)
+	})
+}
