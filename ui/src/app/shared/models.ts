@@ -823,17 +823,18 @@ export const Groups = [
 
 export type PodGroupType = 'topLevelResource' | 'parentResource' | 'node';
 
-export interface PodGroup extends Partial<ResourceRef> {
+export interface PodGroup extends Partial<ResourceNode> {
     type: PodGroupType;
     pods: Pod[];
     info?: InfoItem[];
     metrics?: ResourceList;
+    resourceStatus?: Partial<ResourceStatus>;
 }
 
-export interface Node {
+export interface InfraNode {
     metadata?: models.ObjectMeta;
     name: string;
-    status?: NodeStatus;
+    status?: InfraNodeStatus;
     metrics: ResourceList;
     pods: Pod[];
 }
@@ -843,7 +844,7 @@ export interface Metric {
     limit: number;
 }
 
-export interface NodeStatus {
+export interface InfraNodeStatus {
     nodeInfo: NodeInfo;
     capacity: {[key in ResourceName]?: string};
 }

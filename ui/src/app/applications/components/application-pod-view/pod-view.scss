@@ -2,7 +2,7 @@
 
 $pod-size: 25px;
 $gutter: 3px;
-$pods-per-row: 7;
+$pods-per-row: 8;
 $max-rows: 5;
 
 .pod-view {
@@ -24,7 +24,7 @@ $max-rows: 5;
 .node {
     padding: 15px;
     margin: 10px;
-    margin-bottom: 0 !important;
+    margin-bottom: 14px !important;
     &__container {
         display: flex;
         &--header {
@@ -37,6 +37,17 @@ $max-rows: 5;
         }
     }
     &__info {
+        margin-top: 1em;
+        display: flex;
+        justify-content: end;
+        div {
+            border-radius: 3px;
+            background-color: $argo-color-gray-3;
+            margin-right: 5px;
+            padding: 3px 5px;
+        }
+    }
+    &__info--large {
         margin: 1em 0;
         padding: 10px;
         border-radius: 3px;

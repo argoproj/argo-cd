@@ -13,10 +13,7 @@ export interface AppDetailsPreferences {
     podView: PodViewPreferences;
 }
 
-export type PodColorMode = 'health' | 'phase';
-
 export interface PodViewPreferences {
-    colorMode: PodColorMode;
     sortMode: PodGroupType;
 }
 
@@ -76,7 +73,6 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         resourceView: 'manifest',
         orphanedResources: false,
         podView: {
-            colorMode: 'health',
             sortMode: 'node',
         },
     },

@@ -2,6 +2,9 @@ import * as React from 'react';
 import {resources} from './resources';
 
 export const ResourceIcon = ({kind, customStyle}: {kind: string; customStyle?: React.CSSProperties}) => {
+    if (kind === 'node') {
+        return <img src={'assets/images/infrastructure_components/' + kind + '.svg'} alt={kind} style={{padding: '2px', width: '40px', height: '32px', ...customStyle}} />;
+    }
     const i = resources.get(kind);
     if (i !== undefined) {
         return <img src={'assets/images/resources/' + i + '.svg'} alt={kind} style={{padding: '2px', width: '40px', height: '32px', ...customStyle}} />;
