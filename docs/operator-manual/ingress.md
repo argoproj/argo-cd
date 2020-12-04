@@ -351,13 +351,62 @@ spec:
 ```
 
 ## AWS Application Load Balancers (ALBs) And Classic ELB (HTTP Mode)
+AWS ALBs can be used as an L7 Load Balancer for both UI and gRPC traffic, whereas Classic ELBs and NLBs can be used as L4 Load Balancers for both. 
 
-ALBs and Classic ELBs don't fully support HTTP2/gRPC, which is used by the `argocd` CLI.
-Thus, when using an AWS load balancer, either Classic ELB in
-passthrough mode is needed, or NLBs.
+When using an ALB, you'll want to create a second service for argocd-server. This is necessary because we need to tell the ALB to send the GRPC traffic to a different target group then the UI traffic, since the backend protocol is HTTP2 instead of HTTP1.
 
-```shell
-$ argocd login <host>:<port> --grpc-web
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    alb.ingress.kubernetes.io/backend-protocol-version: HTTP2 #This tells AWS to send traffic from the ALB using HTTP2. Can use GRPC as well if you want to leverage GRPC specific features
+  labels:
+    app: argogrpc
+  name: argogrpc
+  namespace: argocd
+spec:
+  ports:
+  - name: "443"
+    port: 443
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app.kubernetes.io/name: argocd-server
+  sessionAffinity: None
+  type: ClusterIP
+```
+
+Once we create this service, we can configure the Ingress to conditionally route all `application/grpc` traffic to the new HTTP2 backend, using the `alb.ingress.kubernetes.io/conditions` annotation, as seen below. Note: The value after the . in the condition annotation _must_ be the same name as the service that you want traffic to route to - and will be applied on any path with a matching serviceName. 
+
+```yaml
+  apiVersion: networking.k8s.io/v1 # Use extensions/v1beta1 for Kubernetes 1.14 and older 
+  kind: Ingress
+  metadata:
+    annotations:
+      alb.ingress.kubernetes.io/backend-protocol: HTTPS
+      # Use this annotation (which must match a service name) to route traffic to HTTP2 backends. 
+      alb.ingress.kubernetes.io/conditions.argogrpc: |
+        [{"field":"http-header","httpHeaderConfig":{"httpHeaderName": "Content-Type", "values":["application/grpc"]}}]
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+    name: argocd
+    namespace: argocd
+  spec:
+    rules:
+    - host: argocd.argoproj.io
+      http:
+        paths:
+        - backend:
+            serviceName: argogrpc
+            servicePort: 443
+          pathType: ImplementationSpecific
+        - backend:
+            serviceName: argocd-server
+            servicePort: 443
+          pathType: ImplementationSpecific
+    tls:
+    - hosts:
+      - argocd.argoproj.io
 ```
 
 ## Authenticating through multiple layers of authenticating reverse proxies
