@@ -9,6 +9,7 @@ import {ResourceTreeNode} from '../application-resource-tree/application-resourc
 import {nodeKey, PodHealthIcon} from '../utils';
 import {AppContext} from '../../../shared/context';
 import {ResourceIcon} from '../resource-icon';
+import {ResourceLabel} from '../resource-label';
 import {HealthStatusIcon, ComparisonStatusIcon} from '../utils';
 import './pod-view.scss';
 import Moment from 'react-moment';
@@ -73,12 +74,16 @@ export class PodView extends React.Component<PodViewProps> {
                                                 <div className='node white-box' key={group.name}>
                                                     <div className='node__container--header'>
                                                         <div style={{display: 'flex', alignItems: 'center'}}>
-                                                            <ResourceIcon
-                                                                kind={group.kind || 'Unknown'}
-                                                                customStyle={{
-                                                                    marginRight: '10px'
-                                                                }}
-                                                            />
+                                                            <div>
+                                                                <ResourceIcon
+                                                                    kind={group.kind || 'Unknown'}
+                                                                    customStyle={{
+                                                                        marginRight: '10px'
+                                                                    }}
+                                                                />
+                                                                <br />
+                                                            </div>
+                                                            {<div className='application-resource-tree__node-kind'>{ResourceLabel({kind: group.kind})}</div>}
                                                             <div style={{lineHeight: '15px', wordWrap: 'break-word'}}>
                                                                 <b>{group.name || 'unknown'}</b>
                                                                 {group.resourceStatus && (
