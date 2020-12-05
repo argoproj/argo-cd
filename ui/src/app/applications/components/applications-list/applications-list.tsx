@@ -165,6 +165,19 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
     const [isAppCreatePending, setAppCreatePending] = React.useState(false);
     const searchBar = React.useRef<HTMLDivElement>(null);
 
+    React.useEffect(() => {
+        const handleKeyPress = (e: KeyboardEvent) => {
+            if (e.keyCode === 47 && searchBar.current && !appInput) {
+                searchBar.current.querySelector('input').focus();
+                e.preventDefault();
+            }
+        };
+        document.addEventListener('keypress', handleKeyPress);
+        return () => {
+            document.removeEventListener('keypress', handleKeyPress);
+        };
+    });
+
     const loaderRef = React.useRef<DataLoader>();
     function refreshApp(appName: string) {
         // app refreshing might be done too quickly so that UI might miss it due to event batching

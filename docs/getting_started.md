@@ -93,7 +93,7 @@ https://kubernetes.default.svc should be used as the application's K8s API serve
 
 First list all clusters contexts in your current kubeconfig:
 ```bash
-argocd cluster add
+kubectl config get-contexts -o name
 ```
 
 Choose a context name from the list and supply it to `argocd cluster add CONTEXTNAME`. For example,
@@ -148,6 +148,8 @@ After filling out the information above, click **Create** at the top of the UI t
 
 
 ## 7. Sync (Deploy) The Application
+
+### From CLI:
 
 Once the guestbook application is created, you can now view its status:
 

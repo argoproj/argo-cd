@@ -8,7 +8,7 @@ to determine privileges in Argo.
 
 ## Creating a new client in Keycloak
 
-First we need to setup a new client. Start by logging into your keycloak server, select the realm you want to use (Master by default)
+First we need to setup a new client. Start by logging into your keycloak server, select the realm you want to use (`master` by default)
 and then go to __Clients__ and click the __create__ button top right.
 
 ![Keycloak add client](../../assets/keycloak-add-client.png "Keycloak add client")
@@ -83,14 +83,14 @@ data:
   url: https://argocd.example.com
   oidc.config: |
     name: Keycloak
-    issuer: https://keycloak.example.com/auth/realms/Master
+    issuer: https://keycloak.example.com/auth/realms/master
     clientID: argocd
     clientSecret: $oidc.keycloak.clientSecret
     requestedScopes: ["openid", "profile", "email", "groups"]
 ```
 
 Make sure that:
-- __issuer__ ends with the correct realm (in this example _Master_)
+- __issuer__ ends with the correct realm (in this example _master_)
 - __clientID__ is set to the Client ID you configured in Keycloak
 - __clientSecret__ points to the right key you created in the _argocd-secret_ Secret
 - __requestedScopes__ contains the _groups_ claim if you didn't add it to the Default scopes

@@ -63,6 +63,21 @@ func FilterByProjects(apps []argoappv1.Application, projects []string) []argoapp
 
 }
 
+// FilterByName returns an application
+func FilterByName(apps []argoappv1.Application, name string) ([]argoappv1.Application, error) {
+	if name == "" {
+		return apps, nil
+	}
+	items := make([]argoappv1.Application, 0)
+	for i := 0; i < len(apps); i++ {
+		if apps[i].Name == name {
+			items = append(items, apps[i])
+			return items, nil
+		}
+	}
+	return items, status.Errorf(codes.NotFound, "application '%s' not found", name)
+}
+
 // RefreshApp updates the refresh annotation of an application to coerce the controller to process it
 func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType argoappv1.RefreshType) (*argoappv1.Application, error) {
 	metadata := map[string]interface{}{
