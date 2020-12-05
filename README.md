@@ -11,6 +11,8 @@ Argo CD is a declarative, GitOps continuous delivery tool for Kubernetes.
 
 ![Argo CD UI](docs/assets/argocd-ui.gif)
 
+[![Argo CD Demo](https://img.youtube.com/vi/0WAm0y2vLIo/0.jpg)](https://youtu.be/0WAm0y2vLIo)
+
 ## Why Argo CD?
 
 1. Application definitions, configurations, and environments should be declarative and version controlled.
@@ -43,3 +45,4 @@ Check live demo at https://cd.apps.argoproj.io/.
 1. [GitOps Deployment and Kubernetes - using ArgoCD](https://medium.com/riskified-technology/gitops-deployment-and-kubernetes-f1ab289efa4b)
 1. [Deploy Argo CD with Ingress and TLS in Three Steps: No YAML Yak Shaving Required](https://itnext.io/deploy-argo-cd-with-ingress-and-tls-in-three-steps-no-yaml-yak-shaving-required-bc536d401491)
 1. [GitOps Continuous Delivery with Argo and Codefresh](https://codefresh.io/events/cncf-member-webinar-gitops-continuous-delivery-argo-codefresh/)
+1. [Stay up to date with ArgoCD and Renovate](https://mjpitz.com/blog/2020/12/03/renovate-your-gitops/)

@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	ioutil "github.com/argoproj/argo-cd/util/io"
@@ -30,20 +31,28 @@ func (r *redisCache) Set(item *Item) error {
 		expiration = r.expiration
 	}
 
+	val, err := json.Marshal(item.Object)
+	if err != nil {
+		return err
+	}
+
 	return r.cache.Set(&rediscache.Item{
 		Key:   item.Key,
-		Value: item.Object,
+		Value: val,
 		TTL:   expiration,
 	})
 }
 
 func (r *redisCache) Get(key string, obj interface{}) error {
-	err := r.cache.Get(context.TODO(), key, obj)
-
+	var data []byte
+	err := r.cache.Get(context.TODO(), key, &data)
 	if err == rediscache.ErrCacheMiss {
-		return ErrCacheMiss
+		err = ErrCacheMiss
 	}
-	return err
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(data, obj)
 }
 
 func (r *redisCache) Delete(key string) error {
