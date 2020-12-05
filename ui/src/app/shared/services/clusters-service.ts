@@ -9,7 +9,35 @@ export class ClustersService {
             .then(list => list.items || []);
     }
 
-    public get(url: string): Promise<models.Cluster> {
-        return requests.get(`/clusters/${encodeURIComponent(url)}`).then(res => res.body as models.Cluster);
+    public get(url: string, name: string): Promise<models.Cluster> {
+        let queryName = '';
+        if (url === undefined) {
+            url = '';
+            queryName = `?name=${name}`;
+        }
+        const requestUrl = `/clusters/${encodeURIComponent(url)}` + queryName;
+        return requests.get(requestUrl).then(res => res.body as models.Cluster);
+    }
+
+    public update(cluster: models.Cluster, ...paths: string[]): Promise<models.Cluster> {
+        return requests
+            .put(`/clusters/${encodeURIComponent(cluster.server)}`)
+            .query({updatedPaths: paths})
+            .send(cluster)
+            .then(res => res.body as models.Cluster);
+    }
+
+    public invalidateCache(url: string): Promise<models.Cluster> {
+        return requests
+            .post(`/clusters/${encodeURIComponent(url)}/invalidate-cache`)
+            .send({})
+            .then(res => res.body as models.Cluster);
+    }
+
+    public delete(server: string): Promise<models.Cluster> {
+        return requests
+            .delete(`/clusters/${encodeURIComponent(server)}`)
+            .send()
+            .then(res => res.body as models.Cluster);
     }
 }

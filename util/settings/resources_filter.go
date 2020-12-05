@@ -1,5 +1,15 @@
 package settings
 
+// The core exclusion list are K8s resources that we assume will never be managed by operators,
+// and are never child objects of managed resources that need to be presented in the resource tree.
+// This list contains high volume and  high churn metadata objects which we exclude for performance
+// reasons, reducing connections and load to the K8s API servers of managed clusters.
+var coreExcludedResources = []FilteredResource{
+	{APIGroups: []string{"events.k8s.io", "metrics.k8s.io"}},
+	{APIGroups: []string{""}, Kinds: []string{"Event", "Node"}},
+	{APIGroups: []string{"coordination.k8s.io"}, Kinds: []string{"Lease"}},
+}
+
 type ResourcesFilter struct {
 	// ResourceExclusions holds the api groups, kinds per cluster to exclude from Argo CD's watch
 	ResourceExclusions []FilteredResource
@@ -8,10 +18,6 @@ type ResourcesFilter struct {
 }
 
 func (rf *ResourcesFilter) getExcludedResources() []FilteredResource {
-	coreExcludedResources := []FilteredResource{
-		{APIGroups: []string{"events.k8s.io", "metrics.k8s.io"}},
-		{APIGroups: []string{""}, Kinds: []string{"Event"}},
-	}
 	return append(coreExcludedResources, rf.ResourceExclusions...)
 }
 
@@ -58,13 +64,23 @@ func (rf *ResourcesFilter) isExcludedResource(apiGroup, kind, cluster string) bo
 // +-------------+-------------+-------------+
 //
 func (rf *ResourcesFilter) IsExcludedResource(apiGroup, kind, cluster string) bool {
-	if len(rf.ResourceInclusions) > 0 {
-		if rf.isIncludedResource(apiGroup, kind, cluster) {
-			return rf.isExcludedResource(apiGroup, kind, cluster)
-		} else {
+	// if excluded, do not allow
+	if rf.isExcludedResource(apiGroup, kind, cluster) {
+		return true
+	}
+
+	// if included, do allow
+	if rf.isIncludedResource(apiGroup, kind, cluster) {
+		return false
+	}
+
+	// if inclusion rules defined for cluster, default is not allow
+	for _, includedResource := range rf.ResourceInclusions {
+		if includedResource.MatchCluster(cluster) {
 			return true
 		}
-	} else {
-		return rf.isExcludedResource(apiGroup, kind, cluster)
 	}
+
+	// if no inclusion rules defined for cluster, default is allow
+	return false
 }

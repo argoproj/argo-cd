@@ -2,6 +2,7 @@ import {ErrorNotification, FormField, NotificationType, SlidingPanel} from 'argo
 import * as React from 'react';
 import {Checkbox, Form, FormApi, Text} from 'react-form';
 
+import {Spinner} from '../../../shared/components';
 import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -15,6 +16,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
         .filter(item => !item.hook);
     const syncResIndex = appResources.findIndex(item => nodeKey(item) === selectedResource);
     const syncStrategy = {} as models.SyncStrategy;
+    const [isPending, setPending] = React.useState(false);
 
     return (
         <Consumer>
@@ -25,7 +27,12 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                     onClose={() => hide()}
                     header={
                         <div>
-                            <button className='argo-button argo-button--base' onClick={() => form.submitForm(null)}>
+                            <button
+                                qe-id='application-sync-panel-button-synchronize'
+                                className='argo-button argo-button--base'
+                                disabled={isPending}
+                                onClick={() => form.submitForm(null)}>
+                                <Spinner show={isPending} style={{marginRight: '5px'}} />
                                 Synchronize
                             </button>{' '}
                             <button onClick={() => hide()} className='argo-button argo-button--base-o'>
@@ -43,6 +50,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                 resources: values.resources.every((item: boolean) => !item) && 'Select at least one resource'
                             })}
                             onSubmit={async (params: any) => {
+                                setPending(true);
                                 let resources = appResources.filter((_, i) => params.resources[i]);
                                 if (resources.length === appResources.length) {
                                     resources = null;
@@ -60,6 +68,8 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                         content: <ErrorNotification title='Unable to deploy revision' e={e} />,
                                         type: NotificationType.Error
                                     });
+                                } finally {
+                                    setPending(false);
                                 }
                             }}
                             getApi={setForm}>

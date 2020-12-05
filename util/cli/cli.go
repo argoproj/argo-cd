@@ -10,19 +10,23 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path"
 	"strconv"
 	"strings"
 
+	"github.com/google/shlex"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh/terminal"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog"
 	"k8s.io/kubectl/pkg/util/term"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/errors"
-	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/errors"
+	"github.com/argoproj/argo-cd/util/io"
 )
 
 // NewVersionCmd returns a new `version` command to be used as a sub-command to root
@@ -30,7 +34,7 @@ func NewVersionCmd(cliName string) *cobra.Command {
 	var short bool
 	versionCmd := cobra.Command{
 		Use:   "version",
-		Short: fmt.Sprintf("Print version information"),
+		Short: "Print version information",
 		Run: func(cmd *cobra.Command, args []string) {
 			version := common.GetVersion()
 			fmt.Printf("%s: %s\n", cliName, version)
@@ -137,14 +141,25 @@ func ReadAndConfirmPassword() (string, error) {
 	}
 }
 
+// SetLogFormat sets a logrus log format
+func SetLogFormat(logFormat string) {
+	switch strings.ToLower(logFormat) {
+	case "json":
+		log.SetFormatter(&log.JSONFormatter{})
+	case "text":
+		if os.Getenv("FORCE_LOG_COLORS") == "1" {
+			log.SetFormatter(&log.TextFormatter{ForceColors: true})
+		}
+	default:
+		log.Fatalf("Unknown log format '%s'", logFormat)
+	}
+}
+
 // SetLogLevel parses and sets a logrus log level
 func SetLogLevel(logLevel string) {
 	level, err := log.ParseLevel(logLevel)
 	errors.CheckError(err)
 	log.SetLevel(level)
-	if os.Getenv("FORCE_LOG_COLORS") == "1" {
-		log.SetFormatter(&log.TextFormatter{ForceColors: true})
-	}
 }
 
 // SetGLogLevel set the glog level for the k8s go-client
@@ -157,7 +172,7 @@ func SetGLogLevel(glogLevel int) {
 func writeToTempFile(pattern string, data []byte) string {
 	f, err := ioutil.TempFile("", pattern)
 	errors.CheckError(err)
-	defer util.Close(f)
+	defer io.Close(f)
 	_, err = f.Write(data)
 	errors.CheckError(err)
 	return f.Name()
@@ -242,4 +257,51 @@ func InteractiveEdit(filePattern string, data []byte, save func(input []byte) er
 		}
 		errorComment = err.Error()
 	}
+}
+
+// PrintDiff prints a diff between two unstructured objects to stdout using an external diff utility
+// Honors the diff utility set in the KUBECTL_EXTERNAL_DIFF environment variable
+func PrintDiff(name string, live *unstructured.Unstructured, target *unstructured.Unstructured) error {
+	tempDir, err := ioutil.TempDir("", "argocd-diff")
+	if err != nil {
+		return err
+	}
+	targetFile := path.Join(tempDir, name)
+	targetData := []byte("")
+	if target != nil {
+		targetData, err = yaml.Marshal(target)
+		if err != nil {
+			return err
+		}
+	}
+	err = ioutil.WriteFile(targetFile, targetData, 0644)
+	if err != nil {
+		return err
+	}
+	liveFile := path.Join(tempDir, fmt.Sprintf("%s-live.yaml", name))
+	liveData := []byte("")
+	if live != nil {
+		liveData, err = yaml.Marshal(live)
+		if err != nil {
+			return err
+		}
+	}
+	err = ioutil.WriteFile(liveFile, liveData, 0644)
+	if err != nil {
+		return err
+	}
+	cmdBinary := "diff"
+	var args []string
+	if envDiff := os.Getenv("KUBECTL_EXTERNAL_DIFF"); envDiff != "" {
+		parts, err := shlex.Split(envDiff)
+		if err != nil {
+			return err
+		}
+		cmdBinary = parts[0]
+		args = parts[1:]
+	}
+	cmd := exec.Command(cmdBinary, append(args, liveFile, targetFile)...)
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
+	return cmd.Run()
 }

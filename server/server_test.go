@@ -3,31 +3,28 @@ package server
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
-
-	"github.com/argoproj/argo-cd/pkg/apiclient/session"
-
-	"google.golang.org/grpc/metadata"
 
 	"github.com/dgrijalva/jwt-go"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc/metadata"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apiclient"
-	applicationpkg "github.com/argoproj/argo-cd/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	apps "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
+	servercache "github.com/argoproj/argo-cd/server/cache"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/test"
 	"github.com/argoproj/argo-cd/util/assets"
+	cacheutil "github.com/argoproj/argo-cd/util/cache"
+	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
 	"github.com/argoproj/argo-cd/util/rbac"
 )
 
@@ -45,6 +42,15 @@ func fakeServer() *ArgoCDServer {
 		DisableAuth:     true,
 		StaticAssetsDir: "../test/testdata/static",
 		XFrameOptions:   "sameorigin",
+		Cache: servercache.NewCache(
+			appstatecache.NewCache(
+				cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Hour)),
+				1*time.Minute,
+			),
+			1*time.Minute,
+			1*time.Minute,
+			1*time.Minute,
+		),
 	}
 	return NewServer(context.Background(), argoCDOpts)
 }
@@ -54,20 +60,25 @@ func TestEnforceProjectToken(t *testing.T) {
 	roleName := "testRole"
 	subFormat := "proj:%s:%s"
 	policyTemplate := "p, %s, applications, get, %s/%s, %s"
-
 	defaultObject := "*"
 	defaultEffect := "allow"
 	defaultTestObject := fmt.Sprintf("%s/%s", projectName, "test")
 	defaultIssuedAt := int64(1)
 	defaultSub := fmt.Sprintf(subFormat, projectName, roleName)
 	defaultPolicy := fmt.Sprintf(policyTemplate, defaultSub, projectName, defaultObject, defaultEffect)
+	defaultId := "testId"
 
-	role := v1alpha1.ProjectRole{Name: roleName, Policies: []string{defaultPolicy}, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: defaultIssuedAt}}}
+	role := v1alpha1.ProjectRole{Name: roleName, Policies: []string{defaultPolicy}, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: defaultIssuedAt}, {ID: defaultId}}}
+
+	jwtTokenByRole := make(map[string]v1alpha1.JWTTokens)
+	jwtTokenByRole[roleName] = v1alpha1.JWTTokens{Items: []v1alpha1.JWTToken{{IssuedAt: defaultIssuedAt}, {ID: defaultId}}}
+
 	existingProj := v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: projectName, Namespace: test.FakeArgoCDNamespace},
 		Spec: v1alpha1.AppProjectSpec{
 			Roles: []v1alpha1.ProjectRole{role},
 		},
+		Status: v1alpha1.AppProjectStatus{JWTTokensByRole: jwtTokenByRole},
 	}
 	cm := test.NewFakeConfigMap()
 	secret := test.NewFakeSecret()
@@ -129,6 +140,24 @@ func TestEnforceProjectToken(t *testing.T) {
 		assert.True(t, s.enf.Enforce(claims, "applications", "get", allowedObject))
 		assert.False(t, s.enf.Enforce(claims, "applications", "get", denyObject))
 	})
+
+	t.Run("TestEnforceProjectTokenWithIdSuccessful", func(t *testing.T) {
+		s := NewServer(context.Background(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj)})
+		cancel := test.StartInformer(s.projInformer)
+		defer cancel()
+		claims := jwt.MapClaims{"sub": defaultSub, "jti": defaultId}
+		assert.True(t, s.enf.Enforce(claims, "projects", "get", existingProj.ObjectMeta.Name))
+		assert.True(t, s.enf.Enforce(claims, "applications", "get", defaultTestObject))
+	})
+
+	t.Run("TestEnforceProjectTokenWithInvalidIdFailure", func(t *testing.T) {
+		s := NewServer(context.Background(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj)})
+		invalidId := "invalidId"
+		claims := jwt.MapClaims{"sub": defaultSub, "jti": defaultId}
+		res := s.enf.Enforce(claims, "applications", "get", invalidId)
+		assert.False(t, res)
+	})
+
 }
 
 func TestEnforceClaims(t *testing.T) {
@@ -207,7 +236,7 @@ func TestInitializingExistingDefaultProject(t *testing.T) {
 	argocd := NewServer(context.Background(), argoCDOpts)
 	assert.NotNil(t, argocd)
 
-	proj, err := appClientSet.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Get(common.DefaultAppProjectName, metav1.GetOptions{})
+	proj, err := appClientSet.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), common.DefaultAppProjectName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.NotNil(t, proj)
 	assert.Equal(t, proj.Name, common.DefaultAppProjectName)
@@ -228,7 +257,7 @@ func TestInitializingNotExistingDefaultProject(t *testing.T) {
 	argocd := NewServer(context.Background(), argoCDOpts)
 	assert.NotNil(t, argocd)
 
-	proj, err := appClientSet.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Get(common.DefaultAppProjectName, metav1.GetOptions{})
+	proj, err := appClientSet.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), common.DefaultAppProjectName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.NotNil(t, proj)
 	assert.Equal(t, proj.Name, common.DefaultAppProjectName)
@@ -281,7 +310,7 @@ func TestEnforceProjectGroups(t *testing.T) {
 	log.Println(existingProj.ProjectPoliciesString())
 	existingProj.Spec.Roles[0].Groups = nil
 	log.Println(existingProj.ProjectPoliciesString())
-	_, _ = s.AppClientset.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Update(&existingProj)
+	_, _ = s.AppClientset.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Update(context.Background(), &existingProj, metav1.UpdateOptions{})
 	time.Sleep(100 * time.Millisecond) // this lets the informer get synced
 	assert.False(t, s.enf.Enforce(claims, "projects", "get", existingProj.ObjectMeta.Name))
 	assert.False(t, s.enf.Enforce(claims, "applications", "get", defaultTestObject))
@@ -293,7 +322,6 @@ func TestRevokedToken(t *testing.T) {
 	roleName := "testRole"
 	subFormat := "proj:%s:%s"
 	policyTemplate := "p, %s, applications, get, %s/%s, %s"
-
 	defaultObject := "*"
 	defaultEffect := "allow"
 	defaultTestObject := fmt.Sprintf("%s/%s", projectName, "test")
@@ -301,6 +329,9 @@ func TestRevokedToken(t *testing.T) {
 	defaultSub := fmt.Sprintf(subFormat, projectName, roleName)
 	defaultPolicy := fmt.Sprintf(policyTemplate, defaultSub, projectName, defaultObject, defaultEffect)
 	kubeclientset := fake.NewSimpleClientset(test.NewFakeConfigMap(), test.NewFakeSecret())
+
+	jwtTokenByRole := make(map[string]v1alpha1.JWTTokens)
+	jwtTokenByRole[roleName] = v1alpha1.JWTTokens{Items: []v1alpha1.JWTToken{{IssuedAt: defaultIssuedAt}}}
 
 	existingProj := v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{
@@ -320,6 +351,9 @@ func TestRevokedToken(t *testing.T) {
 				},
 			},
 		},
+		Status: v1alpha1.AppProjectStatus{
+			JWTTokensByRole: jwtTokenByRole,
+		},
 	}
 
 	s := NewServer(context.Background(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj)})
@@ -330,7 +364,8 @@ func TestRevokedToken(t *testing.T) {
 	assert.True(t, s.enf.Enforce(claims, "applications", "get", defaultTestObject))
 	// Now revoke the token by deleting the token
 	existingProj.Spec.Roles[0].JWTTokens = nil
-	_, _ = s.AppClientset.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Update(&existingProj)
+	existingProj.Status.JWTTokensByRole = nil
+	_, _ = s.AppClientset.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Update(context.Background(), &existingProj, metav1.UpdateOptions{})
 	time.Sleep(200 * time.Millisecond) // this lets the informer get synced
 	assert.False(t, s.enf.Enforce(claims, "projects", "get", existingProj.ObjectMeta.Name))
 	assert.False(t, s.enf.Enforce(claims, "applications", "get", defaultTestObject))
@@ -340,75 +375,6 @@ func TestCertsAreNotGeneratedInInsecureMode(t *testing.T) {
 	s := fakeServer()
 	assert.True(t, s.Insecure)
 	assert.Nil(t, s.settings.Certificate)
-}
-
-func TestUserAgent(t *testing.T) {
-	s := fakeServer()
-	cancelInformer := test.StartInformer(s.projInformer)
-	defer cancelInformer()
-	port, err := test.GetFreePort()
-	assert.NoError(t, err)
-	metricsPort, err := test.GetFreePort()
-	assert.NoError(t, err)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go s.Run(ctx, port, metricsPort)
-	defer func() { time.Sleep(3 * time.Second) }()
-
-	err = test.WaitForPortListen(fmt.Sprintf("127.0.0.1:%d", port), 10*time.Second)
-	assert.NoError(t, err)
-
-	type testData struct {
-		userAgent string
-		errorMsg  string
-	}
-	currentVersionBytes, err := ioutil.ReadFile("../VERSION")
-	assert.NoError(t, err)
-	currentVersion := strings.TrimSpace(string(currentVersionBytes))
-	var tests = []testData{
-		{
-			// Reject out-of-date user-agent
-			userAgent: fmt.Sprintf("%s/0.10.0", common.ArgoCDUserAgentName),
-			errorMsg:  "unsatisfied client version constraint",
-		},
-		{
-			// Accept up-to-date user-agent
-			userAgent: fmt.Sprintf("%s/%s", common.ArgoCDUserAgentName, currentVersion),
-		},
-		{
-			// Accept up-to-date pre-release user-agent
-			userAgent: fmt.Sprintf("%s/%s-rc1", common.ArgoCDUserAgentName, currentVersion),
-		},
-		{
-			// Reject legacy client
-			// NOTE: after we update the grpc-go client past 1.15.0, this test will break and should be deleted
-			userAgent: " ", // need a space here since the apiclient will set the default user-agent if empty
-			errorMsg:  "unsatisfied client version constraint",
-		},
-		{
-			// Permit custom clients
-			userAgent: "foo/1.2.3",
-		},
-	}
-
-	for _, test := range tests {
-		opts := apiclient.ClientOptions{
-			ServerAddr: fmt.Sprintf("localhost:%d", port),
-			PlainText:  true,
-			UserAgent:  test.userAgent,
-		}
-		clnt, err := apiclient.NewClient(&opts)
-		assert.NoError(t, err)
-		conn, appClnt := clnt.NewApplicationClientOrDie()
-		_, err = appClnt.List(ctx, &applicationpkg.ApplicationQuery{})
-		if test.errorMsg != "" {
-			assert.Error(t, err)
-			assert.Regexp(t, test.errorMsg, err.Error())
-		} else {
-			assert.NoError(t, err)
-		}
-		_ = conn.Close()
-	}
 }
 
 func TestAuthenticate(t *testing.T) {
@@ -452,7 +418,7 @@ func TestAuthenticate(t *testing.T) {
 			argocd := NewServer(context.Background(), argoCDOpts)
 			ctx := context.Background()
 			if testData.user != "" {
-				token, err := argocd.sessionMgr.Create("admin", 0)
+				token, err := argocd.sessionMgr.Create("admin", 0, "")
 				assert.NoError(t, err)
 				ctx = metadata.NewIncomingContext(context.Background(), metadata.Pairs(apiclient.MetaDataTokenKey, token))
 			}
@@ -465,97 +431,6 @@ func TestAuthenticate(t *testing.T) {
 			}
 
 		})
-	}
-}
-
-func Test_StaticHeaders(t *testing.T) {
-	// Test default policy "sameorigin"
-	{
-		s := fakeServer()
-		cancelInformer := test.StartInformer(s.projInformer)
-		defer cancelInformer()
-		port, err := test.GetFreePort()
-		assert.NoError(t, err)
-		metricsPort, err := test.GetFreePort()
-		assert.NoError(t, err)
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		go s.Run(ctx, port, metricsPort)
-		defer func() { time.Sleep(3 * time.Second) }()
-
-		err = test.WaitForPortListen(fmt.Sprintf("127.0.0.1:%d", port), 10*time.Second)
-		assert.NoError(t, err)
-
-		// Allow server startup
-		time.Sleep(1 * time.Second)
-
-		client := http.Client{}
-		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", port)
-		req, err := http.NewRequest("GET", url, nil)
-		assert.NoError(t, err)
-		resp, err := client.Do(req)
-		assert.NoError(t, err)
-		assert.Equal(t, "sameorigin", resp.Header.Get("X-Frame-Options"))
-	}
-
-	// Test custom policy
-	{
-		s := fakeServer()
-		s.XFrameOptions = "deny"
-		cancelInformer := test.StartInformer(s.projInformer)
-		defer cancelInformer()
-		port, err := test.GetFreePort()
-		assert.NoError(t, err)
-		metricsPort, err := test.GetFreePort()
-		assert.NoError(t, err)
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		go s.Run(ctx, port, metricsPort)
-		defer func() { time.Sleep(3 * time.Second) }()
-
-		err = test.WaitForPortListen(fmt.Sprintf("127.0.0.1:%d", port), 10*time.Second)
-		assert.NoError(t, err)
-
-		// Allow server startup
-		time.Sleep(1 * time.Second)
-
-		client := http.Client{}
-		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", port)
-		req, err := http.NewRequest("GET", url, nil)
-		assert.NoError(t, err)
-		resp, err := client.Do(req)
-		assert.NoError(t, err)
-		assert.Equal(t, "deny", resp.Header.Get("X-Frame-Options"))
-	}
-
-	// Test disabled
-	{
-		s := fakeServer()
-		s.XFrameOptions = ""
-		cancelInformer := test.StartInformer(s.projInformer)
-		defer cancelInformer()
-		port, err := test.GetFreePort()
-		assert.NoError(t, err)
-		metricsPort, err := test.GetFreePort()
-		assert.NoError(t, err)
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		go s.Run(ctx, port, metricsPort)
-		defer func() { time.Sleep(3 * time.Second) }()
-
-		err = test.WaitForPortListen(fmt.Sprintf("127.0.0.1:%d", port), 10*time.Second)
-		assert.NoError(t, err)
-
-		// Allow server startup
-		time.Sleep(1 * time.Second)
-
-		client := http.Client{}
-		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", port)
-		req, err := http.NewRequest("GET", url, nil)
-		assert.NoError(t, err)
-		resp, err := client.Do(req)
-		assert.NoError(t, err)
-		assert.Empty(t, resp.Header.Get("X-Frame-Options"))
 	}
 }
 
@@ -603,4 +478,63 @@ func TestTranslateGrpcCookieHeader(t *testing.T) {
 		assert.Equal(t, "argocd.token=; path=/; SameSite=lax; httpOnly; Secure", recorder.Result().Header.Get("Set-Cookie"))
 	})
 
+}
+
+func TestInitializeDefaultProject_ProjectDoesNotExist(t *testing.T) {
+	argoCDOpts := ArgoCDServerOpts{
+		Namespace:     test.FakeArgoCDNamespace,
+		KubeClientset: fake.NewSimpleClientset(test.NewFakeConfigMap(), test.NewFakeSecret()),
+		AppClientset:  apps.NewSimpleClientset(),
+	}
+
+	err := initializeDefaultProject(argoCDOpts)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	proj, err := argoCDOpts.AppClientset.ArgoprojV1alpha1().
+		AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), common.DefaultAppProjectName, metav1.GetOptions{})
+
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	assert.Equal(t, proj.Spec, v1alpha1.AppProjectSpec{
+		SourceRepos:              []string{"*"},
+		Destinations:             []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+		ClusterResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
+	})
+}
+
+func TestInitializeDefaultProject_ProjectAlreadyInitialized(t *testing.T) {
+	existingDefaultProject := v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.DefaultAppProjectName,
+			Namespace: test.FakeArgoCDNamespace,
+		},
+		Spec: v1alpha1.AppProjectSpec{
+			SourceRepos:  []string{"some repo"},
+			Destinations: []v1alpha1.ApplicationDestination{{Server: "some cluster", Namespace: "*"}},
+		},
+	}
+
+	argoCDOpts := ArgoCDServerOpts{
+		Namespace:     test.FakeArgoCDNamespace,
+		KubeClientset: fake.NewSimpleClientset(test.NewFakeConfigMap(), test.NewFakeSecret()),
+		AppClientset:  apps.NewSimpleClientset(&existingDefaultProject),
+	}
+
+	err := initializeDefaultProject(argoCDOpts)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	proj, err := argoCDOpts.AppClientset.ArgoprojV1alpha1().
+		AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), common.DefaultAppProjectName, metav1.GetOptions{})
+
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	assert.Equal(t, proj.Spec, existingDefaultProject.Spec)
 }

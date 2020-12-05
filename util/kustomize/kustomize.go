@@ -9,16 +9,15 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	certutil "github.com/argoproj/argo-cd/util/cert"
 	executil "github.com/argoproj/argo-cd/util/exec"
 	"github.com/argoproj/argo-cd/util/git"
-	"github.com/argoproj/argo-cd/util/kube"
-
-	certutil "github.com/argoproj/argo-cd/util/cert"
 )
 
 // represents a Docker image in the format NAME[:TAG].
@@ -31,11 +30,12 @@ type Kustomize interface {
 }
 
 // NewKustomizeApp create a new wrapper to run commands on the `kustomize` command-line tool.
-func NewKustomizeApp(path string, creds git.Creds, fromRepo string) Kustomize {
+func NewKustomizeApp(path string, creds git.Creds, fromRepo string, binaryPath string) Kustomize {
 	return &kustomize{
-		path:  path,
-		creds: creds,
-		repo:  fromRepo,
+		path:       path,
+		creds:      creds,
+		repo:       fromRepo,
+		binaryPath: binaryPath,
 	}
 }
 
@@ -46,13 +46,22 @@ type kustomize struct {
 	creds git.Creds
 	// the Git repository URL where we checked out
 	repo string
+	// optional kustomize binary path
+	binaryPath string
+}
+
+func (k *kustomize) getBinaryPath() string {
+	if k.binaryPath != "" {
+		return k.binaryPath
+	}
+	return "kustomize"
 }
 
 func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOptions *v1alpha1.KustomizeOptions) ([]*unstructured.Unstructured, []Image, error) {
 
 	if opts != nil {
 		if opts.NamePrefix != "" {
-			cmd := exec.Command("kustomize", "edit", "set", "nameprefix", "--", opts.NamePrefix)
+			cmd := exec.Command(k.getBinaryPath(), "edit", "set", "nameprefix", "--", opts.NamePrefix)
 			cmd.Dir = k.path
 			_, err := executil.Run(cmd)
 			if err != nil {
@@ -60,7 +69,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			}
 		}
 		if opts.NameSuffix != "" {
-			cmd := exec.Command("kustomize", "edit", "set", "namesuffix", "--", opts.NameSuffix)
+			cmd := exec.Command(k.getBinaryPath(), "edit", "set", "namesuffix", "--", opts.NameSuffix)
 			cmd.Dir = k.path
 			_, err := executil.Run(cmd)
 			if err != nil {
@@ -74,7 +83,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			for _, image := range opts.Images {
 				args = append(args, string(image))
 			}
-			cmd := exec.Command("kustomize", args...)
+			cmd := exec.Command(k.getBinaryPath(), args...)
 			cmd.Dir = k.path
 			_, err := executil.Run(cmd)
 			if err != nil {
@@ -93,7 +102,26 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 				arg += fmt.Sprintf("%s:%s", labelName, labelValue)
 			}
 			args = append(args, arg)
-			cmd := exec.Command("kustomize", args...)
+			cmd := exec.Command(k.getBinaryPath(), args...)
+			cmd.Dir = k.path
+			_, err := executil.Run(cmd)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+
+		if len(opts.CommonAnnotations) > 0 {
+			//  edit add annotation foo:bar
+			args := []string{"edit", "add", "annotation"}
+			arg := ""
+			for annotationName, annotationValue := range opts.CommonAnnotations {
+				if arg != "" {
+					arg += ","
+				}
+				arg += fmt.Sprintf("%s:%s", annotationName, annotationValue)
+			}
+			args = append(args, arg)
+			cmd := exec.Command(k.getBinaryPath(), args...)
 			cmd.Dir = k.path
 			_, err := executil.Run(cmd)
 			if err != nil {
@@ -105,9 +133,9 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 	var cmd *exec.Cmd
 	if kustomizeOptions != nil && kustomizeOptions.BuildOptions != "" {
 		params := parseKustomizeBuildOptions(k.path, kustomizeOptions.BuildOptions)
-		cmd = exec.Command("kustomize", params...)
+		cmd = exec.Command(k.getBinaryPath(), params...)
 	} else {
-		cmd = exec.Command("kustomize", "build", k.path)
+		cmd = exec.Command(k.getBinaryPath(), "build", k.path)
 	}
 
 	cmd.Env = os.Environ()
@@ -144,7 +172,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 		return nil, nil, err
 	}
 
-	objs, err := kube.SplitYAML(out)
+	objs, err := kube.SplitYAML([]byte(out))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -178,13 +206,35 @@ func IsKustomization(path string) bool {
 	return false
 }
 
-func Version() (string, error) {
-	cmd := exec.Command("kustomize", "version")
-	out, err := executil.Run(cmd)
+func Version(shortForm bool) (string, error) {
+	executable := "kustomize"
+	cmdArgs := []string{"version"}
+	if shortForm {
+		cmdArgs = append(cmdArgs, "--short")
+	}
+	cmd := exec.Command(executable, cmdArgs...)
+	// example version output:
+	// long: "{Version:kustomize/v3.8.1 GitCommit:0b359d0ef0272e6545eda0e99aacd63aef99c4d0 BuildDate:2020-07-16T00:58:46Z GoOs:linux GoArch:amd64}"
+	// short: "{kustomize/v3.8.1  2020-07-16T00:58:46Z  }"
+	version, err := executil.Run(cmd)
 	if err != nil {
 		return "", fmt.Errorf("could not get kustomize version: %s", err)
 	}
-	return strings.TrimSpace(out), nil
+	version = strings.TrimSpace(version)
+	if shortForm {
+		// trim the curly braces
+		version = strings.TrimPrefix(version, "{")
+		version = strings.TrimSuffix(version, "}")
+		version = strings.TrimSpace(version)
+
+		// remove double space in middle
+		version = strings.ReplaceAll(version, "  ", " ")
+
+		// remove extra 'kustomize/' before version
+		version = strings.TrimPrefix(version, "kustomize/")
+
+	}
+	return version, nil
 }
 
 func getImageParameters(objs []*unstructured.Unstructured) []Image {

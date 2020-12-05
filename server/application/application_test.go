@@ -6,6 +6,9 @@ import (
 	"testing"
 	"time"
 
+	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
+	"github.com/argoproj/pkg/sync"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
@@ -13,28 +16,28 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	v1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
+	k8scache "k8s.io/client-go/tools/cache"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/pkg/apiclient/application"
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	apps "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
 	appinformer "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/reposerver/apiclient/mocks"
-	mockrepo "github.com/argoproj/argo-cd/reposerver/mocks"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/test"
-	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/assets"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/argo-cd/util/kube/kubetest"
+	"github.com/argoproj/argo-cd/util/errors"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/settings"
 )
@@ -43,12 +46,6 @@ const (
 	testNamespace = "default"
 	fakeRepoURL   = "https://git.com/repo.git"
 )
-
-type fakeCloser struct{}
-
-func (f fakeCloser) Close() error {
-	return nil
-}
 
 func fakeRepo() *appsv1.Repository {
 	return &appsv1.Repository{
@@ -92,8 +89,8 @@ func newTestAppServer(objects ...runtime.Object) *Server {
 			"server.secretkey": []byte("test"),
 		},
 	})
-	db := db.NewDB(testNamespace, settings.NewSettingsManager(context.Background(), kubeclientset, testNamespace), kubeclientset)
 	ctx := context.Background()
+	db := db.NewDB(testNamespace, settings.NewSettingsManager(ctx, kubeclientset, testNamespace), kubeclientset)
 	_, err := db.CreateRepository(ctx, fakeRepo())
 	errors.CheckError(err)
 	_, err = db.CreateCluster(ctx, fakeCluster())
@@ -104,8 +101,7 @@ func newTestAppServer(objects ...runtime.Object) *Server {
 	mockRepoServiceClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(&apiclient.ManifestResponse{}, nil)
 	mockRepoServiceClient.On("GetAppDetails", mock.Anything, mock.Anything).Return(&apiclient.RepoAppDetailsResponse{}, nil)
 
-	mockRepoClient := &mockrepo.Clientset{}
-	mockRepoClient.On("NewRepoServerClient").Return(&fakeCloser{}, &mockRepoServiceClient, nil)
+	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mockRepoServiceClient}
 
 	defaultProj := &appsv1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "default"},
@@ -148,19 +144,37 @@ func newTestAppServer(objects ...runtime.Object) *Server {
 	enforcer.SetDefaultRole("role:admin")
 	enforcer.SetClaimsEnforcerFunc(rbacpolicy.NewRBACPolicyEnforcer(enforcer, fakeProjLister).EnforceClaims)
 
-	settingsMgr := settings.NewSettingsManager(context.Background(), kubeclientset, testNamespace)
+	settingsMgr := settings.NewSettingsManager(ctx, kubeclientset, testNamespace)
+
+	// populate the app informer with the fake objects
+	appInformer := factory.Argoproj().V1alpha1().Applications().Informer()
+	// TODO(jessesuen): probably should return cancel function so tests can stop background informer
+	//ctx, cancel := context.WithCancel(context.Background())
+	go appInformer.Run(ctx.Done())
+	if !k8scache.WaitForCacheSync(ctx.Done(), appInformer.HasSynced) {
+		panic("Timed out waiting for caches to sync")
+	}
+
+	projInformer := factory.Argoproj().V1alpha1().AppProjects().Informer()
+	go projInformer.Run(ctx.Done())
+	if !k8scache.WaitForCacheSync(ctx.Done(), projInformer.HasSynced) {
+		panic("Timed out waiting for caches to sync")
+	}
 
 	server := NewServer(
 		testNamespace,
 		kubeclientset,
 		fakeAppsClientset,
+		factory.Argoproj().V1alpha1().Applications().Lister().Applications(testNamespace),
+		appInformer,
 		mockRepoClient,
 		nil,
 		&kubetest.MockKubectlCmd{},
 		db,
 		enforcer,
-		util.NewKeyLock(),
+		sync.NewKeyLock(),
 		settingsMgr,
+		projInformer,
 	)
 	return server.(*Server)
 }
@@ -183,13 +197,84 @@ spec:
     server: https://cluster-api.com
 `
 
-func newTestApp() *appsv1.Application {
+const fakeAppWithDestName = `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: test-app
+  namespace: default
+spec:
+  source:
+    path: some/path
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+    targetRevision: HEAD
+    ksonnet:
+      environment: default
+  destination:
+    namespace: ` + test.FakeDestNamespace + `
+    name: fake-cluster
+`
+
+const fakeAppWithAnnotations = `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: test-app
+  namespace: default
+  annotations:
+    test.annotation: test
+spec:
+  source:
+    path: some/path
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+    targetRevision: HEAD
+    ksonnet:
+      environment: default
+  destination:
+    namespace: ` + test.FakeDestNamespace + `
+    server: https://cluster-api.com
+`
+
+func newTestAppWithDestName(opts ...func(app *appsv1.Application)) *appsv1.Application {
+	return createTestApp(fakeAppWithDestName, opts...)
+}
+
+func newTestApp(opts ...func(app *appsv1.Application)) *appsv1.Application {
+	return createTestApp(fakeApp, opts...)
+}
+
+func newTestAppWithAnnotations(opts ...func(app *appsv1.Application)) *appsv1.Application {
+	return createTestApp(fakeAppWithAnnotations, opts...)
+}
+
+func createTestApp(testApp string, opts ...func(app *appsv1.Application)) *appsv1.Application {
 	var app appsv1.Application
-	err := yaml.Unmarshal([]byte(fakeApp), &app)
+	err := yaml.Unmarshal([]byte(testApp), &app)
 	if err != nil {
 		panic(err)
 	}
+	for i := range opts {
+		opts[i](&app)
+	}
 	return &app
+}
+
+func TestListApps(t *testing.T) {
+	appServer := newTestAppServer(newTestApp(func(app *appsv1.Application) {
+		app.Name = "bcd"
+	}), newTestApp(func(app *appsv1.Application) {
+		app.Name = "abc"
+	}), newTestApp(func(app *appsv1.Application) {
+		app.Name = "def"
+	}))
+
+	res, err := appServer.List(context.Background(), &application.ApplicationQuery{})
+	assert.NoError(t, err)
+	var names []string
+	for i := range res.Items {
+		names = append(names, res.Items[i].Name)
+	}
+	assert.Equal(t, []string{"abc", "bcd", "def"}, names)
 }
 
 func TestCreateApp(t *testing.T) {
@@ -204,6 +289,18 @@ func TestCreateApp(t *testing.T) {
 	assert.NotNil(t, app)
 	assert.NotNil(t, app.Spec)
 	assert.Equal(t, app.Spec.Project, "default")
+}
+
+func TestCreateAppWithDestName(t *testing.T) {
+	appServer := newTestAppServer()
+	testApp := newTestAppWithDestName()
+	createReq := application.ApplicationCreateRequest{
+		Application: *testApp,
+	}
+	app, err := appServer.Create(context.Background(), &createReq)
+	assert.NoError(t, err)
+	assert.NotNil(t, app)
+	assert.Equal(t, app.Spec.Destination.Server, "https://cluster-api.com")
 }
 
 func TestUpdateApp(t *testing.T) {
@@ -276,6 +373,17 @@ func TestDeleteApp(t *testing.T) {
 	assert.True(t, deleted)
 }
 
+func TestDeleteApp_InvalidName(t *testing.T) {
+	appServer := newTestAppServer()
+	_, err := appServer.Delete(context.Background(), &application.ApplicationDeleteRequest{
+		Name: pointer.StringPtr("foo"),
+	})
+	if !assert.Error(t, err) {
+		return
+	}
+	assert.True(t, apierrors.IsNotFound(err))
+}
+
 func TestSyncAndTerminate(t *testing.T) {
 	ctx := context.Background()
 	appServer := newTestAppServer()
@@ -292,7 +400,7 @@ func TestSyncAndTerminate(t *testing.T) {
 	assert.NotNil(t, app)
 	assert.NotNil(t, app.Operation)
 
-	events, err := appServer.kubeclientset.CoreV1().Events(appServer.ns).List(metav1.ListOptions{})
+	events, err := appServer.kubeclientset.CoreV1().Events(appServer.ns).List(context.Background(), metav1.ListOptions{})
 	assert.Nil(t, err)
 	event := events.Items[1]
 
@@ -301,10 +409,10 @@ func TestSyncAndTerminate(t *testing.T) {
 	// set status.operationState to pretend that an operation has started by controller
 	app.Status.OperationState = &appsv1.OperationState{
 		Operation: *app.Operation,
-		Phase:     appsv1.OperationRunning,
+		Phase:     synccommon.OperationRunning,
 		StartedAt: metav1.NewTime(time.Now()),
 	}
-	_, err = appServer.appclientset.ArgoprojV1alpha1().Applications(appServer.ns).Update(app)
+	_, err = appServer.appclientset.ArgoprojV1alpha1().Applications(appServer.ns).Update(context.Background(), app, metav1.UpdateOptions{})
 	assert.Nil(t, err)
 
 	resp, err := appServer.TerminateOperation(ctx, &application.OperationTerminateRequest{Name: &app.Name})
@@ -314,7 +422,7 @@ func TestSyncAndTerminate(t *testing.T) {
 	app, err = appServer.Get(ctx, &application.ApplicationQuery{Name: &app.Name})
 	assert.Nil(t, err)
 	assert.NotNil(t, app)
-	assert.Equal(t, appsv1.OperationTerminating, app.Status.OperationState.Phase)
+	assert.Equal(t, synccommon.OperationTerminating, app.Status.OperationState.Phase)
 }
 
 func TestSyncHelm(t *testing.T) {
@@ -334,7 +442,7 @@ func TestSyncHelm(t *testing.T) {
 	assert.NotNil(t, app)
 	assert.NotNil(t, app.Operation)
 
-	events, err := appServer.kubeclientset.CoreV1().Events(appServer.ns).List(metav1.ListOptions{})
+	events, err := appServer.kubeclientset.CoreV1().Events(appServer.ns).List(context.Background(), metav1.ListOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, "Unknown user initiated sync to 0.7.* (0.7.2)", events.Items[1].Message)
 }
@@ -364,6 +472,7 @@ func TestRollbackApp(t *testing.T) {
 func TestUpdateAppProject(t *testing.T) {
 	testApp := newTestApp()
 	ctx := context.Background()
+	// nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.StandardClaims{Subject: "admin"})
 	appServer := newTestAppServer(testApp)
 	appServer.enf.SetDefaultRole("")
@@ -414,8 +523,9 @@ p, admin, applications, update, my-proj/test-app, allow
 }
 
 func TestAppJsonPatch(t *testing.T) {
-	testApp := newTestApp()
+	testApp := newTestAppWithAnnotations()
 	ctx := context.Background()
+	// nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.StandardClaims{Subject: "admin"})
 	appServer := newTestAppServer(testApp)
 	appServer.enf.SetDefaultRole("")
@@ -431,11 +541,16 @@ func TestAppJsonPatch(t *testing.T) {
 	app, err = appServer.Patch(ctx, &application.ApplicationPatchRequest{Name: &testApp.Name, Patch: `[{"op": "replace", "path": "/spec/source/path", "value": "foo"}]`})
 	assert.NoError(t, err)
 	assert.Equal(t, "foo", app.Spec.Source.Path)
+
+	app, err = appServer.Patch(ctx, &application.ApplicationPatchRequest{Name: &testApp.Name, Patch: `[{"op": "remove", "path": "/metadata/annotations/test.annotation"}]`})
+	assert.NoError(t, err)
+	assert.NotContains(t, app.Annotations, "test.annotation")
 }
 
 func TestAppMergePatch(t *testing.T) {
 	testApp := newTestApp()
 	ctx := context.Background()
+	// nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.StandardClaims{Subject: "admin"})
 	appServer := newTestAppServer(testApp)
 	appServer.enf.SetDefaultRole("")
@@ -478,6 +593,7 @@ func TestServer_GetApplicationSyncWindowsState(t *testing.T) {
 
 func TestGetCachedAppState(t *testing.T) {
 	testApp := newTestApp()
+	testApp.ObjectMeta.ResourceVersion = "1"
 	testApp.Spec.Project = "none"
 	appServer := newTestAppServer(testApp)
 
@@ -495,16 +611,24 @@ func TestGetCachedAppState(t *testing.T) {
 		patched := false
 		watcher := watch.NewFakeWithChanSize(1, true)
 
-		fakeClientSet.ReactionChain = nil
-		fakeClientSet.WatchReactionChain = nil
-		fakeClientSet.AddReactor("patch", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-			patched = true
-			watcher.Modify(testApp)
-			return true, nil, nil
-		})
-		fakeClientSet.AddWatchReactor("applications", func(action kubetesting.Action) (handled bool, ret watch.Interface, err error) {
-			return true, watcher, nil
-		})
+		// Configure fakeClientSet within lock, before requesting cached app state, to avoid data race
+		{
+			fakeClientSet.Lock()
+			fakeClientSet.ReactionChain = nil
+			fakeClientSet.WatchReactionChain = nil
+			fakeClientSet.AddReactor("patch", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+				patched = true
+				updated := testApp.DeepCopy()
+				updated.ResourceVersion = "2"
+				appServer.appBroadcaster.OnUpdate(testApp, updated)
+				return true, testApp, nil
+			})
+			fakeClientSet.AddWatchReactor("applications", func(action kubetesting.Action) (handled bool, ret watch.Interface, err error) {
+				return true, watcher, nil
+			})
+			fakeClientSet.Unlock()
+		}
+
 		err := appServer.getCachedAppState(context.Background(), testApp, func() error {
 			res := cache.ErrCacheMiss
 			if retryCount == 1 {
@@ -525,4 +649,35 @@ func TestGetCachedAppState(t *testing.T) {
 		})
 		assert.Equal(t, randomError, err)
 	})
+}
+
+func TestSplitStatusPatch(t *testing.T) {
+	specPatch := `{"spec":{"aaa":"bbb"}}`
+	statusPatch := `{"status":{"ccc":"ddd"}}`
+	{
+		nonStatus, status, err := splitStatusPatch([]byte(specPatch))
+		assert.NoError(t, err)
+		assert.Equal(t, specPatch, string(nonStatus))
+		assert.Nil(t, status)
+	}
+	{
+		nonStatus, status, err := splitStatusPatch([]byte(statusPatch))
+		assert.NoError(t, err)
+		assert.Nil(t, nonStatus)
+		assert.Equal(t, statusPatch, string(status))
+	}
+	{
+		bothPatch := `{"spec":{"aaa":"bbb"},"status":{"ccc":"ddd"}}`
+		nonStatus, status, err := splitStatusPatch([]byte(bothPatch))
+		assert.NoError(t, err)
+		assert.Equal(t, specPatch, string(nonStatus))
+		assert.Equal(t, statusPatch, string(status))
+	}
+	{
+		otherFields := `{"operation":{"eee":"fff"},"spec":{"aaa":"bbb"},"status":{"ccc":"ddd"}}`
+		nonStatus, status, err := splitStatusPatch([]byte(otherFields))
+		assert.NoError(t, err)
+		assert.Equal(t, `{"operation":{"eee":"fff"},"spec":{"aaa":"bbb"}}`, string(nonStatus))
+		assert.Equal(t, statusPatch, string(status))
+	}
 }

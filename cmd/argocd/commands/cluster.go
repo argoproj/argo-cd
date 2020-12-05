@@ -16,12 +16,12 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	clusterpkg "github.com/argoproj/argo-cd/pkg/apiclient/cluster"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/clusterauth"
+	"github.com/argoproj/argo-cd/util/errors"
+	"github.com/argoproj/argo-cd/util/io"
 )
 
 // NewClusterCommand returns a new instance of an `argocd cluster` command
@@ -58,13 +58,20 @@ func NewClusterCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientc
 // NewClusterAddCommand returns a new instance of an `argocd cluster add` command
 func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientcmd.PathOptions) *cobra.Command {
 	var (
-		inCluster       bool
-		upsert          bool
-		serviceAccount  string
-		awsRoleArn      string
-		awsClusterName  string
-		systemNamespace string
-		namespaces      []string
+		inCluster               bool
+		upsert                  bool
+		serviceAccount          string
+		awsRoleArn              string
+		awsClusterName          string
+		systemNamespace         string
+		namespaces              []string
+		name                    string
+		shard                   int64
+		execProviderCommand     string
+		execProviderArgs        []string
+		execProviderEnv         map[string]string
+		execProviderAPIVersion  string
+		execProviderInstallHint string
 	)
 	var command = &cobra.Command{
 		Use:   "add CONTEXT",
@@ -93,10 +100,19 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 
 			managerBearerToken := ""
 			var awsAuthConf *argoappv1.AWSAuthConfig
+			var execProviderConf *argoappv1.ExecProviderConfig
 			if awsClusterName != "" {
 				awsAuthConf = &argoappv1.AWSAuthConfig{
 					ClusterName: awsClusterName,
 					RoleARN:     awsRoleArn,
+				}
+			} else if execProviderCommand != "" {
+				execProviderConf = &argoappv1.ExecProviderConfig{
+					Command:     execProviderCommand,
+					Args:        execProviderArgs,
+					Env:         execProviderEnv,
+					APIVersion:  execProviderAPIVersion,
+					InstallHint: execProviderInstallHint,
 				}
 			} else {
 				// Install RBAC resources for managing the cluster
@@ -110,10 +126,16 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 				errors.CheckError(err)
 			}
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
-			defer util.Close(conn)
-			clst := newCluster(contextName, namespaces, conf, managerBearerToken, awsAuthConf)
+			defer io.Close(conn)
+			if name != "" {
+				contextName = name
+			}
+			clst := newCluster(contextName, namespaces, conf, managerBearerToken, awsAuthConf, execProviderConf)
 			if inCluster {
 				clst.Server = common.KubernetesInternalAPIServerAddr
+			}
+			if shard >= 0 {
+				clst.Shard = &shard
 			}
 			clstCreateReq := clusterpkg.ClusterCreateRequest{
 				Cluster: clst,
@@ -132,6 +154,13 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 	command.Flags().StringVar(&awsRoleArn, "aws-role-arn", "", "Optional AWS role arn. If set then AWS IAM Authenticator assume a role to perform cluster operations instead of the default AWS credential provider chain.")
 	command.Flags().StringVar(&systemNamespace, "system-namespace", common.DefaultSystemNamespace, "Use different system namespace")
 	command.Flags().StringArrayVar(&namespaces, "namespace", nil, "List of namespaces which are allowed to manage")
+	command.Flags().StringVar(&name, "name", "", "Overwrite the cluster name")
+	command.Flags().Int64Var(&shard, "shard", -1, "Cluster shard number; inferred from hostname if not set")
+	command.Flags().StringVar(&execProviderCommand, "exec-command", "", "Command to run to provide client credentials to the cluster. You may need to build a custom ArgoCD image to ensure the command is available at runtime.")
+	command.Flags().StringArrayVar(&execProviderArgs, "exec-command-args", nil, "Arguments to supply to the --exec-command command")
+	command.Flags().StringToStringVar(&execProviderEnv, "exec-command-env", nil, "Environment vars to set when running the --exec-command command")
+	command.Flags().StringVar(&execProviderAPIVersion, "exec-command-api-version", "", "Preferred input version of the ExecInfo for the --exec-command")
+	command.Flags().StringVar(&execProviderInstallHint, "exec-command-install-hint", "", "Text shown to the user when the --exec-command executable doesn't seem to be present")
 	return command
 }
 
@@ -174,27 +203,48 @@ func printKubeContexts(ca clientcmd.ConfigAccess) {
 	}
 }
 
-func newCluster(name string, namespaces []string, conf *rest.Config, managerBearerToken string, awsAuthConf *argoappv1.AWSAuthConfig) *argoappv1.Cluster {
+func newCluster(name string, namespaces []string, conf *rest.Config, managerBearerToken string, awsAuthConf *argoappv1.AWSAuthConfig, execProviderConf *argoappv1.ExecProviderConfig) *argoappv1.Cluster {
 	tlsClientConfig := argoappv1.TLSClientConfig{
 		Insecure:   conf.TLSClientConfig.Insecure,
 		ServerName: conf.TLSClientConfig.ServerName,
 		CAData:     conf.TLSClientConfig.CAData,
+		CertData:   conf.TLSClientConfig.CertData,
+		KeyData:    conf.TLSClientConfig.KeyData,
 	}
 	if len(conf.TLSClientConfig.CAData) == 0 && conf.TLSClientConfig.CAFile != "" {
 		data, err := ioutil.ReadFile(conf.TLSClientConfig.CAFile)
 		errors.CheckError(err)
 		tlsClientConfig.CAData = data
 	}
+	if len(conf.TLSClientConfig.CertData) == 0 && conf.TLSClientConfig.CertFile != "" {
+		data, err := ioutil.ReadFile(conf.TLSClientConfig.CertFile)
+		errors.CheckError(err)
+		tlsClientConfig.CertData = data
+	}
+	if len(conf.TLSClientConfig.KeyData) == 0 && conf.TLSClientConfig.KeyFile != "" {
+		data, err := ioutil.ReadFile(conf.TLSClientConfig.KeyFile)
+		errors.CheckError(err)
+		tlsClientConfig.KeyData = data
+	}
+
 	clst := argoappv1.Cluster{
 		Server:     conf.Host,
 		Name:       name,
 		Namespaces: namespaces,
 		Config: argoappv1.ClusterConfig{
-			BearerToken:     managerBearerToken,
-			TLSClientConfig: tlsClientConfig,
-			AWSAuthConfig:   awsAuthConf,
+			TLSClientConfig:    tlsClientConfig,
+			AWSAuthConfig:      awsAuthConf,
+			ExecProviderConfig: execProviderConf,
 		},
 	}
+
+	// Bearer token will preferentially be used for auth if present,
+	// Even in presence of key/cert credentials
+	// So set bearer token only if the key/cert data is absent
+	if len(tlsClientConfig.CertData) == 0 || len(tlsClientConfig.KeyData) == 0 {
+		clst.Config.BearerToken = managerBearerToken
+	}
+
 	return &clst
 }
 
@@ -213,7 +263,7 @@ func NewClusterGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				os.Exit(1)
 			}
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
-			defer util.Close(conn)
+			defer io.Close(conn)
 			clusters := make([]argoappv1.Cluster, 0)
 			for _, clusterName := range args {
 				clst, err := clusterIf.Get(context.Background(), &clusterpkg.ClusterQuery{Server: clusterName})
@@ -282,7 +332,7 @@ func NewClusterRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 				os.Exit(1)
 			}
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
-			defer util.Close(conn)
+			defer io.Close(conn)
 
 			// clientset, err := kubernetes.NewForConfig(conf)
 			// errors.CheckError(err)
@@ -330,7 +380,7 @@ func NewClusterListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 		Short: "List configured clusters",
 		Run: func(c *cobra.Command, args []string) {
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
-			defer util.Close(conn)
+			defer io.Close(conn)
 			clusters, err := clusterIf.List(context.Background(), &clusterpkg.ClusterQuery{})
 			errors.CheckError(err)
 			switch output {
@@ -362,7 +412,7 @@ func NewClusterRotateAuthCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				os.Exit(1)
 			}
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
-			defer util.Close(conn)
+			defer io.Close(conn)
 			clusterQuery := clusterpkg.ClusterQuery{
 				Server: args[0],
 			}

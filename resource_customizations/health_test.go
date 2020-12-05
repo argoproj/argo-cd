@@ -7,12 +7,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/argo-cd/errors"
-	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/errors"
 	"github.com/argoproj/argo-cd/util/lua"
 )
 
@@ -21,8 +21,8 @@ type TestStructure struct {
 }
 
 type IndividualTest struct {
-	InputPath    string             `yaml:"inputPath"`
-	HealthStatus appv1.HealthStatus `yaml:"healthStatus"`
+	InputPath    string              `yaml:"inputPath"`
+	HealthStatus health.HealthStatus `yaml:"healthStatus"`
 }
 
 func getObj(path string) *unstructured.Unstructured {

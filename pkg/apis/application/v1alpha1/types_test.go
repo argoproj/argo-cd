@@ -5,8 +5,12 @@ import (
 	"testing"
 	"time"
 
+	"k8s.io/utils/pointer"
+
+	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 func TestAppProject_IsSourcePermitted(t *testing.T) {
@@ -30,6 +34,14 @@ func TestAppProject_IsSourcePermitted(t *testing.T) {
 		projSources: []string{"https://github.com/argoproj/*.git"}, appSource: "https://github.com/argoproj1/test2.git", isPermitted: false,
 	}, {
 		projSources: []string{"https://github.com/argoproj/foo"}, appSource: "https://github.com/argoproj/foo1", isPermitted: false,
+	}, {
+		projSources: []string{"https://gitlab.com/group/*"}, appSource: "https://gitlab.com/group/repo/owner", isPermitted: false,
+	}, {
+		projSources: []string{"https://gitlab.com/group/*/*"}, appSource: "https://gitlab.com/group/repo/owner", isPermitted: true,
+	}, {
+		projSources: []string{"https://gitlab.com/group/*/*/*"}, appSource: "https://gitlab.com/group/sub-group/repo/owner", isPermitted: true,
+	}, {
+		projSources: []string{"https://gitlab.com/group/**"}, appSource: "https://gitlab.com/group/sub-group/repo/owner", isPermitted: true,
 	}}
 
 	for _, data := range testData {
@@ -113,6 +125,42 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 		}
 		assert.Equal(t, proj.IsDestinationPermitted(data.appDest), data.isPermitted)
 	}
+}
+
+func TestAppProject_IsGroupKindPermitted(t *testing.T) {
+	proj := AppProject{
+		Spec: AppProjectSpec{
+			NamespaceResourceWhitelist: []metav1.GroupKind{},
+			NamespaceResourceBlacklist: []metav1.GroupKind{{Group: "apps", Kind: "Deployment"}},
+		},
+	}
+	assert.True(t, proj.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "ReplicaSet"}, true))
+	assert.False(t, proj.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "Deployment"}, true))
+
+	proj2 := AppProject{
+		Spec: AppProjectSpec{
+			NamespaceResourceWhitelist: []metav1.GroupKind{{Group: "apps", Kind: "ReplicaSet"}},
+			NamespaceResourceBlacklist: []metav1.GroupKind{{Group: "apps", Kind: "Deployment"}},
+		},
+	}
+	assert.True(t, proj2.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "ReplicaSet"}, true))
+	assert.False(t, proj2.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "Action"}, true))
+
+	proj3 := AppProject{
+		Spec: AppProjectSpec{
+			ClusterResourceBlacklist: []metav1.GroupKind{{Group: "", Kind: "Namespace"}},
+		},
+	}
+	assert.False(t, proj3.IsGroupKindPermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, false))
+
+	proj4 := AppProject{
+		Spec: AppProjectSpec{
+			ClusterResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
+			ClusterResourceBlacklist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
+		},
+	}
+	assert.False(t, proj4.IsGroupKindPermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, false))
+	assert.True(t, proj4.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "Action"}, true))
 }
 
 func TestAppProject_GetRoleByName(t *testing.T) {
@@ -381,6 +429,21 @@ func TestAppDestinationEquality(t *testing.T) {
 	assert.False(t, left.Equals(*right))
 }
 
+func TestAppDestinationEquality_InferredServerURL(t *testing.T) {
+	left := ApplicationDestination{
+		Name:      "in-cluster",
+		Namespace: "default",
+	}
+	right := ApplicationDestination{
+		Name:             "in-cluster",
+		Server:           "https://kubernetes.default.svc",
+		Namespace:        "default",
+		isServerInferred: true,
+	}
+	assert.True(t, left.Equals(right))
+	assert.True(t, right.Equals(left))
+}
+
 func TestAppProjectSpec_DestinationClusters(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -625,50 +688,6 @@ func TestRepository_CopySettingsFrom(t *testing.T) {
 	}
 }
 
-func TestNewHookType(t *testing.T) {
-	t.Run("Garbage", func(t *testing.T) {
-		_, ok := NewHookType("Garbage")
-		assert.False(t, ok)
-	})
-	t.Run("PreSync", func(t *testing.T) {
-		hookType, ok := NewHookType("PreSync")
-		assert.True(t, ok)
-		assert.Equal(t, HookTypePreSync, hookType)
-	})
-	t.Run("Sync", func(t *testing.T) {
-		hookType, ok := NewHookType("Sync")
-		assert.True(t, ok)
-		assert.Equal(t, HookTypeSync, hookType)
-	})
-	t.Run("PostSync", func(t *testing.T) {
-		hookType, ok := NewHookType("PostSync")
-		assert.True(t, ok)
-		assert.Equal(t, HookTypePostSync, hookType)
-	})
-}
-
-func TestNewHookDeletePolicy(t *testing.T) {
-	t.Run("Garbage", func(t *testing.T) {
-		_, ok := NewHookDeletePolicy("Garbage")
-		assert.False(t, ok)
-	})
-	t.Run("HookSucceeded", func(t *testing.T) {
-		p, ok := NewHookDeletePolicy("HookSucceeded")
-		assert.True(t, ok)
-		assert.Equal(t, HookDeletePolicyHookSucceeded, p)
-	})
-	t.Run("HookFailed", func(t *testing.T) {
-		p, ok := NewHookDeletePolicy("HookFailed")
-		assert.True(t, ok)
-		assert.Equal(t, HookDeletePolicyHookFailed, p)
-	})
-	t.Run("BeforeHookCreation", func(t *testing.T) {
-		p, ok := NewHookDeletePolicy("BeforeHookCreation")
-		assert.True(t, ok)
-		assert.Equal(t, HookDeletePolicyBeforeHookCreation, p)
-	})
-}
-
 func TestSyncStrategy_Force(t *testing.T) {
 	type fields struct {
 		Apply *SyncStrategyApply
@@ -723,37 +742,13 @@ func TestSyncOperation_IsApplyStrategy(t *testing.T) {
 	}
 }
 
-func TestResourceResults_Filter(t *testing.T) {
-	type args struct {
-		predicate func(r *ResourceResult) bool
-	}
-	tests := []struct {
-		name string
-		r    ResourceResults
-		args args
-		want ResourceResults
-	}{
-		{"Nil", nil, args{predicate: func(r *ResourceResult) bool { return true }}, ResourceResults{}},
-		{"Empty", ResourceResults{}, args{predicate: func(r *ResourceResult) bool { return true }}, ResourceResults{}},
-		{"All", ResourceResults{{}}, args{predicate: func(r *ResourceResult) bool { return true }}, ResourceResults{{}}},
-		{"None", ResourceResults{{}}, args{predicate: func(r *ResourceResult) bool { return false }}, ResourceResults{}},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.r.Filter(tt.args.predicate); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("ResourceResults.Filter() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestResourceResults_Find(t *testing.T) {
 	type args struct {
 		group     string
 		kind      string
 		namespace string
 		name      string
-		phase     SyncPhase
+		phase     common.SyncPhase
 	}
 	foo := &ResourceResult{Group: "foo"}
 	results := ResourceResults{
@@ -785,7 +780,7 @@ func TestResourceResults_Find(t *testing.T) {
 }
 
 func TestResourceResults_PruningRequired(t *testing.T) {
-	needsPruning := &ResourceResult{Status: ResultCodePruneSkipped}
+	needsPruning := &ResourceResult{Status: common.ResultCodePruneSkipped}
 	tests := []struct {
 		name    string
 		r       ResourceResults
@@ -903,6 +898,7 @@ func TestApplicationSourceKustomize_IsZero(t *testing.T) {
 		{"NameSuffix", &ApplicationSourceKustomize{NameSuffix: "foo"}, false},
 		{"Images", &ApplicationSourceKustomize{Images: []KustomizeImage{""}}, false},
 		{"CommonLabels", &ApplicationSourceKustomize{CommonLabels: map[string]string{"": ""}}, false},
+		{"CommonAnnotations", &ApplicationSourceKustomize{CommonAnnotations: map[string]string{"": ""}}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1049,7 +1045,7 @@ func TestEnv_Environ(t *testing.T) {
 }
 
 func TestKustomizeImage_Match(t *testing.T) {
-	// no pefix
+	// no prefix
 	assert.False(t, KustomizeImage("foo=1").Match("bar=1"))
 	// mismatched delimiter
 	assert.False(t, KustomizeImage("foo=1").Match("bar:1"))
@@ -1087,14 +1083,247 @@ func TestSyncWindows_HasWindows(t *testing.T) {
 }
 
 func TestSyncWindows_Active(t *testing.T) {
-	proj := newTestProjectWithSyncWindows()
-	assert.Equal(t, 1, len(*proj.Spec.SyncWindows.Active()))
+	t.Run("WithTestProject", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		assert.Equal(t, 1, len(*proj.Spec.SyncWindows.Active()))
+	})
+
+	syncWindow := func(kind string, schedule string, duration string) *SyncWindow {
+		return &SyncWindow{
+			Kind:         kind,
+			Schedule:     schedule,
+			Duration:     duration,
+			Applications: []string{},
+			Namespaces:   []string{},
+		}
+	}
+
+	timeWithHour := func(hour int, location *time.Location) time.Time {
+		now := time.Now()
+		return time.Date(now.Year(), now.Month(), now.Day(), hour, 0, 0, 0, location)
+	}
+
+	utcM4Zone := time.FixedZone("UTC-4", -4*60*60)
+
+	tests := []struct {
+		name           string
+		syncWindow     SyncWindows
+		currentTime    time.Time
+		matchingIndex  int
+		expectedLength int
+	}{
+		{
+			name: "MatchFirst",
+			syncWindow: SyncWindows{
+				syncWindow("allow", "* 10 * * *", "2h"),
+				syncWindow("allow", "* 14 * * *", "2h"),
+			},
+			currentTime:    timeWithHour(11, time.UTC),
+			matchingIndex:  0,
+			expectedLength: 1,
+		},
+		{
+			name: "MatchSecond",
+			syncWindow: SyncWindows{
+				syncWindow("allow", "* 10 * * *", "2h"),
+				syncWindow("allow", "* 14 * * *", "2h"),
+			},
+			currentTime:    timeWithHour(15, time.UTC),
+			matchingIndex:  1,
+			expectedLength: 1,
+		},
+		{
+			name: "MatchBoth",
+			syncWindow: SyncWindows{
+				syncWindow("allow", "* 10 * * *", "3h"),
+				syncWindow("allow", "* 11 * * *", "3h"),
+			},
+			currentTime:    timeWithHour(12, time.UTC),
+			expectedLength: 2,
+		},
+		{
+			name: "MatchNone",
+			syncWindow: SyncWindows{
+				syncWindow("allow", "* 10 * * *", "2h"),
+				syncWindow("allow", "* 14 * * *", "2h"),
+			},
+			currentTime:    timeWithHour(17, time.UTC),
+			expectedLength: 0,
+		},
+		{
+			name: "MatchFirst-NonUTC",
+			syncWindow: SyncWindows{
+				syncWindow("allow", "* 10 * * *", "2h"),
+				syncWindow("allow", "* 14 * * *", "2h"),
+			},
+			currentTime:    timeWithHour(11-4, utcM4Zone), // 11AM UTC is 7AM EDT
+			matchingIndex:  0,
+			expectedLength: 1,
+		},
+		{
+			name: "MatchSecond-NonUTC",
+			syncWindow: SyncWindows{
+				syncWindow("allow", "* 10 * * *", "2h"),
+				syncWindow("allow", "* 14 * * *", "2h"),
+			},
+			currentTime:    timeWithHour(15-4, utcM4Zone),
+			matchingIndex:  1,
+			expectedLength: 1,
+		},
+		{
+			name: "MatchNone-NonUTC",
+			syncWindow: SyncWindows{
+				syncWindow("allow", "* 10 * * *", "2h"),
+				syncWindow("allow", "* 14 * * *", "2h"),
+			},
+			currentTime:    timeWithHour(17-4, utcM4Zone),
+			expectedLength: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			result := tt.syncWindow.active(tt.currentTime)
+			if result == nil {
+				result = &SyncWindows{}
+			}
+			assert.Equal(t, tt.expectedLength, len(*result))
+
+			if len(*result) == 1 {
+				assert.Equal(t, tt.syncWindow[tt.matchingIndex], (*result)[0])
+			}
+
+		})
+	}
+
 }
 
 func TestSyncWindows_InactiveAllows(t *testing.T) {
-	proj := newTestProjectWithSyncWindows()
-	proj.Spec.SyncWindows[0].Schedule = "0 0 1 1 1"
-	assert.Equal(t, 1, len(*proj.Spec.SyncWindows.InactiveAllows()))
+	t.Run("WithTestProject", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		proj.Spec.SyncWindows[0].Schedule = "0 0 1 1 1"
+		assert.Equal(t, 1, len(*proj.Spec.SyncWindows.InactiveAllows()))
+	})
+
+	syncWindow := func(kind string, schedule string, duration string) *SyncWindow {
+		return &SyncWindow{
+			Kind:         kind,
+			Schedule:     schedule,
+			Duration:     duration,
+			Applications: []string{},
+			Namespaces:   []string{},
+		}
+	}
+
+	timeWithHour := func(hour int, location *time.Location) time.Time {
+		now := time.Now()
+		return time.Date(now.Year(), now.Month(), now.Day(), hour, 0, 0, 0, location)
+	}
+
+	utcM4Zone := time.FixedZone("UTC-4", -4*60*60)
+
+	tests := []struct {
+		name           string
+		syncWindow     SyncWindows
+		currentTime    time.Time
+		matchingIndex  int
+		expectedLength int
+	}{
+		{
+			name: "MatchFirst",
+			syncWindow: SyncWindows{
+				syncWindow("allow", "* 10 * * *", "2h"),
+				syncWindow("allow", "* 5 * * *", "2h"),
+			},
+			currentTime:    timeWithHour(6, time.UTC),
+			matchingIndex:  0,
+			expectedLength: 1,
+		},
+		{
+			name: "MatchSecond",
+			syncWindow: SyncWindows{
+				syncWindow("allow", "* 10 * * *", "2h"),
+				syncWindow("allow", "* 14 * * *", "2h"),
+			},
+			currentTime:    timeWithHour(11, time.UTC),
+			matchingIndex:  1,
+			expectedLength: 1,
+		},
+		{
+			name: "MatchBoth",
+			syncWindow: SyncWindows{
+				syncWindow("allow", "* 10 * * *", "2h"),
+				syncWindow("allow", "* 14 * * *", "2h"),
+			},
+			currentTime:    timeWithHour(17, time.UTC),
+			expectedLength: 2,
+		},
+		{
+			name: "MatchNone",
+			syncWindow: SyncWindows{
+				syncWindow("allow", "* 10 * * *", "4h"),
+				syncWindow("allow", "* 11 * * *", "4h"),
+			},
+			currentTime:    timeWithHour(12, time.UTC),
+			expectedLength: 0,
+		},
+		{
+			name: "MatchFirst-NonUTC",
+			syncWindow: SyncWindows{
+				syncWindow("allow", "* 10 * * *", "2h"),
+				syncWindow("allow", "* 5 * * *", "2h"),
+			},
+			currentTime:    timeWithHour(6-4, utcM4Zone), // 6AM UTC is 2AM EDT
+			matchingIndex:  0,
+			expectedLength: 1,
+		},
+		{
+			name: "MatchSecond-NonUTC",
+			syncWindow: SyncWindows{
+				syncWindow("allow", "* 10 * * *", "2h"),
+				syncWindow("allow", "* 14 * * *", "2h"),
+			},
+			currentTime:    timeWithHour(11-4, utcM4Zone),
+			matchingIndex:  1,
+			expectedLength: 1,
+		},
+		{
+			name: "MatchBoth-NonUTC",
+			syncWindow: SyncWindows{
+				syncWindow("allow", "* 10 * * *", "2h"),
+				syncWindow("allow", "* 14 * * *", "2h"),
+			},
+			currentTime:    timeWithHour(17-4, utcM4Zone),
+			expectedLength: 2,
+		},
+		{
+			name: "MatchNone",
+			syncWindow: SyncWindows{
+				syncWindow("allow", "* 10 * * *", "4h"),
+				syncWindow("allow", "* 11 * * *", "4h"),
+			},
+			currentTime:    timeWithHour(12-4, utcM4Zone),
+			expectedLength: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			result := tt.syncWindow.inactiveAllows(tt.currentTime)
+			if result == nil {
+				result = &SyncWindows{}
+			}
+			assert.Equal(t, tt.expectedLength, len(*result))
+
+			if len(*result) == 1 {
+				assert.Equal(t, tt.syncWindow[tt.matchingIndex], (*result)[0])
+			}
+
+		})
+	}
+
 }
 
 func TestAppProjectSpec_AddWindow(t *testing.T) {
@@ -1371,6 +1600,89 @@ func TestSyncWindow_Active(t *testing.T) {
 		window.Active()
 		assert.True(t, window.Active())
 	})
+
+	syncWindow := func(kind string, schedule string, duration string) SyncWindow {
+		return SyncWindow{
+			Kind:         kind,
+			Schedule:     schedule,
+			Duration:     duration,
+			Applications: []string{},
+			Namespaces:   []string{},
+		}
+	}
+
+	timeWithHour := func(hour int, location *time.Location) time.Time {
+		now := time.Now()
+		return time.Date(now.Year(), now.Month(), now.Day(), hour, 0, 0, 0, location)
+	}
+
+	utcM4Zone := time.FixedZone("UTC-4", -4*60*60) // Eastern Daylight Saving Time (EDT)
+
+	tests := []struct {
+		name           string
+		syncWindow     SyncWindow
+		currentTime    time.Time
+		expectedResult bool
+	}{
+		{
+			name:           "Allow-active",
+			syncWindow:     syncWindow("allow", "* 10 * * *", "2h"),
+			currentTime:    timeWithHour(11, time.UTC),
+			expectedResult: true,
+		},
+		{
+			name:           "Allow-inactive",
+			syncWindow:     syncWindow("allow", "* 10 * * *", "2h"),
+			currentTime:    timeWithHour(13, time.UTC),
+			expectedResult: false,
+		},
+		{
+			name:           "Deny-active",
+			syncWindow:     syncWindow("deny", "* 10 * * *", "2h"),
+			currentTime:    timeWithHour(11, time.UTC),
+			expectedResult: true,
+		},
+		{
+			name:           "Deny-inactive",
+			syncWindow:     syncWindow("deny", "* 10 * * *", "2h"),
+			currentTime:    timeWithHour(13, time.UTC),
+			expectedResult: false,
+		},
+		{
+			name:           "Allow-active-NonUTC",
+			syncWindow:     syncWindow("allow", "* 10 * * *", "2h"),
+			currentTime:    timeWithHour(11-4, utcM4Zone), // 11AM UTC is 7AM EDT
+			expectedResult: true,
+		},
+		{
+			name:           "Allow-inactive-NonUTC",
+			syncWindow:     syncWindow("allow", "* 10 * * *", "2h"),
+			currentTime:    timeWithHour(13-4, utcM4Zone),
+			expectedResult: false,
+		},
+		{
+			name:           "Deny-active-NonUTC",
+			syncWindow:     syncWindow("deny", "* 10 * * *", "2h"),
+			currentTime:    timeWithHour(11-4, utcM4Zone),
+			expectedResult: true,
+		},
+		{
+			name:           "Deny-inactive-NonUTC",
+			syncWindow:     syncWindow("deny", "* 10 * * *", "2h"),
+			currentTime:    timeWithHour(13-4, utcM4Zone),
+			expectedResult: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			result := tt.syncWindow.active(tt.currentTime)
+			assert.Equal(t, result, tt.expectedResult)
+
+		})
+	}
+
 }
 
 func TestSyncWindow_Update(t *testing.T) {
@@ -1699,4 +2011,136 @@ func TestApplicationSpec_GetRevisionHistoryLimit(t *testing.T) {
 	// configured
 	n := int64(11)
 	assert.Equal(t, 11, ApplicationSpec{RevisionHistoryLimit: &n}.GetRevisionHistoryLimit())
+}
+
+func TestProjectNormalize(t *testing.T) {
+	issuedAt := int64(1)
+	secondIssuedAt := issuedAt + 1
+	thirdIssuedAt := secondIssuedAt + 1
+	fourthIssuedAt := thirdIssuedAt + 1
+
+	testTokens := []JWTToken{{ID: "1", IssuedAt: issuedAt}, {ID: "2", IssuedAt: secondIssuedAt}}
+	tokensByRole := make(map[string]JWTTokens)
+	tokensByRole["test-role"] = JWTTokens{Items: testTokens}
+
+	testTokens2 := []JWTToken{{IssuedAt: issuedAt}, {IssuedAt: thirdIssuedAt}, {IssuedAt: fourthIssuedAt}}
+
+	t.Run("EmptyRolesToken", func(t *testing.T) {
+		p := AppProject{Spec: AppProjectSpec{}}
+		needNormalize := p.NormalizeJWTTokens()
+		assert.False(t, needNormalize)
+		assert.Nil(t, p.Spec.Roles)
+		assert.Nil(t, p.Status.JWTTokensByRole)
+	})
+	t.Run("HasRoles_NoTokens", func(t *testing.T) {
+		p := AppProject{Spec: AppProjectSpec{Roles: []ProjectRole{{Name: "test-role"}}}}
+		needNormalize := p.NormalizeJWTTokens()
+		assert.False(t, needNormalize)
+	})
+	t.Run("SpecRolesToken-StatusRolesTokenEmpty", func(t *testing.T) {
+		p := AppProject{Spec: AppProjectSpec{Roles: []ProjectRole{{Name: "test-role", JWTTokens: testTokens}}}}
+		needNormalize := p.NormalizeJWTTokens()
+		assert.True(t, needNormalize)
+		assert.ElementsMatch(t, p.Spec.Roles[0].JWTTokens, p.Status.JWTTokensByRole["test-role"].Items)
+	})
+	t.Run("SpecRolesEmpty-StatusRolesToken", func(t *testing.T) {
+		p := AppProject{Spec: AppProjectSpec{Roles: []ProjectRole{{Name: "test-role"}}},
+			Status: AppProjectStatus{JWTTokensByRole: tokensByRole}}
+		needNormalize := p.NormalizeJWTTokens()
+		assert.True(t, needNormalize)
+		assert.ElementsMatch(t, p.Spec.Roles[0].JWTTokens, p.Status.JWTTokensByRole["test-role"].Items)
+	})
+	t.Run("SpecRolesToken-StatusRolesToken-Same", func(t *testing.T) {
+		p := AppProject{Spec: AppProjectSpec{Roles: []ProjectRole{{Name: "test-role", JWTTokens: testTokens}}},
+			Status: AppProjectStatus{JWTTokensByRole: tokensByRole}}
+		needNormalize := p.NormalizeJWTTokens()
+		assert.False(t, needNormalize)
+		assert.ElementsMatch(t, p.Spec.Roles[0].JWTTokens, p.Status.JWTTokensByRole["test-role"].Items)
+	})
+	t.Run("SpecRolesToken-StatusRolesToken-DifferentToken", func(t *testing.T) {
+		p := AppProject{Spec: AppProjectSpec{Roles: []ProjectRole{{Name: "test-role", JWTTokens: testTokens2}}},
+			Status: AppProjectStatus{JWTTokensByRole: tokensByRole}}
+		needNormalize := p.NormalizeJWTTokens()
+		assert.True(t, needNormalize)
+		assert.ElementsMatch(t, p.Spec.Roles[0].JWTTokens, p.Status.JWTTokensByRole["test-role"].Items)
+	})
+	t.Run("SpecRolesToken-StatusRolesToken-DifferentRole", func(t *testing.T) {
+		jwtTokens0 := []JWTToken{{IssuedAt: issuedAt}}
+		jwtTokens1 := []JWTToken{{IssuedAt: issuedAt}, {IssuedAt: secondIssuedAt}}
+		p := AppProject{Spec: AppProjectSpec{Roles: []ProjectRole{{Name: "test-role", JWTTokens: jwtTokens0},
+			{Name: "test-role1", JWTTokens: jwtTokens1},
+			{Name: "test-role2"}}},
+			Status: AppProjectStatus{JWTTokensByRole: tokensByRole}}
+		needNormalize := p.NormalizeJWTTokens()
+		assert.True(t, needNormalize)
+		assert.ElementsMatch(t, p.Spec.Roles[0].JWTTokens, p.Status.JWTTokensByRole["test-role"].Items)
+		assert.ElementsMatch(t, p.Spec.Roles[1].JWTTokens, p.Status.JWTTokensByRole["test-role1"].Items)
+		assert.ElementsMatch(t, p.Spec.Roles[2].JWTTokens, p.Status.JWTTokensByRole["test-role2"].Items)
+	})
+}
+
+func TestRetryStrategy_NextRetryAtDefaultBackoff(t *testing.T) {
+	retry := RetryStrategy{}
+	now := time.Now()
+	expectedTimes := []time.Time{
+		now.Add(5 * time.Second),
+		now.Add(10 * time.Second),
+		now.Add(20 * time.Second),
+		now.Add(40 * time.Second),
+		now.Add(80 * time.Second),
+	}
+
+	for i, expected := range expectedTimes {
+		retryAt, err := retry.NextRetryAt(now, int64(i))
+		assert.NoError(t, err)
+		assert.Equal(t, expected.Format(time.RFC850), retryAt.Format(time.RFC850))
+	}
+}
+
+func TestRetryStrategy_NextRetryAtCustomBackoff(t *testing.T) {
+	retry := RetryStrategy{
+		Backoff: &Backoff{
+			Duration:    "2s",
+			Factor:      pointer.Int64Ptr(3),
+			MaxDuration: "1m",
+		},
+	}
+	now := time.Now()
+	expectedTimes := []time.Time{
+		now.Add(2 * time.Second),
+		now.Add(6 * time.Second),
+		now.Add(18 * time.Second),
+		now.Add(54 * time.Second),
+		now.Add(60 * time.Second),
+	}
+
+	for i, expected := range expectedTimes {
+		retryAt, err := retry.NextRetryAt(now, int64(i))
+		assert.NoError(t, err)
+		assert.Equal(t, expected.Format(time.RFC850), retryAt.Format(time.RFC850))
+	}
+}
+
+func TestSourceAllowsConcurrentProcessing_KsonnetNoParams(t *testing.T) {
+	src := ApplicationSource{Path: "."}
+
+	assert.True(t, src.AllowsConcurrentProcessing())
+}
+
+func TestSourceAllowsConcurrentProcessing_KsonnetParams(t *testing.T) {
+	src := ApplicationSource{Path: ".", Ksonnet: &ApplicationSourceKsonnet{
+		Parameters: []KsonnetParameter{{
+			Name: "test", Component: "test", Value: "1",
+		}},
+	}}
+
+	assert.False(t, src.AllowsConcurrentProcessing())
+}
+
+func TestSourceAllowsConcurrentProcessing_KustomizeParams(t *testing.T) {
+	src := ApplicationSource{Path: ".", Kustomize: &ApplicationSourceKustomize{
+		NameSuffix: "test",
+	}}
+
+	assert.False(t, src.AllowsConcurrentProcessing())
 }

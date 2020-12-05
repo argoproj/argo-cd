@@ -1,6 +1,7 @@
 package kustomize
 
 import (
+	"fmt"
 	"io/ioutil"
 	"path"
 	"path/filepath"
@@ -34,12 +35,16 @@ func TestKustomizeBuild(t *testing.T) {
 	assert.Nil(t, err)
 	namePrefix := "namePrefix-"
 	nameSuffix := "-nameSuffix"
-	kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "")
+	kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", "")
 	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
 		NamePrefix: namePrefix,
 		NameSuffix: nameSuffix,
 		Images:     v1alpha1.KustomizeImages{"nginx:1.15.5"},
 		CommonLabels: map[string]string{
+			"app.kubernetes.io/managed-by": "argo-cd",
+			"app.kubernetes.io/part-of":    "argo-cd-tests",
+		},
+		CommonAnnotations: map[string]string{
 			"app.kubernetes.io/managed-by": "argo-cd",
 			"app.kubernetes.io/part-of":    "argo-cd-tests",
 		},
@@ -51,6 +56,7 @@ func TestKustomizeBuild(t *testing.T) {
 		assert.Equal(t, len(images), 2)
 	}
 	for _, obj := range objs {
+		fmt.Println(obj.GetAnnotations())
 		switch obj.GetKind() {
 		case "StatefulSet":
 			assert.Equal(t, namePrefix+"web"+nameSuffix, obj.GetName())
@@ -58,6 +64,10 @@ func TestKustomizeBuild(t *testing.T) {
 				"app.kubernetes.io/managed-by": "argo-cd",
 				"app.kubernetes.io/part-of":    "argo-cd-tests",
 			}, obj.GetLabels())
+			assert.Equal(t, map[string]string{
+				"app.kubernetes.io/managed-by": "argo-cd",
+				"app.kubernetes.io/part-of":    "argo-cd-tests",
+			}, obj.GetAnnotations())
 		case "Deployment":
 			assert.Equal(t, namePrefix+"nginx-deployment"+nameSuffix, obj.GetName())
 			assert.Equal(t, map[string]string{
@@ -65,6 +75,10 @@ func TestKustomizeBuild(t *testing.T) {
 				"app.kubernetes.io/managed-by": "argo-cd",
 				"app.kubernetes.io/part-of":    "argo-cd-tests",
 			}, obj.GetLabels())
+			assert.Equal(t, map[string]string{
+				"app.kubernetes.io/managed-by": "argo-cd",
+				"app.kubernetes.io/part-of":    "argo-cd-tests",
+			}, obj.GetAnnotations())
 		}
 	}
 
@@ -101,7 +115,7 @@ func TestParseKustomizeBuildOptions(t *testing.T) {
 }
 
 func TestVersion(t *testing.T) {
-	ver, err := Version()
+	ver, err := Version(false)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, ver)
 }

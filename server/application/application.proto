@@ -54,10 +54,12 @@ message ApplicationResponse {}
 message ApplicationCreateRequest {
 	required github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application application = 1 [(gogoproto.nullable) = false];
 	optional bool upsert = 2;
+	optional bool validate = 3;
 }
 
 message ApplicationUpdateRequest {
 	required github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application application = 1;
+	optional bool validate = 2;
 }
 
 message ApplicationDeleteRequest {
@@ -74,12 +76,15 @@ message ApplicationSyncRequest {
 	optional github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.SyncStrategy strategy = 5;
 	repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.SyncOperationResource resources = 7 [(gogoproto.nullable) = false];
 	repeated string manifests = 8;
+	repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Info infos = 9;
+	optional github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.RetryStrategy retryStrategy = 10;
 }
 
 // ApplicationUpdateSpecRequest is a request to update application spec
 message ApplicationUpdateSpecRequest {
 	required string name = 1;
 	required github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationSpec spec = 2 [(gogoproto.nullable) = false];
+	optional bool validate = 3;
 }
 
 // ApplicationPatchRequest is a request to patch an application
@@ -158,6 +163,7 @@ message ApplicationPodLogsQuery {
 message LogEntry {
 	required string content = 1 [(gogoproto.nullable) = false];
 	required k8s.io.apimachinery.pkg.apis.meta.v1.Time timeStamp = 2 [(gogoproto.nullable) = false];
+	required bool last = 3 [(gogoproto.nullable) = false];
 }
 
 message OperationTerminateRequest {
@@ -212,7 +218,7 @@ service ApplicationService {
 		option (google.api.http).get = "/api/v1/applications/{name}/events";
 	}
 
-	// Watch returns stream of application change events.
+	// Watch returns stream of application change events
 	rpc Watch(ApplicationQuery) returns (stream github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationWatchEvent) {
 		option (google.api.http).get = "/api/v1/stream/applications";
 	}
@@ -230,7 +236,7 @@ service ApplicationService {
 		option (google.api.http).get = "/api/v1/applications/{name}";
 	}
 
-	// Get returns an application by name
+	// Get returns sync windows of the application
 	rpc GetApplicationSyncWindows (ApplicationSyncWindowsQuery) returns (ApplicationSyncWindowsResponse) {
 		option (google.api.http).get = "/api/v1/applications/{name}/syncwindows";
 	}
@@ -282,13 +288,21 @@ service ApplicationService {
 		};
 	}
 
+	// ManagedResources returns list of managed resources
 	rpc ManagedResources(ResourcesQuery) returns (ManagedResourcesResponse) {
 		option (google.api.http).get = "/api/v1/applications/{applicationName}/managed-resources";
 	}
 
+	// ResourceTree returns resource tree
 	rpc ResourceTree(ResourcesQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationTree) {
 		option (google.api.http).get = "/api/v1/applications/{applicationName}/resource-tree";
 	}
+
+	// Watch returns stream of application resource tree
+	rpc WatchResourceTree(ResourcesQuery) returns (stream github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationTree) {
+		option (google.api.http).get = "/api/v1/stream/applications/{applicationName}/resource-tree";
+	}
+
 	// Rollback syncs an application to its target state
 	rpc Rollback(ApplicationRollbackRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
 		option (google.api.http) = {
@@ -317,10 +331,12 @@ service ApplicationService {
 		};
 	}
 
+	// ListResourceActions returns list of resource actions
 	rpc ListResourceActions(ApplicationResourceRequest) returns (ResourceActionsListResponse) {
 		option (google.api.http).get = "/api/v1/applications/{name}/resource/actions";
 	}
 
+	// RunResourceAction run resource action
 	rpc RunResourceAction(ResourceActionRunRequest) returns (ApplicationResponse) {
 		option (google.api.http) = {
 			post: "/api/v1/applications/{name}/resource/actions"

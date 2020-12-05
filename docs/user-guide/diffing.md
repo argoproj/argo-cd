@@ -19,7 +19,7 @@ The diffing customization can be configured for single or multiple application r
 
 ## Application Level Configuration
 
-Argo CD allows ignoring differences at a specific JSON path, using [RFC6902 JSON patches](http://tools.ietf.org/html/rfc6902). The following sample application is configured to ignore differences in `spec.replicas` for all deployments:
+Argo CD allows ignoring differences at a specific JSON path, using [RFC6902 JSON patches](https://tools.ietf.org/html/rfc6902). The following sample application is configured to ignore differences in `spec.replicas` for all deployments:
 
 ```yaml
 spec:
@@ -57,3 +57,63 @@ data:
         jsonPointers:
         - /webhooks/0/clientConfig/caBundle
 ```
+
+The `status` field of `CustomResourceDefinitions` is often stored in Git/Helm manifest and should be ignored during diffing. The `ignoreResourceStatusField` setting simplifies
+handling that edge case:
+
+```yaml
+data:
+  resource.compareoptions: |
+    # disables status field diffing in specified resource types
+    # 'crd' - CustomResourceDefinition-s (default)
+    # 'all' - all resources
+    # 'none' - disabled
+    ignoreResourceStatusField: crd
+```
+
+By default `status` field is ignored during diffing for `CustomResourceDefinition` resource. The behavior can be extended to all resources using `all` value or disabled using `none`.
+
+## Known Kubernetes types in CRDs (Resource limits, Volume mounts etc)
+
+Some CRDs are re-using data structures defined in the Kubernetes source base and therefore inheriting custom
+JSON/YAML marshaling. Custom marshalers might serialize CRDs in a slightly different format that causes false
+positives during drift detection. 
+
+A typical example is the `argoproj.io/Rollout` CRD that re-using `core/v1/PodSpec` data structure. Pod resource requests
+might be reformatted by the custom marshaller of `IntOrString` data type:
+
+from:
+```yaml
+resources:
+  requests:
+    cpu: 100m
+```
+
+to:
+```yaml
+resources:
+  requests:
+    cpu: 0.1
+```
+
+The solution is to specify which CRDs fields are using built-in Kubernetes types in the `resource.customizations`
+section of `argocd-cm` ConfigMap:  
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  resource.customizations: |
+    argoproj.io/Rollout:
+      knownTypeFields:
+      - field: spec.template.spec
+        type: core/v1/PodSpec
+```
+
+The list of supported Kubernetes types is available in [diffing_known_types.txt](https://raw.githubusercontent.com/argoproj/argo-cd/master/util/argo/normalizers/diffing_known_types.txt)

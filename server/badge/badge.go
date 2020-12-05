@@ -1,16 +1,18 @@
 package badge
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"regexp"
-	"strings"
 
+	healthutil "github.com/argoproj/gitops-engine/pkg/health"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/assets"
 	"github.com/argoproj/argo-cd/util/settings"
 )
@@ -27,22 +29,19 @@ type Handler struct {
 	settingsMgr  *settings.SettingsManager
 }
 
-const (
-	unknown     = "rgb(178,102,255)"
-	success     = "#18be52"
-	warning     = "#f4c030"
-	failed      = "#E96D76"
-	progressing = "#0DADEA"
-	suspended   = "#CCD6DD"
+var (
+	svgWidthPattern          = regexp.MustCompile(`^<svg width="([^"]*)"`)
+	displayNonePattern       = regexp.MustCompile(`display="none"`)
+	leftRectColorPattern     = regexp.MustCompile(`id="leftRect" fill="([^"]*)"`)
+	rightRectColorPattern    = regexp.MustCompile(`id="rightRect" fill="([^"]*)"`)
+	revisionRectColorPattern = regexp.MustCompile(`id="revisionRect" fill="([^"]*)"`)
+	leftTextPattern          = regexp.MustCompile(`id="leftText" [^>]*>([^<]*)`)
+	rightTextPattern         = regexp.MustCompile(`id="rightText" [^>]*>([^<]*)`)
+	revisionTextPattern      = regexp.MustCompile(`id="revisionText" [^>]*>([^<]*)`)
 )
 
-var (
-	leftPathColorPattern  = regexp.MustCompile(`id="leftPath" fill="([^"]*)"`)
-	rightPathColorPattern = regexp.MustCompile(`id="rightPath" fill="([^"]*)"`)
-	leftText1Pattern      = regexp.MustCompile(`id="leftText1" [^>]*>([^<]*)`)
-	leftText2Pattern      = regexp.MustCompile(`id="leftText2" [^>]*>([^<]*)`)
-	rightText1Pattern     = regexp.MustCompile(`id="rightText1" [^>]*>([^<]*)`)
-	rightText2Pattern     = regexp.MustCompile(`id="rightText2" [^>]*>([^<]*)`)
+const (
+	svgWidthWithRevision = 192
 )
 
 func replaceFirstGroupSubMatch(re *regexp.Regexp, str string, repl string) string {
@@ -65,8 +64,10 @@ func replaceFirstGroupSubMatch(re *regexp.Regexp, str string, repl string) strin
 //ServeHTTP returns badge with health and sync status for application
 //(or an error badge if wrong query or application name is given)
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	health := appv1.HealthStatusUnknown
+	health := healthutil.HealthStatusUnknown
 	status := appv1.SyncStatusCodeUnknown
+	revision := ""
+	revisionEnabled := false
 	enabled := false
 	notFound := false
 	if sets, err := h.settingsMgr.GetSettings(); err == nil {
@@ -74,59 +75,82 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//Sample url: http://localhost:8080/api/badge?name=123
-	if keys, ok := r.URL.Query()["name"]; ok && enabled {
-		key := keys[0]
-		//if another query is added after the application name and is separated by a / this will make sure it only looks at
-		//what is between the name= and / and will open the applicaion by that name
-		q := strings.Split(key, "/")
-		key = q[0]
-		if app, err := h.appClientset.ArgoprojV1alpha1().Applications(h.namespace).Get(key, v1.GetOptions{}); err == nil {
+	if name, ok := r.URL.Query()["name"]; ok && enabled {
+		if app, err := h.appClientset.ArgoprojV1alpha1().Applications(h.namespace).Get(context.Background(), name[0], v1.GetOptions{}); err == nil {
 			health = app.Status.Health.Status
 			status = app.Status.Sync.Status
+			if app.Status.OperationState != nil && app.Status.OperationState.SyncResult != nil {
+				revision = app.Status.OperationState.SyncResult.Revision
+			}
 		} else if errors.IsNotFound(err) {
 			notFound = true
 		}
 	}
+	//Sample url: http://localhost:8080/api/badge?project=default
+	if projects, ok := r.URL.Query()["project"]; ok && enabled {
+		if apps, err := h.appClientset.ArgoprojV1alpha1().Applications(h.namespace).List(context.Background(), v1.ListOptions{}); err == nil {
+			applicationSet := argo.FilterByProjects(apps.Items, projects)
+			for _, a := range applicationSet {
+				if a.Status.Sync.Status != appv1.SyncStatusCodeSynced {
+					status = appv1.SyncStatusCodeOutOfSync
+				}
+				if a.Status.Health.Status != healthutil.HealthStatusHealthy {
+					health = healthutil.HealthStatusDegraded
+				}
+			}
+			if health != healthutil.HealthStatusDegraded && len(applicationSet) > 0 {
+				health = healthutil.HealthStatusHealthy
+			}
+			if status != appv1.SyncStatusCodeOutOfSync && len(applicationSet) > 0 {
+				status = appv1.SyncStatusCodeSynced
+			}
+		}
+	}
+	//Sample url: http://localhost:8080/api/badge?name=123&revision=true
+	if _, ok := r.URL.Query()["revision"]; ok && enabled {
+		revisionEnabled = true
+	}
 
-	leftColor := ""
-	rightColor := ""
-	leftText := health
+	leftColorString := ""
+	if leftColor, ok := HealthStatusColors[health]; ok {
+		leftColorString = toRGBString(leftColor)
+	} else {
+		leftColorString = toRGBString(Grey)
+	}
+
+	rightColorString := ""
+	if rightColor, ok := SyncStatusColors[status]; ok {
+		rightColorString = toRGBString(rightColor)
+	} else {
+		rightColorString = toRGBString(Grey)
+	}
+
+	leftText := string(health)
 	rightText := string(status)
+
 	if notFound {
 		leftText = "Not Found"
 		rightText = ""
 	}
 
-	switch health {
-	case appv1.HealthStatusHealthy:
-		leftColor = success
-	case appv1.HealthStatusProgressing:
-		leftColor = progressing
-	case appv1.HealthStatusSuspended:
-		leftColor = suspended
-	case appv1.HealthStatusDegraded:
-		leftColor = failed
-	case appv1.HealthStatusMissing:
-		leftColor = unknown
-	default:
-		leftColor = unknown
+	badge := assets.BadgeSVG
+	badge = leftRectColorPattern.ReplaceAllString(badge, fmt.Sprintf(`id="leftRect" fill="%s" $2`, leftColorString))
+	badge = rightRectColorPattern.ReplaceAllString(badge, fmt.Sprintf(`id="rightRect" fill="%s" $2`, rightColorString))
+	badge = replaceFirstGroupSubMatch(leftTextPattern, badge, leftText)
+	badge = replaceFirstGroupSubMatch(rightTextPattern, badge, rightText)
+
+	if !notFound && revisionEnabled && revision != "" {
+		// Increase width of SVG and enable display of revision components
+		badge = svgWidthPattern.ReplaceAllString(badge, fmt.Sprintf(`<svg width="%d" $2`, svgWidthWithRevision))
+		badge = displayNonePattern.ReplaceAllString(badge, `display="inline"`)
+		badge = revisionRectColorPattern.ReplaceAllString(badge, fmt.Sprintf(`id="revisionRect" fill="%s" $2`, rightColorString))
+		shortRevision := revision
+		if len(shortRevision) > 7 {
+			shortRevision = shortRevision[:7]
+		}
+		badge = replaceFirstGroupSubMatch(revisionTextPattern, badge, fmt.Sprintf("(%s)", shortRevision))
 	}
 
-	switch status {
-	case appv1.SyncStatusCodeSynced:
-		rightColor = success
-	case appv1.SyncStatusCodeOutOfSync:
-		rightColor = warning
-	default:
-		rightColor = unknown
-	}
-	badge := assets.BadgeSVG
-	badge = leftPathColorPattern.ReplaceAllString(badge, fmt.Sprintf(`id="leftPath" fill="%s" $2`, leftColor))
-	badge = rightPathColorPattern.ReplaceAllString(badge, fmt.Sprintf(`id="rightPath" fill="%s" $2`, rightColor))
-	badge = replaceFirstGroupSubMatch(leftText1Pattern, badge, leftText)
-	badge = replaceFirstGroupSubMatch(leftText2Pattern, badge, leftText)
-	badge = replaceFirstGroupSubMatch(rightText1Pattern, badge, rightText)
-	badge = replaceFirstGroupSubMatch(rightText2Pattern, badge, rightText)
 	w.Header().Set("Content-Type", "image/svg+xml")
 
 	//Ask cache's to not cache the contents in order prevent the badge from becoming stale

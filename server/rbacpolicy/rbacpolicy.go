@@ -19,6 +19,8 @@ const (
 	ResourceApplications = "applications"
 	ResourceRepositories = "repositories"
 	ResourceCertificates = "certificates"
+	ResourceAccounts     = "accounts"
+	ResourceGPGKeys      = "gpgkeys"
 
 	// please add new items to Actions
 	ActionGet      = "get"
@@ -71,6 +73,18 @@ func (p *RBACPolicyEnforcer) SetScopes(scopes []string) {
 	p.scopes = scopes
 }
 
+func (p *RBACPolicyEnforcer) GetScopes() []string {
+	scopes := p.scopes
+	if scopes == nil {
+		scopes = defaultScopes
+	}
+	return scopes
+}
+
+func IsProjectSubject(subject string) bool {
+	return strings.HasPrefix(subject, "proj:")
+}
+
 // EnforceClaims is an RBAC claims enforcer specific to the Argo CD API server
 func (p *RBACPolicyEnforcer) EnforceClaims(claims jwt.Claims, rvals ...interface{}) bool {
 	mapClaims, err := jwtutil.MapClaims(claims)
@@ -84,7 +98,7 @@ func (p *RBACPolicyEnforcer) EnforceClaims(claims jwt.Claims, rvals ...interface
 	var runtimePolicy string
 	proj := p.getProjectFromRequest(rvals...)
 	if proj != nil {
-		if strings.HasPrefix(subject, "proj:") {
+		if IsProjectSubject(subject) {
 			return p.enforceProjectToken(subject, mapClaims, proj, rvals...)
 		}
 		runtimePolicy = proj.ProjectPoliciesString()
@@ -154,11 +168,17 @@ func (p *RBACPolicyEnforcer) enforceProjectToken(subject string, claims jwt.MapC
 		// this should never happen (we generated a project token for a different project)
 		return false
 	}
-	iat, err := jwtutil.GetIssuedAt(claims)
-	if err != nil {
-		return false
+
+	var iat int64 = -1
+	jti, err := jwtutil.GetID(claims)
+	if err != nil || jti == "" {
+		iat, err = jwtutil.GetIssuedAt(claims)
+		if err != nil {
+			return false
+		}
 	}
-	_, _, err = proj.GetJWTToken(roleName, iat)
+
+	_, _, err = proj.GetJWTToken(roleName, iat, jti)
 	if err != nil {
 		// if we get here the token is still valid, but has been revoked (no longer exists in the project)
 		return false

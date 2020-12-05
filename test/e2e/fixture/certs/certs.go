@@ -2,10 +2,11 @@ package certs
 
 import (
 	"io/ioutil"
+	"os"
 	"path/filepath"
 
-	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/util/errors"
 )
 
 // Add a custom CA certificate to the test and also create the certificate file
@@ -27,7 +28,11 @@ func AddCustomCACert() {
 }
 
 func AddCustomSSHKnownHostsKeys() {
-	knownHostsPath, err := filepath.Abs("../fixture/certs/ssh_known_hosts")
+	source := os.Getenv("ARGOCD_E2E_SSH_KNOWN_HOSTS")
+	if source == "" {
+		source = "../fixture/testrepos/ssh_known_hosts"
+	}
+	knownHostsPath, err := filepath.Abs(source)
 	errors.CheckError(err)
 	args := []string{"cert", "add-ssh", "--batch", "--from", knownHostsPath}
 	errors.FailOnErr(fixture.RunCli(args...))

@@ -18,6 +18,7 @@ export interface LoginForm {
 interface State {
     authSettings: AuthSettings;
     loginError: string;
+    loginInProgress: boolean;
     returnUrl: string;
     ssoLoginError: string;
 }
@@ -36,7 +37,7 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
 
     constructor(props: RouteComponentProps<{}>) {
         super(props);
-        this.state = {authSettings: null, loginError: null, returnUrl: null, ssoLoginError: null};
+        this.state = {authSettings: null, loginError: null, returnUrl: null, ssoLoginError: null, loginInProgress: false};
     }
 
     public async componentDidMount() {
@@ -62,21 +63,21 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
                         <div className='login__box_saml width-control'>
                             <a href={`auth/login?return_url=${encodeURIComponent(this.state.returnUrl)}`}>
                                 <button className='argo-button argo-button--base argo-button--full-width argo-button--xlg'>
-                                    {(authSettings.oidcConfig && <span>Login via {authSettings.oidcConfig.name}</span>) ||
-                                        (authSettings.dexConfig.connectors.length === 1 && <span>Login via {authSettings.dexConfig.connectors[0].name}</span>) || (
+                                    {(authSettings.oidcConfig && <span>Log in via {authSettings.oidcConfig.name}</span>) ||
+                                        (authSettings.dexConfig.connectors.length === 1 && <span>Log in via {authSettings.dexConfig.connectors[0].name}</span>) || (
                                             <span>SSO Login</span>
                                         )}
                                 </button>
                             </a>
                             {this.state.ssoLoginError && <div className='argo-form-row__error-msg'>{this.state.ssoLoginError}</div>}
-                            {authSettings && !authSettings.disableAdmin && (
+                            {authSettings && !authSettings.userLoginsDisabled && (
                                 <div className='login__saml-separator'>
                                     <span>or</span>
                                 </div>
                             )}
                         </div>
                     )}
-                    {authSettings && !authSettings.disableAdmin && (
+                    {authSettings && !authSettings.userLoginsDisabled && (
                         <Form
                             onSubmit={(params: LoginForm) => this.login(params.username, params.password, this.state.returnUrl)}
                             validateError={(params: LoginForm) => ({
@@ -93,7 +94,7 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
                                         {this.state.loginError && <div className='argo-form-row__error-msg'>{this.state.loginError}</div>}
                                     </div>
                                     <div className='login__form-row'>
-                                        <button className='argo-button argo-button--full-width argo-button--xlg' type='submit'>
+                                        <button disabled={this.state.loginInProgress} className='argo-button argo-button--full-width argo-button--xlg' type='submit'>
                                             Sign In
                                         </button>
                                     </div>
@@ -101,7 +102,7 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
                             )}
                         </Form>
                     )}
-                    {authSettings && authSettings.disableAdmin && !ssoConfigured && (
+                    {authSettings && authSettings.userLoginsDisabled && !ssoConfigured && (
                         <div className='argo-form-row__error-msg'>Login is disabled. Please contact your system administrator.</div>
                     )}
                     <div className='login__footer'>
@@ -116,9 +117,10 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
 
     private async login(username: string, password: string, returnURL: string) {
         try {
-            this.setState({loginError: ''});
+            this.setState({loginError: '', loginInProgress: true});
             this.appContext.apis.navigation.goto('.', {sso_error: null});
             await services.users.login(username, password);
+            this.setState({loginInProgress: false});
             if (returnURL) {
                 const url = new URL(returnURL);
                 this.appContext.apis.navigation.goto(url.pathname + url.search);
@@ -126,7 +128,7 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
                 this.appContext.apis.navigation.goto('/applications');
             }
         } catch (e) {
-            this.setState({loginError: e.response.body.error});
+            this.setState({loginError: e.response.body.error, loginInProgress: false});
         }
     }
 

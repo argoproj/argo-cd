@@ -1,10 +1,9 @@
 package cluster
 
 import (
-	"fmt"
-	"reflect"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
@@ -16,10 +15,8 @@ import (
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	servercache "github.com/argoproj/argo-cd/server/cache"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/clusterauth"
 	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/rbac"
 )
 
@@ -41,79 +38,28 @@ func NewServer(db db.ArgoDB, enf *rbac.Enforcer, cache *servercache.Cache, kubec
 	}
 }
 
-func (s *Server) getConnectionState(cluster appv1.Cluster, errorMessage string) (appv1.ConnectionState, string) {
-	if clusterInfo, err := s.cache.GetClusterInfo(cluster.Server); err == nil {
-		return clusterInfo.ConnectionState, clusterInfo.Version
-	}
-	now := v1.Now()
-	clusterInfo := servercache.ClusterInfo{
-		ConnectionState: appv1.ConnectionState{
-			Status:     appv1.ConnectionStatusSuccessful,
-			ModifiedAt: &now,
-		},
-	}
-
-	config := cluster.RESTConfig()
-	config.Timeout = time.Second
-	version, err := s.kubectl.GetServerVersion(config)
-	if err != nil {
-		clusterInfo.Status = appv1.ConnectionStatusFailed
-		clusterInfo.Message = fmt.Sprintf("Unable to connect to cluster: %v", err)
-	} else {
-		clusterInfo.Version = version
-	}
-
-	if errorMessage != "" {
-		clusterInfo.Status = appv1.ConnectionStatusFailed
-		clusterInfo.Message = fmt.Sprintf("%s %s", errorMessage, clusterInfo.Message)
-	}
-
-	err = s.cache.SetClusterInfo(cluster.Server, &clusterInfo)
-	if err != nil {
-		log.Warnf("getClusterInfo cache set error %s: %v", cluster.Server, err)
-	}
-	return clusterInfo.ConnectionState, clusterInfo.Version
-}
-
 // List returns list of clusters
 func (s *Server) List(ctx context.Context, q *cluster.ClusterQuery) (*appv1.ClusterList, error) {
 	clusterList, err := s.db.ListClusters(ctx)
 	if err != nil {
 		return nil, err
 	}
-	clustersByServer := make(map[string][]appv1.Cluster)
+
+	items := make([]appv1.Cluster, 0)
 	for _, clust := range clusterList.Items {
 		if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionGet, clust.Server) {
-			clustersByServer[clust.Server] = append(clustersByServer[clust.Server], clust)
+			items = append(items, clust)
 		}
 	}
-	servers := make([]string, 0)
-	for server := range clustersByServer {
-		servers = append(servers, server)
-	}
-
-	items := make([]appv1.Cluster, len(servers))
-	err = util.RunAllAsync(len(servers), func(i int) error {
-		clusters := clustersByServer[servers[i]]
-		clust := clusters[0]
-		warningMessage := ""
-		if len(clusters) > 1 {
-			warningMessage = fmt.Sprintf("There are %d credentials configured this cluster.", len(clusters))
-		}
-		if clust.ConnectionState.Status == "" {
-			state, serverVersion := s.getConnectionState(clust, warningMessage)
-			clust.ConnectionState = state
-			clust.ServerVersion = serverVersion
-		}
-		items[i] = *redact(&clust)
+	err = kube.RunAllAsync(len(items), func(i int) error {
+		items[i] = *s.toAPIResponse(&items[i])
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
-
 	clusterList.Items = items
-	return clusterList, err
+	return clusterList, nil
 }
 
 // Create creates a cluster
@@ -122,12 +68,11 @@ func (s *Server) Create(ctx context.Context, q *cluster.ClusterCreateRequest) (*
 		return nil, err
 	}
 	c := q.Cluster
-	err := kube.TestConfig(q.Cluster.RESTConfig())
+	serverVersion, err := s.kubectl.GetServerVersion(c.RESTConfig())
 	if err != nil {
 		return nil, err
 	}
 
-	c.ConnectionState = appv1.ConnectionState{Status: appv1.ConnectionStatusSuccessful}
 	clust, err := s.db.CreateCluster(ctx, c)
 	if status.Convert(err).Code() == codes.AlreadyExists {
 		// act idempotent if existing spec matches new spec
@@ -136,17 +81,25 @@ func (s *Server) Create(ctx context.Context, q *cluster.ClusterCreateRequest) (*
 			return nil, status.Errorf(codes.Internal, "unable to check existing cluster details: %v", getErr)
 		}
 
-		// cluster ConnectionState may differ, so make consistent before testing
-		existing.ConnectionState = c.ConnectionState
-		if reflect.DeepEqual(existing, c) {
-			clust, err = existing, nil
+		if existing.Equals(c) {
+			clust = existing
 		} else if q.Upsert {
 			return s.Update(ctx, &cluster.ClusterUpdateRequest{Cluster: c})
 		} else {
 			return nil, status.Errorf(codes.InvalidArgument, "existing cluster spec is different; use upsert flag to force update")
 		}
 	}
-	return redact(clust), err
+	err = s.cache.SetClusterInfo(c.Server, &appv1.ClusterInfo{
+		ServerVersion: serverVersion,
+		ConnectionState: appv1.ConnectionState{
+			Status:     appv1.ConnectionStatusSuccessful,
+			ModifiedAt: &v1.Time{Time: time.Now()},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	return s.toAPIResponse(clust), err
 }
 
 // Get returns a cluster from a query
@@ -154,15 +107,54 @@ func (s *Server) Get(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Clust
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionGet, q.Server); err != nil {
 		return nil, err
 	}
-	c, err := s.db.GetCluster(ctx, q.Server)
+
+	c, err := s.getCluster(ctx, q)
 	if err != nil {
 		return nil, err
 	}
-	c.ServerVersion, err = s.kubectl.GetServerVersion(c.RESTConfig())
-	if err != nil {
-		return nil, err
+	return s.toAPIResponse(c), nil
+}
+
+func (s *Server) getCluster(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Cluster, error) {
+
+	if q.Server != "" {
+		c, err := s.db.GetCluster(ctx, q.Server)
+		if err != nil {
+			return nil, err
+		}
+		return c, nil
 	}
-	return redact(c), nil
+
+	//we only get the name when we specify Name in ApplicationDestination and next
+	//we want to find the server in order to populate ApplicationDestination.Server
+	if q.Name != "" {
+		clusterList, err := s.db.ListClusters(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, c := range clusterList.Items {
+			if c.Name == q.Name {
+				return &c, nil
+			}
+		}
+	}
+
+	return nil, nil
+}
+
+var clusterFieldsByPath = map[string]func(updated *appv1.Cluster, existing *appv1.Cluster){
+	"name": func(updated *appv1.Cluster, existing *appv1.Cluster) {
+		updated.Name = existing.Name
+	},
+	"namespaces": func(updated *appv1.Cluster, existing *appv1.Cluster) {
+		updated.Namespaces = existing.Namespaces
+	},
+	"config": func(updated *appv1.Cluster, existing *appv1.Cluster) {
+		updated.Config = existing.Config
+	},
+	"shard": func(updated *appv1.Cluster, existing *appv1.Cluster) {
+		updated.Shard = existing.Shard
+	},
 }
 
 // Update updates a cluster
@@ -170,12 +162,42 @@ func (s *Server) Update(ctx context.Context, q *cluster.ClusterUpdateRequest) (*
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionUpdate, q.Cluster.Server); err != nil {
 		return nil, err
 	}
-	err := kube.TestConfig(q.Cluster.RESTConfig())
+
+	if len(q.UpdatedFields) != 0 {
+		existing, err := s.db.GetCluster(ctx, q.Cluster.Server)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, path := range q.UpdatedFields {
+			if updater, ok := clusterFieldsByPath[path]; ok {
+				updater(existing, q.Cluster)
+			}
+		}
+		q.Cluster = existing
+	}
+
+	// Test the token we just created before persisting it
+	serverVersion, err := s.kubectl.GetServerVersion(q.Cluster.RESTConfig())
 	if err != nil {
 		return nil, err
 	}
+
 	clust, err := s.db.UpdateCluster(ctx, q.Cluster)
-	return redact(clust), err
+	if err != nil {
+		return nil, err
+	}
+	err = s.cache.SetClusterInfo(clust.Server, &appv1.ClusterInfo{
+		ServerVersion: serverVersion,
+		ConnectionState: appv1.ConnectionState{
+			Status:     appv1.ConnectionStatusSuccessful,
+			ModifiedAt: &v1.Time{Time: time.Now()},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	return s.toAPIResponse(clust), nil
 }
 
 // Delete deletes a cluster by name
@@ -220,11 +242,21 @@ func (s *Server) RotateAuth(ctx context.Context, q *cluster.ClusterQuery) (*clus
 	clust.Config.BearerToken = string(newSecret.Data["token"])
 
 	// Test the token we just created before persisting it
-	err = kube.TestConfig(clust.RESTConfig())
+	serverVersion, err := s.kubectl.GetServerVersion(clust.RESTConfig())
 	if err != nil {
 		return nil, err
 	}
 	_, err = s.db.UpdateCluster(ctx, clust)
+	if err != nil {
+		return nil, err
+	}
+	err = s.cache.SetClusterInfo(clust.Server, &appv1.ClusterInfo{
+		ServerVersion: serverVersion,
+		ConnectionState: appv1.ConnectionState{
+			Status:     appv1.ConnectionStatusSuccessful,
+			ModifiedAt: &v1.Time{Time: time.Now()},
+		},
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -236,12 +268,40 @@ func (s *Server) RotateAuth(ctx context.Context, q *cluster.ClusterQuery) (*clus
 	return &cluster.ClusterResponse{}, nil
 }
 
-func redact(clust *appv1.Cluster) *appv1.Cluster {
-	if clust == nil {
-		return nil
-	}
+func (s *Server) toAPIResponse(clust *appv1.Cluster) *appv1.Cluster {
+	_ = s.cache.GetClusterInfo(clust.Server, &clust.Info)
+
 	clust.Config.Password = ""
 	clust.Config.BearerToken = ""
 	clust.Config.TLSClientConfig.KeyData = nil
+	if clust.Config.ExecProviderConfig != nil {
+		// We can't know what the user has put into args or
+		// env vars on the exec provider that might be sensitive
+		// (e.g. --private-key=XXX, PASSWORD=XXX)
+		// Implicitly assumes the command executable name is non-sensitive
+		clust.Config.ExecProviderConfig.Env = make(map[string]string)
+		clust.Config.ExecProviderConfig.Args = nil
+	}
+	// populate deprecated fields for backward compatibility
+	clust.ServerVersion = clust.Info.ServerVersion
+	clust.ConnectionState = clust.Info.ConnectionState
 	return clust
+}
+
+// InvalidateCache invalidates cluster cache
+func (s *Server) InvalidateCache(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Cluster, error) {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionUpdate, q.Server); err != nil {
+		return nil, err
+	}
+	cls, err := s.db.GetCluster(ctx, q.Server)
+	if err != nil {
+		return nil, err
+	}
+	now := v1.Now()
+	cls.RefreshRequestedAt = &now
+	cls, err = s.db.UpdateCluster(ctx, cls)
+	if err != nil {
+		return nil, err
+	}
+	return s.toAPIResponse(cls), nil
 }

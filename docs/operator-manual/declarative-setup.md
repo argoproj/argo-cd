@@ -1,18 +1,23 @@
 # Declarative Setup
 
-Argo CD applications, projects and settings can be defined declaratively using Kubernetes manifests.
+Argo CD applications, projects and settings can be defined declaratively using Kubernetes manifests. These can be updated using `kubectl apply`, without needing to touch the `argocd` command-line tool.
 
 ## Quick Reference
 
-| Name | Kind | Description |
-|------|------|-------------|
-| [`argocd-cm.yaml`](argocd-cm.yaml) | ConfigMap | General Argo CD configuration |
-| [`argocd-secret.yaml`](argocd-secret.yaml) | Secret | Password, Certificates, Signing Key |
-| [`argocd-rbac-cm.yaml`](argocd-rbac-cm.yaml) | ConfigMap | RBAC Configuration |
-| [`argocd-tls-certs-cm.yaml`](argocd-tls-certs-cm.yaml) | ConfigMap | Custom TLS certificates for connecting Git repositories via HTTPS (v1.2 and later) |
-| [`argocd-ssh-known-hosts-cm.yaml`](argocd-ssh-known-hosts-cm.yaml) | ConfigMap | SSH known hosts data for connecting Git repositories via SSH (v1.2 and later) |
-| [`application.yaml`](application.yaml) | Application | Example application spec |
-| [`project.yaml`](project.yaml) | AppProject | Example project spec |
+| File Name | Resource Name | Kind | Description |
+|-----------|---------------|------|-------------|
+| [`argocd-cm.yaml`](argocd-cm.yaml) | argocd-cm | ConfigMap | General Argo CD configuration |
+| [`argocd-secret.yaml`](argocd-secret.yaml) | argocd-secret | Secret | Password, Certificates, Signing Key |
+| [`argocd-rbac-cm.yaml`](argocd-rbac-cm.yaml) | argocd-rbac-cm | ConfigMap | RBAC Configuration |
+| [`argocd-tls-certs-cm.yaml`](argocd-tls-certs-cm.yaml) | argocd-tls-certs-cm | ConfigMap | Custom TLS certificates for connecting Git repositories via HTTPS (v1.2 and later) |
+| [`argocd-ssh-known-hosts-cm.yaml`](argocd-ssh-known-hosts-cm.yaml) | argocd-ssh-known-hosts-cm | ConfigMap | SSH known hosts data for connecting Git repositories via SSH (v1.2 and later) |
+| [`application.yaml`](application.yaml) | - | Application | Example application spec |
+| [`project.yaml`](project.yaml) | - | AppProject | Example project spec |
+
+All resources, including `Application` and `AppProject` specs, have to be installed in the ArgoCD namespace (by default `argocd`). Also, ConfigMap and Secret resources need to be named as shown in the table above. For `Application` and `AppProject` resources, the name of the resource equals the name of the application or project within ArgoCD. This also means that application and project names are unique within the same ArgoCD installation - you cannot i.e. have the same application name for two different applications.
+
+!!!warning "A note about ConfigMap resources"
+    Be sure to annotate your ConfigMap resources using the label `app.kubernetes.io/part-of: argocd`, otherwise ArgoCD will not be able to use them.
 
 ## Applications
 
@@ -20,7 +25,7 @@ The Application CRD is the Kubernetes resource object representing a deployed ap
 in an environment. It is defined by two key pieces of information:
 
 * `source` reference to the desired state in Git (repository, revision, path, environment)
-* `destination` reference to the target cluster and namespace.
+* `destination` reference to the target cluster and namespace. For the cluster one of server or name can be used, but not both (which will result in an error). Behind the hood when the server is missing, it is being calculated based on the name and then the server is used for any operations.
 
 A minimal Application spec is as follows:
 
@@ -41,10 +46,20 @@ spec:
     namespace: guestbook
 ```
 
-See [application.yaml](application.yaml) for additional fields
+See [application.yaml](application.yaml) for additional fields. As long as you have completed the first step of [Getting Started](../getting_started.md#1-install-argo-cd), you can already apply this with `kubectl apply -n argocd -f application.yaml` and Argo CD will start deploying the guestbook application.
 
 !!! note
     The namespace must match the namespace of your Argo cd, typically this is `argocd`.
+
+!!! note
+    When creating an application from a Helm repository, the `chart` attribute must be specified instead of the `path` attribute within `spec.source`.
+
+```yaml
+spec:
+  source:
+    repoURL: https://argoproj.github.io/argo-helm
+    chart: argo
+```
 
 !!! warning
     By default, deleting an application will not perform a cascade delete, thereby deleting its resources. You must add the finalizer if you want this behaviour - which you may well not want.
@@ -68,7 +83,7 @@ The AppProject CRD is the Kubernetes resource object representing a logical grou
 It is defined by the following key pieces of information:
 
 * `sourceRepos` reference to the repositories that applications within the project can pull manifests from.
-* `destinations` reference to clusters and namespaces that applications within the project can deploy into.
+* `destinations` reference to clusters and namespaces that applications within the project can deploy into (don't use the name field, only server is being matched).
 * `roles` list of entities with definitions of their access to resources within the project.
 
 An example spec is as follows:
@@ -79,6 +94,9 @@ kind: AppProject
 metadata:
   name: my-project
   namespace: argocd
+  # Finalizer that ensures that project is not deleted until it is not referenced by any application
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
 spec:
   description: Example Project
   # Allow manifests to deploy from any Git repos
@@ -100,6 +118,12 @@ spec:
     kind: LimitRange
   - group: ''
     kind: NetworkPolicy
+  # Deny all namespaced-scoped resources from being created, except for Deployment and StatefulSet
+  namespaceResourceWhitelist:
+  - group: 'apps'
+    kind: Deployment
+  - group: 'apps'
+    kind: StatefulSet
   roles:
   # A role which provides read-only access to all applications in the project
   - name: read-only
@@ -121,6 +145,12 @@ spec:
 ```
 
 ## Repositories
+
+!!!note
+    Some Git hosters - notably GitLab and possibly on-premise GitLab instances as well - require you to
+    specify the `.git` suffix in the repository URL, otherwise they will send a HTTP 301 redirect to the
+    repository URL suffixed with `.git`. ArgoCD will **not** follow these redirects, so you have to
+    adapt your repository URL to be suffixed with `.git`.
 
 Repository credentials are stored in secret. Use following steps to configure a repo:
 
@@ -199,9 +229,13 @@ data:
       usernameSecret:
         name: my-secret
         key: username
+    - url: git@github.com:argoproj-labs
+      sshPrivateKeySecret:
+        name: my-secret
+        key: sshPrivateKey
 ```
 
-Argo CD will only use the credentials if you omit `usernameSecret`, `passwordSecret`, and `sshPrivateKeySecret` fields (`insecureIgnoreHostKey` is ignored).
+Argo CD will only use the credentials if you omit `usernameSecret`, `passwordSecret`, and `sshPrivateKeySecret` fields (`insecureIgnoreHostKey` is ignored) or if your repository is not listed in `repositories`.
 
 A credential may be match if it's URL is the prefix of the repository's URL. The means that credentials may match, e.g in the above example both [https://github.com/argoproj](https://github.com/argoproj) and [https://github.com](https://github.com) would match. Argo CD selects the first one that matches.
 
@@ -407,6 +441,7 @@ The secret data must include following fields:
 
 * `name` - cluster name
 * `server` - cluster api server url
+* `namespaces` - optional comma-separated list of namespaces which are accessible in that cluster. Cluster level resources would be ignored if namespace list is not empty.
 * `config` - JSON representation of following data structure:
 
 ```yaml
@@ -419,6 +454,18 @@ bearerToken: string
 awsAuthConfig:
     clusterName: string
     roleARN: string
+# Configure external command to supply client credentials
+# See https://godoc.org/k8s.io/client-go/tools/clientcmd/api#ExecConfig
+execProviderConfig:
+    command: string
+    args: [
+      string
+    ]
+    env: {
+      key: value
+    }
+    apiVersion: string
+    installHint: string
 # Transport layer security configuration settings
 tlsClientConfig:
     # PEM-encoded bytes (typically read from a client certificate file).
@@ -430,10 +477,12 @@ tlsClientConfig:
     # PEM-encoded bytes (typically read from a client certificate key file).
     keyData: string
     # ServerName is passed to the server for SNI and is used in the client to check server
-    # ceritificates against. If ServerName is empty, the hostname used to contact the
+    # certificates against. If ServerName is empty, the hostname used to contact the
     # server is used.
     serverName: string
 ```
+
+Note that if you specify a command to run under `execProviderConfig`, that command must be available in the ArgoCD image. See [BYOI (Build Your Own Image)](custom_tools.md#byoi-build-your-own-image).
 
 Cluster secret example:
 
@@ -570,7 +619,7 @@ Notes:
 
 ## SSO & RBAC
 
-* SSO configuration details: [SSO](./sso/index.md)
+* SSO configuration details: [SSO](./user-management/index.md)
 * RBAC configuration details: [RBAC](./rbac.md)
 
 ## Manage Argo CD Using Argo CD

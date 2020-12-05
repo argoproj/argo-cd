@@ -10,3 +10,13 @@ cmd/**/debug
 debug.test
 coverage.out
 test-results
+.scannerwork
+.scratch
+node_modules/
+
+# ignore built binaries
+cmd/argocd/argocd
+cmd/argocd-application-controller/argocd-application-controller
+cmd/argocd-repo-server/argocd-repo-server
+cmd/argocd-server/argocd-server
+cmd/argocd-util/argocd-util

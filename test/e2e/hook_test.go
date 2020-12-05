@@ -8,10 +8,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 
-	. "github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/gitops-engine/pkg/health"
+	. "github.com/argoproj/gitops-engine/pkg/sync/common"
+
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
+	. "github.com/argoproj/argo-cd/util/errors"
 )
 
 func TestPreSyncHookSuccessful(t *testing.T) {
@@ -40,7 +43,7 @@ func testHookSuccessful(t *testing.T, hookType HookType) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(ResourceSyncStatusIs("Pod", "pod", SyncStatusCodeSynced)).
-		Expect(ResourceHealthIs("Pod", "pod", HealthStatusHealthy)).
+		Expect(ResourceHealthIs("Pod", "pod", health.HealthStatusHealthy)).
 		Expect(ResourceResultNumbering(2)).
 		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "hook", Message: "pod/hook created", HookType: hookType, HookPhase: OperationSucceeded, SyncPhase: SyncPhase(hookType)}))
 }
@@ -110,7 +113,7 @@ func TestSyncHookResourceFailure(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(HealthIs(HealthStatusProgressing))
+		Expect(HealthIs(health.HealthStatusProgressing))
 }
 
 // make sure that if post-sync fails, we fail the app and we did not create the pod
@@ -146,7 +149,7 @@ func TestPostSyncHookPodFailure(t *testing.T) {
 		// TODO - I feel like this should be a failure, not success
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(ResourceSyncStatusIs("Pod", "pod", SyncStatusCodeSynced)).
-		Expect(ResourceHealthIs("Pod", "pod", HealthStatusDegraded)).
+		Expect(ResourceHealthIs("Pod", "pod", health.HealthStatusDegraded)).
 		Expect(ResourceResultNumbering(1)).
 		Expect(NotPod(func(p v1.Pod) bool { return p.Name == "hook" }))
 }
@@ -301,7 +304,7 @@ func TestHookBeforeHookCreation(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
 		Expect(ResourceResultNumbering(2)).
 		// the app will be in health+n-sync before this hook has run
 		Expect(Pod(func(p v1.Pod) bool { return p.Name == "hook" })).
@@ -318,7 +321,7 @@ func TestHookBeforeHookCreation(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
 		Expect(ResourceResultNumbering(2)).
 		Expect(Pod(func(p v1.Pod) bool { return p.Name == "hook" })).
 		And(func(_ *Application) {

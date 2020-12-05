@@ -18,6 +18,11 @@ const settings = [
         path: './certs'
     },
     {
+        title: 'GnuPG keys',
+        description: 'Configure GnuPG public keys for commit verification',
+        path: './gpgkeys'
+    },
+    {
         title: 'Clusters',
         description: 'Configure connected Kubernetes clusters',
         path: './clusters'
@@ -26,6 +31,11 @@ const settings = [
         title: 'Projects',
         description: 'Configure Argo CD projects',
         path: './projects'
+    },
+    {
+        title: 'Accounts',
+        description: 'Configure Accounts',
+        path: './accounts'
     }
 ];
 

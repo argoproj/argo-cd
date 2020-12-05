@@ -7,10 +7,10 @@ import (
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/errors"
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/test/e2e/fixture"
-	"github.com/argoproj/argo-cd/util/json"
+	"github.com/argoproj/argo-cd/util/errors"
+	"github.com/argoproj/argo-cd/util/grpc"
 )
 
 // this implements the "when" part of given/when/then
@@ -46,13 +46,44 @@ func (a *Actions) DeleteFile(file string) *Actions {
 	return a
 }
 
+func (a *Actions) WriteFile(fileName, fileContents string) *Actions {
+	a.context.t.Helper()
+	fixture.WriteFile(a.context.path+"/"+fileName, fileContents)
+	return a
+}
+
 func (a *Actions) AddFile(fileName, fileContents string) *Actions {
 	a.context.t.Helper()
 	fixture.AddFile(a.context.path+"/"+fileName, fileContents)
 	return a
 }
 
-func (a *Actions) CreateFromFile(handler func(app *Application)) *Actions {
+func (a *Actions) AddSignedFile(fileName, fileContents string) *Actions {
+	a.context.t.Helper()
+	fixture.AddSignedFile(a.context.path+"/"+fileName, fileContents)
+	return a
+}
+
+func (a *Actions) CreateFromPartialFile(data string, flags ...string) *Actions {
+	a.context.t.Helper()
+	tmpFile, err := ioutil.TempFile("", "")
+	errors.CheckError(err)
+	_, err = tmpFile.Write([]byte(data))
+	errors.CheckError(err)
+
+	args := append([]string{
+		"app", "create",
+		"-f", tmpFile.Name(),
+		"--name", a.context.name,
+		"--repo", fixture.RepoURL(a.context.repoURLType),
+		"--dest-server", a.context.destServer,
+		"--dest-namespace", fixture.DeploymentNamespace(),
+	}, flags...)
+
+	a.runCli(args...)
+	return a
+}
+func (a *Actions) CreateFromFile(handler func(app *Application), flags ...string) *Actions {
 	a.context.t.Helper()
 	app := &Application{
 		ObjectMeta: v1.ObjectMeta{
@@ -96,23 +127,44 @@ func (a *Actions) CreateFromFile(handler func(app *Application)) *Actions {
 	}
 
 	handler(app)
-	data := json.MustMarshal(app)
+	data := grpc.MustMarshal(app)
 	tmpFile, err := ioutil.TempFile("", "")
 	errors.CheckError(err)
 	_, err = tmpFile.Write(data)
 	errors.CheckError(err)
 
-	a.runCli("app", "create", "-f", tmpFile.Name())
+	args := append([]string{
+		"app", "create",
+		"-f", tmpFile.Name(),
+	}, flags...)
+
+	a.runCli(args...)
+	return a
+}
+
+func (a *Actions) CreateWithNoNameSpace(args ...string) *Actions {
+	args = a.prepareCreateArgs(args)
+	//  are you adding new context values? if you only use them for this func, then use args instead
+	a.runCli(args...)
 	return a
 }
 
 func (a *Actions) Create(args ...string) *Actions {
+	args = a.prepareCreateArgs(args)
+	args = append(args, "--dest-namespace", fixture.DeploymentNamespace())
+
+	//  are you adding new context values? if you only use them for this func, then use args instead
+	a.runCli(args...)
+
+	return a
+}
+
+func (a *Actions) prepareCreateArgs(args []string) []string {
 	a.context.t.Helper()
 	args = append([]string{
 		"app", "create", a.context.name,
 		"--repo", fixture.RepoURL(a.context.repoURLType),
 		"--dest-server", a.context.destServer,
-		"--dest-namespace", fixture.DeploymentNamespace(),
 	}, args...)
 
 	if a.context.path != "" {
@@ -148,12 +200,7 @@ func (a *Actions) Create(args ...string) *Actions {
 	if a.context.revision != "" {
 		args = append(args, "--revision", a.context.revision)
 	}
-
-	//  are you adding new context values? if you only use them for this func, then use args instead
-
-	a.runCli(args...)
-
-	return a
+	return args
 }
 
 func (a *Actions) Declarative(filename string) *Actions {
@@ -185,6 +232,14 @@ func (a *Actions) PatchApp(patch string) *Actions {
 func (a *Actions) AppSet(flags ...string) *Actions {
 	a.context.t.Helper()
 	args := []string{"app", "set", a.context.name}
+	args = append(args, flags...)
+	a.runCli(args...)
+	return a
+}
+
+func (a *Actions) AppUnSet(flags ...string) *Actions {
+	a.context.t.Helper()
+	args := []string{"app", "unset", a.context.name}
 	args = append(args, flags...)
 	a.runCli(args...)
 	return a

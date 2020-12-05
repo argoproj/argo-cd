@@ -21,7 +21,7 @@ message RepoCredsDeleteRequest {
 	string url = 1;
 }
 
-// RepoCredsResponse is a resonse to most repository credentials requests
+// RepoCredsResponse is a response to most repository credentials requests
 message RepoCredsResponse {}
 
 // RepoCreateRequest is a request for creating repository credentials config

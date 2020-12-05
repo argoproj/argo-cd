@@ -17,18 +17,19 @@ import (
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/argoproj/argo-cd/common"
-	. "github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	sessionpkg "github.com/argoproj/argo-cd/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/util"
+	. "github.com/argoproj/argo-cd/util/errors"
 	grpcutil "github.com/argoproj/argo-cd/util/grpc"
+	"github.com/argoproj/argo-cd/util/io"
 	"github.com/argoproj/argo-cd/util/rand"
 	"github.com/argoproj/argo-cd/util/settings"
 )
@@ -53,6 +54,7 @@ var (
 	deploymentNamespace string
 	name                string
 	KubeClientset       kubernetes.Interface
+	DynamicClientset    dynamic.Interface
 	AppClientset        appclientset.Interface
 	ArgoCDClientset     argocdclient.Client
 	apiServerAddress    string
@@ -74,6 +76,7 @@ const (
 	RepoURLTypeHelm                 = "helm"
 	GitUsername                     = "admin"
 	GitPassword                     = "password"
+	GpgGoodKeyID                    = "D56C4FCA57A46444"
 )
 
 // getKubeConfig creates new kubernetes client config using specified config path and config overrides variables
@@ -96,6 +99,7 @@ func init() {
 	config := getKubeConfig("", clientcmd.ConfigOverrides{})
 	AppClientset = appclientset.NewForConfigOrDie(config)
 	KubeClientset = kubernetes.NewForConfigOrDie(config)
+	DynamicClientset = dynamic.NewForConfigOrDie(config)
 	apiServerAddress = os.Getenv(argocdclient.EnvArgoCDServer)
 	if apiServerAddress == "" {
 		apiServerAddress = defaultApiServer
@@ -109,7 +113,7 @@ func init() {
 
 	closer, client, err := ArgoCDClientset.NewSessionClient()
 	CheckError(err)
-	defer util.Close(closer)
+	defer io.Close(closer)
 
 	sessionResponse, err := client.Create(context.Background(), &sessionpkg.SessionCreateRequest{Username: "admin", Password: adminPassword})
 	CheckError(err)
@@ -193,14 +197,20 @@ func CreateSecret(username, password string) string {
 	return secretName
 }
 
+// Convinience wrapper for updating argocd-cm
 func updateSettingConfigMap(updater func(cm *corev1.ConfigMap) error) {
-	cm, err := KubeClientset.CoreV1().ConfigMaps(ArgoCDNamespace).Get(common.ArgoCDConfigMapName, v1.GetOptions{})
+	updateGenericConfigMap(common.ArgoCDConfigMapName, updater)
+}
+
+// Updates a given config map in argocd-e2e namespace
+func updateGenericConfigMap(name string, updater func(cm *corev1.ConfigMap) error) {
+	cm, err := KubeClientset.CoreV1().ConfigMaps(ArgoCDNamespace).Get(context.Background(), name, v1.GetOptions{})
 	errors.CheckError(err)
 	if cm.Data == nil {
 		cm.Data = make(map[string]string)
 	}
 	errors.CheckError(updater(cm))
-	_, err = KubeClientset.CoreV1().ConfigMaps(ArgoCDNamespace).Update(cm)
+	_, err = KubeClientset.CoreV1().ConfigMaps(ArgoCDNamespace).Update(context.Background(), cm, v1.UpdateOptions{})
 	errors.CheckError(err)
 }
 
@@ -214,6 +224,15 @@ func SetResourceOverrides(overrides map[string]v1alpha1.ResourceOverride) {
 			cm.Data["resource.customizations"] = string(yamlBytes)
 		} else {
 			delete(cm.Data, "resource.customizations")
+		}
+		return nil
+	})
+}
+
+func SetAccounts(accounts map[string][]string) {
+	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		for k, v := range accounts {
+			cm.Data[fmt.Sprintf("accounts.%s", k)] = strings.Join(v, ",")
 		}
 		return nil
 	})
@@ -269,10 +288,10 @@ func SetRepos(repos ...settings.RepositoryCredentials) {
 }
 
 func SetProjectSpec(project string, spec v1alpha1.AppProjectSpec) {
-	proj, err := AppClientset.ArgoprojV1alpha1().AppProjects(ArgoCDNamespace).Get(project, v1.GetOptions{})
+	proj, err := AppClientset.ArgoprojV1alpha1().AppProjects(ArgoCDNamespace).Get(context.Background(), project, v1.GetOptions{})
 	errors.CheckError(err)
 	proj.Spec = spec
-	_, err = AppClientset.ArgoprojV1alpha1().AppProjects(ArgoCDNamespace).Update(proj)
+	_, err = AppClientset.ArgoprojV1alpha1().AppProjects(ArgoCDNamespace).Update(context.Background(), proj, v1.UpdateOptions{})
 	errors.CheckError(err)
 }
 
@@ -283,19 +302,25 @@ func EnsureCleanState(t *testing.T) {
 	policy := v1.DeletePropagationBackground
 	// delete resources
 	// kubectl delete apps --all
-	CheckError(AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).DeleteCollection(&v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{}))
+	CheckError(AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).DeleteCollection(context.Background(), v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{}))
 	// kubectl delete appprojects --field-selector metadata.name!=default
-	CheckError(AppClientset.ArgoprojV1alpha1().AppProjects(ArgoCDNamespace).DeleteCollection(
-		&v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{FieldSelector: "metadata.name!=default"}))
+	CheckError(AppClientset.ArgoprojV1alpha1().AppProjects(ArgoCDNamespace).DeleteCollection(context.Background(),
+		v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{FieldSelector: "metadata.name!=default"}))
 	// kubectl delete secrets -l e2e.argoproj.io=true
-	CheckError(KubeClientset.CoreV1().Secrets(ArgoCDNamespace).DeleteCollection(
-		&v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{LabelSelector: testingLabel + "=true"}))
+	CheckError(KubeClientset.CoreV1().Secrets(ArgoCDNamespace).DeleteCollection(context.Background(),
+		v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{LabelSelector: testingLabel + "=true"}))
 
 	FailOnErr(Run("", "kubectl", "delete", "ns", "-l", testingLabel+"=true", "--field-selector", "status.phase=Active", "--wait=false"))
 	FailOnErr(Run("", "kubectl", "delete", "crd", "-l", testingLabel+"=true", "--wait=false"))
 
 	// reset settings
 	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data = map[string]string{}
+		return nil
+	})
+
+	// reset gpg-keys config map
+	updateGenericConfigMap(common.ArgoCDGPGKeysConfigMapName, func(cm *corev1.ConfigMap) error {
 		cm.Data = map[string]string{}
 		return nil
 	})
@@ -307,14 +332,24 @@ func EnsureCleanState(t *testing.T) {
 		ClusterResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
 	})
 
+	// Create separate project for testing gpg signature verification
+	FailOnErr(RunCli("proj", "create", "gpg"))
+	SetProjectSpec("gpg", v1alpha1.AppProjectSpec{
+		OrphanedResources:        nil,
+		SourceRepos:              []string{"*"},
+		Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
+		ClusterResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
+		SignatureKeys:            []v1alpha1.SignatureKey{{KeyID: GpgGoodKeyID}},
+	})
+
 	// remove tmp dir
 	CheckError(os.RemoveAll(TmpDir))
 
 	// random id - unique across test runs
 	postFix := "-" + strings.ToLower(rand.RandString(5))
 	id = t.Name() + postFix
-	name = dnsFriendly(t.Name(), "")
-	deploymentNamespace = dnsFriendly(fmt.Sprintf("argocd-e2e-%s", t.Name()), postFix)
+	name = DnsFriendly(t.Name(), "")
+	deploymentNamespace = DnsFriendly(fmt.Sprintf("argocd-e2e-%s", t.Name()), postFix)
 
 	// create tmp dir
 	FailOnErr(Run("", "mkdir", "-p", TmpDir))
@@ -322,6 +357,21 @@ func EnsureCleanState(t *testing.T) {
 	// create TLS and SSH certificate directories
 	FailOnErr(Run("", "mkdir", "-p", TmpDir+"/app/config/tls"))
 	FailOnErr(Run("", "mkdir", "-p", TmpDir+"/app/config/ssh"))
+
+	// For signing during the tests
+	FailOnErr(Run("", "mkdir", "-p", TmpDir+"/gpg"))
+	FailOnErr(Run("", "chmod", "0700", TmpDir+"/gpg"))
+	prevGnuPGHome := os.Getenv("GNUPGHOME")
+	os.Setenv("GNUPGHOME", TmpDir+"/gpg")
+	// nolint:errcheck
+	Run("", "pkill", "-9", "gpg-agent")
+	FailOnErr(Run("", "gpg", "--import", "../fixture/gpg/signingkey.asc"))
+	os.Setenv("GNUPGHOME", prevGnuPGHome)
+
+	// recreate GPG directories
+	FailOnErr(Run("", "mkdir", "-p", TmpDir+"/app/config/gpg/source"))
+	FailOnErr(Run("", "mkdir", "-p", TmpDir+"/app/config/gpg/keys"))
+	FailOnErr(Run("", "chmod", "0700", TmpDir+"/app/config/gpg/keys"))
 
 	// set-up tmp repo, must have unique name
 	FailOnErr(Run("", "cp", "-Rf", "testdata", repoDirectory()))
@@ -395,15 +445,30 @@ func Delete(path string) {
 	FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "delete"))
 }
 
-func AddFile(path, contents string) {
-
+func WriteFile(path, contents string) {
 	log.WithFields(log.Fields{"path": path}).Info("adding")
 
 	CheckError(ioutil.WriteFile(filepath.Join(repoDirectory(), path), []byte(contents), 0644))
+}
+
+func AddFile(path, contents string) {
+
+	WriteFile(path, contents)
 
 	FailOnErr(Run(repoDirectory(), "git", "diff"))
 	FailOnErr(Run(repoDirectory(), "git", "add", "."))
 	FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "add file"))
+}
+
+func AddSignedFile(path, contents string) {
+	WriteFile(path, contents)
+
+	prevGnuPGHome := os.Getenv("GNUPGHOME")
+	os.Setenv("GNUPGHOME", TmpDir+"/gpg")
+	FailOnErr(Run(repoDirectory(), "git", "diff"))
+	FailOnErr(Run(repoDirectory(), "git", "add", "."))
+	FailOnErr(Run(repoDirectory(), "git", "-c", fmt.Sprintf("user.signingkey=%s", GpgGoodKeyID), "commit", "-S", "-am", "add file"))
+	os.Setenv("GNUPGHOME", prevGnuPGHome)
 }
 
 // create the resource by creating using "kubectl apply", with bonus templating

@@ -2,40 +2,56 @@ package cache
 
 import (
 	"fmt"
+	"strings"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/gitops-engine/pkg/utils/text"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	k8snode "k8s.io/kubernetes/pkg/util/node"
 
+	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util"
-	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/resource"
 )
 
-func populateNodeInfo(un *unstructured.Unstructured, node *node) {
-
+func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	gvk := un.GroupVersionKind()
 	revision := resource.GetRevision(un)
 	if revision > 0 {
-		node.info = append(node.info, v1alpha1.InfoItem{Name: "Revision", Value: fmt.Sprintf("Rev:%v", revision)})
+		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Revision", Value: fmt.Sprintf("Rev:%v", revision)})
 	}
 	switch gvk.Group {
 	case "":
 		switch gvk.Kind {
 		case kube.PodKind:
-			populatePodInfo(un, node)
+			populatePodInfo(un, res)
 			return
 		case kube.ServiceKind:
-			populateServiceInfo(un, node)
+			populateServiceInfo(un, res)
 			return
 		}
 	case "extensions", "networking.k8s.io":
 		switch gvk.Kind {
 		case kube.IngressKind:
-			populateIngressInfo(un, node)
+			populateIngressInfo(un, res)
 			return
+		}
+	case "networking.istio.io":
+		switch gvk.Kind {
+		case "VirtualService":
+			populateIstioVirtualServiceInfo(un, res)
+			return
+		}
+	}
+
+	for k, v := range un.GetAnnotations() {
+		if strings.HasPrefix(k, common.AnnotationKeyLinkPrefix) {
+			if res.NetworkingInfo == nil {
+				res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{}
+			}
+			res.NetworkingInfo.ExternalURLs = append(res.NetworkingInfo.ExternalURLs, v)
 		}
 	}
 }
@@ -58,16 +74,16 @@ func getIngress(un *unstructured.Unstructured) []v1.LoadBalancerIngress {
 	return res
 }
 
-func populateServiceInfo(un *unstructured.Unstructured, node *node) {
+func populateServiceInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	targetLabels, _, _ := unstructured.NestedStringMap(un.Object, "spec", "selector")
 	ingress := make([]v1.LoadBalancerIngress, 0)
 	if serviceType, ok, err := unstructured.NestedString(un.Object, "spec", "type"); ok && err == nil && serviceType == string(v1.ServiceTypeLoadBalancer) {
 		ingress = getIngress(un)
 	}
-	node.networkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetLabels: targetLabels, Ingress: ingress}
+	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetLabels: targetLabels, Ingress: ingress}
 }
 
-func populateIngressInfo(un *unstructured.Unstructured, node *node) {
+func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	ingress := getIngress(un)
 	targetsMap := make(map[v1alpha1.ResourceRef]bool)
 	if backend, ok, err := unstructured.NestedMap(un.Object, "spec", "backend"); ok && err == nil {
@@ -88,7 +104,7 @@ func populateIngressInfo(un *unstructured.Unstructured, node *node) {
 			host := rule["host"]
 			if host == nil || host == "" {
 				for i := range ingress {
-					host = util.FirstNonEmpty(ingress[i].Hostname, ingress[i].IP)
+					host = text.FirstNonEmpty(ingress[i].Hostname, ingress[i].IP)
 					if host != "" {
 						break
 					}
@@ -113,36 +129,82 @@ func populateIngressInfo(un *unstructured.Unstructured, node *node) {
 					}] = true
 				}
 
-				if port, ok, err := unstructured.NestedFieldNoCopy(path, "backend", "servicePort"); ok && err == nil && host != "" && host != nil {
-					stringPort := ""
-					switch typedPod := port.(type) {
-					case int64:
-						stringPort = fmt.Sprintf("%d", typedPod)
-					case float64:
-						stringPort = fmt.Sprintf("%d", int64(typedPod))
-					case string:
-						stringPort = typedPod
-					default:
-						stringPort = fmt.Sprintf("%v", port)
+				stringPort := "http"
+				if tls, ok, err := unstructured.NestedSlice(un.Object, "spec", "tls"); ok && err == nil {
+					for i := range tls {
+						tlsline, ok := tls[i].(map[string]interface{})
+						secretName := tlsline["secretName"]
+						if ok && secretName != nil {
+							stringPort = "https"
+						}
+						tlshost := tlsline["host"]
+						if tlshost == host {
+							stringPort = "https"
+						}
+					}
+				}
+
+				externalURL := fmt.Sprintf("%s://%s", stringPort, host)
+
+				subPath := ""
+				if nestedPath, ok, err := unstructured.NestedString(path, "path"); ok && err == nil {
+					subPath = strings.TrimSuffix(nestedPath, "*")
+				}
+				externalURL += subPath
+				urlsSet[externalURL] = true
+			}
+		}
+	}
+	targets := make([]v1alpha1.ResourceRef, 0)
+	for target := range targetsMap {
+		targets = append(targets, target)
+	}
+
+	var urls []string
+	if res.NetworkingInfo != nil {
+		urls = res.NetworkingInfo.ExternalURLs
+	}
+	for url := range urlsSet {
+		urls = append(urls, url)
+	}
+	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetRefs: targets, Ingress: ingress, ExternalURLs: urls}
+}
+
+func populateIstioVirtualServiceInfo(un *unstructured.Unstructured, res *ResourceInfo) {
+	targetsMap := make(map[v1alpha1.ResourceRef]bool)
+
+	if rules, ok, err := unstructured.NestedSlice(un.Object, "spec", "http"); ok && err == nil {
+		for i := range rules {
+			rule, ok := rules[i].(map[string]interface{})
+			if !ok {
+				continue
+			}
+			routes, ok, err := unstructured.NestedSlice(rule, "route")
+			if !ok || err != nil {
+				continue
+			}
+			for i := range routes {
+				route, ok := routes[i].(map[string]interface{})
+				if !ok {
+					continue
+				}
+
+				if hostName, ok, err := unstructured.NestedString(route, "destination", "host"); ok && err == nil {
+					hostSplits := strings.Split(hostName, ".")
+					serviceName := hostSplits[0]
+
+					var namespace string
+					if len(hostSplits) >= 2 {
+						namespace = hostSplits[1]
+					} else {
+						namespace = un.GetNamespace()
 					}
 
-					var externalURL string
-					switch stringPort {
-					case "80", "http":
-						externalURL = fmt.Sprintf("http://%s", host)
-					case "443", "https":
-						externalURL = fmt.Sprintf("https://%s", host)
-					default:
-						externalURL = fmt.Sprintf("http://%s:%s", host, stringPort)
-					}
-
-					subPath := ""
-					if nestedPath, ok, err := unstructured.NestedString(path, "path"); ok && err == nil {
-						subPath = nestedPath
-					}
-
-					externalURL += subPath
-					urlsSet[externalURL] = true
+					targetsMap[v1alpha1.ResourceRef{
+						Kind:      kube.ServiceKind,
+						Name:      serviceName,
+						Namespace: namespace,
+					}] = true
 				}
 			}
 		}
@@ -151,14 +213,11 @@ func populateIngressInfo(un *unstructured.Unstructured, node *node) {
 	for target := range targetsMap {
 		targets = append(targets, target)
 	}
-	urls := make([]string, 0)
-	for url := range urlsSet {
-		urls = append(urls, url)
-	}
-	node.networkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetRefs: targets, Ingress: ingress, ExternalURLs: urls}
+
+	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetRefs: targets}
 }
 
-func populatePodInfo(un *unstructured.Unstructured, node *node) {
+func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	pod := v1.Pod{}
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &pod)
 	if err != nil {
@@ -181,9 +240,9 @@ func populatePodInfo(un *unstructured.Unstructured, node *node) {
 		imagesSet[container.Image] = true
 	}
 
-	node.images = nil
+	res.Images = nil
 	for image := range imagesSet {
-		node.images = append(node.images, image)
+		res.Images = append(res.Images, image)
 	}
 
 	initializing := false
@@ -250,8 +309,8 @@ func populatePodInfo(un *unstructured.Unstructured, node *node) {
 	}
 
 	if reason != "" {
-		node.info = append(node.info, v1alpha1.InfoItem{Name: "Status Reason", Value: reason})
+		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Status Reason", Value: reason})
 	}
-	node.info = append(node.info, v1alpha1.InfoItem{Name: "Containers", Value: fmt.Sprintf("%d/%d", readyContainers, totalContainers)})
-	node.networkingInfo = &v1alpha1.ResourceNetworkingInfo{Labels: un.GetLabels()}
+	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Containers", Value: fmt.Sprintf("%d/%d", readyContainers, totalContainers)})
+	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{Labels: un.GetLabels()}
 }

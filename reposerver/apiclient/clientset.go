@@ -10,13 +10,18 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
-	"github.com/argoproj/argo-cd/util"
 	argogrpc "github.com/argoproj/argo-cd/util/grpc"
+	"github.com/argoproj/argo-cd/util/io"
 )
 
-// Clientset represets repository server api clients
+const (
+	// MaxGRPCMessageSize contains max grpc message size
+	MaxGRPCMessageSize = 100 * 1024 * 1024
+)
+
+// Clientset represents repository server api clients
 type Clientset interface {
-	NewRepoServerClient() (util.Closer, RepoServerServiceClient, error)
+	NewRepoServerClient() (io.Closer, RepoServerServiceClient, error)
 }
 
 type clientSet struct {
@@ -24,7 +29,7 @@ type clientSet struct {
 	timeoutSeconds int
 }
 
-func (c *clientSet) NewRepoServerClient() (util.Closer, RepoServerServiceClient, error) {
+func (c *clientSet) NewRepoServerClient() (io.Closer, RepoServerServiceClient, error) {
 	retryOpts := []grpc_retry.CallOption{
 		grpc_retry.WithMax(3),
 		grpc_retry.WithBackoff(grpc_retry.BackoffLinear(1000 * time.Millisecond)),
@@ -37,6 +42,7 @@ func (c *clientSet) NewRepoServerClient() (util.Closer, RepoServerServiceClient,
 		grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})),
 		grpc.WithStreamInterceptor(grpc_retry.StreamClientInterceptor(retryOpts...)),
 		grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(unaryInterceptors...)),
+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(MaxGRPCMessageSize), grpc.MaxCallSendMsgSize(MaxGRPCMessageSize)),
 	}
 
 	conn, err := grpc.Dial(c.address, opts...)

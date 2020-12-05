@@ -48,8 +48,7 @@ status:
   HPAReplicas: 5
   availableReplicas: 5
   blueGreen: {}
-  canary:
-    stableRS: 84ccfddd66
+  canary: {}
   conditions:
     - lastTransitionTime: '2019-05-01T21:55:30Z'
       lastUpdateTime: '2019-05-01T21:55:58Z'
@@ -70,4 +69,5 @@ status:
   readyReplicas: 5
   replicas: 5
   selector: app=guestbook-canary
+  stableRS: 84ccfddd66
   updatedReplicas: 5

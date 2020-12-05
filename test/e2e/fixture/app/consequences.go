@@ -1,14 +1,16 @@
 package app
 
 import (
+	"context"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/health"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/errors"
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/util/errors"
 )
 
 // this implements the "then" part of given/when/then
@@ -60,18 +62,18 @@ func (c *Consequences) app() *Application {
 }
 
 func (c *Consequences) get() (*Application, error) {
-	return fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(c.context.name, v1.GetOptions{})
+	return fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(context.Background(), c.context.name, v1.GetOptions{})
 }
 
-func (c *Consequences) resource(kind, name string) ResourceStatus {
+func (c *Consequences) resource(kind, name, namespace string) ResourceStatus {
 	for _, r := range c.app().Status.Resources {
-		if r.Kind == kind && r.Name == name {
+		if r.Kind == kind && r.Name == name && (namespace == "" || namespace == r.Namespace) {
 			return r
 		}
 	}
 	return ResourceStatus{
 		Health: &HealthStatus{
-			Status:  HealthStatusMissing,
+			Status:  health.HealthStatusMissing,
 			Message: "not found",
 		},
 	}

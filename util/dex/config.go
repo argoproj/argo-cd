@@ -32,40 +32,58 @@ func GenerateDexConfigYAML(settings *settings.ArgoCDSettings) ([]byte, error) {
 	dexCfg["grpc"] = map[string]interface{}{
 		"addr": "0.0.0.0:5557",
 	}
+	dexCfg["telemetry"] = map[string]interface{}{
+		"http": "0.0.0.0:5558",
+	}
 	dexCfg["oauth2"] = map[string]interface{}{
 		"skipApprovalScreen": true,
 	}
-	dexCfg["staticClients"] = []map[string]interface{}{
-		{
-			"id":     common.ArgoCDClientAppID,
-			"name":   common.ArgoCDClientAppName,
-			"secret": settings.DexOAuth2ClientSecret(),
-			"redirectURIs": []string{
-				redirectURL,
-			},
+
+	argoCDStaticClient := map[string]interface{}{
+		"id":     common.ArgoCDClientAppID,
+		"name":   common.ArgoCDClientAppName,
+		"secret": settings.DexOAuth2ClientSecret(),
+		"redirectURIs": []string{
+			redirectURL,
 		},
-		{
-			"id":     common.ArgoCDCLIClientAppID,
-			"name":   common.ArgoCDCLIClientAppName,
-			"public": true,
-			"redirectURIs": []string{
-				"http://localhost",
-			},
+	}
+	argoCDCLIStaticClient := map[string]interface{}{
+		"id":     common.ArgoCDCLIClientAppID,
+		"name":   common.ArgoCDCLIClientAppName,
+		"public": true,
+		"redirectURIs": []string{
+			"http://localhost",
 		},
+	}
+
+	staticClients, ok := dexCfg["staticClients"].([]interface{})
+	if ok {
+		dexCfg["staticClients"] = append([]interface{}{argoCDStaticClient, argoCDCLIStaticClient}, staticClients...)
+	} else {
+		dexCfg["staticClients"] = []interface{}{argoCDStaticClient, argoCDCLIStaticClient}
 	}
 
 	dexRedirectURL, err := settings.DexRedirectURL()
 	if err != nil {
 		return nil, err
 	}
-	connectors := dexCfg["connectors"].([]interface{})
+	connectors, ok := dexCfg["connectors"].([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("malformed Dex configuration found")
+	}
 	for i, connectorIf := range connectors {
-		connector := connectorIf.(map[string]interface{})
+		connector, ok := connectorIf.(map[string]interface{})
+		if !ok {
+			return nil, fmt.Errorf("malformed Dex configuration found")
+		}
 		connectorType := connector["type"].(string)
 		if !needsRedirectURI(connectorType) {
 			continue
 		}
-		connectorCfg := connector["config"].(map[string]interface{})
+		connectorCfg, ok := connector["config"].(map[string]interface{})
+		if !ok {
+			return nil, fmt.Errorf("malformed Dex configuration found")
+		}
 		connectorCfg["redirectURI"] = dexRedirectURL
 		connector["config"] = connectorCfg
 		connectors[i] = connector
@@ -116,7 +134,7 @@ func replaceListSecrets(obj []interface{}, secretValues map[string]string) []int
 // https://github.com/dexidp/dex/tree/master/Documentation/connectors
 func needsRedirectURI(connectorType string) bool {
 	switch connectorType {
-	case "oidc", "saml", "microsoft", "linkedin", "gitlab", "github", "bitbucket-cloud":
+	case "oidc", "saml", "microsoft", "linkedin", "gitlab", "github", "bitbucket-cloud", "openshift":
 		return true
 	}
 	return false

@@ -1,4 +1,4 @@
-import {DataLoader, FormField, FormSelect, getNestedField} from 'argo-ui';
+import {AutocompleteField, DataLoader, FormField, FormSelect, getNestedField} from 'argo-ui';
 import * as React from 'react';
 import {FieldApi, FormApi, FormField as ReactFormField, Text, TextArea} from 'react-form';
 
@@ -127,7 +127,7 @@ export const ApplicationParameters = (props: {
                     formApi={formApi}
                     field='spec.source.ksonnet.environment'
                     component={FormSelect}
-                    componentProps={{options: Object.keys(props.details.ksonnet.environments)}}
+                    componentProps={{options: Object.keys(props.details.ksonnet.environments || {})}}
                 />
             )
         });
@@ -158,6 +158,20 @@ export const ApplicationParameters = (props: {
             )
         );
     } else if (props.details.type === 'Kustomize' && props.details.kustomize) {
+        attributes.push({
+            title: 'VERSION',
+            view: (app.spec.source.kustomize && app.spec.source.kustomize.version) || <span>default</span>,
+            edit: (formApi: FormApi) => (
+                <DataLoader load={() => services.authService.settings()}>
+                    {settings =>
+                        ((settings.kustomizeVersions || []).length > 0 && (
+                            <FormField formApi={formApi} field='spec.source.kustomize.version' component={AutocompleteField} componentProps={{items: settings.kustomizeVersions}} />
+                        )) || <span>default</span>
+                    }
+                </DataLoader>
+            )
+        });
+
         attributes.push({
             title: 'NAME PREFIX',
             view: app.spec.source.kustomize && app.spec.source.kustomize.namePrefix,

@@ -1,0 +1,18 @@
+.account-details {
+    &__new-token {
+        white-space: nowrap;
+        position: relative;
+
+        p {
+            word-wrap: break-word;
+            white-space: pre-wrap;
+        }
+    }
+
+    &__remove-token {
+        position: absolute;
+        top: 1em;
+        right: 1em;
+        cursor: pointer;
+    }
+}

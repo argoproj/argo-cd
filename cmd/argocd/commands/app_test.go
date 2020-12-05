@@ -40,6 +40,49 @@ func Test_setHelmOpt(t *testing.T) {
 		setHelmOpt(&src, helmOpts{helmSetFiles: []string{"foo=bar"}})
 		assert.Equal(t, []v1alpha1.HelmFileParameter{{Name: "foo", Path: "bar"}}, src.Helm.FileParameters)
 	})
+	t.Run("Version", func(t *testing.T) {
+		src := v1alpha1.ApplicationSource{}
+		setHelmOpt(&src, helmOpts{version: "v3"})
+		assert.Equal(t, "v3", src.Helm.Version)
+	})
+}
+
+func Test_setKustomizeOpt(t *testing.T) {
+	t.Run("No kustomize", func(t *testing.T) {
+		src := v1alpha1.ApplicationSource{}
+		setKustomizeOpt(&src, kustomizeOpts{})
+		assert.Nil(t, src.Kustomize)
+	})
+	t.Run("Name prefix", func(t *testing.T) {
+		src := v1alpha1.ApplicationSource{}
+		setKustomizeOpt(&src, kustomizeOpts{namePrefix: "test-"})
+		assert.Equal(t, &v1alpha1.ApplicationSourceKustomize{NamePrefix: "test-"}, src.Kustomize)
+	})
+	t.Run("Name suffix", func(t *testing.T) {
+		src := v1alpha1.ApplicationSource{}
+		setKustomizeOpt(&src, kustomizeOpts{nameSuffix: "-test"})
+		assert.Equal(t, &v1alpha1.ApplicationSourceKustomize{NameSuffix: "-test"}, src.Kustomize)
+	})
+	t.Run("Images", func(t *testing.T) {
+		src := v1alpha1.ApplicationSource{}
+		setKustomizeOpt(&src, kustomizeOpts{images: []string{"org/image:v1", "org/image:v2"}})
+		assert.Equal(t, &v1alpha1.ApplicationSourceKustomize{Images: v1alpha1.KustomizeImages{v1alpha1.KustomizeImage("org/image:v2")}}, src.Kustomize)
+	})
+	t.Run("Version", func(t *testing.T) {
+		src := v1alpha1.ApplicationSource{}
+		setKustomizeOpt(&src, kustomizeOpts{version: "v0.1"})
+		assert.Equal(t, &v1alpha1.ApplicationSourceKustomize{Version: "v0.1"}, src.Kustomize)
+	})
+	t.Run("Common labels", func(t *testing.T) {
+		src := v1alpha1.ApplicationSource{}
+		setKustomizeOpt(&src, kustomizeOpts{commonLabels: map[string]string{"foo1": "bar1", "foo2": "bar2"}})
+		assert.Equal(t, &v1alpha1.ApplicationSourceKustomize{CommonLabels: map[string]string{"foo1": "bar1", "foo2": "bar2"}}, src.Kustomize)
+	})
+	t.Run("Common annotations", func(t *testing.T) {
+		src := v1alpha1.ApplicationSource{}
+		setKustomizeOpt(&src, kustomizeOpts{commonAnnotations: map[string]string{"foo1": "bar1", "foo2": "bar2"}})
+		assert.Equal(t, &v1alpha1.ApplicationSourceKustomize{CommonAnnotations: map[string]string{"foo1": "bar1", "foo2": "bar2"}}, src.Kustomize)
+	})
 }
 
 func Test_setJsonnetOpt(t *testing.T) {
@@ -56,6 +99,18 @@ func Test_setJsonnetOpt(t *testing.T) {
 		assert.Equal(t, []v1alpha1.JsonnetVar{{Name: "foo", Value: "bar"}}, src.Directory.Jsonnet.ExtVars)
 		setJsonnetOptExtVar(&src, []string{"bar=baz"}, false)
 		assert.Equal(t, []v1alpha1.JsonnetVar{{Name: "foo", Value: "bar"}, {Name: "bar", Value: "baz"}}, src.Directory.Jsonnet.ExtVars)
+	})
+}
+
+func Test_setPluginOptEnvs(t *testing.T) {
+	t.Run("PluginEnvs", func(t *testing.T) {
+		src := v1alpha1.ApplicationSource{}
+		setPluginOptEnvs(&src, []string{"FOO=bar"})
+		assert.Equal(t, v1alpha1.EnvEntry{Name: "FOO", Value: "bar"}, *src.Plugin.Env[0])
+		setPluginOptEnvs(&src, []string{"BAR=baz"})
+		assert.Equal(t, v1alpha1.EnvEntry{Name: "BAR", Value: "baz"}, *src.Plugin.Env[1])
+		setPluginOptEnvs(&src, []string{"FOO=baz"})
+		assert.Equal(t, v1alpha1.EnvEntry{Name: "FOO", Value: "baz"}, *src.Plugin.Env[0])
 	})
 }
 
@@ -88,6 +143,14 @@ func Test_setAppSpecOptions(t *testing.T) {
 	f := newAppOptionsFixture()
 	t.Run("SyncPolicy", func(t *testing.T) {
 		assert.NoError(t, f.SetFlag("sync-policy", "automated"))
+		assert.NotNil(t, f.spec.SyncPolicy.Automated)
+
+		f.spec.SyncPolicy = nil
+		assert.NoError(t, f.SetFlag("sync-policy", "automatic"))
+		assert.NotNil(t, f.spec.SyncPolicy.Automated)
+
+		f.spec.SyncPolicy = nil
+		assert.NoError(t, f.SetFlag("sync-policy", "auto"))
 		assert.NotNil(t, f.spec.SyncPolicy.Automated)
 
 		assert.NoError(t, f.SetFlag("sync-policy", "none"))

@@ -1,6 +1,7 @@
-import * as React from 'react';
-
 import {Checkbox, NotificationType} from 'argo-ui';
+import * as React from 'react';
+import {Observable, Observer, Subscription} from 'rxjs';
+
 import {COLORS, ErrorNotification, Revision} from '../../shared/components';
 import {ContextApis} from '../../shared/context';
 import * as appModels from '../../shared/models';
@@ -84,11 +85,11 @@ export const OperationPhaseIcon = ({app}: {app: appModels.Application}) => {
             color = COLORS.operation.running;
             break;
     }
-    return <i title={getOperationStateTitle(app)} className={className} style={{color}} />;
+    return <i title={getOperationStateTitle(app)} qe-id='utils-operations-status-title' className={className} style={{color}} />;
 };
 
 export const ComparisonStatusIcon = ({status, resource, label}: {status: appModels.SyncStatusCode; resource?: {requiresPruning?: boolean}; label?: boolean}) => {
-    let className = 'fa fa-question-circle';
+    let className = 'fa fa-ghost';
     let color = COLORS.sync.unknown;
     let title: string = 'Unknown';
 
@@ -101,11 +102,11 @@ export const ComparisonStatusIcon = ({status, resource, label}: {status: appMode
         case appModels.SyncStatuses.OutOfSync:
             const requiresPruning = resource && resource.requiresPruning;
             className = requiresPruning ? 'fa fa-times-circle' : 'fa fa-arrow-alt-circle-up';
+            title = 'OutOfSync';
             if (requiresPruning) {
                 title = `${title} (requires pruning)`;
             }
             color = COLORS.sync.out_of_sync;
-            title = 'OutOfSync';
             break;
         case appModels.SyncStatuses.Unknown:
             className = 'fa fa-circle-notch fa-spin';
@@ -113,7 +114,7 @@ export const ComparisonStatusIcon = ({status, resource, label}: {status: appMode
     }
     return (
         <React.Fragment>
-            <i title={title} className={className} style={{color}} /> {label && title}
+            <i qe-id='utils-sync-status-title' title={title} className={className} style={{color}} /> {label && title}
         </React.Fragment>
     );
 };
@@ -154,7 +155,7 @@ export function syncStatusMessage(app: appModels.Application) {
 
 export const HealthStatusIcon = ({state}: {state: appModels.HealthStatus}) => {
     let color = COLORS.health.unknown;
-    let icon = 'fa-question-circle';
+    let icon = 'fa-ghost';
 
     switch (state.status) {
         case appModels.HealthStatuses.Healthy:
@@ -163,7 +164,7 @@ export const HealthStatusIcon = ({state}: {state: appModels.HealthStatus}) => {
             break;
         case appModels.HealthStatuses.Suspended:
             color = COLORS.health.suspended;
-            icon = 'fa-heart';
+            icon = 'fa-pause-circle';
             break;
         case appModels.HealthStatuses.Degraded:
             color = COLORS.health.degraded;
@@ -178,12 +179,12 @@ export const HealthStatusIcon = ({state}: {state: appModels.HealthStatus}) => {
     if (state.message) {
         title = `${state.status}: ${state.message};`;
     }
-    return <i title={title} className={'fa ' + icon} style={{color}} />;
+    return <i qe-id='utils-health-status-title' title={title} className={'fa ' + icon} style={{color}} />;
 };
 
 export const ResourceResultIcon = ({resource}: {resource: appModels.ResourceResult}) => {
     let color = COLORS.sync_result.unknown;
-    let icon = 'fa-question-circle';
+    let icon = 'fa-ghost';
 
     if (!resource.hookType && resource.status) {
         switch (resource.status) {
@@ -205,7 +206,7 @@ export const ResourceResultIcon = ({resource}: {resource: appModels.ResourceResu
         }
         let title: string = resource.message;
         if (resource.message) {
-            title = `${resource.status}: ${resource.message};`;
+            title = `${resource.status}: ${resource.message}`;
         }
         return <i title={title} className={'fa ' + icon} style={{color}} />;
     }
@@ -251,6 +252,7 @@ export const getAppOperationState = (app: appModels.Application): appModels.Oper
     } else if (app.operation) {
         return {
             phase: appModels.OperationPhases.Running,
+            message: (app.status && app.status.operationState && app.status.operationState.message) || 'waiting to start',
             startedAt: new Date().toISOString(),
             operation: {
                 sync: {}
@@ -412,6 +414,15 @@ export function isAppRefreshing(app: appModels.Application) {
     return !!(app.metadata.annotations && app.metadata.annotations[appModels.AnnotationRefreshKey]);
 }
 
+export function setAppRefreshing(app: appModels.Application) {
+    if (!app.metadata.annotations) {
+        app.metadata.annotations = {};
+    }
+    if (!app.metadata.annotations[appModels.AnnotationRefreshKey]) {
+        app.metadata.annotations[appModels.AnnotationRefreshKey] = 'refreshing';
+    }
+}
+
 export function refreshLinkAttrs(app: appModels.Application) {
     return {disabled: isAppRefreshing(app)};
 }
@@ -450,7 +461,7 @@ export const SyncWindowStatusIcon = ({state, window}: {state: appModels.SyncWind
             color = COLORS.sync_window.allow;
             break;
         default:
-            className = 'fa fa-question-circle';
+            className = 'fa fa-ghost';
             color = COLORS.sync_window.unknown;
             current = 'Unknown';
             break;
@@ -506,3 +517,50 @@ export const ApplicationSyncWindowStatusIcon = ({project, state}: {project: stri
         </a>
     );
 };
+
+/**
+ * Automatically stops and restarts the given observable when page visibility changes.
+ */
+export function handlePageVisibility<T>(src: () => Observable<T>): Observable<T> {
+    return new Observable<T>((observer: Observer<T>) => {
+        let subscription: Subscription;
+        const ensureUnsubscribed = () => {
+            if (subscription) {
+                subscription.unsubscribe();
+                subscription = null;
+            }
+        };
+        const start = () => {
+            ensureUnsubscribed();
+            subscription = src().subscribe((item: T) => observer.next(item), err => observer.error(err), () => observer.complete());
+        };
+
+        if (!document.hidden) {
+            start();
+        }
+
+        const visibilityChangeSubscription = Observable.fromEvent(document, 'visibilitychange')
+            // wait until user stop clicking back and forth to avoid restarting observable too often
+            .debounceTime(500)
+            .subscribe(() => {
+                if (document.hidden && subscription) {
+                    ensureUnsubscribed();
+                } else if (!document.hidden && !subscription) {
+                    start();
+                }
+            });
+
+        return () => {
+            visibilityChangeSubscription.unsubscribe();
+            ensureUnsubscribed();
+        };
+    });
+}
+
+export function parseApiVersion(apiVersion: string): {group: string; version: string} {
+    const parts = apiVersion.split('/');
+    if (parts.length > 1) {
+        return {group: parts[0], version: parts[1]};
+    }
+    return {version: parts[0], group: ''};
+}

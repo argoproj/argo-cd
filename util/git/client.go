@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -36,17 +37,26 @@ type RevisionMetadata struct {
 	Message string
 }
 
+// this should match reposerver/repository/repository.proto/RefsList
+type Refs struct {
+	Branches []string
+	Tags     []string
+	// heads and remotes are also refs, but are not needed at this time.
+}
+
 // Client is a generic git client interface
 type Client interface {
 	Root() string
 	Init() error
 	Fetch() error
 	Checkout(revision string) error
+	LsRefs() (*Refs, error)
 	LsRemote(revision string) (string, error)
 	LsFiles(path string) ([]string, error)
 	LsLargeFiles() ([]string, error)
 	CommitSHA() (string, error)
 	RevisionMetadata(revision string) (*RevisionMetadata, error)
+	VerifyCommitSignature(string) (string, error)
 }
 
 // nativeGitClient implements Client interface using git CLI
@@ -147,6 +157,7 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds) *http.Client 
 				InsecureSkipVerify:   true,
 				GetClientCertificate: clientCertFunc,
 			},
+			DisableKeepAlives: true,
 		}
 	} else {
 		parsedURL, err := url.Parse(repoURL)
@@ -164,6 +175,7 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds) *http.Client 
 					RootCAs:              certPool,
 					GetClientCertificate: clientCertFunc,
 				},
+				DisableKeepAlives: true,
 			}
 		} else {
 			// else no custom certificate stored.
@@ -172,6 +184,7 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds) *http.Client 
 				TLSClientConfig: &tls.Config{
 					GetClientCertificate: clientCertFunc,
 				},
+				DisableKeepAlives: true,
 			}
 		}
 	}
@@ -318,6 +331,54 @@ func (m *nativeGitClient) Checkout(revision string) error {
 	return nil
 }
 
+func (m *nativeGitClient) getRefs() ([]*plumbing.Reference, error) {
+	repo, err := git.Init(memory.NewStorage(), nil)
+	if err != nil {
+		return nil, err
+	}
+	remote, err := repo.CreateRemote(&config.RemoteConfig{
+		Name: git.DefaultRemoteName,
+		URLs: []string{m.repoURL},
+	})
+	if err != nil {
+		return nil, err
+	}
+	auth, err := newAuth(m.repoURL, m.creds)
+	if err != nil {
+		return nil, err
+	}
+	return listRemote(remote, &git.ListOptions{Auth: auth}, m.insecure, m.creds)
+}
+
+func (m *nativeGitClient) LsRefs() (*Refs, error) {
+	refs, err := m.getRefs()
+
+	if err != nil {
+		return nil, err
+	}
+
+	sortedRefs := &Refs{
+		Branches: []string{},
+		Tags:     []string{},
+	}
+
+	for _, revision := range refs {
+		if revision.Name().IsBranch() {
+			sortedRefs.Branches = append(sortedRefs.Branches, revision.Name().Short())
+		} else if revision.Name().IsTag() {
+			sortedRefs.Tags = append(sortedRefs.Tags, revision.Name().Short())
+		}
+	}
+
+	log.Debugf("LsRefs resolved %d branches and %d tags on repository", len(sortedRefs.Branches), len(sortedRefs.Tags))
+
+	// Would prefer to sort by last modified date but that info does not appear to be available without resolving each ref
+	sort.Strings(sortedRefs.Branches)
+	sort.Strings(sortedRefs.Tags)
+
+	return sortedRefs, nil
+}
+
 // LsRemote resolves the commit SHA of a specific branch, tag, or HEAD. If the supplied revision
 // does not resolve, and "looks" like a 7+ hexadecimal commit SHA, it return the revision string.
 // Otherwise, it returns an error indicating that the revision could not be resolved. This method
@@ -336,23 +397,9 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 	if IsCommitSHA(revision) {
 		return revision, nil
 	}
-	repo, err := git.Init(memory.NewStorage(), nil)
-	if err != nil {
-		return "", err
-	}
-	remote, err := repo.CreateRemote(&config.RemoteConfig{
-		Name: git.DefaultRemoteName,
-		URLs: []string{m.repoURL},
-	})
-	if err != nil {
-		return "", err
-	}
-	auth, err := newAuth(m.repoURL, m.creds)
-	if err != nil {
-		return "", err
-	}
-	//refs, err := remote.List(&git.ListOptions{Auth: auth})
-	refs, err := listRemote(remote, &git.ListOptions{Auth: auth}, m.insecure, m.creds)
+
+	refs, err := m.getRefs()
+
 	if err != nil {
 		return "", err
 	}
@@ -434,6 +481,22 @@ func (m *nativeGitClient) RevisionMetadata(revision string) (*RevisionMetadata, 
 	tags := strings.Fields(out)
 
 	return &RevisionMetadata{author, time.Unix(authorDateUnixTimestamp, 0), tags, message}, nil
+}
+
+// VerifyCommitSignature Runs verify-commit on a given revision and returns the output
+func (m *nativeGitClient) VerifyCommitSignature(revision string) (string, error) {
+	out, err := m.runGnuPGWrapper("git-verify-wrapper.sh", revision)
+	if err != nil {
+		return "", err
+	}
+	return out, nil
+}
+
+// runWrapper runs a custom command with all the semantics of running the Git client
+func (m *nativeGitClient) runGnuPGWrapper(wrapper string, args ...string) (string, error) {
+	cmd := exec.Command(wrapper, args...)
+	cmd.Env = append(cmd.Env, fmt.Sprintf("GNUPGHOME=%s", common.GetGnuPGHomePath()))
+	return m.runCmdOutput(cmd)
 }
 
 // runCmd is a convenience function to run a command in a given directory and return its output

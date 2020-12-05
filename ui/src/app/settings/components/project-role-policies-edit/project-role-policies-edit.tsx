@@ -20,7 +20,7 @@ function generatePolicy(project: string, role: string, action?: string, object?:
 const actions = ['get', 'create', 'update', 'delete', 'sync', 'override'];
 
 export const ProjectRolePoliciesEdit = (props: ProjectRolePoliciesProps) => (
-    <DataLoader load={() => services.applications.list([props.projName], {fields: ['items.metadata.name']})}>
+    <DataLoader load={() => services.applications.list([props.projName], {fields: ['items.metadata.name']}).then(list => list.items)}>
         {applications => (
             <React.Fragment>
                 <h4>Policy Rules</h4>
@@ -107,7 +107,7 @@ class PolicyWrapper extends React.Component<PolicyProps, any> {
                                     {this.props.projName}/{app.metadata.name}
                                 </option>
                             ))}
-                        <option key='wildcard'>{this.props.projName}</option>
+                        <option key='wildcard'>{`${this.props.projName}/*`}</option>
                     </datalist>
                     <input
                         className='argo-field'
@@ -126,7 +126,7 @@ class PolicyWrapper extends React.Component<PolicyProps, any> {
                     <input
                         className='argo-field'
                         list='permission'
-                        value={this.getPermision()}
+                        value={this.getPermission()}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                             this.setPermission(e.target.value);
                         }}
@@ -175,7 +175,7 @@ class PolicyWrapper extends React.Component<PolicyProps, any> {
         this.props.fieldApi.setValue(fields.join());
     }
 
-    private getPermision(): string {
+    private getPermission(): string {
         const fields = (this.props.fieldApi.getValue() as string).split(',');
         if (fields.length !== 6) {
             return '';

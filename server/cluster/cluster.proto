@@ -15,6 +15,7 @@ import "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1/generated.prot
 // ClusterQuery is a query for cluster resources
 message ClusterQuery {
 	string server = 1;
+	string name = 2;
 }
 
 message ClusterResponse {}
@@ -26,6 +27,7 @@ message ClusterCreateRequest {
 
 message ClusterUpdateRequest {
 	github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster cluster = 1;
+	repeated string updatedFields = 2;
 }
 
 // ClusterService 
@@ -62,9 +64,14 @@ service ClusterService {
 		option (google.api.http).delete = "/api/v1/clusters/{server}";
 	}
 
-	// RotateAuth returns a cluster by server address
+	// RotateAuth rotates the bearer token used for a cluster
 	rpc RotateAuth(ClusterQuery) returns (ClusterResponse) {
 		option (google.api.http).post = "/api/v1/clusters/{server}/rotate-auth";
+	}
+
+	// InvalidateCache invalidates cluster cache
+	rpc InvalidateCache(ClusterQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster) {
+		option (google.api.http).post = "/api/v1/clusters/{server}/invalidate-cache";
 	}
 	
 }

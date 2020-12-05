@@ -1,22 +1,24 @@
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="131" height="20">
-    <linearGradient id="b" x2="0" y2="100%">
-        <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
-        <stop offset="1" stop-opacity=".1"/>
-    </linearGradient>
-    <clipPath id="a">
-        <rect width="131" height="20" rx="3" fill="#fff"/>
+<svg width="131" height="20" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" >
+    <defs>
+        <filter id="dropShadow">
+            <feDropShadow dx="0.2" dy="0.4" stdDeviation="0.2" flood-color="#333" flood-opacity="0.5"/>
+        </filter>
+    </defs>
+
+    <clipPath id="roundedCorners">
+        <rect width="100%" height="100%" rx="3" opacity="1" />
     </clipPath>
-    <g clip-path="url(#a)">
-        <path id="leftPath" fill="#555" d="M0 0h74v20H0z"/>
-        <path id="rightPath" fill="#4c1" d="M74 0h57v20H74z"/>
-        <path fill="url(#b)" d="M0 0h131v20H0z"/>
+
+    <g clip-path="url(#roundedCorners)">
+        <rect id="leftRect" fill="#555" x="0" y="0" width="74" height="20" />
+        <rect id="rightRect" fill="#4c1" x="74" y="0" width="57" height="20" />
+        <rect id="revisionRect" fill="#4c1" x="131" y="0" width="62" height="20" display="none"/>
     </g>
-    <g fill="#fff" text-anchor="middle" font-family="DejaVu Sans,Verdana,Geneva,sans-serif" font-size="90">
+
+    <g fill="#fff" style="filter: url(#dropShadow);" text-anchor="middle" font-family="DejaVu Sans, sans-serif" font-size="90">
         <image x="5" y="3" width="14" height="14" xlink:href="data:image/png;base64,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"/>
-
-        <text id="leftText1" x="435" y="150" fill="#010101" fill-opacity=".3" transform="scale(.1)" textLength="470"></text>
-        <text id="leftText2" x="435" y="140" transform="scale(.1)" textLength="470"></text>
-
-        <text id="rightText1" x="995" y="150" fill="#010101" fill-opacity=".3" transform="scale(.1)" textLength="470"></text>
-        <text id="rightText1" x="995" y="140" transform="scale(.1)" textLength="470"></text></g>
+        <text id="leftText" x="435" y="140" transform="scale(.1)" textLength="470"></text>
+        <text id="rightText" x="995" y="140" transform="scale(.1)" textLength="470"></text>
+        <text id="revisionText" x="1550" y="140" font-family="monospace" transform="scale(.1)" font-size="110" display="none"></text>
+    </g>
 </svg>

@@ -3,16 +3,16 @@ package commands
 import (
 	"context"
 	"fmt"
-	"io"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	"github.com/argoproj/argo-cd/pkg/apiclient/version"
-	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/errors"
+	argoio "github.com/argoproj/argo-cd/util/io"
 )
 
 // NewVersionCmd returns a new `version` command to be used as a sub-command to root
@@ -25,7 +25,7 @@ func NewVersionCmd(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 
 	versionCmd := cobra.Command{
 		Use:   "version",
-		Short: fmt.Sprintf("Print version information"),
+		Short: "Print version information",
 		Example: `  # Print the full version of client and server to stdout
   argocd version
 
@@ -39,44 +39,39 @@ func NewVersionCmd(clientOpts *argocdclient.ClientOptions) *cobra.Command {
   argocd version --short -o yaml
 `,
 		Run: func(cmd *cobra.Command, args []string) {
-			var (
-				versionIf  version.VersionServiceClient
-				serverVers *version.VersionMessage
-				conn       io.Closer
-				err        error
-			)
-			if !client {
-				// Get Server version
-				conn, versionIf = argocdclient.NewClientOrDie(clientOpts).NewVersionClientOrDie()
-				defer util.Close(conn)
-				serverVers, err = versionIf.Version(context.Background(), &empty.Empty{})
-				errors.CheckError(err)
-			}
+			cv := common.GetVersion()
+
 			switch output {
 			case "yaml", "json":
-				clientVers := common.GetVersion()
-				version := make(map[string]interface{})
-				if !short {
-					version["client"] = clientVers
+				v := make(map[string]interface{})
+
+				if short {
+					v["client"] = map[string]string{cliName: cv.Version}
 				} else {
-					version["client"] = map[string]string{cliName: clientVers.Version}
+					v["client"] = cv
 				}
+
 				if !client {
-					if !short {
-						version["server"] = serverVers
+					sv := getServerVersion(clientOpts)
+
+					if short {
+						v["server"] = map[string]string{"argocd-server": sv.Version}
 					} else {
-						version["server"] = map[string]string{"argocd-server": serverVers.Version}
+						v["server"] = sv
 					}
 				}
-				err := PrintResource(version, output)
+
+				err := PrintResource(v, output)
 				errors.CheckError(err)
-			case "short":
-				printVersion(serverVers, client, true)
-			case "wide", "":
-				// we use value of short for backward compatibility
-				printVersion(serverVers, client, short)
+			case "wide", "short", "":
+				printClientVersion(&cv, short || (output == "short"))
+
+				if !client {
+					sv := getServerVersion(clientOpts)
+					printServerVersion(sv, short || (output == "short"))
+				}
 			default:
-				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
+				log.Fatalf("unknown output format: %s", output)
 			}
 		},
 	}
@@ -86,38 +81,53 @@ func NewVersionCmd(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	return &versionCmd
 }
 
-func printVersion(serverVers *version.VersionMessage, client bool, short bool) {
-	version := common.GetVersion()
+func getServerVersion(options *argocdclient.ClientOptions) *version.VersionMessage {
+	conn, versionIf := argocdclient.NewClientOrDie(options).NewVersionClientOrDie()
+	defer argoio.Close(conn)
+
+	v, err := versionIf.Version(context.Background(), &empty.Empty{})
+	errors.CheckError(err)
+
+	return v
+}
+
+func printClientVersion(version *common.Version, short bool) {
 	fmt.Printf("%s: %s\n", cliName, version)
-	if !short {
-		fmt.Printf("  BuildDate: %s\n", version.BuildDate)
-		fmt.Printf("  GitCommit: %s\n", version.GitCommit)
-		fmt.Printf("  GitTreeState: %s\n", version.GitTreeState)
-		if version.GitTag != "" {
-			fmt.Printf("  GitTag: %s\n", version.GitTag)
-		}
-		fmt.Printf("  GoVersion: %s\n", version.GoVersion)
-		fmt.Printf("  Compiler: %s\n", version.Compiler)
-		fmt.Printf("  Platform: %s\n", version.Platform)
-	}
-	if client {
+
+	if short {
 		return
 	}
 
-	fmt.Printf("%s: %s\n", "argocd-server", serverVers.Version)
-	if !short {
-		fmt.Printf("  BuildDate: %s\n", serverVers.BuildDate)
-		fmt.Printf("  GitCommit: %s\n", serverVers.GitCommit)
-		fmt.Printf("  GitTreeState: %s\n", serverVers.GitTreeState)
-		if version.GitTag != "" {
-			fmt.Printf("  GitTag: %s\n", serverVers.GitTag)
-		}
-		fmt.Printf("  GoVersion: %s\n", serverVers.GoVersion)
-		fmt.Printf("  Compiler: %s\n", serverVers.Compiler)
-		fmt.Printf("  Platform: %s\n", serverVers.Platform)
-		fmt.Printf("  Ksonnet Version: %s\n", serverVers.KsonnetVersion)
-		fmt.Printf("  Kustomize Version: %s\n", serverVers.KustomizeVersion)
-		fmt.Printf("  Helm Version: %s\n", serverVers.HelmVersion)
-		fmt.Printf("  Kubectl Version: %s\n", serverVers.KubectlVersion)
+	fmt.Printf("  BuildDate: %s\n", version.BuildDate)
+	fmt.Printf("  GitCommit: %s\n", version.GitCommit)
+	fmt.Printf("  GitTreeState: %s\n", version.GitTreeState)
+	if version.GitTag != "" {
+		fmt.Printf("  GitTag: %s\n", version.GitTag)
 	}
+	fmt.Printf("  GoVersion: %s\n", version.GoVersion)
+	fmt.Printf("  Compiler: %s\n", version.Compiler)
+	fmt.Printf("  Platform: %s\n", version.Platform)
+}
+
+func printServerVersion(version *version.VersionMessage, short bool) {
+	fmt.Printf("%s: %s\n", "argocd-server", version.Version)
+
+	if short {
+		return
+	}
+
+	fmt.Printf("  BuildDate: %s\n", version.BuildDate)
+	fmt.Printf("  GitCommit: %s\n", version.GitCommit)
+	fmt.Printf("  GitTreeState: %s\n", version.GitTreeState)
+	if version.GitTag != "" {
+		fmt.Printf("  GitTag: %s\n", version.GitTag)
+	}
+	fmt.Printf("  GoVersion: %s\n", version.GoVersion)
+	fmt.Printf("  Compiler: %s\n", version.Compiler)
+	fmt.Printf("  Platform: %s\n", version.Platform)
+	fmt.Printf("  Ksonnet Version: %s\n", version.KsonnetVersion)
+	fmt.Printf("  Kustomize Version: %s\n", version.KustomizeVersion)
+	fmt.Printf("  Helm Version: %s\n", version.HelmVersion)
+	fmt.Printf("  Kubectl Version: %s\n", version.KubectlVersion)
+	fmt.Printf("  Jsonnet Version: %s\n", version.JsonnetVersion)
 }

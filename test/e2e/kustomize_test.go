@@ -3,13 +3,14 @@ package e2e
 import (
 	"testing"
 
-	"github.com/argoproj/argo-cd/errors"
-
+	"github.com/argoproj/gitops-engine/pkg/health"
+	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
 
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
+	"github.com/argoproj/argo-cd/util/errors"
 )
 
 func TestKustomize2AppSource(t *testing.T) {
@@ -57,7 +58,7 @@ func TestKustomize2AppSource(t *testing.T) {
 		Expect(Success("")).
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(patchLabelMatchesFor("Service")).
 		And(patchLabelMatchesFor("Deployment"))
 }
@@ -73,7 +74,7 @@ func TestSyncStatusOptionIgnore(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(app *Application) {
 			resourceStatus := app.Status.Resources[0]
 			assert.Contains(t, resourceStatus.Name, "my-map-")
@@ -88,15 +89,13 @@ func TestSyncStatusOptionIgnore(t *testing.T) {
 		Then().
 		// this is standard logging from the command - tough one - true statement
 		When().
-		IgnoreErrors().
 		Sync().
 		Then().
-		Expect(Error("", "1 resources require pruning")).
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		// this is a key check - we expect the app to be healthy because, even though we have a resources that needs
 		// pruning, because it is annotated with IgnoreExtraneous it should not contribute to the sync status
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(app *Application) {
 			assert.Equal(t, 2, len(app.Status.Resources))
 			// new map in-sync
@@ -139,7 +138,7 @@ func TestKustomizeDeclarativeInvalidApp(t *testing.T) {
 		Declarative("declarative-apps/app.yaml").
 		Then().
 		Expect(Success("")).
-		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeUnknown)).
 		Expect(Condition(ApplicationConditionComparisonError, "invalid-kustomize/does-not-exist.yaml: no such file or directory"))
 }
@@ -158,7 +157,7 @@ func TestKustomizeBuildOptionsLoadRestrictor(t *testing.T) {
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Given().
 		And(func() {
@@ -192,5 +191,37 @@ func TestKustomizeNameSuffix(t *testing.T) {
 		Then().
 		And(func(app *Application) {
 			assert.Contains(t, app.Spec.Source.Kustomize.NameSuffix, "-suf")
+		})
+}
+
+// make sure we we can invoke the CLI to set and unset namesuffix and kustomize-image
+func TestKustomizeUnsetOverride(t *testing.T) {
+	Given(t).
+		Path("kustomize").
+		When().
+		Create().
+		AppSet("--namesuffix", "-suf").
+		Then().
+		And(func(app *Application) {
+			assert.Contains(t, app.Spec.Source.Kustomize.NameSuffix, "-suf")
+		}).
+		When().
+		AppUnSet("--namesuffix").
+		Then().
+		And(func(app *Application) {
+			assert.Nil(t, app.Spec.Source.Kustomize)
+		}).
+		When().
+		AppSet("--kustomize-image", "alpine:foo", "--kustomize-image", "alpine:bar").
+		Then().
+		And(func(app *Application) {
+			assert.Contains(t, app.Spec.Source.Kustomize.Images, KustomizeImage("alpine:bar"))
+		}).
+		When().
+		//AppUnSet("--kustomize-image=alpine").
+		AppUnSet("--kustomize-image", "alpine", "--kustomize-image", "alpine").
+		Then().
+		And(func(app *Application) {
+			assert.Nil(t, app.Spec.Source.Kustomize)
 		})
 }

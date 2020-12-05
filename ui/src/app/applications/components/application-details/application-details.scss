@@ -71,6 +71,17 @@
         }
     }
 
+    &__resource-icon{
+        text-align: center;
+        position: absolute;
+        left: 0;
+        top: 10px;
+        width: 60px;
+        line-height: 1;
+        color: $argo-color-gray-5;
+        font-size: 0.8em;
+    }
+
     .application-resource-tree {
         margin: 0 auto;
     }
@@ -111,6 +122,13 @@
         &.disabled {
             cursor: default !important;
             color: $argo-color-gray-3 !important;
+        }
+    }
+
+    .argo-table-list__row {
+        .columns.small-1.xxxlarge-1 {
+            width: 60px;
+            text-align: center;
         }
     }
 }

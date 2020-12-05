@@ -24,6 +24,7 @@ message ProjectTokenDeleteRequest {
     string project = 1;
     string role = 2;
     int64 iat = 3;
+    string id = 4;
 }
 
 // ProjectTokenCreateRequest defines project token creation parameters. 
@@ -33,6 +34,7 @@ message ProjectTokenCreateRequest {
     string role = 3;
     // expiresIn represents a duration in seconds
     int64 expiresIn = 4;
+    string id = 5;
 }
 // ProjectTokenResponse wraps the created token or returns an empty string if deleted.
 message ProjectTokenResponse {
@@ -59,10 +61,14 @@ message SyncWindowsResponse {
     repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.SyncWindow windows = 1;
 }
 
+message GlobalProjectsResponse {
+    repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.AppProject items = 1;
+}
+
 // ProjectService
 service ProjectService {
 
-  // Create a new project token.
+  // Create a new project token
   rpc CreateToken(ProjectTokenCreateRequest) returns (ProjectTokenResponse) {
     option (google.api.http) = {
       post: "/api/v1/projects/{project}/roles/{role}/token"
@@ -70,12 +76,12 @@ service ProjectService {
     };
   }
 
-    // Delete a new project token.
+    // Delete a new project token
   rpc DeleteToken(ProjectTokenDeleteRequest) returns (EmptyResponse) {
     option (google.api.http).delete = "/api/v1/projects/{project}/roles/{role}/token/{iat}";
   }
 
-  // Create a new project.
+  // Create a new project
   rpc Create(ProjectCreateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.AppProject) {
     option (google.api.http) = {
       post: "/api/v1/projects"
@@ -91,6 +97,11 @@ service ProjectService {
   // Get returns a project by name
   rpc Get(ProjectQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.AppProject) {
       option (google.api.http).get = "/api/v1/projects/{name}";
+  }
+
+  // Get returns a virtual project by name
+  rpc GetGlobalProjects(ProjectQuery) returns (GlobalProjectsResponse) {
+      option (google.api.http).get = "/api/v1/projects/{name}/globalprojects";
   }
 
   // Update updates a project

@@ -16,7 +16,10 @@ arbitrary value in the secret. This value will be used when configuring the webh
 
 ![Add Webhook](../assets/webhook-config.png "Add Webhook")
 
-### 2. Configure Argo CD With The WebHook Secret Optional)
+!!! note
+    When creating the webhook in Github, the "Content type" needs to be set to "application/json". The default value "application/x-www-form-urlencoded" is not supported by the library used to handle the hooks
+
+### 2. Configure Argo CD With The WebHook Secret (Optional)
 
 Configuring a webhook shared secret is optional, since Argo CD will still refresh applications
 related to the Git repository, even with unauthenticated webhook events. This is safe to do since

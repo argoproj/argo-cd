@@ -8,6 +8,7 @@ theme:
   font:
     text: 'Work Sans'
   logo: 'assets/logo.png'
+  favicon: 'assets/favicon.png'
 google_analytics:
 - 'UA-105170809-2'
 - 'auto'
@@ -26,12 +27,15 @@ nav:
     - operator-manual/architecture.md
     - operator-manual/declarative-setup.md
     - operator-manual/ingress.md
-    - Single Sign On (SSO) & Role-Based Access Control (RBAC):
-      - operator-manual/sso/index.md
-      - operator-manual/sso/auth0.md
-      - operator-manual/sso/microsoft.md
-      - operator-manual/sso/okta.md
-      - operator-manual/sso/onelogin.md
+    - User Management:
+      - operator-manual/user-management/index.md
+      - operator-manual/user-management/auth0.md
+      - operator-manual/user-management/microsoft.md
+      - operator-manual/user-management/okta.md
+      - operator-manual/user-management/onelogin.md
+      - operator-manual/user-management/keycloak.md
+      - operator-manual/user-management/openunison.md
+      - operator-manual/user-management/google.md
       - operator-manual/rbac.md
     - operator-manual/security.md
     - operator-manual/cluster-bootstrapping.md
@@ -41,8 +45,24 @@ nav:
     - operator-manual/webhook.md
     - operator-manual/health.md
     - operator-manual/custom_tools.md
+    - operator-manual/custom-styles.md
     - operator-manual/metrics.md
     - operator-manual/notifications.md
+    - operator-manual/troubleshooting.md
+    - Server Configuration Parameters:
+      - operator-manual/server-commands/argocd-server.md
+      - operator-manual/server-commands/argocd-application-controller.md
+      - operator-manual/server-commands/argocd-repo-server.md
+    - argocd-util Tools: operator-manual/server-commands/argocd-util.md
+    - Upgrading:
+        - operator-manual/upgrading/overview.md
+        - operator-manual/upgrading/1.6-1.7.md
+        - operator-manual/upgrading/1.5-1.6.md
+        - operator-manual/upgrading/1.4-1.5.md
+        - operator-manual/upgrading/1.3-1.4.md
+        - operator-manual/upgrading/1.2-1.3.md
+        - operator-manual/upgrading/1.1-1.2.md
+        - operator-manual/upgrading/1.0-1.1.md
   - User Guide:
     - user-guide/index.md
     - user-guide/application_sources.md
@@ -54,6 +74,7 @@ nav:
     - user-guide/tool_detection.md
     - user-guide/projects.md
     - user-guide/private-repositories.md
+    - GnuPG verification: user-guide/gpg-verification.md
     - user-guide/auto_sync.md
     - user-guide/diffing.md
     - user-guide/orphaned-resources.md
@@ -70,16 +91,22 @@ nav:
     - user-guide/app_deletion.md
     - user-guide/best_practices.md
     - user-guide/status-badge.md
+    - Command Reference: user-guide/commands/argocd.md
   - Developer Guide:
     - developer-guide/index.md
-    - CONTRIBUTING.md
+    - developer-guide/contributing.md
+    - developer-guide/running-locally.md
+    - developer-guide/debugging-remote-environment.md
     - developer-guide/api-docs.md
     - developer-guide/test-e2e.md
+    - developer-guide/dependencies.md
     - developer-guide/ci.md
     - developer-guide/releasing.md
     - developer-guide/site.md
+    - developer-guide/faq.md
   - faq.md
+  - security_considerations.md
   - Support: SUPPORT.md
+  - roadmap.md
   - Releases ⧉: https://github.com/argoproj/argo-cd/releases
-  - Roadmap ⧉: https://github.com/argoproj/argo-cd/milestones
   - Blog ⧉: https://blog.argoproj.io/

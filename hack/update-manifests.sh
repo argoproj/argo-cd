@@ -4,6 +4,8 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
+KUSTOMIZE=kustomize
+
 SRCROOT="$( CDPATH='' cd -- "$(dirname "$0")/.." && pwd -P )"
 AUTOGENMSG="# This is an auto-generated file. DO NOT EDIT"
 
@@ -25,18 +27,20 @@ if [ "$IMAGE_TAG" = "" ]; then
   IMAGE_TAG=latest
 fi
 
-cd ${SRCROOT}/manifests/base && kustomize edit set image argoproj/argocd=${IMAGE_NAMESPACE}/argocd:${IMAGE_TAG}
-cd ${SRCROOT}/manifests/ha/base && kustomize edit set image argoproj/argocd=${IMAGE_NAMESPACE}/argocd:${IMAGE_TAG}
+$KUSTOMIZE version
+
+cd ${SRCROOT}/manifests/base && $KUSTOMIZE edit set image argoproj/argocd=${IMAGE_NAMESPACE}/argocd:${IMAGE_TAG}
+cd ${SRCROOT}/manifests/ha/base && $KUSTOMIZE edit set image argoproj/argocd=${IMAGE_NAMESPACE}/argocd:${IMAGE_TAG}
 
 echo "${AUTOGENMSG}" > "${SRCROOT}/manifests/install.yaml"
-kustomize build "${SRCROOT}/manifests/cluster-install" >> "${SRCROOT}/manifests/install.yaml"
+$KUSTOMIZE build "${SRCROOT}/manifests/cluster-install" >> "${SRCROOT}/manifests/install.yaml"
 
 echo "${AUTOGENMSG}" > "${SRCROOT}/manifests/namespace-install.yaml"
-kustomize build "${SRCROOT}/manifests/namespace-install" >> "${SRCROOT}/manifests/namespace-install.yaml"
+$KUSTOMIZE build "${SRCROOT}/manifests/namespace-install" >> "${SRCROOT}/manifests/namespace-install.yaml"
 
 echo "${AUTOGENMSG}" > "${SRCROOT}/manifests/ha/install.yaml"
-kustomize build "${SRCROOT}/manifests/ha/cluster-install" >> "${SRCROOT}/manifests/ha/install.yaml"
+$KUSTOMIZE build "${SRCROOT}/manifests/ha/cluster-install" >> "${SRCROOT}/manifests/ha/install.yaml"
 
 echo "${AUTOGENMSG}" > "${SRCROOT}/manifests/ha/namespace-install.yaml"
-kustomize build "${SRCROOT}/manifests/ha/namespace-install" >> "${SRCROOT}/manifests/ha/namespace-install.yaml"
+$KUSTOMIZE build "${SRCROOT}/manifests/ha/namespace-install" >> "${SRCROOT}/manifests/ha/namespace-install.yaml"
 

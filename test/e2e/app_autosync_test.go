@@ -1,16 +1,19 @@
 package e2e
 
 import (
+	"context"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	. "github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/argoproj/argo-cd/errors"
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
+	"github.com/argoproj/argo-cd/util/errors"
 )
 
 func TestAutoSyncSelfHealDisabled(t *testing.T) {
@@ -32,8 +35,8 @@ func TestAutoSyncSelfHealDisabled(t *testing.T) {
 		// app should not be auto-synced if k8s change detected
 		When().
 		And(func() {
-			errors.FailOnErr(fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Patch(
-				"guestbook-ui", types.MergePatchType, []byte(`{"spec": {"revisionHistoryLimit": 0}}`)))
+			errors.FailOnErr(fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Patch(context.Background(),
+				"guestbook-ui", types.MergePatchType, []byte(`{"spec": {"revisionHistoryLimit": 0}}`), v1.PatchOptions{}))
 		}).
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync))
@@ -45,7 +48,10 @@ func TestAutoSyncSelfHealEnabled(t *testing.T) {
 		When().
 		// app should be auto-synced once created
 		CreateFromFile(func(app *Application) {
-			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{SelfHeal: true}}
+			app.Spec.SyncPolicy = &SyncPolicy{
+				Automated: &SyncPolicyAutomated{SelfHeal: true},
+				Retry:     &RetryStrategy{Limit: 0},
+			}
 		}).
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -53,8 +59,8 @@ func TestAutoSyncSelfHealEnabled(t *testing.T) {
 		When().
 		// app should be auto-synced once k8s change detected
 		And(func() {
-			errors.FailOnErr(fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Patch(
-				"guestbook-ui", types.MergePatchType, []byte(`{"spec": {"revisionHistoryLimit": 0}}`)))
+			errors.FailOnErr(fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Patch(context.Background(),
+				"guestbook-ui", types.MergePatchType, []byte(`{"spec": {"revisionHistoryLimit": 0}}`), v1.PatchOptions{}))
 		}).
 		Refresh(RefreshTypeNormal).
 		Then().

@@ -1,8 +1,8 @@
-import {Checkbox as ArgoCheckbox, DropDownMenu, MenuItem, NotificationType, SlidingPanel, Tab, Tabs, TopBarFilter} from 'argo-ui';
+import {Checkbox as ArgoCheckbox, DropDownMenu, FormField, MenuItem, NotificationType, SlidingPanel, Tab, Tabs, TopBarFilter} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
-import {Checkbox} from 'react-form';
+import {Checkbox, Text} from 'react-form';
 import {RouteComponentProps} from 'react-router';
 import {BehaviorSubject, Observable} from 'rxjs';
 import {DataLoader, EmptyState, ErrorNotification, EventsList, ObservableQuery, Page, Paginate, YamlEditor} from '../../../shared/components';
@@ -38,7 +38,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         apis: PropTypes.object
     };
 
-    private refreshRequested = new BehaviorSubject(null);
+    private appChanged = new BehaviorSubject<appModels.Application>(null);
 
     constructor(props: RouteComponentProps<{name: string}>) {
         super(props);
@@ -166,6 +166,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                     <div className='application-details__view-type'>
                                                         <i
                                                             className={classNames('fa fa-sitemap', {selected: pref.view === 'tree'})}
+                                                            title='Tree'
                                                             onClick={() => {
                                                                 this.appContext.apis.navigation.goto('.', {view: 'tree'});
                                                                 services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'tree'}});
@@ -173,6 +174,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                         />
                                                         <i
                                                             className={classNames('fa fa-network-wired', {selected: pref.view === 'network'})}
+                                                            title='Network'
                                                             onClick={() => {
                                                                 this.appContext.apis.navigation.goto('.', {view: 'network'});
                                                                 services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'network'}});
@@ -180,6 +182,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                         />
                                                         <i
                                                             className={classNames('fa fa-th-list', {selected: pref.view === 'list'})}
+                                                            title='List'
                                                             onClick={() => {
                                                                 this.appContext.apis.navigation.goto('.', {view: 'list'});
                                                                 services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'list'}});
@@ -264,7 +267,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                             const controlled = managedResources.find(item => isSameNode(selectedNode, item));
                                                             const summary = application.status.resources.find(item => isSameNode(selectedNode, item));
                                                             const controlledState = (controlled && summary && {summary, state: controlled}) || null;
-                                                            const liveState = await services.applications.getResource(application.metadata.name, selectedNode).catch(() => null);
+                                                            const resQuery = {...selectedNode};
+                                                            if (controlled && controlled.targetState) {
+                                                                resQuery.version = AppUtils.parseApiVersion(controlled.targetState.apiVersion).version;
+                                                            }
+                                                            const liveState = await services.applications.getResource(application.metadata.name, resQuery).catch(() => null);
                                                             const events =
                                                                 (liveState &&
                                                                     (await services.applications.resourceEvents(application.metadata.name, {
@@ -459,7 +466,13 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                     </React.Fragment>
                 ),
                 disabled: !!refreshing,
-                action: () => !refreshing && services.applications.get(app.metadata.name, 'normal')
+                action: () => {
+                    if (!refreshing) {
+                        services.applications.get(app.metadata.name, 'normal');
+                        AppUtils.setAppRefreshing(app);
+                        this.appChanged.next(app);
+                    }
+                }
             }
         ];
     }
@@ -475,42 +488,43 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
     }
 
     private loadAppInfo(name: string): Observable<{application: appModels.Application; tree: appModels.ApplicationTree}> {
-        return Observable.merge(
-            Observable.fromPromise(services.applications.get(name).then(app => ({app, watchEvent: false}))),
-            services.applications
-                .watch({name})
-                .map(watchEvent => {
-                    if (watchEvent.type === 'DELETED') {
-                        this.onAppDeleted();
-                    }
-                    return {app: watchEvent.application, watchEvent: true};
-                })
-                .repeat()
-                .retryWhen(errors => errors.delay(500)),
-            this.refreshRequested.filter(e => e !== null).flatMap(() => services.applications.get(name).then(app => ({app, watchEvent: true})))
-        ).flatMap(appInfo => {
-            const app = appInfo.app;
-            const fallbackTree: appModels.ApplicationTree = {
-                nodes: app.status.resources.map(res => ({...res, parentRefs: [], info: [], resourceVersion: '', uid: ''})),
-                orphanedNodes: []
-            };
-            const treeSource = new Observable<{application: appModels.Application; tree: appModels.ApplicationTree}>(observer => {
-                services.applications
-                    .resourceTree(app.metadata.name)
-                    .then(tree => observer.next({application: app, tree}))
-                    .catch(e => {
-                        observer.next({application: app, tree: fallbackTree});
-                        observer.error(e);
-                    });
+        return Observable.fromPromise(services.applications.get(name))
+            .flatMap(app => {
+                const fallbackTree = {
+                    nodes: app.status.resources.map(res => ({...res, parentRefs: [], info: [], resourceVersion: '', uid: ''})),
+                    orphanedNodes: []
+                } as appModels.ApplicationTree;
+                return Observable.combineLatest(
+                    Observable.merge(
+                        Observable.from([app]),
+                        this.appChanged.filter(item => !!item),
+                        AppUtils.handlePageVisibility(() =>
+                            services.applications
+                                .watch({name})
+                                .map(watchEvent => {
+                                    if (watchEvent.type === 'DELETED') {
+                                        this.onAppDeleted();
+                                    }
+                                    return watchEvent.application;
+                                })
+                                .repeat()
+                                .retryWhen(errors => errors.delay(500))
+                        )
+                    ),
+                    Observable.merge(
+                        Observable.from([fallbackTree]),
+                        services.applications.resourceTree(name).catch(() => fallbackTree),
+                        AppUtils.handlePageVisibility(() =>
+                            services.applications
+                                .watchResourceTree(name)
+                                .repeat()
+                                .retryWhen(errors => errors.delay(500))
+                        )
+                    )
+                );
             })
-                .repeat()
-                .retryWhen(errors => errors.delay(1000));
-            if (appInfo.watchEvent) {
-                return treeSource;
-            } else {
-                return Observable.merge(Observable.from([{application: app, tree: fallbackTree}]), treeSource);
-            }
-        });
+            .filter(([application, tree]) => !!application && !!tree)
+            .map(([application, tree]) => ({application, tree}));
     }
 
     private onAppDeleted() {
@@ -523,8 +537,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         latestApp.metadata.labels = app.metadata.labels;
         latestApp.metadata.annotations = app.metadata.annotations;
         latestApp.spec = app.spec;
-        await services.applications.update(latestApp);
-        this.refreshRequested.next({});
+        const updatedApp = await services.applications.update(latestApp);
+        this.appChanged.next(updatedApp);
     }
 
     private groupAppNodesByKey(application: appModels.Application, tree: appModels.ApplicationTree) {
@@ -593,7 +607,7 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
                     await services.applications.update(update);
                 }
                 await services.applications.rollback(this.props.match.params.name, revisionHistory.id);
-                this.refreshRequested.next({});
+                this.appChanged.next(await services.applications.get(this.props.match.params.name));
                 this.setRollbackPanelVisible(-1);
             }
         } catch (e) {
@@ -627,21 +641,32 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
                     action: async () => {
                         this.appContext.apis.popup.prompt(
                             'Delete resource',
-                            () => (
+                            api => (
                                 <div>
                                     <p>
-                                        Are your sure you want to delete {resource.kind} '{resource.name}'?`
+                                        Are your sure you want to delete {resource.kind} '{resource.name}'?
                                     </p>
-                                    <div className='argo-form-row' style={{paddingLeft: '30px'}}>
+                                    <div className='argo-form-row'>
+                                        <FormField
+                                            label={`Please type '${resource.name}' to confirm the deletion of the resource`}
+                                            formApi={api}
+                                            field='resourceName'
+                                            component={Text}
+                                        />
+                                    </div>
+                                    <div className='argo-form-row'>
                                         <Checkbox id='force-delete-checkbox' field='force' /> <label htmlFor='force-delete-checkbox'>Force delete</label>
                                     </div>
                                 </div>
                             ),
                             {
+                                validate: vals => ({
+                                    resourceName: vals.resourceName !== resource.name && 'Enter the resource name to confirm the deletion'
+                                }),
                                 submit: async (vals, _, close) => {
                                     try {
                                         await services.applications.deleteResource(this.props.match.params.name, resource, !!vals.force);
-                                        this.refreshRequested.next({});
+                                        this.appChanged.next(await services.applications.get(this.props.match.params.name));
                                         close();
                                     } catch (e) {
                                         this.appContext.apis.notifications.show({
@@ -650,7 +675,9 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
                                         });
                                     }
                                 }
-                            }
+                            },
+                            {name: 'argo-icon-warning', color: 'warning'},
+                            'yellow'
                         );
                     }
                 }

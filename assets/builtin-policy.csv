@@ -11,6 +11,8 @@ p, role:readonly, certificates, get, *, allow
 p, role:readonly, clusters, get, *, allow
 p, role:readonly, repositories, get, *, allow
 p, role:readonly, projects, get, *, allow
+p, role:readonly, accounts, get, *, allow
+p, role:readonly, gpgkeys, get, *, allow
 
 p, role:admin, applications, create, */*, allow
 p, role:admin, applications, update, */*, allow
@@ -30,6 +32,9 @@ p, role:admin, repositories, delete, *, allow
 p, role:admin, projects, create, *, allow
 p, role:admin, projects, update, *, allow
 p, role:admin, projects, delete, *, allow
+p, role:admin, accounts, update, *, allow
+p, role:admin, gpgkeys, create, *, allow
+p, role:admin, gpgkeys, delete, *, allow
 
 g, role:admin, role:readonly
 g, admin, role:admin

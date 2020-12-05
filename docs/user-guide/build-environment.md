@@ -10,3 +10,5 @@
 * `ARGOCD_APP_SOURCE_PATH` - the path of the app within the repo
 * `ARGOCD_APP_SOURCE_REPO_URL` the repo's URL
 * `ARGOCD_APP_SOURCE_TARGET_REVISION` - the target revision from the spec, e.g. `master`.
+* `KUBE_VERSION` - the version of kubernetes
+* `KUBE_API_VERSIONS` = the version of kubernetes API

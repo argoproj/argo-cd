@@ -3,9 +3,7 @@ import * as moment from 'moment';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 
-import {ErrorNotification} from '../../../shared/components';
-import {Revision} from '../../../shared/components/revision';
-import {Timestamp} from '../../../shared/components/timestamp';
+import {ErrorNotification, Revision, Timestamp} from '../../../shared/components';
 import {AppContext} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -34,7 +32,7 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
         }
     ];
 
-    if (operationState.finishedAt) {
+    if (operationState.finishedAt && operationState.phase !== 'Running') {
         operationAttributes.push({title: 'FINISHED AT', value: <Timestamp date={operationState.finishedAt} />});
     } else if (operationState.phase !== 'Terminating') {
         operationAttributes.push({
@@ -46,7 +44,7 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                         const confirmed = await ctx.apis.popup.confirm('Terminate operation', 'Are you sure you want to terminate operation?');
                         if (confirmed) {
                             try {
-                                services.applications.terminateOperation(application.metadata.name);
+                                await services.applications.terminateOperation(application.metadata.name);
                             } catch (e) {
                                 ctx.apis.notifications.show({
                                     content: <ErrorNotification title='Unable to terminate operation' e={e} />,
@@ -63,6 +61,15 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
     if (operationState.syncResult) {
         operationAttributes.push({title: 'REVISION', value: <Revision repoUrl={application.spec.source.repoURL} revision={operationState.syncResult.revision} />});
     }
+    let initiator = '';
+    if (operationState.operation.initiatedBy) {
+        if (operationState.operation.initiatedBy.automated) {
+            initiator = 'automated sync policy';
+        } else {
+            initiator = operationState.operation.initiatedBy.username;
+        }
+    }
+    operationAttributes.push({title: 'INITIATED BY', value: initiator || 'Unknown'});
 
     const resultAttributes: {title: string; value: string}[] = [];
     const syncResult = operationState.syncResult;
@@ -110,15 +117,21 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                                         <div className='application-operation-state__icons_container'>
                                             {resource.hookType && <i title='Resource lifecycle hook' className='fa fa-anchor' />}
                                         </div>
-                                        {resource.group ? resource.group + '/' + resource.version : resource.version}/{resource.kind}
+                                        <span title={getKind(resource)}>{getKind(resource)}</span>
                                     </div>
-                                    <div className='columns large-2 show-for-large'>{resource.namespace}</div>
-                                    <div className='columns large-2 small-2'>{resource.name}</div>
-                                    <div className='columns large-1 small-2'>
-                                        <utils.ResourceResultIcon resource={resource} /> {resource.hookType ? resource.hookPhase : resource.status}
+                                    <div className='columns large-2 show-for-large' title={resource.namespace}>
+                                        {resource.namespace}
                                     </div>
-                                    <div className='columns large-1 show-for-large'>{resource.hookType}</div>
-                                    <div className='columns large-4 small-8'>
+                                    <div className='columns large-2 small-2' title={resource.name}>
+                                        {resource.name}
+                                    </div>
+                                    <div className='columns large-1 small-2' title={getStatus(resource)}>
+                                        <utils.ResourceResultIcon resource={resource} /> {getStatus(resource)}
+                                    </div>
+                                    <div className='columns large-1 show-for-large' title={resource.hookType}>
+                                        {resource.hookType}
+                                    </div>
+                                    <div className='columns large-4 small-8' title={resource.message}>
                                         <div className='application-operation-state__message'>{resource.message}</div>
                                     </div>
                                 </div>
@@ -129,6 +142,14 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
             )}
         </div>
     );
+};
+
+const getKind = (resource: models.ResourceResult): string => {
+    return (resource.group ? `${resource.group}/${resource.version}` : resource.version) + `/${resource.kind}`;
+};
+
+const getStatus = (resource: models.ResourceResult): string => {
+    return resource.hookType ? resource.hookPhase : resource.status;
 };
 
 ApplicationOperationState.contextTypes = {

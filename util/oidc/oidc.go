@@ -3,24 +3,27 @@ package oidc
 import (
 	"encoding/json"
 	"fmt"
+	"html"
 	"html/template"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
+	"path"
+	"strings"
 	"time"
 
+	"github.com/argoproj/pkg/jwt/zjwt"
 	gooidc "github.com/coreos/go-oidc"
 	"github.com/dgrijalva/jwt-go"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 
 	"github.com/argoproj/argo-cd/common"
-	servercache "github.com/argoproj/argo-cd/server/cache"
 	"github.com/argoproj/argo-cd/server/settings/oidc"
+	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
 	"github.com/argoproj/argo-cd/util/dex"
 	httputil "github.com/argoproj/argo-cd/util/http"
-	"github.com/argoproj/argo-cd/util/jwt/zjwt"
 	"github.com/argoproj/argo-cd/util/rand"
 	"github.com/argoproj/argo-cd/util/settings"
 )
@@ -41,6 +44,16 @@ type OIDCConfiguration struct {
 
 type ClaimsRequest struct {
 	IDToken map[string]*oidc.Claim `json:"id_token"`
+}
+
+type OIDCState struct {
+	// ReturnURL is the URL in which to redirect a user back to after completing an OAuth2 login
+	ReturnURL string `json:"returnURL"`
+}
+
+type OIDCStateStorage interface {
+	GetOIDCState(key string) (*OIDCState, error)
+	SetOIDCState(key string, state *OIDCState) error
 }
 
 type ClientApp struct {
@@ -65,7 +78,7 @@ type ClientApp struct {
 	provider Provider
 	// cache holds temporary nonce tokens to which hold application state values
 	// See http://tools.ietf.org/html/rfc6749#section-10.12 for more info.
-	cache *servercache.Cache
+	cache OIDCStateStorage
 }
 
 func GetScopesOrDefault(scopes []string) []string {
@@ -77,7 +90,7 @@ func GetScopesOrDefault(scopes []string) []string {
 
 // NewClientApp will register the Argo CD client app (either via Dex or external OIDC) and return an
 // object which has HTTP handlers for handling the HTTP responses for login and callback
-func NewClientApp(settings *settings.ArgoCDSettings, cache *servercache.Cache, dexServerAddr, baseHRef string) (*ClientApp, error) {
+func NewClientApp(settings *settings.ArgoCDSettings, cache OIDCStateStorage, dexServerAddr, baseHRef string) (*ClientApp, error) {
 	redirectURL, err := settings.RedirectURL()
 	if err != nil {
 		return nil, err
@@ -145,7 +158,7 @@ func (a *ClientApp) generateAppState(returnURL string) string {
 	if returnURL == "" {
 		returnURL = a.baseHRef
 	}
-	err := a.cache.SetOIDCState(randStr, &servercache.OIDCState{ReturnURL: returnURL})
+	err := a.cache.SetOIDCState(randStr, &OIDCState{ReturnURL: returnURL})
 	if err != nil {
 		// This should never happen with the in-memory cache
 		log.Errorf("Failed to set app state: %v", err)
@@ -153,10 +166,10 @@ func (a *ClientApp) generateAppState(returnURL string) string {
 	return randStr
 }
 
-func (a *ClientApp) verifyAppState(state string) (*servercache.OIDCState, error) {
+func (a *ClientApp) verifyAppState(state string) (*OIDCState, error) {
 	res, err := a.cache.GetOIDCState(state)
 	if err != nil {
-		if err == servercache.ErrCacheMiss {
+		if err == appstatecache.ErrCacheMiss {
 			return nil, fmt.Errorf("unknown app state %s", state)
 		} else {
 			return nil, fmt.Errorf("failed to verify app state %s: %v", state, err)
@@ -165,6 +178,53 @@ func (a *ClientApp) verifyAppState(state string) (*servercache.OIDCState, error)
 
 	_ = a.cache.SetOIDCState(state, nil)
 	return res, nil
+}
+
+// isValidRedirectURL checks whether the given redirectURL matches on of the
+// allowed URLs to redirect to.
+//
+// In order to be considered valid,the protocol and host (including port) have
+// to match and if allowed path is not "/", redirectURL's path must be within
+// allowed URL's path.
+func isValidRedirectURL(redirectURL string, allowedURLs []string) bool {
+	if redirectURL == "" {
+		return true
+	}
+	r, err := url.Parse(redirectURL)
+	if err != nil {
+		return false
+	}
+	// We consider empty path the same as "/" for redirect URL
+	if r.Path == "" {
+		r.Path = "/"
+	}
+	// Prevent CLRF in the redirectURL
+	if strings.ContainsAny(r.Path, "\r\n") {
+		return false
+	}
+	for _, baseURL := range allowedURLs {
+		b, err := url.Parse(baseURL)
+		if err != nil {
+			continue
+		}
+		// We consider empty path the same as "/" for allowed URL
+		if b.Path == "" {
+			b.Path = "/"
+		}
+		// scheme and host are mandatory to match.
+		if b.Scheme == r.Scheme && b.Host == r.Host {
+			// If path of redirectURL and allowedURL match, redirectURL is allowed
+			//if b.Path == r.Path {
+			//	return true
+			//}
+			// If path of redirectURL is within allowed URL's path, redirectURL is allowed
+			if strings.HasPrefix(path.Clean(r.Path), b.Path) {
+				return true
+			}
+		}
+	}
+	// No match - redirect URL is not allowed
+	return false
 }
 
 // HandleLogin formulates the proper OAuth2 URL (auth code or implicit) and redirects the user to
@@ -187,6 +247,11 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	returnURL := r.FormValue("return_url")
+	// Check if return_url is valid, otherwise abort processing (see #2707)
+	if !isValidRedirectURL(returnURL, []string{a.settings.URL}) {
+		http.Error(w, "Invalid return_url", http.StatusBadRequest)
+		return
+	}
 	stateNonce := a.generateAppState(returnURL)
 	grantType := InferGrantType(oidcConf)
 	var url string
@@ -212,7 +277,8 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Infof("Callback: %s", r.URL)
 	if errMsg := r.FormValue("error"); errMsg != "" {
-		http.Error(w, errMsg+": "+r.FormValue("error_description"), http.StatusBadRequest)
+		errorDesc := r.FormValue("error_description")
+		http.Error(w, html.EscapeString(errMsg)+": "+html.EscapeString(errorDesc), http.StatusBadRequest)
 		return
 	}
 	code := r.FormValue("code")
@@ -243,7 +309,12 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("invalid session token: %v", err), http.StatusInternalServerError)
 		return
 	}
-	flags := []string{"path=/"}
+	path := "/"
+	if a.baseHRef != "" {
+		path = strings.TrimRight(strings.TrimLeft(a.baseHRef, "/"), "/")
+	}
+	cookiePath := fmt.Sprintf("path=/%s", path)
+	flags := []string{cookiePath, "SameSite=lax", "httpOnly"}
 	if a.secureCookie {
 		flags = append(flags, "Secure")
 	}

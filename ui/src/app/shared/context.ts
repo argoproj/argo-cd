@@ -10,5 +10,5 @@ export interface ContextApis {
     navigation: NavigationApi;
     baseHref: string;
 }
-
-export const {Provider, Consumer} = React.createContext<ContextApis & {history: History}>(null);
+export const Context = React.createContext<ContextApis & {history: History}>(null);
+export const {Provider, Consumer} = Context;

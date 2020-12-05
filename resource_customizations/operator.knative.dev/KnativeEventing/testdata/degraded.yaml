@@ -1,0 +1,25 @@
+apiVersion: operator.knative.dev/v1alpha1
+kind: KnativeEventing
+metadata:
+  finalizers:
+  - delete-knative-eventing-manifest
+  generation: 3
+  labels:
+    app: knative-eventing
+    argocd.argoproj.io/instance: knative-eventing
+    version: 0.14.1
+  name: knative-eventing
+  namespace: knative-eventing
+  resourceVersion: "31707154"
+  selfLink: /apis/operator.knative.dev/v1alpha1/namespaces/knative-eventing/knativeeventings/knative-eventing
+  uid: bbcb2872-4304-4541-9811-7ce5125ceadf
+spec: {}
+status:
+  conditions:
+  - lastTransitionTime: "2020-04-29T04:52:05Z"
+    status: "True"
+    type: InstallSucceeded
+  - lastTransitionTime: "2020-06-08T10:53:44Z"
+    status: "randomstatus"
+    type: Ready
+  version: 0.14.1

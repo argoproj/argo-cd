@@ -71,6 +71,10 @@ export class RepositoriesService {
             .then(res => res.body as models.Repository);
     }
 
+    public async revisions(repo: string): Promise<models.RefsInfo> {
+        return requests.get(`/repositories/${encodeURIComponent(repo)}/refs`).then(res => res.body as models.RefsInfo);
+    }
+
     public apps(repo: string, revision: string): Promise<models.AppInfo[]> {
         return requests
             .get(`/repositories/${encodeURIComponent(repo)}/apps`)

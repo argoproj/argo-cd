@@ -5,12 +5,155 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/pkg/errors"
+	"github.com/ghodss/yaml"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/kube"
+)
 
-	"github.com/stretchr/testify/assert"
+func strToUnstructured(jsonStr string) *unstructured.Unstructured {
+	obj := make(map[string]interface{})
+	err := yaml.Unmarshal([]byte(jsonStr), &obj)
+	errors.CheckError(err)
+	return &unstructured.Unstructured{Object: obj}
+}
+
+var (
+	testService = strToUnstructured(`
+  apiVersion: v1
+  kind: Service
+  metadata:
+    name: helm-guestbook
+    namespace: default
+    resourceVersion: "123"
+    uid: "4"
+  spec:
+    selector:
+      app: guestbook
+    type: LoadBalancer
+  status:
+    loadBalancer:
+      ingress:
+      - hostname: localhost`)
+
+	testIngress = strToUnstructured(`
+  apiVersion: extensions/v1beta1
+  kind: Ingress
+  metadata:
+    name: helm-guestbook
+    namespace: default
+    uid: "4"
+  spec:
+    backend:
+      serviceName: not-found-service
+      servicePort: 443
+    rules:
+    - host: helm-guestbook.com
+      http:
+        paths:
+        - backend:
+            serviceName: helm-guestbook
+            servicePort: 443
+          path: /
+        - backend:
+            serviceName: helm-guestbook
+            servicePort: https
+          path: /
+    tls:
+    - host: helm-guestbook.com
+    secretName: my-tls-secret
+  status:
+    loadBalancer:
+      ingress:
+      - ip: 107.178.210.11`)
+
+	testIngressWildCardPath = strToUnstructured(`
+  apiVersion: extensions/v1beta1
+  kind: Ingress
+  metadata:
+    name: helm-guestbook
+    namespace: default
+    uid: "4"
+  spec:
+    backend:
+      serviceName: not-found-service
+      servicePort: 443
+    rules:
+    - host: helm-guestbook.com
+      http:
+        paths:
+        - backend:
+            serviceName: helm-guestbook
+            servicePort: 443
+          path: /*
+        - backend:
+            serviceName: helm-guestbook
+            servicePort: https
+          path: /*
+    tls:
+    - host: helm-guestbook.com
+    secretName: my-tls-secret
+  status:
+    loadBalancer:
+      ingress:
+      - ip: 107.178.210.11`)
+
+	testIngressWithoutTls = strToUnstructured(`
+  apiVersion: extensions/v1beta1
+  kind: Ingress
+  metadata:
+    name: helm-guestbook
+    namespace: default
+    uid: "4"
+  spec:
+    backend:
+      serviceName: not-found-service
+      servicePort: 443
+    rules:
+    - host: helm-guestbook.com
+      http:
+        paths:
+        - backend:
+            serviceName: helm-guestbook
+            servicePort: 443
+          path: /
+        - backend:
+            serviceName: helm-guestbook
+            servicePort: https
+          path: /
+  status:
+    loadBalancer:
+      ingress:
+      - ip: 107.178.210.11`)
+
+	testIstioVirtualService = strToUnstructured(`
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: hello-world
+  namespace: demo
+spec:
+  http:
+    - match:
+        - uri:
+            prefix: "/1"
+      route:
+        - destination:
+            host: service_full.demo.svc.cluster.local
+        - destination:
+            host: service_namespace.namespace
+    - match:
+        - uri:
+            prefix: "/2"
+      route:
+        - destination:
+            host: service
+`)
 )
 
 func TestGetPodInfo(t *testing.T) {
@@ -31,29 +174,52 @@ func TestGetPodInfo(t *testing.T) {
     containers:
     - image: bar`)
 
-	node := &node{}
-	populateNodeInfo(pod, node)
-	assert.Equal(t, []v1alpha1.InfoItem{{Name: "Containers", Value: "0/1"}}, node.info)
-	assert.Equal(t, []string{"bar"}, node.images)
-	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{Labels: map[string]string{"app": "guestbook"}}, node.networkingInfo)
+	info := &ResourceInfo{}
+	populateNodeInfo(pod, info)
+	assert.Equal(t, []v1alpha1.InfoItem{{Name: "Containers", Value: "0/1"}}, info.Info)
+	assert.Equal(t, []string{"bar"}, info.Images)
+	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{Labels: map[string]string{"app": "guestbook"}}, info.NetworkingInfo)
 }
 
 func TestGetServiceInfo(t *testing.T) {
-	node := &node{}
-	populateNodeInfo(testService, node)
-	assert.Equal(t, 0, len(node.info))
+	info := &ResourceInfo{}
+	populateNodeInfo(testService, info)
+	assert.Equal(t, 0, len(info.Info))
 	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
 		TargetLabels: map[string]string{"app": "guestbook"},
 		Ingress:      []v1.LoadBalancerIngress{{Hostname: "localhost"}},
-	}, node.networkingInfo)
+	}, info.NetworkingInfo)
+}
+
+func TestGetIstioVirtualServiceInfo(t *testing.T) {
+	info := &ResourceInfo{}
+	populateNodeInfo(testIstioVirtualService, info)
+	assert.Equal(t, 0, len(info.Info))
+	require.NotNil(t, info.NetworkingInfo)
+	require.NotNil(t, info.NetworkingInfo.TargetRefs)
+	assert.Contains(t, info.NetworkingInfo.TargetRefs, v1alpha1.ResourceRef{
+		Kind:      kube.ServiceKind,
+		Name:      "service_full",
+		Namespace: "demo",
+	})
+	assert.Contains(t, info.NetworkingInfo.TargetRefs, v1alpha1.ResourceRef{
+		Kind:      kube.ServiceKind,
+		Name:      "service_namespace",
+		Namespace: "namespace",
+	})
+	assert.Contains(t, info.NetworkingInfo.TargetRefs, v1alpha1.ResourceRef{
+		Kind:      kube.ServiceKind,
+		Name:      "service",
+		Namespace: "demo",
+	})
 }
 
 func TestGetIngressInfo(t *testing.T) {
-	node := &node{}
-	populateNodeInfo(testIngress, node)
-	assert.Equal(t, 0, len(node.info))
-	sort.Slice(node.networkingInfo.TargetRefs, func(i, j int) bool {
-		return strings.Compare(node.networkingInfo.TargetRefs[j].Name, node.networkingInfo.TargetRefs[i].Name) < 0
+	info := &ResourceInfo{}
+	populateNodeInfo(testIngress, info)
+	assert.Equal(t, 0, len(info.Info))
+	sort.Slice(info.NetworkingInfo.TargetRefs, func(i, j int) bool {
+		return strings.Compare(info.NetworkingInfo.TargetRefs[j].Name, info.NetworkingInfo.TargetRefs[i].Name) < 0
 	})
 	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
 		Ingress: []v1.LoadBalancerIngress{{IP: "107.178.210.11"}},
@@ -69,7 +235,55 @@ func TestGetIngressInfo(t *testing.T) {
 			Name:      "helm-guestbook",
 		}},
 		ExternalURLs: []string{"https://helm-guestbook.com/"},
-	}, node.networkingInfo)
+	}, info.NetworkingInfo)
+}
+
+func TestGetIngressInfoWildCardPath(t *testing.T) {
+	info := &ResourceInfo{}
+	populateNodeInfo(testIngressWildCardPath, info)
+	assert.Equal(t, 0, len(info.Info))
+	sort.Slice(info.NetworkingInfo.TargetRefs, func(i, j int) bool {
+		return strings.Compare(info.NetworkingInfo.TargetRefs[j].Name, info.NetworkingInfo.TargetRefs[i].Name) < 0
+	})
+	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
+		Ingress: []v1.LoadBalancerIngress{{IP: "107.178.210.11"}},
+		TargetRefs: []v1alpha1.ResourceRef{{
+			Namespace: "default",
+			Group:     "",
+			Kind:      kube.ServiceKind,
+			Name:      "not-found-service",
+		}, {
+			Namespace: "default",
+			Group:     "",
+			Kind:      kube.ServiceKind,
+			Name:      "helm-guestbook",
+		}},
+		ExternalURLs: []string{"https://helm-guestbook.com/"},
+	}, info.NetworkingInfo)
+}
+
+func TestGetIngressInfoWithoutTls(t *testing.T) {
+	info := &ResourceInfo{}
+	populateNodeInfo(testIngressWithoutTls, info)
+	assert.Equal(t, 0, len(info.Info))
+	sort.Slice(info.NetworkingInfo.TargetRefs, func(i, j int) bool {
+		return strings.Compare(info.NetworkingInfo.TargetRefs[j].Name, info.NetworkingInfo.TargetRefs[i].Name) < 0
+	})
+	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
+		Ingress: []v1.LoadBalancerIngress{{IP: "107.178.210.11"}},
+		TargetRefs: []v1alpha1.ResourceRef{{
+			Namespace: "default",
+			Group:     "",
+			Kind:      kube.ServiceKind,
+			Name:      "not-found-service",
+		}, {
+			Namespace: "default",
+			Group:     "",
+			Kind:      kube.ServiceKind,
+			Name:      "helm-guestbook",
+		}},
+		ExternalURLs: []string{"http://helm-guestbook.com/"},
+	}, info.NetworkingInfo)
 }
 
 func TestGetIngressInfoNoHost(t *testing.T) {
@@ -87,13 +301,15 @@ func TestGetIngressInfoNoHost(t *testing.T) {
             serviceName: helm-guestbook
             servicePort: 443
           path: /
+    tls:
+    - secretName: my-tls
   status:
     loadBalancer:
       ingress:
       - ip: 107.178.210.11`)
 
-	node := &node{}
-	populateNodeInfo(ingress, node)
+	info := &ResourceInfo{}
+	populateNodeInfo(ingress, info)
 
 	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
 		Ingress: []v1.LoadBalancerIngress{{IP: "107.178.210.11"}},
@@ -104,7 +320,7 @@ func TestGetIngressInfoNoHost(t *testing.T) {
 			Name:      "helm-guestbook",
 		}},
 		ExternalURLs: []string{"https://107.178.210.11/"},
-	}, node.networkingInfo)
+	}, info.NetworkingInfo)
 }
 func TestExternalUrlWithSubPath(t *testing.T) {
 	ingress := strToUnstructured(`
@@ -121,16 +337,18 @@ func TestExternalUrlWithSubPath(t *testing.T) {
             serviceName: helm-guestbook
             servicePort: 443
           path: /my/sub/path/
+    tls:
+    - secretName: my-tls
   status:
     loadBalancer:
       ingress:
       - ip: 107.178.210.11`)
 
-	node := &node{}
-	populateNodeInfo(ingress, node)
+	info := &ResourceInfo{}
+	populateNodeInfo(ingress, info)
 
 	expectedExternalUrls := []string{"https://107.178.210.11/my/sub/path/"}
-	assert.Equal(t, expectedExternalUrls, node.networkingInfo.ExternalURLs)
+	assert.Equal(t, expectedExternalUrls, info.NetworkingInfo.ExternalURLs)
 }
 func TestExternalUrlWithMultipleSubPaths(t *testing.T) {
 	ingress := strToUnstructured(`
@@ -155,16 +373,18 @@ func TestExternalUrlWithMultipleSubPaths(t *testing.T) {
         - backend:
             serviceName: helm-guestbook-3
             servicePort: 443
+    tls:
+    - secretName: my-tls
   status:
     loadBalancer:
       ingress:
       - ip: 107.178.210.11`)
 
-	node := &node{}
-	populateNodeInfo(ingress, node)
+	info := &ResourceInfo{}
+	populateNodeInfo(ingress, info)
 
 	expectedExternalUrls := []string{"https://helm-guestbook.com/my/sub/path/", "https://helm-guestbook.com/my/sub/path/2", "https://helm-guestbook.com"}
-	actualURLs := node.networkingInfo.ExternalURLs
+	actualURLs := info.NetworkingInfo.ExternalURLs
 	sort.Strings(expectedExternalUrls)
 	sort.Strings(actualURLs)
 	assert.Equal(t, expectedExternalUrls, actualURLs)
@@ -183,16 +403,18 @@ func TestExternalUrlWithNoSubPath(t *testing.T) {
         - backend:
             serviceName: helm-guestbook
             servicePort: 443
+    tls:
+    - secretName: my-tls
   status:
     loadBalancer:
       ingress:
       - ip: 107.178.210.11`)
 
-	node := &node{}
-	populateNodeInfo(ingress, node)
+	info := &ResourceInfo{}
+	populateNodeInfo(ingress, info)
 
 	expectedExternalUrls := []string{"https://107.178.210.11"}
-	assert.Equal(t, expectedExternalUrls, node.networkingInfo.ExternalURLs)
+	assert.Equal(t, expectedExternalUrls, info.NetworkingInfo.ExternalURLs)
 }
 
 func TestExternalUrlWithNetworkingApi(t *testing.T) {
@@ -209,14 +431,16 @@ func TestExternalUrlWithNetworkingApi(t *testing.T) {
         - backend:
             serviceName: helm-guestbook
             servicePort: 443
+    tls:
+    - secretName: my-tls
   status:
     loadBalancer:
       ingress:
       - ip: 107.178.210.11`)
 
-	node := &node{}
-	populateNodeInfo(ingress, node)
+	info := &ResourceInfo{}
+	populateNodeInfo(ingress, info)
 
 	expectedExternalUrls := []string{"https://107.178.210.11"}
-	assert.Equal(t, expectedExternalUrls, node.networkingInfo.ExternalURLs)
+	assert.Equal(t, expectedExternalUrls, info.NetworkingInfo.ExternalURLs)
 }

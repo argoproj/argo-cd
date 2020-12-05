@@ -67,29 +67,26 @@ export default {
         return initHandlers(agent.del(`${apiRoot()}${url}`));
     },
 
-    loadEventSource(url: string, allowAutoRetry = false): Observable<string> {
+    loadEventSource(url: string): Observable<string> {
         return Observable.create((observer: Observer<any>) => {
-            const eventSource = new EventSource(`${apiRoot()}${url}`);
-            let opened = false;
-            eventSource.onopen = msg => {
-                if (!opened) {
-                    opened = true;
-                } else if (!allowAutoRetry) {
-                    eventSource.close();
-                    observer.complete();
-                }
-            };
+            let eventSource = new EventSource(`${apiRoot()}${url}`);
             eventSource.onmessage = msg => observer.next(msg.data);
             eventSource.onerror = e => () => {
-                if (e.eventPhase === ReadyState.CLOSED || eventSource.readyState === ReadyState.CONNECTING) {
-                    observer.complete();
-                } else {
-                    observer.error(e);
-                    onError.next(e);
-                }
+                observer.error(e);
+                onError.next(e);
             };
+
+            // EventSource does not provide easy way to get notification when connection closed.
+            // check readyState periodically instead.
+            const interval = setInterval(() => {
+                if (eventSource && eventSource.readyState === ReadyState.CLOSED) {
+                    observer.complete();
+                }
+            }, 500);
             return () => {
+                clearInterval(interval);
                 eventSource.close();
+                eventSource = null;
             };
         });
     }

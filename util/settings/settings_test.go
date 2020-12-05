@@ -13,8 +13,8 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 )
 
-func fixtures(data map[string]string) (*fake.Clientset, *SettingsManager) {
-	kubeClient := fake.NewSimpleClientset(&v1.ConfigMap{
+func fixtures(data map[string]string, opts ...func(secret *v1.Secret)) (*fake.Clientset, *SettingsManager) {
+	cm := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDConfigMapName,
 			Namespace: "default",
@@ -23,7 +23,21 @@ func fixtures(data map[string]string) (*fake.Clientset, *SettingsManager) {
 			},
 		},
 		Data: data,
-	})
+	}
+	secret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDSecretName,
+			Namespace: "default",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+		Data: map[string][]byte{},
+	}
+	for i := range opts {
+		opts[i](secret)
+	}
+	kubeClient := fake.NewSimpleClientset(cm, secret)
 	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
 
 	return kubeClient, settingsManager
@@ -42,7 +56,7 @@ func TestSaveRepositories(t *testing.T) {
 	kubeClient, settingsManager := fixtures(nil)
 	err := settingsManager.SaveRepositories([]Repository{{URL: "http://foo"}})
 	assert.NoError(t, err)
-	cm, err := kubeClient.CoreV1().ConfigMaps("default").Get(common.ArgoCDConfigMapName, metav1.GetOptions{})
+	cm, err := kubeClient.CoreV1().ConfigMaps("default").Get(context.Background(), common.ArgoCDConfigMapName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, cm.Data["repositories"], "- url: http://foo\n")
 
@@ -51,13 +65,13 @@ func TestSaveRepositories(t *testing.T) {
 	assert.ElementsMatch(t, repos, []Repository{{URL: "http://foo"}})
 }
 
-func TestSaveRepositoresNoConfigMap(t *testing.T) {
+func TestSaveRepositoriesNoConfigMap(t *testing.T) {
 	kubeClient := fake.NewSimpleClientset()
 	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
 
 	err := settingsManager.SaveRepositories([]Repository{{URL: "http://foo"}})
 	assert.NoError(t, err)
-	cm, err := kubeClient.CoreV1().ConfigMaps("default").Get(common.ArgoCDConfigMapName, metav1.GetOptions{})
+	cm, err := kubeClient.CoreV1().ConfigMaps("default").Get(context.Background(), common.ArgoCDConfigMapName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, cm.Data["repositories"], "- url: http://foo\n")
 }
@@ -66,7 +80,7 @@ func TestSaveRepositoryCredentials(t *testing.T) {
 	kubeClient, settingsManager := fixtures(nil)
 	err := settingsManager.SaveRepositoryCredentials([]RepositoryCredentials{{URL: "http://foo"}})
 	assert.NoError(t, err)
-	cm, err := kubeClient.CoreV1().ConfigMaps("default").Get(common.ArgoCDConfigMapName, metav1.GetOptions{})
+	cm, err := kubeClient.CoreV1().ConfigMaps("default").Get(context.Background(), common.ArgoCDConfigMapName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, cm.Data["repository.credentials"], "- url: http://foo\n")
 
@@ -97,6 +111,7 @@ func TestGetResourceFilter(t *testing.T) {
 		ResourceInclusions: []FilteredResource{{APIGroups: []string{"group2"}, Kinds: []string{"kind2"}, Clusters: []string{"cluster2"}}},
 	}, filter)
 }
+
 func TestGetConfigManagementPlugins(t *testing.T) {
 	data := map[string]string{
 		"configManagementPlugins": `
@@ -126,6 +141,11 @@ func TestGetAppInstanceLabelKey(t *testing.T) {
 }
 
 func TestGetResourceOverrides(t *testing.T) {
+	ignoreStatus := v1alpha1.ResourceOverride{IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
+		JSONPointers: []string{"/status"},
+	}}
+	crdGK := "apiextensions.k8s.io/CustomResourceDefinition"
+
 	_, settingsManager := fixtures(map[string]string{
 		"resource.customizations": `
     admissionregistration.k8s.io/MutatingWebhookConfiguration:
@@ -140,26 +160,164 @@ func TestGetResourceOverrides(t *testing.T) {
 	assert.NotNil(t, webHookOverrides)
 
 	assert.Equal(t, v1alpha1.ResourceOverride{
-		IgnoreDifferences: "jsonPointers:\n- /webhooks/0/clientConfig/caBundle",
+		IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{JSONPointers: []string{"/webhooks/0/clientConfig/caBundle"}},
 	}, webHookOverrides)
+
+	// by default, crd status should be ignored
+	crdOverrides := overrides[crdGK]
+	assert.NotNil(t, crdOverrides)
+	assert.Equal(t, ignoreStatus, crdOverrides)
+
+	// with value all, status of all objects should be ignored
+	_, settingsManager = fixtures(map[string]string{
+		"resource.compareoptions": `
+    ignoreResourceStatusField: all`,
+	})
+	overrides, err = settingsManager.GetResourceOverrides()
+	assert.NoError(t, err)
+
+	globalOverrides := overrides["*/*"]
+	assert.NotNil(t, globalOverrides)
+	assert.Equal(t, ignoreStatus, globalOverrides)
+
+	// with value crd, status of crd objects should be ignored
+	_, settingsManager = fixtures(map[string]string{
+		"resource.compareoptions": `
+    ignoreResourceStatusField: crd`,
+
+		"resource.customizations": `
+    apiextensions.k8s.io/CustomResourceDefinition:
+      ignoreDifferences: |
+        jsonPointers:
+        - /webhooks/0/clientConfig/caBundle`,
+	})
+	overrides, err = settingsManager.GetResourceOverrides()
+	assert.NoError(t, err)
+
+	crdOverrides = overrides[crdGK]
+	assert.NotNil(t, crdOverrides)
+	assert.Equal(t, v1alpha1.ResourceOverride{IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{JSONPointers: []string{"/webhooks/0/clientConfig/caBundle", "/status"}}}, crdOverrides)
+
+	// with incorrect value, status of crd objects should be ignored
+	_, settingsManager = fixtures(map[string]string{
+		"resource.compareoptions": `
+    ignoreResourceStatusField: foobar`,
+	})
+	overrides, err = settingsManager.GetResourceOverrides()
+	assert.NoError(t, err)
+
+	defaultOverrides := overrides[crdGK]
+	assert.NotNil(t, defaultOverrides)
+	assert.Equal(t, ignoreStatus, defaultOverrides)
+	assert.Equal(t, ignoreStatus, defaultOverrides)
+
+	// with value off, status of no objects should be ignored
+	_, settingsManager = fixtures(map[string]string{
+		"resource.compareoptions": `
+    ignoreResourceStatusField: off`,
+	})
+	overrides, err = settingsManager.GetResourceOverrides()
+	assert.NoError(t, err)
+	assert.Equal(t, 0, len(overrides))
+
+}
+
+func TestSettingsManager_GetResourceOverrides_with_empty_string(t *testing.T) {
+	_, settingsManager := fixtures(map[string]string{
+		resourceCustomizationsKey: "",
+	})
+	overrides, err := settingsManager.GetResourceOverrides()
+	assert.NoError(t, err)
+
+	assert.Len(t, overrides, 1)
+}
+
+func TestGetResourceCompareOptions(t *testing.T) {
+	// ignoreAggregatedRules is true
+	{
+		_, settingsManager := fixtures(map[string]string{
+			"resource.compareoptions": "ignoreAggregatedRoles: true",
+		})
+		compareOptions, err := settingsManager.GetResourceCompareOptions()
+		assert.NoError(t, err)
+		assert.True(t, compareOptions.IgnoreAggregatedRoles)
+	}
+
+	// ignoreAggregatedRules is false
+	{
+		_, settingsManager := fixtures(map[string]string{
+			"resource.compareoptions": "ignoreAggregatedRoles: false",
+		})
+		compareOptions, err := settingsManager.GetResourceCompareOptions()
+		assert.NoError(t, err)
+		assert.False(t, compareOptions.IgnoreAggregatedRoles)
+	}
+
+	// The empty resource.compareoptions should result in default being returned
+	{
+		_, settingsManager := fixtures(map[string]string{
+			"resource.compareoptions": "",
+		})
+		compareOptions, err := settingsManager.GetResourceCompareOptions()
+		defaultOptions := GetDefaultDiffOptions()
+		assert.NoError(t, err)
+		assert.Equal(t, defaultOptions.IgnoreAggregatedRoles, compareOptions.IgnoreAggregatedRoles)
+	}
+
+	// resource.compareoptions not defined - should result in default being returned
+	{
+		_, settingsManager := fixtures(map[string]string{})
+		compareOptions, err := settingsManager.GetResourceCompareOptions()
+		defaultOptions := GetDefaultDiffOptions()
+		assert.NoError(t, err)
+		assert.Equal(t, defaultOptions.IgnoreAggregatedRoles, compareOptions.IgnoreAggregatedRoles)
+	}
 }
 
 func TestSettingsManager_GetKustomizeBuildOptions(t *testing.T) {
 	t.Run("Empty", func(t *testing.T) {
 		_, settingsManager := fixtures(map[string]string{})
 
-		options, err := settingsManager.GetKustomizeBuildOptions()
+		settings, err := settingsManager.GetKustomizeSettings()
 
 		assert.NoError(t, err)
-		assert.Empty(t, options)
+		assert.Empty(t, settings.BuildOptions)
+		assert.Empty(t, settings.Versions)
 	})
 	t.Run("Set", func(t *testing.T) {
-		_, settingsManager := fixtures(map[string]string{"kustomize.buildOptions": "foo"})
+		_, settingsManager := fixtures(map[string]string{
+			"kustomize.buildOptions":   "foo",
+			"kustomize.version.v3.2.1": "somePath",
+		})
 
-		options, err := settingsManager.GetKustomizeBuildOptions()
+		options, err := settingsManager.GetKustomizeSettings()
 
 		assert.NoError(t, err)
-		assert.Equal(t, "foo", options)
+		assert.Equal(t, "foo", options.BuildOptions)
+		assert.Equal(t, []KustomizeVersion{{Name: "v3.2.1", Path: "somePath"}}, options.Versions)
+	})
+}
+
+func TestKustomizeSettings_GetOptions(t *testing.T) {
+	settings := KustomizeSettings{Versions: []KustomizeVersion{
+		{Name: "v1", Path: "path_v1"},
+		{Name: "v2", Path: "path_v2"},
+		{Name: "v3", Path: "path_v3"},
+	}}
+
+	t.Run("VersionDoesNotExist", func(t *testing.T) {
+		_, err := settings.GetOptions(v1alpha1.ApplicationSource{
+			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v4"}})
+		assert.Error(t, err)
+	})
+
+	t.Run("VersionExists", func(t *testing.T) {
+		ver, err := settings.GetOptions(v1alpha1.ApplicationSource{
+			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v2"}})
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Equal(t, "path_v2", ver.BinaryPath)
 	})
 }
 
@@ -249,5 +407,27 @@ func TestRedirectURL(t *testing.T) {
 		dexRedirectURL, err := settings.DexRedirectURL()
 		assert.NoError(t, err)
 		assert.Equal(t, expected[1], dexRedirectURL)
+	}
+}
+
+func Test_validateExternalURL(t *testing.T) {
+	tests := []struct {
+		name   string
+		url    string
+		errMsg string
+	}{
+		{name: "Valid URL", url: "https://my.domain.com"},
+		{name: "No URL - Valid", url: ""},
+		{name: "Invalid URL", url: "my.domain.com", errMsg: "URL must include http or https protocol"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateExternalURL(tt.url)
+			if tt.errMsg != "" {
+				assert.EqualError(t, err, tt.errMsg)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
 	}
 }

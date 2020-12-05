@@ -3,6 +3,9 @@ kind: AppProject
 metadata:
   name: my-project
   namespace: argocd
+  # Finalizer that ensures that project is not deleted until it is not referenced by any application
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
 spec:
   # Project description
   description: Example Project
@@ -29,6 +32,13 @@ spec:
     kind: LimitRange
   - group: ''
     kind: NetworkPolicy
+
+  # Deny all namespaced-scoped resources from being created, except for Deployment and StatefulSet
+  namespaceResourceWhitelist:
+  - group: 'apps'
+    kind: Deployment
+  - group: 'apps'
+    kind: StatefulSet
 
   # Enables namespace orphaned resource monitoring.
   orphanedResources:

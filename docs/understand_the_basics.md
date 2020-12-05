@@ -6,7 +6,7 @@ Before effectively using Argo CD, it is necessary to understand the underlying t
 
 * Go through the online Docker and Kubernetes tutorials
 	* [A Beginner-Friendly Introduction to Containers, VMs and Docker](https://medium.freecodecamp.org/a-beginner-friendly-introduction-to-containers-vms-and-docker-79a9e3e119b)
-	* [Introduction to Kubernetes](https://courses.edx.org/courses/course-v1:LinuxFoundationX+LFS158x+2T2017/course/)
+	* [Introduction to Kubernetes](https://www.edx.org/course/introduction-to-kubernetes)
 	* [Tutorials](https://kubernetes.io/docs/tutorials/)
 	* [Hands on labs](https://katacoda.com/courses/kubernetes/)
 * Depending on how you plan to template your applications:

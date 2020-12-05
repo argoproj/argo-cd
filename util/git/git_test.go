@@ -270,6 +270,45 @@ func TestLFSClient(t *testing.T) {
 	}
 }
 
+func TestVerifyCommitSignature(t *testing.T) {
+	p, err := ioutil.TempDir("", "test-verify-commit-sig")
+	if err != nil {
+		panic(err.Error())
+	}
+	defer os.RemoveAll(p)
+
+	client, err := NewClientExt("https://github.com/argoproj/argo-cd.git", p, NopCreds{}, false, false)
+	assert.NoError(t, err)
+
+	err = client.Init()
+	assert.NoError(t, err)
+
+	err = client.Fetch()
+	assert.NoError(t, err)
+
+	commitSHA, err := client.LsRemote("HEAD")
+	assert.NoError(t, err)
+
+	err = client.Checkout(commitSHA)
+	assert.NoError(t, err)
+
+	// 28027897aad1262662096745f2ce2d4c74d02b7f is a commit that is signed in the repo
+	// It doesn't matter whether we know the key or not at this stage
+	{
+		out, err := client.VerifyCommitSignature("28027897aad1262662096745f2ce2d4c74d02b7f")
+		assert.NoError(t, err)
+		assert.NotEmpty(t, out)
+		assert.Contains(t, out, "gpg: Signature made")
+	}
+
+	// 85d660f0b967960becce3d49bd51c678ba2a5d24 is a commit that is not signed
+	{
+		out, err := client.VerifyCommitSignature("85d660f0b967960becce3d49bd51c678ba2a5d24")
+		assert.NoError(t, err)
+		assert.Empty(t, out)
+	}
+}
+
 func TestNewFactory(t *testing.T) {
 	addBinDirToPath := path.NewBinDirToPath()
 	defer addBinDirToPath.Close()
@@ -328,4 +367,27 @@ func TestNewFactory(t *testing.T) {
 
 		assert.Equal(t, commitSHA, commitSHA2)
 	}
+}
+
+func TestListRevisions(t *testing.T) {
+	dir, err := ioutil.TempDir("", "test-list-revisions")
+	if err != nil {
+		panic(err.Error())
+	}
+	defer os.RemoveAll(dir)
+
+	repoURL := "https://github.com/argoproj/argo-cd.git"
+	client, err := NewClientExt(repoURL, dir, NopCreds{}, false, false)
+	assert.NoError(t, err)
+
+	lsResult, err := client.LsRefs()
+	assert.NoError(t, err)
+
+	testBranch := "master"
+	testTag := "v1.0.0"
+
+	assert.Contains(t, lsResult.Branches, testBranch)
+	assert.Contains(t, lsResult.Tags, testTag)
+	assert.NotContains(t, lsResult.Branches, testTag)
+	assert.NotContains(t, lsResult.Tags, testBranch)
 }

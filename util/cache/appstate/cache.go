@@ -1,9 +1,11 @@
 package appstate
 
 import (
+	"context"
 	"fmt"
 	"time"
 
+	"github.com/go-redis/redis/v8"
 	"github.com/spf13/cobra"
 
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -12,8 +14,12 @@ import (
 
 var ErrCacheMiss = cacheutil.ErrCacheMiss
 
+const (
+	clusterInfoCacheExpiration = 10 * time.Minute
+)
+
 type Cache struct {
-	cache                   *cacheutil.Cache
+	Cache                   *cacheutil.Cache
 	appStateCacheExpiration time.Duration
 }
 
@@ -21,17 +27,12 @@ func NewCache(cache *cacheutil.Cache, appStateCacheExpiration time.Duration) *Ca
 	return &Cache{cache, appStateCacheExpiration}
 }
 
-type OIDCState struct {
-	// ReturnURL is the URL in which to redirect a user back to after completing an OAuth2 login
-	ReturnURL string `json:"returnURL"`
-}
-
-func AddCacheFlagsToCmd(cmd *cobra.Command) func() (*Cache, error) {
+func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) func() (*Cache, error) {
 	var appStateCacheExpiration time.Duration
 
 	cmd.Flags().DurationVar(&appStateCacheExpiration, "app-state-cache-expiration", 1*time.Hour, "Cache expiration for app state")
 
-	cacheFactory := cacheutil.AddCacheFlagsToCmd(cmd)
+	cacheFactory := cacheutil.AddCacheFlagsToCmd(cmd, opts...)
 
 	return func() (*Cache, error) {
 		cache, err := cacheFactory()
@@ -43,11 +44,11 @@ func AddCacheFlagsToCmd(cmd *cobra.Command) func() (*Cache, error) {
 }
 
 func (c *Cache) GetItem(key string, item interface{}) error {
-	return c.cache.GetItem(key, item)
+	return c.Cache.GetItem(key, item)
 }
 
 func (c *Cache) SetItem(key string, item interface{}, expiration time.Duration, delete bool) error {
-	return c.cache.SetItem(key, item, expiration, delete)
+	return c.Cache.SetItem(key, item, expiration, delete)
 }
 
 func appManagedResourcesKey(appName string) string {
@@ -67,11 +68,32 @@ func appResourcesTreeKey(appName string) string {
 	return fmt.Sprintf("app|resources-tree|%s", appName)
 }
 
+func clusterInfoKey(server string) string {
+	return fmt.Sprintf("cluster|info|%s", server)
+}
+
 func (c *Cache) GetAppResourcesTree(appName string, res *appv1.ApplicationTree) error {
 	err := c.GetItem(appResourcesTreeKey(appName), &res)
 	return err
 }
 
+func (c *Cache) OnAppResourcesTreeChanged(ctx context.Context, appName string, callback func() error) error {
+	return c.Cache.OnUpdated(ctx, appManagedResourcesKey(appName), callback)
+}
+
 func (c *Cache) SetAppResourcesTree(appName string, resourcesTree *appv1.ApplicationTree) error {
-	return c.SetItem(appResourcesTreeKey(appName), resourcesTree, c.appStateCacheExpiration, resourcesTree == nil)
+	err := c.SetItem(appResourcesTreeKey(appName), resourcesTree, c.appStateCacheExpiration, resourcesTree == nil)
+	if err != nil {
+		return err
+	}
+	return c.Cache.NotifyUpdated(appManagedResourcesKey(appName))
+}
+
+func (c *Cache) SetClusterInfo(server string, info *appv1.ClusterInfo) error {
+	return c.SetItem(clusterInfoKey(server), info, clusterInfoCacheExpiration, info == nil)
+}
+
+func (c *Cache) GetClusterInfo(server string, res *appv1.ClusterInfo) error {
+	err := c.GetItem(clusterInfoKey(server), &res)
+	return err
 }

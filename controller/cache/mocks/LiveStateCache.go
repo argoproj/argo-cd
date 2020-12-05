@@ -5,14 +5,17 @@ package mocks
 import (
 	context "context"
 
-	metrics "github.com/argoproj/argo-cd/controller/metrics"
-	kube "github.com/argoproj/argo-cd/util/kube"
+	cache "github.com/argoproj/gitops-engine/pkg/cache"
+
+	kube "github.com/argoproj/gitops-engine/pkg/utils/kube"
 
 	mock "github.com/stretchr/testify/mock"
 
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 
 	unstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	v1alpha1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )
@@ -22,16 +25,39 @@ type LiveStateCache struct {
 	mock.Mock
 }
 
+// GetClusterCache provides a mock function with given fields: server
+func (_m *LiveStateCache) GetClusterCache(server string) (cache.ClusterCache, error) {
+	ret := _m.Called(server)
+
+	var r0 cache.ClusterCache
+	if rf, ok := ret.Get(0).(func(string) cache.ClusterCache); ok {
+		r0 = rf(server)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(cache.ClusterCache)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(server)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetClustersInfo provides a mock function with given fields:
-func (_m *LiveStateCache) GetClustersInfo() []metrics.ClusterInfo {
+func (_m *LiveStateCache) GetClustersInfo() []cache.ClusterInfo {
 	ret := _m.Called()
 
-	var r0 []metrics.ClusterInfo
-	if rf, ok := ret.Get(0).(func() []metrics.ClusterInfo); ok {
+	var r0 []cache.ClusterInfo
+	if rf, ok := ret.Get(0).(func() []cache.ClusterInfo); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]metrics.ClusterInfo)
+			r0 = ret.Get(0).([]cache.ClusterInfo)
 		}
 	}
 
@@ -84,8 +110,8 @@ func (_m *LiveStateCache) GetNamespaceTopLevelResources(server string, namespace
 	return r0, r1
 }
 
-// GetServerVersion provides a mock function with given fields: serverURL
-func (_m *LiveStateCache) GetServerVersion(serverURL string) (string, error) {
+// GetVersionsInfo provides a mock function with given fields: serverURL
+func (_m *LiveStateCache) GetVersionsInfo(serverURL string) (string, []v1.APIGroup, error) {
 	ret := _m.Called(serverURL)
 
 	var r0 string
@@ -95,19 +121,37 @@ func (_m *LiveStateCache) GetServerVersion(serverURL string) (string, error) {
 		r0 = ret.Get(0).(string)
 	}
 
-	var r1 error
-	if rf, ok := ret.Get(1).(func(string) error); ok {
+	var r1 []v1.APIGroup
+	if rf, ok := ret.Get(1).(func(string) []v1.APIGroup); ok {
 		r1 = rf(serverURL)
 	} else {
-		r1 = ret.Error(1)
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).([]v1.APIGroup)
+		}
 	}
 
-	return r0, r1
+	var r2 error
+	if rf, ok := ret.Get(2).(func(string) error); ok {
+		r2 = rf(serverURL)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
 }
 
-// Invalidate provides a mock function with given fields:
-func (_m *LiveStateCache) Invalidate() {
-	_m.Called()
+// Init provides a mock function with given fields:
+func (_m *LiveStateCache) Init() error {
+	ret := _m.Called()
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func() error); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
 }
 
 // IsNamespaced provides a mock function with given fields: server, gk

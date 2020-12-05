@@ -1,0 +1,13 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "1: InstallSucceeded | True\n2: Ready | Unknown\n"
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Degraded
+    message: "1: InstallSucceeded | True\n2: Ready | randomstatus\n"
+  inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Healthy
+    message: "KnativeEventing is healthy."
+  inputPath: testdata/healthy.yaml

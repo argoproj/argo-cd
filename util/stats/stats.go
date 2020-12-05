@@ -1,82 +1,52 @@
 package stats
 
 import (
-	"os"
-	"os/signal"
-	"runtime"
-	"runtime/pprof"
-	"syscall"
 	"time"
-
-	log "github.com/sirupsen/logrus"
 )
 
-// StartStatsTicker starts a goroutine which dumps stats at a specified interval
-func StartStatsTicker(d time.Duration) {
-	ticker := time.NewTicker(d)
-	go func() {
-		for {
-			<-ticker.C
-			LogStats()
-		}
-	}()
+// mock out time.Now() for unit tests
+var now = time.Now
+
+// TimingStats is a helper to breakdown the timing of an expensive function call
+// Usage:
+// ts := NewTimingStats()
+// ts.AddCheckpoint("checkpoint-1")
+// ...
+// ts.AddCheckpoint("checkpoint-2")
+// ...
+// ts.AddCheckpoint("checkpoint-3")
+// ts.Timings()
+type TimingStats struct {
+	StartTime time.Time
+
+	checkpoints []tsCheckpoint
 }
 
-// RegisterStackDumper spawns a goroutine which dumps stack trace upon a SIGUSR1
-func RegisterStackDumper() {
-	go func() {
-		sigs := make(chan os.Signal, 1)
-		signal.Notify(sigs, syscall.SIGUSR1)
-		for {
-			<-sigs
-			LogStack()
-		}
-	}()
+type tsCheckpoint struct {
+	name string
+	time time.Time
 }
 
-// RegisterHeapDumper spawns a goroutine which dumps heap profile upon a SIGUSR2
-func RegisterHeapDumper(filePath string) {
-	go func() {
-		sigs := make(chan os.Signal, 1)
-		signal.Notify(sigs, syscall.SIGUSR2)
-		for {
-			<-sigs
-			runtime.GC()
-			if _, err := os.Stat(filePath); err == nil {
-				err = os.Remove(filePath)
-				if err != nil {
-					log.Warnf("could not delete heap profile file: %v", err)
-					return
-				}
-			}
-			f, err := os.Create(filePath)
-			if err != nil {
-				log.Warnf("could not create heap profile file: %v", err)
-				return
-			}
-
-			if err := pprof.WriteHeapProfile(f); err != nil {
-				log.Warnf("could not write heap profile: %v", err)
-				return
-			} else {
-				log.Infof("dumped heap profile to %s", filePath)
-			}
-		}
-	}()
+func NewTimingStats() *TimingStats {
+	return &TimingStats{
+		StartTime: now(),
+	}
 }
 
-// LogStats logs runtime statistics
-func LogStats() {
-	var m runtime.MemStats
-	runtime.ReadMemStats(&m)
-	log.Infof("Alloc=%v TotalAlloc=%v Sys=%v NumGC=%v Goroutines=%d",
-		m.Alloc/1024, m.TotalAlloc/1024, m.Sys/1024, m.NumGC, runtime.NumGoroutine())
-
+func (t *TimingStats) AddCheckpoint(name string) {
+	cp := tsCheckpoint{
+		name: name,
+		time: now(),
+	}
+	t.checkpoints = append(t.checkpoints, cp)
 }
 
-// LogStack will log the current stack
-func LogStack() {
-	buf := make([]byte, 1<<20)
-	stacklen := runtime.Stack(buf, true)
-	log.Infof("*** goroutine dump...\n%s\n*** end\n", buf[:stacklen])
+func (t *TimingStats) Timings() map[string]time.Duration {
+	timings := make(map[string]time.Duration)
+	prev := t.StartTime
+	for _, cp := range t.checkpoints {
+		timings[cp.name] = cp.time.Sub(prev)
+		prev = cp.time
+	}
+	return timings
 }
