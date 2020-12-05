@@ -73,8 +73,8 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         resourceView: 'manifest',
         orphanedResources: false,
         podView: {
-            sortMode: 'node',
-        },
+            sortMode: 'node'
+        }
     },
     appList: {
         view: 'tiles' as AppsListViewType,
@@ -84,9 +84,9 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         clustersFilter: new Array<string>(),
         reposFilter: new Array<string>(),
         syncFilter: new Array<string>(),
-        healthFilter: new Array<string>(),
+        healthFilter: new Array<string>()
     },
-    pageSizes: {},
+    pageSizes: {}
 };
 
 export class ViewPreferencesService {

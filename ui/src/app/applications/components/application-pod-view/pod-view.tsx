@@ -24,11 +24,11 @@ export class PodView extends React.Component<PodViewProps> {
         return this.context as AppContext;
     }
     public static contextTypes = {
-        apis: PropTypes.object,
+        apis: PropTypes.object
     };
     private menuItemsFor(modes: PodGroupType[], prefs: ViewPreferences): MenuItem[] {
         const podPrefs = prefs.appDetails.podView || ({} as PodViewPreferences);
-        return modes.map((mode) => ({
+        return modes.map(mode => ({
             title: (
                 <React.Fragment>
                     {podPrefs.sortMode === mode && <i className='fa fa-check' />} {labelForSortMode[mode]}{' '}
@@ -37,13 +37,13 @@ export class PodView extends React.Component<PodViewProps> {
             action: () => {
                 services.viewPreferences.updatePreferences({appDetails: {...prefs.appDetails, podView: {...podPrefs, sortMode: mode}}});
                 this.loader.reload();
-            },
+            }
         }));
     }
     public render() {
         return (
             <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                {(prefs) => {
+                {prefs => {
                     const podPrefs = prefs.appDetails.podView || ({} as PodViewPreferences);
                     return (
                         <React.Fragment>
@@ -62,21 +62,21 @@ export class PodView extends React.Component<PodViewProps> {
                                 </div>
                             </div>
                             <DataLoader
-                                ref={(loader) => (this.loader = loader)}
+                                ref={loader => (this.loader = loader)}
                                 load={async () => {
                                     return podPrefs.sortMode === 'node' ? services.applications.getNodes(this.props.app.metadata.name) : null;
                                 }}>
-                                {(nodes) => {
+                                {nodes => {
                                     return (
                                         <div className='nodes-container'>
-                                            {this.processTree(podPrefs.sortMode, nodes).map((group) => (
+                                            {this.processTree(podPrefs.sortMode, nodes).map(group => (
                                                 <div className='node white-box' key={group.name}>
                                                     <div className='node__container--header'>
                                                         <div style={{display: 'flex', alignItems: 'center'}}>
                                                             <ResourceIcon
                                                                 kind={group.kind || 'Unknown'}
                                                                 customStyle={{
-                                                                    marginRight: '10px',
+                                                                    marginRight: '10px'
                                                                 }}
                                                             />
                                                             <div style={{lineHeight: '15px', wordWrap: 'break-word'}}>
@@ -91,7 +91,7 @@ export class PodView extends React.Component<PodViewProps> {
                                                         </div>
                                                         {group.type === 'node' ? (
                                                             <div className='node__info--large'>
-                                                                {(group.info || []).map((item) => (
+                                                                {(group.info || []).map(item => (
                                                                     <div>
                                                                         {item.name}: <div>{item.value}</div>
                                                                     </div>
@@ -106,7 +106,7 @@ export class PodView extends React.Component<PodViewProps> {
                                                                         </Moment>
                                                                     </div>
                                                                 ) : null}
-                                                                {group.info.map((infoItem) => (
+                                                                {group.info.map(infoItem => (
                                                                     <div>{infoItem.value}</div>
                                                                 ))}
                                                             </div>
@@ -115,14 +115,14 @@ export class PodView extends React.Component<PodViewProps> {
                                                     <div className='node__container'>
                                                         {Object.keys((group as InfraNode).metrics || {}).length > 0 && (
                                                             <div className='node__container node__container--stats'>
-                                                                {Object.keys((group as InfraNode).metrics || {}).map((r) =>
+                                                                {Object.keys((group as InfraNode).metrics || {}).map(r =>
                                                                     Stat(r as ResourceName, (group as InfraNode).metrics[r as ResourceName])
                                                                 )}
                                                             </div>
                                                         )}
                                                         <div className='node__pod-container node__container'>
                                                             <div className='node__pod-container__pods'>
-                                                                {group.pods.map((pod) => (
+                                                                {group.pods.map(pod => (
                                                                     <DropDownMenu
                                                                         anchor={() => (
                                                                             <Tooltip
@@ -146,7 +146,7 @@ export class PodView extends React.Component<PodViewProps> {
                                                                                         <i className='fa fa-info-circle' /> Info
                                                                                     </React.Fragment>
                                                                                 ),
-                                                                                action: () => this.props.onPodClick(pod.fullName),
+                                                                                action: () => this.props.onPodClick(pod.fullName)
                                                                             },
                                                                             {
                                                                                 title: (
@@ -179,15 +179,16 @@ export class PodView extends React.Component<PodViewProps> {
                                                                                                 } catch (e) {
                                                                                                     this.appContext.apis.notifications.show({
                                                                                                         content: <ErrorNotification title='Unable to delete resource' e={e} />,
-                                                                                                        type: NotificationType.Error,
+                                                                                                        type: NotificationType.Error
                                                                                                     });
                                                                                                 }
-                                                                                            },
+                                                                                            }
                                                                                         }
                                                                                     );
-                                                                                },
-                                                                            },
-                                                                        ]}></DropDownMenu>
+                                                                                }
+                                                                            }
+                                                                        ]}
+                                                                    />
                                                                 ))}
                                                             </div>
                                                             <div className='node__label'>PODS</div>
@@ -215,7 +216,7 @@ export class PodView extends React.Component<PodViewProps> {
         const parentsFor: {[key: string]: PodGroup[]} = {};
 
         if (sortMode === 'node' && initNodes) {
-            initNodes.forEach((infraNode) => {
+            initNodes.forEach(infraNode => {
                 const nodeName = infraNode.metadata ? (infraNode.metadata.labels ? infraNode.metadata.labels['kubernetes.io/hostname'] : 'Unknown') : 'Unknown';
                 groupRefs[nodeName] = {
                     ...infraNode,
@@ -226,8 +227,8 @@ export class PodView extends React.Component<PodViewProps> {
                     info: [
                         {name: 'Kernel Version', value: infraNode.status.nodeInfo.kernelVersion},
                         {name: 'Operating System', value: infraNode.status.nodeInfo.operatingSystem},
-                        {name: 'Architecture', value: infraNode.status.nodeInfo.architecture},
-                    ],
+                        {name: 'Architecture', value: infraNode.status.nodeInfo.architecture}
+                    ]
                 };
             });
         }
@@ -239,9 +240,9 @@ export class PodView extends React.Component<PodViewProps> {
                     pods: [] as Pod[],
                     ...groupRefs[rnode.uid],
                     ...rnode,
-                    info: (rnode.info || []).filter((i) => !i.name.includes('Resource.')),
+                    info: (rnode.info || []).filter(i => !i.name.includes('Resource.')),
                     createdAt: rnode.createdAt,
-                    resourceStatus: {health: rnode.health, status: rnode.status},
+                    resourceStatus: {health: rnode.health, status: rnode.status}
                 };
             }
 
@@ -253,11 +254,11 @@ export class PodView extends React.Component<PodViewProps> {
                 metadata: {name: rnode.name},
                 spec: {nodeName: 'Unknown'},
                 status: {phase: PodPhase.PodUnknown},
-                health: rnode.health.status,
+                health: rnode.health.status
             } as Pod;
 
             // Get node name for Pod
-            rnode.info.forEach((i) => {
+            rnode.info.forEach(i => {
                 if (i.name === 'Node') {
                     p.spec.nodeName = i.value;
                 }
@@ -270,13 +271,13 @@ export class PodView extends React.Component<PodViewProps> {
                     curNode.pods.push(p);
                 }
             } else if (sortMode === 'parentResource') {
-                rnode.parentRefs.forEach((parentRef) => {
+                rnode.parentRefs.forEach(parentRef => {
                     if (!groupRefs[parentRef.uid]) {
                         groupRefs[parentRef.uid] = {
                             kind: parentRef.kind,
                             type: sortMode,
                             name: parentRef.name,
-                            pods: [p],
+                            pods: [p]
                         };
                     } else {
                         groupRefs[parentRef.uid].pods.push(p);
@@ -295,15 +296,15 @@ export class PodView extends React.Component<PodViewProps> {
 
         return Object.values(groupRefs)
             .sort((a, b) => (a.name > b.name ? 1 : a.name === b.name ? 0 : -1)) // sort by name
-            .filter((i) => (i.pods || []).length > 0); // filter out groups with no pods
+            .filter(i => (i.pods || []).length > 0); // filter out groups with no pods
     }
 }
 
 function InfoToResourceList(items: InfoItem[]): ResourceList {
     const resources = {} as ResourceList;
     items
-        .filter((item) => item.name.includes('Resource.'))
-        .forEach((item) => {
+        .filter(item => item.name.includes('Resource.'))
+        .forEach(item => {
             const name = item.name.replace(/Resource.|Limit|Req/gi, '').toLowerCase() as ResourceName;
             resources[name] = resources[name] || ({} as Metric);
             if (item.name.includes('Limit')) {
@@ -318,7 +319,7 @@ function InfoToResourceList(items: InfoItem[]): ResourceList {
 const labelForSortMode = {
     node: 'Node',
     parentResource: 'Parent Resource',
-    topLevelResource: 'Top Level Resource',
+    topLevelResource: 'Top Level Resource'
 };
 
 function mergeResourceLists(a: ResourceList, b: ResourceList): ResourceList {
@@ -326,7 +327,7 @@ function mergeResourceLists(a: ResourceList, b: ResourceList): ResourceList {
         return !a ? b : a;
     }
     const res = a;
-    (Object.keys(b) as ResourceName[]).forEach((key) => {
+    (Object.keys(b) as ResourceName[]).forEach(key => {
         res[key].limit += b[key].limit;
         res[key].request += b[key].request;
     });

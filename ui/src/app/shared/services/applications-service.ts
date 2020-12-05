@@ -22,9 +22,9 @@ export class ApplicationsService {
         return requests
             .get('/applications')
             .query({project: projects, ...optionsToSearch(options)})
-            .then((res) => res.body as models.ApplicationList)
-            .then((list) => {
-                list.items = (list.items || []).map((app) => this.parseAppFields(app));
+            .then(res => res.body as models.ApplicationList)
+            .then(list => {
+                list.items = (list.items || []).map(app => this.parseAppFields(app));
                 return list;
             });
     }
@@ -37,35 +37,35 @@ export class ApplicationsService {
         return requests
             .get(`/applications/${name}`)
             .query(query)
-            .then((res) => this.parseAppFields(res.body));
+            .then(res => this.parseAppFields(res.body));
     }
 
     public getApplicationSyncWindowState(name: string): Promise<models.ApplicationSyncWindowState> {
         return requests
             .get(`/applications/${name}/syncwindows`)
             .query({name})
-            .then((res) => res.body as models.ApplicationSyncWindowState);
+            .then(res => res.body as models.ApplicationSyncWindowState);
     }
 
     public revisionMetadata(name: string, revision: string): Promise<models.RevisionMetadata> {
-        return requests.get(`/applications/${name}/revisions/${revision || 'HEAD'}/metadata`).then((res) => res.body as models.RevisionMetadata);
+        return requests.get(`/applications/${name}/revisions/${revision || 'HEAD'}/metadata`).then(res => res.body as models.RevisionMetadata);
     }
 
     public resourceTree(name: string): Promise<models.ApplicationTree> {
-        return requests.get(`/applications/${name}/resource-tree`).then((res) => res.body as models.ApplicationTree);
+        return requests.get(`/applications/${name}/resource-tree`).then(res => res.body as models.ApplicationTree);
     }
 
     public watchResourceTree(name: string): Observable<models.ApplicationTree> {
-        return requests.loadEventSource(`/stream/applications/${name}/resource-tree`).map((data) => JSON.parse(data).result as models.ApplicationTree);
+        return requests.loadEventSource(`/stream/applications/${name}/resource-tree`).map(data => JSON.parse(data).result as models.ApplicationTree);
     }
 
     public managedResources(name: string, options: {id?: models.ResourceID; fields?: string[]} = {}): Promise<models.ResourceDiff[]> {
         return requests
             .get(`/applications/${name}/managed-resources`)
             .query({...options.id, fields: (options.fields || []).join(',')})
-            .then((res) => (res.body.items as any[]) || [])
-            .then((items) => {
-                items.forEach((item) => {
+            .then(res => (res.body.items as any[]) || [])
+            .then(items => {
+                items.forEach(item => {
                     if (item.liveState) {
                         item.liveState = JSON.parse(item.liveState);
                     }
@@ -84,7 +84,7 @@ export class ApplicationsService {
     }
 
     public getNodes(name: string): Promise<models.InfraNode[]> {
-        return requests.get(`/applications/${name}/nodes`).then((res) => {
+        return requests.get(`/applications/${name}/nodes`).then(res => {
             return (res.body.items as models.InfraNode[]) || [];
         });
     }
@@ -93,28 +93,28 @@ export class ApplicationsService {
         return requests
             .get(`/applications/${name}/manifests`)
             .query({name, revision})
-            .then((res) => res.body as models.ManifestResponse);
+            .then(res => res.body as models.ManifestResponse);
     }
 
     public updateSpec(appName: string, spec: models.ApplicationSpec): Promise<models.ApplicationSpec> {
         return requests
             .put(`/applications/${appName}/spec`)
             .send(spec)
-            .then((res) => res.body as models.ApplicationSpec);
+            .then(res => res.body as models.ApplicationSpec);
     }
 
     public update(app: models.Application): Promise<models.Application> {
         return requests
             .put(`/applications/${app.metadata.name}`)
             .send(app)
-            .then((res) => this.parseAppFields(res.body));
+            .then(res => this.parseAppFields(res.body));
     }
 
     public create(app: models.Application): Promise<models.Application> {
         return requests
             .post(`/applications`)
             .send(app)
-            .then((res) => this.parseAppFields(res.body));
+            .then(res => this.parseAppFields(res.body));
     }
 
     public delete(name: string, cascade: boolean): Promise<boolean> {
@@ -146,8 +146,8 @@ export class ApplicationsService {
             .loadEventSource(url)
             .repeat()
             .retry()
-            .map((data) => JSON.parse(data).result as models.ApplicationWatchEvent)
-            .map((watchEvent) => {
+            .map(data => JSON.parse(data).result as models.ApplicationWatchEvent)
+            .map(watchEvent => {
                 watchEvent.application = this.parseAppFields(watchEvent.application);
                 return watchEvent;
             });
@@ -170,10 +170,10 @@ export class ApplicationsService {
     public getContainerLogs(applicationName: string, namespace: string, podName: string, containerName: string): Observable<models.LogEntry> {
         const entries = requests
             .loadEventSource(`/applications/${applicationName}/pods/${podName}/logs?container=${containerName}&follow=true&namespace=${namespace}`)
-            .map((data) => JSON.parse(data).result as models.LogEntry);
-        return new Observable((observer) => {
+            .map(data => JSON.parse(data).result as models.LogEntry);
+        return new Observable(observer => {
             const subscription = entries.subscribe(
-                (entry) => {
+                entry => {
                     if (entry.last) {
                         observer.complete();
                         subscription.unsubscribe();
@@ -181,7 +181,7 @@ export class ApplicationsService {
                         observer.next(entry);
                     }
                 },
-                (err) => observer.error(err),
+                err => observer.error(err),
                 () => observer.complete()
             );
             return () => subscription.unsubscribe();
@@ -197,10 +197,10 @@ export class ApplicationsService {
                 resourceName: resource.name,
                 version: resource.version,
                 kind: resource.kind,
-                group: resource.group,
+                group: resource.group
             })
-            .then((res) => res.body as {manifest: string})
-            .then((res) => JSON.parse(res.manifest) as models.State);
+            .then(res => res.body as {manifest: string})
+            .then(res => JSON.parse(res.manifest) as models.State);
     }
 
     public getResourceActions(name: string, resource: models.ResourceNode): Promise<models.ResourceAction[]> {
@@ -211,9 +211,9 @@ export class ApplicationsService {
                 resourceName: resource.name,
                 version: resource.version,
                 kind: resource.kind,
-                group: resource.group,
+                group: resource.group
             })
-            .then((res) => (res.body.actions as models.ResourceAction[]) || []);
+            .then(res => (res.body.actions as models.ResourceAction[]) || []);
     }
 
     public runResourceAction(name: string, resource: models.ResourceNode, action: string): Promise<models.ResourceAction[]> {
@@ -224,10 +224,10 @@ export class ApplicationsService {
                 resourceName: resource.name,
                 version: resource.version,
                 kind: resource.kind,
-                group: resource.group,
+                group: resource.group
             })
             .send(JSON.stringify(action))
-            .then((res) => (res.body.actions as models.ResourceAction[]) || []);
+            .then(res => (res.body.actions as models.ResourceAction[]) || []);
     }
 
     public patchResource(name: string, resource: models.ResourceNode, patch: string, patchType: string): Promise<models.State> {
@@ -240,11 +240,11 @@ export class ApplicationsService {
                 version: resource.version,
                 kind: resource.kind,
                 group: resource.group,
-                patchType,
+                patchType
             })
             .send(JSON.stringify(patch))
-            .then((res) => res.body as {manifest: string})
-            .then((res) => JSON.parse(res.manifest) as models.State);
+            .then(res => res.body as {manifest: string})
+            .then(res => JSON.parse(res.manifest) as models.State);
     }
 
     public deleteResource(applicationName: string, resource: models.ResourceNode, force: boolean): Promise<any> {
@@ -257,7 +257,7 @@ export class ApplicationsService {
                 version: resource.version,
                 kind: resource.kind,
                 group: resource.group,
-                force,
+                force
             })
             .send()
             .then(() => true);
@@ -267,7 +267,7 @@ export class ApplicationsService {
         return requests
             .get(`/applications/${applicationName}/events`)
             .send()
-            .then((res) => (res.body as models.EventList).items || []);
+            .then(res => (res.body as models.EventList).items || []);
     }
 
     public resourceEvents(
@@ -283,10 +283,10 @@ export class ApplicationsService {
             .query({
                 resourceUID: resource.uid,
                 resourceNamespace: resource.namespace,
-                resourceName: resource.name,
+                resourceName: resource.name
             })
             .send()
-            .then((res) => (res.body as models.EventList).items || []);
+            .then(res => (res.body as models.EventList).items || []);
     }
 
     public terminateOperation(applicationName: string): Promise<boolean> {
@@ -302,12 +302,12 @@ export class ApplicationsService {
                 apiVersion: 'argoproj.io/v1alpha1',
                 kind: 'Application',
                 spec: {
-                    project: 'default',
+                    project: 'default'
                 },
                 status: {
                     resources: [],
-                    summary: {},
-                },
+                    summary: {}
+                }
             },
             data
         );
