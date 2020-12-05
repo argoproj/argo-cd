@@ -1133,11 +1133,11 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 }
 
 func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServerRevisionMetadataRequest) (*v1alpha1.RevisionMetadata, error) {
-	commitSHACorrected := correctRevisionSHA(q.Revision)
-	if !git.IsCommitSHA(commitSHACorrected) {
+	commitSHA := parseRevisionSHA(q.Revision)
+	if !git.IsCommitSHA(commitSHA) {
 		return nil, fmt.Errorf("revision %s must be resolved", q.Revision)
 	}
-	metadata, err := s.cache.GetRevisionMetadata(q.Repo.Repo, commitSHACorrected)
+	metadata, err := s.cache.GetRevisionMetadata(q.Repo.Repo, commitSHA)
 	if err == nil {
 		// The logic here is that if a signature check on metadata is requested,
 		// but there is none in the cache, we handle as if we have a cache miss
@@ -1155,13 +1155,13 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 		}
 	} else {
 		if err != reposervercache.ErrCacheMiss {
-			log.Warnf("revision metadata cache error %s/%s: %v", q.Repo.Repo, commitSHACorrected, err)
+			log.Warnf("revision metadata cache error %s/%s: %v", q.Repo.Repo, commitSHA, err)
 		} else {
-			log.Infof("revision metadata cache miss: %s/%s", q.Repo.Repo, commitSHACorrected)
+			log.Infof("revision metadata cache miss: %s/%s", q.Repo.Repo, commitSHA)
 		}
 	}
 
-	gitClient, _, err := s.newClientResolveRevision(q.Repo, commitSHACorrected)
+	gitClient, _, err := s.newClientResolveRevision(q.Repo, commitSHA)
 	if err != nil {
 		return nil, err
 	}
@@ -1170,7 +1170,7 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
 
 	closer, err := s.repoLock.Lock(gitClient.Root(), q.Revision, true, func() error {
-		return checkoutRevision(gitClient, commitSHACorrected)
+		return checkoutRevision(gitClient, commitSHA)
 	})
 
 	if err != nil {
@@ -1179,7 +1179,7 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 
 	defer io.Close(closer)
 
-	m, err := gitClient.RevisionMetadata(commitSHACorrected)
+	m, err := gitClient.RevisionMetadata(commitSHA)
 	if err != nil {
 		return nil, err
 	}
@@ -1187,7 +1187,7 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 	// Run gpg verify-commit on the revision
 	signatureInfo := ""
 	if gpg.IsGPGEnabled() && q.CheckSignature {
-		cs, err := gitClient.VerifyCommitSignature(commitSHACorrected)
+		cs, err := gitClient.VerifyCommitSignature(commitSHA)
 		if err != nil {
 			log.Debugf("Could not verify commit signature: %v", err)
 			return nil, err
@@ -1208,7 +1208,7 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 	// discard anything after the first new line and then truncate to 64 chars
 	message := text.Trunc(strings.SplitN(m.Message, "\n", 2)[0], 64)
 	metadata = &v1alpha1.RevisionMetadata{Author: m.Author, Date: metav1.Time{Time: m.Date}, Tags: m.Tags, Message: message, SignatureInfo: signatureInfo}
-	_ = s.cache.SetRevisionMetadata(q.Repo.Repo, commitSHACorrected, metadata)
+	_ = s.cache.SetRevisionMetadata(q.Repo.Repo, commitSHA, metadata)
 	return metadata, nil
 }
 
@@ -1277,7 +1277,7 @@ func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revisi
 // nolint:unparam
 func checkoutRevision(gitClient git.Client, revision string) error {
 	err := gitClient.Init()
-	commitSHACorrected := correctRevisionSHA(revision)
+	commitSHA := parseRevisionSHA(revision)
 	if err != nil {
 		return status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
 	}
@@ -1285,9 +1285,9 @@ func checkoutRevision(gitClient git.Client, revision string) error {
 	if err != nil {
 		return status.Errorf(codes.Internal, "Failed to fetch git repo: %v", err)
 	}
-	err = gitClient.Checkout(commitSHACorrected)
+	err = gitClient.Checkout(commitSHA)
 	if err != nil {
-		return status.Errorf(codes.Internal, "Failed to checkout %s: %v", commitSHACorrected, err)
+		return status.Errorf(codes.Internal, "Failed to checkout %s: %v", commitSHA, err)
 	}
 	return err
 }
@@ -1314,13 +1314,9 @@ func (s *Service) GetHelmCharts(ctx context.Context, q *apiclient.HelmChartsRequ
 // is concatenated with the revisionSHAs of the git submodules.
 // To ensure correct checkout and displaying in ui, we need to extract
 // the SHA of the root repository.
-func correctRevisionSHA(revision string) string {
+func parseRevisionSHA(revision string) string {
 	if !strings.Contains(revision, "-") {
 		return revision
 	}
-	revisions := strings.Split(revision, "-")
-	if len(revisions) > 0 {
-		return revisions[0]
-	}
-	return revision
+	return strings.Split(revision, "-")[0]
 }
