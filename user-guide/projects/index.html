@@ -1733,14 +1733,14 @@ argocd proj role get <span class="nv">$PROJ</span> <span class="nv">$ROLE</span>
 argocd app get <span class="nv">$APP</span> --auth-token <span class="nv">$JWT</span>
 <span class="c1"># Adding a policy to grant access to the application for the new role</span>
 argocd proj role add-policy <span class="nv">$PROJ</span> <span class="nv">$ROLE</span> --action get --permission allow --object <span class="nv">$APP</span>
-argocd app get <span class="nv">$PROJ</span>-<span class="nv">$ROLE</span> --auth-token <span class="nv">$JWT</span>
+argocd app get <span class="nv">$APP</span> --auth-token <span class="nv">$JWT</span>
 
 <span class="c1"># Removing the policy we added and adding one with a wildcard.</span>
-argocd proj role remove-policy <span class="nv">$PROJ</span> <span class="nv">$TOKEN</span> -a get -o <span class="nv">$PROJ</span>-<span class="nv">$TOKEN</span>
+argocd proj role remove-policy <span class="nv">$PROJ</span> <span class="nv">$ROLE</span> -a get -o <span class="nv">$APP</span>
 argocd proj role add-policy <span class="nv">$PROJ</span> <span class="nv">$ROLE</span> -a get --permission allow -o <span class="s1">&#39;*&#39;</span>
 <span class="c1"># The wildcard allows us to access the application due to the wildcard.</span>
-argocd app get <span class="nv">$PROJ</span>-<span class="nv">$TOKEN</span> --auth-token <span class="nv">$JWT</span>
-argocd proj role get <span class="nv">$PROJ</span>
+argocd app get <span class="nv">$APP</span> --auth-token <span class="nv">$JWT</span>
+argocd proj role get <span class="nv">$PROJ</span> <span class="nv">$ROLE</span>
 
 
 argocd proj role get <span class="nv">$PROJ</span> <span class="nv">$ROLE</span>
