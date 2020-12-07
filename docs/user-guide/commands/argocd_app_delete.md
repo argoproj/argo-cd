@@ -15,6 +15,7 @@ argocd app delete APPNAME [flags]
 ```
       --cascade   Perform a cascaded deletion of all application resources (default true)
   -h, --help      help for delete
+  -y, --yes       Turn off prompting to confirm cascaded deletion of application resources
 ```
 
 ### Options inherited from parent commands
