@@ -127,14 +127,14 @@ func (e Env) Environ() []string {
 }
 
 // does an operation similar to `envsubst` tool,
-// but unlike envsubst it does not change missing names into empty string
-// see https://linux.die.net/man/1/envsubst
 func (e Env) Envsubst(s string) string {
-	for _, v := range e {
-		s = strings.ReplaceAll(s, fmt.Sprintf("$%s", v.Name), v.Value)
-		s = strings.ReplaceAll(s, fmt.Sprintf("${%s}", v.Name), v.Value)
+	valByEnv := map[string]string{}
+	for _, item := range e {
+		valByEnv[item.Name] = item.Value
 	}
-	return s
+	return os.Expand(s, func(s string) string {
+		return valByEnv[s]
+	})
 }
 
 // ApplicationSource contains information about github repository, path within repository and target application environment.
