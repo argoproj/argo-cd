@@ -1019,11 +1019,11 @@ func TestEnv_Envsubst(t *testing.T) {
 	assert.Equal(t, "", env.Envsubst(""))
 	assert.Equal(t, "bar", env.Envsubst("$FOO"))
 	assert.Equal(t, "bar", env.Envsubst("${FOO}"))
-	assert.Equal(t, "${FOO", env.Envsubst("${FOO"))
-	assert.Equal(t, "$BAR", env.Envsubst("$BAR"))
-	assert.Equal(t, "${BAR}", env.Envsubst("${BAR}"))
+	assert.Equal(t, "FOO", env.Envsubst("${FOO"))
+	assert.Equal(t, "", env.Envsubst("$BAR"))
+	assert.Equal(t, "", env.Envsubst("${BAR}"))
 	assert.Equal(t,
-		"echo bar; echo $BAR; echo bar; echo ${BAR}; echo ${FOO",
+		"echo bar; echo ; echo bar; echo ; echo FOO",
 		env.Envsubst("echo $FOO; echo $BAR; echo ${FOO}; echo ${BAR}; echo ${FOO"),
 	)
 }

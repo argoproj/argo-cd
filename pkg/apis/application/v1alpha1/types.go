@@ -126,37 +126,15 @@ func (e Env) Environ() []string {
 	return environ
 }
 
-var (
-	envVarPattern = regexp.MustCompile(`\$\{([A-Za-z0-9_]+)\}|\$([A-Za-z0-9_]+)`)
-)
-
 // does an operation similar to `envsubst` tool,
-// but unlike envsubst it does not change missing names into empty string
-// see https://linux.die.net/man/1/envsubst
 func (e Env) Envsubst(s string) string {
 	valByEnv := map[string]string{}
 	for _, item := range e {
 		valByEnv[item.Name] = item.Value
 	}
-	matches := envVarPattern.FindAllStringSubmatchIndex(s, -1)
-	for i := len(matches) - 1; i >= 0; i-- {
-		submatches := matches[i]
-		// three pair of indexes: first is matched expression and two groups
-		// first pair of indexes is matched expression and second pair is captured group indexes within matched expression
-		if len(submatches) == 6 {
-			name := ""
-			// only one of groups matches - surrounded with {} or not
-			if submatches[2] > -1 {
-				name = s[submatches[2]:submatches[3]]
-			} else if submatches[4] > -1 {
-				name = s[submatches[4]:submatches[5]]
-			}
-			if val, ok := valByEnv[name]; ok {
-				s = s[:submatches[0]] + val + s[submatches[1]:]
-			}
-		}
-	}
-	return s
+	return os.Expand(s, func(s string) string {
+		return valByEnv[s]
+	})
 }
 
 // ApplicationSource contains information about github repository, path within repository and target application environment.
