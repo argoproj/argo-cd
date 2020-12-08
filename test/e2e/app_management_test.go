@@ -1473,6 +1473,7 @@ definitions:
 		When().Create().Sync().Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		When().
+		Refresh(RefreshTypeNormal).
 		Then().
 		// tests resource actions on a CRD using status subresource
 		And(func(app *Application) {
