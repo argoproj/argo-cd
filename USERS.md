@@ -107,3 +107,4 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Keptn](https://keptn.sh)
 1. [CROZ d.o.o.](https://croz.net/)
 1. [Spendesk](https://spendesk.com/)
+1. [Energisme](https://energisme.com/)
