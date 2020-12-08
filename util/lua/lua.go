@@ -95,7 +95,6 @@ func (vm VM) runLua(obj *unstructured.Unstructured, script string) (*lua.LState,
 	l.SetGlobal("obj", objectValue)
 	err := l.DoString(script)
 	return l, err
-
 }
 
 // ExecuteHealthLua runs the lua script to generate the health status of a resource
