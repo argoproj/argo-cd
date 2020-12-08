@@ -99,6 +99,17 @@ func (a *EnvEntry) IsZero() bool {
 	return a == nil || a.Name == "" && a.Value == ""
 }
 
+func NewEnvEntry(text string) (*EnvEntry, error) {
+	parts := strings.SplitN(text, "=", 2)
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("Expected env entry of the form: param=value. Received: %s", text)
+	}
+	return &EnvEntry{
+		Name:  parts[0],
+		Value: parts[1],
+	}, nil
+}
+
 type Env []*EnvEntry
 
 func (e Env) IsZero() bool {
@@ -116,14 +127,14 @@ func (e Env) Environ() []string {
 }
 
 // does an operation similar to `envsubst` tool,
-// but unlike envsubst it does not change missing names into empty string
-// see https://linux.die.net/man/1/envsubst
 func (e Env) Envsubst(s string) string {
-	for _, v := range e {
-		s = strings.ReplaceAll(s, fmt.Sprintf("$%s", v.Name), v.Value)
-		s = strings.ReplaceAll(s, fmt.Sprintf("${%s}", v.Name), v.Value)
+	valByEnv := map[string]string{}
+	for _, item := range e {
+		valByEnv[item.Name] = item.Value
 	}
-	return s
+	return os.Expand(s, func(s string) string {
+		return valByEnv[s]
+	})
 }
 
 // ApplicationSource contains information about github repository, path within repository and target application environment.
@@ -442,6 +453,20 @@ type ApplicationSourcePlugin struct {
 
 func (c *ApplicationSourcePlugin) IsZero() bool {
 	return c == nil || c.Name == "" && c.Env.IsZero()
+}
+
+func (c *ApplicationSourcePlugin) AddEnvEntry(e *EnvEntry) {
+	found := false
+	for i, ce := range c.Env {
+		if ce.Name == e.Name {
+			found = true
+			c.Env[i] = e
+			break
+		}
+	}
+	if !found {
+		c.Env = append(c.Env, e)
+	}
 }
 
 // ApplicationDestination contains deployment destination information
@@ -2398,6 +2423,17 @@ func (source *ApplicationSource) ExplicitType() (*ApplicationSourceType, error) 
 
 // Equals compares two instances of ApplicationDestination and return true if instances are equal.
 func (dest ApplicationDestination) Equals(other ApplicationDestination) bool {
+	// ignore destination cluster name and isServerInferred fields during comparison
+	// since server URL is inferred from cluster name
+	if dest.isServerInferred {
+		dest.Server = ""
+		dest.isServerInferred = false
+	}
+
+	if other.isServerInferred {
+		other.Server = ""
+		other.isServerInferred = false
+	}
 	return reflect.DeepEqual(dest, other)
 }
 
