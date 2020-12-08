@@ -1,5 +1,9 @@
-import {Checkbox, NotificationType} from 'argo-ui';
+import {Checkbox, DataLoader, FormField, MenuItem, NotificationType} from 'argo-ui';
 import * as React from 'react';
+import {Checkbox as ReactCheckbox, Text} from 'react-form';
+import {ResourceTreeNode} from './application-resource-tree/application-resource-tree';
+import {AppContext} from '../../shared/context';
+import * as classNames from 'classnames';
 import {Observable, Observer, Subscription} from 'rxjs';
 
 import {COLORS, ErrorNotification, Revision} from '../../shared/components';
@@ -13,6 +17,8 @@ export interface NodeId {
     name: string;
     group: string;
 }
+
+type ActionMenuItem = MenuItem & {disabled?: boolean};
 
 export function nodeKey(node: NodeId) {
     return [node.group, node.kind, node.namespace, node.name].join('/');
@@ -118,6 +124,119 @@ export const ComparisonStatusIcon = ({status, resource, label}: {status: appMode
         </React.Fragment>
     );
 };
+
+export function RenderResourceMenu(resource: ResourceTreeNode, application: appModels.Application, appContext: AppContext): React.ReactNode {
+    let menuItems: Observable<ActionMenuItem[]>;
+    if (isAppNode(resource) && resource.name === application.metadata.name) {
+        menuItems = Observable.from([this.getApplicationActionMenu(application)]);
+    } else {
+        const isRoot = resource.root && nodeKey(resource.root) === nodeKey(resource);
+        const items: MenuItem[] = [
+            ...((isRoot && [
+                {
+                    title: 'Sync',
+                    action: () => this.showDeploy(nodeKey(resource))
+                }
+            ]) ||
+                []),
+            {
+                title: 'Delete',
+                action: async () => {
+                    appContext.apis.popup.prompt(
+                        'Delete resource',
+                        api => (
+                            <div>
+                                <p>
+                                    Are your sure you want to delete {resource.kind} '{resource.name}'?
+                                </p>
+                                <div className='argo-form-row'>
+                                    <FormField
+                                        label={`Please type '${resource.name}' to confirm the deletion of the resource`}
+                                        formApi={api}
+                                        field='resourceName'
+                                        component={Text}
+                                    />
+                                </div>
+                                <div className='argo-form-row'>
+                                    <ReactCheckbox id='force-delete-checkbox' field='force' /> <label htmlFor='force-delete-checkbox'>Force delete</label>
+                                </div>
+                            </div>
+                        ),
+                        {
+                            validate: vals => ({
+                                resourceName: vals.resourceName !== resource.name && 'Enter the resource name to confirm the deletion'
+                            }),
+                            submit: async (vals, _, close) => {
+                                try {
+                                    await services.applications.deleteResource(this.props.match.params.name, resource, !!vals.force);
+                                    this.appChanged.next(await services.applications.get(this.props.match.params.name));
+                                    close();
+                                } catch (e) {
+                                    this.appContext.apis.notifications.show({
+                                        content: <ErrorNotification title='Unable to delete resource' e={e} />,
+                                        type: NotificationType.Error
+                                    });
+                                }
+                            }
+                        },
+                        {name: 'argo-icon-warning', color: 'warning'},
+                        'yellow'
+                    );
+                }
+            }
+        ];
+        const resourceActions = services.applications
+            .getResourceActions(application.metadata.name, resource)
+            .then(actions =>
+                items.concat(
+                    actions.map(action => ({
+                        title: action.name,
+                        disabled: !!action.disabled,
+                        action: async () => {
+                            try {
+                                const confirmed = await this.appContext.apis.popup.confirm(
+                                    `Execute '${action.name}' action?`,
+                                    `Are you sure you want to execute '${action.name}' action?`
+                                );
+                                if (confirmed) {
+                                    await services.applications.runResourceAction(application.metadata.name, resource, action.name);
+                                }
+                            } catch (e) {
+                                this.appContext.apis.notifications.show({
+                                    content: <ErrorNotification title='Unable to execute resource action' e={e} />,
+                                    type: NotificationType.Error
+                                });
+                            }
+                        }
+                    }))
+                )
+            )
+            .catch(() => items);
+        menuItems = Observable.merge(Observable.from([items]), Observable.fromPromise(resourceActions));
+    }
+    return (
+        <DataLoader load={() => menuItems}>
+            {items => (
+                <ul>
+                    {items.map((item, i) => (
+                        <li
+                            className={classNames('application-details__action-menu', {disabled: item.disabled})}
+                            key={i}
+                            onClick={e => {
+                                e.stopPropagation();
+                                if (!item.disabled) {
+                                    item.action();
+                                    document.body.click();
+                                }
+                            }}>
+                            {item.iconClassName && <i className={item.iconClassName} />} {item.title}
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </DataLoader>
+    );
+}
 
 export function syncStatusMessage(app: appModels.Application) {
     const rev = app.status.sync.revision || app.spec.source.targetRevision || 'HEAD';

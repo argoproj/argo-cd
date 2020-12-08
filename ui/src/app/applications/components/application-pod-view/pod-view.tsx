@@ -1,4 +1,4 @@
-import {DataLoader, DropDownMenu, MenuItem, NotificationType, Tooltip} from 'argo-ui';
+import {DataLoader, DropDown, DropDownMenu, MenuItem, NotificationType, Tooltip} from 'argo-ui';
 import * as React from 'react';
 import * as PropTypes from 'prop-types';
 import {Checkbox as ReactCheckbox} from 'react-form';
@@ -10,7 +10,7 @@ import {nodeKey, PodHealthIcon} from '../utils';
 import {AppContext} from '../../../shared/context';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
-import {HealthStatusIcon, ComparisonStatusIcon} from '../utils';
+import {ComparisonStatusIcon, HealthStatusIcon, RenderResourceMenu} from '../utils';
 import './pod-view.scss';
 import Moment from 'react-moment';
 
@@ -74,16 +74,11 @@ export class PodView extends React.Component<PodViewProps> {
                                                 <div className='node white-box' key={group.name}>
                                                     <div className='node__container--header'>
                                                         <div style={{display: 'flex', alignItems: 'center'}}>
-                                                            <div>
-                                                                <ResourceIcon
-                                                                    kind={group.kind || 'Unknown'}
-                                                                    customStyle={{
-                                                                        marginRight: '10px'
-                                                                    }}
-                                                                />
+                                                            <div style={{marginRight: '10px'}}>
+                                                                <ResourceIcon kind={group.kind || 'Unknown'} />
                                                                 <br />
+                                                                {<div style={{textAlign: 'center'}}>{ResourceLabel({kind: group.kind})}</div>}
                                                             </div>
-                                                            {<div className='application-resource-tree__node-kind'>{ResourceLabel({kind: group.kind})}</div>}
                                                             <div style={{lineHeight: '15px', wordWrap: 'break-word'}}>
                                                                 <b>{group.name || 'unknown'}</b>
                                                                 {group.resourceStatus && (
@@ -91,6 +86,19 @@ export class PodView extends React.Component<PodViewProps> {
                                                                         {group.resourceStatus.health && <HealthStatusIcon state={group.resourceStatus.health} />}
                                                                         {group.resourceStatus.status && <ComparisonStatusIcon status={group.resourceStatus.status} />}
                                                                     </div>
+                                                                )}
+                                                            </div>
+                                                            <div style={{marginLeft: 'auto'}}>
+                                                                {group.menu && (
+                                                                    <DropDown
+                                                                        isMenu={true}
+                                                                        anchor={() => (
+                                                                            <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
+                                                                                <i className='fa fa-ellipsis-v' />
+                                                                            </button>
+                                                                        )}>
+                                                                        {() => group.menu}
+                                                                    </DropDown>
                                                                 )}
                                                             </div>
                                                         </div>
@@ -247,7 +255,8 @@ export class PodView extends React.Component<PodViewProps> {
                     ...rnode,
                     info: (rnode.info || []).filter(i => !i.name.includes('Resource.')),
                     createdAt: rnode.createdAt,
-                    resourceStatus: {health: rnode.health, status: rnode.status}
+                    resourceStatus: {health: rnode.health, status: rnode.status},
+                    menu: RenderResourceMenu(rnode, this.props.app, this.appContext)
                 };
             }
 

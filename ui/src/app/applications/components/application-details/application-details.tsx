@@ -1,8 +1,7 @@
-import {Checkbox as ArgoCheckbox, DropDownMenu, FormField, MenuItem, NotificationType, SlidingPanel, Tab, Tabs, TopBarFilter} from 'argo-ui';
+import {Checkbox as ArgoCheckbox, DropDownMenu, NotificationType, SlidingPanel, Tab, Tabs, TopBarFilter} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
-import {Checkbox, Text} from 'react-form';
 import {RouteComponentProps} from 'react-router';
 import {BehaviorSubject, Observable} from 'rxjs';
 import {DataLoader, EmptyState, ErrorNotification, EventsList, ObservableQuery, Page, Paginate, YamlEditor} from '../../../shared/components';
@@ -25,14 +24,12 @@ import {ApplicationSummary} from '../application-summary/application-summary';
 import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-panel';
 import {PodsLogsViewer} from '../pod-logs-viewer/pod-logs-viewer';
 import * as AppUtils from '../utils';
-import {isSameNode, nodeKey} from '../utils';
+import {isSameNode, nodeKey, RenderResourceMenu} from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
 
 const jsonMergePatch = require('json-merge-patch');
 
 require('./application-details.scss');
-
-type ActionMenuItem = MenuItem & {disabled?: boolean};
 
 export class ApplicationDetails extends React.Component<RouteComponentProps<{name: string}>, {page: number}> {
     public static contextTypes = {
@@ -228,7 +225,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                     nodeFilter={node => this.filterTreeNode(node, treeFilter)}
                                                     selectedNodeFullName={this.selectedNodeKey}
                                                     onNodeClick={fullName => this.selectNode(fullName)}
-                                                    nodeMenu={node => this.renderResourceMenu(node, application)}
+                                                    nodeMenu={node => RenderResourceMenu(node, application, this.appContext)}
                                                     tree={tree}
                                                     app={application}
                                                     showOrphanedResources={pref.orphanedResources}
@@ -251,7 +248,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                                     <ApplicationResourceList
                                                                         onNodeClick={fullName => this.selectNode(fullName)}
                                                                         resources={data}
-                                                                        nodeMenu={node => this.renderResourceMenu({...node, root: node}, application)}
+                                                                        nodeMenu={node => RenderResourceMenu({...node, root: node}, application, this.appContext)}
                                                                     />
                                                                 )}
                                                             </Paginate>
@@ -635,119 +632,6 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
 
     private get appContext(): AppContext {
         return this.context as AppContext;
-    }
-
-    private renderResourceMenu(resource: ResourceTreeNode, application: appModels.Application): React.ReactNode {
-        let menuItems: Observable<ActionMenuItem[]>;
-        if (AppUtils.isAppNode(resource) && resource.name === application.metadata.name) {
-            menuItems = Observable.from([this.getApplicationActionMenu(application)]);
-        } else {
-            const isRoot = resource.root && AppUtils.nodeKey(resource.root) === AppUtils.nodeKey(resource);
-            const items: MenuItem[] = [
-                ...((isRoot && [
-                    {
-                        title: 'Sync',
-                        action: () => this.showDeploy(nodeKey(resource))
-                    }
-                ]) ||
-                    []),
-                {
-                    title: 'Delete',
-                    action: async () => {
-                        this.appContext.apis.popup.prompt(
-                            'Delete resource',
-                            api => (
-                                <div>
-                                    <p>
-                                        Are your sure you want to delete {resource.kind} '{resource.name}'?
-                                    </p>
-                                    <div className='argo-form-row'>
-                                        <FormField
-                                            label={`Please type '${resource.name}' to confirm the deletion of the resource`}
-                                            formApi={api}
-                                            field='resourceName'
-                                            component={Text}
-                                        />
-                                    </div>
-                                    <div className='argo-form-row'>
-                                        <Checkbox id='force-delete-checkbox' field='force' /> <label htmlFor='force-delete-checkbox'>Force delete</label>
-                                    </div>
-                                </div>
-                            ),
-                            {
-                                validate: vals => ({
-                                    resourceName: vals.resourceName !== resource.name && 'Enter the resource name to confirm the deletion'
-                                }),
-                                submit: async (vals, _, close) => {
-                                    try {
-                                        await services.applications.deleteResource(this.props.match.params.name, resource, !!vals.force);
-                                        this.appChanged.next(await services.applications.get(this.props.match.params.name));
-                                        close();
-                                    } catch (e) {
-                                        this.appContext.apis.notifications.show({
-                                            content: <ErrorNotification title='Unable to delete resource' e={e} />,
-                                            type: NotificationType.Error
-                                        });
-                                    }
-                                }
-                            },
-                            {name: 'argo-icon-warning', color: 'warning'},
-                            'yellow'
-                        );
-                    }
-                }
-            ];
-            const resourceActions = services.applications
-                .getResourceActions(application.metadata.name, resource)
-                .then(actions =>
-                    items.concat(
-                        actions.map(action => ({
-                            title: action.name,
-                            disabled: !!action.disabled,
-                            action: async () => {
-                                try {
-                                    const confirmed = await this.appContext.apis.popup.confirm(
-                                        `Execute '${action.name}' action?`,
-                                        `Are you sure you want to execute '${action.name}' action?`
-                                    );
-                                    if (confirmed) {
-                                        await services.applications.runResourceAction(application.metadata.name, resource, action.name);
-                                    }
-                                } catch (e) {
-                                    this.appContext.apis.notifications.show({
-                                        content: <ErrorNotification title='Unable to execute resource action' e={e} />,
-                                        type: NotificationType.Error
-                                    });
-                                }
-                            }
-                        }))
-                    )
-                )
-                .catch(() => items);
-            menuItems = Observable.merge(Observable.from([items]), Observable.fromPromise(resourceActions));
-        }
-        return (
-            <DataLoader load={() => menuItems}>
-                {items => (
-                    <ul>
-                        {items.map((item, i) => (
-                            <li
-                                className={classNames('application-details__action-menu', {disabled: item.disabled})}
-                                key={i}
-                                onClick={e => {
-                                    e.stopPropagation();
-                                    if (!item.disabled) {
-                                        item.action();
-                                        document.body.click();
-                                    }
-                                }}>
-                                {item.iconClassName && <i className={item.iconClassName} />} {item.title}
-                            </li>
-                        ))}
-                    </ul>
-                )}
-            </DataLoader>
-        );
     }
 
     private async deleteApplication() {
