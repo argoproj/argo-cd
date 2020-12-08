@@ -13,7 +13,7 @@ export const COLORS = {
     health: {
         degraded: ARGO_FAILED_COLOR,
         healthy: ARGO_SUCCESS_COLOR,
-        missing: 'black',
+        missing: ARGO_GRAY4_COLOR,
         progressing: ARGO_RUNNING_COLOR,
         suspended: ARGO_GRAY4_COLOR,
         unknown: ARGO_GRAY4_COLOR
