@@ -2,14 +2,14 @@
     line-height: 50px;
     background: linear-gradient(to bottom, #333, #444, #555, #666, #999);
     box-shadow: inset -2px 0 4px 0 rgba(0, 0, 0, 0.59);
-    transition: right .5s;
+    transition: right 0.5s;
     position: fixed;
     width: 100%;
     z-index: 12;
     align-items: center;
     opacity: 0.9;
     text-align: center;
-    color: #ffffff;
+    color: white;
     font-size: smaller;
     scroll-behavior: unset;
     bottom: 0;
@@ -31,7 +31,7 @@
         }
 
         &:hover {
-            background-color: #DEE6EB;
+            background-color: #dee6eb;
         }
     }
 
@@ -42,12 +42,14 @@
         margin: 10px;
         padding: 10px;
         justify-content: space-between;
-
+        column-gap: 5%;
     }
 
     &__items {
+        color: rgb(255, 255, 255);
+
         &:hover {
-            color: #DEE6EB;
+            color: #00A2B3;
         }
     }
 }

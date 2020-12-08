@@ -18,7 +18,6 @@ export class Banner extends React.Component {
             let nextBannerState = this.createHash(response.announcements.description + response.maintenance.description + response.newRelease.description);
             services.viewPreferences.getPreferences().subscribe(items => {
                 let currentBannerState = items.isBannerVisible;
-                console.log(currentBannerState, 'this', nextBannerState);
                 if (currentBannerState !== nextBannerState) {
                     services.viewPreferences.updatePreferences({
                         isBannerVisible: nextBannerState
@@ -52,18 +51,18 @@ export class Banner extends React.Component {
                                 </span>
                             </button>
                             <div className='ui_banner__text'>
-                                <div>
-                                    <a href={apiData.announcements['url']} className='ui_banner__items'>
+                                <div className='ui_banner__items'>
+                                    <a href={apiData.announcements['url']} target='_blank' className='ui_banner__items'>
                                         {apiData.announcements['description']}
                                     </a>{' '}
                                 </div>
                                 <div>
-                                    <a href={apiData.maintenance['url']} className='ui_banner__items'>
+                                    <a href={apiData.maintenance['url']} target='_blank' className='ui_banner__items'>
                                         {apiData.maintenance['description']}
                                     </a>{' '}
                                 </div>
                                 <div>
-                                    <a href={apiData.newRelease['url']} className='ui_banner__items'>
+                                    <a href={apiData.newRelease['url']} target='_blank' className='ui_banner__items'>
                                         {apiData.newRelease['description']}
                                     </a>{' '}
                                 </div>
