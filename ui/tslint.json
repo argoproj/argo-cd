@@ -11,7 +11,7 @@
         "jsx-no-multiline-js": false,
         "object-literal-sort-keys": false,
         "jsx-alignment": false,
-        "max-line-length": [true, 180],
+        "max-line-length": [true, 200],
         "jsx-no-lambda": false,
         "array-type": false,
         "max-classes-per-file": false
