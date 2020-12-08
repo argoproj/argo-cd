@@ -59,6 +59,9 @@ type Client interface {
 	CommitSHA() (string, error)
 	RevisionMetadata(revision string) (*RevisionMetadata, error)
 	VerifyCommitSignature(string) (string, error)
+	ValidateSubModule(module subModule) bool
+	ParseGitModulesFile(scanner *bufio.Scanner, set map[subModule]int)
+	GetSubmoduleSHAs(set map[subModule]int) []string
 }
 
 // nativeGitClient implements Client interface using git CLI
@@ -80,7 +83,6 @@ type subModule struct {
 	Branch string
 }
 
-// NEW
 type subModuleEntry struct {
 	val int
 	key subModule
@@ -413,9 +415,8 @@ func (m *nativeGitClient) LsRemote(revision string) (res string, err error) {
 	gitmodules, err := m.loadGitmodulesFile()
 	if err == nil {
 		scanner := bufio.NewScanner(gitmodules)
-		// TODO extract to method parseFile(scanner)
-		m.parseGitModulesFile(scanner, set)
-		submoduleRefs = m.getSubmoduleSHAs(set, submoduleRefs)
+		m.ParseGitModulesFile(scanner, set)
+		submoduleRefs = m.GetSubmoduleSHAs(set)
 	}
 	defer gitmodules.Close()
 
@@ -428,7 +429,7 @@ func (m *nativeGitClient) LsRemote(revision string) (res string, err error) {
 	return
 }
 
-func (m *nativeGitClient) parseGitModulesFile(scanner *bufio.Scanner, set map[subModule]int) {
+func (m *nativeGitClient) ParseGitModulesFile(scanner *bufio.Scanner, set map[subModule]int) {
 	var subModules []subModule
 	var count = 0
 	for scanner.Scan() {
@@ -438,12 +439,11 @@ func (m *nativeGitClient) parseGitModulesFile(scanner *bufio.Scanner, set map[su
 			log.Info("Get Infos for submodule: " + line)
 			// new submodule starts
 			if len(subModules) > 0 {
-				// TODO validateSubmodule()
-				// check if url is valid
-				// check if branch name is valid
-				set[subModules[0]] = count
+				if m.ValidateSubModule(subModules[0]) {
+					set[subModules[0]] = count
+					count++
+				}
 				subModules = nil
-				count++
 			}
 			module := subModule{
 				URL:    "",
@@ -459,9 +459,26 @@ func (m *nativeGitClient) parseGitModulesFile(scanner *bufio.Scanner, set map[su
 			subModules[0].Branch = m.extractSubmoduleBranch(line)
 		}
 	}
-	if len(subModules) > 0 {
+	if len(subModules) > 0 && m.ValidateSubModule(subModules[0]) {
 		set[subModules[0]] = count
 	}
+}
+
+func (m *nativeGitClient) ValidateSubModule(module subModule) bool {
+	err := TestRepo(module.URL, NopCreds{}, false, false)
+	if err != nil {
+		log.Warn("Submodule will be skipped, no valid URL: " + module.URL)
+		log.Warn(err)
+		return false
+	}
+
+	_, err = m.runCmd("check-ref-format", "--branch", module.Branch)
+	if err != nil {
+		log.Warn("Submodule will be skipped, no valid branch name: " + module.Branch)
+		log.Warn(err)
+		return false
+	}
+	return true
 }
 
 func (m *nativeGitClient) loadGitmodulesFile() (*os.File, error) {
@@ -480,8 +497,8 @@ func (m *nativeGitClient) extractSubmoduleBranch(line string) string {
 	return strings.TrimPrefix(line, branchPrefix)
 }
 
-func (m *nativeGitClient) getSubmoduleSHAs(set map[subModule]int, submoduleRefs []string) []string {
-	// NEW
+func (m *nativeGitClient) GetSubmoduleSHAs(set map[subModule]int) []string {
+	var submoduleRefs []string
 	var subModulesEntries subModuleEntries
 	for k, v := range set {
 		subModulesEntries = append(subModulesEntries, subModuleEntry{val: v, key: k})
@@ -490,15 +507,12 @@ func (m *nativeGitClient) getSubmoduleSHAs(set map[subModule]int, submoduleRefs 
 
 	for _, subModuleEntry := range subModulesEntries {
 		ref, err := m.lsRemote(subModuleEntry.key.Branch, subModuleEntry.key.URL)
-		if err != nil {
+		if err == nil {
 			submoduleRefs = append(submoduleRefs, ref)
+		} else {
+			log.Warn(err)
 		}
 	}
-
-	//for key := range set {
-	//	ref, _ := m.lsRemote(key.Branch, key.URL)
-	//	submoduleRefs = append(submoduleRefs, ref)
-	//}
 	return submoduleRefs
 }
 

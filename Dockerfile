@@ -4,7 +4,7 @@ ARG BASE_IMAGE=debian:10-slim
 # Initial stage which pulls prepares build dependencies and CLI tooling we need for our final image
 # Also used as the image in CI jobs so needs all dependencies
 ####################################################################################################
-FROM golang:1.14.1 as builder
+FROM golang:1.14.12 as builder
 
 RUN echo 'deb http://deb.debian.org/debian buster-backports main' >> /etc/apt/sources.list
 
@@ -20,10 +20,6 @@ RUN apt-get update && apt-get install -y \
     zip && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
-COPY AEBRootCAv2.crt /usr/local/share/ca-certificates/AEBRootCAv2.crt
-RUN update-ca-certificates
-ADD pip.conf /etc/pip.conf
 
 WORKDIR /tmp
 
@@ -47,9 +43,6 @@ USER root
 
 RUN echo 'deb http://deb.debian.org/debian buster-backports main' >> /etc/apt/sources.list
 
-COPY AEBRootCAv2.crt /usr/local/share/ca-certificates/AEBRootCAv2.crt
-ADD pip.conf /etc/pip.conf
-
 RUN groupadd -g 999 argocd && \
     useradd -r -u 999 -g argocd argocd && \
     mkdir -p /home/argocd && \
@@ -59,7 +52,7 @@ RUN groupadd -g 999 argocd && \
     apt-get update && \
     apt-get install -y git git-lfs python3-pip tini gpg && \
     apt-get clean && \
-    pip3 install --cert=/usr/local/share/ca-certificates/AEBRootCAv2.crt awscli==1.18.80 && \
+    pip3 install awscli==1.18.80 && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 COPY hack/git-ask-pass.sh /usr/local/bin/git-ask-pass.sh
@@ -99,11 +92,6 @@ FROM node:12.18.4 as argocd-ui
 WORKDIR /src
 ADD ["ui/package.json", "ui/yarn.lock", "./"]
 
-COPY AEBRootCAv2.crt /usr/local/share/ca-certificates/AEBRootCAv2.crt
-ENV NODE_EXTRA_CA_CERTS=/usr/local/share/ca-certificates/AEBRootCAv2.crt
-RUN update-ca-certificates
-RUN yarn config set cafile /usr/local/share/ca-certificates/AEBRootCAv2.crt
-RUN npm config set cafile /usr/local/share/ca-certificates/AEBRootCAv2.crt --global
 RUN yarn install
 
 ADD ["ui/", "."]
@@ -115,26 +103,20 @@ RUN NODE_ENV='production' yarn build
 ####################################################################################################
 # Argo CD Build stage which performs the actual build of Argo CD binaries
 ####################################################################################################
-FROM golang:1.14.1 as argocd-build
+FROM golang:1.14.12 as argocd-build
 
 COPY --from=builder /usr/local/bin/packr /usr/local/bin/packr
 
 WORKDIR /go/src/github.com/argoproj/argo-cd
 
-COPY AEBRootCAv2.crt /usr/local/share/ca-certificates/AEBRootCAv2.crt
-COPY AEBRootCAv2.crt /etc/ssl/certs/AEBRootCAv2.crt
-RUN update-ca-certificates
-
-
 COPY go.mod go.mod
 COPY go.sum go.sum
 
-RUN go mod download -x
+RUN go mod download
 
 # Perform the build
 COPY . .
 RUN make cli-local server controller repo-server argocd-util
-
 
 ARG BUILD_ALL_CLIS=true
 RUN if [ "$BUILD_ALL_CLIS" = "true" ] ; then \
@@ -142,15 +124,9 @@ RUN if [ "$BUILD_ALL_CLIS" = "true" ] ; then \
     make CLI_NAME=argocd-windows-amd64.exe GOOS=windows cli-local \
     ; fi
 
-RUN go get github.com/go-delve/delve/cmd/dlv
-
 ####################################################################################################
 # Final image
 ####################################################################################################
 FROM argocd-base
-
-EXPOSE 40000
-
-COPY --from=argocd-build /go/bin/dlv /usr/local/bin
 COPY --from=argocd-build /go/src/github.com/argoproj/argo-cd/dist/argocd* /usr/local/bin/
 COPY --from=argocd-ui ./src/dist/app /shared/app

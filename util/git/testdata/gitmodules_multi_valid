@@ -1,0 +1,12 @@
+[submodule "infrastructure/logging/k8spf-helm-chart"]
+	path = infrastructure/logging/k8spf-helm-chart
+	url = https://github.com/argoproj/argo-cd.git
+	branch = release-1.0
+[submodule "infrastructure/logging/k8spf-helm-chart"]
+	path = infrastructure/logging/k8spf-helm-chart
+	url = https://github.com/argoproj/argo-cd.git
+	branch = release-1.7
+[submodule "infrastructure/logging/k8spf-helm-chart"]
+	path = infrastructure/logging/k8spf-helm-chart
+	url = https://github.com/argoproj/argo-cd.git
+	branch = release-1.8

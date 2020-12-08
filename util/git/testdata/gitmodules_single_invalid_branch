@@ -1,0 +1,4 @@
+[submodule "infrastructure/logging/k8spf-helm-chart"]
+	path = infrastructure/logging/k8spf-helm-chart
+	url = https://github.com/argoproj/argo-cd.git
+	branch = master[

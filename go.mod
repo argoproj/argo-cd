@@ -59,6 +59,7 @@ require (
 	github.com/stretchr/testify v1.6.1
 	github.com/undefinedlabs/go-mpatch v1.0.6
 	github.com/vmihailenco/msgpack/v5 v5.1.0 // indirect
+	github.com/whilp/git-urls v1.0.0
 	github.com/yuin/gopher-lua v0.0.0-20190115140932-732aa6820ec4
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
 	golang.org/x/exp v0.0.0-20200821190819-94841d0725da // indirect

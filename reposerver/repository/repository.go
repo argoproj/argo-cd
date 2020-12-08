@@ -358,6 +358,7 @@ func (s *Service) runManifestGen(repoRoot, commitSHA, cacheKey string, ctxSrc op
 	}
 
 	manifestGenResult.Revision = commitSHA
+
 	manifestGenResult.VerifyResult = ctx.verificationResult
 
 	err = s.cache.SetManifests(cacheKey, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, &manifestGenCacheEntry)

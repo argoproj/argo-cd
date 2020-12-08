@@ -1,11 +1,13 @@
 package git
 
 import (
+	"bufio"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -396,4 +398,130 @@ func TestListRevisions(t *testing.T) {
 	assert.Contains(t, lsResult.Tags, testTag)
 	assert.NotContains(t, lsResult.Branches, testTag)
 	assert.NotContains(t, lsResult.Tags, testBranch)
+}
+
+func TestValidateSubmodule(t *testing.T) {
+	branchNames := map[string]bool{
+		"master":      true,
+		"master/test": true,
+		"master/.":    false,
+		"maste..r":    false,
+		"mast er":     false,
+		"mast^er":     false,
+		"mas:ter":     false,
+		"master?":     false,
+		"master*":     false,
+		"master[":     false,
+		"/master":     false,
+		"master/":     false,
+		"maste//r":    false,
+		"master..":    false,
+		"master@{":    false,
+		`master\`:     false,
+		"":            false,
+	}
+
+	urls := map[string]bool{
+		"https://github.com/argoproj/argo-cd.git": true,
+		"http://github.com/argoproj/argo-cd.git":  true,
+		"htts://github.com/argoproj/argo-cd.git":  false,
+		"https://github.org/argoproj/argo-cd.git": false,
+	}
+
+	dir, err := ioutil.TempDir("", "test-list-revisions")
+	if err != nil {
+		panic(err.Error())
+	}
+	defer os.RemoveAll(dir)
+
+	repoURL := "https://github.com/argoproj/argo-cd.git"
+	client, err := NewClientExt(repoURL, dir, NopCreds{}, false, false)
+	assert.NoError(t, err)
+	module := subModule{
+		URL:    repoURL,
+		Branch: "main",
+	}
+
+	for k, v := range branchNames {
+		module.Branch = k
+		isValid := client.ValidateSubModule(module)
+		assert.Equal(t, v, isValid)
+	}
+
+	module.Branch = "master"
+	for k, v := range urls {
+		module.URL = k
+		isValid := client.ValidateSubModule(module)
+		assert.Equal(t, v, isValid)
+	}
+}
+
+func TestParseGitModulesFile(t *testing.T) {
+	data := map[string]int{
+		"testdata/gitmodules_single_valid":          1,
+		"testdata/gitmodules_single_invalid_branch": 0,
+		"testdata/gitmodules_single_invalid_url":    0,
+		"testdata/gitmodules_multi_valid":           3,
+		"testdata/gitmodules_multi_one_invalid":     2,
+		"testdata/gitmodules_multi_two_invalid":     1,
+		"testdata/gitmodules_double_repo":           1,
+	}
+
+	dir, err := ioutil.TempDir("", "test-list-revisions")
+	if err != nil {
+		panic(err.Error())
+	}
+	defer os.RemoveAll(dir)
+	repoURL := "https://github.com/argoproj/argo-cd.git"
+	client, err := NewClientExt(repoURL, dir, NopCreds{}, false, false)
+
+	for k, v := range data {
+		set := make(map[subModule]int)
+		gitmodules, err := os.Open(k)
+		assert.NoError(t, err)
+		scanner := bufio.NewScanner(gitmodules)
+		client.ParseGitModulesFile(scanner, set)
+		assert.Equal(t, v, len(set))
+		defer gitmodules.Close()
+	}
+}
+
+func TestGetSubmoduleSHAs(t *testing.T) {
+	dir, err := ioutil.TempDir("", "test-list-revisions")
+	if err != nil {
+		panic(err.Error())
+	}
+	defer os.RemoveAll(dir)
+	repoURL := "https://github.com/argoproj/argo-cd.git"
+	client, err := NewClientExt(repoURL, dir, NopCreds{}, false, false)
+
+	set := make(map[subModule]int)
+	var rootModuleRef []string
+	var submoduleRefsA []string
+	var submoduleRefsB []string
+	rootmodule, err := os.Open("testdata/gitmodules_single_valid")
+	assert.NoError(t, err)
+	scanner := bufio.NewScanner(rootmodule)
+	client.ParseGitModulesFile(scanner, set)
+	rootModuleRef = client.GetSubmoduleSHAs(set)
+
+	gitmodules, err := os.Open("testdata/gitmodules_multi_valid")
+	assert.NoError(t, err)
+	scanner = bufio.NewScanner(gitmodules)
+	set = make(map[subModule]int)
+	client.ParseGitModulesFile(scanner, set)
+	submoduleRefsA = client.GetSubmoduleSHAs(set)
+	submoduleRefsB = client.GetSubmoduleSHAs(set)
+
+	assert.Equal(t, 1, len(rootModuleRef))
+	resA := rootModuleRef[0]
+	resA = strings.Join(append([]string{resA}, submoduleRefsA...), "-")
+
+	resB := rootModuleRef[0]
+	resB = strings.Join(append([]string{resB}, submoduleRefsB...), "-")
+
+	assert.Equal(t, resA, resB)
+
+	defer rootmodule.Close()
+	defer gitmodules.Close()
 }
