@@ -343,6 +343,7 @@ func NewClusterRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 				// errors.CheckError(err)
 				_, err := clusterIf.Delete(context.Background(), &clusterpkg.ClusterQuery{Server: clusterName})
 				errors.CheckError(err)
+				fmt.Printf("Cluster '%s' removed\n", clusterName)
 			}
 		},
 	}
