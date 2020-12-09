@@ -528,6 +528,39 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#sso-further-reading" title="SSO Further Reading" class="md-nav__link">
+    SSO Further Reading
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sensitive-data-and-sso-client-secrets" title="Sensitive Data and SSO Client Secrets" class="md-nav__link">
+    Sensitive Data and SSO Client Secrets
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example" title="Example" class="md-nav__link">
+    Example
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
       
       
       
@@ -1703,6 +1736,39 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#sso-further-reading" title="SSO Further Reading" class="md-nav__link">
+    SSO Further Reading
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sensitive-data-and-sso-client-secrets" title="Sensitive Data and SSO Client Secrets" class="md-nav__link">
+    Sensitive Data and SSO Client Secrets
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example" title="Example" class="md-nav__link">
+    Example
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
       
       
       
@@ -1903,10 +1969,6 @@ inputted into the Argo CD configmap.</p>
 <p>After saving, the changes should take affect automatically.</p>
 <p>NOTES:</p>
 <ul>
-<li>Any values which start with '$' will look to a key in argocd-secret of the same name (minus the $),
-  to obtain the actual value. This allows you to store the <code>clientSecret</code> as a kubernetes secret.
-  Kubernetes secrets must be base64 encoded. To base64 encode your secret, you can run
-  <code>printf RAW_STRING | base64</code>.</li>
 <li>There is no need to set <code>redirectURI</code> in the <code>connectors.config</code> as shown in the dex documentation.
   Argo CD will automatically use the correct <code>redirectURI</code> for any OAuth2 connectors, to match the
   correct external callback URL (e.g. <code>https://argocd.example.com/api/dex/callback</code>)</li>
@@ -1990,6 +2052,47 @@ any active session post logout, you can do so by specifying it as follows:</p>
 <p class="admonition-title">Note</p>
 </div>
 <p>The post logout redirect URI may need to be whitelisted against your OIDC provider's client settings for ArgoCD.</p>
+<h2 id="sso-further-reading">SSO Further Reading<a class="headerlink" href="#sso-further-reading" title="Permanent link">&para;</a></h2>
+<h3 id="sensitive-data-and-sso-client-secrets">Sensitive Data and SSO Client Secrets<a class="headerlink" href="#sensitive-data-and-sso-client-secrets" title="Permanent link">&para;</a></h3>
+<p>You can use the <code>argocd-secret</code> to store any sensitive data. ArgoCD knows to check the keys under <code>data</code> in the <code>argocd-secret</code> secret for a corresponding key whenever a value in a configmap starts with <code>$</code>. This can be used to store things such as your <code>clientSecret</code>. </p>
+<p>Data should be base64 encoded before it is added to <code>argocd-secret</code>. You can do so by running <code>printf RAW_SECRET_STRING | base64</code>.</p>
+<h4 id="example">Example<a class="headerlink" href="#example" title="Permanent link">&para;</a></h4>
+<p><code>argocd-secret</code>:</p>
+<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Secret</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-secret</span>
+  <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
+  <span class="nt">labels</span><span class="p">:</span>
+    <span class="nt">app.kubernetes.io/name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-secret</span>
+    <span class="nt">app.kubernetes.io/part-of</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
+<span class="nt">type</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Opaque</span>
+<span class="nt">data</span><span class="p">:</span>
+  <span class="l l-Scalar l-Scalar-Plain">...</span>
+  <span class="l l-Scalar l-Scalar-Plain"># Store client secret like below.</span>
+  <span class="l l-Scalar l-Scalar-Plain"># Ensure the secret is base64 encoded</span>
+  <span class="l l-Scalar l-Scalar-Plain">oidc.auth0.clientSecret</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">&lt;client-secret-base64-encoded&gt;</span>
+  <span class="l l-Scalar l-Scalar-Plain">...</span>
+</code></pre></div>
+
+<p><code>argocd-cm</code>:</p>
+<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
+  <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
+  <span class="nt">labels</span><span class="p">:</span>
+    <span class="nt">app.kubernetes.io/name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
+    <span class="nt">app.kubernetes.io/part-of</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
+<span class="nt">data</span><span class="p">:</span>
+  <span class="l l-Scalar l-Scalar-Plain">...</span>
+  <span class="l l-Scalar l-Scalar-Plain">oidc.config</span><span class="p p-Indicator">:</span> <span class="p p-Indicator">|</span>
+    <span class="no">name: Auth0</span>
+    <span class="no">clientID: aabbccddeeff00112233</span>
+    <span class="no"># Reference key in argocd-secret</span>
+    <span class="no">clientSecret: $oidc.auth0.clientSecret</span>
+  <span class="l l-Scalar l-Scalar-Plain">...</span>
+</code></pre></div>
                 
                   
                 
