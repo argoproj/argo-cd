@@ -88,9 +88,6 @@ func (vm VM) runLua(obj *unstructured.Unstructured, script string) (*lua.LState,
 	// preload our 'safe' version of the os library. Allows the 'local os = require("os")' to work
 	l.PreloadModule(lua.OsLibName, SafeOsLoader)
 
-	// preload json library to parse json in lua
-	luajson.Preload(l)
-
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 	l.SetContext(ctx)
