@@ -192,10 +192,6 @@ After saving, the changes should take affect automatically.
 
 NOTES:
 
-* Any values which start with '$' will look to a key in argocd-secret of the same name (minus the $),
-  to obtain the actual value. This allows you to store the `clientSecret` as a kubernetes secret.
-  Kubernetes secrets must be base64 encoded. To base64 encode your secret, you can run
-  `printf RAW_STRING | base64`.
 * There is no need to set `redirectURI` in the `connectors.config` as shown in the dex documentation.
   Argo CD will automatically use the correct `redirectURI` for any OAuth2 connectors, to match the
   correct external callback URL (e.g. `https://argocd.example.com/api/dex/callback`)
@@ -289,3 +285,54 @@ You are not required to specify a logoutRedirectURL as this is automatically gen
 
 !!! note
    The post logout redirect URI may need to be whitelisted against your OIDC provider's client settings for ArgoCD.
+
+
+
+## SSO Further Reading
+
+### Sensitive Data and SSO Client Secrets
+
+You can use the `argocd-secret` to store any sensitive data. ArgoCD knows to check the keys under `data` in the `argocd-secret` secret for a corresponding key whenever a value in a configmap starts with `$`. This can be used to store things such as your `clientSecret`. 
+
+Data should be base64 encoded before it is added to `argocd-secret`. You can do so by running `printf RAW_SECRET_STRING | base64`.
+
+#### Example
+
+`argocd-secret`:
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-secret
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-secret
+    app.kubernetes.io/part-of: argocd
+type: Opaque
+data:
+  ...
+  # Store client secret like below.
+  # Ensure the secret is base64 encoded
+  oidc.auth0.clientSecret: <client-secret-base64-encoded>
+  ...
+```
+
+`argocd-cm`:
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  ...
+  oidc.config: |
+    name: Auth0
+    clientID: aabbccddeeff00112233
+    # Reference key in argocd-secret
+    clientSecret: $oidc.auth0.clientSecret
+  ...
+```
