@@ -192,7 +192,6 @@ After saving, the changes should take affect automatically.
 
 NOTES:
 
-  `printf RAW_STRING | base64`.
 * There is no need to set `redirectURI` in the `connectors.config` as shown in the dex documentation.
   Argo CD will automatically use the correct `redirectURI` for any OAuth2 connectors, to match the
   correct external callback URL (e.g. `https://argocd.example.com/api/dex/callback`)
