@@ -57,6 +57,8 @@ const (
 	cachedManifestGenerationPrefix = "Manifest generation error (cached)"
 	helmDepUpMarkerFile            = ".argocd-helm-dep-up"
 	allowConcurrencyFile           = ".argocd-allow-concurrency"
+	repoSourceFile                 = ".argocd-source.yaml"
+	appSourceFile                  = ".argocd-source-%s.yaml"
 )
 
 // Service implements ManifestService interface
@@ -628,7 +630,7 @@ func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.Manifest
 	var targetObjs []*unstructured.Unstructured
 	var dest *v1alpha1.ApplicationDestination
 
-	appSourceType, err := GetAppSourceType(q.ApplicationSource, appPath)
+	appSourceType, err := GetAppSourceType(q.ApplicationSource, appPath, q.AppName)
 	if err != nil {
 		return nil, err
 	}
@@ -721,51 +723,66 @@ func newEnv(q *apiclient.ManifestRequest, revision string) *v1alpha1.Env {
 	}
 }
 
-func mergeSourceParameters(source *v1alpha1.ApplicationSource, path string) error {
-	appFilePath := filepath.Join(path, ".argocd-source.yaml")
-	info, err := os.Stat(appFilePath)
-	if os.IsNotExist(err) {
-		return nil
-	} else if info != nil && info.IsDir() {
-		return nil
-	} else if err != nil {
-		return err
-	}
-	patch, err := json.Marshal(source)
-	if err != nil {
-		return err
+// mergeSourceParameters merges parameter overrides from one or more files in
+// the Git repo into the given ApplicationSource objects.
+//
+// If .argocd-source.yaml exists at application's path in repository, it will
+// be read and merged. If appName is not the empty string, and a file named
+// .argocd-source-<appName>.yaml exists, it will also be read and merged.
+func mergeSourceParameters(source *v1alpha1.ApplicationSource, path, appName string) error {
+	repoFilePath := filepath.Join(path, repoSourceFile)
+	overrides := []string{repoFilePath}
+	if appName != "" {
+		overrides = append(overrides, filepath.Join(path, fmt.Sprintf(appSourceFile, appName)))
 	}
 
-	data, err := ioutil.ReadFile(appFilePath)
-	if err != nil {
-		return err
+	var merged v1alpha1.ApplicationSource = *source.DeepCopy()
+
+	for _, filename := range overrides {
+		info, err := os.Stat(filename)
+		if os.IsNotExist(err) {
+			continue
+		} else if info != nil && info.IsDir() {
+			continue
+		} else if err != nil {
+			return err
+		}
+
+		data, err := json.Marshal(merged)
+		if err != nil {
+			return err
+		}
+		patch, err := ioutil.ReadFile(filename)
+		if err != nil {
+			return err
+		}
+		patch, err = yaml.YAMLToJSON(patch)
+		if err != nil {
+			return err
+		}
+		data, err = jsonpatch.MergePatch(data, patch)
+		if err != nil {
+			return err
+		}
+		err = json.Unmarshal(data, &merged)
+		if err != nil {
+			return err
+		}
+
+		// make sure only config management tools related properties are used and ignore everything else
+		merged.Chart = source.Chart
+		merged.Path = source.Path
+		merged.RepoURL = source.RepoURL
+		merged.TargetRevision = source.TargetRevision
 	}
-	data, err = yaml.YAMLToJSON(data)
-	if err != nil {
-		return err
-	}
-	data, err = jsonpatch.MergePatch(data, patch)
-	if err != nil {
-		return err
-	}
-	var merged v1alpha1.ApplicationSource
-	err = json.Unmarshal(data, &merged)
-	if err != nil {
-		return err
-	}
-	// make sure only config management tools related properties are used and ignore everything else
-	merged.Chart = source.Chart
-	merged.Path = source.Path
-	merged.RepoURL = source.RepoURL
-	merged.TargetRevision = source.TargetRevision
 
 	*source = merged
 	return nil
 }
 
 // GetAppSourceType returns explicit application source type or examines a directory and determines its application source type
-func GetAppSourceType(source *v1alpha1.ApplicationSource, path string) (v1alpha1.ApplicationSourceType, error) {
-	err := mergeSourceParameters(source, path)
+func GetAppSourceType(source *v1alpha1.ApplicationSource, path, appName string) (v1alpha1.ApplicationSourceType, error) {
+	err := mergeSourceParameters(source, path, appName)
 	if err != nil {
 		return "", fmt.Errorf("error while parsing .argocd-source.yaml: %v", err)
 	}
@@ -1049,7 +1066,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 		appPath := ctx.appPath
 
 		res := &apiclient.RepoAppDetailsResponse{}
-		appSourceType, err := GetAppSourceType(q.Source, appPath)
+		appSourceType, err := GetAppSourceType(q.Source, appPath, q.AppName)
 		if err != nil {
 			return nil, err
 		}

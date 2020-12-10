@@ -17,6 +17,7 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -829,15 +830,15 @@ func TestGenerateNullList(t *testing.T) {
 }
 
 func TestIdentifyAppSourceTypeByAppDirWithKustomizations(t *testing.T) {
-	sourceType, err := GetAppSourceType(&argoappv1.ApplicationSource{}, "./testdata/kustomization_yaml")
+	sourceType, err := GetAppSourceType(&argoappv1.ApplicationSource{}, "./testdata/kustomization_yaml", "testapp")
 	assert.Nil(t, err)
 	assert.Equal(t, argoappv1.ApplicationSourceTypeKustomize, sourceType)
 
-	sourceType, err = GetAppSourceType(&argoappv1.ApplicationSource{}, "./testdata/kustomization_yml")
+	sourceType, err = GetAppSourceType(&argoappv1.ApplicationSource{}, "./testdata/kustomization_yml", "testapp")
 	assert.Nil(t, err)
 	assert.Equal(t, argoappv1.ApplicationSourceTypeKustomize, sourceType)
 
-	sourceType, err = GetAppSourceType(&argoappv1.ApplicationSource{}, "./testdata/Kustomization")
+	sourceType, err = GetAppSourceType(&argoappv1.ApplicationSource{}, "./testdata/Kustomization", "testapp")
 	assert.Nil(t, err)
 	assert.Equal(t, argoappv1.ApplicationSourceTypeKustomize, sourceType)
 }
@@ -1102,17 +1103,65 @@ func TestService_newHelmClientResolveRevision(t *testing.T) {
 }
 
 func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
-	service := newService(".")
-	details, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
-		Repo: &argoappv1.Repository{},
-		Source: &argoappv1.ApplicationSource{
-			Path: "./testdata/app-parameters",
-		},
+	t.Run("No app name set", func(t *testing.T) {
+		service := newService(".")
+		details, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
+			Repo: &argoappv1.Repository{},
+			Source: &argoappv1.ApplicationSource{
+				Path: "./testdata/app-parameters",
+			},
+		})
+		require.NoError(t, err)
+		assert.EqualValues(t, []string{"gcr.io/heptio-images/ks-guestbook-demo:0.2"}, details.Kustomize.Images)
 	})
-	if !assert.NoError(t, err) {
-		return
-	}
-	assert.EqualValues(t, []string{"gcr.io/heptio-images/ks-guestbook-demo:0.2"}, details.Kustomize.Images)
+	t.Run("No app specific override", func(t *testing.T) {
+		service := newService(".")
+		details, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
+			Repo: &argoappv1.Repository{},
+			Source: &argoappv1.ApplicationSource{
+				Path: "./testdata/app-parameters",
+			},
+			AppName: "testapp2",
+		})
+		require.NoError(t, err)
+		assert.EqualValues(t, []string{"gcr.io/heptio-images/ks-guestbook-demo:0.2"}, details.Kustomize.Images)
+	})
+	t.Run("App specific override", func(t *testing.T) {
+		service := newService(".")
+		details, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
+			Repo: &argoappv1.Repository{},
+			Source: &argoappv1.ApplicationSource{
+				Path: "./testdata/app-parameters",
+			},
+			AppName: "testapp",
+		})
+		require.NoError(t, err)
+		assert.EqualValues(t, []string{"gcr.io/heptio-images/ks-guestbook-demo:0.3"}, details.Kustomize.Images)
+	})
+	t.Run("App specific overrides containing non-mergeable field", func(t *testing.T) {
+		service := newService(".")
+		details, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
+			Repo: &argoappv1.Repository{},
+			Source: &argoappv1.ApplicationSource{
+				Path: "./testdata/app-parameters",
+			},
+			AppName: "unmergeable",
+		})
+		require.NoError(t, err)
+		assert.EqualValues(t, []string{"gcr.io/heptio-images/ks-guestbook-demo:0.3"}, details.Kustomize.Images)
+	})
+	t.Run("Broken app-specific overrides", func(t *testing.T) {
+		service := newService(".")
+		details, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
+			Repo: &argoappv1.Repository{},
+			Source: &argoappv1.ApplicationSource{
+				Path: "./testdata/app-parameters",
+			},
+			AppName: "broken",
+		})
+		assert.Error(t, err)
+		assert.Nil(t, details)
+	})
 }
 
 func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
