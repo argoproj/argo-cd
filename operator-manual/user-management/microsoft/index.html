@@ -1641,7 +1641,7 @@
 </ol>
 <h3 id="configure-argo-to-use-the-new-azure-ad-enterprise-app">Configure Argo to use the new Azure AD Enterprise App<a class="headerlink" href="#configure-argo-to-use-the-new-azure-ad-enterprise-app" title="Permanent link">&para;</a></h3>
 <ol>
-<li>Edit <code>argo-cm</code> and add the following <code>dex.config</code> to the data section, replacing the <code>caData</code>, <code>my-argo-cd-url</code> and <code>my-login-url</code> your values from the Azure AD App:</li>
+<li>Edit <code>argocd-cm</code> and add the following <code>dex.config</code> to the data section, replacing the <code>caData</code>, <code>my-argo-cd-url</code> and <code>my-login-url</code> your values from the Azure AD App:</li>
 </ol>
 <div class="codehilite"><pre><span></span><code><span class="n">data</span><span class="o">:</span>
   <span class="n">url</span><span class="o">:</span> <span class="n">https</span><span class="o">://</span><span class="n">my</span><span class="o">-</span><span class="n">argo</span><span class="o">-</span><span class="n">cd</span><span class="o">-</span><span class="n">url</span>
@@ -1666,7 +1666,7 @@
 
 <ol>
 <li>
-<p>Edit <code>argo-rbac-cm</code> to configure permissions, similar to example below.</p>
+<p>Edit <code>argocd-rbac-cm</code> to configure permissions, similar to example below.</p>
 </li>
 <li>
 <p>Use Azure AD <code>Group IDs</code> for assigning roles.</p>
