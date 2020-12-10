@@ -128,5 +128,5 @@ func (db *db) unmarshalFromSecretsStr(secrets map[*SecretMaperValidation]*v1.Sec
 
 // StripCRLFCharacter strips the trailing CRLF characters
 func StripCRLFCharacter(input string) string {
-	return strings.TrimRight(input, "\n\r")
+	return strings.TrimSpace(input)
 }

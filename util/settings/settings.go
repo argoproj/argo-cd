@@ -888,19 +888,19 @@ func updateSettingsFromSecret(settings *ArgoCDSettings, argoCDSecret *apiv1.Secr
 		errs = append(errs, &incompleteSettingsError{message: "server.secretkey is missing"})
 	}
 	if githubWebhookSecret := argoCDSecret.Data[settingsWebhookGitHubSecretKey]; len(githubWebhookSecret) > 0 {
-		settings.WebhookGitHubSecret = strings.TrimRight(string(githubWebhookSecret), "\n\r")
+		settings.WebhookGitHubSecret = strings.TrimSpace(string(githubWebhookSecret))
 	}
 	if gitlabWebhookSecret := argoCDSecret.Data[settingsWebhookGitLabSecretKey]; len(gitlabWebhookSecret) > 0 {
-		settings.WebhookGitLabSecret = strings.TrimRight(string(gitlabWebhookSecret), "\n\r")
+		settings.WebhookGitLabSecret = strings.TrimSpace(string(gitlabWebhookSecret))
 	}
 	if bitbucketWebhookUUID := argoCDSecret.Data[settingsWebhookBitbucketUUIDKey]; len(bitbucketWebhookUUID) > 0 {
-		settings.WebhookBitbucketUUID = strings.TrimRight(string(bitbucketWebhookUUID), "\n\r")
+		settings.WebhookBitbucketUUID = strings.TrimSpace(string(bitbucketWebhookUUID))
 	}
 	if bitbucketserverWebhookSecret := argoCDSecret.Data[settingsWebhookBitbucketServerSecretKey]; len(bitbucketserverWebhookSecret) > 0 {
-		settings.WebhookBitbucketServerSecret = strings.TrimRight(string(bitbucketserverWebhookSecret), "\n\r")
+		settings.WebhookBitbucketServerSecret = strings.TrimSpace(string(bitbucketserverWebhookSecret))
 	}
 	if gogsWebhookSecret := argoCDSecret.Data[settingsWebhookGogsSecretKey]; len(gogsWebhookSecret) > 0 {
-		settings.WebhookGogsSecret = strings.TrimRight(string(gogsWebhookSecret), "\n\r")
+		settings.WebhookGogsSecret = strings.TrimSpace(string(gogsWebhookSecret))
 	}
 
 	serverCert, certOk := argoCDSecret.Data[settingServerCertificate]
@@ -1335,7 +1335,7 @@ func ReplaceStringSecret(val string, secretValues map[string]string) string {
 		return val
 	}
 	if !strings.HasPrefix(val, "$") {
-		return strings.TrimRight(val, "\n\r")
+		return strings.TrimSpace(val)
 	}
 	secretKey := val[1:]
 	secretVal, ok := secretValues[secretKey]
@@ -1343,7 +1343,7 @@ func ReplaceStringSecret(val string, secretValues map[string]string) string {
 		log.Warnf("config referenced '%s', but key does not exist in secret", val)
 		return val
 	}
-	return strings.TrimRight(secretVal, "\n\r")
+	return strings.TrimSpace(secretVal)
 }
 
 // GetGlobalProjectsSettings loads the global project settings from argocd-cm ConfigMap
