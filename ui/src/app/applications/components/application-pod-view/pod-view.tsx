@@ -2,7 +2,7 @@ import {DataLoader, DropDown, DropDownMenu, MenuItem, NotificationType, Tooltip}
 import * as React from 'react';
 import * as PropTypes from 'prop-types';
 import {Checkbox as ReactCheckbox} from 'react-form';
-import {Application, ApplicationTree, InfoItem, Metric, InfraNode, Pod, PodGroup, PodGroupType, PodPhase, ResourceList, ResourceName} from '../../../shared/models';
+import {Application, ApplicationTree, InfoItem, Metric, InfraNode, Pod, PodGroup, PodGroupType, ResourceList, ResourceName} from '../../../shared/models';
 import {PodViewPreferences, services, ViewPreferences} from '../../../shared/services';
 import {ErrorNotification} from '../../../shared/components';
 import {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
@@ -144,7 +144,6 @@ export class PodView extends React.Component<PodViewProps> {
                                                                                 content={
                                                                                     <div>
                                                                                         {pod.metadata.name}
-                                                                                        <div>Phase: {pod.status.phase}</div>
                                                                                         <div>Health: {pod.health}</div>
                                                                                     </div>
                                                                                 }
