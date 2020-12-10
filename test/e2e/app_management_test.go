@@ -1370,10 +1370,11 @@ func TestNamespaceAutoCreation(t *testing.T) {
 
 func TestFailedSyncWithRetry(t *testing.T) {
 	Given(t).
-		Path(guestbookPath).
+		Path("hook").
 		When().
-		// app should be attempted to auto-synced once and marked with error after failed attempt detected
-		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": "badValue"}]`).
+		PatchFile("hook.yaml", `[{"op": "replace", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/hook": "PreSync"}}]`).
+		// make hook fail
+		PatchFile("hook.yaml", `[{"op": "replace", "path": "/spec/containers/0/command", "value": ["false"]}]`).
 		Create().
 		IgnoreErrors().
 		Sync("--retry-limit=1", "--retry-backoff-duration=1s").

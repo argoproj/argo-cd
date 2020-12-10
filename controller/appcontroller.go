@@ -17,6 +17,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
 	v1 "k8s.io/api/core/v1"
@@ -852,6 +853,11 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 				ctrl.requestAppRefresh(app.Name, CompareWithLatest.Pointer(), &retryAfter)
 				return
 			} else {
+				// retrying operation. remove previous failure time in app since it is used as a trigger
+				// that previous failed and operation should be retried
+				state.FinishedAt = nil
+				ctrl.setOperationState(app, state)
+				// Get rid of sync results and null out previous operation completion time
 				state.SyncResult = nil
 			}
 		} else {
@@ -942,6 +948,13 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 		if err != nil {
 			return err
 		}
+		if app.Status.OperationState != nil && app.Status.OperationState.FinishedAt != nil && state.FinishedAt == nil {
+			patchJSON, err = jsonpatch.MergeMergePatches(patchJSON, []byte(`{"status": {"operationState": {"finishedAt": null}}}`))
+			if err != nil {
+				return err
+			}
+		}
+
 		appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(ctrl.namespace)
 		_, err = appClient.Patch(context.Background(), app.Name, types.MergePatchType, patchJSON, metav1.PatchOptions{})
 		if err != nil {
