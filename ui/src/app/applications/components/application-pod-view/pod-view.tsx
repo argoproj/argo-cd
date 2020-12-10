@@ -2,7 +2,7 @@ import {DataLoader, DropDown, DropDownMenu, MenuItem, NotificationType, Tooltip}
 import * as React from 'react';
 import * as PropTypes from 'prop-types';
 import {Checkbox as ReactCheckbox} from 'react-form';
-import {Application, ApplicationTree, InfoItem, Metric, InfraNode, Pod, PodGroup, PodGroupType, ResourceList, ResourceName} from '../../../shared/models';
+import {Application, ApplicationTree, InfoItem, Metric, InfraNode, Pod, PodGroup, PodGroupType, ResourceList, ResourceName, ResourceStatus} from '../../../shared/models';
 import {PodViewPreferences, services, ViewPreferences} from '../../../shared/services';
 import {ErrorNotification} from '../../../shared/components';
 import {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
@@ -72,7 +72,7 @@ export class PodView extends React.Component<PodViewProps> {
                                         <div className='nodes-container'>
                                             {this.processTree(podPrefs.sortMode, nodes).map(group => (
                                                 <div className='node white-box' key={group.name}>
-                                                    <div className='node__container--header'>
+                                                    <div className='node__container--header' onClick={() => this.props.onItemClick(group.fullName)} style={{cursor: 'pointer'}}>
                                                         <div style={{display: 'flex', alignItems: 'center'}}>
                                                             <div style={{marginRight: '10px'}}>
                                                                 <ResourceIcon kind={group.kind || 'Unknown'} />
@@ -80,12 +80,11 @@ export class PodView extends React.Component<PodViewProps> {
                                                                 {<div style={{textAlign: 'center'}}>{ResourceLabel({kind: group.kind})}</div>}
                                                             </div>
                                                             <div style={{lineHeight: '15px', wordWrap: 'break-word'}}>
-                                                                <b style={{cursor: 'pointer'}} onClick={() => this.props.onItemClick(group.fullName)}>
-                                                                    {group.name || 'unknown'}
-                                                                </b>
+                                                                <b>{group.name || 'unknown'}</b>
                                                                 {group.resourceStatus && (
                                                                     <div>
                                                                         {group.resourceStatus.health && <HealthStatusIcon state={group.resourceStatus.health} />}
+                                                                        &nbsp;
                                                                         {group.resourceStatus.status && <ComparisonStatusIcon status={group.resourceStatus.status} />}
                                                                     </div>
                                                                 )}
@@ -247,17 +246,22 @@ export class PodView extends React.Component<PodViewProps> {
             });
         }
 
+        const statusByKey = new Map<string, ResourceStatus>();
+        this.props.app.status.resources.forEach(res => statusByKey.set(nodeKey(res), res));
         (tree.nodes || []).forEach((rnode: ResourceTreeNode) => {
             if (sortMode !== 'node') {
                 parentsFor[rnode.uid] = rnode.parentRefs as PodGroup[];
+                const fullName = nodeKey(rnode);
+                const status = statusByKey.get(fullName);
+                rnode.root = rnode;
                 groupRefs[rnode.uid] = {
                     pods: [] as Pod[],
-                    fullName: nodeKey(rnode),
+                    fullName,
                     ...groupRefs[rnode.uid],
                     ...rnode,
                     info: (rnode.info || []).filter(i => !i.name.includes('Resource.')),
                     createdAt: rnode.createdAt,
-                    resourceStatus: {health: rnode.health, status: rnode.status},
+                    resourceStatus: {health: rnode.health, status: status ? status.status : null},
                     renderMenu: () => RenderResourceMenu(rnode, this.props.app, this.appContext)
                 };
             }
