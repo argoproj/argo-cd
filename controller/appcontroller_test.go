@@ -1006,26 +1006,6 @@ func TestUpdateReconciledAt(t *testing.T) {
 
 }
 
-func TestCanProcessApp_DestNameIsValid(t *testing.T) {
-	app := newFakeAppWithDestName()
-	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}})
-
-	ok := ctrl.canProcessApp(app)
-	assert.True(t, ok)
-	assert.Len(t, app.Status.Conditions, 0)
-}
-
-func TestCanProcessApp_BothDestNameAndServer(t *testing.T) {
-	app := newFakeAppWithDestMismatch()
-	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}})
-
-	ok := ctrl.canProcessApp(app)
-	assert.False(t, ok)
-	assert.Len(t, app.Status.Conditions, 1)
-	assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, app.Status.Conditions[0].Type)
-	assert.Equal(t, "application destination can't have both name and server defined: another-cluster https://localhost:6443", app.Status.Conditions[0].Message)
-}
-
 func TestFinalizeProjectDeletion_HasApplications(t *testing.T) {
 	app := newFakeApp()
 	proj := &argoappv1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: test.FakeArgoCDNamespace}}
