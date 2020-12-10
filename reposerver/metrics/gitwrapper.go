@@ -76,9 +76,9 @@ func (w *gitClientWrapper) ValidateSubModule(module git.SubModule) bool {
 }
 
 func (w *gitClientWrapper) ParseGitModulesFile(scanner *bufio.Scanner, set map[git.SubModule]int) {
-	panic("implement me")
+	w.client.ParseGitModulesFile(scanner, set)
 }
 
 func (w *gitClientWrapper) GetSubmoduleSHAs(set map[git.SubModule]int) []string {
-	panic("implement me")
+	return w.client.GetSubmoduleSHAs(set)
 }
