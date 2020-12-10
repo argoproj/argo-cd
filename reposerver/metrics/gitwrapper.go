@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"bufio"
 	"time"
 
 	"github.com/argoproj/argo-cd/util/git"
@@ -68,4 +69,16 @@ func (w *gitClientWrapper) RevisionMetadata(revision string) (*git.RevisionMetad
 
 func (w *gitClientWrapper) VerifyCommitSignature(revision string) (string, error) {
 	return w.client.VerifyCommitSignature(revision)
+}
+
+func (w *gitClientWrapper) ValidateSubModule(module git.SubModule) bool {
+	return w.client.ValidateSubModule(module)
+}
+
+func (w *gitClientWrapper) ParseGitModulesFile(scanner *bufio.Scanner, set map[git.SubModule]int) {
+	panic("implement me")
+}
+
+func (w *gitClientWrapper) GetSubmoduleSHAs(set map[git.SubModule]int) []string {
+	panic("implement me")
 }

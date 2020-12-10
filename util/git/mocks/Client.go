@@ -3,6 +3,7 @@
 package mocks
 
 import (
+	"bufio"
 	git "github.com/argoproj/argo-cd/util/git"
 	mock "github.com/stretchr/testify/mock"
 )
@@ -221,4 +222,35 @@ func (_m *Client) VerifyCommitSignature(_a0 string) (string, error) {
 	}
 
 	return r0, r1
+}
+
+func (_m *Client) ValidateSubModule(module git.SubModule) bool {
+	ret := _m.Called(module)
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func(subModule git.SubModule) bool); ok {
+		r0 = rf(module)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	return r0
+}
+
+func (_m *Client) ParseGitModulesFile(scanner *bufio.Scanner, set map[git.SubModule]int) {
+	_m.Called(scanner, set)
+
+}
+
+func (_m *Client) GetSubmoduleSHAs(set map[git.SubModule]int) []string {
+	ret := _m.Called(set)
+
+	var r0 []string
+	if rf, ok := ret.Get(0).(func(set map[git.SubModule]int) []string ); ok {
+		r0 = rf(set)
+	} else {
+		r0 = ret.Get(0).([]string)
+	}
+
+	return r0
 }

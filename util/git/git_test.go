@@ -437,7 +437,7 @@ func TestValidateSubmodule(t *testing.T) {
 	repoURL := "https://github.com/argoproj/argo-cd.git"
 	client, err := NewClientExt(repoURL, dir, NopCreds{}, false, false)
 	assert.NoError(t, err)
-	module := subModule{
+	module := SubModule{
 		URL:    repoURL,
 		Branch: "main",
 	}
@@ -477,7 +477,7 @@ func TestParseGitModulesFile(t *testing.T) {
 	assert.NoError(t, err)
 
 	for k, v := range data {
-		set := make(map[subModule]int)
+		set := make(map[SubModule]int)
 		gitmodules, err := os.Open(k)
 		assert.NoError(t, err)
 		scanner := bufio.NewScanner(gitmodules)
@@ -497,7 +497,7 @@ func TestGetSubmoduleSHAs(t *testing.T) {
 	client, err := NewClientExt(repoURL, dir, NopCreds{}, false, false)
 	assert.NoError(t, err)
 
-	set := make(map[subModule]int)
+	set := make(map[SubModule]int)
 	var rootModuleRef []string
 	var submoduleRefsA []string
 	var submoduleRefsB []string
@@ -510,7 +510,7 @@ func TestGetSubmoduleSHAs(t *testing.T) {
 	gitmodules, err := os.Open("testdata/gitmodules_multi_valid")
 	assert.NoError(t, err)
 	scanner = bufio.NewScanner(gitmodules)
-	set = make(map[subModule]int)
+	set = make(map[SubModule]int)
 	client.ParseGitModulesFile(scanner, set)
 	submoduleRefsA = client.GetSubmoduleSHAs(set)
 	submoduleRefsB = client.GetSubmoduleSHAs(set)
