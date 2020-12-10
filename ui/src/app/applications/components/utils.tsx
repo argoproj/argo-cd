@@ -4,7 +4,7 @@ import {Checkbox as ReactCheckbox, Text} from 'react-form';
 import {ResourceTreeNode} from './application-resource-tree/application-resource-tree';
 import {AppContext} from '../../shared/context';
 import * as classNames from 'classnames';
-import {Observable, Observer, Subscription} from 'rxjs';
+import {BehaviorSubject, Observable, Observer, Subscription} from 'rxjs';
 
 import {COLORS, ErrorNotification, Revision} from '../../shared/components';
 import {ContextApis} from '../../shared/context';
@@ -125,17 +125,27 @@ export const ComparisonStatusIcon = ({status, resource, label}: {status: appMode
     );
 };
 
-export function RenderResourceMenu(resource: ResourceTreeNode, application: appModels.Application, appContext: AppContext): React.ReactNode {
+export function ShowDeploy(resource: string, appContext: AppContext) {
+    appContext.apis.navigation.goto('.', {deploy: resource});
+}
+
+export function RenderResourceMenu(
+    resource: ResourceTreeNode,
+    application: appModels.Application,
+    appContext: AppContext,
+    appChanged: BehaviorSubject<appModels.Application>,
+    getApplicationActionMenu: (application: appModels.Application) => any
+): React.ReactNode {
     let menuItems: Observable<ActionMenuItem[]>;
     if (isAppNode(resource) && resource.name === application.metadata.name) {
-        menuItems = Observable.from([this.getApplicationActionMenu(application)]);
+        menuItems = Observable.from([getApplicationActionMenu(application)]);
     } else {
         const isRoot = resource.root && nodeKey(resource.root) === nodeKey(resource);
         const items: MenuItem[] = [
             ...((isRoot && [
                 {
                     title: 'Sync',
-                    action: () => this.showDeploy(nodeKey(resource))
+                    action: () => ShowDeploy(nodeKey(resource), appContext)
                 }
             ]) ||
                 []),
@@ -168,11 +178,11 @@ export function RenderResourceMenu(resource: ResourceTreeNode, application: appM
                             }),
                             submit: async (vals, _, close) => {
                                 try {
-                                    await services.applications.deleteResource(this.props.match.params.name, resource, !!vals.force);
-                                    this.appChanged.next(await services.applications.get(this.props.match.params.name));
+                                    await services.applications.deleteResource(application.metadata.name, resource, !!vals.force);
+                                    appChanged.next(await services.applications.get(application.metadata.name));
                                     close();
                                 } catch (e) {
-                                    this.appContext.apis.notifications.show({
+                                    appContext.apis.notifications.show({
                                         content: <ErrorNotification title='Unable to delete resource' e={e} />,
                                         type: NotificationType.Error
                                     });
@@ -194,7 +204,7 @@ export function RenderResourceMenu(resource: ResourceTreeNode, application: appM
                         disabled: !!action.disabled,
                         action: async () => {
                             try {
-                                const confirmed = await this.appContext.apis.popup.confirm(
+                                const confirmed = await appContext.apis.popup.confirm(
                                     `Execute '${action.name}' action?`,
                                     `Are you sure you want to execute '${action.name}' action?`
                                 );
@@ -202,7 +212,7 @@ export function RenderResourceMenu(resource: ResourceTreeNode, application: appM
                                     await services.applications.runResourceAction(application.metadata.name, resource, action.name);
                                 }
                             } catch (e) {
-                                this.appContext.apis.notifications.show({
+                                appContext.apis.notifications.show({
                                     content: <ErrorNotification title='Unable to execute resource action' e={e} />,
                                     type: NotificationType.Error
                                 });

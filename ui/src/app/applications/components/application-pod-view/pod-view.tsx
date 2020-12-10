@@ -2,7 +2,20 @@ import {DataLoader, DropDown, DropDownMenu, MenuItem, NotificationType, Tooltip}
 import * as React from 'react';
 import * as PropTypes from 'prop-types';
 import {Checkbox as ReactCheckbox} from 'react-form';
-import {Application, ApplicationTree, InfoItem, Metric, InfraNode, Pod, PodGroup, PodGroupType, ResourceList, ResourceName, ResourceStatus} from '../../../shared/models';
+import {
+    Application,
+    ApplicationTree,
+    InfoItem,
+    Metric,
+    InfraNode,
+    Pod,
+    PodGroup,
+    PodGroupType,
+    ResourceList,
+    ResourceName,
+    ResourceNode,
+    ResourceStatus
+} from '../../../shared/models';
 import {PodViewPreferences, services, ViewPreferences} from '../../../shared/services';
 import {ErrorNotification} from '../../../shared/components';
 import {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
@@ -10,7 +23,7 @@ import {nodeKey, PodHealthIcon} from '../utils';
 import {AppContext} from '../../../shared/context';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
-import {ComparisonStatusIcon, HealthStatusIcon, RenderResourceMenu} from '../utils';
+import {ComparisonStatusIcon, HealthStatusIcon} from '../utils';
 import './pod-view.scss';
 import Moment from 'react-moment';
 
@@ -18,6 +31,7 @@ interface PodViewProps {
     tree: ApplicationTree;
     onItemClick: (fullName: string) => void;
     app: Application;
+    nodeMenu?: (node: ResourceNode) => React.ReactNode;
 }
 export class PodView extends React.Component<PodViewProps> {
     private loader: DataLoader;
@@ -253,7 +267,9 @@ export class PodView extends React.Component<PodViewProps> {
                 parentsFor[rnode.uid] = rnode.parentRefs as PodGroup[];
                 const fullName = nodeKey(rnode);
                 const status = statusByKey.get(fullName);
-                rnode.root = rnode;
+                if ((rnode.parentRefs || []).length === 0) {
+                    rnode.root = rnode;
+                }
                 groupRefs[rnode.uid] = {
                     pods: [] as Pod[],
                     fullName,
@@ -262,7 +278,7 @@ export class PodView extends React.Component<PodViewProps> {
                     info: (rnode.info || []).filter(i => !i.name.includes('Resource.')),
                     createdAt: rnode.createdAt,
                     resourceStatus: {health: rnode.health, status: status ? status.status : null},
-                    renderMenu: () => RenderResourceMenu(rnode, this.props.app, this.appContext)
+                    renderMenu: () => this.props.nodeMenu(rnode)
                 };
             }
 

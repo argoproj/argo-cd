@@ -9,7 +9,6 @@ import {AppContext} from '../../../shared/context';
 import * as appModels from '../../../shared/models';
 import {AppDetailsPreferences, AppsDetailsViewType, services} from '../../../shared/services';
 
-import {SyncStatuses} from '../../../shared/models';
 import {ApplicationConditions} from '../application-conditions/application-conditions';
 import {ApplicationDeploymentHistory} from '../application-deployment-history/application-deployment-history';
 import {ApplicationNodeInfo} from '../application-node-info/application-node-info';
@@ -24,7 +23,6 @@ import {ApplicationSummary} from '../application-summary/application-summary';
 import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-panel';
 import {PodsLogsViewer} from '../pod-logs-viewer/pod-logs-viewer';
 import * as AppUtils from '../utils';
-import {isSameNode, nodeKey, RenderResourceMenu} from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
 
 const jsonMergePatch = require('json-merge-patch');
@@ -225,7 +223,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                     nodeFilter={node => this.filterTreeNode(node, treeFilter)}
                                                     selectedNodeFullName={this.selectedNodeKey}
                                                     onNodeClick={fullName => this.selectNode(fullName)}
-                                                    nodeMenu={node => RenderResourceMenu(node, application, this.appContext)}
+                                                    nodeMenu={node =>
+                                                        AppUtils.RenderResourceMenu(node, application, this.appContext, this.appChanged, this.getApplicationActionMenu)
+                                                    }
                                                     tree={tree}
                                                     app={application}
                                                     showOrphanedResources={pref.orphanedResources}
@@ -236,7 +236,16 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                     }}
                                                 />
                                             )) ||
-                                                (pref.view === 'pods' && <PodView tree={tree} app={application} onItemClick={fullName => this.selectNode(fullName)} />) || (
+                                                (pref.view === 'pods' && (
+                                                    <PodView
+                                                        tree={tree}
+                                                        app={application}
+                                                        onItemClick={fullName => this.selectNode(fullName)}
+                                                        nodeMenu={node =>
+                                                            AppUtils.RenderResourceMenu(node, application, this.appContext, this.appChanged, this.getApplicationActionMenu)
+                                                        }
+                                                    />
+                                                )) || (
                                                     <div>
                                                         {(filteredRes.length > 0 && (
                                                             <Paginate
@@ -248,7 +257,15 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                                     <ApplicationResourceList
                                                                         onNodeClick={fullName => this.selectNode(fullName)}
                                                                         resources={data}
-                                                                        nodeMenu={node => RenderResourceMenu({...node, root: node}, application, this.appContext)}
+                                                                        nodeMenu={node =>
+                                                                            AppUtils.RenderResourceMenu(
+                                                                                {...node, root: node},
+                                                                                application,
+                                                                                this.appContext,
+                                                                                this.appChanged,
+                                                                                this.getApplicationActionMenu
+                                                                            )
+                                                                        }
                                                                     />
                                                                 )}
                                                             </Paginate>
@@ -276,8 +293,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                                     group: selectedNode.group
                                                                 }
                                                             });
-                                                            const controlled = managedResources.find(item => isSameNode(selectedNode, item));
-                                                            const summary = application.status.resources.find(item => isSameNode(selectedNode, item));
+                                                            const controlled = managedResources.find(item => AppUtils.isSameNode(selectedNode, item));
+                                                            const summary = application.status.resources.find(item => AppUtils.isSameNode(selectedNode, item));
                                                             const controlledState = (controlled && summary && {summary, state: controlled}) || null;
                                                             const resQuery = {...selectedNode};
                                                             if (controlled && controlled.targetState) {
@@ -397,7 +414,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                 )}
                                             </div>
                                         </SlidingPanel>
-                                        <ApplicationSyncPanel application={application} hide={() => this.showDeploy(null)} selectedResource={syncResourceKey} />
+                                        <ApplicationSyncPanel
+                                            application={application}
+                                            hide={() => AppUtils.ShowDeploy(null, this.appContext)}
+                                            selectedResource={syncResourceKey}
+                                        />
                                         <SlidingPanel isShown={this.selectedRollbackDeploymentIndex > -1} onClose={() => this.setRollbackPanelVisible(-1)}>
                                             {this.selectedRollbackDeploymentIndex > -1 && (
                                                 <ApplicationDeploymentHistory
@@ -426,7 +447,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
 
     private getApplicationActionMenu(app: appModels.Application) {
         const refreshing = app.metadata.annotations && app.metadata.annotations[appModels.AnnotationRefreshKey];
-        const fullName = nodeKey({group: 'argoproj.io', kind: app.kind, name: app.metadata.name, namespace: app.metadata.namespace});
+        const fullName = AppUtils.nodeKey({group: 'argoproj.io', kind: app.kind, name: app.metadata.name, namespace: app.metadata.namespace});
         return [
             {
                 iconClassName: 'fa fa-info-circle',
@@ -437,12 +458,12 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                 iconClassName: 'fa fa-file-medical',
                 title: <span className='show-for-medium'>App Diff</span>,
                 action: () => this.selectNode(fullName, 0, 'diff'),
-                disabled: app.status.sync.status === SyncStatuses.Synced
+                disabled: app.status.sync.status === appModels.SyncStatuses.Synced
             },
             {
                 iconClassName: 'fa fa-sync',
                 title: <span className='show-for-medium'>Sync</span>,
-                action: () => this.showDeploy('all')
+                action: () => AppUtils.ShowDeploy('all', this.appContext)
             },
             {
                 iconClassName: 'fa fa-info-circle',
@@ -555,8 +576,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
 
     private groupAppNodesByKey(application: appModels.Application, tree: appModels.ApplicationTree) {
         const nodeByKey = new Map<string, appModels.ResourceDiff | appModels.ResourceNode | appModels.Application>();
-        tree.nodes.concat(tree.orphanedNodes || []).forEach(node => nodeByKey.set(nodeKey(node), node));
-        nodeByKey.set(nodeKey({group: 'argoproj.io', kind: application.kind, name: application.metadata.name, namespace: application.metadata.namespace}), application);
+        tree.nodes.concat(tree.orphanedNodes || []).forEach(node => nodeByKey.set(AppUtils.nodeKey(node), node));
+        nodeByKey.set(AppUtils.nodeKey({group: 'argoproj.io', kind: application.kind, name: application.metadata.name, namespace: application.metadata.namespace}), application);
         return nodeByKey;
     }
 
@@ -579,10 +600,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
             }
         }
         return {kind, health, sync};
-    }
-
-    private showDeploy(resource: string) {
-        this.appContext.apis.navigation.goto('.', {deploy: resource});
     }
 
     private setOperationStatusVisible(isVisible: boolean) {
