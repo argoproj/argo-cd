@@ -56,6 +56,7 @@ nav:
     - argocd-util Tools: operator-manual/server-commands/argocd-util.md
     - Upgrading:
         - operator-manual/upgrading/overview.md
+        - operator-manual/upgrading/1.7-1.8.md
         - operator-manual/upgrading/1.6-1.7.md
         - operator-manual/upgrading/1.5-1.6.md
         - operator-manual/upgrading/1.4-1.5.md

@@ -435,7 +435,7 @@ start: test-tools-image
 
 # Starts a local instance of ArgoCD
 .PHONY: start-local
-start-local: mod-vendor-local
+start-local: mod-vendor-local dep-ui-local
 	# check we can connect to Docker to start Redis
 	killall goreman || true
 	kubectl create ns argocd || true

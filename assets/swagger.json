@@ -1,10 +1,6 @@
 {
-  "consumes": [
-    "application/json"
-  ],
-  "produces": [
-    "application/json"
-  ],
+  "consumes": ["application/json"],
+  "produces": ["application/json"],
   "swagger": "2.0",
   "info": {
     "description": "Description of all APIs",
@@ -14,16 +10,20 @@
   "paths": {
     "/api/v1/account": {
       "get": {
-        "tags": [
-          "AccountService"
-        ],
+        "tags": ["AccountService"],
         "summary": "ListAccounts returns the list of accounts",
-        "operationId": "ListAccounts",
+        "operationId": "AccountService_ListAccounts",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/accountAccountsList"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
             }
           }
         }
@@ -31,11 +31,9 @@
     },
     "/api/v1/account/can-i/{resource}/{action}/{subresource}": {
       "get": {
-        "tags": [
-          "AccountService"
-        ],
+        "tags": ["AccountService"],
         "summary": "CanI checks if the current account has permission to perform an action",
-        "operationId": "CanI",
+        "operationId": "AccountService_CanI",
         "parameters": [
           {
             "type": "string",
@@ -62,17 +60,21 @@
             "schema": {
               "$ref": "#/definitions/accountCanIResponse"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/account/password": {
       "put": {
-        "tags": [
-          "AccountService"
-        ],
+        "tags": ["AccountService"],
         "summary": "UpdatePassword updates an account's password to a new value",
-        "operationId": "UpdatePassword",
+        "operationId": "AccountService_UpdatePassword",
         "parameters": [
           {
             "name": "body",
@@ -89,17 +91,21 @@
             "schema": {
               "$ref": "#/definitions/accountUpdatePasswordResponse"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/account/{name}": {
       "get": {
-        "tags": [
-          "AccountService"
-        ],
+        "tags": ["AccountService"],
         "summary": "GetAccount returns an account",
-        "operationId": "GetAccount",
+        "operationId": "AccountService_GetAccount",
         "parameters": [
           {
             "type": "string",
@@ -114,17 +120,21 @@
             "schema": {
               "$ref": "#/definitions/accountAccount"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/account/{name}/token": {
       "post": {
-        "tags": [
-          "AccountService"
-        ],
+        "tags": ["AccountService"],
         "summary": "CreateToken creates a token",
-        "operationId": "CreateTokenMixin7",
+        "operationId": "AccountService_CreateToken",
         "parameters": [
           {
             "type": "string",
@@ -147,17 +157,21 @@
             "schema": {
               "$ref": "#/definitions/accountCreateTokenResponse"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/account/{name}/token/{id}": {
       "delete": {
-        "tags": [
-          "AccountService"
-        ],
+        "tags": ["AccountService"],
         "summary": "DeleteToken deletes a token",
-        "operationId": "DeleteToken",
+        "operationId": "AccountService_DeleteToken",
         "parameters": [
           {
             "type": "string",
@@ -178,17 +192,21 @@
             "schema": {
               "$ref": "#/definitions/accountEmptyResponse"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/applications": {
       "get": {
-        "tags": [
-          "ApplicationService"
-        ],
+        "tags": ["ApplicationService"],
         "summary": "List returns list of applications",
-        "operationId": "List",
+        "operationId": "ApplicationService_List",
         "parameters": [
           {
             "type": "string",
@@ -231,23 +249,19 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1ApplicationList"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       },
       "post": {
-        "tags": [
-          "ApplicationService"
-        ],
+        "tags": ["ApplicationService"],
         "summary": "Create creates an application",
-<<<<<<< HEAD
-<<<<<<< HEAD
-        "operationId": "CreateMixin10",
-=======
-        "operationId": "Create",
->>>>>>> e2d5d488... feat(server): Add endpoint for node information (#4746)
-=======
-        "operationId": "Create",
->>>>>>> master
+        "operationId": "ApplicationService_Create",
         "parameters": [
           {
             "name": "body",
@@ -256,6 +270,16 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1Application"
             }
+          },
+          {
+            "type": "boolean",
+            "name": "upsert",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "name": "validate",
+            "in": "query"
           }
         ],
         "responses": {
@@ -264,25 +288,21 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1Application"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/applications/{application.metadata.name}": {
       "put": {
-        "tags": [
-          "ApplicationService"
-        ],
+        "tags": ["ApplicationService"],
         "summary": "Update updates an application",
-<<<<<<< HEAD
-<<<<<<< HEAD
-        "operationId": "UpdateMixin10",
-=======
-        "operationId": "Update",
->>>>>>> e2d5d488... feat(server): Add endpoint for node information (#4746)
-=======
-        "operationId": "Update",
->>>>>>> master
+        "operationId": "ApplicationService_Update",
         "parameters": [
           {
             "type": "string",
@@ -298,6 +318,11 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1Application"
             }
+          },
+          {
+            "type": "boolean",
+            "name": "validate",
+            "in": "query"
           }
         ],
         "responses": {
@@ -306,17 +331,21 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1Application"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/applications/{applicationName}/managed-resources": {
       "get": {
-        "tags": [
-          "ApplicationService"
-        ],
+        "tags": ["ApplicationService"],
         "summary": "ManagedResources returns list of managed resources",
-        "operationId": "ManagedResources",
+        "operationId": "ApplicationService_ManagedResources",
         "parameters": [
           {
             "type": "string",
@@ -356,17 +385,21 @@
             "schema": {
               "$ref": "#/definitions/applicationManagedResourcesResponse"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/applications/{applicationName}/resource-tree": {
       "get": {
-        "tags": [
-          "ApplicationService"
-        ],
+        "tags": ["ApplicationService"],
         "summary": "ResourceTree returns resource tree",
-        "operationId": "ResourceTree",
+        "operationId": "ApplicationService_ResourceTree",
         "parameters": [
           {
             "type": "string",
@@ -406,25 +439,21 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1ApplicationTree"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/applications/{name}": {
       "get": {
-        "tags": [
-          "ApplicationService"
-        ],
+        "tags": ["ApplicationService"],
         "summary": "Get returns an application by name",
-<<<<<<< HEAD
-<<<<<<< HEAD
-        "operationId": "GetMixin10",
-=======
-        "operationId": "Get",
->>>>>>> e2d5d488... feat(server): Add endpoint for node information (#4746)
-=======
-        "operationId": "Get",
->>>>>>> master
+        "operationId": "ApplicationService_Get",
         "parameters": [
           {
             "type": "string",
@@ -468,23 +497,19 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1Application"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       },
       "delete": {
-        "tags": [
-          "ApplicationService"
-        ],
+        "tags": ["ApplicationService"],
         "summary": "Delete deletes an application",
-<<<<<<< HEAD
-<<<<<<< HEAD
-        "operationId": "DeleteMixin10",
-=======
-        "operationId": "Delete",
->>>>>>> e2d5d488... feat(server): Add endpoint for node information (#4746)
-=======
-        "operationId": "Delete",
->>>>>>> master
+        "operationId": "ApplicationService_Delete",
         "parameters": [
           {
             "type": "string",
@@ -494,7 +519,6 @@
           },
           {
             "type": "boolean",
-            "format": "boolean",
             "name": "cascade",
             "in": "query"
           }
@@ -505,15 +529,19 @@
             "schema": {
               "$ref": "#/definitions/applicationApplicationResponse"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       },
       "patch": {
-        "tags": [
-          "ApplicationService"
-        ],
+        "tags": ["ApplicationService"],
         "summary": "Patch patch an application",
-        "operationId": "Patch",
+        "operationId": "ApplicationService_Patch",
         "parameters": [
           {
             "type": "string",
@@ -536,17 +564,21 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1Application"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/applications/{name}/events": {
       "get": {
-        "tags": [
-          "ApplicationService"
-        ],
+        "tags": ["ApplicationService"],
         "summary": "ListResourceEvents returns a list of event resources",
-        "operationId": "ListResourceEvents",
+        "operationId": "ApplicationService_ListResourceEvents",
         "parameters": [
           {
             "type": "string",
@@ -576,17 +608,21 @@
             "schema": {
               "$ref": "#/definitions/v1EventList"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/applications/{name}/manifests": {
       "get": {
-        "tags": [
-          "ApplicationService"
-        ],
+        "tags": ["ApplicationService"],
         "summary": "GetManifests returns application manifests",
-        "operationId": "GetManifests",
+        "operationId": "ApplicationService_GetManifests",
         "parameters": [
           {
             "type": "string",
@@ -606,15 +642,19 @@
             "schema": {
               "$ref": "#/definitions/repositoryManifestResponse"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/applications/{name}/nodes": {
       "get": {
-        "tags": [
-          "ApplicationService"
-        ],
+        "tags": ["ApplicationService"],
         "summary": "ListNodes returns nodes associated with an application",
         "operationId": "ListNodes",
         "parameters": [
@@ -638,11 +678,9 @@
     },
     "/api/v1/applications/{name}/operation": {
       "delete": {
-        "tags": [
-          "ApplicationService"
-        ],
+        "tags": ["ApplicationService"],
         "summary": "TerminateOperation terminates the currently running operation",
-        "operationId": "TerminateOperation",
+        "operationId": "ApplicationService_TerminateOperation",
         "parameters": [
           {
             "type": "string",
@@ -657,17 +695,21 @@
             "schema": {
               "$ref": "#/definitions/applicationOperationTerminateResponse"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/applications/{name}/pods/{podName}/logs": {
       "get": {
-        "tags": [
-          "ApplicationService"
-        ],
+        "tags": ["ApplicationService"],
         "summary": "PodLogs returns stream of log entries for the specified pod. Pod",
-        "operationId": "PodLogs",
+        "operationId": "ApplicationService_PodLogs",
         "parameters": [
           {
             "type": "string",
@@ -719,7 +761,6 @@
           },
           {
             "type": "boolean",
-            "format": "boolean",
             "name": "follow",
             "in": "query"
           }
@@ -739,17 +780,21 @@
                 }
               }
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/applications/{name}/resource": {
       "get": {
-        "tags": [
-          "ApplicationService"
-        ],
+        "tags": ["ApplicationService"],
         "summary": "GetResource returns single application resource",
-        "operationId": "GetResource",
+        "operationId": "ApplicationService_GetResource",
         "parameters": [
           {
             "type": "string",
@@ -789,15 +834,19 @@
             "schema": {
               "$ref": "#/definitions/applicationApplicationResourceResponse"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       },
       "post": {
-        "tags": [
-          "ApplicationService"
-        ],
+        "tags": ["ApplicationService"],
         "summary": "PatchResource patch single application resource",
-        "operationId": "PatchResource",
+        "operationId": "ApplicationService_PatchResource",
         "parameters": [
           {
             "type": "string",
@@ -812,6 +861,36 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "type": "string",
+            "name": "namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "resourceName",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "version",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "group",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "kind",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "patchType",
+            "in": "query"
           }
         ],
         "responses": {
@@ -820,15 +899,19 @@
             "schema": {
               "$ref": "#/definitions/applicationApplicationResourceResponse"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       },
       "delete": {
-        "tags": [
-          "ApplicationService"
-        ],
+        "tags": ["ApplicationService"],
         "summary": "DeleteResource deletes a single application resource",
-        "operationId": "DeleteResource",
+        "operationId": "ApplicationService_DeleteResource",
         "parameters": [
           {
             "type": "string",
@@ -863,7 +946,6 @@
           },
           {
             "type": "boolean",
-            "format": "boolean",
             "name": "force",
             "in": "query"
           }
@@ -874,17 +956,21 @@
             "schema": {
               "$ref": "#/definitions/applicationApplicationResponse"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/applications/{name}/resource/actions": {
       "get": {
-        "tags": [
-          "ApplicationService"
-        ],
+        "tags": ["ApplicationService"],
         "summary": "ListResourceActions returns list of resource actions",
-        "operationId": "ListResourceActions",
+        "operationId": "ApplicationService_ListResourceActions",
         "parameters": [
           {
             "type": "string",
@@ -924,15 +1010,19 @@
             "schema": {
               "$ref": "#/definitions/applicationResourceActionsListResponse"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       },
       "post": {
-        "tags": [
-          "ApplicationService"
-        ],
+        "tags": ["ApplicationService"],
         "summary": "RunResourceAction run resource action",
-        "operationId": "RunResourceAction",
+        "operationId": "ApplicationService_RunResourceAction",
         "parameters": [
           {
             "type": "string",
@@ -947,6 +1037,31 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "type": "string",
+            "name": "namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "resourceName",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "version",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "group",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "kind",
+            "in": "query"
           }
         ],
         "responses": {
@@ -955,17 +1070,21 @@
             "schema": {
               "$ref": "#/definitions/applicationApplicationResponse"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/applications/{name}/revisions/{revision}/metadata": {
       "get": {
-        "tags": [
-          "ApplicationService"
-        ],
+        "tags": ["ApplicationService"],
         "summary": "Get the meta-data (author, date, tags, message) for a specific revision of the application",
-        "operationId": "RevisionMetadata",
+        "operationId": "ApplicationService_RevisionMetadata",
         "parameters": [
           {
             "type": "string",
@@ -988,17 +1107,21 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1RevisionMetadata"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/applications/{name}/rollback": {
       "post": {
-        "tags": [
-          "ApplicationService"
-        ],
+        "tags": ["ApplicationService"],
         "summary": "Rollback syncs an application to its target state",
-        "operationId": "Rollback",
+        "operationId": "ApplicationService_Rollback",
         "parameters": [
           {
             "type": "string",
@@ -1021,17 +1144,21 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1Application"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/applications/{name}/spec": {
       "put": {
-        "tags": [
-          "ApplicationService"
-        ],
+        "tags": ["ApplicationService"],
         "summary": "UpdateSpec updates an application spec",
-        "operationId": "UpdateSpec",
+        "operationId": "ApplicationService_UpdateSpec",
         "parameters": [
           {
             "type": "string",
@@ -1046,6 +1173,11 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1ApplicationSpec"
             }
+          },
+          {
+            "type": "boolean",
+            "name": "validate",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1054,17 +1186,21 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1ApplicationSpec"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/applications/{name}/sync": {
       "post": {
-        "tags": [
-          "ApplicationService"
-        ],
+        "tags": ["ApplicationService"],
         "summary": "Sync syncs an application to its target state",
-        "operationId": "Sync",
+        "operationId": "ApplicationService_Sync",
         "parameters": [
           {
             "type": "string",
@@ -1087,17 +1223,21 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1Application"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/applications/{name}/syncwindows": {
       "get": {
-        "tags": [
-          "ApplicationService"
-        ],
+        "tags": ["ApplicationService"],
         "summary": "Get returns sync windows of the application",
-        "operationId": "GetApplicationSyncWindows",
+        "operationId": "ApplicationService_GetApplicationSyncWindows",
         "parameters": [
           {
             "type": "string",
@@ -1112,17 +1252,21 @@
             "schema": {
               "$ref": "#/definitions/applicationApplicationSyncWindowsResponse"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/certificates": {
       "get": {
-        "tags": [
-          "CertificateService"
-        ],
+        "tags": ["CertificateService"],
         "summary": "List all available repository certificates",
-        "operationId": "ListCertificates",
+        "operationId": "CertificateService_ListCertificates",
         "parameters": [
           {
             "type": "string",
@@ -1149,15 +1293,19 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1RepositoryCertificateList"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       },
       "post": {
-        "tags": [
-          "CertificateService"
-        ],
+        "tags": ["CertificateService"],
         "summary": "Creates repository certificates on the server",
-        "operationId": "CreateCertificate",
+        "operationId": "CertificateService_CreateCertificate",
         "parameters": [
           {
             "description": "List of certificates to be created",
@@ -1167,6 +1315,12 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1RepositoryCertificateList"
             }
+          },
+          {
+            "type": "boolean",
+            "description": "Whether to upsert already existing certificates.",
+            "name": "upsert",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1175,15 +1329,19 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1RepositoryCertificateList"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       },
       "delete": {
-        "tags": [
-          "CertificateService"
-        ],
+        "tags": ["CertificateService"],
         "summary": "Delete the certificates that match the RepositoryCertificateQuery",
-        "operationId": "DeleteCertificate",
+        "operationId": "CertificateService_DeleteCertificate",
         "parameters": [
           {
             "type": "string",
@@ -1210,25 +1368,21 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1RepositoryCertificateList"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/clusters": {
       "get": {
-        "tags": [
-          "ClusterService"
-        ],
+        "tags": ["ClusterService"],
         "summary": "List returns list of clusters",
-<<<<<<< HEAD
-<<<<<<< HEAD
-        "operationId": "ListMixin1",
-=======
-        "operationId": "ListMixin3",
->>>>>>> e2d5d488... feat(server): Add endpoint for node information (#4746)
-=======
-        "operationId": "ListMixin3",
->>>>>>> master
+        "operationId": "ClusterService_List",
         "parameters": [
           {
             "type": "string",
@@ -1247,23 +1401,19 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1ClusterList"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       },
       "post": {
-        "tags": [
-          "ClusterService"
-        ],
+        "tags": ["ClusterService"],
         "summary": "Create creates a cluster",
-<<<<<<< HEAD
-<<<<<<< HEAD
-        "operationId": "CreateMixin1",
-=======
-        "operationId": "CreateMixin3",
->>>>>>> e2d5d488... feat(server): Add endpoint for node information (#4746)
-=======
-        "operationId": "CreateMixin3",
->>>>>>> master
+        "operationId": "ClusterService_Create",
         "parameters": [
           {
             "name": "body",
@@ -1272,6 +1422,11 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1Cluster"
             }
+          },
+          {
+            "type": "boolean",
+            "name": "upsert",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1280,17 +1435,21 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1Cluster"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/clusters/{cluster.server}": {
       "put": {
-        "tags": [
-          "ClusterService"
-        ],
+        "tags": ["ClusterService"],
         "summary": "Update updates a cluster",
-        "operationId": "UpdateMixin3",
+        "operationId": "ClusterService_Update",
         "parameters": [
           {
             "type": "string",
@@ -1306,6 +1465,15 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1Cluster"
             }
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "name": "updatedFields",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1313,6 +1481,12 @@
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/v1alpha1Cluster"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
             }
           }
         }
@@ -1320,19 +1494,9 @@
     },
     "/api/v1/clusters/{server}": {
       "get": {
-        "tags": [
-          "ClusterService"
-        ],
+        "tags": ["ClusterService"],
         "summary": "Get returns a cluster by server address",
-<<<<<<< HEAD
-<<<<<<< HEAD
-        "operationId": "GetMixin1",
-=======
-        "operationId": "GetMixin3",
->>>>>>> e2d5d488... feat(server): Add endpoint for node information (#4746)
-=======
-        "operationId": "GetMixin3",
->>>>>>> master
+        "operationId": "ClusterService_Get",
         "parameters": [
           {
             "type": "string",
@@ -1352,23 +1516,19 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1Cluster"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       },
       "delete": {
-        "tags": [
-          "ClusterService"
-        ],
+        "tags": ["ClusterService"],
         "summary": "Delete deletes a cluster",
-<<<<<<< HEAD
-<<<<<<< HEAD
-        "operationId": "DeleteMixin1",
-=======
-        "operationId": "DeleteMixin3",
->>>>>>> e2d5d488... feat(server): Add endpoint for node information (#4746)
-=======
-        "operationId": "DeleteMixin3",
->>>>>>> master
+        "operationId": "ClusterService_Delete",
         "parameters": [
           {
             "type": "string",
@@ -1387,6 +1547,12 @@
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/clusterClusterResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
             }
           }
         }
@@ -1394,11 +1560,9 @@
     },
     "/api/v1/clusters/{server}/invalidate-cache": {
       "post": {
-        "tags": [
-          "ClusterService"
-        ],
+        "tags": ["ClusterService"],
         "summary": "InvalidateCache invalidates cluster cache",
-        "operationId": "InvalidateCache",
+        "operationId": "ClusterService_InvalidateCache",
         "parameters": [
           {
             "type": "string",
@@ -1413,17 +1577,21 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1Cluster"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/clusters/{server}/rotate-auth": {
       "post": {
-        "tags": [
-          "ClusterService"
-        ],
+        "tags": ["ClusterService"],
         "summary": "RotateAuth rotates the bearer token used for a cluster",
-        "operationId": "RotateAuth",
+        "operationId": "ClusterService_RotateAuth",
         "parameters": [
           {
             "type": "string",
@@ -1438,25 +1606,21 @@
             "schema": {
               "$ref": "#/definitions/clusterClusterResponse"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/gpgkeys": {
       "get": {
-        "tags": [
-          "GPGKeyService"
-        ],
+        "tags": ["GPGKeyService"],
         "summary": "List all available repository certificates",
-<<<<<<< HEAD
-<<<<<<< HEAD
-        "operationId": "List",
-=======
-        "operationId": "ListMixin4",
->>>>>>> e2d5d488... feat(server): Add endpoint for node information (#4746)
-=======
-        "operationId": "ListMixin4",
->>>>>>> master
+        "operationId": "GPGKeyService_List",
         "parameters": [
           {
             "type": "string",
@@ -1471,23 +1635,19 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1GnuPGPublicKeyList"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       },
       "post": {
-        "tags": [
-          "GPGKeyService"
-        ],
+        "tags": ["GPGKeyService"],
         "summary": "Create one or more GPG public keys in the server's configuration",
-<<<<<<< HEAD
-<<<<<<< HEAD
-        "operationId": "Create",
-=======
-        "operationId": "CreateMixin4",
->>>>>>> e2d5d488... feat(server): Add endpoint for node information (#4746)
-=======
-        "operationId": "CreateMixin4",
->>>>>>> master
+        "operationId": "GPGKeyService_Create",
         "parameters": [
           {
             "description": "Raw key data of the GPG key(s) to create",
@@ -1497,6 +1657,12 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1GnuPGPublicKey"
             }
+          },
+          {
+            "type": "boolean",
+            "description": "Whether to upsert already existing public keys.",
+            "name": "upsert",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1505,23 +1671,19 @@
             "schema": {
               "$ref": "#/definitions/gpgkeyGnuPGPublicKeyCreateResponse"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       },
       "delete": {
-        "tags": [
-          "GPGKeyService"
-        ],
+        "tags": ["GPGKeyService"],
         "summary": "Delete specified GPG public key from the server's configuration",
-<<<<<<< HEAD
-<<<<<<< HEAD
-        "operationId": "Delete",
-=======
-        "operationId": "DeleteMixin4",
->>>>>>> e2d5d488... feat(server): Add endpoint for node information (#4746)
-=======
-        "operationId": "DeleteMixin4",
->>>>>>> master
+        "operationId": "GPGKeyService_Delete",
         "parameters": [
           {
             "type": "string",
@@ -1536,25 +1698,21 @@
             "schema": {
               "$ref": "#/definitions/gpgkeyGnuPGPublicKeyResponse"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/gpgkeys/{keyID}": {
       "get": {
-        "tags": [
-          "GPGKeyService"
-        ],
+        "tags": ["GPGKeyService"],
         "summary": "Get information about specified GPG public key from the server",
-<<<<<<< HEAD
-<<<<<<< HEAD
-        "operationId": "Get",
-=======
-        "operationId": "GetMixin4",
->>>>>>> e2d5d488... feat(server): Add endpoint for node information (#4746)
-=======
-        "operationId": "GetMixin4",
->>>>>>> master
+        "operationId": "GPGKeyService_Get",
         "parameters": [
           {
             "type": "string",
@@ -1570,17 +1728,21 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1GnuPGPublicKey"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/projects": {
       "get": {
-        "tags": [
-          "ProjectService"
-        ],
+        "tags": ["ProjectService"],
         "summary": "List returns list of projects",
-        "operationId": "ListMixin5",
+        "operationId": "ProjectService_List",
         "parameters": [
           {
             "type": "string",
@@ -1594,15 +1756,19 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1AppProjectList"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       },
       "post": {
-        "tags": [
-          "ProjectService"
-        ],
+        "tags": ["ProjectService"],
         "summary": "Create a new project",
-        "operationId": "CreateMixin5",
+        "operationId": "ProjectService_Create",
         "parameters": [
           {
             "name": "body",
@@ -1619,17 +1785,21 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1AppProject"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/projects/{name}": {
       "get": {
-        "tags": [
-          "ProjectService"
-        ],
+        "tags": ["ProjectService"],
         "summary": "Get returns a project by name",
-        "operationId": "GetMixin5",
+        "operationId": "ProjectService_Get",
         "parameters": [
           {
             "type": "string",
@@ -1644,15 +1814,19 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1AppProject"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       },
       "delete": {
-        "tags": [
-          "ProjectService"
-        ],
+        "tags": ["ProjectService"],
         "summary": "Delete deletes a project",
-        "operationId": "DeleteMixin5",
+        "operationId": "ProjectService_Delete",
         "parameters": [
           {
             "type": "string",
@@ -1667,17 +1841,21 @@
             "schema": {
               "$ref": "#/definitions/projectEmptyResponse"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/projects/{name}/events": {
       "get": {
-        "tags": [
-          "ProjectService"
-        ],
+        "tags": ["ProjectService"],
         "summary": "ListEvents returns a list of project events",
-        "operationId": "ListEvents",
+        "operationId": "ProjectService_ListEvents",
         "parameters": [
           {
             "type": "string",
@@ -1692,17 +1870,21 @@
             "schema": {
               "$ref": "#/definitions/v1EventList"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/projects/{name}/globalprojects": {
       "get": {
-        "tags": [
-          "ProjectService"
-        ],
+        "tags": ["ProjectService"],
         "summary": "Get returns a virtual project by name",
-        "operationId": "GetGlobalProjects",
+        "operationId": "ProjectService_GetGlobalProjects",
         "parameters": [
           {
             "type": "string",
@@ -1717,17 +1899,21 @@
             "schema": {
               "$ref": "#/definitions/projectGlobalProjectsResponse"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/projects/{name}/syncwindows": {
       "get": {
-        "tags": [
-          "ProjectService"
-        ],
+        "tags": ["ProjectService"],
         "summary": "GetSchedulesState returns true if there are any active sync syncWindows",
-        "operationId": "GetSyncWindowsState",
+        "operationId": "ProjectService_GetSyncWindowsState",
         "parameters": [
           {
             "type": "string",
@@ -1742,17 +1928,21 @@
             "schema": {
               "$ref": "#/definitions/projectSyncWindowsResponse"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/projects/{project.metadata.name}": {
       "put": {
-        "tags": [
-          "ProjectService"
-        ],
+        "tags": ["ProjectService"],
         "summary": "Update updates a project",
-        "operationId": "UpdateMixin5",
+        "operationId": "ProjectService_Update",
         "parameters": [
           {
             "type": "string",
@@ -1776,17 +1966,21 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1AppProject"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/projects/{project}/roles/{role}/token": {
       "post": {
-        "tags": [
-          "ProjectService"
-        ],
+        "tags": ["ProjectService"],
         "summary": "Create a new project token",
-        "operationId": "CreateTokenMixin5",
+        "operationId": "ProjectService_CreateToken",
         "parameters": [
           {
             "type": "string",
@@ -1815,17 +2009,21 @@
             "schema": {
               "$ref": "#/definitions/projectProjectTokenResponse"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/projects/{project}/roles/{role}/token/{iat}": {
       "delete": {
-        "tags": [
-          "ProjectService"
-        ],
+        "tags": ["ProjectService"],
         "summary": "Delete a new project token",
-        "operationId": "DeleteTokenMixin5",
+        "operationId": "ProjectService_DeleteToken",
         "parameters": [
           {
             "type": "string",
@@ -1858,17 +2056,21 @@
             "schema": {
               "$ref": "#/definitions/projectEmptyResponse"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/repocreds": {
       "get": {
-        "tags": [
-          "RepoCredsService"
-        ],
+        "tags": ["RepoCredsService"],
         "summary": "ListRepositoryCredentials gets a list of all configured repository credential sets",
-        "operationId": "ListRepositoryCredentials",
+        "operationId": "RepoCredsService_ListRepositoryCredentials",
         "parameters": [
           {
             "type": "string",
@@ -1883,15 +2085,19 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1RepoCredsList"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       },
       "post": {
-        "tags": [
-          "RepoCredsService"
-        ],
+        "tags": ["RepoCredsService"],
         "summary": "CreateRepositoryCredentials creates a new repository credential set",
-        "operationId": "CreateRepositoryCredentials",
+        "operationId": "RepoCredsService_CreateRepositoryCredentials",
         "parameters": [
           {
             "description": "Repository definition",
@@ -1901,6 +2107,12 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1RepoCreds"
             }
+          },
+          {
+            "type": "boolean",
+            "description": "Whether to create in upsert mode.",
+            "name": "upsert",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1909,17 +2121,21 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1RepoCreds"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/repocreds/{creds.url}": {
       "put": {
-        "tags": [
-          "RepoCredsService"
-        ],
+        "tags": ["RepoCredsService"],
         "summary": "UpdateRepositoryCredentials updates a repository credential set",
-        "operationId": "UpdateRepositoryCredentials",
+        "operationId": "RepoCredsService_UpdateRepositoryCredentials",
         "parameters": [
           {
             "type": "string",
@@ -1943,17 +2159,21 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1RepoCreds"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/repocreds/{url}": {
       "delete": {
-        "tags": [
-          "RepoCredsService"
-        ],
+        "tags": ["RepoCredsService"],
         "summary": "DeleteRepositoryCredentials deletes a repository credential set from the configuration",
-        "operationId": "DeleteRepositoryCredentials",
+        "operationId": "RepoCredsService_DeleteRepositoryCredentials",
         "parameters": [
           {
             "type": "string",
@@ -1968,17 +2188,21 @@
             "schema": {
               "$ref": "#/definitions/repocredsRepoCredsResponse"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/repositories": {
       "get": {
-        "tags": [
-          "RepositoryService"
-        ],
+        "tags": ["RepositoryService"],
         "summary": "ListRepositories gets a list of all configured repositories",
-        "operationId": "ListRepositories",
+        "operationId": "RepositoryService_ListRepositories",
         "parameters": [
           {
             "type": "string",
@@ -1988,7 +2212,6 @@
           },
           {
             "type": "boolean",
-            "format": "boolean",
             "description": "Whether to force a cache refresh on repo's connection state.",
             "name": "forceRefresh",
             "in": "query"
@@ -2000,15 +2223,19 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1RepositoryList"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       },
       "post": {
-        "tags": [
-          "RepositoryService"
-        ],
+        "tags": ["RepositoryService"],
         "summary": "CreateRepository creates a new repository configuration",
-        "operationId": "CreateRepository",
+        "operationId": "RepositoryService_CreateRepository",
         "parameters": [
           {
             "description": "Repository definition",
@@ -2018,6 +2245,18 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1Repository"
             }
+          },
+          {
+            "type": "boolean",
+            "description": "Whether to create in upsert mode.",
+            "name": "upsert",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "description": "Whether to operate on credential set instead of repository.",
+            "name": "credsOnly",
+            "in": "query"
           }
         ],
         "responses": {
@@ -2026,17 +2265,21 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1Repository"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/repositories/{repo.repo}": {
       "put": {
-        "tags": [
-          "RepositoryService"
-        ],
+        "tags": ["RepositoryService"],
         "summary": "UpdateRepository updates a repository configuration",
-        "operationId": "UpdateRepository",
+        "operationId": "RepositoryService_UpdateRepository",
         "parameters": [
           {
             "type": "string",
@@ -2060,25 +2303,21 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1Repository"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/repositories/{repo}": {
       "get": {
-        "tags": [
-          "RepositoryService"
-        ],
+        "tags": ["RepositoryService"],
         "summary": "Get returns a repository or its credentials",
-<<<<<<< HEAD
-<<<<<<< HEAD
-        "operationId": "GetMixin2",
-=======
-        "operationId": "GetMixin7",
->>>>>>> e2d5d488... feat(server): Add endpoint for node information (#4746)
-=======
-        "operationId": "GetMixin7",
->>>>>>> master
+        "operationId": "RepositoryService_Get",
         "parameters": [
           {
             "type": "string",
@@ -2089,7 +2328,6 @@
           },
           {
             "type": "boolean",
-            "format": "boolean",
             "description": "Whether to force a cache refresh on repo's connection state.",
             "name": "forceRefresh",
             "in": "query"
@@ -2101,15 +2339,19 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1Repository"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       },
       "delete": {
-        "tags": [
-          "RepositoryService"
-        ],
+        "tags": ["RepositoryService"],
         "summary": "DeleteRepository deletes a repository from the configuration",
-        "operationId": "DeleteRepository",
+        "operationId": "RepositoryService_DeleteRepository",
         "parameters": [
           {
             "type": "string",
@@ -2120,7 +2362,6 @@
           },
           {
             "type": "boolean",
-            "format": "boolean",
             "description": "Whether to force a cache refresh on repo's connection state.",
             "name": "forceRefresh",
             "in": "query"
@@ -2132,17 +2373,21 @@
             "schema": {
               "$ref": "#/definitions/repositoryRepoResponse"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/repositories/{repo}/apps": {
       "get": {
-        "tags": [
-          "RepositoryService"
-        ],
+        "tags": ["RepositoryService"],
         "summary": "ListApps returns list of apps in the repe",
-        "operationId": "ListApps",
+        "operationId": "RepositoryService_ListApps",
         "parameters": [
           {
             "type": "string",
@@ -2162,17 +2407,21 @@
             "schema": {
               "$ref": "#/definitions/repositoryRepoAppsResponse"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/repositories/{repo}/helmcharts": {
       "get": {
-        "tags": [
-          "RepositoryService"
-        ],
+        "tags": ["RepositoryService"],
         "summary": "GetHelmCharts returns list of helm charts in the specified repository",
-        "operationId": "GetHelmCharts",
+        "operationId": "RepositoryService_GetHelmCharts",
         "parameters": [
           {
             "type": "string",
@@ -2183,7 +2432,6 @@
           },
           {
             "type": "boolean",
-            "format": "boolean",
             "description": "Whether to force a cache refresh on repo's connection state.",
             "name": "forceRefresh",
             "in": "query"
@@ -2195,16 +2443,20 @@
             "schema": {
               "$ref": "#/definitions/repositoryHelmChartsResponse"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/repositories/{repo}/refs": {
       "get": {
-        "tags": [
-          "RepositoryService"
-        ],
-        "operationId": "ListRefs",
+        "tags": ["RepositoryService"],
+        "operationId": "RepositoryService_ListRefs",
         "parameters": [
           {
             "type": "string",
@@ -2215,7 +2467,6 @@
           },
           {
             "type": "boolean",
-            "format": "boolean",
             "description": "Whether to force a cache refresh on repo's connection state.",
             "name": "forceRefresh",
             "in": "query"
@@ -2227,17 +2478,21 @@
             "schema": {
               "$ref": "#/definitions/repositoryRefs"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/repositories/{repo}/validate": {
       "post": {
-        "tags": [
-          "RepositoryService"
-        ],
+        "tags": ["RepositoryService"],
         "summary": "ValidateAccess validates access to a repository with given parameters",
-        "operationId": "ValidateAccess",
+        "operationId": "RepositoryService_ValidateAccess",
         "parameters": [
           {
             "type": "string",
@@ -2254,6 +2509,60 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "type": "string",
+            "description": "Username for accessing repo.",
+            "name": "username",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Password for accessing repo.",
+            "name": "password",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Private key data for accessing SSH repository.",
+            "name": "sshPrivateKey",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "description": "Whether to skip certificate or host key validation.",
+            "name": "insecure",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "TLS client cert data for accessing HTTPS repository.",
+            "name": "tlsClientCertData",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "TLS client cert key for accessing HTTPS repository.",
+            "name": "tlsClientCertKey",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "The type of the repo.",
+            "name": "type",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "The name of the repo.",
+            "name": "name",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "description": "Whether helm-oci support should be enabled for this repo.",
+            "name": "enableOci",
+            "in": "query"
           }
         ],
         "responses": {
@@ -2262,17 +2571,21 @@
             "schema": {
               "$ref": "#/definitions/repositoryRepoResponse"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/repositories/{source.repoURL}/appdetails": {
       "post": {
-        "tags": [
-          "RepositoryService"
-        ],
+        "tags": ["RepositoryService"],
         "summary": "GetAppDetails returns application details by given path",
-        "operationId": "GetAppDetails",
+        "operationId": "RepositoryService_GetAppDetails",
         "parameters": [
           {
             "type": "string",
@@ -2296,17 +2609,21 @@
             "schema": {
               "$ref": "#/definitions/repositoryRepoAppDetailsResponse"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/session": {
       "post": {
-        "tags": [
-          "SessionService"
-        ],
+        "tags": ["SessionService"],
         "summary": "Create a new JWT for authentication and set a cookie if using HTTP",
-        "operationId": "CreateMixin8",
+        "operationId": "SessionService_Create",
         "parameters": [
           {
             "name": "body",
@@ -2323,20 +2640,30 @@
             "schema": {
               "$ref": "#/definitions/sessionSessionResponse"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       },
       "delete": {
-        "tags": [
-          "SessionService"
-        ],
+        "tags": ["SessionService"],
         "summary": "Delete an existing JWT cookie if using HTTP",
-        "operationId": "DeleteMixin8",
+        "operationId": "SessionService_Delete",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/sessionSessionResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
             }
           }
         }
@@ -2344,16 +2671,20 @@
     },
     "/api/v1/session/userinfo": {
       "get": {
-        "tags": [
-          "SessionService"
-        ],
+        "tags": ["SessionService"],
         "summary": "Get the current user's info",
-        "operationId": "GetUserInfo",
+        "operationId": "SessionService_GetUserInfo",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/sessionGetUserInfoResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
             }
           }
         }
@@ -2361,24 +2692,20 @@
     },
     "/api/v1/settings": {
       "get": {
-        "tags": [
-          "SettingsService"
-        ],
+        "tags": ["SettingsService"],
         "summary": "Get returns Argo CD settings",
-<<<<<<< HEAD
-<<<<<<< HEAD
-        "operationId": "GetMixin4",
-=======
-        "operationId": "GetMixin10",
->>>>>>> e2d5d488... feat(server): Add endpoint for node information (#4746)
-=======
-        "operationId": "GetMixin10",
->>>>>>> master
+        "operationId": "SettingsService_Get",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/clusterSettings"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
             }
           }
         }
@@ -2386,11 +2713,9 @@
     },
     "/api/v1/stream/applications": {
       "get": {
-        "tags": [
-          "ApplicationService"
-        ],
+        "tags": ["ApplicationService"],
         "summary": "Watch returns stream of application change events",
-        "operationId": "Watch",
+        "operationId": "ApplicationService_Watch",
         "parameters": [
           {
             "type": "string",
@@ -2442,17 +2767,21 @@
                 }
               }
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/stream/applications/{applicationName}/resource-tree": {
       "get": {
-        "tags": [
-          "ApplicationService"
-        ],
+        "tags": ["ApplicationService"],
         "summary": "Watch returns stream of application resource tree",
-        "operationId": "WatchResourceTree",
+        "operationId": "ApplicationService_WatchResourceTree",
         "parameters": [
           {
             "type": "string",
@@ -2501,22 +2830,32 @@
                 }
               }
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/version": {
       "get": {
-        "tags": [
-          "VersionService"
-        ],
+        "tags": ["VersionService"],
         "summary": "Version returns version information of the API server",
-        "operationId": "Version",
+        "operationId": "VersionService_Version",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/versionVersionMessage"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
             }
           }
         }
@@ -2534,8 +2873,7 @@
           }
         },
         "enabled": {
-          "type": "boolean",
-          "format": "boolean"
+          "type": "boolean"
         },
         "name": {
           "type": "string"
@@ -2657,8 +2995,7 @@
       "type": "object",
       "properties": {
         "dryRun": {
-          "type": "boolean",
-          "format": "boolean"
+          "type": "boolean"
         },
         "id": {
           "type": "string",
@@ -2668,8 +3005,7 @@
           "type": "string"
         },
         "prune": {
-          "type": "boolean",
-          "format": "boolean"
+          "type": "boolean"
         }
       }
     },
@@ -2678,8 +3014,7 @@
       "title": "ApplicationSyncRequest is a request to apply the config state to live state",
       "properties": {
         "dryRun": {
-          "type": "boolean",
-          "format": "boolean"
+          "type": "boolean"
         },
         "infos": {
           "type": "array",
@@ -2697,8 +3032,7 @@
           "type": "string"
         },
         "prune": {
-          "type": "boolean",
-          "format": "boolean"
+          "type": "boolean"
         },
         "resources": {
           "type": "array",
@@ -2727,8 +3061,7 @@
           "type": "string"
         },
         "manualSync": {
-          "type": "boolean",
-          "format": "boolean"
+          "type": "boolean"
         },
         "schedule": {
           "type": "string"
@@ -2751,8 +3084,7 @@
           }
         },
         "canSync": {
-          "type": "boolean",
-          "format": "boolean"
+          "type": "boolean"
         }
       }
     },
@@ -2763,8 +3095,7 @@
           "type": "string"
         },
         "last": {
-          "type": "boolean",
-          "format": "boolean"
+          "type": "boolean"
         },
         "timeStamp": {
           "$ref": "#/definitions/v1Time"
@@ -2838,8 +3169,7 @@
       "type": "object",
       "properties": {
         "anonymizeUsers": {
-          "type": "boolean",
-          "format": "boolean"
+          "type": "boolean"
         },
         "trackingID": {
           "type": "string"
@@ -2945,8 +3275,7 @@
           }
         },
         "statusBadgeEnabled": {
-          "type": "boolean",
-          "format": "boolean"
+          "type": "boolean"
         },
         "uiCssURL": {
           "type": "string"
@@ -2955,8 +3284,7 @@
           "type": "string"
         },
         "userLoginsDisabled": {
-          "type": "boolean",
-          "format": "boolean"
+          "type": "boolean"
         }
       }
     },
@@ -2984,8 +3312,7 @@
       "type": "object",
       "properties": {
         "essential": {
-          "type": "boolean",
-          "format": "boolean"
+          "type": "boolean"
         },
         "value": {
           "type": "string"
@@ -3020,8 +3347,7 @@
           "$ref": "#/definitions/v1alpha1AppProject"
         },
         "upsert": {
-          "type": "boolean",
-          "format": "boolean"
+          "type": "boolean"
         }
       }
     },
@@ -3320,11 +3646,23 @@
     "repositoryRepoResponse": {
       "type": "object"
     },
-    "resourceQuantity": {
-      "description": "Quantity is a fixed-point representation of a number.\nIt provides convenient marshaling/unmarshaling in JSON and YAML,\nin addition to String() and AsInt64() accessors.\n\nThe serialization format is:\n\n<quantity>        ::= <signedNumber><suffix>\n  (Note that <suffix> may be empty, from the \"\" case in <decimalSI>.)\n<digit>           ::= 0 | 1 | ... | 9\n<digits>          ::= <digit> | <digit><digits>\n<number>          ::= <digits> | <digits>.<digits> | <digits>. | .<digits>\n<sign>            ::= \"+\" | \"-\"\n<signedNumber>    ::= <number> | <sign><number>\n<suffix>          ::= <binarySI> | <decimalExponent> | <decimalSI>\n<binarySI>        ::= Ki | Mi | Gi | Ti | Pi | Ei\n  (International System of units; See: http://physics.nist.gov/cuu/Units/binary.html)\n<decimalSI>       ::= m | \"\" | k | M | G | T | P | E\n  (Note that 1024 = 1Ki but 1000 = 1k; I didn't choose the capitalization.)\n<decimalExponent> ::= \"e\" <signedNumber> | \"E\" <signedNumber>\n\nNo matter which of the three exponent forms is used, no quantity may represent\na number greater than 2^63-1 in magnitude, nor may it have more than 3 decimal\nplaces. Numbers larger or more precise will be capped or rounded up.\n(E.g.: 0.1m will rounded up to 1m.)\nThis may be extended in the future if we require larger or smaller quantities.\n\nWhen a Quantity is parsed from a string, it will remember the type of suffix\nit had, and will use the same type again when it is serialized.\n\nBefore serializing, Quantity will be put in \"canonical form\".\nThis means that Exponent/suffix will be adjusted up or down (with a\ncorresponding increase or decrease in Mantissa) such that:\n  a. No precision is lost\n  b. No fractional digits will be emitted\n  c. The exponent (or suffix) is as large as possible.\nThe sign will be omitted unless the number is negative.\n\nExamples:\n  1.5 will be serialized as \"1500m\"\n  1.5Gi will be serialized as \"1536Mi\"\n\nNote that the quantity will NEVER be internally represented by a\nfloating point number. That is the whole point of this exercise.\n\nNon-canonical values will still parse as long as they are well formed,\nbut will be re-emitted in their canonical form. (So always use canonical\nform, or don't diff.)\n\nThis format is intended to make it difficult to use these numbers without\nwriting some sort of special handling code in the hopes that that will\ncause implementors to also use a fixed point implementation.\n\n+protobuf=true\n+protobuf.embed=string\n+protobuf.options.marshal=false\n+protobuf.options.(gogoproto.goproto_stringer)=false\n+k8s:deepcopy-gen=true\n+k8s:openapi-gen=true",
+    "runtimeError": {
       "type": "object",
       "properties": {
-        "string": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/protobufAny"
+          }
+        },
+        "error": {
+          "type": "string"
+        },
+        "message": {
           "type": "string"
         }
       }
@@ -3368,8 +3706,7 @@
           "type": "string"
         },
         "loggedIn": {
-          "type": "boolean",
-          "format": "boolean"
+          "type": "boolean"
         },
         "username": {
           "type": "string"
@@ -4070,12 +4407,10 @@
         },
         "blockOwnerDeletion": {
           "type": "boolean",
-          "format": "boolean",
           "title": "If true, AND if the owner has the \"foregroundDeletion\" finalizer, then\nthe owner cannot be deleted from the key-value store until this\nreference is removed.\nDefaults to false.\nTo set this field, a user needs \"delete\" permission of the owner,\notherwise 422 (Unprocessable Entity) will be returned.\n+optional"
         },
         "controller": {
           "type": "boolean",
-          "format": "boolean",
           "title": "If true, this reference points to the managing controller.\n+optional"
         },
         "kind": {
@@ -4376,8 +4711,7 @@
           "$ref": "#/definitions/v1alpha1ApplicationSourceJsonnet"
         },
         "recurse": {
-          "type": "boolean",
-          "format": "boolean"
+          "type": "boolean"
         }
       }
     },
@@ -4958,7 +5292,6 @@
       "properties": {
         "forceString": {
           "type": "boolean",
-          "format": "boolean",
           "title": "ForceString determines whether to tell Helm to interpret booleans and numbers as strings"
         },
         "name": {
@@ -5029,8 +5362,7 @@
       "title": "JsonnetVar is a jsonnet variable",
       "properties": {
         "code": {
-          "type": "boolean",
-          "format": "boolean"
+          "type": "boolean"
         },
         "name": {
           "type": "string"
@@ -5108,8 +5440,7 @@
       "properties": {
         "automated": {
           "description": "Automated is set to true if operation was initiated automatically by the application controller.",
-          "type": "boolean",
-          "format": "boolean"
+          "type": "boolean"
         },
         "username": {
           "description": "Name of a user who started operation.",
@@ -5174,7 +5505,6 @@
         },
         "warn": {
           "type": "boolean",
-          "format": "boolean",
           "title": "Warn indicates if warning condition should be created for apps which have orphaned resources"
         }
       }
@@ -5279,27 +5609,22 @@
         },
         "enableLfs": {
           "type": "boolean",
-          "format": "boolean",
           "title": "Whether git-lfs support should be enabled for this repo"
         },
         "enableOCI": {
           "type": "boolean",
-          "format": "boolean",
           "title": "Whether helm-oci support should be enabled for this repo"
         },
         "inheritedCreds": {
           "type": "boolean",
-          "format": "boolean",
           "title": "Whether credentials were inherited from a credential set"
         },
         "insecure": {
           "type": "boolean",
-          "format": "boolean",
           "title": "Whether the repo is insecure"
         },
         "insecureIgnoreHostKey": {
           "type": "boolean",
-          "format": "boolean",
           "title": "InsecureIgnoreHostKey should not be used anymore, Insecure is favoured\nonly for Git repos"
         },
         "name": {
@@ -5398,8 +5723,7 @@
       "type": "object",
       "properties": {
         "disabled": {
-          "type": "boolean",
-          "format": "boolean"
+          "type": "boolean"
         },
         "name": {
           "type": "string"
@@ -5441,8 +5765,7 @@
           "type": "string"
         },
         "hook": {
-          "type": "boolean",
-          "format": "boolean"
+          "type": "boolean"
         },
         "kind": {
           "type": "string"
@@ -5668,8 +5991,7 @@
           "$ref": "#/definitions/v1alpha1HealthStatus"
         },
         "hook": {
-          "type": "boolean",
-          "format": "boolean"
+          "type": "boolean"
         },
         "kind": {
           "type": "string"
@@ -5681,8 +6003,7 @@
           "type": "string"
         },
         "requiresPruning": {
-          "type": "boolean",
-          "format": "boolean"
+          "type": "boolean"
         },
         "status": {
           "type": "string"
@@ -5773,7 +6094,6 @@
       "properties": {
         "dryRun": {
           "type": "boolean",
-          "format": "boolean",
           "title": "DryRun will perform a `kubectl apply --dry-run` without actually performing the sync"
         },
         "manifests": {
@@ -5785,7 +6105,6 @@
         },
         "prune": {
           "type": "boolean",
-          "format": "boolean",
           "title": "Prune deletes resources that are no longer tracked in git"
         },
         "resources": {
@@ -5877,17 +6196,14 @@
       "properties": {
         "allowEmpty": {
           "type": "boolean",
-          "format": "boolean",
           "title": "AllowEmpty allows apps have zero live resources (default: false)"
         },
         "prune": {
           "type": "boolean",
-          "format": "boolean",
           "title": "Prune will prune resources automatically as part of automated sync (default: false)"
         },
         "selfHeal": {
           "type": "boolean",
-          "format": "boolean",
           "title": "SelfHeal enables auto-syncing if  (default: false)"
         }
       }
@@ -5925,8 +6241,7 @@
       "properties": {
         "force": {
           "description": "Force indicates whether or not to supply the --force flag to `kubectl apply`.\nThe --force flag deletes and re-create the resource, when PATCH encounters conflict and has\nretried for 5 times.",
-          "type": "boolean",
-          "format": "boolean"
+          "type": "boolean"
         }
       }
     },
@@ -5967,7 +6282,6 @@
         },
         "manualSync": {
           "type": "boolean",
-          "format": "boolean",
           "title": "ManualSync enables manual syncs when they would otherwise be blocked"
         },
         "namespaces": {
@@ -5999,8 +6313,7 @@
         },
         "insecure": {
           "description": "Server should be accessed without verifying the TLS certificate. For testing only.",
-          "type": "boolean",
-          "format": "boolean"
+          "type": "boolean"
         },
         "keyData": {
           "type": "string",
