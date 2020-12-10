@@ -888,19 +888,19 @@ func updateSettingsFromSecret(settings *ArgoCDSettings, argoCDSecret *apiv1.Secr
 		errs = append(errs, &incompleteSettingsError{message: "server.secretkey is missing"})
 	}
 	if githubWebhookSecret := argoCDSecret.Data[settingsWebhookGitHubSecretKey]; len(githubWebhookSecret) > 0 {
-		settings.WebhookGitHubSecret = string(githubWebhookSecret)
+		settings.WebhookGitHubSecret = strings.TrimRight(string(githubWebhookSecret), "\n\r")
 	}
 	if gitlabWebhookSecret := argoCDSecret.Data[settingsWebhookGitLabSecretKey]; len(gitlabWebhookSecret) > 0 {
-		settings.WebhookGitLabSecret = string(gitlabWebhookSecret)
+		settings.WebhookGitLabSecret = strings.TrimRight(string(gitlabWebhookSecret), "\n\r")
 	}
 	if bitbucketWebhookUUID := argoCDSecret.Data[settingsWebhookBitbucketUUIDKey]; len(bitbucketWebhookUUID) > 0 {
-		settings.WebhookBitbucketUUID = string(bitbucketWebhookUUID)
+		settings.WebhookBitbucketUUID = strings.TrimRight(string(bitbucketWebhookUUID), "\n\r")
 	}
 	if bitbucketserverWebhookSecret := argoCDSecret.Data[settingsWebhookBitbucketServerSecretKey]; len(bitbucketserverWebhookSecret) > 0 {
-		settings.WebhookBitbucketServerSecret = string(bitbucketserverWebhookSecret)
+		settings.WebhookBitbucketServerSecret = strings.TrimRight(string(bitbucketserverWebhookSecret), "\n\r")
 	}
 	if gogsWebhookSecret := argoCDSecret.Data[settingsWebhookGogsSecretKey]; len(gogsWebhookSecret) > 0 {
-		settings.WebhookGogsSecret = string(gogsWebhookSecret)
+		settings.WebhookGogsSecret = strings.TrimRight(string(gogsWebhookSecret), "\n\r")
 	}
 
 	serverCert, certOk := argoCDSecret.Data[settingServerCertificate]
@@ -1334,13 +1334,16 @@ func ReplaceStringSecret(val string, secretValues map[string]string) string {
 	if val == "" || !strings.HasPrefix(val, "$") {
 		return val
 	}
+	if !strings.HasPrefix(val, "$") {
+		return strings.TrimRight(val, "\n\r")
+	}
 	secretKey := val[1:]
 	secretVal, ok := secretValues[secretKey]
 	if !ok {
 		log.Warnf("config referenced '%s', but key does not exist in secret", val)
 		return val
 	}
-	return secretVal
+	return strings.TrimRight(secretVal, "\n\r")
 }
 
 // GetGlobalProjectsSettings loads the global project settings from argocd-cm ConfigMap
