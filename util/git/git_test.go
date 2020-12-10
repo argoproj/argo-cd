@@ -474,6 +474,7 @@ func TestParseGitModulesFile(t *testing.T) {
 	defer os.RemoveAll(dir)
 	repoURL := "https://github.com/argoproj/argo-cd.git"
 	client, err := NewClientExt(repoURL, dir, NopCreds{}, false, false)
+	assert.NoError(t, err)
 
 	for k, v := range data {
 		set := make(map[subModule]int)
@@ -494,6 +495,7 @@ func TestGetSubmoduleSHAs(t *testing.T) {
 	defer os.RemoveAll(dir)
 	repoURL := "https://github.com/argoproj/argo-cd.git"
 	client, err := NewClientExt(repoURL, dir, NopCreds{}, false, false)
+	assert.NoError(t, err)
 
 	set := make(map[subModule]int)
 	var rootModuleRef []string
