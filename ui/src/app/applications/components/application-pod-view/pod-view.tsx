@@ -16,7 +16,7 @@ import Moment from 'react-moment';
 
 interface PodViewProps {
     tree: ApplicationTree;
-    onPodClick: (fullName: string) => void;
+    onItemClick: (fullName: string) => void;
     app: Application;
 }
 export class PodView extends React.Component<PodViewProps> {
@@ -80,7 +80,9 @@ export class PodView extends React.Component<PodViewProps> {
                                                                 {<div style={{textAlign: 'center'}}>{ResourceLabel({kind: group.kind})}</div>}
                                                             </div>
                                                             <div style={{lineHeight: '15px', wordWrap: 'break-word'}}>
-                                                                <b>{group.name || 'unknown'}</b>
+                                                                <b style={{cursor: 'pointer'}} onClick={() => this.props.onItemClick(group.fullName)}>
+                                                                    {group.name || 'unknown'}
+                                                                </b>
                                                                 {group.resourceStatus && (
                                                                     <div>
                                                                         {group.resourceStatus.health && <HealthStatusIcon state={group.resourceStatus.health} />}
@@ -159,7 +161,7 @@ export class PodView extends React.Component<PodViewProps> {
                                                                                         <i className='fa fa-info-circle' /> Info
                                                                                     </React.Fragment>
                                                                                 ),
-                                                                                action: () => this.props.onPodClick(pod.fullName)
+                                                                                action: () => this.props.onItemClick(pod.fullName)
                                                                             },
                                                                             {
                                                                                 title: (
@@ -251,6 +253,7 @@ export class PodView extends React.Component<PodViewProps> {
                 parentsFor[rnode.uid] = rnode.parentRefs as PodGroup[];
                 groupRefs[rnode.uid] = {
                     pods: [] as Pod[],
+                    fullName: nodeKey(rnode),
                     ...groupRefs[rnode.uid],
                     ...rnode,
                     info: (rnode.info || []).filter(i => !i.name.includes('Resource.')),
@@ -267,7 +270,6 @@ export class PodView extends React.Component<PodViewProps> {
                 fullName: nodeKey(rnode),
                 metadata: {name: rnode.name},
                 spec: {nodeName: 'Unknown'},
-                status: {phase: PodPhase.PodUnknown},
                 health: rnode.health.status
             } as Pod;
 

@@ -830,6 +830,7 @@ export interface PodGroup extends Partial<ResourceNode> {
     metrics?: ResourceList;
     resourceStatus?: Partial<ResourceStatus>;
     menu?: React.ReactNode;
+    fullName?: string;
 }
 
 export interface InfraNode {
@@ -869,18 +870,12 @@ export enum ResourceName {
 export interface Pod extends ResourceNode {
     fullName: string;
     metadata: models.ObjectMeta;
-    status: PodStatus;
     spec: PodSpec;
     health: HealthStatusCode;
 }
 
 export interface PodSpec {
     nodeName: string;
-}
-
-export interface PodStatus {
-    phase: PodPhase;
-    message: string;
 }
 
 export enum PodPhase {

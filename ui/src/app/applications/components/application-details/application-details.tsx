@@ -236,7 +236,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                     }}
                                                 />
                                             )) ||
-                                                (pref.view === 'pods' && <PodView tree={tree} app={application} onPodClick={fullName => this.selectNode(fullName)} />) || (
+                                                (pref.view === 'pods' && <PodView tree={tree} app={application} onItemClick={fullName => this.selectNode(fullName)} />) || (
                                                     <div>
                                                         {(filteredRes.length > 0 && (
                                                             <Paginate
