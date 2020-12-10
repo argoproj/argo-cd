@@ -84,6 +84,9 @@ export class ApplicationsService {
     }
 
     public getNodes(name: string): Promise<models.InfraNode[]> {
+        return new Promise<models.InfraNode[]>(res => {
+            return [] as models.InfraNode[];
+        });
         return requests.get(`/applications/${name}/nodes`).then(res => {
             return (res.body.items as models.InfraNode[]) || [];
         });

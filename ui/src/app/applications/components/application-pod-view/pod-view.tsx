@@ -91,7 +91,7 @@ export class PodView extends React.Component<PodViewProps> {
                                                                 )}
                                                             </div>
                                                             <div style={{marginLeft: 'auto'}}>
-                                                                {group.menu && (
+                                                                {group.renderMenu && (
                                                                     <DropDown
                                                                         isMenu={true}
                                                                         anchor={() => (
@@ -99,7 +99,7 @@ export class PodView extends React.Component<PodViewProps> {
                                                                                 <i className='fa fa-ellipsis-v' />
                                                                             </button>
                                                                         )}>
-                                                                        {() => group.menu}
+                                                                        {() => group.renderMenu()}
                                                                     </DropDown>
                                                                 )}
                                                             </div>
@@ -258,7 +258,7 @@ export class PodView extends React.Component<PodViewProps> {
                     info: (rnode.info || []).filter(i => !i.name.includes('Resource.')),
                     createdAt: rnode.createdAt,
                     resourceStatus: {health: rnode.health, status: rnode.status},
-                    menu: RenderResourceMenu(rnode, this.props.app, this.appContext)
+                    renderMenu: () => RenderResourceMenu(rnode, this.props.app, this.appContext)
                 };
             }
 

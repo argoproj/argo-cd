@@ -829,7 +829,7 @@ export interface PodGroup extends Partial<ResourceNode> {
     info?: InfoItem[];
     metrics?: ResourceList;
     resourceStatus?: Partial<ResourceStatus>;
-    menu?: React.ReactNode;
+    renderMenu?: () => React.ReactNode;
     fullName?: string;
 }
 
