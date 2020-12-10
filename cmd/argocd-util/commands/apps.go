@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"sort"
 	"time"
@@ -278,7 +279,7 @@ func reconcileApplications(
 	projLister := appInformerFactory.Argoproj().V1alpha1().AppProjects().Lister()
 	server, err := metrics.NewMetricsServer("", appLister, func(obj interface{}) bool {
 		return true
-	}, func() error {
+	}, func(r *http.Request) error {
 		return nil
 	})
 

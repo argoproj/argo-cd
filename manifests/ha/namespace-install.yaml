@@ -2993,6 +2993,12 @@ spec:
           value: "2"
         image: argoproj/argocd:latest
         imagePullPolicy: Always
+        livenessProbe:
+          httpGet:
+            path: /healthz?full=true
+            port: 8080
+          initialDelaySeconds: 3
+          periodSeconds: 30
         name: argocd-server
         ports:
         - containerPort: 8080

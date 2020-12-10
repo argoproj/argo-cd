@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"net/http"
 	"reflect"
 	"runtime/debug"
 	"sort"
@@ -174,7 +175,7 @@ func NewApplicationController(
 	})
 	metricsAddr := fmt.Sprintf("0.0.0.0:%d", metricsPort)
 	var err error
-	ctrl.metricsServer, err = metrics.NewMetricsServer(metricsAddr, appLister, ctrl.canProcessApp, func() error {
+	ctrl.metricsServer, err = metrics.NewMetricsServer(metricsAddr, appLister, ctrl.canProcessApp, func(r *http.Request) error {
 		return nil
 	})
 	if err != nil {
