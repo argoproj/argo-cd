@@ -2137,7 +2137,7 @@
           "timeFrom": null,
           "timeRegions": [],
           "timeShift": null,
-          "title": "Git Requets (ls-remote)",
+          "title": "Git Requests (ls-remote)",
           "tooltip": {
             "shared": true,
             "sort": 2,
