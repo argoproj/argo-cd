@@ -40,7 +40,7 @@
 
 ### Configure Argo to use the new Azure AD Enterprise App
 
-1. Edit `argo-cm` and add the following `dex.config` to the data section, replacing the `caData`, `my-argo-cd-url` and `my-login-url` your values from the Azure AD App:
+1. Edit `argocd-cm` and add the following `dex.config` to the data section, replacing the `caData`, `my-argo-cd-url` and `my-login-url` your values from the Azure AD App:
 
 ```
 data:
@@ -64,7 +64,7 @@ data:
         groupsAttr: Group
 ```
 
-2. Edit `argo-rbac-cm` to configure permissions, similar to example below.
+2. Edit `argocd-rbac-cm` to configure permissions, similar to example below.
 
    - Use Azure AD `Group IDs` for assigning roles.
    - See [RBAC Configurations](../rbac.md) for more detailed scenarios.
