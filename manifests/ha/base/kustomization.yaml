@@ -11,7 +11,7 @@ patchesStrategicMerge:
 images:
 - name: argoproj/argocd
   newName: argoproj/argocd
-  newTag: v1.8.0
+  newTag: v1.8.1
 resources:
 - ../../base/application-controller
 - ../../base/dex
