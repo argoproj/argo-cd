@@ -745,28 +745,29 @@ func mergeSourceParameters(source *v1alpha1.ApplicationSource, path, appName str
 		} else if info != nil && info.IsDir() {
 			continue
 		} else if err != nil {
+			// filename should be part of error message here
 			return err
 		}
 
 		data, err := json.Marshal(merged)
 		if err != nil {
-			return err
+			return fmt.Errorf("%s: %v", filename, err)
 		}
 		patch, err := ioutil.ReadFile(filename)
 		if err != nil {
-			return err
+			return fmt.Errorf("%s: %v", filename, err)
 		}
 		patch, err = yaml.YAMLToJSON(patch)
 		if err != nil {
-			return err
+			return fmt.Errorf("%s: %v", filename, err)
 		}
 		data, err = jsonpatch.MergePatch(data, patch)
 		if err != nil {
-			return err
+			return fmt.Errorf("%s: %v", filename, err)
 		}
 		err = json.Unmarshal(data, &merged)
 		if err != nil {
-			return err
+			return fmt.Errorf("%s: %v", filename, err)
 		}
 
 		// make sure only config management tools related properties are used and ignore everything else
@@ -784,7 +785,7 @@ func mergeSourceParameters(source *v1alpha1.ApplicationSource, path, appName str
 func GetAppSourceType(source *v1alpha1.ApplicationSource, path, appName string) (v1alpha1.ApplicationSourceType, error) {
 	err := mergeSourceParameters(source, path, appName)
 	if err != nil {
-		return "", fmt.Errorf("error while parsing .argocd-source.yaml: %v", err)
+		return "", fmt.Errorf("error while parsing source parameters: %v", err)
 	}
 
 	appSourceType, err := source.ExplicitType()
