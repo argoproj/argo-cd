@@ -896,14 +896,16 @@ func TestListApps(t *testing.T) {
 	assert.NoError(t, err)
 
 	expectedApps := map[string]string{
-		"Kustomization":      "Kustomize",
-		"app-parameters":     "Kustomize",
-		"invalid-helm":       "Helm",
-		"invalid-kustomize":  "Kustomize",
-		"kustomization_yaml": "Kustomize",
-		"kustomization_yml":  "Kustomize",
-		"my-chart":           "Helm",
-		"my-chart-2":         "Helm",
+		"Kustomization":                  "Kustomize",
+		"app-parameters/multi":           "Kustomize",
+		"app-parameters/single-app-only": "Kustomize",
+		"app-parameters/single-global":   "Kustomize",
+		"invalid-helm":                   "Helm",
+		"invalid-kustomize":              "Kustomize",
+		"kustomization_yaml":             "Kustomize",
+		"kustomization_yml":              "Kustomize",
+		"my-chart":                       "Helm",
+		"my-chart-2":                     "Helm",
 	}
 	assert.Equal(t, expectedApps, res.Apps)
 }
@@ -1181,12 +1183,10 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 	manifests, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
 		Repo: &argoappv1.Repository{},
 		ApplicationSource: &argoappv1.ApplicationSource{
-			Path: "./testdata/app-parameters",
+			Path: "./testdata/app-parameters/single-global",
 		},
 	})
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 	resourceByKindName := make(map[string]*unstructured.Unstructured)
 	for _, manifest := range manifests.Manifests {
 		var un unstructured.Unstructured
@@ -1197,17 +1197,11 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 		resourceByKindName[fmt.Sprintf("%s/%s", un.GetKind(), un.GetName())] = &un
 	}
 	deployment, ok := resourceByKindName["Deployment/guestbook-ui"]
-	if !assert.True(t, ok) {
-		return
-	}
+	require.True(t, ok)
 	containers, ok, _ := unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
-	if !assert.True(t, ok) {
-		return
-	}
+	require.True(t, ok)
 	image, ok, _ := unstructured.NestedString(containers[0].(map[string]interface{}), "image")
-	if !assert.True(t, ok) {
-		return
-	}
+	require.True(t, ok)
 	assert.Equal(t, "gcr.io/heptio-images/ks-guestbook-demo:0.2", image)
 }
 
