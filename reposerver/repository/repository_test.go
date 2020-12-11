@@ -1103,12 +1103,12 @@ func TestService_newHelmClientResolveRevision(t *testing.T) {
 }
 
 func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
-	t.Run("No app name set", func(t *testing.T) {
+	t.Run("No app name set and app specific file exists", func(t *testing.T) {
 		service := newService(".")
 		details, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
 			Repo: &argoappv1.Repository{},
 			Source: &argoappv1.ApplicationSource{
-				Path: "./testdata/app-parameters",
+				Path: "./testdata/app-parameters/multi",
 			},
 		})
 		require.NoError(t, err)
@@ -1119,19 +1119,31 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 		details, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
 			Repo: &argoappv1.Repository{},
 			Source: &argoappv1.ApplicationSource{
-				Path: "./testdata/app-parameters",
+				Path: "./testdata/app-parameters/single-global",
 			},
-			AppName: "testapp2",
+			AppName: "testapp",
 		})
 		require.NoError(t, err)
 		assert.EqualValues(t, []string{"gcr.io/heptio-images/ks-guestbook-demo:0.2"}, details.Kustomize.Images)
+	})
+	t.Run("Only app specific override", func(t *testing.T) {
+		service := newService(".")
+		details, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
+			Repo: &argoappv1.Repository{},
+			Source: &argoappv1.ApplicationSource{
+				Path: "./testdata/app-parameters/single-app-only",
+			},
+			AppName: "testapp",
+		})
+		require.NoError(t, err)
+		assert.EqualValues(t, []string{"gcr.io/heptio-images/ks-guestbook-demo:0.3"}, details.Kustomize.Images)
 	})
 	t.Run("App specific override", func(t *testing.T) {
 		service := newService(".")
 		details, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
 			Repo: &argoappv1.Repository{},
 			Source: &argoappv1.ApplicationSource{
-				Path: "./testdata/app-parameters",
+				Path: "./testdata/app-parameters/multi",
 			},
 			AppName: "testapp",
 		})
@@ -1143,7 +1155,7 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 		details, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
 			Repo: &argoappv1.Repository{},
 			Source: &argoappv1.ApplicationSource{
-				Path: "./testdata/app-parameters",
+				Path: "./testdata/app-parameters/multi",
 			},
 			AppName: "unmergeable",
 		})
@@ -1155,7 +1167,7 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 		details, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
 			Repo: &argoappv1.Repository{},
 			Source: &argoappv1.ApplicationSource{
-				Path: "./testdata/app-parameters",
+				Path: "./testdata/app-parameters/multi",
 			},
 			AppName: "broken",
 		})
