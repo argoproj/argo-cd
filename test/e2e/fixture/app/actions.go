@@ -300,7 +300,7 @@ func (a *Actions) Refresh(refreshType RefreshType) *Actions {
 
 func (a *Actions) Delete(cascade bool) *Actions {
 	a.context.t.Helper()
-	a.runCli("app", "delete", a.context.name, fmt.Sprintf("--cascade=%v", cascade))
+	a.runCli("app", "delete", a.context.name, fmt.Sprintf("--cascade=%v", cascade), "--yes")
 	return a
 }
 
