@@ -644,7 +644,7 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
                             api => (
                                 <div>
                                     <p>
-                                        Are your sure you want to delete {resource.kind} '{resource.name}'?
+                                        Are you sure you want to delete {resource.kind} '{resource.name}'?
                                     </p>
                                     <div className='argo-form-row'>
                                         <FormField
