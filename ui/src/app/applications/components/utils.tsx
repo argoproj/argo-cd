@@ -134,11 +134,11 @@ export function RenderResourceMenu(
     application: appModels.Application,
     appContext: AppContext,
     appChanged: BehaviorSubject<appModels.Application>,
-    getApplicationActionMenu: (application: appModels.Application) => any
+    getApplicationActionMenu: () => any
 ): React.ReactNode {
     let menuItems: Observable<ActionMenuItem[]>;
     if (isAppNode(resource) && resource.name === application.metadata.name) {
-        menuItems = Observable.from([getApplicationActionMenu(application)]);
+        menuItems = Observable.from([getApplicationActionMenu()]);
     } else {
         const isRoot = resource.root && nodeKey(resource.root) === nodeKey(resource);
         const items: MenuItem[] = [
