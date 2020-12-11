@@ -769,13 +769,13 @@ func mergeSourceParameters(source *v1alpha1.ApplicationSource, path, appName str
 		if err != nil {
 			return fmt.Errorf("%s: %v", filename, err)
 		}
-
-		// make sure only config management tools related properties are used and ignore everything else
-		merged.Chart = source.Chart
-		merged.Path = source.Path
-		merged.RepoURL = source.RepoURL
-		merged.TargetRevision = source.TargetRevision
 	}
+
+	// make sure only config management tools related properties are used and ignore everything else
+	merged.Chart = source.Chart
+	merged.Path = source.Path
+	merged.RepoURL = source.RepoURL
+	merged.TargetRevision = source.TargetRevision
 
 	*source = merged
 	return nil
