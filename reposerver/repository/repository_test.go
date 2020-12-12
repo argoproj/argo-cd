@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -1178,31 +1179,118 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 	})
 }
 
-func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
-	service := newService(".")
-	manifests, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
-		Repo: &argoappv1.Repository{},
-		ApplicationSource: &argoappv1.ApplicationSource{
-			Path: "./testdata/app-parameters/single-global",
-		},
-	})
-	require.NoError(t, err)
-	resourceByKindName := make(map[string]*unstructured.Unstructured)
-	for _, manifest := range manifests.Manifests {
-		var un unstructured.Unstructured
-		err := yaml.Unmarshal([]byte(manifest), &un)
-		if !assert.NoError(t, err) {
-			return
-		}
-		resourceByKindName[fmt.Sprintf("%s/%s", un.GetKind(), un.GetName())] = &un
+func copySourceToTemp(source string) string {
+	// cwd, err := os.Getwd()
+	// if err != nil {
+	// 	panic(err)
+	// }
+	tempDir, err := ioutil.TempDir("./testdata/app-parameters", "test")
+	if err != nil {
+		panic(err)
 	}
-	deployment, ok := resourceByKindName["Deployment/guestbook-ui"]
-	require.True(t, ok)
-	containers, ok, _ := unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
-	require.True(t, ok)
-	image, ok, _ := unstructured.NestedString(containers[0].(map[string]interface{}), "image")
-	require.True(t, ok)
-	assert.Equal(t, "gcr.io/heptio-images/ks-guestbook-demo:0.2", image)
+	cmd := exec.Command("cp", "-R", source, tempDir)
+	err = cmd.Run()
+	if err != nil {
+		os.RemoveAll(tempDir)
+		panic(err)
+	}
+	// retPath, err := filepath.Rel(cwd, tempDir)
+	// if err != nil {
+	// 	os.RemoveAll(tempDir)
+	// 	panic(err)
+	// }
+	return tempDir
+}
+
+func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
+	t.Run("Single global override", func(t *testing.T) {
+		tempDir := copySourceToTemp("./testdata/app-parameters")
+		defer os.RemoveAll(tempDir)
+		service := newService(".")
+		manifests, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+			Repo: &argoappv1.Repository{},
+			ApplicationSource: &argoappv1.ApplicationSource{
+				Path: filepath.Join(tempDir, "app-parameters", "single-global"),
+			},
+		})
+		require.NoError(t, err)
+		resourceByKindName := make(map[string]*unstructured.Unstructured)
+		for _, manifest := range manifests.Manifests {
+			var un unstructured.Unstructured
+			err := yaml.Unmarshal([]byte(manifest), &un)
+			if !assert.NoError(t, err) {
+				return
+			}
+			resourceByKindName[fmt.Sprintf("%s/%s", un.GetKind(), un.GetName())] = &un
+		}
+		deployment, ok := resourceByKindName["Deployment/guestbook-ui"]
+		require.True(t, ok)
+		containers, ok, _ := unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
+		require.True(t, ok)
+		image, ok, _ := unstructured.NestedString(containers[0].(map[string]interface{}), "image")
+		require.True(t, ok)
+		assert.Equal(t, "gcr.io/heptio-images/ks-guestbook-demo:0.2", image)
+	})
+
+	t.Run("Application specific override", func(t *testing.T) {
+		service := newService(".")
+		tempDir := copySourceToTemp("./testdata/app-parameters")
+		defer os.RemoveAll(tempDir)
+		manifests, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+			Repo: &argoappv1.Repository{},
+			ApplicationSource: &argoappv1.ApplicationSource{
+				Path: filepath.Join(tempDir, "app-parameters", "single-app-only"),
+			},
+			AppName: "testapp",
+		})
+		require.NoError(t, err)
+		resourceByKindName := make(map[string]*unstructured.Unstructured)
+		for _, manifest := range manifests.Manifests {
+			var un unstructured.Unstructured
+			err := yaml.Unmarshal([]byte(manifest), &un)
+			if !assert.NoError(t, err) {
+				return
+			}
+			resourceByKindName[fmt.Sprintf("%s/%s", un.GetKind(), un.GetName())] = &un
+		}
+		deployment, ok := resourceByKindName["Deployment/guestbook-ui"]
+		require.True(t, ok)
+		containers, ok, _ := unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
+		require.True(t, ok)
+		image, ok, _ := unstructured.NestedString(containers[0].(map[string]interface{}), "image")
+		require.True(t, ok)
+		assert.Equal(t, "gcr.io/heptio-images/ks-guestbook-demo:0.3", image)
+	})
+
+	t.Run("Application specific override for other app", func(t *testing.T) {
+		service := newService(".")
+		tempDir := copySourceToTemp("./testdata/app-parameters")
+		defer os.RemoveAll(tempDir)
+		manifests, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+			Repo: &argoappv1.Repository{},
+			ApplicationSource: &argoappv1.ApplicationSource{
+				Path: filepath.Join(tempDir, "app-parameters", "single-app-only"),
+			},
+			AppName: "testapp2",
+		})
+		require.NoError(t, err)
+		resourceByKindName := make(map[string]*unstructured.Unstructured)
+		for _, manifest := range manifests.Manifests {
+			var un unstructured.Unstructured
+			err := yaml.Unmarshal([]byte(manifest), &un)
+			if !assert.NoError(t, err) {
+				return
+			}
+			resourceByKindName[fmt.Sprintf("%s/%s", un.GetKind(), un.GetName())] = &un
+		}
+		deployment, ok := resourceByKindName["Deployment/guestbook-ui"]
+		require.True(t, ok)
+		containers, ok, _ := unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
+		require.True(t, ok)
+		image, ok, _ := unstructured.NestedString(containers[0].(map[string]interface{}), "image")
+		require.True(t, ok)
+		assert.Equal(t, "gcr.io/heptio-images/ks-guestbook-demo:0.1", image)
+	})
 }
 
 func TestGenerateManifestWithAnnotatedAndRegularGitTagHashes(t *testing.T) {
