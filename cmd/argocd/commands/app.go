@@ -483,20 +483,6 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 	return command
 }
 
-func setPluginOptEnvs(src *argoappv1.ApplicationSource, envs []string) {
-	if src.Plugin == nil {
-		src.Plugin = &argoappv1.ApplicationSourcePlugin{}
-	}
-
-	for _, text := range envs {
-		e, err := argoappv1.NewEnvEntry(text)
-		if err != nil {
-			log.Fatal(err)
-		}
-		src.Plugin.AddEnvEntry(e)
-	}
-}
-
 // NewApplicationUnsetCommand returns a new instance of an `argocd app unset` command
 func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (

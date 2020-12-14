@@ -1,18 +1,16 @@
 package commands
 
 import (
-	"context"
-	"fmt"
-	"github.com/argoproj/argo-cd/pkg/apis/application"
-	"github.com/argoproj/argo-cd/util/errors"
 	"log"
 	"os"
 
-	cmdutil "github.com/argoproj/argo-cd/cmd/util"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	appfake "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
 	"github.com/spf13/cobra"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	cmdutil "github.com/argoproj/argo-cd/cmd/util"
+	"github.com/argoproj/argo-cd/pkg/apis/application"
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/errors"
 )
 
 func NewGenerateConfigCommand() *cobra.Command {
@@ -109,11 +107,7 @@ func NewGenAppConfigCommand() *cobra.Command {
 				os.Exit(1)
 			}
 
-			appClientset := appfake.NewSimpleClientset(&app)
-			created, err := appClientset.ArgoprojV1alpha1().Applications("argocd").Create(context.Background(), &app, v1.CreateOptions{})
-			errors.CheckError(err)
-
-			errors.CheckError(cmdutil.PrintResource(created, outputFormat))
+			errors.CheckError(cmdutil.PrintResource(app, outputFormat))
 		},
 	}
 	command.Flags().StringVar(&appName, "name", "", "A name for the app, ignored if a file is set (DEPRECATED)")
@@ -141,7 +135,6 @@ func NewGenProjectConfigCommand() *cobra.Command {
 		Short: "Generate declarative config for a project",
 		Run: func(c *cobra.Command, args []string) {
 			var proj v1alpha1.AppProject
-			fmt.Printf("EE: %d/%v\n", len(opts.SignatureKeys), opts.SignatureKeys)
 			if fileURL == "-" {
 				// read stdin
 				err := cmdutil.ReadProjFromStdin(&proj)
@@ -177,10 +170,7 @@ func NewGenProjectConfigCommand() *cobra.Command {
 				}
 			}
 
-			appClientset := appfake.NewSimpleClientset(&proj)
-			created, err := appClientset.ArgoprojV1alpha1().AppProjects("argocd").Create(context.Background(), &proj, v1.CreateOptions{})
-			errors.CheckError(err)
-			errors.CheckError(cmdutil.PrintResource(created, outputFormat))
+			errors.CheckError(cmdutil.PrintResource(proj, outputFormat))
 		},
 	}
 	command.Flags().StringVarP(&fileURL, "file", "f", "", "Filename or URL to Kubernetes manifests for the project")

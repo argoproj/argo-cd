@@ -1,4 +1,4 @@
-## argocd-util config app
+## argocd-util config proj
 
 Generate declarative config for a project
 
@@ -9,7 +9,7 @@ Generate declarative config for a project
 ```
 argocd-util config proj PROJECT [flags]
 ```
-	
+
 ### Options
 
 ```
@@ -26,5 +26,5 @@ argocd-util config proj PROJECT [flags]
 
 ### SEE ALSO
 
-* [argocd-util](argocd-util.md)	 - argocd-util tools used by Argo CD
-* [argocd-util config](argocd-util_declarative_config.md) - Generate declarative config
+* [argocd-util config](argocd-util_config.md)	 - Generate declarative configuration files
+

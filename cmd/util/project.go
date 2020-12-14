@@ -3,15 +3,17 @@ package util
 import (
 	"bufio"
 	"fmt"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/config"
-	"github.com/argoproj/argo-cd/util/gpg"
-	"github.com/spf13/cobra"
-	"k8s.io/utils/pointer"
 	"log"
 	"net/url"
 	"os"
 	"strings"
+
+	"github.com/spf13/cobra"
+	"k8s.io/utils/pointer"
+
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/config"
+	"github.com/argoproj/argo-cd/util/gpg"
 )
 
 type ProjectOpts struct {
