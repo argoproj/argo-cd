@@ -52,6 +52,7 @@ const (
 	PodKind                      = "Pod"
 	APIServiceKind               = "APIService"
 	NamespaceKind                = "Namespace"
+	HorizontalPodAutoscalerKind  = "HorizontalPodAutoscaler"
 )
 
 type ResourceInfoProvider interface {
