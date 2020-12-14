@@ -2848,7 +2848,7 @@ spec:
       - command:
         - /shared/argocd-util
         - rundex
-        image: quay.io/dexidp/dex:v2.25.0
+        image: ghcr.io/dexidp/dex:v2.27.0
         imagePullPolicy: Always
         name: dex
         ports:

@@ -26,7 +26,7 @@ spec:
           name: static-files
       containers:
       - name: dex
-        image: quay.io/dexidp/dex:v2.25.0
+        image: ghcr.io/dexidp/dex:v2.27.0
         imagePullPolicy: Always
         command: [/shared/argocd-util, rundex]
         ports:
