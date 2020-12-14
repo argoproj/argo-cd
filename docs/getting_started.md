@@ -5,7 +5,7 @@
 
 ## Requirements
 
-* Installed [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) command-line tool
+* Installed [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) command-line tool.
 * Have a [kubeconfig](https://kubernetes.io/docs/tasks/access-application-cluster/configure-access-multiple-clusters/) file (default location is `~/.kube/config`).
 
 ## 1. Install Argo CD
@@ -149,7 +149,7 @@ After filling out the information above, click **Create** at the top of the UI t
 
 ## 7. Sync (Deploy) The Application
 
-### From CLI:
+### Syncing via CLI
 
 Once the guestbook application is created, you can now view its status:
 
@@ -180,9 +180,9 @@ argocd app sync guestbook
 
 This command retrieves the manifests from the repository and performs a `kubectl apply` of the
 manifests. The guestbook app is now running and you can now view its resource components, logs,
-events, and assessed health status:
+events, and assessed health status.
 
-### From UI:
+### Syncing via UI
 
 ![guestbook app](assets/guestbook-app.png)
 ![view app](assets/guestbook-tree.png)
