@@ -213,7 +213,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                     <FormField formApi={formApi} field='spec.revisionHistoryLimit' componentProps={{style: {paddingRight: '1em'}, placeholder: '10'}} component={NumberField} />
                     <div style={{position: 'absolute', right: '0', top: '0'}}>
                         <HelpIcon
-                            title='This limits this number of items kept in the apps revision history.
+                            title='This limits the number of items kept in the apps revision history.
     This should only be changed in exceptional circumstances.
     Setting to zero will store no history. This will reduce storage used.
     Increasing will increase the space used to store the history, so we do not recommend increasing it.
