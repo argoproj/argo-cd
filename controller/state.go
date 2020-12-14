@@ -32,6 +32,7 @@ import (
 	"github.com/argoproj/argo-cd/util/gpg"
 	argohealth "github.com/argoproj/argo-cd/util/health"
 	"github.com/argoproj/argo-cd/util/io"
+	argokube "github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/settings"
 	"github.com/argoproj/argo-cd/util/stats"
 )
@@ -409,7 +410,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 
 	for _, liveObj := range liveObjByKey {
 		if liveObj != nil {
-			appInstanceName := kubeutil.GetAppInstanceLabel(liveObj, appLabelKey)
+			appInstanceName := argokube.GetAppInstanceIdentifier(liveObj, appLabelKey)
 			if appInstanceName != "" && appInstanceName != app.Name {
 				conditions = append(conditions, v1alpha1.ApplicationCondition{
 					Type:               v1alpha1.ApplicationConditionSharedResourceWarning,

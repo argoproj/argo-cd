@@ -23,6 +23,7 @@ import (
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/db"
+	argokube "github.com/argoproj/argo-cd/util/kube"
 	logutils "github.com/argoproj/argo-cd/util/log"
 	"github.com/argoproj/argo-cd/util/lua"
 	"github.com/argoproj/argo-cd/util/settings"
@@ -256,7 +257,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 			res := &ResourceInfo{}
 			populateNodeInfo(un, res)
 			res.Health, _ = health.GetResourceHealth(un, cacheSettings.clusterSettings.ResourceHealthOverride)
-			appName := kube.GetAppInstanceLabel(un, cacheSettings.appInstanceLabelKey)
+			appName := argokube.GetAppInstanceIdentifier(un, cacheSettings.appInstanceLabelKey)
 			if isRoot && appName != "" {
 				res.AppName = appName
 			}

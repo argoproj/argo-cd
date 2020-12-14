@@ -1238,7 +1238,7 @@ func groupObjsForDiff(resources *application.ManagedResourcesResponse, objs map[
 		}
 		if local, ok := objs[key]; ok || live != nil {
 			if local != nil && !kube.IsCRD(local) {
-				err = argokube.SetAppInstanceLabel(local, argoSettings.AppLabelKey, appName)
+				err = argokube.SetAppInstanceIdentifier(local, argoSettings.AppLabelKey, appName)
 				errors.CheckError(err)
 			}
 

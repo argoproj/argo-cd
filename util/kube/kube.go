@@ -8,6 +8,18 @@ import (
 	"github.com/argoproj/argo-cd/common"
 )
 
+// GetAppInstanceLabel returns the application instance name from labels
+func GetAppInstanceIdentifier(un *unstructured.Unstructured, key string) string {
+	if labels := un.GetLabels(); labels != nil {
+		return labels[key]
+	}
+	return ""
+}
+
+func SetAppInstanceIdentifier(target *unstructured.Unstructured, key, val string) error {
+	return SetAppInstanceIdentifier(target, key, val)
+}
+
 // SetAppInstanceLabel the recommended app.kubernetes.io/instance label against an unstructured object
 // Uses the legacy labeling if environment variable is set
 func SetAppInstanceLabel(target *unstructured.Unstructured, key, val string) error {
@@ -76,6 +88,60 @@ func SetAppInstanceLabel(target *unstructured.Unstructured, key, val string) err
 			}
 			templateLabels[key] = val
 			err = unstructured.SetNestedMap(target.UnstructuredContent(), templateLabels, "spec", "template", "metadata", "labels")
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// SetAppInstanceAnnotation the recommended app.kubernetes.io/instance annotation against an unstructured object
+// Uses the legacy annotation if environment variable is set
+func SetAppInstanceAnnotation(target *unstructured.Unstructured, key, val string) error {
+	annotations := target.GetAnnotations()
+	if annotations == nil {
+		annotations = make(map[string]string)
+	}
+	annotations[key] = val
+	target.SetAnnotations(annotations)
+	if key != common.LabelKeyLegacyApplicationName {
+		// we no longer annotate the pod template sub resources in v0.11
+		return nil
+	}
+
+	gvk := schema.FromAPIVersionAndKind(target.GetAPIVersion(), target.GetKind())
+	// special case for deployment and job types: make sure that derived replicaset, and pod has
+	// the application annotation
+	switch gvk.Group {
+	case "apps", "extensions":
+		switch gvk.Kind {
+		case kube.DeploymentKind, kube.ReplicaSetKind, kube.StatefulSetKind, kube.DaemonSetKind:
+			templateAnnotations, ok, err := unstructured.NestedMap(target.UnstructuredContent(), "spec", "template", "metadata", "annotations")
+			if err != nil {
+				return err
+			}
+			if !ok || templateAnnotations == nil {
+				templateAnnotations = make(map[string]interface{})
+			}
+			templateAnnotations[key] = val
+			err = unstructured.SetNestedMap(target.UnstructuredContent(), templateAnnotations, "spec", "template", "metadata", "annotations")
+			if err != nil {
+				return err
+			}
+		}
+	case "batch":
+		switch gvk.Kind {
+		case kube.JobKind:
+			templateAnnotations, ok, err := unstructured.NestedMap(target.UnstructuredContent(), "spec", "template", "metadata", "annotations")
+			if err != nil {
+				return err
+			}
+			if !ok || templateAnnotations == nil {
+				templateAnnotations = make(map[string]interface{})
+			}
+			templateAnnotations[key] = val
+			err = unstructured.SetNestedMap(target.UnstructuredContent(), templateAnnotations, "spec", "template", "metadata", "annotations")
 			if err != nil {
 				return err
 			}
