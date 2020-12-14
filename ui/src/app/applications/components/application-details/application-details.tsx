@@ -628,6 +628,7 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
             menuItems = Observable.from([this.getApplicationActionMenu(application)]);
         } else {
             const isRoot = resource.root && AppUtils.nodeKey(resource.root) === AppUtils.nodeKey(resource);
+            const isManaged = !!resource.status;
             const items: MenuItem[] = [
                 ...((isRoot && [
                     {
@@ -646,14 +647,18 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
                                     <p>
                                         Are you sure you want to delete {resource.kind} '{resource.name}'?
                                     </p>
-                                    <div className='argo-form-row'>
-                                        <FormField
-                                            label={`Please type '${resource.name}' to confirm the deletion of the resource`}
-                                            formApi={api}
-                                            field='resourceName'
-                                            component={Text}
-                                        />
-                                    </div>
+                                    {isManaged ? (
+                                        <div className='argo-form-row'>
+                                            <FormField
+                                                label={`Please type '${resource.name}' to confirm the deletion of the resource`}
+                                                formApi={api}
+                                                field='resourceName'
+                                                component={Text}
+                                            />
+                                        </div>
+                                    ) : (
+                                        ''
+                                    )}
                                     <div className='argo-form-row'>
                                         <Checkbox id='force-delete-checkbox' field='force' /> <label htmlFor='force-delete-checkbox'>Force delete</label>
                                     </div>
@@ -661,7 +666,7 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
                             ),
                             {
                                 validate: vals => ({
-                                    resourceName: vals.resourceName !== resource.name && 'Enter the resource name to confirm the deletion'
+                                    resourceName: isManaged && vals.resourceName !== resource.name && 'Enter the resource name to confirm the deletion'
                                 }),
                                 submit: async (vals, _, close) => {
                                     try {
