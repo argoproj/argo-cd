@@ -15,6 +15,7 @@ import (
 	"strings"
 	"text/tabwriter"
 	"time"
+	"unicode/utf8"
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -430,11 +431,11 @@ func appURL(acdClient argocdclient.Client, appName string) string {
 
 func truncateString(str string, num int) string {
 	bnoden := str
-	if len(str) > num {
+	if utf8.RuneCountInString(str) > num {
 		if num > 3 {
 			num -= 3
 		}
-		bnoden = str[0:num] + "..."
+		bnoden = string([]rune(str)[0:num]) + "..."
 	}
 	return bnoden
 }
