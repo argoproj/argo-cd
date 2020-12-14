@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=debian:10-slim
+ARG BASE_IMAGE=ubuntu:21.04
 ####################################################################################################
 # Builder image
 # Initial stage which pulls prepares build dependencies and CLI tooling we need for our final image
@@ -41,8 +41,8 @@ FROM $BASE_IMAGE as argocd-base
 
 USER root
 
-RUN echo 'deb http://deb.debian.org/debian buster-backports main' >> /etc/apt/sources.list
-
+ENV DEBIAN_FRONTEND=noninteractive
+ 
 RUN groupadd -g 999 argocd && \
     useradd -r -u 999 -g argocd argocd && \
     mkdir -p /home/argocd && \
