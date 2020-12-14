@@ -15,7 +15,8 @@ message ManifestRequest {
     string revision = 2;
     bool noCache = 3;
     string appLabelKey = 4;
-    string appLabelValue = 5;
+    // Name of the application for which the request is triggered
+    string appName = 5;
     string namespace = 8;
     github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationSource applicationSource = 10;
     repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repos = 11;
@@ -25,8 +26,6 @@ message ManifestRequest {
     repeated string apiVersions = 15;
     // Request to verify the signature when generating the manifests (only for Git repositories)
     bool verifySignature = 16;
-    // Name of the application for which the request is triggered
-    string appName = 17;
 }
 
 message ManifestResponse {
