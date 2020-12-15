@@ -1054,7 +1054,7 @@ func getLocalObjectsString(app *argoappv1.Application, local, localRepoRoot, app
 	res, err := repository.GenerateManifests(local, localRepoRoot, app.Spec.Source.TargetRevision, &repoapiclient.ManifestRequest{
 		Repo:              &argoappv1.Repository{Repo: app.Spec.Source.RepoURL},
 		AppLabelKey:       appLabelKey,
-		AppLabelValue:     app.Name,
+		AppName:     app.Name,
 		Namespace:         app.Spec.Destination.Namespace,
 		ApplicationSource: &app.Spec.Source,
 		KustomizeOptions:  kustomizeOptions,

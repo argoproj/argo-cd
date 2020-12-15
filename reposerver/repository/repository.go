@@ -326,7 +326,7 @@ func (s *Service) runManifestGen(repoRoot, commitSHA, cacheKey string, ctxSrc op
 			// Retrieve a new copy (if available) of the cached response: this ensures we are updating the latest copy of the cache,
 			// rather than a copy of the cache that occurred before (a potentially lengthy) manifest generation.
 			innerRes := &cache.CachedManifestResponse{}
-			cacheErr := s.cache.GetManifests(cacheKey, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, innerRes)
+			cacheErr := s.cache.GetManifests(cacheKey, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppName, innerRes)
 			if cacheErr != nil && cacheErr != reposervercache.ErrCacheMiss {
 				log.Warnf("manifest cache set error %s: %v", q.ApplicationSource.String(), cacheErr)
 				return nil, cacheErr
@@ -341,7 +341,7 @@ func (s *Service) runManifestGen(repoRoot, commitSHA, cacheKey string, ctxSrc op
 			// Update the cache to include failure information
 			innerRes.NumberOfConsecutiveFailures++
 			innerRes.MostRecentError = err.Error()
-			cacheErr = s.cache.SetManifests(cacheKey, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, innerRes)
+			cacheErr = s.cache.SetManifests(cacheKey, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppName, innerRes)
 			if cacheErr != nil {
 				log.Warnf("manifest cache set error %s: %v", q.ApplicationSource.String(), cacheErr)
 				return nil, cacheErr
@@ -360,7 +360,7 @@ func (s *Service) runManifestGen(repoRoot, commitSHA, cacheKey string, ctxSrc op
 	}
 	manifestGenResult.Revision = commitSHA
 	manifestGenResult.VerifyResult = ctx.verificationResult
-	err = s.cache.SetManifests(cacheKey, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, &manifestGenCacheEntry)
+	err = s.cache.SetManifests(cacheKey, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppName, &manifestGenCacheEntry)
 	if err != nil {
 		log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
 	}
@@ -375,7 +375,7 @@ func (s *Service) runManifestGen(repoRoot, commitSHA, cacheKey string, ctxSrc op
 // If true is returned, either the second or third parameter (but not both) will contain a value from the cache (a ManifestResponse, or error, respectively)
 func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRequest, firstInvocation bool) (bool, interface{}, error) {
 	res := cache.CachedManifestResponse{}
-	err := s.cache.GetManifests(cacheKey, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, &res)
+	err := s.cache.GetManifests(cacheKey, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppName, &res)
 	if err == nil {
 
 		// The cache contains an existing value
@@ -394,7 +394,7 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 					// After X minutes, reset the cache and retry the operation (eg perhaps the error is ephemeral and has passed)
 					if elapsedTimeInMinutes >= s.initConstants.PauseGenerationOnFailureForMinutes {
 						// We can now try again, so reset the cache state and run the operation below
-						err = s.cache.DeleteManifests(cacheKey, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue)
+						err = s.cache.DeleteManifests(cacheKey, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppName)
 						if err != nil {
 							log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
 						}
@@ -408,7 +408,7 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 
 					if res.NumberOfCachedResponsesReturned >= s.initConstants.PauseGenerationOnFailureForRequests {
 						// We can now try again, so reset the error cache state and run the operation below
-						err = s.cache.DeleteManifests(cacheKey, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue)
+						err = s.cache.DeleteManifests(cacheKey, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppName)
 						if err != nil {
 							log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
 						}
@@ -426,7 +426,7 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 					// Increment the number of returned cached responses and push that new value to the cache
 					// (if we have not already done so previously in this function)
 					res.NumberOfCachedResponsesReturned++
-					err = s.cache.SetManifests(cacheKey, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, &res)
+					err = s.cache.SetManifests(cacheKey, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppName, &res)
 					if err != nil {
 						log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
 					}
@@ -506,7 +506,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 	}
 
 	templateOpts := &helm.TemplateOpts{
-		Name:        q.AppLabelValue,
+		Name:        q.AppName,
 		Namespace:   q.Namespace,
 		KubeVersion: text.SemVer(q.KubeVersion),
 		APIVersions: q.ApiVersions,
@@ -579,7 +579,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		}
 	}
 	if templateOpts.Name == "" {
-		templateOpts.Name = q.AppLabelValue
+		templateOpts.Name = q.AppName
 	}
 	for i, j := range templateOpts.Set {
 		templateOpts.Set[i] = env.Envsubst(j)
@@ -687,8 +687,8 @@ func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.Manifest
 		}
 
 		for _, target := range targets {
-			if q.AppLabelKey != "" && q.AppLabelValue != "" && !kube.IsCRD(target) {
-				err = argokube.SetAppInstanceLabel(target, q.AppLabelKey, q.AppLabelValue)
+			if q.AppLabelKey != "" && q.AppName != "" && !kube.IsCRD(target) {
+				err = argokube.SetAppInstanceLabel(target, q.AppLabelKey, q.AppName)
 				if err != nil {
 					return nil, err
 				}
@@ -714,7 +714,7 @@ func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.Manifest
 
 func newEnv(q *apiclient.ManifestRequest, revision string) *v1alpha1.Env {
 	return &v1alpha1.Env{
-		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAME", Value: q.AppLabelValue},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAME", Value: q.AppName},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAMESPACE", Value: q.Namespace},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION", Value: revision},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_REPO_URL", Value: q.Repo.Repo},
