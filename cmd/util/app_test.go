@@ -1,4 +1,4 @@
-package commands
+package util
 
 import (
 	"testing"
@@ -117,7 +117,7 @@ func Test_setPluginOptEnvs(t *testing.T) {
 type appOptionsFixture struct {
 	spec    *v1alpha1.ApplicationSpec
 	command *cobra.Command
-	options *appOptions
+	options *AppOptions
 }
 
 func (f *appOptionsFixture) SetFlag(key, value string) error {
@@ -125,7 +125,7 @@ func (f *appOptionsFixture) SetFlag(key, value string) error {
 	if err != nil {
 		return err
 	}
-	_ = setAppSpecOptions(f.command.Flags(), f.spec, f.options)
+	_ = SetAppSpecOptions(f.command.Flags(), f.spec, f.options)
 	return err
 }
 
@@ -133,9 +133,9 @@ func newAppOptionsFixture() *appOptionsFixture {
 	fixture := &appOptionsFixture{
 		spec:    &v1alpha1.ApplicationSpec{},
 		command: &cobra.Command{},
-		options: &appOptions{},
+		options: &AppOptions{},
 	}
-	addAppFlags(fixture.command, fixture.options)
+	AddAppFlags(fixture.command, fixture.options)
 	return fixture
 }
 

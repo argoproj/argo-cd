@@ -74,6 +74,7 @@ func NewCommand() *cobra.Command {
 	command.AddCommand(NewSettingsCommand())
 	command.AddCommand(NewAppsCommand())
 	command.AddCommand(NewRBACCommand())
+	command.AddCommand(NewGenerateConfigCommand())
 
 	command.Flags().StringVar(&logFormat, "logformat", "text", "Set the logging format. One of: text|json")
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
