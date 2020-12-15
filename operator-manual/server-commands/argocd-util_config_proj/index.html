@@ -36,7 +36,7 @@
     
     
       
-        <title>argocd-util Tools - Argo CD - Declarative GitOps CD for Kubernetes</title>
+        <title>Argocd util config proj - Argo CD - Declarative GitOps CD for Kubernetes</title>
       
     
     
@@ -127,7 +127,7 @@
     <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
     <label class="md-overlay" data-md-component="overlay" for="__drawer"></label>
     
-      <a href="#argocd-util" tabindex="1" class="md-skip">
+      <a href="#argocd-util-config-proj" tabindex="1" class="md-skip">
         Skip to content
       </a>
     
@@ -152,7 +152,7 @@
               Argo CD - Declarative GitOps CD for Kubernetes
             </span>
             <span class="md-header-nav__topic">
-              argocd-util Tools
+              Argocd util config proj
             </span>
           
         </div>
@@ -308,12 +308,10 @@
       
       
 
-  
 
-
-  <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+  <li class="md-nav__item md-nav__item--nested">
     
-      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-5" type="checkbox" id="nav-5" checked>
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-5" type="checkbox" id="nav-5">
     
     <label class="md-nav__link" for="nav-5">
       Operator Manual
@@ -713,72 +711,11 @@
           
           
 
-  
 
-
-  <li class="md-nav__item md-nav__item--active">
-    
-    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
-    
-    
-      <label class="md-nav__link md-nav__link--active" for="__toc">
-        argocd-util Tools
-      </label>
-    
-    <a href="./" title="argocd-util Tools" class="md-nav__link md-nav__link--active">
+  <li class="md-nav__item">
+    <a href="../argocd-util/" title="argocd-util Tools" class="md-nav__link">
       argocd-util Tools
     </a>
-    
-      
-<nav class="md-nav md-nav--secondary">
-  
-  
-  
-    <label class="md-nav__title" for="__toc">Table of Contents</label>
-    <ul class="md-nav__list" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#argocd-util" title="argocd-util" class="md-nav__link">
-    argocd-util
-  </a>
-  
-    <nav class="md-nav">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#synopsis" title="Synopsis" class="md-nav__link">
-    Synopsis
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#options" title="Options" class="md-nav__link">
-    Options
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#see-also" title="SEE ALSO" class="md-nav__link">
-    SEE ALSO
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-      
-      
-      
-      
-    </ul>
-  
-</nav>
-    
   </li>
 
         
@@ -1526,8 +1463,8 @@
     <ul class="md-nav__list" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#argocd-util" title="argocd-util" class="md-nav__link">
-    argocd-util
+  <a href="#argocd-util-config-proj" title="argocd-util config proj" class="md-nav__link">
+    argocd-util config proj
   </a>
   
     <nav class="md-nav">
@@ -1575,37 +1512,33 @@
             <article class="md-content__inner md-typeset">
               
                 
-                  <a href="https://github.com/argoproj/argo-cd/edit/master/docs/operator-manual/server-commands/argocd-util.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
+                  <a href="https://github.com/argoproj/argo-cd/edit/master/docs/operator-manual/server-commands/argocd-util_config_proj.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
                 
                 
-                  <h1>argocd-util Tools</h1>
+                  <h1>Argocd util config proj</h1>
                 
-                <h2 id="argocd-util">argocd-util<a class="headerlink" href="#argocd-util" title="Permanent link">&para;</a></h2>
-<p>argocd-util tools used by Argo CD</p>
+                <h2 id="argocd-util-config-proj">argocd-util config proj<a class="headerlink" href="#argocd-util-config-proj" title="Permanent link">&para;</a></h2>
+<p>Generate declarative config for a project</p>
 <h3 id="synopsis">Synopsis<a class="headerlink" href="#synopsis" title="Permanent link">&para;</a></h3>
-<p>argocd-util has internal utility tools used by Argo CD</p>
-<div class="codehilite"><pre><span></span><code><span class="n">argocd</span><span class="o">-</span><span class="n">util</span><span class="w"> </span><span class="o">[</span><span class="n">flags</span><span class="o">]</span><span class="w"></span>
+<p>Generate declarative config for a project</p>
+<div class="codehilite"><pre><span></span><code><span class="n">argocd</span><span class="o">-</span><span class="n">util</span><span class="w"> </span><span class="n">config</span><span class="w"> </span><span class="n">proj</span><span class="w"> </span><span class="n">PROJECT</span><span class="w"> </span><span class="o">[</span><span class="n">flags</span><span class="o">]</span><span class="w"></span>
 </code></pre></div>
 
 <h3 id="options">Options<a class="headerlink" href="#options" title="Permanent link">&para;</a></h3>
-<div class="codehilite"><pre><span></span><code><span class="err">  -h, --help               help for argocd-util</span>
-<span class="err">      --logformat string   Set the logging format. One of: text|json (default &quot;text&quot;)</span>
-<span class="err">      --loglevel string    Set the logging level. One of: debug|info|warn|error (default &quot;info&quot;)</span>
+<div class="codehilite"><pre><span></span><code><span class="err">      --description string        Project description</span>
+<span class="err">  -d, --dest stringArray          Permitted destination server and namespace (e.g. https://192.168.99.100:8443,default)</span>
+<span class="err">  -f, --file string               Filename or URL to Kubernetes manifests for the project</span>
+<span class="err">  -h, --help                      help for proj</span>
+<span class="err">      --o string                  Output format (yaml|json) (default &quot;yaml&quot;)</span>
+<span class="err">      --orphaned-resources        Enables orphaned resources monitoring</span>
+<span class="err">      --orphaned-resources-warn   Specifies if applications should be a warning condition when orphaned resources detected</span>
+<span class="err">      --signature-keys strings    GnuPG public key IDs for commit signature verification</span>
+<span class="err">  -s, --src stringArray           Permitted source repository URL</span>
 </code></pre></div>
 
 <h3 id="see-also">SEE ALSO<a class="headerlink" href="#see-also" title="Permanent link">&para;</a></h3>
 <ul>
-<li><a href="../argocd-util_apps/">argocd-util apps</a>    - Utility commands operate on ArgoCD applications</li>
 <li><a href="../argocd-util_config/">argocd-util config</a>    - Generate declarative configuration files</li>
-<li><a href="../argocd-util_export/">argocd-util export</a>    - Export all Argo CD data to stdout (default) or a file</li>
-<li><a href="../argocd-util_gendexcfg/">argocd-util gendexcfg</a>  - Generates a dex config from Argo CD settings</li>
-<li><a href="../argocd-util_import/">argocd-util import</a>    - Import Argo CD data from stdin (specify `-') or a file</li>
-<li><a href="../argocd-util_kubeconfig/">argocd-util kubeconfig</a>    - Generates kubeconfig for the specified cluster</li>
-<li><a href="../argocd-util_projects/">argocd-util projects</a>    - Utility commands operate on ArgoCD Projects</li>
-<li><a href="../argocd-util_rbac/">argocd-util rbac</a>    - Validate and test RBAC configuration</li>
-<li><a href="../argocd-util_rundex/">argocd-util rundex</a>    - Runs dex generating a config using settings from the Argo CD configmap and secret</li>
-<li><a href="../argocd-util_settings/">argocd-util settings</a>    - Provides set of commands for settings validation and troubleshooting</li>
-<li><a href="../argocd-util_version/">argocd-util version</a>  - Print version information</li>
 </ul>
                 
                   
@@ -1623,41 +1556,6 @@
       
         
 <footer class="md-footer">
-  
-    <div class="md-footer-nav">
-      <nav class="md-footer-nav__inner md-grid">
-        
-          <a href="../argocd-repo-server/" title="Argocd repo server" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
-            <div class="md-flex__cell md-flex__cell--shrink">
-              <i class="md-icon md-icon--arrow-back md-footer-nav__button"></i>
-            </div>
-            <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
-              <span class="md-flex__ellipsis">
-                <span class="md-footer-nav__direction">
-                  Previous
-                </span>
-                Argocd repo server
-              </span>
-            </div>
-          </a>
-        
-        
-          <a href="../../upgrading/overview/" title="Overview" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
-            <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
-              <span class="md-flex__ellipsis">
-                <span class="md-footer-nav__direction">
-                  Next
-                </span>
-                Overview
-              </span>
-            </div>
-            <div class="md-flex__cell md-flex__cell--shrink">
-              <i class="md-icon md-icon--arrow-forward md-footer-nav__button"></i>
-            </div>
-          </a>
-        
-      </nav>
-    </div>
   
   <div class="md-footer-meta md-typeset">
     <div class="md-footer-meta__inner md-grid">
