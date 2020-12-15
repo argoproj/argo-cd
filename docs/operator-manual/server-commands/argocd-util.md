@@ -21,6 +21,7 @@ argocd-util [flags]
 ### SEE ALSO
 
 * [argocd-util apps](argocd-util_apps.md)	 - Utility commands operate on ArgoCD applications
+* [argocd-util config](argocd-util_config.md)	 - Generate declarative configuration files
 * [argocd-util export](argocd-util_export.md)	 - Export all Argo CD data to stdout (default) or a file
 * [argocd-util gendexcfg](argocd-util_gendexcfg.md)	 - Generates a dex config from Argo CD settings
 * [argocd-util import](argocd-util_import.md)	 - Import Argo CD data from stdin (specify `-') or a file
