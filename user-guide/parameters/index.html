@@ -1594,6 +1594,9 @@ repository and customize the the database password, you would run:</p>
 </code></pre></div>
 
 <h2 id="store-overrides-in-git">Store Overrides In Git<a class="headerlink" href="#store-overrides-in-git" title="Permanent link">&para;</a></h2>
+<blockquote>
+<p>The following is available from v1.8 or later</p>
+</blockquote>
 <p>The config management tool specific overrides can be specified in <code>.argocd-source.yaml</code> file stored in the source application
 directory in the Git repository.</p>
 <div class="admonition warn">
@@ -1615,6 +1618,17 @@ for projects like <a href="https://github.com/argoproj-labs/argocd-image-updater
 <li>Support "discovering" applications in the Git repository by projects like <a href="https://github.com/argoproj-labs/applicationset">applicationset</a>
 (see <a href="https://github.com/argoproj-labs/applicationset/blob/master/examples/git-files-discovery.yaml">git files generator</a>)</li>
 </ul>
+<blockquote>
+<p>The following is available from v1.9 or later</p>
+</blockquote>
+<p>You can also store parameter overrides in an application specific file, if you
+are sourcing multiple applications from a single path in your repository.</p>
+<p>The application specific file must be named <code>.argocd-source-&lt;appname&gt;.yaml</code>,
+where <code>&lt;appname&gt;</code> is the name of the application the overrides are valid for.</p>
+<p>If there exists an non-application specific <code>.argocd-source.yaml</code>, parameters
+included in that file will be merged first, and then the application specific
+parameters are merged, which can also contain overrides to the parameters
+stored in the non-application specific file.</p>
                 
                   
                 
