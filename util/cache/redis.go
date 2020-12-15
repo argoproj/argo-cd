@@ -3,6 +3,7 @@ package cache
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	ioutil "github.com/argoproj/argo-cd/util/io"
@@ -47,7 +48,7 @@ func (r *redisCache) Get(key string, obj interface{}) error {
 	var data []byte
 	err := r.cache.Get(context.TODO(), key, &data)
 	if err == rediscache.ErrCacheMiss {
-		err = ErrCacheMiss
+		err = fmt.Errorf("get %v: %w", key, ErrCacheMiss)
 	}
 	if err != nil {
 		return err
