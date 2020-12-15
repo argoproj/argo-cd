@@ -14,6 +14,8 @@ import (
 	"github.com/argoproj/argo-cd/server/version"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
+	"google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
@@ -81,6 +83,9 @@ func (a *ArgoCDRepoServer) CreateGRPC() *grpc.Server {
 	versionpkg.RegisterVersionServiceServer(server, &version.Server{})
 	manifestService := repository.NewService(a.metricsServer, a.cache, a.initConstants)
 	apiclient.RegisterRepoServerServiceServer(server, manifestService)
+
+	healthService := health.NewServer()
+	grpc_health_v1.RegisterHealthServer(server, healthService)
 
 	// Register reflection service on gRPC server.
 	reflection.Register(server)
