@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"github.com/argoproj/argo-cd/common"
-
 	versionpkg "github.com/argoproj/argo-cd/pkg/apiclient/version"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	reposervercache "github.com/argoproj/argo-cd/reposerver/cache"
