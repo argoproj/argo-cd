@@ -331,7 +331,7 @@ func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 				fmt.Printf("%d )-------------------------------------------\n", invocationCount)
 
 				manifestRequest := &apiclient.ManifestRequest{
-					Repo:          &argoappv1.Repository{},
+					Repo:    &argoappv1.Repository{},
 					AppName: "test",
 					ApplicationSource: &argoappv1.ApplicationSource{
 						Path: "./testdata/invalid-helm",
@@ -428,7 +428,7 @@ func TestManifestGenErrorCacheFileContentsChange(t *testing.T) {
 		}
 
 		res, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
-			Repo:          &argoappv1.Repository{},
+			Repo:    &argoappv1.Repository{},
 			AppName: "test",
 			ApplicationSource: &argoappv1.ApplicationSource{
 				Path: ".",
@@ -480,7 +480,7 @@ func TestManifestGenErrorCacheByMinutesElapsed(t *testing.T) {
 			// 1) Put the cache into the failure state
 			for x := 0; x < 2; x++ {
 				res, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
-					Repo:          &argoappv1.Repository{},
+					Repo:    &argoappv1.Repository{},
 					AppName: "test",
 					ApplicationSource: &argoappv1.ApplicationSource{
 						Path: "./testdata/invalid-helm",
@@ -499,7 +499,7 @@ func TestManifestGenErrorCacheByMinutesElapsed(t *testing.T) {
 			// 2) Jump forward X-1 minutes in time, where X is the expiration boundary
 			currentTime = currentTime.Add(time.Duration(tt.PauseGenerationOnFailureForMinutes-1) * time.Minute)
 			res, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
-				Repo:          &argoappv1.Repository{},
+				Repo:    &argoappv1.Repository{},
 				AppName: "test",
 				ApplicationSource: &argoappv1.ApplicationSource{
 					Path: "./testdata/invalid-helm",
@@ -514,7 +514,7 @@ func TestManifestGenErrorCacheByMinutesElapsed(t *testing.T) {
 			currentTime = currentTime.Add(2 * time.Minute)
 
 			res, err = service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
-				Repo:          &argoappv1.Repository{},
+				Repo:    &argoappv1.Repository{},
 				AppName: "test",
 				ApplicationSource: &argoappv1.ApplicationSource{
 					Path: "./testdata/invalid-helm",
@@ -544,7 +544,7 @@ func TestManifestGenErrorCacheRespectsNoCache(t *testing.T) {
 	// 1) Put the cache into the failure state
 	for x := 0; x < 2; x++ {
 		res, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
-			Repo:          &argoappv1.Repository{},
+			Repo:    &argoappv1.Repository{},
 			AppName: "test",
 			ApplicationSource: &argoappv1.ApplicationSource{
 				Path: "./testdata/invalid-helm",
@@ -561,7 +561,7 @@ func TestManifestGenErrorCacheRespectsNoCache(t *testing.T) {
 
 	// 2) Call generateManifest with NoCache enabled
 	res, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
-		Repo:          &argoappv1.Repository{},
+		Repo:    &argoappv1.Repository{},
 		AppName: "test",
 		ApplicationSource: &argoappv1.ApplicationSource{
 			Path: "./testdata/invalid-helm",
@@ -575,7 +575,7 @@ func TestManifestGenErrorCacheRespectsNoCache(t *testing.T) {
 
 	// 4) Call generateManifest
 	res, err = service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
-		Repo:          &argoappv1.Repository{},
+		Repo:    &argoappv1.Repository{},
 		AppName: "test",
 		ApplicationSource: &argoappv1.ApplicationSource{
 			Path: "./testdata/invalid-helm",
@@ -592,7 +592,7 @@ func TestGenerateHelmWithValues(t *testing.T) {
 	service := newService("../..")
 
 	res, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
-		Repo:          &argoappv1.Repository{},
+		Repo:    &argoappv1.Repository{},
 		AppName: "test",
 		ApplicationSource: &argoappv1.ApplicationSource{
 			Path: "./util/helm/testdata/redis",
@@ -628,7 +628,7 @@ func TestGenerateHelmWithValues(t *testing.T) {
 func TestGenerateHelmWithValuesDirectoryTraversal(t *testing.T) {
 	service := newService("../..")
 	_, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
-		Repo:          &argoappv1.Repository{},
+		Repo:    &argoappv1.Repository{},
 		AppName: "test",
 		ApplicationSource: &argoappv1.ApplicationSource{
 			Path: "./util/helm/testdata/redis",
@@ -643,7 +643,7 @@ func TestGenerateHelmWithValuesDirectoryTraversal(t *testing.T) {
 	// Test the case where the path is "."
 	service = newService("./testdata/my-chart")
 	_, err = service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
-		Repo:          &argoappv1.Repository{},
+		Repo:    &argoappv1.Repository{},
 		AppName: "test",
 		ApplicationSource: &argoappv1.ApplicationSource{
 			Path: ".",
@@ -696,7 +696,7 @@ func TestGenerateHelmWithURL(t *testing.T) {
 	service := newService("../..")
 
 	_, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
-		Repo:          &argoappv1.Repository{},
+		Repo:    &argoappv1.Repository{},
 		AppName: "test",
 		ApplicationSource: &argoappv1.ApplicationSource{
 			Path: "./util/helm/testdata/redis",
@@ -714,7 +714,7 @@ func TestGenerateHelmWithURL(t *testing.T) {
 func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 	service := newService("../..")
 	_, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
-		Repo:          &argoappv1.Repository{},
+		Repo:    &argoappv1.Repository{},
 		AppName: "test",
 		ApplicationSource: &argoappv1.ApplicationSource{
 			Path: "./util/helm/testdata/redis",
@@ -728,7 +728,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 
 	service = newService("./testdata/my-chart")
 	_, err = service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
-		Repo:          &argoappv1.Repository{},
+		Repo:    &argoappv1.Repository{},
 		AppName: "test",
 		ApplicationSource: &argoappv1.ApplicationSource{
 			Path: ".",
@@ -757,7 +757,7 @@ func TestGenerateHelmWithAbsoluteFileParameter(t *testing.T) {
 	assert.NoError(t, err)
 
 	_, err = service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
-		Repo:          &argoappv1.Repository{},
+		Repo:    &argoappv1.Repository{},
 		AppName: "test",
 		ApplicationSource: &argoappv1.ApplicationSource{
 			Path: "./util/helm/testdata/redis",
@@ -784,7 +784,7 @@ func TestGenerateHelmWithFileParameter(t *testing.T) {
 	service := newService("../..")
 
 	_, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
-		Repo:          &argoappv1.Repository{},
+		Repo:    &argoappv1.Repository{},
 		AppName: "test",
 		ApplicationSource: &argoappv1.ApplicationSource{
 			Path: "./util/helm/testdata/redis",
@@ -848,8 +848,8 @@ func TestRunCustomTool(t *testing.T) {
 	service := newService(".")
 
 	res, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
-		AppName: "test-app",
-		Namespace:     "test-namespace",
+		AppName:   "test-app",
+		Namespace: "test-namespace",
 		ApplicationSource: &argoappv1.ApplicationSource{
 			Plugin: &argoappv1.ApplicationSourcePlugin{
 				Name: "test",
@@ -1082,9 +1082,9 @@ func Test_newEnv(t *testing.T) {
 		&argoappv1.EnvEntry{Name: "ARGOCD_APP_SOURCE_PATH", Value: "my-path"},
 		&argoappv1.EnvEntry{Name: "ARGOCD_APP_SOURCE_TARGET_REVISION", Value: "my-target-revision"},
 	}, newEnv(&apiclient.ManifestRequest{
-		AppName: "my-app-name",
-		Namespace:     "my-namespace",
-		Repo:          &argoappv1.Repository{Repo: "https://github.com/my-org/my-repo"},
+		AppName:   "my-app-name",
+		Namespace: "my-namespace",
+		Repo:      &argoappv1.Repository{Repo: "https://github.com/my-org/my-repo"},
 		ApplicationSource: &argoappv1.ApplicationSource{
 			Path:           "my-path",
 			TargetRevision: "my-target-revision",
