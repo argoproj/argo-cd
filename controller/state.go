@@ -160,7 +160,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		Revision:          revision,
 		NoCache:           noCache,
 		AppLabelKey:       appLabelKey,
-		AppLabelValue:     app.Name,
+		AppName:           app.Name,
 		Namespace:         app.Spec.Destination.Namespace,
 		ApplicationSource: &source,
 		Plugins:           tools,
