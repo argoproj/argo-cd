@@ -6,7 +6,7 @@
 
 Argo CD executes a sync operation in a number of steps. At a high-level, there are three phases *pre-sync*, *sync* and *post-sync*.  
 
-Within each phase you can have one or more waves, than allows you to ensure certain resources are healthy before subsequent resources are synced.   
+Within each phase you can have one or more waves, that allows you to ensure certain resources are healthy before subsequent resources are synced.   
 
 ## How Do I Configure Phases?
 
