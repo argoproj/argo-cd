@@ -415,7 +415,7 @@ func verifyGenerateManifests(
 		},
 		Repos:             helmRepos,
 		Revision:          spec.Source.TargetRevision,
-		AppLabelValue:     app.Name,
+		AppName:           app.Name,
 		Namespace:         spec.Destination.Namespace,
 		ApplicationSource: &spec.Source,
 		Plugins:           plugins,

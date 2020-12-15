@@ -69,12 +69,12 @@ func (c *Cache) SetApps(repoUrl, revision string, apps map[string]string) error 
 	return c.cache.SetItem(listApps(repoUrl, revision), apps, c.repoCacheExpiration, apps == nil)
 }
 
-func manifestCacheKey(revision string, appSrc *appv1.ApplicationSource, namespace string, appLabelKey string, appLabelValue string) string {
-	return fmt.Sprintf("mfst|%s|%s|%s|%s|%d", appLabelKey, appLabelValue, revision, namespace, appSourceKey(appSrc))
+func manifestCacheKey(revision string, appSrc *appv1.ApplicationSource, namespace string, appLabelKey string, appName string) string {
+	return fmt.Sprintf("mfst|%s|%s|%s|%s|%d", appLabelKey, appName, revision, namespace, appSourceKey(appSrc))
 }
 
-func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, namespace string, appLabelKey string, appLabelValue string, res *CachedManifestResponse) error {
-	err := c.cache.GetItem(manifestCacheKey(revision, appSrc, namespace, appLabelKey, appLabelValue), res)
+func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, namespace string, appLabelKey string, appName string, res *CachedManifestResponse) error {
+	err := c.cache.GetItem(manifestCacheKey(revision, appSrc, namespace, appLabelKey, appName), res)
 
 	if err != nil {
 		return err
@@ -87,9 +87,9 @@ func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, n
 
 	// If the expected hash of the cache entry does not match the actual hash value...
 	if hash != res.CacheEntryHash {
-		log.Warnf("Manifest hash did not match expected value, treating as a cache miss: %s", appLabelValue)
+		log.Warnf("Manifest hash did not match expected value, treating as a cache miss: %s", appName)
 
-		err = c.DeleteManifests(revision, appSrc, namespace, appLabelKey, appLabelValue)
+		err = c.DeleteManifests(revision, appSrc, namespace, appLabelKey, appName)
 		if err != nil {
 			return fmt.Errorf("Unable to delete manifest after hash mismatch, %v", err)
 		}
@@ -104,7 +104,7 @@ func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, n
 	return nil
 }
 
-func (c *Cache) SetManifests(revision string, appSrc *appv1.ApplicationSource, namespace string, appLabelKey string, appLabelValue string, res *CachedManifestResponse) error {
+func (c *Cache) SetManifests(revision string, appSrc *appv1.ApplicationSource, namespace string, appLabelKey string, appName string, res *CachedManifestResponse) error {
 
 	// Generate and apply the cache entry hash, before writing
 	if res != nil {
@@ -116,11 +116,11 @@ func (c *Cache) SetManifests(revision string, appSrc *appv1.ApplicationSource, n
 		res.CacheEntryHash = hash
 	}
 
-	return c.cache.SetItem(manifestCacheKey(revision, appSrc, namespace, appLabelKey, appLabelValue), res, c.repoCacheExpiration, res == nil)
+	return c.cache.SetItem(manifestCacheKey(revision, appSrc, namespace, appLabelKey, appName), res, c.repoCacheExpiration, res == nil)
 }
 
-func (c *Cache) DeleteManifests(revision string, appSrc *appv1.ApplicationSource, namespace string, appLabelKey string, appLabelValue string) error {
-	return c.cache.SetItem(manifestCacheKey(revision, appSrc, namespace, appLabelKey, appLabelValue), "", c.repoCacheExpiration, true)
+func (c *Cache) DeleteManifests(revision string, appSrc *appv1.ApplicationSource, namespace string, appLabelKey string, appName string) error {
+	return c.cache.SetItem(manifestCacheKey(revision, appSrc, namespace, appLabelKey, appName), "", c.repoCacheExpiration, true)
 }
 
 func appDetailsCacheKey(revision string, appSrc *appv1.ApplicationSource) string {
