@@ -5,11 +5,8 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	cmdutil "github.com/argoproj/argo-cd/cmd/util"
-	"github.com/argoproj/argo-cd/pkg/apis/application"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/errors"
 )
 
@@ -59,49 +56,9 @@ func NewGenAppConfigCommand() *cobra.Command {
 	argocd-util config app ksane --repo https://github.com/argoproj/argocd-example-apps.git --path plugins/kasane --dest-namespace default --dest-server https://kubernetes.default.svc --config-management-plugin kasane
 `,
 		Run: func(c *cobra.Command, args []string) {
-			var app v1alpha1.Application
-			if fileURL == "-" {
-				// read stdin
-				err := cmdutil.ReadAppFromStdin(&app)
-				errors.CheckError(err)
-			} else if fileURL != "" {
-				// read uri
-				err := cmdutil.ReadAppFromURI(fileURL, &app)
-				errors.CheckError(err)
+			app, err := cmdutil.ConstructApp(fileURL, appName, labels, args, appOpts, c.Flags())
+			errors.CheckError(err)
 
-				if len(args) == 1 && args[0] != app.Name {
-					log.Fatalf("app name '%s' does not match app spec metadata.name '%s'", args[0], app.Name)
-				}
-				if appName != "" && appName != app.Name {
-					app.Name = appName
-				}
-				if app.Name == "" {
-					log.Fatalf("app.Name is empty. --name argument can be used to provide app.Name")
-				}
-				cmdutil.SetAppSpecOptions(c.Flags(), &app.Spec, &appOpts)
-				cmdutil.SetParameterOverrides(&app, appOpts.Parameters)
-				cmdutil.SetLabels(&app, labels)
-			} else {
-				// read arguments
-				if len(args) == 1 {
-					if appName != "" && appName != args[0] {
-						log.Fatalf("--name argument '%s' does not match app name %s", appName, args[0])
-					}
-					appName = args[0]
-				}
-				app = v1alpha1.Application{
-					TypeMeta: v1.TypeMeta{
-						Kind:       application.ApplicationKind,
-						APIVersion: application.Group + "/v1aplha1",
-					},
-					ObjectMeta: v1.ObjectMeta{
-						Name: appName,
-					},
-				}
-				cmdutil.SetAppSpecOptions(c.Flags(), &app.Spec, &appOpts)
-				cmdutil.SetParameterOverrides(&app, appOpts.Parameters)
-				cmdutil.SetLabels(&app, labels)
-			}
 			if app.Name == "" {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
@@ -134,41 +91,8 @@ func NewGenProjectConfigCommand() *cobra.Command {
 		Use:   "proj PROJECT",
 		Short: "Generate declarative config for a project",
 		Run: func(c *cobra.Command, args []string) {
-			var proj v1alpha1.AppProject
-			if fileURL == "-" {
-				// read stdin
-				err := cmdutil.ReadProjFromStdin(&proj)
-				errors.CheckError(err)
-			} else if fileURL != "" {
-				// read uri
-				err := cmdutil.ReadProjFromURI(fileURL, &proj)
-				errors.CheckError(err)
-
-				if len(args) == 1 && args[0] != proj.Name {
-					log.Fatalf("project name '%s' does not match project spec metadata.name '%s'", args[0], proj.Name)
-				}
-			} else {
-				// read arguments
-				if len(args) == 0 {
-					c.HelpFunc()(c, args)
-					os.Exit(1)
-				}
-				projName := args[0]
-				proj = v1alpha1.AppProject{
-					TypeMeta: v1.TypeMeta{
-						Kind:       application.AppProjectKind,
-						APIVersion: application.Group + "/v1aplha1",
-					},
-					ObjectMeta: v1.ObjectMeta{Name: projName},
-					Spec: v1alpha1.AppProjectSpec{
-						Description:       opts.Description,
-						Destinations:      opts.GetDestinations(),
-						SourceRepos:       opts.Sources,
-						SignatureKeys:     opts.GetSignatureKeys(),
-						OrphanedResources: cmdutil.GetOrphanedResourcesSettings(c, opts),
-					},
-				}
-			}
+			proj, err := cmdutil.ConstructAppProj(fileURL, args, opts, c)
+			errors.CheckError(err)
 
 			errors.CheckError(cmdutil.PrintResource(proj, outputFormat))
 		},

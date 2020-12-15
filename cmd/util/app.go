@@ -2,6 +2,7 @@ package util
 
 import (
 	"bufio"
+	"fmt"
 	"io/ioutil"
 	"net/url"
 	"os"
@@ -10,8 +11,10 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/pkg/apis/application"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/errors"
@@ -466,16 +469,16 @@ func SetLabels(app *argoappv1.Application, labels []string) {
 	app.SetLabels(mapLabels)
 }
 
-func ReadAppFromStdin(app *argoappv1.Application) error {
+func readAppFromStdin(app *argoappv1.Application) error {
 	reader := bufio.NewReader(os.Stdin)
 	err := config.UnmarshalReader(reader, &app)
 	if err != nil {
-		log.Fatalf("unable to read manifest from stdin: %v", err)
+		return fmt.Errorf("unable to read manifest from stdin: %v", err)
 	}
 	return nil
 }
 
-func ReadAppFromURI(fileURL string, app *argoappv1.Application) error {
+func readAppFromURI(fileURL string, app *argoappv1.Application) error {
 	parsedURL, err := url.ParseRequestURI(fileURL)
 	if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
 		err = config.UnmarshalLocalFile(fileURL, &app)
@@ -483,4 +486,54 @@ func ReadAppFromURI(fileURL string, app *argoappv1.Application) error {
 		err = config.UnmarshalRemoteFile(fileURL, &app)
 	}
 	return err
+}
+
+func ConstructApp(fileURL, appName string, labels, args []string, appOpts AppOptions, flags *pflag.FlagSet) (*argoappv1.Application, error) {
+	var app argoappv1.Application
+	if fileURL == "-" {
+		// read stdin
+		err := readAppFromStdin(&app)
+		if err != nil {
+			return nil, err
+		}
+	} else if fileURL != "" {
+		// read uri
+		err := readAppFromURI(fileURL, &app)
+		if err != nil {
+			return nil, err
+		}
+		if len(args) == 1 && args[0] != app.Name {
+			return nil, fmt.Errorf("app name '%s' does not match app spec metadata.name '%s'", args[0], app.Name)
+		}
+		if appName != "" && appName != app.Name {
+			app.Name = appName
+		}
+		if app.Name == "" {
+			return nil, fmt.Errorf("app.Name is empty. --name argument can be used to provide app.Name")
+		}
+		SetAppSpecOptions(flags, &app.Spec, &appOpts)
+		SetParameterOverrides(&app, appOpts.Parameters)
+		SetLabels(&app, labels)
+	} else {
+		// read arguments
+		if len(args) == 1 {
+			if appName != "" && appName != args[0] {
+				return nil, fmt.Errorf("--name argument '%s' does not match app name %s", appName, args[0])
+			}
+			appName = args[0]
+		}
+		app = argoappv1.Application{
+			TypeMeta: v1.TypeMeta{
+				Kind:       application.ApplicationKind,
+				APIVersion: application.Group + "/v1aplha1",
+			},
+			ObjectMeta: v1.ObjectMeta{
+				Name: appName,
+			},
+		}
+		SetAppSpecOptions(flags, &app.Spec, &appOpts)
+		SetParameterOverrides(&app, appOpts.Parameters)
+		SetLabels(&app, labels)
+	}
+	return &app, nil
 }

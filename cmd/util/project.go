@@ -9,8 +9,10 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
 
+	"github.com/argoproj/argo-cd/pkg/apis/application"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/gpg"
@@ -75,7 +77,7 @@ func GetOrphanedResourcesSettings(c *cobra.Command, opts ProjectOpts) *v1alpha1.
 	return nil
 }
 
-func ReadProjFromStdin(proj *v1alpha1.AppProject) error {
+func readProjFromStdin(proj *v1alpha1.AppProject) error {
 	reader := bufio.NewReader(os.Stdin)
 	err := config.UnmarshalReader(reader, &proj)
 	if err != nil {
@@ -84,7 +86,7 @@ func ReadProjFromStdin(proj *v1alpha1.AppProject) error {
 	return nil
 }
 
-func ReadProjFromURI(fileURL string, proj *v1alpha1.AppProject) error {
+func readProjFromURI(fileURL string, proj *v1alpha1.AppProject) error {
 	parsedURL, err := url.ParseRequestURI(fileURL)
 	if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
 		err = config.UnmarshalLocalFile(fileURL, &proj)
@@ -92,4 +94,48 @@ func ReadProjFromURI(fileURL string, proj *v1alpha1.AppProject) error {
 		err = config.UnmarshalRemoteFile(fileURL, &proj)
 	}
 	return err
+}
+
+func ConstructAppProj(fileURL string, args []string, opts ProjectOpts, c *cobra.Command) (*v1alpha1.AppProject, error) {
+	var proj v1alpha1.AppProject
+	if fileURL == "-" {
+		// read stdin
+		err := readProjFromStdin(&proj)
+		if err != nil {
+			return nil, err
+		}
+	} else if fileURL != "" {
+		// read uri
+		err := readProjFromURI(fileURL, &proj)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(args) == 1 && args[0] != proj.Name {
+			return nil, fmt.Errorf("project name '%s' does not match project spec metadata.name '%s'", args[0], proj.Name)
+		}
+	} else {
+		// read arguments
+		if len(args) == 0 {
+			c.HelpFunc()(c, args)
+			os.Exit(1)
+		}
+		projName := args[0]
+		proj = v1alpha1.AppProject{
+			TypeMeta: v1.TypeMeta{
+				Kind:       application.AppProjectKind,
+				APIVersion: application.Group + "/v1aplha1",
+			},
+			ObjectMeta: v1.ObjectMeta{Name: projName},
+			Spec: v1alpha1.AppProjectSpec{
+				Description:       opts.Description,
+				Destinations:      opts.GetDestinations(),
+				SourceRepos:       opts.Sources,
+				SignatureKeys:     opts.GetSignatureKeys(),
+				OrphanedResources: GetOrphanedResourcesSettings(c, opts),
+			},
+		}
+	}
+
+	return &proj, nil
 }

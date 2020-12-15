@@ -23,7 +23,6 @@ import (
 	"github.com/mattn/go-isatty"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -129,47 +128,11 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	argocd app create ksane --repo https://github.com/argoproj/argocd-example-apps.git --path plugins/kasane --dest-namespace default --dest-server https://kubernetes.default.svc --config-management-plugin kasane
 `,
 		Run: func(c *cobra.Command, args []string) {
-			var app argoappv1.Application
 			argocdClient := argocdclient.NewClientOrDie(clientOpts)
-			if fileURL == "-" {
-				// read stdin
-				err := cmdutil.ReadAppFromStdin(&app)
-				errors.CheckError(err)
-			} else if fileURL != "" {
-				// read uri
-				err := cmdutil.ReadAppFromURI(fileURL, &app)
-				errors.CheckError(err)
 
-				if len(args) == 1 && args[0] != app.Name {
-					log.Fatalf("app name '%s' does not match app spec metadata.name '%s'", args[0], app.Name)
-				}
-				if appName != "" && appName != app.Name {
-					app.Name = appName
-				}
-				if app.Name == "" {
-					log.Fatalf("app.Name is empty. --name argument can be used to provide app.Name")
-				}
-				cmdutil.SetAppSpecOptions(c.Flags(), &app.Spec, &appOpts)
-				cmdutil.SetParameterOverrides(&app, appOpts.Parameters)
-				cmdutil.SetLabels(&app, labels)
+			app, err := cmdutil.ConstructApp(fileURL, appName, labels, args, appOpts, c.Flags())
+			errors.CheckError(err)
 
-			} else {
-				// read arguments
-				if len(args) == 1 {
-					if appName != "" && appName != args[0] {
-						log.Fatalf("--name argument '%s' does not match app name %s", appName, args[0])
-					}
-					appName = args[0]
-				}
-				app = argoappv1.Application{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: appName,
-					},
-				}
-				cmdutil.SetAppSpecOptions(c.Flags(), &app.Spec, &appOpts)
-				cmdutil.SetParameterOverrides(&app, appOpts.Parameters)
-				cmdutil.SetLabels(&app, labels)
-			}
 			if app.Name == "" {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
@@ -178,7 +141,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			conn, appIf := argocdClient.NewApplicationClientOrDie()
 			defer argoio.Close(conn)
 			appCreateRequest := applicationpkg.ApplicationCreateRequest{
-				Application: app,
+				Application: *app,
 				Upsert:      &upsert,
 				Validate:    &appOpts.Validate,
 			}

@@ -90,41 +90,14 @@ func NewProjectCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 		Use:   "create PROJECT",
 		Short: "Create a project",
 		Run: func(c *cobra.Command, args []string) {
-			var proj v1alpha1.AppProject
 			fmt.Printf("EE: %d/%v\n", len(opts.SignatureKeys), opts.SignatureKeys)
-			if fileURL == "-" {
-				// read stdin
-				err := cmdutil.ReadProjFromStdin(&proj)
-				errors.CheckError(err)
-			} else if fileURL != "" {
-				// read uri
-				err := cmdutil.ReadProjFromURI(fileURL, &proj)
-				errors.CheckError(err)
 
-				if len(args) == 1 && args[0] != proj.Name {
-					log.Fatalf("project name '%s' does not match project spec metadata.name '%s'", args[0], proj.Name)
-				}
-			} else {
-				// read arguments
-				if len(args) == 0 {
-					c.HelpFunc()(c, args)
-					os.Exit(1)
-				}
-				projName := args[0]
-				proj = v1alpha1.AppProject{
-					ObjectMeta: v1.ObjectMeta{Name: projName},
-					Spec: v1alpha1.AppProjectSpec{
-						Description:       opts.Description,
-						Destinations:      opts.GetDestinations(),
-						SourceRepos:       opts.Sources,
-						SignatureKeys:     opts.GetSignatureKeys(),
-						OrphanedResources: cmdutil.GetOrphanedResourcesSettings(c, opts),
-					},
-				}
-			}
+			proj, err := cmdutil.ConstructAppProj(fileURL, args, opts, c)
+			errors.CheckError(err)
+
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer argoio.Close(conn)
-			_, err := projIf.Create(context.Background(), &projectpkg.ProjectCreateRequest{Project: &proj, Upsert: upsert})
+			_, err = projIf.Create(context.Background(), &projectpkg.ProjectCreateRequest{Project: proj, Upsert: upsert})
 			errors.CheckError(err)
 		},
 	}
