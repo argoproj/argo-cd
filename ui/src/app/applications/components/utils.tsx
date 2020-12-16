@@ -1,10 +1,10 @@
 import {Checkbox, DataLoader, FormField, MenuItem, NotificationType} from 'argo-ui';
+import * as classNames from 'classnames';
 import * as React from 'react';
 import {Checkbox as ReactCheckbox, Text} from 'react-form';
-import {ResourceTreeNode} from './application-resource-tree/application-resource-tree';
-import {AppContext} from '../../shared/context';
-import * as classNames from 'classnames';
 import {BehaviorSubject, Observable, Observer, Subscription} from 'rxjs';
+import {AppContext} from '../../shared/context';
+import {ResourceTreeNode} from './application-resource-tree/application-resource-tree';
 
 import {COLORS, ErrorNotification, Revision} from '../../shared/components';
 import {ContextApis} from '../../shared/context';

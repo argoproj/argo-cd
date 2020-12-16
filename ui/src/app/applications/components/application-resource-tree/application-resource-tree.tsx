@@ -283,10 +283,15 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                         </span>
                     ))}
                 <Tooltip
-                    content={
-                        (node.info || []).map(i => <div key={i.name}>{i.name}: {i.value}</div>)}
-                        key={node.uid}>
-                    <span className='application-resource-tree__node-label' title='More'>More</span>
+                    content={(node.info || []).map(i => (
+                        <div key={i.name}>
+                            {i.name}: {i.value}
+                        </div>
+                    ))}
+                    key={node.uid}>
+                    <span className='application-resource-tree__node-label' title='More'>
+                        More
+                    </span>
                 </Tooltip>
             </div>
             {props.nodeMenu && (
