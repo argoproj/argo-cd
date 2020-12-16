@@ -31,7 +31,7 @@ $num-stats: 2;
     margin-bottom: 14px !important;
     width: $pod-container-width + 2 * $padding;
     &--large {
-        max-width: $pod-container-width + (2 * $padding) + ($num-stats * ($stat-width + 2 * $gutter)) + 6 * $gutter;
+        width: $pod-container-width + (2 * $padding) + ($num-stats * ($stat-width + 2 * $gutter)) + 6 * $gutter;
     }
     &__container {
         display: flex;
