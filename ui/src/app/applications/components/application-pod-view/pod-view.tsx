@@ -96,7 +96,7 @@ export class PodView extends React.Component<PodViewProps> {
                                     return (
                                         <div className='nodes-container'>
                                             {this.processTree(podPrefs.sortMode, nodes).map((group) => (
-                                                <div className='node white-box' key={group.name}>
+                                                <div className={`node white-box ${group.kind == 'node' && 'node--large'}`} key={group.name}>
                                                     <div className='node__container--header' onClick={() => this.props.onItemClick(group.fullName)} style={{cursor: 'pointer'}}>
                                                         <div style={{display: 'flex', alignItems: 'center'}}>
                                                             <div style={{marginRight: '10px'}}>
@@ -104,8 +104,8 @@ export class PodView extends React.Component<PodViewProps> {
                                                                 <br />
                                                                 {<div style={{textAlign: 'center'}}>{ResourceLabel({kind: group.kind})}</div>}
                                                             </div>
-                                                            <div style={{lineHeight: '15px', wordWrap: 'break-word'}}>
-                                                                <b>{group.name || 'unknown'}</b>
+                                                            <div style={{lineHeight: '15px'}}>
+                                                                <b style={{wordWrap: 'break-word'}}>{group.name || 'Unknown'}</b>
                                                                 {group.resourceStatus && (
                                                                     <div>
                                                                         {group.resourceStatus.health && <HealthStatusIcon state={group.resourceStatus.health} />}

@@ -4,6 +4,7 @@ $pod-size: 25px;
 $gutter: 3px;
 $pods-per-row: 8;
 $max-rows: 5;
+$num-stats: 2;
 
 .pod-view {
     &__settings {
@@ -22,9 +23,16 @@ $max-rows: 5;
 }
 
 .node {
-    padding: 15px;
+    $pod-container-width: $pods-per-row * ($pod-size + (2 * $gutter)) + 4 * $gutter;
+    $padding: 15px;
+    $stat-width: 12px;
+    padding: $padding;
     margin: 10px;
     margin-bottom: 14px !important;
+    width: $pod-container-width + 2 * $padding;
+    &--large {
+        max-width: $pod-container-width + (2 * $padding) + ($num-stats * ($stat-width + 2 * $gutter)) + 6 * $gutter;
+    }
     &__container {
         display: flex;
         &--header {
@@ -67,7 +75,7 @@ $max-rows: 5;
     }
     &__pod-container {
         flex-direction: column;
-        width: $pods-per-row * ($pod-size + (2 * $gutter)) + 4 * $gutter;
+        width: $pod-container-width;
         &__pods {
             display: flex;
             flex-direction: row-reverse;
@@ -137,7 +145,7 @@ $max-rows: 5;
             &__bar {
                 background-color: $argo-color-gray-4;
                 height: $max-rows * $pod-size;
-                width: 12px;
+                width: $stat-width;
                 position: relative;
                 border-radius: 2px;
                 margin: 0 $gutter * 2;
