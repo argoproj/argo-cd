@@ -40,21 +40,21 @@ patchesJson6902:
     kind: ServiceAccount
     name: argocd-redis-ha-haproxy
     namespace: argocd
-  path: overlays/remove-namespace.yaml  
+  path: overlays/remove-namespace.yaml 
 - target:
     group: rbac.authorization.k8s.io
     version: v1
     kind: Role
     name: argocd-redis-ha
     namespace: argocd
-  path: overlays/remove-namespace.yaml  
+  path: overlays/remove-namespace.yaml 
 - target:
     group: rbac.authorization.k8s.io
     version: v1
     kind: Role
     name: argocd-redis-ha-haproxy
     namespace: argocd
-  path: overlays/remove-namespace.yaml  
+  path: overlays/remove-namespace.yaml 
 - target:
     group: rbac.authorization.k8s.io
     version: v1
