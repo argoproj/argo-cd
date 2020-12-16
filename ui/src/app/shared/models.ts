@@ -821,18 +821,6 @@ export const Groups = [
     'storage.k8s.io'
 ];
 
-export type PodGroupType = 'topLevelResource' | 'parentResource' | 'node';
-
-export interface PodGroup extends Partial<ResourceNode> {
-    type: PodGroupType;
-    pods: Pod[];
-    info?: InfoItem[];
-    metrics?: ResourceList;
-    resourceStatus?: Partial<ResourceStatus>;
-    renderMenu?: () => React.ReactNode;
-    fullName?: string;
-}
-
 export interface InfraNode {
     metadata?: models.ObjectMeta;
     name: string;

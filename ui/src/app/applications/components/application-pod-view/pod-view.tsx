@@ -9,8 +9,6 @@ import {
     Metric,
     InfraNode,
     Pod,
-    PodGroup,
-    PodGroupType,
     ResourceList,
     ResourceName,
     ResourceNode,
@@ -33,6 +31,19 @@ interface PodViewProps {
     app: Application;
     nodeMenu?: (node: ResourceNode) => React.ReactNode;
 }
+
+export type PodGroupType = 'topLevelResource' | 'parentResource' | 'node';
+
+export interface PodGroup extends Partial<ResourceNode> {
+    type: PodGroupType;
+    pods: Pod[];
+    info?: InfoItem[];
+    metrics?: ResourceList;
+    resourceStatus?: Partial<ResourceStatus>;
+    renderMenu?: () => React.ReactNode;
+    fullName?: string;
+}
+
 export class PodView extends React.Component<PodViewProps> {
     private loader: DataLoader;
     private get appContext(): AppContext {
