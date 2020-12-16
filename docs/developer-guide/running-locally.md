@@ -97,7 +97,7 @@ DOCKER_PUSH=true make image
 
 ### Configure manifests for your image
 
-With `IMAGE_NAMESPACE` and `IMAGE_TAG` still set, run
+With `IMAGE_NAMESPACE` and `IMAGE_TAG` still set, run:
 
 ```bash
 make manifests
