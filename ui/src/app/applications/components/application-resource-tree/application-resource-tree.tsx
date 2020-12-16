@@ -1,4 +1,4 @@
-import {DropDown} from 'argo-ui';
+import {DropDown, Tooltip} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as dagre from 'dagre';
 import * as React from 'react';
@@ -276,11 +276,18 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                 ) : null}
                 {(node.info || [])
                     .filter(tag => !tag.name.includes('Resource.'))
+                    .slice(0, 4)
                     .map((tag, i) => (
                         <span className='application-resource-tree__node-label' title={`${tag.name}:${tag.value}`} key={i}>
                             {tag.value}
                         </span>
                     ))}
+                <Tooltip
+                    content={
+                        (node.info || []).map(i => <div key={i.name}>{i.name}: {i.value}</div>)}
+                        key={node.uid}>
+                    <span className='application-resource-tree__node-label' title='More'>More</span>
+                </Tooltip>
             </div>
             {props.nodeMenu && (
                 <div className='application-resource-tree__node-menu'>
