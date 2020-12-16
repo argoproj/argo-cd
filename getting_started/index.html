@@ -429,15 +429,15 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#from-cli" title="From CLI:" class="md-nav__link">
-    From CLI:
+  <a href="#syncing-via-cli" title="Syncing via CLI" class="md-nav__link">
+    Syncing via CLI
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#from-ui" title="From UI:" class="md-nav__link">
-    From UI:
+  <a href="#syncing-via-ui" title="Syncing via UI" class="md-nav__link">
+    Syncing via UI
   </a>
   
 </li>
@@ -1723,15 +1723,15 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#from-cli" title="From CLI:" class="md-nav__link">
-    From CLI:
+  <a href="#syncing-via-cli" title="Syncing via CLI" class="md-nav__link">
+    Syncing via CLI
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#from-ui" title="From UI:" class="md-nav__link">
-    From UI:
+  <a href="#syncing-via-ui" title="Syncing via UI" class="md-nav__link">
+    Syncing via UI
   </a>
   
 </li>
@@ -1767,7 +1767,7 @@
 </div>
 <h2 id="requirements">Requirements<a class="headerlink" href="#requirements" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Installed <a href="https://kubernetes.io/docs/tasks/tools/install-kubectl/">kubectl</a> command-line tool</li>
+<li>Installed <a href="https://kubernetes.io/docs/tasks/tools/install-kubectl/">kubectl</a> command-line tool.</li>
 <li>Have a <a href="https://kubernetes.io/docs/tasks/access-application-cluster/configure-access-multiple-clusters/">kubeconfig</a> file (default location is <code>~/.kube/config</code>).</li>
 </ul>
 <h2 id="1-install-argo-cd">1. Install Argo CD<a class="headerlink" href="#1-install-argo-cd" title="Permanent link">&para;</a></h2>
@@ -1868,7 +1868,7 @@ However <code>get</code>, <code>list</code>, <code>watch</code> privileges are r
 <p>After filling out the information above, click <strong>Create</strong> at the top of the UI to create the <code>guestbook</code> application:</p>
 <p><img alt="destination" src="../assets/create-app.png" /></p>
 <h2 id="7-sync-deploy-the-application">7. Sync (Deploy) The Application<a class="headerlink" href="#7-sync-deploy-the-application" title="Permanent link">&para;</a></h2>
-<h3 id="from-cli">From CLI:<a class="headerlink" href="#from-cli" title="Permanent link">&para;</a></h3>
+<h3 id="syncing-via-cli">Syncing via CLI<a class="headerlink" href="#syncing-via-cli" title="Permanent link">&para;</a></h3>
 <p>Once the guestbook application is created, you can now view its status:</p>
 <div class="codehilite"><pre><span></span><code>$ argocd app get guestbook
 Name:               guestbook
@@ -1894,8 +1894,8 @@ deployed, and no Kubernetes resources have been created. To sync (deploy) the ap
 
 <p>This command retrieves the manifests from the repository and performs a <code>kubectl apply</code> of the
 manifests. The guestbook app is now running and you can now view its resource components, logs,
-events, and assessed health status:</p>
-<h3 id="from-ui">From UI:<a class="headerlink" href="#from-ui" title="Permanent link">&para;</a></h3>
+events, and assessed health status.</p>
+<h3 id="syncing-via-ui">Syncing via UI<a class="headerlink" href="#syncing-via-ui" title="Permanent link">&para;</a></h3>
 <p><img alt="guestbook app" src="../assets/guestbook-app.png" />
 <img alt="view app" src="../assets/guestbook-tree.png" /></p>
                 

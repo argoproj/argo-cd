@@ -1754,7 +1754,7 @@ include the fix <a href="https://github.com/kubernetes/kubernetes/pull/67570">ku
 <h2 id="i-forgot-the-admin-password-how-do-i-reset-it">I forgot the admin password, how do I reset it?<a class="headerlink" href="#i-forgot-the-admin-password-how-do-i-reset-it" title="Permanent link">&para;</a></h2>
 <p>By default the password is set to the name of the server pod, as per <a href="../getting_started/">the getting started guide</a>.</p>
 <p>To change the password, edit the <code>argocd-secret</code> secret and update the <code>admin.password</code> field with a new bcrypt hash. You
-can use a site like https://www.browserling.com/tools/bcrypt to generate a new hash. For example:</p>
+can use a site like <a href="https://www.browserling.com/tools/bcrypt">https://www.browserling.com/tools/bcrypt</a> to generate a new hash. For example:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1"># bcrypt(password)=$2a$10$rRyBsGSHK6.uc8fntPwVIuLVHgsAhAX7TcdrqW/RADU0uh7CaChLa</span>
 kubectl -n argocd patch secret argocd-secret <span class="se">\</span>
   -p <span class="s1">&#39;{&quot;stringData&quot;: {</span>
@@ -1821,10 +1821,10 @@ You can get the list of groups by opening "developer tools -&gt; network"</p>
 <li>Click log in</li>
 <li>Find the call to <code>&lt;argocd_instance&gt;/auth/callback?code=&lt;random_string&gt;</code></li>
 </ul>
-<p>Decode the token at https://jwt.io/. That will provide the list of teams that you can remove yourself from.</p>
+<p>Decode the token at <a href="https://jwt.io/">https://jwt.io/</a>. That will provide the list of teams that you can remove yourself from.</p>
 <p>See <a href="https://github.com/argoproj/argo-cd/issues/2165">#2165</a>.</p>
 <h2 id="why-am-i-getting-rpc-error-code-unavailable-desc-transport-is-closing-when-using-the-cli">Why Am I Getting <code>rpc error: code = Unavailable desc = transport is closing</code> When Using The CLI?<a class="headerlink" href="#why-am-i-getting-rpc-error-code-unavailable-desc-transport-is-closing-when-using-the-cli" title="Permanent link">&para;</a></h2>
-<p>Maybe you're behind a proxy that does not support HTTP 2? Try the <code>--grpc-web</code> flag.:</p>
+<p>Maybe you're behind a proxy that does not support HTTP 2? Try the <code>--grpc-web</code> flag:</p>
 <div class="codehilite"><pre><span></span><code>argocd ... --grpc-web
 </code></pre></div>
 
@@ -1839,7 +1839,7 @@ You can get the list of groups by opening "developer tools -&gt; network"</p>
 </div>
 <h2 id="i-have-configured-dex-via-dexconfig-in-argocd-cm-it-still-says-dex-is-unconfigured-why">I have configured Dex via <code>dex.config</code> in <code>argocd-cm</code>, it still says Dex is unconfigured. Why?<a class="headerlink" href="#i-have-configured-dex-via-dexconfig-in-argocd-cm-it-still-says-dex-is-unconfigured-why" title="Permanent link">&para;</a></h2>
 <p>Most likely you forgot to set the <code>url</code> in <code>argocd-cm</code> to point to your ArgoCD as well. See also
-<a href="/operator-manual/user-management/#2-configure-argo-cd-for-sso">the docs</a></p>
+<a href="/operator-manual/user-management/#2-configure-argo-cd-for-sso">the docs</a>.</p>
                 
                   
                 
