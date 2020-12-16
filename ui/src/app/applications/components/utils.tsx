@@ -125,7 +125,7 @@ export const ComparisonStatusIcon = ({status, resource, label}: {status: appMode
     );
 };
 
-export function ShowDeploy(resource: string, appContext: AppContext) {
+export function showDeploy(resource: string, appContext: AppContext) {
     appContext.apis.navigation.goto('.', {deploy: resource});
 }
 
@@ -145,7 +145,7 @@ export function RenderResourceMenu(
             ...((isRoot && [
                 {
                     title: 'Sync',
-                    action: () => ShowDeploy(nodeKey(resource), appContext)
+                    action: () => showDeploy(nodeKey(resource), appContext)
                 }
             ]) ||
                 []),

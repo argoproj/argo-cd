@@ -416,7 +416,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                         </SlidingPanel>
                                         <ApplicationSyncPanel
                                             application={application}
-                                            hide={() => AppUtils.ShowDeploy(null, this.appContext)}
+                                            hide={() => AppUtils.showDeploy(null, this.appContext)}
                                             selectedResource={syncResourceKey}
                                         />
                                         <SlidingPanel isShown={this.selectedRollbackDeploymentIndex > -1} onClose={() => this.setRollbackPanelVisible(-1)}>
@@ -463,7 +463,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
             {
                 iconClassName: 'fa fa-sync',
                 title: <span className='show-for-medium'>Sync</span>,
-                action: () => AppUtils.ShowDeploy('all', this.appContext)
+                action: () => AppUtils.showDeploy('all', this.appContext)
             },
             {
                 iconClassName: 'fa fa-info-circle',
