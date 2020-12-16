@@ -129,7 +129,7 @@ export function showDeploy(resource: string, appContext: AppContext) {
     appContext.apis.navigation.goto('.', {deploy: resource});
 }
 
-export function RenderResourceMenu(
+export function renderResourceMenu(
     resource: ResourceTreeNode,
     application: appModels.Application,
     appContext: AppContext,
