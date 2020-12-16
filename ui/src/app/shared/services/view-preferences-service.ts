@@ -61,7 +61,7 @@ export interface ViewPreferences {
 
 const VIEW_PREFERENCES_KEY = 'view_preferences';
 
-const minVer = 4;
+const minVer = 5;
 
 const DEFAULT_PREFERENCES: ViewPreferences = {
     version: 1,
