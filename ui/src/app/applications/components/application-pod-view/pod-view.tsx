@@ -94,10 +94,10 @@ export class PodView extends React.Component<PodViewProps> {
                                 }}>
                                 {(nodes) => {
                                     return (
-                                        <div className='nodes-container'>
+                                        <div className='pod-view__nodes-container'>
                                             {this.processTree(podPrefs.sortMode, nodes).map((group) => (
-                                                <div className={`node white-box ${group.kind == 'node' && 'node--large'}`} key={group.name}>
-                                                    <div className='node__container--header' onClick={() => this.props.onItemClick(group.fullName)} style={{cursor: 'pointer'}}>
+                                                <div className={`pod-view__node white-box ${group.kind == 'node' && 'pod-view__node--large'}`} key={group.name}>
+                                                    <div className='pod-view__node__container--header' onClick={() => this.props.onItemClick(group.fullName)} style={{cursor: 'pointer'}}>
                                                         <div style={{display: 'flex', alignItems: 'center'}}>
                                                             <div style={{marginRight: '10px'}}>
                                                                 <ResourceIcon kind={group.kind || 'Unknown'} />
@@ -129,7 +129,7 @@ export class PodView extends React.Component<PodViewProps> {
                                                             </div>
                                                         </div>
                                                         {group.type === 'node' ? (
-                                                            <div className='node__info--large'>
+                                                            <div className='pod-view__node__info--large'>
                                                                 {(group.info || []).map((item) => (
                                                                     <div>
                                                                         {item.name}: <div>{item.value}</div>
@@ -137,7 +137,7 @@ export class PodView extends React.Component<PodViewProps> {
                                                                 ))}
                                                             </div>
                                                         ) : (
-                                                            <div className='node__info'>
+                                                            <div className='pod-view__node__info'>
                                                                 {group.createdAt ? (
                                                                     <div>
                                                                         <Moment fromNow={true} ago={true}>
@@ -151,16 +151,16 @@ export class PodView extends React.Component<PodViewProps> {
                                                             </div>
                                                         )}
                                                     </div>
-                                                    <div className='node__container'>
+                                                    <div className='pod-view__node__container'>
                                                         {Object.keys((group as InfraNode).metrics || {}).length > 0 && (
-                                                            <div className='node__container node__container--stats'>
+                                                            <div className='pod-view__node__container pod-view__node__container--stats'>
                                                                 {Object.keys((group as InfraNode).metrics || {}).map((r) =>
                                                                     Stat(r as ResourceName, (group as InfraNode).metrics[r as ResourceName])
                                                                 )}
                                                             </div>
                                                         )}
-                                                        <div className='node__pod-container node__container'>
-                                                            <div className='node__pod-container__pods'>
+                                                        <div className='pod-view__node__pod-container pod-view__node__container'>
+                                                            <div className='pod-view__node__pod-container__pods'>
                                                                 {group.pods.map((pod) => (
                                                                     <DropDownMenu
                                                                         anchor={() => (
@@ -172,7 +172,7 @@ export class PodView extends React.Component<PodViewProps> {
                                                                                     </div>
                                                                                 }
                                                                                 key={pod.metadata.name}>
-                                                                                <div className={`node__pod node__pod--${pod.health.toLowerCase()}`}>
+                                                                                <div className={`pod-view__node__pod pod-view__node__pod--${pod.health.toLowerCase()}`}>
                                                                                     <PodHealthIcon state={{status: pod.health, message: ''}} />
                                                                                 </div>
                                                                             </Tooltip>
@@ -229,7 +229,7 @@ export class PodView extends React.Component<PodViewProps> {
                                                                     />
                                                                 ))}
                                                             </div>
-                                                            <div className='node__label'>PODS</div>
+                                                            <div className='pod-view__node__label'>PODS</div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -382,7 +382,7 @@ function mergeResourceLists(a: ResourceList, b: ResourceList): ResourceList {
 
 function Stat(name: ResourceName, metric: Metric) {
     return (
-        <div className='node__pod__stat' key={name}>
+        <div className='pod-view__node__pod__stat' key={name}>
             <Tooltip
                 key={name}
                 content={
@@ -391,11 +391,11 @@ function Stat(name: ResourceName, metric: Metric) {
                         <div>{`${metric.request} / ${metric.limit}`}</div>
                     </React.Fragment>
                 }>
-                <div className='node__pod__stat__bar'>
-                    <div className='node__pod__stat__bar--fill' style={{height: `${100 * (metric.request / metric.limit)}%`}} />
+                <div className='pod-view__node__pod__stat__bar'>
+                    <div className='pod-view__node__pod__stat__bar--fill' style={{height: `${100 * (metric.request / metric.limit)}%`}} />
                 </div>
             </Tooltip>
-            <div className='node__label'>{name.slice(0, 3).toUpperCase()}</div>
+            <div className='pod-view__node__label'>{name.slice(0, 3).toUpperCase()}</div>
         </div>
     );
 }
