@@ -429,7 +429,10 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                         <Spinner show={isAppCreatePending} style={{marginRight: '5px'}} />
                                         Create
                                     </button>{' '}
-                                    <button onClick={() => ctx.navigation.goto('.', {new: null})} className='argo-button argo-button--base-o'>
+                                    <button
+                                        qe-id='applications-list-button-cancel'
+                                        onClick={() => ctx.navigation.goto('.', {new: null})}
+                                        className='argo-button argo-button--base-o'>
                                         Cancel
                                     </button>
                                 </div>
