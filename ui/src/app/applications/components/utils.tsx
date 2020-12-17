@@ -31,7 +31,13 @@ export async function deleteApplication(appName: string, apis: ContextApis): Pro
             <div>
                 <p>Are you sure you want to delete the application '{appName}'?</p>
                 <div className='argo-form-row'>
-                    <FormField label={`Please type '${appName}' to confirm the deletion of the resource`} formApi={api} field='applicationName' component={Text} />
+                    <FormField
+                        label={`Please type '${appName}' to confirm the deletion of the resource`}
+                        formApi={api}
+                        field='applicationName'
+                        qeId='name-field-delete-confirmation'
+                        component={Text}
+                    />
                 </div>
                 <div className='argo-form-row'>
                     <Checkbox id='cascade-checkbox-delete-confirmation' field='cascadeCheckbox' /> <label htmlFor='cascade-checkbox-delete-confirmation'>Cascade</label>
