@@ -1,7 +1,7 @@
-import {Checkbox, DataLoader, FormField, MenuItem, NotificationType} from 'argo-ui';
+import {DataLoader, FormField, MenuItem, NotificationType} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
-import {Checkbox as ReactCheckbox, Text} from 'react-form';
+import {Checkbox, Text} from 'react-form';
 import {BehaviorSubject, Observable, Observer, Subscription} from 'rxjs';
 import {AppContext} from '../../shared/context';
 import {ResourceTreeNode} from './application-resource-tree/application-resource-tree';
@@ -29,41 +29,48 @@ export function isSameNode(first: NodeId, second: NodeId) {
 }
 
 export async function deleteApplication(appName: string, apis: ContextApis): Promise<boolean> {
-    let cascade = false;
-    const confirmationForm = class extends React.Component<{}, {cascade: boolean}> {
-        constructor(props: any) {
-            super(props);
-            this.state = {cascade: true};
-        }
-
-        public render() {
-            return (
-                <div>
-                    <p>Are you sure you want to delete the application '{appName}'?</p>
-                    <p>
-                        <Checkbox checked={this.state.cascade} onChange={val => this.setState({cascade: val})} /> Cascade
-                    </p>
+    let confirmed = false;
+    await apis.popup.prompt(
+        'Delete application',
+        api => (
+            <div>
+                <p>Are you sure you want to delete the application '{appName}'?</p>
+                <div className='argo-form-row'>
+                    <FormField
+                        label={`Please type '${appName}' to confirm the deletion of the resource`}
+                        formApi={api}
+                        field='applicationName'
+                        qeId='name-field-delete-confirmation'
+                        component={Text}
+                    />
                 </div>
-            );
-        }
-
-        public componentWillUnmount() {
-            cascade = this.state.cascade;
-        }
-    };
-    const confirmed = await apis.popup.confirm('Delete application', confirmationForm);
-    if (confirmed) {
-        try {
-            await services.applications.delete(appName, cascade);
-            return true;
-        } catch (e) {
-            apis.notifications.show({
-                content: <ErrorNotification title='Unable to delete application' e={e} />,
-                type: NotificationType.Error
-            });
-        }
-    }
-    return false;
+                <div className='argo-form-row'>
+                    <Checkbox id='cascade-checkbox-delete-confirmation' field='cascadeCheckbox' /> <label htmlFor='cascade-checkbox-delete-confirmation'>Cascade</label>
+                </div>
+            </div>
+        ),
+        {
+            validate: vals => ({
+                applicationName: vals.applicationName !== appName && 'Enter the application name to confirm the deletion'
+            }),
+            submit: async (vals, _, close) => {
+                try {
+                    await services.applications.delete(appName, vals.cascadeCheckbox);
+                    confirmed = true;
+                    close();
+                } catch (e) {
+                    apis.notifications.show({
+                        content: <ErrorNotification title='Unable to delete application' e={e} />,
+                        type: NotificationType.Error
+                    });
+                }
+            }
+        },
+        {name: 'argo-icon-warning', color: 'warning'},
+        'yellow',
+        {cascadeCheckbox: true}
+    );
+    return confirmed;
 }
 
 export const OperationPhaseIcon = ({app}: {app: appModels.Application}) => {
@@ -168,7 +175,7 @@ export function renderResourceMenu(
                                     />
                                 </div>
                                 <div className='argo-form-row'>
-                                    <ReactCheckbox id='force-delete-checkbox' field='force' /> <label htmlFor='force-delete-checkbox'>Force delete</label>
+                                    <Checkbox id='force-delete-checkbox' field='force' /> <label htmlFor='force-delete-checkbox'>Force delete</label>
                                 </div>
                             </div>
                         ),

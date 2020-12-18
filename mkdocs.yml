@@ -9,6 +9,8 @@ theme:
     text: 'Work Sans'
   logo: 'assets/logo.png'
   favicon: 'assets/favicon.png'
+  language: en-custom
+  custom_dir: overrides
 google_analytics:
 - 'UA-105170809-2'
 - 'auto'

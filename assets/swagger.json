@@ -1,6 +1,10 @@
 {
-  "consumes": ["application/json"],
-  "produces": ["application/json"],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
   "swagger": "2.0",
   "info": {
     "description": "Description of all APIs",
@@ -10,7 +14,9 @@
   "paths": {
     "/api/v1/account": {
       "get": {
-        "tags": ["AccountService"],
+        "tags": [
+          "AccountService"
+        ],
         "summary": "ListAccounts returns the list of accounts",
         "operationId": "AccountService_ListAccounts",
         "responses": {
@@ -31,7 +37,9 @@
     },
     "/api/v1/account/can-i/{resource}/{action}/{subresource}": {
       "get": {
-        "tags": ["AccountService"],
+        "tags": [
+          "AccountService"
+        ],
         "summary": "CanI checks if the current account has permission to perform an action",
         "operationId": "AccountService_CanI",
         "parameters": [
@@ -72,7 +80,9 @@
     },
     "/api/v1/account/password": {
       "put": {
-        "tags": ["AccountService"],
+        "tags": [
+          "AccountService"
+        ],
         "summary": "UpdatePassword updates an account's password to a new value",
         "operationId": "AccountService_UpdatePassword",
         "parameters": [
@@ -103,7 +113,9 @@
     },
     "/api/v1/account/{name}": {
       "get": {
-        "tags": ["AccountService"],
+        "tags": [
+          "AccountService"
+        ],
         "summary": "GetAccount returns an account",
         "operationId": "AccountService_GetAccount",
         "parameters": [
@@ -132,7 +144,9 @@
     },
     "/api/v1/account/{name}/token": {
       "post": {
-        "tags": ["AccountService"],
+        "tags": [
+          "AccountService"
+        ],
         "summary": "CreateToken creates a token",
         "operationId": "AccountService_CreateToken",
         "parameters": [
@@ -169,7 +183,9 @@
     },
     "/api/v1/account/{name}/token/{id}": {
       "delete": {
-        "tags": ["AccountService"],
+        "tags": [
+          "AccountService"
+        ],
         "summary": "DeleteToken deletes a token",
         "operationId": "AccountService_DeleteToken",
         "parameters": [
@@ -204,7 +220,9 @@
     },
     "/api/v1/applications": {
       "get": {
-        "tags": ["ApplicationService"],
+        "tags": [
+          "ApplicationService"
+        ],
         "summary": "List returns list of applications",
         "operationId": "ApplicationService_List",
         "parameters": [
@@ -259,7 +277,9 @@
         }
       },
       "post": {
-        "tags": ["ApplicationService"],
+        "tags": [
+          "ApplicationService"
+        ],
         "summary": "Create creates an application",
         "operationId": "ApplicationService_Create",
         "parameters": [
@@ -300,7 +320,9 @@
     },
     "/api/v1/applications/{application.metadata.name}": {
       "put": {
-        "tags": ["ApplicationService"],
+        "tags": [
+          "ApplicationService"
+        ],
         "summary": "Update updates an application",
         "operationId": "ApplicationService_Update",
         "parameters": [
@@ -343,7 +365,9 @@
     },
     "/api/v1/applications/{applicationName}/managed-resources": {
       "get": {
-        "tags": ["ApplicationService"],
+        "tags": [
+          "ApplicationService"
+        ],
         "summary": "ManagedResources returns list of managed resources",
         "operationId": "ApplicationService_ManagedResources",
         "parameters": [
@@ -397,7 +421,9 @@
     },
     "/api/v1/applications/{applicationName}/resource-tree": {
       "get": {
-        "tags": ["ApplicationService"],
+        "tags": [
+          "ApplicationService"
+        ],
         "summary": "ResourceTree returns resource tree",
         "operationId": "ApplicationService_ResourceTree",
         "parameters": [
@@ -451,7 +477,9 @@
     },
     "/api/v1/applications/{name}": {
       "get": {
-        "tags": ["ApplicationService"],
+        "tags": [
+          "ApplicationService"
+        ],
         "summary": "Get returns an application by name",
         "operationId": "ApplicationService_Get",
         "parameters": [
@@ -507,7 +535,9 @@
         }
       },
       "delete": {
-        "tags": ["ApplicationService"],
+        "tags": [
+          "ApplicationService"
+        ],
         "summary": "Delete deletes an application",
         "operationId": "ApplicationService_Delete",
         "parameters": [
@@ -539,7 +569,9 @@
         }
       },
       "patch": {
-        "tags": ["ApplicationService"],
+        "tags": [
+          "ApplicationService"
+        ],
         "summary": "Patch patch an application",
         "operationId": "ApplicationService_Patch",
         "parameters": [
@@ -576,7 +608,9 @@
     },
     "/api/v1/applications/{name}/events": {
       "get": {
-        "tags": ["ApplicationService"],
+        "tags": [
+          "ApplicationService"
+        ],
         "summary": "ListResourceEvents returns a list of event resources",
         "operationId": "ApplicationService_ListResourceEvents",
         "parameters": [
@@ -620,7 +654,9 @@
     },
     "/api/v1/applications/{name}/manifests": {
       "get": {
-        "tags": ["ApplicationService"],
+        "tags": [
+          "ApplicationService"
+        ],
         "summary": "GetManifests returns application manifests",
         "operationId": "ApplicationService_GetManifests",
         "parameters": [
@@ -654,13 +690,15 @@
     },
     "/api/v1/applications/{name}/nodes": {
       "get": {
-        "tags": ["ApplicationService"],
+        "tags": [
+          "ApplicationService"
+        ],
         "summary": "ListNodes returns nodes associated with an application",
-        "operationId": "ListNodes",
+        "operationId": "ApplicationService_ListNodes",
         "parameters": [
           {
             "type": "string",
-            "description": "get nodes associated with this application",
+            "description": "the application's name",
             "name": "name",
             "in": "path",
             "required": true
@@ -672,13 +710,21 @@
             "schema": {
               "$ref": "#/definitions/v1NodeList"
             }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
           }
         }
       }
     },
     "/api/v1/applications/{name}/operation": {
       "delete": {
-        "tags": ["ApplicationService"],
+        "tags": [
+          "ApplicationService"
+        ],
         "summary": "TerminateOperation terminates the currently running operation",
         "operationId": "ApplicationService_TerminateOperation",
         "parameters": [
@@ -707,7 +753,9 @@
     },
     "/api/v1/applications/{name}/pods/{podName}/logs": {
       "get": {
-        "tags": ["ApplicationService"],
+        "tags": [
+          "ApplicationService"
+        ],
         "summary": "PodLogs returns stream of log entries for the specified pod. Pod",
         "operationId": "ApplicationService_PodLogs",
         "parameters": [
@@ -792,7 +840,9 @@
     },
     "/api/v1/applications/{name}/resource": {
       "get": {
-        "tags": ["ApplicationService"],
+        "tags": [
+          "ApplicationService"
+        ],
         "summary": "GetResource returns single application resource",
         "operationId": "ApplicationService_GetResource",
         "parameters": [
@@ -844,7 +894,9 @@
         }
       },
       "post": {
-        "tags": ["ApplicationService"],
+        "tags": [
+          "ApplicationService"
+        ],
         "summary": "PatchResource patch single application resource",
         "operationId": "ApplicationService_PatchResource",
         "parameters": [
@@ -909,7 +961,9 @@
         }
       },
       "delete": {
-        "tags": ["ApplicationService"],
+        "tags": [
+          "ApplicationService"
+        ],
         "summary": "DeleteResource deletes a single application resource",
         "operationId": "ApplicationService_DeleteResource",
         "parameters": [
@@ -968,7 +1022,9 @@
     },
     "/api/v1/applications/{name}/resource/actions": {
       "get": {
-        "tags": ["ApplicationService"],
+        "tags": [
+          "ApplicationService"
+        ],
         "summary": "ListResourceActions returns list of resource actions",
         "operationId": "ApplicationService_ListResourceActions",
         "parameters": [
@@ -1020,7 +1076,9 @@
         }
       },
       "post": {
-        "tags": ["ApplicationService"],
+        "tags": [
+          "ApplicationService"
+        ],
         "summary": "RunResourceAction run resource action",
         "operationId": "ApplicationService_RunResourceAction",
         "parameters": [
@@ -1082,7 +1140,9 @@
     },
     "/api/v1/applications/{name}/revisions/{revision}/metadata": {
       "get": {
-        "tags": ["ApplicationService"],
+        "tags": [
+          "ApplicationService"
+        ],
         "summary": "Get the meta-data (author, date, tags, message) for a specific revision of the application",
         "operationId": "ApplicationService_RevisionMetadata",
         "parameters": [
@@ -1119,7 +1179,9 @@
     },
     "/api/v1/applications/{name}/rollback": {
       "post": {
-        "tags": ["ApplicationService"],
+        "tags": [
+          "ApplicationService"
+        ],
         "summary": "Rollback syncs an application to its target state",
         "operationId": "ApplicationService_Rollback",
         "parameters": [
@@ -1156,7 +1218,9 @@
     },
     "/api/v1/applications/{name}/spec": {
       "put": {
-        "tags": ["ApplicationService"],
+        "tags": [
+          "ApplicationService"
+        ],
         "summary": "UpdateSpec updates an application spec",
         "operationId": "ApplicationService_UpdateSpec",
         "parameters": [
@@ -1198,7 +1262,9 @@
     },
     "/api/v1/applications/{name}/sync": {
       "post": {
-        "tags": ["ApplicationService"],
+        "tags": [
+          "ApplicationService"
+        ],
         "summary": "Sync syncs an application to its target state",
         "operationId": "ApplicationService_Sync",
         "parameters": [
@@ -1235,7 +1301,9 @@
     },
     "/api/v1/applications/{name}/syncwindows": {
       "get": {
-        "tags": ["ApplicationService"],
+        "tags": [
+          "ApplicationService"
+        ],
         "summary": "Get returns sync windows of the application",
         "operationId": "ApplicationService_GetApplicationSyncWindows",
         "parameters": [
@@ -1264,7 +1332,9 @@
     },
     "/api/v1/certificates": {
       "get": {
-        "tags": ["CertificateService"],
+        "tags": [
+          "CertificateService"
+        ],
         "summary": "List all available repository certificates",
         "operationId": "CertificateService_ListCertificates",
         "parameters": [
@@ -1303,7 +1373,9 @@
         }
       },
       "post": {
-        "tags": ["CertificateService"],
+        "tags": [
+          "CertificateService"
+        ],
         "summary": "Creates repository certificates on the server",
         "operationId": "CertificateService_CreateCertificate",
         "parameters": [
@@ -1339,7 +1411,9 @@
         }
       },
       "delete": {
-        "tags": ["CertificateService"],
+        "tags": [
+          "CertificateService"
+        ],
         "summary": "Delete the certificates that match the RepositoryCertificateQuery",
         "operationId": "CertificateService_DeleteCertificate",
         "parameters": [
@@ -1380,7 +1454,9 @@
     },
     "/api/v1/clusters": {
       "get": {
-        "tags": ["ClusterService"],
+        "tags": [
+          "ClusterService"
+        ],
         "summary": "List returns list of clusters",
         "operationId": "ClusterService_List",
         "parameters": [
@@ -1411,7 +1487,9 @@
         }
       },
       "post": {
-        "tags": ["ClusterService"],
+        "tags": [
+          "ClusterService"
+        ],
         "summary": "Create creates a cluster",
         "operationId": "ClusterService_Create",
         "parameters": [
@@ -1447,7 +1525,9 @@
     },
     "/api/v1/clusters/{cluster.server}": {
       "put": {
-        "tags": ["ClusterService"],
+        "tags": [
+          "ClusterService"
+        ],
         "summary": "Update updates a cluster",
         "operationId": "ClusterService_Update",
         "parameters": [
@@ -1494,7 +1574,9 @@
     },
     "/api/v1/clusters/{server}": {
       "get": {
-        "tags": ["ClusterService"],
+        "tags": [
+          "ClusterService"
+        ],
         "summary": "Get returns a cluster by server address",
         "operationId": "ClusterService_Get",
         "parameters": [
@@ -1526,7 +1608,9 @@
         }
       },
       "delete": {
-        "tags": ["ClusterService"],
+        "tags": [
+          "ClusterService"
+        ],
         "summary": "Delete deletes a cluster",
         "operationId": "ClusterService_Delete",
         "parameters": [
@@ -1560,7 +1644,9 @@
     },
     "/api/v1/clusters/{server}/invalidate-cache": {
       "post": {
-        "tags": ["ClusterService"],
+        "tags": [
+          "ClusterService"
+        ],
         "summary": "InvalidateCache invalidates cluster cache",
         "operationId": "ClusterService_InvalidateCache",
         "parameters": [
@@ -1589,7 +1675,9 @@
     },
     "/api/v1/clusters/{server}/rotate-auth": {
       "post": {
-        "tags": ["ClusterService"],
+        "tags": [
+          "ClusterService"
+        ],
         "summary": "RotateAuth rotates the bearer token used for a cluster",
         "operationId": "ClusterService_RotateAuth",
         "parameters": [
@@ -1618,7 +1706,9 @@
     },
     "/api/v1/gpgkeys": {
       "get": {
-        "tags": ["GPGKeyService"],
+        "tags": [
+          "GPGKeyService"
+        ],
         "summary": "List all available repository certificates",
         "operationId": "GPGKeyService_List",
         "parameters": [
@@ -1645,7 +1735,9 @@
         }
       },
       "post": {
-        "tags": ["GPGKeyService"],
+        "tags": [
+          "GPGKeyService"
+        ],
         "summary": "Create one or more GPG public keys in the server's configuration",
         "operationId": "GPGKeyService_Create",
         "parameters": [
@@ -1681,7 +1773,9 @@
         }
       },
       "delete": {
-        "tags": ["GPGKeyService"],
+        "tags": [
+          "GPGKeyService"
+        ],
         "summary": "Delete specified GPG public key from the server's configuration",
         "operationId": "GPGKeyService_Delete",
         "parameters": [
@@ -1710,7 +1804,9 @@
     },
     "/api/v1/gpgkeys/{keyID}": {
       "get": {
-        "tags": ["GPGKeyService"],
+        "tags": [
+          "GPGKeyService"
+        ],
         "summary": "Get information about specified GPG public key from the server",
         "operationId": "GPGKeyService_Get",
         "parameters": [
@@ -1740,7 +1836,9 @@
     },
     "/api/v1/projects": {
       "get": {
-        "tags": ["ProjectService"],
+        "tags": [
+          "ProjectService"
+        ],
         "summary": "List returns list of projects",
         "operationId": "ProjectService_List",
         "parameters": [
@@ -1766,7 +1864,9 @@
         }
       },
       "post": {
-        "tags": ["ProjectService"],
+        "tags": [
+          "ProjectService"
+        ],
         "summary": "Create a new project",
         "operationId": "ProjectService_Create",
         "parameters": [
@@ -1797,7 +1897,9 @@
     },
     "/api/v1/projects/{name}": {
       "get": {
-        "tags": ["ProjectService"],
+        "tags": [
+          "ProjectService"
+        ],
         "summary": "Get returns a project by name",
         "operationId": "ProjectService_Get",
         "parameters": [
@@ -1824,7 +1926,9 @@
         }
       },
       "delete": {
-        "tags": ["ProjectService"],
+        "tags": [
+          "ProjectService"
+        ],
         "summary": "Delete deletes a project",
         "operationId": "ProjectService_Delete",
         "parameters": [
@@ -1853,7 +1957,9 @@
     },
     "/api/v1/projects/{name}/events": {
       "get": {
-        "tags": ["ProjectService"],
+        "tags": [
+          "ProjectService"
+        ],
         "summary": "ListEvents returns a list of project events",
         "operationId": "ProjectService_ListEvents",
         "parameters": [
@@ -1882,7 +1988,9 @@
     },
     "/api/v1/projects/{name}/globalprojects": {
       "get": {
-        "tags": ["ProjectService"],
+        "tags": [
+          "ProjectService"
+        ],
         "summary": "Get returns a virtual project by name",
         "operationId": "ProjectService_GetGlobalProjects",
         "parameters": [
@@ -1911,7 +2019,9 @@
     },
     "/api/v1/projects/{name}/syncwindows": {
       "get": {
-        "tags": ["ProjectService"],
+        "tags": [
+          "ProjectService"
+        ],
         "summary": "GetSchedulesState returns true if there are any active sync syncWindows",
         "operationId": "ProjectService_GetSyncWindowsState",
         "parameters": [
@@ -1940,7 +2050,9 @@
     },
     "/api/v1/projects/{project.metadata.name}": {
       "put": {
-        "tags": ["ProjectService"],
+        "tags": [
+          "ProjectService"
+        ],
         "summary": "Update updates a project",
         "operationId": "ProjectService_Update",
         "parameters": [
@@ -1978,7 +2090,9 @@
     },
     "/api/v1/projects/{project}/roles/{role}/token": {
       "post": {
-        "tags": ["ProjectService"],
+        "tags": [
+          "ProjectService"
+        ],
         "summary": "Create a new project token",
         "operationId": "ProjectService_CreateToken",
         "parameters": [
@@ -2021,7 +2135,9 @@
     },
     "/api/v1/projects/{project}/roles/{role}/token/{iat}": {
       "delete": {
-        "tags": ["ProjectService"],
+        "tags": [
+          "ProjectService"
+        ],
         "summary": "Delete a new project token",
         "operationId": "ProjectService_DeleteToken",
         "parameters": [
@@ -2068,7 +2184,9 @@
     },
     "/api/v1/repocreds": {
       "get": {
-        "tags": ["RepoCredsService"],
+        "tags": [
+          "RepoCredsService"
+        ],
         "summary": "ListRepositoryCredentials gets a list of all configured repository credential sets",
         "operationId": "RepoCredsService_ListRepositoryCredentials",
         "parameters": [
@@ -2095,7 +2213,9 @@
         }
       },
       "post": {
-        "tags": ["RepoCredsService"],
+        "tags": [
+          "RepoCredsService"
+        ],
         "summary": "CreateRepositoryCredentials creates a new repository credential set",
         "operationId": "RepoCredsService_CreateRepositoryCredentials",
         "parameters": [
@@ -2133,7 +2253,9 @@
     },
     "/api/v1/repocreds/{creds.url}": {
       "put": {
-        "tags": ["RepoCredsService"],
+        "tags": [
+          "RepoCredsService"
+        ],
         "summary": "UpdateRepositoryCredentials updates a repository credential set",
         "operationId": "RepoCredsService_UpdateRepositoryCredentials",
         "parameters": [
@@ -2171,7 +2293,9 @@
     },
     "/api/v1/repocreds/{url}": {
       "delete": {
-        "tags": ["RepoCredsService"],
+        "tags": [
+          "RepoCredsService"
+        ],
         "summary": "DeleteRepositoryCredentials deletes a repository credential set from the configuration",
         "operationId": "RepoCredsService_DeleteRepositoryCredentials",
         "parameters": [
@@ -2200,7 +2324,9 @@
     },
     "/api/v1/repositories": {
       "get": {
-        "tags": ["RepositoryService"],
+        "tags": [
+          "RepositoryService"
+        ],
         "summary": "ListRepositories gets a list of all configured repositories",
         "operationId": "RepositoryService_ListRepositories",
         "parameters": [
@@ -2233,7 +2359,9 @@
         }
       },
       "post": {
-        "tags": ["RepositoryService"],
+        "tags": [
+          "RepositoryService"
+        ],
         "summary": "CreateRepository creates a new repository configuration",
         "operationId": "RepositoryService_CreateRepository",
         "parameters": [
@@ -2277,7 +2405,9 @@
     },
     "/api/v1/repositories/{repo.repo}": {
       "put": {
-        "tags": ["RepositoryService"],
+        "tags": [
+          "RepositoryService"
+        ],
         "summary": "UpdateRepository updates a repository configuration",
         "operationId": "RepositoryService_UpdateRepository",
         "parameters": [
@@ -2315,7 +2445,9 @@
     },
     "/api/v1/repositories/{repo}": {
       "get": {
-        "tags": ["RepositoryService"],
+        "tags": [
+          "RepositoryService"
+        ],
         "summary": "Get returns a repository or its credentials",
         "operationId": "RepositoryService_Get",
         "parameters": [
@@ -2349,7 +2481,9 @@
         }
       },
       "delete": {
-        "tags": ["RepositoryService"],
+        "tags": [
+          "RepositoryService"
+        ],
         "summary": "DeleteRepository deletes a repository from the configuration",
         "operationId": "RepositoryService_DeleteRepository",
         "parameters": [
@@ -2385,7 +2519,9 @@
     },
     "/api/v1/repositories/{repo}/apps": {
       "get": {
-        "tags": ["RepositoryService"],
+        "tags": [
+          "RepositoryService"
+        ],
         "summary": "ListApps returns list of apps in the repe",
         "operationId": "RepositoryService_ListApps",
         "parameters": [
@@ -2419,7 +2555,9 @@
     },
     "/api/v1/repositories/{repo}/helmcharts": {
       "get": {
-        "tags": ["RepositoryService"],
+        "tags": [
+          "RepositoryService"
+        ],
         "summary": "GetHelmCharts returns list of helm charts in the specified repository",
         "operationId": "RepositoryService_GetHelmCharts",
         "parameters": [
@@ -2455,7 +2593,9 @@
     },
     "/api/v1/repositories/{repo}/refs": {
       "get": {
-        "tags": ["RepositoryService"],
+        "tags": [
+          "RepositoryService"
+        ],
         "operationId": "RepositoryService_ListRefs",
         "parameters": [
           {
@@ -2490,7 +2630,9 @@
     },
     "/api/v1/repositories/{repo}/validate": {
       "post": {
-        "tags": ["RepositoryService"],
+        "tags": [
+          "RepositoryService"
+        ],
         "summary": "ValidateAccess validates access to a repository with given parameters",
         "operationId": "RepositoryService_ValidateAccess",
         "parameters": [
@@ -2583,7 +2725,9 @@
     },
     "/api/v1/repositories/{source.repoURL}/appdetails": {
       "post": {
-        "tags": ["RepositoryService"],
+        "tags": [
+          "RepositoryService"
+        ],
         "summary": "GetAppDetails returns application details by given path",
         "operationId": "RepositoryService_GetAppDetails",
         "parameters": [
@@ -2621,7 +2765,9 @@
     },
     "/api/v1/session": {
       "post": {
-        "tags": ["SessionService"],
+        "tags": [
+          "SessionService"
+        ],
         "summary": "Create a new JWT for authentication and set a cookie if using HTTP",
         "operationId": "SessionService_Create",
         "parameters": [
@@ -2650,7 +2796,9 @@
         }
       },
       "delete": {
-        "tags": ["SessionService"],
+        "tags": [
+          "SessionService"
+        ],
         "summary": "Delete an existing JWT cookie if using HTTP",
         "operationId": "SessionService_Delete",
         "responses": {
@@ -2671,7 +2819,9 @@
     },
     "/api/v1/session/userinfo": {
       "get": {
-        "tags": ["SessionService"],
+        "tags": [
+          "SessionService"
+        ],
         "summary": "Get the current user's info",
         "operationId": "SessionService_GetUserInfo",
         "responses": {
@@ -2692,7 +2842,9 @@
     },
     "/api/v1/settings": {
       "get": {
-        "tags": ["SettingsService"],
+        "tags": [
+          "SettingsService"
+        ],
         "summary": "Get returns Argo CD settings",
         "operationId": "SettingsService_Get",
         "responses": {
@@ -2713,7 +2865,9 @@
     },
     "/api/v1/stream/applications": {
       "get": {
-        "tags": ["ApplicationService"],
+        "tags": [
+          "ApplicationService"
+        ],
         "summary": "Watch returns stream of application change events",
         "operationId": "ApplicationService_Watch",
         "parameters": [
@@ -2779,7 +2933,9 @@
     },
     "/api/v1/stream/applications/{applicationName}/resource-tree": {
       "get": {
-        "tags": ["ApplicationService"],
+        "tags": [
+          "ApplicationService"
+        ],
         "summary": "Watch returns stream of application resource tree",
         "operationId": "ApplicationService_WatchResourceTree",
         "parameters": [
@@ -2842,7 +2998,9 @@
     },
     "/api/version": {
       "get": {
-        "tags": ["VersionService"],
+        "tags": [
+          "VersionService"
+        ],
         "summary": "Version returns version information of the API server",
         "operationId": "VersionService_Version",
         "responses": {
@@ -3646,6 +3804,15 @@
     "repositoryRepoResponse": {
       "type": "object"
     },
+    "resourceQuantity": {
+      "description": "Quantity is a fixed-point representation of a number.\nIt provides convenient marshaling/unmarshaling in JSON and YAML,\nin addition to String() and AsInt64() accessors.\n\nThe serialization format is:\n\n<quantity>        ::= <signedNumber><suffix>\n  (Note that <suffix> may be empty, from the \"\" case in <decimalSI>.)\n<digit>           ::= 0 | 1 | ... | 9\n<digits>          ::= <digit> | <digit><digits>\n<number>          ::= <digits> | <digits>.<digits> | <digits>. | .<digits>\n<sign>            ::= \"+\" | \"-\"\n<signedNumber>    ::= <number> | <sign><number>\n<suffix>          ::= <binarySI> | <decimalExponent> | <decimalSI>\n<binarySI>        ::= Ki | Mi | Gi | Ti | Pi | Ei\n  (International System of units; See: http://physics.nist.gov/cuu/Units/binary.html)\n<decimalSI>       ::= m | \"\" | k | M | G | T | P | E\n  (Note that 1024 = 1Ki but 1000 = 1k; I didn't choose the capitalization.)\n<decimalExponent> ::= \"e\" <signedNumber> | \"E\" <signedNumber>\n\nNo matter which of the three exponent forms is used, no quantity may represent\na number greater than 2^63-1 in magnitude, nor may it have more than 3 decimal\nplaces. Numbers larger or more precise will be capped or rounded up.\n(E.g.: 0.1m will rounded up to 1m.)\nThis may be extended in the future if we require larger or smaller quantities.\n\nWhen a Quantity is parsed from a string, it will remember the type of suffix\nit had, and will use the same type again when it is serialized.\n\nBefore serializing, Quantity will be put in \"canonical form\".\nThis means that Exponent/suffix will be adjusted up or down (with a\ncorresponding increase or decrease in Mantissa) such that:\n  a. No precision is lost\n  b. No fractional digits will be emitted\n  c. The exponent (or suffix) is as large as possible.\nThe sign will be omitted unless the number is negative.\n\nExamples:\n  1.5 will be serialized as \"1500m\"\n  1.5Gi will be serialized as \"1536Mi\"\n\nNote that the quantity will NEVER be internally represented by a\nfloating point number. That is the whole point of this exercise.\n\nNon-canonical values will still parse as long as they are well formed,\nbut will be re-emitted in their canonical form. (So always use canonical\nform, or don't diff.)\n\nThis format is intended to make it difficult to use these numbers without\nwriting some sort of special handling code in the hopes that that will\ncause implementors to also use a fixed point implementation.\n\n+protobuf=true\n+protobuf.embed=string\n+protobuf.options.marshal=false\n+protobuf.options.(gogoproto.goproto_stringer)=false\n+k8s:deepcopy-gen=true\n+k8s:openapi-gen=true",
+      "type": "object",
+      "properties": {
+        "string": {
+          "type": "string"
+        }
+      }
+    },
     "runtimeError": {
       "type": "object",
       "properties": {
@@ -4159,7 +4326,6 @@
         },
         "unschedulable": {
           "type": "boolean",
-          "format": "boolean",
           "title": "Unschedulable controls node schedulability of new pods. By default, node is schedulable.\nMore info: https://kubernetes.io/docs/concepts/nodes/node/#manual-node-administration\n+optional"
         }
       }
