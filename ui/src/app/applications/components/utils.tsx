@@ -1,5 +1,6 @@
-import {Checkbox, NotificationType} from 'argo-ui';
+import {FormField, NotificationType} from 'argo-ui';
 import * as React from 'react';
+import {Checkbox, Text} from 'react-form';
 import {Observable, Observer, Subscription} from 'rxjs';
 
 import {COLORS, ErrorNotification, Revision} from '../../shared/components';
@@ -23,41 +24,48 @@ export function isSameNode(first: NodeId, second: NodeId) {
 }
 
 export async function deleteApplication(appName: string, apis: ContextApis): Promise<boolean> {
-    let cascade = false;
-    const confirmationForm = class extends React.Component<{}, {cascade: boolean}> {
-        constructor(props: any) {
-            super(props);
-            this.state = {cascade: true};
-        }
-
-        public render() {
-            return (
-                <div>
-                    <p>Are you sure you want to delete the application '{appName}'?</p>
-                    <p>
-                        <Checkbox checked={this.state.cascade} onChange={val => this.setState({cascade: val})} /> Cascade
-                    </p>
+    let confirmed = false;
+    await apis.popup.prompt(
+        'Delete application',
+        api => (
+            <div>
+                <p>Are you sure you want to delete the application '{appName}'?</p>
+                <div className='argo-form-row'>
+                    <FormField
+                        label={`Please type '${appName}' to confirm the deletion of the resource`}
+                        formApi={api}
+                        field='applicationName'
+                        qeId='name-field-delete-confirmation'
+                        component={Text}
+                    />
                 </div>
-            );
-        }
-
-        public componentWillUnmount() {
-            cascade = this.state.cascade;
-        }
-    };
-    const confirmed = await apis.popup.confirm('Delete application', confirmationForm);
-    if (confirmed) {
-        try {
-            await services.applications.delete(appName, cascade);
-            return true;
-        } catch (e) {
-            apis.notifications.show({
-                content: <ErrorNotification title='Unable to delete application' e={e} />,
-                type: NotificationType.Error
-            });
-        }
-    }
-    return false;
+                <div className='argo-form-row'>
+                    <Checkbox id='cascade-checkbox-delete-confirmation' field='cascadeCheckbox' /> <label htmlFor='cascade-checkbox-delete-confirmation'>Cascade</label>
+                </div>
+            </div>
+        ),
+        {
+            validate: vals => ({
+                applicationName: vals.applicationName !== appName && 'Enter the application name to confirm the deletion'
+            }),
+            submit: async (vals, _, close) => {
+                try {
+                    await services.applications.delete(appName, vals.cascadeCheckbox);
+                    confirmed = true;
+                    close();
+                } catch (e) {
+                    apis.notifications.show({
+                        content: <ErrorNotification title='Unable to delete application' e={e} />,
+                        type: NotificationType.Error
+                    });
+                }
+            }
+        },
+        {name: 'argo-icon-warning', color: 'warning'},
+        'yellow',
+        {cascadeCheckbox: true}
+    );
+    return confirmed;
 }
 
 export const OperationPhaseIcon = ({app}: {app: appModels.Application}) => {
@@ -89,7 +97,7 @@ export const OperationPhaseIcon = ({app}: {app: appModels.Application}) => {
 };
 
 export const ComparisonStatusIcon = ({status, resource, label}: {status: appModels.SyncStatusCode; resource?: {requiresPruning?: boolean}; label?: boolean}) => {
-    let className = 'fa fa-question-circle';
+    let className = 'fas fa-question-circle';
     let color = COLORS.sync.unknown;
     let title: string = 'Unknown';
 
@@ -164,7 +172,7 @@ export const HealthStatusIcon = ({state}: {state: appModels.HealthStatus}) => {
             break;
         case appModels.HealthStatuses.Suspended:
             color = COLORS.health.suspended;
-            icon = 'fa-heart';
+            icon = 'fa-pause-circle';
             break;
         case appModels.HealthStatuses.Degraded:
             color = COLORS.health.degraded;
@@ -173,6 +181,10 @@ export const HealthStatusIcon = ({state}: {state: appModels.HealthStatus}) => {
         case appModels.HealthStatuses.Progressing:
             color = COLORS.health.progressing;
             icon = 'fa fa-circle-notch fa-spin';
+            break;
+        case appModels.HealthStatuses.Missing:
+            color = COLORS.health.missing;
+            icon = 'fa-ghost';
             break;
     }
     let title: string = state.status;
@@ -184,7 +196,7 @@ export const HealthStatusIcon = ({state}: {state: appModels.HealthStatus}) => {
 
 export const ResourceResultIcon = ({resource}: {resource: appModels.ResourceResult}) => {
     let color = COLORS.sync_result.unknown;
-    let icon = 'fa-question-circle';
+    let icon = 'fas fa-question-circle';
 
     if (!resource.hookType && resource.status) {
         switch (resource.status) {
@@ -461,7 +473,7 @@ export const SyncWindowStatusIcon = ({state, window}: {state: appModels.SyncWind
             color = COLORS.sync_window.allow;
             break;
         default:
-            className = 'fa fa-question-circle';
+            className = 'fas fa-question-circle';
             color = COLORS.sync_window.unknown;
             current = 'Unknown';
             break;
@@ -555,4 +567,12 @@ export function handlePageVisibility<T>(src: () => Observable<T>): Observable<T>
             ensureUnsubscribed();
         };
     });
+}
+
+export function parseApiVersion(apiVersion: string): {group: string; version: string} {
+    const parts = apiVersion.split('/');
+    if (parts.length > 1) {
+        return {group: parts[0], version: parts[1]};
+    }
+    return {version: parts[0], group: ''};
 }

@@ -174,7 +174,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 
 			createdRepo, err := repoIf.Create(context.Background(), &repoCreateReq)
 			errors.CheckError(err)
-			fmt.Printf("repository '%s' added\n", createdRepo.Repo)
+			fmt.Printf("Repository '%s' added\n", createdRepo.Repo)
 		},
 	}
 	command.Flags().StringVar(&repo.Type, "type", common.DefaultRepoType, "type of the repository, \"git\" or \"helm\"")
@@ -207,6 +207,7 @@ func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			for _, repoURL := range args {
 				_, err := repoIf.Delete(context.Background(), &repositorypkg.RepoQuery{Repo: repoURL})
 				errors.CheckError(err)
+				fmt.Printf("Repository '%s' removed\n", repoURL)
 			}
 		},
 	}

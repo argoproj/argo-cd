@@ -1,8 +1,8 @@
-import {Checkbox as ArgoCheckbox, DropDownMenu, MenuItem, NotificationType, SlidingPanel, Tab, Tabs, TopBarFilter} from 'argo-ui';
+import {Checkbox as ArgoCheckbox, DropDownMenu, FormField, MenuItem, NotificationType, SlidingPanel, Tab, Tabs, TopBarFilter} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
-import {Checkbox} from 'react-form';
+import {Checkbox, Text} from 'react-form';
 import {RouteComponentProps} from 'react-router';
 import {BehaviorSubject, Observable} from 'rxjs';
 import {DataLoader, EmptyState, ErrorNotification, EventsList, ObservableQuery, Page, Paginate, YamlEditor} from '../../../shared/components';
@@ -267,7 +267,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                             const controlled = managedResources.find(item => isSameNode(selectedNode, item));
                                                             const summary = application.status.resources.find(item => isSameNode(selectedNode, item));
                                                             const controlledState = (controlled && summary && {summary, state: controlled}) || null;
-                                                            const liveState = await services.applications.getResource(application.metadata.name, selectedNode).catch(() => null);
+                                                            const resQuery = {...selectedNode};
+                                                            if (controlled && controlled.targetState) {
+                                                                resQuery.version = AppUtils.parseApiVersion(controlled.targetState.apiVersion).version;
+                                                            }
+                                                            const liveState = await services.applications.getResource(application.metadata.name, resQuery).catch(() => null);
                                                             const events =
                                                                 (liveState &&
                                                                     (await services.applications.resourceEvents(application.metadata.name, {
@@ -624,6 +628,7 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
             menuItems = Observable.from([this.getApplicationActionMenu(application)]);
         } else {
             const isRoot = resource.root && AppUtils.nodeKey(resource.root) === AppUtils.nodeKey(resource);
+            const isManaged = !!resource.status;
             const items: MenuItem[] = [
                 ...((isRoot && [
                     {
@@ -637,17 +642,32 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
                     action: async () => {
                         this.appContext.apis.popup.prompt(
                             'Delete resource',
-                            () => (
+                            api => (
                                 <div>
                                     <p>
-                                        Are your sure you want to delete {resource.kind} '{resource.name}'?
+                                        Are you sure you want to delete {resource.kind} '{resource.name}'?
                                     </p>
-                                    <div className='argo-form-row' style={{paddingLeft: '30px'}}>
+                                    {isManaged ? (
+                                        <div className='argo-form-row'>
+                                            <FormField
+                                                label={`Please type '${resource.name}' to confirm the deletion of the resource`}
+                                                formApi={api}
+                                                field='resourceName'
+                                                component={Text}
+                                            />
+                                        </div>
+                                    ) : (
+                                        ''
+                                    )}
+                                    <div className='argo-form-row'>
                                         <Checkbox id='force-delete-checkbox' field='force' /> <label htmlFor='force-delete-checkbox'>Force delete</label>
                                     </div>
                                 </div>
                             ),
                             {
+                                validate: vals => ({
+                                    resourceName: isManaged && vals.resourceName !== resource.name && 'Enter the resource name to confirm the deletion'
+                                }),
                                 submit: async (vals, _, close) => {
                                     try {
                                         await services.applications.deleteResource(this.props.match.params.name, resource, !!vals.force);
@@ -660,7 +680,9 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
                                         });
                                     }
                                 }
-                            }
+                            },
+                            {name: 'argo-icon-warning', color: 'warning'},
+                            'yellow'
                         );
                     }
                 }

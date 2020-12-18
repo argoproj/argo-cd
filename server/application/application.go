@@ -145,6 +145,12 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*ap
 			newItems = append(newItems, *a)
 		}
 	}
+	if q.Name != nil {
+		newItems, err = argoutil.FilterByName(newItems, *q.Name)
+		if err != nil {
+			return nil, err
+		}
+	}
 	newItems = argoutil.FilterByProjects(newItems, q.Projects)
 	sort.Slice(newItems, func(i, j int) bool {
 		return newItems[i].Name < newItems[j].Name
@@ -325,7 +331,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		Repo:              repo,
 		Revision:          revision,
 		AppLabelKey:       appInstanceLabelKey,
-		AppLabelValue:     a.Name,
+		AppName:           a.Name,
 		Namespace:         a.Spec.Destination.Namespace,
 		ApplicationSource: &a.Spec.Source,
 		Repos:             helmRepos,
@@ -633,11 +639,12 @@ func (s *Server) Patch(ctx context.Context, q *application.ApplicationPatchReque
 		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("Patch type '%s' is not supported", q.PatchType))
 	}
 
-	err = json.Unmarshal(patchApp, &app)
+	newApp := &v1alpha1.Application{}
+	err = json.Unmarshal(patchApp, newApp)
 	if err != nil {
 		return nil, err
 	}
-	return s.validateAndUpdateApp(ctx, app, false, true)
+	return s.validateAndUpdateApp(ctx, newApp, false, true)
 }
 
 // Delete removes an application and all associated resources
@@ -804,12 +811,12 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 		return err
 	}
 
+	if err := argo.ValidateDestination(ctx, &app.Spec.Destination, s.db); err != nil {
+		return status.Errorf(codes.InvalidArgument, "application destination spec is invalid: %s", err.Error())
+	}
+
 	var conditions []appv1.ApplicationCondition
 	if validate {
-		if err := argo.ValidateDestination(ctx, &app.Spec.Destination, s.db); err != nil {
-			return status.Errorf(codes.InvalidArgument, "application destination spec is invalid: %s", err.Error())
-		}
-
 		conditions, err = argo.ValidateRepo(ctx, app, s.repoClientset, s.db, kustomizeOptions, plugins, s.kubectl)
 		if err != nil {
 			return err
@@ -903,6 +910,11 @@ func (s *Server) GetResource(ctx context.Context, q *application.ApplicationReso
 	res, config, _, err := s.getAppResource(ctx, rbacpolicy.ActionGet, q)
 	if err != nil {
 		return nil, err
+	}
+
+	// make sure to use specified resource version if provided
+	if q.Version != "" {
+		res.Version = q.Version
 	}
 	obj, err := s.kubectl.GetResource(ctx, config, res.GroupKindVersion(), res.Name, res.Namespace)
 	if err != nil {
@@ -1039,12 +1051,22 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 	if err != nil {
 		return nil, err
 	}
+	// We need to get some information with the project associated to the app,
+	// so we'll know whether GPG signatures are enforced.
+	proj, err := argo.GetAppProject(&a.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), a.Namespace, s.settingsMgr)
+	if err != nil {
+		return nil, err
+	}
 	conn, repoClient, err := s.repoClientset.NewRepoServerClient()
 	if err != nil {
 		return nil, err
 	}
 	defer io.Close(conn)
-	return repoClient.GetRevisionMetadata(ctx, &apiclient.RepoServerRevisionMetadataRequest{Repo: repo, Revision: q.GetRevision()})
+	return repoClient.GetRevisionMetadata(ctx, &apiclient.RepoServerRevisionMetadataRequest{
+		Repo:           repo,
+		Revision:       q.GetRevision(),
+		CheckSignature: len(proj.Spec.SignatureKeys) > 0,
+	})
 }
 
 func isMatchingResource(q *application.ResourcesQuery, key kube.ResourceKey) bool {

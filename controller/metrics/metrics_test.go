@@ -112,7 +112,7 @@ status:
     status: Healthy
 `
 
-var noOpHealthCheck = func() error {
+var noOpHealthCheck = func(r *http.Request) error {
 	return nil
 }
 

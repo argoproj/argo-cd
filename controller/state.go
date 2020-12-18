@@ -160,7 +160,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		Revision:          revision,
 		NoCache:           noCache,
 		AppLabelKey:       appLabelKey,
-		AppLabelValue:     app.Name,
+		AppName:           app.Name,
 		Namespace:         app.Spec.Destination.Namespace,
 		ApplicationSource: &source,
 		Plugins:           tools,
@@ -413,7 +413,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 			if appInstanceName != "" && appInstanceName != app.Name {
 				conditions = append(conditions, v1alpha1.ApplicationCondition{
 					Type:               v1alpha1.ApplicationConditionSharedResourceWarning,
-					Message:            fmt.Sprintf("%s/%s is part of a different application: %s", liveObj.GetKind(), liveObj.GetName(), appInstanceName),
+					Message:            fmt.Sprintf("%s/%s is part of applications %s and %s", liveObj.GetKind(), liveObj.GetName(), app.Name, appInstanceName),
 					LastTransitionTime: &now,
 				})
 			}

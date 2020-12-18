@@ -33,6 +33,7 @@ The important part to note here is that group-membership is a non-standard claim
 ...
 data:
   application.instanceLabelKey: argocd.argoproj.io/instance
+  url: https://your.argoingress.address
   oidc.config: |
     name: Auth0
     issuer: https://<yourtenant>.<eu|us>.auth0.com/
@@ -65,3 +66,8 @@ data:
   scopes: '[http://your.domain/groups, email]' 
 ...
 ```
+
+<br>
+
+!!! note "Storing Client Secrets"
+    Details on storing your clientSecret securely and correctly can be found on the [User Management Overview page](https://argoproj.github.io/argo-cd/operator-manual/user-management/#sensitive-data-and-sso-client-secrets).

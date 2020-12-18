@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"strings"
 	"time"
 
@@ -179,6 +180,53 @@ func (a *ClientApp) verifyAppState(state string) (*OIDCState, error) {
 	return res, nil
 }
 
+// isValidRedirectURL checks whether the given redirectURL matches on of the
+// allowed URLs to redirect to.
+//
+// In order to be considered valid,the protocol and host (including port) have
+// to match and if allowed path is not "/", redirectURL's path must be within
+// allowed URL's path.
+func isValidRedirectURL(redirectURL string, allowedURLs []string) bool {
+	if redirectURL == "" {
+		return true
+	}
+	r, err := url.Parse(redirectURL)
+	if err != nil {
+		return false
+	}
+	// We consider empty path the same as "/" for redirect URL
+	if r.Path == "" {
+		r.Path = "/"
+	}
+	// Prevent CLRF in the redirectURL
+	if strings.ContainsAny(r.Path, "\r\n") {
+		return false
+	}
+	for _, baseURL := range allowedURLs {
+		b, err := url.Parse(baseURL)
+		if err != nil {
+			continue
+		}
+		// We consider empty path the same as "/" for allowed URL
+		if b.Path == "" {
+			b.Path = "/"
+		}
+		// scheme and host are mandatory to match.
+		if b.Scheme == r.Scheme && b.Host == r.Host {
+			// If path of redirectURL and allowedURL match, redirectURL is allowed
+			//if b.Path == r.Path {
+			//	return true
+			//}
+			// If path of redirectURL is within allowed URL's path, redirectURL is allowed
+			if strings.HasPrefix(path.Clean(r.Path), b.Path) {
+				return true
+			}
+		}
+	}
+	// No match - redirect URL is not allowed
+	return false
+}
+
 // HandleLogin formulates the proper OAuth2 URL (auth code or implicit) and redirects the user to
 // the IDp login & consent page
 func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
@@ -199,6 +247,11 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	returnURL := r.FormValue("return_url")
+	// Check if return_url is valid, otherwise abort processing (see #2707)
+	if !isValidRedirectURL(returnURL, []string{a.settings.URL}) {
+		http.Error(w, "Invalid return_url", http.StatusBadRequest)
+		return
+	}
 	stateNonce := a.generateAppState(returnURL)
 	grantType := InferGrantType(oidcConf)
 	var url string

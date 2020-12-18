@@ -1,4 +1,4 @@
-package commands
+package util
 
 import (
 	"testing"
@@ -102,10 +102,22 @@ func Test_setJsonnetOpt(t *testing.T) {
 	})
 }
 
+func Test_setPluginOptEnvs(t *testing.T) {
+	t.Run("PluginEnvs", func(t *testing.T) {
+		src := v1alpha1.ApplicationSource{}
+		setPluginOptEnvs(&src, []string{"FOO=bar"})
+		assert.Equal(t, v1alpha1.EnvEntry{Name: "FOO", Value: "bar"}, *src.Plugin.Env[0])
+		setPluginOptEnvs(&src, []string{"BAR=baz"})
+		assert.Equal(t, v1alpha1.EnvEntry{Name: "BAR", Value: "baz"}, *src.Plugin.Env[1])
+		setPluginOptEnvs(&src, []string{"FOO=baz"})
+		assert.Equal(t, v1alpha1.EnvEntry{Name: "FOO", Value: "baz"}, *src.Plugin.Env[0])
+	})
+}
+
 type appOptionsFixture struct {
 	spec    *v1alpha1.ApplicationSpec
 	command *cobra.Command
-	options *appOptions
+	options *AppOptions
 }
 
 func (f *appOptionsFixture) SetFlag(key, value string) error {
@@ -113,7 +125,7 @@ func (f *appOptionsFixture) SetFlag(key, value string) error {
 	if err != nil {
 		return err
 	}
-	_ = setAppSpecOptions(f.command.Flags(), f.spec, f.options)
+	_ = SetAppSpecOptions(f.command.Flags(), f.spec, f.options)
 	return err
 }
 
@@ -121,9 +133,9 @@ func newAppOptionsFixture() *appOptionsFixture {
 	fixture := &appOptionsFixture{
 		spec:    &v1alpha1.ApplicationSpec{},
 		command: &cobra.Command{},
-		options: &appOptions{},
+		options: &AppOptions{},
 	}
-	addAppFlags(fixture.command, fixture.options)
+	AddAppFlags(fixture.command, fixture.options)
 	return fixture
 }
 
