@@ -1,12 +1,13 @@
 import {AutocompleteField, DropDownMenu, FormField, FormSelect, HelpIcon, PopupApi} from 'argo-ui';
 import * as React from 'react';
 import {FormApi, Text} from 'react-form';
-import {Cluster, DataLoader, EditablePanel, EditablePanelItem, Expandable, MapInputField, Repo, Revision, RevisionHelpIcon} from '../../../shared/components';
-import {Spinner} from '../../../shared/components';
-import {Consumer, Context} from '../../../shared/context';
+import {Cluster, DataLoader, EditablePanel, EditablePanelItem, Expandable, MapInputField, NumberField, Repo, Revision, RevisionHelpIcon} from '../../../shared/components';
+import {BadgePanel, Spinner} from '../../../shared/components';
+import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 
+import * as moment from 'moment';
 import {ApplicationSyncOptionsField} from '../application-sync-options';
 import {RevisionFormField} from '../revision-form-field/revision-form-field';
 import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage} from '../utils';
@@ -128,6 +129,13 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.destination.namespace' component={Text} />
         },
         {
+            title: 'CREATED_AT',
+            view: moment
+                .utc(app.metadata.creationTimestamp)
+                .local()
+                .format('MM/DD/YYYY HH:mm:ss')
+        },
+        {
             title: 'REPO URL',
             view: <Repo url={app.spec.source.repoURL} />,
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.repoURL' component={Text} />
@@ -202,10 +210,10 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
             view: app.spec.revisionHistoryLimit,
             edit: (formApi: FormApi) => (
                 <div style={{position: 'relative'}}>
-                    <FormField formApi={formApi} field='spec.revisionHistoryLimit' component={Text} />
+                    <FormField formApi={formApi} field='spec.revisionHistoryLimit' componentProps={{style: {paddingRight: '1em'}, placeholder: '10'}} component={NumberField} />
                     <div style={{position: 'absolute', right: '0', top: '0'}}>
                         <HelpIcon
-                            title='This limits this number of items kept in the apps revision history.
+                            title='This limits the number of items kept in the apps revision history.
     This should only be changed in exceptional circumstances.
     Setting to zero will store no history. This will reduce storage used.
     Increasing will increase the space used to store the history, so we do not recommend increasing it.
@@ -248,11 +256,13 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
             title: 'URLs',
             view: (
                 <React.Fragment>
-                    {urls.map(item => (
-                        <a key={item} href={item} target='__blank'>
-                            {item} &nbsp;
-                        </a>
-                    ))}
+                    {urls
+                        .map(item => item.split('|'))
+                        .map((parts, i) => (
+                            <a key={i} href={parts.length > 1 ? parts[1] : parts[0]} target='__blank'>
+                                {parts[0]} &nbsp;
+                            </a>
+                        ))}
                 </React.Fragment>
             )
         });
@@ -376,10 +386,6 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
             view: null as any,
             edit: null
         });
-    const [badgeType, setBadgeType] = React.useState('URL');
-    const context = React.useContext(Context);
-    const badgeURL = `${location.protocol}//${location.host}${context.baseHref}api/badge?name=${props.app.metadata.name}&revision=true`;
-    const appURL = `${location.protocol}//${location.host}${context.baseHref}applications/${props.app.metadata.name}`;
 
     return (
         <div className='application-summary'>
@@ -496,48 +502,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                     </div>
                 )}
             </Consumer>
-            <DataLoader load={() => services.authService.settings()}>
-                {settings =>
-                    (settings.statusBadgeEnabled && (
-                        <div className='white-box'>
-                            <div className='white-box__details'>
-                                <p>
-                                    Status Badge <img src={badgeURL} />{' '}
-                                </p>
-                                <div className='white-box__details-row'>
-                                    <DropDownMenu
-                                        anchor={() => (
-                                            <p>
-                                                {badgeType} <i className='fa fa-caret-down' />
-                                            </p>
-                                        )}
-                                        items={['URL', 'Markdown', 'Textile', 'Rdoc', 'AsciiDoc'].map(type => ({title: type, action: () => setBadgeType(type)}))}
-                                    />
-                                    <textarea
-                                        onClick={e => (e.target as HTMLInputElement).select()}
-                                        className='application-summary__badge'
-                                        readOnly={true}
-                                        value={
-                                            badgeType === 'URL'
-                                                ? badgeURL
-                                                : badgeType === 'Markdown'
-                                                ? `[![App Status](${badgeURL})](${appURL})`
-                                                : badgeType === 'Textile'
-                                                ? `!${badgeURL}!:${appURL}`
-                                                : badgeType === 'Rdoc'
-                                                ? `{<img src="${badgeURL}" alt="App Status" />}[${appURL}]`
-                                                : badgeType === 'AsciiDoc'
-                                                ? `image:${badgeURL}["App Status", link="${appURL}"]`
-                                                : ''
-                                        }
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    )) ||
-                    null
-                }
-            </DataLoader>
+            <BadgePanel app={props.app.metadata.name} />
             <EditablePanel save={props.updateApp} values={app} title='Info' items={infoItems} onModeSwitch={() => setAdjustedCount(0)} />
         </div>
     );

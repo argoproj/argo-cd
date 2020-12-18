@@ -2045,6 +2045,32 @@ rules:
   - endpoints
   verbs:
   - get
+- apiGroups:
+  - security.openshift.io
+  resourceNames:
+  - nonroot
+  resources:
+  - securitycontextconstraints
+  verbs:
+  - use
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/name: argocd-redis-ha-haproxy
+    app.kubernetes.io/part-of: argocd
+  name: argocd-redis-ha-haproxy
+rules:
+- apiGroups:
+  - security.openshift.io
+  resourceNames:
+  - nonroot
+  resources:
+  - securitycontextconstraints
+  verbs:
+  - use
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -2136,6 +2162,22 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: argocd-redis-ha
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/name: argocd-redis-ha-haproxy
+    app.kubernetes.io/part-of: argocd
+  name: argocd-redis-ha-haproxy
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: argocd-redis-ha-haproxy
+subjects:
+- kind: ServiceAccount
+  name: argocd-redis-ha-haproxy
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -2706,11 +2748,20 @@ spec:
       labels:
         app.kubernetes.io/name: argocd-dex-server
     spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/part-of: argocd
+              topologyKey: kubernetes.io/hostname
+            weight: 5
       containers:
       - command:
         - /shared/argocd-util
         - rundex
-        image: quay.io/dexidp/dex:v2.25.0
+        image: ghcr.io/dexidp/dex:v2.27.0
         imagePullPolicy: Always
         name: dex
         ports:
@@ -2940,6 +2991,12 @@ spec:
           value: "2"
         image: argoproj/argocd:latest
         imagePullPolicy: Always
+        livenessProbe:
+          httpGet:
+            path: /healthz?full=true
+            port: 8080
+          initialDelaySeconds: 3
+          periodSeconds: 30
         name: argocd-server
         ports:
         - containerPort: 8080
@@ -2984,6 +3041,21 @@ spec:
       labels:
         app.kubernetes.io/name: argocd-application-controller
     spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: argocd-application-controller
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/part-of: argocd
+              topologyKey: kubernetes.io/hostname
+            weight: 5
       containers:
       - command:
         - argocd-application-controller
@@ -3053,7 +3125,7 @@ spec:
         - /data/conf/redis.conf
         command:
         - redis-server
-        image: redis:5.0.8-alpine
+        image: redis:5.0.10-alpine
         imagePullPolicy: IfNotPresent
         livenessProbe:
           initialDelaySeconds: 15
@@ -3071,7 +3143,7 @@ spec:
         - /data/conf/sentinel.conf
         command:
         - redis-sentinel
-        image: redis:5.0.8-alpine
+        image: redis:5.0.10-alpine
         imagePullPolicy: IfNotPresent
         livenessProbe:
           initialDelaySeconds: 15
@@ -3097,7 +3169,7 @@ spec:
           value: 896627000a81c7bdad8dbdcffd39728c9c17b309
         - name: SENTINEL_ID_2
           value: 3acbca861108bc47379b71b1d87d1c137dce591f
-        image: redis:5.0.8-alpine
+        image: redis:5.0.10-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
         resources: {}

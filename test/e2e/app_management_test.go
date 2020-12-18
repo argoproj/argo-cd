@@ -460,6 +460,20 @@ func TestAppWithSecrets(t *testing.T) {
 		And(func(app *Application) {
 			diffOutput := FailOnErr(RunCli("app", "diff", app.Name)).(string)
 			assert.Empty(t, diffOutput)
+		}).
+		// verify not committed secret also ignore during diffing
+		When().
+		WriteFile("secret3.yaml", `
+apiVersion: v1
+kind: Secret
+metadata:
+  name: test-secret3
+stringData:
+  username: test-username`).
+		Then().
+		And(func(app *Application) {
+			diffOutput := FailOnErr(RunCli("app", "diff", app.Name, "--local", "testdata/secrets")).(string)
+			assert.Empty(t, diffOutput)
 		})
 }
 
@@ -1356,10 +1370,11 @@ func TestNamespaceAutoCreation(t *testing.T) {
 
 func TestFailedSyncWithRetry(t *testing.T) {
 	Given(t).
-		Path(guestbookPath).
+		Path("hook").
 		When().
-		// app should be attempted to auto-synced once and marked with error after failed attempt detected
-		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": "badValue"}]`).
+		PatchFile("hook.yaml", `[{"op": "replace", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/hook": "PreSync"}}]`).
+		// make hook fail
+		PatchFile("hook.yaml", `[{"op": "replace", "path": "/spec/containers/0/command", "value": ["false"]}]`).
 		Create().
 		IgnoreErrors().
 		Sync("--retry-limit=1", "--retry-backoff-duration=1s").
@@ -1459,6 +1474,7 @@ definitions:
 		When().Create().Sync().Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		When().
+		Refresh(RefreshTypeNormal).
 		Then().
 		// tests resource actions on a CRD using status subresource
 		And(func(app *Application) {

@@ -743,7 +743,7 @@ export interface GnuPGPublicKeyList extends ItemsList<GnuPGPublicKey> {}
 // https://kubernetes.io/docs/reference/kubectl/overview/#resource-types
 
 export const ResourceKinds = [
-    'ANY',
+    '*',
     'Binding',
     'ComponentStatus',
     'ConfigMap',

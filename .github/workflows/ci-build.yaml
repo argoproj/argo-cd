@@ -30,7 +30,7 @@ jobs:
       - name: Setup Golang
         uses: actions/setup-go@v1
         with:
-          go-version: '1.14.2'
+          go-version: '1.14.12'
       - name: Download all Go modules
         run: |
           go mod download
@@ -48,7 +48,7 @@ jobs:
       - name: Setup Golang
         uses: actions/setup-go@v1
         with:
-          go-version: '1.14.2'
+          go-version: '1.14.12'
       - name: Restore go build cache
         uses: actions/cache@v1
         with:
@@ -87,7 +87,7 @@ jobs:
       - name: Setup Golang
         uses: actions/setup-go@v1
         with:
-          go-version: '1.14.2'
+          go-version: '1.14.12'
       - name: Install required packages
         run: |
           sudo apt-get install git -y
@@ -132,6 +132,61 @@ jobs:
           name: test-results
           path: test-results/
 
+  test-go-race:
+    name: Run unit tests with -race, for Go packages
+    runs-on: ubuntu-latest
+    needs:
+      - build-go
+    steps:
+      - name: Create checkout directory
+        run: mkdir -p ~/go/src/github.com/argoproj
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Create symlink in GOPATH
+        run: ln -s $(pwd) ~/go/src/github.com/argoproj/argo-cd
+      - name: Setup Golang
+        uses: actions/setup-go@v1
+        with:
+          go-version: '1.14.12'
+      - name: Install required packages
+        run: |
+          sudo apt-get install git -y
+      - name: Switch to temporal branch so we re-attach head
+        run: |
+          git switch -c temporal-pr-branch
+          git status
+      - name: Fetch complete history for blame information
+        run: |
+          git fetch --prune --no-tags --depth=1 origin +refs/heads/*:refs/remotes/origin/*
+      - name: Add ~/go/bin to PATH
+        run: |
+          echo "/home/runner/go/bin" >> $GITHUB_PATH
+      - name: Add /usr/local/bin to PATH
+        run: |
+          echo "/usr/local/bin" >> $GITHUB_PATH
+      - name: Restore go build cache
+        uses: actions/cache@v1
+        with:
+          path: ~/.cache/go-build
+          key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}
+      - name: Install all tools required for building & testing
+        run: |
+          make install-test-tools-local
+      - name: Setup git username and email
+        run: |
+          git config --global user.name "John Doe"
+          git config --global user.email "john.doe@example.com"
+      - name: Download and vendor all required packages
+        run: |
+          go mod download
+      - name: Run all unit tests
+        run: make test-race-local
+      - name: Generate test results artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: race-results
+          path: test-results/
+
   codegen:
     name: Check changes to generated code
     runs-on: ubuntu-latest
@@ -141,7 +196,7 @@ jobs:
       - name: Setup Golang
         uses: actions/setup-go@v1
         with:
-          go-version: '1.14.2'
+          go-version: '1.14.12'
       - name: Create symlink in GOPATH
         run: |
           mkdir -p ~/go/src/github.com/argoproj
@@ -299,7 +354,7 @@ jobs:
       - name: Setup Golang
         uses: actions/setup-go@v1
         with:
-          go-version: '1.14.2'
+          go-version: '1.14.12'
       - name: Install K3S
         env:
           INSTALL_K3S_VERSION: ${{ matrix.k3s-version }}+k3s1
@@ -337,7 +392,7 @@ jobs:
         run: |
           docker pull quay.io/dexidp/dex:v2.25.0
           docker pull argoproj/argo-cd-ci-builder:v1.0.0
-          docker pull redis:5.0.8-alpine
+          docker pull redis:5.0.10-alpine
       - name: Create target directory for binaries in the build-process
         run: |
           mkdir -p dist

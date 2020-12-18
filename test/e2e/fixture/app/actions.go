@@ -46,6 +46,12 @@ func (a *Actions) DeleteFile(file string) *Actions {
 	return a
 }
 
+func (a *Actions) WriteFile(fileName, fileContents string) *Actions {
+	a.context.t.Helper()
+	fixture.WriteFile(a.context.path+"/"+fileName, fileContents)
+	return a
+}
+
 func (a *Actions) AddFile(fileName, fileContents string) *Actions {
 	a.context.t.Helper()
 	fixture.AddFile(a.context.path+"/"+fileName, fileContents)
@@ -294,7 +300,7 @@ func (a *Actions) Refresh(refreshType RefreshType) *Actions {
 
 func (a *Actions) Delete(cascade bool) *Actions {
 	a.context.t.Helper()
-	a.runCli("app", "delete", a.context.name, fmt.Sprintf("--cascade=%v", cascade))
+	a.runCli("app", "delete", a.context.name, fmt.Sprintf("--cascade=%v", cascade), "--yes")
 	return a
 }
 

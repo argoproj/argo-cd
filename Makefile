@@ -355,6 +355,20 @@ test-local:
 		./hack/test.sh -coverprofile=coverage.out "$(TEST_MODULE)"; \
 	fi
 
+.PHONY: test-race
+test-race: test-tools-image
+	mkdir -p $(GOCACHE)
+	$(call run-in-test-client,make TEST_MODULE=$(TEST_MODULE) test-race-local)
+
+# Run all unit tests, with data race detection, skipping known failures (local version)
+.PHONY: test-race-local
+test-race-local:
+	if test "$(TEST_MODULE)" = ""; then \
+		./hack/test.sh -race -coverprofile=coverage.out `go list ./... | grep -v 'test/e2e'`; \
+	else \
+		./hack/test.sh -race -coverprofile=coverage.out "$(TEST_MODULE)"; \
+	fi
+
 # Run the E2E test suite. E2E test servers (see start-e2e target) must be
 # started before.
 .PHONY: test-e2e
@@ -421,7 +435,7 @@ start: test-tools-image
 
 # Starts a local instance of ArgoCD
 .PHONY: start-local
-start-local: mod-vendor-local
+start-local: mod-vendor-local dep-ui-local
 	# check we can connect to Docker to start Redis
 	killall goreman || true
 	kubectl create ns argocd || true

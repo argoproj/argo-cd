@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"sort"
 	"time"
@@ -37,7 +38,8 @@ import (
 
 func NewAppsCommand() *cobra.Command {
 	var command = &cobra.Command{
-		Use: "apps",
+		Use:   "apps",
+		Short: "Utility commands operate on ArgoCD applications",
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 		},
@@ -277,7 +279,7 @@ func reconcileApplications(
 	projLister := appInformerFactory.Argoproj().V1alpha1().AppProjects().Lister()
 	server, err := metrics.NewMetricsServer("", appLister, func(obj interface{}) bool {
 		return true
-	}, func() error {
+	}, func(r *http.Request) error {
 		return nil
 	})
 

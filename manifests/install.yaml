@@ -2424,11 +2424,20 @@ spec:
       labels:
         app.kubernetes.io/name: argocd-dex-server
     spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/part-of: argocd
+              topologyKey: kubernetes.io/hostname
+            weight: 5
       containers:
       - command:
         - /shared/argocd-util
         - rundex
-        image: quay.io/dexidp/dex:v2.25.0
+        image: ghcr.io/dexidp/dex:v2.27.0
         imagePullPolicy: Always
         name: dex
         ports:
@@ -2472,13 +2481,28 @@ spec:
       labels:
         app.kubernetes.io/name: argocd-redis
     spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: argocd-redis
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/part-of: argocd
+              topologyKey: kubernetes.io/hostname
+            weight: 5
       containers:
       - args:
         - --save
         - ""
         - --appendonly
         - "no"
-        image: redis:5.0.8
+        image: redis:5.0.10-alpine
         imagePullPolicy: Always
         name: redis
         ports:
@@ -2507,6 +2531,21 @@ spec:
       labels:
         app.kubernetes.io/name: argocd-repo-server
     spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: argocd-repo-server
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/part-of: argocd
+              topologyKey: kubernetes.io/hostname
+            weight: 5
       automountServiceAccountToken: false
       containers:
       - command:
@@ -2564,6 +2603,21 @@ spec:
       labels:
         app.kubernetes.io/name: argocd-server
     spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: argocd-server
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/part-of: argocd
+              topologyKey: kubernetes.io/hostname
+            weight: 5
       containers:
       - command:
         - argocd-server
@@ -2571,6 +2625,12 @@ spec:
         - /shared/app
         image: argoproj/argocd:latest
         imagePullPolicy: Always
+        livenessProbe:
+          httpGet:
+            path: /healthz?full=true
+            port: 8080
+          initialDelaySeconds: 3
+          periodSeconds: 30
         name: argocd-server
         ports:
         - containerPort: 8080
@@ -2616,6 +2676,21 @@ spec:
       labels:
         app.kubernetes.io/name: argocd-application-controller
     spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: argocd-application-controller
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/part-of: argocd
+              topologyKey: kubernetes.io/hostname
+            weight: 5
       containers:
       - command:
         - argocd-application-controller

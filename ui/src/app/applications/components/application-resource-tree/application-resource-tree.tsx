@@ -115,8 +115,35 @@ function filterGraph(app: models.Application, filteredIndicatorParent: string, g
     }
 }
 
-function compareNodes(first: ResourceTreeNode, second: ResourceTreeNode) {
-    return `${(first.orphaned && '1') || '0'}/${nodeKey(first)}`.localeCompare(`${(second.orphaned && '1') || '0'}/${nodeKey(second)}`);
+export function compareNodes(first: ResourceTreeNode, second: ResourceTreeNode) {
+    function orphanedToInt(orphaned?: boolean) {
+        return (orphaned && 1) || 0;
+    }
+    function compareRevision(a: string, b: string) {
+        const numberA = Number(a);
+        const numberB = Number(b);
+        if (isNaN(numberA) || isNaN(numberB)) {
+            return a.localeCompare(b);
+        }
+        return Math.sign(numberA - numberB);
+    }
+    function getRevision(a: ResourceTreeNode) {
+        const filtered = a.info.filter(b => b.name === 'Revision' && b)[0];
+        if (filtered == null) {
+            return '';
+        }
+        const value = filtered.value;
+        if (value == null) {
+            return '';
+        }
+        return value.replace(/^Rev:/, '');
+    }
+    return (
+        orphanedToInt(first.orphaned) - orphanedToInt(second.orphaned) ||
+        nodeKey(first).localeCompare(nodeKey(second)) ||
+        compareRevision(getRevision(first), getRevision(second)) ||
+        0
+    );
 }
 
 function appNodeKey(app: models.Application) {
@@ -242,9 +269,9 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                 </span>
             </div>
             <div className='application-resource-tree__node-labels'>
-                {node.createdAt ? (
+                {node.createdAt || rootNode ? (
                     <Moment className='application-resource-tree__node-label' fromNow={true} ago={true}>
-                        {node.createdAt}
+                        {node.createdAt || props.app.metadata.creationTimestamp}
                     </Moment>
                 ) : null}
                 {(node.info || []).filter(tag => !tag.name.includes('Resource.')).map((tag, i) => (

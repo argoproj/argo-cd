@@ -1,8 +1,8 @@
-FROM redis:5.0.8 as redis
+FROM redis:5.0.10 as redis
 
 FROM node:12.18.4 as node
 
-FROM golang:1.14.1 as golang
+FROM golang:1.14.12 as golang
 
 FROM debian:10-slim
 
