@@ -34,7 +34,7 @@ As workaround Argo CD allows providing [health check](operator-manual/health.md)
 By default the password is set to the name of the server pod, as per [the getting started guide](getting_started.md).
 
 To change the password, edit the `argocd-secret` secret and update the `admin.password` field with a new bcrypt hash. You
-can use a site like https://www.browserling.com/tools/bcrypt to generate a new hash. For example:
+can use a site like [https://www.browserling.com/tools/bcrypt](https://www.browserling.com/tools/bcrypt) to generate a new hash. For example:
 
 ```bash
 # bcrypt(password)=$2a$10$rRyBsGSHK6.uc8fntPwVIuLVHgsAhAX7TcdrqW/RADU0uh7CaChLa
@@ -125,13 +125,13 @@ You can get the list of groups by opening "developer tools -> network"
 * Click log in
 * Find the call to `<argocd_instance>/auth/callback?code=<random_string>`
 
-Decode the token at https://jwt.io/. That will provide the list of teams that you can remove yourself from.
+Decode the token at [https://jwt.io/](https://jwt.io/). That will provide the list of teams that you can remove yourself from.
 
 See [#2165](https://github.com/argoproj/argo-cd/issues/2165).
 
 ## Why Am I Getting `rpc error: code = Unavailable desc = transport is closing` When Using The CLI?
 
-Maybe you're behind a proxy that does not support HTTP 2? Try the `--grpc-web` flag.:
+Maybe you're behind a proxy that does not support HTTP 2? Try the `--grpc-web` flag:
 
 ```bash
 argocd ... --grpc-web
@@ -152,4 +152,4 @@ argocd ... --insecure
 ## I have configured Dex via `dex.config` in `argocd-cm`, it still says Dex is unconfigured. Why?
 
 Most likely you forgot to set the `url` in `argocd-cm` to point to your ArgoCD as well. See also
-[the docs](/operator-manual/user-management/#2-configure-argo-cd-for-sso)
+[the docs](/operator-manual/user-management/#2-configure-argo-cd-for-sso).

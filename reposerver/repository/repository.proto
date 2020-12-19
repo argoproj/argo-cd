@@ -15,7 +15,8 @@ message ManifestRequest {
     string revision = 2;
     bool noCache = 3;
     string appLabelKey = 4;
-    string appLabelValue = 5;
+    // Name of the application for which the request is triggered
+    string appName = 5;
     string namespace = 8;
     github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationSource applicationSource = 10;
     repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repos = 11;
@@ -65,6 +66,7 @@ message RepoServerAppDetailsQuery {
     github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationSource source = 2;
     repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repos = 3;
     github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.KustomizeOptions kustomizeOptions = 4;
+    string appName = 5;
 }
 
 // RepoAppDetailsResponse application details
