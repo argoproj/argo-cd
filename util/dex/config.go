@@ -53,6 +53,7 @@ func GenerateDexConfigYAML(settings *settings.ArgoCDSettings) ([]byte, error) {
 		"public": true,
 		"redirectURIs": []string{
 			"http://localhost",
+			"http://localhost:8085/auth/callback",
 		},
 	}
 
