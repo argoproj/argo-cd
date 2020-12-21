@@ -131,6 +131,26 @@ var (
       ingress:
       - ip: 107.178.210.11`)
 
+	testRoute = strToUnstructured(`
+  apiVersion: route.openshift.io/v1
+  kind: Route
+  metadata:
+    name: 
+    namespace: default
+  spec:
+    host: helm-guestbook.com
+    path: /ui
+    tls:
+      termination: reencrypt
+    to:
+      kind: Service
+      name: helm-guestbook
+  status:
+    ingress:
+      - host: helm-guestbook.com
+        routerName: router
+        wildcardPolicy: None`)
+
 	testIstioVirtualService = strToUnstructured(`
 apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
@@ -443,4 +463,23 @@ func TestExternalUrlWithNetworkingApi(t *testing.T) {
 
 	expectedExternalUrls := []string{"https://107.178.210.11"}
 	assert.Equal(t, expectedExternalUrls, info.NetworkingInfo.ExternalURLs)
+}
+
+func TestRoute(t *testing.T) {
+	info := &ResourceInfo{}
+	populateNodeInfo(testRoute, info)
+	assert.Equal(t, 0, len(info.Info))
+	sort.Slice(info.NetworkingInfo.TargetRefs, func(i, j int) bool {
+		return strings.Compare(info.NetworkingInfo.TargetRefs[j].Name, info.NetworkingInfo.TargetRefs[i].Name) < 0
+	})
+	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
+		Ingress: []v1.LoadBalancerIngress{},
+		TargetRefs: []v1alpha1.ResourceRef{{
+			Namespace: "default",
+			Group:     "",
+			Kind:      kube.ServiceKind,
+			Name:      "helm-guestbook",
+		}},
+		ExternalURLs: []string{"https://helm-guestbook.com/ui"},
+	}, info.NetworkingInfo)
 }

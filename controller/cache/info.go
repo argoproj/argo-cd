@@ -44,6 +44,11 @@ func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 			populateIstioVirtualServiceInfo(un, res)
 			return
 		}
+	case "route.openshift.io":
+		switch gvk.Kind {
+		case "Route":
+			populateRouteInfo(un, res)
+		}
 	}
 
 	for k, v := range un.GetAnnotations() {
@@ -68,6 +73,22 @@ func getIngress(un *unstructured.Unstructured) []v1.LoadBalancerIngress {
 				res = append(res, v1.LoadBalancerIngress{Hostname: fmt.Sprintf("%s", hostname)})
 			} else if ip := lbIngress["ip"]; ip != nil {
 				res = append(res, v1.LoadBalancerIngress{IP: fmt.Sprintf("%s", ip)})
+			}
+		}
+	}
+	return res
+}
+
+func getRoute(un *unstructured.Unstructured) []v1.LoadBalancerIngress {
+	route, ok, err := unstructured.NestedSlice(un.Object, "status", "ingress")
+	if !ok || err != nil {
+		return nil
+	}
+	res := make([]v1.LoadBalancerIngress, 0)
+	for _, item := range route {
+		if lbIngress, ok := item.(map[string]interface{}); ok {
+			if hostname := lbIngress["routerCanonicalHostname"]; hostname != nil {
+				res = append(res, v1.LoadBalancerIngress{Hostname: fmt.Sprintf("%s", hostname)})
 			}
 		}
 	}
@@ -168,6 +189,45 @@ func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 		urls = append(urls, url)
 	}
 	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetRefs: targets, Ingress: ingress, ExternalURLs: urls}
+}
+
+func populateRouteInfo(un *unstructured.Unstructured, res *ResourceInfo) {
+	route := getRoute(un)
+	targetsMap := make(map[v1alpha1.ResourceRef]bool)
+
+	if backend, ok, err := unstructured.NestedMap(un.Object, "spec", "to"); ok && err == nil {
+		targetsMap[v1alpha1.ResourceRef{
+			Kind:      kube.ServiceKind,
+			Namespace: un.GetNamespace(),
+			Name:      fmt.Sprintf("%s", backend["name"]),
+		}] = true
+	}
+
+	targets := make([]v1alpha1.ResourceRef, 0)
+	for target := range targetsMap {
+		targets = append(targets, target)
+	}
+
+	var urls []string
+
+	if hostName, ok, err := unstructured.NestedString(un.Object, "spec", "host"); ok && err == nil {
+		stringPort := "http"
+		if tls, _, err := unstructured.NestedMap(un.Object, "spec", "tls"); err == nil && tls != nil {
+			stringPort = "https"
+		}
+		url := fmt.Sprintf("%s://%s", stringPort, hostName)
+		if path, ok, err := unstructured.NestedString(un.Object, "spec", "path"); ok && err == nil {
+			path = strings.TrimSuffix(path, "*")
+			url += path
+		}
+		if res.NetworkingInfo != nil {
+			urls = res.NetworkingInfo.ExternalURLs
+		}
+		urls = append(urls, url)
+	}
+
+	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetRefs: targets, Ingress: route, ExternalURLs: urls}
+
 }
 
 func populateIstioVirtualServiceInfo(un *unstructured.Unstructured, res *ResourceInfo) {
