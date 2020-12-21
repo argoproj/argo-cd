@@ -316,7 +316,7 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	req, limit := resourcehelper.PodRequestsAndLimits(&pod)
 	cpuReq, cpuLimit, memoryReq, memoryLimit := req[v1.ResourceCPU], limit[v1.ResourceCPU], req[v1.ResourceMemory], limit[v1.ResourceMemory]
 
-	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Node", Value: fmt.Sprintf("%s", pod.Spec.NodeName)})
+	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Node", Value: pod.Spec.NodeName})
 
 	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Resource.CpuReq", Value: fmt.Sprintf("%d", cpuReq.MilliValue())})
 	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Resource.CpuLimit", Value: fmt.Sprintf("%d", cpuLimit.MilliValue())})
