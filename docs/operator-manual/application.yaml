@@ -103,7 +103,7 @@ spec:
       selfHeal: true # Specifies if partial app sync should be executed when resources are changed only in target Kubernetes cluster and no git change detected ( false by default ).
       allowEmpty: false # Allows deleting all application resources during automatic syncing ( false by default ).
     syncOptions:     # Sync options which modifies sync behavior
-    - Validate=false # disables resource validation (equivalent to 'kubectl apply --validate=true')
+    - Validate=false # disables resource validation (equivalent to 'kubectl apply --validate=false') ( true by default ).
     - CreateNamespace=true # Namespace Auto-Creation ensures that namespace specified as the application destination exists in the destination cluster.
     # The retry feature is available since v1.7
     retry:
