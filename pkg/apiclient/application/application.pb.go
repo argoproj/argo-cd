@@ -123,7 +123,7 @@ func (m *ApplicationQuery) GetSelector() string {
 }
 
 type NodeQuery struct {
-	// get nodes associated with this application
+	// the application's name
 	Name                 *string  `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`

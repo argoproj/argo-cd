@@ -81,7 +81,7 @@ require (
 	k8s.io/klog/v2 v2.3.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20200805222855-6aeccd4b50c6
 	k8s.io/kubectl v0.19.2
-	k8s.io/kubernetes v1.19.3
+	k8s.io/kubernetes v1.19.2
 	k8s.io/utils v0.0.0-20200729134348-d5654de09c73
 	layeh.com/gopher-json v0.0.0-20190114024228-97fed8db8427
 	sigs.k8s.io/yaml v1.2.0
