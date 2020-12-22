@@ -218,7 +218,7 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, error) {
 		return nil, err
 	}
 
-	subject := jwtutil.GetField(claims, "sub")
+	subject := jwtutil.StringField(claims, "sub")
 	if rbacpolicy.IsProjectSubject(subject) {
 		return token.Claims, nil
 	}
@@ -228,11 +228,14 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, error) {
 		return nil, err
 	}
 
-	if id := jwtutil.GetField(claims, "jti"); id != "" && account.TokenIndex(id) == -1 {
+	if id := jwtutil.StringField(claims, "jti"); id != "" && account.TokenIndex(id) == -1 {
 		return nil, fmt.Errorf("account %s does not have token with id %s", subject, id)
 	}
 
-	issuedAt := time.Unix(int64(claims["iat"].(float64)), 0)
+	issuedAt, err := jwtutil.IssuedAtTime(claims)
+	if err != nil {
+		return nil, err
+	}
 	if account.PasswordMtime != nil && issuedAt.Before(*account.PasswordMtime) {
 		return nil, fmt.Errorf("Account password has changed since token issued")
 	}
@@ -474,11 +477,11 @@ func Username(ctx context.Context) string {
 	if !ok {
 		return ""
 	}
-	switch jwtutil.GetField(mapClaims, "iss") {
+	switch jwtutil.StringField(mapClaims, "iss") {
 	case SessionManagerClaimsIssuer:
-		return jwtutil.GetField(mapClaims, "sub")
+		return jwtutil.StringField(mapClaims, "sub")
 	default:
-		return jwtutil.GetField(mapClaims, "email")
+		return jwtutil.StringField(mapClaims, "email")
 	}
 }
 
@@ -487,7 +490,7 @@ func Iss(ctx context.Context) string {
 	if !ok {
 		return ""
 	}
-	return jwtutil.GetField(mapClaims, "iss")
+	return jwtutil.StringField(mapClaims, "iss")
 }
 
 func Iat(ctx context.Context) (time.Time, error) {
@@ -495,16 +498,7 @@ func Iat(ctx context.Context) (time.Time, error) {
 	if !ok {
 		return time.Time{}, errors.New("unable to extract token claims")
 	}
-	iatField, ok := mapClaims["iat"]
-	if !ok {
-		return time.Time{}, errors.New("token does not have iat claim")
-	}
-
-	if iat, ok := iatField.(float64); !ok {
-		return time.Time{}, errors.New("iat token field has unexpected type")
-	} else {
-		return time.Unix(int64(iat), 0), nil
-	}
+	return jwtutil.IssuedAtTime(mapClaims)
 }
 
 func Sub(ctx context.Context) string {
@@ -512,7 +506,7 @@ func Sub(ctx context.Context) string {
 	if !ok {
 		return ""
 	}
-	return jwtutil.GetField(mapClaims, "sub")
+	return jwtutil.StringField(mapClaims, "sub")
 }
 
 func Groups(ctx context.Context, scopes []string) []string {

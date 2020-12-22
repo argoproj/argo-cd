@@ -132,19 +132,12 @@ func (e *Enforcer) EnforceErr(rvals ...interface{}) error {
 				if err != nil {
 					break
 				}
-				sub := jwtutil.GetField(claims, "sub")
-				if sub != "" {
+				if sub := jwtutil.StringField(claims, "sub"); sub != "" {
 					rvalsStrs = append(rvalsStrs, fmt.Sprintf("sub: %s", sub))
 				}
-				iatField, ok := claims["iat"]
-				if !ok {
-					break
+				if issuedAtTime, err := jwtutil.IssuedAtTime(claims); err == nil {
+					rvalsStrs = append(rvalsStrs, fmt.Sprintf("iat: %s", issuedAtTime.Format(time.RFC3339)))
 				}
-				iat, ok := iatField.(float64)
-				if !ok {
-					break
-				}
-				rvalsStrs = append(rvalsStrs, fmt.Sprintf("iat: %s", time.Unix(int64(iat), 0).Format(time.RFC3339)))
 			}
 			errMsg = fmt.Sprintf("%s: %s", errMsg, strings.Join(rvalsStrs, ", "))
 		}

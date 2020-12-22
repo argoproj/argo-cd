@@ -85,7 +85,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	issuer := jwtutil.GetField(mapClaims, "iss")
+	issuer := jwtutil.StringField(mapClaims, "iss")
 
 	if argoCDSettings.OIDCConfig() == nil || argoCDSettings.OIDCConfig().LogoutURL == "" || issuer == session.SessionManagerClaimsIssuer {
 		http.Redirect(w, r, logoutRedirectURL, http.StatusSeeOther)
