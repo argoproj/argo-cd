@@ -25,6 +25,7 @@ import (
 	"github.com/argoproj/argo-cd/util/errors"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/io"
+	jwtutil "github.com/argoproj/argo-cd/util/jwt"
 	"github.com/argoproj/argo-cd/util/localconfig"
 	oidcutil "github.com/argoproj/argo-cd/util/oidc"
 	"github.com/argoproj/argo-cd/util/rand"
@@ -162,13 +163,13 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 }
 
 func userDisplayName(claims jwt.MapClaims) string {
-	if email, ok := claims["email"]; ok && email != nil {
-		return email.(string)
+	if email := jwtutil.StringField(claims, "email"); email != "" {
+		return email
 	}
-	if name, ok := claims["name"]; ok && name != nil {
-		return name.(string)
+	if name := jwtutil.StringField(claims, "name"); name != "" {
+		return name
 	}
-	return claims["sub"].(string)
+	return jwtutil.StringField(claims, "sub")
 }
 
 // oauth2Login opens a browser, runs a temporary HTTP server to delegate OAuth2 login flow and
