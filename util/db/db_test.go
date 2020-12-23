@@ -60,7 +60,7 @@ func TestCreateRepository(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, "https://github.com/argoproj/argocd-example-apps", repo.Repo)
 
-	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(context.Background(), repoURLToSecretName(repoSecretPrefix, repo.Repo), metav1.GetOptions{})
+	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(context.Background(), RepoURLToSecretName(repoSecretPrefix, repo.Repo), metav1.GetOptions{})
 	assert.Nil(t, err)
 
 	assert.Equal(t, common.AnnotationValueManagedByArgoCD, secret.Annotations[common.AnnotationKeyManagedBy])
@@ -81,7 +81,7 @@ func TestCreateRepoCredentials(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, "https://github.com/argoproj/", creds.URL)
 
-	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(context.Background(), repoURLToSecretName(credSecretPrefix, creds.URL), metav1.GetOptions{})
+	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(context.Background(), RepoURLToSecretName(credSecretPrefix, creds.URL), metav1.GetOptions{})
 	assert.Nil(t, err)
 
 	assert.Equal(t, common.AnnotationValueManagedByArgoCD, secret.Annotations[common.AnnotationKeyManagedBy])
