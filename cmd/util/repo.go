@@ -31,5 +31,4 @@ func AddRepoFlags(command *cobra.Command, opts *RepoOptions) {
 	command.Flags().BoolVar(&opts.InsecureSkipServerVerification, "insecure-skip-server-verification", false, "disables server certificate and host key checks")
 	command.Flags().BoolVar(&opts.EnableLfs, "enable-lfs", false, "enable git-lfs (Large File Support) on this repository")
 	command.Flags().BoolVar(&opts.EnableOci, "enable-oci", false, "enable helm-oci (Helm OCI-Based Repository)")
-	command.Flags().BoolVar(&opts.Upsert, "upsert", false, "Override an existing repository with the same name even if the spec differs")
 }

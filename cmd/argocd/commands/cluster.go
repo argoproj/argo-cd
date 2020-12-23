@@ -132,6 +132,9 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 		},
 	}
 	command.PersistentFlags().StringVar(&pathOpts.LoadingRules.ExplicitPath, pathOpts.ExplicitFileFlag, pathOpts.LoadingRules.ExplicitPath, "use a particular kubeconfig file")
+	command.Flags().BoolVar(&clusterOpts.Upsert, "upsert", false, "Override an existing cluster with the same name even if the spec differs")
+	command.Flags().StringVar(&clusterOpts.ServiceAccount, "service-account", "", fmt.Sprintf("System namespace service account to use for kubernetes resource management. If not set then default \"%s\" SA will be created", clusterauth.ArgoCDManagerServiceAccount))
+	command.Flags().StringVar(&clusterOpts.SystemNamespace, "system-namespace", common.DefaultSystemNamespace, "Use different system namespace")
 	cmdutil.AddClusterFlags(command, &clusterOpts)
 	return command
 }

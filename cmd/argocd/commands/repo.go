@@ -169,6 +169,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			fmt.Printf("Repository '%s' added\n", createdRepo.Repo)
 		},
 	}
+	command.Flags().BoolVar(&repoOpts.Upsert, "upsert", false, "Override an existing repository with the same name even if the spec differs")
 	cmdutil.AddRepoFlags(command, &repoOpts)
 	return command
 }

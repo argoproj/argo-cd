@@ -3,7 +3,6 @@ package commands
 import (
 	"context"
 	"fmt"
-	"hash/fnv"
 	"io/ioutil"
 	"os"
 
@@ -19,13 +18,10 @@ import (
 	"github.com/argoproj/argo-cd/common"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/cli"
-	"github.com/argoproj/argo-cd/util/clusterauth"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/errors"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/settings"
-
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 )
 
 const (
@@ -89,13 +85,15 @@ func NewGenAppConfigCommand() *cobra.Command {
 				os.Exit(1)
 			}
 
-			errors.CheckError(cmdutil.PrintResource(app, outputFormat))
+			var printResources []interface{}
+			printResources = append(printResources, app)
+			errors.CheckError(cmdutil.PrintResources(printResources, outputFormat))
 		},
 	}
 	command.Flags().StringVar(&appName, "name", "", "A name for the app, ignored if a file is set (DEPRECATED)")
 	command.Flags().StringVarP(&fileURL, "file", "f", "", "Filename or URL to Kubernetes manifests for the app")
 	command.Flags().StringArrayVarP(&labels, "label", "l", []string{}, "Labels to apply to the app")
-	command.Flags().StringVar(&outputFormat, "o", "yaml", "Output format (yaml|json)")
+	command.Flags().StringVarP(&outputFormat, "output", "o", "yaml", "Output format. One of: json|yaml")
 
 	// Only complete files with appropriate extension.
 	err := command.Flags().SetAnnotation("file", cobra.BashCompFilenameExt, []string{"json", "yaml", "yml"})
@@ -119,11 +117,13 @@ func NewGenProjectConfigCommand() *cobra.Command {
 			proj, err := cmdutil.ConstructAppProj(fileURL, args, opts, c)
 			errors.CheckError(err)
 
-			errors.CheckError(cmdutil.PrintResource(proj, outputFormat))
+			var printResources []interface{}
+			printResources = append(printResources, proj)
+			errors.CheckError(cmdutil.PrintResources(printResources, outputFormat))
 		},
 	}
 	command.Flags().StringVarP(&fileURL, "file", "f", "", "Filename or URL to Kubernetes manifests for the project")
-	command.Flags().StringVar(&outputFormat, "o", "yaml", "Output format (yaml|json)")
+	command.Flags().StringVarP(&outputFormat, "output", "o", "yaml", "Output format. One of: json|yaml")
 	err := command.Flags().SetAnnotation("file", cobra.BashCompFilenameExt, []string{"json", "yaml", "yml"})
 	if err != nil {
 		log.Fatal(err)
@@ -135,6 +135,7 @@ func NewGenProjectConfigCommand() *cobra.Command {
 func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command {
 	var (
 		clusterOpts  cmdutil.ClusterOptions
+		bearerToken  string
 		outputFormat string
 	)
 	var command = &cobra.Command{
@@ -163,7 +164,6 @@ func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command 
 			errors.CheckError(err)
 			kubeClientset := fake.NewSimpleClientset()
 
-			managerBearerToken := ""
 			var awsAuthConf *argoappv1.AWSAuthConfig
 			var execProviderConf *argoappv1.ExecProviderConfig
 			if clusterOpts.AwsClusterName != "" {
@@ -179,18 +179,13 @@ func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command 
 					APIVersion:  clusterOpts.ExecProviderAPIVersion,
 					InstallHint: clusterOpts.ExecProviderInstallHint,
 				}
-			} else {
-				if clusterOpts.ServiceAccount != "" {
-					managerBearerToken, err = clusterauth.GetServiceAccountBearerToken(kubeClientset, clusterOpts.SystemNamespace, clusterOpts.ServiceAccount)
-				} else {
-					managerBearerToken = "bearer-token"
-				}
-				errors.CheckError(err)
+			} else if bearerToken == "" {
+				bearerToken = "bearer-token"
 			}
 			if clusterOpts.Name != "" {
 				contextName = clusterOpts.Name
 			}
-			clst := cmdutil.NewCluster(contextName, clusterOpts.Namespaces, conf, managerBearerToken, awsAuthConf, execProviderConf)
+			clst := cmdutil.NewCluster(contextName, clusterOpts.Namespaces, conf, bearerToken, awsAuthConf, execProviderConf)
 			if clusterOpts.InCluster {
 				clst.Server = common.KubernetesInternalAPIServerAddr
 			}
@@ -210,13 +205,15 @@ func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command 
 			secret, err := kubeClientset.CoreV1().Secrets(ArgoCDNamespace).Get(context.Background(), secName, v1.GetOptions{})
 			errors.CheckError(err)
 
-			secret.Kind = kube.SecretKind
-			secret.APIVersion = "v1"
-			errors.CheckError(cmdutil.PrintResource(secret, outputFormat))
+			cmdutil.ConvertSecretData(secret)
+			var printResources []interface{}
+			printResources = append(printResources, secret)
+			errors.CheckError(cmdutil.PrintResources(printResources, outputFormat))
 		},
 	}
 	command.PersistentFlags().StringVar(&pathOpts.LoadingRules.ExplicitPath, pathOpts.ExplicitFileFlag, pathOpts.LoadingRules.ExplicitPath, "use a particular kubeconfig file")
-	command.Flags().StringVar(&outputFormat, "o", "yaml", "Output format (yaml|json)")
+	command.Flags().StringVar(&bearerToken, "bearer-token", "", "Authentication token that should be used to access K8S API server")
+	command.Flags().StringVarP(&outputFormat, "output", "o", "yaml", "Output format. One of: json|yaml")
 	cmdutil.AddClusterFlags(command, &clusterOpts)
 	return command
 }
@@ -228,11 +225,12 @@ func NewGenRepoConfigCommand() *cobra.Command {
 	)
 
 	// For better readability and easier formatting
-	var repoAddExamples = `  # Add a Git repository via SSH using a private key for authentication, ignoring the server's host key:
-	argocd-util config repo git@git.example.com:repos/repo --insecure-ignore-host-key --ssh-private-key-path ~/id_rsa
+	var repoAddExamples = `  
+  # Add a Git repository via SSH using a private key for authentication, ignoring the server's host key:
+  argocd-util config repo git@git.example.com:repos/repo --insecure-ignore-host-key --ssh-private-key-path ~/id_rsa
 
-	# Add a Git repository via SSH on a non-default port - need to use ssh:// style URLs here
-	argocd-util config repo ssh://git@git.example.com:2222/repos/repo --ssh-private-key-path ~/id_rsa
+  # Add a Git repository via SSH on a non-default port - need to use ssh:// style URLs here
+  argocd-util config repo ssh://git@git.example.com:2222/repos/repo --ssh-private-key-path ~/id_rsa
 
   # Add a private Git repository via HTTPS using username/password and TLS client certificates:
   argocd-util config repo https://git.example.com/repos/repo --username git --password secret --tls-client-cert-path ~/mycert.crt --tls-client-cert-key-path ~/mycert.key
@@ -334,32 +332,28 @@ func NewGenRepoConfigCommand() *cobra.Command {
 			settingsMgr := settings.NewSettingsManager(context.Background(), kubeClientset, ArgoCDNamespace)
 			argoDB := db.NewDB(ArgoCDNamespace, settingsMgr, kubeClientset)
 
+			var printResources []interface{}
 			_, err := argoDB.CreateRepository(context.Background(), &repoOpts.Repo)
 			errors.CheckError(err)
 
-			secret, err := kubeClientset.CoreV1().Secrets(ArgoCDNamespace).Get(context.Background(), repoURLToSecretName(repoSecretPrefix, repoOpts.Repo.Repo), v1.GetOptions{})
+			secret, err := kubeClientset.CoreV1().Secrets(ArgoCDNamespace).Get(context.Background(), db.RepoURLToSecretName(repoSecretPrefix, repoOpts.Repo.Repo), v1.GetOptions{})
 			if err != nil {
 				if !apierr.IsNotFound(err) {
 					errors.CheckError(err)
 				}
 			} else {
-				secret.Kind = kube.SecretKind
-				secret.APIVersion = "v1"
-				errors.CheckError(cmdutil.PrintResource(secret, outputFormat))
+				cmdutil.ConvertSecretData(secret)
+				printResources = append(printResources, secret)
 			}
 
 			cm, err := kubeClientset.CoreV1().ConfigMaps(ArgoCDNamespace).Get(context.Background(), common.ArgoCDConfigMapName, v1.GetOptions{})
 			errors.CheckError(err)
-			errors.CheckError(cmdutil.PrintResource(cm, outputFormat))
+
+			printResources = append(printResources, cm)
+			errors.CheckError(cmdutil.PrintResources(printResources, outputFormat))
 		},
 	}
-	command.Flags().StringVar(&outputFormat, "o", "yaml", "Output format (yaml|json)")
+	command.Flags().StringVarP(&outputFormat, "output", "o", "yaml", "Output format. One of: json|yaml")
 	cmdutil.AddRepoFlags(command, &repoOpts)
 	return command
-}
-
-func repoURLToSecretName(prefix string, repo string) string {
-	h := fnv.New32a()
-	_, _ = h.Write([]byte(repo))
-	return fmt.Sprintf("%s-%v", prefix, h.Sum32())
 }
