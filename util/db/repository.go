@@ -394,7 +394,7 @@ func (db *db) updateRepositorySecrets(repoInfo *settings.Repository, r *appsv1.R
 func setSecretData(prefix string, url string, secretsData map[string]map[string][]byte, secretKey *apiv1.SecretKeySelector, value string, defaultKeyName string) *apiv1.SecretKeySelector {
 	if secretKey == nil && value != "" {
 		secretKey = &apiv1.SecretKeySelector{
-			LocalObjectReference: apiv1.LocalObjectReference{Name: repoURLToSecretName(prefix, url)},
+			LocalObjectReference: apiv1.LocalObjectReference{Name: RepoURLToSecretName(prefix, url)},
 			Key:                  defaultKeyName,
 		}
 	}
@@ -491,11 +491,11 @@ func getRepositoryCredentialIndex(repoCredentials []settings.RepositoryCredentia
 	return idx
 }
 
-// repoURLToSecretName hashes repo URL to a secret name using a formula. This is used when
+// RepoURLToSecretName hashes repo URL to a secret name using a formula. This is used when
 // repositories are _imperatively_ created and need its credentials to be stored in a secret.
 // NOTE: this formula should not be considered stable and may change in future releases.
 // Do NOT rely on this formula as a means of secret lookup, only secret creation.
-func repoURLToSecretName(prefix string, repo string) string {
+func RepoURLToSecretName(prefix string, repo string) string {
 	h := fnv.New32a()
 	_, _ = h.Write([]byte(repo))
 	return fmt.Sprintf("%s-%v", prefix, h.Sum32())

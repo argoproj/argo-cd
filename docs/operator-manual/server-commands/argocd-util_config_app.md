@@ -66,7 +66,7 @@ argocd-util config app APPNAME [flags]
       --name string                               A name for the app, ignored if a file is set (DEPRECATED)
       --nameprefix string                         Kustomize nameprefix
       --namesuffix string                         Kustomize namesuffix
-      --o string                                  Output format (yaml|json) (default "yaml")
+  -o, --output string                             Output format. One of: json|yaml (default "yaml")
   -p, --parameter stringArray                     set a parameter override (e.g. -p guestbook=image=example/guestbook:latest)
       --path string                               Path in repository to the app directory, ignored if a file is set
       --plugin-env stringArray                    Additional plugin envs
