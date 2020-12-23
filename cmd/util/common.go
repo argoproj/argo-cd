@@ -5,25 +5,31 @@ import (
 	"fmt"
 
 	"github.com/ghodss/yaml"
+	v1 "k8s.io/api/core/v1"
+
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 )
 
 // PrintResource prints a single resource in YAML or JSON format to stdout according to the output format
-func PrintResource(resource interface{}, output string) error {
-	filteredResource, err := omitFields(resource)
-	if err != nil {
-		return err
+func PrintResources(resources []interface{}, output string) error {
+	for i, resource := range resources {
+		filteredResource, err := omitFields(resource)
+		if err != nil {
+			return err
+		}
+		resources[i] = filteredResource
 	}
 
 	switch output {
 	case "json":
-		jsonBytes, err := json.MarshalIndent(filteredResource, "", "  ")
+		jsonBytes, err := json.MarshalIndent(resources, "", "  ")
 		if err != nil {
 			return err
 		}
 
 		fmt.Println(string(jsonBytes))
 	case "yaml":
-		yamlBytes, err := yaml.Marshal(filteredResource)
+		yamlBytes, err := yaml.Marshal(resources)
 		if err != nil {
 			return err
 		}
@@ -34,6 +40,7 @@ func PrintResource(resource interface{}, output string) error {
 	return nil
 }
 
+// omit fields such as status, creationTimestamp and metadata.namespace in k8s objects
 func omitFields(resource interface{}) (interface{}, error) {
 	jsonBytes, err := json.Marshal(resource)
 	if err != nil {
@@ -54,4 +61,15 @@ func omitFields(resource interface{}) (interface{}, error) {
 		}
 	}
 	return toMap, nil
+}
+
+// ConvertSecretData converts kubernetes secret's data to stringData
+func ConvertSecretData(secret *v1.Secret) {
+	secret.Kind = kube.SecretKind
+	secret.APIVersion = "v1"
+	secret.StringData = map[string]string{}
+	for k, v := range secret.Data {
+		secret.StringData[k] = string(v)
+	}
+	secret.Data = map[string][]byte{}
 }
