@@ -36,7 +36,7 @@
     
     
       
-        <title>Argocd util config - Argo CD - Declarative GitOps CD for Kubernetes</title>
+        <title>Argocd util config repo - Argo CD - Declarative GitOps CD for Kubernetes</title>
       
     
     
@@ -127,7 +127,7 @@
     <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
     <label class="md-overlay" data-md-component="overlay" for="__drawer"></label>
     
-      <a href="#argocd-util-config" tabindex="1" class="md-skip">
+      <a href="#argocd-util-config-repo" tabindex="1" class="md-skip">
         Skip to content
       </a>
     
@@ -152,7 +152,7 @@
               Argo CD - Declarative GitOps CD for Kubernetes
             </span>
             <span class="md-header-nav__topic">
-              Argocd util config
+              Argocd util config repo
             </span>
           
         </div>
@@ -1463,8 +1463,8 @@
     <ul class="md-nav__list" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#argocd-util-config" title="argocd-util config" class="md-nav__link">
-    argocd-util config
+  <a href="#argocd-util-config-repo" title="argocd-util config repo" class="md-nav__link">
+    argocd-util config repo
   </a>
   
     <nav class="md-nav">
@@ -1473,6 +1473,13 @@
           <li class="md-nav__item">
   <a href="#synopsis" title="Synopsis" class="md-nav__link">
     Synopsis
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#examples" title="Examples" class="md-nav__link">
+    Examples
   </a>
   
 </li>
@@ -1512,29 +1519,60 @@
             <article class="md-content__inner md-typeset">
               
                 
-                  <a href="https://github.com/argoproj/argo-cd/edit/master/docs/operator-manual/server-commands/argocd-util_config.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
+                  <a href="https://github.com/argoproj/argo-cd/edit/master/docs/operator-manual/server-commands/argocd-util_config_repo.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
                 
                 
-                  <h1>Argocd util config</h1>
+                  <h1>Argocd util config repo</h1>
                 
-                <h2 id="argocd-util-config">argocd-util config<a class="headerlink" href="#argocd-util-config" title="Permanent link">&para;</a></h2>
-<p>Generate declarative configuration files</p>
+                <h2 id="argocd-util-config-repo">argocd-util config repo<a class="headerlink" href="#argocd-util-config-repo" title="Permanent link">&para;</a></h2>
+<p>Generate declarative config for a repo</p>
 <h3 id="synopsis">Synopsis<a class="headerlink" href="#synopsis" title="Permanent link">&para;</a></h3>
-<p>Generate declarative configuration files</p>
-<div class="codehilite"><pre><span></span><code><span class="n">argocd</span><span class="o">-</span><span class="n">util</span><span class="w"> </span><span class="n">config</span><span class="w"> </span><span class="o">[</span><span class="n">flags</span><span class="o">]</span><span class="w"></span>
+<p>Generate declarative config for a repo</p>
+<div class="codehilite"><pre><span></span><code><span class="n">argocd</span><span class="o">-</span><span class="n">util</span><span class="w"> </span><span class="n">config</span><span class="w"> </span><span class="n">repo</span><span class="w"> </span><span class="n">REPOURL</span><span class="w"> </span><span class="o">[</span><span class="n">flags</span><span class="o">]</span><span class="w"></span>
+</code></pre></div>
+
+<h3 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h3>
+<div class="codehilite"><pre><span></span><code><span class="w">  </span><span class="err">#</span><span class="w"> </span><span class="k">Add</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">Git</span><span class="w"> </span><span class="n">repository</span><span class="w"> </span><span class="n">via</span><span class="w"> </span><span class="n">SSH</span><span class="w"> </span><span class="k">using</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">private</span><span class="w"> </span><span class="k">key</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">authentication</span><span class="p">,</span><span class="w"> </span><span class="n">ignoring</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">server</span><span class="s1">&#39;s host key:</span>
+<span class="s1">  argocd-util config repo git@git.example.com:repos/repo --insecure-ignore-host-key --ssh-private-key-path ~/id_rsa</span>
+
+<span class="s1">  # Add a Git repository via SSH on a non-default port - need to use ssh:// style URLs here</span>
+<span class="s1">  argocd-util config repo ssh://git@git.example.com:2222/repos/repo --ssh-private-key-path ~/id_rsa</span>
+
+<span class="s1">  # Add a private Git repository via HTTPS using username/password and TLS client certificates:</span>
+<span class="s1">  argocd-util config repo https://git.example.com/repos/repo --username git --password secret --tls-client-cert-path ~/mycert.crt --tls-client-cert-key-path ~/mycert.key</span>
+
+<span class="s1">  # Add a private Git repository via HTTPS using username/password without verifying the server&#39;</span><span class="n">s</span><span class="w"> </span><span class="n">TLS</span><span class="w"> </span><span class="n">certificate</span><span class="w"></span>
+<span class="w">  </span><span class="n">argocd</span><span class="o">-</span><span class="n">util</span><span class="w"> </span><span class="n">config</span><span class="w"> </span><span class="n">repo</span><span class="w"> </span><span class="nl">https</span><span class="p">:</span><span class="o">//</span><span class="n">git</span><span class="p">.</span><span class="n">example</span><span class="p">.</span><span class="n">com</span><span class="o">/</span><span class="n">repos</span><span class="o">/</span><span class="n">repo</span><span class="w"> </span><span class="o">--</span><span class="n">username</span><span class="w"> </span><span class="n">git</span><span class="w"> </span><span class="o">--</span><span class="n">password</span><span class="w"> </span><span class="n">secret</span><span class="w"> </span><span class="o">--</span><span class="n">insecure</span><span class="o">-</span><span class="n">skip</span><span class="o">-</span><span class="n">server</span><span class="o">-</span><span class="n">verification</span><span class="w"></span>
+
+<span class="w">  </span><span class="err">#</span><span class="w"> </span><span class="k">Add</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">Helm</span><span class="w"> </span><span class="n">repository</span><span class="w"> </span><span class="n">named</span><span class="w"> </span><span class="s1">&#39;stable&#39;</span><span class="w"> </span><span class="n">via</span><span class="w"> </span><span class="n">HTTPS</span><span class="w"></span>
+<span class="w">  </span><span class="n">argocd</span><span class="o">-</span><span class="n">util</span><span class="w"> </span><span class="n">config</span><span class="w"> </span><span class="n">repo</span><span class="w"> </span><span class="nl">https</span><span class="p">:</span><span class="o">//</span><span class="n">kubernetes</span><span class="o">-</span><span class="n">charts</span><span class="p">.</span><span class="n">storage</span><span class="p">.</span><span class="n">googleapis</span><span class="p">.</span><span class="n">com</span><span class="w"> </span><span class="o">--</span><span class="n">type</span><span class="w"> </span><span class="n">helm</span><span class="w"> </span><span class="o">--</span><span class="n">name</span><span class="w"> </span><span class="n">stable</span><span class="w">  </span>
+
+<span class="w">  </span><span class="err">#</span><span class="w"> </span><span class="k">Add</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">private</span><span class="w"> </span><span class="n">Helm</span><span class="w"> </span><span class="n">repository</span><span class="w"> </span><span class="n">named</span><span class="w"> </span><span class="s1">&#39;stable&#39;</span><span class="w"> </span><span class="n">via</span><span class="w"> </span><span class="n">HTTPS</span><span class="w"></span>
+<span class="w">  </span><span class="n">argocd</span><span class="o">-</span><span class="n">util</span><span class="w"> </span><span class="n">config</span><span class="w"> </span><span class="n">repo</span><span class="w"> </span><span class="nl">https</span><span class="p">:</span><span class="o">//</span><span class="n">kubernetes</span><span class="o">-</span><span class="n">charts</span><span class="p">.</span><span class="n">storage</span><span class="p">.</span><span class="n">googleapis</span><span class="p">.</span><span class="n">com</span><span class="w"> </span><span class="o">--</span><span class="n">type</span><span class="w"> </span><span class="n">helm</span><span class="w"> </span><span class="o">--</span><span class="n">name</span><span class="w"> </span><span class="n">stable</span><span class="w"> </span><span class="o">--</span><span class="n">username</span><span class="w"> </span><span class="n">test</span><span class="w"> </span><span class="o">--</span><span class="n">password</span><span class="w"> </span><span class="n">test</span><span class="w"></span>
+
+<span class="w">  </span><span class="err">#</span><span class="w"> </span><span class="k">Add</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">private</span><span class="w"> </span><span class="n">Helm</span><span class="w"> </span><span class="n">OCI</span><span class="o">-</span><span class="n">based</span><span class="w"> </span><span class="n">repository</span><span class="w"> </span><span class="n">named</span><span class="w"> </span><span class="s1">&#39;stable&#39;</span><span class="w"> </span><span class="n">via</span><span class="w"> </span><span class="n">HTTPS</span><span class="w"></span>
+<span class="w">  </span><span class="n">argocd</span><span class="o">-</span><span class="n">util</span><span class="w"> </span><span class="n">config</span><span class="w"> </span><span class="n">repo</span><span class="w"> </span><span class="n">helm</span><span class="o">-</span><span class="n">oci</span><span class="o">-</span><span class="n">registry</span><span class="p">.</span><span class="n">cn</span><span class="o">-</span><span class="n">zhangjiakou</span><span class="p">.</span><span class="n">cr</span><span class="p">.</span><span class="n">aliyuncs</span><span class="p">.</span><span class="n">com</span><span class="w"> </span><span class="c1">--type helm --name stable --enable-oci --username test --password test</span>
 </code></pre></div>
 
 <h3 id="options">Options<a class="headerlink" href="#options" title="Permanent link">&para;</a></h3>
-<div class="codehilite"><pre><span></span><code><span class="err">  -h, --help   help for config</span>
+<div class="codehilite"><pre><span></span><code><span class="err">      --enable-lfs                          enable git-lfs (Large File Support) on this repository</span>
+<span class="err">      --enable-oci                          enable helm-oci (Helm OCI-Based Repository)</span>
+<span class="err">  -h, --help                                help for repo</span>
+<span class="err">      --insecure-ignore-host-key            disables SSH strict host key checking (deprecated, use --insecure-skip-server-verification instead)</span>
+<span class="err">      --insecure-skip-server-verification   disables server certificate and host key checks</span>
+<span class="err">      --name string                         name of the repository, mandatory for repositories of type helm</span>
+<span class="err">  -o, --output string                       Output format. One of: json|yaml (default &quot;yaml&quot;)</span>
+<span class="err">      --password string                     password to the repository</span>
+<span class="err">      --ssh-private-key-path string         path to the private ssh key (e.g. ~/.ssh/id_rsa)</span>
+<span class="err">      --tls-client-cert-key-path string     path to the TLS client cert&#39;s key path (must be PEM format)</span>
+<span class="err">      --tls-client-cert-path string         path to the TLS client cert (must be PEM format)</span>
+<span class="err">      --type string                         type of the repository, &quot;git&quot; or &quot;helm&quot; (default &quot;git&quot;)</span>
+<span class="err">      --username string                     username to the repository</span>
 </code></pre></div>
 
 <h3 id="see-also">SEE ALSO<a class="headerlink" href="#see-also" title="Permanent link">&para;</a></h3>
 <ul>
-<li><a href="../argocd-util/">argocd-util</a>  - argocd-util tools used by Argo CD</li>
-<li><a href="../argocd-util_config_app/">argocd-util config app</a>    - Generate declarative config for an application</li>
-<li><a href="../argocd-util_config_cluster/">argocd-util config cluster</a>    - Generate declarative config for a cluster</li>
-<li><a href="../argocd-util_config_proj/">argocd-util config proj</a>  - Generate declarative config for a project</li>
-<li><a href="../argocd-util_config_repo/">argocd-util config repo</a>  - Generate declarative config for a repo</li>
+<li><a href="../argocd-util_config/">argocd-util config</a>    - Generate declarative configuration files</li>
 </ul>
                 
                   
