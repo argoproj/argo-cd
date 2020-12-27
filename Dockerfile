@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=ubuntu:21.04
+ARG BASE_IMAGE=ubuntu:20.10
 ####################################################################################################
 # Builder image
 # Initial stage which pulls prepares build dependencies and CLI tooling we need for our final image
