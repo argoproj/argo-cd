@@ -205,6 +205,9 @@ func (s *Server) ListApps(ctx context.Context, q *repositorypkg.RepoAppsQuery) (
 }
 
 func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDetailsQuery) (*apiclient.RepoAppDetailsResponse, error) {
+	if q.Source == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "missing payload in request")
+	}
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, q.Source.RepoURL); err != nil {
 		return nil, err
 	}
@@ -262,6 +265,9 @@ func (s *Server) Create(ctx context.Context, q *repositorypkg.RepoCreateRequest)
 
 // CreateRepository creates a repository configuration
 func (s *Server) CreateRepository(ctx context.Context, q *repositorypkg.RepoCreateRequest) (*appsv1.Repository, error) {
+	if q.Repo == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "missing payload in request")
+	}
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionCreate, q.Repo.Repo); err != nil {
 		return nil, err
 	}
@@ -320,6 +326,9 @@ func (s *Server) Update(ctx context.Context, q *repositorypkg.RepoUpdateRequest)
 
 // UpdateRepository updates a repository configuration
 func (s *Server) UpdateRepository(ctx context.Context, q *repositorypkg.RepoUpdateRequest) (*appsv1.Repository, error) {
+	if q.Repo == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "missing payload in request")
+	}
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionUpdate, q.Repo.Repo); err != nil {
 		return nil, err
 	}
