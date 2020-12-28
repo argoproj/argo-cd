@@ -8,7 +8,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/url"
-	"os"
 	"path"
 	"reflect"
 	"strings"
@@ -31,7 +30,9 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/server/settings/oidc"
 	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/password"
+	argorand "github.com/argoproj/argo-cd/util/rand"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
 )
 
@@ -248,6 +249,12 @@ const (
 	settingUiCssURLKey = "ui.cssurl"
 	// globalProjectsKey designates the key for global project settings
 	globalProjectsKey = "globalProjects"
+	// initialPasswordSecretName is the name of the secret that will hold the initial admin password
+	initialPasswordSecretName = "argocd-initial-admin-secret"
+	// initialPasswordSecretField is the name of the field in initialPasswordSecretName to store the password
+	initialPasswordSecretField = "password"
+	// initialPasswordLength defines the length of the generated initial password
+	initialPasswordLength = 16
 )
 
 // SettingsManager holds config info for a new manager with which to access Kubernetes ConfigMaps.
@@ -1227,11 +1234,13 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 		if adminAccount.Enabled {
 			now := time.Now().UTC()
 			if adminAccount.PasswordHash == "" {
-				defaultPassword, err := os.Hostname()
+				initialPassword := argorand.RandString(initialPasswordLength)
+				hashedPassword, err := password.HashPassword(initialPassword)
 				if err != nil {
 					return err
 				}
-				hashedPassword, err := password.HashPassword(defaultPassword)
+				ku := kube.NewKubeUtil(mgr.clientset, mgr.ctx)
+				err = ku.CreateOrUpdateSecretField(mgr.namespace, initialPasswordSecretName, initialPasswordSecretField, initialPassword)
 				if err != nil {
 					return err
 				}
