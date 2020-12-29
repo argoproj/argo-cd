@@ -1,0 +1,40 @@
+apiVersion: cluster.x-k8s.io/v1alpha3
+kind: Cluster
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/version: 0.3.11
+    argocd.argoproj.io/instance: test
+    cluster.x-k8s.io/cluster-name: test
+  name: test
+  namespace: test
+spec:
+  clusterNetwork:
+    pods:
+      cidrBlocks:
+        - 10.20.10.0/19
+    services:
+      cidrBlocks:
+        - 10.10.10.0/19
+  controlPlaneRef:
+    apiVersion: controlplane.cluster.x-k8s.io/v1alpha3
+    kind: KubeadmControlPlane
+  infrastructureRef:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1alpha3
+    kind: VSphereCluster
+status:
+  conditions:
+    - lastTransitionTime: '2020-12-29T09:16:28Z'
+      status: 'True'
+      type: Ready
+    - lastTransitionTime: '2020-12-29T09:16:28Z'
+      status: 'True'
+      type: ControlPlaneReady
+    - lastTransitionTime: '2020-11-24T09:15:24Z'
+      status: 'True'
+      type: InfrastructureReady
+  controlPlaneInitialized: true
+  controlPlaneReady: true
+  infrastructureReady: true
+  observedGeneration: 4
+  phase: Provisioning
