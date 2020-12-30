@@ -890,6 +890,14 @@ const (
 	SyncStatusCodeOutOfSync SyncStatusCode = "OutOfSync"
 )
 
+// TargetRevision is a type which represents possible comparison results
+type TargetRevision string
+
+// Possible comparison results
+const (
+	TargetRevisionUnknown TargetRevision = "Unknown"
+)
+
 // ApplicationConditionType represents type of application condition. Type name has following convention:
 // prefix "Error" means error condition
 // prefix "Warning" means warning condition
