@@ -65,6 +65,9 @@ func (s *Server) ListRepositoryCredentials(ctx context.Context, q *repocredspkg.
 
 // CreateRepositoryCredentials creates a new credential set in the configuration
 func (s *Server) CreateRepositoryCredentials(ctx context.Context, q *repocredspkg.RepoCredsCreateRequest) (*appsv1.RepoCreds, error) {
+	if q.Creds == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "missing payload in request")
+	}
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionCreate, q.Creds.URL); err != nil {
 		return nil, err
 	}
@@ -96,6 +99,9 @@ func (s *Server) CreateRepositoryCredentials(ctx context.Context, q *repocredspk
 
 // UpdateRepositoryCredentials updates a repository credential set
 func (s *Server) UpdateRepositoryCredentials(ctx context.Context, q *repocredspkg.RepoCredsUpdateRequest) (*appsv1.RepoCreds, error) {
+	if q.Creds == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "missing payload in request")
+	}
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionUpdate, q.Creds.URL); err != nil {
 		return nil, err
 	}
