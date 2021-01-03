@@ -61,6 +61,7 @@ type AppOptions struct {
 	pluginEnvs                 []string
 	Validate                   bool
 	directoryExclude           string
+	directoryInclude           string
 }
 
 func AddAppFlags(command *cobra.Command, opts *AppOptions) {
@@ -103,6 +104,7 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringArrayVar(&opts.kustomizeCommonLabels, "kustomize-common-label", []string{}, "Set common labels in Kustomize")
 	command.Flags().StringArrayVar(&opts.kustomizeCommonAnnotations, "kustomize-common-annotation", []string{}, "Set common labels in Kustomize")
 	command.Flags().StringVar(&opts.directoryExclude, "directory-exclude", "", "Set glob expression used to exclude files from application source path")
+	command.Flags().StringVar(&opts.directoryInclude, "directory-include", "", "Set glob expression used to include files from application source path")
 }
 
 func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, appOpts *AppOptions) int {
@@ -158,6 +160,12 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 				spec.Source.Directory.Exclude = appOpts.directoryExclude
 			} else {
 				spec.Source.Directory = &argoappv1.ApplicationSourceDirectory{Exclude: appOpts.directoryExclude}
+			}
+		case "directory-include":
+			if spec.Source.Directory != nil {
+				spec.Source.Directory.Include = appOpts.directoryInclude
+			} else {
+				spec.Source.Directory = &argoappv1.ApplicationSourceDirectory{Include: appOpts.directoryInclude}
 			}
 		case "config-management-plugin":
 			spec.Source.Plugin = &argoappv1.ApplicationSourcePlugin{Name: appOpts.configManagementPlugin}
