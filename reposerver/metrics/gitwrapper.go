@@ -16,11 +16,11 @@ func WrapGitClient(repo string, metricsServer *MetricsServer, client git.Client)
 	return &gitClientWrapper{repo: repo, client: client, metricsServer: metricsServer}
 }
 
-func (w *gitClientWrapper) Fetch() error {
+func (w *gitClientWrapper) Fetch(revision string) error {
 	startTime := time.Now()
 	w.metricsServer.IncGitRequest(w.repo, GitRequestTypeFetch)
 	defer w.metricsServer.ObserveGitRequestDuration(w.repo, GitRequestTypeFetch, time.Since(startTime))
-	return w.client.Fetch()
+	return w.client.Fetch(revision)
 }
 
 func (w *gitClientWrapper) LsRemote(revision string) (string, error) {
