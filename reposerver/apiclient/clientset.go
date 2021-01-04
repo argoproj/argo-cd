@@ -30,13 +30,21 @@ type clientSet struct {
 }
 
 func (c *clientSet) NewRepoServerClient() (io.Closer, RepoServerServiceClient, error) {
+	conn, err := NewConnection(c.address, c.timeoutSeconds)
+	if err != nil {
+		return nil, nil, err
+	}
+	return conn, NewRepoServerServiceClient(conn), nil
+}
+
+func NewConnection(address string, timeoutSeconds int) (*grpc.ClientConn, error) {
 	retryOpts := []grpc_retry.CallOption{
 		grpc_retry.WithMax(3),
 		grpc_retry.WithBackoff(grpc_retry.BackoffLinear(1000 * time.Millisecond)),
 	}
 	unaryInterceptors := []grpc.UnaryClientInterceptor{grpc_retry.UnaryClientInterceptor(retryOpts...)}
-	if c.timeoutSeconds > 0 {
-		unaryInterceptors = append(unaryInterceptors, argogrpc.WithTimeout(time.Duration(c.timeoutSeconds)*time.Second))
+	if timeoutSeconds > 0 {
+		unaryInterceptors = append(unaryInterceptors, argogrpc.WithTimeout(time.Duration(timeoutSeconds)*time.Second))
 	}
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})),
@@ -45,12 +53,12 @@ func (c *clientSet) NewRepoServerClient() (io.Closer, RepoServerServiceClient, e
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(MaxGRPCMessageSize), grpc.MaxCallSendMsgSize(MaxGRPCMessageSize)),
 	}
 
-	conn, err := grpc.Dial(c.address, opts...)
+	conn, err := grpc.Dial(address, opts...)
 	if err != nil {
-		log.Errorf("Unable to connect to repository service with address %s", c.address)
-		return nil, nil, err
+		log.Errorf("Unable to connect to repository service with address %s", address)
+		return nil, err
 	}
-	return conn, NewRepoServerServiceClient(conn), nil
+	return conn, nil
 }
 
 // NewRepoServerClientset creates new instance of repo server Clientset
