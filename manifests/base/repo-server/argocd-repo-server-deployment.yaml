@@ -28,9 +28,17 @@ spec:
         ports:
         - containerPort: 8081
         - containerPort: 8084
+        livenessProbe:
+          httpGet:
+            path: /healthz?full=true
+            port: 8084
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          failureThreshold: 3
         readinessProbe:
-          tcpSocket:
-            port: 8081
+          httpGet:
+            path: /healthz
+            port: 8084
           initialDelaySeconds: 5
           periodSeconds: 10
         volumeMounts:
