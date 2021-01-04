@@ -1,0 +1,16 @@
+##Purpose of this file is to test this kind of files should be ignored from marshalling since it is lacking of apiVersion, kind, and metadata
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:1.17.4-alpine
+          ports:
+            - containerPort: 80

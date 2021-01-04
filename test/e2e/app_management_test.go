@@ -1431,6 +1431,18 @@ func TestAppCreationWithExclude(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy))
 }
 
+func TestAppCreationWithInclude(t *testing.T) {
+	Given(t).
+		Path("app-inclusions").
+		When().
+		Create("--directory-include", "**/.*", "--directory-recurse").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy))
+}
+
 // Ensure actions work when using a resource action that modifies status and/or spec
 func TestCRDStatusSubresourceAction(t *testing.T) {
 	actions := `

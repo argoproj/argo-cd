@@ -4479,6 +4479,9 @@
         "exclude": {
           "type": "string"
         },
+        "include": {
+          "type": "string"
+        },
         "jsonnet": {
           "$ref": "#/definitions/v1alpha1ApplicationSourceJsonnet"
         },
