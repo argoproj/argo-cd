@@ -42,7 +42,7 @@ FROM $BASE_IMAGE as argocd-base
 USER root
 
 ENV DEBIAN_FRONTEND=noninteractive
- 
+
 RUN groupadd -g 999 argocd && \
     useradd -r -u 999 -g argocd argocd && \
     mkdir -p /home/argocd && \
@@ -50,6 +50,7 @@ RUN groupadd -g 999 argocd && \
     chmod g=u /home/argocd && \
     chmod g=u /etc/passwd && \
     apt-get update && \
+    apt-get dist-upgrade -y && \
     apt-get install -y git git-lfs python3-pip tini gpg && \
     apt-get clean && \
     pip3 install awscli==1.18.80 && \
