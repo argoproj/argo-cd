@@ -876,7 +876,11 @@ func findManifests(appPath string, repoRoot string, env *v1alpha1.Env, directory
 		}
 
 		fileNameWithPath := filepath.Join(appPath, f.Name())
-		if glob.Match(directory.Exclude, fileNameWithPath) {
+		if directory.Exclude != "" && glob.Match(directory.Exclude, fileNameWithPath) {
+			return nil
+		}
+
+		if directory.Include != "" && !glob.Match(directory.Include, fileNameWithPath) {
 			return nil
 		}
 
@@ -1326,13 +1330,13 @@ func checkoutRevision(gitClient git.Client, revision string) error {
 	if err != nil {
 		return status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
 	}
-	err = gitClient.Fetch()
+	err = gitClient.Fetch(revision)
 	if err != nil {
-		return status.Errorf(codes.Internal, "Failed to fetch git repo: %v", err)
+		return status.Errorf(codes.Internal, "Failed to fetch %s: %v", revision, err)
 	}
-	err = gitClient.Checkout(revision)
+	err = gitClient.Checkout("FETCH_HEAD")
 	if err != nil {
-		return status.Errorf(codes.Internal, "Failed to checkout %s: %v", revision, err)
+		return status.Errorf(codes.Internal, "Failed to checkout FETCH_HEAD: %v", err)
 	}
 	return err
 }

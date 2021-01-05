@@ -134,6 +134,8 @@ spec:
                       properties:
                         exclude:
                           type: string
+                        include:
+                          type: string
                         jsonnet:
                           description: ApplicationSourceJsonnet holds jsonnet specific options
                           properties:
@@ -401,6 +403,8 @@ spec:
                   description: Directory holds path/directory specific options
                   properties:
                     exclude:
+                      type: string
+                    include:
                       type: string
                     jsonnet:
                       description: ApplicationSourceJsonnet holds jsonnet specific options
@@ -685,6 +689,8 @@ spec:
                         description: Directory holds path/directory specific options
                         properties:
                           exclude:
+                            type: string
+                          include:
                             type: string
                           jsonnet:
                             description: ApplicationSourceJsonnet holds jsonnet specific options
@@ -973,6 +979,8 @@ spec:
                               properties:
                                 exclude:
                                   type: string
+                                include:
+                                  type: string
                                 jsonnet:
                                   description: ApplicationSourceJsonnet holds jsonnet specific options
                                   properties:
@@ -1238,6 +1246,8 @@ spec:
                           properties:
                             exclude:
                               type: string
+                            include:
+                              type: string
                             jsonnet:
                               description: ApplicationSourceJsonnet holds jsonnet specific options
                               properties:
@@ -1499,6 +1509,8 @@ spec:
                           description: Directory holds path/directory specific options
                           properties:
                             exclude:
+                              type: string
+                            include:
                               type: string
                             jsonnet:
                               description: ApplicationSourceJsonnet holds jsonnet specific options
@@ -2470,15 +2482,23 @@ spec:
         - argocd-redis:6379
         image: argoproj/argocd:latest
         imagePullPolicy: Always
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz?full=true
+            port: 8084
+          initialDelaySeconds: 30
+          periodSeconds: 5
         name: argocd-repo-server
         ports:
         - containerPort: 8081
         - containerPort: 8084
         readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8084
           initialDelaySeconds: 5
           periodSeconds: 10
-          tcpSocket:
-            port: 8081
         volumeMounts:
         - mountPath: /app/config/ssh
           name: ssh-known-hosts
