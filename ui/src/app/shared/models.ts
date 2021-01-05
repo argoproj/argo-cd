@@ -319,9 +319,14 @@ export interface LoadBalancerIngress {
     ip: string;
 }
 
+export interface InfoItem {
+    name: string;
+    value: string;
+}
+
 export interface ResourceNode extends ResourceRef {
     parentRefs: ResourceRef[];
-    info: {name: string; value: string}[];
+    info: InfoItem[];
     networkingInfo?: ResourceNetworkingInfo;
     images?: string[];
     resourceVersion: string;
@@ -815,3 +820,56 @@ export const Groups = [
     'stable.example.com',
     'storage.k8s.io'
 ];
+
+export interface InfraNode {
+    metadata?: models.ObjectMeta;
+    name: string;
+    status?: InfraNodeStatus;
+    metrics: ResourceList;
+    pods: Pod[];
+}
+
+export interface Metric {
+    request: number;
+    limit: number;
+}
+
+export interface InfraNodeStatus {
+    nodeInfo: NodeInfo;
+    capacity: {[key in ResourceName]?: string};
+}
+
+export interface NodeInfo {
+    architecture: string;
+    operatingSystem: string;
+    kernelVersion: string;
+}
+
+export type ResourceList = {
+    [key in ResourceName]?: Metric;
+};
+
+export enum ResourceName {
+    ResourceCPU = 'cpu',
+    ResourceMemory = 'memory',
+    ResourceStorage = 'storage'
+}
+
+export interface Pod extends ResourceNode {
+    fullName: string;
+    metadata: models.ObjectMeta;
+    spec: PodSpec;
+    health: HealthStatusCode;
+}
+
+export interface PodSpec {
+    nodeName: string;
+}
+
+export enum PodPhase {
+    PodPending = 'Pending',
+    PodRunning = 'Running',
+    PodSucceeded = 'Succeeded',
+    PodFailed = 'Failed',
+    PodUnknown = 'Unknown'
+}
