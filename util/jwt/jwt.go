@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	jwtgo "github.com/dgrijalva/jwt-go"
+	jwtgo "github.com/dgrijalva/jwt-go/v4"
 )
 
 // MapClaims converts a jwt.Claims to a MapClaims

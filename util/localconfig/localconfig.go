@@ -6,7 +6,7 @@ import (
 	"os/user"
 	"path"
 
-	"github.com/dgrijalva/jwt-go"
+	"github.com/dgrijalva/jwt-go/v4"
 
 	configUtil "github.com/argoproj/argo-cd/util/config"
 )
@@ -64,7 +64,7 @@ type User struct {
 // Claims returns the standard claims from the JWT claims
 func (u *User) Claims() (*jwt.StandardClaims, error) {
 	parser := &jwt.Parser{
-		SkipClaimsValidation: true,
+		ValidationHelper: jwt.NewValidationHelper(jwt.WithoutClaimsValidation()),
 	}
 	claims := jwt.StandardClaims{}
 	_, _, err := parser.ParseUnverified(u.AuthToken, &claims)
