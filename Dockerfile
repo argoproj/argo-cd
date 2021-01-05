@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=debian:10-slim
+ARG BASE_IMAGE=ubuntu:20.10
 ####################################################################################################
 # Builder image
 # Initial stage which pulls prepares build dependencies and CLI tooling we need for our final image
@@ -41,7 +41,7 @@ FROM $BASE_IMAGE as argocd-base
 
 USER root
 
-RUN echo 'deb http://deb.debian.org/debian buster-backports main' >> /etc/apt/sources.list
+ENV DEBIAN_FRONTEND=noninteractive
 
 RUN groupadd -g 999 argocd && \
     useradd -r -u 999 -g argocd argocd && \
@@ -50,6 +50,7 @@ RUN groupadd -g 999 argocd && \
     chmod g=u /home/argocd && \
     chmod g=u /etc/passwd && \
     apt-get update && \
+    apt-get dist-upgrade -y && \
     apt-get install -y git git-lfs python3-pip tini gpg && \
     apt-get clean && \
     pip3 install awscli==1.18.80 && \
