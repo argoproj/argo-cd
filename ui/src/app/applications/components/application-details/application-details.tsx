@@ -1,8 +1,7 @@
-import {Checkbox as ArgoCheckbox, DropDownMenu, FormField, MenuItem, NotificationType, SlidingPanel, Tab, Tabs, TopBarFilter} from 'argo-ui';
+import {Checkbox as ArgoCheckbox, DropDownMenu, NotificationType, SlidingPanel, Tab, Tabs, TopBarFilter} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
-import {Checkbox, Text} from 'react-form';
 import {RouteComponentProps} from 'react-router';
 import {BehaviorSubject, Observable} from 'rxjs';
 import {DataLoader, EmptyState, ErrorNotification, EventsList, ObservableQuery, Page, Paginate, YamlEditor} from '../../../shared/components';
@@ -10,12 +9,12 @@ import {AppContext} from '../../../shared/context';
 import * as appModels from '../../../shared/models';
 import {AppDetailsPreferences, AppsDetailsViewType, services} from '../../../shared/services';
 
-import {SyncStatuses} from '../../../shared/models';
 import {ApplicationConditions} from '../application-conditions/application-conditions';
 import {ApplicationDeploymentHistory} from '../application-deployment-history/application-deployment-history';
 import {ApplicationNodeInfo} from '../application-node-info/application-node-info';
 import {ApplicationOperationState} from '../application-operation-state/application-operation-state';
 import {ApplicationParameters} from '../application-parameters/application-parameters';
+import {PodView} from '../application-pod-view/pod-view';
 import {ApplicationResourceEvents} from '../application-resource-events/application-resource-events';
 import {ApplicationResourceTree, ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
 import {ApplicationResourcesDiff} from '../application-resources-diff/application-resources-diff';
@@ -24,14 +23,11 @@ import {ApplicationSummary} from '../application-summary/application-summary';
 import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-panel';
 import {PodsLogsViewer} from '../pod-logs-viewer/pod-logs-viewer';
 import * as AppUtils from '../utils';
-import {isSameNode, nodeKey} from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
 
 const jsonMergePatch = require('json-merge-patch');
 
 require('./application-details.scss');
-
-type ActionMenuItem = MenuItem & {disabled?: boolean};
 
 export class ApplicationDetails extends React.Component<RouteComponentProps<{name: string}>, {page: number}> {
     public static contextTypes = {
@@ -173,6 +169,14 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                             }}
                                                         />
                                                         <i
+                                                            className={classNames('fa fa-th', {selected: pref.view === 'pods'})}
+                                                            title='Pods'
+                                                            onClick={() => {
+                                                                this.appContext.apis.navigation.goto('.', {view: 'pods'});
+                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'pods'}});
+                                                            }}
+                                                        />
+                                                        <i
                                                             className={classNames('fa fa-network-wired', {selected: pref.view === 'network'})}
                                                             title='Network'
                                                             onClick={() => {
@@ -219,7 +223,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                     nodeFilter={node => this.filterTreeNode(node, treeFilter)}
                                                     selectedNodeFullName={this.selectedNodeKey}
                                                     onNodeClick={fullName => this.selectNode(fullName)}
-                                                    nodeMenu={node => this.renderResourceMenu(node, application)}
+                                                    nodeMenu={node =>
+                                                        AppUtils.renderResourceMenu(node, application, this.appContext, this.appChanged, () =>
+                                                            this.getApplicationActionMenu(application)
+                                                        )
+                                                    }
                                                     tree={tree}
                                                     app={application}
                                                     showOrphanedResources={pref.orphanedResources}
@@ -229,30 +237,46 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                         services.viewPreferences.updatePreferences({appDetails: {...pref, resourceFilter: []}});
                                                     }}
                                                 />
-                                            )) || (
-                                                <div>
-                                                    {(filteredRes.length > 0 && (
-                                                        <Paginate
-                                                            page={this.state.page}
-                                                            data={filteredRes}
-                                                            onPageChange={page => this.setState({page})}
-                                                            preferencesKey='application-details'>
-                                                            {data => (
-                                                                <ApplicationResourceList
-                                                                    onNodeClick={fullName => this.selectNode(fullName)}
-                                                                    resources={data}
-                                                                    nodeMenu={node => this.renderResourceMenu({...node, root: node}, application)}
-                                                                />
-                                                            )}
-                                                        </Paginate>
-                                                    )) || (
-                                                        <EmptyState icon='fa fa-search'>
-                                                            <h4>No resources found</h4>
-                                                            <h5>Try to change filter criteria</h5>
-                                                        </EmptyState>
-                                                    )}
-                                                </div>
-                                            )}
+                                            )) ||
+                                                (pref.view === 'pods' && (
+                                                    <PodView
+                                                        tree={tree}
+                                                        app={application}
+                                                        onItemClick={fullName => this.selectNode(fullName)}
+                                                        nodeMenu={node =>
+                                                            AppUtils.renderResourceMenu(node, application, this.appContext, this.appChanged, () =>
+                                                                this.getApplicationActionMenu(application)
+                                                            )
+                                                        }
+                                                    />
+                                                )) || (
+                                                    <div>
+                                                        {(filteredRes.length > 0 && (
+                                                            <Paginate
+                                                                page={this.state.page}
+                                                                data={filteredRes}
+                                                                onPageChange={page => this.setState({page})}
+                                                                preferencesKey='application-details'>
+                                                                {data => (
+                                                                    <ApplicationResourceList
+                                                                        onNodeClick={fullName => this.selectNode(fullName)}
+                                                                        resources={data}
+                                                                        nodeMenu={node =>
+                                                                            AppUtils.renderResourceMenu({...node, root: node}, application, this.appContext, this.appChanged, () =>
+                                                                                this.getApplicationActionMenu(application)
+                                                                            )
+                                                                        }
+                                                                    />
+                                                                )}
+                                                            </Paginate>
+                                                        )) || (
+                                                            <EmptyState icon='fa fa-search'>
+                                                                <h4>No resources found</h4>
+                                                                <h5>Try to change filter criteria</h5>
+                                                            </EmptyState>
+                                                        )}
+                                                    </div>
+                                                )}
                                         </div>
                                         <SlidingPanel isShown={selectedNode != null || isAppSelected} onClose={() => this.selectNode('')}>
                                             <div>
@@ -262,10 +286,15 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                         input={selectedNode.resourceVersion}
                                                         load={async () => {
                                                             const managedResources = await services.applications.managedResources(application.metadata.name, {
-                                                                id: {name: selectedNode.name, namespace: selectedNode.namespace, kind: selectedNode.kind, group: selectedNode.group}
+                                                                id: {
+                                                                    name: selectedNode.name,
+                                                                    namespace: selectedNode.namespace,
+                                                                    kind: selectedNode.kind,
+                                                                    group: selectedNode.group
+                                                                }
                                                             });
-                                                            const controlled = managedResources.find(item => isSameNode(selectedNode, item));
-                                                            const summary = application.status.resources.find(item => isSameNode(selectedNode, item));
+                                                            const controlled = managedResources.find(item => AppUtils.isSameNode(selectedNode, item));
+                                                            const summary = application.status.resources.find(item => AppUtils.isSameNode(selectedNode, item));
                                                             const controlledState = (controlled && summary && {summary, state: controlled}) || null;
                                                             const resQuery = {...selectedNode};
                                                             if (controlled && controlled.targetState) {
@@ -385,7 +414,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                 )}
                                             </div>
                                         </SlidingPanel>
-                                        <ApplicationSyncPanel application={application} hide={() => this.showDeploy(null)} selectedResource={syncResourceKey} />
+                                        <ApplicationSyncPanel
+                                            application={application}
+                                            hide={() => AppUtils.showDeploy(null, this.appContext)}
+                                            selectedResource={syncResourceKey}
+                                        />
                                         <SlidingPanel isShown={this.selectedRollbackDeploymentIndex > -1} onClose={() => this.setRollbackPanelVisible(-1)}>
                                             {this.selectedRollbackDeploymentIndex > -1 && (
                                                 <ApplicationDeploymentHistory
@@ -414,7 +447,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
 
     private getApplicationActionMenu(app: appModels.Application) {
         const refreshing = app.metadata.annotations && app.metadata.annotations[appModels.AnnotationRefreshKey];
-        const fullName = nodeKey({group: 'argoproj.io', kind: app.kind, name: app.metadata.name, namespace: app.metadata.namespace});
+        const fullName = AppUtils.nodeKey({group: 'argoproj.io', kind: app.kind, name: app.metadata.name, namespace: app.metadata.namespace});
         return [
             {
                 iconClassName: 'fa fa-info-circle',
@@ -425,12 +458,12 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                 iconClassName: 'fa fa-file-medical',
                 title: <span className='show-for-medium'>App Diff</span>,
                 action: () => this.selectNode(fullName, 0, 'diff'),
-                disabled: app.status.sync.status === SyncStatuses.Synced
+                disabled: app.status.sync.status === appModels.SyncStatuses.Synced
             },
             {
                 iconClassName: 'fa fa-sync',
                 title: <span className='show-for-medium'>Sync</span>,
-                action: () => this.showDeploy('all')
+                action: () => AppUtils.showDeploy('all', this.appContext)
             },
             {
                 iconClassName: 'fa fa-info-circle',
@@ -543,8 +576,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
 
     private groupAppNodesByKey(application: appModels.Application, tree: appModels.ApplicationTree) {
         const nodeByKey = new Map<string, appModels.ResourceDiff | appModels.ResourceNode | appModels.Application>();
-        tree.nodes.concat(tree.orphanedNodes || []).forEach(node => nodeByKey.set(nodeKey(node), node));
-        nodeByKey.set(nodeKey({group: 'argoproj.io', kind: application.kind, name: application.metadata.name, namespace: application.metadata.namespace}), application);
+        tree.nodes.concat(tree.orphanedNodes || []).forEach(node => nodeByKey.set(AppUtils.nodeKey(node), node));
+        nodeByKey.set(AppUtils.nodeKey({group: 'argoproj.io', kind: application.kind, name: application.metadata.name, namespace: application.metadata.namespace}), application);
         return nodeByKey;
     }
 
@@ -567,10 +600,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
             }
         }
         return {kind, health, sync};
-    }
-
-    private showDeploy(resource: string) {
-        this.appContext.apis.navigation.goto('.', {deploy: resource});
     }
 
     private setOperationStatusVisible(isVisible: boolean) {
@@ -620,124 +649,6 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
 
     private get appContext(): AppContext {
         return this.context as AppContext;
-    }
-
-    private renderResourceMenu(resource: ResourceTreeNode, application: appModels.Application): React.ReactNode {
-        let menuItems: Observable<ActionMenuItem[]>;
-        if (AppUtils.isAppNode(resource) && resource.name === application.metadata.name) {
-            menuItems = Observable.from([this.getApplicationActionMenu(application)]);
-        } else {
-            const isRoot = resource.root && AppUtils.nodeKey(resource.root) === AppUtils.nodeKey(resource);
-            const isManaged = !!resource.status;
-            const items: MenuItem[] = [
-                ...((isRoot && [
-                    {
-                        title: 'Sync',
-                        action: () => this.showDeploy(nodeKey(resource))
-                    }
-                ]) ||
-                    []),
-                {
-                    title: 'Delete',
-                    action: async () => {
-                        this.appContext.apis.popup.prompt(
-                            'Delete resource',
-                            api => (
-                                <div>
-                                    <p>
-                                        Are you sure you want to delete {resource.kind} '{resource.name}'?
-                                    </p>
-                                    {isManaged ? (
-                                        <div className='argo-form-row'>
-                                            <FormField
-                                                label={`Please type '${resource.name}' to confirm the deletion of the resource`}
-                                                formApi={api}
-                                                field='resourceName'
-                                                component={Text}
-                                            />
-                                        </div>
-                                    ) : (
-                                        ''
-                                    )}
-                                    <div className='argo-form-row'>
-                                        <Checkbox id='force-delete-checkbox' field='force' /> <label htmlFor='force-delete-checkbox'>Force delete</label>
-                                    </div>
-                                </div>
-                            ),
-                            {
-                                validate: vals => ({
-                                    resourceName: isManaged && vals.resourceName !== resource.name && 'Enter the resource name to confirm the deletion'
-                                }),
-                                submit: async (vals, _, close) => {
-                                    try {
-                                        await services.applications.deleteResource(this.props.match.params.name, resource, !!vals.force);
-                                        this.appChanged.next(await services.applications.get(this.props.match.params.name));
-                                        close();
-                                    } catch (e) {
-                                        this.appContext.apis.notifications.show({
-                                            content: <ErrorNotification title='Unable to delete resource' e={e} />,
-                                            type: NotificationType.Error
-                                        });
-                                    }
-                                }
-                            },
-                            {name: 'argo-icon-warning', color: 'warning'},
-                            'yellow'
-                        );
-                    }
-                }
-            ];
-            const resourceActions = services.applications
-                .getResourceActions(application.metadata.name, resource)
-                .then(actions =>
-                    items.concat(
-                        actions.map(action => ({
-                            title: action.name,
-                            disabled: !!action.disabled,
-                            action: async () => {
-                                try {
-                                    const confirmed = await this.appContext.apis.popup.confirm(
-                                        `Execute '${action.name}' action?`,
-                                        `Are you sure you want to execute '${action.name}' action?`
-                                    );
-                                    if (confirmed) {
-                                        await services.applications.runResourceAction(application.metadata.name, resource, action.name);
-                                    }
-                                } catch (e) {
-                                    this.appContext.apis.notifications.show({
-                                        content: <ErrorNotification title='Unable to execute resource action' e={e} />,
-                                        type: NotificationType.Error
-                                    });
-                                }
-                            }
-                        }))
-                    )
-                )
-                .catch(() => items);
-            menuItems = Observable.merge(Observable.from([items]), Observable.fromPromise(resourceActions));
-        }
-        return (
-            <DataLoader load={() => menuItems}>
-                {items => (
-                    <ul>
-                        {items.map((item, i) => (
-                            <li
-                                className={classNames('application-details__action-menu', {disabled: item.disabled})}
-                                key={i}
-                                onClick={e => {
-                                    e.stopPropagation();
-                                    if (!item.disabled) {
-                                        item.action();
-                                        document.body.click();
-                                    }
-                                }}>
-                                {item.iconClassName && <i className={item.iconClassName} />} {item.title}
-                            </li>
-                        ))}
-                    </ul>
-                )}
-            </DataLoader>
-        );
     }
 
     private async deleteApplication() {

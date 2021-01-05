@@ -1,6 +1,7 @@
 import {BehaviorSubject, Observable} from 'rxjs';
+import {PodGroupType} from '../../applications/components/application-pod-view/pod-view';
 
-export type AppsDetailsViewType = 'tree' | 'network' | 'list';
+export type AppsDetailsViewType = 'tree' | 'network' | 'list' | 'pods';
 
 export interface AppDetailsPreferences {
     resourceFilter: string[];
@@ -9,22 +10,19 @@ export interface AppDetailsPreferences {
     inlineDiff: boolean;
     compactDiff: boolean;
     orphanedResources: boolean;
+    podView: PodViewPreferences;
+}
+
+export interface PodViewPreferences {
+    sortMode: PodGroupType;
 }
 
 export type AppsListViewType = 'tiles' | 'list' | 'summary';
 
 export class AppsListPreferences {
     public static countEnabledFilters(pref: AppsListPreferences) {
-        // tslint:disable-next-line: prettier
-        return [
-            pref.clustersFilter,
-            pref.healthFilter,
-            pref.labelsFilter,
-            pref.namespacesFilter,
-            pref.projectsFilter,
-            pref.reposFilter,
-            pref.syncFilter
-        ].reduce((count, filter) => {
+        return [pref.clustersFilter, pref.healthFilter, pref.labelsFilter, pref.namespacesFilter, pref.projectsFilter, pref.reposFilter, pref.syncFilter].reduce(
+            (count, filter) => {
                 if (filter && filter.length > 0) {
                     return count + 1;
                 }
@@ -63,7 +61,7 @@ export interface ViewPreferences {
 
 const VIEW_PREFERENCES_KEY = 'view_preferences';
 
-const minVer = 4;
+const minVer = 5;
 
 const DEFAULT_PREFERENCES: ViewPreferences = {
     version: 1,
@@ -73,7 +71,10 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         inlineDiff: false,
         compactDiff: false,
         resourceView: 'manifest',
-        orphanedResources: false
+        orphanedResources: false,
+        podView: {
+            sortMode: 'node'
+        }
     },
     appList: {
         view: 'tiles' as AppsListViewType,

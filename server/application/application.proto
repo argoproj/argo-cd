@@ -28,6 +28,11 @@ message ApplicationQuery {
 	optional string selector = 5 [(gogoproto.nullable) = false];
 }
 
+message NodeQuery {
+	// the application's name
+	optional string name = 1;
+}
+
 message RevisionMetadataQuery{
 	// the application's name
 	required string name = 1;
@@ -352,5 +357,10 @@ service ApplicationService {
 	// PodLogs returns stream of log entries for the specified pod. Pod
 	rpc PodLogs(ApplicationPodLogsQuery) returns (stream LogEntry) {
 		option (google.api.http).get = "/api/v1/applications/{name}/pods/{podName}/logs";
+	}
+
+	// ListNodes returns nodes associated with an application
+	rpc ListNodes(NodeQuery) returns (k8s.io.api.core.v1.NodeList) {
+		option (google.api.http).get = "/api/v1/applications/{name}/nodes";
 	}
 }
