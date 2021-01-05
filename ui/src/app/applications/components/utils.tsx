@@ -148,6 +148,7 @@ export function renderResourceMenu(
         menuItems = Observable.from([getApplicationActionMenu()]);
     } else {
         const isRoot = resource.root && nodeKey(resource.root) === nodeKey(resource);
+        const isManaged = !!resource.status;
         const items: MenuItem[] = [
             ...((isRoot && [
                 {
@@ -164,16 +165,20 @@ export function renderResourceMenu(
                         api => (
                             <div>
                                 <p>
-                                    Are your sure you want to delete {resource.kind} '{resource.name}'?
+                                    Are you sure you want to delete {resource.kind} '{resource.name}'?
                                 </p>
-                                <div className='argo-form-row'>
-                                    <FormField
-                                        label={`Please type '${resource.name}' to confirm the deletion of the resource`}
-                                        formApi={api}
-                                        field='resourceName'
-                                        component={Text}
-                                    />
-                                </div>
+                                {isManaged ? (
+                                    <div className='argo-form-row'>
+                                        <FormField
+                                            label={`Please type '${resource.name}' to confirm the deletion of the resource`}
+                                            formApi={api}
+                                            field='resourceName'
+                                            component={Text}
+                                        />
+                                    </div>
+                                ) : (
+                                    ''
+                                )}
                                 <div className='argo-form-row'>
                                     <Checkbox id='force-delete-checkbox' field='force' /> <label htmlFor='force-delete-checkbox'>Force delete</label>
                                 </div>

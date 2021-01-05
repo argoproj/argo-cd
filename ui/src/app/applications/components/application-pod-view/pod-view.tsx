@@ -110,7 +110,7 @@ export class PodView extends React.Component<PodViewProps> {
                                                         {group.type === 'node' ? (
                                                             <div className='pod-view__node__info--large'>
                                                                 {(group.info || []).map(item => (
-                                                                    <div>
+                                                                    <div key={item.name}>
                                                                         {item.name}: <div>{item.value}</div>
                                                                     </div>
                                                                 ))}
@@ -125,7 +125,7 @@ export class PodView extends React.Component<PodViewProps> {
                                                                     </div>
                                                                 ) : null}
                                                                 {group.info.map(infoItem => (
-                                                                    <div>{infoItem.value}</div>
+                                                                    <div key={infoItem.name}>{infoItem.value}</div>
                                                                 ))}
                                                             </div>
                                                         )}
@@ -134,7 +134,7 @@ export class PodView extends React.Component<PodViewProps> {
                                                         {Object.keys((group as InfraNode).metrics || {}).length > 0 && (
                                                             <div className='pod-view__node__container pod-view__node__container--stats'>
                                                                 {Object.keys((group as InfraNode).metrics || {}).map(r =>
-                                                                    Stat(r as ResourceName, (group as InfraNode).metrics[r as ResourceName])
+                                                                    stat(r as ResourceName, (group as InfraNode).metrics[r as ResourceName])
                                                                 )}
                                                             </div>
                                                         )}
@@ -142,6 +142,7 @@ export class PodView extends React.Component<PodViewProps> {
                                                             <div className='pod-view__node__pod-container__pods'>
                                                                 {group.pods.map(pod => (
                                                                     <DropDownMenu
+                                                                        key={pod.uid}
                                                                         anchor={() => (
                                                                             <Tooltip
                                                                                 content={
@@ -382,7 +383,7 @@ function mergeResourceLists(a: ResourceList, b: ResourceList): ResourceList {
     return res;
 }
 
-function Stat(name: ResourceName, metric: Metric) {
+function stat(name: ResourceName, metric: Metric) {
     return (
         <div className='pod-view__node__pod__stat' key={name}>
             <Tooltip
