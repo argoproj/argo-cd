@@ -3,7 +3,7 @@ package rbacpolicy
 import (
 	"strings"
 
-	jwt "github.com/dgrijalva/jwt-go"
+	jwt "github.com/dgrijalva/jwt-go/v4"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"

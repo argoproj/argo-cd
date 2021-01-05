@@ -15,7 +15,7 @@ import (
 
 	"github.com/argoproj/pkg/jwt/zjwt"
 	gooidc "github.com/coreos/go-oidc"
-	"github.com/dgrijalva/jwt-go"
+	"github.com/dgrijalva/jwt-go/v4"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 
