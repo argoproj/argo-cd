@@ -8,7 +8,9 @@ connectivity issues.
 Argo CD provides multiple ways to customize system behavior and has a lot of settings. It might be dangerous to modify
 settings on Argo CD used in production by multiple users. Before applying settings you can use `argocd-util` binary to
 make sure that settings are valid and Argo CD is working as expected. The `argocd-util` binary is available in `argocd`
-image and might be used using docker. Example:
+image and might be used using docker. 
+You can download the latest `argocd-util` binary from [the latest release page of this repository](https://github.com/argoproj/argo-cd/releases/latest), which will include the `argocd-util` CLI.
+Example:
 
 ```bash
 docker run --rm -it -w /src -v $(pwd):/src argoproj/argocd:<version> \
