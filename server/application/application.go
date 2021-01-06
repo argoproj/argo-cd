@@ -245,13 +245,13 @@ func (s *Server) ListNodes(ctx context.Context, q *application.NodeQuery) (*v1.N
 	items := make([]v1.Node, 0)
 	for _, n := range nodes {
 		cur := *n
-		hostname := cur.ObjectMeta.Labels["kubernetes.io/hostname"]
-		if !nodeRefs[hostname] {
+		nodeName := cur.ObjectMeta.Name
+		if !nodeRefs[nodeName] {
 			continue
 		}
 		items = append(items, v1.Node{
 			ObjectMeta: metav1.ObjectMeta{
-				Labels: map[string]string{"kubernetes.io/hostname": hostname},
+				Name: nodeName,
 			},
 			Status: v1.NodeStatus{
 				Capacity:    cur.Status.Capacity,
