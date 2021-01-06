@@ -2,10 +2,6 @@
 
 Show application deployment history
 
-### Synopsis
-
-Show application deployment history
-
 ```
 argocd app history APPNAME [flags]
 ```

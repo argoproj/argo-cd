@@ -2,10 +2,6 @@
 
 Generate declarative configuration files
 
-### Synopsis
-
-Generate declarative configuration files
-
 ```
 argocd-util config [flags]
 ```

@@ -2,10 +2,6 @@
 
 Add a sync window to a project
 
-### Synopsis
-
-Add a sync window to a project
-
 ```
 argocd proj windows add PROJECT [flags]
 ```

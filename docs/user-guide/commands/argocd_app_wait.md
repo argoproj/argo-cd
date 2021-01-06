@@ -2,10 +2,6 @@
 
 Wait for an application to reach a synced and healthy state
 
-### Synopsis
-
-Wait for an application to reach a synced and healthy state
-
 ```
 argocd app wait [APPNAME.. | -l selector] [flags]
 ```

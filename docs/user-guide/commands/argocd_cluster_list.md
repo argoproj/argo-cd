@@ -2,10 +2,6 @@
 
 List configured clusters
 
-### Synopsis
-
-List configured clusters
-
 ```
 argocd cluster list [flags]
 ```

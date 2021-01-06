@@ -2,10 +2,6 @@
 
 argocd cluster add CONTEXT
 
-### Synopsis
-
-argocd cluster add CONTEXT
-
 ```
 argocd cluster add CONTEXT [flags]
 ```

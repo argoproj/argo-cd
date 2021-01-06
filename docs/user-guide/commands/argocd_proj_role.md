@@ -2,10 +2,6 @@
 
 Manage a project's roles
 
-### Synopsis
-
-Manage a project's roles
-
 ```
 argocd proj role [flags]
 ```

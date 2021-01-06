@@ -2,10 +2,6 @@
 
 Remove a policy from a role within a project
 
-### Synopsis
-
-Remove a policy from a role within a project
-
 ```
 argocd proj role remove-policy PROJECT ROLE-NAME [flags]
 ```
