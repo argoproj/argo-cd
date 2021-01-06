@@ -254,7 +254,7 @@ export class PodView extends React.Component<PodViewProps> {
 
         if (sortMode === 'node' && initNodes) {
             initNodes.forEach(infraNode => {
-                const nodeName = infraNode.metadata ? (infraNode.metadata.labels ? infraNode.metadata.labels['kubernetes.io/hostname'] : 'Unknown') : 'Unknown';
+                const nodeName = infraNode.metadata ? infraNode.metadata.name || 'Unknown' : 'Unknown';
                 groupRefs[nodeName] = {
                     ...infraNode,
                     type: 'node',
