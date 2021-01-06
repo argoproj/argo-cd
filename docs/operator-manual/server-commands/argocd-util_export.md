@@ -2,10 +2,6 @@
 
 Export all Argo CD data to stdout (default) or a file
 
-### Synopsis
-
-Export all Argo CD data to stdout (default) or a file
-
 ```
 argocd-util export [flags]
 ```

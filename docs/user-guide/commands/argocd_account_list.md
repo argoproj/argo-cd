@@ -2,10 +2,6 @@
 
 List accounts
 
-### Synopsis
-
-List accounts
-
 ```
 argocd account list [flags]
 ```

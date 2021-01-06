@@ -2,10 +2,6 @@
 
 Get user info
 
-### Synopsis
-
-Get user info
-
 ```
 argocd account get-user-info [flags]
 ```

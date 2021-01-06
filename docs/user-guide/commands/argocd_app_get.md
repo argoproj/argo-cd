@@ -2,10 +2,6 @@
 
 Get application details
 
-### Synopsis
-
-Get application details
-
 ```
 argocd app get APPNAME [flags]
 ```

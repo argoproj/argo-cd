@@ -3974,7 +3974,7 @@
       }
     },
     "v1Event": {
-      "description": "Event is a report of an event somewhere in the cluster.",
+      "description": "Event is a report of an event somewhere in the cluster.  Events\nhave a limited retention time and triggers and messages may evolve\nwith time.  Event consumers should not rely on the timing of an event\nwith a given Reason reflecting a consistent underlying trigger, or the\ncontinued existence of events with that Reason.  Events should be\ntreated as informative, best-effort, supplemental data.",
       "type": "object",
       "properties": {
         "action": {
@@ -4134,6 +4134,13 @@
         "ip": {
           "type": "string",
           "title": "IP is set for load-balancer ingress points that are IP based\n(typically GCE or OpenStack load-balancers)\n+optional"
+        },
+        "ports": {
+          "type": "array",
+          "title": "Ports is a list of records of service ports\nIf used, every port defined in the service should have an entry in it\n+listType=atomic\n+optional",
+          "items": {
+            "$ref": "#/definitions/v1PortStatus"
+          }
         }
       }
     },
@@ -4590,6 +4597,24 @@
         "uid": {
           "type": "string",
           "title": "UID of the referent.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#uids"
+        }
+      }
+    },
+    "v1PortStatus": {
+      "type": "object",
+      "properties": {
+        "error": {
+          "type": "string",
+          "title": "Error is to record the problem with the service port\nThe format of the error shall comply with the following rules:\n- built-in error values shall be specified in this file and those shall use\n  CamelCase names\n- cloud provider specific error values must have names that comply with the\n  format foo.example.com/CamelCase.\n---\nThe regex it matches is (dns1123SubdomainFmt/)?(qualifiedNameFmt)\n+optional\n+kubebuilder:validation:Required\n+kubebuilder:validation:Pattern=`^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$`\n+kubebuilder:validation:MaxLength=316"
+        },
+        "port": {
+          "type": "integer",
+          "format": "int32",
+          "title": "Port is the port number of the service port of which status is recorded here"
+        },
+        "protocol": {
+          "type": "string",
+          "title": "Protocol is the protocol of the service port of which status is recorded here\nThe supported values are: \"TCP\", \"UDP\", \"SCTP\""
         }
       }
     },

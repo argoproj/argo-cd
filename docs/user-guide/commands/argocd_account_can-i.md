@@ -2,10 +2,6 @@
 
 Can I
 
-### Synopsis
-
-Can I
-
 ```
 argocd account can-i ACTION RESOURCE SUBRESOURCE [flags]
 ```

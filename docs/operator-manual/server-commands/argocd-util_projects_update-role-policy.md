@@ -2,10 +2,6 @@
 
 Implement bulk project role update. Useful to back-fill existing project policies or remove obsolete actions.
 
-### Synopsis
-
-Implement bulk project role update. Useful to back-fill existing project policies or remove obsolete actions.
-
 ```
 argocd-util projects update-role-policy PROJECT_GLOB MODIFICATION ACTION [flags]
 ```

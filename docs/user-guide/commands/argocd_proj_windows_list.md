@@ -2,10 +2,6 @@
 
 List project sync windows
 
-### Synopsis
-
-List project sync windows
-
 ```
 argocd proj windows list PROJECT [flags]
 ```

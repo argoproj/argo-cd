@@ -2,10 +2,6 @@
 
 List configured repositories
 
-### Synopsis
-
-List configured repositories
-
 ```
 argocd repo list [flags]
 ```

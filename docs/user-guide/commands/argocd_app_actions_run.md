@@ -2,10 +2,6 @@
 
 Runs an available action on resource(s)
 
-### Synopsis
-
-Runs an available action on resource(s)
-
 ```
 argocd app actions run APPNAME ACTION [flags]
 ```

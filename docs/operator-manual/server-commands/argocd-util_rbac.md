@@ -2,10 +2,6 @@
 
 Validate and test RBAC configuration
 
-### Synopsis
-
-Validate and test RBAC configuration
-
 ```
 argocd-util rbac [flags]
 ```

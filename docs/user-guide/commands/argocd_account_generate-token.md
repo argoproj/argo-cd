@@ -2,10 +2,6 @@
 
 Generate account token
 
-### Synopsis
-
-Generate account token
-
 ```
 argocd account generate-token [flags]
 ```

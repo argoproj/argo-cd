@@ -2,10 +2,6 @@
 
 Removes a GPG public key from the server's keyring
 
-### Synopsis
-
-Removes a GPG public key from the server's keyring
-
 ```
 argocd gpg rm KEYID [flags]
 ```

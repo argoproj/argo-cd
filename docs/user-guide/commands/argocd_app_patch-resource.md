@@ -2,10 +2,6 @@
 
 Patch resource in an application
 
-### Synopsis
-
-Patch resource in an application
-
 ```
 argocd app patch-resource APPNAME [flags]
 ```

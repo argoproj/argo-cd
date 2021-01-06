@@ -2,10 +2,6 @@
 
 Update password
 
-### Synopsis
-
-Update password
-
 ```
 argocd account update-password [flags]
 ```

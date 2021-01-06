@@ -2,10 +2,6 @@
 
 List configured repository credentials
 
-### Synopsis
-
-List configured repository credentials
-
 ```
 argocd repocreds list [flags]
 ```

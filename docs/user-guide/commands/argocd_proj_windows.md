@@ -2,10 +2,6 @@
 
 Manage a project's sync windows
 
-### Synopsis
-
-Manage a project's sync windows
-
 ```
 argocd proj windows [flags]
 ```

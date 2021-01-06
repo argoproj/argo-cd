@@ -2,10 +2,6 @@
 
 Add SSH known host entries for repository servers
 
-### Synopsis
-
-Add SSH known host entries for repository servers
-
 ```
 argocd cert add-ssh --batch [flags]
 ```

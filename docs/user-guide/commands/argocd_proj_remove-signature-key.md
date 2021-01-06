@@ -2,10 +2,6 @@
 
 Remove GnuPG signature key from project
 
-### Synopsis
-
-Remove GnuPG signature key from project
-
 ```
 argocd proj remove-signature-key PROJECT KEY-ID [flags]
 ```

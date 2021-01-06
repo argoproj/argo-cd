@@ -2,10 +2,6 @@
 
 Troubleshoot resource overrides
 
-### Synopsis
-
-Troubleshoot resource overrides
-
 ```
 argocd-util settings resource-overrides [flags]
 ```

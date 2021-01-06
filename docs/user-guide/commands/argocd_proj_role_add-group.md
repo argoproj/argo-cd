@@ -2,10 +2,6 @@
 
 Add a group claim to a project role
 
-### Synopsis
-
-Add a group claim to a project role
-
 ```
 argocd proj role add-group PROJECT ROLE-NAME GROUP-CLAIM [flags]
 ```

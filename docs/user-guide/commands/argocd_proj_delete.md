@@ -2,10 +2,6 @@
 
 Delete project
 
-### Synopsis
-
-Delete project
-
 ```
 argocd proj delete PROJECT [flags]
 ```

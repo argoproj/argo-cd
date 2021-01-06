@@ -2,10 +2,6 @@
 
 Manage applications
 
-### Synopsis
-
-Manage applications
-
 ```
 argocd app [flags]
 ```

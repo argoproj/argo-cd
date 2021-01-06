@@ -2,10 +2,6 @@
 
 Set project parameters
 
-### Synopsis
-
-Set project parameters
-
 ```
 argocd proj set PROJECT [flags]
 ```

@@ -2,10 +2,6 @@
 
 Get account details
 
-### Synopsis
-
-Get account details
-
 ```
 argocd account get [flags]
 ```

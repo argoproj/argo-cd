@@ -2,10 +2,6 @@
 
 Delete a project token
 
-### Synopsis
-
-Delete a project token
-
 ```
 argocd proj role delete-token PROJECT ROLE-NAME ISSUED-AT [flags]
 ```

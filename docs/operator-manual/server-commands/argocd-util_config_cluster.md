@@ -2,10 +2,6 @@
 
 Generate declarative config for a cluster
 
-### Synopsis
-
-Generate declarative config for a cluster
-
 ```
 argocd-util config cluster CONTEXT [flags]
 ```

@@ -2,10 +2,6 @@
 
 Add a resource to orphaned ignore list
 
-### Synopsis
-
-Add a resource to orphaned ignore list
-
 ```
 argocd proj add-orphaned-ignore PROJECT GROUP KIND [flags]
 ```
