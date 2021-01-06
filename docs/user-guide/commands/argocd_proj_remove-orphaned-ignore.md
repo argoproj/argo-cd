@@ -2,10 +2,6 @@
 
 Remove a resource from orphaned ignore list
 
-### Synopsis
-
-Remove a resource from orphaned ignore list
-
 ```
 argocd proj remove-orphaned-ignore PROJECT GROUP KIND NAME [flags]
 ```

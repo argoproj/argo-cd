@@ -2,10 +2,6 @@
 
 Utility commands operate on ArgoCD applications
 
-### Synopsis
-
-Utility commands operate on ArgoCD applications
-
 ```
 argocd-util apps [flags]
 ```

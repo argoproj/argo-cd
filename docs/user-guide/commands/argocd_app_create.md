@@ -2,10 +2,6 @@
 
 Create an application
 
-### Synopsis
-
-Create an application
-
 ```
 argocd app create APPNAME [flags]
 ```

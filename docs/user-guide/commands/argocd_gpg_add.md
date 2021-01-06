@@ -2,10 +2,6 @@
 
 Adds a GPG public key to the server's keyring
 
-### Synopsis
-
-Adds a GPG public key to the server's keyring
-
 ```
 argocd gpg add [flags]
 ```

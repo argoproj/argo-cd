@@ -2,10 +2,6 @@
 
 Generates a dex config from Argo CD settings
 
-### Synopsis
-
-Generates a dex config from Argo CD settings
-
 ```
 argocd-util gendexcfg [flags]
 ```

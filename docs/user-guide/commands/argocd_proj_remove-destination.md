@@ -2,10 +2,6 @@
 
 Remove project destination
 
-### Synopsis
-
-Remove project destination
-
 ```
 argocd proj remove-destination PROJECT SERVER NAMESPACE [flags]
 ```

@@ -2,10 +2,6 @@
 
 Delete an application
 
-### Synopsis
-
-Delete an application
-
 ```
 argocd app delete APPNAME [flags]
 ```

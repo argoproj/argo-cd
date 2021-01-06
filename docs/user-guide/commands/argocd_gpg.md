@@ -2,10 +2,6 @@
 
 Manage GPG keys used for signature verification
 
-### Synopsis
-
-Manage GPG keys used for signature verification
-
 ```
 argocd gpg [flags]
 ```

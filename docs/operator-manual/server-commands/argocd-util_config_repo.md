@@ -2,10 +2,6 @@
 
 Generate declarative config for a repo
 
-### Synopsis
-
-Generate declarative config for a repo
-
 ```
 argocd-util config repo REPOURL [flags]
 ```

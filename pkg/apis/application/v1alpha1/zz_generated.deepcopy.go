@@ -1670,7 +1670,9 @@ func (in *ResourceNetworkingInfo) DeepCopyInto(out *ResourceNetworkingInfo) {
 	if in.Ingress != nil {
 		in, out := &in.Ingress, &out.Ingress
 		*out = make([]corev1.LoadBalancerIngress, len(*in))
-		copy(*out, *in)
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
 	}
 	if in.ExternalURLs != nil {
 		in, out := &in.ExternalURLs, &out.ExternalURLs
