@@ -170,10 +170,7 @@ func (a *ApplicationSource) IsHelmOci() bool {
 	if a.Chart == "" {
 		return false
 	}
-	if _, _, ok := helm.IsHelmOci(a.Chart); ok {
-		return true
-	}
-	return false
+	return helm.IsHelmOciChart(a.Chart)
 }
 
 func (a *ApplicationSource) IsZero() bool {

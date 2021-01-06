@@ -1293,7 +1293,7 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 		if helm.IsVersion(ambiguousRevision) {
 			return ambiguousRevision, ambiguousRevision, nil
 		}
-		client := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI)
+		client := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI || app.Spec.Source.IsHelmOci())
 		index, err := client.GetIndex()
 		if err != nil {
 			return "", "", err

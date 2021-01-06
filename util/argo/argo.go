@@ -131,12 +131,8 @@ func TestRepoWithKnownType(repo *argoappv1.Repository, isHelm bool, isHelmOci bo
 	} else {
 		repo.Type = "git"
 	}
+	repo.EnableOCI = repo.EnableOCI || isHelmOci
 
-	if isHelmOci {
-		repo.EnableOCI = true
-	} else {
-		repo.EnableOCI = false
-	}
 	return TestRepo(repo)
 }
 
