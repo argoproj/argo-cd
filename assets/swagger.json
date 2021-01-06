@@ -688,6 +688,38 @@
         }
       }
     },
+    "/api/v1/applications/{name}/nodes": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "ListNodes returns nodes associated with an application",
+        "operationId": "ApplicationService_ListNodes",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "the application's name",
+            "name": "name",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1NodeList"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applications/{name}/operation": {
       "delete": {
         "tags": [
@@ -3772,6 +3804,15 @@
     "repositoryRepoResponse": {
       "type": "object"
     },
+    "resourceQuantity": {
+      "description": "Quantity is a fixed-point representation of a number.\nIt provides convenient marshaling/unmarshaling in JSON and YAML,\nin addition to String() and AsInt64() accessors.\n\nThe serialization format is:\n\n<quantity>        ::= <signedNumber><suffix>\n  (Note that <suffix> may be empty, from the \"\" case in <decimalSI>.)\n<digit>           ::= 0 | 1 | ... | 9\n<digits>          ::= <digit> | <digit><digits>\n<number>          ::= <digits> | <digits>.<digits> | <digits>. | .<digits>\n<sign>            ::= \"+\" | \"-\"\n<signedNumber>    ::= <number> | <sign><number>\n<suffix>          ::= <binarySI> | <decimalExponent> | <decimalSI>\n<binarySI>        ::= Ki | Mi | Gi | Ti | Pi | Ei\n  (International System of units; See: http://physics.nist.gov/cuu/Units/binary.html)\n<decimalSI>       ::= m | \"\" | k | M | G | T | P | E\n  (Note that 1024 = 1Ki but 1000 = 1k; I didn't choose the capitalization.)\n<decimalExponent> ::= \"e\" <signedNumber> | \"E\" <signedNumber>\n\nNo matter which of the three exponent forms is used, no quantity may represent\na number greater than 2^63-1 in magnitude, nor may it have more than 3 decimal\nplaces. Numbers larger or more precise will be capped or rounded up.\n(E.g.: 0.1m will rounded up to 1m.)\nThis may be extended in the future if we require larger or smaller quantities.\n\nWhen a Quantity is parsed from a string, it will remember the type of suffix\nit had, and will use the same type again when it is serialized.\n\nBefore serializing, Quantity will be put in \"canonical form\".\nThis means that Exponent/suffix will be adjusted up or down (with a\ncorresponding increase or decrease in Mantissa) such that:\n  a. No precision is lost\n  b. No fractional digits will be emitted\n  c. The exponent (or suffix) is as large as possible.\nThe sign will be omitted unless the number is negative.\n\nExamples:\n  1.5 will be serialized as \"1500m\"\n  1.5Gi will be serialized as \"1536Mi\"\n\nNote that the quantity will NEVER be internally represented by a\nfloating point number. That is the whole point of this exercise.\n\nNon-canonical values will still parse as long as they are well formed,\nbut will be re-emitted in their canonical form. (So always use canonical\nform, or don't diff.)\n\nThis format is intended to make it difficult to use these numbers without\nwriting some sort of special handling code in the hopes that that will\ncause implementors to also use a fixed point implementation.\n\n+protobuf=true\n+protobuf.embed=string\n+protobuf.options.marshal=false\n+protobuf.options.(gogoproto.goproto_stringer)=false\n+k8s:deepcopy-gen=true\n+k8s:openapi-gen=true",
+      "type": "object",
+      "properties": {
+        "string": {
+          "type": "string"
+        }
+      }
+    },
     "runtimeError": {
       "type": "object",
       "properties": {
@@ -3863,8 +3904,77 @@
         }
       }
     },
+    "v1AttachedVolume": {
+      "type": "object",
+      "title": "AttachedVolume describes a volume attached to a node",
+      "properties": {
+        "devicePath": {
+          "type": "string",
+          "title": "DevicePath represents the device path where the volume should be available"
+        },
+        "name": {
+          "type": "string",
+          "title": "Name of the attached volume"
+        }
+      }
+    },
+    "v1ConfigMapNodeConfigSource": {
+      "description": "ConfigMapNodeConfigSource contains the information to reference a ConfigMap as a config source for the Node.",
+      "type": "object",
+      "properties": {
+        "kubeletConfigKey": {
+          "description": "KubeletConfigKey declares which key of the referenced ConfigMap corresponds to the KubeletConfiguration structure\nThis field is required in all cases.",
+          "type": "string"
+        },
+        "name": {
+          "description": "Name is the metadata.name of the referenced ConfigMap.\nThis field is required in all cases.",
+          "type": "string"
+        },
+        "namespace": {
+          "description": "Namespace is the metadata.namespace of the referenced ConfigMap.\nThis field is required in all cases.",
+          "type": "string"
+        },
+        "resourceVersion": {
+          "type": "string",
+          "title": "ResourceVersion is the metadata.ResourceVersion of the referenced ConfigMap.\nThis field is forbidden in Node.Spec, and required in Node.Status.\n+optional"
+        },
+        "uid": {
+          "type": "string",
+          "title": "UID is the metadata.UID of the referenced ConfigMap.\nThis field is forbidden in Node.Spec, and required in Node.Status.\n+optional"
+        }
+      }
+    },
+    "v1ContainerImage": {
+      "type": "object",
+      "title": "Describe a container image",
+      "properties": {
+        "names": {
+          "type": "array",
+          "title": "Names by which this image is known.\ne.g. [\"k8s.gcr.io/hyperkube:v1.0.7\", \"dockerhub.io/google_containers/hyperkube:v1.0.7\"]",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sizeBytes": {
+          "type": "string",
+          "format": "int64",
+          "title": "The size of the image in bytes.\n+optional"
+        }
+      }
+    },
+    "v1DaemonEndpoint": {
+      "description": "DaemonEndpoint contains information about a single Daemon endpoint.",
+      "type": "object",
+      "properties": {
+        "Port": {
+          "description": "Port number of the given endpoint.",
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
     "v1Event": {
-      "description": "Event is a report of an event somewhere in the cluster.",
+      "description": "Event is a report of an event somewhere in the cluster.  Events\nhave a limited retention time and triggers and messages may evolve\nwith time.  Event consumers should not rely on the timing of an event\nwith a given Reason reflecting a consistent underlying trigger, or the\ncontinued existence of events with that Reason.  Events should be\ntreated as informative, best-effort, supplemental data.",
       "type": "object",
       "properties": {
         "action": {
@@ -4024,6 +4134,13 @@
         "ip": {
           "type": "string",
           "title": "IP is set for load-balancer ingress points that are IP based\n(typically GCE or OpenStack load-balancers)\n+optional"
+        },
+        "ports": {
+          "type": "array",
+          "title": "Ports is a list of records of service ports\nIf used, every port defined in the service should have an entry in it\n+listType=atomic\n+optional",
+          "items": {
+            "$ref": "#/definitions/v1PortStatus"
+          }
         }
       }
     },
@@ -4068,6 +4185,269 @@
           "description": "Represents seconds of UTC time since Unix epoch\n1970-01-01T00:00:00Z. Must be from 0001-01-01T00:00:00Z to\n9999-12-31T23:59:59Z inclusive.",
           "type": "string",
           "format": "int64"
+        }
+      }
+    },
+    "v1Node": {
+      "description": "Node is a worker node in Kubernetes.\nEach node will have a unique identifier in the cache (i.e. in etcd).",
+      "type": "object",
+      "properties": {
+        "metadata": {
+          "$ref": "#/definitions/v1ObjectMeta"
+        },
+        "spec": {
+          "$ref": "#/definitions/v1NodeSpec"
+        },
+        "status": {
+          "$ref": "#/definitions/v1NodeStatus"
+        }
+      }
+    },
+    "v1NodeAddress": {
+      "description": "NodeAddress contains information for the node's address.",
+      "type": "object",
+      "properties": {
+        "address": {
+          "description": "The node address.",
+          "type": "string"
+        },
+        "type": {
+          "description": "Node address type, one of Hostname, ExternalIP or InternalIP.",
+          "type": "string"
+        }
+      }
+    },
+    "v1NodeCondition": {
+      "description": "NodeCondition contains condition information for a node.",
+      "type": "object",
+      "properties": {
+        "lastHeartbeatTime": {
+          "$ref": "#/definitions/v1Time"
+        },
+        "lastTransitionTime": {
+          "$ref": "#/definitions/v1Time"
+        },
+        "message": {
+          "type": "string",
+          "title": "Human readable message indicating details about last transition.\n+optional"
+        },
+        "reason": {
+          "type": "string",
+          "title": "(brief) reason for the condition's last transition.\n+optional"
+        },
+        "status": {
+          "description": "Status of the condition, one of True, False, Unknown.",
+          "type": "string"
+        },
+        "type": {
+          "description": "Type of node condition.",
+          "type": "string"
+        }
+      }
+    },
+    "v1NodeConfigSource": {
+      "description": "NodeConfigSource specifies a source of node configuration. Exactly one subfield (excluding metadata) must be non-nil.",
+      "type": "object",
+      "properties": {
+        "configMap": {
+          "$ref": "#/definitions/v1ConfigMapNodeConfigSource"
+        }
+      }
+    },
+    "v1NodeConfigStatus": {
+      "description": "NodeConfigStatus describes the status of the config assigned by Node.Spec.ConfigSource.",
+      "type": "object",
+      "properties": {
+        "active": {
+          "$ref": "#/definitions/v1NodeConfigSource"
+        },
+        "assigned": {
+          "$ref": "#/definitions/v1NodeConfigSource"
+        },
+        "error": {
+          "type": "string",
+          "title": "Error describes any problems reconciling the Spec.ConfigSource to the Active config.\nErrors may occur, for example, attempting to checkpoint Spec.ConfigSource to the local Assigned\nrecord, attempting to checkpoint the payload associated with Spec.ConfigSource, attempting\nto load or validate the Assigned config, etc.\nErrors may occur at different points while syncing config. Earlier errors (e.g. download or\ncheckpointing errors) will not result in a rollback to LastKnownGood, and may resolve across\nKubelet retries. Later errors (e.g. loading or validating a checkpointed config) will result in\na rollback to LastKnownGood. In the latter case, it is usually possible to resolve the error\nby fixing the config assigned in Spec.ConfigSource.\nYou can find additional information for debugging by searching the error message in the Kubelet log.\nError is a human-readable description of the error state; machines can check whether or not Error\nis empty, but should not rely on the stability of the Error text across Kubelet versions.\n+optional"
+        },
+        "lastKnownGood": {
+          "$ref": "#/definitions/v1NodeConfigSource"
+        }
+      }
+    },
+    "v1NodeDaemonEndpoints": {
+      "description": "NodeDaemonEndpoints lists ports opened by daemons running on the Node.",
+      "type": "object",
+      "properties": {
+        "kubeletEndpoint": {
+          "$ref": "#/definitions/v1DaemonEndpoint"
+        }
+      }
+    },
+    "v1NodeList": {
+      "description": "NodeList is the whole list of all Nodes which have been registered with master.",
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "title": "List of nodes",
+          "items": {
+            "$ref": "#/definitions/v1Node"
+          }
+        },
+        "metadata": {
+          "$ref": "#/definitions/v1ListMeta"
+        }
+      }
+    },
+    "v1NodeSpec": {
+      "description": "NodeSpec describes the attributes that a node is created with.",
+      "type": "object",
+      "properties": {
+        "configSource": {
+          "$ref": "#/definitions/v1NodeConfigSource"
+        },
+        "externalID": {
+          "type": "string",
+          "title": "Deprecated. Not all kubelets will set this field. Remove field after 1.13.\nsee: https://issues.k8s.io/61966\n+optional"
+        },
+        "podCIDR": {
+          "type": "string",
+          "title": "PodCIDR represents the pod IP range assigned to the node.\n+optional"
+        },
+        "podCIDRs": {
+          "type": "array",
+          "title": "podCIDRs represents the IP ranges assigned to the node for usage by Pods on that node. If this\nfield is specified, the 0th entry must match the podCIDR field. It may contain at most 1 value for\neach of IPv4 and IPv6.\n+optional\n+patchStrategy=merge",
+          "items": {
+            "type": "string"
+          }
+        },
+        "providerID": {
+          "type": "string",
+          "title": "ID of the node assigned by the cloud provider in the format: <ProviderName>://<ProviderSpecificNodeID>\n+optional"
+        },
+        "taints": {
+          "type": "array",
+          "title": "If specified, the node's taints.\n+optional",
+          "items": {
+            "$ref": "#/definitions/v1Taint"
+          }
+        },
+        "unschedulable": {
+          "type": "boolean",
+          "title": "Unschedulable controls node schedulability of new pods. By default, node is schedulable.\nMore info: https://kubernetes.io/docs/concepts/nodes/node/#manual-node-administration\n+optional"
+        }
+      }
+    },
+    "v1NodeStatus": {
+      "description": "NodeStatus is information about the current status of a node.",
+      "type": "object",
+      "properties": {
+        "addresses": {
+          "type": "array",
+          "title": "List of addresses reachable to the node.\nQueried from cloud provider, if available.\nMore info: https://kubernetes.io/docs/concepts/nodes/node/#addresses\nNote: This field is declared as mergeable, but the merge key is not sufficiently\nunique, which can cause data corruption when it is merged. Callers should instead\nuse a full-replacement patch. See http://pr.k8s.io/79391 for an example.\n+optional\n+patchMergeKey=type\n+patchStrategy=merge",
+          "items": {
+            "$ref": "#/definitions/v1NodeAddress"
+          }
+        },
+        "allocatable": {
+          "type": "object",
+          "title": "Allocatable represents the resources of a node that are available for scheduling.\nDefaults to Capacity.\n+optional",
+          "additionalProperties": {
+            "$ref": "#/definitions/resourceQuantity"
+          }
+        },
+        "capacity": {
+          "type": "object",
+          "title": "Capacity represents the total resources of a node.\nMore info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#capacity\n+optional",
+          "additionalProperties": {
+            "$ref": "#/definitions/resourceQuantity"
+          }
+        },
+        "conditions": {
+          "type": "array",
+          "title": "Conditions is an array of current observed node conditions.\nMore info: https://kubernetes.io/docs/concepts/nodes/node/#condition\n+optional\n+patchMergeKey=type\n+patchStrategy=merge",
+          "items": {
+            "$ref": "#/definitions/v1NodeCondition"
+          }
+        },
+        "config": {
+          "$ref": "#/definitions/v1NodeConfigStatus"
+        },
+        "daemonEndpoints": {
+          "$ref": "#/definitions/v1NodeDaemonEndpoints"
+        },
+        "images": {
+          "type": "array",
+          "title": "List of container images on this node\n+optional",
+          "items": {
+            "$ref": "#/definitions/v1ContainerImage"
+          }
+        },
+        "nodeInfo": {
+          "$ref": "#/definitions/v1NodeSystemInfo"
+        },
+        "phase": {
+          "type": "string",
+          "title": "NodePhase is the recently observed lifecycle phase of the node.\nMore info: https://kubernetes.io/docs/concepts/nodes/node/#phase\nThe field is never populated, and now is deprecated.\n+optional"
+        },
+        "volumesAttached": {
+          "type": "array",
+          "title": "List of volumes that are attached to the node.\n+optional",
+          "items": {
+            "$ref": "#/definitions/v1AttachedVolume"
+          }
+        },
+        "volumesInUse": {
+          "type": "array",
+          "title": "List of attachable volumes in use (mounted) by the node.\n+optional",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "v1NodeSystemInfo": {
+      "description": "NodeSystemInfo is a set of ids/uuids to uniquely identify the node.",
+      "type": "object",
+      "properties": {
+        "architecture": {
+          "type": "string",
+          "title": "The Architecture reported by the node"
+        },
+        "bootID": {
+          "description": "Boot ID reported by the node.",
+          "type": "string"
+        },
+        "containerRuntimeVersion": {
+          "description": "ContainerRuntime Version reported by the node through runtime remote API (e.g. docker://1.5.0).",
+          "type": "string"
+        },
+        "kernelVersion": {
+          "description": "Kernel Version reported by the node from 'uname -r' (e.g. 3.16.0-0.bpo.4-amd64).",
+          "type": "string"
+        },
+        "kubeProxyVersion": {
+          "description": "KubeProxy Version reported by the node.",
+          "type": "string"
+        },
+        "kubeletVersion": {
+          "description": "Kubelet Version reported by the node.",
+          "type": "string"
+        },
+        "machineID": {
+          "type": "string",
+          "title": "MachineID reported by the node. For unique machine identification\nin the cluster this field is preferred. Learn more from man(5)\nmachine-id: http://man7.org/linux/man-pages/man5/machine-id.5.html"
+        },
+        "operatingSystem": {
+          "type": "string",
+          "title": "The Operating System reported by the node"
+        },
+        "osImage": {
+          "description": "OS Image reported by the node from /etc/os-release (e.g. Debian GNU/Linux 7 (wheezy)).",
+          "type": "string"
+        },
+        "systemUUID": {
+          "type": "string",
+          "title": "SystemUUID reported by the node. For unique machine identification\nMachineID is preferred. This field is specific to Red Hat hosts\nhttps://access.redhat.com/documentation/en-us/red_hat_subscription_management/1/html/rhsm/uuid"
         }
       }
     },
@@ -4217,6 +4597,45 @@
         "uid": {
           "type": "string",
           "title": "UID of the referent.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#uids"
+        }
+      }
+    },
+    "v1PortStatus": {
+      "type": "object",
+      "properties": {
+        "error": {
+          "type": "string",
+          "title": "Error is to record the problem with the service port\nThe format of the error shall comply with the following rules:\n- built-in error values shall be specified in this file and those shall use\n  CamelCase names\n- cloud provider specific error values must have names that comply with the\n  format foo.example.com/CamelCase.\n---\nThe regex it matches is (dns1123SubdomainFmt/)?(qualifiedNameFmt)\n+optional\n+kubebuilder:validation:Required\n+kubebuilder:validation:Pattern=`^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$`\n+kubebuilder:validation:MaxLength=316"
+        },
+        "port": {
+          "type": "integer",
+          "format": "int32",
+          "title": "Port is the port number of the service port of which status is recorded here"
+        },
+        "protocol": {
+          "type": "string",
+          "title": "Protocol is the protocol of the service port of which status is recorded here\nThe supported values are: \"TCP\", \"UDP\", \"SCTP\""
+        }
+      }
+    },
+    "v1Taint": {
+      "description": "The node this Taint is attached to has the \"effect\" on\nany pod that does not tolerate the Taint.",
+      "type": "object",
+      "properties": {
+        "effect": {
+          "description": "Required. The effect of the taint on pods\nthat do not tolerate the taint.\nValid effects are NoSchedule, PreferNoSchedule and NoExecute.",
+          "type": "string"
+        },
+        "key": {
+          "description": "Required. The taint key to be applied to a node.",
+          "type": "string"
+        },
+        "timeAdded": {
+          "$ref": "#/definitions/v1Time"
+        },
+        "value": {
+          "type": "string",
+          "title": "The taint value corresponding to the taint key.\n+optional"
         }
       }
     },

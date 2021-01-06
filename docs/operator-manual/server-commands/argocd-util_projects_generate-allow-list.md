@@ -2,10 +2,6 @@
 
 Generates project allow list from the specified clusterRole file
 
-### Synopsis
-
-Generates project allow list from the specified clusterRole file
-
 ```
 argocd-util projects generate-allow-list CLUSTERROLE_PATH PROJ_NAME [flags]
 ```

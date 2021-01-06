@@ -1,4 +1,4 @@
-import {DropDown} from 'argo-ui';
+import {DropDown, Tooltip} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as dagre from 'dagre';
 import * as React from 'react';
@@ -218,7 +218,7 @@ export const describeNode = (node: ResourceTreeNode) => {
     return lines.join('\n');
 };
 
-function renderResourceNode(props: ApplicationResourceTreeProps, id: string, node: (ResourceTreeNode) & dagre.Node) {
+function renderResourceNode(props: ApplicationResourceTreeProps, id: string, node: ResourceTreeNode & dagre.Node) {
     const fullName = nodeKey(node);
     let comparisonStatus: models.SyncStatusCode = null;
     let healthState: models.HealthStatus = null;
@@ -274,11 +274,27 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                         {node.createdAt || props.app.metadata.creationTimestamp}
                     </Moment>
                 ) : null}
-                {(node.info || []).map((tag, i) => (
-                    <span className='application-resource-tree__node-label' title={`${tag.name}:${tag.value}`} key={i}>
-                        {tag.value}
-                    </span>
-                ))}
+                {(node.info || [])
+                    .filter(tag => !tag.name.includes('Resource.') && !tag.name.includes('Node'))
+                    .slice(0, 4)
+                    .map((tag, i) => (
+                        <span className='application-resource-tree__node-label' title={`${tag.name}:${tag.value}`} key={i}>
+                            {tag.value}
+                        </span>
+                    ))}
+                {(node.info || []).length > 4 && (
+                    <Tooltip
+                        content={(node.info || []).map(i => (
+                            <div key={i.name}>
+                                {i.name}: {i.value}
+                            </div>
+                        ))}
+                        key={node.uid}>
+                        <span className='application-resource-tree__node-label' title='More'>
+                            More
+                        </span>
+                    </Tooltip>
+                )}
             </div>
             {props.nodeMenu && (
                 <div className='application-resource-tree__node-menu'>
@@ -510,7 +526,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                         case NODE_TYPES.externalLoadBalancer:
                             return <React.Fragment key={key}>{renderLoadBalancerNode(node as any)}</React.Fragment>;
                         default:
-                            return <React.Fragment key={key}>{renderResourceNode(props, key, node as (ResourceTreeNode) & dagre.Node)}</React.Fragment>;
+                            return <React.Fragment key={key}>{renderResourceNode(props, key, node as ResourceTreeNode & dagre.Node)}</React.Fragment>;
                     }
                 })}
                 {edges.map(edge => (

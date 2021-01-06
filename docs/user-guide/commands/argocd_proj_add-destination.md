@@ -2,10 +2,6 @@
 
 Add project destination
 
-### Synopsis
-
-Add project destination
-
 ```
 argocd proj add-destination PROJECT SERVER NAMESPACE [flags]
 ```
