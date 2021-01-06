@@ -1752,7 +1752,8 @@ include the fix <a href="https://github.com/kubernetes/kubernetes/pull/67570">ku
 </ul>
 <p>As workaround Argo CD allows providing <a href="../operator-manual/health/">health check</a> customization which overrides default behavior.</p>
 <h2 id="i-forgot-the-admin-password-how-do-i-reset-it">I forgot the admin password, how do I reset it?<a class="headerlink" href="#i-forgot-the-admin-password-how-do-i-reset-it" title="Permanent link">&para;</a></h2>
-<p>By default the password is set to the name of the server pod, as per <a href="../getting_started/">the getting started guide</a>.</p>
+<p>For Argo CD v1.8 and earlier, the initial password is set to the name of the server pod, as per <a href="../getting_started/">the getting started guide</a>.
+For Argo CD v1.9 and later, the initial password is available from a secret named <code>argocd-initial-admin-password</code>.</p>
 <p>To change the password, edit the <code>argocd-secret</code> secret and update the <code>admin.password</code> field with a new bcrypt hash. You
 can use a site like <a href="https://www.browserling.com/tools/bcrypt">https://www.browserling.com/tools/bcrypt</a> to generate a new hash. For example:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1"># bcrypt(password)=$2a$10$rRyBsGSHK6.uc8fntPwVIuLVHgsAhAX7TcdrqW/RADU0uh7CaChLa</span>
@@ -1763,7 +1764,9 @@ kubectl -n argocd patch secret argocd-secret <span class="se">\</span>
 <span class="s1">  }}&#39;</span>
 </code></pre></div>
 
-<p>Another option is to delete both the <code>admin.password</code> and <code>admin.passwordMtime</code> keys and restart argocd-server. This will set the password back to the pod name as per <a href="../getting_started/">the getting started guide</a>.</p>
+<p>Another option is to delete both the <code>admin.password</code> and <code>admin.passwordMtime</code> keys and restart argocd-server. This will generate
+a new password as per <a href="../getting_started/">the getting started guide</a>, so either to the name of the pod (Argo CD 1.8 and earlier)
+or a randomly generated password stored in a secret (Argo CD 1.9 and later).</p>
 <h2 id="how-to-disable-admin-user">How to disable admin user?<a class="headerlink" href="#how-to-disable-admin-user" title="Permanent link">&para;</a></h2>
 <p>Add <code>admin.enabled: "false"</code> to the <code>argocd-cm</code> ConfigMap (see <a href="../operator-manual/user-management/">user management</a>).</p>
 <h2 id="argo-cd-cannot-deploy-helm-chart-based-applications-without-internet-access-how-can-i-solve-it">Argo CD cannot deploy Helm Chart based applications without internet access, how can I solve it?<a class="headerlink" href="#argo-cd-cannot-deploy-helm-chart-based-applications-without-internet-access-how-can-i-solve-it" title="Permanent link">&para;</a></h2>
