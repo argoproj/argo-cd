@@ -2,10 +2,6 @@
 
 Add a policy to a project role
 
-### Synopsis
-
-Add a policy to a project role
-
 ```
 argocd proj role add-policy PROJECT ROLE-NAME [flags]
 ```

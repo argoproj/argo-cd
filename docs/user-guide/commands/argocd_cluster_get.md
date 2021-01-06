@@ -2,10 +2,6 @@
 
 Get cluster information
 
-### Synopsis
-
-Get cluster information
-
 ```
 argocd cluster get SERVER [flags]
 ```

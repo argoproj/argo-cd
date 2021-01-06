@@ -2,10 +2,6 @@
 
 Unset application parameters
 
-### Synopsis
-
-Unset application parameters
-
 ```
 argocd app unset APPNAME parameters [flags]
 ```

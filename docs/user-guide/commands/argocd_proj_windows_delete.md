@@ -2,10 +2,6 @@
 
 Delete a sync window from a project. Requires ID which can be found by running "argocd proj windows list PROJECT"
 
-### Synopsis
-
-Delete a sync window from a project. Requires ID which can be found by running "argocd proj windows list PROJECT"
-
 ```
 argocd proj windows delete PROJECT ID [flags]
 ```

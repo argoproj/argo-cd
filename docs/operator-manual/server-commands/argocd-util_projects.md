@@ -2,10 +2,6 @@
 
 Utility commands operate on ArgoCD Projects
 
-### Synopsis
-
-Utility commands operate on ArgoCD Projects
-
 ```
 argocd-util projects [flags]
 ```

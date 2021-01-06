@@ -2,10 +2,6 @@
 
 Add GnuPG signature key to project
 
-### Synopsis
-
-Add GnuPG signature key to project
-
 ```
 argocd proj add-signature-key PROJECT KEY-ID [flags]
 ```
