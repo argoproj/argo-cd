@@ -18,9 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/jsonmergepatch"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/kubernetes/pkg/api/endpoints"
-	"k8s.io/kubernetes/pkg/apis/core"
-	v1 "k8s.io/kubernetes/pkg/apis/core/v1"
+	"k8s.io/kubernetes/pkg/api/v1/endpoints"
 
 	jsonutil "github.com/argoproj/gitops-engine/pkg/utils/json"
 	kubescheme "github.com/argoproj/gitops-engine/pkg/utils/kube/scheme"
@@ -518,20 +516,9 @@ func normalizeEndpoint(un *unstructured.Unstructured, o options) {
 		o.log.Error(err, "Failed to convert from unstructured into Endpoints")
 		return
 	}
-	var coreEp core.Endpoints
-	err = v1.Convert_v1_Endpoints_To_core_Endpoints(&ep, &coreEp, nil)
-	if err != nil {
-		o.log.Error(err, "Could not convert from v1 to core endpoint type %s", gvk)
-		return
-	}
 
-	endpoints.SortSubsets(coreEp.Subsets)
+	endpoints.SortSubsets(ep.Subsets)
 
-	err = v1.Convert_core_Endpoints_To_v1_Endpoints(&coreEp, &ep, nil)
-	if err != nil {
-		o.log.Error(err, "Could not convert from core to vi endpoint type %s", gvk)
-		return
-	}
 	newObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&ep)
 	if err != nil {
 		o.log.Info(fmt.Sprintf(couldNotMarshalErrMsg, gvk, err))

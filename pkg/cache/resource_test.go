@@ -10,20 +10,20 @@ import (
 var c = NewClusterCache(&rest.Config{})
 
 func TestIsParentOf(t *testing.T) {
-	child := c.newResource(testPod)
-	parent := c.newResource(testRS)
-	grandParent := c.newResource(testDeploy)
+	child := c.newResource(mustToUnstructured(testPod()))
+	parent := c.newResource(mustToUnstructured(testRS()))
+	grandParent := c.newResource(mustToUnstructured(testDeploy()))
 
 	assert.True(t, parent.isParentOf(child))
 	assert.False(t, grandParent.isParentOf(child))
 }
 
 func TestIsParentOfSameKindDifferentGroupAndUID(t *testing.T) {
-	rs := testRS.DeepCopy()
-	rs.SetAPIVersion("somecrd.io/v1")
+	rs := testRS()
+	rs.APIVersion = "somecrd.io/v1"
 	rs.SetUID("123")
-	child := c.newResource(testPod)
-	invalidParent := c.newResource(rs)
+	child := c.newResource(mustToUnstructured(testPod()))
+	invalidParent := c.newResource(mustToUnstructured(rs))
 
 	assert.False(t, invalidParent.isParentOf(child))
 }

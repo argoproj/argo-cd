@@ -8,15 +8,19 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
+	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic/fake"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	testcore "k8s.io/client-go/testing"
 	"sigs.k8s.io/yaml"
@@ -44,49 +48,6 @@ func strToUnstructured(jsonStr string) *unstructured.Unstructured {
 
 var (
 	testCreationTime, _ = time.Parse(time.RFC3339, "2018-09-20T06:47:27Z")
-	testPod             = strToUnstructured(fmt.Sprintf(`
-  apiVersion: v1
-  kind: Pod
-  metadata:
-    uid: "1"
-    creationTimestamp: "%s"
-    name: helm-guestbook-pod
-    namespace: default
-    ownerReferences:
-    - apiVersion: apps/v1
-      kind: ReplicaSet
-      name: helm-guestbook-rs
-      uid: "2"
-    resourceVersion: "123"`, testCreationTime.UTC().Format(time.RFC3339)))
-
-	testRS = strToUnstructured(fmt.Sprintf(`
-  apiVersion: apps/v1
-  kind: ReplicaSet
-  metadata:
-    uid: "2"
-    creationTimestamp: "%s"
-    name: helm-guestbook-rs
-    namespace: default
-    annotations:
-      deployment.kubernetes.io/revision: "2"
-    ownerReferences:
-    - apiVersion: apps/v1beta1
-      kind: Deployment
-      name: helm-guestbook
-      uid: "3"
-    resourceVersion: "123"`, testCreationTime.UTC().Format(time.RFC3339)))
-
-	testDeploy = strToUnstructured(fmt.Sprintf(`
-  apiVersion: apps/v1
-  kind: Deployment
-  metadata:
-    labels:
-      app.kubernetes.io/instance: helm-guestbook
-    uid: "3"
-    creationTimestamp: "%s"
-    name: helm-guestbook
-    namespace: default
-    resourceVersion: "123"`, testCreationTime.UTC().Format(time.RFC3339)))
 
 	testService = strToUnstructured(fmt.Sprintf(`
   apiVersion: v1
@@ -107,13 +68,8 @@ var (
       - hostname: localhost`, testCreationTime.UTC().Format(time.RFC3339)))
 )
 
-func newCluster(objs ...*unstructured.Unstructured) *clusterCache {
-	runtimeObjs := make([]runtime.Object, len(objs))
-	for i := range objs {
-		runtimeObjs[i] = objs[i]
-	}
-	scheme := runtime.NewScheme()
-	client := fake.NewSimpleDynamicClient(scheme, runtimeObjs...)
+func newCluster(t *testing.T, objs ...runtime.Object) *clusterCache {
+	client := fake.NewSimpleDynamicClient(scheme.Scheme, objs...)
 	reactor := client.ReactionChain[0]
 	client.PrependReactor("list", "*", func(action testcore.Action) (handled bool, ret runtime.Object, err error) {
 		handled, ret, err = reactor.React(action)
@@ -142,8 +98,12 @@ func newCluster(objs ...*unstructured.Unstructured) *clusterCache {
 		Meta:                 metav1.APIResource{Namespaced: true},
 	}}
 
-	return NewClusterCache(
+	cache := NewClusterCache(
 		&rest.Config{Host: "https://test"}, SetKubectl(&kubetest.MockKubectlCmd{APIResources: apiResources, DynamicClient: client}))
+	t.Cleanup(func() {
+		cache.Invalidate()
+	})
+	return cache
 }
 
 func getChildren(cluster *clusterCache, un *unstructured.Unstructured) []*Resource {
@@ -155,20 +115,33 @@ func getChildren(cluster *clusterCache, un *unstructured.Unstructured) []*Resour
 }
 
 func TestEnsureSynced(t *testing.T) {
-	obj1 := strToUnstructured(`
-  apiVersion: apps/v1
-  kind: Deployment
-  metadata: {"name": "helm-guestbook1", "namespace": "default1"}
-`)
-	obj2 := strToUnstructured(`
-  apiVersion: apps/v1
-  kind: Deployment
-  metadata: {"name": "helm-guestbook2", "namespace": "default2"}
-`)
+	obj1 := &appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "helm-guestbook1",
+			Namespace: "default1",
+		},
+	}
+	obj2 := &appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "helm-guestbook2",
+			Namespace: "default2",
+		},
+	}
 
-	cluster := newCluster(obj1, obj2)
+	cluster := newCluster(t, obj1, obj2)
 	err := cluster.EnsureSynced()
-	assert.Nil(t, err)
+	require.NoError(t, err)
+
+	cluster.lock.Lock()
+	defer cluster.lock.Unlock()
 
 	assert.Len(t, cluster.resources, 2)
 	var names []string
@@ -179,7 +152,7 @@ func TestEnsureSynced(t *testing.T) {
 }
 
 func TestStatefulSetOwnershipInferred(t *testing.T) {
-	sts := mustToUnstructured(&appsv1.StatefulSet{
+	sts := &appsv1.StatefulSet{
 		TypeMeta:   metav1.TypeMeta{APIVersion: "apps/v1", Kind: kube.StatefulSetKind},
 		ObjectMeta: metav1.ObjectMeta{UID: "123", Name: "web", Namespace: "default"},
 		Spec: appsv1.StatefulSetSpec{
@@ -189,14 +162,12 @@ func TestStatefulSetOwnershipInferred(t *testing.T) {
 				},
 			}},
 		},
-	})
+	}
 
 	t.Run("STSTemplateNameNotMatching", func(t *testing.T) {
-		cluster := newCluster(sts)
+		cluster := newCluster(t, sts)
 		err := cluster.EnsureSynced()
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		pvc := mustToUnstructured(&v1.PersistentVolumeClaim{
 			TypeMeta:   metav1.TypeMeta{Kind: kube.PersistentVolumeClaimKind},
@@ -204,6 +175,9 @@ func TestStatefulSetOwnershipInferred(t *testing.T) {
 		})
 
 		cluster.processEvent(watch.Added, pvc)
+
+		cluster.lock.Lock()
+		defer cluster.lock.Unlock()
 
 		refs := cluster.resources[kube.GetResourceKey(pvc)].OwnerRefs
 
@@ -211,17 +185,18 @@ func TestStatefulSetOwnershipInferred(t *testing.T) {
 	})
 
 	t.Run("STSTemplateNameNotMatching", func(t *testing.T) {
-		cluster := newCluster(sts)
+		cluster := newCluster(t, sts)
 		err := cluster.EnsureSynced()
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		pvc := mustToUnstructured(&v1.PersistentVolumeClaim{
 			TypeMeta:   metav1.TypeMeta{Kind: kube.PersistentVolumeClaimKind},
 			ObjectMeta: metav1.ObjectMeta{Name: "www1-web-0", Namespace: "default"},
 		})
 		cluster.processEvent(watch.Added, pvc)
+
+		cluster.lock.Lock()
+		defer cluster.lock.Unlock()
 
 		refs := cluster.resources[kube.GetResourceKey(pvc)].OwnerRefs
 
@@ -229,17 +204,18 @@ func TestStatefulSetOwnershipInferred(t *testing.T) {
 	})
 
 	t.Run("MatchingSTSExists", func(t *testing.T) {
-		cluster := newCluster(sts)
+		cluster := newCluster(t, sts)
 		err := cluster.EnsureSynced()
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		pvc := mustToUnstructured(&v1.PersistentVolumeClaim{
 			TypeMeta:   metav1.TypeMeta{Kind: kube.PersistentVolumeClaimKind},
 			ObjectMeta: metav1.ObjectMeta{Name: "www-web-0", Namespace: "default"},
 		})
 		cluster.processEvent(watch.Added, pvc)
+
+		cluster.lock.Lock()
+		defer cluster.lock.Unlock()
 
 		refs := cluster.resources[kube.GetResourceKey(pvc)].OwnerRefs
 
@@ -248,21 +224,34 @@ func TestStatefulSetOwnershipInferred(t *testing.T) {
 }
 
 func TestEnsureSyncedSingleNamespace(t *testing.T) {
-	obj1 := strToUnstructured(`
-  apiVersion: apps/v1
-  kind: Deployment
-  metadata: {"name": "helm-guestbook1", "namespace": "default1"}
-`)
-	obj2 := strToUnstructured(`
-  apiVersion: apps/v1
-  kind: Deployment
-  metadata: {"name": "helm-guestbook2", "namespace": "default2"}
-`)
+	obj1 := &appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "helm-guestbook1",
+			Namespace: "default1",
+		},
+	}
+	obj2 := &appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "helm-guestbook2",
+			Namespace: "default2",
+		},
+	}
 
-	cluster := newCluster(obj1, obj2)
+	cluster := newCluster(t, obj1, obj2)
 	cluster.namespaces = []string{"default1"}
 	err := cluster.EnsureSynced()
-	assert.Nil(t, err)
+	require.NoError(t, err)
+
+	cluster.lock.Lock()
+	defer cluster.lock.Unlock()
 
 	assert.Len(t, cluster.resources, 1)
 	var names []string
@@ -273,42 +262,57 @@ func TestEnsureSyncedSingleNamespace(t *testing.T) {
 }
 
 func TestGetNamespaceResources(t *testing.T) {
-	defaultNamespaceTopLevel1 := strToUnstructured(`
-  apiVersion: apps/v1
-  kind: Deployment
-  metadata: {"name": "helm-guestbook1", "namespace": "default"}
-`)
-	defaultNamespaceTopLevel2 := strToUnstructured(`
-  apiVersion: apps/v1
-  kind: Deployment
-  metadata: {"name": "helm-guestbook2", "namespace": "default"}
-`)
-	kubesystemNamespaceTopLevel2 := strToUnstructured(`
-  apiVersion: apps/v1
-  kind: Deployment
-  metadata: {"name": "helm-guestbook3", "namespace": "kube-system"}
-`)
+	defaultNamespaceTopLevel1 := &appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "helm-guestbook1",
+			Namespace: "default",
+		},
+	}
+	defaultNamespaceTopLevel2 := &appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "helm-guestbook2",
+			Namespace: "default",
+		},
+	}
+	kubesystemNamespaceTopLevel2 := &appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "helm-guestbook3",
+			Namespace: "kube-system",
+		},
+	}
 
-	cluster := newCluster(defaultNamespaceTopLevel1, defaultNamespaceTopLevel2, kubesystemNamespaceTopLevel2)
+	cluster := newCluster(t, defaultNamespaceTopLevel1, defaultNamespaceTopLevel2, kubesystemNamespaceTopLevel2)
 	err := cluster.EnsureSynced()
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	resources := cluster.GetNamespaceTopLevelResources("default")
 	assert.Len(t, resources, 2)
-	assert.Equal(t, resources[kube.GetResourceKey(defaultNamespaceTopLevel1)].Ref.Name, "helm-guestbook1")
-	assert.Equal(t, resources[kube.GetResourceKey(defaultNamespaceTopLevel2)].Ref.Name, "helm-guestbook2")
+	assert.Equal(t, resources[getResourceKey(t, defaultNamespaceTopLevel1)].Ref.Name, "helm-guestbook1")
+	assert.Equal(t, resources[getResourceKey(t, defaultNamespaceTopLevel2)].Ref.Name, "helm-guestbook2")
 
 	resources = cluster.GetNamespaceTopLevelResources("kube-system")
 	assert.Len(t, resources, 1)
-	assert.Equal(t, resources[kube.GetResourceKey(kubesystemNamespaceTopLevel2)].Ref.Name, "helm-guestbook3")
+	assert.Equal(t, resources[getResourceKey(t, kubesystemNamespaceTopLevel2)].Ref.Name, "helm-guestbook3")
 }
 
 func TestGetChildren(t *testing.T) {
-	cluster := newCluster(testPod, testRS, testDeploy)
+	cluster := newCluster(t, testPod(), testRS(), testDeploy())
 	err := cluster.EnsureSynced()
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
-	rsChildren := getChildren(cluster, testRS)
+	rsChildren := getChildren(cluster, mustToUnstructured(testRS()))
 	assert.Equal(t, []*Resource{{
 		Ref: corev1.ObjectReference{
 			Kind:       "Pod",
@@ -328,7 +332,7 @@ func TestGetChildren(t *testing.T) {
 			Time: testCreationTime.Local(),
 		},
 	}}, rsChildren)
-	deployChildren := getChildren(cluster, testDeploy)
+	deployChildren := getChildren(cluster, mustToUnstructured(testDeploy()))
 
 	assert.Equal(t, append([]*Resource{{
 		Ref: corev1.ObjectReference{
@@ -347,13 +351,13 @@ func TestGetChildren(t *testing.T) {
 }
 
 func TestGetManagedLiveObjs(t *testing.T) {
-	cluster := newCluster(testPod, testRS, testDeploy)
+	cluster := newCluster(t, testPod(), testRS(), testDeploy())
 	cluster.Invalidate(SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (info interface{}, cacheManifest bool) {
 		return nil, true
 	}))
 
 	err := cluster.EnsureSynced()
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	targetDeploy := strToUnstructured(`
 apiVersion: apps/v1
@@ -366,21 +370,21 @@ metadata:
 	managedObjs, err := cluster.GetManagedLiveObjs([]*unstructured.Unstructured{targetDeploy}, func(r *Resource) bool {
 		return len(r.OwnerRefs) == 0
 	})
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, managedObjs, map[kube.ResourceKey]*unstructured.Unstructured{
-		kube.NewResourceKey("apps", "Deployment", "default", "helm-guestbook"): testDeploy,
+		kube.NewResourceKey("apps", "Deployment", "default", "helm-guestbook"): mustToUnstructured(testDeploy()),
 	})
 }
 
 func TestGetManagedLiveObjsNamespacedModeClusterLevelResource(t *testing.T) {
-	cluster := newCluster(testPod, testRS, testDeploy)
+	cluster := newCluster(t, testPod(), testRS(), testDeploy())
 	cluster.Invalidate(SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (info interface{}, cacheManifest bool) {
 		return nil, true
 	}))
 	cluster.namespaces = []string{"default", "production"}
 
 	err := cluster.EnsureSynced()
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	targetDeploy := strToUnstructured(`
 apiVersion: apps/v1
@@ -394,18 +398,18 @@ metadata:
 		return len(r.OwnerRefs) == 0
 	})
 	assert.Nil(t, managedObjs)
-	assert.Equal(t, "Cluster level Deployment \"helm-guestbook\" can not be managed when in namespaced mode", err.Error())
+	assert.EqualError(t, err, "Cluster level Deployment \"helm-guestbook\" can not be managed when in namespaced mode")
 }
 
 func TestGetManagedLiveObjsAllNamespaces(t *testing.T) {
-	cluster := newCluster(testPod, testRS, testDeploy)
+	cluster := newCluster(t, testPod(), testRS(), testDeploy())
 	cluster.Invalidate(SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (info interface{}, cacheManifest bool) {
 		return nil, true
 	}))
 	cluster.namespaces = nil
 
 	err := cluster.EnsureSynced()
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	targetDeploy := strToUnstructured(`
 apiVersion: apps/v1
@@ -419,21 +423,21 @@ metadata:
 	managedObjs, err := cluster.GetManagedLiveObjs([]*unstructured.Unstructured{targetDeploy}, func(r *Resource) bool {
 		return len(r.OwnerRefs) == 0
 	})
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, managedObjs, map[kube.ResourceKey]*unstructured.Unstructured{
-		kube.NewResourceKey("apps", "Deployment", "default", "helm-guestbook"): testDeploy,
+		kube.NewResourceKey("apps", "Deployment", "default", "helm-guestbook"): mustToUnstructured(testDeploy()),
 	})
 }
 
 func TestGetManagedLiveObjsValidNamespace(t *testing.T) {
-	cluster := newCluster(testPod, testRS, testDeploy)
+	cluster := newCluster(t, testPod(), testRS(), testDeploy())
 	cluster.Invalidate(SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (info interface{}, cacheManifest bool) {
 		return nil, true
 	}))
 	cluster.namespaces = []string{"default", "production"}
 
 	err := cluster.EnsureSynced()
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	targetDeploy := strToUnstructured(`
 apiVersion: apps/v1
@@ -447,21 +451,21 @@ metadata:
 	managedObjs, err := cluster.GetManagedLiveObjs([]*unstructured.Unstructured{targetDeploy}, func(r *Resource) bool {
 		return len(r.OwnerRefs) == 0
 	})
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, managedObjs, map[kube.ResourceKey]*unstructured.Unstructured{
-		kube.NewResourceKey("apps", "Deployment", "default", "helm-guestbook"): testDeploy,
+		kube.NewResourceKey("apps", "Deployment", "default", "helm-guestbook"): mustToUnstructured(testDeploy()),
 	})
 }
 
 func TestGetManagedLiveObjsInvalidNamespace(t *testing.T) {
-	cluster := newCluster(testPod, testRS, testDeploy)
+	cluster := newCluster(t, testPod(), testRS(), testDeploy())
 	cluster.Invalidate(SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (info interface{}, cacheManifest bool) {
 		return nil, true
 	}))
 	cluster.namespaces = []string{"default", "develop"}
 
 	err := cluster.EnsureSynced()
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	targetDeploy := strToUnstructured(`
 apiVersion: apps/v1
@@ -476,24 +480,24 @@ metadata:
 		return len(r.OwnerRefs) == 0
 	})
 	assert.Nil(t, managedObjs)
-	assert.Equal(t, "Namespace \"production\" for Deployment \"helm-guestbook\" is not managed", err.Error())
+	assert.EqualError(t, err, "Namespace \"production\" for Deployment \"helm-guestbook\" is not managed")
 }
 
 func TestChildDeletedEvent(t *testing.T) {
-	cluster := newCluster(testPod, testRS, testDeploy)
+	cluster := newCluster(t, testPod(), testRS(), testDeploy())
 	err := cluster.EnsureSynced()
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
-	cluster.processEvent(watch.Deleted, testPod)
+	cluster.processEvent(watch.Deleted, mustToUnstructured(testPod()))
 
-	rsChildren := getChildren(cluster, testRS)
+	rsChildren := getChildren(cluster, mustToUnstructured(testRS()))
 	assert.Equal(t, []*Resource{}, rsChildren)
 }
 
 func TestProcessNewChildEvent(t *testing.T) {
-	cluster := newCluster(testPod, testRS, testDeploy)
+	cluster := newCluster(t, testPod(), testRS(), testDeploy())
 	err := cluster.EnsureSynced()
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	newPod := strToUnstructured(`
   apiVersion: v1
   kind: Pod
@@ -510,7 +514,7 @@ func TestProcessNewChildEvent(t *testing.T) {
 
 	cluster.processEvent(watch.Added, newPod)
 
-	rsChildren := getChildren(cluster, testRS)
+	rsChildren := getChildren(cluster, mustToUnstructured(testRS()))
 	sort.Slice(rsChildren, func(i, j int) bool {
 		return strings.Compare(rsChildren[i].Ref.Name, rsChildren[j].Ref.Name) < 0
 	})
@@ -551,67 +555,70 @@ func TestProcessNewChildEvent(t *testing.T) {
 }
 
 func TestWatchCacheUpdated(t *testing.T) {
-	removed := testPod.DeepCopy()
-	removed.SetName(testPod.GetName() + "-removed-pod")
+	removed := testPod()
+	removed.SetName(removed.GetName() + "-removed-pod")
 
-	updated := testPod.DeepCopy()
-	updated.SetName(testPod.GetName() + "-updated-pod")
+	updated := testPod()
+	updated.SetName(updated.GetName() + "-updated-pod")
 	updated.SetResourceVersion("updated-pod-version")
 
-	cluster := newCluster(removed, updated)
+	cluster := newCluster(t, removed, updated)
 	err := cluster.EnsureSynced()
 
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
-	added := testPod.DeepCopy()
-	added.SetName(testPod.GetName() + "-new-pod")
+	added := testPod()
+	added.SetName(added.GetName() + "-new-pod")
 
-	podGroupKind := testPod.GroupVersionKind().GroupKind()
+	podGroupKind := testPod().GroupVersionKind().GroupKind()
 
 	cluster.lock.Lock()
-	cluster.replaceResourceCache(podGroupKind, []*Resource{cluster.newResource(updated), cluster.newResource(added)}, "")
+	defer cluster.lock.Unlock()
+	cluster.replaceResourceCache(podGroupKind, []*Resource{cluster.newResource(mustToUnstructured(updated)), cluster.newResource(mustToUnstructured(added))}, "")
 
-	_, ok := cluster.resources[kube.GetResourceKey(removed)]
+	_, ok := cluster.resources[getResourceKey(t, removed)]
 	assert.False(t, ok)
 }
 
 func TestNamespaceModeReplace(t *testing.T) {
-	ns1Pod := testPod.DeepCopy()
+	ns1Pod := testPod()
 	ns1Pod.SetNamespace("ns1")
 	ns1Pod.SetName("pod1")
 
-	ns2Pod := testPod.DeepCopy()
+	ns2Pod := testPod()
 	ns2Pod.SetNamespace("ns2")
-	podGroupKind := testPod.GroupVersionKind().GroupKind()
+	podGroupKind := testPod().GroupVersionKind().GroupKind()
 
-	cluster := newCluster(ns1Pod, ns2Pod)
+	cluster := newCluster(t, ns1Pod, ns2Pod)
 	err := cluster.EnsureSynced()
-	assert.Nil(t, err)
+	require.NoError(t, err)
+
+	cluster.lock.Lock()
+	defer cluster.lock.Unlock()
 
 	cluster.replaceResourceCache(podGroupKind, nil, "ns1")
 
-	_, ok := cluster.resources[kube.GetResourceKey(ns1Pod)]
+	_, ok := cluster.resources[getResourceKey(t, ns1Pod)]
 	assert.False(t, ok)
 
-	_, ok = cluster.resources[kube.GetResourceKey(ns2Pod)]
+	_, ok = cluster.resources[getResourceKey(t, ns2Pod)]
 	assert.True(t, ok)
 }
 
 func TestGetDuplicatedChildren(t *testing.T) {
-	extensionsRS := testRS.DeepCopy()
-	extensionsRS.SetGroupVersionKind(schema.GroupVersionKind{Group: "extensions", Kind: kube.ReplicaSetKind, Version: "v1beta1"})
-	cluster := newCluster(testDeploy, testRS, extensionsRS)
+	extensionsRS := testExtensionsRS()
+	cluster := newCluster(t, testDeploy(), testRS(), extensionsRS)
 	err := cluster.EnsureSynced()
 
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	// Get children multiple times to make sure the right child is picked up every time.
 	for i := 0; i < 5; i++ {
-		children := getChildren(cluster, testDeploy)
+		children := getChildren(cluster, mustToUnstructured(testDeploy()))
 		assert.Len(t, children, 1)
 		assert.Equal(t, "apps/v1", children[0].Ref.APIVersion)
 		assert.Equal(t, kube.ReplicaSetKind, children[0].Ref.Kind)
-		assert.Equal(t, testRS.GetName(), children[0].Ref.Name)
+		assert.Equal(t, testRS().GetName(), children[0].Ref.Name)
 	}
 }
 
@@ -667,4 +674,110 @@ func ExampleNewClusterCache_resourceUpdatedEvents() {
 	defer unsubscribe()
 	// observe resource modifications for 1 minute
 	time.Sleep(time.Minute)
+}
+
+func getResourceKey(t *testing.T, obj runtime.Object) kube.ResourceKey {
+	gvk := obj.GetObjectKind().GroupVersionKind()
+	m, err := meta.Accessor(obj)
+	require.NoError(t, err)
+	return kube.NewResourceKey(gvk.Group, gvk.Kind, m.GetNamespace(), m.GetName())
+}
+
+func testPod() *corev1.Pod {
+	return &corev1.Pod{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Pod",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              "helm-guestbook-pod",
+			Namespace:         "default",
+			UID:               "1",
+			ResourceVersion:   "123",
+			CreationTimestamp: metav1.NewTime(testCreationTime),
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: "apps/v1",
+					Kind:       "ReplicaSet",
+					Name:       "helm-guestbook-rs",
+					UID:        "2",
+				},
+			},
+		},
+	}
+}
+
+func testExtensionsRS() *extensionsv1beta1.ReplicaSet {
+	return &extensionsv1beta1.ReplicaSet{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "extensions/v1beta1",
+			Kind:       "ReplicaSet",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              "helm-guestbook-rs",
+			Namespace:         "default",
+			UID:               "2",
+			ResourceVersion:   "123",
+			CreationTimestamp: metav1.NewTime(testCreationTime),
+			Annotations: map[string]string{
+				"deployment.kubernetes.io/revision": "2",
+			},
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: "apps/v1beta1",
+					Kind:       "Deployment",
+					Name:       "helm-guestbook",
+					UID:        "3",
+				},
+			},
+		},
+	}
+}
+
+func testRS() *appsv1.ReplicaSet {
+	return &appsv1.ReplicaSet{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "ReplicaSet",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              "helm-guestbook-rs",
+			Namespace:         "default",
+			UID:               "2",
+			ResourceVersion:   "123",
+			CreationTimestamp: metav1.NewTime(testCreationTime),
+			Annotations: map[string]string{
+				"deployment.kubernetes.io/revision": "2",
+			},
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: "apps/v1beta1",
+					Kind:       "Deployment",
+					Name:       "helm-guestbook",
+					UID:        "3",
+				},
+			},
+		},
+		Spec:   appsv1.ReplicaSetSpec{},
+		Status: appsv1.ReplicaSetStatus{},
+	}
+}
+
+func testDeploy() *appsv1.Deployment {
+	return &appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              "helm-guestbook",
+			Namespace:         "default",
+			UID:               "3",
+			ResourceVersion:   "123",
+			CreationTimestamp: metav1.NewTime(testCreationTime),
+			Labels: map[string]string{
+				"app.kubernetes.io/instance": "helm-guestbook",
+			},
+		},
+	}
 }

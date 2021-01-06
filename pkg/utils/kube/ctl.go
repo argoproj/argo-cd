@@ -23,9 +23,9 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/kubectl/pkg/cmd/apply"
+	"k8s.io/kubectl/pkg/cmd/auth"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
-	"k8s.io/kubernetes/pkg/kubectl/cmd/auth"
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/utils/io"
@@ -338,8 +338,14 @@ func newApplyOptions(config *rest.Config, f cmdutil.Factory, ioStreams genericcl
 		return nil, err
 	}
 	o.DynamicClient = dynamicClient
-	o.DeleteOptions = o.DeleteFlags.ToOptions(dynamicClient, o.IOStreams)
-	o.OpenAPISchema, _ = f.OpenAPISchema()
+	o.DeleteOptions, err = o.DeleteFlags.ToOptions(dynamicClient, o.IOStreams)
+	if err != nil {
+		return nil, err
+	}
+	o.OpenAPISchema, err = f.OpenAPISchema()
+	if err != nil {
+		return nil, err
+	}
 	o.Validator, err = f.Validator(validate)
 	if err != nil {
 		return nil, err
