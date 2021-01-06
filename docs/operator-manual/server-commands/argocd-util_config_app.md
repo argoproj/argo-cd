@@ -2,10 +2,6 @@
 
 Generate declarative config for an application
 
-### Synopsis
-
-Generate declarative config for an application
-
 ```
 argocd-util config app APPNAME [flags]
 ```

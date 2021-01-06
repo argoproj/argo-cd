@@ -2,10 +2,6 @@
 
 Remove cluster credentials
 
-### Synopsis
-
-Remove cluster credentials
-
 ```
 argocd cluster rm SERVER [flags]
 ```

@@ -2,10 +2,6 @@
 
 Print manifests of an application
 
-### Synopsis
-
-Print manifests of an application
-
 ```
 argocd app manifests APPNAME [flags]
 ```

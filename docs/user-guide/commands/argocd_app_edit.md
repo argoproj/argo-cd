@@ -2,10 +2,6 @@
 
 Edit application
 
-### Synopsis
-
-Edit application
-
 ```
 argocd app edit APPNAME [flags]
 ```

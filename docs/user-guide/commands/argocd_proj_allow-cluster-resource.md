@@ -2,10 +2,6 @@
 
 Adds a cluster-scoped API resource to the allow list and removes it from deny list
 
-### Synopsis
-
-Adds a cluster-scoped API resource to the allow list and removes it from deny list
-
 ```
 argocd proj allow-cluster-resource PROJECT GROUP KIND [flags]
 ```

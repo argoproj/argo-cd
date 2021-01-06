@@ -2,10 +2,6 @@
 
 Add project source repository
 
-### Synopsis
-
-Add project source repository
-
 ```
 argocd proj add-source PROJECT URL [flags]
 ```

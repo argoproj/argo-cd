@@ -2,10 +2,6 @@
 
 Manage account settings
 
-### Synopsis
-
-Manage account settings
-
 ```
 argocd account [flags]
 ```

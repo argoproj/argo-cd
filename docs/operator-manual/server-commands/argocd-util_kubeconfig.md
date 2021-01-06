@@ -2,10 +2,6 @@
 
 Generates kubeconfig for the specified cluster
 
-### Synopsis
-
-Generates kubeconfig for the specified cluster
-
 ```
 argocd-util kubeconfig CLUSTER_URL OUTPUT_PATH [flags]
 ```

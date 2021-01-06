@@ -2,10 +2,6 @@
 
 Compare results of two reconciliations and print diff.
 
-### Synopsis
-
-Compare results of two reconciliations and print diff.
-
 ```
 argocd-util apps diff-reconcile-results PATH1 PATH2 [flags]
 ```

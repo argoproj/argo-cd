@@ -2,10 +2,6 @@
 
 List all the roles in a project
 
-### Synopsis
-
-List all the roles in a project
-
 ```
 argocd proj role list PROJECT [flags]
 ```

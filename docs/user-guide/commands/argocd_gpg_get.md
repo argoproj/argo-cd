@@ -2,10 +2,6 @@
 
 Get the GPG public key with ID <KEYID> from the server
 
-### Synopsis
-
-Get the GPG public key with ID <KEYID> from the server
-
 ```
 argocd gpg get KEYID [flags]
 ```

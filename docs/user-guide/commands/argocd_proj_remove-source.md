@@ -2,10 +2,6 @@
 
 Remove project source repository
 
-### Synopsis
-
-Remove project source repository
-
 ```
 argocd proj remove-source PROJECT URL [flags]
 ```

@@ -2,10 +2,6 @@
 
 Set application parameters
 
-### Synopsis
-
-Set application parameters
-
 ```
 argocd app set APPNAME [flags]
 ```

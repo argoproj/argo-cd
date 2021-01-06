@@ -2,10 +2,6 @@
 
 Generate declarative config for a project
 
-### Synopsis
-
-Generate declarative config for a project
-
 ```
 argocd-util config proj PROJECT [flags]
 ```

@@ -2,10 +2,6 @@
 
 Manage cluster credentials
 
-### Synopsis
-
-Manage cluster credentials
-
 ```
 argocd cluster [flags]
 ```

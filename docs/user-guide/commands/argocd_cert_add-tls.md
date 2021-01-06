@@ -2,10 +2,6 @@
 
 Add TLS certificate data for connecting to repository server SERVERNAME
 
-### Synopsis
-
-Add TLS certificate data for connecting to repository server SERVERNAME
-
 ```
 argocd cert add-tls SERVERNAME [flags]
 ```

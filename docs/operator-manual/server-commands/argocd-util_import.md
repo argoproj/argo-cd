@@ -2,10 +2,6 @@
 
 Import Argo CD data from stdin (specify `-') or a file
 
-### Synopsis
-
-Import Argo CD data from stdin (specify `-') or a file
-
 ```
 argocd-util import SOURCE [flags]
 ```

@@ -2,10 +2,6 @@
 
 List projects
 
-### Synopsis
-
-List projects
-
 ```
 argocd proj list [flags]
 ```

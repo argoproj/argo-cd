@@ -2,10 +2,6 @@
 
 Print version information
 
-### Synopsis
-
-Print version information
-
 ```
 argocd-server version [flags]
 ```

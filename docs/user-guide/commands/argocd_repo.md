@@ -2,10 +2,6 @@
 
 Manage repository connection parameters
 
-### Synopsis
-
-Manage repository connection parameters
-
 ```
 argocd repo [flags]
 ```

@@ -2,10 +2,6 @@
 
 Removes a namespaced API resource from the deny list or add a namespaced API resource to the allow list
 
-### Synopsis
-
-Removes a namespaced API resource from the deny list or add a namespaced API resource to the allow list
-
 ```
 argocd proj allow-namespace-resource PROJECT GROUP KIND [flags]
 ```

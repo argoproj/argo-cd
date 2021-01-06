@@ -430,6 +430,9 @@ func init() {
 	knownTypes["core/v1/PodTemplateSpec"] = func() interface{} {
 		return &corev1.PodTemplateSpec{}
 	}
+	knownTypes["core/v1/PortStatus"] = func() interface{} {
+		return &corev1.PortStatus{}
+	}
 	knownTypes["core/v1/PortworxVolumeSource"] = func() interface{} {
 		return &corev1.PortworxVolumeSource{}
 	}

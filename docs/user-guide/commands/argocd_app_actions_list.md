@@ -2,10 +2,6 @@
 
 Lists available actions on a resource
 
-### Synopsis
-
-Lists available actions on a resource
-
 ```
 argocd app actions list APPNAME [flags]
 ```

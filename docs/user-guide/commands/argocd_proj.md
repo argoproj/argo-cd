@@ -2,10 +2,6 @@
 
 Manage projects
 
-### Synopsis
-
-Manage projects
-
 ```
 argocd proj [flags]
 ```

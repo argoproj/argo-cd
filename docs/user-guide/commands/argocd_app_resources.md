@@ -2,10 +2,6 @@
 
 List resource of application
 
-### Synopsis
-
-List resource of application
-
 ```
 argocd app resources APPNAME [flags]
 ```

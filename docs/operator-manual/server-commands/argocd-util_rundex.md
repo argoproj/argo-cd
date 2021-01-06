@@ -2,10 +2,6 @@
 
 Runs dex generating a config using settings from the Argo CD configmap and secret
 
-### Synopsis
-
-Runs dex generating a config using settings from the Argo CD configmap and secret
-
 ```
 argocd-util rundex [flags]
 ```

@@ -2,10 +2,6 @@
 
 Remove certificate of TYPE for REPOSERVER
 
-### Synopsis
-
-Remove certificate of TYPE for REPOSERVER
-
 ```
 argocd cert rm REPOSERVER [flags]
 ```

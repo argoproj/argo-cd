@@ -2,10 +2,6 @@
 
 Switch between contexts
 
-### Synopsis
-
-Switch between contexts
-
 ```
 argocd context [CONTEXT] [flags]
 ```

@@ -2,10 +2,6 @@
 
 List configured GPG public keys
 
-### Synopsis
-
-List configured GPG public keys
-
 ```
 argocd gpg list [flags]
 ```

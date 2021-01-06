@@ -2,10 +2,6 @@
 
 Get a configured repository by URL
 
-### Synopsis
-
-Get a configured repository by URL
-
 ```
 argocd repo get [flags]
 ```

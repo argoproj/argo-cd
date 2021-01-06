@@ -2,10 +2,6 @@
 
 argocd controls a Argo CD server
 
-### Synopsis
-
-argocd controls a Argo CD server
-
 ```
 argocd [flags]
 ```
