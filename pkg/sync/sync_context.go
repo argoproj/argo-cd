@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -118,6 +119,13 @@ func WithOperationSettings(dryRun bool, prune bool, force bool, skipHooks bool) 
 func WithManifestValidation(enabled bool) SyncOpt {
 	return func(ctx *syncContext) {
 		ctx.validate = enabled
+	}
+}
+
+// WithPruneLast enables or disables pruneLast
+func WithPruneLast(enabled bool) SyncOpt {
+	return func(ctx *syncContext) {
+		ctx.pruneLast = enabled
 	}
 }
 
@@ -257,6 +265,7 @@ type syncContext struct {
 	skipHooks       bool
 	resourcesFilter func(key kube.ResourceKey, target *unstructured.Unstructured, live *unstructured.Unstructured) bool
 	prune           bool
+	pruneLast       bool
 
 	syncRes   map[string]common.ResourceSyncResult
 	startedAt time.Time
@@ -604,6 +613,29 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 				sc.setResourceResult(task, common.ResultCodeSyncFailed, "", err.Error())
 				successful = false
 			}
+		}
+	}
+
+	// for pruneLast tasks, modify the wave to sync phase last wave of non prune task +1
+	syncPhaseLastWave := 0
+	for _, task := range tasks {
+		if task.phase == common.SyncPhaseSync {
+			if task.wave() > syncPhaseLastWave && !task.isPrune() {
+				syncPhaseLastWave = task.wave()
+			}
+		}
+	}
+	syncPhaseLastWave = syncPhaseLastWave + 1
+
+	for _, task := range tasks {
+		if task.isPrune() &&
+			(sc.pruneLast || resourceutil.HasAnnotationOption(task.liveObj, common.AnnotationSyncOptions, common.SyncOptionPruneLast)) {
+			annotations := task.liveObj.GetAnnotations()
+			if annotations == nil {
+				annotations = make(map[string]string)
+			}
+			annotations[common.AnnotationSyncWave] = strconv.Itoa(syncPhaseLastWave)
+			task.liveObj.SetAnnotations(annotations)
 		}
 	}
 

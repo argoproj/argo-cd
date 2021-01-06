@@ -997,3 +997,62 @@ func TestSyncWaveHookFail(t *testing.T) {
 	assert.Equal(t, "SyncWaveHook failed: intentional error", msg)
 	assert.Equal(t, synccommon.OperationRunning, results[0].HookPhase)
 }
+
+func TestPruneLast(t *testing.T) {
+	syncCtx := newTestSyncCtx()
+	syncCtx.pruneLast = true
+
+	pod1 := NewPod()
+	pod1.SetName("pod-1")
+	pod2 := NewPod()
+	pod2.SetName("pod-2")
+	pod3 := NewPod()
+	pod3.SetName("pod-3")
+
+	t.Run("syncPhaseSameWave", func(t *testing.T) {
+		syncCtx.resources = groupResources(ReconciliationResult{
+			Live:   []*unstructured.Unstructured{nil, pod2, pod3},
+			Target: []*unstructured.Unstructured{pod1, nil, nil},
+		})
+		tasks, successful := syncCtx.getSyncTasks()
+
+		assert.True(t, successful)
+		assert.Len(t, tasks, 3)
+		// last wave is the last sync wave for non-prune task + 1
+		assert.Equal(t, 1, tasks.lastWave())
+	})
+
+	t.Run("syncPhaseDifferentWave", func(t *testing.T) {
+		pod1.SetAnnotations(map[string]string{synccommon.AnnotationSyncWave: "2"})
+		pod2.SetAnnotations(map[string]string{synccommon.AnnotationSyncWave: "1"})
+		pod3.SetAnnotations(map[string]string{synccommon.AnnotationSyncWave: "7"})
+		syncCtx.resources = groupResources(ReconciliationResult{
+			Live:   []*unstructured.Unstructured{nil, pod2, pod3},
+			Target: []*unstructured.Unstructured{pod1, nil, nil},
+		})
+		tasks, successful := syncCtx.getSyncTasks()
+
+		assert.True(t, successful)
+		assert.Len(t, tasks, 3)
+		// last wave is the last sync wave for non-prune task + 1
+		assert.Equal(t, 3, tasks.lastWave())
+	})
+
+	t.Run("pruneLastIndidualResources", func(t *testing.T) {
+		syncCtx.pruneLast = false
+
+		pod1.SetAnnotations(map[string]string{synccommon.AnnotationSyncWave: "2"})
+		pod2.SetAnnotations(map[string]string{synccommon.AnnotationSyncWave: "1", synccommon.AnnotationSyncOptions: synccommon.SyncOptionPruneLast})
+		pod3.SetAnnotations(map[string]string{synccommon.AnnotationSyncWave: "7", synccommon.AnnotationSyncOptions: synccommon.SyncOptionPruneLast})
+		syncCtx.resources = groupResources(ReconciliationResult{
+			Live:   []*unstructured.Unstructured{nil, pod2, pod3},
+			Target: []*unstructured.Unstructured{pod1, nil, nil},
+		})
+		tasks, successful := syncCtx.getSyncTasks()
+
+		assert.True(t, successful)
+		assert.Len(t, tasks, 3)
+		// last wave is the last sync wave for non-prune task + 1
+		assert.Equal(t, 3, tasks.lastWave())
+	})
+}

@@ -23,6 +23,8 @@ const (
 	SyncOptionDisablePrune = "Prune=false"
 	// Sync option that disables resource validation
 	SyncOptionsDisableValidation = "Validate=false"
+	// Sync option that enables pruneLast
+	SyncOptionPruneLast = "PruneLast=true"
 )
 
 type PermissionValidator func(un *unstructured.Unstructured, res *metav1.APIResource) error
