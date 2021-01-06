@@ -16,6 +16,13 @@ spec:
         app.kubernetes.io/name: argocd-repo-server
     spec:
       automountServiceAccountToken: false
+      initContainers:
+        - name: disable-thp
+          image: busybox
+          volumeMounts:
+            - name: host-sys
+              mountPath: /host-sys
+          command: ["sh", "-c", "echo never >/host-sys/kernel/mm/transparent_hugepage/enabled"]
       containers:
       - name: argocd-repo-server
         image: argoproj/argocd:latest
@@ -51,6 +58,9 @@ spec:
         - name: gpg-keyring
           mountPath: /app/config/gpg/keys
       volumes:
+        - name: host-sys
+          hostPath:
+            path: /sys
         - name: ssh-known-hosts
           configMap:
             name: argocd-ssh-known-hosts-cm

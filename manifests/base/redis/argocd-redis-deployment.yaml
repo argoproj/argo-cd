@@ -21,6 +21,17 @@ spec:
         fsGroup: 1000
         runAsNonRoot: true
       serviceAccountName: argocd-redis        
+      volumes:
+        - name: host-sys
+          hostPath:
+            path: /sys
+      initContainers:
+        - name: disable-thp
+          image: busybox
+          volumeMounts:
+            - name: host-sys
+              mountPath: /host-sys
+          command: ["sh", "-c", "echo never >/host-sys/kernel/mm/transparent_hugepage/enabled"]
       containers:
       - name: redis
         image: redis:5.0.10-alpine
