@@ -167,6 +167,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 			return false
 		}),
 		sync.WithSyncWaveHook(delayBetweenSyncWaves),
+		sync.WithPruneLast(syncOp.SyncOptions.HasOption("PruneLast=true")),
 	)
 
 	if err != nil {
