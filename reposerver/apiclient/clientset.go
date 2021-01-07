@@ -19,6 +19,8 @@ const (
 	MaxGRPCMessageSize = 100 * 1024 * 1024
 )
 
+//go:generate go run github.com/vektra/mockery/cmd/mockery -name RepoServerServiceClient
+
 // Clientset represents repository server api clients
 type Clientset interface {
 	NewRepoServerClient() (io.Closer, RepoServerServiceClient, error)

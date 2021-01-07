@@ -4,7 +4,6 @@ package mocks
 
 import (
 	helm "github.com/argoproj/argo-cd/util/helm"
-
 	io "github.com/argoproj/argo-cd/util/io"
 
 	mock "github.com/stretchr/testify/mock"
@@ -92,9 +91,7 @@ func (_m *Client) TestHelmOCI() (bool, error) {
 	if rf, ok := ret.Get(0).(func() bool); ok {
 		r0 = rf()
 	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(bool)
-		}
+		r0 = ret.Get(0).(bool)
 	}
 
 	var r1 error

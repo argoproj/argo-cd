@@ -38,6 +38,8 @@ type Creds struct {
 	InsecureSkipVerify bool
 }
 
+//go:generate go run github.com/vektra/mockery/cmd/mockery -name Client
+
 type Client interface {
 	CleanChartCache(chart string, version *semver.Version) error
 	ExtractChart(chart string, version *semver.Version) (string, io.Closer, error)

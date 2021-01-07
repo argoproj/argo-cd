@@ -44,6 +44,8 @@ type Refs struct {
 	// heads and remotes are also refs, but are not needed at this time.
 }
 
+//go:generate go run github.com/vektra/mockery/cmd/mockery -name Client
+
 // Client is a generic git client interface
 type Client interface {
 	Root() string

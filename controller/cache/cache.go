@@ -28,6 +28,8 @@ import (
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
+//go:generate go run github.com/vektra/mockery/cmd/mockery -name LiveStateCache
+
 type LiveStateCache interface {
 	// Returns k8s server version
 	GetVersionsInfo(serverURL string) (string, []metav1.APIGroup, error)

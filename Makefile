@@ -157,8 +157,11 @@ endif
 
 .PHONY: gogen
 gogen: ensure-gopath
+	export GO111MODULE=on
+	go generate ./util/helm ./util/git ./controller/cache ./reposerver/apiclient
+
 	export GO111MODULE=off
-	go generate ./util/argo/...
+	go generate ./util/argo/normalizers
 
 .PHONY: protogen
 protogen: ensure-gopath
