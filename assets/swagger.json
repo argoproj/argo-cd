@@ -688,38 +688,6 @@
         }
       }
     },
-    "/api/v1/applications/{name}/nodes": {
-      "get": {
-        "tags": [
-          "ApplicationService"
-        ],
-        "summary": "ListNodes returns nodes associated with an application",
-        "operationId": "ApplicationService_ListNodes",
-        "parameters": [
-          {
-            "type": "string",
-            "description": "the application's name",
-            "name": "name",
-            "in": "path",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1NodeList"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/runtimeError"
-            }
-          }
-        }
-      }
-    },
     "/api/v1/applications/{name}/operation": {
       "delete": {
         "tags": [
@@ -4282,22 +4250,6 @@
         }
       }
     },
-    "v1NodeList": {
-      "description": "NodeList is the whole list of all Nodes which have been registered with master.",
-      "type": "object",
-      "properties": {
-        "items": {
-          "type": "array",
-          "title": "List of nodes",
-          "items": {
-            "$ref": "#/definitions/v1Node"
-          }
-        },
-        "metadata": {
-          "$ref": "#/definitions/v1ListMeta"
-        }
-      }
-    },
     "v1NodeSpec": {
       "description": "NodeSpec describes the attributes that a node is created with.",
       "type": "object",
@@ -5152,6 +5104,13 @@
       "type": "object",
       "title": "ApplicationTree holds nodes which belongs to the application",
       "properties": {
+        "hosts": {
+          "type": "array",
+          "title": "Hosts holds list of Kubernetes nodes that run application related pods",
+          "items": {
+            "$ref": "#/definitions/v1Node"
+          }
+        },
         "nodes": {
           "description": "Nodes contains list of nodes which either directly managed by the application and children of directly managed nodes.",
           "type": "array",

@@ -967,6 +967,8 @@ type ApplicationTree struct {
 	Nodes []ResourceNode `json:"nodes,omitempty" protobuf:"bytes,1,rep,name=nodes"`
 	// OrphanedNodes contains if or orphaned nodes: nodes which are not managed by the app but in the same namespace. List is populated only if orphaned resources enabled in app project.
 	OrphanedNodes []ResourceNode `json:"orphanedNodes,omitempty" protobuf:"bytes,2,rep,name=orphanedNodes"`
+	// Hosts holds list of Kubernetes nodes that run application related pods
+	Hosts []v1.Node `json:"hosts,omitempty" protobuf:"bytes,3,rep,name=hosts"`
 }
 
 type ApplicationSummary struct {

@@ -625,6 +625,13 @@ func (in *ApplicationTree) DeepCopyInto(out *ApplicationTree) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.Hosts != nil {
+		in, out := &in.Hosts, &out.Hosts
+		*out = make([]corev1.Node, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
 	return
 }
 

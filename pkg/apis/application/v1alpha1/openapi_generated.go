@@ -1237,11 +1237,25 @@ func schema_pkg_apis_application_v1alpha1_ApplicationTree(ref common.ReferenceCa
 							},
 						},
 					},
+					"hosts": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Hosts holds list of Kubernetes nodes that run application related pods",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.Node"),
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceNode"},
+			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceNode", "k8s.io/api/core/v1.Node"},
 	}
 }
 

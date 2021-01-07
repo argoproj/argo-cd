@@ -381,7 +381,21 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 	sort.Slice(orphanedNodes, func(i, j int) bool {
 		return orphanedNodes[i].ResourceRef.String() < orphanedNodes[j].ResourceRef.String()
 	})
-	return &appv1.ApplicationTree{Nodes: nodes, OrphanedNodes: orphanedNodes}, nil
+	nodeRefs := make(map[string]bool)
+	for _, node := range nodes {
+		for _, item := range node.Info {
+			if item.Name == "Node" {
+				nodeRefs[item.Value] = true
+			}
+		}
+	}
+	hosts, err := ctrl.stateCache.FindNodes(a.Spec.Destination.Server, func(name string) bool {
+		return nodeRefs[name]
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &appv1.ApplicationTree{Nodes: nodes, OrphanedNodes: orphanedNodes, Hosts: hosts}, nil
 }
 
 func (ctrl *ApplicationController) managedResources(comparisonResult *comparisonResult) ([]*appv1.ResourceDiff, error) {

@@ -5,7 +5,7 @@ import {Checkbox as ReactCheckbox} from 'react-form';
 import Moment from 'react-moment';
 import {EmptyState, ErrorNotification} from '../../../shared/components';
 import {AppContext} from '../../../shared/context';
-import {Application, ApplicationTree, InfoItem, InfraNode, Metric, Pod, ResourceList, ResourceName, ResourceNode, ResourceStatus} from '../../../shared/models';
+import {Application, ApplicationTree, InfoItem, Metric, Node, Pod, ResourceList, ResourceName, ResourceNode, ResourceStatus} from '../../../shared/models';
 import {PodViewPreferences, services, ViewPreferences} from '../../../shared/services';
 import {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
 import {ResourceIcon} from '../resource-icon';
@@ -37,15 +37,17 @@ export class PodView extends React.Component<PodViewProps> {
     private get appContext(): AppContext {
         return this.context as AppContext;
     }
+
     public static contextTypes = {
         apis: PropTypes.object
     };
-    private loader: DataLoader;
+
     public render() {
         return (
             <DataLoader load={() => services.viewPreferences.getPreferences()}>
                 {prefs => {
                     const podPrefs = prefs.appDetails.podView || ({} as PodViewPreferences);
+                    const groups = this.processTree(podPrefs.sortMode, this.props.tree.hosts || []) || [];
                     return (
                         <React.Fragment>
                             <div className='pod-view__settings'>
@@ -62,173 +64,159 @@ export class PodView extends React.Component<PodViewProps> {
                                     />
                                 </div>
                             </div>
-                            <DataLoader
-                                ref={loader => (this.loader = loader)}
-                                load={async () => {
-                                    return podPrefs.sortMode === 'node' ? services.applications.getNodes(this.props.app.metadata.name) : null;
-                                }}>
-                                {nodes => {
-                                    const groups = this.processTree(podPrefs.sortMode, nodes) || [];
-                                    return groups.length > 0 ? (
-                                        <div className='pod-view__nodes-container'>
-                                            {groups.map(group => (
-                                                <div className={`pod-view__node white-box ${group.kind === 'node' && 'pod-view__node--large'}`} key={group.name}>
-                                                    <div
-                                                        className='pod-view__node__container--header'
-                                                        onClick={() => this.props.onItemClick(group.fullName)}
-                                                        style={{cursor: 'pointer'}}>
-                                                        <div style={{display: 'flex', alignItems: 'center'}}>
-                                                            <div style={{marginRight: '10px'}}>
-                                                                <ResourceIcon kind={group.kind || 'Unknown'} />
-                                                                <br />
-                                                                {<div style={{textAlign: 'center'}}>{ResourceLabel({kind: group.kind})}</div>}
-                                                            </div>
-                                                            <div style={{lineHeight: '15px'}}>
-                                                                <b style={{wordWrap: 'break-word'}}>{group.name || 'Unknown'}</b>
-                                                                {group.resourceStatus && (
-                                                                    <div>
-                                                                        {group.resourceStatus.health && <HealthStatusIcon state={group.resourceStatus.health} />}
-                                                                        &nbsp;
-                                                                        {group.resourceStatus.status && <ComparisonStatusIcon status={group.resourceStatus.status} />}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                            <div style={{marginLeft: 'auto'}}>
-                                                                {group.renderMenu && (
-                                                                    <DropDown
-                                                                        isMenu={true}
-                                                                        anchor={() => (
-                                                                            <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
-                                                                                <i className='fa fa-ellipsis-v' />
-                                                                            </button>
-                                                                        )}>
-                                                                        {() => group.renderMenu()}
-                                                                    </DropDown>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                        {group.type === 'node' ? (
-                                                            <div className='pod-view__node__info--large'>
-                                                                {(group.info || []).map(item => (
-                                                                    <div key={item.name}>
-                                                                        {item.name}: <div>{item.value}</div>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        ) : (
-                                                            <div className='pod-view__node__info'>
-                                                                {group.createdAt ? (
-                                                                    <div>
-                                                                        <Moment fromNow={true} ago={true}>
-                                                                            {group.createdAt}
-                                                                        </Moment>
-                                                                    </div>
-                                                                ) : null}
-                                                                {group.info.map(infoItem => (
-                                                                    <div key={infoItem.name}>{infoItem.value}</div>
-                                                                ))}
+                            {groups.length > 0 ? (
+                                <div className='pod-view__nodes-container'>
+                                    {groups.map(group => (
+                                        <div className={`pod-view__node white-box ${group.kind === 'node' && 'pod-view__node--large'}`} key={group.name}>
+                                            <div className='pod-view__node__container--header' onClick={() => this.props.onItemClick(group.fullName)} style={{cursor: 'pointer'}}>
+                                                <div style={{display: 'flex', alignItems: 'center'}}>
+                                                    <div style={{marginRight: '10px'}}>
+                                                        <ResourceIcon kind={group.kind || 'Unknown'} />
+                                                        <br />
+                                                        {<div style={{textAlign: 'center'}}>{ResourceLabel({kind: group.kind})}</div>}
+                                                    </div>
+                                                    <div style={{lineHeight: '15px'}}>
+                                                        <b style={{wordWrap: 'break-word'}}>{group.name || 'Unknown'}</b>
+                                                        {group.resourceStatus && (
+                                                            <div>
+                                                                {group.resourceStatus.health && <HealthStatusIcon state={group.resourceStatus.health} />}
+                                                                &nbsp;
+                                                                {group.resourceStatus.status && <ComparisonStatusIcon status={group.resourceStatus.status} />}
                                                             </div>
                                                         )}
                                                     </div>
-                                                    <div className='pod-view__node__container'>
-                                                        {Object.keys((group as InfraNode).metrics || {}).length > 0 && (
-                                                            <div className='pod-view__node__container pod-view__node__container--stats'>
-                                                                {Object.keys((group as InfraNode).metrics || {}).map(r =>
-                                                                    stat(r as ResourceName, (group as InfraNode).metrics[r as ResourceName])
-                                                                )}
-                                                            </div>
+                                                    <div style={{marginLeft: 'auto'}}>
+                                                        {group.renderMenu && (
+                                                            <DropDown
+                                                                isMenu={true}
+                                                                anchor={() => (
+                                                                    <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
+                                                                        <i className='fa fa-ellipsis-v' />
+                                                                    </button>
+                                                                )}>
+                                                                {() => group.renderMenu()}
+                                                            </DropDown>
                                                         )}
-                                                        <div className='pod-view__node__pod-container pod-view__node__container'>
-                                                            <div className='pod-view__node__pod-container__pods'>
-                                                                {group.pods.map(pod => (
-                                                                    <DropDownMenu
-                                                                        key={pod.uid}
-                                                                        anchor={() => (
-                                                                            <Tooltip
-                                                                                content={
-                                                                                    <div>
-                                                                                        {pod.metadata.name}
-                                                                                        <div>Health: {pod.health}</div>
-                                                                                    </div>
-                                                                                }
-                                                                                key={pod.metadata.name}>
-                                                                                <div className={`pod-view__node__pod pod-view__node__pod--${pod.health.toLowerCase()}`}>
-                                                                                    <PodHealthIcon state={{status: pod.health, message: ''}} />
-                                                                                </div>
-                                                                            </Tooltip>
-                                                                        )}
-                                                                        items={[
-                                                                            {
-                                                                                title: (
-                                                                                    <React.Fragment>
-                                                                                        <i className='fa fa-info-circle' /> Info
-                                                                                    </React.Fragment>
-                                                                                ),
-                                                                                action: () => this.props.onItemClick(pod.fullName)
-                                                                            },
-                                                                            {
-                                                                                title: (
-                                                                                    <React.Fragment>
-                                                                                        <i className='fa fa-trash' /> Delete
-                                                                                    </React.Fragment>
-                                                                                ),
-                                                                                action: async () => {
-                                                                                    this.appContext.apis.popup.prompt(
-                                                                                        'Delete pod',
-                                                                                        () => (
-                                                                                            <div>
-                                                                                                <p>Are your sure you want to delete Pod '{pod.name}'?</p>
-                                                                                                <div className='argo-form-row' style={{paddingLeft: '30px'}}>
-                                                                                                    <ReactCheckbox id='force-delete-checkbox' field='force' />
-                                                                                                    <label htmlFor='force-delete-checkbox'>Force delete</label>
-                                                                                                </div>
-                                                                                            </div>
-                                                                                        ),
-                                                                                        {
-                                                                                            submit: async (vals, _, close) => {
-                                                                                                try {
-                                                                                                    await services.applications.deleteResource(
-                                                                                                        this.props.app.metadata.name,
-                                                                                                        pod,
-                                                                                                        !!vals.force
-                                                                                                    );
-                                                                                                    this.loader.reload();
-                                                                                                    close();
-                                                                                                } catch (e) {
-                                                                                                    this.appContext.apis.notifications.show({
-                                                                                                        content: <ErrorNotification title='Unable to delete resource' e={e} />,
-                                                                                                        type: NotificationType.Error
-                                                                                                    });
-                                                                                                }
-                                                                                            }
-                                                                                        }
-                                                                                    );
-                                                                                }
-                                                                            }
-                                                                        ]}
-                                                                    />
-                                                                ))}
-                                                            </div>
-                                                            <div className='pod-view__node__label'>PODS</div>
-                                                        </div>
                                                     </div>
                                                 </div>
-                                            ))}
+                                                {group.type === 'node' ? (
+                                                    <div className='pod-view__node__info--large'>
+                                                        {(group.info || []).map(item => (
+                                                            <div key={item.name}>
+                                                                {item.name}: <div>{item.value}</div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <div className='pod-view__node__info'>
+                                                        {group.createdAt ? (
+                                                            <div>
+                                                                <Moment fromNow={true} ago={true}>
+                                                                    {group.createdAt}
+                                                                </Moment>
+                                                            </div>
+                                                        ) : null}
+                                                        {group.info.map(infoItem => (
+                                                            <div key={infoItem.name}>{infoItem.value}</div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className='pod-view__node__container'>
+                                                {Object.keys((group as Node).metrics || {}).length > 0 && (
+                                                    <div className='pod-view__node__container pod-view__node__container--stats'>
+                                                        {Object.keys((group as Node).metrics || {}).map(r => stat(r as ResourceName, (group as Node).metrics[r as ResourceName]))}
+                                                    </div>
+                                                )}
+                                                <div className='pod-view__node__pod-container pod-view__node__container'>
+                                                    <div className='pod-view__node__pod-container__pods'>
+                                                        {group.pods.map(pod => (
+                                                            <DropDownMenu
+                                                                key={pod.uid}
+                                                                anchor={() => (
+                                                                    <Tooltip
+                                                                        content={
+                                                                            <div>
+                                                                                {pod.metadata.name}
+                                                                                <div>Health: {pod.health}</div>
+                                                                            </div>
+                                                                        }
+                                                                        key={pod.metadata.name}>
+                                                                        <div className={`pod-view__node__pod pod-view__node__pod--${pod.health.toLowerCase()}`}>
+                                                                            <PodHealthIcon state={{status: pod.health, message: ''}} />
+                                                                        </div>
+                                                                    </Tooltip>
+                                                                )}
+                                                                items={[
+                                                                    {
+                                                                        title: (
+                                                                            <React.Fragment>
+                                                                                <i className='fa fa-info-circle' /> Info
+                                                                            </React.Fragment>
+                                                                        ),
+                                                                        action: () => this.props.onItemClick(pod.fullName)
+                                                                    },
+                                                                    {
+                                                                        title: (
+                                                                            <React.Fragment>
+                                                                                <i className='fa fa-trash' /> Delete
+                                                                            </React.Fragment>
+                                                                        ),
+                                                                        action: async () => {
+                                                                            this.appContext.apis.popup.prompt(
+                                                                                'Delete pod',
+                                                                                () => (
+                                                                                    <div>
+                                                                                        <p>Are your sure you want to delete Pod '{pod.name}'?</p>
+                                                                                        <div className='argo-form-row' style={{paddingLeft: '30px'}}>
+                                                                                            <ReactCheckbox id='force-delete-checkbox' field='force' />
+                                                                                            <label htmlFor='force-delete-checkbox'>Force delete</label>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                ),
+                                                                                {
+                                                                                    submit: async (vals, _, close) => {
+                                                                                        try {
+                                                                                            await services.applications.deleteResource(
+                                                                                                this.props.app.metadata.name,
+                                                                                                pod,
+                                                                                                !!vals.force
+                                                                                            );
+                                                                                            close();
+                                                                                        } catch (e) {
+                                                                                            this.appContext.apis.notifications.show({
+                                                                                                content: <ErrorNotification title='Unable to delete resource' e={e} />,
+                                                                                                type: NotificationType.Error
+                                                                                            });
+                                                                                        }
+                                                                                    }
+                                                                                }
+                                                                            );
+                                                                        }
+                                                                    }
+                                                                ]}
+                                                            />
+                                                        ))}
+                                                    </div>
+                                                    <div className='pod-view__node__label'>PODS</div>
+                                                </div>
+                                            </div>
                                         </div>
-                                    ) : (
-                                        <EmptyState icon=' fa fa-th'>
-                                            <h4>Your application has no pod groups</h4>
-                                            <h5>Try switching to tree or list view</h5>
-                                        </EmptyState>
-                                    );
-                                }}
-                            </DataLoader>
+                                    ))}
+                                </div>
+                            ) : (
+                                <EmptyState icon=' fa fa-th'>
+                                    <h4>Your application has no pod groups</h4>
+                                    <h5>Try switching to tree or list view</h5>
+                                </EmptyState>
+                            )}
                         </React.Fragment>
                     );
                 }}
             </DataLoader>
         );
     }
+
     private menuItemsFor(modes: PodGroupType[], prefs: ViewPreferences): MenuItem[] {
         const podPrefs = prefs.appDetails.podView || ({} as PodViewPreferences);
         return modes.map(mode => ({
@@ -239,12 +227,11 @@ export class PodView extends React.Component<PodViewProps> {
             ),
             action: () => {
                 services.viewPreferences.updatePreferences({appDetails: {...prefs.appDetails, podView: {...podPrefs, sortMode: mode}}});
-                this.loader.reload();
             }
         }));
     }
 
-    private processTree(sortMode: PodGroupType, initNodes: InfraNode[]): PodGroup[] {
+    private processTree(sortMode: PodGroupType, initNodes: Node[]): PodGroup[] {
         const tree = this.props.tree;
         if (!tree) {
             return [];
@@ -313,8 +300,8 @@ export class PodView extends React.Component<PodViewProps> {
 
             if (sortMode === 'node') {
                 if (groupRefs[p.spec.nodeName]) {
-                    const curNode = groupRefs[p.spec.nodeName] as InfraNode;
-                    curNode.metrics = mergeResourceLists(curNode.metrics, InfoToResourceList(rnode.info));
+                    const curNode = groupRefs[p.spec.nodeName] as Node;
+                    curNode.metrics = mergeResourceLists(curNode.metrics, infoToResourceList(rnode.info));
                     curNode.pods.push(p);
                 }
             } else if (sortMode === 'parentResource') {
@@ -349,7 +336,7 @@ export class PodView extends React.Component<PodViewProps> {
     }
 }
 
-function InfoToResourceList(items: InfoItem[]): ResourceList {
+function infoToResourceList(items: InfoItem[]): ResourceList {
     const resources = {} as ResourceList;
     items
         .filter(item => item.name.includes('Resource.'))

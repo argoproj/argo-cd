@@ -336,6 +336,7 @@ export interface ResourceNode extends ResourceRef {
 export interface ApplicationTree {
     nodes: ResourceNode[];
     orphanedNodes: ResourceNode[];
+    hosts: Node[];
 }
 
 export interface ResourceID {
@@ -821,22 +822,22 @@ export const Groups = [
     'storage.k8s.io'
 ];
 
-export interface InfraNode {
+export interface Node {
     metadata?: models.ObjectMeta;
     name: string;
-    status?: InfraNodeStatus;
+    status?: NodeStatus;
     metrics: ResourceList;
     pods: Pod[];
+}
+
+export interface NodeStatus {
+    nodeInfo: NodeInfo;
+    capacity: {[key in ResourceName]?: string};
 }
 
 export interface Metric {
     request: number;
     limit: number;
-}
-
-export interface InfraNodeStatus {
-    nodeInfo: NodeInfo;
-    capacity: {[key in ResourceName]?: string};
 }
 
 export interface NodeInfo {

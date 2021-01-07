@@ -319,6 +319,9 @@ message ApplicationTree {
 
   // OrphanedNodes contains if or orphaned nodes: nodes which are not managed by the app but in the same namespace. List is populated only if orphaned resources enabled in app project.
   repeated ResourceNode orphanedNodes = 2;
+
+  // Hosts holds list of Kubernetes nodes that run application related pods
+  repeated k8s.io.api.core.v1.Node hosts = 3;
 }
 
 // ApplicationWatchEvent contains information about application change.
