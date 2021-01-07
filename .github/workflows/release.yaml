@@ -184,6 +184,9 @@ jobs:
           git clean -fd
           mkdir -p dist/
           make image IMAGE_TAG="${TARGET_VERSION}" DOCKER_PUSH=false
+          sudo ./hack/install.sh packr-linux
+          make UTIL_CLI_NAME=argocd-util-darwin-amd64 GOOS=darwin argocd-util
+          make UTIL_CLI_NAME=argocd-util-windows-amd64.exe GOOS=windows argocd-util
           make release-cli
           chmod +x ./dist/argocd-linux-amd64
           ./dist/argocd-linux-amd64 version --client
@@ -256,6 +259,7 @@ jobs:
           asset_content_type: application/octet-stream
         if: ${{ env.DRY_RUN != 'true' }}
 
+      # include argocd-util as part of release artifacts (argoproj/argo-cd#5174)
       - name: Upload argocd-util-linux-amd64 binary to release assets
         uses: actions/upload-release-asset@v1
         env:

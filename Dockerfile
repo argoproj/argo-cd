@@ -122,9 +122,7 @@ RUN make cli-local server controller repo-server argocd-util
 ARG BUILD_ALL_CLIS=true
 RUN if [ "$BUILD_ALL_CLIS" = "true" ] ; then \
     make CLI_NAME=argocd-darwin-amd64 GOOS=darwin cli-local && \
-    make CLI_NAME=argocd-windows-amd64.exe GOOS=windows cli-local && \
-    make UTIL_CLI_NAME=argocd-util-darwin-amd64 GOOS=darwin argocd-util && \
-    make UTIL_CLI_NAME=argocd-util-windows-amd64.exe GOOS=windows argocd-util \
+    make CLI_NAME=argocd-windows-amd64.exe GOOS=windows cli-local \
     ; fi
 
 ####################################################################################################
