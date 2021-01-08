@@ -261,52 +261,6 @@ func TestEnsureSyncedSingleNamespace(t *testing.T) {
 	assert.ElementsMatch(t, []string{"helm-guestbook1"}, names)
 }
 
-func TestGetNamespaceResources(t *testing.T) {
-	defaultNamespaceTopLevel1 := &appsv1.Deployment{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1",
-			Kind:       "Deployment",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "helm-guestbook1",
-			Namespace: "default",
-		},
-	}
-	defaultNamespaceTopLevel2 := &appsv1.Deployment{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1",
-			Kind:       "Deployment",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "helm-guestbook2",
-			Namespace: "default",
-		},
-	}
-	kubesystemNamespaceTopLevel2 := &appsv1.Deployment{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1",
-			Kind:       "Deployment",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "helm-guestbook3",
-			Namespace: "kube-system",
-		},
-	}
-
-	cluster := newCluster(t, defaultNamespaceTopLevel1, defaultNamespaceTopLevel2, kubesystemNamespaceTopLevel2)
-	err := cluster.EnsureSynced()
-	require.NoError(t, err)
-
-	resources := cluster.GetNamespaceTopLevelResources("default")
-	assert.Len(t, resources, 2)
-	assert.Equal(t, resources[getResourceKey(t, defaultNamespaceTopLevel1)].Ref.Name, "helm-guestbook1")
-	assert.Equal(t, resources[getResourceKey(t, defaultNamespaceTopLevel2)].Ref.Name, "helm-guestbook2")
-
-	resources = cluster.GetNamespaceTopLevelResources("kube-system")
-	assert.Len(t, resources, 1)
-	assert.Equal(t, resources[getResourceKey(t, kubesystemNamespaceTopLevel2)].Ref.Name, "helm-guestbook3")
-}
-
 func TestGetChildren(t *testing.T) {
 	cluster := newCluster(t, testPod(), testRS(), testDeploy())
 	err := cluster.EnsureSynced()
@@ -619,37 +573,6 @@ func TestGetDuplicatedChildren(t *testing.T) {
 		assert.Equal(t, "apps/v1", children[0].Ref.APIVersion)
 		assert.Equal(t, kube.ReplicaSetKind, children[0].Ref.Kind)
 		assert.Equal(t, testRS().GetName(), children[0].Ref.Name)
-	}
-}
-
-func ExampleNewClusterCache_inspectNamespaceResources() {
-	// kubernetes cluster config here
-	config := &rest.Config{}
-
-	clusterCache := NewClusterCache(config,
-		// cache default namespace only
-		SetNamespaces([]string{"default", "kube-system"}),
-		// configure custom logic to cache resources manifest and additional metadata
-		SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (info interface{}, cacheManifest bool) {
-			// if resource belongs to 'extensions' group then mark if with 'deprecated' label
-			if un.GroupVersionKind().Group == "extensions" {
-				info = []string{"deprecated"}
-			}
-			_, ok := un.GetLabels()["acme.io/my-label"]
-			// cache whole manifest if resource has label
-			cacheManifest = ok
-			return
-		}),
-	)
-	// Ensure cluster is synced before using it
-	if err := clusterCache.EnsureSynced(); err != nil {
-		panic(err)
-	}
-	// Iterate default namespace resources tree
-	for _, root := range clusterCache.GetNamespaceTopLevelResources("default") {
-		clusterCache.IterateHierarchy(root.ResourceKey(), func(resource *Resource, _ map[kube.ResourceKey]*Resource) {
-			fmt.Printf("resource: %s, info: %v\n", resource.Ref.String(), resource.Info)
-		})
 	}
 }
 

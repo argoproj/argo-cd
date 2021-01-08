@@ -86,8 +86,8 @@ type ClusterCache interface {
 	GetAPIGroups() []metav1.APIGroup
 	// Invalidate cache and executes callback that optionally might update cache settings
 	Invalidate(opts ...UpdateSettingsFunc)
-	// GetNamespaceTopLevelResources returns top level resources in the specified namespace
-	GetNamespaceTopLevelResources(namespace string) map[kube.ResourceKey]*Resource
+	// FindResources returns resources that matches given list of predicates from specified namespace or everywhere if specified namespace is empty
+	FindResources(namespace string, predicates ...func(r *Resource) bool) map[kube.ResourceKey]*Resource
 	// IterateHierarchy iterates resource tree starting from the specified top level resource and executes callback for each resource in the tree
 	IterateHierarchy(key kube.ResourceKey, action func(resource *Resource, namespaceResources map[kube.ResourceKey]*Resource))
 	// IsNamespaced answers if specified group/kind is a namespaced resource API or not
@@ -620,17 +620,34 @@ func (c *clusterCache) EnsureSynced() error {
 	return c.syncError
 }
 
-// GetNamespaceTopLevelResources returns top level resources in the specified namespace
-func (c *clusterCache) GetNamespaceTopLevelResources(namespace string) map[kube.ResourceKey]*Resource {
+func (c *clusterCache) FindResources(namespace string, predicates ...func(r *Resource) bool) map[kube.ResourceKey]*Resource {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
-	resources := make(map[kube.ResourceKey]*Resource)
-	for _, res := range c.nsIndex[namespace] {
-		if len(res.OwnerRefs) == 0 {
-			resources[res.ResourceKey()] = res
+	result := map[kube.ResourceKey]*Resource{}
+	resources := map[kube.ResourceKey]*Resource{}
+	if namespace != "" {
+		if ns, ok := c.nsIndex[namespace]; ok {
+			resources = ns
+		}
+	} else {
+		resources = c.resources
+	}
+
+	for k := range resources {
+		r := resources[k]
+		matches := true
+		for i := range predicates {
+			if !predicates[i](r) {
+				matches = false
+				break
+			}
+		}
+
+		if matches {
+			result[k] = r
 		}
 	}
-	return resources
+	return result
 }
 
 // IterateHierarchy iterates resource tree starting from the specified top level resource and executes callback for each resource in the tree

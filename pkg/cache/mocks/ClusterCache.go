@@ -81,19 +81,24 @@ func (_m *ClusterCache) GetManagedLiveObjs(targetObjs []*unstructured.Unstructur
 	return r0, r1
 }
 
-// GetNamespaceTopLevelResources provides a mock function with given fields: namespace
-func (_m *ClusterCache) GetNamespaceTopLevelResources(namespace string) map[kube.ResourceKey]*cache.Resource {
-	ret := _m.Called(namespace)
-
+// FindResources provides a mock function with given fields: namespace, predicates
+func (_m *ClusterCache) FindResources(namespace string, predicates ...func(*cache.Resource) bool) map[kube.ResourceKey]*cache.Resource {
+	_va := make([]interface{}, len(predicates))
+	for _i := range predicates {
+		_va[_i] = predicates[_i]
+	}
+	var _ca []interface{}
+	_ca = append(_ca, namespace)
+	_ca = append(_ca, _va...)
+	ret := _m.Called(_ca...)
 	var r0 map[kube.ResourceKey]*cache.Resource
-	if rf, ok := ret.Get(0).(func(string) map[kube.ResourceKey]*cache.Resource); ok {
-		r0 = rf(namespace)
+	if rf, ok := ret.Get(0).(func(string, ...func(*cache.Resource) bool) map[kube.ResourceKey]*cache.Resource); ok {
+		r0 = rf(namespace, predicates...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(map[kube.ResourceKey]*cache.Resource)
 		}
 	}
-
 	return r0
 }
 
