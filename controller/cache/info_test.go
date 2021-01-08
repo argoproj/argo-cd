@@ -179,9 +179,7 @@ func TestGetPodInfo(t *testing.T) {
 	assert.Equal(t, []v1alpha1.InfoItem{
 		{Name: "Node", Value: ""},
 		{Name: "Resource.CpuReq", Value: "0"},
-		{Name: "Resource.CpuLimit", Value: "0"},
 		{Name: "Resource.MemoryReq", Value: "0"},
-		{Name: "Resource.MemoryLimit", Value: "0"},
 		{Name: "Containers", Value: "0/1"},
 	}, info.Info)
 	assert.Equal(t, []string{"bar"}, info.Images)

@@ -823,32 +823,16 @@ export const Groups = [
 ];
 
 export interface Node {
-    metadata?: models.ObjectMeta;
     name: string;
-    status?: NodeStatus;
-    metrics: ResourceList;
-    pods: Pod[];
+    capacity: {[key in ResourceName]?: number};
+    systemInfo: NodeSystemInfo;
 }
 
-export interface NodeStatus {
-    nodeInfo: NodeInfo;
-    capacity: {[key in ResourceName]?: string};
-}
-
-export interface Metric {
-    request: number;
-    limit: number;
-}
-
-export interface NodeInfo {
+export interface NodeSystemInfo {
     architecture: string;
     operatingSystem: string;
     kernelVersion: string;
 }
-
-export type ResourceList = {
-    [key in ResourceName]?: Metric;
-};
 
 export enum ResourceName {
     ResourceCPU = 'cpu',

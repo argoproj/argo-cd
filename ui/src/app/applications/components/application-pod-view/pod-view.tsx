@@ -3,15 +3,17 @@ import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import {Checkbox as ReactCheckbox} from 'react-form';
 import Moment from 'react-moment';
+
 import {EmptyState, ErrorNotification} from '../../../shared/components';
 import {AppContext} from '../../../shared/context';
-import {Application, ApplicationTree, InfoItem, Metric, Node, Pod, ResourceList, ResourceName, ResourceNode, ResourceStatus} from '../../../shared/models';
+import {Application, ApplicationTree, InfoItem, Node, Pod, ResourceName, ResourceNode, ResourceStatus} from '../../../shared/models';
 import {PodViewPreferences, services, ViewPreferences} from '../../../shared/services';
+
 import {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
-import {nodeKey, PodHealthIcon} from '../utils';
-import {ComparisonStatusIcon, HealthStatusIcon} from '../utils';
+import {ComparisonStatusIcon, HealthStatusIcon, nodeKey, PodHealthIcon} from '../utils';
+
 import './pod-view.scss';
 
 interface PodViewProps {
@@ -23,11 +25,15 @@ interface PodViewProps {
 
 export type PodGroupType = 'topLevelResource' | 'parentResource' | 'node';
 
-export interface PodGroup extends Partial<ResourceNode> {
+type ResourceStats = {
+    [key in ResourceName]?: {request: number; capacity: number};
+};
+
+interface PodGroup extends Partial<ResourceNode> {
     type: PodGroupType;
     pods: Pod[];
     info?: InfoItem[];
-    metrics?: ResourceList;
+    resourceStats?: ResourceStats;
     resourceStatus?: Partial<ResourceStatus>;
     renderMenu?: () => React.ReactNode;
     fullName?: string;
@@ -123,9 +129,9 @@ export class PodView extends React.Component<PodViewProps> {
                                                 )}
                                             </div>
                                             <div className='pod-view__node__container'>
-                                                {Object.keys((group as Node).metrics || {}).length > 0 && (
+                                                {Object.keys(group.resourceStats || {}).length > 0 && (
                                                     <div className='pod-view__node__container pod-view__node__container--stats'>
-                                                        {Object.keys((group as Node).metrics || {}).map(r => stat(r as ResourceName, (group as Node).metrics[r as ResourceName]))}
+                                                        {Object.keys(group.resourceStats || {}).map(r => renderStats(r as ResourceName, group.resourceStats[r as ResourceName]))}
                                                     </div>
                                                 )}
                                                 <div className='pod-view__node__pod-container pod-view__node__container'>
@@ -241,7 +247,17 @@ export class PodView extends React.Component<PodViewProps> {
 
         if (sortMode === 'node' && initNodes) {
             initNodes.forEach(infraNode => {
-                const nodeName = infraNode.metadata ? infraNode.metadata.name || 'Unknown' : 'Unknown';
+                const nodeName = infraNode.name;
+                const metrics: ResourceStats = {};
+                if (infraNode.capacity.cpu) {
+                    metrics.cpu = {request: 0, capacity: infraNode.capacity.cpu};
+                }
+                if (infraNode.capacity.memory) {
+                    metrics.memory = {request: 0, capacity: infraNode.capacity.memory};
+                }
+                if (infraNode.capacity.storage) {
+                    metrics.storage = {request: 0, capacity: infraNode.capacity.storage};
+                }
                 groupRefs[nodeName] = {
                     ...infraNode,
                     type: 'node',
@@ -249,10 +265,11 @@ export class PodView extends React.Component<PodViewProps> {
                     name: nodeName,
                     pods: [],
                     info: [
-                        {name: 'Kernel Version', value: infraNode.status.nodeInfo.kernelVersion},
-                        {name: 'Operating System', value: infraNode.status.nodeInfo.operatingSystem},
-                        {name: 'Architecture', value: infraNode.status.nodeInfo.architecture}
-                    ]
+                        {name: 'Kernel Version', value: infraNode.systemInfo.kernelVersion},
+                        {name: 'Operating System', value: infraNode.systemInfo.operatingSystem},
+                        {name: 'Architecture', value: infraNode.systemInfo.architecture}
+                    ],
+                    resourceStats: metrics
                 };
             });
         }
@@ -300,8 +317,15 @@ export class PodView extends React.Component<PodViewProps> {
 
             if (sortMode === 'node') {
                 if (groupRefs[p.spec.nodeName]) {
-                    const curNode = groupRefs[p.spec.nodeName] as Node;
-                    curNode.metrics = mergeResourceLists(curNode.metrics, infoToResourceList(rnode.info));
+                    const curNode = groupRefs[p.spec.nodeName];
+                    rnode.info
+                        .filter(item => item.name.includes('Resource.'))
+                        .forEach(item => {
+                            const name = item.name.replace(/Resource.|Limit|Req/gi, '').toLowerCase() as ResourceName;
+                            if (curNode.resourceStats[name]) {
+                                curNode.resourceStats[name].request += parseInt(item.value, 10);
+                            }
+                        });
                     curNode.pods.push(p);
                 }
             } else if (sortMode === 'parentResource') {
@@ -336,41 +360,33 @@ export class PodView extends React.Component<PodViewProps> {
     }
 }
 
-function infoToResourceList(items: InfoItem[]): ResourceList {
-    const resources = {} as ResourceList;
-    items
-        .filter(item => item.name.includes('Resource.'))
-        .forEach(item => {
-            const name = item.name.replace(/Resource.|Limit|Req/gi, '').toLowerCase() as ResourceName;
-            resources[name] = resources[name] || ({} as Metric);
-            if (item.name.includes('Limit')) {
-                resources[name].limit = parseInt(item.value, 10);
-            } else {
-                resources[name].request = parseInt(item.value, 10);
-            }
-        });
-    return resources;
-}
-
 const labelForSortMode = {
     node: 'Node',
     parentResource: 'Parent Resource',
     topLevelResource: 'Top Level Resource'
 };
 
-function mergeResourceLists(a: ResourceList, b: ResourceList): ResourceList {
-    if (!a || !b) {
-        return !a ? b : a;
+const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+function formatSize(bytes: number) {
+    if (bytes === 0) {
+        return '0 Bytes';
     }
-    const res = a;
-    (Object.keys(b) as ResourceName[]).forEach(key => {
-        res[key].limit += b[key].limit;
-        res[key].request += b[key].request;
-    });
-    return res;
+    const k = 1024;
+    const dm = 2;
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 }
 
-function stat(name: ResourceName, metric: Metric) {
+function formatMetric(name: ResourceName, val: number) {
+    if (name === ResourceName.ResourceStorage || name === ResourceName.ResourceMemory) {
+        // divide by 1000 to convert "milli bytes" to bytes
+        return formatSize(val / 1000);
+    }
+    // cpu millicores
+    return val + 'm';
+}
+
+function renderStats(name: ResourceName, metric: {request: number; capacity: number}) {
     return (
         <div className='pod-view__node__pod__stat' key={name}>
             <Tooltip
@@ -378,11 +394,11 @@ function stat(name: ResourceName, metric: Metric) {
                 content={
                     <React.Fragment>
                         <div>{name}:</div>
-                        <div>{`${metric.request} / ${metric.limit}`}</div>
+                        <div>{`${formatMetric(name, metric.request)} / ${formatMetric(name, metric.capacity)}`}</div>
                     </React.Fragment>
                 }>
                 <div className='pod-view__node__pod__stat__bar'>
-                    <div className='pod-view__node__pod__stat__bar--fill' style={{height: `${100 * (metric.request / metric.limit)}%`}} />
+                    <div className='pod-view__node__pod__stat__bar--fill' style={{height: `${100 * (metric.request / metric.capacity)}%`}} />
                 </div>
             </Tooltip>
             <div className='pod-view__node__label'>{name.slice(0, 3).toUpperCase()}</div>

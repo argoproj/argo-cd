@@ -395,7 +395,20 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 	if err != nil {
 		return nil, err
 	}
-	return &appv1.ApplicationTree{Nodes: nodes, OrphanedNodes: orphanedNodes, Hosts: hosts}, nil
+	var hostsInfo []appv1.HostInfo
+	for _, h := range hosts {
+		capacity := map[string]int64{}
+		for k, v := range h.Status.Capacity {
+			capacity[k.String()] = v.MilliValue()
+		}
+
+		hostsInfo = append(hostsInfo, appv1.HostInfo{
+			Name:       h.Name,
+			Capacity:   capacity,
+			SystemInfo: h.Status.NodeInfo,
+		})
+	}
+	return &appv1.ApplicationTree{Nodes: nodes, OrphanedNodes: orphanedNodes, Hosts: hostsInfo}, nil
 }
 
 func (ctrl *ApplicationController) managedResources(comparisonResult *comparisonResult) ([]*appv1.ResourceDiff, error) {

@@ -313,15 +313,13 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Status Reason", Value: reason})
 	}
 
-	req, limit := resourcehelper.PodRequestsAndLimits(&pod)
-	cpuReq, cpuLimit, memoryReq, memoryLimit := req[v1.ResourceCPU], limit[v1.ResourceCPU], req[v1.ResourceMemory], limit[v1.ResourceMemory]
+	req, _ := resourcehelper.PodRequestsAndLimits(&pod)
+	cpuReq, memoryReq := req[v1.ResourceCPU], req[v1.ResourceMemory]
 
 	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Node", Value: pod.Spec.NodeName})
 
 	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Resource.CpuReq", Value: fmt.Sprintf("%d", cpuReq.MilliValue())})
-	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Resource.CpuLimit", Value: fmt.Sprintf("%d", cpuLimit.MilliValue())})
-	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Resource.MemoryReq", Value: fmt.Sprintf("%d", memoryReq.Value())})
-	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Resource.MemoryLimit", Value: fmt.Sprintf("%d", memoryLimit.Value())})
+	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Resource.MemoryReq", Value: fmt.Sprintf("%d", memoryReq.MilliValue())})
 
 	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Containers", Value: fmt.Sprintf("%d/%d", readyContainers, totalContainers)})
 	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{Labels: un.GetLabels()}

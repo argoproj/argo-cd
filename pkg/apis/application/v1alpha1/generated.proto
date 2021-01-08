@@ -321,7 +321,7 @@ message ApplicationTree {
   repeated ResourceNode orphanedNodes = 2;
 
   // Hosts holds list of Kubernetes nodes that run application related pods
-  repeated k8s.io.api.core.v1.Node hosts = 3;
+  repeated HostInfo hosts = 3;
 }
 
 // ApplicationWatchEvent contains information about application change.
@@ -552,6 +552,15 @@ message HelmParameter {
 
   // ForceString determines whether to tell Helm to interpret booleans and numbers as strings
   optional bool forceString = 3;
+}
+
+// HostInfo holds host name and resources metrics
+message HostInfo {
+  optional string name = 1;
+
+  map<string, int64> capacity = 2;
+
+  optional k8s.io.api.core.v1.NodeSystemInfo systemInfo = 3;
 }
 
 message Info {
