@@ -68,10 +68,10 @@ In summary, the modifications it does are:
 * Push the tag to the GitHub repository to trigger the workflow
 * Remove trigger tag from your local repository
 
-The script can be found at `hacks/trigger-release.sh` and is used as follows:
+The script can be found at `hack/trigger-release.sh` and is used as follows:
 
 ```shell
-./hacks/trigger-release.sh <version> <remote name> [<release notes path>]
+./hack/trigger-release.sh <version> <remote name> [<release notes path>]
 ```
 
 The `<version>` identifier needs to be specified **without** the `release-`
