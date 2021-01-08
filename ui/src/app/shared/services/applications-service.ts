@@ -167,11 +167,13 @@ export class ApplicationsService {
             .then(() => true);
     }
 
-    public getContainerLogs(applicationName: string, namespace: string, podName: string, containerName: string, tail?: number): Observable<models.LogEntry> {
-        console.log(`/applications/${applicationName}/pods/${podName}/logs?container=${containerName}&follow=true&namespace=${namespace}${tail ? '&tailLines=' + tail : ''}`);
+    public getContainerLogs(applicationName: string, namespace: string, podName: string, containerName: string, tail?: number, follow?: boolean): Observable<models.LogEntry> {
+        if (follow === undefined || follow === null) {
+            follow = true;
+        }
         const entries = requests
             .loadEventSource(
-                `/applications/${applicationName}/pods/${podName}/logs?container=${containerName}&follow=true&namespace=${namespace}${tail ? '&tailLines=' + tail : ''}`
+                `/applications/${applicationName}/pods/${podName}/logs?container=${containerName}&follow=${follow}&namespace=${namespace}${tail ? '&tailLines=' + tail : ''}`
             )
             .map((data) => JSON.parse(data).result as models.LogEntry);
         return new Observable((observer) => {
