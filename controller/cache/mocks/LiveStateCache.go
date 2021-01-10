@@ -5,18 +5,19 @@ package mocks
 import (
 	context "context"
 
+	cache "github.com/argoproj/gitops-engine/pkg/cache"
+
+	controllercache "github.com/argoproj/argo-cd/controller/cache"
+
 	kube "github.com/argoproj/gitops-engine/pkg/utils/kube"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	mock "github.com/stretchr/testify/mock"
-
-	pkgcache "github.com/argoproj/gitops-engine/pkg/cache"
 
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 
 	unstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	v1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	v1alpha1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )
@@ -26,39 +27,16 @@ type LiveStateCache struct {
 	mock.Mock
 }
 
-// FindNodes provides a mock function with given fields: server, predicate
-func (_m *LiveStateCache) FindNodes(server string, predicate func(string) bool) ([]v1.Node, error) {
-	ret := _m.Called(server, predicate)
-
-	var r0 []v1.Node
-	if rf, ok := ret.Get(0).(func(string, func(string) bool) []v1.Node); ok {
-		r0 = rf(server, predicate)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]v1.Node)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(string, func(string) bool) error); ok {
-		r1 = rf(server, predicate)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // GetClusterCache provides a mock function with given fields: server
-func (_m *LiveStateCache) GetClusterCache(server string) (pkgcache.ClusterCache, error) {
+func (_m *LiveStateCache) GetClusterCache(server string) (cache.ClusterCache, error) {
 	ret := _m.Called(server)
 
-	var r0 pkgcache.ClusterCache
-	if rf, ok := ret.Get(0).(func(string) pkgcache.ClusterCache); ok {
+	var r0 cache.ClusterCache
+	if rf, ok := ret.Get(0).(func(string) cache.ClusterCache); ok {
 		r0 = rf(server)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(pkgcache.ClusterCache)
+			r0 = ret.Get(0).(cache.ClusterCache)
 		}
 	}
 
@@ -73,15 +51,15 @@ func (_m *LiveStateCache) GetClusterCache(server string) (pkgcache.ClusterCache,
 }
 
 // GetClustersInfo provides a mock function with given fields:
-func (_m *LiveStateCache) GetClustersInfo() []pkgcache.ClusterInfo {
+func (_m *LiveStateCache) GetClustersInfo() []cache.ClusterInfo {
 	ret := _m.Called()
 
-	var r0 []pkgcache.ClusterInfo
-	if rf, ok := ret.Get(0).(func() []pkgcache.ClusterInfo); ok {
+	var r0 []cache.ClusterInfo
+	if rf, ok := ret.Get(0).(func() []cache.ClusterInfo); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]pkgcache.ClusterInfo)
+			r0 = ret.Get(0).([]cache.ClusterInfo)
 		}
 	}
 
@@ -135,7 +113,7 @@ func (_m *LiveStateCache) GetNamespaceTopLevelResources(server string, namespace
 }
 
 // GetVersionsInfo provides a mock function with given fields: serverURL
-func (_m *LiveStateCache) GetVersionsInfo(serverURL string) (string, []metav1.APIGroup, error) {
+func (_m *LiveStateCache) GetVersionsInfo(serverURL string) (string, []v1.APIGroup, error) {
 	ret := _m.Called(serverURL)
 
 	var r0 string
@@ -145,12 +123,12 @@ func (_m *LiveStateCache) GetVersionsInfo(serverURL string) (string, []metav1.AP
 		r0 = ret.Get(0).(string)
 	}
 
-	var r1 []metav1.APIGroup
-	if rf, ok := ret.Get(1).(func(string) []metav1.APIGroup); ok {
+	var r1 []v1.APIGroup
+	if rf, ok := ret.Get(1).(func(string) []v1.APIGroup); ok {
 		r1 = rf(serverURL)
 	} else {
 		if ret.Get(1) != nil {
-			r1 = ret.Get(1).([]metav1.APIGroup)
+			r1 = ret.Get(1).([]v1.APIGroup)
 		}
 	}
 
@@ -206,6 +184,20 @@ func (_m *LiveStateCache) IterateHierarchy(server string, key kube.ResourceKey, 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(string, kube.ResourceKey, func(v1alpha1.ResourceNode, string)) error); ok {
 		r0 = rf(server, key, action)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// IterateResources provides a mock function with given fields: server, callback
+func (_m *LiveStateCache) IterateResources(server string, callback func(*cache.Resource, *controllercache.ResourceInfo)) error {
+	ret := _m.Called(server, callback)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, func(*cache.Resource, *controllercache.ResourceInfo)) error); ok {
+		r0 = rf(server, callback)
 	} else {
 		r0 = ret.Error(0)
 	}

@@ -822,10 +822,17 @@ export const Groups = [
     'storage.k8s.io'
 ];
 
+export interface HostResourceInfo {
+    resourceName: ResourceName;
+    requestedByApp: number;
+    requestedByNeighbors: number;
+    available: number;
+}
+
 export interface Node {
     name: string;
-    capacity: {[key in ResourceName]?: number};
     systemInfo: NodeSystemInfo;
+    resourcesInfo: HostResourceInfo[];
 }
 
 export interface NodeSystemInfo {

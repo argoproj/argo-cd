@@ -961,11 +961,18 @@ type ResourceNetworkingInfo struct {
 	ExternalURLs []string `json:"externalURLs,omitempty" protobuf:"bytes,5,opt,name=externalURLs"`
 }
 
+type HostResourceInfo struct {
+	ResourceName         v1.ResourceName `json:"resourceName,omitempty" protobuf:"bytes,1,name=resourceName"`
+	RequestedByApp       int64           `json:"requestedByApp,omitempty" protobuf:"bytes,2,name=requestedByApp"`
+	RequestedByNeighbors int64           `json:"requestedByNeighbors,omitempty" protobuf:"bytes,3,name=requestedByNeighbors"`
+	Available            int64           `json:"available,omitempty" protobuf:"bytes,4,name=available"`
+}
+
 // HostInfo holds host name and resources metrics
 type HostInfo struct {
-	Name       string            `json:"name,omitempty" protobuf:"bytes,1,name=name"`
-	Capacity   map[string]int64  `json:"capacity,omitempty" protobuf:"bytes,2,name=capacity"`
-	SystemInfo v1.NodeSystemInfo `json:"systemInfo,omitempty" protobuf:"bytes,3,opt,name=systemInfo"`
+	Name          string             `json:"name,omitempty" protobuf:"bytes,1,name=name"`
+	ResourcesInfo []HostResourceInfo `json:"resourcesInfo,omitempty" protobuf:"bytes,2,name=resourcesInfo"`
+	SystemInfo    v1.NodeSystemInfo  `json:"systemInfo,omitempty" protobuf:"bytes,3,opt,name=systemInfo"`
 }
 
 // ApplicationTree holds nodes which belongs to the application

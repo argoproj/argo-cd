@@ -53,6 +53,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HelmFileParameter":                schema_pkg_apis_application_v1alpha1_HelmFileParameter(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HelmParameter":                    schema_pkg_apis_application_v1alpha1_HelmParameter(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HostInfo":                         schema_pkg_apis_application_v1alpha1_HostInfo(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HostResourceInfo":                 schema_pkg_apis_application_v1alpha1_HostResourceInfo(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Info":                             schema_pkg_apis_application_v1alpha1_Info(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.InfoItem":                         schema_pkg_apis_application_v1alpha1_InfoItem(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.JWTToken":                         schema_pkg_apis_application_v1alpha1_JWTToken(ref),
@@ -2032,16 +2033,14 @@ func schema_pkg_apis_application_v1alpha1_HostInfo(ref common.ReferenceCallback)
 							Format: "",
 						},
 					},
-					"capacity": {
+					"resourcesInfo": {
 						SchemaProps: spec.SchemaProps{
-							Type: []string{"object"},
-							AdditionalProperties: &spec.SchemaOrBool{
-								Allows: true,
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: 0,
-										Type:    []string{"integer"},
-										Format:  "int64",
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HostResourceInfo"),
 									},
 								},
 							},
@@ -2057,7 +2056,43 @@ func schema_pkg_apis_application_v1alpha1_HostInfo(ref common.ReferenceCallback)
 			},
 		},
 		Dependencies: []string{
-			"k8s.io/api/core/v1.NodeSystemInfo"},
+			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HostResourceInfo", "k8s.io/api/core/v1.NodeSystemInfo"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_HostResourceInfo(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"resourceName": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"requestedByApp": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int64",
+						},
+					},
+					"requestedByNeighbors": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int64",
+						},
+					},
+					"available": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int64",
+						},
+					},
+				},
+			},
+		},
 	}
 }
 

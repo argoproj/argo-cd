@@ -558,9 +558,19 @@ message HelmParameter {
 message HostInfo {
   optional string name = 1;
 
-  map<string, int64> capacity = 2;
+  repeated HostResourceInfo resourcesInfo = 2;
 
   optional k8s.io.api.core.v1.NodeSystemInfo systemInfo = 3;
+}
+
+message HostResourceInfo {
+  optional string resourceName = 1;
+
+  optional int64 requestedByApp = 2;
+
+  optional int64 requestedByNeighbors = 3;
+
+  optional int64 available = 4;
 }
 
 message Info {

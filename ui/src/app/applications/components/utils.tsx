@@ -185,9 +185,10 @@ export function renderResourceMenu(
                             </div>
                         ),
                         {
-                            validate: vals => ({
-                                resourceName: vals.resourceName !== resource.name && 'Enter the resource name to confirm the deletion'
-                            }),
+                            validate: vals =>
+                                isManaged && {
+                                    resourceName: vals.resourceName !== resource.name && 'Enter the resource name to confirm the deletion'
+                                },
                             submit: async (vals, _, close) => {
                                 try {
                                     await services.applications.deleteResource(application.metadata.name, resource, !!vals.force);

@@ -6,7 +6,7 @@ import Moment from 'react-moment';
 
 import {EmptyState, ErrorNotification} from '../../../shared/components';
 import {AppContext} from '../../../shared/context';
-import {Application, ApplicationTree, InfoItem, Node, Pod, ResourceName, ResourceNode, ResourceStatus} from '../../../shared/models';
+import {Application, ApplicationTree, HostResourceInfo, InfoItem, Node, Pod, ResourceName, ResourceNode, ResourceStatus} from '../../../shared/models';
 import {PodViewPreferences, services, ViewPreferences} from '../../../shared/services';
 
 import {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
@@ -25,15 +25,11 @@ interface PodViewProps {
 
 export type PodGroupType = 'topLevelResource' | 'parentResource' | 'node';
 
-type ResourceStats = {
-    [key in ResourceName]?: {request: number; capacity: number};
-};
-
 interface PodGroup extends Partial<ResourceNode> {
     type: PodGroupType;
     pods: Pod[];
     info?: InfoItem[];
-    resourceStats?: ResourceStats;
+    hostResourcesInfo?: HostResourceInfo[];
     resourceStatus?: Partial<ResourceStatus>;
     renderMenu?: () => React.ReactNode;
     fullName?: string;
@@ -129,9 +125,9 @@ export class PodView extends React.Component<PodViewProps> {
                                                 )}
                                             </div>
                                             <div className='pod-view__node__container'>
-                                                {Object.keys(group.resourceStats || {}).length > 0 && (
+                                                {(group.hostResourcesInfo || []).length > 0 && (
                                                     <div className='pod-view__node__container pod-view__node__container--stats'>
-                                                        {Object.keys(group.resourceStats || {}).map(r => renderStats(r as ResourceName, group.resourceStats[r as ResourceName]))}
+                                                        {group.hostResourcesInfo.map(info => renderStats(info))}
                                                     </div>
                                                 )}
                                                 <div className='pod-view__node__pod-container pod-view__node__container'>
@@ -248,16 +244,6 @@ export class PodView extends React.Component<PodViewProps> {
         if (sortMode === 'node' && initNodes) {
             initNodes.forEach(infraNode => {
                 const nodeName = infraNode.name;
-                const metrics: ResourceStats = {};
-                if (infraNode.capacity.cpu) {
-                    metrics.cpu = {request: 0, capacity: infraNode.capacity.cpu};
-                }
-                if (infraNode.capacity.memory) {
-                    metrics.memory = {request: 0, capacity: infraNode.capacity.memory};
-                }
-                if (infraNode.capacity.storage) {
-                    metrics.storage = {request: 0, capacity: infraNode.capacity.storage};
-                }
                 groupRefs[nodeName] = {
                     ...infraNode,
                     type: 'node',
@@ -269,7 +255,7 @@ export class PodView extends React.Component<PodViewProps> {
                         {name: 'Operating System', value: infraNode.systemInfo.operatingSystem},
                         {name: 'Architecture', value: infraNode.systemInfo.architecture}
                     ],
-                    resourceStats: metrics
+                    hostResourcesInfo: infraNode.resourcesInfo
                 };
             });
         }
@@ -318,14 +304,6 @@ export class PodView extends React.Component<PodViewProps> {
             if (sortMode === 'node') {
                 if (groupRefs[p.spec.nodeName]) {
                     const curNode = groupRefs[p.spec.nodeName];
-                    rnode.info
-                        .filter(item => item.name.includes('Resource.'))
-                        .forEach(item => {
-                            const name = item.name.replace(/Resource.|Limit|Req/gi, '').toLowerCase() as ResourceName;
-                            if (curNode.resourceStats[name]) {
-                                curNode.resourceStats[name].request += parseInt(item.value, 10);
-                            }
-                        });
                     curNode.pods.push(p);
                 }
             } else if (sortMode === 'parentResource') {
@@ -354,6 +332,8 @@ export class PodView extends React.Component<PodViewProps> {
             }
         });
 
+        Object.values(groupRefs).forEach(group => group.pods.sort((first, second) => nodeKey(first).localeCompare(nodeKey(second))));
+
         return Object.values(groupRefs)
             .sort((a, b) => (a.name > b.name ? 1 : a.name === b.name ? 0 : -1)) // sort by name
             .filter(i => (i.pods || []).length > 0); // filter out groups with no pods
@@ -368,7 +348,7 @@ const labelForSortMode = {
 
 const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
 function formatSize(bytes: number) {
-    if (bytes === 0) {
+    if (!bytes) {
         return '0 Bytes';
     }
     const k = 1024;
@@ -383,25 +363,32 @@ function formatMetric(name: ResourceName, val: number) {
         return formatSize(val / 1000);
     }
     // cpu millicores
-    return val + 'm';
+    return (val || '0') + 'm';
 }
 
-function renderStats(name: ResourceName, metric: {request: number; capacity: number}) {
+function renderStats(info: HostResourceInfo) {
+    const neighborsHeight = 100 * (info.requestedByNeighbors / info.available);
+    const appHeight = 100 * (info.requestedByApp / info.available);
     return (
-        <div className='pod-view__node__pod__stat' key={name}>
+        <div className='pod-view__node__pod__stat' key={info.resourceName}>
             <Tooltip
-                key={name}
+                key={info.resourceName}
                 content={
                     <React.Fragment>
-                        <div>{name}:</div>
-                        <div>{`${formatMetric(name, metric.request)} / ${formatMetric(name, metric.capacity)}`}</div>
+                        <div>{info.resourceName}:</div>
+                        <div>
+                            {formatMetric(info.resourceName, info.requestedByApp)}/{formatMetric(info.resourceName, info.requestedByNeighbors)}/
+                            {formatMetric(info.resourceName, info.available)}
+                        </div>
+                        <div>(app/others/total)</div>
                     </React.Fragment>
                 }>
                 <div className='pod-view__node__pod__stat__bar'>
-                    <div className='pod-view__node__pod__stat__bar--fill' style={{height: `${100 * (metric.request / metric.capacity)}%`}} />
+                    <div className='pod-view__node__pod__stat__bar--fill pod-view__node__pod__stat__bar--neighbors' style={{height: `${neighborsHeight}%`}} />
+                    <div className='pod-view__node__pod__stat__bar--fill' style={{bottom: `${neighborsHeight}%`, height: `${appHeight}%`}} />
                 </div>
             </Tooltip>
-            <div className='pod-view__node__label'>{name.slice(0, 3).toUpperCase()}</div>
+            <div className='pod-view__node__label'>{info.resourceName.slice(0, 3).toUpperCase()}</div>
         </div>
     );
 }

@@ -26,6 +26,7 @@ API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/appli
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,Command,Args
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,Command,Command
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ExecProviderConfig,Args
+API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,HostInfo,ResourcesInfo
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,JWTTokens,Items
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,Operation,Info
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,OrphanedResourcesMonitorSettings,Ignore

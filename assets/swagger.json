@@ -5161,18 +5161,37 @@
       "type": "object",
       "title": "HostInfo holds host name and resources metrics",
       "properties": {
-        "capacity": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "string",
-            "format": "int64"
-          }
-        },
         "name": {
           "type": "string"
         },
+        "resourcesInfo": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1HostResourceInfo"
+          }
+        },
         "systemInfo": {
           "$ref": "#/definitions/v1NodeSystemInfo"
+        }
+      }
+    },
+    "v1alpha1HostResourceInfo": {
+      "type": "object",
+      "properties": {
+        "available": {
+          "type": "string",
+          "format": "int64"
+        },
+        "requestedByApp": {
+          "type": "string",
+          "format": "int64"
+        },
+        "requestedByNeighbors": {
+          "type": "string",
+          "format": "int64"
+        },
+        "resourceName": {
+          "type": "string"
         }
       }
     },

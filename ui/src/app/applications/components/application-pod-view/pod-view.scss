@@ -151,18 +151,23 @@ $num-stats: 2;
                     overflow: hidden;
                     cursor: pointer;
 
-                    &:hover > &--fill {
-                        background-color: $argo-color-gray-8;
-                        &--secondary {
-                            background-color: $argo-color-teal-7;
-                        }
-                    }
-
                     &--fill {
                         position: absolute;
-                        background-color: $argo-color-gray-7;
+                        background-color: $argo-color-teal-7;
                         width: 100%;
                         bottom: 0;
+                    }
+
+                    &--neighbors {
+                        background-color: $argo-color-gray-6;
+                    }
+
+                    &:hover > &--fill {
+                        background-color: $argo-color-teal-8;
+                    }
+
+                    &:hover &--neighbors {
+                        background-color: $argo-color-gray-7;
                     }
                 }
             }
