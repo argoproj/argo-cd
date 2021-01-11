@@ -336,6 +336,7 @@ export interface ResourceNode extends ResourceRef {
 export interface ApplicationTree {
     nodes: ResourceNode[];
     orphanedNodes: ResourceNode[];
+    hosts: Node[];
 }
 
 export interface ResourceID {
@@ -821,33 +822,24 @@ export const Groups = [
     'storage.k8s.io'
 ];
 
-export interface InfraNode {
-    metadata?: models.ObjectMeta;
+export interface HostResourceInfo {
+    resourceName: ResourceName;
+    requestedByApp: number;
+    requestedByNeighbors: number;
+    capacity: number;
+}
+
+export interface Node {
     name: string;
-    status?: InfraNodeStatus;
-    metrics: ResourceList;
-    pods: Pod[];
+    systemInfo: NodeSystemInfo;
+    resourcesInfo: HostResourceInfo[];
 }
 
-export interface Metric {
-    request: number;
-    limit: number;
-}
-
-export interface InfraNodeStatus {
-    nodeInfo: NodeInfo;
-    capacity: {[key in ResourceName]?: string};
-}
-
-export interface NodeInfo {
+export interface NodeSystemInfo {
     architecture: string;
     operatingSystem: string;
     kernelVersion: string;
 }
-
-export type ResourceList = {
-    [key in ResourceName]?: Metric;
-};
 
 export enum ResourceName {
     ResourceCPU = 'cpu',

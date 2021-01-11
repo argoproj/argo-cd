@@ -86,8 +86,8 @@ github.com/andreyvit/diff v0.0.0-20170406064948-c7f18ee00883/go.mod h1:rCTlJbsFo
 github.com/anmitsu/go-shlex v0.0.0-20161002113705-648efa622239 h1:kFOfPq6dUM1hTo4JG6LR5AXSUEsOjtdm0kw0FtQtMJA=
 github.com/anmitsu/go-shlex v0.0.0-20161002113705-648efa622239/go.mod h1:2FmKhYUyUczH0OGQWaF5ceTx0UBShxjsH6f8oGKYe2c=
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=
-github.com/argoproj/gitops-engine v0.2.1-0.20210106174510-82f093536368 h1:mf8dZx92WjX7EjWvTgEPlXcUWXs7I2KmNY8fH/xqiIk=
-github.com/argoproj/gitops-engine v0.2.1-0.20210106174510-82f093536368/go.mod h1:dmGvluybnmaSzsJA7PnrgCoSYQ5stFUNqS46F3gma+M=
+github.com/argoproj/gitops-engine v0.2.1-0.20210107210758-8d3e2f7082ed h1:me2O4kkzaQvjFQknPz/DjVS6pmtkviY5UPsEVnZHiDw=
+github.com/argoproj/gitops-engine v0.2.1-0.20210107210758-8d3e2f7082ed/go.mod h1:dmGvluybnmaSzsJA7PnrgCoSYQ5stFUNqS46F3gma+M=
 github.com/argoproj/pkg v0.2.0 h1:ETgC600kr8WcAi3MEVY5sA1H7H/u1/IysYOobwsZ8No=
 github.com/argoproj/pkg v0.2.0/go.mod h1:F4TZgInLUEjzsWFB/BTJBsewoEy0ucnKSq6vmQiD/yc=
 github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e/go.mod h1:3U/XgcO3hCbHZ8TKRvWD2dDTCfh9M9ya+I9JpbB7O8o=

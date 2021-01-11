@@ -275,7 +275,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                     </Moment>
                 ) : null}
                 {(node.info || [])
-                    .filter(tag => !tag.name.includes('Resource.') && !tag.name.includes('Node'))
+                    .filter(tag => !tag.name.includes('Node'))
                     .slice(0, 4)
                     .map((tag, i) => (
                         <span className='application-resource-tree__node-label' title={`${tag.name}:${tag.value}`} key={i}>

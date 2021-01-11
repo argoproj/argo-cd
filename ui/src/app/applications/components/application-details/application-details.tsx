@@ -525,7 +525,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
             .flatMap(app => {
                 const fallbackTree = {
                     nodes: app.status.resources.map(res => ({...res, parentRefs: [], info: [], resourceVersion: '', uid: ''})),
-                    orphanedNodes: []
+                    orphanedNodes: [],
+                    hosts: []
                 } as appModels.ApplicationTree;
                 return Observable.combineLatest(
                     Observable.merge(

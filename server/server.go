@@ -16,9 +16,6 @@ import (
 	"strings"
 	"time"
 
-	"k8s.io/client-go/informers"
-	listers "k8s.io/client-go/listers/core/v1"
-
 	// nolint:staticcheck
 	golang_proto "github.com/golang/protobuf/proto"
 
@@ -158,8 +155,6 @@ type ArgoCDServer struct {
 	policyEnforcer *rbacpolicy.RBACPolicyEnforcer
 	appInformer    cache.SharedIndexInformer
 	appLister      applisters.ApplicationNamespaceLister
-	nodeInformer   cache.SharedIndexInformer
-	nodeLister     listers.NodeLister
 
 	// stopCh is the channel which when closed, will shutdown the Argo CD server
 	stopCh chan struct{}
@@ -223,10 +218,6 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 	appInformer := factory.Argoproj().V1alpha1().Applications().Informer()
 	appLister := factory.Argoproj().V1alpha1().Applications().Lister().Applications(opts.Namespace)
 
-	kfactory := informers.NewSharedInformerFactory(opts.KubeClientset, 0)
-	nodeInformer := kfactory.Core().V1().Nodes().Informer()
-	nodeLister := kfactory.Core().V1().Nodes().Lister()
-
 	enf := rbac.NewEnforcer(opts.KubeClientset, opts.Namespace, common.ArgoCDRBACConfigMapName, nil)
 	enf.EnableEnforce(!opts.DisableAuth)
 	err = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
@@ -246,8 +237,6 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 		projInformer:     projInformer,
 		appInformer:      appInformer,
 		appLister:        appLister,
-		nodeInformer:     nodeInformer,
-		nodeLister:       nodeLister,
 		policyEnforcer:   policyEnf,
 	}
 }
@@ -348,7 +337,6 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
 
 	go a.projInformer.Run(ctx.Done())
 	go a.appInformer.Run(ctx.Done())
-	go a.nodeInformer.Run(ctx.Done())
 
 	go func() { a.checkServeErr("grpcS", grpcS.Serve(grpcL)) }()
 	go func() { a.checkServeErr("httpS", httpS.Serve(httpL)) }()
@@ -360,7 +348,7 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
 	go a.rbacPolicyLoader(ctx)
 	go func() { a.checkServeErr("tcpm", tcpm.Serve()) }()
 	go func() { a.checkServeErr("metrics", metricsServ.ListenAndServe()) }()
-	if !cache.WaitForCacheSync(ctx.Done(), a.projInformer.HasSynced, a.appInformer.HasSynced, a.nodeInformer.HasSynced) {
+	if !cache.WaitForCacheSync(ctx.Done(), a.projInformer.HasSynced, a.appInformer.HasSynced) {
 		log.Fatal("Timed out waiting for project cache to sync")
 	}
 
@@ -569,8 +557,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 		a.enf,
 		projectLock,
 		a.settingsMgr,
-		a.projInformer,
-		a.nodeLister)
+		a.projInformer)
 	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr, a.policyEnforcer, a.projInformer, a.settingsMgr)
 	settingsService := settings.NewServer(a.settingsMgr, a, a.DisableAuth)
 	accountService := account.NewServer(a.sessionMgr, a.settingsMgr, a.enf)
