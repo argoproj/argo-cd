@@ -10,6 +10,13 @@
     background-color: black;
     color: white;
   }
+  &__settings {
+    display: flex;
+    margin-bottom: 1em;
+    .argo-button {
+      margin-right: 5px;
+    }
+  }
   &__menu {
     display: flex;
     margin-bottom: 1em;
@@ -46,14 +53,16 @@
       background-color: red;
       box-shadow: -3px 0 0 0 darkred;
     }
-    &__menu-container {
-      width: 25px;
-    }
     &__menu {
-      box-shadow: 0 0 0 1px red inset;
       border-radius: 6px;
       text-align: center;
-      width: 100%;
+      min-width: 25px;
+      opacity: 0;
+      flex-shrink: 0;
+      box-shadow: 0 0 0 1px red inset;
+      &--visible {
+        opacity: 1;
+      }
       &:hover {
         color: red;
       }
