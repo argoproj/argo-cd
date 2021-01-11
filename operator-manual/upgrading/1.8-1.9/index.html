@@ -1478,6 +1478,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#container-registry-switched-to-quayio-and-sundown-of-docker-hub-repository" title="Container registry switched to quay.io and sundown of Docker Hub repository" class="md-nav__link">
+    Container registry switched to quay.io and sundown of Docker Hub repository
+  </a>
+  
+</li>
+      
       
       
       
@@ -1509,6 +1516,20 @@ you might be affected if you use custom-built images and/or include third party
 tools in custom-built images.</p>
 <p>Please make sure that your custom tools are still working with the update to
 v1.9 before deploying it onto production.</p>
+<h2 id="container-registry-switched-to-quayio-and-sundown-of-docker-hub-repository">Container registry switched to quay.io and sundown of Docker Hub repository<a class="headerlink" href="#container-registry-switched-to-quayio-and-sundown-of-docker-hub-repository" title="Permanent link">&para;</a></h2>
+<p>Due to Docker Hub's new rate-limiting and retention policies, the Argo project
+has decided to switch to the
+<a href="https://quay.io">quay.io</a>
+registry as a new home for all images published by its sub-projects.</p>
+<p>As of Argo CD version 1.9, the installation manifests are configured to pull the
+container images from <code>quay.io</code> and we announce the <strong>sundown</strong> of the existing
+Docker Hub repositories. For the 1.9 release this means, we will still push to
+both registries, but we will stop pushing images to Docker Hub once Argo CD 1.10
+has been released.</p>
+<p>Please make sure that your clusters can pull from the <code>quay.io</code> registry.
+If you aren't able to do so timely, you can change the container image slugs in
+the installation manually to Docker Hub as a workaround to install Argo CD 1.9.
+This workaround will not be possible anymore with 1.10, however.</p>
                 
                   
                 
