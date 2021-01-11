@@ -18,7 +18,7 @@ spec:
       automountServiceAccountToken: false
       containers:
       - name: argocd-repo-server
-        image: argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         command:
         - uid_entrypoint.sh
