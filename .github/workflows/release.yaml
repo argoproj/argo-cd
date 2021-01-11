@@ -196,10 +196,15 @@ jobs:
         env:
           DOCKER_USERNAME: ${{ secrets.RELEASE_DOCKERHUB_USERNAME }}
           DOCKER_TOKEN: ${{ secrets.RELEASE_DOCKERHUB_TOKEN }}
+          QUAY_USERNAME: ${{ secrets.RELEASE_QUAY_USERNAME }}
+          QUAY_TOKEN: ${{ secrets.RELEASE_QUAY_TOKEN }}
         run: |
           set -ue
           docker login --username "${DOCKER_USERNAME}" --password "${DOCKER_TOKEN}"
           docker push ${IMAGE_NAMESPACE}/argocd:v${TARGET_VERSION}
+          docker login quay.io --username "${QUAY_USERNAME}" --password "${QUAY_TOKEN}"
+          docker tag ${IMAGE_NAMESPACE}/argocd:v${TARGET_VERSION} quay.io/${IMAGE_NAMESPACE}/argocd:v${TARGET_VERSION}
+          docker push quay.io/${IMAGE_NAMESPACE}/argocd:v${TARGET_VERSION}
         if: ${{ env.DRY_RUN != 'true' }}
 
       - name: Read release notes file
