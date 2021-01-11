@@ -83,12 +83,6 @@ export class ApplicationsService {
             });
     }
 
-    public getNodes(name: string): Promise<models.InfraNode[]> {
-        return requests.get(`/applications/${name}/nodes`).then(res => {
-            return (res.body.items as models.InfraNode[]) || [];
-        });
-    }
-
     public getManifest(name: string, revision: string): Promise<models.ManifestResponse> {
         return requests
             .get(`/applications/${name}/manifests`)

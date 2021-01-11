@@ -358,9 +358,4 @@ service ApplicationService {
 	rpc PodLogs(ApplicationPodLogsQuery) returns (stream LogEntry) {
 		option (google.api.http).get = "/api/v1/applications/{name}/pods/{podName}/logs";
 	}
-
-	// ListNodes returns nodes associated with an application
-	rpc ListNodes(NodeQuery) returns (k8s.io.api.core.v1.NodeList) {
-		option (google.api.http).get = "/api/v1/applications/{name}/nodes";
-	}
 }

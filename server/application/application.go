@@ -13,8 +13,6 @@ import (
 	"strings"
 	"time"
 
-	listers "k8s.io/client-go/listers/core/v1"
-
 	"github.com/Masterminds/semver"
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -82,7 +80,6 @@ type Server struct {
 	settingsMgr    *settings.SettingsManager
 	cache          *servercache.Cache
 	projInformer   cache.SharedIndexInformer
-	nodeLister     listers.NodeLister
 }
 
 // NewServer returns a new instance of the Application service
@@ -100,7 +97,6 @@ func NewServer(
 	projectLock sync.KeyLock,
 	settingsMgr *settings.SettingsManager,
 	projInformer cache.SharedIndexInformer,
-	nodeLister listers.NodeLister,
 ) application.ApplicationServiceServer {
 	appBroadcaster := &broadcasterHandler{}
 	appInformer.AddEventHandler(appBroadcaster)
@@ -120,7 +116,6 @@ func NewServer(
 		auditLogger:    argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
 		settingsMgr:    settingsMgr,
 		projInformer:   projInformer,
-		nodeLister:     nodeLister,
 	}
 }
 
@@ -215,58 +210,6 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 		return nil, err
 	}
 	return updated, nil
-}
-
-// ListNodes returns nodes associated with an application
-func (s *Server) ListNodes(ctx context.Context, q *application.NodeQuery) (*v1.NodeList, error) {
-	a, err := s.appLister.Get(*q.Name)
-	if err != nil {
-		return nil, err
-	}
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)); err != nil {
-		return nil, err
-	}
-	tree, err := s.getAppResources(ctx, a)
-	if err != nil {
-		return nil, err
-	}
-	nodeRefs := make(map[string]bool)
-	for _, node := range tree.Nodes {
-		for _, item := range node.Info {
-			if item.Name == "Node" {
-				nodeRefs[item.Value] = true
-			}
-		}
-	}
-	nodes, err := s.nodeLister.List(labels.Everything())
-	if err != nil {
-		return nil, err
-	}
-	items := make([]v1.Node, 0)
-	for _, n := range nodes {
-		cur := *n
-		nodeName := cur.ObjectMeta.Name
-		if !nodeRefs[nodeName] {
-			continue
-		}
-		items = append(items, v1.Node{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: nodeName,
-			},
-			Status: v1.NodeStatus{
-				Capacity:    cur.Status.Capacity,
-				Allocatable: cur.Status.Allocatable,
-				NodeInfo: v1.NodeSystemInfo{
-					OperatingSystem: cur.Status.NodeInfo.OperatingSystem,
-					Architecture:    cur.Status.NodeInfo.Architecture,
-					KernelVersion:   cur.Status.NodeInfo.KernelVersion,
-				},
-			},
-		})
-	}
-	return &v1.NodeList{
-		Items: items,
-	}, nil
 }
 
 // GetManifests returns application manifests

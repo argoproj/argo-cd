@@ -6,7 +6,7 @@ package settings
 // reasons, reducing connections and load to the K8s API servers of managed clusters.
 var coreExcludedResources = []FilteredResource{
 	{APIGroups: []string{"events.k8s.io", "metrics.k8s.io"}},
-	{APIGroups: []string{""}, Kinds: []string{"Event", "Node"}},
+	{APIGroups: []string{""}, Kinds: []string{"Event"}},
 	{APIGroups: []string{"coordination.k8s.io"}, Kinds: []string{"Lease"}},
 }
 
