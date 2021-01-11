@@ -319,6 +319,9 @@ message ApplicationTree {
 
   // OrphanedNodes contains if or orphaned nodes: nodes which are not managed by the app but in the same namespace. List is populated only if orphaned resources enabled in app project.
   repeated ResourceNode orphanedNodes = 2;
+
+  // Hosts holds list of Kubernetes nodes that run application related pods
+  repeated HostInfo hosts = 3;
 }
 
 // ApplicationWatchEvent contains information about application change.
@@ -549,6 +552,25 @@ message HelmParameter {
 
   // ForceString determines whether to tell Helm to interpret booleans and numbers as strings
   optional bool forceString = 3;
+}
+
+// HostInfo holds host name and resources metrics
+message HostInfo {
+  optional string name = 1;
+
+  repeated HostResourceInfo resourcesInfo = 2;
+
+  optional k8s.io.api.core.v1.NodeSystemInfo systemInfo = 3;
+}
+
+message HostResourceInfo {
+  optional string resourceName = 1;
+
+  optional int64 requestedByApp = 2;
+
+  optional int64 requestedByNeighbors = 3;
+
+  optional int64 capacity = 4;
 }
 
 message Info {

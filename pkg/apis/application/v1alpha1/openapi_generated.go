@@ -52,6 +52,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HealthStatus":                     schema_pkg_apis_application_v1alpha1_HealthStatus(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HelmFileParameter":                schema_pkg_apis_application_v1alpha1_HelmFileParameter(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HelmParameter":                    schema_pkg_apis_application_v1alpha1_HelmParameter(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HostInfo":                         schema_pkg_apis_application_v1alpha1_HostInfo(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HostResourceInfo":                 schema_pkg_apis_application_v1alpha1_HostResourceInfo(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Info":                             schema_pkg_apis_application_v1alpha1_Info(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.InfoItem":                         schema_pkg_apis_application_v1alpha1_InfoItem(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.JWTToken":                         schema_pkg_apis_application_v1alpha1_JWTToken(ref),
@@ -1237,11 +1239,25 @@ func schema_pkg_apis_application_v1alpha1_ApplicationTree(ref common.ReferenceCa
 							},
 						},
 					},
+					"hosts": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Hosts holds list of Kubernetes nodes that run application related pods",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HostInfo"),
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceNode"},
+			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HostInfo", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceNode"},
 	}
 }
 
@@ -1996,6 +2012,82 @@ func schema_pkg_apis_application_v1alpha1_HelmParameter(ref common.ReferenceCall
 							Description: "ForceString determines whether to tell Helm to interpret booleans and numbers as strings",
 							Type:        []string{"boolean"},
 							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_HostInfo(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "HostInfo holds host name and resources metrics",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"resourcesInfo": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HostResourceInfo"),
+									},
+								},
+							},
+						},
+					},
+					"systemInfo": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/api/core/v1.NodeSystemInfo"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HostResourceInfo", "k8s.io/api/core/v1.NodeSystemInfo"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_HostResourceInfo(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"resourceName": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"requestedByApp": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int64",
+						},
+					},
+					"requestedByNeighbors": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int64",
+						},
+					},
+					"capacity": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int64",
 						},
 					},
 				},

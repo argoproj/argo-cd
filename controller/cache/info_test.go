@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"k8s.io/apimachinery/pkg/api/resource"
+
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/pkg/errors"
 	"github.com/ghodss/yaml"
@@ -171,21 +173,52 @@ func TestGetPodInfo(t *testing.T) {
     labels:
       app: guestbook
   spec:
+    nodeName: minikube
     containers:
-    - image: bar`)
+    - image: bar
+      resources:
+        requests:
+          memory: 128Mi
+`)
 
 	info := &ResourceInfo{}
 	populateNodeInfo(pod, info)
 	assert.Equal(t, []v1alpha1.InfoItem{
-		{Name: "Node", Value: ""},
-		{Name: "Resource.CpuReq", Value: "0"},
-		{Name: "Resource.CpuLimit", Value: "0"},
-		{Name: "Resource.MemoryReq", Value: "0"},
-		{Name: "Resource.MemoryLimit", Value: "0"},
+		{Name: "Node", Value: "minikube"},
 		{Name: "Containers", Value: "0/1"},
 	}, info.Info)
 	assert.Equal(t, []string{"bar"}, info.Images)
+	assert.Equal(t, &PodInfo{
+		NodeName:         "minikube",
+		ResourceRequests: v1.ResourceList{v1.ResourceMemory: resource.MustParse("128Mi")},
+	}, info.PodInfo)
 	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{Labels: map[string]string{"app": "guestbook"}}, info.NetworkingInfo)
+}
+
+func TestGetNodeInfo(t *testing.T) {
+	node := strToUnstructured(`
+apiVersion: v1
+kind: Node
+metadata:
+  name: minikube
+spec: {}
+status:
+  capacity:
+    cpu: "6"
+    memory: 6091320Ki
+  nodeInfo:
+    architecture: amd64
+    operatingSystem: linux
+    osImage: Ubuntu 20.04 LTS
+`)
+
+	info := &ResourceInfo{}
+	populateNodeInfo(node, info)
+	assert.Equal(t, &NodeInfo{
+		Name:       "minikube",
+		Capacity:   v1.ResourceList{v1.ResourceMemory: resource.MustParse("6091320Ki"), v1.ResourceCPU: resource.MustParse("6")},
+		SystemInfo: v1.NodeSystemInfo{Architecture: "amd64", OperatingSystem: "linux", OSImage: "Ubuntu 20.04 LTS"},
+	}, info.NodeInfo)
 }
 
 func TestGetServiceInfo(t *testing.T) {

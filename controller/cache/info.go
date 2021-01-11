@@ -32,6 +32,9 @@ func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 		case kube.ServiceKind:
 			populateServiceInfo(un, res)
 			return
+		case "Node":
+			populateHostNodeInfo(un, res)
+			return
 		}
 	case "extensions", "networking.k8s.io":
 		switch gvk.Kind {
@@ -313,16 +316,23 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Status Reason", Value: reason})
 	}
 
-	req, limit := resourcehelper.PodRequestsAndLimits(&pod)
-	cpuReq, cpuLimit, memoryReq, memoryLimit := req[v1.ResourceCPU], limit[v1.ResourceCPU], req[v1.ResourceMemory], limit[v1.ResourceMemory]
+	req, _ := resourcehelper.PodRequestsAndLimits(&pod)
+	res.PodInfo = &PodInfo{NodeName: pod.Spec.NodeName, ResourceRequests: req}
 
 	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Node", Value: pod.Spec.NodeName})
-
-	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Resource.CpuReq", Value: fmt.Sprintf("%d", cpuReq.MilliValue())})
-	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Resource.CpuLimit", Value: fmt.Sprintf("%d", cpuLimit.MilliValue())})
-	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Resource.MemoryReq", Value: fmt.Sprintf("%d", memoryReq.Value())})
-	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Resource.MemoryLimit", Value: fmt.Sprintf("%d", memoryLimit.Value())})
-
 	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Containers", Value: fmt.Sprintf("%d/%d", readyContainers, totalContainers)})
 	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{Labels: un.GetLabels()}
+}
+
+func populateHostNodeInfo(un *unstructured.Unstructured, res *ResourceInfo) {
+	node := v1.Node{}
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &node)
+	if err != nil {
+		return
+	}
+	res.NodeInfo = &NodeInfo{
+		Name:       node.Name,
+		Capacity:   node.Status.Capacity,
+		SystemInfo: node.Status.NodeInfo,
+	}
 }
