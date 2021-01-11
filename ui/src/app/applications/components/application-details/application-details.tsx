@@ -1,31 +1,30 @@
-import {Checkbox as ArgoCheckbox, DropDownMenu, MenuItem, NotificationType, SlidingPanel, Tab, Tabs, TopBarFilter} from 'argo-ui';
+import { Checkbox as ArgoCheckbox, DropDownMenu, MenuItem, NotificationType, SlidingPanel, Tab, Tabs, TopBarFilter } from 'argo-ui';
 import * as classNames from 'classnames';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
-import {Checkbox} from 'react-form';
-import {RouteComponentProps} from 'react-router';
-import {BehaviorSubject, Observable} from 'rxjs';
-import {DataLoader, EmptyState, ErrorNotification, EventsList, ObservableQuery, Page, Paginate, YamlEditor} from '../../../shared/components';
-import {AppContext} from '../../../shared/context';
+import { Checkbox } from 'react-form';
+import { RouteComponentProps } from 'react-router';
+import { BehaviorSubject, Observable } from 'rxjs';
+import { DataLoader, EmptyState, ErrorNotification, EventsList, ObservableQuery, Page, Paginate, YamlEditor } from '../../../shared/components';
+import { AppContext } from '../../../shared/context';
 import * as appModels from '../../../shared/models';
-import {AppDetailsPreferences, AppsDetailsViewType, services} from '../../../shared/services';
-
-import {SyncStatuses} from '../../../shared/models';
-import {ApplicationConditions} from '../application-conditions/application-conditions';
-import {ApplicationDeploymentHistory} from '../application-deployment-history/application-deployment-history';
-import {ApplicationNodeInfo} from '../application-node-info/application-node-info';
-import {ApplicationOperationState} from '../application-operation-state/application-operation-state';
-import {ApplicationParameters} from '../application-parameters/application-parameters';
-import {ApplicationResourceEvents} from '../application-resource-events/application-resource-events';
-import {ApplicationResourceTree, ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
-import {ApplicationResourcesDiff} from '../application-resources-diff/application-resources-diff';
-import {ApplicationStatusPanel} from '../application-status-panel/application-status-panel';
-import {ApplicationSummary} from '../application-summary/application-summary';
-import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-panel';
-import {PodsLogsViewer} from '../pod-logs-viewer/pod-logs-viewer';
+import { SyncStatuses } from '../../../shared/models';
+import { AppDetailsPreferences, AppsDetailsViewType, services } from '../../../shared/services';
+import { ApplicationConditions } from '../application-conditions/application-conditions';
+import { ApplicationDeploymentHistory } from '../application-deployment-history/application-deployment-history';
+import { ApplicationNodeInfo } from '../application-node-info/application-node-info';
+import { ApplicationOperationState } from '../application-operation-state/application-operation-state';
+import { ApplicationParameters } from '../application-parameters/application-parameters';
+import { ApplicationResourceEvents } from '../application-resource-events/application-resource-events';
+import { ApplicationResourceTree, ResourceTreeNode } from '../application-resource-tree/application-resource-tree';
+import { ApplicationResourcesDiff } from '../application-resources-diff/application-resources-diff';
+import { ApplicationStatusPanel } from '../application-status-panel/application-status-panel';
+import { ApplicationSummary } from '../application-summary/application-summary';
+import { ApplicationSyncPanel } from '../application-sync-panel/application-sync-panel';
+import { PodsLogsViewer } from '../pod-logs-viewer/pod-logs-viewer';
 import * as AppUtils from '../utils';
-import {isSameNode, nodeKey} from '../utils';
-import {ApplicationResourceList} from './application-resource-list';
+import { isSameNode, nodeKey } from '../utils';
+import { ApplicationResourceList } from './application-resource-list';
 
 const jsonMergePatch = require('json-merge-patch');
 
@@ -104,9 +103,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                             tree.nodes = tree.nodes || [];
                             const kindsSet = new Set<string>(tree.nodes.map(item => item.kind));
                             const treeFilter = this.getTreeFilter(pref.resourceFilter);
+
                             treeFilter.kind.forEach(kind => {
                                 kindsSet.add(kind);
                             });
+
                             const kinds = Array.from(kindsSet);
                             const noKindsFilter = pref.resourceFilter.filter(item => item.indexOf('kind:') !== 0);
                             const refreshing = application.metadata.annotations && application.metadata.annotations[appModels.AnnotationRefreshKey];
@@ -131,7 +132,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                             </div>
                                         )
                                     },
-                                    ...kinds.sort().map(kind => ({value: `kind:${kind}`, label: kind}))
+                                    ...kinds.sort().map(kind => ({value: `kind:${kind}`, label: kind})),
+                                    {content: () => <span>Filters</span>},
+                                    {value: 'filters:ReplicaSets', label: 'Replica sets'}
                                 ],
                                 selectedValues: pref.resourceFilter,
                                 selectionChanged: items => {
@@ -216,7 +219,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                             )}
                                             {((pref.view === 'tree' || pref.view === 'network') && (
                                                 <ApplicationResourceTree
-                                                    nodeFilter={node => this.filterTreeNode(node, treeFilter)}
+                                                    nodeFilter={(node: any, graph: any) => this.filterTreeNode(node, treeFilter, graph)}
                                                     selectedNodeFullName={this.selectedNodeKey}
                                                     onNodeClick={fullName => this.selectNode(fullName)}
                                                     nodeMenu={node => this.renderResourceMenu(node, application)}
@@ -473,13 +476,52 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         ];
     }
 
-    private filterTreeNode(node: ResourceTreeNode, filter: {kind: string[]; health: string[]; sync: string[]}): boolean {
-        const syncStatuses = filter.sync.map(item => (item === 'OutOfSync' ? ['OutOfSync', 'Unknown'] : [item])).reduce((first, second) => first.concat(second), []);
+    private filterReplicaSetRevisions(node: ResourceTreeNode, graph?: dagre.graphlib.Graph) {
+        const nodeArray = graph.nodes();
 
+        const replicaSetName = nodeArray
+            .filter(nodeFiltered => graph.node(nodeFiltered).kind === 'Pod')
+            .map(nodeMapped => graph.node(nodeMapped).parentRefs)
+            .reduce((prev, curr) => [...prev, ...curr], [])
+            .filter((parent: ResourceTreeNode) => parent.kind === 'ReplicaSet')
+            .map((n: ResourceTreeNode) => n.name);
+
+        const getReplicaSets: string[] = nodeArray
+            .map(nodeMapped => graph.node(nodeMapped))
+            .filter(nodeFiltered => replicaSetName.find((name: string) => name === nodeFiltered.name))
+            .map(nodeMapped => nodeMapped.uid);
+
+        const showReplicaSet = (filterNode: ResourceTreeNode): boolean => {
+            if (filterNode.kind !== 'ReplicaSet') {
+                return true;
+            }
+            return getReplicaSets.find(uid => uid === filterNode.uid) !== undefined;
+        };
+
+        return showReplicaSet(node);
+    }
+
+    private filterReplicaSets(node: ResourceTreeNode, filterList: string[], graph?: dagre.graphlib.Graph): boolean {
+        if (filterList.length === 0) {
+            return true;
+        }
+        if (graph === undefined || graph === null) {
+            return true;
+        }
+
+        const replicaSets = filterList.find(filterItem => filterItem === 'ReplicaSets') ? this.filterReplicaSetRevisions(node, graph) : true;
+
+        return replicaSets;
+    }
+
+    private filterTreeNode(node: ResourceTreeNode, filter: {kind: string[]; health: string[]; sync: string[]; filters: string[]}, graph?: dagre.graphlib.Graph): boolean {
+        const syncStatuses = filter.sync.map(item => (item === 'OutOfSync' ? ['OutOfSync', 'Unknown'] : [item])).reduce((first, second) => first.concat(second), []);
+        const tester = this.filterReplicaSets(node, filter.filters, graph);
         return (
             (filter.kind.length === 0 || filter.kind.indexOf(node.kind) > -1) &&
             (syncStatuses.length === 0 || node.root.hook || (node.root.status && syncStatuses.indexOf(node.root.status) > -1)) &&
-            (filter.health.length === 0 || node.root.hook || (node.root.health && filter.health.indexOf(node.root.health.status) > -1))
+            (filter.health.length === 0 || node.root.hook || (node.root.health && filter.health.indexOf(node.root.health.status) > -1)) &&
+            tester
         );
     }
 
@@ -544,10 +586,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         return nodeByKey;
     }
 
-    private getTreeFilter(filter: string[]): {kind: string[]; health: string[]; sync: string[]} {
+    private getTreeFilter(filter: string[]): {kind: string[]; health: string[]; sync: string[]; filters: string[]} {
         const kind = new Array<string>();
         const health = new Array<string>();
         const sync = new Array<string>();
+        const filters = new Array<string>();
         for (const item of filter) {
             const [type, val] = item.split(':');
             switch (type) {
@@ -560,9 +603,12 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                 case 'sync':
                     sync.push(val);
                     break;
+                case 'filters':
+                    filters.push(val);
+                    break;
             }
         }
-        return {kind, health, sync};
+        return {kind, health, sync, filters};
     }
 
     private showDeploy(resource: string) {

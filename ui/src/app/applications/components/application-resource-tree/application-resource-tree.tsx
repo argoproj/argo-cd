@@ -1,18 +1,18 @@
-import {DropDown} from 'argo-ui';
+import { DropDown } from 'argo-ui';
 import * as classNames from 'classnames';
 import * as dagre from 'dagre';
 import * as React from 'react';
 import Moment from 'react-moment';
-
+import { EmptyState } from '../../../shared/components';
+import { Consumer } from '../../../shared/context';
 import * as models from '../../../shared/models';
+import { ApplicationURLs } from '../application-urls';
+import { ResourceIcon } from '../resource-icon';
+import { ResourceLabel } from '../resource-label';
+import { ComparisonStatusIcon, getAppOverridesCount, HealthStatusIcon, isAppNode, NodeId, nodeKey } from '../utils';
+import { NodeUpdateAnimation } from './node-update-animation';
 
-import {EmptyState} from '../../../shared/components';
-import {Consumer} from '../../../shared/context';
-import {ApplicationURLs} from '../application-urls';
-import {ResourceIcon} from '../resource-icon';
-import {ResourceLabel} from '../resource-label';
-import {ComparisonStatusIcon, getAppOverridesCount, HealthStatusIcon, isAppNode, NodeId, nodeKey} from '../utils';
-import {NodeUpdateAnimation} from './node-update-animation';
+
 
 function treeNodeKey(node: NodeId & {uid?: string}) {
     return node.uid || nodeKey(node);
@@ -35,7 +35,7 @@ export interface ApplicationResourceTreeProps {
     app: models.Application;
     tree: models.ApplicationTree;
     useNetworkingHierarchy: boolean;
-    nodeFilter: (node: ResourceTreeNode) => boolean;
+    nodeFilter: (node: ResourceTreeNode, graph: dagre.graphlib.Graph) => boolean;
     selectedNodeFullName?: string;
     onNodeClick?: (fullName: string) => any;
     nodeMenu?: (node: models.ResourceNode) => React.ReactNode;
@@ -92,13 +92,20 @@ function getGraphSize(nodes: dagre.Node[]): {width: number; height: number} {
     return {width, height};
 }
 
-function filterGraph(app: models.Application, filteredIndicatorParent: string, graph: dagre.graphlib.Graph, predicate: (node: ResourceTreeNode) => boolean) {
+function filterGraph(
+    app: models.Application,
+    filteredIndicatorParent: string,
+    graph: dagre.graphlib.Graph,
+    predicate: (node: ResourceTreeNode, graph: dagre.graphlib.Graph) => boolean
+) {
     const appKey = appNodeKey(app);
     let filtered = 0;
-    graph.nodes().forEach(nodeId => {
+    const nodeArray = graph.nodes();
+
+    nodeArray.forEach(nodeId => {
         const node: ResourceTreeNode = graph.node(nodeId) as any;
         const parentIds = graph.predecessors(nodeId);
-        if (node.root != null && !predicate(node) && appKey !== nodeId) {
+        if (node.root != null && !predicate(node, graph) && appKey !== nodeId) {
             const childIds = graph.successors(nodeId);
             graph.removeNode(nodeId);
             filtered++;
@@ -191,7 +198,7 @@ export const describeNode = (node: ResourceTreeNode) => {
     return lines.join('\n');
 };
 
-function renderResourceNode(props: ApplicationResourceTreeProps, id: string, node: (ResourceTreeNode) & dagre.Node) {
+function renderResourceNode(props: ApplicationResourceTreeProps, id: string, node: ResourceTreeNode & dagre.Node) {
     const fullName = nodeKey(node);
     let comparisonStatus: models.SyncStatusCode = null;
     let healthState: models.HealthStatus = null;
@@ -473,7 +480,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                         case NODE_TYPES.externalLoadBalancer:
                             return <React.Fragment key={key}>{renderLoadBalancerNode(node as any)}</React.Fragment>;
                         default:
-                            return <React.Fragment key={key}>{renderResourceNode(props, key, node as (ResourceTreeNode) & dagre.Node)}</React.Fragment>;
+                            return <React.Fragment key={key}>{renderResourceNode(props, key, node as ResourceTreeNode & dagre.Node)}</React.Fragment>;
                     }
                 })}
                 {edges.map(edge => (
