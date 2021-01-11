@@ -570,7 +570,7 @@ message HostResourceInfo {
 
   optional int64 requestedByNeighbors = 3;
 
-  optional int64 available = 4;
+  optional int64 capacity = 4;
 }
 
 message Info {

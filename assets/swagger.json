@@ -5178,7 +5178,7 @@
     "v1alpha1HostResourceInfo": {
       "type": "object",
       "properties": {
-        "available": {
+        "capacity": {
           "type": "string",
           "format": "int64"
         },

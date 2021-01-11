@@ -403,14 +403,14 @@ func (ctrl *ApplicationController) getAppHosts(a *appv1.Application, appNodes []
 			appPods[kube.NewResourceKey(node.Group, node.Kind, node.Namespace, node.Name)] = true
 		}
 	}
-	allNodes := map[string]statecache.NodeInfo{}
+	allNodesInfo := map[string]statecache.NodeInfo{}
 	allPodsByNode := map[string][]statecache.PodInfo{}
 	appPodsByNode := map[string][]statecache.PodInfo{}
 	err := ctrl.stateCache.IterateResources(a.Spec.Destination.Server, func(res *clustercache.Resource, info *statecache.ResourceInfo) {
 		key := res.ResourceKey()
 		switch {
 		case info.NodeInfo != nil && key.Group == "" && key.Kind == "Node":
-			allNodes[key.Name] = *info.NodeInfo
+			allNodesInfo[key.Name] = *info.NodeInfo
 		case info.PodInfo != nil && key.Group == "" && key.Kind == kube.PodKind:
 			if appPods[key] {
 				appPodsByNode[info.PodInfo.NodeName] = append(appPodsByNode[info.PodInfo.NodeName], *info.PodInfo)
@@ -425,7 +425,7 @@ func (ctrl *ApplicationController) getAppHosts(a *appv1.Application, appNodes []
 
 	var hosts []appv1.HostInfo
 	for nodeName, appPods := range appPodsByNode {
-		node, ok := allNodes[nodeName]
+		node, ok := allNodesInfo[nodeName]
 		if !ok {
 			continue
 		}
@@ -436,7 +436,7 @@ func (ctrl *ApplicationController) getAppHosts(a *appv1.Application, appNodes []
 		for name, resource := range node.Capacity {
 			info := resources[name]
 			info.ResourceName = name
-			info.Available += resource.MilliValue()
+			info.Capacity += resource.MilliValue()
 			resources[name] = info
 		}
 
@@ -465,7 +465,7 @@ func (ctrl *ApplicationController) getAppHosts(a *appv1.Application, appNodes []
 
 		var resourcesInfo []appv1.HostResourceInfo
 		for _, info := range resources {
-			if supportedResourceNames[info.ResourceName] && info.Available > 0 {
+			if supportedResourceNames[info.ResourceName] && info.Capacity > 0 {
 				resourcesInfo = append(resourcesInfo, info)
 			}
 		}

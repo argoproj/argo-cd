@@ -140,6 +140,26 @@ $num-stats: 2;
                 }
             }
 
+            &__stat-tooltip {
+                text-align: left;
+
+                i {
+                    display: inline-block;
+                    height: 1em;
+                    width: 1em;
+                    border-radius: 5px;
+                    
+                }
+            }
+
+            &__stat-icon-app {
+                background-color: $argo-color-teal-7;
+            }
+
+            &__stat-icon-neighbors {
+                background-color: $argo-color-gray-6;
+            }
+
             &__stat {
                 &__bar {
                     background-color: $argo-color-gray-4;

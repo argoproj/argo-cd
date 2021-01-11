@@ -1255,6 +1255,6 @@ func TestGetAppHosts(t *testing.T) {
 		Name:       "minikube",
 		SystemInfo: corev1.NodeSystemInfo{OSImage: "debian"},
 		ResourcesInfo: []argoappv1.HostResourceInfo{{
-			ResourceName: corev1.ResourceCPU, Available: 5000, RequestedByApp: 1000, RequestedByNeighbors: 2000},
+			ResourceName: corev1.ResourceCPU, Capacity: 5000, RequestedByApp: 1000, RequestedByNeighbors: 2000},
 		}}}, hosts)
 }

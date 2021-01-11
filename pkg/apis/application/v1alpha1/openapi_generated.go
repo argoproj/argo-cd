@@ -2084,7 +2084,7 @@ func schema_pkg_apis_application_v1alpha1_HostResourceInfo(ref common.ReferenceC
 							Format: "int64",
 						},
 					},
-					"available": {
+					"capacity": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"integer"},
 							Format: "int64",

@@ -826,7 +826,7 @@ export interface HostResourceInfo {
     resourceName: ResourceName;
     requestedByApp: number;
     requestedByNeighbors: number;
-    available: number;
+    capacity: number;
 }
 
 export interface Node {

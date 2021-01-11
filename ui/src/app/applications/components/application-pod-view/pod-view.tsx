@@ -367,20 +367,27 @@ function formatMetric(name: ResourceName, val: number) {
 }
 
 function renderStats(info: HostResourceInfo) {
-    const neighborsHeight = 100 * (info.requestedByNeighbors / info.available);
-    const appHeight = 100 * (info.requestedByApp / info.available);
+    const neighborsHeight = 100 * (info.requestedByNeighbors / info.capacity);
+    const appHeight = 100 * (info.requestedByApp / info.capacity);
     return (
         <div className='pod-view__node__pod__stat' key={info.resourceName}>
             <Tooltip
                 key={info.resourceName}
                 content={
                     <React.Fragment>
-                        <div>{info.resourceName}:</div>
-                        <div>
-                            {formatMetric(info.resourceName, info.requestedByApp)}/{formatMetric(info.resourceName, info.requestedByNeighbors)}/
-                            {formatMetric(info.resourceName, info.available)}
+                        <div>{info.resourceName.toUpperCase()}:</div>
+                        <div className='pod-view__node__pod__stat-tooltip'>
+                            <div>Requests:</div>
+                            <div>
+                                {' '}
+                                <i className='pod-view__node__pod__stat-icon-app' /> {formatMetric(info.resourceName, info.requestedByApp)} (App)
+                            </div>
+                            <div>
+                                {' '}
+                                <i className='pod-view__node__pod__stat-icon-neighbors' /> {formatMetric(info.resourceName, info.requestedByNeighbors)} (Neighbors)
+                            </div>
+                            <div>Capacity: {formatMetric(info.resourceName, info.capacity)}</div>
                         </div>
-                        <div>(app/others/total)</div>
                     </React.Fragment>
                 }>
                 <div className='pod-view__node__pod__stat__bar'>
