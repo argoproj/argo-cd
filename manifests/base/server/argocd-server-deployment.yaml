@@ -18,7 +18,7 @@ spec:
       serviceAccountName: argocd-server
       containers:
       - name: argocd-server
-        image: argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         command: [argocd-server, --staticassets, /shared/app]
         volumeMounts:
