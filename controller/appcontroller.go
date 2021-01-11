@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	clustercache "github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -381,7 +382,99 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 	sort.Slice(orphanedNodes, func(i, j int) bool {
 		return orphanedNodes[i].ResourceRef.String() < orphanedNodes[j].ResourceRef.String()
 	})
-	return &appv1.ApplicationTree{Nodes: nodes, OrphanedNodes: orphanedNodes}, nil
+
+	hosts, err := ctrl.getAppHosts(a, nodes)
+	if err != nil {
+		return nil, err
+	}
+
+	return &appv1.ApplicationTree{Nodes: nodes, OrphanedNodes: orphanedNodes, Hosts: hosts}, nil
+}
+
+func (ctrl *ApplicationController) getAppHosts(a *appv1.Application, appNodes []appv1.ResourceNode) ([]appv1.HostInfo, error) {
+	supportedResourceNames := map[v1.ResourceName]bool{
+		v1.ResourceCPU:     true,
+		v1.ResourceStorage: true,
+		v1.ResourceMemory:  true,
+	}
+	appPods := map[kube.ResourceKey]bool{}
+	for _, node := range appNodes {
+		if node.Group == "" && node.Kind == kube.PodKind {
+			appPods[kube.NewResourceKey(node.Group, node.Kind, node.Namespace, node.Name)] = true
+		}
+	}
+	allNodesInfo := map[string]statecache.NodeInfo{}
+	allPodsByNode := map[string][]statecache.PodInfo{}
+	appPodsByNode := map[string][]statecache.PodInfo{}
+	err := ctrl.stateCache.IterateResources(a.Spec.Destination.Server, func(res *clustercache.Resource, info *statecache.ResourceInfo) {
+		key := res.ResourceKey()
+		switch {
+		case info.NodeInfo != nil && key.Group == "" && key.Kind == "Node":
+			allNodesInfo[key.Name] = *info.NodeInfo
+		case info.PodInfo != nil && key.Group == "" && key.Kind == kube.PodKind:
+			if appPods[key] {
+				appPodsByNode[info.PodInfo.NodeName] = append(appPodsByNode[info.PodInfo.NodeName], *info.PodInfo)
+			} else {
+				allPodsByNode[info.PodInfo.NodeName] = append(allPodsByNode[info.PodInfo.NodeName], *info.PodInfo)
+			}
+		}
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var hosts []appv1.HostInfo
+	for nodeName, appPods := range appPodsByNode {
+		node, ok := allNodesInfo[nodeName]
+		if !ok {
+			continue
+		}
+
+		neighbors := allPodsByNode[nodeName]
+
+		resources := map[v1.ResourceName]appv1.HostResourceInfo{}
+		for name, resource := range node.Capacity {
+			info := resources[name]
+			info.ResourceName = name
+			info.Capacity += resource.MilliValue()
+			resources[name] = info
+		}
+
+		for _, pod := range appPods {
+			for name, resource := range pod.ResourceRequests {
+				if !supportedResourceNames[name] {
+					continue
+				}
+
+				info := resources[name]
+				info.RequestedByApp += resource.MilliValue()
+				resources[name] = info
+			}
+		}
+
+		for _, pod := range neighbors {
+			for name, resource := range pod.ResourceRequests {
+				if !supportedResourceNames[name] {
+					continue
+				}
+				info := resources[name]
+				info.RequestedByNeighbors += resource.MilliValue()
+				resources[name] = info
+			}
+		}
+
+		var resourcesInfo []appv1.HostResourceInfo
+		for _, info := range resources {
+			if supportedResourceNames[info.ResourceName] && info.Capacity > 0 {
+				resourcesInfo = append(resourcesInfo, info)
+			}
+		}
+		sort.Slice(resourcesInfo, func(i, j int) bool {
+			return resourcesInfo[i].ResourceName < resourcesInfo[j].ResourceName
+		})
+		hosts = append(hosts, appv1.HostInfo{Name: nodeName, SystemInfo: node.SystemInfo, ResourcesInfo: resourcesInfo})
+	}
+	return hosts, nil
 }
 
 func (ctrl *ApplicationController) managedResources(comparisonResult *comparisonResult) ([]*appv1.ResourceDiff, error) {

@@ -6,6 +6,12 @@ import (
 	"testing"
 	"time"
 
+	"k8s.io/apimachinery/pkg/api/resource"
+
+	clustercache "github.com/argoproj/gitops-engine/pkg/cache"
+
+	statecache "github.com/argoproj/argo-cd/controller/cache"
+
 	"github.com/argoproj/gitops-engine/pkg/cache/mocks"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -121,6 +127,7 @@ func newFakeController(data *fakeData) *ApplicationController {
 		response[k] = v.ResourceNode
 	}
 	mockStateCache.On("GetNamespaceTopLevelResources", mock.Anything, mock.Anything).Return(response, nil)
+	mockStateCache.On("IterateResources", mock.Anything, mock.Anything).Return(nil)
 	mockStateCache.On("GetClusterCache", mock.Anything).Return(&clusterCacheMock, nil)
 	mockStateCache.On("IterateHierarchy", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
 		key := args[1].(kube.ResourceKey)
@@ -1192,4 +1199,62 @@ func TestProcessRequestedAppOperation_HasRetriesTerminated(t *testing.T) {
 
 	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
 	assert.Equal(t, string(synccommon.OperationFailed), phase)
+}
+
+func TestGetAppHosts(t *testing.T) {
+	app := newFakeApp()
+	data := &fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+	}
+	ctrl := newFakeController(data)
+	mockStateCache := &mockstatecache.LiveStateCache{}
+	mockStateCache.On("IterateResources", mock.Anything, mock.MatchedBy(func(callback func(res *clustercache.Resource, info *statecache.ResourceInfo)) bool {
+		// node resource
+		callback(&clustercache.Resource{
+			Ref: corev1.ObjectReference{Name: "minikube", Kind: "Node", APIVersion: "v1"},
+		}, &statecache.ResourceInfo{NodeInfo: &statecache.NodeInfo{
+			Name:       "minikube",
+			SystemInfo: corev1.NodeSystemInfo{OSImage: "debian"},
+			Capacity:   map[corev1.ResourceName]resource.Quantity{corev1.ResourceCPU: resource.MustParse("5")},
+		}})
+
+		// app pod
+		callback(&clustercache.Resource{
+			Ref: corev1.ObjectReference{Name: "pod1", Kind: kube.PodKind, APIVersion: "v1", Namespace: "default"},
+		}, &statecache.ResourceInfo{PodInfo: &statecache.PodInfo{
+			NodeName:         "minikube",
+			ResourceRequests: map[corev1.ResourceName]resource.Quantity{corev1.ResourceCPU: resource.MustParse("1")},
+		}})
+		// neighbor pod
+		callback(&clustercache.Resource{
+			Ref: corev1.ObjectReference{Name: "pod2", Kind: kube.PodKind, APIVersion: "v1", Namespace: "default"},
+		}, &statecache.ResourceInfo{PodInfo: &statecache.PodInfo{
+			NodeName:         "minikube",
+			ResourceRequests: map[corev1.ResourceName]resource.Quantity{corev1.ResourceCPU: resource.MustParse("2")},
+		}})
+		return true
+	})).Return(nil)
+	ctrl.stateCache = mockStateCache
+
+	hosts, err := ctrl.getAppHosts(app, []argoappv1.ResourceNode{{
+		ResourceRef: argoappv1.ResourceRef{Name: "pod1", Namespace: "default", Kind: kube.PodKind},
+		Info: []argoappv1.InfoItem{{
+			Name:  "Host",
+			Value: "Minikube",
+		}},
+	}})
+
+	assert.NoError(t, err)
+	assert.Equal(t, []argoappv1.HostInfo{{
+		Name:       "minikube",
+		SystemInfo: corev1.NodeSystemInfo{OSImage: "debian"},
+		ResourcesInfo: []argoappv1.HostResourceInfo{{
+			ResourceName: corev1.ResourceCPU, Capacity: 5000, RequestedByApp: 1000, RequestedByNeighbors: 2000},
+		}}}, hosts)
 }
