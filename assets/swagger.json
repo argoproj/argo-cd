@@ -779,6 +779,12 @@
             "type": "boolean",
             "name": "follow",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "format": "int64",
+            "name": "maxLines",
+            "in": "query"
           }
         ],
         "responses": {

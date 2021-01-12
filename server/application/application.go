@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	goio "io"
+	"io/ioutil"
 	"math"
 	"reflect"
 	"sort"
@@ -1045,6 +1046,26 @@ func (s *Server) ManagedResources(ctx context.Context, q *application.ResourcesQ
 	return res, nil
 }
 
+func parseLines(line string) (*[]application.LogEntry, error) {
+	line = strings.TrimSpace(line) // Remove trailing line ending
+	var logLines []application.LogEntry
+	for _, line := range strings.Split(line, "\n") {
+		if line != "" {
+			parts := strings.Split(line, " ")
+			logTime, err := time.Parse(time.RFC3339, parts[0])
+			if (err != nil) {
+				return nil, err
+			}
+			metaLogTime := metav1.NewTime(logTime)
+			logLines = append(logLines, application.LogEntry{
+				Content:   strings.Join(parts[1:], " "),
+				TimeStamp: metaLogTime,
+			})
+		}
+	}
+	return &logLines, nil
+}
+
 func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.ApplicationService_PodLogsServer) error {
 	pod, config, _, err := s.getAppResource(ws.Context(), rbacpolicy.ActionGet, &application.ApplicationResourceRequest{
 		Name:         q.Name,
@@ -1088,42 +1109,63 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 	reachedEOF := false
 	gracefulExit := false
 	go func() {
-		bufReader := bufio.NewReader(stream)
-
-		for {
-			line, err := bufReader.ReadString('\n')
-			if err != nil {
-				// Error or io.EOF
-				break
+		if (q.MaxLines != nil && !q.Follow) {
+			rawLogs, err := ioutil.ReadAll(stream)
+			if (err != nil) {
+				logCtx.Warnf("k8s pod logs page load failed with error: %v", err)
+				close(done)
 			}
-			line = strings.TrimSpace(line) // Remove trailing line ending
-			parts := strings.Split(line, " ")
-			logTime, err := time.Parse(time.RFC3339, parts[0])
-			metaLogTime := metav1.NewTime(logTime)
-			if err == nil {
-				lines := strings.Join(parts[1:], " ")
-				for _, line := range strings.Split(lines, "\r") {
-					if line != "" {
-						err = ws.Send(&application.LogEntry{
-							Content:   line,
-							TimeStamp: metaLogTime,
-						})
-						if err != nil {
-							logCtx.Warnf("Unable to send stream message: %v", err)
+			logLines, err := parseLines(string(rawLogs))
+			if (err != nil) {
+				logCtx.Warnf("error parsing log lines: %v", err)
+			}
+			end := int64(len(*logLines))
+			if (*q.MaxLines < end) {
+				end = *q.MaxLines
+			}
+			for _, line := range (*logLines)[:end] {
+				err := ws.Send(&line)
+				if (err != nil) {
+					logCtx.Warnf("Unable to send stream message: %v", err)
+				}
+			}
+		} else {
+			bufReader := bufio.NewReader(stream)
+			for {
+				line, err := bufReader.ReadString('\n')
+				if err != nil {
+					// Error or io.EOF
+					break
+				}
+				line = strings.TrimSpace(line) // Remove trailing line ending
+				parts := strings.Split(line, " ")
+				logTime, err := time.Parse(time.RFC3339, parts[0])
+				metaLogTime := metav1.NewTime(logTime)
+				if err == nil {
+					lines := strings.Join(parts[1:], " ")
+					for _, line := range strings.Split(lines, "\r") {
+						if line != "" {
+							err = ws.Send(&application.LogEntry{
+								Content:   line,
+								TimeStamp: metaLogTime,
+							})
+							if err != nil {
+								logCtx.Warnf("Unable to send stream message: %v", err)
+							}
 						}
 					}
 				}
 			}
+			if gracefulExit {
+				logCtx.Info("k8s pod logs reader completed due to closed grpc context")
+			} else if err != nil && err != goio.EOF {
+				logCtx.Warnf("k8s pod logs reader failed with error: %v", err)
+			} else {
+				logCtx.Info("k8s pod logs reader completed with EOF")
+				reachedEOF = true
+			}
+			close(done)
 		}
-		if gracefulExit {
-			logCtx.Info("k8s pod logs reader completed due to closed grpc context")
-		} else if err != nil && err != goio.EOF {
-			logCtx.Warnf("k8s pod logs reader failed with error: %v", err)
-		} else {
-			logCtx.Info("k8s pod logs reader completed with EOF")
-			reachedEOF = true
-		}
-		close(done)
 	}()
 
 	select {
