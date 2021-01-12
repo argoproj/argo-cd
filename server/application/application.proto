@@ -163,6 +163,7 @@ message ApplicationPodLogsQuery {
 	optional k8s.io.apimachinery.pkg.apis.meta.v1.Time sinceTime = 6;
 	required int64 tailLines = 7 [(gogoproto.nullable) = false];
 	required bool follow = 8 [(gogoproto.nullable) = false];
+	optional int64 maxLines = 9;
 }
 
 message LogEntry {
