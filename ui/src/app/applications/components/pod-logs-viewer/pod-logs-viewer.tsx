@@ -22,6 +22,7 @@ export const PodsLogsViewer = (props: {applicationName: string; pod: models.Reso
     const [selectedLine, setSelectedLine] = useState(-1);
     const [lines, setLines] = useState([]);
     const bottom = React.useRef<HTMLInputElement>(null);
+    const [page, setPage] = useState(0);
     return (
         <DataLoader load={() => services.viewPreferences.getPreferences()}>
             {prefs => (
@@ -83,8 +84,9 @@ export const PodsLogsViewer = (props: {applicationName: string; pod: models.Reso
                                 props.pod.metadata.namespace,
                                 props.pod.metadata.name,
                                 container.name,
-                                maxLines,
-                                prefs.appDetails.followLogs
+                                maxLines * (page + 1),
+                                prefs.appDetails.followLogs,
+                                maxLines
                             );
                         }}>
                         {log => {
@@ -93,11 +95,19 @@ export const PodsLogsViewer = (props: {applicationName: string; pod: models.Reso
                                 tmp.push(log.content);
                                 setLines(tmp);
                             }
+                            const firstLine = maxLines * page + 1;
+                            const lastLine = maxLines * (page + 1);
                             return (
                                 <div className={`pod-logs ${prefs.appDetails.darkMode ? 'pod-logs--inverted' : ''}`}>
                                     <div className={`pod-logs__menu ${prefs.appDetails.darkMode ? 'pod-logs__menu--inverted' : ''}`}>
                                         <i className='fa fa-angle-double-left' />
-                                        <i className='fa fa-angle-left' />
+                                        <i
+                                            className='fa fa-angle-left'
+                                            onClick={() => {
+                                                setPage(page + 1);
+                                                loader.reload();
+                                            }}
+                                        />
                                         <i
                                             className='fa fa-angle-down'
                                             onClick={() => {
@@ -106,8 +116,26 @@ export const PodsLogsViewer = (props: {applicationName: string; pod: models.Reso
                                                 });
                                             }}
                                         />
-                                        <i className='fa fa-angle-right' style={{marginLeft: 'auto'}} />
-                                        <i className='fa fa-angle-double-right' />
+                                        <div>
+                                            Page {page + 1} (Lines {firstLine} to {lastLine})
+                                        </div>
+                                        <i
+                                            className='fa fa-angle-right'
+                                            style={{marginLeft: 'auto'}}
+                                            onClick={() => {
+                                                if (page > 0) {
+                                                    setPage(page - 1);
+                                                    loader.reload();
+                                                }
+                                            }}
+                                        />
+                                        <i
+                                            className='fa fa-angle-double-right'
+                                            onClick={() => {
+                                                setPage(0);
+                                                loader.reload();
+                                            }}
+                                        />
                                     </div>
                                     <pre style={{height: '95%'}}>
                                         {lines.map((l, i) => (
@@ -145,7 +173,7 @@ export const PodsLogsViewer = (props: {applicationName: string; pod: models.Reso
                                                         onClick={() => {
                                                             setSelectedLine(selectedLine === i ? -1 : i);
                                                         }}>
-                                                        {i + 1}
+                                                        {firstLine + i}
                                                     </div>
                                                     <div className={`pod-logs__line ${selectedLine === i ? 'pod-logs__line--selected' : ''}`}>{l}</div>
                                                 </div>
