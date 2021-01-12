@@ -1053,7 +1053,7 @@ func parseLines(line string) (*[]application.LogEntry, error) {
 		if line != "" {
 			parts := strings.Split(line, " ")
 			logTime, err := time.Parse(time.RFC3339, parts[0])
-			if (err != nil) {
+			if err != nil {
 				return nil, err
 			}
 			metaLogTime := metav1.NewTime(logTime)
@@ -1109,23 +1109,23 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 	reachedEOF := false
 	gracefulExit := false
 	go func() {
-		if (q.MaxLines != nil && !q.Follow) {
+		if q.MaxLines != nil && !q.Follow {
 			rawLogs, err := ioutil.ReadAll(stream)
-			if (err != nil) {
+			if err != nil {
 				logCtx.Warnf("k8s pod logs page load failed with error: %v", err)
 				close(done)
 			}
 			logLines, err := parseLines(string(rawLogs))
-			if (err != nil) {
+			if err != nil {
 				logCtx.Warnf("error parsing log lines: %v", err)
 			}
 			end := int64(len(*logLines))
-			if (*q.MaxLines < end) {
+			if *q.MaxLines < end {
 				end = *q.MaxLines
 			}
 			for _, line := range (*logLines)[:end] {
 				err := ws.Send(&line)
-				if (err != nil) {
+				if err != nil {
 					logCtx.Warnf("Unable to send stream message: %v", err)
 				}
 			}
