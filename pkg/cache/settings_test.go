@@ -39,10 +39,10 @@ func TestSetNamespaces(t *testing.T) {
 
 func TestSetResyncTimeout(t *testing.T) {
 	cache := NewClusterCache(&rest.Config{})
-	assert.Equal(t, clusterResyncTimeout, cache.resyncTimeout)
+	assert.Equal(t, clusterResyncTimeout, cache.syncStatus.resyncTimeout)
 
 	timeout := 1 * time.Hour
 	cache.Invalidate(SetResyncTimeout(timeout))
 
-	assert.Equal(t, timeout, cache.resyncTimeout)
+	assert.Equal(t, timeout, cache.syncStatus.resyncTimeout)
 }

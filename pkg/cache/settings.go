@@ -93,7 +93,10 @@ func SetListSemaphore(listSemaphore WeightedSemaphore) UpdateSettingsFunc {
 // SetResyncTimeout updates cluster re-sync timeout
 func SetResyncTimeout(timeout time.Duration) UpdateSettingsFunc {
 	return func(cache *clusterCache) {
-		cache.resyncTimeout = timeout
+		cache.syncStatus.lock.Lock()
+		defer cache.syncStatus.lock.Unlock()
+
+		cache.syncStatus.resyncTimeout = timeout
 	}
 }
 
