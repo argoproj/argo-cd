@@ -60,8 +60,11 @@ export const PodsLogsViewer = (props: {applicationName: string; pod: models.Reso
                         <div
                             className={`argo-button argo-button--base${prefs.appDetails.followLogs ? '' : '-o'}`}
                             onClick={() => {
-                                const follow = prefs.appDetails.followLogs;
-                                services.viewPreferences.updatePreferences({...prefs, appDetails: {...prefs.appDetails, followLogs: !follow}});
+                                const follow = !prefs.appDetails.followLogs;
+                                services.viewPreferences.updatePreferences({...prefs, appDetails: {...prefs.appDetails, followLogs: follow}});
+                                if (follow) {
+                                    setPage(0);
+                                }
                                 loader.reload();
                             }}>
                             FOLLOW {prefs.appDetails.followLogs && <i className='fa fa-check' />}
@@ -77,6 +80,12 @@ export const PodsLogsViewer = (props: {applicationName: string; pod: models.Reso
                     </div>
                     <DataLoader
                         ref={l => (loader = l)}
+                        loadingRenderer={() => (
+                            <div className={`pod-logs ${prefs.appDetails.darkMode ? 'pod-logs--inverted' : ''}`}>
+                                {logNavigators({}, prefs.appDetails.darkMode, null)}
+                                <pre style={{height: '95%', textAlign: 'center'}}>Loading...</pre>
+                            </div>
+                        )}
                         load={() => {
                             setLines([]);
                             return services.applications.getContainerLogs(
@@ -99,87 +108,75 @@ export const PodsLogsViewer = (props: {applicationName: string; pod: models.Reso
                             const lastLine = maxLines * (page + 1);
                             return (
                                 <div className={`pod-logs ${prefs.appDetails.darkMode ? 'pod-logs--inverted' : ''}`}>
-                                    <div className={`pod-logs__menu ${prefs.appDetails.darkMode ? 'pod-logs__menu--inverted' : ''}`}>
-                                        <i className='fa fa-angle-double-left' />
-                                        <i
-                                            className='fa fa-angle-left'
-                                            onClick={() => {
+                                    {logNavigators(
+                                        {
+                                            left: () => {
                                                 setPage(page + 1);
+                                                services.viewPreferences.updatePreferences({...prefs, appDetails: {...prefs.appDetails, followLogs: false}});
                                                 loader.reload();
-                                            }}
-                                        />
-                                        <i
-                                            className='fa fa-angle-down'
-                                            onClick={() => {
+                                            },
+                                            bottom: () => {
                                                 bottom.current.scrollIntoView({
                                                     behavior: 'smooth'
                                                 });
-                                            }}
-                                        />
-                                        <div>
-                                            Page {page + 1} (Lines {firstLine} to {lastLine})
-                                        </div>
-                                        <i
-                                            className='fa fa-angle-right'
-                                            style={{marginLeft: 'auto'}}
-                                            onClick={() => {
+                                            },
+                                            right: () => {
                                                 if (page > 0) {
                                                     setPage(page - 1);
                                                     loader.reload();
                                                 }
-                                            }}
-                                        />
-                                        <i
-                                            className='fa fa-angle-double-right'
-                                            onClick={() => {
+                                            },
+                                            end: () => {
                                                 setPage(0);
                                                 loader.reload();
-                                            }}
-                                        />
-                                    </div>
+                                            }
+                                        },
+                                        prefs.appDetails.darkMode,
+                                        {
+                                            firstLine,
+                                            lastLine,
+                                            curPage: page
+                                        }
+                                    )}
                                     <pre style={{height: '95%'}}>
                                         {lines.map((l, i) => (
-                                            <React.Fragment>
-                                                <div style={{display: 'flex'}}>
-                                                    <div className={`pod-logs__line__menu ${selectedLine === i ? 'pod-logs__line__menu--visible' : ''}`}>
-                                                        <DropDownMenu
-                                                            anchor={() => <i className='fas fa-ellipsis-h' />}
-                                                            items={[
-                                                                {
-                                                                    title: (
-                                                                        <span>
-                                                                            <i className='fa fa-clipboard' /> Copy
-                                                                        </span>
-                                                                    ),
-                                                                    action: async () => {
-                                                                        await navigator.clipboard.writeText(l);
-                                                                    }
-                                                                },
-                                                                {
-                                                                    title: (
-                                                                        <span>
-                                                                            <i className='fa fa-list-ol' /> Copy Line Number
-                                                                        </span>
-                                                                    ),
-                                                                    action: async () => {
-                                                                        await navigator.clipboard.writeText(JSON.stringify(i + 1));
-                                                                    }
+                                            <div
+                                                style={{display: 'flex', cursor: 'pointer'}}
+                                                onClick={() => {
+                                                    setSelectedLine(selectedLine === i ? -1 : i);
+                                                }}>
+                                                <div className={`pod-logs__line__menu ${selectedLine === i ? 'pod-logs__line__menu--visible' : ''}`}>
+                                                    <DropDownMenu
+                                                        anchor={() => <i className='fas fa-ellipsis-h' />}
+                                                        items={[
+                                                            {
+                                                                title: (
+                                                                    <span>
+                                                                        <i className='fa fa-clipboard' /> Copy
+                                                                    </span>
+                                                                ),
+                                                                action: async () => {
+                                                                    await navigator.clipboard.writeText(l);
                                                                 }
-                                                            ]}
-                                                        />
-                                                    </div>
-                                                    <div
-                                                        className='pod-logs__line__number'
-                                                        onClick={() => {
-                                                            setSelectedLine(selectedLine === i ? -1 : i);
-                                                        }}>
-                                                        {firstLine + i}
-                                                    </div>
-                                                    <div className={`pod-logs__line ${selectedLine === i ? 'pod-logs__line--selected' : ''}`}>{l}</div>
+                                                            },
+                                                            {
+                                                                title: (
+                                                                    <span>
+                                                                        <i className='fa fa-list-ol' /> Copy Line Number
+                                                                    </span>
+                                                                ),
+                                                                action: async () => {
+                                                                    await navigator.clipboard.writeText(JSON.stringify(i + 1));
+                                                                }
+                                                            }
+                                                        ]}
+                                                    />
                                                 </div>
-                                            </React.Fragment>
+                                                <div className='pod-logs__line__number'>{firstLine + i}</div>
+                                                <div className={`pod-logs__line ${selectedLine === i ? 'pod-logs__line--selected' : ''}`}>{l}</div>
+                                            </div>
                                         ))}
-                                        <div ref={bottom} />
+                                        <div ref={bottom} style={{height: '1px'}} />
                                     </pre>
                                 </div>
                             );
@@ -188,5 +185,39 @@ export const PodsLogsViewer = (props: {applicationName: string; pod: models.Reso
                 </React.Fragment>
             )}
         </DataLoader>
+    );
+};
+
+interface NavActions {
+    left?: () => void;
+    right?: () => void;
+    begin?: () => void;
+    end?: () => void;
+    bottom?: () => void;
+}
+
+interface PageInfo {
+    firstLine: number;
+    lastLine: number;
+    curPage: number;
+}
+
+const logNavigators = (actions: NavActions, darkMode: boolean, info?: PageInfo) => {
+    return (
+        <div className={`pod-logs__menu ${darkMode ? 'pod-logs__menu--inverted' : ''}`}>
+            {actions.begin && <i className='fa fa-angle-double-left' onClick={actions.begin} />}
+            <i className='fa fa-angle-left' onClick={actions.left} />
+            <i className='fa fa-angle-down' onClick={actions.bottom} />
+
+            <div style={{marginLeft: 'auto', marginRight: 'auto'}}>
+                {info && (
+                    <React.Fragment>
+                        Page {info.curPage + 1} (Lines {info.firstLine} to {info.lastLine})
+                    </React.Fragment>
+                )}
+            </div>
+            <i className={`fa fa-angle-right ${info && info.curPage > 0 ? '' : 'disabled'}`} onClick={info && info.curPage > 0 && actions.right} />
+            <i className={`fa fa-angle-double-right ${info && info.curPage > 1 ? '' : 'disabled'}`} onClick={info && info.curPage > 1 && actions.end} />
+        </div>
     );
 };
