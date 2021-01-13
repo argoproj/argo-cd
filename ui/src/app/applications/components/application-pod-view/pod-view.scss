@@ -3,6 +3,7 @@
 $pod-size: 25px;
 $gutter: 3px;
 $pods-per-row: 8;
+$pods-per-column: 4;
 $max-rows: 5;
 $num-stats: 2;
 
@@ -23,6 +24,7 @@ $num-stats: 2;
 
     &__node {
         $pod-container-width: $pods-per-row * ($pod-size + (2 * $gutter)) + 4 * $gutter;
+        $pod-container-height: $pods-per-column * ($pod-size + (2 * $gutter)) + 4 * $gutter;
         $padding: 15px;
         $stat-width: 12px;
         padding: $padding;
@@ -77,10 +79,9 @@ $num-stats: 2;
             width: $pod-container-width;
             &__pods {
                 display: flex;
-                flex-direction: row-reverse;
-                flex-wrap: wrap-reverse;
-                align-content: flex-start;
-                height: 100%;
+                flex-wrap: wrap;
+                overflow: auto;
+                max-height: $pod-container-height;
                 width: 100%;
                 background-color: $argo-color-gray-3;
                 border-radius: 3px;
