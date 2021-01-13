@@ -305,6 +305,10 @@ func verifyGnuPGSignature(revision string, project *appv1.AppProject, manifestIn
 	return conditions
 }
 
+func diffArrayCached(configArray, liveArray []*unstructured.Unstructured, opts ...diff.Option) (*diff.DiffResultList, error) {
+	return diff.DiffArray(configArray, liveArray, opts...)
+}
+
 // CompareAppState compares application git state to the live app state, using the specified
 // revision and supplied source. If revision or overrides are empty, then compares against
 // revision and overrides in the app spec.
@@ -431,7 +435,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 
 	logCtx.Debugf("built managed objects list")
 	// Do the actual comparison
-	diffResults, err := diff.DiffArray(
+	diffResults, err := diffArrayCached(
 		reconciliation.Target, reconciliation.Live,
 		diff.WithNormalizer(diffNormalizer),
 		diff.IgnoreAggregatedRoles(compareOptions.IgnoreAggregatedRoles))
