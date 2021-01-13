@@ -77,12 +77,13 @@ $num-stats: 2;
         &__pod-container {
             flex-direction: column;
             width: $pod-container-width;
+            margin-top: auto;
             &__pods {
                 display: flex;
                 flex-wrap: wrap;
-                overflow: auto;
                 max-height: $pod-container-height;
                 width: 100%;
+                overflow: auto;
                 background-color: $argo-color-gray-3;
                 border-radius: 3px;
                 padding: $gutter * 2;
