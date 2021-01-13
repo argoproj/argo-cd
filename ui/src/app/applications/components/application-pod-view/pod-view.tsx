@@ -252,8 +252,7 @@ export class PodView extends React.Component<PodViewProps> {
                     pods: [],
                     info: [
                         {name: 'Kernel Version', value: infraNode.systemInfo.kernelVersion},
-                        {name: 'Operating System', value: infraNode.systemInfo.operatingSystem},
-                        {name: 'Architecture', value: infraNode.systemInfo.architecture}
+                        {name: 'OS/Arch', value: `${infraNode.systemInfo.operatingSystem}/${infraNode.systemInfo.architecture}`}
                     ],
                     hostResourcesInfo: infraNode.resourcesInfo
                 };
