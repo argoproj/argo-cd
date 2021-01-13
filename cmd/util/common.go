@@ -10,6 +10,11 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 )
 
+var (
+	LogFormat string
+	LogLevel  string
+)
+
 // PrintResource prints a single resource in YAML or JSON format to stdout according to the output format
 func PrintResources(resources []interface{}, output string) error {
 	for i, resource := range resources {
