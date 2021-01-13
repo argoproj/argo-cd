@@ -21,6 +21,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/common"
+	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
 	statecache "github.com/argoproj/argo-cd/controller/cache"
 	"github.com/argoproj/argo-cd/controller/metrics"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -105,6 +106,7 @@ type appStateManager struct {
 	kubectl        kubeutil.Kubectl
 	repoClientset  apiclient.Clientset
 	liveStateCache statecache.LiveStateCache
+	cache          appstatecache.Cache
 	namespace      string
 }
 
@@ -306,6 +308,7 @@ func verifyGnuPGSignature(revision string, project *appv1.AppProject, manifestIn
 }
 
 func diffArrayCached(configArray, liveArray []*unstructured.Unstructured, opts ...diff.Option) (*diff.DiffResultList, error) {
+
 	return diff.DiffArray(configArray, liveArray, opts...)
 }
 
@@ -611,9 +614,11 @@ func NewAppStateManager(
 	liveStateCache statecache.LiveStateCache,
 	projInformer cache.SharedIndexInformer,
 	metricsServer *metrics.MetricsServer,
+	cache appstatecache.Cache,
 ) AppStateManager {
 	return &appStateManager{
 		liveStateCache: liveStateCache,
+		cache:          cache,
 		db:             db,
 		appclientset:   appclientset,
 		kubectl:        kubectl,
