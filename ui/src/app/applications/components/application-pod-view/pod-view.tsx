@@ -69,7 +69,7 @@ export class PodView extends React.Component<PodViewProps> {
                             {groups.length > 0 ? (
                                 <div className='pod-view__nodes-container'>
                                     {groups.map(group => (
-                                        <div className={`pod-view__node white-box ${group.kind === 'node' && 'pod-view__node--large'}`} key={group.name}>
+                                        <div className={`pod-view__node white-box ${group.kind === 'node' && 'pod-view__node--large'}`} key={group.fullName || group.name}>
                                             <div className='pod-view__node__container--header' onClick={() => this.props.onItemClick(group.fullName)} style={{cursor: 'pointer'}}>
                                                 <div style={{display: 'flex', alignItems: 'center'}}>
                                                     <div style={{marginRight: '10px'}}>
@@ -143,6 +143,16 @@ export class PodView extends React.Component<PodViewProps> {
                                                                                 <div>Health: {pod.health}</div>
                                                                             </div>
                                                                         }
+                                                                        popperOptions={{
+                                                                            modifiers: {
+                                                                                preventOverflow: {
+                                                                                    enabled: false
+                                                                                },
+                                                                                flip: {
+                                                                                    enabled: false
+                                                                                }
+                                                                            }
+                                                                        }}
                                                                         key={pod.metadata.name}>
                                                                         <div className={`pod-view__node__pod pod-view__node__pod--${pod.health.toLowerCase()}`}>
                                                                             <PodHealthIcon state={{status: pod.health, message: ''}} />
