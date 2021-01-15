@@ -11,7 +11,7 @@
     box-shadow: 1px 2px 3px rgba(0, 0, 0, 0.1);
 
     &__item {
-        max-height: 75px;
+        max-height: 95px;
         margin: 10px 0;
         padding: 5px 20px;
         font-size: .8em;
@@ -111,6 +111,5 @@
         color: #8fa4B1;
         cursor: pointer;
         position: absolute;
-        bottom: 10px;
     }
 }
