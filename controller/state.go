@@ -45,15 +45,16 @@ func (r *resourceInfoProviderStub) IsNamespaced(_ schema.GroupKind) (bool, error
 }
 
 type managedResource struct {
-	Target    *unstructured.Unstructured
-	Live      *unstructured.Unstructured
-	Diff      diff.DiffResult
-	Group     string
-	Version   string
-	Kind      string
-	Namespace string
-	Name      string
-	Hook      bool
+	Target          *unstructured.Unstructured
+	Live            *unstructured.Unstructured
+	Diff            diff.DiffResult
+	Group           string
+	Version         string
+	Kind            string
+	Namespace       string
+	Name            string
+	Hook            bool
+	ResourceVersion string
 }
 
 func GetLiveObjsForApplicationHealth(resources []managedResource, statuses []appv1.ResourceStatus) ([]*appv1.ResourceStatus, []*unstructured.Unstructured) {
@@ -320,13 +321,14 @@ func (m *appStateManager) diffArrayCached(configArray, liveArray []*unstructured
 	managedResources := make([]*appv1.ResourceDiff, 0)
 	if m.cache.GetAppManagedResources("", &managedResources) != nil {
 		// (rare) cache miss
-		// TODO
+		return diff.DiffArray(configArray, liveArray, opts...)
 	}
 
 	for i := 0; i < len(managedResources); i++ {
 		cachedResource := managedResources[i]
+		liveObj := liveArray[i]
 		var dr *diff.DiffResult
-		if cachedResource.ResourceVersion == "" {
+		if cachedResource.ResourceVersion == liveObj.GetResourceVersion() {
 			dr = &diff.DiffResult{
 				NormalizedLive: []byte(cachedResource.NormalizedLiveState),
 				PredictedLive: []byte(cachedResource.PredictedLiveState),
@@ -546,15 +548,16 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 			resState.Status = v1alpha1.SyncStatusCodeUnknown
 		}
 		managedResources[i] = managedResource{
-			Name:      resState.Name,
-			Namespace: resState.Namespace,
-			Group:     resState.Group,
-			Kind:      resState.Kind,
-			Version:   resState.Version,
-			Live:      liveObj,
-			Target:    targetObj,
-			Diff:      diffResult,
-			Hook:      resState.Hook,
+			Name:            resState.Name,
+			Namespace:       resState.Namespace,
+			Group:           resState.Group,
+			Kind:            resState.Kind,
+			Version:         resState.Version,
+			Live:            liveObj,
+			Target:          targetObj,
+			Diff:            diffResult,
+			Hook:            resState.Hook,
+			ResourceVersion: targetObj.GetResourceVersion(),
 		}
 		resourceSummaries[i] = resState
 	}

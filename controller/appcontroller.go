@@ -482,11 +482,12 @@ func (ctrl *ApplicationController) managedResources(comparisonResult *comparison
 	for i := range comparisonResult.managedResources {
 		res := comparisonResult.managedResources[i]
 		item := appv1.ResourceDiff{
-			Namespace: res.Namespace,
-			Name:      res.Name,
-			Group:     res.Group,
-			Kind:      res.Kind,
-			Hook:      res.Hook,
+			Namespace:       res.Namespace,
+			Name:            res.Name,
+			Group:           res.Group,
+			Kind:            res.Kind,
+			Hook:            res.Hook,
+			ResourceVersion: res.ResourceVersion,
 		}
 
 		target := res.Target
