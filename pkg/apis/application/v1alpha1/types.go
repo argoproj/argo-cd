@@ -1096,8 +1096,8 @@ type ResourceDiff struct {
 	NormalizedLiveState string `json:"normalizedLiveState,omitempty" protobuf:"bytes,9,opt,name=normalizedLiveState"`
 	// PredictedLiveState contains JSON serialized resource state that is calculated based on normalized and target resource state
 	PredictedLiveState string `json:"predictedLiveState,omitempty" protobuf:"bytes,10,opt,name=predictedLiveState"`
-	ResourceVersion string `json:"resourceVersion,omitempty" protobuf:"bytes,11,opt,name=resourceVersion"`
-	SyncStatus string `json:"syncStatus,omitempty" protobuf:"bytes,12,opt,name=syncStatus"`
+	ResourceVersion    string `json:"resourceVersion,omitempty" protobuf:"bytes,11,opt,name=resourceVersion"`
+	SyncStatus         string `json:"syncStatus,omitempty" protobuf:"bytes,12,opt,name=syncStatus"`
 }
 
 // ConnectionStatus represents connection status

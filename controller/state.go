@@ -314,25 +314,27 @@ func (m *appStateManager) diffArrayCached(configArray, liveArray []*unstructured
 		return nil, fmt.Errorf("left and right arrays have mismatched lengths")
 	}
 
-	diffResultList := diff.DiffResultList{
-		Diffs: make([]diff.DiffResult, numItems),
-	}
-
 	managedResources := make([]*appv1.ResourceDiff, 0)
 	if m.cache.GetAppManagedResources("", &managedResources) != nil {
 		// (rare) cache miss
 		return diff.DiffArray(configArray, liveArray, opts...)
 	}
 
-	for i := 0; i < len(managedResources); i++ {
-		cachedResource := managedResources[i]
-		liveObj := liveArray[i]
+	diffResultList := diff.DiffResultList{
+		Diffs: make([]diff.DiffResult, numItems),
+	}
+
+	for i := 0; i < numItems; i++ {
 		var dr *diff.DiffResult
-		if cachedResource.ResourceVersion == liveObj.GetResourceVersion() {
-			dr = &diff.DiffResult{
-				NormalizedLive: []byte(cachedResource.NormalizedLiveState),
-				PredictedLive: []byte(cachedResource.PredictedLiveState),
-				Modified: cachedResource.NormalizedLiveState == cachedResource.PredictedLiveState,
+		if i < len(managedResources) {
+			cachedResource := managedResources[i]
+			targetObj := configArray[i]
+			if cachedResource.ResourceVersion == targetObj.GetResourceVersion() {
+				dr = &diff.DiffResult{
+					NormalizedLive: []byte(cachedResource.NormalizedLiveState),
+					PredictedLive: []byte(cachedResource.PredictedLiveState),
+					Modified: cachedResource.NormalizedLiveState == cachedResource.PredictedLiveState,
+				}
 			}
 		} else {
 			res, err := diff.Diff(configArray[i], liveArray[i], opts...)
@@ -547,6 +549,11 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		if failedToLoadObjs {
 			resState.Status = v1alpha1.SyncStatusCodeUnknown
 		}
+
+		resourceVersion := ""
+		if (targetObj != nil) {
+			resourceVersion = liveObj.GetResourceVersion()
+		}
 		managedResources[i] = managedResource{
 			Name:            resState.Name,
 			Namespace:       resState.Namespace,
@@ -557,7 +564,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 			Target:          targetObj,
 			Diff:            diffResult,
 			Hook:            resState.Hook,
-			ResourceVersion: targetObj.GetResourceVersion(),
+			ResourceVersion: resourceVersion,
 		}
 		resourceSummaries[i] = resState
 	}

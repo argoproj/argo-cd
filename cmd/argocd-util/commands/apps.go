@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/argoproj/argo-cd/util/cache/appstate"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -291,8 +292,10 @@ func reconcileApplications(
 		return nil, err
 	}
 
+	appStateCache := appstate.NewCache()
+
 	appStateManager := controller.NewAppStateManager(
-		argoDB, appClientset, repoServerClient, namespace, kubeutil.NewKubectl(), settingsMgr, stateCache, projInformer, server)
+		argoDB, appClientset, repoServerClient, namespace, kubeutil.NewKubectl(), settingsMgr, stateCache, projInformer, server, appStateCache)
 
 	appsList, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(context.Background(), v1.ListOptions{LabelSelector: selector})
 	if err != nil {
