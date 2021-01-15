@@ -18,6 +18,7 @@ export * from './tags-input/tags-input';
 export * from './monaco-editor';
 export * from './yaml-editor/yaml-editor';
 export * from './progress/progress-popup';
+export * from './info-popup/info-popup';
 export * from './repo';
 export * from './revision';
 export * from './timestamp';
