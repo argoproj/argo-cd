@@ -9,6 +9,10 @@
     color: $argo-color-gray-6;
     background-color: white;
     box-shadow: 1px 2px 3px rgba(0, 0, 0, 0.1);
+    @media screen and (max-width: 1200px) {
+        flex-wrap: nowrap;
+        overflow-x: scroll;
+    }
 
     &__item {
         max-height: 75px;
@@ -36,6 +40,14 @@
             a.info {
                 color: $argo-success-color;
             }
+        }
+
+        @media screen and (max-width: 1200px) {
+            flex: auto;
+            flex-grow: 1;
+            flex-shrink: 0;
+            max-width: 100%;
+            width: auto;
         }
     }
 

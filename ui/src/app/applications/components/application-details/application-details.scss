@@ -6,6 +6,9 @@
         left: 60px;
         right: 0;
         z-index: 2;
+        @media screen and (max-width: 1200px) {
+            top: 150px;
+        }
     }
 
     .argo-dropdown__content.is-menu {
@@ -19,6 +22,9 @@
         overflow-y: auto;
         margin-top: 100px;
         min-height: calc(100vh - 2 * 50px - 115px);
+        @media screen and (max-width: 1200px) {
+            margin-top: 150px;
+        }
     }
 
     &__warning {
@@ -131,4 +137,23 @@
             text-align: center;
         }
     }
+
+    @media screen and (max-width: 1200px) {
+        .page__content-wrapper {
+            min-height: calc(100vh - 3 * 50px);
+        }
+        .top-bar.row {
+            display: block;
+            .top-bar__left-side, .top-bar__right-side {
+                width: 100%;
+                max-width: 100%;
+                flex: auto;
+            }
+            .top-bar__left-side {
+                overflow-x: scroll;
+            }
+        }
+
+    }
+
 }
