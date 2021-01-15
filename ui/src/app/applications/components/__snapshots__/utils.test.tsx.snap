@@ -282,7 +282,7 @@ exports[`ResourceResultIcon.Hook.Terminating 1`] = `
   className="fa fa-circle-notch fa-spin"
   style={
     Object {
-      "color": "#0DADEA",
+      "color": "#DE303D",
     }
   }
 />
