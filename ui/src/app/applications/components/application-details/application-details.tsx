@@ -693,7 +693,7 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
                                 <div className='columns small-3 medium-2'>
                                     {containerGroups.map(group => (
                                         <div key={group.title} style={{marginBottom: '1em'}}>
-                                            {group.containers.length > 0 && <p>{group.title}:</p>}
+                                            {group.containers.length > 0 && <p>{group.title}</p>}
                                             {group.containers.map((container: any, i: number) => (
                                                 <div
                                                     className='application-details__container'
