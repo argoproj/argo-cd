@@ -106,7 +106,7 @@ type appStateManager struct {
 	kubectl        kubeutil.Kubectl
 	repoClientset  apiclient.Clientset
 	liveStateCache statecache.LiveStateCache
-	cache          appstatecache.Cache
+	cache          *appstatecache.Cache
 	namespace      string
 }
 
@@ -307,9 +307,45 @@ func verifyGnuPGSignature(revision string, project *appv1.AppProject, manifestIn
 	return conditions
 }
 
-func diffArrayCached(configArray, liveArray []*unstructured.Unstructured, opts ...diff.Option) (*diff.DiffResultList, error) {
+func (m *appStateManager) diffArrayCached(configArray, liveArray []*unstructured.Unstructured, opts ...diff.Option) (*diff.DiffResultList, error) {
+	numItems := len(configArray)
+	if len(liveArray) != numItems {
+		return nil, fmt.Errorf("left and right arrays have mismatched lengths")
+	}
 
-	return diff.DiffArray(configArray, liveArray, opts...)
+	diffResultList := diff.DiffResultList{
+		Diffs: make([]diff.DiffResult, numItems),
+	}
+
+	managedResources := make([]*appv1.ResourceDiff, 0)
+	if m.cache.GetAppManagedResources("", &managedResources) != nil {
+		// (rare) cache miss
+		// TODO
+	}
+
+	for i := 0; i < len(managedResources); i++ {
+		cachedResource := managedResources[i]
+		var dr *diff.DiffResult
+		if cachedResource.ResourceVersion == "" {
+			dr = &diff.DiffResult{
+				NormalizedLive: []byte(cachedResource.NormalizedLiveState),
+				PredictedLive: []byte(cachedResource.PredictedLiveState),
+				Modified: cachedResource.NormalizedLiveState == cachedResource.PredictedLiveState,
+			}
+		} else {
+			res, err := diff.Diff(configArray[i], liveArray[i], opts...)
+			if (err != nil) {
+				return nil, err
+			}
+			dr = res
+		}
+		diffResultList.Diffs[i] = *dr
+		if dr.Modified {
+			diffResultList.Modified = true
+		}
+	}
+
+	return &diffResultList, nil
 }
 
 // CompareAppState compares application git state to the live app state, using the specified
@@ -438,7 +474,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 
 	logCtx.Debugf("built managed objects list")
 	// Do the actual comparison
-	diffResults, err := diffArrayCached(
+	diffResults, err := m.diffArrayCached(
 		reconciliation.Target, reconciliation.Live,
 		diff.WithNormalizer(diffNormalizer),
 		diff.IgnoreAggregatedRoles(compareOptions.IgnoreAggregatedRoles))
@@ -614,7 +650,7 @@ func NewAppStateManager(
 	liveStateCache statecache.LiveStateCache,
 	projInformer cache.SharedIndexInformer,
 	metricsServer *metrics.MetricsServer,
-	cache appstatecache.Cache,
+	cache *appstatecache.Cache,
 ) AppStateManager {
 	return &appStateManager{
 		liveStateCache: liveStateCache,
