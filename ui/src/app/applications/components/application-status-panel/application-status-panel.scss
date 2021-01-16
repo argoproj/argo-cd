@@ -9,7 +9,7 @@
     color: $argo-color-gray-6;
     background-color: white;
     box-shadow: 1px 2px 3px rgba(0, 0, 0, 0.1);
-    @media screen and (max-width: 1200px) {
+    @media screen and (max-width: map-get($breakpoints, xlarge)) {
         flex-wrap: nowrap;
         overflow-x: scroll;
     }
@@ -42,7 +42,7 @@
             }
         }
 
-        @media screen and (max-width: 1200px) {
+        @media screen and (max-width: map-get($breakpoints, xlarge)) {
             flex: auto;
             flex-grow: 1;
             flex-shrink: 0;
@@ -122,6 +122,5 @@
     & .view-application-status-full {
         color: #8fa4B1;
         cursor: pointer;
-        position: absolute;
     }
 }

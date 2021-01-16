@@ -6,7 +6,7 @@
         left: 60px;
         right: 0;
         z-index: 2;
-        @media screen and (max-width: 1200px) {
+        @media screen and (max-width: map-get($breakpoints, xlarge)) {
             top: 150px;
         }
     }
@@ -22,7 +22,7 @@
         overflow-y: auto;
         margin-top: 100px;
         min-height: calc(100vh - 2 * 50px - 115px);
-        @media screen and (max-width: 1200px) {
+        @media screen and (max-width: map-get($breakpoints, xlarge)) {
             margin-top: 150px;
         }
     }
@@ -138,7 +138,7 @@
         }
     }
 
-    @media screen and (max-width: 1200px) {
+    @media screen and (max-width: map-get($breakpoints, xlarge)) {
         .page__content-wrapper {
             min-height: calc(100vh - 3 * 50px);
         }
@@ -151,9 +151,35 @@
             }
             .top-bar__left-side {
                 overflow-x: scroll;
+                .argo-button {
+                    i {
+                        @media screen and (max-width: map-get($breakpoints, medium)) {
+                            margin: 0 auto !important;
+                        }
+                    }
+                }
             }
         }
+    }
 
+    @media screen and (max-width: map-get($breakpoints, medium)) {
+        .top-bar.row {
+            .top-bar__left-side {
+                > div {
+                    display: flex;
+                    justify-content: center;
+                    height: 50px;
+                    align-items: center;
+                    .argo-button {
+                        height: 34px;
+                    }
+                }
+            }
+            .top-bar__right-side {
+                display: flex;
+                justify-content: center;
+            }
+        }
     }
 
 }
