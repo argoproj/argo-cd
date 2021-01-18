@@ -471,12 +471,6 @@ func SetParameterOverrides(app *argoappv1.Application, parameters []string) {
 	}
 }
 
-func SetLabels(app *argoappv1.Application, labels []string) {
-	mapLabels, err := label.Parse(labels)
-	errors.CheckError(err)
-	app.SetLabels(mapLabels)
-}
-
 func readAppFromStdin(app *argoappv1.Application) error {
 	reader := bufio.NewReader(os.Stdin)
 	err := config.UnmarshalReader(reader, &app)
@@ -521,7 +515,7 @@ func ConstructApp(fileURL, appName string, labels, args []string, appOpts AppOpt
 		}
 		SetAppSpecOptions(flags, &app.Spec, &appOpts)
 		SetParameterOverrides(&app, appOpts.Parameters)
-		SetLabels(&app, labels)
+		mergeLabels(&app, labels)
 	} else {
 		// read arguments
 		if len(args) == 1 {
@@ -541,7 +535,24 @@ func ConstructApp(fileURL, appName string, labels, args []string, appOpts AppOpt
 		}
 		SetAppSpecOptions(flags, &app.Spec, &appOpts)
 		SetParameterOverrides(&app, appOpts.Parameters)
-		SetLabels(&app, labels)
+		mergeLabels(&app, labels)
 	}
 	return &app, nil
+}
+
+func mergeLabels(app *argoappv1.Application, labels []string) {
+	mapLabels, err := label.Parse(labels)
+	errors.CheckError(err)
+
+	mergedLabels := make(map[string]string)
+
+	for name, value := range app.GetLabels() {
+		mergedLabels[name] = value
+	}
+
+	for name, value := range mapLabels {
+		mergedLabels[name] = value
+	}
+
+	app.SetLabels(mergedLabels)
 }
