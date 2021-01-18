@@ -184,6 +184,9 @@ func (s *Server) DeleteToken(ctx context.Context, q *project.ProjectTokenDeleteR
 
 // Create a new project
 func (s *Server) Create(ctx context.Context, q *project.ProjectCreateRequest) (*v1alpha1.AppProject, error) {
+	if q.Project == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "missing payload 'project' in request")
+	}
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionCreate, q.Project.Name); err != nil {
 		return nil, err
 	}
@@ -262,6 +265,9 @@ func (s *Server) GetGlobalProjects(ctx context.Context, q *project.ProjectQuery)
 
 // Update updates a project
 func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*v1alpha1.AppProject, error) {
+	if q.Project == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "missing payload 'project' in request")
+	}
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionUpdate, q.Project.Name); err != nil {
 		return nil, err
 	}
