@@ -153,7 +153,7 @@
                 overflow-x: scroll;
                 .argo-button {
                     i {
-                        @media screen and (max-width: map-get($breakpoints, medium)) {
+                        @media screen and (max-width: map-get($breakpoints, large)) {
                             margin: 0 auto !important;
                         }
                     }
@@ -162,7 +162,7 @@
         }
     }
 
-    @media screen and (max-width: map-get($breakpoints, medium)) {
+    @media screen and (max-width: map-get($breakpoints, large)) {
         .top-bar.row {
             .top-bar__left-side {
                 > div {

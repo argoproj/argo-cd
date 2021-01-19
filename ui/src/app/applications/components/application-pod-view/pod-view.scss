@@ -197,10 +197,14 @@ $num-stats: 2;
         }
     }
 
-    @media screen and (max-width: map-get($breakpoints, medium)) {
+    @media screen and (max-width: map-get($breakpoints, large)) {
         &__nodes-container {
             justify-content: center;
         }
+    }
+
+    @media screen and (max-width: map-get($breakpoints, medium)) {
+
         &__node {
             width: 95%;
             &--large {
