@@ -1401,20 +1401,33 @@ func TestCreateDisableValidation(t *testing.T) {
 
 func TestCreateFromPartialFile(t *testing.T) {
 	partialApp :=
-		`spec:
+		`metadata:
+  labels:
+    labels.local/from-file: file
+    labels.local/from-args: file
+  annotations:
+    annotations.local/from-file: file
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+spec:
   syncPolicy:
-    automated: {prune: true }`
+    automated:
+      prune: true
+`
 
 	path := "helm-values"
 	Given(t).
 		When().
 		// app should be auto-synced once created
-		CreateFromPartialFile(partialApp, "--path", path, "--helm-set", "foo=foo").
+		CreateFromPartialFile(partialApp, "--path", path, "-l", "labels.local/from-args=args", "--helm-set", "foo=foo").
 		Then().
 		Expect(Success("")).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(NoConditions()).
 		And(func(app *Application) {
+			assert.Equal(t, map[string]string{"labels.local/from-file": "file", "labels.local/from-args": "args"}, app.ObjectMeta.Labels)
+			assert.Equal(t, map[string]string{"annotations.local/from-file": "file"}, app.ObjectMeta.Annotations)
+			assert.Equal(t, []string{"resources-finalizer.argocd.argoproj.io"}, app.ObjectMeta.Finalizers)
 			assert.Equal(t, path, app.Spec.Source.Path)
 			assert.Equal(t, []HelmParameter{{Name: "foo", Value: "foo"}}, app.Spec.Source.Helm.Parameters)
 		})
