@@ -1705,7 +1705,7 @@ and logs. This includes:</p>
 <p>To manage external clusters, Argo CD stores the credentials of the external cluster as a Kubernetes
 Secret in the argocd namespace. This secret contains the K8s API bearer token associated with the
 <code>argocd-manager</code> ServiceAccount created during <code>argocd cluster add</code>, along with connection options
-to that API server (TLS configuration/certs, aws-iam-authenticator RoleARN, etc...).
+to that API server (TLS configuration/certs, AWS role-arn, etc...).
 The information is used to reconstruct a REST config and kubeconfig to the cluster used by Argo CD
 services.</p>
 <p>To rotate the bearer token used by Argo CD, the token can be deleted (e.g. using kubectl) which
@@ -1728,7 +1728,7 @@ argocd cluster rm https://your-kubernetes-cluster-addr
 
 <!-- markdownlint-disable MD027 -->
 <blockquote>
-<p>NOTE: for AWS EKS clusters, <a href="https://github.com/kubernetes-sigs/aws-iam-authenticator">aws-iam-authenticator</a>
+<p>NOTE: for AWS EKS clusters, the <a href="https://docs.aws.amazon.com/cli/latest/reference/eks/get-token.html">get-token</a> command
   is used to authenticate to the external cluster, which uses IAM roles in lieu of locally stored
   tokens, so token rotation is not needed, and revocation is handled through IAM.</p>
 </blockquote>
