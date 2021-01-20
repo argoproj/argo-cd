@@ -27,7 +27,7 @@ export const PodsLogsViewer = (props: {applicationName: string; pod: models.Reso
         <DataLoader load={() => services.viewPreferences.getPreferences()}>
             {prefs => (
                 <React.Fragment>
-                    <div className='pod-logs__settings'>
+                    <div className='pod-logs-viewer__settings'>
                         <div
                             className='argo-button argo-button--base'
                             onClick={async () => {
@@ -64,8 +64,8 @@ export const PodsLogsViewer = (props: {applicationName: string; pod: models.Reso
                                 services.viewPreferences.updatePreferences({...prefs, appDetails: {...prefs.appDetails, followLogs: follow}});
                                 if (follow) {
                                     setPage(0);
+                                    loader.reload();
                                 }
-                                loader.reload();
                             }}>
                             FOLLOW {prefs.appDetails.followLogs && <i className='fa fa-check' />}
                         </div>
@@ -81,7 +81,7 @@ export const PodsLogsViewer = (props: {applicationName: string; pod: models.Reso
                     <DataLoader
                         ref={l => (loader = l)}
                         loadingRenderer={() => (
-                            <div className={`pod-logs ${prefs.appDetails.darkMode ? 'pod-logs--inverted' : ''}`}>
+                            <div className={`pod-logs-viewer ${prefs.appDetails.darkMode ? 'pod-logs-viewer--inverted' : ''}`}>
                                 {logNavigators({}, prefs.appDetails.darkMode, null)}
                                 <pre style={{height: '95%', textAlign: 'center'}}>Loading...</pre>
                             </div>
@@ -99,15 +99,21 @@ export const PodsLogsViewer = (props: {applicationName: string; pod: models.Reso
                             );
                         }}>
                         {log => {
-                            if (isRunning && !(!prefs.appDetails.followLogs && lines.length >= maxLines)) {
+                            if (isRunning && (prefs.appDetails.followLogs || lines.length < maxLines)) {
                                 const tmp = lines;
                                 tmp.push(log.content);
+                                if (tmp.length > maxLines) {
+                                    tmp.shift();
+                                    bottom.current.scrollIntoView({
+                                        behavior: 'smooth'
+                                    });
+                                }
                                 setLines(tmp);
                             }
                             const firstLine = maxLines * page + 1;
                             const lastLine = maxLines * (page + 1);
                             return (
-                                <div className={`pod-logs ${prefs.appDetails.darkMode ? 'pod-logs--inverted' : ''}`}>
+                                <div className={`pod-logs-viewer ${prefs.appDetails.darkMode ? 'pod-logs-viewer--inverted' : ''}`}>
                                     {logNavigators(
                                         {
                                             left: () => {
@@ -139,43 +145,47 @@ export const PodsLogsViewer = (props: {applicationName: string; pod: models.Reso
                                         }
                                     )}
                                     <pre style={{height: '95%'}}>
-                                        {lines.map((l, i) => (
-                                            <div
-                                                style={{display: 'flex', cursor: 'pointer'}}
-                                                onClick={() => {
-                                                    setSelectedLine(selectedLine === i ? -1 : i);
-                                                }}>
-                                                <div className={`pod-logs__line__menu ${selectedLine === i ? 'pod-logs__line__menu--visible' : ''}`}>
-                                                    <DropDownMenu
-                                                        anchor={() => <i className='fas fa-ellipsis-h' />}
-                                                        items={[
-                                                            {
-                                                                title: (
-                                                                    <span>
-                                                                        <i className='fa fa-clipboard' /> Copy
-                                                                    </span>
-                                                                ),
-                                                                action: async () => {
-                                                                    await navigator.clipboard.writeText(l);
+                                        {lines.map((l, i) => {
+                                            const lineNum = lastLine - i;
+                                            return (
+                                                <div
+                                                    key={lineNum}
+                                                    style={{display: 'flex', cursor: 'pointer'}}
+                                                    onClick={() => {
+                                                        setSelectedLine(selectedLine === i ? -1 : i);
+                                                    }}>
+                                                    <div className={`pod-logs-viewer__line__menu ${selectedLine === i ? 'pod-logs-viewer__line__menu--visible' : ''}`}>
+                                                        <DropDownMenu
+                                                            anchor={() => <i className='fas fa-ellipsis-h' />}
+                                                            items={[
+                                                                {
+                                                                    title: (
+                                                                        <span>
+                                                                            <i className='fa fa-clipboard' /> Copy
+                                                                        </span>
+                                                                    ),
+                                                                    action: async () => {
+                                                                        await navigator.clipboard.writeText(l);
+                                                                    }
+                                                                },
+                                                                {
+                                                                    title: (
+                                                                        <span>
+                                                                            <i className='fa fa-list-ol' /> Copy Line Number
+                                                                        </span>
+                                                                    ),
+                                                                    action: async () => {
+                                                                        await navigator.clipboard.writeText(JSON.stringify(lineNum));
+                                                                    }
                                                                 }
-                                                            },
-                                                            {
-                                                                title: (
-                                                                    <span>
-                                                                        <i className='fa fa-list-ol' /> Copy Line Number
-                                                                    </span>
-                                                                ),
-                                                                action: async () => {
-                                                                    await navigator.clipboard.writeText(JSON.stringify(i + 1));
-                                                                }
-                                                            }
-                                                        ]}
-                                                    />
+                                                            ]}
+                                                        />
+                                                    </div>
+                                                    <div className='pod-logs-viewer__line__number'>{lineNum}</div>
+                                                    <div className={`pod-logs-viewer__line ${selectedLine === i ? 'pod-logs-viewer__line--selected' : ''}`}>{l}</div>
                                                 </div>
-                                                <div className='pod-logs__line__number'>{firstLine + i}</div>
-                                                <div className={`pod-logs__line ${selectedLine === i ? 'pod-logs__line--selected' : ''}`}>{l}</div>
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                         <div ref={bottom} style={{height: '1px'}} />
                                     </pre>
                                 </div>
@@ -204,7 +214,7 @@ interface PageInfo {
 
 const logNavigators = (actions: NavActions, darkMode: boolean, info?: PageInfo) => {
     return (
-        <div className={`pod-logs__menu ${darkMode ? 'pod-logs__menu--inverted' : ''}`}>
+        <div className={`pod-logs-viewer__menu ${darkMode ? 'pod-logs-viewer__menu--inverted' : ''}`}>
             {actions.begin && <i className='fa fa-angle-double-left' onClick={actions.begin} />}
             <i className='fa fa-angle-left' onClick={actions.left} />
             <i className='fa fa-angle-down' onClick={actions.bottom} />
