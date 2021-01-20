@@ -998,6 +998,20 @@ func TestGetRevisionMetadata(t *testing.T) {
 	assert.EqualValues(t, []string{"tag1", "tag2"}, res.Tags)
 	assert.NotEmpty(t, res.SignatureInfo)
 
+	// Check for truncated revision value
+	res, err = service.GetRevisionMetadata(context.Background(), &apiclient.RepoServerRevisionMetadataRequest{
+		Repo:           &argoappv1.Repository{},
+		Revision:       "c0b400f",
+		CheckSignature: true,
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, strings.Repeat("a", 61)+"...", res.Message)
+	assert.Equal(t, now, res.Date.Time)
+	assert.Equal(t, "author", res.Author)
+	assert.EqualValues(t, []string{"tag1", "tag2"}, res.Tags)
+	assert.NotEmpty(t, res.SignatureInfo)
+
 	// Cache hit - signature info should not be in result
 	res, err = service.GetRevisionMetadata(context.Background(), &apiclient.RepoServerRevisionMetadataRequest{
 		Repo:           &argoappv1.Repository{},
@@ -1010,7 +1024,7 @@ func TestGetRevisionMetadata(t *testing.T) {
 	// Enforce cache miss - signature info should not be in result
 	res, err = service.GetRevisionMetadata(context.Background(), &apiclient.RepoServerRevisionMetadataRequest{
 		Repo:           &argoappv1.Repository{},
-		Revision:       "c0b400fc458875d925171398f9ba9eabd5529924",
+		Revision:       "da52afd3b2df1ec49470603d8bbb46954dab1091",
 		CheckSignature: false,
 	})
 	assert.NoError(t, err)
@@ -1019,7 +1033,7 @@ func TestGetRevisionMetadata(t *testing.T) {
 	// Cache hit on previous entry that did not have signature info
 	res, err = service.GetRevisionMetadata(context.Background(), &apiclient.RepoServerRevisionMetadataRequest{
 		Repo:           &argoappv1.Repository{},
-		Revision:       "c0b400fc458875d925171398f9ba9eabd5529924",
+		Revision:       "da52afd3b2df1ec49470603d8bbb46954dab1091",
 		CheckSignature: true,
 	})
 	assert.NoError(t, err)
