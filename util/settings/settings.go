@@ -1157,7 +1157,7 @@ func (a *ArgoCDSettings) DexRedirectURL() (string, error) {
 }
 
 // DexOAuth2ClientSecret calculates an arbitrary, but predictable OAuth2 client secret string derived
-// from the server secret. This is called by the dex startup wrapper (argocd-util rundex), as well
+// from the server secret. This is called by the dex startup wrapper (argocd-dex rundex), as well
 // as the API server, such that they both independently come to the same conclusion of what the
 // OAuth2 shared client secret should be.
 func (a *ArgoCDSettings) DexOAuth2ClientSecret() string {

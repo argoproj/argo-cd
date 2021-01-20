@@ -12,6 +12,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
+	cmdutil "github.com/argoproj/argo-cd/cmd/util"
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/controller"
 	"github.com/argoproj/argo-cd/controller/sharding"
@@ -43,8 +44,6 @@ func NewCommand() *cobra.Command {
 		selfHealTimeoutSeconds   int
 		statusProcessors         int
 		operationProcessors      int
-		logFormat                string
-		logLevel                 string
 		glogLevel                int
 		metricsPort              int
 		kubectlParallelismLimit  int64
@@ -57,8 +56,8 @@ func NewCommand() *cobra.Command {
 		Long:              "ArgoCD application controller is a Kubernetes controller that continuously monitors running applications and compares the current, live state against the desired target state (as specified in the repo). This command runs Application Controller in the foreground.  It can be configured by following options.",
 		DisableAutoGenTag: true,
 		RunE: func(c *cobra.Command, args []string) error {
-			cli.SetLogFormat(logFormat)
-			cli.SetLogLevel(logLevel)
+			cli.SetLogFormat(cmdutil.LogFormat)
+			cli.SetLogLevel(cmdutil.LogLevel)
 			cli.SetGLogLevel(glogLevel)
 
 			config, err := clientConfig.ClientConfig()
@@ -117,8 +116,8 @@ func NewCommand() *cobra.Command {
 	command.Flags().IntVar(&repoServerTimeoutSeconds, "repo-server-timeout-seconds", 60, "Repo server RPC call timeout seconds.")
 	command.Flags().IntVar(&statusProcessors, "status-processors", 1, "Number of application status processors")
 	command.Flags().IntVar(&operationProcessors, "operation-processors", 1, "Number of application operation processors")
-	command.Flags().StringVar(&logFormat, "logformat", "text", "Set the logging format. One of: text|json")
-	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
+	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", "text", "Set the logging format. One of: text|json")
+	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().IntVar(&glogLevel, "gloglevel", 0, "Set the glog logging level")
 	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortArgoCDMetrics, "Start metrics server on given port")
 	command.Flags().IntVar(&selfHealTimeoutSeconds, "self-heal-timeout-seconds", 5, "Specifies timeout between application self heal attempts")
