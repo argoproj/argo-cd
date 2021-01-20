@@ -20,7 +20,7 @@ spec:
       - name: copyutil
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
-        command: [cp, -n, /usr/local/bin/argocd-util, /shared]
+        command: [cp, -n, /usr/local/bin/argocd, /shared/argocd-dex]
         volumeMounts:
         - mountPath: /shared
           name: static-files
@@ -28,7 +28,7 @@ spec:
       - name: dex
         image: ghcr.io/dexidp/dex:v2.27.0
         imagePullPolicy: Always
-        command: [/shared/argocd-util, rundex]
+        command: [/shared/argocd-dex, rundex]
         ports:
         - containerPort: 5556
         - containerPort: 5557

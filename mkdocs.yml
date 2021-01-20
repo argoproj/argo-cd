@@ -55,6 +55,7 @@ nav:
       - operator-manual/server-commands/argocd-server.md
       - operator-manual/server-commands/argocd-application-controller.md
       - operator-manual/server-commands/argocd-repo-server.md
+      - operator-manual/server-commands/argocd-dex.md
     - argocd-util Tools: operator-manual/server-commands/argocd-util.md
     - Upgrading:
         - operator-manual/upgrading/overview.md
