@@ -1393,5 +1393,82 @@ func TestGenerateManifestWithAnnotatedAndRegularGitTagHashes(t *testing.T) {
 
 		})
 	}
+}
 
+func TestFindResources(t *testing.T) {
+	testCases := []struct {
+		name          string
+		include       string
+		exclude       string
+		expectedNames []string
+	}{{
+		name:          "Include One Match",
+		include:       "subdir/deploymentSub.yaml",
+		expectedNames: []string{"nginx-deployment-sub"},
+	}, {
+		name:          "Include Everything",
+		include:       "*.yaml",
+		expectedNames: []string{"nginx-deployment", "nginx-deployment-sub"},
+	}, {
+		name:          "Include Subdirectory",
+		include:       "**/*.yaml",
+		expectedNames: []string{"nginx-deployment-sub"},
+	}, {
+		name:          "Include No Matches",
+		include:       "nothing.yaml",
+		expectedNames: []string{},
+	}, {
+		name:          "Exclude - One Match",
+		exclude:       "subdir/deploymentSub.yaml",
+		expectedNames: []string{"nginx-deployment"},
+	}, {
+		name:          "Exclude - Everything",
+		exclude:       "*.yaml",
+		expectedNames: []string{},
+	}}
+	for i := range testCases {
+		tc := testCases[i]
+		t.Run(tc.name, func(t *testing.T) {
+			objs, err := findManifests("testdata/app-include-exclude", ".", nil, argoappv1.ApplicationSourceDirectory{
+				Recurse: true,
+				Include: tc.include,
+				Exclude: tc.exclude,
+			})
+			if !assert.NoError(t, err) {
+				return
+			}
+			var names []string
+			for i := range objs {
+				names = append(names, objs[i].GetName())
+			}
+			assert.ElementsMatch(t, tc.expectedNames, names)
+		})
+	}
+}
+
+func TestFindManifests_Exclude(t *testing.T) {
+	objs, err := findManifests("testdata/app-include-exclude", ".", nil, argoappv1.ApplicationSourceDirectory{
+		Recurse: true,
+		Exclude: "subdir/deploymentSub.yaml",
+	})
+
+	if !assert.NoError(t, err) || !assert.Len(t, objs, 1) {
+		return
+	}
+
+	assert.Equal(t, "nginx-deployment", objs[0].GetName())
+}
+
+func TestFindManifests_Exclude_NothingMatches(t *testing.T) {
+	objs, err := findManifests("testdata/app-include-exclude", ".", nil, argoappv1.ApplicationSourceDirectory{
+		Recurse: true,
+		Exclude: "nothing.yaml",
+	})
+
+	if !assert.NoError(t, err) || !assert.Len(t, objs, 2) {
+		return
+	}
+
+	assert.ElementsMatch(t,
+		[]string{"nginx-deployment", "nginx-deployment-sub"}, []string{objs[0].GetName(), objs[1].GetName()})
 }
