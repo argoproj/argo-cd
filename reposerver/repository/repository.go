@@ -875,12 +875,15 @@ func findManifests(appPath string, repoRoot string, env *v1alpha1.Env, directory
 			return nil
 		}
 
-		fileNameWithPath := filepath.Join(appPath, f.Name())
-		if directory.Exclude != "" && glob.Match(directory.Exclude, fileNameWithPath) {
+		relPath, err := filepath.Rel(appPath, path)
+		if err != nil {
+			return err
+		}
+		if directory.Exclude != "" && glob.Match(directory.Exclude, relPath) {
 			return nil
 		}
 
-		if directory.Include != "" && !glob.Match(directory.Include, fileNameWithPath) {
+		if directory.Include != "" && !glob.Match(directory.Include, relPath) {
 			return nil
 		}
 
