@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"github.com/golang/protobuf/ptypes/empty"
 	"io"
 	"io/ioutil"
 	"math"
@@ -19,6 +18,7 @@ import (
 
 	"github.com/coreos/go-oidc"
 	"github.com/dgrijalva/jwt-go/v4"
+	"github.com/golang/protobuf/ptypes/empty"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 	"google.golang.org/grpc"
