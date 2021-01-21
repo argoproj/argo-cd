@@ -110,13 +110,21 @@ export const PodsLogsViewer = (props: {applicationName: string; pod: models.Reso
                                 }
                                 setLines(tmp);
                             }
-                            const firstLine = maxLines * page + 1;
-                            const lastLine = maxLines * (page + 1);
+                            let firstLine = 1;
+                            let lastLine = lines.length;
+                            if (lastLine === maxLines) {
+                                firstLine = maxLines * page + 1;
+                                lastLine = maxLines * (page + 1);
+                            }
+                            const canPageBack = lines.length === maxLines;
                             return (
                                 <div className={`pod-logs-viewer ${prefs.appDetails.darkMode ? 'pod-logs-viewer--inverted' : ''}`}>
                                     {logNavigators(
                                         {
                                             left: () => {
+                                                if (!canPageBack) {
+                                                    return;
+                                                }
                                                 setPage(page + 1);
                                                 services.viewPreferences.updatePreferences({...prefs, appDetails: {...prefs.appDetails, followLogs: false}});
                                                 loader.reload();
@@ -141,7 +149,8 @@ export const PodsLogsViewer = (props: {applicationName: string; pod: models.Reso
                                         {
                                             firstLine,
                                             lastLine,
-                                            curPage: page
+                                            curPage: page,
+                                            canPageBack
                                         }
                                     )}
                                     <pre style={{height: '95%'}}>
@@ -210,15 +219,15 @@ interface PageInfo {
     firstLine: number;
     lastLine: number;
     curPage: number;
+    canPageBack: boolean;
 }
 
 const logNavigators = (actions: NavActions, darkMode: boolean, info?: PageInfo) => {
     return (
         <div className={`pod-logs-viewer__menu ${darkMode ? 'pod-logs-viewer__menu--inverted' : ''}`}>
-            {actions.begin && <i className='fa fa-angle-double-left' onClick={actions.begin} />}
-            <i className='fa fa-angle-left' onClick={actions.left} />
+            {actions.begin && <i className='fa fa-angle-double-left' onClick={actions.begin || (() => null)} />}
+            <i className={`fa fa-angle-left ${info && info.canPageBack ? '' : 'disabled'}`} onClick={actions.left || (() => null)} />
             <i className='fa fa-angle-down' onClick={actions.bottom} />
-
             <div style={{marginLeft: 'auto', marginRight: 'auto'}}>
                 {info && (
                     <React.Fragment>
