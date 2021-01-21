@@ -1497,6 +1497,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#dex-tool-migrated-from-argocd-util-to-argocd-dex" title="Dex tool migrated from argocd-util to argocd-dex" class="md-nav__link">
+    Dex tool migrated from argocd-util to argocd-dex
+  </a>
+  
+</li>
+      
       
       
       
@@ -1542,6 +1549,28 @@ has been released.</p>
 If you aren't able to do so timely, you can change the container image slugs in
 the installation manually to Docker Hub as a workaround to install Argo CD 1.9.
 This workaround will not be possible anymore with 1.10, however.</p>
+<h2 id="dex-tool-migrated-from-argocd-util-to-argocd-dex">Dex tool migrated from argocd-util to argocd-dex<a class="headerlink" href="#dex-tool-migrated-from-argocd-util-to-argocd-dex" title="Permanent link">&para;</a></h2>
+<p>The dex commands <code>rundex</code> and <code>gendexcfg</code> have been migrated from <code>argocd-util</code> to <code>argocd-dex</code>.
+It means that you need to update <code>argocd-dex-server</code> deployment's commands to install <code>argocd-dex</code> 
+binary instead of <code>argocd-util</code> in init container and run dex command from <code>argocd-dex</code> instead of <code>argocd-util</code>:</p>
+<div class="codehilite"><pre><span></span><code>initContainers:
+- command:
+  - cp
+  - -n
+  - /usr/local/bin/argocd
+  - /shared/argocd-dex
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>containers:
+- command:
+  - /shared/argocd-dex
+  - rundex
+</code></pre></div>
+
+<p>Note that starting from v1.9 argocd binary behaviour has changed. 
+It will have all argocd binaries such <code>argocd-dex</code>, <code>argocd-server</code>, <code>argocd-repo-server</code>, 
+<code>argocd-application-controller</code>, <code>argocd-util</code>, <code>argocd</code> baked inside. 
+The binary will change behaviour based on its name. </p>
                 
                   
                 
