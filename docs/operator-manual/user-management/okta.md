@@ -103,7 +103,7 @@ kind: ConfigMap
 metadata:
   name: argocd-rbac-cm
 data:
-  policy.csv |
+  policy.csv: |
     g, argocd-admins, role:admin
   scopes: '[email,groups]'
 ```

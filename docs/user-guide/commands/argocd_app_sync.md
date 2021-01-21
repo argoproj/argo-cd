@@ -2,10 +2,6 @@
 
 Sync an application to its target state
 
-### Synopsis
-
-Sync an application to its target state
-
 ```
 argocd app sync [APPNAME... | -l selector] [flags]
 ```

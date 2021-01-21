@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"net/http"
 	"reflect"
 	"runtime/debug"
 	"sort"
@@ -13,12 +14,12 @@ import (
 	"sync"
 	"time"
 
-	logutils "github.com/argoproj/argo-cd/util/log"
-
+	clustercache "github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
 	v1 "k8s.io/api/core/v1"
@@ -26,9 +27,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
+	apiruntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
@@ -42,7 +45,6 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
-	appinformers "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-cd/pkg/client/informers/externalversions/application/v1alpha1"
 	applisters "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
@@ -51,6 +53,7 @@ import (
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/errors"
 	"github.com/argoproj/argo-cd/util/glob"
+	logutils "github.com/argoproj/argo-cd/util/log"
 	settings_util "github.com/argoproj/argo-cd/util/settings"
 )
 
@@ -151,10 +154,7 @@ func NewApplicationController(
 		ctrl.kubectlSemaphore = semaphore.NewWeighted(kubectlParallelismLimit)
 	}
 	kubectl.SetOnKubectlRun(ctrl.onKubectlRun)
-	appInformer, appLister, err := ctrl.newApplicationInformerAndLister()
-	if err != nil {
-		return nil, err
-	}
+	appInformer, appLister := ctrl.newApplicationInformerAndLister()
 	indexers := cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}
 	projInformer := v1alpha1.NewAppProjectInformer(applicationClientset, namespace, appResyncPeriod, indexers)
 	projInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -175,7 +175,8 @@ func NewApplicationController(
 		},
 	})
 	metricsAddr := fmt.Sprintf("0.0.0.0:%d", metricsPort)
-	ctrl.metricsServer, err = metrics.NewMetricsServer(metricsAddr, appLister, ctrl.canProcessApp, func() error {
+	var err error
+	ctrl.metricsServer, err = metrics.NewMetricsServer(metricsAddr, appLister, ctrl.canProcessApp, func(r *http.Request) error {
 		return nil
 	})
 	if err != nil {
@@ -381,7 +382,99 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 	sort.Slice(orphanedNodes, func(i, j int) bool {
 		return orphanedNodes[i].ResourceRef.String() < orphanedNodes[j].ResourceRef.String()
 	})
-	return &appv1.ApplicationTree{Nodes: nodes, OrphanedNodes: orphanedNodes}, nil
+
+	hosts, err := ctrl.getAppHosts(a, nodes)
+	if err != nil {
+		return nil, err
+	}
+
+	return &appv1.ApplicationTree{Nodes: nodes, OrphanedNodes: orphanedNodes, Hosts: hosts}, nil
+}
+
+func (ctrl *ApplicationController) getAppHosts(a *appv1.Application, appNodes []appv1.ResourceNode) ([]appv1.HostInfo, error) {
+	supportedResourceNames := map[v1.ResourceName]bool{
+		v1.ResourceCPU:     true,
+		v1.ResourceStorage: true,
+		v1.ResourceMemory:  true,
+	}
+	appPods := map[kube.ResourceKey]bool{}
+	for _, node := range appNodes {
+		if node.Group == "" && node.Kind == kube.PodKind {
+			appPods[kube.NewResourceKey(node.Group, node.Kind, node.Namespace, node.Name)] = true
+		}
+	}
+	allNodesInfo := map[string]statecache.NodeInfo{}
+	allPodsByNode := map[string][]statecache.PodInfo{}
+	appPodsByNode := map[string][]statecache.PodInfo{}
+	err := ctrl.stateCache.IterateResources(a.Spec.Destination.Server, func(res *clustercache.Resource, info *statecache.ResourceInfo) {
+		key := res.ResourceKey()
+		switch {
+		case info.NodeInfo != nil && key.Group == "" && key.Kind == "Node":
+			allNodesInfo[key.Name] = *info.NodeInfo
+		case info.PodInfo != nil && key.Group == "" && key.Kind == kube.PodKind:
+			if appPods[key] {
+				appPodsByNode[info.PodInfo.NodeName] = append(appPodsByNode[info.PodInfo.NodeName], *info.PodInfo)
+			} else {
+				allPodsByNode[info.PodInfo.NodeName] = append(allPodsByNode[info.PodInfo.NodeName], *info.PodInfo)
+			}
+		}
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var hosts []appv1.HostInfo
+	for nodeName, appPods := range appPodsByNode {
+		node, ok := allNodesInfo[nodeName]
+		if !ok {
+			continue
+		}
+
+		neighbors := allPodsByNode[nodeName]
+
+		resources := map[v1.ResourceName]appv1.HostResourceInfo{}
+		for name, resource := range node.Capacity {
+			info := resources[name]
+			info.ResourceName = name
+			info.Capacity += resource.MilliValue()
+			resources[name] = info
+		}
+
+		for _, pod := range appPods {
+			for name, resource := range pod.ResourceRequests {
+				if !supportedResourceNames[name] {
+					continue
+				}
+
+				info := resources[name]
+				info.RequestedByApp += resource.MilliValue()
+				resources[name] = info
+			}
+		}
+
+		for _, pod := range neighbors {
+			for name, resource := range pod.ResourceRequests {
+				if !supportedResourceNames[name] {
+					continue
+				}
+				info := resources[name]
+				info.RequestedByNeighbors += resource.MilliValue()
+				resources[name] = info
+			}
+		}
+
+		var resourcesInfo []appv1.HostResourceInfo
+		for _, info := range resources {
+			if supportedResourceNames[info.ResourceName] && info.Capacity > 0 {
+				resourcesInfo = append(resourcesInfo, info)
+			}
+		}
+		sort.Slice(resourcesInfo, func(i, j int) bool {
+			return resourcesInfo[i].ResourceName < resourcesInfo[j].ResourceName
+		})
+		hosts = append(hosts, appv1.HostInfo{Name: nodeName, SystemInfo: node.SystemInfo, ResourcesInfo: resourcesInfo})
+	}
+	return hosts, nil
 }
 
 func (ctrl *ApplicationController) managedResources(comparisonResult *comparisonResult) ([]*appv1.ResourceDiff, error) {
@@ -854,6 +947,11 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 				ctrl.requestAppRefresh(app.Name, CompareWithLatest.Pointer(), &retryAfter)
 				return
 			} else {
+				// retrying operation. remove previous failure time in app since it is used as a trigger
+				// that previous failed and operation should be retried
+				state.FinishedAt = nil
+				ctrl.setOperationState(app, state)
+				// Get rid of sync results and null out previous operation completion time
 				state.SyncResult = nil
 			}
 		} else {
@@ -944,6 +1042,13 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 		if err != nil {
 			return err
 		}
+		if app.Status.OperationState != nil && app.Status.OperationState.FinishedAt != nil && state.FinishedAt == nil {
+			patchJSON, err = jsonpatch.MergeMergePatches(patchJSON, []byte(`{"status": {"operationState": {"finishedAt": null}}}`))
+			if err != nil {
+				return err
+			}
+		}
+
 		appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(ctrl.namespace)
 		_, err = appClient.Patch(context.Background(), app.Name, types.MergePatchType, patchJSON, metav1.PatchOptions{})
 		if err != nil {
@@ -1392,11 +1497,6 @@ func (ctrl *ApplicationController) canProcessApp(obj interface{}) bool {
 	if !ok {
 		return false
 	}
-	err := argo.ValidateDestination(context.Background(), &app.Spec.Destination, ctrl.db)
-	if err != nil {
-		ctrl.setAppCondition(app, appv1.ApplicationCondition{Type: appv1.ApplicationConditionInvalidSpecError, Message: err.Error()})
-		return false
-	}
 	if ctrl.clusterFilter != nil {
 		cluster, err := ctrl.db.GetCluster(context.Background(), app.Spec.Destination.Server)
 		if err != nil {
@@ -1408,15 +1508,47 @@ func (ctrl *ApplicationController) canProcessApp(obj interface{}) bool {
 	return true
 }
 
-func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.SharedIndexInformer, applisters.ApplicationLister, error) {
-	appInformerFactory := appinformers.NewFilteredSharedInformerFactory(
-		ctrl.applicationClientset,
+func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.SharedIndexInformer, applisters.ApplicationLister) {
+	informer := cache.NewSharedIndexInformer(
+		&cache.ListWatch{
+			ListFunc: func(options metav1.ListOptions) (apiruntime.Object, error) {
+				return ctrl.applicationClientset.ArgoprojV1alpha1().Applications(ctrl.namespace).List(context.TODO(), options)
+			},
+			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
+				return ctrl.applicationClientset.ArgoprojV1alpha1().Applications(ctrl.namespace).Watch(context.TODO(), options)
+			},
+		},
+		&appv1.Application{},
 		ctrl.statusRefreshTimeout,
-		ctrl.namespace,
-		func(options *metav1.ListOptions) {},
+		cache.Indexers{
+			cache.NamespaceIndex: func(obj interface{}) ([]string, error) {
+				app, ok := obj.(*appv1.Application)
+				if ok {
+					if err := argo.ValidateDestination(context.Background(), &app.Spec.Destination, ctrl.db); err != nil {
+						ctrl.setAppCondition(app, appv1.ApplicationCondition{Type: appv1.ApplicationConditionInvalidSpecError, Message: err.Error()})
+					}
+				}
+
+				return cache.MetaNamespaceIndexFunc(obj)
+			},
+			orphanedIndex: func(obj interface{}) (i []string, e error) {
+				app, ok := obj.(*appv1.Application)
+				if !ok {
+					return nil, nil
+				}
+
+				proj, err := ctrl.getAppProj(app)
+				if err != nil {
+					return nil, nil
+				}
+				if proj.Spec.OrphanedResources != nil {
+					return []string{app.Spec.Destination.Namespace}, nil
+				}
+				return nil, nil
+			},
+		},
 	)
-	informer := appInformerFactory.Argoproj().V1alpha1().Applications().Informer()
-	lister := appInformerFactory.Argoproj().V1alpha1().Applications().Lister()
+	lister := applisters.NewApplicationLister(informer.GetIndexer())
 	informer.AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
@@ -1461,24 +1593,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 			},
 		},
 	)
-	err := informer.AddIndexers(cache.Indexers{
-		orphanedIndex: func(obj interface{}) (i []string, e error) {
-			app, ok := obj.(*appv1.Application)
-			if !ok {
-				return nil, nil
-			}
-
-			proj, err := ctrl.getAppProj(app)
-			if err != nil {
-				return nil, nil
-			}
-			if proj.Spec.OrphanedResources != nil {
-				return []string{app.Spec.Destination.Namespace}, nil
-			}
-			return nil, nil
-		},
-	})
-	return informer, lister, err
+	return informer, lister
 }
 
 func (ctrl *ApplicationController) RegisterClusterSecretUpdater(ctx context.Context) {

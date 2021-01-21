@@ -140,6 +140,12 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*ap
 			newItems = append(newItems, *a)
 		}
 	}
+	if q.Name != nil {
+		newItems, err = argoutil.FilterByName(newItems, *q.Name)
+		if err != nil {
+			return nil, err
+		}
+	}
 	newItems = argoutil.FilterByProjects(newItems, q.Projects)
 	sort.Slice(newItems, func(i, j int) bool {
 		return newItems[i].Name < newItems[j].Name
@@ -268,7 +274,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		Repo:              repo,
 		Revision:          revision,
 		AppLabelKey:       appInstanceLabelKey,
-		AppLabelValue:     a.Name,
+		AppName:           a.Name,
 		Namespace:         a.Spec.Destination.Namespace,
 		ApplicationSource: &a.Spec.Source,
 		Repos:             helmRepos,
@@ -1293,7 +1299,7 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 		if helm.IsVersion(ambiguousRevision) {
 			return ambiguousRevision, ambiguousRevision, nil
 		}
-		client := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI)
+		client := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI || app.Spec.Source.IsHelmOci())
 		index, err := client.GetIndex()
 		if err != nil {
 			return "", "", err

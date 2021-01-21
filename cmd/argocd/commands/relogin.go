@@ -49,6 +49,7 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 				GRPCWeb:         globalClientOpts.GRPCWeb,
 				GRPCWebRootPath: globalClientOpts.GRPCWebRootPath,
 				PlainText:       configCtx.Server.PlainText,
+				Headers:         globalClientOpts.Headers,
 			}
 			acdClient := argocdclient.NewClientOrDie(&clientOpts)
 			claims, err := configCtx.User.Claims()

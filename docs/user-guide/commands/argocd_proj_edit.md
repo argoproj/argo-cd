@@ -2,10 +2,6 @@
 
 Edit project
 
-### Synopsis
-
-Edit project
-
 ```
 argocd proj edit PROJECT [flags]
 ```

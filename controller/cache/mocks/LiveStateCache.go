@@ -7,6 +7,8 @@ import (
 
 	cache "github.com/argoproj/gitops-engine/pkg/cache"
 
+	controllercache "github.com/argoproj/argo-cd/controller/cache"
+
 	kube "github.com/argoproj/gitops-engine/pkg/utils/kube"
 
 	mock "github.com/stretchr/testify/mock"
@@ -182,6 +184,20 @@ func (_m *LiveStateCache) IterateHierarchy(server string, key kube.ResourceKey, 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(string, kube.ResourceKey, func(v1alpha1.ResourceNode, string)) error); ok {
 		r0 = rf(server, key, action)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// IterateResources provides a mock function with given fields: server, callback
+func (_m *LiveStateCache) IterateResources(server string, callback func(*cache.Resource, *controllercache.ResourceInfo)) error {
+	ret := _m.Called(server, callback)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, func(*cache.Resource, *controllercache.ResourceInfo)) error); ok {
+		r0 = rf(server, callback)
 	} else {
 		r0 = ret.Error(0)
 	}

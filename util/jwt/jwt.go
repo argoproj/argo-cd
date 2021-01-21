@@ -2,9 +2,11 @@ package jwt
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"time"
 
-	jwtgo "github.com/dgrijalva/jwt-go"
+	jwtgo "github.com/dgrijalva/jwt-go/v4"
 )
 
 // MapClaims converts a jwt.Claims to a MapClaims
@@ -21,14 +23,24 @@ func MapClaims(claims jwtgo.Claims) (jwtgo.MapClaims, error) {
 	return mapClaims, nil
 }
 
-// GetField extracts a field from the claims as a string
-func GetField(claims jwtgo.MapClaims, fieldName string) string {
+// StringField extracts a field from the claims as a string
+func StringField(claims jwtgo.MapClaims, fieldName string) string {
 	if fieldIf, ok := claims[fieldName]; ok {
 		if field, ok := fieldIf.(string); ok {
 			return field
 		}
 	}
 	return ""
+}
+
+// Float64Field extracts a field from the claims as a float64
+func Float64Field(claims jwtgo.MapClaims, fieldName string) float64 {
+	if fieldIf, ok := claims[fieldName]; ok {
+		if field, ok := fieldIf.(float64); ok {
+			return field
+		}
+	}
+	return 0
 }
 
 // GetScopeValues extracts the values of specified scopes from the claims
@@ -67,9 +79,13 @@ func GetID(m jwtgo.MapClaims) (string, error) {
 	return "", fmt.Errorf("jti '%v' is not a string", m["jti"])
 }
 
-// GetIssuedAt returns the issued at as an int64
-func GetIssuedAt(m jwtgo.MapClaims) (int64, error) {
-	switch iat := m["iat"].(type) {
+// IssuedAt returns the issued at as an int64
+func IssuedAt(m jwtgo.MapClaims) (int64, error) {
+	iatField, ok := m["iat"]
+	if !ok {
+		return 0, errors.New("token does not have iat claim")
+	}
+	switch iat := iatField.(type) {
 	case float64:
 		return int64(iat), nil
 	case json.Number:
@@ -79,6 +95,12 @@ func GetIssuedAt(m jwtgo.MapClaims) (int64, error) {
 	default:
 		return 0, fmt.Errorf("iat '%v' is not a number", iat)
 	}
+}
+
+// IssuedAtTime returns the issued at as a time.Time
+func IssuedAtTime(m jwtgo.MapClaims) (time.Time, error) {
+	iat, err := IssuedAt(m)
+	return time.Unix(iat, 0), err
 }
 
 func Claims(in interface{}) jwtgo.Claims {

@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/argoproj/pkg/sync"
-	"github.com/dgrijalva/jwt-go"
+	"github.com/dgrijalva/jwt-go/v4"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -108,16 +108,21 @@ func (s *Server) CreateToken(ctx context.Context, q *project.ProjectTokenCreateR
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	parser := &jwt.Parser{
-		SkipClaimsValidation: true,
+		ValidationHelper: jwt.NewValidationHelper(jwt.WithoutClaimsValidation()),
 	}
 	claims := jwt.StandardClaims{}
 	_, _, err = parser.ParseUnverified(jwtToken, &claims)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	issuedAt := claims.IssuedAt
-	expiresAt := claims.ExpiresAt
-	id = claims.Id
+	var issuedAt, expiresAt int64
+	if claims.IssuedAt != nil {
+		issuedAt = claims.IssuedAt.Unix()
+	}
+	if claims.ExpiresAt != nil {
+		expiresAt = claims.ExpiresAt.Unix()
+	}
+	id = claims.ID
 
 	items := append(prj.Status.JWTTokensByRole[q.Role].Items, v1alpha1.JWTToken{IssuedAt: issuedAt, ExpiresAt: expiresAt, ID: id})
 	if _, found := prj.Status.JWTTokensByRole[q.Role]; found {
@@ -179,6 +184,9 @@ func (s *Server) DeleteToken(ctx context.Context, q *project.ProjectTokenDeleteR
 
 // Create a new project
 func (s *Server) Create(ctx context.Context, q *project.ProjectCreateRequest) (*v1alpha1.AppProject, error) {
+	if q.Project == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "missing payload 'project' in request")
+	}
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionCreate, q.Project.Name); err != nil {
 		return nil, err
 	}
@@ -257,6 +265,9 @@ func (s *Server) GetGlobalProjects(ctx context.Context, q *project.ProjectQuery)
 
 // Update updates a project
 func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*v1alpha1.AppProject, error) {
+	if q.Project == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "missing payload 'project' in request")
+	}
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionUpdate, q.Project.Name); err != nil {
 		return nil, err
 	}

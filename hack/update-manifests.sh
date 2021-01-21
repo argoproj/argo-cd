@@ -11,7 +11,7 @@ AUTOGENMSG="# This is an auto-generated file. DO NOT EDIT"
 
 cd ${SRCROOT}/manifests/ha/base/redis-ha && ./generate.sh
 
-IMAGE_NAMESPACE="${IMAGE_NAMESPACE:-argoproj}"
+IMAGE_NAMESPACE="${IMAGE_NAMESPACE:-quay.io/argoproj}"
 IMAGE_TAG="${IMAGE_TAG:-}"
 
 # if the tag has not been declared, and we are on a release branch, use the VERSION file.
@@ -29,8 +29,8 @@ fi
 
 $KUSTOMIZE version
 
-cd ${SRCROOT}/manifests/base && $KUSTOMIZE edit set image argoproj/argocd=${IMAGE_NAMESPACE}/argocd:${IMAGE_TAG}
-cd ${SRCROOT}/manifests/ha/base && $KUSTOMIZE edit set image argoproj/argocd=${IMAGE_NAMESPACE}/argocd:${IMAGE_TAG}
+cd ${SRCROOT}/manifests/base && $KUSTOMIZE edit set image quay.io/argoproj/argocd=${IMAGE_NAMESPACE}/argocd:${IMAGE_TAG}
+cd ${SRCROOT}/manifests/ha/base && $KUSTOMIZE edit set image quay.io/argoproj/argocd=${IMAGE_NAMESPACE}/argocd:${IMAGE_TAG}
 
 echo "${AUTOGENMSG}" > "${SRCROOT}/manifests/install.yaml"
 $KUSTOMIZE build "${SRCROOT}/manifests/cluster-install" >> "${SRCROOT}/manifests/install.yaml"

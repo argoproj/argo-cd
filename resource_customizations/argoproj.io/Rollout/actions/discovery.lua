@@ -16,7 +16,7 @@ actions["retry"] = {["disabled"] = fullyPromoted or not(obj.status.abort)}
 actions["promote-full"] = {["disabled"] = true}
 if obj.status ~= nil and not(fullyPromoted) then
     generation = tonumber(obj.status.observedGeneration)
-    if generation == nil then
+    if generation == nil or generation > obj.metadata.generation then
         -- rollouts v0.9 - full promotion only supported for canary
         actions["promote-full"] = {["disabled"] = obj.spec.strategy.blueGreen ~= nil}
     else

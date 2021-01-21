@@ -1,11 +1,14 @@
 package text
 
-import "strings"
+import (
+	"strings"
+	"unicode/utf8"
+)
 
 // truncates messages to n characters
 func Trunc(message string, n int) string {
-	if len(message) > n {
-		return message[0:n-3] + "..."
+	if utf8.RuneCountInString(message) > n {
+		return string([]rune(message)[0:n-3]) + "..."
 	}
 	return message
 }

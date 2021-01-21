@@ -2,10 +2,6 @@
 
 Get project details
 
-### Synopsis
-
-Get project details
-
 ```
 argocd proj get PROJECT [flags]
 ```

@@ -2,10 +2,6 @@
 
 List tokens for a given role.
 
-### Synopsis
-
-List tokens for a given role.
-
 ```
 argocd proj role list-tokens PROJECT ROLE-NAME [flags]
 ```

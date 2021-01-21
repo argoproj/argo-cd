@@ -1370,10 +1370,11 @@ func TestNamespaceAutoCreation(t *testing.T) {
 
 func TestFailedSyncWithRetry(t *testing.T) {
 	Given(t).
-		Path(guestbookPath).
+		Path("hook").
 		When().
-		// app should be attempted to auto-synced once and marked with error after failed attempt detected
-		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": "badValue"}]`).
+		PatchFile("hook.yaml", `[{"op": "replace", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/hook": "PreSync"}}]`).
+		// make hook fail
+		PatchFile("hook.yaml", `[{"op": "replace", "path": "/spec/containers/0/command", "value": ["false"]}]`).
 		Create().
 		IgnoreErrors().
 		Sync("--retry-limit=1", "--retry-backoff-duration=1s").
@@ -1400,34 +1401,36 @@ func TestCreateDisableValidation(t *testing.T) {
 
 func TestCreateFromPartialFile(t *testing.T) {
 	partialApp :=
-		`spec:
+		`metadata:
+  labels:
+    labels.local/from-file: file
+    labels.local/from-args: file
+  annotations:
+    annotations.local/from-file: file
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+spec:
   syncPolicy:
-    automated: {prune: true }`
+    automated:
+      prune: true
+`
 
 	path := "helm-values"
 	Given(t).
 		When().
 		// app should be auto-synced once created
-		CreateFromPartialFile(partialApp, "--path", path, "--helm-set", "foo=foo").
+		CreateFromPartialFile(partialApp, "--path", path, "-l", "labels.local/from-args=args", "--helm-set", "foo=foo").
 		Then().
 		Expect(Success("")).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(NoConditions()).
 		And(func(app *Application) {
+			assert.Equal(t, map[string]string{"labels.local/from-file": "file", "labels.local/from-args": "args"}, app.ObjectMeta.Labels)
+			assert.Equal(t, map[string]string{"annotations.local/from-file": "file"}, app.ObjectMeta.Annotations)
+			assert.Equal(t, []string{"resources-finalizer.argocd.argoproj.io"}, app.ObjectMeta.Finalizers)
 			assert.Equal(t, path, app.Spec.Source.Path)
 			assert.Equal(t, []HelmParameter{{Name: "foo", Value: "foo"}}, app.Spec.Source.Helm.Parameters)
 		})
-}
-func TestAppCreationWithExclude(t *testing.T) {
-	Given(t).
-		Path("app-exclusions").
-		When().
-		Create("--directory-exclude", "**/.*", "--directory-recurse").
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(HealthIs(health.HealthStatusHealthy))
 }
 
 // Ensure actions work when using a resource action that modifies status and/or spec
@@ -1473,6 +1476,7 @@ definitions:
 		When().Create().Sync().Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		When().
+		Refresh(RefreshTypeNormal).
 		Then().
 		// tests resource actions on a CRD using status subresource
 		And(func(app *Application) {

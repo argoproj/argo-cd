@@ -54,6 +54,8 @@ argocd app create redis --repo https://github.com/helm/charts.git --path stable/
 
 ## Store Overrides In Git
 
+> The following is available from v1.8 or later
+
 The config management tool specific overrides can be specified in `.argocd-source.yaml` file stored in the source application
 directory in the Git repository.
 
@@ -77,3 +79,16 @@ The `.argocd-source` is trying to solve two following main use cases:
 for projects like [argocd-image-updater](https://github.com/argoproj-labs/argocd-image-updater).
 - Support "discovering" applications in the Git repository by projects like [applicationset](https://github.com/argoproj-labs/applicationset)
 (see [git files generator](https://github.com/argoproj-labs/applicationset/blob/master/examples/git-files-discovery.yaml))
+
+> The following is available from v1.9 or later
+
+You can also store parameter overrides in an application specific file, if you
+are sourcing multiple applications from a single path in your repository.
+
+The application specific file must be named `.argocd-source-<appname>.yaml`,
+where `<appname>` is the name of the application the overrides are valid for.
+
+If there exists an non-application specific `.argocd-source.yaml`, parameters
+included in that file will be merged first, and then the application specific
+parameters are merged, which can also contain overrides to the parameters
+stored in the non-application specific file.

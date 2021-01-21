@@ -9,6 +9,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	resourcehelper "k8s.io/kubernetes/pkg/api/v1/resource"
 	k8snode "k8s.io/kubernetes/pkg/util/node"
 
 	"github.com/argoproj/argo-cd/common"
@@ -30,6 +31,9 @@ func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 			return
 		case kube.ServiceKind:
 			populateServiceInfo(un, res)
+			return
+		case "Node":
+			populateHostNodeInfo(un, res)
 			return
 		}
 	case "extensions", "networking.k8s.io":
@@ -311,6 +315,24 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	if reason != "" {
 		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Status Reason", Value: reason})
 	}
+
+	req, _ := resourcehelper.PodRequestsAndLimits(&pod)
+	res.PodInfo = &PodInfo{NodeName: pod.Spec.NodeName, ResourceRequests: req}
+
+	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Node", Value: pod.Spec.NodeName})
 	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Containers", Value: fmt.Sprintf("%d/%d", readyContainers, totalContainers)})
 	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{Labels: un.GetLabels()}
+}
+
+func populateHostNodeInfo(un *unstructured.Unstructured, res *ResourceInfo) {
+	node := v1.Node{}
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &node)
+	if err != nil {
+		return
+	}
+	res.NodeInfo = &NodeInfo{
+		Name:       node.Name,
+		Capacity:   node.Status.Capacity,
+		SystemInfo: node.Status.NodeInfo,
+	}
 }

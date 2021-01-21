@@ -211,26 +211,18 @@ func writeToTmp(data []byte) (string, io.Closer, error) {
 }
 
 func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds) (string, error) {
-	args := []string{}
-
-	if _, _, isHelmOci := IsHelmOci(chartName); isHelmOci {
-		args = append(args, "chart", "pull")
-		repoUrl := fmt.Sprintf(repo + "/" + chartName + ":" + version)
-		args = append(args, repoUrl)
-	} else {
-		args = append(args, c.pullCommand, "--destination", destination)
-		if version != "" {
-			args = append(args, "--version", version)
-		}
-		if creds.Username != "" {
-			args = append(args, "--username", creds.Username)
-		}
-		if creds.Password != "" {
-			args = append(args, "--password", creds.Password)
-		}
-
-		args = append(args, "--repo", repo, chartName)
+	args := []string{c.pullCommand, "--destination", destination}
+	if version != "" {
+		args = append(args, "--version", version)
 	}
+	if creds.Username != "" {
+		args = append(args, "--username", creds.Username)
+	}
+	if creds.Password != "" {
+		args = append(args, "--password", creds.Password)
+	}
+
+	args = append(args, "--repo", repo, chartName)
 
 	if creds.CAPath != "" {
 		args = append(args, "--ca-file", creds.CAPath)
@@ -255,29 +247,16 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds) (
 	return c.run(args...)
 }
 
-func (c *Cmd) Export(repo, chartName, version, destination string) (string, error) {
-	output := ""
-	var err error
+func (c *Cmd) ChartPull(repo string, chart string, version string) (string, error) {
+	return c.run("chart", "pull", fmt.Sprintf("%s/%s:%s", repo, chart, version))
+}
+
+func (c *Cmd) ChartExport(repo string, chartName string, version string, destination string) (string, error) {
 	args := []string{"chart", "export"}
-	repoUrl := fmt.Sprintf(repo + "/" + chartName + ":" + version)
-	args = append(args, repoUrl, "--destination", destination)
+	chartURL := fmt.Sprintf(repo + "/" + chartName + ":" + version)
+	args = append(args, chartURL, "--destination", destination)
 
-	output, err = c.run(args...)
-	if err != nil {
-		return "", err
-	}
-
-	// tar helm chart
-	repoNamespace, repoName, _ := IsHelmOci(chartName)
-	cmd := exec.Command("tar", "-zcvf", repoNamespace+"-"+repoName+"-"+version+".tgz", repoName)
-	cmd.Dir = destination
-	_, err = executil.Run(cmd)
-	if err != nil {
-		return "", err
-	}
-	defer func() { _ = os.RemoveAll(destination + "/" + repoName) }()
-
-	return output, nil
+	return c.run(args...)
 }
 
 func (c *Cmd) dependencyBuild() (string, error) {

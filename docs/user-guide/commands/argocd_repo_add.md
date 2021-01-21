@@ -2,10 +2,6 @@
 
 Add git repository connection parameters
 
-### Synopsis
-
-Add git repository connection parameters
-
 ```
 argocd repo add REPOURL [flags]
 ```
