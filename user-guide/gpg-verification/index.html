@@ -1063,6 +1063,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#rbac-rules-for-managing-gnupg-keys" title="RBAC rules for managing GnuPG keys" class="md-nav__link">
+    RBAC rules for managing GnuPG keys
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#importing-gnupg-public-keys" title="Importing GnuPG public keys" class="md-nav__link">
     Importing GnuPG public keys
   </a>
@@ -1715,6 +1722,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#rbac-rules-for-managing-gnupg-keys" title="RBAC rules for managing GnuPG keys" class="md-nav__link">
+    RBAC rules for managing GnuPG keys
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#importing-gnupg-public-keys" title="Importing GnuPG public keys" class="md-nav__link">
     Importing GnuPG public keys
   </a>
@@ -1954,6 +1968,21 @@ this project.</p>
 <p>If signature verification is enforced, you will not be able to sync from
 local sources (i.e. <code>argocd app sync --local</code>) anymore.</p>
 </div>
+<h2 id="rbac-rules-for-managing-gnupg-keys">RBAC rules for managing GnuPG keys<a class="headerlink" href="#rbac-rules-for-managing-gnupg-keys" title="Permanent link">&para;</a></h2>
+<p>The appropriate resource notation for Argo CD's RBAC implementation to allow
+the managing of GnuPG keys is <code>gpgkeys</code>.</p>
+<p>To allow listing of keys for a role named <code>role:myrole</code>, use:</p>
+<div class="codehilite"><pre><span></span><code><span class="err">p, role:myrole, gpgkeys, get, *, allow</span>
+</code></pre></div>
+
+<p>To allow adding keys for a role named <code>role:myrole</code>, use:</p>
+<div class="codehilite"><pre><span></span><code><span class="err">p, role:myrole, gpgkeys, create, *, allow</span>
+</code></pre></div>
+
+<p>And finally, to allow deletion of keys for a role named <code>role:myrole</code>, use:</p>
+<div class="codehilite"><pre><span></span><code><span class="err">p, role:myrole, gpgkeys, delete, *, allow</span>
+</code></pre></div>
+
 <h2 id="importing-gnupg-public-keys">Importing GnuPG public keys<a class="headerlink" href="#importing-gnupg-public-keys" title="Permanent link">&para;</a></h2>
 <p>You can configure the GnuPG public keys that ArgoCD will use for verification
 of commit signatures using either the CLI, the web UI or configuring it using

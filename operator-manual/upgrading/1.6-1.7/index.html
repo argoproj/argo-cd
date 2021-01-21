@@ -824,6 +824,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#new-rbac-rules-for-gnupg-related-features" title="New RBAC rules for GnuPG related features" class="md-nav__link">
+    New RBAC rules for GnuPG related features
+  </a>
+  
+</li>
+      
       
       
       
@@ -1539,6 +1546,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#new-rbac-rules-for-gnupg-related-features" title="New RBAC rules for GnuPG related features" class="md-nav__link">
+    New RBAC rules for GnuPG related features
+  </a>
+  
+</li>
+      
       
       
       
@@ -1580,6 +1594,16 @@ strings might become out-of-sync after upgrading and you might have to trigger t
   <span class="l l-Scalar l-Scalar-Plain">hello</span>
 </code></pre></div>
 
+<h2 id="new-rbac-rules-for-gnupg-related-features">New RBAC rules for GnuPG related features<a class="headerlink" href="#new-rbac-rules-for-gnupg-related-features" title="Permanent link">&para;</a></h2>
+<p>The <a href="../../../user-guide/gpg-verification">GnuPG feature</a> has introduced a new
+RBAC resource in Argo CD, <code>gpgkeys</code>.</p>
+<p>Please adapt your RBAC rules with the appropriate permissions. The least set of
+permissions every role should have is:</p>
+<div class="codehilite"><pre><span></span><code><span class="err">p, &lt;your-role&gt;, gpgkeys, get, *, allow</span>
+</code></pre></div>
+
+<p>More information can be found in the
+<a href="../../../user-guide/gpg-verification#rbac-rules-for-managing-gnupg-keys">documentation</a></p>
 <p>From here on you can follow the <a href="../overview/">regular upgrade process</a>.</p>
                 
                   
