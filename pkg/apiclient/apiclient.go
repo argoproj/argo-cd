@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"github.com/golang/protobuf/ptypes/empty"
 	"io"
 	"io/ioutil"
 	"math"
@@ -245,6 +246,23 @@ func NewClient(opts *ClientOptions) (Client, error) {
 	}
 	if opts.GRPCWebRootPath != "" {
 		c.GRPCWebRootPath = opts.GRPCWebRootPath
+	}
+	if !c.GRPCWeb {
+		//test if we need to set it to true
+		conn, versionIf := c.NewVersionClientOrDie()
+		defer argoio.Close(conn)
+
+		_, err := versionIf.Version(context.Background(), &empty.Empty{})
+		if err != nil {
+			c.GRPCWeb = true
+			conn, versionIf := c.NewVersionClientOrDie()
+			defer argoio.Close(conn)
+
+			_, err := versionIf.Version(context.Background(), &empty.Empty{})
+			if err != nil {
+				c.GRPCWeb = false
+			}
+		}
 	}
 	if localCfg != nil {
 		err = c.refreshAuthToken(localCfg, ctxName, opts.ConfigPath)
