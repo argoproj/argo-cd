@@ -37,7 +37,6 @@ ADD ./hack/installers installers
 
 RUN ./install.sh dep-linux && \
     ./install.sh packr-linux && \
-    ./install.sh kubectl-linux && \
     ./install.sh ksonnet-linux && \
     ./install.sh helm2-linux && \
     ./install.sh helm-linux && \
