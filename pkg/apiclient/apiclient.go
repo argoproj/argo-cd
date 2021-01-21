@@ -249,6 +249,7 @@ func NewClient(opts *ClientOptions) (Client, error) {
 	}
 	if !c.GRPCWeb {
 		//test if we need to set it to true
+		//if a call to grpc failed, then try again with GRPCWeb
 		conn, versionIf := c.NewVersionClientOrDie()
 		defer argoio.Close(conn)
 
