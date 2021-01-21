@@ -755,12 +755,20 @@ func newRedirectServer(port int, rootPath string) *http.Server {
 // registerDownloadHandlers registers HTTP handlers to support downloads directly from the API server
 // (e.g. argocd CLI)
 func registerDownloadHandlers(mux *http.ServeMux, base string) {
-	linuxPath, err := exec.LookPath("argocd")
+	linuxAmdPath, err := exec.LookPath("argocd-linux-amd64")
 	if err != nil {
-		log.Warnf("argocd not in PATH")
+		log.Warnf("argocd-linux-amd64 not in PATH")
 	} else {
 		mux.HandleFunc(base+"/argocd-linux-amd64", func(w http.ResponseWriter, r *http.Request) {
-			http.ServeFile(w, r, linuxPath)
+			http.ServeFile(w, r, linuxAmdPath)
+		})
+	}
+	linuxArmPath, err := exec.LookPath("argocd-linux-arm64")
+	if err != nil {
+		log.Warnf("argocd-linux-arm64 not in PATH")
+	} else {
+		mux.HandleFunc(base+"/argocd-linux-arm64", func(w http.ResponseWriter, r *http.Request) {
+			http.ServeFile(w, r, linuxArmPath)
 		})
 	}
 	darwinPath, err := exec.LookPath("argocd-darwin-amd64")

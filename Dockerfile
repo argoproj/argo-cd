@@ -122,7 +122,9 @@ RUN make argocd-all
 ARG BUILD_ALL_CLIS=true
 RUN if [ "$BUILD_ALL_CLIS" = "true" ] ; then \
     make BIN_NAME=argocd-darwin-amd64 GOOS=darwin argocd-all && \
-    make BIN_NAME=argocd-windows-amd64.exe GOOS=windows argocd-all \
+    make BIN_NAME=argocd-windows-amd64.exe GOOS=windows argocd-all && \
+    make BIN_NAME=argocd-linux-amd64 GOOS=linux GOARCH=amd64 argocd-all && \
+    make BIN_NAME=argocd-linux-arm64 GOOS=linux GOARCH=arm64 argocd-all \
     ; fi
 
 ####################################################################################################
