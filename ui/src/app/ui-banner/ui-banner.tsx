@@ -14,7 +14,7 @@ export const Banner = (props: React.Props<any>) => {
                 })
             }>
             {({content, url, prefs}: {content: string; url: string; prefs: ViewPreferences}) => {
-                let prevContent = prefs.bannerContent;
+                const prevContent = prefs.bannerContent;
                 let show = visible && prefs.showBanner;
                 if (prevContent !== content) {
                     services.viewPreferences.updatePreferences({...prefs, showBanner: true, bannerContent: content});
