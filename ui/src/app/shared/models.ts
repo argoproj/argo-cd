@@ -424,6 +424,8 @@ export interface AuthSettings {
     userLoginsDisabled: boolean;
     kustomizeVersions: string[];
     uiCssURL: string;
+    uiBannerContent: string;
+    uiBannerURL: string;
 }
 
 export interface UserInfo {
@@ -721,17 +723,6 @@ export interface VersionMessage {
     HelmVersion: string;
     KubectlVersion: string;
     JsonnetVersion: string;
-}
-
-export interface BannerMessage {
-    newRelease: bannercomponents;
-    maintenance: bannercomponents;
-    announcements: bannercomponents;
-}
-
-export interface bannercomponents {
-    url: string;
-    description: string;
 }
 
 export interface Token {

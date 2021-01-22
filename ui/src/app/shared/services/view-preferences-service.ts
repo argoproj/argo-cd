@@ -57,7 +57,7 @@ export interface ViewPreferences {
     appDetails: AppDetailsPreferences;
     appList: AppsListPreferences;
     pageSizes: {[key: string]: number};
-    isBannerVisible: string;
+    isBannerVisible: boolean;
 }
 
 const VIEW_PREFERENCES_KEY = 'view_preferences';
@@ -88,7 +88,7 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         healthFilter: new Array<string>()
     },
     pageSizes: {},
-    isBannerVisible: ''
+    isBannerVisible: true,
 };
 
 export class ViewPreferencesService {

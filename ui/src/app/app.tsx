@@ -200,8 +200,9 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
                                                                 )}
                                                             </DataLoader>
                                                         )}>
-                                                        <route.component {...routeProps} />
-                                                        <Banner />
+                                                        <Banner>
+                                                            <route.component {...routeProps} />
+                                                        </Banner>
                                                     </Layout>
                                                 )
                                             }

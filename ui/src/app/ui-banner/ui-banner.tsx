@@ -1,78 +1,43 @@
 import * as React from 'react';
 import {DataLoader} from '../shared/components';
-import {services} from '../shared/services';
+import {services, ViewPreferences} from '../shared/services';
+import {Observable} from 'rxjs';
+import './ui-banner.scss';
 
-require('./ui-banner.scss');
-var crypto = require('crypto');
-export class Banner extends React.Component {
-    state = {
-        bannerVisible: false
-    };
-    private setBanner() {
-        this.setState({
-            bannerVisible: false
-        });
-    }
-    private checkBannerUpdate() {
-        services.bannerUI.banner().then(response => {
-            let nextBannerState = this.createHash(response.announcements.description + response.maintenance.description + response.newRelease.description);
-            services.viewPreferences.getPreferences().subscribe(items => {
-                let currentBannerState = items.isBannerVisible;
-                if (currentBannerState !== nextBannerState) {
-                    services.viewPreferences.updatePreferences({
-                        isBannerVisible: nextBannerState
-                    });
-                    this.setState({bannerVisible: true});
-                }
-            });
-        });
-    }
-
-    private createHash(val: string): string {
-        return crypto
-            .createHash('md5')
-            .update(val)
-            .digest('hex');
-    }
-
-    async componentDidMount() {
-        await this.checkBannerUpdate();
-    }
-
-    render() {
-        if (this.state.bannerVisible) {
-            return (
-                <DataLoader load={() => services.bannerUI.banner()}>
-                    {apiData => (
-                        <div className='ui_banner' style={{visibility: this.state.bannerVisible ? 'visible' : 'hidden'}}>
-                            <button className='ui_banner__close' aria-hidden='true' onClick={this.setBanner}>
-                                <span>
-                                    <i className='argo-icon-close' aria-hidden='true' />
-                                </span>
-                            </button>
-                            <div className='ui_banner__text'>
-                                <div className='ui_banner__items'>
-                                    <a href={apiData.announcements['url']} target='_blank' className='ui_banner__items'>
-                                        {apiData.announcements['description']}
-                                    </a>{' '}
-                                </div>
-                                <div>
-                                    <a href={apiData.maintenance['url']} target='_blank' className='ui_banner__items'>
-                                        {apiData.maintenance['description']}
-                                    </a>{' '}
-                                </div>
-                                <div>
-                                    <a href={apiData.newRelease['url']} target='_blank' className='ui_banner__items'>
-                                        {apiData.newRelease['description']}
-                                    </a>{' '}
-                                </div>
+export const Banner = (props: React.Props<any>) => {
+    const [visible, setVisible] = React.useState(true);
+    return (
+        <DataLoader
+            load={() =>
+                Observable.combineLatest(services.authService.settings(), services.viewPreferences.getPreferences()).map(items => {
+                    return {content: items[0].uiBannerContent, url: items[0].uiBannerURL, prefs: items[1]};
+                })
+            }>
+            {({content, url, prefs}: {content: string; url: string; prefs: ViewPreferences}) => {
+                const show = visible && prefs.isBannerVisible && content !== undefined;
+                return (
+                    <React.Fragment>
+                        <div className='ui-banner' style={{visibility: show ? 'visible' : 'hidden'}}>
+                            <div style={{marginRight: '15px'}}>
+                                {url !== undefined ? (
+                                    <a href={url} target='_blank'>
+                                        {content}
+                                    </a>
+                                ) : (
+                                    <React.Fragment>{content}</React.Fragment>
+                                )}
                             </div>
+                            <button className='argo-button argo-button--base' style={{marginRight: '5px'}} onClick={() => setVisible(false)}>
+                                Dismiss for now
+                            </button>
+                            <button className='argo-button argo-button--base' onClick={() => services.viewPreferences.updatePreferences({...prefs, isBannerVisible: false})}>
+                                Don't show again
+                            </button>
                         </div>
-                    )}
-                </DataLoader>
-            );
-        } else {
-            return null;
-        }
-    }
-}
+                        {show ? <div className='ui-banner--wrapper'>{props.children}</div> : props.children}
+                    </React.Fragment>
+                );
+            }}
+        </DataLoader>
+    );
+};

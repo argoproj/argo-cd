@@ -1,55 +1,31 @@
-.ui_banner {
-    line-height: 50px;
-    background: linear-gradient(to bottom, #333, #444, #555, #666, #999);
-    box-shadow: inset -2px 0 4px 0 rgba(0, 0, 0, 0.59);
-    transition: right 0.5s;
+@import 'node_modules/argo-ui/src/styles/config';
+
+.ui-banner {
+    $banner-height: 70px;
+    height: $banner-height;
+    background: $argo-color-gray-5;
     position: fixed;
     width: 100%;
-    z-index: 12;
+    z-index: 10;
     align-items: center;
-    opacity: 0.9;
     text-align: center;
-    color: white;
-    font-size: smaller;
-    scroll-behavior: unset;
-    bottom: 0;
+    color: $argo-color-teal-8;
+    font-weight: 500;
+    font-size: 16px;
+    top: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 
-    &__close {
-        display: block;
-        position: absolute;
-        cursor: pointer;
-        top: 0%;
-        right: 0%;
-        z-index: 1;
-        border-radius: 50%;
-        color: #ffffff;
-        font-size: 20px;
-        padding: 5px;
-
-        @media screen and (max-width: 1400px) {
-            top: 8px;
-        }
-
-        &:hover {
-            background-color: #dee6eb;
-        }
+    a {
+        text-decoration: underline;
+        color: $argo-color-teal-8;
     }
 
-    &__text {
-        overflow: visible;
-        display: flex;
-        list-style-type: none;
-        margin: 10px;
-        padding: 10px;
-        justify-content: space-between;
-        column-gap: 5%;
-    }
-
-    &__items {
-        color: rgb(255, 255, 255);
-
-        &:hover {
-            color: #00A2B3;
+    &--wrapper {
+        margin-top: $banner-height;
+        .page__top-bar {
+            top: $banner-height;
         }
     }
 }
