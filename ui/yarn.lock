@@ -1580,10 +1580,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/dagre@npm:^0.7.40":
-  version: 0.7.44
-  resolution: "@types/dagre@npm:0.7.44"
-  checksum: ee5a5017b188844cb83b5cf7264c3263fe449887de254a8bc1da976e32ca04120ab6e6aeb65083a15bf50ff7cc386c757420734ea21123131400d6d159526862
+"@types/dagre@npm:0.7.42":
+  version: 0.7.42
+  resolution: "@types/dagre@npm:0.7.42"
+  checksum: 2096aa270c6bc52ed8fd6887dcae5b46381d61934c3f100eebe0045db219c49954326257449bebb0129249cd7b240d03ed5cabb946b205f13835cd8f125fcf48
   languageName: node
   linkType: hard
 
@@ -2322,7 +2322,7 @@ __metadata:
     "@beyonk/google-fonts-webpack-plugin": ^1.5.0
     "@types/classnames": ^2.2.3
     "@types/cookie": ^0.3.1
-    "@types/dagre": ^0.7.40
+    "@types/dagre": 0.7.42
     "@types/deepmerge": ^2.2.0
     "@types/git-url-parse": ^9.0.0
     "@types/jest": ^24.0.13

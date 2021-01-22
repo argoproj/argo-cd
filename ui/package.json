@@ -12,7 +12,7 @@
   "dependencies": {
     "@types/classnames": "^2.2.3",
     "@types/cookie": "^0.3.1",
-    "@types/dagre": "^0.7.40",
+    "@types/dagre": "0.7.42",
     "@types/deepmerge": "^2.2.0",
     "@types/git-url-parse": "^9.0.0",
     "@types/js-yaml": "^3.11.2",
