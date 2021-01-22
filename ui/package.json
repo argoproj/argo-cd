@@ -45,7 +45,7 @@
     "moment": "^2.24.0",
     "monaco-editor": "^0.15.6",
     "monaco-editor-webpack-plugin": "^1.7.0",
-    "node-sass": "^4.13.1",
+    "node-sass": "^4.14.1",
     "prop-types": "^15.6.0",
     "raw-loader": "^0.5.1",
     "react": "^16.9.3",
