@@ -875,12 +875,15 @@ func findManifests(appPath string, repoRoot string, env *v1alpha1.Env, directory
 			return nil
 		}
 
-		fileNameWithPath := filepath.Join(appPath, f.Name())
-		if directory.Exclude != "" && glob.Match(directory.Exclude, fileNameWithPath) {
+		relPath, err := filepath.Rel(appPath, path)
+		if err != nil {
+			return err
+		}
+		if directory.Exclude != "" && glob.Match(directory.Exclude, relPath) {
 			return nil
 		}
 
-		if directory.Include != "" && !glob.Match(directory.Include, fileNameWithPath) {
+		if directory.Include != "" && !glob.Match(directory.Include, relPath) {
 			return nil
 		}
 
@@ -1184,7 +1187,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 }
 
 func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServerRevisionMetadataRequest) (*v1alpha1.RevisionMetadata, error) {
-	if !git.IsCommitSHA(q.Revision) {
+	if !(git.IsCommitSHA(q.Revision) || git.IsTruncatedCommitSHA(q.Revision)) {
 		return nil, fmt.Errorf("revision %s must be resolved", q.Revision)
 	}
 	metadata, err := s.cache.GetRevisionMetadata(q.Repo.Repo, q.Revision)

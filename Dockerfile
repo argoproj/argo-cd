@@ -28,7 +28,6 @@ ADD hack/installers installers
 ADD hack/tool-versions.sh .
 
 RUN ./install.sh packr-linux
-RUN ./install.sh kubectl-linux
 RUN ./install.sh ksonnet-linux
 RUN ./install.sh helm2-linux
 RUN ./install.sh helm-linux
@@ -62,7 +61,6 @@ COPY hack/git-verify-wrapper.sh /usr/local/bin/git-verify-wrapper.sh
 COPY --from=builder /usr/local/bin/ks /usr/local/bin/ks
 COPY --from=builder /usr/local/bin/helm2 /usr/local/bin/helm2
 COPY --from=builder /usr/local/bin/helm /usr/local/bin/helm
-COPY --from=builder /usr/local/bin/kubectl /usr/local/bin/kubectl
 COPY --from=builder /usr/local/bin/kustomize /usr/local/bin/kustomize
 # script to add current (possibly arbitrary) user to /etc/passwd at runtime
 # (if it's not already there, to be openshift friendly)
@@ -117,12 +115,12 @@ RUN go mod download
 
 # Perform the build
 COPY . .
-RUN make cli-local server controller repo-server argocd-util
+RUN make argocd-all
 
 ARG BUILD_ALL_CLIS=true
 RUN if [ "$BUILD_ALL_CLIS" = "true" ] ; then \
-    make CLI_NAME=argocd-darwin-amd64 GOOS=darwin cli-local && \
-    make CLI_NAME=argocd-windows-amd64.exe GOOS=windows cli-local \
+    make BIN_NAME=argocd-darwin-amd64 GOOS=darwin argocd-all && \
+    make BIN_NAME=argocd-windows-amd64.exe GOOS=windows argocd-all \
     ; fi
 
 ####################################################################################################
@@ -131,3 +129,12 @@ RUN if [ "$BUILD_ALL_CLIS" = "true" ] ; then \
 FROM argocd-base
 COPY --from=argocd-build /go/src/github.com/argoproj/argo-cd/dist/argocd* /usr/local/bin/
 COPY --from=argocd-ui ./src/dist/app /shared/app
+
+USER root
+RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-util
+RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-server
+RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-repo-server
+RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-application-controller
+RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-dex
+
+USER 999
