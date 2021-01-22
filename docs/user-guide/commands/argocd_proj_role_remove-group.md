@@ -2,10 +2,6 @@
 
 Remove a group claim from a role within a project
 
-### Synopsis
-
-Remove a group claim from a role within a project
-
 ```
 argocd proj role remove-group PROJECT ROLE-NAME GROUP-CLAIM [flags]
 ```

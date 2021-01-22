@@ -1,4 +1,4 @@
-import {DropDown} from 'argo-ui';
+import {DropDown, Tooltip} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as dagre from 'dagre';
 import * as React from 'react';
@@ -115,8 +115,35 @@ function filterGraph(app: models.Application, filteredIndicatorParent: string, g
     }
 }
 
-function compareNodes(first: ResourceTreeNode, second: ResourceTreeNode) {
-    return `${(first.orphaned && '1') || '0'}/${nodeKey(first)}`.localeCompare(`${(second.orphaned && '1') || '0'}/${nodeKey(second)}`);
+export function compareNodes(first: ResourceTreeNode, second: ResourceTreeNode) {
+    function orphanedToInt(orphaned?: boolean) {
+        return (orphaned && 1) || 0;
+    }
+    function compareRevision(a: string, b: string) {
+        const numberA = Number(a);
+        const numberB = Number(b);
+        if (isNaN(numberA) || isNaN(numberB)) {
+            return a.localeCompare(b);
+        }
+        return Math.sign(numberA - numberB);
+    }
+    function getRevision(a: ResourceTreeNode) {
+        const filtered = a.info.filter(b => b.name === 'Revision' && b)[0];
+        if (filtered == null) {
+            return '';
+        }
+        const value = filtered.value;
+        if (value == null) {
+            return '';
+        }
+        return value.replace(/^Rev:/, '');
+    }
+    return (
+        orphanedToInt(first.orphaned) - orphanedToInt(second.orphaned) ||
+        nodeKey(first).localeCompare(nodeKey(second)) ||
+        compareRevision(getRevision(first), getRevision(second)) ||
+        0
+    );
 }
 
 function appNodeKey(app: models.Application) {
@@ -191,7 +218,7 @@ export const describeNode = (node: ResourceTreeNode) => {
     return lines.join('\n');
 };
 
-function renderResourceNode(props: ApplicationResourceTreeProps, id: string, node: (ResourceTreeNode) & dagre.Node) {
+function renderResourceNode(props: ApplicationResourceTreeProps, id: string, node: ResourceTreeNode & dagre.Node) {
     const fullName = nodeKey(node);
     let comparisonStatus: models.SyncStatusCode = null;
     let healthState: models.HealthStatus = null;
@@ -242,16 +269,32 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                 </span>
             </div>
             <div className='application-resource-tree__node-labels'>
-                {node.createdAt ? (
+                {node.createdAt || rootNode ? (
                     <Moment className='application-resource-tree__node-label' fromNow={true} ago={true}>
-                        {node.createdAt}
+                        {node.createdAt || props.app.metadata.creationTimestamp}
                     </Moment>
                 ) : null}
-                {(node.info || []).map((tag, i) => (
-                    <span className='application-resource-tree__node-label' title={`${tag.name}:${tag.value}`} key={i}>
-                        {tag.value}
-                    </span>
-                ))}
+                {(node.info || [])
+                    .filter(tag => !tag.name.includes('Node'))
+                    .slice(0, 4)
+                    .map((tag, i) => (
+                        <span className='application-resource-tree__node-label' title={`${tag.name}:${tag.value}`} key={i}>
+                            {tag.value}
+                        </span>
+                    ))}
+                {(node.info || []).length > 4 && (
+                    <Tooltip
+                        content={(node.info || []).map(i => (
+                            <div key={i.name}>
+                                {i.name}: {i.value}
+                            </div>
+                        ))}
+                        key={node.uid}>
+                        <span className='application-resource-tree__node-label' title='More'>
+                            More
+                        </span>
+                    </Tooltip>
+                )}
             </div>
             {props.nodeMenu && (
                 <div className='application-resource-tree__node-menu'>
@@ -330,9 +373,10 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             nodeByKey.set(treeNodeKey(node), resourceNode);
         });
     const nodes = Array.from(nodeByKey.values());
-    let roots: ResourceTreeNode[] = null;
+    let roots: ResourceTreeNode[] = [];
     const childrenByParentKey = new Map<string, ResourceTreeNode[]>();
     if (props.useNetworkingHierarchy) {
+        // Network view
         const hasParents = new Set<string>();
         const networkNodes = nodes.filter(node => node.networkingInfo);
         networkNodes.forEach(parent => {
@@ -344,27 +388,6 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             });
         });
         roots = networkNodes.filter(node => !hasParents.has(treeNodeKey(node)));
-    } else {
-        const managedKeys = new Set(props.app.status.resources.map(nodeKey));
-        nodes.forEach(child => {
-            (child.parentRefs || []).forEach(parent => {
-                const children = childrenByParentKey.get(treeNodeKey(parent)) || [];
-                children.push(child);
-                childrenByParentKey.set(treeNodeKey(parent), children);
-            });
-        });
-        roots = nodes.filter(node => (node.parentRefs || []).length === 0 || managedKeys.has(nodeKey(node))).sort(compareNodes);
-    }
-
-    function processNode(node: ResourceTreeNode, root: ResourceTreeNode, colors?: string[]) {
-        graph.setNode(treeNodeKey(node), {...node, width: NODE_WIDTH, height: NODE_HEIGHT, root});
-        (childrenByParentKey.get(treeNodeKey(node)) || []).sort(compareNodes).forEach(child => {
-            graph.setEdge(treeNodeKey(node), treeNodeKey(child), {colors});
-            processNode(child, root, colors);
-        });
-    }
-
-    if (props.useNetworkingHierarchy) {
         const externalRoots = roots.filter(root => (root.networkingInfo.ingress || []).length > 0).sort(compareNodes);
         const internalRoots = roots.filter(root => (root.networkingInfo.ingress || []).length === 0).sort(compareNodes);
         const colorsBySource = new Map<string, string>();
@@ -413,14 +436,44 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             filterGraph(props.app, externalRoots.length > 0 ? EXTERNAL_TRAFFIC_NODE : INTERNAL_TRAFFIC_NODE, graph, props.nodeFilter);
         }
     } else {
-        roots.sort(compareNodes).forEach(node => processNode(node, node));
+        // Tree view
+        const managedKeys = new Set(props.app.status.resources.map(nodeKey));
+        const orphans: ResourceTreeNode[] = [];
+        nodes.forEach(node => {
+            if ((node.parentRefs || []).length === 0 || managedKeys.has(nodeKey(node))) {
+                roots.push(node);
+            } else {
+                orphans.push(node);
+                node.parentRefs.forEach(parent => {
+                    const children = childrenByParentKey.get(treeNodeKey(parent)) || [];
+                    children.push(node);
+                    childrenByParentKey.set(treeNodeKey(parent), children);
+                });
+            }
+        });
+        roots.sort(compareNodes).forEach(node => {
+            processNode(node, node);
+            graph.setEdge(appNodeKey(props.app), treeNodeKey(node));
+        });
+        orphans.sort(compareNodes).forEach(node => {
+            processNode(node, node);
+        });
         graph.setNode(appNodeKey(props.app), {...appNode, width: NODE_WIDTH, height: NODE_HEIGHT});
-        roots.forEach(root => graph.setEdge(appNodeKey(props.app), treeNodeKey(root)));
         if (props.nodeFilter) {
             filterGraph(props.app, appNodeKey(props.app), graph, props.nodeFilter);
         }
     }
 
+    function processNode(node: ResourceTreeNode, root: ResourceTreeNode, colors?: string[]) {
+        graph.setNode(treeNodeKey(node), {...node, width: NODE_WIDTH, height: NODE_HEIGHT, root});
+        (childrenByParentKey.get(treeNodeKey(node)) || []).sort(compareNodes).forEach(child => {
+            if (treeNodeKey(child) === treeNodeKey(root)) {
+                return;
+            }
+            graph.setEdge(treeNodeKey(node), treeNodeKey(child), {colors});
+            processNode(child, root, colors);
+        });
+    }
     dagre.layout(graph);
 
     const edges: {from: string; to: string; lines: Line[]; backgroundImage?: string}[] = [];
@@ -473,7 +526,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                         case NODE_TYPES.externalLoadBalancer:
                             return <React.Fragment key={key}>{renderLoadBalancerNode(node as any)}</React.Fragment>;
                         default:
-                            return <React.Fragment key={key}>{renderResourceNode(props, key, node as (ResourceTreeNode) & dagre.Node)}</React.Fragment>;
+                            return <React.Fragment key={key}>{renderResourceNode(props, key, node as ResourceTreeNode & dagre.Node)}</React.Fragment>;
                     }
                 })}
                 {edges.map(edge => (

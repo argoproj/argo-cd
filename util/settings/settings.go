@@ -8,14 +8,12 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/url"
-	"os"
 	"path"
 	"reflect"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	apiv1 "k8s.io/api/core/v1"
@@ -32,7 +30,9 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/server/settings/oidc"
 	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/password"
+	argorand "github.com/argoproj/argo-cd/util/rand"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
 )
 
@@ -98,6 +98,7 @@ type OIDCConfig struct {
 	CLIClientID            string                 `json:"cliClientID,omitempty"`
 	RequestedScopes        []string               `json:"requestedScopes,omitempty"`
 	RequestedIDTokenClaims map[string]*oidc.Claim `json:"requestedIDTokenClaims,omitempty"`
+	LogoutURL              string                 `json:"logoutURL,omitempty"`
 }
 
 // DEPRECATED. Helm repository credentials are now managed using RepoCredentials
@@ -167,6 +168,8 @@ type Repository struct {
 	TLSClientCertDataSecret *apiv1.SecretKeySelector `json:"tlsClientCertDataSecret,omitempty"`
 	// Name of the secret storing the TLS client cert's key data
 	TLSClientCertKeySecret *apiv1.SecretKeySelector `json:"tlsClientCertKeySecret,omitempty"`
+	// Whether the repo is helm-oci enabled. Git only.
+	EnableOci bool `json:"enableOci,omitempty"`
 }
 
 // Credential template for accessing repositories
@@ -246,6 +249,12 @@ const (
 	settingUiCssURLKey = "ui.cssurl"
 	// globalProjectsKey designates the key for global project settings
 	globalProjectsKey = "globalProjects"
+	// initialPasswordSecretName is the name of the secret that will hold the initial admin password
+	initialPasswordSecretName = "argocd-initial-admin-secret"
+	// initialPasswordSecretField is the name of the field in initialPasswordSecretName to store the password
+	initialPasswordSecretField = "password"
+	// initialPasswordLength defines the length of the generated initial password
+	initialPasswordLength = 16
 )
 
 // SettingsManager holds config info for a new manager with which to access Kubernetes ConfigMaps.
@@ -280,7 +289,7 @@ const (
 )
 
 type ArgoCDDiffOptions struct {
-	diff.DiffOptions
+	IgnoreAggregatedRoles bool `json:"ignoreAggregatedRoles,omitempty"`
 
 	// If set to true then differences caused by status are ignored.
 	IgnoreResourceStatusField IgnoreStatus `json:"ignoreResourceStatusField,omitempty"`
@@ -518,10 +527,14 @@ func addStatusOverrideToGK(resourceOverrides map[string]v1alpha1.ResourceOverrid
 	}
 }
 
+func GetDefaultDiffOptions() ArgoCDDiffOptions {
+	return ArgoCDDiffOptions{IgnoreAggregatedRoles: false}
+}
+
 // GetResourceCompareOptions loads the resource compare options settings from the ConfigMap
-func (mgr *SettingsManager) GetResourceCompareOptions() (diff.DiffOptions, error) {
+func (mgr *SettingsManager) GetResourceCompareOptions() (ArgoCDDiffOptions, error) {
 	// We have a sane set of default diff options
-	diffOptions := diff.GetDefaultDiffOptions()
+	diffOptions := GetDefaultDiffOptions()
 
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
@@ -1144,7 +1157,7 @@ func (a *ArgoCDSettings) DexRedirectURL() (string, error) {
 }
 
 // DexOAuth2ClientSecret calculates an arbitrary, but predictable OAuth2 client secret string derived
-// from the server secret. This is called by the dex startup wrapper (argocd-util rundex), as well
+// from the server secret. This is called by the dex startup wrapper (argocd-dex rundex), as well
 // as the API server, such that they both independently come to the same conclusion of what the
 // OAuth2 shared client secret should be.
 func (a *ArgoCDSettings) DexOAuth2ClientSecret() string {
@@ -1221,11 +1234,13 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 		if adminAccount.Enabled {
 			now := time.Now().UTC()
 			if adminAccount.PasswordHash == "" {
-				defaultPassword, err := os.Hostname()
+				initialPassword := argorand.RandString(initialPasswordLength)
+				hashedPassword, err := password.HashPassword(initialPassword)
 				if err != nil {
 					return err
 				}
-				hashedPassword, err := password.HashPassword(defaultPassword)
+				ku := kube.NewKubeUtil(mgr.clientset, mgr.ctx)
+				err = ku.CreateOrUpdateSecretField(mgr.namespace, initialPasswordSecretName, initialPasswordSecretField, initialPassword)
 				if err != nil {
 					return err
 				}

@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -36,12 +37,20 @@ type RevisionMetadata struct {
 	Message string
 }
 
+// this should match reposerver/repository/repository.proto/RefsList
+type Refs struct {
+	Branches []string
+	Tags     []string
+	// heads and remotes are also refs, but are not needed at this time.
+}
+
 // Client is a generic git client interface
 type Client interface {
 	Root() string
 	Init() error
-	Fetch() error
+	Fetch(revision string) error
 	Checkout(revision string) error
+	LsRefs() (*Refs, error)
 	LsRemote(revision string) (string, error)
 	LsFiles(path string) ([]string, error)
 	LsLargeFiles() ([]string, error)
@@ -252,8 +261,13 @@ func (m *nativeGitClient) IsLFSEnabled() bool {
 }
 
 // Fetch fetches latest updates from origin
-func (m *nativeGitClient) Fetch() error {
-	err := m.runCredentialedCmd("git", "fetch", "origin", "--tags", "--force")
+func (m *nativeGitClient) Fetch(revision string) error {
+	var err error
+	if revision != "" {
+		err = m.runCredentialedCmd("git", "fetch", "origin", revision)
+	} else {
+		err = m.runCredentialedCmd("git", "fetch", "origin", "--tags", "--force")
+	}
 	// When we have LFS support enabled, check for large files and fetch them too.
 	if err == nil && m.IsLFSEnabled() {
 		largeFiles, err := m.LsLargeFiles()
@@ -288,7 +302,7 @@ func (m *nativeGitClient) LsLargeFiles() ([]string, error) {
 	return ss, nil
 }
 
-// Checkout checkout specified git sha
+// Checkout checkout specified revision
 func (m *nativeGitClient) Checkout(revision string) error {
 	if revision == "" || revision == "HEAD" {
 		revision = "origin/HEAD"
@@ -322,6 +336,54 @@ func (m *nativeGitClient) Checkout(revision string) error {
 	return nil
 }
 
+func (m *nativeGitClient) getRefs() ([]*plumbing.Reference, error) {
+	repo, err := git.Init(memory.NewStorage(), nil)
+	if err != nil {
+		return nil, err
+	}
+	remote, err := repo.CreateRemote(&config.RemoteConfig{
+		Name: git.DefaultRemoteName,
+		URLs: []string{m.repoURL},
+	})
+	if err != nil {
+		return nil, err
+	}
+	auth, err := newAuth(m.repoURL, m.creds)
+	if err != nil {
+		return nil, err
+	}
+	return listRemote(remote, &git.ListOptions{Auth: auth}, m.insecure, m.creds)
+}
+
+func (m *nativeGitClient) LsRefs() (*Refs, error) {
+	refs, err := m.getRefs()
+
+	if err != nil {
+		return nil, err
+	}
+
+	sortedRefs := &Refs{
+		Branches: []string{},
+		Tags:     []string{},
+	}
+
+	for _, revision := range refs {
+		if revision.Name().IsBranch() {
+			sortedRefs.Branches = append(sortedRefs.Branches, revision.Name().Short())
+		} else if revision.Name().IsTag() {
+			sortedRefs.Tags = append(sortedRefs.Tags, revision.Name().Short())
+		}
+	}
+
+	log.Debugf("LsRefs resolved %d branches and %d tags on repository", len(sortedRefs.Branches), len(sortedRefs.Tags))
+
+	// Would prefer to sort by last modified date but that info does not appear to be available without resolving each ref
+	sort.Strings(sortedRefs.Branches)
+	sort.Strings(sortedRefs.Tags)
+
+	return sortedRefs, nil
+}
+
 // LsRemote resolves the commit SHA of a specific branch, tag, or HEAD. If the supplied revision
 // does not resolve, and "looks" like a 7+ hexadecimal commit SHA, it return the revision string.
 // Otherwise, it returns an error indicating that the revision could not be resolved. This method
@@ -340,23 +402,9 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 	if IsCommitSHA(revision) {
 		return revision, nil
 	}
-	repo, err := git.Init(memory.NewStorage(), nil)
-	if err != nil {
-		return "", err
-	}
-	remote, err := repo.CreateRemote(&config.RemoteConfig{
-		Name: git.DefaultRemoteName,
-		URLs: []string{m.repoURL},
-	})
-	if err != nil {
-		return "", err
-	}
-	auth, err := newAuth(m.repoURL, m.creds)
-	if err != nil {
-		return "", err
-	}
-	//refs, err := remote.List(&git.ListOptions{Auth: auth})
-	refs, err := listRemote(remote, &git.ListOptions{Auth: auth}, m.insecure, m.creds)
+
+	refs, err := m.getRefs()
+
 	if err != nil {
 		return "", err
 	}
@@ -371,16 +419,12 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 	refToResolve := ""
 	for _, ref := range refs {
 		refName := ref.Name().String()
-		if refName != "HEAD" && !strings.HasPrefix(refName, "refs/heads/") && !strings.HasPrefix(refName, "refs/tags/") {
-			// ignore things like 'refs/pull/' 'refs/reviewable'
-			continue
-		}
 		hash := ref.Hash().String()
 		if ref.Type() == plumbing.HashReference {
 			refToHash[refName] = hash
 		}
 		//log.Debugf("%s\t%s", hash, refName)
-		if ref.Name().Short() == revision {
+		if ref.Name().Short() == revision || refName == revision {
 			if ref.Type() == plumbing.HashReference {
 				log.Debugf("revision '%s' resolved to '%s'", revision, hash)
 				return hash, nil
@@ -452,7 +496,7 @@ func (m *nativeGitClient) VerifyCommitSignature(revision string) (string, error)
 // runWrapper runs a custom command with all the semantics of running the Git client
 func (m *nativeGitClient) runGnuPGWrapper(wrapper string, args ...string) (string, error) {
 	cmd := exec.Command(wrapper, args...)
-	cmd.Env = append(cmd.Env, fmt.Sprintf("GNUPGHOME=%s", common.GetGnuPGHomePath()))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("GNUPGHOME=%s", common.GetGnuPGHomePath()), "LANG=C")
 	return m.runCmdOutput(cmd)
 }
 
@@ -463,6 +507,7 @@ func (m *nativeGitClient) runCmd(args ...string) (string, error) {
 }
 
 // runCredentialedCmd is a convenience function to run a git command with username/password credentials
+// nolint:unparam
 func (m *nativeGitClient) runCredentialedCmd(command string, args ...string) error {
 	cmd := exec.Command(command, args...)
 	closer, environ, err := m.creds.Environ()

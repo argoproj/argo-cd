@@ -1,30 +1,51 @@
-# CI
+# Continuous Integration (CI)
 
-!!!warning
-    This documentation is out-of-date. Please bear with us while we work to
-    update the documentation to reflect reality!
+## Troubleshooting CI checks
 
-## Troubleshooting Builds
+You can click on the "Details" link next to the failed step to get more information about the failure.
 
-### "Check nothing has changed" step fails
- 
-If your PR fails the `codegen` CI step, you can either:
+![Failed GitHub Action](ci-pipeline-failed.png)
 
-(1) Simple - download the `codgen.patch` file from CircleCI and apply it:
+To read more about The GitHub actions are configured in [`ci-build.yaml`](https://github.com/argoproj/argo-cd/blob/master/.github/workflows/ci-build.yaml).
 
-![download codegen patch file](../assets/download-codegen-patch-file.png)
+### Can I retrigger the checks without pushing a new commit?
 
-```bash
-git apply codegen.patch 
-git commit -am "Applies codegen patch"
-```
+Since the CI pipeline is triggered on Git commits, there is currently no (known) way on how to retrigger the CI checks without pushing a new commit to your branch.
 
-(2) Advanced - if you have the tools installed (see the contributing guide), run the following:
+If you are absolutely sure that the failure was due to a failure in the pipeline, and not an error within the changes you commited, you can push an empty commit to your branch, thus retriggering the pipeline without any code changes. To do so, issue
 
 ```bash
-make pre-commit
-git commit -am 'Ran pre-commit checks'
+git commit --allow-empty -m "Retrigger CI pipeline"
+git push origin <yourbranch>
 ```
+
+### Why does the build step fail?
+
+First, make sure the failing build step succeeds on your machine. Remember the containerized build toolchain is available, too.
+
+If the build is failing at the `Ensuring Gopkg.lock is up-to-date` step, you need to update the dependencies before you push your commits. Run `make dep-ensure` and `make dep` and commit the changes to `Gopkg.lock` to your branch.
+
+### Why does the codegen step fail?
+
+If the codegen step fails with "Check nothing has changed...", chances are high that you did not run `make codegen`, or did not commit the changes it made. You should double check by running `make codegen` followed by `git status` in the local working copy of your branch. Commit any changes and push them to your GH branch to have the CI check it again.
+
+A second common case for this is, when you modified any of the auto generated assets, as these will be overwritten upon `make codegen`.
+
+Generally, this step runs `codegen` and compares the outcome against the Git branch it has checked out. If there are differences, the step will fail.
+
+See [What checked-in code is generated and where does it come from?](faq.md#what-checked-in-code-is-generated-and-how-is-it-generated) for more information.
+
+### Why does the lint step fail?
+
+Your code failed to lint correctly, or modifications were performed by the `golangci-lint` process.
+
+* You should run `make lint`, or `golangci-lint run` on your local branch and fix all the issues.
+
+* If you receive an error like, ```File is not `goimports`-ed (goimports)```, the file is not formatted correctly. Run `gofmt -w $file.go` to resolve this linter error.
+
+### Why does the test or e2e steps fail?
+
+You should check for the cause of the failure in the check's detail page as described above. This will give you the name of the test that has failed, and details about why. If your test are passing locally (using the virtualized toolchain), chances are that the test might be flaky and will pass the next time it is run. Please retrigger the CI pipeline as described above and see if the test step now passes.
 
 ## Updating The Builder Image
 

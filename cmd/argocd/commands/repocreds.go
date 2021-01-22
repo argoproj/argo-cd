@@ -7,8 +7,6 @@ import (
 	"os"
 	"text/tabwriter"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/errors"
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
@@ -16,7 +14,9 @@ import (
 	repocredspkg "github.com/argoproj/argo-cd/pkg/apiclient/repocreds"
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/cli"
+	"github.com/argoproj/argo-cd/util/errors"
 	"github.com/argoproj/argo-cd/util/git"
+	"github.com/argoproj/argo-cd/util/io"
 )
 
 // NewRepoCredsCommand returns a new instance of an `argocd repocreds` command
@@ -119,7 +119,7 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 
 			createdRepo, err := repoIf.CreateRepositoryCredentials(context.Background(), &repoCreateReq)
 			errors.CheckError(err)
-			fmt.Printf("repository credentials for '%s' added\n", createdRepo.URL)
+			fmt.Printf("Repository credentials for '%s' added\n", createdRepo.URL)
 		},
 	}
 	command.Flags().StringVar(&repo.Username, "username", "", "username to the repository")
@@ -146,6 +146,7 @@ func NewRepoCredsRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			for _, repoURL := range args {
 				_, err := repoIf.DeleteRepositoryCredentials(context.Background(), &repocredspkg.RepoCredsDeleteRequest{Url: repoURL})
 				errors.CheckError(err)
+				fmt.Printf("Repository credentials for '%s' removed\n", repoURL)
 			}
 		},
 	}

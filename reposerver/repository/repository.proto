@@ -15,7 +15,8 @@ message ManifestRequest {
     string revision = 2;
     bool noCache = 3;
     string appLabelKey = 4;
-    string appLabelValue = 5;
+    // Name of the application for which the request is triggered
+    string appName = 5;
     string namespace = 8;
     github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationSource applicationSource = 10;
     repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repos = 11;
@@ -38,6 +39,16 @@ message ManifestResponse {
     string verifyResult = 7;
 }
 
+message ListRefsRequest {
+  github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
+}
+
+// A subset of the repository's named refs
+message Refs {
+  repeated string branches = 1;
+  repeated string tags = 2;
+}
+
 // ListAppsRequest requests a repository directory structure
 message ListAppsRequest {
     github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
@@ -55,6 +66,7 @@ message RepoServerAppDetailsQuery {
     github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationSource source = 2;
     repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repos = 3;
     github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.KustomizeOptions kustomizeOptions = 4;
+    string appName = 5;
 }
 
 // RepoAppDetailsResponse application details
@@ -71,6 +83,8 @@ message RepoServerRevisionMetadataRequest {
     github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
     // the revision within the repo
     string revision = 2;
+    // whether to check signature on revision
+    bool checkSignature = 3;
 }
 
 // KsonnetAppSpec contains Ksonnet app response
@@ -138,6 +152,10 @@ service RepoServerService {
 
     // GenerateManifest generates manifest for application in specified repo name and revision
     rpc GenerateManifest(ManifestRequest) returns (ManifestResponse) {
+    }
+
+    // Returns a list of refs (eg. branches and tags) in the repo
+    rpc ListRefs(ListRefsRequest) returns (Refs) {
     }
 
     // ListApps returns a list of apps in the repo

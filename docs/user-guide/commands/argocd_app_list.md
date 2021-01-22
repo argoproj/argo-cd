@@ -2,10 +2,6 @@
 
 List applications
 
-### Synopsis
-
-List applications
-
 ```
 argocd app list [flags]
 ```

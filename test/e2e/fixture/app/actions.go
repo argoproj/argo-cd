@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/util/errors"
 	"github.com/argoproj/argo-cd/util/grpc"
 )
 
@@ -43,6 +43,12 @@ func (a *Actions) PatchFile(file string, jsonPath string) *Actions {
 func (a *Actions) DeleteFile(file string) *Actions {
 	a.context.t.Helper()
 	fixture.Delete(a.context.path + "/" + file)
+	return a
+}
+
+func (a *Actions) WriteFile(fileName, fileContents string) *Actions {
+	a.context.t.Helper()
+	fixture.WriteFile(a.context.path+"/"+fileName, fileContents)
 	return a
 }
 
@@ -294,7 +300,7 @@ func (a *Actions) Refresh(refreshType RefreshType) *Actions {
 
 func (a *Actions) Delete(cascade bool) *Actions {
 	a.context.t.Helper()
-	a.runCli("app", "delete", a.context.name, fmt.Sprintf("--cascade=%v", cascade))
+	a.runCli("app", "delete", a.context.name, fmt.Sprintf("--cascade=%v", cascade), "--yes")
 	return a
 }
 

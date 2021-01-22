@@ -6,6 +6,12 @@ import (
 	"testing"
 	"time"
 
+	"k8s.io/apimachinery/pkg/api/resource"
+
+	clustercache "github.com/argoproj/gitops-engine/pkg/cache"
+
+	statecache "github.com/argoproj/argo-cd/controller/cache"
+
 	"github.com/argoproj/gitops-engine/pkg/cache/mocks"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -121,6 +127,7 @@ func newFakeController(data *fakeData) *ApplicationController {
 		response[k] = v.ResourceNode
 	}
 	mockStateCache.On("GetNamespaceTopLevelResources", mock.Anything, mock.Anything).Return(response, nil)
+	mockStateCache.On("IterateResources", mock.Anything, mock.Anything).Return(nil)
 	mockStateCache.On("GetClusterCache", mock.Anything).Return(&clusterCacheMock, nil)
 	mockStateCache.On("IterateHierarchy", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
 		key := args[1].(kube.ResourceKey)
@@ -630,11 +637,16 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			kube.GetResourceKey(appObj): appObj,
 		}})
 		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-		defaultReactor := fakeAppCs.ReactionChain[0]
-		fakeAppCs.ReactionChain = nil
-		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-			return defaultReactor.React(action)
-		})
+		func() {
+			fakeAppCs.Lock()
+			defer fakeAppCs.Unlock()
+
+			defaultReactor := fakeAppCs.ReactionChain[0]
+			fakeAppCs.ReactionChain = nil
+			fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+				return defaultReactor.React(action)
+			})
+		}()
 		_, err := ctrl.finalizeApplicationDeletion(app)
 		assert.EqualError(t, err, "application destination can't have both name and server defined: another-cluster https://localhost:6443")
 	})
@@ -1001,26 +1013,6 @@ func TestUpdateReconciledAt(t *testing.T) {
 
 }
 
-func TestCanProcessApp_DestNameIsValid(t *testing.T) {
-	app := newFakeAppWithDestName()
-	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}})
-
-	ok := ctrl.canProcessApp(app)
-	assert.True(t, ok)
-	assert.Len(t, app.Status.Conditions, 0)
-}
-
-func TestCanProcessApp_BothDestNameAndServer(t *testing.T) {
-	app := newFakeAppWithDestMismatch()
-	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}})
-
-	ok := ctrl.canProcessApp(app)
-	assert.False(t, ok)
-	assert.Len(t, app.Status.Conditions, 1)
-	assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, app.Status.Conditions[0].Type)
-	assert.Equal(t, "application destination can't have both name and server defined: another-cluster https://localhost:6443", app.Status.Conditions[0].Message)
-}
-
 func TestFinalizeProjectDeletion_HasApplications(t *testing.T) {
 	app := newFakeApp()
 	proj := &argoappv1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: test.FakeArgoCDNamespace}}
@@ -1091,12 +1083,16 @@ func TestProcessRequestedAppOperation_InvalidDestination(t *testing.T) {
 	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 	receivedPatch := map[string]interface{}{}
-	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		if patchAction, ok := action.(kubetesting.PatchAction); ok {
-			assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
-		}
-		return true, nil, nil
-	})
+	func() {
+		fakeAppCs.Lock()
+		defer fakeAppCs.Unlock()
+		fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			if patchAction, ok := action.(kubetesting.PatchAction); ok {
+				assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+			}
+			return true, nil, nil
+		})
+	}()
 
 	ctrl.processRequestedAppOperation(app)
 
@@ -1203,4 +1199,62 @@ func TestProcessRequestedAppOperation_HasRetriesTerminated(t *testing.T) {
 
 	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
 	assert.Equal(t, string(synccommon.OperationFailed), phase)
+}
+
+func TestGetAppHosts(t *testing.T) {
+	app := newFakeApp()
+	data := &fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+	}
+	ctrl := newFakeController(data)
+	mockStateCache := &mockstatecache.LiveStateCache{}
+	mockStateCache.On("IterateResources", mock.Anything, mock.MatchedBy(func(callback func(res *clustercache.Resource, info *statecache.ResourceInfo)) bool {
+		// node resource
+		callback(&clustercache.Resource{
+			Ref: corev1.ObjectReference{Name: "minikube", Kind: "Node", APIVersion: "v1"},
+		}, &statecache.ResourceInfo{NodeInfo: &statecache.NodeInfo{
+			Name:       "minikube",
+			SystemInfo: corev1.NodeSystemInfo{OSImage: "debian"},
+			Capacity:   map[corev1.ResourceName]resource.Quantity{corev1.ResourceCPU: resource.MustParse("5")},
+		}})
+
+		// app pod
+		callback(&clustercache.Resource{
+			Ref: corev1.ObjectReference{Name: "pod1", Kind: kube.PodKind, APIVersion: "v1", Namespace: "default"},
+		}, &statecache.ResourceInfo{PodInfo: &statecache.PodInfo{
+			NodeName:         "minikube",
+			ResourceRequests: map[corev1.ResourceName]resource.Quantity{corev1.ResourceCPU: resource.MustParse("1")},
+		}})
+		// neighbor pod
+		callback(&clustercache.Resource{
+			Ref: corev1.ObjectReference{Name: "pod2", Kind: kube.PodKind, APIVersion: "v1", Namespace: "default"},
+		}, &statecache.ResourceInfo{PodInfo: &statecache.PodInfo{
+			NodeName:         "minikube",
+			ResourceRequests: map[corev1.ResourceName]resource.Quantity{corev1.ResourceCPU: resource.MustParse("2")},
+		}})
+		return true
+	})).Return(nil)
+	ctrl.stateCache = mockStateCache
+
+	hosts, err := ctrl.getAppHosts(app, []argoappv1.ResourceNode{{
+		ResourceRef: argoappv1.ResourceRef{Name: "pod1", Namespace: "default", Kind: kube.PodKind},
+		Info: []argoappv1.InfoItem{{
+			Name:  "Host",
+			Value: "Minikube",
+		}},
+	}})
+
+	assert.NoError(t, err)
+	assert.Equal(t, []argoappv1.HostInfo{{
+		Name:       "minikube",
+		SystemInfo: corev1.NodeSystemInfo{OSImage: "debian"},
+		ResourcesInfo: []argoappv1.HostResourceInfo{{
+			ResourceName: corev1.ResourceCPU, Capacity: 5000, RequestedByApp: 1000, RequestedByNeighbors: 2000},
+		}}}, hosts)
 }

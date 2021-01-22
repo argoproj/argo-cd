@@ -17,12 +17,12 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver"
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/argoproj/pkg/sync"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 
 	executil "github.com/argoproj/argo-cd/util/exec"
+	"github.com/argoproj/argo-cd/util/io"
 )
 
 var (
@@ -42,26 +42,29 @@ type Client interface {
 	CleanChartCache(chart string, version *semver.Version) error
 	ExtractChart(chart string, version *semver.Version) (string, io.Closer, error)
 	GetIndex() (*Index, error)
+	TestHelmOCI() (bool, error)
 }
 
-func NewClient(repoURL string, creds Creds) Client {
-	return NewClientWithLock(repoURL, creds, globalLock)
+func NewClient(repoURL string, creds Creds, enableOci bool) Client {
+	return NewClientWithLock(repoURL, creds, globalLock, enableOci)
 }
 
-func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock) Client {
+func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, enableOci bool) Client {
 	return &nativeHelmChart{
-		repoURL:  repoURL,
-		creds:    creds,
-		repoPath: filepath.Join(os.TempDir(), strings.Replace(repoURL, "/", "_", -1)),
-		repoLock: repoLock,
+		repoURL:   repoURL,
+		creds:     creds,
+		repoPath:  filepath.Join(os.TempDir(), strings.Replace(repoURL, "/", "_", -1)),
+		repoLock:  repoLock,
+		enableOci: enableOci,
 	}
 }
 
 type nativeHelmChart struct {
-	repoPath string
-	repoURL  string
-	creds    Creds
-	repoLock sync.KeyLock
+	repoPath  string
+	repoURL   string
+	creds     Creds
+	repoLock  sync.KeyLock
+	enableOci bool
 }
 
 func fileExist(filePath string) (bool, error) {
@@ -87,7 +90,7 @@ func (c *nativeHelmChart) ensureHelmChartRepoPath() error {
 }
 
 func (c *nativeHelmChart) CleanChartCache(chart string, version *semver.Version) error {
-	return os.RemoveAll(c.getChartPath(chart, version))
+	return os.RemoveAll(c.getCachedChartPath(chart, version))
 }
 
 func (c *nativeHelmChart) ExtractChart(chart string, version *semver.Version) (string, io.Closer, error) {
@@ -95,58 +98,99 @@ func (c *nativeHelmChart) ExtractChart(chart string, version *semver.Version) (s
 	if err != nil {
 		return "", nil, err
 	}
-	chartPath := c.getChartPath(chart, version)
 
-	c.repoLock.Lock(chartPath)
-	defer c.repoLock.Unlock(chartPath)
+	// always use Helm V3 since we don't have chart content to determine correct Helm version
+	helmCmd, err := NewCmdWithVersion(c.repoPath, HelmV3, c.enableOci)
 
-	exists, err := fileExist(chartPath)
 	if err != nil {
 		return "", nil, err
 	}
+	defer helmCmd.Close()
+
+	_, err = helmCmd.Init()
+	if err != nil {
+		return "", nil, err
+	}
+
+	// throw away temp directory that stores extracted chart and should be deleted as soon as no longer needed by returned closer
+	tempDir, err := ioutil.TempDir("", "helm")
+	if err != nil {
+		return "", nil, err
+	}
+
+	cachedChartPath := c.getCachedChartPath(chart, version)
+
+	c.repoLock.Lock(cachedChartPath)
+	defer c.repoLock.Unlock(cachedChartPath)
+
+	// check if chart tar is already downloaded
+	exists, err := fileExist(cachedChartPath)
+	if err != nil {
+		return "", nil, err
+	}
+
 	if !exists {
-		// always use Helm V3 since we don't have chart content to determine correct Helm version
-		helmCmd, err := NewCmdWithVersion(c.repoPath, HelmV3)
-		if err != nil {
-			return "", nil, err
-		}
-		defer helmCmd.Close()
-
-		_, err = helmCmd.Init()
-		if err != nil {
-			return "", nil, err
-		}
-
-		// (1) because `helm fetch` downloads an arbitrary file name, we download to an empty temp directory
+		// create empty temp directory to extract chart from the registry
 		tempDest, err := ioutil.TempDir("", "helm")
 		if err != nil {
 			return "", nil, err
 		}
 		defer func() { _ = os.RemoveAll(tempDest) }()
-		_, err = helmCmd.Fetch(c.repoURL, chart, version.String(), tempDest, c.creds)
-		if err != nil {
-			return "", nil, err
+
+		if c.enableOci {
+			if c.creds.Password != "" && c.creds.Username != "" {
+				_, err = helmCmd.Login(c.repoURL, c.creds)
+				if err != nil {
+					return "", nil, err
+				}
+
+				defer func() {
+					_, _ = helmCmd.Logout(c.repoURL, c.creds)
+				}()
+			}
+
+			// 'helm chart pull' ensures that chart is downloaded into local repository cache
+			_, err = helmCmd.ChartPull(c.repoURL, chart, version.String())
+			if err != nil {
+				return "", nil, err
+			}
+
+			// 'helm chart export' copies cached chart into temp directory
+			_, err = helmCmd.ChartExport(c.repoURL, chart, version.String(), tempDest)
+			if err != nil {
+				return "", nil, err
+			}
+
+			// use downloaded chart content to produce tar file in expected cache location
+			cmd := exec.Command("tar", "-zcvf", cachedChartPath, normalizeChartName(chart))
+			cmd.Dir = tempDest
+			_, err = executil.Run(cmd)
+			if err != nil {
+				return "", nil, err
+			}
+		} else {
+			_, err = helmCmd.Fetch(c.repoURL, chart, version.String(), tempDest, c.creds)
+			if err != nil {
+				return "", nil, err
+			}
+
+			// 'helm fetch' file downloads chart into the tgz file and we move that to where we want it
+			infos, err := ioutil.ReadDir(tempDest)
+			if err != nil {
+				return "", nil, err
+			}
+			if len(infos) != 1 {
+				return "", nil, fmt.Errorf("expected 1 file, found %v", len(infos))
+			}
+			err = os.Rename(filepath.Join(tempDest, infos[0].Name()), cachedChartPath)
+			if err != nil {
+				return "", nil, err
+			}
 		}
-		// (2) then we assume that the only file downloaded into the directory is the tgz file
-		// and we move that to where we want it
-		infos, err := ioutil.ReadDir(tempDest)
-		if err != nil {
-			return "", nil, err
-		}
-		if len(infos) != 1 {
-			return "", nil, fmt.Errorf("expected 1 file, found %v", len(infos))
-		}
-		err = os.Rename(filepath.Join(tempDest, infos[0].Name()), chartPath)
-		if err != nil {
-			return "", nil, err
-		}
+
 	}
-	// untar helm chart into throw away temp directory which should be deleted as soon as no longer needed
-	tempDir, err := ioutil.TempDir("", "helm")
-	if err != nil {
-		return "", nil, err
-	}
-	cmd := exec.Command("tar", "-zxvf", chartPath)
+
+	cmd := exec.Command("tar", "-zxvf", cachedChartPath)
 	cmd.Dir = tempDir
 	_, err = executil.Run(cmd)
 	if err != nil {
@@ -175,6 +219,37 @@ func (c *nativeHelmChart) GetIndex() (*Index, error) {
 	log.WithFields(log.Fields{"seconds": time.Since(start).Seconds()}).Info("took to get index")
 
 	return index, nil
+}
+
+func (c *nativeHelmChart) TestHelmOCI() (bool, error) {
+	start := time.Now()
+
+	tmpDir, err := ioutil.TempDir("", "helm")
+	if err != nil {
+		return false, err
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	helmCmd, err := NewCmdWithVersion(tmpDir, HelmV3, c.enableOci)
+	if err != nil {
+		return false, err
+	}
+	defer helmCmd.Close()
+
+	// Looks like there is no good way to test access to OCI repo if credentials are not provided
+	// just assume it is accessible
+	if c.creds.Username != "" && c.creds.Password != "" {
+		_, err = helmCmd.Login(c.repoURL, c.creds)
+		if err != nil {
+			return false, err
+		}
+		defer func() {
+			_, _ = helmCmd.Logout(c.repoURL, c.creds)
+		}()
+
+		log.WithFields(log.Fields{"seconds": time.Since(start).Seconds()}).Info("took to test helm oci repository")
+	}
+	return true, nil
 }
 
 func (c *nativeHelmChart) loadRepoIndex() ([]byte, error) {
@@ -243,6 +318,7 @@ func newTLSConfig(creds Creds) (*tls.Config, error) {
 
 // Normalize a chart name for file system use, that is, if chart name is foo/bar/baz, returns the last component as chart name.
 func normalizeChartName(chart string) string {
+	strings.Join(strings.Split(chart, "/"), "_")
 	_, nc := path.Split(chart)
 	// We do not want to return the empty string or something else related to filesystem access
 	// Instead, return original string
@@ -252,6 +328,11 @@ func normalizeChartName(chart string) string {
 	return nc
 }
 
-func (c *nativeHelmChart) getChartPath(chart string, version *semver.Version) string {
-	return path.Join(c.repoPath, fmt.Sprintf("%s-%v.tgz", normalizeChartName(chart), version))
+func (c *nativeHelmChart) getCachedChartPath(chart string, version *semver.Version) string {
+	return path.Join(c.repoPath, fmt.Sprintf("%s-%v.tgz", strings.ReplaceAll(chart, "/", "_"), version))
+}
+
+// Only OCI registries support storing charts under sub-directories.
+func IsHelmOciChart(chart string) bool {
+	return strings.Contains(chart, "/")
 }

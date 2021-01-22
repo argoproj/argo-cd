@@ -2,6 +2,8 @@ PACKAGE=github.com/argoproj/argo-cd/common
 CURRENT_DIR=$(shell pwd)
 DIST_DIR=${CURRENT_DIR}/dist
 CLI_NAME=argocd
+UTIL_CLI_NAME=argocd-util
+BIN_NAME=argocd
 
 HOST_OS:=$(shell go env GOOS)
 HOST_ARCH:=$(shell go env GOARCH)
@@ -13,6 +15,7 @@ GIT_TAG=$(shell if [ -z "`git status --porcelain`" ]; then git describe --exact-
 GIT_TREE_STATE=$(shell if [ -z "`git status --porcelain`" ]; then echo "clean" ; else echo "dirty"; fi)
 PACKR_CMD=$(shell if [ "`which packr`" ]; then echo "packr"; else echo "go run github.com/gobuffalo/packr/packr"; fi)
 VOLUME_MOUNT=$(shell if test "$(go env GOOS)" = "darwin"; then echo ":delegated"; elif test selinuxenabled; then echo ":delegated"; else echo ""; fi)
+KUBECTL_VERSION=$(shell awk '/k8s.io\/client-go => k8s.io\/client-go/ { print $$4 }' go.mod | sed -e 's/v0\.\(.*\)/v1\.\1/')
 
 GOPATH?=$(shell if test -x `which go`; then go env GOPATH; else echo "$(HOME)/go"; fi)
 GOCACHE?=$(HOME)/.cache/go-build
@@ -43,6 +46,15 @@ ARGOCD_TEST_E2E?=true
 
 ARGOCD_LINT_GOGC?=20
 
+# Depending on where we are (legacy or non-legacy pwd), we need to use
+# different Docker volume mounts for our source tree
+LEGACY_PATH=$(GOPATH)/src/github.com/argoproj/argo-cd
+ifeq ("$(PWD)","$(LEGACY_PATH)")
+DOCKER_SRC_MOUNT="$(DOCKER_SRCDIR):/go/src$(VOLUME_MOUNT)"
+else
+DOCKER_SRC_MOUNT="$(PWD):/go/src/github.com/argoproj/argo-cd$(VOLUME_MOUNT)"
+endif
+
 # Runs any command in the argocd-test-utils container in server mode
 # Server mode container will start with uid 0 and drop privileges during runtime
 define run-in-test-server
@@ -56,7 +68,7 @@ define run-in-test-server
 		-e ARGOCD_IN_CI=$(ARGOCD_IN_CI) \
 		-e ARGOCD_E2E_TEST=$(ARGOCD_E2E_TEST) \
 		-e ARGOCD_E2E_YARN_HOST=$(ARGOCD_E2E_YARN_HOST) \
-		-v ${DOCKER_SRCDIR}:/go/src${VOLUME_MOUNT} \
+		-v ${DOCKER_SRC_MOUNT} \
 		-v ${GOPATH}/pkg/mod:/go/pkg/mod${VOLUME_MOUNT} \
 		-v ${GOCACHE}:/tmp/go-build-cache${VOLUME_MOUNT} \
 		-v ${HOME}/.kube:/home/user/.kube${VOLUME_MOUNT} \
@@ -78,7 +90,7 @@ define run-in-test-client
 		-e ARGOCD_E2E_K3S=$(ARGOCD_E2E_K3S) \
 		-e GOCACHE=/tmp/go-build-cache \
 		-e ARGOCD_LINT_GOGC=$(ARGOCD_LINT_GOGC) \
-		-v ${DOCKER_SRCDIR}:/go/src${VOLUME_MOUNT} \
+		-v ${DOCKER_SRC_MOUNT} \
 		-v ${GOPATH}/pkg/mod:/go/pkg/mod${VOLUME_MOUNT} \
 		-v ${GOCACHE}:/tmp/go-build-cache${VOLUME_MOUNT} \
 		-v ${HOME}/.kube:/home/user/.kube${VOLUME_MOUNT} \
@@ -109,7 +121,9 @@ override LDFLAGS += \
   -X ${PACKAGE}.version=${VERSION} \
   -X ${PACKAGE}.buildDate=${BUILD_DATE} \
   -X ${PACKAGE}.gitCommit=${GIT_COMMIT} \
-  -X ${PACKAGE}.gitTreeState=${GIT_TREE_STATE}
+  -X ${PACKAGE}.gitTreeState=${GIT_TREE_STATE}\
+  -X ${PACKAGE}.gitTreeState=${GIT_TREE_STATE}\
+  -X ${PACKAGE}.kubectlVersion=${KUBECTL_VERSION}
 
 ifeq (${STATIC_BUILD}, true)
 override LDFLAGS += -extldflags "-static"
@@ -135,32 +149,43 @@ endif
 .PHONY: all
 all: cli image argocd-util
 
+# We have some legacy requirements for being checked out within $GOPATH.
+# The ensure-gopath target can be used as dependency to ensure we are running
+# within these boundaries.
+.PHONY: ensure-gopath
+ensure-gopath:
+ifneq ("$(PWD)","$(LEGACY_PATH)")
+	@echo "Due to legacy requirements for codegen, repository needs to be checked out within \$$GOPATH"
+	@echo "Location of this repo should be '$(LEGACY_PATH)' but is '$(PWD)'"
+	@exit 1
+endif
+
 .PHONY: gogen
-gogen:
+gogen: ensure-gopath
 	export GO111MODULE=off
 	go generate ./util/argo/...
 
 .PHONY: protogen
-protogen:
+protogen: ensure-gopath
 	export GO111MODULE=off
 	./hack/generate-proto.sh
 
 .PHONY: openapigen
-openapigen:
+openapigen: ensure-gopath
 	export GO111MODULE=off
 	./hack/update-openapi.sh
 
 .PHONY: clientgen
-clientgen:
+clientgen: ensure-gopath
 	export GO111MODULE=off
 	./hack/update-codegen.sh
 
 .PHONY: clidocsgen
-clidocsgen:
+clidocsgen: ensure-gopath
 	go run tools/cmd-docs/main.go	
 
 .PHONY: codegen-local
-codegen-local: mod-vendor-local gogen protogen clientgen openapigen clidocsgen manifests-local
+codegen-local: ensure-gopath mod-vendor-local gogen protogen clientgen openapigen clidocsgen manifests-local
 	rm -rf vendor/
 
 .PHONY: codegen
@@ -173,11 +198,11 @@ cli: test-tools-image
 
 .PHONY: cli-local
 cli-local: clean-debug
-	CGO_ENABLED=0 ${PACKR_CMD} build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${CLI_NAME} ./cmd/argocd
+	CGO_ENABLED=0 ${PACKR_CMD} build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${CLI_NAME} ./cmd
 
 .PHONY: cli-argocd
 cli-argocd:
-	go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${CLI_NAME} ./cmd/argocd
+	go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${CLI_NAME} ./cmd
 
 .PHONY: release-cli
 release-cli: clean-debug image
@@ -190,7 +215,7 @@ release-cli: clean-debug image
 .PHONY: argocd-util
 argocd-util: clean-debug
 	# Build argocd-util as a statically linked binary, so it could run within the alpine-based dex container (argoproj/argo-cd#844)
-	CGO_ENABLED=0 ${PACKR_CMD} build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-util ./cmd/argocd-util
+	CGO_ENABLED=0 ${PACKR_CMD} build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${UTIL_CLI_NAME} ./cmd
 
 # .PHONY: dev-tools-image
 # dev-tools-image:
@@ -210,20 +235,24 @@ manifests-local:
 manifests: test-tools-image
 	$(call run-in-test-client,make manifests-local IMAGE_NAMESPACE='${IMAGE_NAMESPACE}' IMAGE_TAG='${IMAGE_TAG}')
 
+# consolidated binary for cli, util, server, repo-server, controller
+.PHONY: argocd-all
+argocd-all: clean-debug
+	CGO_ENABLED=0 ${PACKR_CMD} build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${BIN_NAME} ./cmd
 
 # NOTE: we use packr to do the build instead of go, since we embed swagger files and policy.csv
 # files into the go binary
 .PHONY: server
 server: clean-debug
-	CGO_ENABLED=0 ${PACKR_CMD} build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-server ./cmd/argocd-server
+	CGO_ENABLED=0 ${PACKR_CMD} build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-server ./cmd
 
 .PHONY: repo-server
 repo-server:
-	CGO_ENABLED=0 ${PACKR_CMD} build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-repo-server ./cmd/argocd-repo-server
+	CGO_ENABLED=0 ${PACKR_CMD} build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-repo-server ./cmd
 
 .PHONY: controller
 controller:
-	CGO_ENABLED=0 ${PACKR_CMD} build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-application-controller ./cmd/argocd-application-controller
+	CGO_ENABLED=0 ${PACKR_CMD} build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-application-controller ./cmd
 
 .PHONY: packr
 packr:
@@ -238,13 +267,16 @@ IMAGE_TAG="dev-$(shell git describe --always --dirty)"
 image: packr
 	docker build -t argocd-base --target argocd-base .
 	docker build -t argocd-ui --target argocd-ui .
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 dist/packr build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-server ./cmd/argocd-server
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 dist/packr build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-application-controller ./cmd/argocd-application-controller
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 dist/packr build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-repo-server ./cmd/argocd-repo-server
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 dist/packr build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-util ./cmd/argocd-util
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 dist/packr build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd ./cmd/argocd
-	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 dist/packr build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-darwin-amd64 ./cmd/argocd
-	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 dist/packr build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-windows-amd64.exe ./cmd/argocd
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 dist/packr build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd ./cmd
+	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 dist/packr build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-darwin-amd64 ./cmd
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 dist/packr build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-windows-amd64.exe ./cmd
+	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-server
+	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-application-controller
+	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-repo-server
+	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-dex
+	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-util
+	ln -sfn ${DIST_DIR}/argocd-darwin-amd64 ${DIST_DIR}/argocd-util-darwin-amd64
+	ln -sfn ${DIST_DIR}/argocd-windows-amd64.exe ${DIST_DIR}/argocd-util-windows-amd64.exe
 	cp Dockerfile.dev dist
 	docker build -t $(IMAGE_PREFIX)argocd:$(IMAGE_TAG) -f dist/Dockerfile.dev dist
 else
@@ -335,10 +367,24 @@ test-local:
 		./hack/test.sh -coverprofile=coverage.out "$(TEST_MODULE)"; \
 	fi
 
+.PHONY: test-race
+test-race: test-tools-image
+	mkdir -p $(GOCACHE)
+	$(call run-in-test-client,make TEST_MODULE=$(TEST_MODULE) test-race-local)
+
+# Run all unit tests, with data race detection, skipping known failures (local version)
+.PHONY: test-race-local
+test-race-local:
+	if test "$(TEST_MODULE)" = ""; then \
+		./hack/test.sh -race -coverprofile=coverage.out `go list ./... | grep -v 'test/e2e'`; \
+	else \
+		./hack/test.sh -race -coverprofile=coverage.out "$(TEST_MODULE)"; \
+	fi
+
 # Run the E2E test suite. E2E test servers (see start-e2e target) must be
 # started before.
 .PHONY: test-e2e
-test-e2e: 
+test-e2e:
 	$(call exec-in-test-server,make test-e2e-local)
 
 # Run the E2E test suite (local version)
@@ -365,7 +411,7 @@ start-e2e: test-tools-image
 
 # Starts e2e server locally (or within a container)
 .PHONY: start-e2e-local
-start-e2e-local: 
+start-e2e-local:
 	kubectl create ns argocd-e2e || true
 	kubectl config set-context --current --namespace=argocd-e2e
 	kustomize build test/manifests/base | kubectl apply -f -
@@ -383,7 +429,7 @@ start-e2e-local:
 	ARGOCD_ZJWT_FEATURE_FLAG=always \
 	ARGOCD_IN_CI=$(ARGOCD_IN_CI) \
 	ARGOCD_E2E_TEST=true \
-		goreman -f $(ARGOCD_PROCFILE) start
+		goreman -f $(ARGOCD_PROCFILE) start ${ARGOCD_START}
 
 # Cleans VSCode debug.test files from sub-dirs to prevent them from being included in packr boxes
 .PHONY: clean-debug
@@ -401,7 +447,7 @@ start: test-tools-image
 
 # Starts a local instance of ArgoCD
 .PHONY: start-local
-start-local: mod-vendor-local
+start-local: mod-vendor-local dep-ui-local
 	# check we can connect to Docker to start Redis
 	killall goreman || true
 	kubectl create ns argocd || true
@@ -470,7 +516,6 @@ install-tools-local: install-test-tools-local install-codegen-tools-local instal
 .PHONY: install-test-tools-local
 install-test-tools-local:
 	sudo ./hack/install.sh packr-linux
-	sudo ./hack/install.sh kubectl-linux
 	sudo ./hack/install.sh kustomize-linux
 	sudo ./hack/install.sh ksonnet-linux
 	sudo ./hack/install.sh helm2-linux

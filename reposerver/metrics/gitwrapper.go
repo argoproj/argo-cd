@@ -16,11 +16,11 @@ func WrapGitClient(repo string, metricsServer *MetricsServer, client git.Client)
 	return &gitClientWrapper{repo: repo, client: client, metricsServer: metricsServer}
 }
 
-func (w *gitClientWrapper) Fetch() error {
+func (w *gitClientWrapper) Fetch(revision string) error {
 	startTime := time.Now()
 	w.metricsServer.IncGitRequest(w.repo, GitRequestTypeFetch)
 	defer w.metricsServer.ObserveGitRequestDuration(w.repo, GitRequestTypeFetch, time.Since(startTime))
-	return w.client.Fetch()
+	return w.client.Fetch(revision)
 }
 
 func (w *gitClientWrapper) LsRemote(revision string) (string, error) {
@@ -29,9 +29,13 @@ func (w *gitClientWrapper) LsRemote(revision string) (string, error) {
 	if sha != revision {
 		// This is true only if specified revision is a tag, branch or HEAD and client had to use 'ls-remote'
 		w.metricsServer.IncGitRequest(w.repo, GitRequestTypeLsRemote)
-		defer w.metricsServer.ObserveGitRequestDuration(w.repo, GitRequestTypeFetch, time.Since(startTime))
+		defer w.metricsServer.ObserveGitRequestDuration(w.repo, GitRequestTypeLsRemote, time.Since(startTime))
 	}
 	return sha, err
+}
+
+func (w *gitClientWrapper) LsRefs() (*git.Refs, error) {
+	return w.client.LsRefs()
 }
 
 func (w *gitClientWrapper) LsFiles(path string) ([]string, error) {

@@ -2,10 +2,6 @@
 
 Get the details of a specific role
 
-### Synopsis
-
-Get the details of a specific role
-
 ```
 argocd proj role get PROJECT ROLE-NAME [flags]
 ```

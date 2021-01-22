@@ -1,11 +1,9 @@
 package version
 
 import (
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/golang/protobuf/ptypes/empty"
-	"golang.org/x/net/context"
-
 	"github.com/google/go-jsonnet"
+	"golang.org/x/net/context"
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apiclient/version"
@@ -18,7 +16,6 @@ type Server struct {
 	ksonnetVersion   string
 	kustomizeVersion string
 	helmVersion      string
-	kubectlVersion   string
 	jsonnetVersion   string
 }
 
@@ -49,14 +46,6 @@ func (s *Server) Version(context.Context, *empty.Empty) (*version.VersionMessage
 			s.helmVersion = err.Error()
 		}
 	}
-	if s.kubectlVersion == "" {
-		kubectlVersion, err := kube.Version()
-		if err == nil {
-			s.kubectlVersion = kubectlVersion
-		} else {
-			s.kubectlVersion = err.Error()
-		}
-	}
 	s.jsonnetVersion = jsonnet.Version()
 	return &version.VersionMessage{
 		Version:          vers.Version,
@@ -70,7 +59,6 @@ func (s *Server) Version(context.Context, *empty.Empty) (*version.VersionMessage
 		KsonnetVersion:   s.ksonnetVersion,
 		KustomizeVersion: s.kustomizeVersion,
 		HelmVersion:      s.helmVersion,
-		KubectlVersion:   s.kubectlVersion,
 		JsonnetVersion:   s.jsonnetVersion,
 	}, nil
 }

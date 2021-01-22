@@ -11,10 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/errors"
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/coreos/go-oidc"
-	"github.com/dgrijalva/jwt-go"
+	"github.com/dgrijalva/jwt-go/v4"
 	log "github.com/sirupsen/logrus"
 	"github.com/skratchdot/open-golang/open"
 	"github.com/spf13/cobra"
@@ -24,7 +22,10 @@ import (
 	sessionpkg "github.com/argoproj/argo-cd/pkg/apiclient/session"
 	settingspkg "github.com/argoproj/argo-cd/pkg/apiclient/settings"
 	"github.com/argoproj/argo-cd/util/cli"
+	"github.com/argoproj/argo-cd/util/errors"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
+	"github.com/argoproj/argo-cd/util/io"
+	jwtutil "github.com/argoproj/argo-cd/util/jwt"
 	"github.com/argoproj/argo-cd/util/localconfig"
 	oidcutil "github.com/argoproj/argo-cd/util/oidc"
 	"github.com/argoproj/argo-cd/util/rand"
@@ -82,6 +83,7 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 				GRPCWebRootPath:      globalClientOpts.GRPCWebRootPath,
 				PortForward:          globalClientOpts.PortForward,
 				PortForwardNamespace: globalClientOpts.PortForwardNamespace,
+				Headers:              globalClientOpts.Headers,
 			}
 			acdClient := argocdclient.NewClientOrDie(&clientOpts)
 			setConn, setIf := acdClient.NewSettingsClientOrDie()
@@ -113,7 +115,7 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 			}
 
 			parser := &jwt.Parser{
-				SkipClaimsValidation: true,
+				ValidationHelper: jwt.NewValidationHelper(jwt.WithoutClaimsValidation()),
 			}
 			claims := jwt.MapClaims{}
 			_, _, err := parser.ParseUnverified(tokenString, &claims)
@@ -161,13 +163,13 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 }
 
 func userDisplayName(claims jwt.MapClaims) string {
-	if email, ok := claims["email"]; ok && email != nil {
-		return email.(string)
+	if email := jwtutil.StringField(claims, "email"); email != "" {
+		return email
 	}
-	if name, ok := claims["name"]; ok && name != nil {
-		return name.(string)
+	if name := jwtutil.StringField(claims, "name"); name != "" {
+		return name
 	}
-	return claims["sub"].(string)
+	return jwtutil.StringField(claims, "sub")
 }
 
 // oauth2Login opens a browser, runs a temporary HTTP server to delegate OAuth2 login flow and

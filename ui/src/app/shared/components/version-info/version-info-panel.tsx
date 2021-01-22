@@ -46,6 +46,7 @@ export class VersionPanel extends React.Component<VersionPanelProps, {copyState:
             'Compiler': version.Compiler,
             'Platform': version.Platform,
             'ksonnet': version.KsonnetVersion,
+            'jsonnet': version.JsonnetVersion,
             'kustomize': version.KustomizeVersion,
             'Helm': version.HelmVersion,
             'kubectl': version.KubectlVersion

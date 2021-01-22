@@ -101,7 +101,7 @@ func (db *db) ListClusters(ctx context.Context) (*appv1.ClusterList, error) {
 
 // CreateCluster creates a cluster
 func (db *db) CreateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Cluster, error) {
-	secName, err := serverToSecretName(c.Server)
+	secName, err := ServerToSecretName(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -268,7 +268,7 @@ func (db *db) DeleteCluster(ctx context.Context, server string) error {
 
 // serverToSecretName hashes server address to the secret name using a formula.
 // Part of the server address is incorporated for debugging purposes
-func serverToSecretName(server string) (string, error) {
+func ServerToSecretName(server string) (string, error) {
 	serverURL, err := url.ParseRequestURI(server)
 	if err != nil {
 		return "", err

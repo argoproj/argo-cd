@@ -28,6 +28,11 @@ message ApplicationQuery {
 	optional string selector = 5 [(gogoproto.nullable) = false];
 }
 
+message NodeQuery {
+	// the application's name
+	optional string name = 1;
+}
+
 message RevisionMetadataQuery{
 	// the application's name
 	required string name = 1;
@@ -163,6 +168,7 @@ message ApplicationPodLogsQuery {
 message LogEntry {
 	required string content = 1 [(gogoproto.nullable) = false];
 	required k8s.io.apimachinery.pkg.apis.meta.v1.Time timeStamp = 2 [(gogoproto.nullable) = false];
+	required bool last = 3 [(gogoproto.nullable) = false];
 }
 
 message OperationTerminateRequest {
@@ -235,7 +241,7 @@ service ApplicationService {
 		option (google.api.http).get = "/api/v1/applications/{name}";
 	}
 
-	// Get returns an application by name
+	// Get returns sync windows of the application
 	rpc GetApplicationSyncWindows (ApplicationSyncWindowsQuery) returns (ApplicationSyncWindowsResponse) {
 		option (google.api.http).get = "/api/v1/applications/{name}/syncwindows";
 	}

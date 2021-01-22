@@ -11,8 +11,8 @@ import (
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	appclient "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/typed/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/cli"
+	"github.com/argoproj/argo-cd/util/errors"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/spf13/cobra"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -21,13 +21,15 @@ import (
 
 func NewProjectsCommand() *cobra.Command {
 	var command = &cobra.Command{
-		Use: "projects",
+		Use:   "projects",
+		Short: "Utility commands operate on ArgoCD Projects",
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 		},
 	}
 
 	command.AddCommand(NewUpdatePolicyRuleCommand())
+	command.AddCommand(NewProjectAllowListGenCommand())
 	return command
 }
 

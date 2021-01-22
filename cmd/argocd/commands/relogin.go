@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/errors"
-	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/coreos/go-oidc"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	settingspkg "github.com/argoproj/argo-cd/pkg/apiclient/settings"
+	"github.com/argoproj/argo-cd/util/errors"
+	argoio "github.com/argoproj/argo-cd/util/io"
 	"github.com/argoproj/argo-cd/util/localconfig"
 	"github.com/argoproj/argo-cd/util/session"
 )
@@ -49,6 +49,7 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 				GRPCWeb:         globalClientOpts.GRPCWeb,
 				GRPCWebRootPath: globalClientOpts.GRPCWebRootPath,
 				PlainText:       configCtx.Server.PlainText,
+				Headers:         globalClientOpts.Headers,
 			}
 			acdClient := argocdclient.NewClientOrDie(&clientOpts)
 			claims, err := configCtx.User.Claims()

@@ -15,8 +15,6 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
-	. "github.com/argoproj/gitops-engine/pkg/utils/errors"
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -37,6 +35,8 @@ import (
 	. "github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
 	. "github.com/argoproj/argo-cd/util/argo"
+	. "github.com/argoproj/argo-cd/util/errors"
+	"github.com/argoproj/argo-cd/util/io"
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
@@ -459,6 +459,20 @@ func TestAppWithSecrets(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			diffOutput := FailOnErr(RunCli("app", "diff", app.Name)).(string)
+			assert.Empty(t, diffOutput)
+		}).
+		// verify not committed secret also ignore during diffing
+		When().
+		WriteFile("secret3.yaml", `
+apiVersion: v1
+kind: Secret
+metadata:
+  name: test-secret3
+stringData:
+  username: test-username`).
+		Then().
+		And(func(app *Application) {
+			diffOutput := FailOnErr(RunCli("app", "diff", app.Name, "--local", "testdata/secrets")).(string)
 			assert.Empty(t, diffOutput)
 		})
 }
@@ -1356,10 +1370,11 @@ func TestNamespaceAutoCreation(t *testing.T) {
 
 func TestFailedSyncWithRetry(t *testing.T) {
 	Given(t).
-		Path(guestbookPath).
+		Path("hook").
 		When().
-		// app should be attempted to auto-synced once and marked with error after failed attempt detected
-		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": "badValue"}]`).
+		PatchFile("hook.yaml", `[{"op": "replace", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/hook": "PreSync"}}]`).
+		// make hook fail
+		PatchFile("hook.yaml", `[{"op": "replace", "path": "/spec/containers/0/command", "value": ["false"]}]`).
 		Create().
 		IgnoreErrors().
 		Sync("--retry-limit=1", "--retry-backoff-duration=1s").
@@ -1386,21 +1401,119 @@ func TestCreateDisableValidation(t *testing.T) {
 
 func TestCreateFromPartialFile(t *testing.T) {
 	partialApp :=
-		`spec:
+		`metadata:
+  labels:
+    labels.local/from-file: file
+    labels.local/from-args: file
+  annotations:
+    annotations.local/from-file: file
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+spec:
   syncPolicy:
-    automated: {prune: true }`
+    automated:
+      prune: true
+`
 
 	path := "helm-values"
 	Given(t).
 		When().
 		// app should be auto-synced once created
-		CreateFromPartialFile(partialApp, "--path", path, "--helm-set", "foo=foo").
+		CreateFromPartialFile(partialApp, "--path", path, "-l", "labels.local/from-args=args", "--helm-set", "foo=foo").
 		Then().
 		Expect(Success("")).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(NoConditions()).
 		And(func(app *Application) {
+			assert.Equal(t, map[string]string{"labels.local/from-file": "file", "labels.local/from-args": "args"}, app.ObjectMeta.Labels)
+			assert.Equal(t, map[string]string{"annotations.local/from-file": "file"}, app.ObjectMeta.Annotations)
+			assert.Equal(t, []string{"resources-finalizer.argocd.argoproj.io"}, app.ObjectMeta.Finalizers)
 			assert.Equal(t, path, app.Spec.Source.Path)
 			assert.Equal(t, []HelmParameter{{Name: "foo", Value: "foo"}}, app.Spec.Source.Helm.Parameters)
+		})
+}
+
+// Ensure actions work when using a resource action that modifies status and/or spec
+func TestCRDStatusSubresourceAction(t *testing.T) {
+	actions := `
+discovery.lua: |
+  actions = {}
+  actions["update-spec"] = {["disabled"] = false}
+  actions["update-status"] = {["disabled"] = false}
+  actions["update-both"] = {["disabled"] = false}
+  return actions
+definitions:
+- name: update-both
+  action.lua: |
+    obj.spec = {}
+    obj.spec.foo = "update-both"
+    obj.status = {}
+    obj.status.bar = "update-both"
+    return obj
+- name: update-spec
+  action.lua: |
+    obj.spec = {}
+    obj.spec.foo = "update-spec"
+    return obj
+- name: update-status
+  action.lua: |
+    obj.status = {}
+    obj.status.bar = "update-status"
+    return obj
+`
+	Given(t).
+		Path("crd-subresource").
+		And(func() {
+			SetResourceOverrides(map[string]ResourceOverride{
+				"argoproj.io/StatusSubResource": {
+					Actions: actions,
+				},
+				"argoproj.io/NonStatusSubResource": {
+					Actions: actions,
+				},
+			})
+		}).
+		When().Create().Sync().Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		Refresh(RefreshTypeNormal).
+		Then().
+		// tests resource actions on a CRD using status subresource
+		And(func(app *Application) {
+			_, err := RunCli("app", "actions", "run", app.Name, "--kind", "StatusSubResource", "update-both")
+			assert.NoError(t, err)
+			text := FailOnErr(Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "statussubresources", "status-subresource", "-o", "jsonpath={.spec.foo}")).(string)
+			assert.Equal(t, "update-both", text)
+			text = FailOnErr(Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "statussubresources", "status-subresource", "-o", "jsonpath={.status.bar}")).(string)
+			assert.Equal(t, "update-both", text)
+
+			_, err = RunCli("app", "actions", "run", app.Name, "--kind", "StatusSubResource", "update-spec")
+			assert.NoError(t, err)
+			text = FailOnErr(Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "statussubresources", "status-subresource", "-o", "jsonpath={.spec.foo}")).(string)
+			assert.Equal(t, "update-spec", text)
+
+			_, err = RunCli("app", "actions", "run", app.Name, "--kind", "StatusSubResource", "update-status")
+			assert.NoError(t, err)
+			text = FailOnErr(Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "statussubresources", "status-subresource", "-o", "jsonpath={.status.bar}")).(string)
+			assert.Equal(t, "update-status", text)
+		}).
+		// tests resource actions on a CRD *not* using status subresource
+		And(func(app *Application) {
+			_, err := RunCli("app", "actions", "run", app.Name, "--kind", "NonStatusSubResource", "update-both")
+			assert.NoError(t, err)
+			text := FailOnErr(Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "nonstatussubresources", "non-status-subresource", "-o", "jsonpath={.spec.foo}")).(string)
+			assert.Equal(t, "update-both", text)
+			text = FailOnErr(Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "nonstatussubresources", "non-status-subresource", "-o", "jsonpath={.status.bar}")).(string)
+			assert.Equal(t, "update-both", text)
+
+			_, err = RunCli("app", "actions", "run", app.Name, "--kind", "NonStatusSubResource", "update-spec")
+			assert.NoError(t, err)
+			text = FailOnErr(Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "nonstatussubresources", "non-status-subresource", "-o", "jsonpath={.spec.foo}")).(string)
+			assert.Equal(t, "update-spec", text)
+
+			_, err = RunCli("app", "actions", "run", app.Name, "--kind", "NonStatusSubResource", "update-status")
+			assert.NoError(t, err)
+			text = FailOnErr(Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "nonstatussubresources", "non-status-subresource", "-o", "jsonpath={.status.bar}")).(string)
+			assert.Equal(t, "update-status", text)
 		})
 }

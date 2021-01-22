@@ -12,7 +12,6 @@ import (
 	hookutil "github.com/argoproj/gitops-engine/pkg/sync/hook"
 	"github.com/argoproj/gitops-engine/pkg/sync/ignore"
 	resourceutil "github.com/argoproj/gitops-engine/pkg/sync/resource"
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	kubeutil "github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,6 +31,7 @@ import (
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/gpg"
 	argohealth "github.com/argoproj/argo-cd/util/health"
+	"github.com/argoproj/argo-cd/util/io"
 	"github.com/argoproj/argo-cd/util/settings"
 	"github.com/argoproj/argo-cd/util/stats"
 )
@@ -160,7 +160,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		Revision:          revision,
 		NoCache:           noCache,
 		AppLabelKey:       appLabelKey,
-		AppLabelValue:     app.Name,
+		AppName:           app.Name,
 		Namespace:         app.Spec.Destination.Namespace,
 		ApplicationSource: &source,
 		Plugins:           tools,
@@ -413,7 +413,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 			if appInstanceName != "" && appInstanceName != app.Name {
 				conditions = append(conditions, v1alpha1.ApplicationCondition{
 					Type:               v1alpha1.ApplicationConditionSharedResourceWarning,
-					Message:            fmt.Sprintf("%s/%s is part of a different application: %s", liveObj.GetKind(), liveObj.GetName(), appInstanceName),
+					Message:            fmt.Sprintf("%s/%s is part of applications %s and %s", liveObj.GetKind(), liveObj.GetName(), app.Name, appInstanceName),
 					LastTransitionTime: &now,
 				})
 			}
@@ -426,12 +426,15 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	compareOptions, err := m.settingsMgr.GetResourceCompareOptions()
 	if err != nil {
 		log.Warnf("Could not get compare options from ConfigMap (assuming defaults): %v", err)
-		compareOptions = diff.GetDefaultDiffOptions()
+		compareOptions = settings.GetDefaultDiffOptions()
 	}
 
 	logCtx.Debugf("built managed objects list")
 	// Do the actual comparison
-	diffResults, err := diff.DiffArray(reconciliation.Target, reconciliation.Live, diffNormalizer, compareOptions)
+	diffResults, err := diff.DiffArray(
+		reconciliation.Target, reconciliation.Live,
+		diff.WithNormalizer(diffNormalizer),
+		diff.IgnoreAggregatedRoles(compareOptions.IgnoreAggregatedRoles))
 	if err != nil {
 		diffResults = &diff.DiffResultList{}
 		failedToLoadObjs = true

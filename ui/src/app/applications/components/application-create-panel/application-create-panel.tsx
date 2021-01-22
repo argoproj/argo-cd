@@ -7,6 +7,7 @@ import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ApplicationParameters} from '../application-parameters/application-parameters';
 import {ApplicationSyncOptionsField} from '../application-sync-options';
+import {RevisionFormField} from '../revision-form-field/revision-form-field';
 
 const jsonMergePatch = require('json-merge-patch');
 
@@ -174,25 +175,48 @@ export const ApplicationCreatePanel = (props: {
                                         const generalPanel = () => (
                                             <div className='white-box'>
                                                 <p>GENERAL</p>
+                                                {/*
+                                                    Need to specify "type='button'" because the default type 'submit'
+                                                    will activate yaml mode whenever enter is pressed while in the panel.
+                                                    This causes problems with some entry fields that require enter to be
+                                                    pressed for the value to be accepted.
+
+                                                    See https://github.com/argoproj/argo-cd/issues/4576
+                                                */}
                                                 {!yamlMode && (
-                                                    <button className='argo-button argo-button--base application-create-panel__yaml-button' onClick={() => setYamlMode(true)}>
+                                                    <button
+                                                        type='button'
+                                                        className='argo-button argo-button--base application-create-panel__yaml-button'
+                                                        onClick={() => setYamlMode(true)}>
                                                         Edit as YAML
                                                     </button>
                                                 )}
                                                 <div className='argo-form-row'>
-                                                    <FormField formApi={api} label='Application Name' field='metadata.name' component={Text} />
+                                                    <FormField
+                                                        formApi={api}
+                                                        label='Application Name'
+                                                        qeId='application-create-field-app-name'
+                                                        field='metadata.name'
+                                                        component={Text}
+                                                    />
                                                 </div>
                                                 <div className='argo-form-row'>
                                                     <FormField
                                                         formApi={api}
                                                         label='Project'
+                                                        qeId='application-create-field-project'
                                                         field='spec.project'
                                                         component={AutocompleteField}
                                                         componentProps={{items: projects}}
                                                     />
                                                 </div>
                                                 <div className='argo-form-row'>
-                                                    <FormField formApi={api} field='spec.syncPolicy.automated' component={AutoSyncFormField} />
+                                                    <FormField
+                                                        formApi={api}
+                                                        field='spec.syncPolicy.automated'
+                                                        qeId='application-create-field-sync-policy'
+                                                        component={AutoSyncFormField}
+                                                    />
                                                 </div>
                                                 <div className='argo-form-row'>
                                                     <label>Sync Options</label>
@@ -210,6 +234,7 @@ export const ApplicationCreatePanel = (props: {
                                                         <FormField
                                                             formApi={api}
                                                             label='Repository URL'
+                                                            qeId='application-create-field-repository-url'
                                                             field='spec.source.repoURL'
                                                             component={AutocompleteField}
                                                             componentProps={{items: repos}}
@@ -228,6 +253,7 @@ export const ApplicationCreatePanel = (props: {
                                                                             {repoType.toUpperCase()} <i className='fa fa-caret-down' />
                                                                         </p>
                                                                     )}
+                                                                    qeId='application-create-dropdown-source-repository'
                                                                     items={['git', 'helm'].map((type: 'git' | 'helm') => ({
                                                                         title: type.toUpperCase(),
                                                                         action: () => {
@@ -246,10 +272,7 @@ export const ApplicationCreatePanel = (props: {
                                                 </div>
                                                 {(repoType === 'git' && (
                                                     <React.Fragment>
-                                                        <div className='argo-form-row'>
-                                                            <FormField formApi={api} label='Revision' field='spec.source.targetRevision' component={Text} />
-                                                            <RevisionHelpIcon type='git' />
-                                                        </div>
+                                                        <RevisionFormField formApi={api} helpIconTop={'2.5em'} repoURL={app.spec.source.repoURL} />
                                                         <div className='argo-form-row'>
                                                             <DataLoader
                                                                 input={{repoURL: app.spec.source.repoURL, revision: app.spec.source.targetRevision}}
@@ -265,6 +288,7 @@ export const ApplicationCreatePanel = (props: {
                                                                     <FormField
                                                                         formApi={api}
                                                                         label='Path'
+                                                                        qeId='application-create-field-path'
                                                                         field='spec.source.path'
                                                                         component={AutocompleteField}
                                                                         componentProps={{
@@ -326,6 +350,7 @@ export const ApplicationCreatePanel = (props: {
                                                             <FormField
                                                                 formApi={api}
                                                                 label='Cluster URL'
+                                                                qeId='application-create-field-cluster-url'
                                                                 field='spec.destination.server'
                                                                 componentProps={{items: clusters.map(cluster => cluster.server)}}
                                                                 component={AutocompleteField}
@@ -336,6 +361,7 @@ export const ApplicationCreatePanel = (props: {
                                                             <FormField
                                                                 formApi={api}
                                                                 label='Cluster Name'
+                                                                qeId='application-create-field-cluster-name'
                                                                 field='spec.destination.name'
                                                                 componentProps={{items: clusters.map(cluster => cluster.name)}}
                                                                 component={AutocompleteField}
@@ -350,6 +376,7 @@ export const ApplicationCreatePanel = (props: {
                                                                         {destFormat} <i className='fa fa-caret-down' />
                                                                     </p>
                                                                 )}
+                                                                qeId='application-create-dropdown-destination'
                                                                 items={['URL', 'NAME'].map((type: 'URL' | 'NAME') => ({
                                                                     title: type,
                                                                     action: () => {
@@ -370,7 +397,13 @@ export const ApplicationCreatePanel = (props: {
                                                     </div>
                                                 </div>
                                                 <div className='argo-form-row'>
-                                                    <FormField formApi={api} label='Namespace' field='spec.destination.namespace' component={Text} />
+                                                    <FormField
+                                                        qeId='application-create-field-namespace'
+                                                        formApi={api}
+                                                        label='Namespace'
+                                                        field='spec.destination.namespace'
+                                                        component={Text}
+                                                    />
                                                 </div>
                                             </div>
                                         );
@@ -430,6 +463,7 @@ export const ApplicationCreatePanel = (props: {
                                                                         {type} <i className='fa fa-caret-down' />
                                                                     </p>
                                                                 )}
+                                                                qeId='application-create-dropdown-source'
                                                                 items={appTypes.map(item => ({
                                                                     title: item.type,
                                                                     action: () => {

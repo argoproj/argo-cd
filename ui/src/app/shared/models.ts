@@ -319,9 +319,14 @@ export interface LoadBalancerIngress {
     ip: string;
 }
 
+export interface InfoItem {
+    name: string;
+    value: string;
+}
+
 export interface ResourceNode extends ResourceRef {
     parentRefs: ResourceRef[];
-    info: {name: string; value: string}[];
+    info: InfoItem[];
     networkingInfo?: ResourceNetworkingInfo;
     images?: string[];
     resourceVersion: string;
@@ -331,6 +336,7 @@ export interface ResourceNode extends ResourceRef {
 export interface ApplicationTree {
     nodes: ResourceNode[];
     orphanedNodes: ResourceNode[];
+    hosts: Node[];
 }
 
 export interface ResourceID {
@@ -386,6 +392,7 @@ export interface AppProjectStatus {
 export interface LogEntry {
     content: string;
     timeStamp: models.Time;
+    last: boolean;
 }
 
 // describes plugin settings
@@ -475,6 +482,9 @@ export interface Cluster {
         awsAuthConfig?: {
             clusterName: string;
         };
+        execProviderConfig?: {
+            command: string;
+        };
     };
     info?: {
         applicationsCount: number;
@@ -526,6 +536,11 @@ export interface RepoAppDetails {
     kustomize?: KustomizeAppSpec;
     plugin?: PluginAppSpec;
     directory?: {};
+}
+
+export interface RefsInfo {
+    branches: string[];
+    tags: string[];
 }
 
 export interface AppInfo {
@@ -734,7 +749,7 @@ export interface GnuPGPublicKeyList extends ItemsList<GnuPGPublicKey> {}
 // https://kubernetes.io/docs/reference/kubectl/overview/#resource-types
 
 export const ResourceKinds = [
-    'ANY',
+    '*',
     'Binding',
     'ComponentStatus',
     'ConfigMap',
@@ -806,3 +821,47 @@ export const Groups = [
     'stable.example.com',
     'storage.k8s.io'
 ];
+
+export interface HostResourceInfo {
+    resourceName: ResourceName;
+    requestedByApp: number;
+    requestedByNeighbors: number;
+    capacity: number;
+}
+
+export interface Node {
+    name: string;
+    systemInfo: NodeSystemInfo;
+    resourcesInfo: HostResourceInfo[];
+}
+
+export interface NodeSystemInfo {
+    architecture: string;
+    operatingSystem: string;
+    kernelVersion: string;
+}
+
+export enum ResourceName {
+    ResourceCPU = 'cpu',
+    ResourceMemory = 'memory',
+    ResourceStorage = 'storage'
+}
+
+export interface Pod extends ResourceNode {
+    fullName: string;
+    metadata: models.ObjectMeta;
+    spec: PodSpec;
+    health: HealthStatusCode;
+}
+
+export interface PodSpec {
+    nodeName: string;
+}
+
+export enum PodPhase {
+    PodPending = 'Pending',
+    PodRunning = 'Running',
+    PodSucceeded = 'Succeeded',
+    PodFailed = 'Failed',
+    PodUnknown = 'Unknown'
+}

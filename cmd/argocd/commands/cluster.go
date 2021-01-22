@@ -3,25 +3,23 @@ package commands
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
-	"sort"
 	"strings"
 	"text/tabwriter"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/errors"
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
+	cmdutil "github.com/argoproj/argo-cd/cmd/util"
 	"github.com/argoproj/argo-cd/common"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	clusterpkg "github.com/argoproj/argo-cd/pkg/apiclient/cluster"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/clusterauth"
+	"github.com/argoproj/argo-cd/util/errors"
+	"github.com/argoproj/argo-cd/util/io"
 )
 
 // NewClusterCommand returns a new instance of an `argocd cluster` command
@@ -58,15 +56,7 @@ func NewClusterCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientc
 // NewClusterAddCommand returns a new instance of an `argocd cluster add` command
 func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientcmd.PathOptions) *cobra.Command {
 	var (
-		inCluster       bool
-		upsert          bool
-		serviceAccount  string
-		awsRoleArn      string
-		awsClusterName  string
-		systemNamespace string
-		namespaces      []string
-		name            string
-		shard           int64
+		clusterOpts cmdutil.ClusterOptions
 	)
 	var command = &cobra.Command{
 		Use:   "add CONTEXT",
@@ -75,7 +65,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			var configAccess clientcmd.ConfigAccess = pathOpts
 			if len(args) == 0 {
 				log.Error("Choose a context name from:")
-				printKubeContexts(configAccess)
+				cmdutil.PrintKubeContexts(configAccess)
 				os.Exit(1)
 			}
 			config, err := configAccess.GetStartingConfig()
@@ -95,37 +85,46 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 
 			managerBearerToken := ""
 			var awsAuthConf *argoappv1.AWSAuthConfig
-			if awsClusterName != "" {
+			var execProviderConf *argoappv1.ExecProviderConfig
+			if clusterOpts.AwsClusterName != "" {
 				awsAuthConf = &argoappv1.AWSAuthConfig{
-					ClusterName: awsClusterName,
-					RoleARN:     awsRoleArn,
+					ClusterName: clusterOpts.AwsClusterName,
+					RoleARN:     clusterOpts.AwsRoleArn,
+				}
+			} else if clusterOpts.ExecProviderCommand != "" {
+				execProviderConf = &argoappv1.ExecProviderConfig{
+					Command:     clusterOpts.ExecProviderCommand,
+					Args:        clusterOpts.ExecProviderArgs,
+					Env:         clusterOpts.ExecProviderEnv,
+					APIVersion:  clusterOpts.ExecProviderAPIVersion,
+					InstallHint: clusterOpts.ExecProviderInstallHint,
 				}
 			} else {
 				// Install RBAC resources for managing the cluster
 				clientset, err := kubernetes.NewForConfig(conf)
 				errors.CheckError(err)
-				if serviceAccount != "" {
-					managerBearerToken, err = clusterauth.GetServiceAccountBearerToken(clientset, systemNamespace, serviceAccount)
+				if clusterOpts.ServiceAccount != "" {
+					managerBearerToken, err = clusterauth.GetServiceAccountBearerToken(clientset, clusterOpts.SystemNamespace, clusterOpts.ServiceAccount)
 				} else {
-					managerBearerToken, err = clusterauth.InstallClusterManagerRBAC(clientset, systemNamespace, namespaces)
+					managerBearerToken, err = clusterauth.InstallClusterManagerRBAC(clientset, clusterOpts.SystemNamespace, clusterOpts.Namespaces)
 				}
 				errors.CheckError(err)
 			}
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
 			defer io.Close(conn)
-			if name != "" {
-				contextName = name
+			if clusterOpts.Name != "" {
+				contextName = clusterOpts.Name
 			}
-			clst := newCluster(contextName, namespaces, conf, managerBearerToken, awsAuthConf)
-			if inCluster {
+			clst := cmdutil.NewCluster(contextName, clusterOpts.Namespaces, conf, managerBearerToken, awsAuthConf, execProviderConf)
+			if clusterOpts.InCluster {
 				clst.Server = common.KubernetesInternalAPIServerAddr
 			}
-			if shard >= 0 {
-				clst.Shard = &shard
+			if clusterOpts.Shard >= 0 {
+				clst.Shard = &clusterOpts.Shard
 			}
 			clstCreateReq := clusterpkg.ClusterCreateRequest{
 				Cluster: clst,
-				Upsert:  upsert,
+				Upsert:  clusterOpts.Upsert,
 			}
 			_, err = clusterIf.Create(context.Background(), &clstCreateReq)
 			errors.CheckError(err)
@@ -133,99 +132,11 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 		},
 	}
 	command.PersistentFlags().StringVar(&pathOpts.LoadingRules.ExplicitPath, pathOpts.ExplicitFileFlag, pathOpts.LoadingRules.ExplicitPath, "use a particular kubeconfig file")
-	command.Flags().BoolVar(&inCluster, "in-cluster", false, "Indicates Argo CD resides inside this cluster and should connect using the internal k8s hostname (kubernetes.default.svc)")
-	command.Flags().BoolVar(&upsert, "upsert", false, "Override an existing cluster with the same name even if the spec differs")
-	command.Flags().StringVar(&serviceAccount, "service-account", "", fmt.Sprintf("System namespace service account to use for kubernetes resource management. If not set then default \"%s\" SA will be created", clusterauth.ArgoCDManagerServiceAccount))
-	command.Flags().StringVar(&awsClusterName, "aws-cluster-name", "", "AWS Cluster name if set then aws cli eks token command will be used to access cluster")
-	command.Flags().StringVar(&awsRoleArn, "aws-role-arn", "", "Optional AWS role arn. If set then AWS IAM Authenticator assume a role to perform cluster operations instead of the default AWS credential provider chain.")
-	command.Flags().StringVar(&systemNamespace, "system-namespace", common.DefaultSystemNamespace, "Use different system namespace")
-	command.Flags().StringArrayVar(&namespaces, "namespace", nil, "List of namespaces which are allowed to manage")
-	command.Flags().StringVar(&name, "name", "", "Overwrite the cluster name")
-	command.Flags().Int64Var(&shard, "shard", -1, "Cluster shard number; inferred from hostname if not set")
+	command.Flags().BoolVar(&clusterOpts.Upsert, "upsert", false, "Override an existing cluster with the same name even if the spec differs")
+	command.Flags().StringVar(&clusterOpts.ServiceAccount, "service-account", "", fmt.Sprintf("System namespace service account to use for kubernetes resource management. If not set then default \"%s\" SA will be created", clusterauth.ArgoCDManagerServiceAccount))
+	command.Flags().StringVar(&clusterOpts.SystemNamespace, "system-namespace", common.DefaultSystemNamespace, "Use different system namespace")
+	cmdutil.AddClusterFlags(command, &clusterOpts)
 	return command
-}
-
-func printKubeContexts(ca clientcmd.ConfigAccess) {
-	config, err := ca.GetStartingConfig()
-	errors.CheckError(err)
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	defer func() { _ = w.Flush() }()
-	columnNames := []string{"CURRENT", "NAME", "CLUSTER", "SERVER"}
-	_, err = fmt.Fprintf(w, "%s\n", strings.Join(columnNames, "\t"))
-	errors.CheckError(err)
-
-	// sort names so output is deterministic
-	contextNames := make([]string, 0)
-	for name := range config.Contexts {
-		contextNames = append(contextNames, name)
-	}
-	sort.Strings(contextNames)
-
-	if config.Clusters == nil {
-		return
-	}
-
-	for _, name := range contextNames {
-		// ignore malformed kube config entries
-		context := config.Contexts[name]
-		if context == nil {
-			continue
-		}
-		cluster := config.Clusters[context.Cluster]
-		if cluster == nil {
-			continue
-		}
-		prefix := " "
-		if config.CurrentContext == name {
-			prefix = "*"
-		}
-		_, err := fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", prefix, name, context.Cluster, cluster.Server)
-		errors.CheckError(err)
-	}
-}
-
-func newCluster(name string, namespaces []string, conf *rest.Config, managerBearerToken string, awsAuthConf *argoappv1.AWSAuthConfig) *argoappv1.Cluster {
-	tlsClientConfig := argoappv1.TLSClientConfig{
-		Insecure:   conf.TLSClientConfig.Insecure,
-		ServerName: conf.TLSClientConfig.ServerName,
-		CAData:     conf.TLSClientConfig.CAData,
-		CertData:   conf.TLSClientConfig.CertData,
-		KeyData:    conf.TLSClientConfig.KeyData,
-	}
-	if len(conf.TLSClientConfig.CAData) == 0 && conf.TLSClientConfig.CAFile != "" {
-		data, err := ioutil.ReadFile(conf.TLSClientConfig.CAFile)
-		errors.CheckError(err)
-		tlsClientConfig.CAData = data
-	}
-	if len(conf.TLSClientConfig.CertData) == 0 && conf.TLSClientConfig.CertFile != "" {
-		data, err := ioutil.ReadFile(conf.TLSClientConfig.CertFile)
-		errors.CheckError(err)
-		tlsClientConfig.CertData = data
-	}
-	if len(conf.TLSClientConfig.KeyData) == 0 && conf.TLSClientConfig.KeyFile != "" {
-		data, err := ioutil.ReadFile(conf.TLSClientConfig.KeyFile)
-		errors.CheckError(err)
-		tlsClientConfig.KeyData = data
-	}
-
-	clst := argoappv1.Cluster{
-		Server:     conf.Host,
-		Name:       name,
-		Namespaces: namespaces,
-		Config: argoappv1.ClusterConfig{
-			TLSClientConfig: tlsClientConfig,
-			AWSAuthConfig:   awsAuthConf,
-		},
-	}
-
-	// Bearer token will preferentially be used for auth if present,
-	// Even in presence of key/cert credentials
-	// So set bearer token only if the key/cert data is absent
-	if len(tlsClientConfig.CertData) == 0 || len(tlsClientConfig.KeyData) == 0 {
-		clst.Config.BearerToken = managerBearerToken
-	}
-
-	return &clst
 }
 
 // NewClusterGetCommand returns a new instance of an `argocd cluster get` command
@@ -323,6 +234,7 @@ func NewClusterRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 				// errors.CheckError(err)
 				_, err := clusterIf.Delete(context.Background(), &clusterpkg.ClusterQuery{Server: clusterName})
 				errors.CheckError(err)
+				fmt.Printf("Cluster '%s' removed\n", clusterName)
 			}
 		},
 	}

@@ -6,7 +6,7 @@ import {RouteComponentProps} from 'react-router';
 import {Observable} from 'rxjs';
 
 import {ClusterCtx, DataLoader, EmptyState, ObservableQuery, Page, Paginate, Query, Spinner} from '../../../shared/components';
-import {Consumer} from '../../../shared/context';
+import {Consumer, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {AppsListPreferences, AppsListViewType, services} from '../../../shared/services';
 import {ApplicationCreatePanel} from '../application-create-panel/application-create-panel';
@@ -143,7 +143,7 @@ function filterApps(applications: models.Application[], pref: AppsListPreference
             (pref.syncFilter.length === 0 || pref.syncFilter.includes(app.status.sync.status)) &&
             (pref.healthFilter.length === 0 || pref.healthFilter.includes(app.status.health.status)) &&
             (pref.namespacesFilter.length === 0 || pref.namespacesFilter.some(ns => app.spec.destination.namespace && minimatch(app.spec.destination.namespace, ns))) &&
-            (pref.clustersFilter.length === 0 || pref.clustersFilter.some(server => minimatch(app.spec.destination.server || app.spec.destination.name, server))) &&
+            (pref.clustersFilter.length === 0 || pref.clustersFilter.some(server => server.includes(app.spec.destination.server || app.spec.destination.name))) &&
             (pref.labelsFilter.length === 0 || pref.labelsFilter.every(selector => LabelSelector.match(selector, app.metadata.labels)))
     );
 }
@@ -163,6 +163,20 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
     const [createApi, setCreateApi] = React.useState(null);
     const clusters = React.useMemo(() => services.clusters.list(), []);
     const [isAppCreatePending, setAppCreatePending] = React.useState(false);
+    const searchBar = React.useRef<HTMLDivElement>(null);
+
+    React.useEffect(() => {
+        const handleKeyPress = (e: KeyboardEvent) => {
+            if (e.keyCode === 47 && searchBar.current && !appInput) {
+                searchBar.current.querySelector('input').focus();
+                e.preventDefault();
+            }
+        };
+        document.addEventListener('keypress', handleKeyPress);
+        return () => {
+            document.removeEventListener('keypress', handleKeyPress);
+        };
+    });
 
     const loaderRef = React.useRef<DataLoader>();
     function refreshApp(appName: string) {
@@ -177,6 +191,18 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
             }
         }
         services.applications.get(appName, 'normal');
+    }
+
+    function onFilterPrefChanged(ctx: ContextApis, newPref: AppsListPreferences) {
+        services.viewPreferences.updatePreferences({appList: newPref});
+        ctx.navigation.goto('.', {
+            proj: newPref.projectsFilter.join(','),
+            sync: newPref.syncFilter.join(','),
+            health: newPref.healthFilter.join(','),
+            namespace: newPref.namespacesFilter.join(','),
+            cluster: newPref.clustersFilter.join(','),
+            labels: newPref.labelsFilter.map(encodeURIComponent).join(',')
+        });
     }
 
     return (
@@ -222,6 +248,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                     {
                                         title: 'New App',
                                         iconClassName: 'fa fa-plus',
+                                        qeId: 'applications-list-button-new-app',
                                         action: () => ctx.navigation.goto('.', {new: '{}'})
                                     },
                                     {
@@ -243,12 +270,16 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                 <MockupList height={100} marginTop={30} />
                                             </div>
                                         )}>
-                                        {(applications: models.Application[]) =>
-                                            applications.length === 0 && (pref.labelsFilter || []).length === 0 ? (
+                                        {(applications: models.Application[]) => {
+                                            const filteredApps = filterApps(applications, pref, pref.search);
+                                            return applications.length === 0 && (pref.labelsFilter || []).length === 0 ? (
                                                 <EmptyState icon='argo-icon-application'>
                                                     <h4>No applications yet</h4>
                                                     <h5>Create new application to start managing resources in your cluster</h5>
-                                                    <button className='argo-button argo-button--base' onClick={() => ctx.navigation.goto('.', {new: JSON.stringify({})})}>
+                                                    <button
+                                                        qe-id='applications-list-button-create-application'
+                                                        className='argo-button argo-button--base'
+                                                        onClick={() => ctx.navigation.goto('.', {new: JSON.stringify({})})}>
                                                         Create application
                                                     </button>
                                                 </EmptyState>
@@ -257,8 +288,15 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                     <div className='columns small-12 xxlarge-2'>
                                                         <Query>
                                                             {q => (
-                                                                <div className='applications-list__search'>
-                                                                    <i className='fa fa-search' />
+                                                                <div className='applications-list__search' ref={searchBar}>
+                                                                    <i
+                                                                        className='fa fa-search'
+                                                                        onClick={() => {
+                                                                            if (searchBar.current) {
+                                                                                searchBar.current.querySelector('input').focus();
+                                                                            }
+                                                                        }}
+                                                                    />
                                                                     {q.get('search') && (
                                                                         <i className='fa fa-times' onClick={() => ctx.navigation.goto('.', {search: null}, {replace: true})} />
                                                                     )}
@@ -274,6 +312,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                                     }
                                                                                 }}
                                                                                 className='argo-field'
+                                                                                placeholder='Search applications...'
                                                                             />
                                                                         )}
                                                                         renderItem={item => (
@@ -291,42 +330,49 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                 </div>
                                                             )}
                                                         </Query>
-                                                        <ApplicationsFilter
-                                                            applications={applications}
-                                                            pref={pref}
-                                                            onChange={newPref => {
-                                                                services.viewPreferences.updatePreferences({appList: newPref});
-                                                                ctx.navigation.goto('.', {
-                                                                    proj: newPref.projectsFilter.join(','),
-                                                                    sync: newPref.syncFilter.join(','),
-                                                                    health: newPref.healthFilter.join(','),
-                                                                    namespace: newPref.namespacesFilter.join(','),
-                                                                    cluster: newPref.clustersFilter.join(','),
-                                                                    labels: newPref.labelsFilter.map(encodeURIComponent).join(',')
-                                                                });
+                                                        <DataLoader load={() => services.clusters.list()}>
+                                                            {clusterList => {
+                                                                return (
+                                                                    <ApplicationsFilter
+                                                                        clusters={clusterList}
+                                                                        applications={filteredApps}
+                                                                        pref={pref}
+                                                                        onChange={newPref => onFilterPrefChanged(ctx, newPref)}
+                                                                    />
+                                                                );
                                                             }}
-                                                        />
+                                                        </DataLoader>
+
                                                         {syncAppsInput && (
                                                             <ApplicationsSyncPanel
                                                                 key='syncsPanel'
                                                                 show={syncAppsInput}
                                                                 hide={() => ctx.navigation.goto('.', {syncApps: null})}
-                                                                apps={filterApps(applications, pref, pref.search)}
+                                                                apps={filteredApps}
                                                             />
                                                         )}
                                                     </div>
                                                     <div className='columns small-12 xxlarge-10'>
-                                                        {(pref.view === 'summary' && <ApplicationsSummary applications={filterApps(applications, pref, pref.search)} />) || (
+                                                        {(pref.view === 'summary' && <ApplicationsSummary applications={filteredApps} />) || (
                                                             <Paginate
                                                                 preferencesKey='applications-list'
                                                                 page={pref.page}
                                                                 emptyState={() => (
                                                                     <EmptyState icon='fa fa-search'>
-                                                                        <h4>No applications found</h4>
-                                                                        <h5>Try to change filter criteria</h5>
+                                                                        <h4>No matching applications found</h4>
+                                                                        <h5>
+                                                                            Change filter criteria or&nbsp;
+                                                                            <a
+                                                                                onClick={() => {
+                                                                                    AppsListPreferences.clearFilters(pref);
+                                                                                    onFilterPrefChanged(ctx, pref);
+                                                                                }}>
+                                                                                clear filters
+                                                                            </a>
+                                                                        </h5>
                                                                     </EmptyState>
                                                                 )}
-                                                                data={filterApps(applications, pref, pref.search)}
+                                                                data={filteredApps}
                                                                 onPageChange={page => ctx.navigation.goto('.', {page})}>
                                                                 {data =>
                                                                     (pref.view === 'tiles' && (
@@ -349,8 +395,8 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                         )}
                                                     </div>
                                                 </div>
-                                            )
-                                        }
+                                            );
+                                        }}
                                     </DataLoader>
                                 )}
                             </ViewPref>
@@ -375,11 +421,18 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                             onClose={() => ctx.navigation.goto('.', {new: null})}
                             header={
                                 <div>
-                                    <button className='argo-button argo-button--base' disabled={isAppCreatePending} onClick={() => createApi && createApi.submitForm(null)}>
+                                    <button
+                                        qe-id='applications-list-button-create'
+                                        className='argo-button argo-button--base'
+                                        disabled={isAppCreatePending}
+                                        onClick={() => createApi && createApi.submitForm(null)}>
                                         <Spinner show={isAppCreatePending} style={{marginRight: '5px'}} />
                                         Create
                                     </button>{' '}
-                                    <button onClick={() => ctx.navigation.goto('.', {new: null})} className='argo-button argo-button--base-o'>
+                                    <button
+                                        qe-id='applications-list-button-cancel'
+                                        onClick={() => ctx.navigation.goto('.', {new: null})}
+                                        className='argo-button argo-button--base-o'>
                                         Cancel
                                     </button>
                                 </div>

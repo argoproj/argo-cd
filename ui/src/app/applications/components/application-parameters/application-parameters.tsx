@@ -53,7 +53,7 @@ function getParamsEditableItems(
             title: param.metadata.name,
             view: (
                 <span title={param.metadata.value}>
-                    {param.overrideIndex > -1 && <span className='fa fa-exclamation-triangle' title={`Original value: ${param.original}`} />} {param.metadata.value}
+                    {param.overrideIndex > -1 && <span className='fa fa-gavel' title={`Original value: ${param.original}`} />} {param.metadata.value}
                 </span>
             ),
             edit: (formApi: FormApi) => {

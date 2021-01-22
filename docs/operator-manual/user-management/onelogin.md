@@ -117,8 +117,7 @@ data:
     name: OneLogin
     issuer: https://openid-connect.onelogin.com/oidc
     clientID: aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaaaaaaaa
-    # This is a base64 encoded value!
-    clientSecret: YWFiYmNjZGQ=  
+    clientSecret: abcdef123456
 
     # Optional set of OIDC scopes to request. If omitted, defaults to: ["openid", "profile", "email", "groups"]
     requestedScopes: ["openid", "profile", "email", "groups"]
@@ -130,14 +129,9 @@ The "clientID" is taken from the SSO tab of the OneLogin application.
 
 The “issuer” is taken from the SSO tab of the OneLogin application. It is one of the issuer api endpoints.
 
-The "clientSecret" value should be a base64 encoded version of the client secret located in the SSO tab of the OneLogin application. To generate this value, you can take the value of the client secret in OneLogin, and pipe it into base64 in a Linux/Unix terminal like so:
+The "clientSecret" value is a client secret located in the SSO tab of the OneLogin application.
 
-```
-$ echo -n "aabbccdd" | base64
-YWFiYmNjZGQ=
-```
-
-!!! note "If you get an `invalid_client` error when trying the authenticate with OneLogin, there is a possibility that your client secret was not [correctly] base64 encoded.""
+!!! note "If you get an `invalid_client` error when trying the authenticate with OneLogin, there is a possibility that your client secret is not proper. Keep in mind that in previous versions `clientSecret` value had to be base64 encrypted, but it is not required anymore."
 
 ### Configure Permissions for OneLogin Auth'd Users
 

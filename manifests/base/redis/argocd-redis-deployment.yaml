@@ -20,9 +20,10 @@ spec:
         runAsGroup: 1000
         fsGroup: 1000
         runAsNonRoot: true
+      serviceAccountName: argocd-redis        
       containers:
       - name: redis
-        image: redis:5.0.8
+        image: redis:5.0.10-alpine
         imagePullPolicy: Always
         args:
         - "--save"
@@ -31,3 +32,18 @@ spec:
         - "no"
         ports:
         - containerPort: 6379
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: argocd-redis
+              topologyKey: kubernetes.io/hostname
+          - weight: 5
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/part-of: argocd
+              topologyKey: kubernetes.io/hostname

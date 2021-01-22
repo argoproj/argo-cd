@@ -1,6 +1,7 @@
 import {BehaviorSubject, Observable} from 'rxjs';
+import {PodGroupType} from '../../applications/components/application-pod-view/pod-view';
 
-export type AppsDetailsViewType = 'tree' | 'network' | 'list';
+export type AppsDetailsViewType = 'tree' | 'network' | 'list' | 'pods';
 
 export interface AppDetailsPreferences {
     resourceFilter: string[];
@@ -9,19 +10,46 @@ export interface AppDetailsPreferences {
     inlineDiff: boolean;
     compactDiff: boolean;
     orphanedResources: boolean;
+    podView: PodViewPreferences;
+}
+
+export interface PodViewPreferences {
+    sortMode: PodGroupType;
 }
 
 export type AppsListViewType = 'tiles' | 'list' | 'summary';
 
-export interface AppsListPreferences {
-    labelsFilter: string[];
-    projectsFilter: string[];
-    reposFilter: string[];
-    syncFilter: string[];
-    healthFilter: string[];
-    namespacesFilter: string[];
-    clustersFilter: string[];
-    view: AppsListViewType;
+export class AppsListPreferences {
+    public static countEnabledFilters(pref: AppsListPreferences) {
+        return [pref.clustersFilter, pref.healthFilter, pref.labelsFilter, pref.namespacesFilter, pref.projectsFilter, pref.reposFilter, pref.syncFilter].reduce(
+            (count, filter) => {
+                if (filter && filter.length > 0) {
+                    return count + 1;
+                }
+                return count;
+            },
+            0
+        );
+    }
+
+    public static clearFilters(pref: AppsListPreferences) {
+        pref.clustersFilter = [];
+        pref.healthFilter = [];
+        pref.labelsFilter = [];
+        pref.namespacesFilter = [];
+        pref.projectsFilter = [];
+        pref.reposFilter = [];
+        pref.syncFilter = [];
+    }
+
+    public labelsFilter: string[];
+    public projectsFilter: string[];
+    public reposFilter: string[];
+    public syncFilter: string[];
+    public healthFilter: string[];
+    public namespacesFilter: string[];
+    public clustersFilter: string[];
+    public view: AppsListViewType;
 }
 
 export interface ViewPreferences {
@@ -33,7 +61,7 @@ export interface ViewPreferences {
 
 const VIEW_PREFERENCES_KEY = 'view_preferences';
 
-const minVer = 4;
+const minVer = 5;
 
 const DEFAULT_PREFERENCES: ViewPreferences = {
     version: 1,
@@ -43,7 +71,10 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         inlineDiff: false,
         compactDiff: false,
         resourceView: 'manifest',
-        orphanedResources: false
+        orphanedResources: false,
+        podView: {
+            sortMode: 'node'
+        }
     },
     appList: {
         view: 'tiles' as AppsListViewType,

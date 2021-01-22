@@ -85,6 +85,8 @@ const (
 	DexAPIEndpoint = "/api/dex"
 	// LoginEndpoint is Argo CD's shorthand login endpoint which redirects to dex's OAuth 2.0 provider's consent page
 	LoginEndpoint = "/auth/login"
+	// LogoutEndpoint is Argo CD's shorthand logout endpoint which invalidates OIDC session after logout
+	LogoutEndpoint = "/auth/logout"
 	// CallbackEndpoint is Argo CD's final callback endpoint we reach after OAuth 2.0 login flow has been completed
 	CallbackEndpoint = "/auth/callback"
 	// DexCallbackEndpoint is Argo CD's final callback endpoint when Dex is configured
@@ -123,6 +125,12 @@ const (
 	AnnotationValueManagedByArgoCD = "argocd.argoproj.io"
 	// ResourcesFinalizerName the finalizer value which we inject to finalize deletion of an application
 	ResourcesFinalizerName = "resources-finalizer.argocd.argoproj.io"
+
+	// AnnotationKeyManifestGeneratePaths is an annotation that contains a list of semicolon-separated paths in the
+	// manifests repository that affects the manifest generation. Paths might be either relative or absolute. The
+	// absolute path means an absolute path within the repository and the relative path is relative to the application
+	// source path within the repository.
+	AnnotationKeyManifestGeneratePaths = "argocd.argoproj.io/manifest-generate-paths"
 
 	// AnnotationKeyLinkPrefix tells the UI to add an external link icon to the application node
 	// that links to the value given in the annotation.
@@ -174,6 +182,8 @@ const (
 	EnvControllerReplicas = "ARGOCD_CONTROLLER_REPLICAS"
 	// EnvControllerShard is the shard number that should be handled by controller
 	EnvControllerShard = "ARGOCD_CONTROLLER_SHARD"
+	// EnvEnableGRPCTimeHistogramEnv enables gRPC metrics collection
+	EnvEnableGRPCTimeHistogramEnv = "ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM"
 )
 
 const (
@@ -183,7 +193,7 @@ const (
 	MinClientVersion = "1.4.0"
 	// CacheVersion is a objects version cached using util/cache/cache.go.
 	// Number should be bumped in case of backward incompatible change to make sure cache is invalidated after upgrade.
-	CacheVersion = "1.8.1"
+	CacheVersion = "1.8.3"
 )
 
 // GetGnuPGHomePath retrieves the path to use for GnuPG home directory, which is either taken from GNUPGHOME environment or a default value

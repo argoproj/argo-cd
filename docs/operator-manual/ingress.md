@@ -12,19 +12,35 @@ There are several ways how Ingress can be configured.
 
 The Ambassador Edge Stack can be used as a Kubernetes ingress controller with [automatic TLS termination](https://www.getambassador.io/docs/latest/topics/running/tls/#host) and routing capabilities for both the CLI and the UI.
 
-The API server should be run with TLS disabled. Edit the `argocd-server` deployment to add the `--insecure` flag to the argocd-server command.
+The API server should be run with TLS disabled. Edit the `argocd-server` deployment to add the `--insecure` flag to the argocd-server command. Given the `argocd` CLI includes the port number in the request `host` header, 2 Mappings are required.
 
 ### Option 1: Mapping CRD for Host-based Routing
 ```yaml
 apiVersion: getambassador.io/v2
 kind: Mapping
 metadata:
-  name: argocd-server
+  name: argocd-server-ui
   namespace: argocd
 spec:
   host: argocd.example.com
   prefix: /
   service: argocd-server:443
+---
+apiVersion: getambassador.io/v2
+kind: Mapping
+metadata:
+  name: argocd-server-cli
+  namespace: argocd
+spec:
+  host: argocd.example.com:443
+  prefix: /
+  service: argocd-server:443
+```
+
+Login with the `argocd` CLI using the extra `--grpc-web-root-path` flag for gRPC-web.
+
+```shell
+argocd login <host>:<port> --grpc-web-root-path /
 ```
 
 ### Option 2: Mapping CRD for Path-based Routing
@@ -49,6 +65,106 @@ Login with the `argocd` CLI using the extra `--grpc-web-root-path` flag for non-
 argocd login <host>:<port> --grpc-web-root-path /argo-cd
 ```
 
+## [Contour](https://projectcontour.io/)
+The Contour ingress controller can terminate TLS ingress traffic at the edge.
+
+The Argo CD API server should be run with TLS disabled. Edit the `argocd-server` Deployment to add the `--insecure` flag to the argocd-server container command.
+
+It is also possible to provide an internal-only ingress path and an external-only ingress path by deploying two instances of Contour: one behind a private-subnet LoadBalancer service and one behind a public-subnet LoadBalancer service. The private Contour deployment will pick up Ingresses annotated with `kubernetes.io/ingress.class: contour-external` and the public Contour deployment will pick up Ingresses annotated with `kubernetes.io/ingress.class: contour-external`.
+
+This provides the opportunity to deploy the Argo CD UI privately but still allow for SSO callbacks to succeed.
+
+### Private Argo CD UI with  Multiple Ingress Objects and BYO Certificate
+Since Contour Ingress supports only a single protocol per Ingress object, define three Ingress objects. One for private HTTP/HTTPS, one for private gRPC, and one for public HTTPS SSO callbacks.
+
+Internal HTTP/HTTPS Ingress:
+```yaml
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: argocd-server-http
+  annotations:
+    kubernetes.io/ingress.class: contour-internal
+    ingress.kubernetes.io/force-ssl-redirect: "true"
+spec:
+  rules:
+  - host: internal.path.to.argocd.io
+    http:
+      paths:
+      - backend:
+          serviceName: argocd-server
+          servicePort: http
+  tls:
+  - hosts:
+    - internal.path.to.argocd.io
+    secretName: your-certificate-name
+```
+
+Internal gRPC Ingress:
+```yaml
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: argocd-server-grpc
+  annotations:
+    kubernetes.io/ingress.class: contour-internal
+spec:
+  rules:
+  - host: grpc-internal.path.to.argocd.io
+    http:
+      paths:
+      - backend:
+          serviceName: argocd-server
+          servicePort: https
+  tls:
+  - hosts:
+    - grpc-internal.path.to.argocd.io
+    secretName: your-certificate-name
+```
+
+External HTTPS SSO Callback Ingress:
+```yaml
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: argocd-server-external-callback-http
+  annotations:
+    kubernetes.io/ingress.class: contour-external
+    ingress.kubernetes.io/force-ssl-redirect: "true"
+spec:
+  rules:
+  - host: external.path.to.argocd.io
+    http:
+      paths:
+      - path: /api/dex/callback
+        backend:
+          serviceName: argocd-server
+          servicePort: http
+  tls:
+  - hosts:
+    - external.path.to.argocd.io
+    secretName: your-certificate-name
+```
+
+The argocd-server Service needs to be annotated with `projectcontour.io/upstream-protocol.h2c: "https,443"` to wire up the gRPC protocol proxying.
+
+The API server should then be run with TLS disabled. Edit the `argocd-server` deployment to add the
+`--insecure` flag to the argocd-server command:
+
+```yaml
+spec:
+  template:
+    spec:
+      containers:
+      - name: argocd-server
+        command:
+        - /argocd-server
+        - --staticassets
+        - /shared/app
+        - --repo-server
+        - argocd-repo-server:8081
+        - --insecure
+```
 
 ## [kubernetes/ingress-nginx](https://github.com/kubernetes/ingress-nginx)
 
@@ -235,13 +351,62 @@ spec:
 ```
 
 ## AWS Application Load Balancers (ALBs) And Classic ELB (HTTP Mode)
+AWS ALBs can be used as an L7 Load Balancer for both UI and gRPC traffic, whereas Classic ELBs and NLBs can be used as L4 Load Balancers for both. 
 
-ALBs and Classic ELBs don't fully support HTTP2/gRPC, which is used by the `argocd` CLI.
-Thus, when using an AWS load balancer, either Classic ELB in
-passthrough mode is needed, or NLBs.
+When using an ALB, you'll want to create a second service for argocd-server. This is necessary because we need to tell the ALB to send the GRPC traffic to a different target group then the UI traffic, since the backend protocol is HTTP2 instead of HTTP1.
 
-```shell
-$ argocd login <host>:<port> --grpc-web
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    alb.ingress.kubernetes.io/backend-protocol-version: HTTP2 #This tells AWS to send traffic from the ALB using HTTP2. Can use GRPC as well if you want to leverage GRPC specific features
+  labels:
+    app: argogrpc
+  name: argogrpc
+  namespace: argocd
+spec:
+  ports:
+  - name: "443"
+    port: 443
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app.kubernetes.io/name: argocd-server
+  sessionAffinity: None
+  type: ClusterIP
+```
+
+Once we create this service, we can configure the Ingress to conditionally route all `application/grpc` traffic to the new HTTP2 backend, using the `alb.ingress.kubernetes.io/conditions` annotation, as seen below. Note: The value after the . in the condition annotation _must_ be the same name as the service that you want traffic to route to - and will be applied on any path with a matching serviceName. 
+
+```yaml
+  apiVersion: networking.k8s.io/v1 # Use extensions/v1beta1 for Kubernetes 1.14 and older 
+  kind: Ingress
+  metadata:
+    annotations:
+      alb.ingress.kubernetes.io/backend-protocol: HTTPS
+      # Use this annotation (which must match a service name) to route traffic to HTTP2 backends. 
+      alb.ingress.kubernetes.io/conditions.argogrpc: |
+        [{"field":"http-header","httpHeaderConfig":{"httpHeaderName": "Content-Type", "values":["application/grpc"]}}]
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+    name: argocd
+    namespace: argocd
+  spec:
+    rules:
+    - host: argocd.argoproj.io
+      http:
+        paths:
+        - backend:
+            serviceName: argogrpc
+            servicePort: 443
+          pathType: ImplementationSpecific
+        - backend:
+            serviceName: argocd-server
+            servicePort: 443
+          pathType: ImplementationSpecific
+    tls:
+    - hosts:
+      - argocd.argoproj.io
 ```
 
 ## Authenticating through multiple layers of authenticating reverse proxies

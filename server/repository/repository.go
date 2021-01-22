@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
 	log "github.com/sirupsen/logrus"
@@ -21,6 +20,7 @@ import (
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/db"
+	"github.com/argoproj/argo-cd/util/io"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/settings"
 )
@@ -139,6 +139,7 @@ func (s *Server) ListRepositories(ctx context.Context, q *repositorypkg.RepoQuer
 				Username:  repo.Username,
 				Insecure:  repo.IsInsecure(),
 				EnableLFS: repo.EnableLFS,
+				EnableOCI: repo.EnableOCI,
 			})
 		}
 	}
@@ -150,6 +151,26 @@ func (s *Server) ListRepositories(ctx context.Context, q *repositorypkg.RepoQuer
 		return nil, err
 	}
 	return &appsv1.RepositoryList{Items: items}, nil
+}
+
+func (s *Server) ListRefs(ctx context.Context, q *repositorypkg.RepoQuery) (*apiclient.Refs, error) {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, q.Repo); err != nil {
+		return nil, err
+	}
+	repo, err := s.db.GetRepository(ctx, q.Repo)
+	if err != nil {
+		return nil, err
+	}
+
+	conn, repoClient, err := s.repoClientset.NewRepoServerClient()
+	if err != nil {
+		return nil, err
+	}
+	defer io.Close(conn)
+
+	return repoClient.ListRefs(ctx, &apiclient.ListRefsRequest{
+		Repo: repo,
+	})
 }
 
 // ListApps returns list of apps in the repo
@@ -184,6 +205,9 @@ func (s *Server) ListApps(ctx context.Context, q *repositorypkg.RepoAppsQuery) (
 }
 
 func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDetailsQuery) (*apiclient.RepoAppDetailsResponse, error) {
+	if q.Source == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "missing payload in request")
+	}
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, q.Source.RepoURL); err != nil {
 		return nil, err
 	}
@@ -241,6 +265,9 @@ func (s *Server) Create(ctx context.Context, q *repositorypkg.RepoCreateRequest)
 
 // CreateRepository creates a repository configuration
 func (s *Server) CreateRepository(ctx context.Context, q *repositorypkg.RepoCreateRequest) (*appsv1.Repository, error) {
+	if q.Repo == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "missing payload in request")
+	}
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionCreate, q.Repo.Repo); err != nil {
 		return nil, err
 	}
@@ -299,6 +326,9 @@ func (s *Server) Update(ctx context.Context, q *repositorypkg.RepoUpdateRequest)
 
 // UpdateRepository updates a repository configuration
 func (s *Server) UpdateRepository(ctx context.Context, q *repositorypkg.RepoUpdateRequest) (*appsv1.Repository, error) {
+	if q.Repo == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "missing payload in request")
+	}
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionUpdate, q.Repo.Repo); err != nil {
 		return nil, err
 	}
@@ -344,6 +374,7 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 		Insecure:          q.Insecure,
 		TLSClientCertData: q.TlsClientCertData,
 		TLSClientCertKey:  q.TlsClientCertKey,
+		EnableOCI:         q.EnableOci,
 	}
 
 	var repoCreds *appsv1.RepoCreds
