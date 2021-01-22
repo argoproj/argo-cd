@@ -4,10 +4,8 @@ import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import {Helmet} from 'react-helmet';
 import {Redirect, Route, RouteComponentProps, Router, Switch} from 'react-router';
-
 import applications from './applications';
 import help from './help';
-import {Banner} from './ui-banner/ui-banner';
 import login from './login';
 import settings from './settings';
 import {VersionPanel} from './shared/components/version-info/version-info-panel';
@@ -15,6 +13,7 @@ import {Provider} from './shared/context';
 import {services} from './shared/services';
 import requests from './shared/services/requests';
 import {hashCode} from './shared/utils';
+import {Banner} from './ui-banner/ui-banner';
 import userInfo from './user-info';
 
 services.viewPreferences.init();

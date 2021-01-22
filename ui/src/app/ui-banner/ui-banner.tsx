@@ -1,7 +1,7 @@
 import * as React from 'react';
+import {Observable} from 'rxjs';
 import {DataLoader} from '../shared/components';
 import {services, ViewPreferences} from '../shared/services';
-import {Observable} from 'rxjs';
 import './ui-banner.scss';
 
 export const Banner = (props: React.Props<any>) => {
@@ -46,13 +46,3 @@ export const Banner = (props: React.Props<any>) => {
         </DataLoader>
     );
 };
-
-// prevContent
-// cmContent
-
-// if prevContent is empty, either this is a fresh browser, or user has dismissed banner permanently
-
-// if cmContent is empty, no message has been set in argocd-cm, so don't show anything
-
-// if cmContent is non-empty, a message has been set and we should display it,
-//  if prevContent is any different from cmContent
