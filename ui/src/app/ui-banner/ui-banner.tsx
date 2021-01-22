@@ -14,7 +14,12 @@ export const Banner = (props: React.Props<any>) => {
                 })
             }>
             {({content, url, prefs}: {content: string; url: string; prefs: ViewPreferences}) => {
-                const show = visible && prefs.isBannerVisible && content !== undefined;
+                let prevContent = prefs.bannerContent;
+                let show = visible && prefs.showBanner;
+                if (prevContent !== content) {
+                    services.viewPreferences.updatePreferences({...prefs, showBanner: true, bannerContent: content});
+                    show = visible;
+                }
                 return (
                     <React.Fragment>
                         <div className='ui-banner' style={{visibility: show ? 'visible' : 'hidden'}}>
@@ -30,7 +35,7 @@ export const Banner = (props: React.Props<any>) => {
                             <button className='argo-button argo-button--base' style={{marginRight: '5px'}} onClick={() => setVisible(false)}>
                                 Dismiss for now
                             </button>
-                            <button className='argo-button argo-button--base' onClick={() => services.viewPreferences.updatePreferences({...prefs, isBannerVisible: false})}>
+                            <button className='argo-button argo-button--base' onClick={() => services.viewPreferences.updatePreferences({...prefs, showBanner: false})}>
                                 Don't show again
                             </button>
                         </div>
@@ -41,3 +46,13 @@ export const Banner = (props: React.Props<any>) => {
         </DataLoader>
     );
 };
+
+// prevContent
+// cmContent
+
+// if prevContent is empty, either this is a fresh browser, or user has dismissed banner permanently
+
+// if cmContent is empty, no message has been set in argocd-cm, so don't show anything
+
+// if cmContent is non-empty, a message has been set and we should display it,
+//  if prevContent is any different from cmContent

@@ -37,7 +37,7 @@ export const services: Services = {
     viewPreferences: new ViewPreferencesService(),
     version: new VersionService(),
     accounts: new AccountsService(),
-    gpgkeys: new GnuPGPublicKeyService(),
+    gpgkeys: new GnuPGPublicKeyService()
 };
 
 export {ProjectRoleParams, CreateJWTTokenParams, DeleteJWTTokenParams, JWTTokenResponse} from './projects-service';
