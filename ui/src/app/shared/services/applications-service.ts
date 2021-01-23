@@ -168,7 +168,7 @@ export class ApplicationsService {
         containerName: string,
         tail?: number,
         follow?: boolean,
-        maxLines?: number
+        untilTime?: string
     ): Observable<models.LogEntry> {
         if (follow === undefined || follow === null) {
             follow = true;
@@ -176,7 +176,7 @@ export class ApplicationsService {
         const entries = requests
             .loadEventSource(
                 `/applications/${applicationName}/pods/${podName}/logs?container=${containerName}&follow=${follow}&namespace=${namespace}${tail ? '&tailLines=' + tail : ''}${
-                    maxLines ? '&maxLines=' + maxLines : ''
+                    untilTime ? '&untilTime=' + untilTime : ''
                 }`
             )
             .map(data => JSON.parse(data).result as models.LogEntry);
