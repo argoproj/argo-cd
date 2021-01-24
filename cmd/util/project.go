@@ -124,7 +124,7 @@ func ConstructAppProj(fileURL string, args []string, opts ProjectOpts, c *cobra.
 		proj = v1alpha1.AppProject{
 			TypeMeta: v1.TypeMeta{
 				Kind:       application.AppProjectKind,
-				APIVersion: application.Group + "/v1aplha1",
+				APIVersion: application.Group + "/v1alpha1",
 			},
 			ObjectMeta: v1.ObjectMeta{Name: projName},
 			Spec: v1alpha1.AppProjectSpec{
