@@ -527,7 +527,7 @@ func ConstructApp(fileURL, appName string, labels, args []string, appOpts AppOpt
 		app = argoappv1.Application{
 			TypeMeta: v1.TypeMeta{
 				Kind:       application.ApplicationKind,
-				APIVersion: application.Group + "/v1aplha1",
+				APIVersion: application.Group + "/v1alpha1",
 			},
 			ObjectMeta: v1.ObjectMeta{
 				Name: appName,
