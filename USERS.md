@@ -27,6 +27,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [CyberAgent](https://www.cyberagent.co.jp/en/)
 1. [Cybozu](https://cybozu-global.com)
 1. [D2iQ](https://www.d2iq.com)
+1. [Devtron Labs](https://github.com/devtron-labs/devtron)
 1. [EDF Renewables](https://www.edf-re.com/)
 1. [edX](https://edx.org)
 1. [Electronic Arts Inc. ](https://www.ea.com)
