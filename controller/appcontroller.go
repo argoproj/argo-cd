@@ -125,6 +125,7 @@ func NewApplicationController(
 	appResyncPeriod time.Duration,
 	selfHealTimeout time.Duration,
 	metricsPort int,
+	metricsResetSchedule string,
 	kubectlParallelismLimit int64,
 	clusterFilter func(cluster *appv1.Cluster) bool,
 ) (*ApplicationController, error) {
@@ -181,6 +182,9 @@ func NewApplicationController(
 	})
 	if err != nil {
 		return nil, err
+	}
+	if metricsResetSchedule != "" {
+		ctrl.metricsServer.ScheduleReset(metricsResetSchedule)
 	}
 	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, kubectl, ctrl.metricsServer, ctrl.handleObjectUpdated, clusterFilter)
 	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.settingsMgr, stateCache, projInformer, ctrl.metricsServer)

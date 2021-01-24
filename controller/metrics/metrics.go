@@ -10,6 +10,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/robfig/cron"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/labels"
 
@@ -232,6 +233,22 @@ func (m *MetricsServer) ObserveRedisRequestDuration(duration time.Duration) {
 // IncReconcile increments the reconcile counter for an application
 func (m *MetricsServer) IncReconcile(app *argoappv1.Application, duration time.Duration) {
 	m.reconcileHistogram.WithLabelValues(app.Namespace, app.Spec.Destination.Server).Observe(duration.Seconds())
+}
+
+// ScheduleReset auto cron reset of metrics
+func (m *MetricsServer) ScheduleReset(cronSpec string) {
+	cron := cron.New()
+	cron.AddFunc(cronSpec, func() {
+		m.syncCounter.Reset()
+		m.kubectlExecCounter.Reset()
+		m.kubectlExecPendingGauge.Reset()
+		m.k8sRequestCounter.Reset()
+		m.clusterEventsCounter.Reset()
+		m.redisRequestCounter.Reset()
+		m.reconcileHistogram.Reset()
+		m.redisRequestHistogram.Reset()
+	})
+	cron.Start()
 }
 
 type appCollector struct {
