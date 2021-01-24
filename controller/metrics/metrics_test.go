@@ -344,7 +344,8 @@ argocd_app_sync_total{dest_server="https://localhost:6443",name="my-app",namespa
 	body := rr.Body.String()
 	assertMetricsPrinted(t, appSyncTotal, body)
 
-	metricsServ.ScheduleReset("* * * * * *")
+	err = metricsServ.ScheduleReset("* * * * * *")
+	assert.NoError(t, err)
 	time.Sleep(2 * time.Second)
 	req, err = http.NewRequest("GET", "/metrics", nil)
 	assert.NoError(t, err)

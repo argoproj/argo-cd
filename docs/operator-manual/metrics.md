@@ -3,7 +3,7 @@
 Argo CD exposes two sets of Prometheus metrics
 
 ## Application Metrics
-Metrics about applications. Scraped at the `argocd-metrics:8082/metrics` endpoint. 
+Metrics about applications. Scraped at the `argocd-metrics:8082/metrics` endpoint.
 
 * Gauge for application health status
 * Gauge for application sync status
@@ -11,9 +11,10 @@ Metrics about applications. Scraped at the `argocd-metrics:8082/metrics` endpoin
 
 If you use ArgoCD with many application and project creation and deletion,
 the metrics page will keep in cache your application and project's history.
-If you are having issues, you can schedule a metrics schedule reset to
-clean the history with an application controller flag.
-Example: `--metrics-reset-schedule="0 0 23 * * *"`.
+If you are having issues because of a large number of metrics cardinality due
+to deleted resources, you can schedule a metrics reset to clean the
+history with an application controller flag. Example:
+`--metrics-reset-schedule="0 0 23 * * *"`.
 
 ## API Server Metrics
 Metrics about API Server API request and response activity (request totals, response codes, etc...).
