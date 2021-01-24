@@ -184,7 +184,10 @@ func NewApplicationController(
 		return nil, err
 	}
 	if metricsResetSchedule != "" {
-		ctrl.metricsServer.ScheduleReset(metricsResetSchedule)
+		err = ctrl.metricsServer.ScheduleReset(metricsResetSchedule)
+		if err != nil {
+			return nil, err
+		}
 	}
 	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, kubectl, ctrl.metricsServer, ctrl.handleObjectUpdated, clusterFilter)
 	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.settingsMgr, stateCache, projInformer, ctrl.metricsServer)

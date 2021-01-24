@@ -236,9 +236,10 @@ func (m *MetricsServer) IncReconcile(app *argoappv1.Application, duration time.D
 }
 
 // ScheduleReset auto cron reset of metrics
-func (m *MetricsServer) ScheduleReset(cronSpec string) {
+func (m *MetricsServer) ScheduleReset(cronSpec string) error {
 	cron := cron.New()
-	cron.AddFunc(cronSpec, func() {
+	err := cron.AddFunc(cronSpec, func() {
+		log.Infof("Reset Prometheus metrics based on existing schedule '%v'", cronSpec)
 		m.syncCounter.Reset()
 		m.kubectlExecCounter.Reset()
 		m.kubectlExecPendingGauge.Reset()
@@ -248,7 +249,12 @@ func (m *MetricsServer) ScheduleReset(cronSpec string) {
 		m.reconcileHistogram.Reset()
 		m.redisRequestHistogram.Reset()
 	})
+	if err != nil {
+		return err
+	}
+
 	cron.Start()
+	return nil
 }
 
 type appCollector struct {

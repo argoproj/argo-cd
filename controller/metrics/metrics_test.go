@@ -303,6 +303,25 @@ argocd_app_reconcile_count{dest_server="https://localhost:6443",namespace="argoc
 	assertMetricsPrinted(t, appReconcileMetrics, body)
 }
 
+func TestMetricsResetCron(t *testing.T) {
+	cancel, appLister := newFakeLister()
+	defer cancel()
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck)
+	assert.NoError(t, err)
+
+	validCronSchedule := []string{"* * * * * *", "* * * * *", "0 0 * * *", "0 0 0 * * *"}
+	invalidCronSchedule := []string{"", "0", "0 1 2"}
+	for _, cron := range validCronSchedule {
+		err := metricsServ.ScheduleReset(cron)
+		assert.Empty(t, err)
+	}
+
+	for _, cron := range invalidCronSchedule {
+		err := metricsServ.ScheduleReset(cron)
+		assert.Error(t, err)
+	}
+}
+
 func TestMetricsReset(t *testing.T) {
 	cancel, appLister := newFakeLister()
 	defer cancel()
