@@ -31,16 +31,17 @@ argocd-application-controller [flags]
       --logformat string                      Set the logging format. One of: text|json (default "text")
       --loglevel string                       Set the logging level. One of: debug|info|warn|error (default "info")
       --metrics-port int                      Start metrics server on given port (default 8082)
+      --metrics-reset-schedule string         Cron Prometheus metrics reset (disabled  by default. e.g. 0 0 2 * * *)
   -n, --namespace string                      If present, the namespace scope for this CLI request
       --operation-processors int              Number of application operation processors (default 1)
       --password string                       Password for basic authentication to the API server
-      --redis string                          Redis server hostname and port (e.g. argocd-redis:6379). 
+      --redis string                          Redis server hostname and port (e.g. argocd-redis:6379).
       --redisdb int                           Redis database.
       --repo-server string                    Repo server address. (default "argocd-repo-server:8081")
       --repo-server-timeout-seconds int       Repo server RPC call timeout seconds. (default 60)
       --request-timeout string                The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
       --self-heal-timeout-seconds int         Specifies timeout between application self heal attempts (default 5)
-      --sentinel stringArray                  Redis sentinel hostname and port (e.g. argocd-redis-ha-announce-0:6379). 
+      --sentinel stringArray                  Redis sentinel hostname and port (e.g. argocd-redis-ha-announce-0:6379).
       --sentinelmaster string                 Redis sentinel master group name. (default "master")
       --server string                         The address and port of the Kubernetes API server
       --status-processors int                 Number of application status processors (default 1)

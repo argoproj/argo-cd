@@ -9,6 +9,12 @@ Metrics about applications. Scraped at the `argocd-metrics:8082/metrics` endpoin
 * Gauge for application sync status
 * Counter for application sync history
 
+If you use ArgoCD with many application and project creation and deletion,
+the metrics page will keep in cache your application and project's history.
+If you are having issues, you can schedule a metrics schedule reset to
+clean the history with an application controller flag.
+Example: `--metrics-reset-schedule="0 0 23 * * *"`.
+
 ## API Server Metrics
 Metrics about API Server API request and response activity (request totals, response codes, etc...).
 Scraped at the `argocd-server-metrics:8083/metrics` endpoint.
