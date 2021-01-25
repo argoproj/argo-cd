@@ -11,3 +11,7 @@ cmd/**/debug
 debug.test
 coverage.out
 ui/node_modules/
+ui/yarn-error.log
+ui/.yarnrc.yaml
+ui/.yarn/*
+ui/.pnp.*

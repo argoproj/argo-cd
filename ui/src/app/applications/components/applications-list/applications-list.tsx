@@ -82,7 +82,10 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
         {q => (
             <DataLoader
                 load={() =>
-                    Observable.combineLatest(services.viewPreferences.getPreferences().map(item => item.appList), q).map(items => {
+                    Observable.combineLatest(
+                        services.viewPreferences.getPreferences().map(item => item.appList),
+                        q
+                    ).map(items => {
                         const params = items[1];
                         const viewPref: AppsListPreferences = {...items[0]};
                         if (params.get('proj') != null) {

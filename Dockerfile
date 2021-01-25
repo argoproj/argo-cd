@@ -88,13 +88,15 @@ WORKDIR /home/argocd
 ####################################################################################################
 FROM node:12.18.4 as argocd-ui
 
-WORKDIR /src
-ADD ["ui/package.json", "ui/yarn.lock", "./"]
+WORKDIR /ui
 
 RUN yarn set version berry
+RUN echo "nodeLinker: node-modules" >> .yarnrc.yml
+ADD ["ui/package.json", "ui/yarn.lock", "./"]
+
 RUN yarn install
 
-ADD ["ui/", "."]
+ADD ["ui/src", "./src"]
 
 ARG ARGO_VERSION=latest
 ENV ARGO_VERSION=$ARGO_VERSION
