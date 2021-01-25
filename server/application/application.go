@@ -1045,26 +1045,6 @@ func (s *Server) ManagedResources(ctx context.Context, q *application.ResourcesQ
 	return res, nil
 }
 
-func parseLines(line string) (*[]application.LogEntry, error) {
-	line = strings.TrimSpace(line) // Remove trailing line ending
-	var logLines []application.LogEntry
-	for _, line := range strings.Split(line, "\n") {
-		if line != "" {
-			parts := strings.Split(line, " ")
-			logTime, err := time.Parse(time.RFC3339, parts[0])
-			if err != nil {
-				return nil, err
-			}
-			metaLogTime := metav1.NewTime(logTime)
-			logLines = append(logLines, application.LogEntry{
-				Content:   strings.Join(parts[1:], " "),
-				TimeStamp: metaLogTime,
-			})
-		}
-	}
-	return &logLines, nil
-}
-
 func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.ApplicationService_PodLogsServer) error {
 	var untilTime *metav1.Time
 	if q.GetUntilTime() != "" {
