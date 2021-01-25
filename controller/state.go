@@ -21,7 +21,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/common"
-	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
 	statecache "github.com/argoproj/argo-cd/controller/cache"
 	"github.com/argoproj/argo-cd/controller/metrics"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -29,6 +28,7 @@ import (
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/util/argo"
+	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/gpg"
 	argohealth "github.com/argoproj/argo-cd/util/health"
@@ -332,13 +332,13 @@ func (m *appStateManager) diffArrayCached(configArray, liveArray []*unstructured
 			if cachedResource.ResourceVersion == targetObj.GetResourceVersion() {
 				dr = &diff.DiffResult{
 					NormalizedLive: []byte(cachedResource.NormalizedLiveState),
-					PredictedLive: []byte(cachedResource.PredictedLiveState),
-					Modified: cachedResource.NormalizedLiveState == cachedResource.PredictedLiveState,
+					PredictedLive:  []byte(cachedResource.PredictedLiveState),
+					Modified:       cachedResource.NormalizedLiveState == cachedResource.PredictedLiveState,
 				}
 			}
 		} else {
 			res, err := diff.Diff(configArray[i], liveArray[i], opts...)
-			if (err != nil) {
+			if err != nil {
 				return nil, err
 			}
 			dr = res
@@ -551,7 +551,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		}
 
 		resourceVersion := ""
-		if (targetObj != nil) {
+		if targetObj != nil {
 			resourceVersion = liveObj.GetResourceVersion()
 		}
 		managedResources[i] = managedResource{
