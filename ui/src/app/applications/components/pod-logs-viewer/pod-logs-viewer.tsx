@@ -1,4 +1,5 @@
 import {DataLoader, DropDownMenu} from 'argo-ui';
+import * as classNames from 'classnames';
 import * as React from 'react';
 
 import {useState} from 'react';
@@ -14,15 +15,12 @@ export const PodsLogsViewer = (props: {applicationName: string; pod: models.Reso
     if (!container) {
         return <div>Pod does not have container with index {props.containerIndex}</div>;
     }
-    const containerStatuses = ((props.pod.status && props.pod.status.containerStatuses) || []).concat((props.pod.status && props.pod.status.initContainerStatuses) || []);
-    const containerStatus = containerStatuses.find((status: any) => status.name === container.name);
-    const isRunning = !!(containerStatus && containerStatus.state && containerStatus && containerStatus.state.running);
-    let loader: DataLoader;
+
+    let loader: DataLoader<models.LogEntry[]>;
     const [copy, setCopy] = useState('');
     const [selectedLine, setSelectedLine] = useState(-1);
-    const [lines, setLines] = useState([]);
     const bottom = React.useRef<HTMLInputElement>(null);
-    const [page, setPage] = useState(0);
+    const [page, setPage] = useState<{number: number; untilTimes: string[]}>({number: 0, untilTimes: []});
     return (
         <DataLoader load={() => services.viewPreferences.getPreferences()}>
             {prefs => (
@@ -32,7 +30,12 @@ export const PodsLogsViewer = (props: {applicationName: string; pod: models.Reso
                             className='argo-button argo-button--base'
                             onClick={async () => {
                                 try {
-                                    await navigator.clipboard.writeText(lines.join('\n'));
+                                    await navigator.clipboard.writeText(
+                                        loader
+                                            .getData()
+                                            .map(item => item.content)
+                                            .join('\n')
+                                    );
                                     setCopy('success');
                                 } catch (err) {
                                     setCopy('failure');
@@ -58,14 +61,19 @@ export const PodsLogsViewer = (props: {applicationName: string; pod: models.Reso
                             )}
                         </div>
                         <div
-                            className={`argo-button argo-button--base${prefs.appDetails.followLogs ? '' : '-o'}`}
+                            className={classNames(`argo-button argo-button--base${prefs.appDetails.followLogs && page.number === 0 ? '' : '-o'}`, {
+                                disabled: page.number > 0
+                            })}
                             onClick={() => {
+                                if (page.number > 0) {
+                                    return;
+                                }
                                 const follow = !prefs.appDetails.followLogs;
                                 services.viewPreferences.updatePreferences({...prefs, appDetails: {...prefs.appDetails, followLogs: follow}});
                                 if (follow) {
-                                    setPage(0);
-                                    loader.reload();
+                                    setPage({number: 0, untilTimes: []});
                                 }
+                                loader.reload();
                             }}>
                             FOLLOW {prefs.appDetails.followLogs && <i className='fa fa-check' />}
                         </div>
@@ -87,35 +95,41 @@ export const PodsLogsViewer = (props: {applicationName: string; pod: models.Reso
                             </div>
                         )}
                         load={() => {
-                            setLines([]);
-                            return services.applications.getContainerLogs(
-                                props.applicationName,
-                                props.pod.metadata.namespace,
-                                props.pod.metadata.name,
-                                container.name,
-                                maxLines * (page + 1),
-                                prefs.appDetails.followLogs,
-                                maxLines
+                            return (
+                                services.applications
+                                    .getContainerLogs(
+                                        props.applicationName,
+                                        props.pod.metadata.namespace,
+                                        props.pod.metadata.name,
+                                        container.name,
+                                        maxLines * (page.number + 1),
+                                        prefs.appDetails.followLogs && page.number === 0,
+                                        page.untilTimes[page.untilTimes.length - 1]
+                                    )
+                                    // show only current page lines
+                                    .scan((lines, logEntry) => {
+                                        lines.push(logEntry);
+                                        if (lines.length > maxLines) {
+                                            lines.splice(0, lines.length - maxLines);
+                                        }
+                                        return lines;
+                                    }, new Array<models.LogEntry>())
+                                    // accumulate log changes and render only once every 100ms to reduce CPU usage
+                                    .bufferTime(100)
+                                    .filter(batch => batch.length > 0)
+                                    .map(batch => batch[batch.length - 1])
                             );
                         }}>
-                        {log => {
-                            if (isRunning && (prefs.appDetails.followLogs || lines.length < maxLines)) {
-                                const tmp = lines;
-                                tmp.push(log.content);
-                                if (tmp.length > maxLines) {
-                                    tmp.shift();
-                                    bottom.current.scrollIntoView({
-                                        behavior: 'smooth'
-                                    });
+                        {logs => {
+                            logs = logs || [];
+                            setTimeout(() => {
+                                if (page.number === 0 && prefs.appDetails.followLogs && bottom.current) {
+                                    bottom.current.scrollIntoView({behavior: 'smooth'});
                                 }
-                                setLines(tmp);
-                            }
-                            let firstLine = 1;
-                            let lastLine = lines.length;
-                            if (lastLine === maxLines) {
-                                firstLine = maxLines * page + 1;
-                                lastLine = maxLines * (page + 1);
-                            }
+                            });
+                            const lines = logs.map(item => item.content);
+                            const firstLine = maxLines * page.number + 1;
+                            const lastLine = maxLines * page.number + lines.length;
                             const canPageBack = lines.length === maxLines;
                             return (
                                 <div className={`pod-logs-viewer ${prefs.appDetails.darkMode ? 'pod-logs-viewer--inverted' : ''}`}>
@@ -125,8 +139,7 @@ export const PodsLogsViewer = (props: {applicationName: string; pod: models.Reso
                                                 if (!canPageBack) {
                                                     return;
                                                 }
-                                                setPage(page + 1);
-                                                services.viewPreferences.updatePreferences({...prefs, appDetails: {...prefs.appDetails, followLogs: false}});
+                                                setPage({number: page.number + 1, untilTimes: page.untilTimes.concat(logs[0].timeStampStr)});
                                                 loader.reload();
                                             },
                                             bottom: () => {
@@ -135,13 +148,13 @@ export const PodsLogsViewer = (props: {applicationName: string; pod: models.Reso
                                                 });
                                             },
                                             right: () => {
-                                                if (page > 0) {
-                                                    setPage(page - 1);
+                                                if (page.number > 0) {
+                                                    setPage({number: page.number - 1, untilTimes: page.untilTimes.slice(0, page.untilTimes.length - 1)});
                                                     loader.reload();
                                                 }
                                             },
                                             end: () => {
-                                                setPage(0);
+                                                setPage({number: 0, untilTimes: []});
                                                 loader.reload();
                                             }
                                         },
@@ -149,7 +162,7 @@ export const PodsLogsViewer = (props: {applicationName: string; pod: models.Reso
                                         {
                                             firstLine,
                                             lastLine,
-                                            curPage: page,
+                                            curPage: page.number,
                                             canPageBack
                                         }
                                     )}
@@ -235,8 +248,8 @@ const logNavigators = (actions: NavActions, darkMode: boolean, info?: PageInfo) 
                     </React.Fragment>
                 )}
             </div>
-            <i className={`fa fa-angle-right ${info && info.curPage > 0 ? '' : 'disabled'}`} onClick={info && info.curPage > 0 && actions.right} />
-            <i className={`fa fa-angle-double-right ${info && info.curPage > 1 ? '' : 'disabled'}`} onClick={info && info.curPage > 1 && actions.end} />
+            <i className={`fa fa-angle-right ${info && info.curPage > 0 ? '' : 'disabled'}`} onClick={(info && info.curPage > 0 && actions.right) || null} />
+            <i className={`fa fa-angle-double-right ${info && info.curPage > 1 ? '' : 'disabled'}`} onClick={(info && info.curPage > 1 && actions.end) || null} />
         </div>
     );
 };
