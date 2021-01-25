@@ -97,6 +97,7 @@ ADD ["ui/package.json", "ui/yarn.lock", "./"]
 RUN yarn install
 
 ADD ["ui/src", "./src"]
+ADD ["ui/tsconfig.json", "./"]
 
 ARG ARGO_VERSION=latest
 ENV ARGO_VERSION=$ARGO_VERSION
