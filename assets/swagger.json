@@ -779,6 +779,11 @@
             "type": "boolean",
             "name": "follow",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "untilTime",
+            "in": "query"
           }
         ],
         "responses": {
@@ -3225,6 +3230,9 @@
         },
         "timeStamp": {
           "$ref": "#/definitions/v1Time"
+        },
+        "timeStampStr": {
+          "type": "string"
         }
       }
     },

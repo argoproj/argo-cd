@@ -11,6 +11,8 @@ export interface AppDetailsPreferences {
     compactDiff: boolean;
     orphanedResources: boolean;
     podView: PodViewPreferences;
+    darkMode: boolean;
+    followLogs: boolean;
 }
 
 export interface PodViewPreferences {
@@ -74,7 +76,9 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         orphanedResources: false,
         podView: {
             sortMode: 'node'
-        }
+        },
+        darkMode: false,
+        followLogs: false
     },
     appList: {
         view: 'tiles' as AppsListViewType,
