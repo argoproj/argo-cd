@@ -69,7 +69,7 @@ export class PodView extends React.Component<PodViewProps> {
                             {groups.length > 0 ? (
                                 <div className='pod-view__nodes-container'>
                                     {groups.map(group => (
-                                        <div className={`pod-view__node white-box ${group.kind === 'node' && 'pod-view__node--large'}`} key={group.name}>
+                                        <div className={`pod-view__node white-box ${group.kind === 'node' && 'pod-view__node--large'}`} key={group.fullName || group.name}>
                                             <div className='pod-view__node__container--header' onClick={() => this.props.onItemClick(group.fullName)} style={{cursor: 'pointer'}}>
                                                 <div style={{display: 'flex', alignItems: 'center'}}>
                                                     <div style={{marginRight: '10px'}}>
@@ -143,6 +143,16 @@ export class PodView extends React.Component<PodViewProps> {
                                                                                 <div>Health: {pod.health}</div>
                                                                             </div>
                                                                         }
+                                                                        popperOptions={{
+                                                                            modifiers: {
+                                                                                preventOverflow: {
+                                                                                    enabled: false
+                                                                                },
+                                                                                flip: {
+                                                                                    enabled: false
+                                                                                }
+                                                                            }
+                                                                        }}
                                                                         key={pod.metadata.name}>
                                                                         <div className={`pod-view__node__pod pod-view__node__pod--${pod.health.toLowerCase()}`}>
                                                                             <PodHealthIcon state={{status: pod.health, message: ''}} />
@@ -157,6 +167,16 @@ export class PodView extends React.Component<PodViewProps> {
                                                                             </React.Fragment>
                                                                         ),
                                                                         action: () => this.props.onItemClick(pod.fullName)
+                                                                    },
+                                                                    {
+                                                                        title: (
+                                                                            <React.Fragment>
+                                                                                <i className='fa fa-align-left' /> Logs
+                                                                            </React.Fragment>
+                                                                        ),
+                                                                        action: () => {
+                                                                            this.appContext.apis.navigation.goto('.', {node: pod.fullName, tab: 'logs'});
+                                                                        }
                                                                     },
                                                                     {
                                                                         title: (
@@ -252,8 +272,7 @@ export class PodView extends React.Component<PodViewProps> {
                     pods: [],
                     info: [
                         {name: 'Kernel Version', value: infraNode.systemInfo.kernelVersion},
-                        {name: 'Operating System', value: infraNode.systemInfo.operatingSystem},
-                        {name: 'Architecture', value: infraNode.systemInfo.architecture}
+                        {name: 'OS/Arch', value: `${infraNode.systemInfo.operatingSystem}/${infraNode.systemInfo.architecture}`}
                     ],
                     hostResourcesInfo: infraNode.resourcesInfo
                 };

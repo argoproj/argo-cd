@@ -11,6 +11,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
+	cmdutil "github.com/argoproj/argo-cd/cmd/util"
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
@@ -46,8 +47,6 @@ func NewCommand() *cobra.Command {
 		insecure                 bool
 		listenPort               int
 		metricsPort              int
-		logFormat                string
-		logLevel                 string
 		glogLevel                int
 		clientConfig             clientcmd.ClientConfig
 		repoServerTimeoutSeconds int
@@ -68,8 +67,8 @@ func NewCommand() *cobra.Command {
 		Long:              "The API server is a gRPC/REST server which exposes the API consumed by the Web UI, CLI, and CI/CD systems.  This command runs API server in the foreground.  It can be configured by following options.",
 		DisableAutoGenTag: true,
 		Run: func(c *cobra.Command, args []string) {
-			cli.SetLogFormat(logFormat)
-			cli.SetLogLevel(logLevel)
+			cli.SetLogFormat(cmdutil.LogFormat)
+			cli.SetLogLevel(cmdutil.LogLevel)
 			cli.SetGLogLevel(glogLevel)
 
 			config, err := clientConfig.ClientConfig()
@@ -142,8 +141,8 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&staticAssetsDir, "staticassets", "", "Static assets directory path")
 	command.Flags().StringVar(&baseHRef, "basehref", "/", "Value for base href in index.html. Used if Argo CD is running behind reverse proxy under subpath different from /")
 	command.Flags().StringVar(&rootPath, "rootpath", "", "Used if Argo CD is running behind reverse proxy under subpath different from /")
-	command.Flags().StringVar(&logFormat, "logformat", "text", "Set the logging format. One of: text|json")
-	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
+	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", "text", "Set the logging format. One of: text|json")
+	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().IntVar(&glogLevel, "gloglevel", 0, "Set the glog logging level")
 	command.Flags().StringVar(&repoServerAddress, "repo-server", common.DefaultRepoServerAddr, "Repo server address")
 	command.Flags().StringVar(&dexServerAddress, "dex-server", common.DefaultDexServerAddr, "Dex server address")
