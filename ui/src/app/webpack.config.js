@@ -32,9 +32,9 @@ const config = {
 
     module: {
         rules: [
-            {
+            isProd && {
                 test: /\.tsx?$/,
-                loader: isProd ? '' : 'react-hot-loader/webpack'
+                loader: 'react-hot-loader/webpack'
             },
             {
                 test: /\.tsx?$/,
