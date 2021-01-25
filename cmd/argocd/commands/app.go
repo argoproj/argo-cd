@@ -93,6 +93,7 @@ func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 	command.AddCommand(NewApplicationPatchResourceCommand(clientOpts))
 	command.AddCommand(NewApplicationResourceActionsCommand(clientOpts))
 	command.AddCommand(NewApplicationListResourcesCommand(clientOpts))
+	command.AddCommand(NewApplicationLogsCommand(clientOpts))
 	return command
 }
 
@@ -259,6 +260,120 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 	command.Flags().BoolVar(&refresh, "refresh", false, "Refresh application data when retrieving")
 	command.Flags().BoolVar(&hardRefresh, "hard-refresh", false, "Refresh application data as well as target manifests cache")
 	return command
+}
+
+// NewApplicationLogsCommand returns logs of application pods
+func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var (
+		refresh     bool
+		hardRefresh bool
+		resources   []string
+	)
+	var command = &cobra.Command{
+		Use:   "logs APPNAME",
+		Short: "Get logs of application pods",
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) == 0 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			acdClient := argocdclient.NewClientOrDie(clientOpts)
+			conn, appIf := acdClient.NewApplicationClientOrDie()
+			defer argoio.Close(conn)
+			appName := args[0]
+
+			selectedResources := parseSelectedResources(resources)
+			appResourceTree, err := appIf.ResourceTree(context.Background(), &applicationpkg.ResourcesQuery{ApplicationName: &appName})
+			errors.CheckError(err)
+
+			// from appResourceTree find pods which match selectedResources
+			pods := getSelectedPods(appResourceTree.Nodes, selectedResources)
+
+			//TODO: sequence or parallel
+			for _, pod := range pods {
+				stream, err := appIf.PodLogs(context.Background(), &applicationpkg.ApplicationPodLogsQuery{
+					Name:      &appName,
+					Namespace: pod.Namespace,
+					PodName:   &pod.Name,
+				})
+				if err != nil {
+					log.Fatalf("failed to get pod logs: %v", err)
+				}
+				for {
+					msg, err := stream.Recv()
+					if err == io.EOF {
+						break
+					}
+					if err != nil {
+						log.Fatalf("stream read failed: %v", err)
+					}
+					if msg.Last != true {
+						fmt.Println(msg.Content)
+					}
+				}
+			}
+		},
+	}
+
+	command.Flags().BoolVar(&refresh, "refresh", false, "Refresh application data when retrieving")
+	command.Flags().BoolVar(&hardRefresh, "hard-refresh", false, "Refresh application data as well as target manifests cache")
+	command.Flags().StringArrayVar(&resources, "resource", []string{}, fmt.Sprintf("Sync only specific resources as GROUP%sKIND%sNAME. Fields may be blank. This option may be specified repeatedly", resourceFieldDelimiter, resourceFieldDelimiter))
+
+	return command
+}
+
+// from all of the treeNodes, get the pod who meets the selectedResources criteria or whose parents meets the selectedResouces criteria
+func getSelectedPods(treeNodes []argoappv1.ResourceNode, selectedResources []argoappv1.SyncOperationResource) []argoappv1.ResourceNode {
+	var pods []argoappv1.ResourceNode
+	isTheOneMap := make(map[string]bool)
+	for _, treeNode := range treeNodes {
+		if treeNode.Kind == "Pod" && treeNode.Group == "" {
+			if isTheSelectedOne(&treeNode, selectedResources, treeNodes, isTheOneMap) {
+				log.Info("May: " + treeNode.Kind + ":" + treeNode.Name)
+				pods = append(pods, treeNode)
+			}
+		}
+	}
+	return pods
+}
+
+// check is currentNode is one of the selectedResources, or if any of its parents is one of the selectedReources
+// its parents must be from resourcesNodes
+func isTheSelectedOne(currentNode *argoappv1.ResourceNode, selectedResources []argoappv1.SyncOperationResource, resourceNodes []argoappv1.ResourceNode, isTheOneMap map[string]bool) bool {
+	if len(selectedResources) == 0 {
+		return true
+	}
+	exist, value := isTheOneMap[currentNode.UID]
+	if exist {
+		return value
+	}
+
+	if argo.ContainsSyncResource(currentNode.Name, currentNode.Namespace, schema.GroupVersionKind{Group: currentNode.Group, Kind: currentNode.Kind}, selectedResources) {
+		isTheOneMap[currentNode.UID] = true
+		return true
+	}
+
+	if len(currentNode.ParentRefs) == 0 {
+		isTheOneMap[currentNode.UID] = false
+		return false
+	}
+
+	for _, parentResource := range currentNode.ParentRefs {
+		for _, resourceNode := range resourceNodes {
+			if resourceNode.Namespace == parentResource.Namespace &&
+				resourceNode.Name == parentResource.Name &&
+				resourceNode.Group == parentResource.Group &&
+				resourceNode.Kind == parentResource.Kind {
+				if isTheSelectedOne(&resourceNode, selectedResources, resourceNodes, isTheOneMap) {
+					isTheOneMap[currentNode.UID] = true
+					return true
+				}
+			}
+		}
+	}
+
+	isTheOneMap[currentNode.UID] = false
+	return false
 }
 
 func printAppSummaryTable(app *argoappv1.Application, appURL string, windows *argoappv1.SyncWindows) {
