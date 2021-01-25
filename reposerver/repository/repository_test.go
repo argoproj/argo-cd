@@ -998,6 +998,20 @@ func TestGetRevisionMetadata(t *testing.T) {
 	assert.EqualValues(t, []string{"tag1", "tag2"}, res.Tags)
 	assert.NotEmpty(t, res.SignatureInfo)
 
+	// Check for truncated revision value
+	res, err = service.GetRevisionMetadata(context.Background(), &apiclient.RepoServerRevisionMetadataRequest{
+		Repo:           &argoappv1.Repository{},
+		Revision:       "c0b400f",
+		CheckSignature: true,
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, strings.Repeat("a", 61)+"...", res.Message)
+	assert.Equal(t, now, res.Date.Time)
+	assert.Equal(t, "author", res.Author)
+	assert.EqualValues(t, []string{"tag1", "tag2"}, res.Tags)
+	assert.NotEmpty(t, res.SignatureInfo)
+
 	// Cache hit - signature info should not be in result
 	res, err = service.GetRevisionMetadata(context.Background(), &apiclient.RepoServerRevisionMetadataRequest{
 		Repo:           &argoappv1.Repository{},
@@ -1010,7 +1024,7 @@ func TestGetRevisionMetadata(t *testing.T) {
 	// Enforce cache miss - signature info should not be in result
 	res, err = service.GetRevisionMetadata(context.Background(), &apiclient.RepoServerRevisionMetadataRequest{
 		Repo:           &argoappv1.Repository{},
-		Revision:       "c0b400fc458875d925171398f9ba9eabd5529924",
+		Revision:       "da52afd3b2df1ec49470603d8bbb46954dab1091",
 		CheckSignature: false,
 	})
 	assert.NoError(t, err)
@@ -1019,7 +1033,7 @@ func TestGetRevisionMetadata(t *testing.T) {
 	// Cache hit on previous entry that did not have signature info
 	res, err = service.GetRevisionMetadata(context.Background(), &apiclient.RepoServerRevisionMetadataRequest{
 		Repo:           &argoappv1.Repository{},
-		Revision:       "c0b400fc458875d925171398f9ba9eabd5529924",
+		Revision:       "da52afd3b2df1ec49470603d8bbb46954dab1091",
 		CheckSignature: true,
 	})
 	assert.NoError(t, err)
@@ -1379,5 +1393,82 @@ func TestGenerateManifestWithAnnotatedAndRegularGitTagHashes(t *testing.T) {
 
 		})
 	}
+}
 
+func TestFindResources(t *testing.T) {
+	testCases := []struct {
+		name          string
+		include       string
+		exclude       string
+		expectedNames []string
+	}{{
+		name:          "Include One Match",
+		include:       "subdir/deploymentSub.yaml",
+		expectedNames: []string{"nginx-deployment-sub"},
+	}, {
+		name:          "Include Everything",
+		include:       "*.yaml",
+		expectedNames: []string{"nginx-deployment", "nginx-deployment-sub"},
+	}, {
+		name:          "Include Subdirectory",
+		include:       "**/*.yaml",
+		expectedNames: []string{"nginx-deployment-sub"},
+	}, {
+		name:          "Include No Matches",
+		include:       "nothing.yaml",
+		expectedNames: []string{},
+	}, {
+		name:          "Exclude - One Match",
+		exclude:       "subdir/deploymentSub.yaml",
+		expectedNames: []string{"nginx-deployment"},
+	}, {
+		name:          "Exclude - Everything",
+		exclude:       "*.yaml",
+		expectedNames: []string{},
+	}}
+	for i := range testCases {
+		tc := testCases[i]
+		t.Run(tc.name, func(t *testing.T) {
+			objs, err := findManifests("testdata/app-include-exclude", ".", nil, argoappv1.ApplicationSourceDirectory{
+				Recurse: true,
+				Include: tc.include,
+				Exclude: tc.exclude,
+			})
+			if !assert.NoError(t, err) {
+				return
+			}
+			var names []string
+			for i := range objs {
+				names = append(names, objs[i].GetName())
+			}
+			assert.ElementsMatch(t, tc.expectedNames, names)
+		})
+	}
+}
+
+func TestFindManifests_Exclude(t *testing.T) {
+	objs, err := findManifests("testdata/app-include-exclude", ".", nil, argoappv1.ApplicationSourceDirectory{
+		Recurse: true,
+		Exclude: "subdir/deploymentSub.yaml",
+	})
+
+	if !assert.NoError(t, err) || !assert.Len(t, objs, 1) {
+		return
+	}
+
+	assert.Equal(t, "nginx-deployment", objs[0].GetName())
+}
+
+func TestFindManifests_Exclude_NothingMatches(t *testing.T) {
+	objs, err := findManifests("testdata/app-include-exclude", ".", nil, argoappv1.ApplicationSourceDirectory{
+		Recurse: true,
+		Exclude: "nothing.yaml",
+	})
+
+	if !assert.NoError(t, err) || !assert.Len(t, objs, 2) {
+		return
+	}
+
+	assert.ElementsMatch(t,
+		[]string{"nginx-deployment", "nginx-deployment-sub"}, []string{objs[0].GetName(), objs[1].GetName()})
 }

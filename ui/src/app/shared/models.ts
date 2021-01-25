@@ -393,6 +393,7 @@ export interface LogEntry {
     content: string;
     timeStamp: models.Time;
     last: boolean;
+    timeStampStr: string;
 }
 
 // describes plugin settings

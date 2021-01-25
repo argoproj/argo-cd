@@ -184,9 +184,6 @@ jobs:
           git clean -fd
           mkdir -p dist/
           make image IMAGE_TAG="${TARGET_VERSION}" DOCKER_PUSH=false
-          sudo ./hack/install.sh packr-linux
-          make UTIL_CLI_NAME=argocd-util-darwin-amd64 GOOS=darwin argocd-util
-          make UTIL_CLI_NAME=argocd-util-windows-amd64.exe GOOS=windows argocd-util
           make release-cli
           chmod +x ./dist/argocd-linux-amd64
           ./dist/argocd-linux-amd64 version --client
@@ -271,7 +268,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./dist/argocd-util-linux-amd64
+          asset_path: ./dist/argocd-linux-amd64
           asset_name: argocd-util-linux-amd64
           asset_content_type: application/octet-stream
         if: ${{ env.DRY_RUN != 'true' }}
@@ -282,7 +279,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./dist/argocd-util-darwin-amd64
+          asset_path: ./dist/argocd-darwin-amd64
           asset_name: argocd-util-darwin-amd64
           asset_content_type: application/octet-stream
         if: ${{ env.DRY_RUN != 'true' }}
@@ -293,7 +290,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./dist/argocd-util-windows-amd64.exe
+          asset_path: ./dist/argocd-windows-amd64.exe
           asset_name: argocd-util-windows-amd64.exe
           asset_content_type: application/octet-stream
         if: ${{ env.DRY_RUN != 'true' }}
