@@ -117,14 +117,16 @@ RUN go mod download
 
 # Perform the build
 COPY . .
-RUN make argocd-all
 
 ARG BUILD_ALL_CLIS=true
 RUN if [ "$BUILD_ALL_CLIS" = "true" ] ; then \
     make BIN_NAME=argocd-darwin-amd64 GOOS=darwin argocd-all && \
     make BIN_NAME=argocd-windows-amd64.exe GOOS=windows argocd-all && \
     make BIN_NAME=argocd-linux-amd64 GOOS=linux GOARCH=amd64 argocd-all && \
-    make BIN_NAME=argocd-linux-arm64 GOOS=linux GOARCH=arm64 argocd-all \
+    make BIN_NAME=argocd-linux-arm64 GOOS=linux GOARCH=arm64 argocd-all && \
+    cd dist && echo $(go env GOARCH) > argocd-arch \
+    ; else \
+    make argocd-all \
     ; fi
 
 ####################################################################################################
@@ -135,6 +137,10 @@ COPY --from=argocd-build /go/src/github.com/argoproj/argo-cd/dist/argocd* /usr/l
 COPY --from=argocd-ui ./src/dist/app /shared/app
 
 USER root
+ARG BUILD_ALL_CLIS=true
+RUN if [ "$BUILD_ALL_CLIS" = "true" ] ; then \
+    CPU_ARCH=$(cat /usr/local/bin/argocd-arch) && ln -s /usr/local/bin/argocd-linux-$CPU_ARCH /usr/local/bin/argocd \
+    ; fi
 RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-util
 RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-server
 RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-repo-server
