@@ -88,7 +88,7 @@ WORKDIR /home/argocd
 ####################################################################################################
 FROM node:12.18.4 as argocd-ui
 
-WORKDIR /ui
+WORKDIR /src
 
 RUN yarn set version berry
 RUN echo "nodeLinker: node-modules" >> .yarnrc.yml
