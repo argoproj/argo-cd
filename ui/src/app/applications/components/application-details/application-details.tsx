@@ -726,13 +726,13 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
             const containerGroups = [
                 {
                     offset: 0,
-                    title: 'INIT CONTAINERS',
-                    containers: state.spec.initContainers || []
-                },
-                {
-                    offset: (state.spec.initContainers || []).length,
                     title: 'CONTAINERS',
                     containers: state.spec.containers || []
+                },
+                {
+                    offset: (state.spec.containers || []).length,
+                    title: 'INIT CONTAINERS',
+                    containers: state.spec.initContainers || []
                 }
             ];
             tabs = tabs.concat([

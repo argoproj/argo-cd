@@ -106,6 +106,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                                 <pre style={{height: '95%', textAlign: 'center'}}>Loading...</pre>
                             </div>
                         )}
+                        input={container.name}
                         load={() => {
                             return (
                                 services.applications
