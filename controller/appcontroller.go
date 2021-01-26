@@ -534,6 +534,7 @@ func (ctrl *ApplicationController) managedResources(comparisonResult *comparison
 		}
 		item.PredictedLiveState = string(resDiff.PredictedLive)
 		item.NormalizedLiveState = string(resDiff.NormalizedLive)
+		item.Modified = resDiff.Modified
 
 		items[i] = &item
 	}

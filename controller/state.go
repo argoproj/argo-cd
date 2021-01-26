@@ -309,41 +309,45 @@ func verifyGnuPGSignature(revision string, project *appv1.AppProject, manifestIn
 	return conditions
 }
 
-func (m *appStateManager) diffArrayCached(configArray, liveArray []*unstructured.Unstructured, opts ...diff.Option) (*diff.DiffResultList, error) {
+func (m *appStateManager) diffArrayCached(appName string, configArray, liveArray []*unstructured.Unstructured, noCache bool, opts ...diff.Option) (*diff.DiffResultList, error) {
+	managedResources := make([]*appv1.ResourceDiff, 0)
+	if noCache || m.cache.GetAppManagedResources(appName, &managedResources) != nil {
+		// (rare) cache miss
+		return diff.DiffArray(configArray, liveArray, opts...)
+	}
+
 	numItems := len(configArray)
 	if len(liveArray) != numItems {
 		return nil, fmt.Errorf("left and right arrays have mismatched lengths")
 	}
 
-	managedResources := make([]*appv1.ResourceDiff, 0)
-	if m.cache.GetAppManagedResources("", &managedResources) != nil {
-		// (rare) cache miss
-		return diff.DiffArray(configArray, liveArray, opts...)
+	diffByKey := map[kube.ResourceKey]*appv1.ResourceDiff{}
+	for i := range managedResources {
+		res := managedResources[i]
+		diffByKey[kube.NewResourceKey(res.Group, res.Kind, res.Namespace, res.Name)] = managedResources[i]
 	}
 
 	diffResultList := diff.DiffResultList{
 		Diffs: make([]diff.DiffResult, numItems),
 	}
 
-	resourceMap := make(map[kube.ResourceKey]*unstructured.Unstructured)
-
 	for i := 0; i < numItems; i++ {
-		key := kube.GetResourceKey(configArray[i])
-		resourceMap[key] = configArray[i]
-	}
-
-	for i := 0; i < numItems; i++ {
+		config := configArray[i]
+		live := liveArray[i]
+		resourceVersion := ""
+		var key kube.ResourceKey
+		if live != nil {
+			key = kube.GetResourceKey(live)
+			resourceVersion = live.GetResourceVersion()
+		} else {
+			key = kube.GetResourceKey(config)
+		}
 		var dr *diff.DiffResult
-		if i < len(managedResources) {
-			cachedResource := managedResources[i]
-			key := kube.NewResourceKey(cachedResource.Group, cachedResource.Kind, cachedResource.Namespace, cachedResource.Name)
-			targetObj := resourceMap[key]
-			if cachedResource.ResourceVersion == targetObj.GetResourceVersion() {
-				dr = &diff.DiffResult{
-					NormalizedLive: []byte(cachedResource.NormalizedLiveState),
-					PredictedLive:  []byte(cachedResource.PredictedLiveState),
-					Modified:       cachedResource.NormalizedLiveState == cachedResource.PredictedLiveState,
-				}
+		if cachedDiff, ok := diffByKey[key]; ok && cachedDiff.ResourceVersion == resourceVersion {
+			dr = &diff.DiffResult{
+				NormalizedLive: []byte(cachedDiff.NormalizedLiveState),
+				PredictedLive:  []byte(cachedDiff.PredictedLiveState),
+				Modified:       cachedDiff.Modified,
 			}
 		} else {
 			res, err := diff.Diff(configArray[i], liveArray[i], opts...)
@@ -488,7 +492,9 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	logCtx.Debugf("built managed objects list")
 	// Do the actual comparison
 	diffResults, err := m.diffArrayCached(
+		app.Name,
 		reconciliation.Target, reconciliation.Live,
+		noCache,
 		diff.WithNormalizer(diffNormalizer),
 		diff.IgnoreAggregatedRoles(compareOptions.IgnoreAggregatedRoles))
 	if err != nil {
