@@ -22,11 +22,11 @@ export const PodsLogsViewer = (props: {applicationName: string; pod: models.Reso
     const bottom = React.useRef<HTMLInputElement>(null);
     const [page, setPage] = useState<{number: number; untilTimes: string[]}>({number: 0, untilTimes: []});
 
-    interface filterData {
+    interface FilterData {
         literal: string;
         inverse: boolean;
     }
-    const [filter, setFilter] = useState({inverse: false} as filterData);
+    const [filter, setFilter] = useState({inverse: false} as FilterData);
 
     const filterQuery = () => {
         return filter.literal && `${filter.inverse ? '!' : ''}${filter.literal}`;
