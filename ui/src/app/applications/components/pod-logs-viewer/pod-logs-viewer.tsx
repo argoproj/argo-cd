@@ -21,6 +21,16 @@ export const PodsLogsViewer = (props: {applicationName: string; pod: models.Reso
     const [selectedLine, setSelectedLine] = useState(-1);
     const bottom = React.useRef<HTMLInputElement>(null);
     const [page, setPage] = useState<{number: number; untilTimes: string[]}>({number: 0, untilTimes: []});
+
+    interface filterData {
+        literal: string;
+        inverse: boolean;
+    }
+    const [filter, setFilter] = useState({inverse: false} as filterData);
+
+    const filterQuery = () => {
+        return filter.literal && `${filter.inverse ? '!' : ''}${filter.literal}`;
+    };
     return (
         <DataLoader load={() => services.viewPreferences.getPreferences()}>
             {prefs => (
@@ -85,6 +95,25 @@ export const PodsLogsViewer = (props: {applicationName: string; pod: models.Reso
                             }}>
                             {prefs.appDetails.darkMode ? <i className='fa fa-sun' /> : <i className='fa fa-moon' />}
                         </div>
+                        <div style={{display: 'flex', marginLeft: 'auto'}}>
+                            <button
+                                className={`argo-button argo-button--base${filter.inverse ? '' : '-o'}`}
+                                onClick={() => setFilter({...filter, inverse: !filter.inverse})}
+                                style={{marginRight: '10px'}}>
+                                !
+                            </button>
+                            <input
+                                type='text'
+                                placeholder='Filter string'
+                                className='argo-field'
+                                value={filter.literal}
+                                onChange={e => setFilter({...filter, literal: e.target.value})}
+                                style={{padding: 0}}
+                            />
+                            <button onClick={() => loader.reload()} className='argo-button argo-button--base' style={{width: '150px'}}>
+                                FILTER <i className='fa fa-filter' />
+                            </button>
+                        </div>
                     </div>
                     <DataLoader
                         ref={l => (loader = l)}
@@ -104,7 +133,8 @@ export const PodsLogsViewer = (props: {applicationName: string; pod: models.Reso
                                         container.name,
                                         maxLines * (page.number + 1),
                                         prefs.appDetails.followLogs && page.number === 0,
-                                        page.untilTimes[page.untilTimes.length - 1]
+                                        page.untilTimes[page.untilTimes.length - 1],
+                                        filterQuery()
                                     )
                                     // show only current page lines
                                     .scan((lines, logEntry) => {

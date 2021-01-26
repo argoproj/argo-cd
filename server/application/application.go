@@ -1081,6 +1081,23 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 	if q.TailLines > 0 {
 		tailLines = &q.TailLines
 	}
+
+	type filterData struct {
+		literal string
+		inverse bool
+	}
+
+	filter := filterData{
+		literal: "",
+		inverse: false,
+	}
+	if q.Filter != nil {
+		filter.literal = *q.Filter
+		if filter.literal[0] == '!' {
+			filter.literal = filter.literal[1:]
+			filter.inverse = true
+		}
+	}
 	stream, err := kubeClientset.CoreV1().Pods(pod.Namespace).GetLogs(*q.PodName, &v1.PodLogOptions{
 		Container:    q.Container,
 		Follow:       q.Follow,
@@ -1117,6 +1134,12 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 						_ = ws.Send(&application.LogEntry{Last: true})
 						close(done)
 						return
+					}
+					if q.Filter != nil {
+						lineContainsFilter := strings.Contains(line, filter.literal)
+						if (filter.inverse && lineContainsFilter) || (!filter.inverse && !lineContainsFilter) {
+							continue
+						}
 					}
 					err = ws.Send(&application.LogEntry{
 						Content:      line,
