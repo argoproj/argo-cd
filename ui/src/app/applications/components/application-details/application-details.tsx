@@ -478,7 +478,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                     <div className='white-box__details'>
                                                         <div className='row white-box__details-row'>
                                                             <div className='columns small-3'>Message:</div>
-                                                            <div className='columns small-9'>
+                                                            <div className='columns small-9' style={{display: 'flex', alignItems: 'center'}}>
                                                                 <div className='application-details__commit-message'>{this.state.metadata.message}</div>
                                                             </div>
                                                         </div>
