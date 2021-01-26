@@ -1336,14 +1336,28 @@ func checkoutRevision(gitClient git.Client, revision string) error {
 	if err != nil {
 		return status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
 	}
-	err = gitClient.Fetch(revision)
-	if err != nil {
-		return status.Errorf(codes.Internal, "Failed to fetch %s: %v", revision, err)
+
+	// Some git providers don't support fetching commit sha
+	if revision != "" && !git.IsCommitSHA(revision) && !git.IsTruncatedCommitSHA(revision) {
+		err = gitClient.Fetch(revision)
+		if err != nil {
+			return status.Errorf(codes.Internal, "Failed to fetch %s: %v", revision, err)
+		}
+		err = gitClient.Checkout("FETCH_HEAD")
+		if err != nil {
+			return status.Errorf(codes.Internal, "Failed to checkout FETCH_HEAD: %v", err)
+		}
+	} else {
+		err = gitClient.Fetch("")
+		if err != nil {
+			return status.Errorf(codes.Internal, "Failed to fetch %s: %v", revision, err)
+		}
+		err = gitClient.Checkout(revision)
+		if err != nil {
+			return status.Errorf(codes.Internal, "Failed to checkout %s: %v", revision, err)
+		}
 	}
-	err = gitClient.Checkout("FETCH_HEAD")
-	if err != nil {
-		return status.Errorf(codes.Internal, "Failed to checkout FETCH_HEAD: %v", err)
-	}
+
 	return err
 }
 
