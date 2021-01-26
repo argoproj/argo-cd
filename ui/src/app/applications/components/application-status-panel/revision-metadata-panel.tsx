@@ -4,7 +4,7 @@ import {Timestamp} from '../../../shared/components/timestamp';
 import {RevisionMetadata} from '../../../shared/models';
 import {services} from '../../../shared/services';
 
-export const RevisionMetadataPanel = (props: {appName: string; type: string; revision: string}) => {
+export const RevisionMetadataPanel = (props: {appName: string; type: string; revision: string; showInfo?: (info: RevisionMetadata) => any}) => {
     if (props.type === 'helm') {
         return <React.Fragment />;
     }
@@ -38,13 +38,7 @@ export const RevisionMetadataPanel = (props: {appName: string; type: string; rev
                                 <br />
                             </React.Fragment>
                         )}
-                        {m.tags && (
-                            <span>
-                                Tagged {m.tags.join(', ')}
-                                <br />
-                            </span>
-                        )}
-                        {m.message}
+                        {m.message.split('\n')[0].slice(0, 64)} {props.showInfo && <a onClick={() => props.showInfo(m)}>more</a>}
                     </div>
                 </Tooltip>
             )}
