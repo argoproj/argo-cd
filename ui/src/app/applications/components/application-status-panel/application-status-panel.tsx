@@ -1,12 +1,11 @@
 import {HelpIcon} from 'argo-ui';
 import * as React from 'react';
-import {DataLoader, InfoPopup} from '../../../shared/components';
+import {DataLoader} from '../../../shared/components';
 import {Revision} from '../../../shared/components/revision';
 import {Timestamp} from '../../../shared/components/timestamp';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
-import * as utils from '../utils';
-import {ApplicationSyncWindowStatusIcon, ComparisonStatusIcon, getAppOperationState, HealthStatusIcon, OperationState, syncStatusMessage} from '../utils';
+import {ApplicationSyncWindowStatusIcon, ComparisonStatusIcon, getAppOperationState, getConditionCategory, HealthStatusIcon, OperationState, syncStatusMessage} from '../utils';
 import {RevisionMetadataPanel} from './revision-metadata-panel';
 
 require('./application-status-panel.scss');
@@ -15,12 +14,11 @@ interface Props {
     application: models.Application;
     showOperation?: () => any;
     showConditions?: () => any;
+    showMetadataInfo?: (revision: string, info: models.RevisionMetadata) => any;
 }
 
-export const ApplicationStatusPanel = ({application, showOperation, showConditions}: Props) => {
+export const ApplicationStatusPanel = ({application, showOperation, showConditions, showMetadataInfo}: Props) => {
     const today = new Date();
-    const [title, setTitle] = React.useState<JSX.Element>();
-    const [content, setContent] = React.useState<JSX.Element>();
 
     let daysSinceLastSynchronized = 0;
     const history = application.status.history || [];
@@ -29,7 +27,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
         daysSinceLastSynchronized = Math.round(Math.abs((today.getTime() - deployDate.getTime()) / (24 * 60 * 60 * 1000)));
     }
     const cntByCategory = (application.status.conditions || []).reduce(
-        (map, next) => map.set(utils.getConditionCategory(next), (map.get(utils.getConditionCategory(next)) || 0) + 1),
+        (map, next) => map.set(getConditionCategory(next), (map.get(getConditionCategory(next)) || 0) + 1),
         new Map<string, number>()
     );
     const appOperationState = getAppOperationState(application);
@@ -37,19 +35,8 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
         showOperation = null;
     }
 
-    function viewApplicationStatusFull(infoTitle: JSX.Element, infoContent: JSX.Element) {
-        setTitle(infoTitle);
-        setContent(infoContent);
-    }
-
-    function closeApplicationStatusFull() {
-        setTitle(null);
-        setContent(null);
-    }
-
     return (
         <div className='application-status-panel row'>
-            {title && content && <InfoPopup title={title} content={content} onClose={closeApplicationStatusFull} />}
             <div className='application-status-panel__item columns small-2'>
                 <div className='application-status-panel__item-value'>
                     <HealthStatusIcon state={application.status.health} />
@@ -67,12 +54,17 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                 <div className='application-status-panel__item-name'>{syncStatusMessage(application)}</div>
                 <div className='application-status-panel__item-name'>
                     {application.status && application.status.sync && application.status.sync.revision && (
-                        <RevisionMetadataPanel appName={application.metadata.name} type={application.spec.source.chart && 'helm'} revision={application.status.sync.revision} />
+                        <RevisionMetadataPanel
+                            appName={application.metadata.name}
+                            type={application.spec.source.chart && 'helm'}
+                            revision={application.status.sync.revision}
+                            showInfo={showMetadataInfo && (info => showMetadataInfo(application.status.sync.revision, info))}
+                        />
                     )}
                 </div>
             </div>
             {appOperationState && (
-                <div className='application-status-panel__item columns small-4'>
+                <div className='application-status-panel__item columns small-4 '>
                     <div className={`application-status-panel__item-value application-status-panel__item-value--${appOperationState.phase}`}>
                         <a onClick={() => showOperation && showOperation()}>
                             <OperationState app={application} />
@@ -85,59 +77,22 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                             />
                         </a>
                     </div>
-                    <div className='third-column-truncate'>
-                        {appOperationState.syncResult && appOperationState.syncResult.revision && (
-                            <div className='application-status-panel__item-name'>
-                                To <Revision repoUrl={application.spec.source.repoURL} revision={appOperationState.syncResult.revision} />
-                            </div>
-                        )}
+                    {appOperationState.syncResult && appOperationState.syncResult.revision && (
                         <div className='application-status-panel__item-name'>
-                            {appOperationState.phase} <Timestamp date={appOperationState.finishedAt || appOperationState.startedAt} />
+                            To <Revision repoUrl={application.spec.source.repoURL} revision={appOperationState.syncResult.revision} />
                         </div>
-                        {(appOperationState.syncResult && appOperationState.syncResult.revision && (
-                            <RevisionMetadataPanel
-                                appName={application.metadata.name}
-                                type={application.spec.source.chart && 'helm'}
-                                revision={appOperationState.syncResult.revision}
-                            />
-                        )) || <div className='application-status-panel__item-name'>{appOperationState.message}</div>}
-                        <button
-                            className='view-application-status-full'
-                            onClick={() =>
-                                viewApplicationStatusFull(
-                                    // title of info popup
-                                    <div className={`info-popup-title application-status-panel__item-value application-status-panel__item-value--${appOperationState.phase}`}>
-                                        <a onClick={() => showOperation && showOperation()}>
-                                            {utils.getOperationStateTitle(application)}
-                                            <div className='info-popup-title__timestamp'>
-                                                - {appOperationState.phase} <Timestamp date={appOperationState.finishedAt || appOperationState.startedAt} />
-                                            </div>
-                                        </a>
-                                    </div>,
-                                    // content of info-popup
-                                    <div className='info-popup-content'>
-                                        {appOperationState.syncResult && appOperationState.syncResult.revision && (
-                                            <div className='info-popup-content__data'>
-                                                To <Revision repoUrl={application.spec.source.repoURL} revision={appOperationState.syncResult.revision} />
-                                            </div>
-                                        )}
-                                        {(appOperationState.syncResult && appOperationState.syncResult.revision && (
-                                            <div className='info-popup-content__data'>
-                                                <RevisionMetadataPanel
-                                                    appName={application.metadata.name}
-                                                    type={application.spec.source.chart && 'helm'}
-                                                    revision={appOperationState.syncResult.revision}
-                                                />
-                                            </div>
-                                        )) || <div className='info-popup-content__data'>{appOperationState.message}</div>}
-                                        <br />
-                                        <div>It has been {daysSinceLastSynchronized} days since last sync.</div>
-                                    </div>
-                                )
-                            }>
-                            Expand <i className='fas fa-angle-double-right' />
-                        </button>
+                    )}
+                    <div className='application-status-panel__item-name'>
+                        {appOperationState.phase} <Timestamp date={appOperationState.finishedAt || appOperationState.startedAt} />
                     </div>
+                    {(appOperationState.syncResult && appOperationState.syncResult.revision && (
+                        <RevisionMetadataPanel
+                            appName={application.metadata.name}
+                            type={application.spec.source.chart && 'helm'}
+                            revision={appOperationState.syncResult.revision}
+                            showInfo={showMetadataInfo && (info => showMetadataInfo(appOperationState.syncResult.revision, info))}
+                        />
+                    )) || <div className='application-status-panel__item-name'>{appOperationState.message}</div>}
                 </div>
             )}
             {application.status.conditions && (
