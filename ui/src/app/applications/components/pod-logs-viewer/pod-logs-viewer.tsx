@@ -10,7 +10,7 @@ import './pod-logs-viewer.scss';
 const maxLines = 100;
 
 export const PodsLogsViewer = (props: {applicationName: string; pod: models.ResourceNode & any; containerIndex: number}) => {
-    const containers = (props.pod.spec.initContainers || []).concat(props.pod.spec.containers || []);
+    const containers = (props.pod.spec.containers || []).concat(props.pod.spec.initContainers || []);
     const container = containers[props.containerIndex];
     if (!container) {
         return <div>Pod does not have container with index {props.containerIndex}</div>;
@@ -94,6 +94,7 @@ export const PodsLogsViewer = (props: {applicationName: string; pod: models.Reso
                                 <pre style={{height: '95%', textAlign: 'center'}}>Loading...</pre>
                             </div>
                         )}
+                        input={container.name}
                         load={() => {
                             return (
                                 services.applications
