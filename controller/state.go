@@ -12,6 +12,7 @@ import (
 	hookutil "github.com/argoproj/gitops-engine/pkg/sync/hook"
 	"github.com/argoproj/gitops-engine/pkg/sync/ignore"
 	resourceutil "github.com/argoproj/gitops-engine/pkg/sync/resource"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	kubeutil "github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -324,11 +325,19 @@ func (m *appStateManager) diffArrayCached(configArray, liveArray []*unstructured
 		Diffs: make([]diff.DiffResult, numItems),
 	}
 
+	var resourceMap map[kube.ResourceKey]*unstructured.Unstructured
+	
+	for i := 0; i < numItems; i++ {
+		key := kube.GetResourceKey(configArray[i])
+		resourceMap[key] = configArray[i]
+	}
+
 	for i := 0; i < numItems; i++ {
 		var dr *diff.DiffResult
 		if i < len(managedResources) {
 			cachedResource := managedResources[i]
-			targetObj := configArray[i]
+			key := kube.NewResourceKey(cachedResource.Group, cachedResource.Kind, cachedResource.Namespace, cachedResource.Name)
+			targetObj := resourceMap[key]
 			if cachedResource.ResourceVersion == targetObj.GetResourceVersion() {
 				dr = &diff.DiffResult{
 					NormalizedLive: []byte(cachedResource.NormalizedLiveState),
@@ -551,7 +560,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		}
 
 		resourceVersion := ""
-		if targetObj != nil {
+		if liveObj != nil {
 			resourceVersion = liveObj.GetResourceVersion()
 		}
 		managedResources[i] = managedResource{
