@@ -325,8 +325,8 @@ func (m *appStateManager) diffArrayCached(configArray, liveArray []*unstructured
 		Diffs: make([]diff.DiffResult, numItems),
 	}
 
-	var resourceMap map[kube.ResourceKey]*unstructured.Unstructured
-	
+	resourceMap := make(map[kube.ResourceKey]*unstructured.Unstructured)
+
 	for i := 0; i < numItems; i++ {
 		key := kube.GetResourceKey(configArray[i])
 		resourceMap[key] = configArray[i]
