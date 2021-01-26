@@ -263,8 +263,7 @@ func (m *nativeGitClient) IsLFSEnabled() bool {
 // Fetch fetches latest updates from origin
 func (m *nativeGitClient) Fetch(revision string) error {
 	var err error
-	// Some git providers don't support fetching commit sha
-	if revision != "" && !IsCommitSHA(revision) && !IsTruncatedCommitSHA(revision) {
+	if revision != "" {
 		err = m.runCredentialedCmd("git", "fetch", "origin", revision, "--tags", "--force")
 	} else {
 		err = m.runCredentialedCmd("git", "fetch", "origin", "--tags", "--force")
