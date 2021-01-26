@@ -466,7 +466,7 @@ export function getOperationType(application: appModels.Application) {
     return 'Unknown';
 }
 
-export const getOperationStateTitle = (app: appModels.Application) => {
+const getOperationStateTitle = (app: appModels.Application) => {
     const appOperationState = getAppOperationState(app);
     const operationType = getOperationType(app);
     switch (operationType) {
