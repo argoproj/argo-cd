@@ -8,12 +8,16 @@ import {services} from '../../../shared/services';
 import './pod-logs-viewer.scss';
 
 const maxLines = 100;
+export interface PodLogsProps {
+    namespace: string;
+    applicationName: string;
+    podName: string;
+    containerName: string;
+}
 
-export const PodsLogsViewer = (props: {applicationName: string; pod: models.ResourceNode & any; containerIndex: number}) => {
-    const containers = (props.pod.spec.initContainers || []).concat(props.pod.spec.containers || []);
-    const container = containers[props.containerIndex];
-    if (!container) {
-        return <div>Pod does not have container with index {props.containerIndex}</div>;
+export const PodsLogsViewer = (props: PodLogsProps) => {
+    if (!props.containerName || props.containerName === '') {
+        return <div>Pod does not have container with name {props.containerName}</div>;
     }
 
     let loader: DataLoader<models.LogEntry[]>;
@@ -85,6 +89,14 @@ export const PodsLogsViewer = (props: {applicationName: string; pod: models.Reso
                             }}>
                             {prefs.appDetails.darkMode ? <i className='fa fa-sun' /> : <i className='fa fa-moon' />}
                         </div>
+                        <button className='argo-button argo-button--base'>
+                            <i
+                                className='fa fa-external-link-alt'
+                                onClick={() => {
+                                    console.log(`${props.namespace}/${props.applicationName}/${props.podName}/${props.containerName}`);
+                                }}
+                            />
+                        </button>
                     </div>
                     <DataLoader
                         ref={l => (loader = l)}
@@ -99,9 +111,9 @@ export const PodsLogsViewer = (props: {applicationName: string; pod: models.Reso
                                 services.applications
                                     .getContainerLogs(
                                         props.applicationName,
-                                        props.pod.metadata.namespace,
-                                        props.pod.metadata.name,
-                                        container.name,
+                                        props.namespace,
+                                        props.podName,
+                                        props.containerName,
                                         maxLines * (page.number + 1),
                                         prefs.appDetails.followLogs && page.number === 0,
                                         page.untilTimes[page.untilTimes.length - 1]
