@@ -357,7 +357,7 @@ func (m *appStateManager) diffArrayCached(appName string, configArray, liveArray
 			dr = res
 		}
 		diffResultList.Diffs[i] = *dr
-		if dr.Modified {
+		if dr != nil && dr.Modified {
 			diffResultList.Modified = true
 		}
 	}
