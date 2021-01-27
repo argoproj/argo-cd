@@ -443,8 +443,6 @@ message ComparedTo {
   optional ApplicationSource source = 1;
 
   optional ApplicationDestination destination = 2;
-
-  repeated ResourceIgnoreDifferences ignoreDifferences = 3;
 }
 
 // ComponentParameter contains information about component parameter value

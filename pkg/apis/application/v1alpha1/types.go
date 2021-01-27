@@ -927,9 +927,8 @@ type ApplicationCondition struct {
 
 // ComparedTo contains application source and target which was used for resources comparison
 type ComparedTo struct {
-	Source            ApplicationSource           `json:"source" protobuf:"bytes,1,opt,name=source"`
-	Destination       ApplicationDestination      `json:"destination" protobuf:"bytes,2,opt,name=destination"`
-	IgnoreDifferences []ResourceIgnoreDifferences `json:"ignoreDifferences,omitempty" protobuf:"bytes,3,name=ignoreDifferences"`
+	Source      ApplicationSource      `json:"source" protobuf:"bytes,1,opt,name=source"`
+	Destination ApplicationDestination `json:"destination" protobuf:"bytes,2,opt,name=destination"`
 }
 
 // SyncStatus is a comparison result of application spec and deployed application.
@@ -2335,6 +2334,10 @@ func (app *Application) IsRefreshRequested() (RefreshType, bool) {
 // SetCascadedDeletion sets or remove resources finalizer
 func (app *Application) SetCascadedDeletion(prune bool) {
 	setFinalizer(&app.ObjectMeta, common.ResourcesFinalizerName, prune)
+}
+
+func (status *ApplicationStatus) Expired(statusRefreshTimeout time.Duration) bool {
+	return status.ReconciledAt == nil || status.ReconciledAt.Add(statusRefreshTimeout).Before(time.Now().UTC())
 }
 
 // SetConditions updates the application status conditions for a subset of evaluated types.

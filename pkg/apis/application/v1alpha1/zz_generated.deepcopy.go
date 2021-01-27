@@ -836,13 +836,6 @@ func (in *ComparedTo) DeepCopyInto(out *ComparedTo) {
 	*out = *in
 	in.Source.DeepCopyInto(&out.Source)
 	out.Destination = in.Destination
-	if in.IgnoreDifferences != nil {
-		in, out := &in.IgnoreDifferences, &out.IgnoreDifferences
-		*out = make([]ResourceIgnoreDifferences, len(*in))
-		for i := range *in {
-			(*in)[i].DeepCopyInto(&(*out)[i])
-		}
-	}
 	return
 }
 

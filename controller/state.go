@@ -101,16 +101,17 @@ func (res *comparisonResult) GetHealthStatus() *v1alpha1.HealthStatus {
 
 // appStateManager allows to compare applications to git
 type appStateManager struct {
-	metricsServer  *metrics.MetricsServer
-	db             db.ArgoDB
-	settingsMgr    *settings.SettingsManager
-	appclientset   appclientset.Interface
-	projInformer   cache.SharedIndexInformer
-	kubectl        kubeutil.Kubectl
-	repoClientset  apiclient.Clientset
-	liveStateCache statecache.LiveStateCache
-	cache          *appstatecache.Cache
-	namespace      string
+	metricsServer        *metrics.MetricsServer
+	db                   db.ArgoDB
+	settingsMgr          *settings.SettingsManager
+	appclientset         appclientset.Interface
+	projInformer         cache.SharedIndexInformer
+	kubectl              kubeutil.Kubectl
+	repoClientset        apiclient.Clientset
+	liveStateCache       statecache.LiveStateCache
+	cache                *appstatecache.Cache
+	namespace            string
+	statusRefreshTimeout time.Duration
 }
 
 func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1.ApplicationSource, appLabelKey, revision string, noCache, verifySignature bool) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
@@ -494,9 +495,11 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	cachedDiff := make([]*appv1.ResourceDiff, 0)
 	// restore comparison using cached diff result if previous comparison was performed for the same revision
 	revisionChanged := manifestInfo == nil || app.Status.Sync.Revision != manifestInfo.Revision
-	specChanged := !reflect.DeepEqual(app.Status.Sync.ComparedTo, appv1.ComparedTo{
-		Source: app.Spec.Source, Destination: app.Spec.Destination, IgnoreDifferences: app.Spec.IgnoreDifferences,
-	})
+	specChanged := !reflect.DeepEqual(app.Status.Sync.ComparedTo, appv1.ComparedTo{Source: app.Spec.Source, Destination: app.Spec.Destination})
+
+	_, refreshRequested := app.IsRefreshRequested()
+	noCache = noCache || refreshRequested || app.Status.Expired(m.statusRefreshTimeout)
+
 	if noCache || specChanged || revisionChanged || m.cache.GetAppManagedResources(app.Name, &cachedDiff) != nil {
 		// (rare) cache miss
 		diffResults, err = diff.DiffArray(reconciliation.Target, reconciliation.Live, diffOpts...)
@@ -596,9 +599,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	}
 	syncStatus := v1alpha1.SyncStatus{
 		ComparedTo: appv1.ComparedTo{
-			Source:            source,
-			Destination:       app.Spec.Destination,
-			IgnoreDifferences: app.Spec.IgnoreDifferences,
+			Source:      source,
+			Destination: app.Spec.Destination,
 		},
 		Status: syncCode,
 	}
@@ -684,17 +686,19 @@ func NewAppStateManager(
 	projInformer cache.SharedIndexInformer,
 	metricsServer *metrics.MetricsServer,
 	cache *appstatecache.Cache,
+	statusRefreshTimeout time.Duration,
 ) AppStateManager {
 	return &appStateManager{
-		liveStateCache: liveStateCache,
-		cache:          cache,
-		db:             db,
-		appclientset:   appclientset,
-		kubectl:        kubectl,
-		repoClientset:  repoClientset,
-		namespace:      namespace,
-		settingsMgr:    settingsMgr,
-		projInformer:   projInformer,
-		metricsServer:  metricsServer,
+		liveStateCache:       liveStateCache,
+		cache:                cache,
+		db:                   db,
+		appclientset:         appclientset,
+		kubectl:              kubectl,
+		repoClientset:        repoClientset,
+		namespace:            namespace,
+		settingsMgr:          settingsMgr,
+		projInformer:         projInformer,
+		metricsServer:        metricsServer,
+		statusRefreshTimeout: statusRefreshTimeout,
 	}
 }
