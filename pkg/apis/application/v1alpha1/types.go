@@ -985,6 +985,18 @@ type ApplicationTree struct {
 	Hosts []HostInfo `json:"hosts,omitempty" protobuf:"bytes,3,rep,name=hosts"`
 }
 
+func (t *ApplicationTree) Normalize() {
+	sort.Slice(t.Nodes, func(i, j int) bool {
+		return t.Nodes[i].FullName() < t.Nodes[j].FullName()
+	})
+	sort.Slice(t.OrphanedNodes, func(i, j int) bool {
+		return t.OrphanedNodes[i].FullName() < t.OrphanedNodes[j].FullName()
+	})
+	sort.Slice(t.Hosts, func(i, j int) bool {
+		return t.Hosts[i].Name < t.Hosts[j].Name
+	})
+}
+
 type ApplicationSummary struct {
 	// ExternalURLs holds all external URLs of application child resources.
 	ExternalURLs []string `json:"externalURLs,omitempty" protobuf:"bytes,1,opt,name=externalURLs"`
@@ -1061,6 +1073,10 @@ func (n *ResourceNode) GroupKindVersion() schema.GroupVersionKind {
 	}
 }
 
+func (n *ResourceNode) FullName() string {
+	return fmt.Sprintf("%s/%s/%s/%s", n.Group, n.Kind, n.Namespace, n.Name)
+}
+
 // ResourceStatus holds the current sync and health status of a resource
 type ResourceStatus struct {
 	Group           string         `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
@@ -1096,6 +1112,10 @@ type ResourceDiff struct {
 	NormalizedLiveState string `json:"normalizedLiveState,omitempty" protobuf:"bytes,9,opt,name=normalizedLiveState"`
 	// PredictedLiveState contains JSON serialized resource state that is calculated based on normalized and target resource state
 	PredictedLiveState string `json:"predictedLiveState,omitempty" protobuf:"bytes,10,opt,name=predictedLiveState"`
+}
+
+func (r *ResourceDiff) FullName() string {
+	return fmt.Sprintf("%s/%s/%s/%s", r.Group, r.Kind, r.Namespace, r.Name)
 }
 
 // ConnectionStatus represents connection status

@@ -2,7 +2,10 @@ package cache
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
+	"fmt"
+	"sync"
 	"time"
 
 	ioutil "github.com/argoproj/argo-cd/util/io"
@@ -16,13 +19,32 @@ func NewRedisCache(client *redis.Client, expiration time.Duration) CacheClient {
 		client:     client,
 		expiration: expiration,
 		cache:      rediscache.New(&rediscache.Options{Redis: client}),
+		hashByKey:  map[string]prevSetInfo{},
 	}
 }
 
+type prevSetInfo struct {
+	hash  string
+	setAt time.Time
+}
+
 type redisCache struct {
-	expiration time.Duration
-	client     *redis.Client
-	cache      *rediscache.Cache
+	expiration    time.Duration
+	client        *redis.Client
+	cache         *rediscache.Cache
+	hashByKey     map[string]prevSetInfo
+	hashByKeyLock sync.Mutex
+}
+
+func (r *redisCache) isNewKeyValue(key string, data []byte) bool {
+	r.hashByKeyLock.Lock()
+	defer r.hashByKeyLock.Unlock()
+	hash := fmt.Sprintf("%x", sha256.Sum256(data))
+	if prevSet, ok := r.hashByKey[key]; !ok || hash != prevSet.hash || prevSet.setAt.Add(r.expiration).Before(time.Now()) {
+		r.hashByKey[key] = prevSetInfo{setAt: time.Now(), hash: hash}
+		return true
+	}
+	return false
 }
 
 func (r *redisCache) Set(item *Item) error {
@@ -36,11 +58,14 @@ func (r *redisCache) Set(item *Item) error {
 		return err
 	}
 
-	return r.cache.Set(&rediscache.Item{
-		Key:   item.Key,
-		Value: val,
-		TTL:   expiration,
-	})
+	if r.isNewKeyValue(item.Key, val) {
+		return r.cache.Set(&rediscache.Item{
+			Key:   item.Key,
+			Value: val,
+			TTL:   expiration,
+		})
+	}
+	return nil
 }
 
 func (r *redisCache) Get(key string, obj interface{}) error {
