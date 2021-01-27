@@ -166,7 +166,7 @@ message ApplicationPodLogsQuery {
 	optional string untilTime = 9;
 	optional string kind = 10;
 	optional string group = 11;
-	optional string resourceName = 11 ;
+	optional string resourceName = 12 ;
 }
 
 message LogEntry {

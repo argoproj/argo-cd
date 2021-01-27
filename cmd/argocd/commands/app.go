@@ -273,6 +273,7 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		follow       bool
 		tailLines    int64
 		sinceSeconds int64
+		untilTime    string
 	)
 	var command = &cobra.Command{
 		Use:   "logs APPNAME",
@@ -295,6 +296,7 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				Follow:       follow,
 				TailLines:    tailLines,
 				SinceSeconds: sinceSeconds,
+				UntilTime:    &untilTime,
 			})
 			if err != nil {
 				log.Fatalf("failed to get pod logs: %v", err)
@@ -322,61 +324,9 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&follow, "follow", false, "Specify if the logs should be streamed")
 	command.Flags().Int64Var(&tailLines, "tail-lines", 0, "The number of lines from the end of the logs to show")
 	command.Flags().Int64Var(&sinceSeconds, "since-seconds", 0, "A relative time in seconds before the current time from which to show logs.")
+	command.Flags().StringVar(&untilTime, "until-time", "", "Show logs until this time")
+
 	return command
-}
-
-// from all of the treeNodes, get the pod who meets the selectedResources criteria or whose parents meets the selectedResouces criteria
-func getSelectedPods(treeNodes []argoappv1.ResourceNode, selectedResources []argoappv1.SyncOperationResource) []argoappv1.ResourceNode {
-	var pods []argoappv1.ResourceNode
-	isTheOneMap := make(map[string]bool)
-	for _, treeNode := range treeNodes {
-		if treeNode.Kind == "Pod" && treeNode.Group == "" {
-			if isTheSelectedOne(&treeNode, selectedResources, treeNodes, isTheOneMap) {
-				log.Info("May: " + treeNode.Kind + ":" + treeNode.Name)
-				pods = append(pods, treeNode)
-			}
-		}
-	}
-	return pods
-}
-
-// check is currentNode is one of the selectedResources, or if any of its parents is one of the selectedReources
-// its parents must be from resourcesNodes
-func isTheSelectedOne(currentNode *argoappv1.ResourceNode, selectedResources []argoappv1.SyncOperationResource, resourceNodes []argoappv1.ResourceNode, isTheOneMap map[string]bool) bool {
-	if len(selectedResources) == 0 {
-		return true
-	}
-	exist, value := isTheOneMap[currentNode.UID]
-	if exist {
-		return value
-	}
-
-	if argo.ContainsSyncResource(currentNode.Name, currentNode.Namespace, schema.GroupVersionKind{Group: currentNode.Group, Kind: currentNode.Kind}, selectedResources) {
-		isTheOneMap[currentNode.UID] = true
-		return true
-	}
-
-	if len(currentNode.ParentRefs) == 0 {
-		isTheOneMap[currentNode.UID] = false
-		return false
-	}
-
-	for _, parentResource := range currentNode.ParentRefs {
-		for _, resourceNode := range resourceNodes {
-			if resourceNode.Namespace == parentResource.Namespace &&
-				resourceNode.Name == parentResource.Name &&
-				resourceNode.Group == parentResource.Group &&
-				resourceNode.Kind == parentResource.Kind {
-				if isTheSelectedOne(&resourceNode, selectedResources, resourceNodes, isTheOneMap) {
-					isTheOneMap[currentNode.UID] = true
-					return true
-				}
-			}
-		}
-	}
-
-	isTheOneMap[currentNode.UID] = false
-	return false
 }
 
 func printAppSummaryTable(app *argoappv1.Application, appURL string, windows *argoappv1.SyncWindows) {

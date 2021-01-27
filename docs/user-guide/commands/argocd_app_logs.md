@@ -18,6 +18,7 @@ argocd app logs APPNAME [flags]
       --refresh             Refresh application data when retrieving
       --since-seconds int   A relative time in seconds before the current time from which to show logs.
       --tail-lines int      The number of lines from the end of the logs to show
+      --until-time string   Show logs until this time
 ```
 
 ### Options inherited from parent commands
