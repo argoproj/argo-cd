@@ -1,8 +1,8 @@
 import {DataLoader, DropDownMenu} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
-
 import {useState} from 'react';
+import {Observable} from 'rxjs';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import './pod-logs-viewer.scss';
@@ -21,6 +21,16 @@ export const PodsLogsViewer = (props: {applicationName: string; pod: models.Reso
     const [selectedLine, setSelectedLine] = useState(-1);
     const bottom = React.useRef<HTMLInputElement>(null);
     const [page, setPage] = useState<{number: number; untilTimes: string[]}>({number: 0, untilTimes: []});
+
+    interface FilterData {
+        literal: string;
+        inverse: boolean;
+    }
+    const [filter, setFilter] = useState({inverse: false, literal: ''} as FilterData);
+
+    const filterQuery = () => {
+        return filter.literal && `${filter.inverse ? '!' : ''}${filter.literal}`;
+    };
     return (
         <DataLoader load={() => services.viewPreferences.getPreferences()}>
             {prefs => (
@@ -85,6 +95,33 @@ export const PodsLogsViewer = (props: {applicationName: string; pod: models.Reso
                             }}>
                             {prefs.appDetails.darkMode ? <i className='fa fa-sun' /> : <i className='fa fa-moon' />}
                         </div>
+                        <div className='pod-logs-viewer__filter'>
+                            <button
+                                className={`argo-button argo-button--base${filter.inverse ? '' : '-o'}`}
+                                onClick={() => setFilter({...filter, inverse: !filter.inverse})}
+                                style={{marginRight: '10px'}}>
+                                !
+                            </button>
+                            <input
+                                ref={input => {
+                                    if (input) {
+                                        Observable.fromEvent(input, 'keyup')
+                                            .debounceTime(500)
+                                            .subscribe(() => {
+                                                if (loader) {
+                                                    loader.reload();
+                                                }
+                                            });
+                                    }
+                                }}
+                                type='text'
+                                placeholder='Filter string'
+                                className='argo-field'
+                                value={filter.literal}
+                                onChange={e => setFilter({...filter, literal: e.target.value})}
+                                style={{padding: 0}}
+                            />
+                        </div>
                     </div>
                     <DataLoader
                         ref={l => (loader = l)}
@@ -105,7 +142,8 @@ export const PodsLogsViewer = (props: {applicationName: string; pod: models.Reso
                                         container.name,
                                         maxLines * (page.number + 1),
                                         prefs.appDetails.followLogs && page.number === 0,
-                                        page.untilTimes[page.untilTimes.length - 1]
+                                        page.untilTimes[page.untilTimes.length - 1],
+                                        filterQuery()
                                     )
                                     // show only current page lines
                                     .scan((lines, logEntry) => {
