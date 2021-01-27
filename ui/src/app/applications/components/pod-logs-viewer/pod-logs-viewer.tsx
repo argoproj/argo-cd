@@ -20,14 +20,16 @@ export const PodsLogsViewer = (props: {applicationName: string; pod: models.Reso
     const [copy, setCopy] = useState('');
     const [selectedLine, setSelectedLine] = useState(-1);
     const bottom = React.useRef<HTMLInputElement>(null);
+    const top = React.useRef<HTMLInputElement>(null);
     const [page, setPage] = useState<{number: number; untilTimes: string[]}>({number: 0, untilTimes: []});
     return (
         <DataLoader load={() => services.viewPreferences.getPreferences()}>
             {prefs => (
                 <React.Fragment>
                     <div className='pod-logs-viewer__settings'>
-                        <div
+                        <button
                             className='argo-button argo-button--base'
+                            style={{width: '100px'}}
                             onClick={async () => {
                                 try {
                                     await navigator.clipboard.writeText(
@@ -59,11 +61,12 @@ export const PodsLogsViewer = (props: {applicationName: string; pod: models.Reso
                                     COPY <i className='fa fa-clipboard' />
                                 </React.Fragment>
                             )}
-                        </div>
-                        <div
+                        </button>
+                        <button
                             className={classNames(`argo-button argo-button--base${prefs.appDetails.followLogs && page.number === 0 ? '' : '-o'}`, {
                                 disabled: page.number > 0
                             })}
+                            style={{width: '110px'}}
                             onClick={() => {
                                 if (page.number > 0) {
                                     return;
@@ -76,15 +79,15 @@ export const PodsLogsViewer = (props: {applicationName: string; pod: models.Reso
                                 loader.reload();
                             }}>
                             FOLLOW {prefs.appDetails.followLogs && <i className='fa fa-check' />}
-                        </div>
-                        <div
+                        </button>
+                        <button
                             className='argo-button argo-button--base-o'
                             onClick={() => {
                                 const inverted = prefs.appDetails.darkMode;
                                 services.viewPreferences.updatePreferences({...prefs, appDetails: {...prefs.appDetails, darkMode: !inverted}});
                             }}>
                             {prefs.appDetails.darkMode ? <i className='fa fa-sun' /> : <i className='fa fa-moon' />}
-                        </div>
+                        </button>
                     </div>
                     <DataLoader
                         ref={l => (loader = l)}
@@ -148,6 +151,11 @@ export const PodsLogsViewer = (props: {applicationName: string; pod: models.Reso
                                                     behavior: 'smooth'
                                                 });
                                             },
+                                            top: () => {
+                                                top.current.scrollIntoView({
+                                                    behavior: 'smooth'
+                                                });
+                                            },
                                             right: () => {
                                                 if (page.number > 0) {
                                                     setPage({number: page.number - 1, untilTimes: page.untilTimes.slice(0, page.untilTimes.length - 1)});
@@ -168,6 +176,7 @@ export const PodsLogsViewer = (props: {applicationName: string; pod: models.Reso
                                         }
                                     )}
                                     <pre style={{height: '95%'}}>
+                                        <div ref={top} style={{height: '1px'}} />
                                         {lines.map((l, i) => {
                                             const lineNum = lastLine - i;
                                             return (
@@ -227,6 +236,7 @@ interface NavActions {
     begin?: () => void;
     end?: () => void;
     bottom?: () => void;
+    top?: () => void;
 }
 
 interface PageInfo {
@@ -241,7 +251,8 @@ const logNavigators = (actions: NavActions, darkMode: boolean, info?: PageInfo) 
         <div className={`pod-logs-viewer__menu ${darkMode ? 'pod-logs-viewer__menu--inverted' : ''}`}>
             {actions.begin && <i className='fa fa-angle-double-left' onClick={actions.begin || (() => null)} />}
             <i className={`fa fa-angle-left ${info && info.canPageBack ? '' : 'disabled'}`} onClick={actions.left || (() => null)} />
-            <i className='fa fa-angle-down' onClick={actions.bottom} />
+            <i className='fa fa-angle-down' onClick={actions.bottom || (() => null)} />
+            <i className='fa fa-angle-up' onClick={actions.top || (() => null)} />
             <div style={{marginLeft: 'auto', marginRight: 'auto'}}>
                 {info && (
                     <React.Fragment>
