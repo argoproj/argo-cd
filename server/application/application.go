@@ -1057,16 +1057,16 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 		return err
 	}
 
-	// from appResourceTree find pods which match query
+	// from the tree find pods which match query of kind, group, and resource name
 	pods := getSelectedPods(tree.Nodes, q)
-
 	if len(pods) == 0 {
 		return nil
 	}
+
 	var wg gosync.WaitGroup
 	wg.Add(len(pods))
-
 	errorsCh := make(chan error, len(pods))
+
 	for _, pod := range pods {
 		go func(i appv1.ResourceNode) {
 			podQuery := application.ApplicationPodLogsQuery{
@@ -1078,6 +1078,7 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 				SinceTime:    q.SinceTime,
 				TailLines:    q.TailLines,
 				Follow:       q.Follow,
+				UntilTime:    q.UntilTime,
 			}
 			log.Debug("processing pod logs for ", i.Name)
 			err := s.processOnePodLog(&podQuery, ws)
@@ -1086,6 +1087,7 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 			wg.Done()
 		}(pod)
 	}
+
 	wg.Wait()
 
 	for i := 0; i < len(pods); i++ {
@@ -1094,15 +1096,16 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 			return err
 		}
 	}
+
 	return nil
 }
 
-// from all of the treeNodes, get the pod who meets the selectedResources criteria or whose parents meets the selectedResouces criteria
+// from all of the treeNodes, get the pod who meets the criteria or whose parents meets the criteria
 func getSelectedPods(treeNodes []appv1.ResourceNode, q *application.ApplicationPodLogsQuery) []appv1.ResourceNode {
 	var pods []appv1.ResourceNode
 	isTheOneMap := make(map[string]bool)
 	for _, treeNode := range treeNodes {
-		if treeNode.Kind == "Pod" && treeNode.Group == "" {
+		if treeNode.Kind == kube.PodKind && treeNode.Group == "" {
 			if isTheSelectedOne(&treeNode, q, treeNodes, isTheOneMap) {
 				pods = append(pods, treeNode)
 			}
@@ -1112,7 +1115,6 @@ func getSelectedPods(treeNodes []appv1.ResourceNode, q *application.ApplicationP
 }
 
 // check is currentNode is matching with group, kind, and name, or if any of its parents matches
-// its parents must be from resourcesNodes
 func isTheSelectedOne(currentNode *appv1.ResourceNode, q *application.ApplicationPodLogsQuery, resourceNodes []appv1.ResourceNode, isTheOneMap map[string]bool) bool {
 	exist, value := isTheOneMap[currentNode.UID]
 	if exist {
@@ -1133,7 +1135,7 @@ func isTheSelectedOne(currentNode *appv1.ResourceNode, q *application.Applicatio
 	}
 
 	for _, parentResource := range currentNode.ParentRefs {
-		//look up parentResouce  from resourceNodes
+		//look up parentResource from resourceNodes
 		//then check if the parent isTheSelectedOne
 		for _, resourceNode := range resourceNodes {
 			if resourceNode.Namespace == parentResource.Namespace &&

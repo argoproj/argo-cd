@@ -265,8 +265,6 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 // NewApplicationLogsCommand returns logs of application pods
 func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		refresh      bool
-		hardRefresh  bool
 		group        string
 		kind         string
 		resourceName string
@@ -316,8 +314,6 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		},
 	}
 
-	command.Flags().BoolVar(&refresh, "refresh", false, "Refresh application data when retrieving")
-	command.Flags().BoolVar(&hardRefresh, "hard-refresh", false, "Refresh application data as well as target manifests cache")
 	command.Flags().StringVar(&group, "group", "", "Resource group")
 	command.Flags().StringVar(&kind, "kind", "", "Resource kind")
 	command.Flags().StringVar(&resourceName, "name", "", "Resource name")

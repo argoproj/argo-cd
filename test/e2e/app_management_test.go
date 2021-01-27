@@ -1520,6 +1520,7 @@ definitions:
 
 func TestAppLogs(t *testing.T) {
 	Given(t).
+		Timeout(30).
 		Path(guestbookPath).
 		When().
 		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/replicas", "value": 2}]`).
@@ -1528,7 +1529,7 @@ func TestAppLogs(t *testing.T) {
 		Then().
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(app *Application) {
-			output, err := RunCli("app", "logs", app.Name, "--kind", "Deployment", "--name", "guestbook-ui")
+			output, err := RunCli("app", "logs", app.Name, "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
 			assert.NoError(t, err)
 			assert.Contains(t, output, "AH00558")
 		}).
