@@ -927,8 +927,9 @@ type ApplicationCondition struct {
 
 // ComparedTo contains application source and target which was used for resources comparison
 type ComparedTo struct {
-	Source      ApplicationSource      `json:"source" protobuf:"bytes,1,opt,name=source"`
-	Destination ApplicationDestination `json:"destination" protobuf:"bytes,2,opt,name=destination"`
+	Source            ApplicationSource           `json:"source" protobuf:"bytes,1,opt,name=source"`
+	Destination       ApplicationDestination      `json:"destination" protobuf:"bytes,2,opt,name=destination"`
+	IgnoreDifferences []ResourceIgnoreDifferences `json:"ignoreDifferences,omitempty" protobuf:"bytes,3,name=ignoreDifferences"`
 }
 
 // SyncStatus is a comparison result of application spec and deployed application.

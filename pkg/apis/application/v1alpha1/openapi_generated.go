@@ -1637,12 +1637,25 @@ func schema_pkg_apis_application_v1alpha1_ComparedTo(ref common.ReferenceCallbac
 							Ref:     ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationDestination"),
 						},
 					},
+					"ignoreDifferences": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceIgnoreDifferences"),
+									},
+								},
+							},
+						},
+					},
 				},
 				Required: []string{"source", "destination"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationDestination", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSource"},
+			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationDestination", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSource", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceIgnoreDifferences"},
 	}
 }
 

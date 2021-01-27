@@ -5010,6 +5010,12 @@
         "destination": {
           "$ref": "#/definitions/v1alpha1ApplicationDestination"
         },
+        "ignoreDifferences": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceIgnoreDifferences"
+          }
+        },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
         }

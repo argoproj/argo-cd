@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
@@ -492,7 +493,11 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	}
 	cachedDiff := make([]*appv1.ResourceDiff, 0)
 	// restore comparison using cached diff result if previous comparison was performed for the same revision
-	if noCache || (manifestInfo == nil || app.Status.Sync.Revision != manifestInfo.Revision) || m.cache.GetAppManagedResources(app.Name, &cachedDiff) != nil {
+	revisionChanged := manifestInfo == nil || app.Status.Sync.Revision != manifestInfo.Revision
+	specChanged := !reflect.DeepEqual(app.Status.Sync.ComparedTo, appv1.ComparedTo{
+		Source: app.Spec.Source, Destination: app.Spec.Destination, IgnoreDifferences: app.Spec.IgnoreDifferences,
+	})
+	if noCache || specChanged || revisionChanged || m.cache.GetAppManagedResources(app.Name, &cachedDiff) != nil {
 		// (rare) cache miss
 		diffResults, err = diff.DiffArray(reconciliation.Target, reconciliation.Live, diffOpts...)
 	} else {
@@ -591,8 +596,9 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	}
 	syncStatus := v1alpha1.SyncStatus{
 		ComparedTo: appv1.ComparedTo{
-			Source:      source,
-			Destination: app.Spec.Destination,
+			Source:            source,
+			Destination:       app.Spec.Destination,
+			IgnoreDifferences: app.Spec.IgnoreDifferences,
 		},
 		Status: syncCode,
 	}

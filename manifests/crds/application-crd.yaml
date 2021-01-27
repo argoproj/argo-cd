@@ -1498,6 +1498,27 @@ spec:
                           description: Server overrides the environment server value in the ksonnet app.yaml
                           type: string
                       type: object
+                    ignoreDifferences:
+                      items:
+                        description: ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.
+                        properties:
+                          group:
+                            type: string
+                          jsonPointers:
+                            items:
+                              type: string
+                            type: array
+                          kind:
+                            type: string
+                          name:
+                            type: string
+                          namespace:
+                            type: string
+                        required:
+                        - jsonPointers
+                        - kind
+                        type: object
+                      type: array
                     source:
                       description: ApplicationSource contains information about github repository, path within repository and target application environment.
                       properties:
