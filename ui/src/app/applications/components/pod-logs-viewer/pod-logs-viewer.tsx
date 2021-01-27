@@ -1,8 +1,8 @@
 import {DataLoader, DropDownMenu} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
-import {Observable} from 'rxjs';
 import {useState} from 'react';
+import {Observable} from 'rxjs';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import './pod-logs-viewer.scss';
