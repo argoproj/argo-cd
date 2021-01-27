@@ -309,22 +309,16 @@ func verifyGnuPGSignature(revision string, project *appv1.AppProject, manifestIn
 	return conditions
 }
 
-func (m *appStateManager) diffArrayCached(appName string, configArray, liveArray []*unstructured.Unstructured, noCache bool, opts ...diff.Option) (*diff.DiffResultList, error) {
-	managedResources := make([]*appv1.ResourceDiff, 0)
-	if noCache || m.cache.GetAppManagedResources(appName, &managedResources) != nil {
-		// (rare) cache miss
-		return diff.DiffArray(configArray, liveArray, opts...)
-	}
-
+func (m *appStateManager) diffArrayCached(configArray []*unstructured.Unstructured, liveArray []*unstructured.Unstructured, cachedDiff []*appv1.ResourceDiff, opts ...diff.Option) (*diff.DiffResultList, error) {
 	numItems := len(configArray)
 	if len(liveArray) != numItems {
 		return nil, fmt.Errorf("left and right arrays have mismatched lengths")
 	}
 
 	diffByKey := map[kube.ResourceKey]*appv1.ResourceDiff{}
-	for i := range managedResources {
-		res := managedResources[i]
-		diffByKey[kube.NewResourceKey(res.Group, res.Kind, res.Namespace, res.Name)] = managedResources[i]
+	for i := range cachedDiff {
+		res := cachedDiff[i]
+		diffByKey[kube.NewResourceKey(res.Group, res.Kind, res.Namespace, res.Name)] = cachedDiff[i]
 	}
 
 	diffResultList := diff.DiffResultList{
@@ -490,13 +484,21 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	}
 
 	logCtx.Debugf("built managed objects list")
-	// Do the actual comparison
-	diffResults, err := m.diffArrayCached(
-		app.Name,
-		reconciliation.Target, reconciliation.Live,
-		noCache,
+	var diffResults *diff.DiffResultList
+
+	diffOpts := []diff.Option{
 		diff.WithNormalizer(diffNormalizer),
-		diff.IgnoreAggregatedRoles(compareOptions.IgnoreAggregatedRoles))
+		diff.IgnoreAggregatedRoles(compareOptions.IgnoreAggregatedRoles),
+	}
+	cachedDiff := make([]*appv1.ResourceDiff, 0)
+	// restore comparison using cached diff result if previous comparison was performed for the same revision
+	if noCache || manifestInfo == nil && app.Status.Sync.Revision != manifestInfo.Revision || m.cache.GetAppManagedResources(app.Name, &cachedDiff) != nil {
+		// (rare) cache miss
+		diffResults, err = diff.DiffArray(reconciliation.Target, reconciliation.Live, diffOpts...)
+	} else {
+		diffResults, err = m.diffArrayCached(reconciliation.Target, reconciliation.Live, cachedDiff, diffOpts...)
+	}
+
 	if err != nil {
 		diffResults = &diff.DiffResultList{}
 		failedToLoadObjs = true
