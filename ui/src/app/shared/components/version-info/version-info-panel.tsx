@@ -62,9 +62,11 @@ export class VersionPanel extends React.Component<VersionPanelProps, {copyState:
                                     <strong>{key}</strong>
                                 </div>
                                 <div className='columns'>
-                                    <Tooltip content={value}>
-                                        <span>{value}</span>
-                                    </Tooltip>
+                                    {value && (
+                                        <Tooltip content={value}>
+                                            <span>{value}</span>
+                                        </Tooltip>
+                                    )}
                                 </div>
                             </div>
                         </div>

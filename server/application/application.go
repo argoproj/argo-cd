@@ -11,7 +11,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	gosync "sync"
 	"time"
 
 	"github.com/Masterminds/semver"
@@ -1047,112 +1046,16 @@ func (s *Server) ManagedResources(ctx context.Context, q *application.ResourcesQ
 }
 
 func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.ApplicationService_PodLogsServer) error {
-	if q.PodName != nil {
-		return s.processOnePodLog(q, ws)
-	}
-
-	// get all nodes
-	tree, err := s.ResourceTree(ws.Context(), &application.ResourcesQuery{ApplicationName: q.Name})
-	if err != nil {
-		return err
-	}
-
-	// from appResourceTree find pods which match query
-	pods := getSelectedPods(tree.Nodes, q)
-
-	if len(pods) == 0 {
-		return nil
-	}
-	var wg gosync.WaitGroup
-	wg.Add(len(pods))
-
-	errorsCh := make(chan error, len(pods))
-	for _, pod := range pods {
-		go func(i appv1.ResourceNode) {
-			podQuery := application.ApplicationPodLogsQuery{
-				Name:         q.Name,
-				Namespace:    i.Namespace,
-				PodName:      &i.Name,
-				Container:    q.Container,
-				SinceSeconds: q.SinceSeconds,
-				SinceTime:    q.SinceTime,
-				TailLines:    q.TailLines,
-				Follow:       q.Follow,
-			}
-			log.Debug("processing pod logs for ", i.Name)
-			err := s.processOnePodLog(&podQuery, ws)
-			errorsCh <- err
-			log.Debug("processing pod logs done ", i.Name)
-			wg.Done()
-		}(pod)
-	}
-	wg.Wait()
-
-	for i := 0; i < len(pods); i++ {
-		err := <-errorsCh
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// from all of the treeNodes, get the pod who meets the selectedResources criteria or whose parents meets the selectedResouces criteria
-func getSelectedPods(treeNodes []appv1.ResourceNode, q *application.ApplicationPodLogsQuery) []appv1.ResourceNode {
-	var pods []appv1.ResourceNode
-	isTheOneMap := make(map[string]bool)
-	for _, treeNode := range treeNodes {
-		if treeNode.Kind == "Pod" && treeNode.Group == "" {
-			if isTheSelectedOne(&treeNode, q, treeNodes, isTheOneMap) {
-				pods = append(pods, treeNode)
-			}
-		}
-	}
-	return pods
-}
-
-// check is currentNode is matching with group, kind, and name, or if any of its parents matches
-// its parents must be from resourcesNodes
-func isTheSelectedOne(currentNode *appv1.ResourceNode, q *application.ApplicationPodLogsQuery, resourceNodes []appv1.ResourceNode, isTheOneMap map[string]bool) bool {
-	exist, value := isTheOneMap[currentNode.UID]
-	if exist {
-		return value
-	}
-
-	if (*q.ResourceName == "" || currentNode.Name == *q.ResourceName) &&
-		(*q.Kind == "" || currentNode.Kind == *q.Kind) &&
-		(*q.Group == "" || currentNode.Group == *q.Group) &&
-		(q.Namespace == "" || currentNode.Namespace == q.Namespace) {
-		isTheOneMap[currentNode.UID] = true
-		return true
-	}
-
-	if len(currentNode.ParentRefs) == 0 {
-		isTheOneMap[currentNode.UID] = false
-		return false
-	}
-
-	for _, parentResource := range currentNode.ParentRefs {
-		//look up parentResouce  from resourceNodes
-		//then check if the parent isTheSelectedOne
-		for _, resourceNode := range resourceNodes {
-			if resourceNode.Namespace == parentResource.Namespace &&
-				resourceNode.Name == parentResource.Name &&
-				resourceNode.Group == parentResource.Group &&
-				resourceNode.Kind == parentResource.Kind {
-				if isTheSelectedOne(&resourceNode, q, resourceNodes, isTheOneMap) {
-					isTheOneMap[currentNode.UID] = true
-					return true
-				}
-			}
+	var untilTime *metav1.Time
+	if q.GetUntilTime() != "" {
+		if val, err := time.Parse(time.RFC3339Nano, q.GetUntilTime()); err != nil {
+			return fmt.Errorf("invalid untilTime parameter value: %v", err)
+		} else {
+			untilTimeVal := metav1.NewTime(val)
+			untilTime = &untilTimeVal
 		}
 	}
 
-	isTheOneMap[currentNode.UID] = false
-	return false
-}
-
-func (s *Server) processOnePodLog(q *application.ApplicationPodLogsQuery, ws application.ApplicationService_PodLogsServer) error {
 	pod, config, _, err := s.getAppResource(ws.Context(), rbacpolicy.ActionGet, &application.ApplicationResourceRequest{
 		Name:         q.Name,
 		Namespace:    q.Namespace,
@@ -1196,7 +1099,6 @@ func (s *Server) processOnePodLog(q *application.ApplicationPodLogsQuery, ws app
 	gracefulExit := false
 	go func() {
 		bufReader := bufio.NewReader(stream)
-
 		for {
 			line, err := bufReader.ReadString('\n')
 			if err != nil {
@@ -1205,19 +1107,24 @@ func (s *Server) processOnePodLog(q *application.ApplicationPodLogsQuery, ws app
 			}
 			line = strings.TrimSpace(line) // Remove trailing line ending
 			parts := strings.Split(line, " ")
-			logTime, err := time.Parse(time.RFC3339, parts[0])
+			timeStampStr := parts[0]
+			logTime, err := time.Parse(time.RFC3339Nano, timeStampStr)
 			metaLogTime := metav1.NewTime(logTime)
 			if err == nil {
 				lines := strings.Join(parts[1:], " ")
 				for _, line := range strings.Split(lines, "\r") {
-					if line != "" {
-						err = ws.Send(&application.LogEntry{
-							Content:   line,
-							TimeStamp: metaLogTime,
-						})
-						if err != nil {
-							logCtx.Warnf("Unable to send stream message: %v", err)
-						}
+					if q.UntilTime != nil && !metaLogTime.Before(untilTime) {
+						_ = ws.Send(&application.LogEntry{Last: true})
+						close(done)
+						return
+					}
+					err = ws.Send(&application.LogEntry{
+						Content:      line,
+						TimeStamp:    metaLogTime,
+						TimeStampStr: timeStampStr,
+					})
+					if err != nil {
+						logCtx.Warnf("Unable to send stream message: %v", err)
 					}
 				}
 			}

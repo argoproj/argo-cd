@@ -782,17 +782,7 @@
           },
           {
             "type": "string",
-            "name": "kind",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "group",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "resourceName",
+            "name": "untilTime",
             "in": "query"
           }
         ],
@@ -3240,6 +3230,9 @@
         },
         "timeStamp": {
           "$ref": "#/definitions/v1Time"
+        },
+        "timeStampStr": {
+          "type": "string"
         }
       }
     },
