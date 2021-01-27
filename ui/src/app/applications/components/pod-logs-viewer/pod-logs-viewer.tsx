@@ -1,7 +1,7 @@
 import {DataLoader, DropDownMenu} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
-
+import {Observable} from 'rxjs';
 import {useState} from 'react';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -95,7 +95,7 @@ export const PodsLogsViewer = (props: {applicationName: string; pod: models.Reso
                             }}>
                             {prefs.appDetails.darkMode ? <i className='fa fa-sun' /> : <i className='fa fa-moon' />}
                         </div>
-                        <div style={{display: 'flex', marginLeft: 'auto'}}>
+                        <div className='pod-logs-viewer__filter'>
                             <button
                                 className={`argo-button argo-button--base${filter.inverse ? '' : '-o'}`}
                                 onClick={() => setFilter({...filter, inverse: !filter.inverse})}
@@ -103,6 +103,13 @@ export const PodsLogsViewer = (props: {applicationName: string; pod: models.Reso
                                 !
                             </button>
                             <input
+                                ref={input => {
+                                    if (input) {
+                                        Observable.fromEvent(input, 'keyup')
+                                            .debounceTime(500)
+                                            .subscribe(() => loader.reload());
+                                    }
+                                }}
                                 type='text'
                                 placeholder='Filter string'
                                 className='argo-field'
@@ -110,9 +117,6 @@ export const PodsLogsViewer = (props: {applicationName: string; pod: models.Reso
                                 onChange={e => setFilter({...filter, literal: e.target.value})}
                                 style={{padding: 0}}
                             />
-                            <button onClick={() => loader.reload()} className='argo-button argo-button--base' style={{width: '150px'}}>
-                                FILTER <i className='fa fa-filter' />
-                            </button>
                         </div>
                     </div>
                     <DataLoader

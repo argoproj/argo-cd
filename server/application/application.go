@@ -1082,20 +1082,13 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 		tailLines = &q.TailLines
 	}
 
-	type filterData struct {
-		literal string
-		inverse bool
-	}
-
-	filter := filterData{
-		literal: "",
-		inverse: false,
-	}
+	literal := ""
+	inverse := false
 	if q.Filter != nil {
-		filter.literal = *q.Filter
-		if filter.literal[0] == '!' {
-			filter.literal = filter.literal[1:]
-			filter.inverse = true
+		literal = *q.Filter
+		if literal[0] == '!' {
+			literal = literal[1:]
+			inverse = true
 		}
 	}
 	stream, err := kubeClientset.CoreV1().Pods(pod.Namespace).GetLogs(*q.PodName, &v1.PodLogOptions{
@@ -1130,16 +1123,16 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 			if err == nil {
 				lines := strings.Join(parts[1:], " ")
 				for _, line := range strings.Split(lines, "\r") {
+					if q.Filter != nil {
+						lineContainsFilter := strings.Contains(line, literal)
+						if (inverse && lineContainsFilter) || (!inverse && !lineContainsFilter) {
+							continue
+						}
+					}
 					if q.UntilTime != nil && !metaLogTime.Before(untilTime) {
 						_ = ws.Send(&application.LogEntry{Last: true})
 						close(done)
 						return
-					}
-					if q.Filter != nil {
-						lineContainsFilter := strings.Contains(line, filter.literal)
-						if (filter.inverse && lineContainsFilter) || (!filter.inverse && !lineContainsFilter) {
-							continue
-						}
 					}
 					err = ws.Send(&application.LogEntry{
 						Content:      line,
