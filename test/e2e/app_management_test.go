@@ -1517,3 +1517,29 @@ definitions:
 			assert.Equal(t, "update-status", text)
 		})
 }
+
+func TestAppLogs(t *testing.T) {
+	Given(t).
+		Path(guestbookPath).
+		When().
+		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/replicas", "value": 2}]`).
+		Create().
+		Sync().
+		Then().
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		And(func(app *Application) {
+			output, err := RunCli("app", "logs", app.Name, "--kind", "Deployment", "--name", "guestbook-ui")
+			assert.NoError(t, err)
+			assert.Contains(t, output, "AH00558")
+		}).
+		And(func(app *Application) {
+			output, err := RunCli("app", "logs", app.Name, "--kind", "Pod")
+			assert.NoError(t, err)
+			assert.Contains(t, output, "AH00558")
+		}).
+		And(func(app *Application) {
+			output, err := RunCli("app", "logs", app.Name, "--kind", "Service")
+			assert.NoError(t, err)
+			assert.NotContains(t, output, "AH00558")
+		})
+}

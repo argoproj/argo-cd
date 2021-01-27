@@ -265,9 +265,14 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 // NewApplicationLogsCommand returns logs of application pods
 func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		refresh     bool
-		hardRefresh bool
-		resources   []string
+		refresh      bool
+		hardRefresh  bool
+		group        string
+		kind         string
+		resourceName string
+		follow       bool
+		tailLines    int64
+		sinceSeconds int64
 	)
 	var command = &cobra.Command{
 		Use:   "logs APPNAME",
@@ -282,34 +287,28 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			defer argoio.Close(conn)
 			appName := args[0]
 
-			selectedResources := parseSelectedResources(resources)
-			appResourceTree, err := appIf.ResourceTree(context.Background(), &applicationpkg.ResourcesQuery{ApplicationName: &appName})
-			errors.CheckError(err)
-
-			// from appResourceTree find pods which match selectedResources
-			pods := getSelectedPods(appResourceTree.Nodes, selectedResources)
-
-			//TODO: sequence or parallel
-			for _, pod := range pods {
-				stream, err := appIf.PodLogs(context.Background(), &applicationpkg.ApplicationPodLogsQuery{
-					Name:      &appName,
-					Namespace: pod.Namespace,
-					PodName:   &pod.Name,
-				})
-				if err != nil {
-					log.Fatalf("failed to get pod logs: %v", err)
+			stream, err := appIf.PodLogs(context.Background(), &applicationpkg.ApplicationPodLogsQuery{
+				Name:         &appName,
+				Group:        &group,
+				Kind:         &kind,
+				ResourceName: &resourceName,
+				Follow:       follow,
+				TailLines:    tailLines,
+				SinceSeconds: sinceSeconds,
+			})
+			if err != nil {
+				log.Fatalf("failed to get pod logs: %v", err)
+			}
+			for {
+				msg, err := stream.Recv()
+				if err == io.EOF {
+					break
 				}
-				for {
-					msg, err := stream.Recv()
-					if err == io.EOF {
-						break
-					}
-					if err != nil {
-						log.Fatalf("stream read failed: %v", err)
-					}
-					if msg.Last != true {
-						fmt.Println(msg.Content)
-					}
+				if err != nil {
+					log.Fatalf("stream read failed: %v", err)
+				}
+				if !msg.Last {
+					fmt.Println(msg.Content)
 				}
 			}
 		},
@@ -317,8 +316,12 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 	command.Flags().BoolVar(&refresh, "refresh", false, "Refresh application data when retrieving")
 	command.Flags().BoolVar(&hardRefresh, "hard-refresh", false, "Refresh application data as well as target manifests cache")
-	command.Flags().StringArrayVar(&resources, "resource", []string{}, fmt.Sprintf("Sync only specific resources as GROUP%sKIND%sNAME. Fields may be blank. This option may be specified repeatedly", resourceFieldDelimiter, resourceFieldDelimiter))
-
+	command.Flags().StringVar(&group, "group", "", fmt.Sprintf("Resource group"))
+	command.Flags().StringVar(&kind, "kind", "", fmt.Sprintf("Resource kind"))
+	command.Flags().StringVar(&resourceName, "name", "", "Resource name")
+	command.Flags().BoolVar(&follow, "follow", false, "Specify if the logs should be streamed")
+	command.Flags().Int64Var(&tailLines, "tail-lines", 0, "The number of lines from the end of the logs to show")
+	command.Flags().Int64Var(&sinceSeconds, "since-seconds", 0, "A relative time in seconds before the current time from which to show logs.")
 	return command
 }
 
