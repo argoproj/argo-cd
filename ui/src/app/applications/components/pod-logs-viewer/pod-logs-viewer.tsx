@@ -6,6 +6,7 @@ import {useState} from 'react';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import './pod-logs-viewer.scss';
+import {Link} from 'react-router-dom';
 
 const maxLines = 100;
 export interface PodLogsProps {
@@ -20,7 +21,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
         return <div>Pod does not have container with name {props.containerName}</div>;
     }
 
-    let loader: DataLoader<models.LogEntry[]>;
+    let loader: DataLoader<models.LogEntry[], string>;
     const [copy, setCopy] = useState('');
     const [selectedLine, setSelectedLine] = useState(-1);
     const bottom = React.useRef<HTMLInputElement>(null);
@@ -89,14 +90,12 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                             }}>
                             {prefs.appDetails.darkMode ? <i className='fa fa-sun' /> : <i className='fa fa-moon' />}
                         </div>
-                        <button className='argo-button argo-button--base'>
-                            <i
-                                className='fa fa-external-link-alt'
-                                onClick={() => {
-                                    console.log(`${props.namespace}/${props.applicationName}/${props.podName}/${props.containerName}`);
-                                }}
-                            />
-                        </button>
+                        <Link
+                            to={`/applications/${props.namespace}/${props.applicationName}/${props.podName}/${props.containerName}/logs`}
+                            target='_blank'
+                            className='argo-button argo-button--base'>
+                            <i className='fa fa-external-link-alt' />
+                        </Link>
                     </div>
                     <DataLoader
                         ref={l => (loader = l)}
@@ -106,7 +105,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                                 <pre style={{height: '95%', textAlign: 'center'}}>Loading...</pre>
                             </div>
                         )}
-                        input={container.name}
+                        input={props.containerName}
                         load={() => {
                             return (
                                 services.applications
