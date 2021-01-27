@@ -784,6 +784,11 @@
             "type": "string",
             "name": "untilTime",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "filter",
+            "in": "query"
           }
         ],
         "responses": {
