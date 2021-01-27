@@ -492,7 +492,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	}
 	cachedDiff := make([]*appv1.ResourceDiff, 0)
 	// restore comparison using cached diff result if previous comparison was performed for the same revision
-	if noCache || manifestInfo == nil && app.Status.Sync.Revision != manifestInfo.Revision || m.cache.GetAppManagedResources(app.Name, &cachedDiff) != nil {
+	if noCache || (manifestInfo == nil || app.Status.Sync.Revision != manifestInfo.Revision) || m.cache.GetAppManagedResources(app.Name, &cachedDiff) != nil {
 		// (rare) cache miss
 		diffResults, err = diff.DiffArray(reconciliation.Target, reconciliation.Live, diffOpts...)
 	} else {
