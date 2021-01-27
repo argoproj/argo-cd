@@ -886,7 +886,7 @@ message ResourceDiff {
 
   optional string resourceVersion = 11;
 
-  optional string syncStatus = 12;
+  optional bool modified = 12;
 }
 
 // ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.

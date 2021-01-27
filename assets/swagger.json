@@ -5673,6 +5673,9 @@
           "type": "string",
           "title": "TargetState contains the JSON live resource manifest"
         },
+        "modified": {
+          "type": "boolean"
+        },
         "name": {
           "type": "string"
         },
@@ -5688,9 +5691,6 @@
           "title": "PredictedLiveState contains JSON serialized resource state that is calculated based on normalized and target resource state"
         },
         "resourceVersion": {
-          "type": "string"
-        },
-        "syncStatus": {
           "type": "string"
         },
         "targetState": {
