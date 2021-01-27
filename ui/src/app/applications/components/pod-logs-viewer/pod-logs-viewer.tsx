@@ -26,7 +26,7 @@ export const PodsLogsViewer = (props: {applicationName: string; pod: models.Reso
         literal: string;
         inverse: boolean;
     }
-    const [filter, setFilter] = useState({inverse: false} as FilterData);
+    const [filter, setFilter] = useState({inverse: false, literal: ''} as FilterData);
 
     const filterQuery = () => {
         return filter.literal && `${filter.inverse ? '!' : ''}${filter.literal}`;
@@ -107,7 +107,11 @@ export const PodsLogsViewer = (props: {applicationName: string; pod: models.Reso
                                     if (input) {
                                         Observable.fromEvent(input, 'keyup')
                                             .debounceTime(500)
-                                            .subscribe(() => loader.reload());
+                                            .subscribe(() => {
+                                                if (loader) {
+                                                    loader.reload();
+                                                }
+                                            });
                                     }
                                 }}
                                 type='text'
