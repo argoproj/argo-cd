@@ -318,8 +318,8 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 	command.Flags().BoolVar(&refresh, "refresh", false, "Refresh application data when retrieving")
 	command.Flags().BoolVar(&hardRefresh, "hard-refresh", false, "Refresh application data as well as target manifests cache")
-	command.Flags().StringVar(&group, "group", "", fmt.Sprintf("Resource group"))
-	command.Flags().StringVar(&kind, "kind", "", fmt.Sprintf("Resource kind"))
+	command.Flags().StringVar(&group, "group", "", "Resource group")
+	command.Flags().StringVar(&kind, "kind", "", "Resource kind")
 	command.Flags().StringVar(&resourceName, "name", "", "Resource name")
 	command.Flags().BoolVar(&follow, "follow", false, "Specify if the logs should be streamed")
 	command.Flags().Int64Var(&tailLines, "tail-lines", 0, "The number of lines from the end of the logs to show")
