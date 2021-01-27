@@ -1,12 +1,11 @@
 import {DataLoader, DropDownMenu} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
-
 import {useState} from 'react';
+import {Link} from 'react-router-dom';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import './pod-logs-viewer.scss';
-import {Link} from 'react-router-dom';
 
 const maxLines = 100;
 export interface PodLogsProps {
