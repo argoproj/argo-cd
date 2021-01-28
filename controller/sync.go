@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/sync"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -24,6 +25,7 @@ import (
 	logutils "github.com/argoproj/argo-cd/util/log"
 	"github.com/argoproj/argo-cd/util/lua"
 	"github.com/argoproj/argo-cd/util/rand"
+	"github.com/argoproj/argo-cd/util/settings"
 )
 
 var syncIdPrefix uint64 = 0
@@ -135,6 +137,13 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 			Order:       i + 1,
 		})
 	}
+
+	compareOptions, err := m.settingsMgr.GetResourceCompareOptions()
+	if err != nil {
+		log.Warnf("Could not get compare options from ConfigMap (assuming defaults): %v", err)
+		compareOptions = settings.GetDefaultDiffOptions()
+	}
+
 	syncCtx, err := sync.NewSyncContext(
 		compareResult.syncStatus.Revision,
 		compareResult.reconciliationResult,
@@ -168,6 +177,16 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		}),
 		sync.WithSyncWaveHook(delayBetweenSyncWaves),
 		sync.WithPruneLast(syncOp.SyncOptions.HasOption("PruneLast=true")),
+		sync.WithResourceModificationChecker(syncOp.SyncOptions.HasOption("ApplyOutOfSync=true"), func(target *unstructured.Unstructured, live *unstructured.Unstructured) bool {
+			diffResult, err := diff.Diff(target, live,
+				diff.WithNormalizer(compareResult.diffNormalizer),
+				diff.IgnoreAggregatedRoles(compareOptions.IgnoreAggregatedRoles))
+			if err != nil {
+				log.Warnf("Could not compare resource: %v", err)
+				return true
+			}
+			return diffResult.Modified || target == nil || live == nil
+		}),
 	)
 
 	if err != nil {
