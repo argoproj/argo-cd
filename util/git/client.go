@@ -479,7 +479,7 @@ func (m *nativeGitClient) ParseGitModulesFile(scanner *bufio.Scanner, set map[Su
 func (m *nativeGitClient) ValidateSubModule(module SubModule) bool {
 	err := TestRepo(module.URL, m.creds, false, false)
 	if err != nil {
-		log.Warnf("Submodule will be skipped, no valid URL: %s msg: %v",  module.URL, err)
+		log.Warnf("Submodule will be skipped, no valid URL: %s msg: %v", module.URL, err)
 		return false
 	}
 
