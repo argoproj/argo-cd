@@ -14,10 +14,9 @@ export interface PodLogsProps {
     applicationName: string;
     podName: string;
     containerName: string;
-    fullscreen: boolean;
 }
 
-export const PodsLogsViewer = (props: PodLogsProps) => {
+export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => {
     if (!props.containerName || props.containerName === '') {
         return <div>Pod does not have container with name {props.containerName}</div>;
     }
