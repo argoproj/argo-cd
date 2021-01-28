@@ -1069,22 +1069,24 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 
 	for _, pod := range pods {
 		go func(i appv1.ResourceNode) {
-			podQuery := application.ApplicationPodLogsQuery{
-				Name:         q.Name,
-				Namespace:    i.Namespace,
-				PodName:      &i.Name,
-				Container:    q.Container,
-				SinceSeconds: q.SinceSeconds,
-				SinceTime:    q.SinceTime,
-				TailLines:    q.TailLines,
-				Follow:       q.Follow,
-				UntilTime:    q.UntilTime,
+			data, err := q.Marshal()
+			if err != nil {
+				errorsCh <- err
+				wg.Done()
+				return
 			}
+
+			var copiedQuery application.ApplicationPodLogsQuery
+			copiedQuery.Unmarshal(data)
+			copiedQuery.Namespace = i.Namespace
+			copiedQuery.PodName = &i.Name
+
 			log.Debug("processing pod logs for ", i.Name)
-			err := s.processOnePodLog(&podQuery, ws)
+			err = s.processOnePodLog(&copiedQuery, ws)
 			errorsCh <- err
 			log.Debug("processing pod logs done ", i.Name)
 			wg.Done()
+
 		}(pod)
 	}
 
