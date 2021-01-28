@@ -146,12 +146,8 @@ func TestRepoWithKnownType(repo *argoappv1.Repository, isHelm bool, isHelmOci bo
 	} else {
 		repo.Type = "git"
 	}
+	repo.EnableOCI = repo.EnableOCI || isHelmOci
 
-	if isHelmOci {
-		repo.EnableOCI = true
-	} else {
-		repo.EnableOCI = false
-	}
 	return TestRepo(repo)
 }
 
@@ -415,7 +411,7 @@ func verifyGenerateManifests(
 		},
 		Repos:             helmRepos,
 		Revision:          spec.Source.TargetRevision,
-		AppLabelValue:     app.Name,
+		AppName:           app.Name,
 		Namespace:         spec.Destination.Namespace,
 		ApplicationSource: &spec.Source,
 		Plugins:           plugins,
@@ -497,8 +493,12 @@ func NormalizeApplicationSpec(spec *argoappv1.ApplicationSpec) *argoappv1.Applic
 		spec.Source.Ksonnet = nil
 	}
 	if spec.Source.Directory != nil && spec.Source.Directory.IsZero() {
-		if spec.Source.Directory.Exclude != "" {
+		if spec.Source.Directory.Exclude != "" && spec.Source.Directory.Include != "" {
+			spec.Source.Directory = &argoappv1.ApplicationSourceDirectory{Exclude: spec.Source.Directory.Exclude, Include: spec.Source.Directory.Include}
+		} else if spec.Source.Directory.Exclude != "" {
 			spec.Source.Directory = &argoappv1.ApplicationSourceDirectory{Exclude: spec.Source.Directory.Exclude}
+		} else if spec.Source.Directory.Include != "" {
+			spec.Source.Directory = &argoappv1.ApplicationSourceDirectory{Include: spec.Source.Directory.Include}
 		} else {
 			spec.Source.Directory = nil
 		}

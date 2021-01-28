@@ -779,6 +779,16 @@
             "type": "boolean",
             "name": "follow",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "untilTime",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "filter",
+            "in": "query"
           }
         ],
         "responses": {
@@ -3225,6 +3235,9 @@
         },
         "timeStamp": {
           "$ref": "#/definitions/v1Time"
+        },
+        "timeStampStr": {
+          "type": "string"
         }
       }
     },
@@ -3864,7 +3877,7 @@
       }
     },
     "v1Event": {
-      "description": "Event is a report of an event somewhere in the cluster.",
+      "description": "Event is a report of an event somewhere in the cluster.  Events\nhave a limited retention time and triggers and messages may evolve\nwith time.  Event consumers should not rely on the timing of an event\nwith a given Reason reflecting a consistent underlying trigger, or the\ncontinued existence of events with that Reason.  Events should be\ntreated as informative, best-effort, supplemental data.",
       "type": "object",
       "properties": {
         "action": {
@@ -4024,6 +4037,13 @@
         "ip": {
           "type": "string",
           "title": "IP is set for load-balancer ingress points that are IP based\n(typically GCE or OpenStack load-balancers)\n+optional"
+        },
+        "ports": {
+          "type": "array",
+          "title": "Ports is a list of records of service ports\nIf used, every port defined in the service should have an entry in it\n+listType=atomic\n+optional",
+          "items": {
+            "$ref": "#/definitions/v1PortStatus"
+          }
         }
       }
     },
@@ -4068,6 +4088,52 @@
           "description": "Represents seconds of UTC time since Unix epoch\n1970-01-01T00:00:00Z. Must be from 0001-01-01T00:00:00Z to\n9999-12-31T23:59:59Z inclusive.",
           "type": "string",
           "format": "int64"
+        }
+      }
+    },
+    "v1NodeSystemInfo": {
+      "description": "NodeSystemInfo is a set of ids/uuids to uniquely identify the node.",
+      "type": "object",
+      "properties": {
+        "architecture": {
+          "type": "string",
+          "title": "The Architecture reported by the node"
+        },
+        "bootID": {
+          "description": "Boot ID reported by the node.",
+          "type": "string"
+        },
+        "containerRuntimeVersion": {
+          "description": "ContainerRuntime Version reported by the node through runtime remote API (e.g. docker://1.5.0).",
+          "type": "string"
+        },
+        "kernelVersion": {
+          "description": "Kernel Version reported by the node from 'uname -r' (e.g. 3.16.0-0.bpo.4-amd64).",
+          "type": "string"
+        },
+        "kubeProxyVersion": {
+          "description": "KubeProxy Version reported by the node.",
+          "type": "string"
+        },
+        "kubeletVersion": {
+          "description": "Kubelet Version reported by the node.",
+          "type": "string"
+        },
+        "machineID": {
+          "type": "string",
+          "title": "MachineID reported by the node. For unique machine identification\nin the cluster this field is preferred. Learn more from man(5)\nmachine-id: http://man7.org/linux/man-pages/man5/machine-id.5.html"
+        },
+        "operatingSystem": {
+          "type": "string",
+          "title": "The Operating System reported by the node"
+        },
+        "osImage": {
+          "description": "OS Image reported by the node from /etc/os-release (e.g. Debian GNU/Linux 7 (wheezy)).",
+          "type": "string"
+        },
+        "systemUUID": {
+          "type": "string",
+          "title": "SystemUUID reported by the node. For unique machine identification\nMachineID is preferred. This field is specific to Red Hat hosts\nhttps://access.redhat.com/documentation/en-us/red_hat_subscription_management/1/html/rhsm/uuid"
         }
       }
     },
@@ -4217,6 +4283,24 @@
         "uid": {
           "type": "string",
           "title": "UID of the referent.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#uids"
+        }
+      }
+    },
+    "v1PortStatus": {
+      "type": "object",
+      "properties": {
+        "error": {
+          "type": "string",
+          "title": "Error is to record the problem with the service port\nThe format of the error shall comply with the following rules:\n- built-in error values shall be specified in this file and those shall use\n  CamelCase names\n- cloud provider specific error values must have names that comply with the\n  format foo.example.com/CamelCase.\n---\nThe regex it matches is (dns1123SubdomainFmt/)?(qualifiedNameFmt)\n+optional\n+kubebuilder:validation:Required\n+kubebuilder:validation:Pattern=`^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$`\n+kubebuilder:validation:MaxLength=316"
+        },
+        "port": {
+          "type": "integer",
+          "format": "int32",
+          "title": "Port is the port number of the service port of which status is recorded here"
+        },
+        "protocol": {
+          "type": "string",
+          "title": "Protocol is the protocol of the service port of which status is recorded here\nThe supported values are: \"TCP\", \"UDP\", \"SCTP\""
         }
       }
     },
@@ -4479,6 +4563,9 @@
         "exclude": {
           "type": "string"
         },
+        "include": {
+          "type": "string"
+        },
         "jsonnet": {
           "$ref": "#/definitions/v1alpha1ApplicationSourceJsonnet"
         },
@@ -4730,6 +4817,13 @@
       "type": "object",
       "title": "ApplicationTree holds nodes which belongs to the application",
       "properties": {
+        "hosts": {
+          "type": "array",
+          "title": "Hosts holds list of Kubernetes nodes that run application related pods",
+          "items": {
+            "$ref": "#/definitions/v1alpha1HostInfo"
+          }
+        },
         "nodes": {
           "description": "Nodes contains list of nodes which either directly managed by the application and children of directly managed nodes.",
           "type": "array",
@@ -5073,6 +5167,44 @@
         "value": {
           "type": "string",
           "title": "Value is the value for the helm parameter"
+        }
+      }
+    },
+    "v1alpha1HostInfo": {
+      "type": "object",
+      "title": "HostInfo holds host name and resources metrics",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "resourcesInfo": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1HostResourceInfo"
+          }
+        },
+        "systemInfo": {
+          "$ref": "#/definitions/v1NodeSystemInfo"
+        }
+      }
+    },
+    "v1alpha1HostResourceInfo": {
+      "type": "object",
+      "properties": {
+        "capacity": {
+          "type": "string",
+          "format": "int64"
+        },
+        "requestedByApp": {
+          "type": "string",
+          "format": "int64"
+        },
+        "requestedByNeighbors": {
+          "type": "string",
+          "format": "int64"
+        },
+        "resourceName": {
+          "type": "string"
         }
       }
     },
@@ -5546,6 +5678,9 @@
           "type": "string",
           "title": "TargetState contains the JSON live resource manifest"
         },
+        "modified": {
+          "type": "boolean"
+        },
         "name": {
           "type": "string"
         },
@@ -5559,6 +5694,9 @@
         "predictedLiveState": {
           "type": "string",
           "title": "PredictedLiveState contains JSON serialized resource state that is calculated based on normalized and target resource state"
+        },
+        "resourceVersion": {
+          "type": "string"
         },
         "targetState": {
           "type": "string",

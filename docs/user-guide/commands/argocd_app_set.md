@@ -2,10 +2,6 @@
 
 Set application parameters
 
-### Synopsis
-
-Set application parameters
-
 ```
 argocd app set APPNAME [flags]
 ```
@@ -20,6 +16,7 @@ argocd app set APPNAME [flags]
       --dest-namespace string                     K8s target namespace (overrides the namespace specified in the ksonnet app.yaml)
       --dest-server string                        K8s cluster URL (e.g. https://kubernetes.default.svc)
       --directory-exclude string                  Set glob expression used to exclude files from application source path
+      --directory-include string                  Set glob expression used to include files from application source path
       --directory-recurse                         Recurse directory
       --env string                                Application environment to monitor
       --helm-chart string                         Helm Chart name

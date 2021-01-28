@@ -17,7 +17,8 @@ import (
 	"time"
 
 	"github.com/coreos/go-oidc"
-	"github.com/dgrijalva/jwt-go"
+	"github.com/dgrijalva/jwt-go/v4"
+	"github.com/golang/protobuf/ptypes/empty"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 	"google.golang.org/grpc"
@@ -246,6 +247,26 @@ func NewClient(opts *ClientOptions) (Client, error) {
 	if opts.GRPCWebRootPath != "" {
 		c.GRPCWebRootPath = opts.GRPCWebRootPath
 	}
+	if !c.GRPCWeb {
+		//test if we need to set it to true
+		//if a call to grpc failed, then try again with GRPCWeb
+		conn, versionIf := c.NewVersionClientOrDie()
+		defer argoio.Close(conn)
+
+		_, err := versionIf.Version(context.Background(), &empty.Empty{})
+		if err != nil {
+			c.GRPCWeb = true
+			conn, versionIf := c.NewVersionClientOrDie()
+			defer argoio.Close(conn)
+
+			_, err := versionIf.Version(context.Background(), &empty.Empty{})
+			if err == nil {
+				log.Warnf("Failed to invoke grpc call. Use flag --grpc-web in grpc calls. To avoid this warning message, use flag --grpc-web.")
+			} else {
+				c.GRPCWeb = false
+			}
+		}
+	}
 	if localCfg != nil {
 		err = c.refreshAuthToken(localCfg, ctxName, opts.ConfigPath)
 		if err != nil {
@@ -328,14 +349,14 @@ func (c *client) refreshAuthToken(localCfg *localconfig.LocalConfig, ctxName, co
 		return err
 	}
 	parser := &jwt.Parser{
-		SkipClaimsValidation: true,
+		ValidationHelper: jwt.NewValidationHelper(jwt.WithoutClaimsValidation()),
 	}
 	var claims jwt.StandardClaims
 	_, _, err = parser.ParseUnverified(configCtx.User.AuthToken, &claims)
 	if err != nil {
 		return err
 	}
-	if claims.Valid() == nil {
+	if claims.Valid(jwt.DefaultValidationHelper) == nil {
 		// token is still valid
 		return nil
 	}

@@ -31,16 +31,10 @@ export const RevisionMetadataRows = (props: {applicationName: string; source: Ap
                             {m.date && <Timestamp date={m.date} />}
                         </div>
                     </div>
-                    {m.tags && (
-                        <div className='row'>
-                            <div className='columns small-3'>Tagged</div>
-                            <div className='columns small-9'>{m.tags.join(', ')}</div>
-                        </div>
-                    )}
                     {m.message && (
                         <div className='row'>
                             <div className='columns small-3' />
-                            <div className='columns small-9'>{m.message}</div>
+                            <div className='columns small-9'>{m.message.split('\n')[0].slice(0, 64)}</div>
                         </div>
                     )}
                     <div className='row'>

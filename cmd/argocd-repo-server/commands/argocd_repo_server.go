@@ -12,9 +12,12 @@ import (
 	"github.com/go-redis/redis/v8"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"google.golang.org/grpc/health/grpc_health_v1"
 
+	cmdutil "github.com/argoproj/argo-cd/cmd/util"
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/reposerver"
+	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	reposervercache "github.com/argoproj/argo-cd/reposerver/cache"
 	"github.com/argoproj/argo-cd/reposerver/metrics"
 	"github.com/argoproj/argo-cd/reposerver/repository"
@@ -23,6 +26,8 @@ import (
 	"github.com/argoproj/argo-cd/util/env"
 	"github.com/argoproj/argo-cd/util/errors"
 	"github.com/argoproj/argo-cd/util/gpg"
+	"github.com/argoproj/argo-cd/util/healthz"
+	ioutil "github.com/argoproj/argo-cd/util/io"
 	"github.com/argoproj/argo-cd/util/tls"
 )
 
@@ -58,8 +63,6 @@ func getPauseGenerationOnFailureForRequests() int {
 
 func NewCommand() *cobra.Command {
 	var (
-		logFormat              string
-		logLevel               string
 		parallelismLimit       int64
 		listenPort             int
 		metricsPort            int
@@ -73,8 +76,8 @@ func NewCommand() *cobra.Command {
 		Long:              "ArgoCD Repository Server is an internal service which maintains a local cache of the Git repository holding the application manifests, and is responsible for generating and returning the Kubernetes manifests.  This command runs Repository Server in the foreground.  It can be configured by following options.",
 		DisableAutoGenTag: true,
 		RunE: func(c *cobra.Command, args []string) error {
-			cli.SetLogFormat(logFormat)
-			cli.SetLogLevel(logLevel)
+			cli.SetLogFormat(cmdutil.LogFormat)
+			cli.SetLogLevel(cmdutil.LogLevel)
 
 			tlsConfigCustomizer, err := tlsConfigCustomizerSrc()
 			errors.CheckError(err)
@@ -96,6 +99,28 @@ func NewCommand() *cobra.Command {
 			listener, err := net.Listen("tcp", fmt.Sprintf(":%d", listenPort))
 			errors.CheckError(err)
 
+			healthz.ServeHealthCheck(http.DefaultServeMux, func(r *http.Request) error {
+				if val, ok := r.URL.Query()["full"]; ok && len(val) > 0 && val[0] == "true" {
+					// connect to itself to make sure repo server is able to serve connection
+					// used by liveness probe to auto restart repo server
+					// see https://github.com/argoproj/argo-cd/issues/5110 for more information
+					conn, err := apiclient.NewConnection(fmt.Sprintf("localhost:%d", listenPort), 60)
+					if err != nil {
+						return err
+					}
+					defer ioutil.Close(conn)
+					client := grpc_health_v1.NewHealthClient(conn)
+					res, err := client.Check(r.Context(), &grpc_health_v1.HealthCheckRequest{})
+					if err != nil {
+						return err
+					}
+					if res.Status != grpc_health_v1.HealthCheckResponse_SERVING {
+						return fmt.Errorf("grpc health check status is '%v'", res.Status)
+					}
+					return nil
+				}
+				return nil
+			})
 			http.Handle("/metrics", metricsServer.GetHandler())
 			go func() { errors.CheckError(http.ListenAndServe(fmt.Sprintf(":%d", metricsPort), nil)) }()
 
@@ -122,8 +147,8 @@ func NewCommand() *cobra.Command {
 		},
 	}
 
-	command.Flags().StringVar(&logFormat, "logformat", "text", "Set the logging format. One of: text|json")
-	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
+	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", "text", "Set the logging format. One of: text|json")
+	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().Int64Var(&parallelismLimit, "parallelismlimit", 0, "Limit on number of concurrent manifests generate requests. Any value less the 1 means no limit.")
 	command.Flags().IntVar(&listenPort, "port", common.DefaultPortRepoServer, "Listen on given port for incoming connections")
 	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortRepoServerMetrics, "Start metrics server on given port")

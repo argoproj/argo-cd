@@ -181,10 +181,7 @@ func (a *ApplicationSource) IsHelmOci() bool {
 	if a.Chart == "" {
 		return false
 	}
-	if _, _, ok := helm.IsHelmOci(a.Chart); ok {
-		return true
-	}
-	return false
+	return helm.IsHelmOciChart(a.Chart)
 }
 
 func (a *ApplicationSource) IsZero() bool {
@@ -439,6 +436,7 @@ type ApplicationSourceDirectory struct {
 	Recurse bool                     `json:"recurse,omitempty" protobuf:"bytes,1,opt,name=recurse"`
 	Jsonnet ApplicationSourceJsonnet `json:"jsonnet,omitempty" protobuf:"bytes,2,opt,name=jsonnet"`
 	Exclude string                   `json:"exclude,omitempty" protobuf:"bytes,3,opt,name=exclude"`
+	Include string                   `json:"include,omitempty" protobuf:"bytes,4,opt,name=include"`
 }
 
 func (d *ApplicationSourceDirectory) IsZero() bool {
@@ -963,12 +961,28 @@ type ResourceNetworkingInfo struct {
 	ExternalURLs []string `json:"externalURLs,omitempty" protobuf:"bytes,5,opt,name=externalURLs"`
 }
 
+type HostResourceInfo struct {
+	ResourceName         v1.ResourceName `json:"resourceName,omitempty" protobuf:"bytes,1,name=resourceName"`
+	RequestedByApp       int64           `json:"requestedByApp,omitempty" protobuf:"bytes,2,name=requestedByApp"`
+	RequestedByNeighbors int64           `json:"requestedByNeighbors,omitempty" protobuf:"bytes,3,name=requestedByNeighbors"`
+	Capacity             int64           `json:"capacity,omitempty" protobuf:"bytes,4,name=capacity"`
+}
+
+// HostInfo holds host name and resources metrics
+type HostInfo struct {
+	Name          string             `json:"name,omitempty" protobuf:"bytes,1,name=name"`
+	ResourcesInfo []HostResourceInfo `json:"resourcesInfo,omitempty" protobuf:"bytes,2,name=resourcesInfo"`
+	SystemInfo    v1.NodeSystemInfo  `json:"systemInfo,omitempty" protobuf:"bytes,3,opt,name=systemInfo"`
+}
+
 // ApplicationTree holds nodes which belongs to the application
 type ApplicationTree struct {
 	// Nodes contains list of nodes which either directly managed by the application and children of directly managed nodes.
 	Nodes []ResourceNode `json:"nodes,omitempty" protobuf:"bytes,1,rep,name=nodes"`
 	// OrphanedNodes contains if or orphaned nodes: nodes which are not managed by the app but in the same namespace. List is populated only if orphaned resources enabled in app project.
 	OrphanedNodes []ResourceNode `json:"orphanedNodes,omitempty" protobuf:"bytes,2,rep,name=orphanedNodes"`
+	// Hosts holds list of Kubernetes nodes that run application related pods
+	Hosts []HostInfo `json:"hosts,omitempty" protobuf:"bytes,3,rep,name=hosts"`
 }
 
 type ApplicationSummary struct {
@@ -1082,6 +1096,8 @@ type ResourceDiff struct {
 	NormalizedLiveState string `json:"normalizedLiveState,omitempty" protobuf:"bytes,9,opt,name=normalizedLiveState"`
 	// PredictedLiveState contains JSON serialized resource state that is calculated based on normalized and target resource state
 	PredictedLiveState string `json:"predictedLiveState,omitempty" protobuf:"bytes,10,opt,name=predictedLiveState"`
+	ResourceVersion    string `json:"resourceVersion,omitempty" protobuf:"bytes,11,opt,name=resourceVersion"`
+	Modified           bool   `json:"modified,omitempty" protobuf:"bytes,12,opt,name=modified"`
 }
 
 // ConnectionStatus represents connection status
@@ -2318,6 +2334,10 @@ func (app *Application) IsRefreshRequested() (RefreshType, bool) {
 // SetCascadedDeletion sets or remove resources finalizer
 func (app *Application) SetCascadedDeletion(prune bool) {
 	setFinalizer(&app.ObjectMeta, common.ResourcesFinalizerName, prune)
+}
+
+func (status *ApplicationStatus) Expired(statusRefreshTimeout time.Duration) bool {
+	return status.ReconciledAt == nil || status.ReconciledAt.Add(statusRefreshTimeout).Before(time.Now().UTC())
 }
 
 // SetConditions updates the application status conditions for a subset of evaluated types.

@@ -57,6 +57,8 @@ const (
 	cachedManifestGenerationPrefix = "Manifest generation error (cached)"
 	helmDepUpMarkerFile            = ".argocd-helm-dep-up"
 	allowConcurrencyFile           = ".argocd-allow-concurrency"
+	repoSourceFile                 = ".argocd-source.yaml"
+	appSourceFile                  = ".argocd-source-%s.yaml"
 )
 
 // Service implements ManifestService interface
@@ -324,7 +326,7 @@ func (s *Service) runManifestGen(repoRoot, commitSHA, cacheKey string, ctxSrc op
 			// Retrieve a new copy (if available) of the cached response: this ensures we are updating the latest copy of the cache,
 			// rather than a copy of the cache that occurred before (a potentially lengthy) manifest generation.
 			innerRes := &cache.CachedManifestResponse{}
-			cacheErr := s.cache.GetManifests(cacheKey, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, innerRes)
+			cacheErr := s.cache.GetManifests(cacheKey, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppName, innerRes)
 			if cacheErr != nil && cacheErr != reposervercache.ErrCacheMiss {
 				log.Warnf("manifest cache set error %s: %v", q.ApplicationSource.String(), cacheErr)
 				return nil, cacheErr
@@ -339,7 +341,7 @@ func (s *Service) runManifestGen(repoRoot, commitSHA, cacheKey string, ctxSrc op
 			// Update the cache to include failure information
 			innerRes.NumberOfConsecutiveFailures++
 			innerRes.MostRecentError = err.Error()
-			cacheErr = s.cache.SetManifests(cacheKey, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, innerRes)
+			cacheErr = s.cache.SetManifests(cacheKey, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppName, innerRes)
 			if cacheErr != nil {
 				log.Warnf("manifest cache set error %s: %v", q.ApplicationSource.String(), cacheErr)
 				return nil, cacheErr
@@ -360,8 +362,8 @@ func (s *Service) runManifestGen(repoRoot, commitSHA, cacheKey string, ctxSrc op
 	manifestGenResult.Revision = commitSHA
 
 	manifestGenResult.VerifyResult = ctx.verificationResult
+	err = s.cache.SetManifests(cacheKey, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppName, &manifestGenCacheEntry)
 
-	err = s.cache.SetManifests(cacheKey, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, &manifestGenCacheEntry)
 	if err != nil {
 		log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
 	}
@@ -376,7 +378,7 @@ func (s *Service) runManifestGen(repoRoot, commitSHA, cacheKey string, ctxSrc op
 // If true is returned, either the second or third parameter (but not both) will contain a value from the cache (a ManifestResponse, or error, respectively)
 func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRequest, firstInvocation bool) (bool, interface{}, error) {
 	res := cache.CachedManifestResponse{}
-	err := s.cache.GetManifests(cacheKey, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, &res)
+	err := s.cache.GetManifests(cacheKey, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppName, &res)
 	if err == nil {
 
 		// The cache contains an existing value
@@ -395,7 +397,7 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 					// After X minutes, reset the cache and retry the operation (eg perhaps the error is ephemeral and has passed)
 					if elapsedTimeInMinutes >= s.initConstants.PauseGenerationOnFailureForMinutes {
 						// We can now try again, so reset the cache state and run the operation below
-						err = s.cache.DeleteManifests(cacheKey, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue)
+						err = s.cache.DeleteManifests(cacheKey, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppName)
 						if err != nil {
 							log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
 						}
@@ -409,7 +411,7 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 
 					if res.NumberOfCachedResponsesReturned >= s.initConstants.PauseGenerationOnFailureForRequests {
 						// We can now try again, so reset the error cache state and run the operation below
-						err = s.cache.DeleteManifests(cacheKey, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue)
+						err = s.cache.DeleteManifests(cacheKey, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppName)
 						if err != nil {
 							log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
 						}
@@ -427,7 +429,7 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 					// Increment the number of returned cached responses and push that new value to the cache
 					// (if we have not already done so previously in this function)
 					res.NumberOfCachedResponsesReturned++
-					err = s.cache.SetManifests(cacheKey, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, &res)
+					err = s.cache.SetManifests(cacheKey, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppName, &res)
 					if err != nil {
 						log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
 					}
@@ -507,7 +509,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 	}
 
 	templateOpts := &helm.TemplateOpts{
-		Name:        q.AppLabelValue,
+		Name:        q.AppName,
 		Namespace:   q.Namespace,
 		KubeVersion: text.SemVer(q.KubeVersion),
 		APIVersions: q.ApiVersions,
@@ -580,7 +582,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		}
 	}
 	if templateOpts.Name == "" {
-		templateOpts.Name = q.AppLabelValue
+		templateOpts.Name = q.AppName
 	}
 	for i, j := range templateOpts.Set {
 		templateOpts.Set[i] = env.Envsubst(j)
@@ -631,7 +633,7 @@ func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.Manifest
 	var targetObjs []*unstructured.Unstructured
 	var dest *v1alpha1.ApplicationDestination
 
-	appSourceType, err := GetAppSourceType(q.ApplicationSource, appPath)
+	appSourceType, err := GetAppSourceType(q.ApplicationSource, appPath, q.AppName)
 	if err != nil {
 		return nil, err
 	}
@@ -688,8 +690,8 @@ func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.Manifest
 		}
 
 		for _, target := range targets {
-			if q.AppLabelKey != "" && q.AppLabelValue != "" && !kube.IsCRD(target) {
-				err = argokube.SetAppInstanceLabel(target, q.AppLabelKey, q.AppLabelValue)
+			if q.AppLabelKey != "" && q.AppName != "" && !kube.IsCRD(target) {
+				err = argokube.SetAppInstanceLabel(target, q.AppLabelKey, q.AppName)
 				if err != nil {
 					return nil, err
 				}
@@ -715,7 +717,7 @@ func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.Manifest
 
 func newEnv(q *apiclient.ManifestRequest, revision string) *v1alpha1.Env {
 	return &v1alpha1.Env{
-		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAME", Value: q.AppLabelValue},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAME", Value: q.AppName},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAMESPACE", Value: q.Namespace},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION", Value: revision},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_REPO_URL", Value: q.Repo.Repo},
@@ -724,38 +726,54 @@ func newEnv(q *apiclient.ManifestRequest, revision string) *v1alpha1.Env {
 	}
 }
 
-func mergeSourceParameters(source *v1alpha1.ApplicationSource, path string) error {
-	appFilePath := filepath.Join(path, ".argocd-source.yaml")
-	info, err := os.Stat(appFilePath)
-	if os.IsNotExist(err) {
-		return nil
-	} else if info != nil && info.IsDir() {
-		return nil
-	} else if err != nil {
-		return err
-	}
-	patch, err := json.Marshal(source)
-	if err != nil {
-		return err
+// mergeSourceParameters merges parameter overrides from one or more files in
+// the Git repo into the given ApplicationSource objects.
+//
+// If .argocd-source.yaml exists at application's path in repository, it will
+// be read and merged. If appName is not the empty string, and a file named
+// .argocd-source-<appName>.yaml exists, it will also be read and merged.
+func mergeSourceParameters(source *v1alpha1.ApplicationSource, path, appName string) error {
+	repoFilePath := filepath.Join(path, repoSourceFile)
+	overrides := []string{repoFilePath}
+	if appName != "" {
+		overrides = append(overrides, filepath.Join(path, fmt.Sprintf(appSourceFile, appName)))
 	}
 
-	data, err := ioutil.ReadFile(appFilePath)
-	if err != nil {
-		return err
+	var merged v1alpha1.ApplicationSource = *source.DeepCopy()
+
+	for _, filename := range overrides {
+		info, err := os.Stat(filename)
+		if os.IsNotExist(err) {
+			continue
+		} else if info != nil && info.IsDir() {
+			continue
+		} else if err != nil {
+			// filename should be part of error message here
+			return err
+		}
+
+		data, err := json.Marshal(merged)
+		if err != nil {
+			return fmt.Errorf("%s: %v", filename, err)
+		}
+		patch, err := ioutil.ReadFile(filename)
+		if err != nil {
+			return fmt.Errorf("%s: %v", filename, err)
+		}
+		patch, err = yaml.YAMLToJSON(patch)
+		if err != nil {
+			return fmt.Errorf("%s: %v", filename, err)
+		}
+		data, err = jsonpatch.MergePatch(data, patch)
+		if err != nil {
+			return fmt.Errorf("%s: %v", filename, err)
+		}
+		err = json.Unmarshal(data, &merged)
+		if err != nil {
+			return fmt.Errorf("%s: %v", filename, err)
+		}
 	}
-	data, err = yaml.YAMLToJSON(data)
-	if err != nil {
-		return err
-	}
-	data, err = jsonpatch.MergePatch(data, patch)
-	if err != nil {
-		return err
-	}
-	var merged v1alpha1.ApplicationSource
-	err = json.Unmarshal(data, &merged)
-	if err != nil {
-		return err
-	}
+
 	// make sure only config management tools related properties are used and ignore everything else
 	merged.Chart = source.Chart
 	merged.Path = source.Path
@@ -767,10 +785,10 @@ func mergeSourceParameters(source *v1alpha1.ApplicationSource, path string) erro
 }
 
 // GetAppSourceType returns explicit application source type or examines a directory and determines its application source type
-func GetAppSourceType(source *v1alpha1.ApplicationSource, path string) (v1alpha1.ApplicationSourceType, error) {
-	err := mergeSourceParameters(source, path)
+func GetAppSourceType(source *v1alpha1.ApplicationSource, path, appName string) (v1alpha1.ApplicationSourceType, error) {
+	err := mergeSourceParameters(source, path, appName)
 	if err != nil {
-		return "", fmt.Errorf("error while parsing .argocd-source.yaml: %v", err)
+		return "", fmt.Errorf("error while parsing source parameters: %v", err)
 	}
 
 	appSourceType, err := source.ExplicitType()
@@ -860,8 +878,15 @@ func findManifests(appPath string, repoRoot string, env *v1alpha1.Env, directory
 			return nil
 		}
 
-		fileNameWithPath := filepath.Join(appPath, f.Name())
-		if glob.Match(directory.Exclude, fileNameWithPath) {
+		relPath, err := filepath.Rel(appPath, path)
+		if err != nil {
+			return err
+		}
+		if directory.Exclude != "" && glob.Match(directory.Exclude, relPath) {
+			return nil
+		}
+
+		if directory.Include != "" && !glob.Match(directory.Include, relPath) {
 			return nil
 		}
 
@@ -1052,7 +1077,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 		appPath := ctx.appPath
 
 		res := &apiclient.RepoAppDetailsResponse{}
-		appSourceType, err := GetAppSourceType(q.Source, appPath)
+		appSourceType, err := GetAppSourceType(q.Source, appPath, q.AppName)
 		if err != nil {
 			return nil, err
 		}
@@ -1166,7 +1191,8 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 
 func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServerRevisionMetadataRequest) (*v1alpha1.RevisionMetadata, error) {
 	commitSHA := parseRevisionSHA(q.Revision)
-	if !git.IsCommitSHA(commitSHA) {
+
+	if !(git.IsCommitSHA(commitSHA) || git.IsTruncatedCommitSHA(commitSHA)) {
 		return nil, fmt.Errorf("revision %s must be resolved", q.Revision)
 	}
 	metadata, err := s.cache.GetRevisionMetadata(q.Repo.Repo, commitSHA)
@@ -1237,10 +1263,9 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 		}
 	}
 
-	// discard anything after the first new line and then truncate to 64 chars
-	message := text.Trunc(strings.SplitN(m.Message, "\n", 2)[0], 64)
-	metadata = &v1alpha1.RevisionMetadata{Author: m.Author, Date: metav1.Time{Time: m.Date}, Tags: m.Tags, Message: message, SignatureInfo: signatureInfo}
-	_ = s.cache.SetRevisionMetadata(q.Repo.Repo, commitSHA, metadata)
+	metadata = &v1alpha1.RevisionMetadata{Author: m.Author, Date: metav1.Time{Time: m.Date}, Tags: m.Tags, Message: m.Message, SignatureInfo: signatureInfo}
+	_ = s.cache.SetRevisionMetadata(q.Repo.Repo, q.Revision, metadata)
+
 	return metadata, nil
 }
 
@@ -1281,9 +1306,12 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 }
 
 func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revision string, chart string) (helm.Client, string, error) {
-	helmClient := s.newHelmClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI)
+	helmClient := s.newHelmClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI || helm.IsHelmOciChart(chart))
 	if helm.IsVersion(revision) {
 		return helmClient, revision, nil
+	}
+	if repo.EnableOCI {
+		return nil, "", errors.New("OCI helm registers don't support semver ranges. Exact revision must be specified.")
 	}
 	constraints, err := semver.NewConstraint(revision)
 	if err != nil {
@@ -1310,17 +1338,32 @@ func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revisi
 func checkoutRevision(gitClient git.Client, revision string) error {
 	err := gitClient.Init()
 	commitSHA := parseRevisionSHA(revision)
+
 	if err != nil {
 		return status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
 	}
-	err = gitClient.Fetch()
-	if err != nil {
-		return status.Errorf(codes.Internal, "Failed to fetch git repo: %v", err)
+
+	// Some git providers don't support fetching commit sha
+	if commitSHA != "" && !git.IsCommitSHA(commitSHA) && !git.IsTruncatedCommitSHA(commitSHA) {
+		err = gitClient.Fetch(commitSHA)
+		if err != nil {
+			return status.Errorf(codes.Internal, "Failed to fetch %s: %v", commitSHA, err)
+		}
+		err = gitClient.Checkout("FETCH_HEAD")
+		if err != nil {
+			return status.Errorf(codes.Internal, "Failed to checkout FETCH_HEAD: %v", err)
+		}
+	} else {
+		err = gitClient.Fetch("")
+		if err != nil {
+			return status.Errorf(codes.Internal, "Failed to fetch %s: %v", commitSHA, err)
+		}
+		err = gitClient.Checkout(commitSHA)
+		if err != nil {
+			return status.Errorf(codes.Internal, "Failed to checkout %s: %v", commitSHA, err)
+		}
 	}
-	err = gitClient.Checkout(commitSHA)
-	if err != nil {
-		return status.Errorf(codes.Internal, "Failed to checkout %s: %v", commitSHA, err)
-	}
+
 	return err
 }
 

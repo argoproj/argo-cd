@@ -24,7 +24,7 @@ spec:
         - "20"
         - --operation-processors
         - "10"
-        image: argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-application-controller
         ports:

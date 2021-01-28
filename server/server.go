@@ -21,7 +21,7 @@ import (
 
 	"github.com/argoproj/pkg/jwt/zjwt"
 	"github.com/argoproj/pkg/sync"
-	"github.com/dgrijalva/jwt-go"
+	"github.com/dgrijalva/jwt-go/v4"
 	"github.com/go-redis/redis/v8"
 	"github.com/gorilla/handlers"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
@@ -337,6 +337,7 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
 
 	go a.projInformer.Run(ctx.Done())
 	go a.appInformer.Run(ctx.Done())
+
 	go func() { a.checkServeErr("grpcS", grpcS.Serve(grpcL)) }()
 	go func() { a.checkServeErr("httpS", httpS.Serve(httpL)) }()
 	if a.useTLS() {

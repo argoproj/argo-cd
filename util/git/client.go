@@ -50,7 +50,7 @@ type Refs struct {
 type Client interface {
 	Root() string
 	Init() error
-	Fetch() error
+	Fetch(revision string) error
 	Checkout(revision string) error
 	LsRefs() (*Refs, error)
 	LsRemote(revision string) (string, error)
@@ -282,8 +282,13 @@ func (m *nativeGitClient) IsLFSEnabled() bool {
 }
 
 // Fetch fetches latest updates from origin
-func (m *nativeGitClient) Fetch() error {
-	err := m.runCredentialedCmd("git", "fetch", "origin", "--tags", "--force")
+func (m *nativeGitClient) Fetch(revision string) error {
+	var err error
+	if revision != "" {
+		err = m.runCredentialedCmd("git", "fetch", "origin", revision, "--tags", "--force")
+	} else {
+		err = m.runCredentialedCmd("git", "fetch", "origin", "--tags", "--force")
+	}
 	// When we have LFS support enabled, check for large files and fetch them too.
 	if err == nil && m.IsLFSEnabled() {
 		largeFiles, err := m.LsLargeFiles()
@@ -318,7 +323,7 @@ func (m *nativeGitClient) LsLargeFiles() ([]string, error) {
 	return ss, nil
 }
 
-// Checkout checkout specified git sha
+// Checkout checkout specified revision
 func (m *nativeGitClient) Checkout(revision string) error {
 	if revision == "" || revision == "HEAD" {
 		revision = "origin/HEAD"
@@ -538,16 +543,12 @@ func (m *nativeGitClient) lsRemote(revision string, moduleURL string) (string, e
 	refToResolve := ""
 	for _, ref := range refs {
 		refName := ref.Name().String()
-		if refName != "HEAD" && !strings.HasPrefix(refName, "refs/heads/") && !strings.HasPrefix(refName, "refs/tags/") {
-			// ignore things like 'refs/pull/' 'refs/reviewable'
-			continue
-		}
 		hash := ref.Hash().String()
 		if ref.Type() == plumbing.HashReference {
 			refToHash[refName] = hash
 		}
 		//log.Debugf("%s\t%s", hash, refName)
-		if ref.Name().Short() == revision {
+		if ref.Name().Short() == revision || refName == revision {
 			if ref.Type() == plumbing.HashReference {
 				log.Debugf("revision '%s' resolved to '%s'", revision, hash)
 				return hash, nil
@@ -619,7 +620,7 @@ func (m *nativeGitClient) VerifyCommitSignature(revision string) (string, error)
 // runWrapper runs a custom command with all the semantics of running the Git client
 func (m *nativeGitClient) runGnuPGWrapper(wrapper string, args ...string) (string, error) {
 	cmd := exec.Command(wrapper, args...)
-	cmd.Env = append(cmd.Env, fmt.Sprintf("GNUPGHOME=%s", common.GetGnuPGHomePath()))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("GNUPGHOME=%s", common.GetGnuPGHomePath()), "LANG=C")
 	return m.runCmdOutput(cmd)
 }
 
@@ -630,6 +631,7 @@ func (m *nativeGitClient) runCmd(args ...string) (string, error) {
 }
 
 // runCredentialedCmd is a convenience function to run a git command with username/password credentials
+// nolint:unparam
 func (m *nativeGitClient) runCredentialedCmd(command string, args ...string) error {
 	cmd := exec.Command(command, args...)
 	closer, environ, err := m.creds.Environ()

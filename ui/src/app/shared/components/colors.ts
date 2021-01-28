@@ -3,6 +3,7 @@ const ARGO_WARNING_COLOR = '#f4c030';
 const ARGO_FAILED_COLOR = '#E96D76';
 const ARGO_RUNNING_COLOR = '#0DADEA';
 const ARGO_GRAY4_COLOR = '#CCD6DD';
+const ARGO_TERMINATING_COLOR = '#DE303D';
 
 export const COLORS = {
     connection_status: {
@@ -23,7 +24,7 @@ export const COLORS = {
         failed: ARGO_FAILED_COLOR,
         running: ARGO_RUNNING_COLOR,
         success: ARGO_SUCCESS_COLOR,
-        terminating: ARGO_RUNNING_COLOR
+        terminating: ARGO_TERMINATING_COLOR
     },
     sync: {
         synced: ARGO_SUCCESS_COLOR,

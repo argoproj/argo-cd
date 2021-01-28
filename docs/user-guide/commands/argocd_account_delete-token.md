@@ -2,10 +2,6 @@
 
 Deletes account token
 
-### Synopsis
-
-Deletes account token
-
 ```
 argocd account delete-token [flags]
 ```

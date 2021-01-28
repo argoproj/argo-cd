@@ -2,10 +2,6 @@
 
 Reconcile all applications and stores reconciliation summary in the specified file.
 
-### Synopsis
-
-Reconcile all applications and stores reconciliation summary in the specified file.
-
 ```
 argocd-util apps get-reconcile-results PATH [flags]
 ```
