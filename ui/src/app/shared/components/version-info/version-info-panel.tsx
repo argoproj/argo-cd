@@ -42,13 +42,14 @@ export class VersionPanel extends React.Component<VersionPanelProps, {copyState:
         const formattedVersion = {
             'Argo CD': version.Version,
             'Build Date': version.BuildDate,
-            'Go Version': version.GoVersion,
-            'Go Compiler': version.Compiler,
+            'Go': version.GoVersion,
+            'Compiler': version.Compiler,
             'Platform': version.Platform,
             'ksonnet': version.KsonnetVersion,
             'jsonnet': version.JsonnetVersion,
             'kustomize': version.KustomizeVersion,
-            'Helm': version.HelmVersion
+            'Helm': version.HelmVersion,
+            'kubectl': version.KubectlVersion
         };
 
         return (
