@@ -1612,7 +1612,7 @@
 </div>
 <h2 id="private-remote-bases">Private Remote Bases<a class="headerlink" href="#private-remote-bases" title="Permanent link">&para;</a></h2>
 <p>If you have remote bases that are either (a) HTTPS and need username/password (b) SSH and need SSH private key, then they'll inherit that from the app's repo. </p>
-<p>This will work if the remote bases uses the same credentials/private key. It will not work if they use different ones. For security reasons your app only ever knows about its own repo (not other team's or users repos), and so you won't be able to access other private repo, even if Argo CD knows about them.</p>
+<p>This will work if the remote bases uses the same credentials/private key. It will not work if they use different ones. For security reasons your app only ever knows about its own repo (not other team's or users repos), and so you won't be able to access other private repos, even if Argo CD knows about them.</p>
 <p>Read more about <a href="../private-repositories/">private repos</a>.</p>
 <h2 id="kustomize-build-optionsparameters"><code>kustomize build</code> Options/Parameters<a class="headerlink" href="#kustomize-build-optionsparameters" title="Permanent link">&para;</a></h2>
 <p>To provide build options to <code>kustomize build</code> add a property to the ArgoCD CM under data:</p>
@@ -1629,7 +1629,7 @@
 </code></pre></div>
 
 <h2 id="custom-kustomize-versions">Custom Kustomize versions<a class="headerlink" href="#custom-kustomize-versions" title="Permanent link">&para;</a></h2>
-<p>Argo CD supports using multiple kustomize versions simultaneously and specify required version per application.
+<p>Argo CD supports using multiple kustomize versions simultaneously and specifies required version per application.
 To add additional versions make sure required versions are <a href="../../operator-manual/custom_tools/">bundled</a> and then
 use <code>kustomize.version.&lt;version&gt;</code> fields of <code>argocd-cm</code> ConfigMap to register bundled additional versions.   </p>
 <div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
@@ -1645,7 +1645,7 @@ use <code>kustomize.version.&lt;version&gt;</code> fields of <code>argocd-cm</co
     <span class="nt">kustomize.version.v3.5.4</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">/custom-tools/kustomize_3_5_4</span>
 </code></pre></div>
 
-<p>Once new version is configured you can reference it in Application spec as following:</p>
+<p>Once a new version is configured you can reference it in Application spec as following:</p>
 <div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Application</span>
 <span class="nt">metadata</span><span class="p">:</span>
