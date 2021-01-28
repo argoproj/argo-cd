@@ -164,9 +164,10 @@ message ApplicationPodLogsQuery {
 	required int64 tailLines = 7 [(gogoproto.nullable) = false];
 	required bool follow = 8 [(gogoproto.nullable) = false];
 	optional string untilTime = 9;
-	optional string kind = 10;
-	optional string group = 11;
-	optional string resourceName = 12 ;
+	optional string filter = 10;
+	optional string kind = 11;
+	optional string group = 12;
+	optional string resourceName = 13 ;
 }
 
 message LogEntry {

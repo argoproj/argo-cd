@@ -168,7 +168,8 @@ export class ApplicationsService {
         containerName: string,
         tail?: number,
         follow?: boolean,
-        untilTime?: string
+        untilTime?: string,
+        filter?: string
     ): Observable<models.LogEntry> {
         if (follow === undefined || follow === null) {
             follow = true;
@@ -177,7 +178,7 @@ export class ApplicationsService {
             .loadEventSource(
                 `/applications/${applicationName}/pods/${podName}/logs?container=${containerName}&follow=${follow}&namespace=${namespace}${tail ? '&tailLines=' + tail : ''}${
                     untilTime ? '&untilTime=' + untilTime : ''
-                }`
+                }${filter ? '&filter=' + filter : ''}`
             )
             .map(data => JSON.parse(data).result as models.LogEntry);
         return new Observable(observer => {
