@@ -1096,6 +1096,8 @@ type ResourceDiff struct {
 	NormalizedLiveState string `json:"normalizedLiveState,omitempty" protobuf:"bytes,9,opt,name=normalizedLiveState"`
 	// PredictedLiveState contains JSON serialized resource state that is calculated based on normalized and target resource state
 	PredictedLiveState string `json:"predictedLiveState,omitempty" protobuf:"bytes,10,opt,name=predictedLiveState"`
+	ResourceVersion    string `json:"resourceVersion,omitempty" protobuf:"bytes,11,opt,name=resourceVersion"`
+	Modified           bool   `json:"modified,omitempty" protobuf:"bytes,12,opt,name=modified"`
 }
 
 // ConnectionStatus represents connection status
@@ -2332,6 +2334,10 @@ func (app *Application) IsRefreshRequested() (RefreshType, bool) {
 // SetCascadedDeletion sets or remove resources finalizer
 func (app *Application) SetCascadedDeletion(prune bool) {
 	setFinalizer(&app.ObjectMeta, common.ResourcesFinalizerName, prune)
+}
+
+func (status *ApplicationStatus) Expired(statusRefreshTimeout time.Duration) bool {
+	return status.ReconciledAt == nil || status.ReconciledAt.Add(statusRefreshTimeout).Before(time.Now().UTC())
 }
 
 // SetConditions updates the application status conditions for a subset of evaluated types.
