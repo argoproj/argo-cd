@@ -183,7 +183,7 @@ func NewApplicationController(
 		return nil, err
 	}
 	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, kubectl, ctrl.metricsServer, ctrl.handleObjectUpdated, clusterFilter)
-	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.settingsMgr, stateCache, projInformer, ctrl.metricsServer)
+	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.settingsMgr, stateCache, projInformer, ctrl.metricsServer, argoCache, ctrl.statusRefreshTimeout)
 	ctrl.appInformer = appInformer
 	ctrl.appLister = appLister
 	ctrl.projInformer = projInformer
@@ -482,11 +482,12 @@ func (ctrl *ApplicationController) managedResources(comparisonResult *comparison
 	for i := range comparisonResult.managedResources {
 		res := comparisonResult.managedResources[i]
 		item := appv1.ResourceDiff{
-			Namespace: res.Namespace,
-			Name:      res.Name,
-			Group:     res.Group,
-			Kind:      res.Kind,
-			Hook:      res.Hook,
+			Namespace:       res.Namespace,
+			Name:            res.Name,
+			Group:           res.Group,
+			Kind:            res.Kind,
+			Hook:            res.Hook,
+			ResourceVersion: res.ResourceVersion,
 		}
 
 		target := res.Target
@@ -533,6 +534,7 @@ func (ctrl *ApplicationController) managedResources(comparisonResult *comparison
 		}
 		item.PredictedLiveState = string(resDiff.PredictedLive)
 		item.NormalizedLiveState = string(resDiff.NormalizedLive)
+		item.Modified = resDiff.Modified
 
 		items[i] = &item
 	}
