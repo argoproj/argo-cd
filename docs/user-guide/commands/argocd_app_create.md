@@ -2,10 +2,6 @@
 
 Create an application
 
-### Synopsis
-
-Create an application
-
 ```
 argocd app create APPNAME [flags]
 ```
@@ -44,6 +40,7 @@ argocd app create APPNAME [flags]
       --dest-namespace string                     K8s target namespace (overrides the namespace specified in the ksonnet app.yaml)
       --dest-server string                        K8s cluster URL (e.g. https://kubernetes.default.svc)
       --directory-exclude string                  Set glob expression used to exclude files from application source path
+      --directory-include string                  Set glob expression used to include files from application source path
       --directory-recurse                         Recurse directory
       --env string                                Application environment to monitor
   -f, --file string                               Filename or URL to Kubernetes manifests for the app
@@ -68,6 +65,7 @@ argocd app create APPNAME [flags]
       --namesuffix string                         Kustomize namesuffix
   -p, --parameter stringArray                     set a parameter override (e.g. -p guestbook=image=example/guestbook:latest)
       --path string                               Path in repository to the app directory, ignored if a file is set
+      --plugin-env stringArray                    Additional plugin envs
       --project string                            Application project name
       --release-name string                       Helm release-name
       --repo string                               Repository URL, ignored if a file is set

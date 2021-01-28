@@ -63,6 +63,21 @@ func FilterByProjects(apps []argoappv1.Application, projects []string) []argoapp
 
 }
 
+// FilterByName returns an application
+func FilterByName(apps []argoappv1.Application, name string) ([]argoappv1.Application, error) {
+	if name == "" {
+		return apps, nil
+	}
+	items := make([]argoappv1.Application, 0)
+	for i := 0; i < len(apps); i++ {
+		if apps[i].Name == name {
+			items = append(items, apps[i])
+			return items, nil
+		}
+	}
+	return items, status.Errorf(codes.NotFound, "application '%s' not found", name)
+}
+
 // RefreshApp updates the refresh annotation of an application to coerce the controller to process it
 func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType argoappv1.RefreshType) (*argoappv1.Application, error) {
 	metadata := map[string]interface{}{
@@ -131,12 +146,8 @@ func TestRepoWithKnownType(repo *argoappv1.Repository, isHelm bool, isHelmOci bo
 	} else {
 		repo.Type = "git"
 	}
+	repo.EnableOCI = repo.EnableOCI || isHelmOci
 
-	if isHelmOci {
-		repo.EnableOCI = true
-	} else {
-		repo.EnableOCI = false
-	}
 	return TestRepo(repo)
 }
 
@@ -400,7 +411,7 @@ func verifyGenerateManifests(
 		},
 		Repos:             helmRepos,
 		Revision:          spec.Source.TargetRevision,
-		AppLabelValue:     app.Name,
+		AppName:           app.Name,
 		Namespace:         spec.Destination.Namespace,
 		ApplicationSource: &spec.Source,
 		Plugins:           plugins,
@@ -482,8 +493,12 @@ func NormalizeApplicationSpec(spec *argoappv1.ApplicationSpec) *argoappv1.Applic
 		spec.Source.Ksonnet = nil
 	}
 	if spec.Source.Directory != nil && spec.Source.Directory.IsZero() {
-		if spec.Source.Directory.Exclude != "" {
+		if spec.Source.Directory.Exclude != "" && spec.Source.Directory.Include != "" {
+			spec.Source.Directory = &argoappv1.ApplicationSourceDirectory{Exclude: spec.Source.Directory.Exclude, Include: spec.Source.Directory.Include}
+		} else if spec.Source.Directory.Exclude != "" {
 			spec.Source.Directory = &argoappv1.ApplicationSourceDirectory{Exclude: spec.Source.Directory.Exclude}
+		} else if spec.Source.Directory.Include != "" {
+			spec.Source.Directory = &argoappv1.ApplicationSourceDirectory{Include: spec.Source.Directory.Include}
 		} else {
 			spec.Source.Directory = nil
 		}

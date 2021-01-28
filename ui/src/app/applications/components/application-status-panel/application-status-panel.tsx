@@ -5,8 +5,7 @@ import {Revision} from '../../../shared/components/revision';
 import {Timestamp} from '../../../shared/components/timestamp';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
-import * as utils from '../utils';
-import {ApplicationSyncWindowStatusIcon, ComparisonStatusIcon, getAppOperationState, HealthStatusIcon, OperationState, syncStatusMessage} from '../utils';
+import {ApplicationSyncWindowStatusIcon, ComparisonStatusIcon, getAppOperationState, getConditionCategory, HealthStatusIcon, OperationState, syncStatusMessage} from '../utils';
 import {RevisionMetadataPanel} from './revision-metadata-panel';
 
 require('./application-status-panel.scss');
@@ -15,9 +14,10 @@ interface Props {
     application: models.Application;
     showOperation?: () => any;
     showConditions?: () => any;
+    showMetadataInfo?: (revision: string, info: models.RevisionMetadata) => any;
 }
 
-export const ApplicationStatusPanel = ({application, showOperation, showConditions}: Props) => {
+export const ApplicationStatusPanel = ({application, showOperation, showConditions, showMetadataInfo}: Props) => {
     const today = new Date();
 
     let daysSinceLastSynchronized = 0;
@@ -27,7 +27,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
         daysSinceLastSynchronized = Math.round(Math.abs((today.getTime() - deployDate.getTime()) / (24 * 60 * 60 * 1000)));
     }
     const cntByCategory = (application.status.conditions || []).reduce(
-        (map, next) => map.set(utils.getConditionCategory(next), (map.get(utils.getConditionCategory(next)) || 0) + 1),
+        (map, next) => map.set(getConditionCategory(next), (map.get(getConditionCategory(next)) || 0) + 1),
         new Map<string, number>()
     );
     const appOperationState = getAppOperationState(application);
@@ -54,7 +54,12 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                 <div className='application-status-panel__item-name'>{syncStatusMessage(application)}</div>
                 <div className='application-status-panel__item-name'>
                     {application.status && application.status.sync && application.status.sync.revision && (
-                        <RevisionMetadataPanel appName={application.metadata.name} type={application.spec.source.chart && 'helm'} revision={application.status.sync.revision} />
+                        <RevisionMetadataPanel
+                            appName={application.metadata.name}
+                            type={application.spec.source.chart && 'helm'}
+                            revision={application.status.sync.revision}
+                            showInfo={showMetadataInfo && (info => showMetadataInfo(application.status.sync.revision, info))}
+                        />
                     )}
                 </div>
             </div>
@@ -85,6 +90,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                             appName={application.metadata.name}
                             type={application.spec.source.chart && 'helm'}
                             revision={appOperationState.syncResult.revision}
+                            showInfo={showMetadataInfo && (info => showMetadataInfo(appOperationState.syncResult.revision, info))}
                         />
                     )) || <div className='application-status-panel__item-name'>{appOperationState.message}</div>}
                 </div>

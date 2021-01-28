@@ -2,10 +2,6 @@
 
 Create a project token
 
-### Synopsis
-
-Create a project token
-
 ```
 argocd proj role create-token PROJECT ROLE-NAME [flags]
 ```

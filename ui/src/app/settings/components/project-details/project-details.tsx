@@ -32,7 +32,7 @@ function helpTip(text: string) {
         <Tooltip content={text}>
             <span style={{fontSize: 'smaller'}}>
                 {' '}
-                <i className='fa fa-question-circle' />
+                <i className='fas fa-info-circle' />
             </span>
         </Tooltip>
     );

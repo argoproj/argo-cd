@@ -32,9 +32,13 @@ and might fail. To avoid failed syncs use `ARGOCD_GIT_ATTEMPTS_COUNT` environmen
 
 * `argocd-repo-server` Every 3m (by default) Argo CD checks for changes to the app manifests. Argo CD assumes by default that manifests only change when the repo changes, so it caches generated manifests (for 24h by default). With Kustomize remote bases, or Helm patch releases, the manifests can change even though the repo has not changed. By reducing the cache time, you can get the changes without waiting for 24h. Use `--repo-cache-expiration duration`, and we'd suggest in low volume environments you try '1h'. Bear in mind this will negate the benefit of caching if set too low. 
 
+* `argocd-repo-server` fork exec config management tools such as `helm` or `kustomize` and enforces 90 seconds timeout. The timeout can be increased using `ARGOCD_EXEC_TIMEOUT` env variable.
+
 **metrics:**
 
 * `argocd_git_request_total` - Number of git requests. The metric provides two tags: `repo` - Git repo URL; `request_type` - `ls-remote` or `fetch`.
+
+* `ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM` (v1.8+) - environment variable that enables collecting RPC performance metrics. Enable it if you need to troubleshoot performance issue. Note: metric is expensive to both query and store!
 
 ### argocd-application-controller
 
@@ -82,6 +86,8 @@ spec:
           value: "2"
 ```
 
+* `ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM`  (v1.8+)- environment variable that enables collecting RPC performance metrics. Enable it if you need to troubleshoot performance issue. Note: metric is expensive to both query and store!
+
 **metrics**
 
 * `argocd_app_reconcile` - reports application reconciliation duration. Can be used to build reconciliation duration heat map to get high-level reconciliation performance picture.
@@ -91,6 +97,11 @@ non-preferred version and causes performance issues.
 ### argocd-server
 
 The `argocd-server` is stateless and probably least likely to cause issues. You might consider increasing number of replicas to 3 or more to ensure there is no downtime during upgrades.
+
+**settings:**
+
+* The `ARGOCD_GRPC_MAX_SIZE_MB` environment variable allows specifying the max size of the server response message in megabytes.
+The default value is 200. You might need to increase for an Argo CD instance that manages 3000+ applications.    
 
 ### argocd-dex-server, argocd-redis
 
@@ -105,7 +116,7 @@ Argo CD repo server maintains one repository clone locally and use it for applic
 Argo CD determines if manifest generation might change local files in the local repository clone based on config management tool and application settings.
 If the manifest generation has no side effects then requests are processed in parallel without the performance penalty. Following are known cases that might cause slowness and workarounds:
 
-  * **Multiple Helm based applications pointing to the same directory in one Git repository:** ensure that your Helm chart don't have don't have conditional
+  * **Multiple Helm based applications pointing to the same directory in one Git repository:** ensure that your Helm chart don't have conditional
 [dependencies](https://helm.sh/docs/chart_best_practices/dependencies/#conditions-and-tags) and create `.argocd-allow-concurrency` file in chart directory.
 
   * **Multiple Custom plugin based applications:** avoid creating temporal files during manifest generation and and create `.argocd-allow-concurrency` file in app directory.

@@ -2,6 +2,7 @@ package session
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -11,7 +12,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
+	oidc "github.com/coreos/go-oidc"
+	"github.com/dgrijalva/jwt-go/v4"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -172,28 +174,62 @@ func (mgr *SessionManager) Create(subject string, secondsBeforeExpiry int64, id 
 	// you would like it to contain.
 	now := time.Now().UTC()
 	claims := jwt.StandardClaims{
-		IssuedAt:  now.Unix(),
+		IssuedAt:  jwt.At(now),
 		Issuer:    SessionManagerClaimsIssuer,
-		NotBefore: now.Unix(),
+		NotBefore: jwt.At(now),
 		Subject:   subject,
-		Id:        id,
+		ID:        id,
 	}
 	if secondsBeforeExpiry > 0 {
 		expires := now.Add(time.Duration(secondsBeforeExpiry) * time.Second)
-		claims.ExpiresAt = expires.Unix()
+		claims.ExpiresAt = jwt.At(expires)
 	}
 
 	return mgr.signClaims(claims)
 }
 
+type standardClaims struct {
+	Audience  jwt.ClaimStrings `json:"aud,omitempty"`
+	ExpiresAt int64            `json:"exp,omitempty"`
+	ID        string           `json:"jti,omitempty"`
+	IssuedAt  int64            `json:"iat,omitempty"`
+	Issuer    string           `json:"iss,omitempty"`
+	NotBefore int64            `json:"nbf,omitempty"`
+	Subject   string           `json:"sub,omitempty"`
+}
+
+func unixTimeOrZero(t *jwt.Time) int64 {
+	if t == nil {
+		return 0
+	}
+	return t.Unix()
+}
+
 func (mgr *SessionManager) signClaims(claims jwt.Claims) (string, error) {
-	log.Infof("Issuing claims: %v", claims)
+	// log.Infof("Issuing claims: %v", claims)
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	settings, err := mgr.settingsMgr.GetSettings()
 	if err != nil {
 		return "", err
 	}
-	return token.SignedString(settings.ServerSignature)
+	// workaround for https://github.com/argoproj/argo-cd/issues/5217
+	// According to https://tools.ietf.org/html/rfc7519#section-4.1.6 "iat" and other time fields must contain
+	// number of seconds from 1970-01-01T00:00:00Z UTC until the specified UTC date/time.
+	// The https://github.com/dgrijalva/jwt-go marshals time as non integer.
+	return token.SignedString(settings.ServerSignature, jwt.WithMarshaller(func(ctx jwt.CodingContext, v interface{}) ([]byte, error) {
+		if std, ok := v.(jwt.StandardClaims); ok {
+			return json.Marshal(standardClaims{
+				Audience:  std.Audience,
+				ExpiresAt: unixTimeOrZero(std.ExpiresAt),
+				ID:        std.ID,
+				IssuedAt:  unixTimeOrZero(std.IssuedAt),
+				Issuer:    std.Issuer,
+				NotBefore: unixTimeOrZero(std.NotBefore),
+				Subject:   std.Subject,
+			})
+		}
+		return json.Marshal(v)
+	}))
 }
 
 // Parse tries to parse the provided string and returns the token claims for local login.
@@ -218,7 +254,7 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, error) {
 		return nil, err
 	}
 
-	subject := jwtutil.GetField(claims, "sub")
+	subject := jwtutil.StringField(claims, "sub")
 	if rbacpolicy.IsProjectSubject(subject) {
 		return token.Claims, nil
 	}
@@ -228,11 +264,14 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, error) {
 		return nil, err
 	}
 
-	if id := jwtutil.GetField(claims, "jti"); id != "" && account.TokenIndex(id) == -1 {
+	if id := jwtutil.StringField(claims, "jti"); id != "" && account.TokenIndex(id) == -1 {
 		return nil, fmt.Errorf("account %s does not have token with id %s", subject, id)
 	}
 
-	issuedAt := time.Unix(int64(claims["iat"].(float64)), 0)
+	issuedAt, err := jwtutil.IssuedAtTime(claims)
+	if err != nil {
+		return nil, err
+	}
 	if account.PasswordMtime != nil && issuedAt.Before(*account.PasswordMtime) {
 		return nil, fmt.Errorf("Account password has changed since token issued")
 	}
@@ -422,7 +461,7 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 // We choose how to verify based on the issuer.
 func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, error) {
 	parser := &jwt.Parser{
-		SkipClaimsValidation: true,
+		ValidationHelper: jwt.NewValidationHelper(jwt.WithoutClaimsValidation()),
 	}
 	var claims jwt.StandardClaims
 	_, _, err := parser.ParseUnverified(tokenString, &claims)
@@ -439,7 +478,16 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, error) {
 		if err != nil {
 			return claims, err
 		}
-		idToken, err := prov.Verify(claims.Audience, tokenString)
+
+		// Token must be verified for at least one audience
+		// TODO(jannfis): Is this the right way? Shouldn't we know our audience and only validate for the correct one?
+		var idToken *oidc.IDToken
+		for _, aud := range claims.Audience {
+			idToken, err = prov.Verify(aud, tokenString)
+			if err == nil {
+				break
+			}
+		}
 		if err != nil {
 			return claims, err
 		}
@@ -474,11 +522,11 @@ func Username(ctx context.Context) string {
 	if !ok {
 		return ""
 	}
-	switch jwtutil.GetField(mapClaims, "iss") {
+	switch jwtutil.StringField(mapClaims, "iss") {
 	case SessionManagerClaimsIssuer:
-		return jwtutil.GetField(mapClaims, "sub")
+		return jwtutil.StringField(mapClaims, "sub")
 	default:
-		return jwtutil.GetField(mapClaims, "email")
+		return jwtutil.StringField(mapClaims, "email")
 	}
 }
 
@@ -487,7 +535,7 @@ func Iss(ctx context.Context) string {
 	if !ok {
 		return ""
 	}
-	return jwtutil.GetField(mapClaims, "iss")
+	return jwtutil.StringField(mapClaims, "iss")
 }
 
 func Iat(ctx context.Context) (time.Time, error) {
@@ -495,16 +543,7 @@ func Iat(ctx context.Context) (time.Time, error) {
 	if !ok {
 		return time.Time{}, errors.New("unable to extract token claims")
 	}
-	iatField, ok := mapClaims["iat"]
-	if !ok {
-		return time.Time{}, errors.New("token does not have iat claim")
-	}
-
-	if iat, ok := iatField.(float64); !ok {
-		return time.Time{}, errors.New("iat token field has unexpected type")
-	} else {
-		return time.Unix(int64(iat), 0), nil
-	}
+	return jwtutil.IssuedAtTime(mapClaims)
 }
 
 func Sub(ctx context.Context) string {
@@ -512,7 +551,7 @@ func Sub(ctx context.Context) string {
 	if !ok {
 		return ""
 	}
-	return jwtutil.GetField(mapClaims, "sub")
+	return jwtutil.StringField(mapClaims, "sub")
 }
 
 func Groups(ctx context.Context, scopes []string) []string {

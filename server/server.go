@@ -21,7 +21,7 @@ import (
 
 	"github.com/argoproj/pkg/jwt/zjwt"
 	"github.com/argoproj/pkg/sync"
-	"github.com/dgrijalva/jwt-go"
+	"github.com/dgrijalva/jwt-go/v4"
 	"github.com/go-redis/redis/v8"
 	"github.com/gorilla/handlers"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
@@ -73,6 +73,7 @@ import (
 	"github.com/argoproj/argo-cd/server/certificate"
 	"github.com/argoproj/argo-cd/server/cluster"
 	"github.com/argoproj/argo-cd/server/gpgkey"
+	"github.com/argoproj/argo-cd/server/logout"
 	"github.com/argoproj/argo-cd/server/metrics"
 	"github.com/argoproj/argo-cd/server/project"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
@@ -104,7 +105,6 @@ import (
 
 const maxConcurrentLoginRequestsCountEnv = "ARGOCD_MAX_CONCURRENT_LOGIN_REQUESTS_COUNT"
 const replicasCountEnv = "ARGOCD_API_SERVER_REPLICAS"
-const enableGRPCTimeHistogramEnv = "ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM"
 
 // ErrNoSession indicates no auth token was supplied as part of a request
 var ErrNoSession = status.Errorf(codes.Unauthenticated, "no session information")
@@ -138,7 +138,7 @@ func init() {
 	if replicasCount > 0 {
 		maxConcurrentLoginRequestsCount = maxConcurrentLoginRequestsCount / replicasCount
 	}
-	enableGRPCTimeHistogram = os.Getenv(enableGRPCTimeHistogramEnv) != "false"
+	enableGRPCTimeHistogram = os.Getenv(common.EnvEnableGRPCTimeHistogramEnv) == "true"
 }
 
 // ArgoCDServer is the API server for Argo CD
@@ -241,6 +241,22 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 	}
 }
 
+const (
+	// catches corrupted informer state; see https://github.com/argoproj/argo-cd/issues/4960 for more information
+	notObjectErrMsg = "object does not implement the Object interfaces"
+)
+
+func (a *ArgoCDServer) healthCheck(r *http.Request) error {
+	if val, ok := r.URL.Query()["full"]; ok && len(val) > 0 && val[0] == "true" {
+		argoDB := db.NewDB(a.Namespace, a.settingsMgr, a.KubeClientset)
+		_, err := argoDB.ListClusters(r.Context())
+		if err != nil && strings.Contains(err.Error(), notObjectErrMsg) {
+			return err
+		}
+	}
+	return nil
+}
+
 // Run runs the API Server
 // We use k8s.io/code-generator/cmd/go-to-protobuf to generate the .proto files from the API types.
 // k8s.io/ go-to-protobuf uses protoc-gen-gogo, which comes from gogo/protobuf (a fork of
@@ -321,6 +337,7 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
 
 	go a.projInformer.Run(ctx.Done())
 	go a.appInformer.Run(ctx.Done())
+
 	go func() { a.checkServeErr("grpcS", grpcS.Serve(grpcL)) }()
 	go func() { a.checkServeErr("httpS", httpS.Serve(httpL)) }()
 	if a.useTLS() {
@@ -596,9 +613,7 @@ func withRootPath(handler http.Handler, a *ArgoCDServer) http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("/"+root+"/", http.StripPrefix("/"+root, handler))
 
-	healthz.ServeHealthCheck(mux, func() error {
-		return nil
-	})
+	healthz.ServeHealthCheck(mux, a.healthCheck)
 
 	return mux
 }
@@ -624,7 +639,8 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 		Handler: &handlerSwitcher{
 			handler: mux,
 			urlToHandler: map[string]http.Handler{
-				"/api/badge": badge.NewHandler(a.AppClientset, a.settingsMgr, a.Namespace),
+				"/api/badge":          badge.NewHandler(a.AppClientset, a.settingsMgr, a.Namespace),
+				common.LogoutEndpoint: logout.NewHandler(a.AppClientset, a.settingsMgr, a.sessionMgr, a.ArgoCDServerOpts.RootPath, a.Namespace),
 			},
 			contentTypeToHandler: map[string]http.Handler{
 				"application/grpc-web+proto": grpcWebHandler,
@@ -680,9 +696,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 
 	// Swagger UI
 	swagger.ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui", a.RootPath)
-	healthz.ServeHealthCheck(mux, func() error {
-		return nil
-	})
+	healthz.ServeHealthCheck(mux, a.healthCheck)
 
 	// Dex reverse proxy and client app and OAuth2 login/callback
 	a.registerDexHandlers(mux)

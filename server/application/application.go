@@ -140,6 +140,12 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*ap
 			newItems = append(newItems, *a)
 		}
 	}
+	if q.Name != nil {
+		newItems, err = argoutil.FilterByName(newItems, *q.Name)
+		if err != nil {
+			return nil, err
+		}
+	}
 	newItems = argoutil.FilterByProjects(newItems, q.Projects)
 	sort.Slice(newItems, func(i, j int) bool {
 		return newItems[i].Name < newItems[j].Name
@@ -268,7 +274,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		Repo:              repo,
 		Revision:          revision,
 		AppLabelKey:       appInstanceLabelKey,
-		AppLabelValue:     a.Name,
+		AppName:           a.Name,
 		Namespace:         a.Spec.Destination.Namespace,
 		ApplicationSource: &a.Spec.Source,
 		Repos:             helmRepos,
@@ -576,11 +582,12 @@ func (s *Server) Patch(ctx context.Context, q *application.ApplicationPatchReque
 		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("Patch type '%s' is not supported", q.PatchType))
 	}
 
-	err = json.Unmarshal(patchApp, &app)
+	newApp := &v1alpha1.Application{}
+	err = json.Unmarshal(patchApp, newApp)
 	if err != nil {
 		return nil, err
 	}
-	return s.validateAndUpdateApp(ctx, app, false, true)
+	return s.validateAndUpdateApp(ctx, newApp, false, true)
 }
 
 // Delete removes an application and all associated resources
@@ -747,12 +754,12 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 		return err
 	}
 
+	if err := argo.ValidateDestination(ctx, &app.Spec.Destination, s.db); err != nil {
+		return status.Errorf(codes.InvalidArgument, "application destination spec is invalid: %s", err.Error())
+	}
+
 	var conditions []appv1.ApplicationCondition
 	if validate {
-		if err := argo.ValidateDestination(ctx, &app.Spec.Destination, s.db); err != nil {
-			return status.Errorf(codes.InvalidArgument, "application destination spec is invalid: %s", err.Error())
-		}
-
 		conditions, err = argo.ValidateRepo(ctx, app, s.repoClientset, s.db, kustomizeOptions, plugins, s.kubectl)
 		if err != nil {
 			return err
@@ -1039,6 +1046,16 @@ func (s *Server) ManagedResources(ctx context.Context, q *application.ResourcesQ
 }
 
 func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.ApplicationService_PodLogsServer) error {
+	var untilTime *metav1.Time
+	if q.GetUntilTime() != "" {
+		if val, err := time.Parse(time.RFC3339Nano, q.GetUntilTime()); err != nil {
+			return fmt.Errorf("invalid untilTime parameter value: %v", err)
+		} else {
+			untilTimeVal := metav1.NewTime(val)
+			untilTime = &untilTimeVal
+		}
+	}
+
 	pod, config, _, err := s.getAppResource(ws.Context(), rbacpolicy.ActionGet, &application.ApplicationResourceRequest{
 		Name:         q.Name,
 		Namespace:    q.Namespace,
@@ -1064,6 +1081,16 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 	if q.TailLines > 0 {
 		tailLines = &q.TailLines
 	}
+
+	literal := ""
+	inverse := false
+	if q.Filter != nil {
+		literal = *q.Filter
+		if literal[0] == '!' {
+			literal = literal[1:]
+			inverse = true
+		}
+	}
 	stream, err := kubeClientset.CoreV1().Pods(pod.Namespace).GetLogs(*q.PodName, &v1.PodLogOptions{
 		Container:    q.Container,
 		Follow:       q.Follow,
@@ -1082,7 +1109,6 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 	gracefulExit := false
 	go func() {
 		bufReader := bufio.NewReader(stream)
-
 		for {
 			line, err := bufReader.ReadString('\n')
 			if err != nil {
@@ -1091,19 +1117,30 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 			}
 			line = strings.TrimSpace(line) // Remove trailing line ending
 			parts := strings.Split(line, " ")
-			logTime, err := time.Parse(time.RFC3339, parts[0])
+			timeStampStr := parts[0]
+			logTime, err := time.Parse(time.RFC3339Nano, timeStampStr)
 			metaLogTime := metav1.NewTime(logTime)
 			if err == nil {
 				lines := strings.Join(parts[1:], " ")
 				for _, line := range strings.Split(lines, "\r") {
-					if line != "" {
-						err = ws.Send(&application.LogEntry{
-							Content:   line,
-							TimeStamp: metaLogTime,
-						})
-						if err != nil {
-							logCtx.Warnf("Unable to send stream message: %v", err)
+					if q.Filter != nil {
+						lineContainsFilter := strings.Contains(line, literal)
+						if (inverse && lineContainsFilter) || (!inverse && !lineContainsFilter) {
+							continue
 						}
+					}
+					if q.UntilTime != nil && !metaLogTime.Before(untilTime) {
+						_ = ws.Send(&application.LogEntry{Last: true})
+						close(done)
+						return
+					}
+					err = ws.Send(&application.LogEntry{
+						Content:      line,
+						TimeStamp:    metaLogTime,
+						TimeStampStr: timeStampStr,
+					})
+					if err != nil {
+						logCtx.Warnf("Unable to send stream message: %v", err)
 					}
 				}
 			}
@@ -1292,7 +1329,7 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 		if helm.IsVersion(ambiguousRevision) {
 			return ambiguousRevision, ambiguousRevision, nil
 		}
-		client := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI)
+		client := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI || app.Spec.Source.IsHelmOci())
 		index, err := client.GetIndex()
 		if err != nil {
 			return "", "", err

@@ -2,10 +2,6 @@
 
 Create a project
 
-### Synopsis
-
-Create a project
-
 ```
 argocd proj create PROJECT [flags]
 ```

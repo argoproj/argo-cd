@@ -2,10 +2,6 @@
 
 Create a project role
 
-### Synopsis
-
-Create a project role
-
 ```
 argocd proj role create PROJECT ROLE-NAME [flags]
 ```

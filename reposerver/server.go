@@ -2,7 +2,19 @@ package reposerver
 
 import (
 	"crypto/tls"
+	"os"
 
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	log "github.com/sirupsen/logrus"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/reflection"
+
+	"github.com/argoproj/argo-cd/common"
 	versionpkg "github.com/argoproj/argo-cd/pkg/apiclient/version"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	reposervercache "github.com/argoproj/argo-cd/reposerver/cache"
@@ -11,14 +23,6 @@ import (
 	"github.com/argoproj/argo-cd/server/version"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
-
-	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
-	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
-	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
-	log "github.com/sirupsen/logrus"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/reflection"
 )
 
 // ArgoCDRepoServer is the repo server implementation
@@ -49,7 +53,9 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 	tlsConfig := &tls.Config{Certificates: []tls.Certificate{*cert}}
 	tlsConfCustomizer(tlsConfig)
 
-	grpc_prometheus.EnableHandlingTimeHistogram()
+	if os.Getenv(common.EnvEnableGRPCTimeHistogramEnv) == "true" {
+		grpc_prometheus.EnableHandlingTimeHistogram()
+	}
 
 	serverLog := log.NewEntry(log.StandardLogger())
 	streamInterceptors := []grpc.StreamServerInterceptor{grpc_logrus.StreamServerInterceptor(serverLog), grpc_prometheus.StreamServerInterceptor, grpc_util.PanicLoggerStreamServerInterceptor(serverLog)}
@@ -76,6 +82,9 @@ func (a *ArgoCDRepoServer) CreateGRPC() *grpc.Server {
 	versionpkg.RegisterVersionServiceServer(server, &version.Server{})
 	manifestService := repository.NewService(a.metricsServer, a.cache, a.initConstants)
 	apiclient.RegisterRepoServerServiceServer(server, manifestService)
+
+	healthService := health.NewServer()
+	grpc_health_v1.RegisterHealthServer(server, healthService)
 
 	// Register reflection service on gRPC server.
 	reflection.Register(server)

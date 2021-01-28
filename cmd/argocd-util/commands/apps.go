@@ -5,9 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"sort"
 	"time"
+
+	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
 
 	"github.com/ghodss/yaml"
 	"github.com/spf13/cobra"
@@ -27,6 +30,7 @@ import (
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	appinformers "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
+	cacheutil "github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/db"
@@ -278,7 +282,7 @@ func reconcileApplications(
 	projLister := appInformerFactory.Argoproj().V1alpha1().AppProjects().Lister()
 	server, err := metrics.NewMetricsServer("", appLister, func(obj interface{}) bool {
 		return true
-	}, func() error {
+	}, func(r *http.Request) error {
 		return nil
 	})
 
@@ -290,8 +294,13 @@ func reconcileApplications(
 		return nil, err
 	}
 
+	cache := appstatecache.NewCache(
+		cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Minute)),
+		1*time.Minute,
+	)
+
 	appStateManager := controller.NewAppStateManager(
-		argoDB, appClientset, repoServerClient, namespace, kubeutil.NewKubectl(), settingsMgr, stateCache, projInformer, server)
+		argoDB, appClientset, repoServerClient, namespace, kubeutil.NewKubectl(), settingsMgr, stateCache, projInformer, server, cache, time.Second)
 
 	appsList, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(context.Background(), v1.ListOptions{LabelSelector: selector})
 	if err != nil {

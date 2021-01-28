@@ -3,7 +3,7 @@ package rbacpolicy
 import (
 	"strings"
 
-	jwt "github.com/dgrijalva/jwt-go"
+	jwt "github.com/dgrijalva/jwt-go/v4"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -92,7 +92,7 @@ func (p *RBACPolicyEnforcer) EnforceClaims(claims jwt.Claims, rvals ...interface
 		return false
 	}
 
-	subject := jwtutil.GetField(mapClaims, "sub")
+	subject := jwtutil.StringField(mapClaims, "sub")
 	// Check if the request is for an application resource. We have special enforcement which takes
 	// into consideration the project's token and group bindings
 	var runtimePolicy string
@@ -172,7 +172,7 @@ func (p *RBACPolicyEnforcer) enforceProjectToken(subject string, claims jwt.MapC
 	var iat int64 = -1
 	jti, err := jwtutil.GetID(claims)
 	if err != nil || jti == "" {
-		iat, err = jwtutil.GetIssuedAt(claims)
+		iat, err = jwtutil.IssuedAt(claims)
 		if err != nil {
 			return false
 		}

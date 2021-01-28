@@ -140,6 +140,7 @@ core/v1/PodStatusResult
 core/v1/PodTemplate
 core/v1/PodTemplateList
 core/v1/PodTemplateSpec
+core/v1/PortStatus
 core/v1/PortworxVolumeSource
 core/v1/Preconditions
 core/v1/PreferAvoidPodsEntry

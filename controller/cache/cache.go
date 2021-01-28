@@ -39,6 +39,8 @@ type LiveStateCache interface {
 	IterateHierarchy(server string, key kube.ResourceKey, action func(child appv1.ResourceNode, appName string)) error
 	// Returns state of live nodes which correspond for target nodes of specified application.
 	GetManagedLiveObjs(a *appv1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error)
+	// IterateResources iterates all resource stored in cache
+	IterateResources(server string, callback func(res *clustercache.Resource, info *ResourceInfo)) error
 	// Returns all top level resources (resources without owner references) of a specified namespace
 	GetNamespaceTopLevelResources(server string, namespace string) (map[kube.ResourceKey]appv1.ResourceNode, error)
 	// Starts watching resources of each controlled cluster.
@@ -51,13 +53,28 @@ type LiveStateCache interface {
 
 type ObjectUpdatedHandler = func(managedByApp map[string]bool, ref v1.ObjectReference)
 
+type PodInfo struct {
+	NodeName         string
+	ResourceRequests v1.ResourceList
+}
+
+type NodeInfo struct {
+	Name       string
+	Capacity   v1.ResourceList
+	SystemInfo v1.NodeSystemInfo
+}
+
 type ResourceInfo struct {
 	Info    []appv1.InfoItem
 	AppName string
-	// networkingInfo are available only for known types involved into networking: Ingress, Service, Pod
+	Images  []string
+	Health  *health.HealthStatus
+	// NetworkingInfo are available only for known types involved into networking: Ingress, Service, Pod
 	NetworkingInfo *appv1.ResourceNetworkingInfo
-	Images         []string
-	Health         *health.HealthStatus
+	// PodInfo is available for pods only
+	PodInfo *PodInfo
+	// NodeInfo is available for nodes only
+	NodeInfo *NodeInfo
 }
 
 func NewLiveStateCache(
@@ -260,10 +277,11 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 			if isRoot && appName != "" {
 				res.AppName = appName
 			}
+			gvk := un.GroupVersionKind()
 
 			// edge case. we do not label CRDs, so they miss the tracking label we inject. But we still
 			// want the full resource to be available in our cache (to diff), so we store all CRDs
-			return res, res.AppName != "" || un.GroupVersionKind().Kind == kube.CustomResourceDefinitionKind
+			return res, res.AppName != "" || gvk.Kind == kube.CustomResourceDefinitionKind
 		}),
 		clustercache.SetLogr(logutils.NewLogrusLogger(log.WithField("server", cluster.Server))),
 	)
@@ -342,12 +360,26 @@ func (c *liveStateCache) IterateHierarchy(server string, key kube.ResourceKey, a
 	return nil
 }
 
+func (c *liveStateCache) IterateResources(server string, callback func(res *clustercache.Resource, info *ResourceInfo)) error {
+	clusterInfo, err := c.getSyncedCluster(server)
+	if err != nil {
+		return err
+	}
+	_ = clusterInfo.FindResources("", func(r *clustercache.Resource) bool {
+		if info, ok := r.Info.(*ResourceInfo); ok {
+			callback(r, info)
+		}
+		return false
+	})
+	return nil
+}
+
 func (c *liveStateCache) GetNamespaceTopLevelResources(server string, namespace string) (map[kube.ResourceKey]appv1.ResourceNode, error) {
 	clusterInfo, err := c.getSyncedCluster(server)
 	if err != nil {
 		return nil, err
 	}
-	resources := clusterInfo.GetNamespaceTopLevelResources(namespace)
+	resources := clusterInfo.FindResources(namespace, clustercache.TopLevelResource)
 	res := make(map[kube.ResourceKey]appv1.ResourceNode)
 	for k, r := range resources {
 		res[k] = asResourceNode(r)

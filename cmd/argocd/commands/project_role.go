@@ -9,7 +9,7 @@ import (
 	"time"
 
 	timeutil "github.com/argoproj/pkg/time"
-	jwtgo "github.com/dgrijalva/jwt-go"
+	jwtgo "github.com/dgrijalva/jwt-go/v4"
 	"github.com/spf13/cobra"
 
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
@@ -17,6 +17,7 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/errors"
 	"github.com/argoproj/argo-cd/util/io"
+	"github.com/argoproj/argo-cd/util/jwt"
 )
 
 const (
@@ -247,13 +248,10 @@ func NewProjectRoleCreateTokenCommand(clientOpts *argocdclient.ClientOptions) *c
 			}
 
 			claims := token.Claims.(jwtgo.MapClaims)
-			issuedAt := int64(claims["iat"].(float64))
-			expiresAt := int64(0)
-			if expires, ok := claims["exp"]; ok {
-				expiresAt = int64(expires.(float64))
-			}
-			id := claims["jti"].(string)
-			subject := claims["sub"].(string)
+			issuedAt, _ := jwt.IssuedAt(claims)
+			expiresAt := int64(jwt.Float64Field(claims, "exp"))
+			id := jwt.StringField(claims, "jti")
+			subject := jwt.StringField(claims, "sub")
 
 			if !outputTokenOnly {
 				fmt.Printf("Create token succeeded for %s.\n", subject)

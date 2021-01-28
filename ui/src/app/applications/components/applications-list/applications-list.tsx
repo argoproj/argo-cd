@@ -163,6 +163,20 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
     const [createApi, setCreateApi] = React.useState(null);
     const clusters = React.useMemo(() => services.clusters.list(), []);
     const [isAppCreatePending, setAppCreatePending] = React.useState(false);
+    const searchBar = React.useRef<HTMLDivElement>(null);
+
+    React.useEffect(() => {
+        const handleKeyPress = (e: KeyboardEvent) => {
+            if (e.keyCode === 47 && searchBar.current && !appInput) {
+                searchBar.current.querySelector('input').focus();
+                e.preventDefault();
+            }
+        };
+        document.addEventListener('keypress', handleKeyPress);
+        return () => {
+            document.removeEventListener('keypress', handleKeyPress);
+        };
+    });
 
     const loaderRef = React.useRef<DataLoader>();
     function refreshApp(appName: string) {
@@ -256,8 +270,9 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                 <MockupList height={100} marginTop={30} />
                                             </div>
                                         )}>
-                                        {(applications: models.Application[]) =>
-                                            applications.length === 0 && (pref.labelsFilter || []).length === 0 ? (
+                                        {(applications: models.Application[]) => {
+                                            const filteredApps = filterApps(applications, pref, pref.search);
+                                            return applications.length === 0 && (pref.labelsFilter || []).length === 0 ? (
                                                 <EmptyState icon='argo-icon-application'>
                                                     <h4>No applications yet</h4>
                                                     <h5>Create new application to start managing resources in your cluster</h5>
@@ -273,8 +288,15 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                     <div className='columns small-12 xxlarge-2'>
                                                         <Query>
                                                             {q => (
-                                                                <div className='applications-list__search'>
-                                                                    <i className='fa fa-search' />
+                                                                <div className='applications-list__search' ref={searchBar}>
+                                                                    <i
+                                                                        className='fa fa-search'
+                                                                        onClick={() => {
+                                                                            if (searchBar.current) {
+                                                                                searchBar.current.querySelector('input').focus();
+                                                                            }
+                                                                        }}
+                                                                    />
                                                                     {q.get('search') && (
                                                                         <i className='fa fa-times' onClick={() => ctx.navigation.goto('.', {search: null}, {replace: true})} />
                                                                     )}
@@ -313,7 +335,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                 return (
                                                                     <ApplicationsFilter
                                                                         clusters={clusterList}
-                                                                        applications={applications}
+                                                                        applications={filteredApps}
                                                                         pref={pref}
                                                                         onChange={newPref => onFilterPrefChanged(ctx, newPref)}
                                                                     />
@@ -326,12 +348,12 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                 key='syncsPanel'
                                                                 show={syncAppsInput}
                                                                 hide={() => ctx.navigation.goto('.', {syncApps: null})}
-                                                                apps={filterApps(applications, pref, pref.search)}
+                                                                apps={filteredApps}
                                                             />
                                                         )}
                                                     </div>
                                                     <div className='columns small-12 xxlarge-10'>
-                                                        {(pref.view === 'summary' && <ApplicationsSummary applications={filterApps(applications, pref, pref.search)} />) || (
+                                                        {(pref.view === 'summary' && <ApplicationsSummary applications={filteredApps} />) || (
                                                             <Paginate
                                                                 preferencesKey='applications-list'
                                                                 page={pref.page}
@@ -350,7 +372,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                         </h5>
                                                                     </EmptyState>
                                                                 )}
-                                                                data={filterApps(applications, pref, pref.search)}
+                                                                data={filteredApps}
                                                                 onPageChange={page => ctx.navigation.goto('.', {page})}>
                                                                 {data =>
                                                                     (pref.view === 'tiles' && (
@@ -373,8 +395,8 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                         )}
                                                     </div>
                                                 </div>
-                                            )
-                                        }
+                                            );
+                                        }}
                                     </DataLoader>
                                 )}
                             </ViewPref>
@@ -407,7 +429,10 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                         <Spinner show={isAppCreatePending} style={{marginRight: '5px'}} />
                                         Create
                                     </button>{' '}
-                                    <button onClick={() => ctx.navigation.goto('.', {new: null})} className='argo-button argo-button--base-o'>
+                                    <button
+                                        qe-id='applications-list-button-cancel'
+                                        onClick={() => ctx.navigation.goto('.', {new: null})}
+                                        className='argo-button argo-button--base-o'>
                                         Cancel
                                     </button>
                                 </div>
