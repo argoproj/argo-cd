@@ -3,6 +3,7 @@ import * as classNames from 'classnames';
 import * as React from 'react';
 import {useState} from 'react';
 import {Link} from 'react-router-dom';
+import {Observable} from 'rxjs';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import './pod-logs-viewer.scss';
@@ -13,6 +14,7 @@ export interface PodLogsProps {
     applicationName: string;
     podName: string;
     containerName: string;
+    fullscreen: boolean;
 }
 
 export const PodsLogsViewer = (props: PodLogsProps) => {
@@ -25,6 +27,16 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
     const [selectedLine, setSelectedLine] = useState(-1);
     const bottom = React.useRef<HTMLInputElement>(null);
     const [page, setPage] = useState<{number: number; untilTimes: string[]}>({number: 0, untilTimes: []});
+
+    interface FilterData {
+        literal: string;
+        inverse: boolean;
+    }
+    const [filter, setFilter] = useState({inverse: false, literal: ''} as FilterData);
+
+    const filterQuery = () => {
+        return filter.literal && `${filter.inverse ? '!' : ''}${filter.literal}`;
+    };
     return (
         <DataLoader load={() => services.viewPreferences.getPreferences()}>
             {prefs => (
@@ -89,12 +101,41 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                             }}>
                             {prefs.appDetails.darkMode ? <i className='fa fa-sun' /> : <i className='fa fa-moon' />}
                         </div>
-                        <Link
-                            to={`/applications/${props.namespace}/${props.applicationName}/${props.podName}/${props.containerName}/logs`}
-                            target='_blank'
-                            className='argo-button argo-button--base'>
-                            <i className='fa fa-external-link-alt' />
-                        </Link>
+                        {!props.fullscreen && (
+                            <Link
+                                to={`/applications/${props.namespace}/${props.applicationName}/${props.podName}/${props.containerName}/logs`}
+                                target='_blank'
+                                className='argo-button argo-button--base'>
+                                <i className='fa fa-external-link-alt' />
+                            </Link>
+                        )}
+                        <div className='pod-logs-viewer__filter'>
+                            <button
+                                className={`argo-button argo-button--base${filter.inverse ? '' : '-o'}`}
+                                onClick={() => setFilter({...filter, inverse: !filter.inverse})}
+                                style={{marginRight: '10px'}}>
+                                !
+                            </button>
+                            <input
+                                ref={input => {
+                                    if (input) {
+                                        Observable.fromEvent(input, 'keyup')
+                                            .debounceTime(500)
+                                            .subscribe(() => {
+                                                if (loader) {
+                                                    loader.reload();
+                                                }
+                                            });
+                                    }
+                                }}
+                                type='text'
+                                placeholder='Filter string'
+                                className='argo-field'
+                                value={filter.literal}
+                                onChange={e => setFilter({...filter, literal: e.target.value})}
+                                style={{padding: 0}}
+                            />
+                        </div>
                     </div>
                     <DataLoader
                         ref={l => (loader = l)}
@@ -115,7 +156,8 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                                         props.containerName,
                                         maxLines * (page.number + 1),
                                         prefs.appDetails.followLogs && page.number === 0,
-                                        page.untilTimes[page.untilTimes.length - 1]
+                                        page.untilTimes[page.untilTimes.length - 1],
+                                        filterQuery()
                                     )
                                     // show only current page lines
                                     .scan((lines, logEntry) => {

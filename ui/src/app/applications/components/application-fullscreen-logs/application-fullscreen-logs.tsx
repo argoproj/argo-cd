@@ -6,7 +6,7 @@ import './application-fullscreen-logs.scss';
 export const ApplicationFullscreenLogs = (props: RouteComponentProps<PodLogsProps>) => {
     return (
         <div className='application-fullscreen-logs'>
-            <PodsLogsViewer {...props.match.params} />
+            <PodsLogsViewer {...props.match.params} fullscreen={true} />
         </div>
     );
 };
