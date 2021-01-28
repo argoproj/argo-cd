@@ -1520,22 +1520,25 @@ definitions:
 
 func TestAppLogs(t *testing.T) {
 	Given(t).
-		Path(guestbookPath).
+		Path("guestbook-logs").
 		When().
 		Create().
 		Sync().
 		Then().
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(app *Application) {
-			_, err := RunCli("app", "logs", app.Name, "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
+			out, err := RunCli("app", "logs", app.Name, "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
 			assert.NoError(t, err)
+			assert.Contains(t, out, "Hi")
 		}).
 		And(func(app *Application) {
-			_, err := RunCli("app", "logs", app.Name, "--kind", "Pod")
+			out, err := RunCli("app", "logs", app.Name, "--kind", "Pod")
 			assert.NoError(t, err)
+			assert.Contains(t, out, "Hi")
 		}).
 		And(func(app *Application) {
-			_, err := RunCli("app", "logs", app.Name, "--kind", "Service")
+			out, err := RunCli("app", "logs", app.Name, "--kind", "Service")
 			assert.NoError(t, err)
+			assert.NotContains(t, out, "Hi")
 		})
 }
