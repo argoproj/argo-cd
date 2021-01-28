@@ -359,9 +359,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                                         key='appDetails'
                                                                         input={application.spec.source}
                                                                         load={src =>
-                                                                            services.repos
-                                                                                .appDetails(src)
-                                                                                .catch(() => ({type: 'Directory' as appModels.AppSourceType, path: application.spec.source.path}))
+                                                                            services.repos.appDetails(src).catch(() => ({
+                                                                                type: 'Directory' as appModels.AppSourceType,
+                                                                                path: application.spec.source.path
+                                                                            }))
                                                                         }>
                                                                         {(details: appModels.RepoAppDetails) => (
                                                                             <ApplicationParameters save={app => this.updateApp(app)} application={application} details={details} />
@@ -758,7 +759,12 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
                                     ))}
                                 </div>
                                 <div className='columns small-9 medium-10'>
-                                    <PodsLogsViewer pod={state} applicationName={application.metadata.name} containerIndex={this.selectedNodeInfo.container} />
+                                    <PodsLogsViewer
+                                        podName={state.metadata.name}
+                                        namespace={state.metadata.namespace}
+                                        applicationName={application.metadata.name}
+                                        containerName={AppUtils.getContainerName(state, this.selectedNodeInfo.container)}
+                                    />
                                 </div>
                             </div>
                         </div>

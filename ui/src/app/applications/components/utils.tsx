@@ -756,3 +756,9 @@ export function parseApiVersion(apiVersion: string): {group: string; version: st
     }
     return {version: parts[0], group: ''};
 }
+
+export function getContainerName(pod: any, containerIndex: number): string {
+    const containers = (pod.spec.containers || []).concat(pod.spec.initContainers || []);
+    const container = containers[containerIndex];
+    return container.name;
+}
