@@ -1222,7 +1222,7 @@ func (s *Server) processOnePodLog(q *application.ApplicationPodLogsQuery, ws app
 			if err == nil {
 				lines := strings.Join(parts[1:], " ")
 				for _, line := range strings.Split(lines, "\r") {
-					if q.UntilTime != nil && !metaLogTime.Before(untilTime) {
+					if q.UntilTime != nil && *q.UntilTime != "" && !metaLogTime.Before(untilTime) {
 						_ = ws.Send(&application.LogEntry{Last: true})
 						close(done)
 						return
