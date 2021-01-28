@@ -259,6 +259,18 @@
             "description": "the selector to to restrict returned list to applications only with matched labels.",
             "name": "selector",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "if requesting a list of applications, the number in the list to start from.",
+            "name": "from",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "the maximum amount of applications to return.",
+            "name": "count",
+            "in": "query"
           }
         ],
         "responses": {
@@ -516,6 +528,18 @@
             "type": "string",
             "description": "the selector to to restrict returned list to applications only with matched labels.",
             "name": "selector",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "if requesting a list of applications, the number in the list to start from.",
+            "name": "from",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "the maximum amount of applications to return.",
+            "name": "count",
             "in": "query"
           }
         ],
@@ -2881,6 +2905,18 @@
             "type": "string",
             "description": "the selector to to restrict returned list to applications only with matched labels.",
             "name": "selector",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "if requesting a list of applications, the number in the list to start from.",
+            "name": "from",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "the maximum amount of applications to return.",
+            "name": "count",
             "in": "query"
           }
         ],

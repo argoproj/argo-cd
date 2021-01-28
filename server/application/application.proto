@@ -26,6 +26,10 @@ message ApplicationQuery {
 	optional string resourceVersion = 4 [(gogoproto.nullable) = false];
 	// the selector to to restrict returned list to applications only with matched labels
 	optional string selector = 5 [(gogoproto.nullable) = false];
+	// if requesting a list of applications, the number in the list to start from
+	optional string from = 6;
+	// the maximum amount of applications to return
+	optional string count = 7;
 }
 
 message NodeQuery {

@@ -8,6 +8,8 @@ interface QueryOptions {
     fields: string[];
     exclude?: boolean;
     selector?: string;
+    from?: string;
+    count?: string;
 }
 
 function optionsToSearch(options?: QueryOptions) {
@@ -18,10 +20,10 @@ function optionsToSearch(options?: QueryOptions) {
 }
 
 export class ApplicationsService {
-    public list(projects: string[], options?: QueryOptions): Promise<models.ApplicationList> {
+    public list(projects: string[], options?: QueryOptions, from?: number, count?: number): Promise<models.ApplicationList> {
         return requests
             .get('/applications')
-            .query({project: projects, ...optionsToSearch(options)})
+            .query({project: projects, from: `${from || 0}`, count: `${count || 0}`, ...optionsToSearch(options)})
             .then(res => res.body as models.ApplicationList)
             .then(list => {
                 list.items = (list.items || []).map(app => this.parseAppFields(app));

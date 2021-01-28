@@ -150,6 +150,26 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*ap
 	sort.Slice(newItems, func(i, j int) bool {
 		return newItems[i].Name < newItems[j].Name
 	})
+	
+	from := 0
+	to := len(newItems)
+
+	if q.From != nil {
+		val, err := strconv.Atoi(*q.From)
+		if err == nil && val < to && val > 0 {
+			from = val
+		}
+	}
+	
+	if q.Count != nil {
+		val, err := strconv.Atoi(*q.Count)
+		if err == nil && val > from && val < to {
+			to = val + from
+		}
+	}
+
+	newItems = newItems[from:to]
+	
 	appList := appv1.ApplicationList{
 		ListMeta: metav1.ListMeta{
 			ResourceVersion: s.appInformer.LastSyncResourceVersion(),
