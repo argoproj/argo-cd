@@ -10,11 +10,14 @@ func NewTwoLevelClient(client CacheClient, inMemoryExpiration time.Duration) *tw
 }
 
 type twoLevelClient struct {
-	inMemoryCache CacheClient
+	inMemoryCache *InMemoryCache
 	client        CacheClient
 }
 
 func (c *twoLevelClient) Set(item *Item) error {
+	if c.inMemoryCache.HasSame(item.Key, item.Object) {
+		return nil
+	}
 	_ = c.inMemoryCache.Set(item)
 	return c.client.Set(item)
 }

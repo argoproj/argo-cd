@@ -29,6 +29,21 @@ func (i *InMemoryCache) Set(item *Item) error {
 	return nil
 }
 
+func (i *InMemoryCache) HasSame(key string, obj interface{}) bool {
+	var buf bytes.Buffer
+	err := gob.NewEncoder(&buf).Encode(obj)
+	if err != nil {
+		return false
+	}
+
+	bufIf, found := i.memCache.Get(key)
+	if !found {
+		return false
+	}
+	existingBuf := bufIf.(bytes.Buffer)
+	return bytes.Equal(buf.Bytes(), existingBuf.Bytes())
+}
+
 func (i *InMemoryCache) Get(key string, obj interface{}) error {
 	bufIf, found := i.memCache.Get(key)
 	if !found {
