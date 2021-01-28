@@ -70,7 +70,10 @@ export class PodView extends React.Component<PodViewProps> {
                                 <div className='pod-view__nodes-container'>
                                     {groups.map(group => (
                                         <div className={`pod-view__node white-box ${group.kind === 'node' && 'pod-view__node--large'}`} key={group.fullName || group.name}>
-                                            <div className='pod-view__node__container--header' onClick={() => this.props.onItemClick(group.fullName)} style={{cursor: 'pointer'}}>
+                                            <div
+                                                className='pod-view__node__container--header'
+                                                onClick={() => this.props.onItemClick(group.fullName)}
+                                                style={group.kind === 'node' ? {} : {cursor: 'pointer'}}>
                                                 <div style={{display: 'flex', alignItems: 'center'}}>
                                                     <div style={{marginRight: '10px'}}>
                                                         <ResourceIcon kind={group.kind || 'Unknown'} />
