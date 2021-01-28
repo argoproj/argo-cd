@@ -1190,6 +1190,16 @@ func (s *Server) processOnePodLog(q *application.ApplicationPodLogsQuery, ws app
 	if q.TailLines > 0 {
 		tailLines = &q.TailLines
 	}
+
+	literal := ""
+	inverse := false
+	if q.Filter != nil {
+		literal = *q.Filter
+		if literal[0] == '!' {
+			literal = literal[1:]
+			inverse = true
+		}
+	}
 	stream, err := kubeClientset.CoreV1().Pods(pod.Namespace).GetLogs(*q.PodName, &v1.PodLogOptions{
 		Container:    q.Container,
 		Follow:       q.Follow,
@@ -1222,6 +1232,12 @@ func (s *Server) processOnePodLog(q *application.ApplicationPodLogsQuery, ws app
 			if err == nil {
 				lines := strings.Join(parts[1:], " ")
 				for _, line := range strings.Split(lines, "\r") {
+					if q.Filter != nil {
+						lineContainsFilter := strings.Contains(line, literal)
+						if (inverse && lineContainsFilter) || (!inverse && !lineContainsFilter) {
+							continue
+						}
+					}
 					if q.UntilTime != nil && *q.UntilTime != "" && !metaLogTime.Before(untilTime) {
 						_ = ws.Send(&application.LogEntry{Last: true})
 						close(done)
