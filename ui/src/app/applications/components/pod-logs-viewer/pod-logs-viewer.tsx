@@ -2,21 +2,26 @@ import {DataLoader, DropDownMenu} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
 import {useState} from 'react';
+import {Link} from 'react-router-dom';
 import {Observable} from 'rxjs';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import './pod-logs-viewer.scss';
 
 const maxLines = 100;
+export interface PodLogsProps {
+    namespace: string;
+    applicationName: string;
+    podName: string;
+    containerName: string;
+}
 
-export const PodsLogsViewer = (props: {applicationName: string; pod: models.ResourceNode & any; containerIndex: number}) => {
-    const containers = (props.pod.spec.containers || []).concat(props.pod.spec.initContainers || []);
-    const container = containers[props.containerIndex];
-    if (!container) {
-        return <div>Pod does not have container with index {props.containerIndex}</div>;
+export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => {
+    if (!props.containerName || props.containerName === '') {
+        return <div>Pod does not have container with name {props.containerName}</div>;
     }
 
-    let loader: DataLoader<models.LogEntry[]>;
+    let loader: DataLoader<models.LogEntry[], string>;
     const [copy, setCopy] = useState('');
     const [selectedLine, setSelectedLine] = useState(-1);
     const bottom = React.useRef<HTMLInputElement>(null);
@@ -95,6 +100,14 @@ export const PodsLogsViewer = (props: {applicationName: string; pod: models.Reso
                             }}>
                             {prefs.appDetails.darkMode ? <i className='fa fa-sun' /> : <i className='fa fa-moon' />}
                         </div>
+                        {!props.fullscreen && (
+                            <Link
+                                to={`/applications/${props.namespace}/${props.applicationName}/${props.podName}/${props.containerName}/logs`}
+                                target='_blank'
+                                className='argo-button argo-button--base'>
+                                <i className='fa fa-external-link-alt' />
+                            </Link>
+                        )}
                         <div className='pod-logs-viewer__filter'>
                             <button
                                 className={`argo-button argo-button--base${filter.inverse ? '' : '-o'}`}
@@ -131,15 +144,15 @@ export const PodsLogsViewer = (props: {applicationName: string; pod: models.Reso
                                 <pre style={{height: '95%', textAlign: 'center'}}>Loading...</pre>
                             </div>
                         )}
-                        input={container.name}
+                        input={props.containerName}
                         load={() => {
                             return (
                                 services.applications
                                     .getContainerLogs(
                                         props.applicationName,
-                                        props.pod.metadata.namespace,
-                                        props.pod.metadata.name,
-                                        container.name,
+                                        props.namespace,
+                                        props.podName,
+                                        props.containerName,
                                         maxLines * (page.number + 1),
                                         prefs.appDetails.followLogs && page.number === 0,
                                         page.untilTimes[page.untilTimes.length - 1],
