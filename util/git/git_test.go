@@ -227,12 +227,6 @@ func TestLsRemote(t *testing.T) {
 	}
 }
 
-func TestLsRemoteWithSubmodulesUpdateEnabled(t *testing.T) {
-	os.Setenv("ARGOCD_GIT_MODULES_UPDATE_CHANGES", "true")
-	TestLsRemote(t)
-	defer os.Setenv("ARGOCD_GIT_MODULES_UPDATE_CHANGES", "false")
-}
-
 // Running this test requires git-lfs to be installed on your machine.
 func TestLFSClient(t *testing.T) {
 
@@ -479,11 +473,13 @@ func TestParseGitModulesFile(t *testing.T) {
 	for k, v := range data {
 		set := make(map[SubModule]int)
 		gitmodules, err := os.Open(k)
-		assert.NoError(t, err)
+		if !assert.NoError(t, err) {
+			return
+		}
+		defer gitmodules.Close()
 		scanner := bufio.NewScanner(gitmodules)
 		client.ParseGitModulesFile(scanner, set)
 		assert.Equal(t, v, len(set))
-		defer gitmodules.Close()
 	}
 }
 
@@ -502,13 +498,21 @@ func TestGetSubmoduleSHAs(t *testing.T) {
 	var submoduleRefsA []string
 	var submoduleRefsB []string
 	rootmodule, err := os.Open("testdata/gitmodules_single_valid")
-	assert.NoError(t, err)
+
+	if !assert.NoError(t, err) {
+		return
+	}
+	defer rootmodule.Close()
 	scanner := bufio.NewScanner(rootmodule)
 	client.ParseGitModulesFile(scanner, set)
 	rootModuleRef = client.GetSubmoduleSHAs(set)
 
 	gitmodules, err := os.Open("testdata/gitmodules_multi_valid")
-	assert.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
+	defer gitmodules.Close()
+
 	scanner = bufio.NewScanner(gitmodules)
 	set = make(map[SubModule]int)
 	client.ParseGitModulesFile(scanner, set)
@@ -523,7 +527,4 @@ func TestGetSubmoduleSHAs(t *testing.T) {
 	resB = strings.Join(append([]string{resB}, submoduleRefsB...), "-")
 
 	assert.Equal(t, resA, resB)
-
-	defer rootmodule.Close()
-	defer gitmodules.Close()
 }

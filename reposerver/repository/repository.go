@@ -1385,7 +1385,7 @@ func (s *Service) GetHelmCharts(ctx context.Context, q *apiclient.HelmChartsRequ
 	return &res, nil
 }
 
-// If ARGOCD_GIT_MODULES_UPDATE_CHANGES is enabled, the revisionSHA
+// If ARGOCD_GIT_MODULES_ENABLED is enabled, the revisionSHA
 // is concatenated with the revisionSHAs of the git submodules.
 // To ensure correct checkout and displaying in ui, we need to extract
 // the SHA of the root repository.

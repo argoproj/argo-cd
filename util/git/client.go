@@ -78,6 +78,9 @@ type nativeGitClient struct {
 	enableLfs bool
 }
 
+// SubModule represents a git submodule
+// URL holds the remote url of the submodule
+// Branch holds the branch on which the submodule is pointing to
 type SubModule struct {
 	URL    string
 	Branch string
@@ -434,6 +437,8 @@ func (m *nativeGitClient) LsRemote(revision string) (res string, err error) {
 	return
 }
 
+// ParseGitModulesFile parse a .gitmodules file and returns a map containing each valid submodule
+// that was found.
 func (m *nativeGitClient) ParseGitModulesFile(scanner *bufio.Scanner, set map[SubModule]int) {
 	var subModules []SubModule
 	var count = 0
@@ -441,7 +446,7 @@ func (m *nativeGitClient) ParseGitModulesFile(scanner *bufio.Scanner, set map[Su
 		line := strings.TrimSpace(scanner.Text())
 		re := regexp.MustCompile(`\[\s*submodule.*\]`)
 		if re.MatchString(line) {
-			log.Info("Get Infos for submodule: " + line)
+			log.Debug("Get Infos for submodule: " + line)
 			// new submodule starts
 			if len(subModules) > 0 {
 				if m.ValidateSubModule(subModules[0]) {
@@ -469,18 +474,18 @@ func (m *nativeGitClient) ParseGitModulesFile(scanner *bufio.Scanner, set map[Su
 	}
 }
 
+// ValidateSubModule validate a git submodule. A submodule is valid if
+// the submodule repository exist and if the branch name is valid.
 func (m *nativeGitClient) ValidateSubModule(module SubModule) bool {
-	err := TestRepo(module.URL, NopCreds{}, false, false)
+	err := TestRepo(module.URL, m.creds, false, false)
 	if err != nil {
-		log.Warn("Submodule will be skipped, no valid URL: " + module.URL)
-		log.Warn(err)
+		log.Warnf("Submodule will be skipped, no valid URL: %s msg: %v",  module.URL, err)
 		return false
 	}
 
 	_, err = m.runCmd("check-ref-format", "--branch", module.Branch)
 	if err != nil {
-		log.Warn("Submodule will be skipped, no valid branch name: " + module.Branch)
-		log.Warn(err)
+		log.Warnf("Submodule will be skipped, no valid branch name: %s msg: %v", module.Branch, err)
 		return false
 	}
 	return true
@@ -502,6 +507,7 @@ func (m *nativeGitClient) extractSubmoduleBranch(line string) string {
 	return strings.TrimPrefix(line, branchPrefix)
 }
 
+// GetSubmoduleSHAs returns a sorted list of the submodule commit SHAs.
 func (m *nativeGitClient) GetSubmoduleSHAs(set map[SubModule]int) []string {
 	var submoduleRefs []string
 	var subModulesEntries subModuleEntries
