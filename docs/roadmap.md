@@ -18,13 +18,11 @@
 
 ### Core Functionality Bug Fixes
 
-The core GitOps features still have several known bugs and limitations. The full list is available in [v1.7 milestone](
-https://github.com/argoproj/argo-cd/issues?q=is%3Aopen+is%3Aissue+label%3Abug+milestone%3A%22v1.7+%22+label%3Acomponent%3Acore)
+The core GitOps features still have several known bugs and limitations. The full list is available in [v1.9 milestone](
+https://github.com/argoproj/argo-cd/issues?q=is%3Aopen+is%3Aissue+label%3Abug+milestone%3A%22v1.9%22+label%3Acomponent%3Acore)
 
 The most notable issues:
 
-* [Application is incorrectly reporting a diff](https://github.com/argoproj/argo-cd/issues/2865)
-* [Helm hooks are deleted right after creation](https://github.com/argoproj/argo-cd/issues/2737)
 * [Argo CD synchronization lasts incredibly long](https://github.com/argoproj/argo-cd/issues/3663)
 
 ### Performance
