@@ -10,11 +10,11 @@ argocd cluster add CONTEXT [flags]
 
 ```
       --aws-cluster-name string            AWS Cluster name if set then aws cli eks token command will be used to access cluster
-      --aws-role-arn string                Optional AWS role arn. If set then AWS IAM Authenticator assume a role to perform cluster operations instead of the default AWS credential provider chain.
+      --aws-role-arn string                Optional AWS role arn. If set then AWS IAM Authenticator assumes a role to perform cluster operations instead of the default AWS credential provider chain.
       --exec-command string                Command to run to provide client credentials to the cluster. You may need to build a custom ArgoCD image to ensure the command is available at runtime.
-      --exec-command-api-version string    Preferred input version of the ExecInfo for the --exec-command
-      --exec-command-args stringArray      Arguments to supply to the --exec-command command
-      --exec-command-env stringToString    Environment vars to set when running the --exec-command command (default [])
+      --exec-command-api-version string    Preferred input version of the ExecInfo for the --exec-command executable
+      --exec-command-args stringArray      Arguments to supply to the --exec-command executable
+      --exec-command-env stringToString    Environment vars to set when running the --exec-command executable (default [])
       --exec-command-install-hint string   Text shown to the user when the --exec-command executable doesn't seem to be present
   -h, --help                               help for add
       --in-cluster                         Indicates Argo CD resides inside this cluster and should connect using the internal k8s hostname (kubernetes.default.svc)

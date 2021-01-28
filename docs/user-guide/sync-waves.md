@@ -41,10 +41,10 @@ When Argo CD starts a sync, it orders the resources in the following precedence:
 * By kind (e.g. namespaces first)
 * By name 
 
-It then determines which the number of the next wave to apply. This is the first number where any resource is out-of-sync or unhealthy.
+It then determines the number of the next wave to apply. This is the first number where any resource is out-of-sync or unhealthy.
  
 It applies resources in that wave. 
 
-It repeats this process until all phases and waves are in in-sync and healthy.
+It repeats this process until all phases and waves are in-sync and healthy.
 
 Because an application can have resources that are unhealthy in the first wave, it may be that the app can never get to healthy.
