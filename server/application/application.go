@@ -1077,7 +1077,13 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 			}
 
 			var copiedQuery application.ApplicationPodLogsQuery
-			copiedQuery.Unmarshal(data)
+			err = copiedQuery.Unmarshal(data)
+			if err != nil {
+				errorsCh <- err
+				wg.Done()
+				return
+			}
+
 			copiedQuery.Namespace = i.Namespace
 			copiedQuery.PodName = &i.Name
 
