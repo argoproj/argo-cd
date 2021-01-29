@@ -153,6 +153,7 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*ap
 
 	from := 0
 	to := len(newItems)
+	originalLength := to
 
 	if q.From != nil {
 		val, err := strconv.Atoi(*q.From)
@@ -169,10 +170,12 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*ap
 	}
 
 	newItems = newItems[from:to]
+	remaining := int64(originalLength - to)
 
 	appList := appv1.ApplicationList{
 		ListMeta: metav1.ListMeta{
 			ResourceVersion: s.appInformer.LastSyncResourceVersion(),
+			RemainingItemCount: &remaining,
 		},
 		Items: newItems,
 	}

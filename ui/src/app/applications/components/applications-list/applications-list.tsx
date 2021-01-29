@@ -37,12 +37,13 @@ const APP_FIELDS = [
     'status.operationState.operation.sync',
     'status.summary'
 ];
-const APP_LIST_FIELDS = ['metadata.resourceVersion', ...APP_FIELDS.map(field => `items.${field}`)];
+const APP_LIST_FIELDS = ['metadata.resourceVersion', 'metadata.remainingItemCount', ...APP_FIELDS.map(field => `items.${field}`)];
 const APP_WATCH_FIELDS = ['result.type', ...APP_FIELDS.map(field => `result.application.${field}`)];
 
 function loadApplications(from: number, count: number): Observable<models.Application[]> {
     return Observable.fromPromise(services.applications.list([], {fields: APP_LIST_FIELDS}, from, count)).flatMap(applicationsList => {
         const applications = applicationsList.items;
+        const hiddenDataLength = applicationsList.metadata.remainingItemCount;
         return Observable.merge(
             Observable.from([applications]),
             services.applications
@@ -380,7 +381,13 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                                 </EmptyState>
                                                                             )}
                                                                             data={filteredApps}
-                                                                            onPageChange={page => ctx.navigation.goto('.', {page})}>
+                                                                            onPageChange={page => {
+                                                                                ctx.navigation.goto('.', {page});
+                                                                            }}
+                                                                            onPageSizeChange={size => {
+                                                                                loaderRef.current.reload();
+                                                                            }}
+                                                                            hiddenDataLength={0}>
                                                                             {data =>
                                                                                 (pref.view === 'tiles' && (
                                                                                     <ApplicationTiles

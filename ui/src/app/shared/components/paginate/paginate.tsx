@@ -13,15 +13,18 @@ export interface PaginateProps<T> {
     data: T[];
     emptyState?: () => React.ReactNode;
     preferencesKey?: string;
+    onPageSizeChange?: (size: number) => any;
+    hiddenDataLength?: number;
 }
 
-export function Paginate<T>({page, onPageChange, children, data, emptyState, preferencesKey}: PaginateProps<T>) {
+export function Paginate<T>({page, onPageChange, children, data, emptyState, preferencesKey, onPageSizeChange, hiddenDataLength}: PaginateProps<T>) {
     return (
         <DataLoader load={() => services.viewPreferences.getPreferences()}>
             {pref => {
                 preferencesKey = preferencesKey || 'default';
                 const pageSize = pref.pageSizes[preferencesKey] || 10;
-                const pageCount = pageSize === -1 ? 1 : Math.ceil(data.length / pageSize);
+                const dl = data.length + (hiddenDataLength || 0);
+                const pageCount = pageSize === -1 ? 1 : Math.ceil(dl / pageSize);
                 if (pageCount <= page) {
                     page = pageCount - 1;
                 }
@@ -51,6 +54,7 @@ export function Paginate<T>({page, onPageChange, children, data, emptyState, pre
                                         action: () => {
                                             pref.pageSizes[preferencesKey] = count;
                                             services.viewPreferences.updatePreferences(pref);
+                                            onPageSizeChange(count);
                                         }
                                     }))}
                                 />

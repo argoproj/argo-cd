@@ -24,7 +24,9 @@ export class ApplicationsService {
         return requests
             .get('/applications')
             .query({project: projects, from: `${from || 0}`, count: `${count || 0}`, ...optionsToSearch(options)})
-            .then(res => res.body as models.ApplicationList)
+            .then(res => {
+                return res.body as models.ApplicationList;
+            })
             .then(list => {
                 list.items = (list.items || []).map(app => this.parseAppFields(app));
                 return list;
