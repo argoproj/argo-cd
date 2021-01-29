@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/gob"
+	"fmt"
 	"time"
 
 	gocache "github.com/patrickmn/go-cache"
@@ -29,19 +30,23 @@ func (i *InMemoryCache) Set(item *Item) error {
 	return nil
 }
 
-func (i *InMemoryCache) HasSame(key string, obj interface{}) bool {
+// HasSame returns true if key with the same value already present in cache
+func (i *InMemoryCache) HasSame(key string, obj interface{}) (bool, error) {
 	var buf bytes.Buffer
 	err := gob.NewEncoder(&buf).Encode(obj)
 	if err != nil {
-		return false
+		return false, err
 	}
 
 	bufIf, found := i.memCache.Get(key)
 	if !found {
-		return false
+		return false, nil
 	}
-	existingBuf := bufIf.(bytes.Buffer)
-	return bytes.Equal(buf.Bytes(), existingBuf.Bytes())
+	existingBuf, ok := bufIf.(bytes.Buffer)
+	if !ok {
+		panic(fmt.Errorf("InMemoryCache has unexpected entry: %v", existingBuf))
+	}
+	return bytes.Equal(buf.Bytes(), existingBuf.Bytes()), nil
 }
 
 func (i *InMemoryCache) Get(key string, obj interface{}) error {

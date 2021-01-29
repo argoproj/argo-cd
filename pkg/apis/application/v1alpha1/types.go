@@ -985,6 +985,8 @@ type ApplicationTree struct {
 	Hosts []HostInfo `json:"hosts,omitempty" protobuf:"bytes,3,rep,name=hosts"`
 }
 
+// Normalize sorts application tree nodes and hosts. The persistent order allows to
+// effectively compare previously cached app tree and allows to unnecessary Redis requests.
 func (t *ApplicationTree) Normalize() {
 	sort.Slice(t.Nodes, func(i, j int) bool {
 		return t.Nodes[i].FullName() < t.Nodes[j].FullName()
@@ -1065,6 +1067,7 @@ type ResourceNode struct {
 	CreatedAt       *metav1.Time            `json:"createdAt,omitempty" protobuf:"bytes,8,opt,name=createdAt"`
 }
 
+// FullName returns node full name
 func (n *ResourceNode) FullName() string {
 	return fmt.Sprintf("%s/%s/%s/%s", n.Group, n.Kind, n.Namespace, n.Name)
 }
@@ -1116,6 +1119,7 @@ type ResourceDiff struct {
 	Modified           bool   `json:"modified,omitempty" protobuf:"bytes,12,opt,name=modified"`
 }
 
+// FullName returns full name of a node that was used for diffing
 func (r *ResourceDiff) FullName() string {
 	return fmt.Sprintf("%s/%s/%s/%s", r.Group, r.Kind, r.Namespace, r.Name)
 }
