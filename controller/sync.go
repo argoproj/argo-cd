@@ -135,6 +135,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 			Order:       i + 1,
 		})
 	}
+
 	syncCtx, err := sync.NewSyncContext(
 		compareResult.syncStatus.Revision,
 		compareResult.reconciliationResult,
@@ -168,6 +169,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		}),
 		sync.WithSyncWaveHook(delayBetweenSyncWaves),
 		sync.WithPruneLast(syncOp.SyncOptions.HasOption("PruneLast=true")),
+		sync.WithResourceModificationChecker(syncOp.SyncOptions.HasOption("ApplyOutOfSyncOnly=true"), compareResult.diffResultList),
 	)
 
 	if err != nil {

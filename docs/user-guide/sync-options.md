@@ -57,3 +57,31 @@ metadata:
 ```
 
 The dry run will still be executed if the CRD is already present in the cluster.
+
+## Selective Sync
+
+>v1.8
+
+Currently when syncing using auto sync ArgoCD applies every object in the application. 
+For applications containing thousands of objects this takes quite a long time and puts undue pressure on the api server.
+Turning on selective sync option which will sync only out-of-sync resources. 
+
+You can add this option by following ways
+
+1) Add `ApplyOutOfSync=true` in manifest
+
+Example:
+
+```yaml
+syncPolicy:
+  syncOptions:
+    - ApplyOutOfSyncOnly=true
+``` 
+
+2) Set sync option via argocd cli
+
+Example:
+
+```bash
+$ argocd app set guestbook --sync-option ApplyOutOfSyncOnly=true
+```
