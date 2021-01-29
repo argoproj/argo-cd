@@ -1122,6 +1122,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#selective-sync" title="Selective Sync" class="md-nav__link">
+    Selective Sync
+  </a>
+  
+</li>
+      
       
       
       
@@ -1563,6 +1570,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#selective-sync" title="Selective Sync" class="md-nav__link">
+    Selective Sync
+  </a>
+  
+</li>
+      
       
       
       
@@ -1624,6 +1638,25 @@ which creates CRDs in response to user defined <code>ConstraintTemplates</code>.
 </code></pre></div>
 
 <p>The dry run will still be executed if the CRD is already present in the cluster.</p>
+<h2 id="selective-sync">Selective Sync<a class="headerlink" href="#selective-sync" title="Permanent link">&para;</a></h2>
+<blockquote>
+<p>v1.8</p>
+</blockquote>
+<p>Currently when syncing using auto sync ArgoCD applies every object in the application. 
+For applications containing thousands of objects this takes quite a long time and puts undue pressure on the api server.
+Turning on selective sync option which will sync only out-of-sync resources. </p>
+<p>You can add this option by following ways</p>
+<p>1) Add <code>ApplyOutOfSync=true</code> in manifest</p>
+<p>Example:</p>
+<div class="codehilite"><pre><span></span><code><span class="nt">syncPolicy</span><span class="p">:</span>
+  <span class="nt">syncOptions</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">ApplyOutOfSyncOnly=true</span>
+</code></pre></div>
+
+<p>2) Set sync option via argocd cli</p>
+<p>Example:</p>
+<div class="codehilite"><pre><span></span><code>$ argocd app <span class="nb">set</span> guestbook --sync-option <span class="nv">ApplyOutOfSyncOnly</span><span class="o">=</span><span class="nb">true</span>
+</code></pre></div>
                 
                   
                 
