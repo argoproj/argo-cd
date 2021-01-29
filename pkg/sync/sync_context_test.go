@@ -1,6 +1,7 @@
 package sync
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -18,6 +19,7 @@ import (
 	testcore "k8s.io/client-go/testing"
 	"k8s.io/klog/v2/klogr"
 
+	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -1054,5 +1056,80 @@ func TestPruneLast(t *testing.T) {
 		assert.Len(t, tasks, 3)
 		// last wave is the last sync wave for non-prune task + 1
 		assert.Equal(t, 3, tasks.lastWave())
+	})
+}
+
+func diffResultList() *diff.DiffResultList {
+	pod1 := NewPod()
+	pod1.SetName("pod-1")
+	pod2 := NewPod()
+	pod2.SetName("pod-2")
+	pod3 := NewPod()
+	pod3.SetName("pod-3")
+
+	diffResultList := diff.DiffResultList{
+		Modified: true,
+		Diffs:    []diff.DiffResult{},
+	}
+
+	podBytes, _ := json.Marshal(pod1)
+	diffResultList.Diffs = append(diffResultList.Diffs, diff.DiffResult{NormalizedLive: []byte("null"), PredictedLive: podBytes, Modified: true})
+
+	podBytes, _ = json.Marshal(pod2)
+	diffResultList.Diffs = append(diffResultList.Diffs, diff.DiffResult{NormalizedLive: podBytes, PredictedLive: []byte("null"), Modified: true})
+
+	podBytes, _ = json.Marshal(pod3)
+	diffResultList.Diffs = append(diffResultList.Diffs, diff.DiffResult{NormalizedLive: podBytes, PredictedLive: podBytes, Modified: false})
+
+	return &diffResultList
+}
+
+func TestApplyOutOfSyncOnly(t *testing.T) {
+	pod1 := NewPod()
+	pod1.SetName("pod-1")
+	pod2 := NewPod()
+	pod2.SetName("pod-2")
+	pod3 := NewPod()
+	pod3.SetName("pod-3")
+	syncCtx := newTestSyncCtx()
+
+	t.Run("applyOutOfSyncOnly=false", func(t *testing.T) {
+		syncCtx.applyOutOfSyncOnly = true
+		syncCtx.modificationResult = nil
+		syncCtx.resources = groupResources(ReconciliationResult{
+			Live:   []*unstructured.Unstructured{nil, pod2, pod3},
+			Target: []*unstructured.Unstructured{pod1, nil, pod3},
+		})
+		tasks, successful := syncCtx.getSyncTasks()
+
+		assert.True(t, successful)
+		assert.Len(t, tasks, 3)
+	})
+
+	syncCtx = newTestSyncCtx(WithResourceModificationChecker(true, diffResultList()))
+	t.Run("applyOutOfSyncOnly=true", func(t *testing.T) {
+		syncCtx.applyOutOfSyncOnly = true
+		syncCtx.resources = groupResources(ReconciliationResult{
+			Live:   []*unstructured.Unstructured{nil, pod2, pod3},
+			Target: []*unstructured.Unstructured{pod1, nil, pod3},
+		})
+		tasks, successful := syncCtx.getSyncTasks()
+
+		assert.True(t, successful)
+		assert.Len(t, tasks, 2)
+	})
+
+	pod4 := NewPod()
+	pod4.SetName("pod-4")
+	t.Run("applyOutOfSyncOnly=true and missing resource key", func(t *testing.T) {
+		syncCtx.applyOutOfSyncOnly = true
+		syncCtx.resources = groupResources(ReconciliationResult{
+			Live:   []*unstructured.Unstructured{nil, pod2, pod3, pod4},
+			Target: []*unstructured.Unstructured{pod1, nil, pod3, pod4},
+		})
+		tasks, successful := syncCtx.getSyncTasks()
+
+		assert.True(t, successful)
+		assert.Len(t, tasks, 3)
 	})
 }

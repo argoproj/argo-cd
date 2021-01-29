@@ -2,6 +2,7 @@ package sync
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strconv"
@@ -23,6 +24,7 @@ import (
 	"k8s.io/klog/v2/klogr"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 
+	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/sync/hook"
@@ -129,6 +131,18 @@ func WithPruneLast(enabled bool) SyncOpt {
 	}
 }
 
+// WithResourceModificationChecker sets resource modification result
+func WithResourceModificationChecker(enabled bool, diffResults *diff.DiffResultList) SyncOpt {
+	return func(ctx *syncContext) {
+		ctx.applyOutOfSyncOnly = enabled
+		if enabled {
+			ctx.modificationResult = groupDiffResults(diffResults)
+		} else {
+			ctx.modificationResult = nil
+		}
+	}
+}
+
 // WithNamespaceCreation will create non-exist namespace
 func WithNamespaceCreation(createNamespace bool, namespaceModifier func(*unstructured.Unstructured) bool) SyncOpt {
 	return func(ctx *syncContext) {
@@ -217,6 +231,25 @@ func groupResources(reconciliationResult ReconciliationResult) map[kubeutil.Reso
 	return resources
 }
 
+// generates a map of resource and its modification result based on diffResultList
+func groupDiffResults(diffResultList *diff.DiffResultList) map[kubeutil.ResourceKey]bool {
+	modifiedResources := make(map[kube.ResourceKey]bool)
+	for _, res := range diffResultList.Diffs {
+		var obj unstructured.Unstructured
+		var err error
+		if string(res.NormalizedLive) != "null" {
+			err = json.Unmarshal(res.NormalizedLive, &obj)
+		} else {
+			err = json.Unmarshal(res.PredictedLive, &obj)
+		}
+		if err != nil {
+			continue
+		}
+		modifiedResources[kube.GetResourceKey(&obj)] = res.Modified
+	}
+	return modifiedResources
+}
+
 const (
 	crdReadinessTimeout = time.Duration(3) * time.Second
 )
@@ -281,6 +314,10 @@ type syncContext struct {
 	namespaceModifier func(*unstructured.Unstructured) bool
 
 	syncWaveHook common.SyncWaveHook
+
+	applyOutOfSyncOnly bool
+	// stores whether the resource is modified or not
+	modificationResult map[kube.ResourceKey]bool
 }
 
 func (sc *syncContext) setRunningPhase(tasks []*syncTask, isPendingDeletion bool) {
@@ -514,6 +551,13 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 		if hook.IsHook(obj) {
 			sc.log.WithValues("group", obj.GroupVersionKind().Group, "kind", obj.GetKind(), "namespace", obj.GetNamespace(), "name", obj.GetName()).V(1).Info("Skipping hook")
 			continue
+		}
+
+		if sc.applyOutOfSyncOnly {
+			if modified, ok := sc.modificationResult[k]; !modified && ok {
+				sc.log.WithValues("resource key", k).V(1).Info("Skipping as resource was not modified")
+				continue
+			}
 		}
 
 		for _, phase := range syncPhases(obj) {
