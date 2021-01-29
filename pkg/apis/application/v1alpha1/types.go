@@ -943,6 +943,17 @@ type ApplicationTree struct {
 	OrphanedNodes []ResourceNode `json:"orphanedNodes,omitempty" protobuf:"bytes,2,rep,name=orphanedNodes"`
 }
 
+// Normalize sorts application tree nodes and hosts. The persistent order allows to
+// effectively compare previously cached app tree and allows to unnecessary Redis requests.
+func (t *ApplicationTree) Normalize() {
+	sort.Slice(t.Nodes, func(i, j int) bool {
+		return t.Nodes[i].FullName() < t.Nodes[j].FullName()
+	})
+	sort.Slice(t.OrphanedNodes, func(i, j int) bool {
+		return t.OrphanedNodes[i].FullName() < t.OrphanedNodes[j].FullName()
+	})
+}
+
 type ApplicationSummary struct {
 	// ExternalURLs holds all external URLs of application child resources.
 	ExternalURLs []string `json:"externalURLs,omitempty" protobuf:"bytes,1,opt,name=externalURLs"`
@@ -1011,6 +1022,11 @@ type ResourceNode struct {
 	CreatedAt       *metav1.Time            `json:"createdAt,omitempty" protobuf:"bytes,8,opt,name=createdAt"`
 }
 
+// FullName returns node full name
+func (n *ResourceNode) FullName() string {
+	return fmt.Sprintf("%s/%s/%s/%s", n.Group, n.Kind, n.Namespace, n.Name)
+}
+
 func (n *ResourceNode) GroupKindVersion() schema.GroupVersionKind {
 	return schema.GroupVersionKind{
 		Group:   n.Group,
@@ -1054,6 +1070,11 @@ type ResourceDiff struct {
 	NormalizedLiveState string `json:"normalizedLiveState,omitempty" protobuf:"bytes,9,opt,name=normalizedLiveState"`
 	// PredictedLiveState contains JSON serialized resource state that is calculated based on normalized and target resource state
 	PredictedLiveState string `json:"predictedLiveState,omitempty" protobuf:"bytes,10,opt,name=predictedLiveState"`
+}
+
+// FullName returns full name of a node that was used for diffing
+func (r *ResourceDiff) FullName() string {
+	return fmt.Sprintf("%s/%s/%s/%s", r.Group, r.Kind, r.Namespace, r.Name)
 }
 
 // ConnectionStatus represents connection status
