@@ -78,6 +78,14 @@ type Cache struct {
 	client CacheClient
 }
 
+func (c *Cache) GetClient() CacheClient {
+	return c.client
+}
+
+func (c *Cache) SetClient(client CacheClient) {
+	c.client = client
+}
+
 func (c *Cache) SetItem(key string, item interface{}, expiration time.Duration, delete bool) error {
 	key = fmt.Sprintf("%s|%s", key, common.CacheVersion)
 	if delete {
