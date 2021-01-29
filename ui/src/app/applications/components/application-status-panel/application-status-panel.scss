@@ -5,7 +5,7 @@
 }
 
 .application-status-panel {
-    font-size: .875em;
+    font-size: 0.875em;
     color: $argo-color-gray-6;
     background-color: white;
     box-shadow: 1px 2px 3px rgba(0, 0, 0, 0.1);
@@ -15,10 +15,10 @@
     }
 
     &__item {
-        max-height: 95px;
+        height: 75px;
         margin: 10px 0;
         padding: 5px 20px;
-        font-size: .8em;
+        font-size: 0.8em;
         line-height: 1.2;
         color: $argo-color-gray-5;
 
@@ -63,11 +63,13 @@
             color: $argo-color-teal-6;
         }
 
-        &--Running a, &--Terminating a {
+        &--Running a,
+        &--Terminating a {
             color: $argo-running-color;
         }
 
-        &--Error a, &--Failed a {
+        &--Error a,
+        &--Failed a {
             color: $argo-failed-color;
         }
 
@@ -76,7 +78,7 @@
         }
 
         i {
-            font-size: .6em;
+            font-size: 0.6em;
         }
     }
 
@@ -86,7 +88,8 @@
             top: -2px;
         }
     }
-    &__item-name, &__item-value {
+    &__item-name,
+    &__item-value {
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -95,7 +98,7 @@
     & .info-popup-title {
         font-size: 15px;
         font-weight: bold;
-        &__timestamp{
+        &__timestamp {
             display: inline-block;
             font-weight: normal;
         }
@@ -105,7 +108,7 @@
         overflow-y: scroll;
         margin: 20px 20px 0px 20px;
         max-height: 300px;
-        &__data{
+        &__data {
             :first-child {
                 white-space: normal;
                 overflow: auto;
@@ -113,14 +116,14 @@
         }
     }
 
-    & .third-column-truncate{
+    & .third-column-truncate {
         overflow: hidden;
         margin-bottom: 10px;
         max-height: 60px;
     }
 
     & .view-application-status-full {
-        color: #8fa4B1;
+        color: #8fa4b1;
         cursor: pointer;
     }
 }

@@ -466,7 +466,7 @@ export function getOperationType(application: appModels.Application) {
     return 'Unknown';
 }
 
-export const getOperationStateTitle = (app: appModels.Application) => {
+const getOperationStateTitle = (app: appModels.Application) => {
     const appOperationState = getAppOperationState(app);
     const operationType = getOperationType(app);
     switch (operationType) {
@@ -755,4 +755,10 @@ export function parseApiVersion(apiVersion: string): {group: string; version: st
         return {group: parts[0], version: parts[1]};
     }
     return {version: parts[0], group: ''};
+}
+
+export function getContainerName(pod: any, containerIndex: number): string {
+    const containers = (pod.spec.containers || []).concat(pod.spec.initContainers || []);
+    const container = containers[containerIndex];
+    return container.name;
 }

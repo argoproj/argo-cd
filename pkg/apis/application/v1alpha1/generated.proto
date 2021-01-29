@@ -883,6 +883,10 @@ message ResourceDiff {
 
   // PredictedLiveState contains JSON serialized resource state that is calculated based on normalized and target resource state
   optional string predictedLiveState = 10;
+
+  optional string resourceVersion = 11;
+
+  optional bool modified = 12;
 }
 
 // ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.
