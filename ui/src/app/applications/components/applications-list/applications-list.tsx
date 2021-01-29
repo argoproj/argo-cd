@@ -40,12 +40,12 @@ const APP_FIELDS = [
 const APP_LIST_FIELDS = ['metadata.resourceVersion', 'metadata.remainingItemCount', ...APP_FIELDS.map(field => `items.${field}`)];
 const APP_WATCH_FIELDS = ['result.type', ...APP_FIELDS.map(field => `result.application.${field}`)];
 
-function loadApplications(from: number, count: number): Observable<models.Application[]> {
+function loadApplications(from: number, count: number): Observable<models.ApplicationList> {
     return Observable.fromPromise(services.applications.list([], {fields: APP_LIST_FIELDS}, from, count)).flatMap(applicationsList => {
         const applications = applicationsList.items;
         const hiddenDataLength = applicationsList.metadata.remainingItemCount;
         return Observable.merge(
-            Observable.from([applications]),
+            Observable.of({items: applications, metadata: {remainingItemCount: hiddenDataLength}} as models.ApplicationList),
             services.applications
                 .watch({resourceVersion: applicationsList.metadata.resourceVersion}, {fields: APP_WATCH_FIELDS})
                 .repeat()
@@ -73,7 +73,9 @@ function loadApplications(from: number, count: number): Observable<models.Applic
                     return {applications, updated: appChanges.length > 0};
                 })
                 .filter(item => item.updated)
-                .map(item => item.applications)
+                .map(item => {
+                    return {items: item.applications, metadata: {remainingItemCount: hiddenDataLength}} as models.ApplicationList;
+                })
         );
     });
 }
@@ -275,8 +277,12 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                             <MockupList height={100} marginTop={30} />
                                                         </div>
                                                     )}>
-                                                    {(applications: models.Application[]) => {
+                                                    {(appList: models.ApplicationList) => {
+                                                        const applications = appList.items;
                                                         const filteredApps = filterApps(applications, pref, pref.search);
+                                                        const paddedApplications = new Array(from).concat(
+                                                            filteredApps.concat(new Array(parseInt(appList.metadata.remainingItemCount, 10)))
+                                                        );
                                                         return applications.length === 0 && (pref.labelsFilter || []).length === 0 ? (
                                                             <EmptyState icon='argo-icon-application'>
                                                                 <h4>No applications yet</h4>
@@ -380,14 +386,14 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                                     </h5>
                                                                                 </EmptyState>
                                                                             )}
-                                                                            data={filteredApps}
+                                                                            data={paddedApplications}
                                                                             onPageChange={page => {
+                                                                                loaderRef.current.reload();
                                                                                 ctx.navigation.goto('.', {page});
                                                                             }}
                                                                             onPageSizeChange={size => {
                                                                                 loaderRef.current.reload();
-                                                                            }}
-                                                                            hiddenDataLength={0}>
+                                                                            }}>
                                                                             {data =>
                                                                                 (pref.view === 'tiles' && (
                                                                                     <ApplicationTiles

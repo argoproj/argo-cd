@@ -14,17 +14,15 @@ export interface PaginateProps<T> {
     emptyState?: () => React.ReactNode;
     preferencesKey?: string;
     onPageSizeChange?: (size: number) => any;
-    hiddenDataLength?: number;
 }
 
-export function Paginate<T>({page, onPageChange, children, data, emptyState, preferencesKey, onPageSizeChange, hiddenDataLength}: PaginateProps<T>) {
+export function Paginate<T>({page, onPageChange, children, data, emptyState, preferencesKey, onPageSizeChange}: PaginateProps<T>) {
     return (
         <DataLoader load={() => services.viewPreferences.getPreferences()}>
             {pref => {
                 preferencesKey = preferencesKey || 'default';
                 const pageSize = pref.pageSizes[preferencesKey] || 10;
-                const dl = data.length + (hiddenDataLength || 0);
-                const pageCount = pageSize === -1 ? 1 : Math.ceil(dl / pageSize);
+                const pageCount = pageSize === -1 ? 1 : Math.ceil(data.length / pageSize);
                 if (pageCount <= page) {
                     page = pageCount - 1;
                 }
@@ -62,7 +60,6 @@ export function Paginate<T>({page, onPageChange, children, data, emptyState, pre
                         </React.Fragment>
                     );
                 }
-
                 return (
                     <React.Fragment>
                         <div className='paginate'>{paginator()}</div>

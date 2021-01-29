@@ -164,8 +164,9 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*ap
 
 	if q.Count != nil {
 		val, err := strconv.Atoi(*q.Count)
-		if err == nil && val > from && val < to {
-			to = val + from
+		tmp := val + from
+		if err == nil && tmp > from && tmp < to {
+			to = tmp
 		}
 	}
 
@@ -174,7 +175,7 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*ap
 
 	appList := appv1.ApplicationList{
 		ListMeta: metav1.ListMeta{
-			ResourceVersion: s.appInformer.LastSyncResourceVersion(),
+			ResourceVersion:    s.appInformer.LastSyncResourceVersion(),
 			RemainingItemCount: &remaining,
 		},
 		Items: newItems,
