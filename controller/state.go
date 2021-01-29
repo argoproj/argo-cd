@@ -88,7 +88,8 @@ type comparisonResult struct {
 	diffNormalizer       diff.Normalizer
 	appSourceType        v1alpha1.ApplicationSourceType
 	// timings maps phases of comparison to the duration it took to complete (for statistical purposes)
-	timings map[string]time.Duration
+	timings        map[string]time.Duration
+	diffResultList *diff.DiffResultList
 }
 
 func (res *comparisonResult) GetSyncStatus() *v1alpha1.SyncStatus {
@@ -632,6 +633,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		managedResources:     managedResources,
 		reconciliationResult: reconciliation,
 		diffNormalizer:       diffNormalizer,
+		diffResultList:       diffResults,
 	}
 	if manifestInfo != nil {
 		compRes.appSourceType = v1alpha1.ApplicationSourceType(manifestInfo.SourceType)
