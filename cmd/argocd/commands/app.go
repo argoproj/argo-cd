@@ -269,7 +269,7 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		kind         string
 		resourceName string
 		follow       bool
-		tailLines    int64
+		tail         int64
 		sinceSeconds int64
 		untilTime    string
 	)
@@ -292,7 +292,7 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				Kind:         &kind,
 				ResourceName: &resourceName,
 				Follow:       follow,
-				TailLines:    tailLines,
+				TailLines:    tail,
 				SinceSeconds: sinceSeconds,
 				UntilTime:    &untilTime,
 			})
@@ -318,7 +318,7 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVar(&kind, "kind", "", "Resource kind")
 	command.Flags().StringVar(&resourceName, "name", "", "Resource name")
 	command.Flags().BoolVar(&follow, "follow", false, "Specify if the logs should be streamed")
-	command.Flags().Int64Var(&tailLines, "tail-lines", 0, "The number of lines from the end of the logs to show")
+	command.Flags().Int64Var(&tail, "tail", 0, "The number of lines from the end of the logs to show")
 	command.Flags().Int64Var(&sinceSeconds, "since-seconds", 0, "A relative time in seconds before the current time from which to show logs.")
 	command.Flags().StringVar(&untilTime, "until-time", "", "Show logs until this time")
 
