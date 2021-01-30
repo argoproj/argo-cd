@@ -15,8 +15,9 @@ linters:
     - ineffassign
     - unconvert
     - unparam
+    - wrapcheck
 linters-settings:
   goimports:
     local-prefixes: github.com/argoproj/argo-cd
 service:
-  golangci-lint-version: 1.21.0
+  golangci-lint-version: 1.36.0
