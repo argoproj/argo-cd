@@ -125,7 +125,7 @@ func NewApplicationController(
 	appResyncPeriod time.Duration,
 	selfHealTimeout time.Duration,
 	metricsPort int,
-	metricsResetSchedule string,
+	metricsCacheExpiration time.Duration,
 	kubectlParallelismLimit int64,
 	clusterFilter func(cluster *appv1.Cluster) bool,
 ) (*ApplicationController, error) {
@@ -183,8 +183,8 @@ func NewApplicationController(
 	if err != nil {
 		return nil, err
 	}
-	if metricsResetSchedule != "" {
-		err = ctrl.metricsServer.ScheduleReset(metricsResetSchedule)
+	if metricsCacheExpiration.Seconds() != 0 {
+		err = ctrl.metricsServer.SetExpiration(metricsCacheExpiration)
 		if err != nil {
 			return nil, err
 		}

@@ -2,6 +2,8 @@ package metrics
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"strconv"
@@ -32,6 +34,7 @@ type MetricsServer struct {
 	redisRequestHistogram   *prometheus.HistogramVec
 	registry                *prometheus.Registry
 	hostname                string
+	cron                    *cron.Cron
 }
 
 const (
@@ -173,6 +176,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 		redisRequestCounter:     redisRequestCounter,
 		redisRequestHistogram:   redisRequestHistogram,
 		hostname:                hostname,
+		cron:                    cron.New(),
 	}, nil
 }
 
@@ -235,11 +239,19 @@ func (m *MetricsServer) IncReconcile(app *argoappv1.Application, duration time.D
 	m.reconcileHistogram.WithLabelValues(app.Namespace, app.Spec.Destination.Server).Observe(duration.Seconds())
 }
 
-// ScheduleReset auto cron reset of metrics
-func (m *MetricsServer) ScheduleReset(cronSpec string) error {
-	cron := cron.New()
-	err := cron.AddFunc(cronSpec, func() {
-		log.Infof("Reset Prometheus metrics based on existing schedule '%v'", cronSpec)
+// HasExpiration return true if expiration is set
+func (m *MetricsServer) HasExpiration() bool {
+	return len(m.cron.Entries()) > 0
+}
+
+// SetExpiration reset Prometheus metrics based on time duration interval
+func (m *MetricsServer) SetExpiration(cacheExpiration time.Duration) error {
+	if m.HasExpiration() {
+		return errors.New("Expiration is already set")
+	}
+
+	err := m.cron.AddFunc(fmt.Sprintf("@every %s", cacheExpiration), func() {
+		log.Infof("Reset Prometheus metrics based on existing expiration '%v'", cacheExpiration)
 		m.syncCounter.Reset()
 		m.kubectlExecCounter.Reset()
 		m.kubectlExecPendingGauge.Reset()
@@ -253,7 +265,7 @@ func (m *MetricsServer) ScheduleReset(cronSpec string) error {
 		return err
 	}
 
-	cron.Start()
+	m.cron.Start()
 	return nil
 }
 

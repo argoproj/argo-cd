@@ -14,7 +14,7 @@ the metrics page will keep in cache your application and project's history.
 If you are having issues because of a large number of metrics cardinality due
 to deleted resources, you can schedule a metrics reset to clean the
 history with an application controller flag. Example:
-`--metrics-reset-schedule="0 0 23 * * *"`.
+`--metrics-cache-expiration="24h0m0s"`.
 
 ## API Server Metrics
 Metrics about API Server API request and response activity (request totals, response codes, etc...).

@@ -31,7 +31,7 @@ argocd-application-controller [flags]
       --logformat string                      Set the logging format. One of: text|json (default "text")
       --loglevel string                       Set the logging level. One of: debug|info|warn|error (default "info")
       --metrics-port int                      Start metrics server on given port (default 8082)
-      --metrics-reset-schedule string         Cron Prometheus metrics reset (disabled  by default. e.g. 0 0 2 * * *)
+      --metrics-cache-expiration duration     Prometheus metrics cache expiration (disabled  by default. e.g. 24h0m0s)
   -n, --namespace string                      If present, the namespace scope for this CLI request
       --operation-processors int              Number of application operation processors (default 1)
       --password string                       Password for basic authentication to the API server

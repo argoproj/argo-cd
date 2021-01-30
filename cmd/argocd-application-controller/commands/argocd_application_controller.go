@@ -46,7 +46,7 @@ func NewCommand() *cobra.Command {
 		operationProcessors      int
 		glogLevel                int
 		metricsPort              int
-		metricsResetSchedule     string
+		metricsCacheExpiration   time.Duration
 		kubectlParallelismLimit  int64
 		cacheSrc                 func() (*appstatecache.Cache, error)
 		redisClient              *redis.Client
@@ -93,7 +93,7 @@ func NewCommand() *cobra.Command {
 				resyncDuration,
 				time.Duration(selfHealTimeoutSeconds)*time.Second,
 				metricsPort,
-				metricsResetSchedule,
+				metricsCacheExpiration,
 				kubectlParallelismLimit,
 				clusterFilter)
 			errors.CheckError(err)
@@ -122,7 +122,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().IntVar(&glogLevel, "gloglevel", 0, "Set the glog logging level")
 	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortArgoCDMetrics, "Start metrics server on given port")
-	command.Flags().StringVar(&metricsResetSchedule, "metrics-reset-schedule", "", "Cron Prometheus metrics reset (disabled  by default. e.g. 0 0 2 * * *)")
+	command.Flags().DurationVar(&metricsCacheExpiration, "metrics-cache-expiration", 0*time.Second, "Prometheus metrics cache expiration (disabled  by default. e.g. 24h0m0s)")
 	command.Flags().IntVar(&selfHealTimeoutSeconds, "self-heal-timeout-seconds", 5, "Specifies timeout between application self heal attempts")
 	command.Flags().Int64Var(&kubectlParallelismLimit, "kubectl-parallelism-limit", 20, "Number of allowed concurrent kubectl fork/execs. Any value less the 1 means no limit.")
 	cacheSrc = appstatecache.AddCacheFlagsToCmd(&command, func(client *redis.Client) {

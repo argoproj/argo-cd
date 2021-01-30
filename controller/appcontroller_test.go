@@ -47,11 +47,12 @@ type namespacedResource struct {
 }
 
 type fakeData struct {
-	apps                []runtime.Object
-	manifestResponse    *apiclient.ManifestResponse
-	managedLiveObjs     map[kube.ResourceKey]*unstructured.Unstructured
-	namespacedResources map[kube.ResourceKey]namespacedResource
-	configMapData       map[string]string
+	apps                   []runtime.Object
+	manifestResponse       *apiclient.ManifestResponse
+	managedLiveObjs        map[kube.ResourceKey]*unstructured.Unstructured
+	namespacedResources    map[kube.ResourceKey]namespacedResource
+	configMapData          map[string]string
+	metricsCacheExpiration time.Duration
 }
 
 func newFakeController(data *fakeData) *ApplicationController {
@@ -103,7 +104,7 @@ func newFakeController(data *fakeData) *ApplicationController {
 		time.Minute,
 		time.Minute,
 		common.DefaultPortArgoCDMetrics,
-		"",
+		data.metricsCacheExpiration,
 		0,
 		nil,
 	)
@@ -1258,4 +1259,12 @@ func TestGetAppHosts(t *testing.T) {
 		ResourcesInfo: []argoappv1.HostResourceInfo{{
 			ResourceName: corev1.ResourceCPU, Capacity: 5000, RequestedByApp: 1000, RequestedByNeighbors: 2000},
 		}}}, hosts)
+}
+
+func TestMetricsExpiration(t *testing.T) {
+	app := newFakeApp()
+	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
+	assert.False(t, ctrl.metricsServer.HasExpiration())
+	ctrl = newFakeController(&fakeData{apps: []runtime.Object{app}, metricsCacheExpiration: 10 * time.Second})
+	assert.True(t, ctrl.metricsServer.HasExpiration())
 }
