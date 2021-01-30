@@ -1263,8 +1263,10 @@ func TestGetAppHosts(t *testing.T) {
 
 func TestMetricsExpiration(t *testing.T) {
 	app := newFakeApp()
+	// Check expiration is disabled by default
 	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
 	assert.False(t, ctrl.metricsServer.HasExpiration())
+	// Check expiration is enabled if set
 	ctrl = newFakeController(&fakeData{apps: []runtime.Object{app}, metricsCacheExpiration: 10 * time.Second})
 	assert.True(t, ctrl.metricsServer.HasExpiration())
 }
