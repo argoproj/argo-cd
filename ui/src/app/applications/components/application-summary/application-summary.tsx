@@ -225,7 +225,15 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
         },
         {
             title: 'SYNC OPTIONS',
-            view: ((app.spec.syncPolicy || {}).syncOptions || []).join(', '),
+            view: (
+                <div style={{display: 'flex'}}>
+                    {((app.spec.syncPolicy || {}).syncOptions || []).map(opt => (
+                        <div style={{marginRight: '10px'}}>
+                            <i className={`fa fa-${opt.includes('=true') ? 'check-square' : 'times'}`} /> {opt.replace('=true', '').replace('=false', '')}
+                        </div>
+                    ))}
+                </div>
+            ),
             edit: (formApi: FormApi) => (
                 <div>
                     <FormField formApi={formApi} field='spec.syncPolicy.syncOptions' component={ApplicationSyncOptionsField} />

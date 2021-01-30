@@ -3,6 +3,9 @@
 .application-summary {
     &__labels {
         line-height: 28px;
+        display: flex;
+        align-items: center;
+        height: 100%;
     }
 
     &__label {
@@ -35,7 +38,7 @@
         top: 1em;
         right: 1em;
     }
-   
+
     .argo-field {
         line-height: 1.15;
     }
