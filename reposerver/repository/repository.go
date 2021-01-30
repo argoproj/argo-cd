@@ -108,6 +108,9 @@ func (s *Service) ListRefs(ctx context.Context, q *apiclient.ListRefsRequest) (*
 	if err != nil {
 		return nil, err
 	}
+	if err != nil {
+		return nil, err
+	}
 
 	s.metricsServer.IncPendingRepoRequest(q.Repo.Repo)
 	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
