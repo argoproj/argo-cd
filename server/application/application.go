@@ -1263,7 +1263,6 @@ func (s *Server) processOnePodLog(q *application.ApplicationPodLogsQuery, ws app
 	done := make(chan bool)
 	reachedEOF := false
 	gracefulExit := false
-	untilTimeReached := false
 	go func() {
 		bufReader := bufio.NewReader(stream)
 		for {
@@ -1287,7 +1286,6 @@ func (s *Server) processOnePodLog(q *application.ApplicationPodLogsQuery, ws app
 						}
 					}
 					if q.UntilTime != nil && *q.UntilTime != "" && !metaLogTime.Before(untilTime) {
-						untilTimeReached = true
 						response = UntilTimeReached
 						close(done)
 						return
