@@ -1,8 +1,9 @@
 package repocreds
 
 import (
-	log "github.com/sirupsen/logrus"
 	"reflect"
+
+	log "github.com/sirupsen/logrus"
 
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
