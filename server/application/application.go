@@ -1048,7 +1048,17 @@ func (s *Server) ManagedResources(ctx context.Context, q *application.ResourcesQ
 
 func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.ApplicationService_PodLogsServer) error {
 	if q.PodName != nil {
-		return s.processOnePodLog(q, ws)
+		response, err := s.processOnePodLog(q, ws)
+		if err != nil {
+			return err
+		}
+		if response != ErrorAccured {
+			if err := ws.Send(&application.LogEntry{Last: true}); err != nil {
+				log.Warnf("Unable to send stream message notifying about last log message: %v", err)
+				return err
+			}
+		}
+		return nil
 	}
 
 	// get all nodes
@@ -1066,12 +1076,14 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 	var wg gosync.WaitGroup
 	wg.Add(len(pods))
 	errorsCh := make(chan error, len(pods))
+	responseCh := make(chan PodLogsResponse, len(pods))
 
 	for _, pod := range pods {
 		go func(i appv1.ResourceNode) {
 			data, err := q.Marshal()
 			if err != nil {
 				errorsCh <- err
+				responseCh <- ErrorAccured
 				wg.Done()
 				return
 			}
@@ -1080,6 +1092,7 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 			err = copiedQuery.Unmarshal(data)
 			if err != nil {
 				errorsCh <- err
+				responseCh <- ErrorAccured
 				wg.Done()
 				return
 			}
@@ -1088,8 +1101,9 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 			copiedQuery.PodName = &i.Name
 
 			log.Debug("processing pod logs for ", i.Name)
-			err = s.processOnePodLog(&copiedQuery, ws)
+			response, err := s.processOnePodLog(&copiedQuery, ws)
 			errorsCh <- err
+			responseCh <- response
 			log.Debug("processing pod logs done ", i.Name)
 			wg.Done()
 
@@ -1098,9 +1112,22 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 
 	wg.Wait()
 
+	allDone := true
 	for i := 0; i < len(pods); i++ {
 		err := <-errorsCh
 		if err != nil {
+			return err
+		}
+		//also check if all exist with no errors, then send the last message.
+		response := <-responseCh
+		if response == ErrorAccured {
+			allDone = false
+		}
+	}
+
+	if allDone {
+		if err := ws.Send(&application.LogEntry{Last: true}); err != nil {
+			log.Warnf("Unable to send stream message notifying about last log message: %v", err)
 			return err
 		}
 	}
@@ -1162,11 +1189,23 @@ func isTheSelectedOne(currentNode *appv1.ResourceNode, q *application.Applicatio
 	return false
 }
 
-func (s *Server) processOnePodLog(q *application.ApplicationPodLogsQuery, ws application.ApplicationService_PodLogsServer) error {
+type PodLogsResponse int
+
+const (
+	ErrorAccured     = -1
+	ReachedEOF       = 0
+	UntilTimeReached = 1
+	GracefulExit     = 2
+)
+
+func (s *Server) processOnePodLog(q *application.ApplicationPodLogsQuery, ws application.ApplicationService_PodLogsServer) (PodLogsResponse, error) {
+	var response PodLogsResponse
+	response = ErrorAccured
+
 	var untilTime *metav1.Time
 	if q.GetUntilTime() != "" {
 		if val, err := time.Parse(time.RFC3339Nano, q.GetUntilTime()); err != nil {
-			return fmt.Errorf("invalid untilTime parameter value: %v", err)
+			return response, fmt.Errorf("invalid untilTime parameter value: %v", err)
 		} else {
 			untilTimeVal := metav1.NewTime(val)
 			untilTime = &untilTimeVal
@@ -1183,12 +1222,12 @@ func (s *Server) processOnePodLog(q *application.ApplicationPodLogsQuery, ws app
 	})
 
 	if err != nil {
-		return err
+		return response, err
 	}
 
 	kubeClientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		return err
+		return response, err
 	}
 
 	var sinceSeconds, tailLines *int64
@@ -1217,13 +1256,14 @@ func (s *Server) processOnePodLog(q *application.ApplicationPodLogsQuery, ws app
 		TailLines:    tailLines,
 	}).Stream(ws.Context())
 	if err != nil {
-		return err
+		return response, err
 	}
 	logCtx := log.WithField("application", q.Name)
 	defer io.Close(stream)
 	done := make(chan bool)
 	reachedEOF := false
 	gracefulExit := false
+	untilTimeReached := false
 	go func() {
 		bufReader := bufio.NewReader(stream)
 		for {
@@ -1247,7 +1287,8 @@ func (s *Server) processOnePodLog(q *application.ApplicationPodLogsQuery, ws app
 						}
 					}
 					if q.UntilTime != nil && *q.UntilTime != "" && !metaLogTime.Before(untilTime) {
-						_ = ws.Send(&application.LogEntry{Last: true})
+						untilTimeReached = true
+						response = UntilTimeReached
 						close(done)
 						return
 					}
@@ -1269,6 +1310,7 @@ func (s *Server) processOnePodLog(q *application.ApplicationPodLogsQuery, ws app
 		} else {
 			logCtx.Info("k8s pod logs reader completed with EOF")
 			reachedEOF = true
+			response = ReachedEOF
 		}
 		close(done)
 	}()
@@ -1277,15 +1319,11 @@ func (s *Server) processOnePodLog(q *application.ApplicationPodLogsQuery, ws app
 	case <-ws.Context().Done():
 		logCtx.Info("client pod logs grpc context closed")
 		gracefulExit = true
+		response = GracefulExit
 	case <-done:
 	}
 
-	if reachedEOF || gracefulExit {
-		if err := ws.Send(&application.LogEntry{Last: true}); err != nil {
-			logCtx.Warnf("Unable to send stream message notifying about last log message: %v", err)
-		}
-	}
-	return nil
+	return response, nil
 }
 
 // Sync syncs an application to its target state

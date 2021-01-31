@@ -309,7 +309,11 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				}
 				if !msg.Last {
 					fmt.Println(msg.Content)
+				} else {
+					//This is the end
+					break
 				}
+
 			}
 		},
 	}
