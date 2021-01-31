@@ -554,3 +554,57 @@ func TestListHelmRepositories(t *testing.T) {
 	assert.Equal(t, "test-cert", repo.TLSClientCertData)
 	assert.Equal(t, "test-key", repo.TLSClientCertKey)
 }
+
+func TestListHelmRepositoriesWithMissingSecret(t *testing.T) {
+	config := map[string]string{
+		"repositories": `
+- url: https://argoproj.github.io/argo-helm
+  name: working
+  type: helm
+  usernameSecret:
+    name: test-secret
+    key: username
+  passwordSecret:
+    name: test-secret
+    key: password
+- url: https://argoproj.github.io/argo-helm-missing
+  name: missing
+  type: helm
+  usernameSecret:
+    name: test-secret-missing
+    key: username
+  passwordSecret:
+    name: test-secret-missing
+    key: password
+- url: https://argoproj.github.io/argo-helm-missing-key
+  name: missing-key
+  type: helm
+  usernameSecret:
+    name: test-secret
+    key: username-missing
+  passwordSecret:
+    name: test-secret
+    key: password-missing
+`}
+	clientset := getClientset(config, &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-secret",
+			Namespace: testNamespace,
+		},
+		Data: map[string][]byte{
+			"username": []byte("test-username"),
+			"password": []byte("test-password"),
+		},
+	})
+	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
+
+	repos, err := db.ListRepositories(context.Background())
+	assert.Nil(t, err)
+	assert.Len(t, repos, 1)
+	repo := repos[0]
+	assert.Equal(t, "https://argoproj.github.io/argo-helm", repo.Repo)
+	assert.Equal(t, "helm", repo.Type)
+	assert.Equal(t, "working", repo.Name)
+	assert.Equal(t, "test-username", repo.Username)
+	assert.Equal(t, "test-password", repo.Password)
+}

@@ -132,9 +132,12 @@ func (db *db) listRepositories(ctx context.Context, repoType *string) ([]*appsv1
 		if repoType == nil || *repoType == inRepo.Type {
 			r, err := db.GetRepository(ctx, inRepo.URL)
 			if err != nil {
-				return nil, err
+				// Instead of breaking the loop here, we return all credentials we can,
+				// so that all other non-misbehaving repositories can be used.
+				log.Errorf("could not retrieve repo: %s", err.Error())
+			} else {
+				repos = append(repos, r)
 			}
-			repos = append(repos, r)
 		}
 	}
 	return repos, nil
