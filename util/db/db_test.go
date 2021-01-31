@@ -105,6 +105,79 @@ func TestCreateRepoCredentials(t *testing.T) {
 	assert.Equal(t, "test-password", repo.Password)
 }
 
+func TestGetRepositoryCredentials(t *testing.T) {
+	config := map[string]string{
+		"repositories": `
+- url: https://known/repo
+- url: https://secured/repo
+- url: https://missing/repo
+`,
+		"repository.credentials": `
+- url: https://secured
+  usernameSecret:
+    name: managed-secret
+    key: username
+  passwordSecret:
+    name: managed-secret
+    key: password
+- url: https://missing
+  usernameSecret:
+    name: managed-secret
+    key: username
+  passwordSecret:
+    name: missing-managed-secret
+    key: password
+`}
+	clientset := getClientset(config, newManagedSecret())
+	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
+
+	tests := []struct {
+		name    string
+		repoURL string
+		want    *v1alpha1.RepoCreds
+		wantErr bool
+	}{
+		{
+			name:    "TestUnknownRepo",
+			repoURL: "https://unknown/repo",
+			want:    nil,
+			wantErr: false,
+		},
+		{
+			name:    "TestKnownRepo",
+			repoURL: "https://known/repo",
+			want:    nil,
+			wantErr: false,
+		},
+		{
+			name:    "TestSecuredRepo",
+			repoURL: "https://secured/repo",
+			want:    &v1alpha1.RepoCreds{URL: "https://secured", Username: "test-username", Password: "test-password"},
+			wantErr: false,
+		},
+		{
+			name:    "TestMissingRepo",
+			repoURL: "https://missing/repo",
+			want:    nil,
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := db.GetRepositoryCredentials(context.TODO(), tt.repoURL)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.True(t, errors.IsNotFound(err))
+			} else {
+				assert.NoError(t, err)
+			}
+
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
 func TestCreateExistingRepository(t *testing.T) {
 	clientset := getClientset(map[string]string{
 		"repositories": `- url: https://github.com/argoproj/argocd-example-apps`,
