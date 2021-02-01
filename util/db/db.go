@@ -113,7 +113,7 @@ func (db *db) unmarshalFromSecretsStr(secrets map[*string]*v1.SecretKeySelector,
 			if secretValue, present := secret.Data[src.Key]; present {
 				*dst = string(secretValue)
 			} else {
-				return fmt.Errorf("secret '%s' did not contain key '%s'", src.Name, src.Key)
+				return fmt.Errorf("secret \"%s\" did not contain key \"%s\"", src.Name, src.Key)
 			}
 		}
 	}

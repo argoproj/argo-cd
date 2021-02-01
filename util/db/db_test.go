@@ -600,11 +600,24 @@ func TestListHelmRepositoriesWithMissingSecret(t *testing.T) {
 
 	repos, err := db.ListRepositories(context.Background())
 	assert.Nil(t, err)
-	assert.Len(t, repos, 1)
+	assert.Len(t, repos, 3)
+
 	repo := repos[0]
 	assert.Equal(t, "https://argoproj.github.io/argo-helm", repo.Repo)
 	assert.Equal(t, "helm", repo.Type)
 	assert.Equal(t, "working", repo.Name)
 	assert.Equal(t, "test-username", repo.Username)
 	assert.Equal(t, "test-password", repo.Password)
+	assert.NotNil(t, repo.ConnectionState)
+	assert.Equal(t, "", repo.ConnectionState.Status)
+
+	repo = repos[1]
+	assert.NotNil(t, repo.ConnectionState)
+	assert.Equal(t, v1alpha1.ConnectionStatusFailed, repo.ConnectionState.Status)
+	assert.Equal(t, "secret \"test-secret-missing\" not found", repo.ConnectionState.Message)
+
+	repo = repos[2]
+	assert.NotNil(t, repo.ConnectionState)
+	assert.Equal(t, v1alpha1.ConnectionStatusFailed, repo.ConnectionState.Status)
+	assert.Equal(t, "secret \"test-secret\" did not contain key \"username-missing\"", repo.ConnectionState.Message)
 }
