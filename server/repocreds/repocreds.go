@@ -3,8 +3,6 @@ package repocreds
 import (
 	"reflect"
 
-	log "github.com/sirupsen/logrus"
-
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -52,9 +50,7 @@ func (s *Server) ListRepositoryCredentials(ctx context.Context, q *repocredspkg.
 		if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, url) {
 			repo, err := s.db.GetRepositoryCredentials(ctx, url)
 			if err != nil {
-				// Instead of breaking the loop here, we return all credentials we can,
-				// so that all other non-misbehaving repositories can be used.
-				log.Errorf("could not retrieve repo credentials: %s", err.Error())
+				return nil, err
 			}
 			if repo != nil {
 				items = append(items, appsv1.RepoCreds{

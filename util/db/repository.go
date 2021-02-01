@@ -85,6 +85,14 @@ func (db *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*apps
 // credentials attached to it, checks if a credential set for the repo's URL is
 // configured and copies them to the returned repository data.
 func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Repository, error) {
+	repository, err := db.getRepository(ctx, repoURL)
+	if err != nil {
+		return nil, err
+	}
+	return repository, err
+}
+
+func (db *db) getRepository(ctx context.Context, repoURL string) (*appsv1.Repository, error) {
 	repos, err := db.settingsMgr.GetRepositories()
 	if err != nil {
 		return nil, err
@@ -95,7 +103,7 @@ func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Reposi
 	if index >= 0 {
 		repo, err = db.credentialsToRepository(repos[index])
 		if err != nil {
-			return nil, err
+			return repo, err
 		}
 	}
 
@@ -108,7 +116,7 @@ func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Reposi
 				repo.InheritedCreds = true
 			}
 		} else {
-			return nil, err
+			return repo, err
 		}
 	} else {
 		log.Debugf("%s has credentials", repo.Repo)
@@ -130,14 +138,20 @@ func (db *db) listRepositories(ctx context.Context, repoType *string) ([]*appsv1
 	var repos []*appsv1.Repository
 	for _, inRepo := range inRepos {
 		if repoType == nil || *repoType == inRepo.Type {
-			r, err := db.GetRepository(ctx, inRepo.URL)
+			r, err := db.getRepository(ctx, inRepo.URL)
 			if err != nil {
-				// Instead of breaking the loop here, we return all credentials we can,
-				// so that all other non-misbehaving repositories can be used.
-				log.Errorf("could not retrieve repo: %s", err.Error())
-			} else {
-				repos = append(repos, r)
+				if r != nil {
+					modifiedTime := metav1.Now()
+					r.ConnectionState = appsv1.ConnectionState{
+						Status:     appsv1.ConnectionStatusFailed,
+						Message:    err.Error(),
+						ModifiedAt: &modifiedTime,
+					}
+				} else {
+					return nil, err
+				}
 			}
+			repos = append(repos, r)
 		}
 	}
 	return repos, nil
