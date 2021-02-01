@@ -74,7 +74,7 @@ func (db *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*apps
 		EnableOci:                  r.EnableOCI,
 		GithubAppId:                r.GithubAppId,
 		GithubAppInstallationId:    r.GithubAppInstallationId,
-		GitHubAppEnterpriseBaseURL: r.GitHubAppEnterpriseBaseURL,
+		GithubAppEnterpriseBaseURL: r.GitHubAppEnterpriseBaseURL,
 	}
 	err = db.updateRepositorySecrets(&repoInfo, r)
 	if err != nil {
@@ -159,7 +159,7 @@ func (db *db) credentialsToRepository(repoInfo settings.Repository) (*appsv1.Rep
 		EnableOCI:                  repoInfo.EnableOci,
 		GithubAppId:                repoInfo.GithubAppId,
 		GithubAppInstallationId:    repoInfo.GithubAppInstallationId,
-		GitHubAppEnterpriseBaseURL: repoInfo.GitHubAppEnterpriseBaseURL,
+		GitHubAppEnterpriseBaseURL: repoInfo.GithubAppEnterpriseBaseURL,
 	}
 	err := db.unmarshalFromSecretsStr(map[*string]*apiv1.SecretKeySelector{
 		&repo.Username:            repoInfo.UsernameSecret,
@@ -167,7 +167,7 @@ func (db *db) credentialsToRepository(repoInfo settings.Repository) (*appsv1.Rep
 		&repo.SSHPrivateKey:       repoInfo.SSHPrivateKeySecret,
 		&repo.TLSClientCertData:   repoInfo.TLSClientCertDataSecret,
 		&repo.TLSClientCertKey:    repoInfo.TLSClientCertKeySecret,
-		&repo.GithubAppPrivateKey: repoInfo.GithubAppPrivateKey,
+		&repo.GithubAppPrivateKey: repoInfo.GithubAppPrivateKeySecret,
 	}, make(map[string]*apiv1.Secret))
 	return repo, err
 }
@@ -177,7 +177,7 @@ func (db *db) credentialsToRepositoryCredentials(repoInfo settings.RepositoryCre
 		URL:                        repoInfo.URL,
 		GithubAppId:                repoInfo.GithubAppId,
 		GithubAppInstallationId:    repoInfo.GithubAppInstallationId,
-		GitHubAppEnterpriseBaseURL: repoInfo.GitHubAppEnterpriseBaseURL,
+		GitHubAppEnterpriseBaseURL: repoInfo.GithubAppEnterpriseBaseURL,
 	}
 	err := db.unmarshalFromSecretsStr(map[*string]*apiv1.SecretKeySelector{
 		&creds.Username:            repoInfo.UsernameSecret,
@@ -185,7 +185,7 @@ func (db *db) credentialsToRepositoryCredentials(repoInfo settings.RepositoryCre
 		&creds.SSHPrivateKey:       repoInfo.SSHPrivateKeySecret,
 		&creds.TLSClientCertData:   repoInfo.TLSClientCertDataSecret,
 		&creds.TLSClientCertKey:    repoInfo.TLSClientCertKeySecret,
-		&creds.GithubAppPrivateKey: repoInfo.GithubAppPrivateKey,
+		&creds.GithubAppPrivateKey: repoInfo.GithubAppPrivateKeySecret,
 	}, make(map[string]*apiv1.Secret))
 	return creds, err
 }
@@ -297,7 +297,7 @@ func (db *db) CreateRepositoryCredentials(ctx context.Context, r *appsv1.RepoCre
 		URL:                        r.URL,
 		GithubAppId:                r.GithubAppId,
 		GithubAppInstallationId:    r.GithubAppInstallationId,
-		GitHubAppEnterpriseBaseURL: r.GitHubAppEnterpriseBaseURL,
+		GithubAppEnterpriseBaseURL: r.GitHubAppEnterpriseBaseURL,
 	}
 
 	err = db.updateCredentialsSecret(&repoInfo, r)
@@ -387,7 +387,7 @@ func (db *db) updateCredentialsSecret(credsInfo *settings.RepositoryCredentials,
 	credsInfo.SSHPrivateKeySecret = setSecretData(credSecretPrefix, r.Repo, secretsData, credsInfo.SSHPrivateKeySecret, r.SSHPrivateKey, sshPrivateKey)
 	credsInfo.TLSClientCertDataSecret = setSecretData(credSecretPrefix, r.Repo, secretsData, credsInfo.TLSClientCertDataSecret, r.TLSClientCertData, tlsClientCertData)
 	credsInfo.TLSClientCertKeySecret = setSecretData(credSecretPrefix, r.Repo, secretsData, credsInfo.TLSClientCertKeySecret, r.TLSClientCertKey, tlsClientCertKey)
-	credsInfo.GithubAppPrivateKey = setSecretData(repoSecretPrefix, r.Repo, secretsData, credsInfo.GithubAppPrivateKey, r.GithubAppPrivateKey, githubAppPrivateKey)
+	credsInfo.GithubAppPrivateKeySecret = setSecretData(repoSecretPrefix, r.Repo, secretsData, credsInfo.GithubAppPrivateKeySecret, r.GithubAppPrivateKey, githubAppPrivateKey)
 	for k, v := range secretsData {
 		err := db.upsertSecret(k, v)
 		if err != nil {
@@ -405,7 +405,7 @@ func (db *db) updateRepositorySecrets(repoInfo *settings.Repository, r *appsv1.R
 	repoInfo.SSHPrivateKeySecret = setSecretData(repoSecretPrefix, r.Repo, secretsData, repoInfo.SSHPrivateKeySecret, r.SSHPrivateKey, sshPrivateKey)
 	repoInfo.TLSClientCertDataSecret = setSecretData(repoSecretPrefix, r.Repo, secretsData, repoInfo.TLSClientCertDataSecret, r.TLSClientCertData, tlsClientCertData)
 	repoInfo.TLSClientCertKeySecret = setSecretData(repoSecretPrefix, r.Repo, secretsData, repoInfo.TLSClientCertKeySecret, r.TLSClientCertKey, tlsClientCertKey)
-	repoInfo.GithubAppPrivateKey = setSecretData(repoSecretPrefix, r.Repo, secretsData, repoInfo.GithubAppPrivateKey, r.GithubAppPrivateKey, githubAppPrivateKey)
+	repoInfo.GithubAppPrivateKeySecret = setSecretData(repoSecretPrefix, r.Repo, secretsData, repoInfo.GithubAppPrivateKeySecret, r.GithubAppPrivateKey, githubAppPrivateKey)
 	for k, v := range secretsData {
 		err := db.upsertSecret(k, v)
 		if err != nil {

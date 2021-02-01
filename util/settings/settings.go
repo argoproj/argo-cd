@@ -171,13 +171,13 @@ type Repository struct {
 	// Whether the repo is helm-oci enabled. Git only.
 	EnableOci bool `json:"enableOci,omitempty"`
 	// Github App Private Key PEM data
-	GithubAppPrivateKey *apiv1.SecretKeySelector `json:"githubAppPrivateKey,omitempty"`
+	GithubAppPrivateKeySecret *apiv1.SecretKeySelector `json:"githubAppPrivateKeySecret,omitempty"`
 	// Github App ID of the app used to access the repo
 	GithubAppId int64 `json:"githubAppID,omitempty"`
 	// Github App Installation ID of the installed GitHub App
 	GithubAppInstallationId int64 `json:"githubAppInstallationID,omitempty"`
 	// Github App Enterprise base url if empty will default to https://api.github.com
-	GitHubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty"`
+	GithubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty"`
 }
 
 // Credential template for accessing repositories
@@ -195,13 +195,13 @@ type RepositoryCredentials struct {
 	// Name of the secret storing the TLS client cert's key data
 	TLSClientCertKeySecret *apiv1.SecretKeySelector `json:"tlsClientCertKeySecret,omitempty"`
 	// Github App Private Key PEM data
-	GithubAppPrivateKey *apiv1.SecretKeySelector `json:"githubAppPrivateKey,omitempty"`
+	GithubAppPrivateKeySecret *apiv1.SecretKeySelector `json:"githubAppPrivateKeySecret,omitempty"`
 	// Github App ID of the app used to access the repo
 	GithubAppId int64 `json:"githubAppID,omitempty"`
 	// Github App Installation ID of the installed GitHub App
 	GithubAppInstallationId int64 `json:"githubAppInstallationID,omitempty"`
 	// Github App Enterprise base url if empty will default to https://api.github.com
-	GitHubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty"`
+	GithubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty"`
 }
 
 const (

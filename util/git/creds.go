@@ -295,6 +295,10 @@ func (g GitHubAppCreds) Environ() (io.Closer, []string, error) {
 // getAccessToken fetches GitHub token using the app id, install id, and private key.
 // the token is then cached for re-use.
 func (g GitHubAppCreds) getAccessToken() (string, error) {
+	// Timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
 	// Compute hash of creds for lookup in cache
 	h := sha256.New()
 	_, err := h.Write([]byte(fmt.Sprintf("%s %d %d %s", g.privateKey, g.appID, g.appInstallId, g.baseURL)))
@@ -308,7 +312,7 @@ func (g GitHubAppCreds) getAccessToken() (string, error) {
 	if found {
 		itr := t.(*ghinstallation.Transport)
 		// This method caches the token and if it's expired retrieves a new one
-		return itr.Token(context.TODO())
+		return itr.Token(ctx)
 	}
 
 	// GitHub API url
@@ -333,7 +337,7 @@ func (g GitHubAppCreds) getAccessToken() (string, error) {
 	// Add transport to cache
 	githubAppTokenCache.Set(key, itr, time.Minute*60)
 
-	return itr.Token(context.Background())
+	return itr.Token(ctx)
 }
 
 func (g GitHubAppCreds) IsSecure() bool {
