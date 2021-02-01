@@ -1261,7 +1261,6 @@ func (s *Server) processOnePodLog(q *application.ApplicationPodLogsQuery, ws app
 	logCtx := log.WithField("application", q.Name)
 	defer io.Close(stream)
 	done := make(chan bool)
-	reachedEOF := false
 	gracefulExit := false
 	go func() {
 		bufReader := bufio.NewReader(stream)
@@ -1307,7 +1306,6 @@ func (s *Server) processOnePodLog(q *application.ApplicationPodLogsQuery, ws app
 			logCtx.Warnf("k8s pod logs reader failed with error: %v", err)
 		} else {
 			logCtx.Info("k8s pod logs reader completed with EOF")
-			reachedEOF = true
 			response = ReachedEOF
 		}
 		close(done)
