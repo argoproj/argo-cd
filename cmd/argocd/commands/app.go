@@ -325,7 +325,7 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 							log.Fatalf("stream read failed: %v", err)
 						}
 						log.Debugf("stream read failed: %v.", err)
-						// if follow and error is unavailable, add retry
+						// if follow and error is unavailable, retry sinceSeconds = 1
 						sinceSeconds = 1
 						break
 					}

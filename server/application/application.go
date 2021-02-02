@@ -1240,7 +1240,7 @@ func (s *Server) processOnePodLog(q *application.ApplicationPodLogsQuery, ws app
 
 	literal := ""
 	inverse := false
-	if q.Filter != nil && *q.Filter != "" {
+	if q.GetFilter() != "" {
 		literal = *q.Filter
 		if literal[0] == '!' {
 			literal = literal[1:]
@@ -1284,7 +1284,7 @@ func (s *Server) processOnePodLog(q *application.ApplicationPodLogsQuery, ws app
 							continue
 						}
 					}
-					if q.UntilTime != nil && *q.UntilTime != "" && !metaLogTime.Before(untilTime) {
+					if q.GetUntilTime() != "" && !metaLogTime.Before(untilTime) {
 						response = UntilTimeReached
 						close(done)
 						return
