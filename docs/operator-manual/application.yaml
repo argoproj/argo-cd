@@ -51,7 +51,7 @@ spec:
               hosts:
                 - mydomain.example.com
 
-      # Optional Helm version to template with. If omitted it will fallback to look at the 'apiVersion' in Chart.yaml
+      # Optional Helm version to template with. If omitted it will fall back to look at the 'apiVersion' in Chart.yaml
       # and decide which Helm binary to use automatically. This field can be either 'v2' or 'v3'.
       version: v2
 
