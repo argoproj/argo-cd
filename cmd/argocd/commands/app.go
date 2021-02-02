@@ -270,11 +270,13 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	var (
 		group        string
 		kind         string
+		namespace    string
 		resourceName string
 		follow       bool
 		tail         int64
 		sinceSeconds int64
 		untilTime    string
+		filter       string
 	)
 	var command = &cobra.Command{
 		Use:   "logs APPNAME",
@@ -298,12 +300,14 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				stream, err := appIf.PodLogs(context.Background(), &applicationpkg.ApplicationPodLogsQuery{
 					Name:         &appName,
 					Group:        &group,
+					Namespace:    namespace,
 					Kind:         &kind,
 					ResourceName: &resourceName,
 					Follow:       follow,
 					TailLines:    tail,
 					SinceSeconds: sinceSeconds,
 					UntilTime:    &untilTime,
+					Filter:       &filter,
 				})
 				if err != nil {
 					log.Fatalf("failed to get pod logs: %v", err)
@@ -338,11 +342,13 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 	command.Flags().StringVar(&group, "group", "", "Resource group")
 	command.Flags().StringVar(&kind, "kind", "", "Resource kind")
+	command.Flags().StringVar(&namespace, "namespace", "", "Resource namespace")
 	command.Flags().StringVar(&resourceName, "name", "", "Resource name")
 	command.Flags().BoolVar(&follow, "follow", false, "Specify if the logs should be streamed")
 	command.Flags().Int64Var(&tail, "tail", 0, "The number of lines from the end of the logs to show")
-	command.Flags().Int64Var(&sinceSeconds, "since-seconds", 0, "A relative time in seconds before the current time from which to show logs.")
+	command.Flags().Int64Var(&sinceSeconds, "since-seconds", 0, "A relative time in seconds before the current time from which to show logs")
 	command.Flags().StringVar(&untilTime, "until-time", "", "Show logs until this time")
+	command.Flags().StringVar(&filter, "filter", "", "Show logs contain this string")
 
 	return command
 }

@@ -9,12 +9,14 @@ argocd app logs APPNAME [flags]
 ### Options
 
 ```
+      --filter string       Show logs contain this string
       --follow              Specify if the logs should be streamed
       --group string        Resource group
   -h, --help                help for logs
       --kind string         Resource kind
       --name string         Resource name
-      --since-seconds int   A relative time in seconds before the current time from which to show logs.
+      --namespace string    Resource namespace
+      --since-seconds int   A relative time in seconds before the current time from which to show logs
       --tail int            The number of lines from the end of the logs to show
       --until-time string   Show logs until this time
 ```
