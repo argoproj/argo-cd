@@ -1013,7 +1013,7 @@ Support for Git LFS enabled repositories - now you can store Helm charts as tar 
 - Wait for CRD creation during sync process (#1940)
 - Added a button to select out of sync items in the sync panel (#1902)
 - Proper handling of an excluded resource in an application (#1621)
-- Stop repeating logs on stoped container (#1614)
+- Stop repeating logs on stopped container (#1614)
 - Fix git repo url parsing on application list view (#2174)
 - Fix nil pointer dereference error during app reconciliation (#2146)
 - Fix history api fallback implementation to support app names with dots (#2114)
