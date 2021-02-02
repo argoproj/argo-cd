@@ -403,7 +403,7 @@ customizations, custom resource health checks, and more.
 ### Other
 
 * New Project and Application CRD settings ([#2900](https://github.com/argoproj/argo-cd/issues/2900), [#2873](https://github.com/argoproj/argo-cd/issues/2873)) that allows customizing Argo CD behavior.
-* Upgraded Dex (v2.22.0) enables seamless [SSO integration](https://www.openshift.com/blog/openshift-authentication-integration-with-argocd) with Openshift.
+* Upgraded Dex (v2.22.0) enables seamless [SSO integration](https://www.openshift.com/blog/openshift-authentication-integration-with-argocd) with OpenShift.
 
 
 #### Enhancements
