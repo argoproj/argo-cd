@@ -67,12 +67,6 @@ func TestEnforceAllPolicies(t *testing.T) {
 
 	claims = jwt.MapClaims{"sub": "cathy"}
 	assert.False(t, enf.Enforce(claims, "applications", "create", "my-proj/my-app"))
-	claims = jwt.MapClaims{"sub": "proj:my-proj:my-role"}
-	assert.False(t, enf.Enforce(claims, "applications", "create", "my-proj/my-app"))
-	claims = jwt.MapClaims{"sub": "proj:my-proj:other-role", "iat": 1234}
-	assert.False(t, enf.Enforce(claims, "applications", "create", "my-proj/my-app"))
-	claims = jwt.MapClaims{"groups": []string{"my-org:other-group"}}
-	assert.False(t, enf.Enforce(claims, "applications", "create", "my-proj/my-app"))
 
 	// AWS cognito returns its groups in  cognito:groups
 	rbacEnf.SetScopes([]string{"cognito:groups"})

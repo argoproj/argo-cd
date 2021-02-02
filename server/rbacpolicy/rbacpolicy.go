@@ -82,7 +82,16 @@ func (p *RBACPolicyEnforcer) GetScopes() []string {
 }
 
 func IsProjectSubject(subject string) bool {
-	return strings.HasPrefix(subject, "proj:")
+	_, _, ok := GetProjectRoleFromSubject(subject)
+	return ok
+}
+
+func GetProjectRoleFromSubject(subject string) (string, string, bool) {
+	parts := strings.Split(subject, ":")
+	if len(parts) == 3 && parts[0] == "proj" {
+		return parts[1], parts[2], true
+	}
+	return "", "", false
 }
 
 // EnforceClaims is an RBAC claims enforcer specific to the Argo CD API server
@@ -99,7 +108,7 @@ func (p *RBACPolicyEnforcer) EnforceClaims(claims jwt.Claims, rvals ...interface
 	proj := p.getProjectFromRequest(rvals...)
 	if proj != nil {
 		if IsProjectSubject(subject) {
-			return p.enforceProjectToken(subject, mapClaims, proj, rvals...)
+			return p.enforceProjectToken(subject, proj, rvals...)
 		}
 		runtimePolicy = proj.ProjectPoliciesString()
 	}
@@ -158,31 +167,17 @@ func (p *RBACPolicyEnforcer) getProjectFromRequest(rvals ...interface{}) *v1alph
 }
 
 // enforceProjectToken will check to see the valid token has not yet been revoked in the project
-func (p *RBACPolicyEnforcer) enforceProjectToken(subject string, claims jwt.MapClaims, proj *v1alpha1.AppProject, rvals ...interface{}) bool {
+func (p *RBACPolicyEnforcer) enforceProjectToken(subject string, proj *v1alpha1.AppProject, rvals ...interface{}) bool {
 	subjectSplit := strings.Split(subject, ":")
 	if len(subjectSplit) != 3 {
 		return false
 	}
-	projName, roleName := subjectSplit[1], subjectSplit[2]
+	projName, _ := subjectSplit[1], subjectSplit[2]
 	if projName != proj.Name {
 		// this should never happen (we generated a project token for a different project)
 		return false
 	}
 
-	var iat int64 = -1
-	jti, err := jwtutil.GetID(claims)
-	if err != nil || jti == "" {
-		iat, err = jwtutil.IssuedAt(claims)
-		if err != nil {
-			return false
-		}
-	}
-
-	_, _, err = proj.GetJWTToken(roleName, iat, jti)
-	if err != nil {
-		// if we get here the token is still valid, but has been revoked (no longer exists in the project)
-		return false
-	}
 	vals := append([]interface{}{subject}, rvals[1:]...)
 	return p.enf.EnforceRuntimePolicy(proj.ProjectPoliciesString(), vals...)
 

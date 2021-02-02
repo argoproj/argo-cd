@@ -1,14 +1,19 @@
 package test
 
 import (
+	"context"
+
 	"github.com/argoproj/gitops-engine/pkg/utils/testing"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	apps "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
+	appclient "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/typed/application/v1alpha1"
 	appinformer "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
 	applister "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
 )
@@ -112,6 +117,30 @@ func NewFakeSecret(policy ...string) *apiv1.Secret {
 		},
 	}
 	return &secret
+}
+
+type interfaceLister struct {
+	appProjects appclient.AppProjectInterface
+}
+
+func (l interfaceLister) List(selector labels.Selector) ([]*v1alpha1.AppProject, error) {
+	res, err := l.appProjects.List(context.Background(), metav1.ListOptions{LabelSelector: selector.String()})
+	if err != nil {
+		return nil, err
+	}
+	items := make([]*v1alpha1.AppProject, len(res.Items))
+	for i := range res.Items {
+		items[i] = &res.Items[i]
+	}
+	return items, nil
+}
+
+func (l interfaceLister) Get(name string) (*v1alpha1.AppProject, error) {
+	return l.appProjects.Get(context.Background(), name, metav1.GetOptions{})
+}
+
+func NewFakeProjListerFromInterface(appProjects appclient.AppProjectInterface) applister.AppProjectNamespaceLister {
+	return &interfaceLister{appProjects: appProjects}
 }
 
 func NewFakeProjLister(objects ...runtime.Object) applister.AppProjectNamespaceLister {

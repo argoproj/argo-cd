@@ -19,6 +19,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/util/cache/appstate"
 	"github.com/argoproj/argo-cd/util/dex"
@@ -33,6 +34,7 @@ import (
 // SessionManager generates and validates JWT tokens for login sessions.
 type SessionManager struct {
 	settingsMgr                   *settings.SettingsManager
+	projectsLister                v1alpha1.AppProjectNamespaceLister
 	client                        *http.Client
 	prov                          oidcutil.Provider
 	storage                       UserStateStorage
@@ -129,11 +131,12 @@ func getLoginFailureWindow() time.Duration {
 }
 
 // NewSessionManager creates a new session manager from Argo CD settings
-func NewSessionManager(settingsMgr *settings.SettingsManager, dexServerAddr string, storage UserStateStorage) *SessionManager {
+func NewSessionManager(settingsMgr *settings.SettingsManager, projectsLister v1alpha1.AppProjectNamespaceLister, dexServerAddr string, storage UserStateStorage) *SessionManager {
 	s := SessionManager{
 		settingsMgr:                   settingsMgr,
 		storage:                       storage,
 		sleep:                         time.Sleep,
+		projectsLister:                projectsLister,
 		verificationDelayNoiseEnabled: true,
 	}
 	settings, err := settingsMgr.GetSettings()
@@ -254,8 +257,24 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, error) {
 		return nil, err
 	}
 
+	issuedAt, err := jwtutil.IssuedAtTime(claims)
+	if err != nil {
+		return nil, err
+	}
+
 	subject := jwtutil.StringField(claims, "sub")
-	if rbacpolicy.IsProjectSubject(subject) {
+	id := jwtutil.StringField(claims, "jti")
+
+	if projName, role, ok := rbacpolicy.GetProjectRoleFromSubject(subject); ok {
+		proj, err := mgr.projectsLister.Get(projName)
+		if err != nil {
+			return nil, err
+		}
+		_, _, err = proj.GetJWTToken(role, issuedAt.Unix(), id)
+		if err != nil {
+			return nil, err
+		}
+
 		return token.Claims, nil
 	}
 
@@ -268,10 +287,6 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, error) {
 		return nil, fmt.Errorf("account %s does not have token with id %s", subject, id)
 	}
 
-	issuedAt, err := jwtutil.IssuedAtTime(claims)
-	if err != nil {
-		return nil, err
-	}
 	if account.PasswordMtime != nil && issuedAt.Before(*account.PasswordMtime) {
 		return nil, fmt.Errorf("Account password has changed since token issued")
 	}
