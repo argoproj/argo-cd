@@ -9,18 +9,17 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/dgrijalva/jwt-go/v4"
-	"github.com/stretchr/testify/assert"
-	"k8s.io/client-go/kubernetes/fake"
-
 	"github.com/argoproj/argo-cd/common"
+	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
+	"github.com/argoproj/argo-cd/test"
 	"github.com/argoproj/argo-cd/util/session"
 	"github.com/argoproj/argo-cd/util/settings"
 
+	"github.com/dgrijalva/jwt-go/v4"
+	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
+	"k8s.io/client-go/kubernetes/fake"
 )
 
 var (
@@ -177,7 +176,7 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 	settingsManagerWithoutOIDCConfig := settings.NewSettingsManager(context.Background(), kubeClientWithoutOIDCConfig, "default")
 	settingsManagerWithOIDCConfigButNoLogoutURL := settings.NewSettingsManager(context.Background(), kubeClientWithOIDCConfigButNoLogoutURL, "default")
 
-	sessionManager := session.NewSessionManager(settingsManagerWithOIDCConfig, "", session.NewInMemoryUserStateStorage())
+	sessionManager := session.NewSessionManager(settingsManagerWithOIDCConfig, test.NewFakeProjLister(), "", session.NewInMemoryUserStateStorage())
 
 	oidcHandler := NewHandler(appclientset.NewSimpleClientset(), settingsManagerWithOIDCConfig, sessionManager, "", "default")
 	oidcHandler.verifyToken = func(tokenString string) (jwt.Claims, error) {
