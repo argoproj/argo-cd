@@ -435,7 +435,7 @@ customizations, custom resource health checks, and more.
 * fix for helm repo add with flag --insecure-skip-server-verification (#3420)
 * fix: app diff --local support for helm repo. #3151 (#3407)
 * fix: Syncing apps incorrectly states "app synced", but this is not true (#3286)
-* fix: for jsonnet when it is localed in nested subdirectory and uses import (#3372)
+* fix: for jsonnet when it is located in nested subdirectory and uses import (#3372)
 * fix: Update 4.5.3 redis-ha helm manifest (#3370)
 * fix: return 401 error code if username does not exist (#3369)
 * fix: Do not panic while running hooks with short revision (#3368)
