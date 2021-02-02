@@ -94,36 +94,4 @@
         text-overflow: ellipsis;
         white-space: nowrap;
     }
-
-    & .info-popup-title {
-        font-size: 15px;
-        font-weight: bold;
-        &__timestamp {
-            display: inline-block;
-            font-weight: normal;
-        }
-    }
-
-    & .info-popup-content {
-        overflow-y: scroll;
-        margin: 20px 20px 0px 20px;
-        max-height: 300px;
-        &__data {
-            :first-child {
-                white-space: normal;
-                overflow: auto;
-            }
-        }
-    }
-
-    & .third-column-truncate {
-        overflow: hidden;
-        margin-bottom: 10px;
-        max-height: 60px;
-    }
-
-    & .view-application-status-full {
-        color: #8fa4b1;
-        cursor: pointer;
-    }
 }
