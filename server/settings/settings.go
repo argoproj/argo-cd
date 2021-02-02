@@ -111,6 +111,8 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 			tools[i] = &configManagementPlugins[i]
 		}
 		set.ConfigManagementPlugins = tools
+		set.UiBannerContent = argoCDSettings.UiBannerContent
+		set.UiBannerURL = argoCDSettings.UiBannerURL
 	}
 	if argoCDSettings.DexConfig != "" {
 		var cfg settingspkg.DexConfig
