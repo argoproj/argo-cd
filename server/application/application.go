@@ -1240,7 +1240,7 @@ func (s *Server) processOnePodLog(q *application.ApplicationPodLogsQuery, ws app
 
 	literal := ""
 	inverse := false
-	if q.Filter != nil {
+	if q.Filter != nil && *q.Filter != "" {
 		literal = *q.Filter
 		if literal[0] == '!' {
 			literal = literal[1:]
