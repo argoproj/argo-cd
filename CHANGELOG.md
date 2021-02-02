@@ -551,7 +551,7 @@ Last-minute bugs that will be addressed in 1.5.1 shortly:
 - fix: argocd-util backup produced truncated backups. import app status (#3096)
 - fix: upgrade redis-ha chart and enable haproxy (#3147)
 - fix: make dex server deployment init container resilient to restarts (#3136)
-- fix: reduct secret values of manifests stored in git (#3088)
+- fix: redact secret values of manifests stored in git (#3088)
 - fix: labels not being deleted via UI (#3081)
 - fix: HTTP|HTTPS|NO_PROXY env variable reading #3055 (#3063)
 - fix: Correct usage text for repo add command regarding insecure repos (#3068)
