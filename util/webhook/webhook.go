@@ -56,7 +56,7 @@ func NewHandler(namespace string, appClientset appclientset.Interface, set *sett
 	}
 	gitlabWebhook, err := gitlab.New(gitlab.Options.Secret(set.WebhookGitLabSecret))
 	if err != nil {
-		log.Warnf("Unable to init the Gitlab webhook")
+		log.Warnf("Unable to init the GitLab webhook")
 	}
 	bitbucketWebhook, err := bitbucket.New(bitbucket.Options.UUID(set.WebhookBitbucketUUID))
 	if err != nil {

@@ -48,7 +48,7 @@ or UI:
 Instead of using username and password you might use access token. Following instructions of your Git hosting service to generate the token:
 
 * [GitHub](https://help.github.com/en/articles/creating-a-personal-access-token-for-the-command-line)
-* [Gitlab](https://docs.gitlab.com/ee/user/project/deploy_tokens/)
+* [GitLab](https://docs.gitlab.com/ee/user/project/deploy_tokens/)
 * [Bitbucket](https://confluence.atlassian.com/bitbucketserver/personal-access-tokens-939515499.html)
 
 Then, connect the repository using any non-empty string as username and the access token value as a password. 
