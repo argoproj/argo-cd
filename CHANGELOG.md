@@ -1925,8 +1925,8 @@ RBAC policy rules, need to be rewritten to include one extra column with the eff
 + Override parameters
 
 ## v0.1.0 (2018-03-12)
-+ Define app in Github with dev and preprod environment using KSonnet
++ Define app in GitHub with dev and preprod environment using KSonnet
 + Add cluster Diff App with a cluster Deploy app in a cluster
 + Deploy a new version of the app in the cluster
-+ App sync based on Github app config change - polling only
++ App sync based on GitHub app config change - polling only
 + Basic UI: App diff between Git and k8s cluster for all environments Basic GUI
