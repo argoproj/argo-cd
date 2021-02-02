@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"io"
 	"os"
 	"reflect"
@@ -63,6 +65,8 @@ var (
 	# Set an override parameter
 	argocd app set my-app -p image.tag=v1.0.1`)
 )
+
+const DefaultLogsRetryTimes int = 2
 
 // NewApplicationCommand returns a new instance of an `argocd app` command
 func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
@@ -286,35 +290,51 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			defer argoio.Close(conn)
 			appName := args[0]
 
-			stream, err := appIf.PodLogs(context.Background(), &applicationpkg.ApplicationPodLogsQuery{
-				Name:         &appName,
-				Group:        &group,
-				Kind:         &kind,
-				ResourceName: &resourceName,
-				Follow:       follow,
-				TailLines:    tail,
-				SinceSeconds: sinceSeconds,
-				UntilTime:    &untilTime,
-			})
-			if err != nil {
-				log.Fatalf("failed to get pod logs: %v", err)
+			retryCounter := 1
+			if follow {
+				retryCounter = DefaultLogsRetryTimes
 			}
-			for {
-				msg, err := stream.Recv()
-				if err == io.EOF {
-					break
-				}
-				if err != nil {
-					log.Fatalf("stream read failed: %v", err)
-				}
-				if !msg.Last {
-					fmt.Println(msg.Content)
-				} else {
-					//This is the end
-					break
-				}
 
-			}
+			for retryCounter > 0 {
+				retryCounter--
+				stream, err := appIf.PodLogs(context.Background(), &applicationpkg.ApplicationPodLogsQuery{
+					Name:         &appName,
+					Group:        &group,
+					Kind:         &kind,
+					ResourceName: &resourceName,
+					Follow:       follow,
+					TailLines:    tail,
+					SinceSeconds: sinceSeconds,
+					UntilTime:    &untilTime,
+				})
+				if err != nil {
+					log.Fatalf("failed to get pod logs: %v", err)
+				}
+				for {
+					msg, err := stream.Recv()
+					if err == io.EOF {
+						return
+					}
+					if err != nil {
+						st, ok := status.FromError(err)
+						if !ok {
+							log.Fatalf("stream read failed: %v", err)
+						}
+						if st.Code() != codes.Unavailable || !follow {
+							log.Fatalf("stream read failed: %v", err)
+						}
+						log.Warn("stream read failed: %v.", err, "retryCounter is", retryCounter)
+						// if follow and error is unavailable, add retry
+						sinceSeconds = 1
+						break
+					}
+					if !msg.Last {
+						fmt.Println(msg.Content)
+					} else {
+						return
+					}
+				} //Done with receive message
+			} //Done with retry
 		},
 	}
 
