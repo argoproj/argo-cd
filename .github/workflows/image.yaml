@@ -42,7 +42,7 @@ jobs:
         env:
           TOKEN: ${{ secrets.TOKEN }}
       - run: |
-          docker run -v $(pwd):/src -w /src --rm -t lyft/kustomizer:v3.3.0 kustomize edit set image argoproj/argocd=docker.pkg.github.com/argoproj/argo-cd/argocd:${{ steps.image.outputs.tag }}
+          docker run -v $(pwd):/src -w /src --rm -t lyft/kustomizer:v3.3.0 kustomize edit set image quay.io/argoproj/argocd=docker.pkg.github.com/argoproj/argo-cd/argocd:${{ steps.image.outputs.tag }}
           git config --global user.email 'ci@argoproj.com'
           git config --global user.name 'CI'
           git diff --exit-code && echo 'Already deployed' || (git commit -am 'Upgrade argocd to ${{ steps.image.outputs.tag }}' && git push)
