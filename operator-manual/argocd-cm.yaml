@@ -11,20 +11,20 @@ data:
   url: https://argo-cd-demo.argoproj.io
 
   # Enables application status badge feature
-  statusbadge.enabled: 'true'
+  statusbadge.enabled: "true"
 
   # Enables anonymous user access. The anonymous users get default role permissions specified argocd-rbac-cm.yaml.
   users.anonymous.enabled: "true"
 
   # Enables google analytics tracking is specified
-  ga.trackingid: 'UA-12345-1'
+  ga.trackingid: "UA-12345-1"
   # Unless set to 'false' then user ids are hashed before sending to google analytics
-  ga.anonymizeusers: 'false'
+  ga.anonymizeusers: "false"
 
   # the URL for getting chat help, this will typically be your Slack channel for support
-  help.chatUrl: 'https://mycorp.slack.com/argo-cd'
+  help.chatUrl: "https://mycorp.slack.com/argo-cd"
   # the text for getting chat help, defaults to "Chat now!"
-  help.chatText: 'Chat now!'
+  help.chatText: "Chat now!"
 
   # A dex connector configuration (optional). See SSO configuration documentation:
   # https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/sso
@@ -242,10 +242,17 @@ data:
 
   # The location of optional user-defined CSS that is loaded at runtime.
   # Local CSS Files:
-  # - If the supplied path is to a file mounted on the argocd-server container, that file should be mounted 
+  # - If the supplied path is to a file mounted on the argocd-server container, that file should be mounted
   #   within a subdirectory of the existing "/shared/app" directory (e.g. "/shared/app/custom").  Otherwise,
   #   the file will likely fail to be imported by the browser with an "incorrect MIME type" error.
   # - The path should be specified relative to the "/shared/app" directory; not as an absolute path.
   # Remote CSS Files:
   # - Files may also be loaded from remote locations via fully qualified URLs.
   ui.cssurl: "./custom/my-styles.css"
+
+  # An optional user-defined banner message that's displayed at the top of every UI page.
+  # Every time this is updated, it will clear a user's localStorage telling the UI to hide the banner forever.
+  ui.bannercontent: "Hello there!"
+  # Optional link for banner. If set, the entire banner text will become a link.
+  # You can have bannercontent without a bannerurl, but not the other way around.
+  ui.bannerurl: "https://argoproj.github.io"
