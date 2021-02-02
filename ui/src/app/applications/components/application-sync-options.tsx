@@ -42,7 +42,7 @@ interface SyncOption {
 
 const enum SyncOptions {
     Validate = 'Validate',
-    CreateNamespace = 'Auto-create Namespace',
+    CreateNamespace = 'Auto-Create Namespace',
     Prune = 'Prune',
     DryRun = 'Dry Run',
     ApplyOnly = 'Apply Only',
@@ -57,7 +57,7 @@ const syncOptions: SyncOption[] = [
         default: true
     },
     {
-        name: 'Auto-create Namespace',
+        name: 'Auto-Create Namespace',
         key: 'CreateNamespace'
     },
     {key: 'Prune'},
