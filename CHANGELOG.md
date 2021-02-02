@@ -928,7 +928,7 @@ There may be instances when you want to control the times during which an Argo C
 ## v1.2.3 (2019-10-1)
 * Make argo-cd docker images openshift friendly (#2362) (@duboisf)
 * Add dest-server and dest-namespace field to reconciliation logs (#2354)
-- Stop loggin /repository.RepositoryService/ValidateAccess parameters (#2386)
+- Stop logging /repository.RepositoryService/ValidateAccess parameters (#2386)
 
 ## v1.2.2 (2019-09-26)
 + Resource action equivalent to `kubectl rollout restart` (#2177)
