@@ -417,7 +417,7 @@ func (a *ArgoCDServer) watchSettings() {
 			break
 		}
 		if prevOIDCConfig != a.settings.OIDCConfigRAW {
-			log.Infof("odic config modified. restarting")
+			log.Infof("oidc config modified. restarting")
 			break
 		}
 		if prevURL != a.settings.URL {
