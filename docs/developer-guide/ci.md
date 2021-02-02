@@ -12,7 +12,7 @@ To read more about The GitHub actions are configured in [`ci-build.yaml`](https:
 
 Since the CI pipeline is triggered on Git commits, there is currently no (known) way on how to retrigger the CI checks without pushing a new commit to your branch.
 
-If you are absolutely sure that the failure was due to a failure in the pipeline, and not an error within the changes you commited, you can push an empty commit to your branch, thus retriggering the pipeline without any code changes. To do so, issue
+If you are absolutely sure that the failure was due to a failure in the pipeline, and not an error within the changes you committed, you can push an empty commit to your branch, thus retriggering the pipeline without any code changes. To do so, issue
 
 ```bash
 git commit --allow-empty -m "Retrigger CI pipeline"
