@@ -30,7 +30,7 @@ export const Banner = (props: React.Props<any>) => {
                         <div className='ui-banner' style={{visibility: show ? 'visible' : 'hidden'}}>
                             <div style={{marginRight: '15px'}}>
                                 {url !== undefined ? (
-                                    <a href={url} target='_blank'>
+                                    <a href={url} target='_blank' rel='noopener noreferrer'>
                                         {content}
                                     </a>
                                 ) : (
