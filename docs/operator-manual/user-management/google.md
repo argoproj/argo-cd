@@ -44,7 +44,7 @@ data:
 
 6. Add SAML Attribute Mapping, Map `Primary email` to `name` and `Primary Email` to `email`. and click `ADD MAPPING` button.
 
-    ![Google Admin SAML Attribute Mapping Details](../../assets/google-admin-saml-attribute-mapping-details.png "A screenshot of the Google Admin SAML Attribut Mapping Details")
+    ![Google Admin SAML Attribute Mapping Details](../../assets/google-admin-saml-attribute-mapping-details.png "A screenshot of the Google Admin SAML Attribute Mapping Details")
 
 7. Finish creating the application.
 
