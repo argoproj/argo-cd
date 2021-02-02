@@ -2707,8 +2707,11 @@ func (proj *AppProject) NormalizeJWTTokens() bool {
 }
 
 func syncJWTTokenBetweenStatusAndSpec(proj *AppProject) bool {
+	existingRole := map[string]bool{}
 	needSync := false
 	for roleIndex, role := range proj.Spec.Roles {
+		existingRole[role.Name] = true
+
 		tokensInSpec := role.JWTTokens
 		tokensInStatus := []JWTToken{}
 		if proj.Status.JWTTokensByRole == nil {
@@ -2731,8 +2734,16 @@ func syncJWTTokenBetweenStatusAndSpec(proj *AppProject) bool {
 
 		proj.Spec.Roles[roleIndex].JWTTokens = tokens
 		proj.Status.JWTTokensByRole[role.Name] = JWTTokens{Items: tokens}
-
 	}
+	if proj.Status.JWTTokensByRole != nil {
+		for role := range proj.Status.JWTTokensByRole {
+			if !existingRole[role] {
+				delete(proj.Status.JWTTokensByRole, role)
+				needSync = true
+			}
+		}
+	}
+
 	return needSync
 }
 
