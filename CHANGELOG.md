@@ -1433,7 +1433,7 @@ has a minimum client version of v0.12.0. Older CLI clients will be rejected.
 * Deprecate componentParameterOverrides in favor of source specific config (#1207)
 * Support talking to Dex using local cluster address instead of public address (#1211)
 * Use Recreate deployment strategy for controller (#1315)
-* Honor os environment variables for helm commands (#1306) (@1337andre)
+* Honor OS environment variables for helm commands (#1306) (@1337andre)
 * Disable CGO_ENABLED for server/controller binaries (#1286)
 * Documentation fixes and improvements (@twz123, @yann-soubeyrand, @OmerKahani, @dulltz)
 - Fix CRD creation/deletion handling (#1249)
