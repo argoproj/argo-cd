@@ -324,7 +324,7 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 						if st.Code() != codes.Unavailable || !follow {
 							log.Fatalf("stream read failed: %v", err)
 						}
-						log.Warn("stream read failed: %v.", err, "retryCounter is", retryCounter)
+						log.Warn("stream read failed: %v.", err, " retryCounter is ", retryCounter)
 						// if follow and error is unavailable, add retry
 						sinceSeconds = 1
 						break
