@@ -206,7 +206,7 @@ In addition to new features and enhancements, we’ve fixed more than 50 bugs an
 ## v1.7.5 (2020-09-15)
 
 - fix: app create with -f should not ignore other options (#4322)
-- fix: limit concurrent list requests accross all clusters (#4328)
+- fix: limit concurrent list requests across all clusters (#4328)
 - fix: fix possible deadlock in /v1/api/stream/applications and /v1/api/application APIs (#4315)
 - fix: WatchResourceTree does not enforce RBAC (#4311)
 - fix: app refresh API should use app resource version (#4303)
