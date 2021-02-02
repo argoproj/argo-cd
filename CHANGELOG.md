@@ -340,7 +340,7 @@ use cases, such as bootstrapping a Kubernetes cluster, or decentralized manageme
 
 #### Other
 
-- refactoring: Gitops engine (#3066)
+- refactoring: GitOps engine (#3066)
 
 ## v1.5.8 (2020-06-16)
 
