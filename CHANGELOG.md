@@ -846,7 +846,7 @@ There may be instances when you want to control the times during which an Argo C
 #### Bug Fixes
 
 - failed parsing on parameters with comma (#1660)
-- Statefulset with OnDelete Update Strategy stuck progressing (#1881)
+- StatefulSet with OnDelete Update Strategy stuck progressing (#1881)
 - Warning during secret diffing (#1923)
 - Error message "Unable to load data: key is missing" is confusing (#1944)
 - OIDC group bindings are truncated (#2006)
