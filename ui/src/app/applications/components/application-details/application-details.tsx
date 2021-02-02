@@ -503,42 +503,42 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         return [
             {
                 iconClassName: 'fa fa-info-circle',
-                title: <span className='show-for-medium'>App Details</span>,
+                title: <span className='show-for-large'>App Details</span>,
                 action: () => this.selectNode(fullName)
             },
             {
                 iconClassName: 'fa fa-file-medical',
-                title: <span className='show-for-medium'>App Diff</span>,
+                title: <span className='show-for-large'>App Diff</span>,
                 action: () => this.selectNode(fullName, 0, 'diff'),
                 disabled: app.status.sync.status === appModels.SyncStatuses.Synced
             },
             {
                 iconClassName: 'fa fa-sync',
-                title: <span className='show-for-medium'>Sync</span>,
+                title: <span className='show-for-large'>Sync</span>,
                 action: () => AppUtils.showDeploy('all', this.appContext)
             },
             {
                 iconClassName: 'fa fa-info-circle',
-                title: <span className='show-for-medium'>Sync Status</span>,
+                title: <span className='show-for-large'>Sync Status</span>,
                 action: () => this.setOperationStatusVisible(true),
                 disabled: !app.status.operationState
             },
             {
                 iconClassName: 'fa fa-history',
-                title: <span className='show-for-medium'>History and rollback</span>,
+                title: <span className='show-for-large'>History and rollback</span>,
                 action: () => this.setRollbackPanelVisible(0),
                 disabled: !app.status.operationState
             },
             {
                 iconClassName: 'fa fa-times-circle',
-                title: <span className='show-for-medium'>Delete</span>,
+                title: <span className='show-for-large'>Delete</span>,
                 action: () => this.deleteApplication()
             },
             {
                 iconClassName: classNames('fa fa-redo', {'status-icon--spin': !!refreshing}),
                 title: (
                     <React.Fragment>
-                        <span className='show-for-medium'>Refresh</span>{' '}
+                        <span className='show-for-large'>Refresh</span>{' '}
                         <DropDownMenu
                             items={[
                                 {
