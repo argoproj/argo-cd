@@ -9,7 +9,7 @@ argocd proj role create-token PROJECT ROLE-NAME [flags]
 ### Options
 
 ```
-  -e, --expires-in string   Duration before the token will expire, eg "12h", "7d". (Default: No expiration)
+  -e, --expires-in string   Duration before the token will expire, e.g. "12h", "7d". (Default: No expiration)
   -h, --help                help for create-token
   -i, --id string           Token unique identifier. (Default: Random UUID)
   -t, --token-only          Output token only - for use in scripts.

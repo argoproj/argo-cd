@@ -26,7 +26,7 @@ data:
 
     ![Google Admin Add Custom SAML App](../../assets/google-admin-saml-add-app-menu.png "Add apps menu with add custom SAML app highlighted")
 
-3. Enter a `Name` for the application (eg. `Argo CD`), then choose `Continue`
+3. Enter a `Name` for the application (e.g. `Argo CD`), then choose `Continue`
 
     ![Google Admin Apps Menu](../../assets/google-admin-saml-app-details.png "Add apps menu with add custom SAML app highlighted")
 
@@ -61,7 +61,7 @@ data:
       id: saml
       name: saml
       config:
-        ssoURL: https://sso-url (eg. https://accounts.google.com/o/saml2/idp?idpid=Abcde0)
+        ssoURL: https://sso-url (e.g. https://accounts.google.com/o/saml2/idp?idpid=Abcde0)
         entityIssuer: https://argocd.example.com/api/dex/callback
         caData: |
           BASE64-ENCODED-CERTIFICATE-DATA
