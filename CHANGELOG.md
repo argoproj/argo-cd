@@ -661,7 +661,7 @@ an in-flight state for all Kubernetes resources including `Deployment`, `PVC`, `
 [Sync Waves](https://argoproj.github.io/argo-cd/user-guide/sync-waves/) instead.
 
 #### Enhancements
-* feat: Add custom healthchecks for cert-manager v0.11.0 (#2689) 
+* feat: Add custom health checks for cert-manager v0.11.0 (#2689) 
 * feat: add git submodule support (#2495)
 * feat: Add repository credential management API and CLI (addresses #2136) (#2207)
 * feat: add support for --additional-headers cli flag (#2467)
