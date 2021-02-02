@@ -745,7 +745,7 @@ type RepositoryServiceClient interface {
 	// ListRepositories gets a list of all configured repositories
 	ListRepositories(ctx context.Context, in *RepoQuery, opts ...grpc.CallOption) (*v1alpha1.RepositoryList, error)
 	ListRefs(ctx context.Context, in *RepoQuery, opts ...grpc.CallOption) (*apiclient.Refs, error)
-	// ListApps returns list of apps in the repe
+	// ListApps returns list of apps in the repo
 	ListApps(ctx context.Context, in *RepoAppsQuery, opts ...grpc.CallOption) (*RepoAppsResponse, error)
 	// GetAppDetails returns application details by given path
 	GetAppDetails(ctx context.Context, in *RepoAppDetailsQuery, opts ...grpc.CallOption) (*apiclient.RepoAppDetailsResponse, error)
@@ -914,7 +914,7 @@ type RepositoryServiceServer interface {
 	// ListRepositories gets a list of all configured repositories
 	ListRepositories(context.Context, *RepoQuery) (*v1alpha1.RepositoryList, error)
 	ListRefs(context.Context, *RepoQuery) (*apiclient.Refs, error)
-	// ListApps returns list of apps in the repe
+	// ListApps returns list of apps in the repo
 	ListApps(context.Context, *RepoAppsQuery) (*RepoAppsResponse, error)
 	// GetAppDetails returns application details by given path
 	GetAppDetails(context.Context, *RepoAppDetailsQuery) (*apiclient.RepoAppDetailsResponse, error)

@@ -117,7 +117,7 @@ service RepositoryService {
 		option (google.api.http).get = "/api/v1/repositories/{repo}/refs";
 	}
 
-	// ListApps returns list of apps in the repe
+	// ListApps returns list of apps in the repo
 	rpc ListApps(RepoAppsQuery) returns (RepoAppsResponse) {
 		option (google.api.http).get = "/api/v1/repositories/{repo}/apps";
 	}
