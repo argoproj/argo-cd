@@ -12,9 +12,9 @@ kind: Deployment
 metadata:
   name: my-svc
   annotations:
-    argocd.argoproj.io/external-link: http://my-grafana.com/pre-generated-link
+    link.argocd.argoproj.io/external-link: http://my-grafana.com/pre-generated-link
 ```
-![External link](../assets/external-link-2.png)
+![External link](../assets/external-link.png)
 
 The external link icon will be visible for respective resource on ArgoCD application details page.
 
