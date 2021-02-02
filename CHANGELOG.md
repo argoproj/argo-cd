@@ -1069,7 +1069,7 @@ optimized which significantly reduced the number of Git requests. With v1.1 rele
 #### User Defined Application Metadata
 
 User-defined Application metadata enables the user to define a list of useful URLs for their specific application and expose those links on the UI
-(e.g. reference tp a CI pipeline or an application-specific management tool). These links should provide helpful shortcuts that make easier to integrate Argo CD into existing
+(e.g. reference to a CI pipeline or an application-specific management tool). These links should provide helpful shortcuts that make easier to integrate Argo CD into existing
 systems by making it easier to find other components inside and outside Argo CD.
 
 ### Deprecation Notice
