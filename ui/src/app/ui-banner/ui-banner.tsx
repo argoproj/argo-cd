@@ -14,12 +14,17 @@ export const Banner = (props: React.Props<any>) => {
                 })
             }>
             {({content, url, prefs}: {content: string; url: string; prefs: ViewPreferences}) => {
-                const prevContent = prefs.bannerContent;
-                let show = visible && prefs.showBanner;
-                if (prevContent !== content) {
-                    services.viewPreferences.updatePreferences({...prefs, showBanner: true, bannerContent: content});
-                    show = visible;
+                let show = false;
+                if (!content || content === '' || content === null) {
+                    if (prefs.hideBannerContent) {
+                        services.viewPreferences.updatePreferences({...prefs, hideBannerContent: null});
+                    }
+                } else {
+                    if (prefs.hideBannerContent !== content) {
+                        show = true;
+                    }
                 }
+                show = show && visible;
                 return (
                     <React.Fragment>
                         <div className='ui-banner' style={{visibility: show ? 'visible' : 'hidden'}}>
@@ -35,7 +40,7 @@ export const Banner = (props: React.Props<any>) => {
                             <button className='argo-button argo-button--base' style={{marginRight: '5px'}} onClick={() => setVisible(false)}>
                                 Dismiss for now
                             </button>
-                            <button className='argo-button argo-button--base' onClick={() => services.viewPreferences.updatePreferences({...prefs, showBanner: false})}>
+                            <button className='argo-button argo-button--base' onClick={() => services.viewPreferences.updatePreferences({...prefs, hideBannerContent: content})}>
                                 Don't show again
                             </button>
                         </div>

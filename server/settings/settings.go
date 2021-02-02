@@ -99,8 +99,6 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 		UserLoginsDisabled: userLoginsDisabled,
 		KustomizeVersions:  kustomizeVersions,
 		UiCssURL:           argoCDSettings.UiCssURL,
-		UiBannerContent:    argoCDSettings.UiBannerContent,
-		UiBannerURL:        argoCDSettings.UiBannerURL,
 	}
 
 	if sessionmgr.LoggedIn(ctx) || s.disableAuth {
@@ -113,6 +111,8 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 			tools[i] = &configManagementPlugins[i]
 		}
 		set.ConfigManagementPlugins = tools
+		set.UiBannerContent = argoCDSettings.UiBannerContent
+		set.UiBannerURL = argoCDSettings.UiBannerURL
 	}
 	if argoCDSettings.DexConfig != "" {
 		var cfg settingspkg.DexConfig

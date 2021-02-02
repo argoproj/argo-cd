@@ -933,9 +933,13 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 		}
 		if settings.UiBannerContent != "" {
 			argoCDCM.Data[settingUiBannerContentKey] = settings.UiBannerContent
+		} else {
+			delete(argoCDCM.Data, settingUiBannerContentKey)
 		}
 		if settings.UiBannerURL != "" {
 			argoCDCM.Data[settingUiBannerURLKey] = settings.UiBannerURL
+		} else {
+			delete(argoCDCM.Data, settingUiBannerURLKey)
 		}
 		return nil
 	})
