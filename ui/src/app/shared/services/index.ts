@@ -10,7 +10,6 @@ import {RepoCredsService} from './repocreds-service';
 import {UserService} from './user-service';
 import {VersionService} from './version-service';
 import {ViewPreferencesService} from './view-preferences-service';
-
 export interface Services {
     applications: ApplicationsService;
     users: UserService;

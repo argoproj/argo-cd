@@ -3416,6 +3416,12 @@
         "statusBadgeEnabled": {
           "type": "boolean"
         },
+        "uiBannerContent": {
+          "type": "string"
+        },
+        "uiBannerURL": {
+          "type": "string"
+        },
         "uiCssURL": {
           "type": "string"
         },
