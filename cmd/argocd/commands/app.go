@@ -67,8 +67,6 @@ var (
 	argocd app set my-app -p image.tag=v1.0.1`)
 )
 
-const DefaultLogsRetryTimes int = 2
-
 // NewApplicationCommand returns a new instance of an `argocd app` command
 func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
@@ -292,12 +290,11 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			appName := args[0]
 
 			retryCounter := 1
-			if follow {
-				retryCounter = DefaultLogsRetryTimes
-			}
-
 			for retryCounter > 0 {
-				retryCounter--
+				//If follow, keep retry.
+				if !follow {
+					retryCounter--
+				}
 				stream, err := appIf.PodLogs(context.Background(), &applicationpkg.ApplicationPodLogsQuery{
 					Name:         &appName,
 					Group:        &group,
@@ -324,7 +321,7 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 						if st.Code() != codes.Unavailable || !follow {
 							log.Fatalf("stream read failed: %v", err)
 						}
-						log.Warnf("stream read failed: %v. retryCounter: %v", err, retryCounter)
+						log.Debugf("stream read failed: %v. retryCounter: %v", err, retryCounter)
 						// if follow and error is unavailable, add retry
 						sinceSeconds = 1
 						break
