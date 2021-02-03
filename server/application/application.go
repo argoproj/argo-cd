@@ -60,6 +60,8 @@ import (
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
+const maxPodLogsToRender = 10
+
 var (
 	watchAPIBufferSize = env.ParseNumFromEnv(argocommon.EnvWatchAPIBufferSize, 1000, 0, math.MaxInt32)
 )
@@ -1071,6 +1073,10 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 	pods := getSelectedPods(tree.Nodes, q)
 	if len(pods) == 0 {
 		return nil
+	}
+
+	if len(pods) > maxPodLogsToRender {
+		return errors.New("Max pods to view logs are reached. Please provide more granular query.")
 	}
 
 	var wg gosync.WaitGroup

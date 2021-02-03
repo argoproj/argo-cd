@@ -292,10 +292,7 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 			retry := true
 			for retry {
-				//If not follow, no need to retry.
-				if !follow {
-					retry = false
-				}
+				retry = false
 				stream, err := appIf.PodLogs(context.Background(), &applicationpkg.ApplicationPodLogsQuery{
 					Name:         &appName,
 					Group:        &group,
@@ -321,13 +318,12 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 						if !ok {
 							log.Fatalf("stream read failed: %v", err)
 						}
-						if st.Code() != codes.Unavailable || !follow {
-							log.Fatalf("stream read failed: %v", err)
+						if st.Code() == codes.Unavailable && follow {
+							retry = true
+							sinceSeconds = 1
+							break
 						}
-						log.Debugf("stream read failed: %v.", err)
-						// if follow and error is unavailable, retry sinceSeconds = 1
-						sinceSeconds = 1
-						break
+						log.Fatalf("stream read failed: %v", err)
 					}
 					if !msg.Last {
 						fmt.Println(msg.Content)
