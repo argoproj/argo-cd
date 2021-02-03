@@ -60,6 +60,7 @@ func (s *Server) Version(context.Context, *empty.Empty) (*version.VersionMessage
 		KustomizeVersion: s.kustomizeVersion,
 		HelmVersion:      s.helmVersion,
 		JsonnetVersion:   s.jsonnetVersion,
+		KubectlVersion:   vers.KubectlVersion,
 	}, nil
 }
 
