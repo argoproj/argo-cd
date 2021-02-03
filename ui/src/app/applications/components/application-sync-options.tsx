@@ -31,50 +31,54 @@ function booleanOption(name: string, label: string, defaultVal: boolean, props: 
     );
 }
 
-const optionStyle: React.CSSProperties = {marginTop: '0.5em'};
-
-interface SyncOption {
-    name?: string;
-    key: SyncOptionKey;
-    value?: boolean;
-    default?: boolean;
-}
-
-const enum SyncOptions {
-    Validate = 'Validate',
-    CreateNamespace = 'Auto-Create Namespace',
+enum ManualSyncFlags {
     Prune = 'Prune',
     DryRun = 'Dry Run',
     ApplyOnly = 'Apply Only',
     Force = 'Force'
 }
 
-type SyncOptionKey = keyof typeof SyncOptions;
+enum SyncOptions {
+    Validate = 'Skip Schema Validation',
+    CreateNamespace = 'Auto-Create Namespace',
+    PruneLast = 'Prune Last',
+    ApplyOutOfSyncOnly = 'Apply Out of Sync Only'
+}
 
-const syncOptions: SyncOption[] = [
-    {
-        key: 'Validate',
-        default: true
-    },
-    {
-        name: 'Auto-Create Namespace',
-        key: 'CreateNamespace'
-    },
-    {key: 'Prune'},
-    {key: 'DryRun', name: 'Dry Run'},
-    {key: 'ApplyOnly', name: 'Apply Only'},
-    {key: 'Force'}
-];
+type SyncCheckboxKey = keyof typeof SyncOptions | keyof typeof ManualSyncFlags;
+
+const optionStyle = {marginTop: '0.5em'};
 
 export const ApplicationSyncOptions = (props: ApplicationSyncOptionProps) => (
     <React.Fragment>
-        {syncOptions.map(opt => (
-            <div key={opt.key} style={optionStyle}>
-                {booleanOption(opt.key, opt.name || opt.key, !!opt.default, props)}
+        {Object.keys(SyncOptions).map(opt => (
+            <div key={opt} style={optionStyle}>
+                {booleanOption(opt, SyncOptions[opt as keyof typeof SyncOptions], false, props)}
             </div>
         ))}
     </React.Fragment>
 );
+
+export const ApplicationManualSyncFlags = (init: {[key: string]: boolean}, onChanged: (vals: {[key: string]: boolean}) => any) => {
+    return (
+        <React.Fragment>
+            {Object.keys(ManualSyncFlags).map(flag => (
+                <div key={flag} style={optionStyle}>
+                    <Checkbox
+                        id={`sync-option-${flag}`}
+                        checked={init[flag]}
+                        onChange={(val: boolean) => {
+                            const changed = {...init};
+                            changed[flag] = val;
+                            onChanged(changed);
+                        }}
+                    />
+                    <label htmlFor={`sync-option-${flag}`}>{ManualSyncFlags[flag as keyof typeof ManualSyncFlags]}</label>
+                </div>
+            ))}
+        </React.Fragment>
+    );
+};
 
 export const ApplicationSyncOptionsField = ReactForm.FormField((props: {fieldApi: ReactForm.FieldApi}) => {
     const {
@@ -94,13 +98,13 @@ export const ApplicationSyncOptionsField = ReactForm.FormField((props: {fieldApi
     );
 });
 
-export const StringsToSyncOptions = (rawOpts: string[]): {[key: string]: SyncOption} => {
-    const map: {[key: string]: SyncOption} = {};
+export const StringsToSyncOptions = (rawOpts: string[]): {[key: string]: boolean} => {
+    const map: {[key: string]: boolean} = {};
     rawOpts.forEach(opt => {
         const split = opt.split('=');
-        const key = split[0] as SyncOptionKey;
+        const key = split[0] as SyncCheckboxKey;
         const value = split[1] === 'true';
-        return (map[key] = {key, value});
+        return (map[key] = value);
     });
     return map;
 };

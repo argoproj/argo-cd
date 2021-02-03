@@ -1224,6 +1224,9 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 	if syncReq.RetryStrategy != nil {
 		retry = syncReq.RetryStrategy
 	}
+	if syncReq.SyncOptions != nil {
+		syncOptions = syncReq.SyncOptions.Items
+	}
 
 	// We cannot use local manifests if we're only allowed to sync to signed commits
 	if syncReq.Manifests != nil && len(proj.Spec.SignatureKeys) > 0 {

@@ -63,20 +63,13 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                     syncOpts = StringsToSyncOptions(params.syncPolicy.syncOptions);
                                 }
 
-                                if (syncOpts.ApplyOnly.value) {
-                                    syncStrategy.apply = {force: syncOpts.Force.value};
+                                if (syncOpts.ApplyOnly) {
+                                    syncStrategy.apply = {force: syncOpts.Force};
                                 } else {
-                                    syncStrategy.hook = {force: syncOpts.Force.value};
+                                    syncStrategy.hook = {force: syncOpts.Force};
                                 }
                                 try {
-                                    await services.applications.sync(
-                                        application.metadata.name,
-                                        params.revision,
-                                        syncOpts.prune.value,
-                                        syncOpts.dryRun.value,
-                                        syncStrategy,
-                                        resources
-                                    );
+                                    await services.applications.sync(application.metadata.name, params.revision, syncOpts.prune, syncOpts.dryRun, syncStrategy, resources);
                                     hide();
                                 } catch (e) {
                                     ctx.notifications.show({

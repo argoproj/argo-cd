@@ -3184,6 +3184,9 @@
         },
         "strategy": {
           "$ref": "#/definitions/v1alpha1SyncStrategy"
+        },
+        "syncOptions": {
+          "$ref": "#/definitions/applicationSyncOptions"
         }
       }
     },
@@ -3262,6 +3265,17 @@
           "type": "array",
           "items": {
             "$ref": "#/definitions/v1alpha1ResourceAction"
+          }
+        }
+      }
+    },
+    "applicationSyncOptions": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "string"
           }
         }
       }
