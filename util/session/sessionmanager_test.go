@@ -6,6 +6,7 @@ import (
 	"math"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -33,11 +34,18 @@ func getProjLister(objects ...runtime.Object) v1alpha1.AppProjectNamespaceLister
 	return test.NewFakeProjListerFromInterface(apps.NewSimpleClientset(objects...).ArgoprojV1alpha1().AppProjects("argocd"))
 }
 
-func getKubeClient(pass string, enabled bool) *fake.Clientset {
+func getKubeClient(pass string, enabled bool, capabilities ...settings.AccountCapability) *fake.Clientset {
 	const defaultSecretKey = "Hello, world!"
 
 	bcrypt, err := password.HashPassword(pass)
 	errors.CheckError(err)
+	if len(capabilities) == 0 {
+		capabilities = []settings.AccountCapability{settings.AccountCapabilityLogin, settings.AccountCapabilityApiKey}
+	}
+	var capabilitiesStr []string
+	for i := range capabilities {
+		capabilitiesStr = append(capabilitiesStr, string(capabilities[i]))
+	}
 
 	return fake.NewSimpleClientset(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -48,6 +56,7 @@ func getKubeClient(pass string, enabled bool) *fake.Clientset {
 			},
 		},
 		Data: map[string]string{
+			"admin":         strings.Join(capabilitiesStr, ","),
 			"admin.enabled": strconv.FormatBool(enabled),
 		},
 	}, &corev1.Secret{
@@ -93,13 +102,10 @@ func TestSessionManager_AdminToken(t *testing.T) {
 }
 
 func TestSessionManager_AdminToken_Deactivated(t *testing.T) {
-	const (
-		defaultSubject = "admin"
-	)
 	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("pass", false), "argocd")
 	mgr := newSessionManager(settingsMgr, getProjLister(), NewInMemoryUserStateStorage())
 
-	token, err := mgr.Create(defaultSubject, 0, "")
+	token, err := mgr.Create("admin", 0, "")
 	if err != nil {
 		t.Errorf("Could not create token: %v", err)
 	}
@@ -107,6 +113,20 @@ func TestSessionManager_AdminToken_Deactivated(t *testing.T) {
 	_, err = mgr.Parse(token)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "account admin is disabled")
+}
+
+func TestSessionManager_AdminToken_LoginCapabilityDisabled(t *testing.T) {
+	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("pass", true, settings.AccountCapabilityLogin), "argocd")
+	mgr := newSessionManager(settingsMgr, getProjLister(), NewInMemoryUserStateStorage())
+
+	token, err := mgr.Create("admin", 0, "abc")
+	if err != nil {
+		t.Errorf("Could not create token: %v", err)
+	}
+
+	_, err = mgr.Parse(token)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "account admin does not have 'apiKey' capability")
 }
 
 func TestSessionManager_ProjectToken(t *testing.T) {
