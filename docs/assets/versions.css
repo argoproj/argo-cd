@@ -1,0 +1,172 @@
+.md-header-nav__title {
+  display: flex;
+}
+
+.dropdown-caret {
+  display: inline-block !important;
+  position: absolute;
+  right: 4px;
+}
+
+.fa .fa-caret-down {
+  display: none !important;
+}
+
+.rst-other-versions {
+  text-align: right;
+}
+
+.rst-other-versions > dl, .rst-other-versions dt, .rst-other-versions small {
+  display: none;
+}
+
+.rst-other-versions > dl:first-child {
+  display: flex !important;
+  flex-direction: column;
+  line-height: 0px !important;
+}
+
+.rst-versions.shift-up .rst-other-versions {
+  display: flex !important;
+}
+
+.rst-versions .rst-other-versions {
+  display: none;
+}
+
+/* Version Warning */
+div[data-md-component=announce] {
+  background-color: rgba(255,145,0,.1);
+}
+div[data-md-component=announce]>div#announce-msg{
+  color: var(--md-admonition-fg-color);
+  font-size: .8rem;
+  text-align: center;
+  margin: 15px;
+}
+div[data-md-component=announce]>div#announce-msg>a{
+  color: var(--md-typeset-a-color);
+  text-decoration: underline;
+}
+
+/* from https://assets.readthedocs.org/static/css/badge_only.css,
+most styles have to be overriden here */
+.rst-versions{
+  position: relative !important;
+  bottom: 0;
+  left: 0;
+  width: 100px !important;
+  background: hsla(173, 100%, 24%, 1) !important;
+  font-family: inherit !important;
+  z-index: 0 !important;
+}
+.rst-versions a{
+  color:#2980B9;
+  text-decoration:none
+}
+.rst-versions .rst-badge-small{
+  display:none
+}
+.rst-versions .rst-current-version{
+  padding:12px;
+  background: hsla(173, 100%, 24%, 1) !important;
+  display:block;
+  text-align:right;
+  font-size:90%;
+  cursor:pointer;
+  color: white !important;
+  *zoom:1
+}
+.rst-versions .rst-current-version:before,.rst-versions .rst-current-version:after{
+  display:table;content:""
+}
+.rst-versions .rst-current-version:after{
+  clear:both
+}
+.rst-versions .rst-current-version .fa{
+  color:#fcfcfc
+}
+.rst-versions .rst-current-version .fa-caret-down{
+  display: none;
+}
+.rst-versions.shift-up .rst-other-versions{
+  display:block
+}
+.rst-versions .rst-other-versions{
+  font-size:90%;
+  padding:12px;
+  color:gray;
+  display:none
+}
+.rst-versions .rst-other-versions hr{
+  display: none !important;
+  height: 0px !important;
+  border: 0px;
+  margin: 0px !important;
+  padding: 0px;
+  border-top: none !important;
+}
+.rst-versions .rst-other-versions dd{
+  display:inline-block;
+  margin:0
+}
+.rst-versions .rst-other-versions dd a{
+  display:inline-block;
+  padding: 1em 0em !important;
+  color:#fcfcfc;
+  font-size: .6rem !important;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  width: 80px;
+}
+.rst-versions .rst-other-versions dd a:hover{
+  font-size: .7rem !important;
+  font-weight: bold;
+}
+.rst-versions.rst-badge{
+  display: block !important;
+  width: 100px !important;
+  bottom: 0px !important;
+  right: 0px !important;
+  left:auto;
+  border:none;
+  text-align: center !important;
+  line-height: 0;
+}
+.rst-versions.rst-badge .icon-book{
+  display: none;
+}
+.rst-versions.rst-badge .fa-book{
+  display: none !important;
+}
+.rst-versions.rst-badge.shift-up .rst-current-version{
+  text-align: left !important;
+}
+.rst-versions.rst-badge.shift-up .rst-current-version .fa-book{
+  display: none !important;
+}
+.rst-versions.rst-badge.shift-up .rst-current-version .icon-book{
+  display: none !important;
+}
+.rst-versions.rst-badge .rst-current-version{
+  width: 70px !important;
+  height: 2.4rem !important;
+  line-height:2.4rem !important;
+  padding: 0px 5px !important;
+  display: inline-block !important;
+  font-size: .6rem !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  text-align: left !important;
+}
+@media screen and (max-width: 768px){
+  .rst-versions{
+      width:85%;
+      display:none
+  }
+  .rst-versions.shift{
+      display:block
+  }
+}
