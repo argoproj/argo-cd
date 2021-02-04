@@ -26,7 +26,6 @@ setTimeout(function() {
   CSSLink.href = '/assets/versions.css';
   document.getElementsByTagName('head')[0].appendChild(CSSLink);
 
-  // this project link will need to be changed depending on the project name
   var script = document.createElement('script');
   script.src = 'https://argo-cd.readthedocs.io/_/api/v2/footer_html/?'+
       'callback=' + callbackName + '&project=argo-cd&page=&theme=mkdocs&format=jsonp&docroot=docs&source_suffix=.md&version=' + (window['READTHEDOCS_DATA'] || { version: 'latest' }).version;
@@ -35,11 +34,10 @@ setTimeout(function() {
 
 // VERSION WARNINGS
 window.addEventListener("DOMContentLoaded", function() {
-  if ((window['READTHEDOCS_DATA']).version !== "latest") {
-    document.querySelector("div[data-md-component=announce]").innerHTML = "<div id='announce-msg'>You are viewing the docs for a previous version of Argo CD, <a href='https://argo-cd.readthedocs.io/en/latest/'>click here to go to the latest version.</a></div>"
+  if ((window['READTHEDOCS_DATA']).version === "latest") {
+    document.querySelector("div[data-md-component=announce]").innerHTML = "<div id='announce-msg'>You are viewing the docs for an unreleased version of Argo CD, <a href='https://argo-cd.readthedocs.io/en/stable/'>click here to go to the latest stable version.</a></div>"
   }
-
-  // if ((window['READTHEDOCS_DATA']).version === "latest") {
-  //   document.querySelector("div[data-md-component=announce]").innerHTML = "<div id='announce-msg'>Yay you're on the latest version of docs!</div>"
-  // }
+  if ((window['READTHEDOCS_DATA']).version !== "latest" || (window['READTHEDOCS_DATA']).version !== "stable") {
+    document.querySelector("div[data-md-component=announce]").innerHTML = "<div id='announce-msg'>You are viewing the docs for a previous version of Argo CD, <a href='https://argo-cd.readthedocs.io/en/stable/'>click here to go to the latest stable version.</a></div>"
+  }
 }); 
