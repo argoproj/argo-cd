@@ -614,10 +614,10 @@ func TestListHelmRepositoriesWithMissingSecret(t *testing.T) {
 	repo = repos[1]
 	assert.NotNil(t, repo.ConnectionState)
 	assert.Equal(t, v1alpha1.ConnectionStatusFailed, repo.ConnectionState.Status)
-	assert.Equal(t, "secret \"test-secret-missing\" not found", repo.ConnectionState.Message)
+	assert.Equal(t, "Configuration error - please check the server logs", repo.ConnectionState.Message)
 
 	repo = repos[2]
 	assert.NotNil(t, repo.ConnectionState)
 	assert.Equal(t, v1alpha1.ConnectionStatusFailed, repo.ConnectionState.Status)
-	assert.Equal(t, "secret \"test-secret\" did not contain key \"username-missing\"", repo.ConnectionState.Message)
+	assert.Equal(t, "Configuration error - please check the server logs", repo.ConnectionState.Message)
 }
