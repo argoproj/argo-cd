@@ -37,7 +37,7 @@ window.addEventListener("DOMContentLoaded", function() {
   if ((window['READTHEDOCS_DATA']).version === "latest") {
     document.querySelector("div[data-md-component=announce]").innerHTML = "<div id='announce-msg'>You are viewing the docs for an unreleased version of Argo CD, <a href='https://argo-cd.readthedocs.io/en/stable/'>click here to go to the latest stable version.</a></div>"
   }
-  if ((window['READTHEDOCS_DATA']).version !== "latest" || (window['READTHEDOCS_DATA']).version !== "stable") {
+  else if ((window['READTHEDOCS_DATA']).version !== "stable") {
     document.querySelector("div[data-md-component=announce]").innerHTML = "<div id='announce-msg'>You are viewing the docs for a previous version of Argo CD, <a href='https://argo-cd.readthedocs.io/en/stable/'>click here to go to the latest stable version.</a></div>"
   }
 }); 
