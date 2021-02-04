@@ -155,6 +155,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	//Ask cache's to not cache the contents in order prevent the badge from becoming stale
 	w.Header().Set("Cache-Control", "private, no-store")
+
+	//Allow badges to be fetched via XHR from frontend applications without running into CORS issues
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte(badge))
 }
