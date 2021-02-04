@@ -242,7 +242,7 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, error) {
 	// head of the token to identify which key to use, but the parsed token (head and claims) is provided
 	// to the callback, providing flexibility.
 	var claims jwt.MapClaims
-	settings, err := mgr.settingsMgr.GetSettings()
+	argoCDSettings, err := mgr.settingsMgr.GetSettings()
 	if err != nil {
 		return nil, err
 	}
@@ -251,7 +251,7 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
 		}
-		return settings.ServerSignature, nil
+		return argoCDSettings.ServerSignature, nil
 	})
 	if err != nil {
 		return nil, err
@@ -287,7 +287,17 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, error) {
 		return nil, fmt.Errorf("account %s is disabled", subject)
 	}
 
-	if id := jwtutil.StringField(claims, "jti"); id != "" && account.TokenIndex(id) == -1 {
+	var capability settings.AccountCapability
+	if id != "" {
+		capability = settings.AccountCapabilityApiKey
+	} else {
+		capability = settings.AccountCapabilityLogin
+	}
+	if !account.HasCapability(capability) {
+		return nil, fmt.Errorf("account %s does not have '%s' capability", subject, capability)
+	}
+
+	if id != "" && account.TokenIndex(id) == -1 {
 		return nil, fmt.Errorf("account %s does not have token with id %s", subject, id)
 	}
 
