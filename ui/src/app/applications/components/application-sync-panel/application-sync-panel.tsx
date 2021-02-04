@@ -6,7 +6,7 @@ import {Spinner} from '../../../shared/components';
 import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
-import {ApplicationSyncOptions, StringsToSyncOptions} from '../application-sync-options';
+import {ApplicationManualSyncFlags, ApplicationSyncOptions} from '../application-sync-options';
 import {ComparisonStatusIcon, nodeKey} from '../utils';
 
 export const ApplicationSyncPanel = ({application, selectedResource, hide}: {application: models.Application; selectedResource: string; hide: () => any}) => {
@@ -46,7 +46,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                             defaultValues={{
                                 revision: application.spec.source.targetRevision || 'HEAD',
                                 resources: appResources.map((_, i) => i === syncResIndex || syncResIndex === -1),
-                                syncPolicy: application.spec.syncPolicy
+                                syncOptions: application.spec.syncPolicy ? application.spec.syncPolicy.syncOptions : ''
                             }}
                             validateError={values => ({
                                 resources: values.resources.every((item: boolean) => !item) && 'Select at least one resource'
@@ -58,18 +58,21 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                     resources = null;
                                 }
 
-                                let syncOpts;
-                                if (params.syncPolicy) {
-                                    syncOpts = StringsToSyncOptions(params.syncPolicy.syncOptions);
-                                }
-
-                                if (syncOpts.ApplyOnly) {
-                                    syncStrategy.apply = {force: syncOpts.Force};
+                                if (params.syncFlags.ApplyOnly) {
+                                    syncStrategy.apply = {force: params.syncFlags.Force};
                                 } else {
-                                    syncStrategy.hook = {force: syncOpts.Force};
+                                    syncStrategy.hook = {force: params.syncFlags.Force};
                                 }
                                 try {
-                                    await services.applications.sync(application.metadata.name, params.revision, syncOpts.prune, syncOpts.dryRun, syncStrategy, resources);
+                                    await services.applications.sync(
+                                        application.metadata.name,
+                                        params.revision,
+                                        params.syncFlags.Prune,
+                                        params.syncFlags.DryRun,
+                                        syncStrategy,
+                                        resources,
+                                        params.syncOptions
+                                    );
                                     hide();
                                 } catch (e) {
                                     ctx.notifications.show({
@@ -94,12 +97,13 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                         <div style={{marginBottom: '1em'}}>
                                             <label>Sync Options</label>
                                             <ApplicationSyncOptions
-                                                options={(formApi.values.syncPolicy || {}).syncOptions}
+                                                options={formApi.values.syncOptions}
                                                 onChanged={opts => {
-                                                    formApi.setTouched('syncPolicy.syncOptions', true);
-                                                    formApi.setValue('syncPolicy.syncOptions', opts);
+                                                    formApi.setTouched('syncOptions', true);
+                                                    formApi.setValue('syncOptions', opts);
                                                 }}
                                             />
+                                            <FormField formApi={formApi} field='syncFlags' component={ApplicationManualSyncFlags} />
                                         </div>
                                         <label>Synchronize resources:</label>
                                         <div style={{float: 'right'}}>

@@ -414,7 +414,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                         <div className='white-box__details'>
                             <p>Sync Policy</p>
                             <div className='row white-box__details-row'>
-                                <div className='columns small-3'>{(app.spec.syncPolicy && app.spec.syncPolicy.automated && <span>Automated</span>) || <span>None</span>}</div>
+                                <div className='columns small-3'>{(app.spec.syncPolicy && app.spec.syncPolicy.automated && <span>AUTOMATED</span>) || <span>NONE</span>}</div>
                                 <div className='columns small-9'>
                                     {(app.spec.syncPolicy && app.spec.syncPolicy.automated && (
                                         <button className='argo-button argo-button--base' onClick={() => unsetAutoSync(ctx)}>
@@ -437,7 +437,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                             {app.spec.syncPolicy && app.spec.syncPolicy.automated && (
                                 <React.Fragment>
                                     <div className='row white-box__details-row'>
-                                        <div className='columns small-3'>Prune Resources</div>
+                                        <div className='columns small-3'>PRUNE RESOURCES</div>
                                         <div className='columns small-9'>
                                             {(app.spec.syncPolicy.automated.prune && (
                                                 <button
@@ -471,7 +471,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                                         </div>
                                     </div>
                                     <div className='row white-box__details-row'>
-                                        <div className='columns small-3'>Self Heal</div>
+                                        <div className='columns small-3'>SELF HEAL</div>
                                         <div className='columns small-9'>
                                             {(app.spec.syncPolicy.automated.selfHeal && (
                                                 <button
