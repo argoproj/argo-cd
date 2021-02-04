@@ -92,6 +92,23 @@ func TestSessionManager_AdminToken(t *testing.T) {
 	}
 }
 
+func TestSessionManager_AdminToken_Deactivated(t *testing.T) {
+	const (
+		defaultSubject = "admin"
+	)
+	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("pass", false), "argocd")
+	mgr := newSessionManager(settingsMgr, getProjLister(), NewInMemoryUserStateStorage())
+
+	token, err := mgr.Create(defaultSubject, 0, "")
+	if err != nil {
+		t.Errorf("Could not create token: %v", err)
+	}
+
+	_, err = mgr.Parse(token)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "account admin is disabled")
+}
+
 func TestSessionManager_ProjectToken(t *testing.T) {
 	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("pass", true), "argocd")
 
