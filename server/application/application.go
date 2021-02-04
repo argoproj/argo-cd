@@ -1050,17 +1050,9 @@ func (s *Server) ManagedResources(ctx context.Context, q *application.ResourcesQ
 
 func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.ApplicationService_PodLogsServer) error {
 	if q.PodName != nil {
-		response, err := s.processOnePodLog(q, ws)
-		if err != nil {
-			return err
-		}
-		if response != ErrorAccured {
-			if err := ws.Send(&application.LogEntry{Last: true}); err != nil {
-				log.Warnf("Unable to send stream message notifying about last log message: %v", err)
-				return err
-			}
-		}
-		return nil
+		podKind := "Pod"
+		q.Kind = &podKind
+		q.ResourceName = q.PodName
 	}
 
 	// get all nodes
