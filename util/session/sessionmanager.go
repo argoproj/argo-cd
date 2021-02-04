@@ -283,6 +283,10 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, error) {
 		return nil, err
 	}
 
+	if !account.Enabled {
+		return nil, fmt.Errorf("account %s is disabled", subject)
+	}
+
 	if id := jwtutil.StringField(claims, "jti"); id != "" && account.TokenIndex(id) == -1 {
 		return nil, fmt.Errorf("account %s does not have token with id %s", subject, id)
 	}
