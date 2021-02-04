@@ -80,7 +80,7 @@ kubectl get pods -n argocd -l app.kubernetes.io/name=argocd-server -o name | cut
 Using the username `admin` and the password from above, login to Argo CD's IP or hostname:
 
 ```bash
-argocd login <ARGOCD_SERVER>
+argocd login <ARGOCD_SERVER>  # e.g. localhost:8080 or argocd.example.com
 ```
 
 Change the password using the command:

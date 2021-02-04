@@ -31,6 +31,7 @@ $num-stats: 2;
         margin: 10px;
         margin-bottom: 14px !important;
         width: $pod-container-width + 2 * $padding;
+
         &--large {
             width: $pod-container-width + (2 * $padding) + ($num-stats * ($stat-width + 2 * $gutter)) + 6 * $gutter;
         }
@@ -192,6 +193,25 @@ $num-stats: 2;
                         background-color: $argo-color-gray-7;
                     }
                 }
+            }
+        }
+    }
+
+    @media screen and (max-width: map-get($breakpoints, large)) {
+        &__nodes-container {
+            justify-content: center;
+        }
+    }
+
+    @media screen and (max-width: map-get($breakpoints, medium)) {
+
+        &__node {
+            width: 95%;
+            &--large {
+                width: 95%;
+            }
+            &__pod-container {
+                width: 100%;
             }
         }
     }

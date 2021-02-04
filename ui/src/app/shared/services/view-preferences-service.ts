@@ -11,6 +11,8 @@ export interface AppDetailsPreferences {
     compactDiff: boolean;
     orphanedResources: boolean;
     podView: PodViewPreferences;
+    darkMode: boolean;
+    followLogs: boolean;
 }
 
 export interface PodViewPreferences {
@@ -57,6 +59,7 @@ export interface ViewPreferences {
     appDetails: AppDetailsPreferences;
     appList: AppsListPreferences;
     pageSizes: {[key: string]: number};
+    hideBannerContent: string;
 }
 
 const VIEW_PREFERENCES_KEY = 'view_preferences';
@@ -74,7 +77,9 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         orphanedResources: false,
         podView: {
             sortMode: 'node'
-        }
+        },
+        darkMode: false,
+        followLogs: false
     },
     appList: {
         view: 'tiles' as AppsListViewType,
@@ -86,7 +91,8 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         syncFilter: new Array<string>(),
         healthFilter: new Array<string>()
     },
-    pageSizes: {}
+    pageSizes: {},
+    hideBannerContent: ''
 };
 
 export class ViewPreferencesService {

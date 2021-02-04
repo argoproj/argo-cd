@@ -4,7 +4,8 @@ import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import {RouteComponentProps} from 'react-router';
 import {BehaviorSubject, Observable} from 'rxjs';
-import {DataLoader, EmptyState, ErrorNotification, EventsList, ObservableQuery, Page, Paginate, YamlEditor} from '../../../shared/components';
+
+import {DataLoader, EmptyState, ErrorNotification, EventsList, ObservableQuery, Page, Paginate, Revision, Timestamp, YamlEditor} from '../../../shared/components';
 import {AppContext} from '../../../shared/context';
 import * as appModels from '../../../shared/models';
 import {AppDetailsPreferences, AppsDetailsViewType, services} from '../../../shared/services';
@@ -29,7 +30,12 @@ const jsonMergePatch = require('json-merge-patch');
 
 require('./application-details.scss');
 
-export class ApplicationDetails extends React.Component<RouteComponentProps<{name: string}>, {page: number}> {
+interface ApplicationDetailsState {
+    page: number;
+    metadata?: appModels.RevisionMetadata & {revision: string};
+}
+
+export class ApplicationDetails extends React.Component<RouteComponentProps<{name: string}>, ApplicationDetailsState> {
     public static contextTypes = {
         apis: PropTypes.object
     };
@@ -201,6 +207,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                 application={application}
                                                 showOperation={() => this.setOperationStatusVisible(true)}
                                                 showConditions={() => this.setConditionsStatusVisible(true)}
+                                                showMetadataInfo={(revision, metadata) => this.setState({metadata: {...metadata, revision}})}
                                             />
                                         </div>
                                         <div className='application-details__tree'>
@@ -352,9 +359,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                                         key='appDetails'
                                                                         input={application.spec.source}
                                                                         load={src =>
-                                                                            services.repos
-                                                                                .appDetails(src)
-                                                                                .catch(() => ({type: 'Directory' as appModels.AppSourceType, path: application.spec.source.path}))
+                                                                            services.repos.appDetails(src).catch(() => ({
+                                                                                type: 'Directory' as appModels.AppSourceType,
+                                                                                path: application.spec.source.path
+                                                                            }))
                                                                         }>
                                                                         {(details: appModels.RepoAppDetails) => (
                                                                             <ApplicationParameters save={app => this.updateApp(app)} application={application} details={details} />
@@ -435,6 +443,50 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                         <SlidingPanel isShown={this.showConditions && !!conditions} onClose={() => this.setConditionsStatusVisible(false)}>
                                             {conditions && <ApplicationConditions conditions={conditions} />}
                                         </SlidingPanel>
+                                        <SlidingPanel isShown={!!this.state.metadata} isMiddle={true} onClose={() => this.setState({metadata: null})}>
+                                            {this.state.metadata && (
+                                                <div className='white-box' style={{marginTop: '1.5em'}}>
+                                                    <div className='white-box__details'>
+                                                        <div className='row white-box__details-row'>
+                                                            <div className='columns small-3'>SHA:</div>
+                                                            <div className='columns small-9'>
+                                                                <Revision repoUrl={application.spec.source.repoURL} revision={this.state.metadata.revision} />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className='white-box__details'>
+                                                        <div className='row white-box__details-row'>
+                                                            <div className='columns small-3'>Date:</div>
+                                                            <div className='columns small-9'>
+                                                                <Timestamp date={this.state.metadata.date} />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className='white-box__details'>
+                                                        <div className='row white-box__details-row'>
+                                                            <div className='columns small-3'>Tags:</div>
+                                                            <div className='columns small-9'>
+                                                                {((this.state.metadata.tags || []).length > 0 && this.state.metadata.tags.join(', ')) || 'No tags'}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className='white-box__details'>
+                                                        <div className='row white-box__details-row'>
+                                                            <div className='columns small-3'>Author:</div>
+                                                            <div className='columns small-9'>{this.state.metadata.author}</div>
+                                                        </div>
+                                                    </div>
+                                                    <div className='white-box__details'>
+                                                        <div className='row white-box__details-row'>
+                                                            <div className='columns small-3'>Message:</div>
+                                                            <div className='columns small-9' style={{display: 'flex', alignItems: 'center'}}>
+                                                                <div className='application-details__commit-message'>{this.state.metadata.message}</div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </SlidingPanel>
                                     </Page>
                                 </div>
                             );
@@ -451,42 +503,42 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         return [
             {
                 iconClassName: 'fa fa-info-circle',
-                title: <span className='show-for-medium'>App Details</span>,
+                title: <span className='show-for-large'>App Details</span>,
                 action: () => this.selectNode(fullName)
             },
             {
                 iconClassName: 'fa fa-file-medical',
-                title: <span className='show-for-medium'>App Diff</span>,
+                title: <span className='show-for-large'>App Diff</span>,
                 action: () => this.selectNode(fullName, 0, 'diff'),
                 disabled: app.status.sync.status === appModels.SyncStatuses.Synced
             },
             {
                 iconClassName: 'fa fa-sync',
-                title: <span className='show-for-medium'>Sync</span>,
+                title: <span className='show-for-large'>Sync</span>,
                 action: () => AppUtils.showDeploy('all', this.appContext)
             },
             {
                 iconClassName: 'fa fa-info-circle',
-                title: <span className='show-for-medium'>Sync Status</span>,
+                title: <span className='show-for-large'>Sync Status</span>,
                 action: () => this.setOperationStatusVisible(true),
                 disabled: !app.status.operationState
             },
             {
                 iconClassName: 'fa fa-history',
-                title: <span className='show-for-medium'>History and rollback</span>,
+                title: <span className='show-for-large'>History and rollback</span>,
                 action: () => this.setRollbackPanelVisible(0),
                 disabled: !app.status.operationState
             },
             {
                 iconClassName: 'fa fa-times-circle',
-                title: <span className='show-for-medium'>Delete</span>,
+                title: <span className='show-for-large'>Delete</span>,
                 action: () => this.deleteApplication()
             },
             {
                 iconClassName: classNames('fa fa-redo', {'status-icon--spin': !!refreshing}),
                 title: (
                     <React.Fragment>
-                        <span className='show-for-medium'>Refresh</span>{' '}
+                        <span className='show-for-large'>Refresh</span>{' '}
                         <DropDownMenu
                             items={[
                                 {
@@ -674,13 +726,13 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
             const containerGroups = [
                 {
                     offset: 0,
-                    title: 'INIT CONTAINERS',
-                    containers: state.spec.initContainers || []
-                },
-                {
-                    offset: (state.spec.initContainers || []).length,
                     title: 'CONTAINERS',
                     containers: state.spec.containers || []
+                },
+                {
+                    offset: (state.spec.containers || []).length,
+                    title: 'INIT CONTAINERS',
+                    containers: state.spec.initContainers || []
                 }
             ];
             tabs = tabs.concat([
@@ -707,7 +759,12 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
                                     ))}
                                 </div>
                                 <div className='columns small-9 medium-10'>
-                                    <PodsLogsViewer pod={state} applicationName={application.metadata.name} containerIndex={this.selectedNodeInfo.container} />
+                                    <PodsLogsViewer
+                                        podName={state.metadata.name}
+                                        namespace={state.metadata.namespace}
+                                        applicationName={application.metadata.name}
+                                        containerName={AppUtils.getContainerName(state, this.selectedNodeInfo.container)}
+                                    />
                                 </div>
                             </div>
                         </div>

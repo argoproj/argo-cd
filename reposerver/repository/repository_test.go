@@ -979,7 +979,7 @@ func TestGetRevisionMetadata(t *testing.T) {
 	now := time.Now()
 
 	gitClient.On("RevisionMetadata", mock.Anything).Return(&git.RevisionMetadata{
-		Message: strings.Repeat("a", 100) + "\n" + "second line",
+		Message: "test",
 		Author:  "author",
 		Date:    now,
 		Tags:    []string{"tag1", "tag2"},
@@ -992,7 +992,7 @@ func TestGetRevisionMetadata(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	assert.Equal(t, strings.Repeat("a", 61)+"...", res.Message)
+	assert.Equal(t, "test", res.Message)
 	assert.Equal(t, now, res.Date.Time)
 	assert.Equal(t, "author", res.Author)
 	assert.EqualValues(t, []string{"tag1", "tag2"}, res.Tags)
@@ -1006,7 +1006,7 @@ func TestGetRevisionMetadata(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	assert.Equal(t, strings.Repeat("a", 61)+"...", res.Message)
+	assert.Equal(t, "test", res.Message)
 	assert.Equal(t, now, res.Date.Time)
 	assert.Equal(t, "author", res.Author)
 	assert.EqualValues(t, []string{"tag1", "tag2"}, res.Tags)

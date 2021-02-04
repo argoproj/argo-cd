@@ -779,6 +779,16 @@
             "type": "boolean",
             "name": "follow",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "untilTime",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "filter",
+            "in": "query"
           }
         ],
         "responses": {
@@ -3225,6 +3235,9 @@
         },
         "timeStamp": {
           "$ref": "#/definitions/v1Time"
+        },
+        "timeStampStr": {
+          "type": "string"
         }
       }
     },
@@ -3402,6 +3415,12 @@
         },
         "statusBadgeEnabled": {
           "type": "boolean"
+        },
+        "uiBannerContent": {
+          "type": "string"
+        },
+        "uiBannerURL": {
+          "type": "string"
         },
         "uiCssURL": {
           "type": "string"
@@ -5665,6 +5684,9 @@
           "type": "string",
           "title": "TargetState contains the JSON live resource manifest"
         },
+        "modified": {
+          "type": "boolean"
+        },
         "name": {
           "type": "string"
         },
@@ -5678,6 +5700,9 @@
         "predictedLiveState": {
           "type": "string",
           "title": "PredictedLiveState contains JSON serialized resource state that is calculated based on normalized and target resource state"
+        },
+        "resourceVersion": {
+          "type": "string"
         },
         "targetState": {
           "type": "string",

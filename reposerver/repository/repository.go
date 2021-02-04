@@ -1258,9 +1258,7 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 		}
 	}
 
-	// discard anything after the first new line and then truncate to 64 chars
-	message := text.Trunc(strings.SplitN(m.Message, "\n", 2)[0], 64)
-	metadata = &v1alpha1.RevisionMetadata{Author: m.Author, Date: metav1.Time{Time: m.Date}, Tags: m.Tags, Message: message, SignatureInfo: signatureInfo}
+	metadata = &v1alpha1.RevisionMetadata{Author: m.Author, Date: metav1.Time{Time: m.Date}, Tags: m.Tags, Message: m.Message, SignatureInfo: signatureInfo}
 	_ = s.cache.SetRevisionMetadata(q.Repo.Repo, q.Revision, metadata)
 	return metadata, nil
 }
@@ -1336,14 +1334,28 @@ func checkoutRevision(gitClient git.Client, revision string) error {
 	if err != nil {
 		return status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
 	}
-	err = gitClient.Fetch(revision)
-	if err != nil {
-		return status.Errorf(codes.Internal, "Failed to fetch %s: %v", revision, err)
+
+	// Some git providers don't support fetching commit sha
+	if revision != "" && !git.IsCommitSHA(revision) && !git.IsTruncatedCommitSHA(revision) {
+		err = gitClient.Fetch(revision)
+		if err != nil {
+			return status.Errorf(codes.Internal, "Failed to fetch %s: %v", revision, err)
+		}
+		err = gitClient.Checkout("FETCH_HEAD")
+		if err != nil {
+			return status.Errorf(codes.Internal, "Failed to checkout FETCH_HEAD: %v", err)
+		}
+	} else {
+		err = gitClient.Fetch("")
+		if err != nil {
+			return status.Errorf(codes.Internal, "Failed to fetch %s: %v", revision, err)
+		}
+		err = gitClient.Checkout(revision)
+		if err != nil {
+			return status.Errorf(codes.Internal, "Failed to checkout %s: %v", revision, err)
+		}
 	}
-	err = gitClient.Checkout("FETCH_HEAD")
-	if err != nil {
-		return status.Errorf(codes.Internal, "Failed to checkout FETCH_HEAD: %v", err)
-	}
+
 	return err
 }
 

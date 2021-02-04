@@ -6,12 +6,15 @@
         left: 60px;
         right: 0;
         z-index: 2;
+        @media screen and (max-width: map-get($breakpoints, xlarge)) {
+            top: 150px;
+        }
     }
 
     .argo-dropdown__content.is-menu {
         max-height: 500px;
     }
-  
+
     &__tree {
         position: relative;
         padding: 1em;
@@ -19,6 +22,9 @@
         overflow-y: auto;
         margin-top: 100px;
         min-height: calc(100vh - 2 * 50px - 115px);
+        @media screen and (max-width: map-get($breakpoints, xlarge)) {
+            margin-top: 150px;
+        }
     }
 
     &__warning {
@@ -43,12 +49,13 @@
     }
 
     &__tab-content-full-height {
-        height: calc(100vh - 2 * 50px);
-        div.row, div.columns {
+        height: calc(100vh - 2 * 76px);
+        div.row,
+        div.columns {
             height: 100%;
         }
     }
-    
+
     &__container {
         position: relative;
         text-transform: uppercase;
@@ -71,7 +78,7 @@
         }
     }
 
-    &__resource-icon{
+    &__resource-icon {
         text-align: center;
         position: absolute;
         left: 0;
@@ -93,7 +100,7 @@
         white-space: nowrap;
         i {
             cursor: pointer;
-            color:  $argo-color-gray-4;
+            color: $argo-color-gray-4;
             margin: 0 0.5em;
             &::before {
                 font-size: 1.5em;
@@ -116,6 +123,7 @@
         line-height: normal;
         white-space: pre;
     }
+
     &__action-menu {
         text-transform: capitalize;
 
@@ -130,5 +138,53 @@
             width: 60px;
             text-align: center;
         }
+    }
+
+    @media screen and (max-width: map-get($breakpoints, xlarge)) {
+        .page__content-wrapper {
+            min-height: calc(100vh - 3 * 50px);
+        }
+        .top-bar.row {
+            display: block;
+            .top-bar__left-side,
+            .top-bar__right-side {
+                width: 100%;
+                max-width: 100%;
+                flex: auto;
+            }
+            .top-bar__left-side {
+                .argo-button {
+                    i {
+                        @media screen and (max-width: map-get($breakpoints, large)) {
+                            margin: 0 auto !important;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @media screen and (max-width: map-get($breakpoints, large)) {
+        .top-bar.row {
+            .top-bar__left-side {
+                > div {
+                    display: flex;
+                    justify-content: center;
+                    height: 50px;
+                    align-items: center;
+                    .argo-button {
+                        height: 34px;
+                    }
+                }
+            }
+            .top-bar__right-side {
+                display: flex;
+                justify-content: center;
+            }
+        }
+    }
+
+    &__commit-message {
+        line-height: 1.5em;
     }
 }

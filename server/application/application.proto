@@ -163,12 +163,16 @@ message ApplicationPodLogsQuery {
 	optional k8s.io.apimachinery.pkg.apis.meta.v1.Time sinceTime = 6;
 	required int64 tailLines = 7 [(gogoproto.nullable) = false];
 	required bool follow = 8 [(gogoproto.nullable) = false];
+	optional string untilTime = 9;
+	optional string filter = 10;
 }
 
 message LogEntry {
 	required string content = 1 [(gogoproto.nullable) = false];
-	required k8s.io.apimachinery.pkg.apis.meta.v1.Time timeStamp = 2 [(gogoproto.nullable) = false];
+	// deprecated in favor of timeStampStr since meta.v1.Time don't support nano time
+	required k8s.io.apimachinery.pkg.apis.meta.v1.Time timeStamp = 2 [(gogoproto.nullable) = false, deprecated=true];
 	required bool last = 3 [(gogoproto.nullable) = false];
+	required string timeStampStr = 4 [(gogoproto.nullable) = false];
 }
 
 message OperationTerminateRequest {

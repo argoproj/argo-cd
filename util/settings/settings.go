@@ -70,6 +70,10 @@ type ArgoCDSettings struct {
 	AnonymousUserEnabled bool `json:"anonymousUserEnabled,omitempty"`
 	// UiCssURL local or remote path to user-defined CSS to customize ArgoCD UI
 	UiCssURL string `json:"uiCssURL,omitempty"`
+	// Content of UI Banner
+	UiBannerContent string `json:"uiBannerContent,omitempty"`
+	// URL for UI Banner
+	UiBannerURL string `json:"uiBannerURL,omitempty"`
 }
 
 type GoogleAnalytics struct {
@@ -247,6 +251,10 @@ const (
 	resourceCompareOptionsKey = "resource.compareoptions"
 	// settingUiCssURLKey designates the key for user-defined CSS URL for UI customization
 	settingUiCssURLKey = "ui.cssurl"
+	// settingUiBannerContentKey designates the key for content of user-defined info banner for UI
+	settingUiBannerContentKey = "ui.bannercontent"
+	// settingUiBannerURLKey designates the key for the link for user-defined info banner for UI
+	settingUiBannerURLKey = "ui.bannerurl"
 	// globalProjectsKey designates the key for global project settings
 	globalProjectsKey = "globalProjects"
 	// initialPasswordSecretName is the name of the secret that will hold the initial admin password
@@ -830,10 +838,15 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	settings.StatusBadgeEnabled = argoCDCM.Data[statusBadgeEnabledKey] == "true"
 	settings.AnonymousUserEnabled = argoCDCM.Data[anonymousUserEnabledKey] == "true"
 	settings.UiCssURL = argoCDCM.Data[settingUiCssURLKey]
+	settings.UiBannerContent = argoCDCM.Data[settingUiBannerContentKey]
 	if err := validateExternalURL(argoCDCM.Data[settingURLKey]); err != nil {
 		log.Warnf("Failed to validate URL in configmap: %v", err)
 	}
 	settings.URL = argoCDCM.Data[settingURLKey]
+	if err := validateExternalURL(argoCDCM.Data[settingUiBannerURLKey]); err != nil {
+		log.Warnf("Failed to validate UI banner URL in configmap: %v", err)
+	}
+	settings.UiBannerURL = argoCDCM.Data[settingUiBannerURLKey]
 }
 
 // validateExternalURL ensures the external URL that is set on the configmap is valid
@@ -917,6 +930,16 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 		}
 		if settings.UiCssURL != "" {
 			argoCDCM.Data[settingUiCssURLKey] = settings.UiCssURL
+		}
+		if settings.UiBannerContent != "" {
+			argoCDCM.Data[settingUiBannerContentKey] = settings.UiBannerContent
+		} else {
+			delete(argoCDCM.Data, settingUiBannerContentKey)
+		}
+		if settings.UiBannerURL != "" {
+			argoCDCM.Data[settingUiBannerURLKey] = settings.UiBannerURL
+		} else {
+			delete(argoCDCM.Data, settingUiBannerURLKey)
 		}
 		return nil
 	})

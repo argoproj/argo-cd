@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
@@ -12,6 +13,7 @@ import (
 	hookutil "github.com/argoproj/gitops-engine/pkg/sync/hook"
 	"github.com/argoproj/gitops-engine/pkg/sync/ignore"
 	resourceutil "github.com/argoproj/gitops-engine/pkg/sync/resource"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	kubeutil "github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,6 +30,7 @@ import (
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/util/argo"
+	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/gpg"
 	argohealth "github.com/argoproj/argo-cd/util/health"
@@ -44,15 +47,16 @@ func (r *resourceInfoProviderStub) IsNamespaced(_ schema.GroupKind) (bool, error
 }
 
 type managedResource struct {
-	Target    *unstructured.Unstructured
-	Live      *unstructured.Unstructured
-	Diff      diff.DiffResult
-	Group     string
-	Version   string
-	Kind      string
-	Namespace string
-	Name      string
-	Hook      bool
+	Target          *unstructured.Unstructured
+	Live            *unstructured.Unstructured
+	Diff            diff.DiffResult
+	Group           string
+	Version         string
+	Kind            string
+	Namespace       string
+	Name            string
+	Hook            bool
+	ResourceVersion string
 }
 
 func GetLiveObjsForApplicationHealth(resources []managedResource, statuses []appv1.ResourceStatus) ([]*appv1.ResourceStatus, []*unstructured.Unstructured) {
@@ -84,7 +88,8 @@ type comparisonResult struct {
 	diffNormalizer       diff.Normalizer
 	appSourceType        v1alpha1.ApplicationSourceType
 	// timings maps phases of comparison to the duration it took to complete (for statistical purposes)
-	timings map[string]time.Duration
+	timings        map[string]time.Duration
+	diffResultList *diff.DiffResultList
 }
 
 func (res *comparisonResult) GetSyncStatus() *v1alpha1.SyncStatus {
@@ -97,15 +102,17 @@ func (res *comparisonResult) GetHealthStatus() *v1alpha1.HealthStatus {
 
 // appStateManager allows to compare applications to git
 type appStateManager struct {
-	metricsServer  *metrics.MetricsServer
-	db             db.ArgoDB
-	settingsMgr    *settings.SettingsManager
-	appclientset   appclientset.Interface
-	projInformer   cache.SharedIndexInformer
-	kubectl        kubeutil.Kubectl
-	repoClientset  apiclient.Clientset
-	liveStateCache statecache.LiveStateCache
-	namespace      string
+	metricsServer        *metrics.MetricsServer
+	db                   db.ArgoDB
+	settingsMgr          *settings.SettingsManager
+	appclientset         appclientset.Interface
+	projInformer         cache.SharedIndexInformer
+	kubectl              kubeutil.Kubectl
+	repoClientset        apiclient.Clientset
+	liveStateCache       statecache.LiveStateCache
+	cache                *appstatecache.Cache
+	namespace            string
+	statusRefreshTimeout time.Duration
 }
 
 func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1.ApplicationSource, appLabelKey, revision string, noCache, verifySignature bool) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
@@ -305,6 +312,56 @@ func verifyGnuPGSignature(revision string, project *appv1.AppProject, manifestIn
 	return conditions
 }
 
+func (m *appStateManager) diffArrayCached(configArray []*unstructured.Unstructured, liveArray []*unstructured.Unstructured, cachedDiff []*appv1.ResourceDiff, opts ...diff.Option) (*diff.DiffResultList, error) {
+	numItems := len(configArray)
+	if len(liveArray) != numItems {
+		return nil, fmt.Errorf("left and right arrays have mismatched lengths")
+	}
+
+	diffByKey := map[kube.ResourceKey]*appv1.ResourceDiff{}
+	for i := range cachedDiff {
+		res := cachedDiff[i]
+		diffByKey[kube.NewResourceKey(res.Group, res.Kind, res.Namespace, res.Name)] = cachedDiff[i]
+	}
+
+	diffResultList := diff.DiffResultList{
+		Diffs: make([]diff.DiffResult, numItems),
+	}
+
+	for i := 0; i < numItems; i++ {
+		config := configArray[i]
+		live := liveArray[i]
+		resourceVersion := ""
+		var key kube.ResourceKey
+		if live != nil {
+			key = kube.GetResourceKey(live)
+			resourceVersion = live.GetResourceVersion()
+		} else {
+			key = kube.GetResourceKey(config)
+		}
+		var dr *diff.DiffResult
+		if cachedDiff, ok := diffByKey[key]; ok && cachedDiff.ResourceVersion == resourceVersion {
+			dr = &diff.DiffResult{
+				NormalizedLive: []byte(cachedDiff.NormalizedLiveState),
+				PredictedLive:  []byte(cachedDiff.PredictedLiveState),
+				Modified:       cachedDiff.Modified,
+			}
+		} else {
+			res, err := diff.Diff(configArray[i], liveArray[i], opts...)
+			if err != nil {
+				return nil, err
+			}
+			dr = res
+		}
+		diffResultList.Diffs[i] = *dr
+		if dr != nil && dr.Modified {
+			diffResultList.Modified = true
+		}
+	}
+
+	return &diffResultList, nil
+}
+
 // CompareAppState compares application git state to the live app state, using the specified
 // revision and supplied source. If revision or overrides are empty, then compares against
 // revision and overrides in the app spec.
@@ -430,11 +487,27 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	}
 
 	logCtx.Debugf("built managed objects list")
-	// Do the actual comparison
-	diffResults, err := diff.DiffArray(
-		reconciliation.Target, reconciliation.Live,
+	var diffResults *diff.DiffResultList
+
+	diffOpts := []diff.Option{
 		diff.WithNormalizer(diffNormalizer),
-		diff.IgnoreAggregatedRoles(compareOptions.IgnoreAggregatedRoles))
+		diff.IgnoreAggregatedRoles(compareOptions.IgnoreAggregatedRoles),
+	}
+	cachedDiff := make([]*appv1.ResourceDiff, 0)
+	// restore comparison using cached diff result if previous comparison was performed for the same revision
+	revisionChanged := manifestInfo == nil || app.Status.Sync.Revision != manifestInfo.Revision
+	specChanged := !reflect.DeepEqual(app.Status.Sync.ComparedTo, appv1.ComparedTo{Source: app.Spec.Source, Destination: app.Spec.Destination})
+
+	_, refreshRequested := app.IsRefreshRequested()
+	noCache = noCache || refreshRequested || app.Status.Expired(m.statusRefreshTimeout)
+
+	if noCache || specChanged || revisionChanged || m.cache.GetAppManagedResources(app.Name, &cachedDiff) != nil {
+		// (rare) cache miss
+		diffResults, err = diff.DiffArray(reconciliation.Target, reconciliation.Live, diffOpts...)
+	} else {
+		diffResults, err = m.diffArrayCached(reconciliation.Target, reconciliation.Live, cachedDiff, diffOpts...)
+	}
+
 	if err != nil {
 		diffResults = &diff.DiffResultList{}
 		failedToLoadObjs = true
@@ -502,16 +575,22 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		if failedToLoadObjs {
 			resState.Status = v1alpha1.SyncStatusCodeUnknown
 		}
+
+		resourceVersion := ""
+		if liveObj != nil {
+			resourceVersion = liveObj.GetResourceVersion()
+		}
 		managedResources[i] = managedResource{
-			Name:      resState.Name,
-			Namespace: resState.Namespace,
-			Group:     resState.Group,
-			Kind:      resState.Kind,
-			Version:   resState.Version,
-			Live:      liveObj,
-			Target:    targetObj,
-			Diff:      diffResult,
-			Hook:      resState.Hook,
+			Name:            resState.Name,
+			Namespace:       resState.Namespace,
+			Group:           resState.Group,
+			Kind:            resState.Kind,
+			Version:         resState.Version,
+			Live:            liveObj,
+			Target:          targetObj,
+			Diff:            diffResult,
+			Hook:            resState.Hook,
+			ResourceVersion: resourceVersion,
 		}
 		resourceSummaries[i] = resState
 	}
@@ -554,6 +633,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		managedResources:     managedResources,
 		reconciliationResult: reconciliation,
 		diffNormalizer:       diffNormalizer,
+		diffResultList:       diffResults,
 	}
 	if manifestInfo != nil {
 		compRes.appSourceType = v1alpha1.ApplicationSourceType(manifestInfo.SourceType)
@@ -607,16 +687,20 @@ func NewAppStateManager(
 	liveStateCache statecache.LiveStateCache,
 	projInformer cache.SharedIndexInformer,
 	metricsServer *metrics.MetricsServer,
+	cache *appstatecache.Cache,
+	statusRefreshTimeout time.Duration,
 ) AppStateManager {
 	return &appStateManager{
-		liveStateCache: liveStateCache,
-		db:             db,
-		appclientset:   appclientset,
-		kubectl:        kubectl,
-		repoClientset:  repoClientset,
-		namespace:      namespace,
-		settingsMgr:    settingsMgr,
-		projInformer:   projInformer,
-		metricsServer:  metricsServer,
+		liveStateCache:       liveStateCache,
+		cache:                cache,
+		db:                   db,
+		appclientset:         appclientset,
+		kubectl:              kubectl,
+		repoClientset:        repoClientset,
+		namespace:            namespace,
+		settingsMgr:          settingsMgr,
+		projInformer:         projInformer,
+		metricsServer:        metricsServer,
+		statusRefreshTimeout: statusRefreshTimeout,
 	}
 }

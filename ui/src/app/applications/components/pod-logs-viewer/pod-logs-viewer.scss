@@ -1,0 +1,90 @@
+.pod-logs-viewer {
+    height: 90%;
+    font-size: 14px;
+    line-height: 1.5em;
+    background-color: white;
+    padding: 15px;
+    padding-left: 5px;
+    color: black;
+    &--inverted {
+        background-color: black;
+        color: white;
+    }
+    &__settings {
+        display: flex;
+        margin-bottom: 1em;
+        .argo-button {
+            margin-right: 5px;
+        }
+    }
+    &__filter {
+        display: flex;
+        margin-left: auto;
+        width: 350px;
+    }
+    &__menu {
+        display: flex;
+        margin-bottom: 1em;
+        padding-left: 10px;
+        i {
+            cursor: pointer;
+            border-radius: 7px;
+            $size: 25px;
+            width: $size;
+            height: $size;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid black;
+            margin: 0 2px;
+            &:hover {
+                background-color: black;
+                color: white;
+            }
+            &.disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+            }
+        }
+        &--inverted {
+            i {
+                border-color: white;
+                &:hover {
+                    background-color: white;
+                    color: black;
+                }
+            }
+        }
+    }
+    &__line {
+        padding-left: 0.5ch;
+        &--selected {
+            background-color: red;
+            box-shadow: -3px 0 0 0 darkred;
+        }
+        &__menu {
+            border-radius: 6px;
+            text-align: center;
+            min-width: 25px;
+            opacity: 0;
+            flex-shrink: 0;
+            box-shadow: 0 0 0 1px red inset;
+            &--visible {
+                opacity: 1;
+            }
+            &:hover {
+                color: red;
+            }
+        }
+        &__number {
+            text-align: right;
+            min-width: 3ch;
+            margin-right: 2ch;
+            opacity: 0.5;
+            cursor: pointer;
+            &:hover {
+                opacity: 1;
+            }
+        }
+    }
+}

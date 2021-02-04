@@ -34,7 +34,7 @@ func AddProjFlags(command *cobra.Command, opts *ProjectOpts) {
 	command.Flags().StringArrayVarP(&opts.Sources, "src", "s", []string{}, "Permitted source repository URL")
 	command.Flags().StringSliceVar(&opts.SignatureKeys, "signature-keys", []string{}, "GnuPG public key IDs for commit signature verification")
 	command.Flags().BoolVar(&opts.orphanedResourcesEnabled, "orphaned-resources", false, "Enables orphaned resources monitoring")
-	command.Flags().BoolVar(&opts.orphanedResourcesWarn, "orphaned-resources-warn", false, "Specifies if applications should be a warning condition when orphaned resources detected")
+	command.Flags().BoolVar(&opts.orphanedResourcesWarn, "orphaned-resources-warn", false, "Specifies if applications should have a warning condition when orphaned resources detected")
 }
 
 func (opts *ProjectOpts) GetDestinations() []v1alpha1.ApplicationDestination {
@@ -124,7 +124,7 @@ func ConstructAppProj(fileURL string, args []string, opts ProjectOpts, c *cobra.
 		proj = v1alpha1.AppProject{
 			TypeMeta: v1.TypeMeta{
 				Kind:       application.AppProjectKind,
-				APIVersion: application.Group + "/v1aplha1",
+				APIVersion: application.Group + "/v1alpha1",
 			},
 			ObjectMeta: v1.ObjectMeta{Name: projName},
 			Spec: v1alpha1.AppProjectSpec{

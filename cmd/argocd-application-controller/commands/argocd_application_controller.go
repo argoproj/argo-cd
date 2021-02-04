@@ -77,6 +77,7 @@ func NewCommand() *cobra.Command {
 
 			cache, err := cacheSrc()
 			errors.CheckError(err)
+			cache.Cache.SetClient(cacheutil.NewTwoLevelClient(cache.Cache.GetClient(), 10*time.Minute))
 
 			settingsMgr := settings.NewSettingsManager(ctx, kubeClient, namespace)
 			kubectl := kubeutil.NewKubectl()

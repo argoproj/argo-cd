@@ -1046,6 +1046,16 @@ func (s *Server) ManagedResources(ctx context.Context, q *application.ResourcesQ
 }
 
 func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.ApplicationService_PodLogsServer) error {
+	var untilTime *metav1.Time
+	if q.GetUntilTime() != "" {
+		if val, err := time.Parse(time.RFC3339Nano, q.GetUntilTime()); err != nil {
+			return fmt.Errorf("invalid untilTime parameter value: %v", err)
+		} else {
+			untilTimeVal := metav1.NewTime(val)
+			untilTime = &untilTimeVal
+		}
+	}
+
 	pod, config, _, err := s.getAppResource(ws.Context(), rbacpolicy.ActionGet, &application.ApplicationResourceRequest{
 		Name:         q.Name,
 		Namespace:    q.Namespace,
@@ -1071,6 +1081,16 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 	if q.TailLines > 0 {
 		tailLines = &q.TailLines
 	}
+
+	literal := ""
+	inverse := false
+	if q.Filter != nil {
+		literal = *q.Filter
+		if literal[0] == '!' {
+			literal = literal[1:]
+			inverse = true
+		}
+	}
 	stream, err := kubeClientset.CoreV1().Pods(pod.Namespace).GetLogs(*q.PodName, &v1.PodLogOptions{
 		Container:    q.Container,
 		Follow:       q.Follow,
@@ -1089,7 +1109,6 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 	gracefulExit := false
 	go func() {
 		bufReader := bufio.NewReader(stream)
-
 		for {
 			line, err := bufReader.ReadString('\n')
 			if err != nil {
@@ -1098,19 +1117,30 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 			}
 			line = strings.TrimSpace(line) // Remove trailing line ending
 			parts := strings.Split(line, " ")
-			logTime, err := time.Parse(time.RFC3339, parts[0])
+			timeStampStr := parts[0]
+			logTime, err := time.Parse(time.RFC3339Nano, timeStampStr)
 			metaLogTime := metav1.NewTime(logTime)
 			if err == nil {
 				lines := strings.Join(parts[1:], " ")
 				for _, line := range strings.Split(lines, "\r") {
-					if line != "" {
-						err = ws.Send(&application.LogEntry{
-							Content:   line,
-							TimeStamp: metaLogTime,
-						})
-						if err != nil {
-							logCtx.Warnf("Unable to send stream message: %v", err)
+					if q.Filter != nil {
+						lineContainsFilter := strings.Contains(line, literal)
+						if (inverse && lineContainsFilter) || (!inverse && !lineContainsFilter) {
+							continue
 						}
+					}
+					if q.UntilTime != nil && !metaLogTime.Before(untilTime) {
+						_ = ws.Send(&application.LogEntry{Last: true})
+						close(done)
+						return
+					}
+					err = ws.Send(&application.LogEntry{
+						Content:      line,
+						TimeStamp:    metaLogTime,
+						TimeStampStr: timeStampStr,
+					})
+					if err != nil {
+						logCtx.Warnf("Unable to send stream message: %v", err)
 					}
 				}
 			}
