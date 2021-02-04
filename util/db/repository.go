@@ -144,9 +144,11 @@ func (db *db) listRepositories(ctx context.Context, repoType *string) ([]*appsv1
 					modifiedTime := metav1.Now()
 					r.ConnectionState = appsv1.ConnectionState{
 						Status:     appsv1.ConnectionStatusFailed,
-						Message:    err.Error(),
+						Message:    "Configuration error - please check the server logs",
 						ModifiedAt: &modifiedTime,
 					}
+
+					log.Warnf("could not retrieve repo: %s", err.Error())
 				} else {
 					return nil, err
 				}
