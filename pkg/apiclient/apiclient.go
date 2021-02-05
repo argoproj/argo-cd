@@ -328,14 +328,14 @@ func (c *client) refreshAuthToken(localCfg *localconfig.LocalConfig, ctxName, co
 		return err
 	}
 	parser := &jwt.Parser{
-		ValidationHelper: jwt.NewValidationHelper(jwt.WithoutClaimsValidation()),
+		ValidationHelper: jwt.NewValidationHelper(jwt.WithoutClaimsValidation(), jwt.WithoutAudienceValidation()),
 	}
 	var claims jwt.StandardClaims
 	_, _, err = parser.ParseUnverified(configCtx.User.AuthToken, &claims)
 	if err != nil {
 		return err
 	}
-	if claims.Valid(jwt.DefaultValidationHelper) == nil {
+	if claims.Valid(parser.ValidationHelper) == nil {
 		// token is still valid
 		return nil
 	}
