@@ -3,10 +3,10 @@
 Projects provide a logical grouping of applications, which is useful when Argo CD is used by multiple
 teams. Projects provide the following features:
 
-- restrict _what_ may be deployed (trusted Git source repositories)
-- restrict _where_ apps may be deployed to (destination clusters and namespaces)
-- restrict what kinds of objects may or may not be deployed (e.g. RBAC, CRDs, DaemonSets, NetworkPolicy etc...)
-- defining project roles to provide application RBAC (bound to OIDC groups and/or JWT tokens)
+* restrict *what* may be deployed (trusted Git source repositories)
+* restrict *where* apps may be deployed to (destination clusters and namespaces)
+* restrict what kinds of objects may or may not be deployed (e.g. RBAC, CRDs, DaemonSets, NetworkPolicy etc...)
+* defining project roles to provide application RBAC (bound to OIDC groups and/or JWT tokens)
 
 ### The Default Project
 
@@ -18,13 +18,13 @@ deleted. When initially created, it's specification is configured to be the most
 ```yaml
 spec:
   sourceRepos:
-    - "*"
+  - '*'
   destinations:
-    - namespace: "*"
-      server: "*"
+  - namespace: '*'
+    server: '*'
   clusterResourceWhitelist:
-    - group: "*"
-      kind: "*"
+  - group: '*'
+    kind: '*'
 ```
 
 ### Creating Projects
@@ -83,11 +83,11 @@ may only be able to sync a single app (but not change its source or destination)
 Projects can have multiple roles, and those roles can have different access granted to them. These
 permissions are called policies, and they are stored within the role as a list of policy strings.
 A role's policy can only grant access to that role and are limited to applications within the role's
-project. However, the policies have an option for granting wildcard access to any application
+project.  However, the policies have an option for granting wildcard access to any application
 within a project.
 
 In order to create roles in a project and add policies to a role, a user will need permission to
-update a project. The following commands can be used to manage a role.
+update a project.  The following commands can be used to manage a role.
 
 ```bash
 argocd proj role list
@@ -113,11 +113,11 @@ argocd proj role delete-token PROJECT ROLE-NAME ISSUED-AT
 Since the JWT tokens aren't stored in Argo CD, they can only be retrieved when they are created. A
 user can leverage them in the cli by either passing them in using the `--auth-token` flag or setting
 the ARGOCD_AUTH_TOKEN environment variable. The JWT tokens can be used until they expire or are
-revoked. The JWT tokens can created with or without an expiration, but the default on the cli is
-creates them without an expirations date. Even if a token has not expired, it cannot be used if
+revoked.  The JWT tokens can created with or without an expiration, but the default on the cli is
+creates them without an expirations date.  Even if a token has not expired, it cannot be used if
 the token has been revoked.
 
-Below is an example of leveraging a JWT token to access a guestbook application. It makes the
+Below is an example of leveraging a JWT token to access a guestbook application.  It makes the
 assumption that the user already has a project named myproject and an application called
 guestbook-default.
 
@@ -157,7 +157,7 @@ argocd app get $APP --auth-token $JWT
 The project Roles allows configuring RBAC rules scoped to the project. The following sample
 project provides read-only permissions on project applications to any member of `my-oidc-group` group.
 
-_AppProject example:_
+*AppProject example:*
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -167,13 +167,13 @@ metadata:
   namespace: argocd
 spec:
   roles:
-    # A role which provides read-only access to all applications in the project
-    - name: read-only
-      description: Read-only privileges to my-project
-      policies:
-        - p, proj:my-project:read-only, applications, get, my-project/*, allow
-      groups:
-        - my-oidc-group
+  # A role which provides read-only access to all applications in the project
+  - name: read-only
+    description: Read-only privileges to my-project
+    policies:
+    - p, proj:my-project:read-only, applications, get, my-project/*, allow
+    groups:
+    - my-oidc-group
 ```
 
 You can use `argocd proj role` CLI commands or project details page in the user interface to configure the policy.
@@ -182,20 +182,19 @@ Note that each project role policy rule must be scoped to that project only. Use
 
 ## Configuring Global Projects (v1.8)
 
-Global projects can be configured to provide configurations that other projects can inherit from.
+Global projects can be configured to provide configurations that other projects can inherit from. 
 
 Projects, which match `matchExpressions` specified in `argocd-cm` ConfigMap, inherit the following fields from the global project:
 
-- namespaceResourceBlacklist
-- namespaceResourceWhitelist
-- clusterResourceBlacklist
-- clusterResourceWhitelist
-- SyncWindows
-- SourceRepos
-- Destinations
+* namespaceResourceBlacklist
+* namespaceResourceWhitelist
+* clusterResourceBlacklist
+* clusterResourceWhitelist
+* SyncWindows
+* SourceRepos
+* Destinations
 
 Configure global projects in `argocd-cm` ConfigMap:
-
 ```yaml
 data:
   globalProjects: |-
@@ -207,7 +206,7 @@ data:
               - prod
       projectName: proj-global-test
 kind: ConfigMap
-```
+``` 
 
 Valid operators you can use are: In, NotIn, Exists, DoesNotExist. Gt, and Lt.
 
