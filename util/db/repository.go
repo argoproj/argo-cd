@@ -148,7 +148,7 @@ func (db *db) listRepositories(ctx context.Context, repoType *string) ([]*appsv1
 						ModifiedAt: &modifiedTime,
 					}
 
-					log.Warnf("could not retrieve repo: %s", err.Error())
+					// log.Warnf("could not retrieve repo: %s", err.Error())
 				} else {
 					return nil, err
 				}
