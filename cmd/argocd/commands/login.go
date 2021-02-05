@@ -115,7 +115,7 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 			}
 
 			parser := &jwt.Parser{
-				ValidationHelper: jwt.NewValidationHelper(jwt.WithoutClaimsValidation()),
+				ValidationHelper: jwt.NewValidationHelper(jwt.WithoutClaimsValidation(), jwt.WithoutAudienceValidation()),
 			}
 			claims := jwt.MapClaims{}
 			_, _, err := parser.ParseUnverified(tokenString, &claims)

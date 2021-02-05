@@ -64,7 +64,7 @@ type User struct {
 // Claims returns the standard claims from the JWT claims
 func (u *User) Claims() (*jwt.StandardClaims, error) {
 	parser := &jwt.Parser{
-		ValidationHelper: jwt.NewValidationHelper(jwt.WithoutClaimsValidation()),
+		ValidationHelper: jwt.NewValidationHelper(jwt.WithoutClaimsValidation(), jwt.WithoutAudienceValidation()),
 	}
 	claims := jwt.StandardClaims{}
 	_, _, err := parser.ParseUnverified(u.AuthToken, &claims)
