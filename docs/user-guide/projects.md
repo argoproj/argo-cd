@@ -191,6 +191,8 @@ Projects, which match `matchExpressions` specified in `argocd-cm` ConfigMap, inh
 * clusterResourceBlacklist
 * clusterResourceWhitelist
 * SyncWindows
+* SourceRepos
+* Destinations
 
 Configure global projects in `argocd-cm` ConfigMap:
 ```yaml

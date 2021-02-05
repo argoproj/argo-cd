@@ -592,5 +592,9 @@ func mergeVirtualProject(proj *argoappv1.AppProject, globalProj *argoappv1.AppPr
 
 	proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, globalProj.Spec.SyncWindows...)
 
+	proj.Spec.SourceRepos = append(proj.Spec.SourceRepos, globalProj.Spec.SourceRepos...)
+
+	proj.Spec.Destinations = append(proj.Spec.Destinations, globalProj.Spec.Destinations...)
+
 	return proj
 }
