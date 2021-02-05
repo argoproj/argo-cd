@@ -19,7 +19,6 @@ type server struct {
 	kustomizeVersion string
 	helmVersion      string
 	kubectlVersion   string
-	jsonnetVersion   string
 	authenticator    settings.Authenticator
 	disableAuth      func() (bool, error)
 }
