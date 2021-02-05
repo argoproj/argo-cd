@@ -15,18 +15,26 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apiclient/version"
+	"github.com/argoproj/argo-cd/server/settings"
 	"github.com/argoproj/argo-cd/util/helm"
 	ksutil "github.com/argoproj/argo-cd/util/ksonnet"
 	"github.com/argoproj/argo-cd/util/kustomize"
 	"github.com/argoproj/argo-cd/util/log"
+	sessionmgr "github.com/argoproj/argo-cd/util/session"
 )
 
-type Server struct {
+type server struct {
 	ksonnetVersion   string
 	kustomizeVersion string
 	helmVersion      string
 	kubectlVersion   string
 	jsonnetVersion   string
+	authenticator    settings.Authenticator
+	disableAuth      bool
+}
+
+func NewServer(authenticator settings.Authenticator, disableAuth bool) *server {
+	return &server{authenticator: authenticator, disableAuth: disableAuth}
 }
 
 func getVersion() (string, error) {
@@ -51,8 +59,13 @@ func getVersion() (string, error) {
 }
 
 // Version returns the version of the API server
-func (s *Server) Version(context.Context, *empty.Empty) (*version.VersionMessage, error) {
+func (s *server) Version(ctx context.Context, _ *empty.Empty) (*version.VersionMessage, error) {
 	vers := common.GetVersion()
+
+	if !sessionmgr.LoggedIn(ctx) && !s.disableAuth {
+		return &version.VersionMessage{Version: vers.Version}, nil
+	}
+
 	if s.ksonnetVersion == "" {
 		ksonnetVersion, err := ksutil.Version()
 		if err == nil {
@@ -104,6 +117,10 @@ func (s *Server) Version(context.Context, *empty.Empty) (*version.VersionMessage
 }
 
 // AuthFuncOverride allows the version to be returned without auth
-func (s *Server) AuthFuncOverride(ctx context.Context, fullMethodName string) (context.Context, error) {
+func (s *server) AuthFuncOverride(ctx context.Context, fullMethodName string) (context.Context, error) {
+	if s.authenticator != nil {
+		// this authenticates the user, but ignores any error, so that we have claims populated
+		ctx, _ = s.authenticator.Authenticate(ctx)
+	}
 	return ctx, nil
 }
