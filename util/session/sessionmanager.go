@@ -476,7 +476,7 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 // We choose how to verify based on the issuer.
 func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, error) {
 	parser := &jwt.Parser{
-		ValidationHelper: jwt.NewValidationHelper(jwt.WithoutClaimsValidation()),
+		ValidationHelper: jwt.NewValidationHelper(jwt.WithoutClaimsValidation(), jwt.WithoutAudienceValidation()),
 	}
 	var claims jwt.StandardClaims
 	_, _, err := parser.ParseUnverified(tokenString, &claims)
