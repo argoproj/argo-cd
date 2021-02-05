@@ -470,7 +470,9 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             if (treeNodeKey(child) === treeNodeKey(root)) {
                 return;
             }
-            graph.setEdge(treeNodeKey(node), treeNodeKey(child), {colors});
+            if (node.namespace === child.namespace) {
+                graph.setEdge(treeNodeKey(node), treeNodeKey(child), {colors});
+            }
             processNode(child, root, colors);
         });
     }
