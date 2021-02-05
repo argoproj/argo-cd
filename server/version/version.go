@@ -21,18 +21,22 @@ type server struct {
 	kubectlVersion   string
 	jsonnetVersion   string
 	authenticator    settings.Authenticator
-	disableAuth      bool
+	disableAuth      func() (bool, error)
 }
 
-func NewServer(authenticator settings.Authenticator, disableAuth bool) *server {
+func NewServer(authenticator settings.Authenticator, disableAuth func() (bool, error)) *server {
 	return &server{authenticator: authenticator, disableAuth: disableAuth}
 }
 
 // Version returns the version of the API server
 func (s *server) Version(ctx context.Context, _ *empty.Empty) (*version.VersionMessage, error) {
 	vers := common.GetVersion()
+	disableAuth, err := s.disableAuth()
+	if err != nil {
+		return nil, err
+	}
 
-	if !sessionmgr.LoggedIn(ctx) && !s.disableAuth {
+	if !sessionmgr.LoggedIn(ctx) && !disableAuth {
 		return &version.VersionMessage{Version: vers.Version}, nil
 	}
 

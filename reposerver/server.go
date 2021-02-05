@@ -69,7 +69,9 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 // CreateGRPC creates new configured grpc server
 func (a *ArgoCDRepoServer) CreateGRPC() *grpc.Server {
 	server := grpc.NewServer(a.opts...)
-	versionpkg.RegisterVersionServiceServer(server, version.NewServer(nil, true))
+	versionpkg.RegisterVersionServiceServer(server, version.NewServer(nil, func() (bool, error) {
+		return true, nil
+	}))
 	manifestService := repository.NewService(a.metricsServer, a.cache, a.parallelismLimit)
 	apiclient.RegisterRepoServerServiceServer(server, manifestService)
 
