@@ -108,7 +108,7 @@ func (s *Server) CreateToken(ctx context.Context, q *project.ProjectTokenCreateR
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	parser := &jwt.Parser{
-		ValidationHelper: jwt.NewValidationHelper(jwt.WithoutClaimsValidation()),
+		ValidationHelper: jwt.NewValidationHelper(jwt.WithoutClaimsValidation(), jwt.WithoutAudienceValidation()),
 	}
 	claims := jwt.StandardClaims{}
 	_, _, err = parser.ParseUnverified(jwtToken, &claims)

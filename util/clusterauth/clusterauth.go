@@ -303,7 +303,7 @@ func (sac *ServiceAccountClaims) Valid(helper *jwt.ValidationHelper) error {
 // ParseServiceAccountToken parses a Kubernetes service account token
 func ParseServiceAccountToken(token string) (*ServiceAccountClaims, error) {
 	parser := &jwt.Parser{
-		ValidationHelper: jwt.NewValidationHelper(jwt.WithoutClaimsValidation()),
+		ValidationHelper: jwt.NewValidationHelper(jwt.WithoutClaimsValidation(), jwt.WithoutAudienceValidation()),
 	}
 	var claims ServiceAccountClaims
 	_, _, err := parser.ParseUnverified(token, &claims)
