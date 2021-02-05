@@ -544,7 +544,7 @@ export function getPodStateReason(pod: appModels.State): {message: string; reaso
             } else if (container.state.terminated && container.state.terminated.reason) {
                 reason = container.state.terminated.reason;
                 message = container.state.terminated.message;
-            } else if (container.state.terminated && container.state.terminated.reason) {
+            } else if (container.state.terminated && !container.state.terminated.reason) {
                 if (container.state.terminated.signal !== 0) {
                     reason = `Signal:${container.state.terminated.signal}`;
                     message = '';
