@@ -1,17 +1,33 @@
 @import 'node_modules/argo-ui/src/styles/config';
 
 .help-tip {
-    color: $argo-color-gray-3;
+    color: $argo-color-gray-4;
 }
 
 .application-status-panel {
     font-size: 0.875em;
-    color: $argo-color-gray-6;
+    color: $argo-color-gray-7;
     background-color: white;
     box-shadow: 1px 2px 3px rgba(0, 0, 0, 0.1);
     @media screen and (max-width: map-get($breakpoints, large)) {
         flex-wrap: nowrap;
         overflow-x: scroll;
+    }
+
+    &__conditions {
+        display: flex;
+        a {
+            display: block;
+            margin-right: 12px;
+        }
+    }
+
+    &__more-button {
+        margin-left: auto;
+        font-size: 12px;
+        line-height: 20px;
+        padding: 0;
+        margin-bottom: 0.5em;
     }
 
     &__item {
@@ -20,7 +36,7 @@
         padding: 5px 20px;
         font-size: 0.8em;
         line-height: 1.2;
-        color: $argo-color-gray-5;
+        color: $argo-color-gray-6;
 
         &:not(:first-child) {
             border-left: 1px solid $argo-color-gray-3;
@@ -42,6 +58,13 @@
             }
         }
 
+        label {
+            display: block;
+            color: $argo-color-gray-6;
+            font-size: 14px;
+            margin-bottom: 0.5em;
+        }
+
         @media screen and (max-width: map-get($breakpoints, xlarge)) {
             flex: auto;
             flex-grow: 1;
@@ -52,12 +75,14 @@
     }
 
     &__item-value {
+        display: flex;
+        align-items: center;
         .fa {
             font-size: 1em;
         }
 
         font-size: 2em;
-        color: $argo-color-gray-6;
+        color: $argo-color-gray-7;
 
         &--highlight {
             color: $argo-color-teal-6;
@@ -79,6 +104,16 @@
 
         i {
             font-size: 0.6em;
+        }
+
+        &__revision {
+            font-size: 14px;
+            color: $argo-color-gray-7;
+            font-weight: 500;
+            margin-left: auto;
+            a {
+                color: $argo-color-teal-6;
+            }
         }
     }
 
