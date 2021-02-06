@@ -307,7 +307,7 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 
 	// "NodeLost" = https://github.com/kubernetes/kubernetes/blob/cb8ad64243d48d9a3c26b11b2e0945c098457282/pkg/util/node/node.go#L46
 	// But depending on the k8s.io/kubernetes package just for a constant
-	// is not worth it. 
+	// is not worth it.
 	// See https://github.com/argoproj/argo-cd/issues/5173
 	// and https://github.com/kubernetes/kubernetes/issues/90358#issuecomment-617859364
 	if pod.DeletionTimestamp != nil && pod.Status.Reason == "NodeLost" {
