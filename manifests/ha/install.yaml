@@ -2936,7 +2936,6 @@ spec:
         ports:
         - containerPort: 6379
           name: redis
-        resources: {}
         volumeMounts:
         - mountPath: /usr/local/etc/haproxy
           name: data
@@ -2950,20 +2949,17 @@ spec:
         image: haproxy:2.0.4
         imagePullPolicy: IfNotPresent
         name: config-init
-        resources: {}
         volumeMounts:
         - mountPath: /readonly
           name: config-volume
           readOnly: true
         - mountPath: /data
           name: data
-      nodeSelector: {}
       securityContext:
         fsGroup: 1000
         runAsNonRoot: true
         runAsUser: 1000
       serviceAccountName: argocd-redis-ha-haproxy
-      tolerations: null
       volumes:
       - configMap:
           name: argocd-redis-ha-configmap
@@ -3240,7 +3236,6 @@ spec:
         ports:
         - containerPort: 6379
           name: redis
-        resources: {}
         volumeMounts:
         - mountPath: /data
           name: data
@@ -3258,7 +3253,6 @@ spec:
         ports:
         - containerPort: 26379
           name: sentinel
-        resources: {}
         volumeMounts:
         - mountPath: /data
           name: data
@@ -3277,7 +3271,6 @@ spec:
         image: redis:5.0.10-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
-        resources: {}
         volumeMounts:
         - mountPath: /readonly-config
           name: config
