@@ -19,21 +19,11 @@ func logRequest(entry *logrus.Entry, info string, pbMsg interface{}, ctx context
 		}
 	}
 	if p, ok := pbMsg.(proto.Message); ok {
-		entry = entry.WithField("grpc.request.content", &jsonpbMarshalleble{p})
+		if data, err := json.Marshal(p); err == nil {
+			entry = entry.WithField("grpc.request.content", string(data))
+		}
 	}
 	entry.Info(info)
-}
-
-type jsonpbMarshalleble struct {
-	proto.Message
-}
-
-func (j *jsonpbMarshalleble) MarshalJSON() ([]byte, error) {
-	b, err := proto.Marshal(j.Message)
-	if err != nil {
-		return nil, fmt.Errorf("jsonpb serializer failed: %v", err)
-	}
-	return b, nil
 }
 
 type loggingServerStream struct {
