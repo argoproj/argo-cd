@@ -12,7 +12,7 @@ export const Help = () => (
                     <div className='columns large-4 small-6'>
                         <div className='help-box'>
                             <p>New to Argo CD?</p>
-                            <a className='argo-button argo-button--base' href='https://argoproj.github.io/argo-cd'>
+                            <a className='argo-button argo-button--base' href='https://argo-cd.readthedocs.io'>
                                 Read the docs
                             </a>
                         </div>
