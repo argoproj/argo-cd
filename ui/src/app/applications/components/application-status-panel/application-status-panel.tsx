@@ -24,7 +24,7 @@ interface SectionInfo {
 
 interface RevisionInfo {
     onClick: (tag: string, metadata: models.RevisionMetadata) => any;
-    tag: string;
+    tag?: string;
 }
 
 const sectionLabel = (info: SectionInfo) => (
@@ -42,7 +42,7 @@ const sectionHeader = (appName: string, revision: RevisionInfo, info: SectionInf
                 {metadata => (
                     <button
                         className='argo-button argo-button--base argo-button--sm application-status-panel__more-button'
-                        onClick={revision.onClick && (() => revision.onClick(revision.tag, metadata))}>
+                        onClick={revision.onClick && (() => revision.onClick(revision.tag || '', metadata))}>
                         MORE
                     </button>
                 )}
@@ -110,7 +110,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                 <div className='application-status-panel__item'>
                     {sectionHeader(
                         application.metadata.name,
-                        {onClick: showMetadataInfo, tag: appOperationState.syncResult.revision},
+                        {onClick: showMetadataInfo, tag: appOperationState.syncResult ? appOperationState.syncResult.revision : null},
                         {
                             title: 'LAST SYNC STATUS',
                             helpContent:
