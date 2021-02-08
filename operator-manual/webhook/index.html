@@ -1605,7 +1605,7 @@ a Git webhook for GitHub, but the same process should be applicable to other pro
 <h3 id="1-create-the-webhook-in-the-git-provider">1. Create The WebHook In The Git Provider<a class="headerlink" href="#1-create-the-webhook-in-the-git-provider" title="Permanent link">&para;</a></h3>
 <p>In your Git provider, navigate to the settings page where webhooks can be configured. The payload
 URL configured in the Git provider should use the <code>/api/webhook</code> endpoint of your Argo CD instance
-(e.g. [https://argocd.example.com/api/webhook]). If you wish to use a shared secret, input an
+(e.g. <code>https://argocd.example.com/api/webhook</code>). If you wish to use a shared secret, input an
 arbitrary value in the secret. This value will be used when configuring the webhook in the next step.</p>
 <p><img alt="Add Webhook" src="../../assets/webhook-config.png" title="Add Webhook" /></p>
 <div class="admonition note">
