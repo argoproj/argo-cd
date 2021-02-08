@@ -36,7 +36,7 @@
     
     
       
-        <title>Argocd app - Argo CD - Declarative GitOps CD for Kubernetes</title>
+        <title>Argocd app logs - Argo CD - Declarative GitOps CD for Kubernetes</title>
       
     
     
@@ -129,7 +129,7 @@
     <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
     <label class="md-overlay" data-md-component="overlay" for="__drawer"></label>
     
-      <a href="#argocd-app" tabindex="1" class="md-skip">
+      <a href="#argocd-app-logs" tabindex="1" class="md-skip">
         Skip to content
       </a>
     
@@ -154,7 +154,7 @@
               Argo CD - Declarative GitOps CD for Kubernetes
             </span>
             <span class="md-header-nav__topic">
-              Argocd app
+              Argocd app logs
             </span>
           
         </div>
@@ -1489,19 +1489,12 @@
     <ul class="md-nav__list" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#argocd-app" title="argocd app" class="md-nav__link">
-    argocd app
+  <a href="#argocd-app-logs" title="argocd app logs" class="md-nav__link">
+    argocd app logs
   </a>
   
     <nav class="md-nav">
       <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#examples" title="Examples" class="md-nav__link">
-    Examples
-  </a>
-  
-</li>
         
           <li class="md-nav__item">
   <a href="#options" title="Options" class="md-nav__link">
@@ -1545,29 +1538,27 @@
             <article class="md-content__inner md-typeset">
               
                 
-                  <a href="https://github.com/argoproj/argo-cd/edit/master/docs/user-guide/commands/argocd_app.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
+                  <a href="https://github.com/argoproj/argo-cd/edit/master/docs/user-guide/commands/argocd_app_logs.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
                 
                 
-                  <h1>Argocd app</h1>
+                  <h1>Argocd app logs</h1>
                 
-                <h2 id="argocd-app">argocd app<a class="headerlink" href="#argocd-app" title="Permanent link">&para;</a></h2>
-<p>Manage applications</p>
-<div class="codehilite"><pre><span></span><code><span class="n">argocd</span><span class="w"> </span><span class="n">app</span><span class="w"> </span><span class="o">[</span><span class="n">flags</span><span class="o">]</span><span class="w"></span>
-</code></pre></div>
-
-<h3 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h3>
-<div class="codehilite"><pre><span></span><code>  <span class="o">#</span> <span class="n">List</span> <span class="k">all</span> <span class="n">the</span> <span class="n">applications</span><span class="p">.</span>
-  <span class="n">argocd</span> <span class="n">app</span> <span class="n">list</span>
-
-  <span class="o">#</span> <span class="k">Get</span> <span class="n">the</span> <span class="n">details</span> <span class="k">of</span> <span class="n">a</span> <span class="n">application</span>
-  <span class="n">argocd</span> <span class="n">app</span> <span class="k">get</span> <span class="n">my</span><span class="o">-</span><span class="n">app</span>
-
-  <span class="o">#</span> <span class="k">Set</span> <span class="n">an</span> <span class="n">override</span> <span class="k">parameter</span>
-  <span class="n">argocd</span> <span class="n">app</span> <span class="k">set</span> <span class="n">my</span><span class="o">-</span><span class="n">app</span> <span class="o">-</span><span class="n">p</span> <span class="n">image</span><span class="p">.</span><span class="n">tag</span><span class="o">=</span><span class="n">v1</span><span class="p">.</span><span class="mi">0</span><span class="p">.</span><span class="mi">1</span>
+                <h2 id="argocd-app-logs">argocd app logs<a class="headerlink" href="#argocd-app-logs" title="Permanent link">&para;</a></h2>
+<p>Get logs of application pods</p>
+<div class="codehilite"><pre><span></span><code><span class="n">argocd</span><span class="w"> </span><span class="n">app</span><span class="w"> </span><span class="n">logs</span><span class="w"> </span><span class="n">APPNAME</span><span class="w"> </span><span class="o">[</span><span class="n">flags</span><span class="o">]</span><span class="w"></span>
 </code></pre></div>
 
 <h3 id="options">Options<a class="headerlink" href="#options" title="Permanent link">&para;</a></h3>
-<div class="codehilite"><pre><span></span><code><span class="err">  -h, --help   help for app</span>
+<div class="codehilite"><pre><span></span><code><span class="err">      --filter string       Show logs contain this string</span>
+<span class="err">      --follow              Specify if the logs should be streamed</span>
+<span class="err">      --group string        Resource group</span>
+<span class="err">  -h, --help                help for logs</span>
+<span class="err">      --kind string         Resource kind</span>
+<span class="err">      --name string         Resource name</span>
+<span class="err">      --namespace string    Resource namespace</span>
+<span class="err">      --since-seconds int   A relative time in seconds before the current time from which to show logs</span>
+<span class="err">      --tail int            The number of lines from the end of the logs to show</span>
+<span class="err">      --until-time string   Show logs until this time</span>
 </code></pre></div>
 
 <h3 id="options-inherited-from-parent-commands">Options inherited from parent commands<a class="headerlink" href="#options-inherited-from-parent-commands" title="Permanent link">&para;</a></h3>
@@ -1590,26 +1581,7 @@
 
 <h3 id="see-also">SEE ALSO<a class="headerlink" href="#see-also" title="Permanent link">&para;</a></h3>
 <ul>
-<li><a href="../argocd/">argocd</a>    - argocd controls a Argo CD server</li>
-<li><a href="../argocd_app_actions/">argocd app actions</a>    - Manage Resource actions</li>
-<li><a href="../argocd_app_create/">argocd app create</a>  - Create an application</li>
-<li><a href="../argocd_app_delete/">argocd app delete</a>  - Delete an application</li>
-<li><a href="../argocd_app_diff/">argocd app diff</a>  - Perform a diff against the target and live state.</li>
-<li><a href="../argocd_app_edit/">argocd app edit</a>  - Edit application</li>
-<li><a href="../argocd_app_get/">argocd app get</a>    - Get application details</li>
-<li><a href="../argocd_app_history/">argocd app history</a>    - Show application deployment history</li>
-<li><a href="../argocd_app_list/">argocd app list</a>  - List applications</li>
-<li><a href="../argocd_app_logs/">argocd app logs</a>  - Get logs of application pods</li>
-<li><a href="../argocd_app_manifests/">argocd app manifests</a>    - Print manifests of an application</li>
-<li><a href="../argocd_app_patch/">argocd app patch</a>    - Patch application</li>
-<li><a href="../argocd_app_patch-resource/">argocd app patch-resource</a>  - Patch resource in an application</li>
-<li><a href="../argocd_app_resources/">argocd app resources</a>    - List resource of application</li>
-<li><a href="../argocd_app_rollback/">argocd app rollback</a>  - Rollback application to a previous deployed version by History ID</li>
-<li><a href="../argocd_app_set/">argocd app set</a>    - Set application parameters</li>
-<li><a href="../argocd_app_sync/">argocd app sync</a>  - Sync an application to its target state</li>
-<li><a href="../argocd_app_terminate-op/">argocd app terminate-op</a>  - Terminate running operation of an application</li>
-<li><a href="../argocd_app_unset/">argocd app unset</a>    - Unset application parameters</li>
-<li><a href="../argocd_app_wait/">argocd app wait</a>  - Wait for an application to reach a synced and healthy state</li>
+<li><a href="../argocd_app/">argocd app</a>    - Manage applications</li>
 </ul>
                 
                   
