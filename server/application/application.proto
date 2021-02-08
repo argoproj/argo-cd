@@ -157,7 +157,7 @@ message ApplicationResourceResponse {
 message ApplicationPodLogsQuery {
 	required string name = 1;
 	required string namespace = 2 [(gogoproto.nullable) = false];
-	required string podName = 3;
+	optional string podName = 3;
 	required string container = 4 [(gogoproto.nullable) = false];
 	required int64 sinceSeconds = 5 [(gogoproto.nullable) = false];
 	optional k8s.io.apimachinery.pkg.apis.meta.v1.Time sinceTime = 6;
@@ -165,6 +165,9 @@ message ApplicationPodLogsQuery {
 	required bool follow = 8 [(gogoproto.nullable) = false];
 	optional string untilTime = 9;
 	optional string filter = 10;
+	optional string kind = 11;
+	optional string group = 12;
+	optional string resourceName = 13 ;
 }
 
 message LogEntry {
