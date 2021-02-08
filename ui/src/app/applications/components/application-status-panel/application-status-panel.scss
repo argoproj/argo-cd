@@ -41,6 +41,8 @@
         color: $argo-color-gray-6;
         display: flex;
         flex-direction: column;
+        flex-shrink: 1;
+        flex-grow: 0;
 
         &__row {
             display: flex;
@@ -84,9 +86,6 @@
             font-size: 13px;
         }
 
-        flex: auto;
-        flex-grow: 1;
-        flex-shrink: 0;
         max-width: 100%;
         width: auto;
     }

@@ -60,24 +60,6 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
         const deployDate = new Date(history[history.length - 1].deployedAt);
         daysSinceLastSynchronized = Math.round(Math.abs((today.getTime() - deployDate.getTime()) / (24 * 60 * 60 * 1000)));
     }
-
-    application.status.conditions = [
-        {
-            type: 'Error',
-            message: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua',
-            lastTransitionTime: 'Wed Jan 20 2021 14:52:45 GMT-0800'
-        },
-        {
-            type: 'Warning',
-            message: 'Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat',
-            lastTransitionTime: 'Wed Jan 20 2021 14:52:45 GMT-0800'
-        },
-        {
-            type: 'info',
-            message: 'Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur',
-            lastTransitionTime: 'Wed Jan 20 2021 14:52:45 GMT-0800'
-        }
-    ];
     const cntByCategory = (application.status.conditions || []).reduce(
         (map, next) => map.set(getConditionCategory(next), (map.get(getConditionCategory(next)) || 0) + 1),
         new Map<string, number>()
@@ -186,22 +168,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                 noLoaderOnInputChange={true}
                 input={application.metadata.name}
                 load={async name => {
-                    // return await services.applications.getApplicationSyncWindowState(name);
-                    return {
-                        activeWindows: [],
-                        assignedWindows: [
-                            {
-                                kind: '',
-                                schedule: '',
-                                duration: '',
-                                applications: [],
-                                namespaces: [],
-                                clusters: [],
-                                manualSync: true
-                            }
-                        ],
-                        canSync: false
-                    } as models.ApplicationSyncWindowState;
+                    return await services.applications.getApplicationSyncWindowState(name);
                 }}>
                 {(data: models.ApplicationSyncWindowState) => (
                     <React.Fragment>
