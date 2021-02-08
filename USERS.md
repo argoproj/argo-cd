@@ -64,6 +64,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [MTN Group](https://www.mtn.com/)
 1. [New Relic](https://newrelic.com/)
 1. [Nikkei](https://www.nikkei.co.jp/nikkeiinfo/en/)
+1. [Octadesk](https://octadesk.com)
 1. [openEuler](https://openeuler.org)
 1. [openGauss](https://opengauss.org/)
 1. [openLooKeng](https://openlookeng.io)
