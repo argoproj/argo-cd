@@ -60,8 +60,8 @@ The [GitOps Engine](https://github.com/argoproj/gitops-engine) is a library that
 A lot of Argo CD features are still not available in GitOps engine. The following features have to be contributed to the GitOps Engine:
 
 * an ability to customize resources health assessment and existing CRD health [assessment functions](https://github.com/argoproj/argo-cd/tree/master/resource_customizations).
-* resource diffing [customization](../user-guide/diffing/).
-* config management [tools](../user-guide/application_sources/) integration.
+* resource diffing [customization](/user-guide/diffing/).
+* config management [tools](/user-guide/application_sources/) integration.
 * unified syncing annotations [argoproj/gitops-engine#43](https://github.com/argoproj/gitops-engine/issues/43).
 
 ### GitOps Agent
