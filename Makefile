@@ -13,6 +13,7 @@ BUILD_DATE=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
 GIT_COMMIT=$(shell git rev-parse HEAD)
 GIT_TAG=$(shell if [ -z "`git status --porcelain`" ]; then git describe --exact-match --tags HEAD 2>/dev/null; fi)
 GIT_TREE_STATE=$(shell if [ -z "`git status --porcelain`" ]; then echo "clean" ; else echo "dirty"; fi)
+GIT_REMOTE_REPO=upstream
 PACKR_CMD=$(shell if [ "`which packr`" ]; then echo "packr"; else echo "go run github.com/gobuffalo/packr/packr"; fi)
 VOLUME_MOUNT=$(shell if test "$(go env GOOS)" = "darwin"; then echo ":delegated"; elif test selinuxenabled; then echo ":delegated"; else echo ""; fi)
 KUBECTL_VERSION=$(shell go list -m all | grep k8s.io/client-go | cut -d ' ' -f5)
@@ -24,6 +25,11 @@ DOCKER_SRCDIR?=$(GOPATH)/src
 DOCKER_WORKDIR?=/go/src/github.com/argoproj/argo-cd
 
 ARGOCD_PROCFILE?=Procfile
+
+# Strict mode has been disabled in latest versions of mkdocs-material. 
+# Thus pointing to the older image of mkdocs-material matching the version used by argo-cd.
+MKDOCS_DOCKER_IMAGE?=squidfunk/mkdocs-material:4.1.1
+MKDOCS_RUN_ARGS?=
 
 # Configuration for building argocd-test-tools image
 TEST_TOOLS_NAMESPACE?=
@@ -480,11 +486,11 @@ release: pre-commit release-precheck image release-cli
 
 .PHONY: build-docs
 build-docs:
-	mkdocs build
+	docker run ${MKDOCS_RUN_ARGS} --rm -it -p 8000:8000 -v ${CURRENT_DIR}:/docs ${MKDOCS_DOCKER_IMAGE} build
 
 .PHONY: serve-docs
 serve-docs:
-	mkdocs serve
+	docker run ${MKDOCS_RUN_ARGS} --rm -it -p 8000:8000 -v ${CURRENT_DIR}:/docs ${MKDOCS_DOCKER_IMAGE} serve -a 0.0.0.0:8000
 
 .PHONY: lint-docs
 lint-docs:
@@ -493,7 +499,11 @@ lint-docs:
 
 .PHONY: publish-docs
 publish-docs: lint-docs
-	mkdocs gh-deploy
+	docker run ${MKDOCS_RUN_ARGS} --rm -it \
+		-v ~/.ssh:/root/.ssh \
+		-v ${CURRENT_DIR}:/docs \
+		-v ~/.gitconfig:/root/.gitconfig \
+		${MKDOCS_DOCKER_IMAGE} gh-deploy -r ${GIT_REMOTE_REPO}
 
 # Verify that kubectl can connect to your K8s cluster from Docker
 .PHONY: verify-kube-connect
