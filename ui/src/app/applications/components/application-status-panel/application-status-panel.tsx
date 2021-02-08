@@ -17,12 +17,39 @@ interface Props {
     showMetadataInfo?: (revision: string, info: models.RevisionMetadata) => any;
 }
 
-const sectionLabel = (title: string, helpContent?: string) => (
+interface SectionInfo {
+    title: string;
+    helpContent?: string;
+}
+
+interface RevisionInfo {
+    onClick: (tag: string, metadata: models.RevisionMetadata) => any;
+    tag: string;
+}
+
+const sectionLabel = (info: SectionInfo) => (
     <label>
-        {title}
-        {helpContent && <HelpIcon title={helpContent} />}
+        {info.title}
+        {info.helpContent && <HelpIcon title={info.helpContent} />}
     </label>
 );
+
+const sectionHeader = (appName: string, revision: RevisionInfo, info: SectionInfo) => {
+    return (
+        <div style={{display: 'flex', alignItems: 'center'}}>
+            {sectionLabel(info)}
+            <DataLoader load={() => services.applications.revisionMetadata(appName, revision.tag)}>
+                {metadata => (
+                    <button
+                        className='argo-button argo-button--base argo-button--sm application-status-panel__more-button'
+                        onClick={revision.onClick && (() => revision.onClick(revision.tag, metadata))}>
+                        MORE
+                    </button>
+                )}
+            </DataLoader>
+        </div>
+    );
+};
 
 export const ApplicationStatusPanel = ({application, showOperation, showConditions, showMetadataInfo}: Props) => {
     const today = new Date();
@@ -67,8 +94,8 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
     return (
         <div className='application-status-panel row'>
             <div className='application-status-panel__item'>
-                {sectionLabel('APP HEALTH', 'The health status of your app')}
-                <div className='application-status-panel__item-value'>
+                {sectionLabel({title: 'APP HEALTH', helpContent: 'The health status of your app'})}
+                <div className='application-status-panel__item-value' style={{margin: 'auto 0'}}>
                     <HealthStatusIcon state={application.status.health} />
                     &nbsp;
                     {application.status.health.status}
@@ -76,17 +103,14 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                 <div className='application-status-panel__item-name'>{application.status.health.message}</div>
             </div>
             <div className='application-status-panel__item'>
-                <div style={{display: 'flex', alignItems: 'center'}}>
-                    {sectionLabel(
-                        'CURRENT SYNC STATUS',
-                        'Whether or not the version of your app is up to date with your repo. You may wish to sync your app if it is out-of-sync.'
-                    )}
-                    <button
-                        className='argo-button argo-button--base argo-button--sm application-status-panel__more-button'
-                        onClick={showMetadataInfo && (info => showMetadataInfo(application.status.sync.revision, info))}>
-                        MORE
-                    </button>
-                </div>
+                {sectionHeader(
+                    application.metadata.name,
+                    {onClick: showMetadataInfo, tag: application.status.sync.revision},
+                    {
+                        title: 'CURRENT SYNC STATUS',
+                        helpContent: 'Whether or not the version of your app is up to date with your repo. You may wish to sync your app if it is out-of-sync.'
+                    }
+                )}
                 <div className='application-status-panel__item-value'>
                     <div>
                         <ComparisonStatusIcon status={application.status.sync.status} label={true} />
@@ -96,20 +120,22 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                 <div className='application-status-panel__item-name'></div>
                 <div className='application-status-panel__item-name'>
                     {application.status && application.status.sync && application.status.sync.revision && (
-                        <RevisionMetadataPanel
-                            appName={application.metadata.name}
-                            type={application.spec.source.chart && 'helm'}
-                            revision={application.status.sync.revision}
-                            showInfo={}
-                        />
+                        <RevisionMetadataPanel appName={application.metadata.name} type={application.spec.source.chart && 'helm'} revision={application.status.sync.revision} />
                     )}
                 </div>
             </div>
             {appOperationState && (
                 <div className='application-status-panel__item'>
-                    {sectionLabel(
-                        'LAST SYNC',
-                        'Whether or not your last app sync was successful. It has been ' + daysSinceLastSynchronized + ' days since last sync. Click for the status of that sync.'
+                    {sectionHeader(
+                        application.metadata.name,
+                        {onClick: showMetadataInfo, tag: appOperationState.syncResult.revision},
+                        {
+                            title: 'LAST SYNC STATUS',
+                            helpContent:
+                                'Whether or not your last app sync was successful. It has been ' +
+                                daysSinceLastSynchronized +
+                                ' days since last sync. Click for the status of that sync.'
+                        }
                     )}
                     <div className={`application-status-panel__item-value application-status-panel__item-value--${appOperationState.phase}`}>
                         <a onClick={() => showOperation && showOperation()}>
@@ -130,14 +156,13 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                             appName={application.metadata.name}
                             type={application.spec.source.chart && 'helm'}
                             revision={appOperationState.syncResult.revision}
-                            showInfo={showMetadataInfo && (info => showMetadataInfo(appOperationState.syncResult.revision, info))}
                         />
                     )) || <div className='application-status-panel__item-name'>{appOperationState.message}</div>}
                 </div>
             )}
             {application.status.conditions && (
                 <div className={`application-status-panel__item`}>
-                    {sectionLabel('APP CONDITIONS')}
+                    {sectionLabel({title: 'APP CONDITIONS'})}
                     <div className='application-status-panel__item-value application-status-panel__conditions' onClick={() => showConditions && showConditions()}>
                         {infos && (
                             <a className='info'>
@@ -161,27 +186,40 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                 noLoaderOnInputChange={true}
                 input={application.metadata.name}
                 load={async name => {
-                    return await services.applications.getApplicationSyncWindowState(name);
+                    // return await services.applications.getApplicationSyncWindowState(name);
+                    return {
+                        activeWindows: [],
+                        assignedWindows: [
+                            {
+                                kind: '',
+                                schedule: '',
+                                duration: '',
+                                applications: [],
+                                namespaces: [],
+                                clusters: [],
+                                manualSync: true
+                            }
+                        ],
+                        canSync: false
+                    } as models.ApplicationSyncWindowState;
                 }}>
                 {(data: models.ApplicationSyncWindowState) => (
                     <React.Fragment>
-                        <div className='application-status-panel__item columns' style={{position: 'relative'}}>
-                            <div className='application-status-panel__item-value'>
-                                {data.assignedWindows && (
-                                    <React.Fragment>
-                                        <ApplicationSyncWindowStatusIcon project={application.spec.project} state={data} />
-                                        <HelpIcon
-                                            title={
-                                                'The aggregate state of sync windows for this app. ' +
-                                                'Red: no syncs allowed. ' +
-                                                'Yellow: manual syncs allowed. ' +
-                                                'Green: all syncs allowed'
-                                            }
-                                        />
-                                    </React.Fragment>
-                                )}
+                        {data.assignedWindows && (
+                            <div className='application-status-panel__item columns' style={{position: 'relative'}}>
+                                {sectionLabel({
+                                    title: 'SYNC WINDOWS',
+                                    helpContent:
+                                        'The aggregate state of sync windows for this app. ' +
+                                        'Red: no syncs allowed. ' +
+                                        'Yellow: manual syncs allowed. ' +
+                                        'Green: all syncs allowed'
+                                })}
+                                <div className='application-status-panel__item-value' style={{margin: 'auto 0'}}>
+                                    <ApplicationSyncWindowStatusIcon project={application.spec.project} state={data} />
+                                </div>
                             </div>
-                        </div>
+                        )}
                     </React.Fragment>
                 )}
             </DataLoader>

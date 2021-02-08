@@ -9,13 +9,16 @@
     color: $argo-color-gray-7;
     background-color: white;
     box-shadow: 1px 2px 3px rgba(0, 0, 0, 0.1);
-    @media screen and (max-width: map-get($breakpoints, large)) {
-        flex-wrap: nowrap;
-        overflow-x: scroll;
-    }
+    flex-wrap: nowrap;
+    overflow-x: auto;
 
     &__conditions {
         display: flex;
+        max-width: 250px;
+        margin: auto;
+        flex-wrap: wrap;
+        justify-content: center;
+        line-height: 1.5em;
         a {
             display: block;
             margin-right: 12px;
@@ -27,16 +30,33 @@
         font-size: 12px;
         line-height: 20px;
         padding: 0;
-        margin-bottom: 0.5em;
     }
 
     &__item {
-        height: 75px;
-        margin: 10px 0;
+        height: 105px;
+        margin-top: 5px;
         padding: 5px 20px;
         font-size: 0.8em;
         line-height: 1.2;
         color: $argo-color-gray-6;
+        display: flex;
+        flex-direction: column;
+
+        &__row {
+            display: flex;
+            max-width: 300px;
+            flex-shrink: 1;
+            div:first-child {
+                margin-right: 10px;
+            }
+            div:last-child {
+                font-weight: 500;
+                margin-left: auto;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+        }
 
         &:not(:first-child) {
             border-left: 1px solid $argo-color-gray-3;
@@ -61,17 +81,14 @@
         label {
             display: block;
             color: $argo-color-gray-6;
-            font-size: 14px;
-            margin-bottom: 0.5em;
+            font-size: 13px;
         }
 
-        @media screen and (max-width: map-get($breakpoints, xlarge)) {
-            flex: auto;
-            flex-grow: 1;
-            flex-shrink: 0;
-            max-width: 100%;
-            width: auto;
-        }
+        flex: auto;
+        flex-grow: 1;
+        flex-shrink: 0;
+        max-width: 100%;
+        width: auto;
     }
 
     &__item-value {
@@ -118,6 +135,7 @@
     }
 
     &__item-name {
+        margin: auto 0;
         i {
             position: relative;
             top: -2px;
@@ -125,6 +143,7 @@
     }
     &__item-name,
     &__item-value {
+        margin-top: auto;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
