@@ -13,7 +13,6 @@ BUILD_DATE=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
 GIT_COMMIT=$(shell git rev-parse HEAD)
 GIT_TAG=$(shell if [ -z "`git status --porcelain`" ]; then git describe --exact-match --tags HEAD 2>/dev/null; fi)
 GIT_TREE_STATE=$(shell if [ -z "`git status --porcelain`" ]; then echo "clean" ; else echo "dirty"; fi)
-GIT_REMOTE_REPO=upstream
 PACKR_CMD=$(shell if [ "`which packr`" ]; then echo "packr"; else echo "go run github.com/gobuffalo/packr/packr"; fi)
 VOLUME_MOUNT=$(shell if test "$(go env GOOS)" = "darwin"; then echo ":delegated"; elif test selinuxenabled; then echo ":delegated"; else echo ""; fi)
 KUBECTL_VERSION=$(shell go list -m all | grep k8s.io/client-go | cut -d ' ' -f5)
@@ -484,9 +483,17 @@ release-precheck: manifests
 .PHONY: release
 release: pre-commit release-precheck image release-cli
 
+.PHONY: build-docs-local
+build-docs-local:
+	mkdocs build
+
 .PHONY: build-docs
 build-docs:
 	docker run ${MKDOCS_RUN_ARGS} --rm -it -p 8000:8000 -v ${CURRENT_DIR}:/docs ${MKDOCS_DOCKER_IMAGE} build
+
+.PHONY: serve-docs-local
+serve-docs-local:
+	mkdocs serve
 
 .PHONY: serve-docs
 serve-docs:
@@ -496,14 +503,6 @@ serve-docs:
 lint-docs:
 	#  https://github.com/dkhamsing/awesome_bot
 	find docs -name '*.md' -exec grep -l http {} + | xargs docker run --rm -v $(PWD):/mnt:ro dkhamsing/awesome_bot -t 3 --allow-dupe --allow-redirect --white-list `cat white-list | grep -v "#" | tr "\n" ','` --skip-save-results --
-
-.PHONY: publish-docs
-publish-docs: lint-docs
-	docker run ${MKDOCS_RUN_ARGS} --rm -it \
-		-v ~/.ssh:/root/.ssh \
-		-v ${CURRENT_DIR}:/docs \
-		-v ~/.gitconfig:/root/.gitconfig \
-		${MKDOCS_DOCKER_IMAGE} gh-deploy -r ${GIT_REMOTE_REPO}
 
 # Verify that kubectl can connect to your K8s cluster from Docker
 .PHONY: verify-kube-connect
