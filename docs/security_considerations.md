@@ -113,7 +113,7 @@ An attacker could use this information in an attempt to deduce the state of the 
 **Mitigation and/or workaround:**
 
 The recommended mitigation as described in the user documentation is to use SSO integration. The default admin password
-should only be used for initial configuration and then [disabled](https://argoproj.github.io/argo-cd/operator-manual/user-management/#disable-admin-user)
+should only be used for initial configuration and then [disabled](../operator-manual/user-management/#disable-admin-user)
 or at least changed to a more secure password.
 
 ### CVE-2020-8827 - Insufficient anti-automation/anti-brute force
