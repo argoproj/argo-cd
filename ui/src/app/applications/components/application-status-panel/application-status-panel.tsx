@@ -85,7 +85,6 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                         </div>
                         <div className='application-status-panel__item-value__revision'>{syncStatusMessage(application)}</div>
                     </div>
-                    <div className='application-status-panel__item-name'></div>
                     <div className='application-status-panel__item-name'>
                         {application.status && application.status.sync && application.status.sync.revision && (
                             <RevisionMetadataPanel appName={application.metadata.name} type={application.spec.source.chart && 'helm'} revision={application.status.sync.revision} />
