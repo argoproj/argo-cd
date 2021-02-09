@@ -14,7 +14,7 @@ interface Props {
     application: models.Application;
     showOperation?: () => any;
     showConditions?: () => any;
-    showMetadataInfo?: (revision: string, info: models.RevisionMetadata) => any;
+    showMetadataInfo?: (revision: string) => any;
 }
 
 interface SectionInfo {
@@ -74,73 +74,57 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                 <div className='application-status-panel__item-name'>{application.status.health.message}</div>
             </div>
             <div className='application-status-panel__item'>
-                <DataLoader load={() => services.applications.revisionMetadata(application.metadata.name, application.status.sync.revision)} errorRenderer={() => <div />}>
-                    {metadata => (
-                        <React.Fragment>
-                            {sectionHeader(() => showMetadataInfo(application.status.sync ? application.status.sync.revision : '', metadata), {
-                                title: 'CURRENT SYNC STATUS',
-                                helpContent: 'Whether or not the version of your app is up to date with your repo. You may wish to sync your app if it is out-of-sync.'
-                            })}
-                            <div className='application-status-panel__item-value'>
-                                <div>
-                                    <ComparisonStatusIcon status={application.status.sync.status} label={true} />
-                                </div>
-                                <div className='application-status-panel__item-value__revision'>{syncStatusMessage(application)}</div>
-                            </div>
-                            <div className='application-status-panel__item-name'></div>
-                            <div className='application-status-panel__item-name'>
-                                {application.status && application.status.sync && application.status.sync.revision && (
-                                    <RevisionMetadataPanel
-                                        metadata={metadata}
-                                        appName={application.metadata.name}
-                                        type={application.spec.source.chart && 'helm'}
-                                        revision={application.status.sync.revision}
-                                    />
-                                )}
-                            </div>
-                        </React.Fragment>
-                    )}
-                </DataLoader>
+                <React.Fragment>
+                    {sectionHeader(() => showMetadataInfo(application.status.sync ? application.status.sync.revision : ''), {
+                        title: 'CURRENT SYNC STATUS',
+                        helpContent: 'Whether or not the version of your app is up to date with your repo. You may wish to sync your app if it is out-of-sync.'
+                    })}
+                    <div className='application-status-panel__item-value'>
+                        <div>
+                            <ComparisonStatusIcon status={application.status.sync.status} label={true} />
+                        </div>
+                        <div className='application-status-panel__item-value__revision'>{syncStatusMessage(application)}</div>
+                    </div>
+                    <div className='application-status-panel__item-name'></div>
+                    <div className='application-status-panel__item-name'>
+                        {application.status && application.status.sync && application.status.sync.revision && (
+                            <RevisionMetadataPanel appName={application.metadata.name} type={application.spec.source.chart && 'helm'} revision={application.status.sync.revision} />
+                        )}
+                    </div>
+                </React.Fragment>
             </div>
             {appOperationState && (
                 <div className='application-status-panel__item'>
-                    <DataLoader
-                        load={() => services.applications.revisionMetadata(application.metadata.name, appOperationState.syncResult ? appOperationState.syncResult.revision : '')}
-                        errorRenderer={() => <div />}>
-                        {metadata => (
-                            <React.Fragment>
-                                {sectionHeader(() => showMetadataInfo(appOperationState.syncResult ? appOperationState.syncResult.revision : '', metadata), {
-                                    title: 'LAST SYNC STATUS',
-                                    helpContent:
-                                        'Whether or not your last app sync was successful. It has been ' +
-                                        daysSinceLastSynchronized +
-                                        ' days since last sync. Click for the status of that sync.'
-                                })}
-                                <div className={`application-status-panel__item-value application-status-panel__item-value--${appOperationState.phase}`}>
-                                    <a onClick={() => showOperation && showOperation()}>
-                                        <OperationState app={application} />{' '}
-                                    </a>
-                                    {appOperationState.syncResult && appOperationState.syncResult.revision && (
-                                        <div className='application-status-panel__item-value__revision'>
-                                            To <Revision repoUrl={application.spec.source.repoURL} revision={appOperationState.syncResult.revision} />
-                                        </div>
-                                    )}
+                    <React.Fragment>
+                        {sectionHeader(() => showMetadataInfo(appOperationState.syncResult ? appOperationState.syncResult.revision : ''), {
+                            title: 'LAST SYNC STATUS',
+                            helpContent:
+                                'Whether or not your last app sync was successful. It has been ' +
+                                daysSinceLastSynchronized +
+                                ' days since last sync. Click for the status of that sync.'
+                        })}
+                        <div className={`application-status-panel__item-value application-status-panel__item-value--${appOperationState.phase}`}>
+                            <a onClick={() => showOperation && showOperation()}>
+                                <OperationState app={application} />{' '}
+                            </a>
+                            {appOperationState.syncResult && appOperationState.syncResult.revision && (
+                                <div className='application-status-panel__item-value__revision'>
+                                    To <Revision repoUrl={application.spec.source.repoURL} revision={appOperationState.syncResult.revision} />
                                 </div>
+                            )}
+                        </div>
 
-                                <div className='application-status-panel__item-name'>
-                                    {appOperationState.phase} <Timestamp date={appOperationState.finishedAt || appOperationState.startedAt} />
-                                </div>
-                                {(appOperationState.syncResult && appOperationState.syncResult.revision && (
-                                    <RevisionMetadataPanel
-                                        appName={application.metadata.name}
-                                        type={application.spec.source.chart && 'helm'}
-                                        revision={appOperationState.syncResult.revision}
-                                        metadata={metadata}
-                                    />
-                                )) || <div className='application-status-panel__item-name'>{appOperationState.message}</div>}
-                            </React.Fragment>
-                        )}
-                    </DataLoader>
+                        <div className='application-status-panel__item-name'>
+                            {appOperationState.phase} <Timestamp date={appOperationState.finishedAt || appOperationState.startedAt} />
+                        </div>
+                        {(appOperationState.syncResult && appOperationState.syncResult.revision && (
+                            <RevisionMetadataPanel
+                                appName={application.metadata.name}
+                                type={application.spec.source.chart && 'helm'}
+                                revision={appOperationState.syncResult.revision}
+                            />
+                        )) || <div className='application-status-panel__item-name'>{appOperationState.message}</div>}
+                    </React.Fragment>
                 </div>
             )}
             {application.status.conditions && (
