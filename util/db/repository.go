@@ -89,7 +89,7 @@ func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Reposi
 	if err != nil {
 		return nil, err
 	}
-	return repository, err
+	return repository, nil
 }
 
 func (db *db) getRepository(ctx context.Context, repoURL string) (*appsv1.Repository, error) {
