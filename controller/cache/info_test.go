@@ -326,7 +326,7 @@ func TestGetIngressInfoWithoutTls(t *testing.T) {
 	}, info.NetworkingInfo)
 }
 
-func TestGetIngressInfoNoHost(t *testing.T) {
+func TestGetIngressInfoWithHost(t *testing.T) {
 	ingress := strToUnstructured(`
   apiVersion: extensions/v1beta1
   kind: Ingress
@@ -361,6 +361,38 @@ func TestGetIngressInfoNoHost(t *testing.T) {
 		}},
 		ExternalURLs: []string{"https://107.178.210.11/"},
 	}, info.NetworkingInfo)
+}
+func TestGetIngressInfoNoHost(t *testing.T) {
+	ingress := strToUnstructured(`
+  apiVersion: extensions/v1beta1
+  kind: Ingress
+  metadata:
+    name: helm-guestbook
+    namespace: default
+  spec:
+    rules:
+    - http:
+        paths:
+        - backend:
+            serviceName: helm-guestbook
+            servicePort: 443
+          path: /
+    tls:
+    - secretName: my-tls
+      `)
+
+	info := &ResourceInfo{}
+	populateNodeInfo(ingress, info)
+
+	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
+		TargetRefs: []v1alpha1.ResourceRef{{
+			Namespace: "default",
+			Group:     "",
+			Kind:      kube.ServiceKind,
+			Name:      "helm-guestbook",
+		}},
+	}, info.NetworkingInfo)
+	assert.Equal(t, len(info.NetworkingInfo.ExternalURLs), 0)
 }
 func TestExternalUrlWithSubPath(t *testing.T) {
 	ingress := strToUnstructured(`
