@@ -133,6 +133,9 @@ func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 					}] = true
 				}
 
+				if host == nil || host == "" {
+					continue
+				}
 				stringPort := "http"
 				if tls, ok, err := unstructured.NestedSlice(un.Object, "spec", "tls"); ok && err == nil {
 					for i := range tls {
