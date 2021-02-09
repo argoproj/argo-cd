@@ -446,6 +446,22 @@ func printAppConditions(w io.Writer, app *argoappv1.Application) {
 	}
 }
 
+// appURLDefault returns the default URL of an application
+func appURLDefault(acdClient argocdclient.Client, appName string) string {
+	var scheme string
+	opts := acdClient.ClientOptions()
+	server := opts.ServerAddr
+	if opts.PlainText {
+		scheme = "http"
+	} else {
+		scheme = "https"
+		if strings.HasSuffix(opts.ServerAddr, ":443") {
+			server = server[0 : len(server)-4]
+		}
+	}
+	return fmt.Sprintf("%s://%s/applications/%s", scheme, server, appName)
+}
+
 // appURL returns the URL of an application
 func appURL(acdClient argocdclient.Client, appName string) string {
 	conn, settingsIf := acdClient.NewSettingsClientOrDie()
@@ -453,7 +469,10 @@ func appURL(acdClient argocdclient.Client, appName string) string {
 	argoSettings, err := settingsIf.Get(context.Background(), &settingspkg.SettingsQuery{})
 	errors.CheckError(err)
 
-	return fmt.Sprintf("%s/applications/%s", argoSettings.URL, appName)
+	if argoSettings.URL != "" {
+		return fmt.Sprintf("%s/applications/%s", argoSettings.URL, appName)
+	}
+	return appURLDefault(acdClient, appName)
 }
 
 func truncateString(str string, num int) string {
