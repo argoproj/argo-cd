@@ -205,7 +205,8 @@ export class PodView extends React.Component<PodViewProps> {
                                                                                             await services.applications.deleteResource(
                                                                                                 this.props.app.metadata.name,
                                                                                                 pod,
-                                                                                                !!vals.force
+                                                                                                !!vals.force,
+                                                                                                false
                                                                                             );
                                                                                             close();
                                                                                         } catch (e) {

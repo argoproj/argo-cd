@@ -173,6 +173,12 @@ export function renderResourceMenu(
     getApplicationActionMenu: () => any
 ): React.ReactNode {
     let menuItems: Observable<ActionMenuItem[]>;
+    const deleteOptions = {
+        option : ''
+    }
+    function handleStateChange(option: string) {
+        deleteOptions.option = option
+    }
     if (isAppNode(resource) && resource.name === application.metadata.name) {
         menuItems = Observable.from([getApplicationActionMenu()]);
     } else {
@@ -209,8 +215,9 @@ export function renderResourceMenu(
                                     ''
                                 )}
                                 <div className='argo-form-row'>
-                                    <Checkbox id='force-delete-checkbox' field='force' /> <label htmlFor='force-delete-checkbox'>Force delete</label>
-                                </div>
+                                    <input type='radio' name='deleteOptions' value='force' onChange={() => handleStateChange('force')} style={{marginRight: '5px'}}/><label htmlFor='force-delete-radio' style={{paddingRight: '30px'}}>Force Delete</label>
+                                    <input type='radio' name='deleteOptions' value='cascade' onChange={() => handleStateChange('cascade')} style={{marginRight: '5px'}}/><label htmlFor='cascade-delete-radio'>Cascade Delete</label>
+                                </div>                                
                             </div>
                         ),
                         {
@@ -219,8 +226,10 @@ export function renderResourceMenu(
                                     resourceName: vals.resourceName !== resource.name && 'Enter the resource name to confirm the deletion'
                                 },
                             submit: async (vals, _, close) => {
+                                const force = deleteOptions.option === 'force'
+                                const cascade = deleteOptions.option === 'cascade'
                                 try {
-                                    await services.applications.deleteResource(application.metadata.name, resource, !!vals.force);
+                                    await services.applications.deleteResource(application.metadata.name, resource, !!force, !!cascade);
                                     appChanged.next(await services.applications.get(application.metadata.name));
                                     close();
                                 } catch (e) {

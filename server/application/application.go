@@ -947,7 +947,11 @@ func (s *Server) DeleteResource(ctx context.Context, q *application.ApplicationR
 	if q.Force != nil {
 		force = *q.Force
 	}
-	err = s.kubectl.DeleteResource(ctx, config, res.GroupKindVersion(), res.Name, res.Namespace, force)
+	var cascade bool
+	if q.Cascade != nil {
+		cascade = *q.Cascade
+	}
+	err = s.kubectl.DeleteResource(ctx, config, res.GroupKindVersion(), res.Name, res.Namespace, force, cascade)
 	if err != nil {
 		return nil, err
 	}
