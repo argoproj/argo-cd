@@ -33,7 +33,7 @@ const sectionHeader = (onClick: () => any, info: SectionInfo) => {
     return (
         <div style={{display: 'flex', alignItems: 'center'}}>
             {sectionLabel(info)}
-            <button className='argo-button argo-button--base argo-button--sm application-status-panel__more-button' onClick={onClick}>
+            <button className='argo-button argo-button--base-o argo-button--sm application-status-panel__more-button' onClick={onClick}>
                 MORE
             </button>
         </div>
@@ -157,7 +157,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                 {(data: models.ApplicationSyncWindowState) => (
                     <React.Fragment>
                         {data.assignedWindows && (
-                            <div className='application-status-panel__item columns' style={{position: 'relative'}}>
+                            <div className='application-status-panel__item' style={{position: 'relative'}}>
                                 {sectionLabel({
                                     title: 'SYNC WINDOWS',
                                     helpContent:
