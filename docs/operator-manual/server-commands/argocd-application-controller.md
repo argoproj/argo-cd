@@ -30,6 +30,7 @@ argocd-application-controller [flags]
       --kubectl-parallelism-limit int         Number of allowed concurrent kubectl fork/execs. Any value less the 1 means no limit. (default 20)
       --logformat string                      Set the logging format. One of: text|json (default "text")
       --loglevel string                       Set the logging level. One of: debug|info|warn|error (default "info")
+      --metrics-cache-expiration duration     Prometheus metrics cache expiration (disabled  by default. e.g. 24h0m0s)
       --metrics-port int                      Start metrics server on given port (default 8082)
   -n, --namespace string                      If present, the namespace scope for this CLI request
       --operation-processors int              Number of application operation processors (default 1)

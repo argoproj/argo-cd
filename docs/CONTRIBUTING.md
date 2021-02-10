@@ -1,1 +1,1 @@
-Please refer to [the Contribution Guide](https://argoproj.github.io/argo-cd/developer-guide/contributing/)
+Please refer to [the Contribution Guide](https://argo-cd.readthedocs.io/en/latest/developer-guide/contributing/)

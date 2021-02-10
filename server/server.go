@@ -209,8 +209,6 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 	err = initializeDefaultProject(opts)
 	errors.CheckError(err)
 
-	sessionMgr := util_session.NewSessionManager(settingsMgr, opts.DexServerAddr, opts.Cache)
-
 	factory := appinformer.NewFilteredSharedInformerFactory(opts.AppClientset, 0, opts.Namespace, func(options *metav1.ListOptions) {})
 	projInformer := factory.Argoproj().V1alpha1().AppProjects().Informer()
 	projLister := factory.Argoproj().V1alpha1().AppProjects().Lister().AppProjects(opts.Namespace)
@@ -218,6 +216,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 	appInformer := factory.Argoproj().V1alpha1().Applications().Informer()
 	appLister := factory.Argoproj().V1alpha1().Applications().Lister().Applications(opts.Namespace)
 
+	sessionMgr := util_session.NewSessionManager(settingsMgr, projLister, opts.DexServerAddr, opts.Cache)
 	enf := rbac.NewEnforcer(opts.KubeClientset, opts.Namespace, common.ArgoCDRBACConfigMapName, nil)
 	enf.EnableEnforce(!opts.DisableAuth)
 	err = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
@@ -563,7 +562,16 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	accountService := account.NewServer(a.sessionMgr, a.settingsMgr, a.enf)
 	certificateService := certificate.NewServer(a.RepoClientset, db, a.enf)
 	gpgkeyService := gpgkey.NewServer(a.RepoClientset, db, a.enf)
-	versionpkg.RegisterVersionServiceServer(grpcS, &version.Server{})
+	versionpkg.RegisterVersionServiceServer(grpcS, version.NewServer(a, func() (bool, error) {
+		if a.DisableAuth {
+			return true, nil
+		}
+		sett, err := a.settingsMgr.GetSettings()
+		if err != nil {
+			return false, err
+		}
+		return sett.AnonymousUserEnabled, err
+	}))
 	clusterpkg.RegisterClusterServiceServer(grpcS, clusterService)
 	applicationpkg.RegisterApplicationServiceServer(grpcS, applicationService)
 	repositorypkg.RegisterRepositoryServiceServer(grpcS, repoService)
@@ -834,6 +842,7 @@ func (server *ArgoCDServer) newStaticAssetsHandler(dir string, baseHRef string) 
 		if server.XFrameOptions != "" {
 			w.Header().Set("X-Frame-Options", server.XFrameOptions)
 		}
+		w.Header().Set("X-XSS-Protection", "1")
 
 		// serve index.html for non file requests to support HTML5 History API
 		if acceptHTML && !fileRequest && (r.Method == "GET" || r.Method == "HEAD") {

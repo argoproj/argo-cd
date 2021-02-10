@@ -11,7 +11,7 @@ Git repository via file url: `file:///tmp/argocd-e2e***`.
 1. Start the e2e version `make start-e2e` 
 1. Run the tests: `make test-e2e`
 
-You can observe the tests by using the UI [http://localhost:8080/applications](http://localhost:8080/applications).
+You can observe the tests by using the UI [http://localhost:4000/applications](http://localhost:4000/applications).
 
 ## Configuration of E2E Tests execution
 

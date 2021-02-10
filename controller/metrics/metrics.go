@@ -2,6 +2,8 @@ package metrics
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"strconv"
@@ -10,6 +12,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/robfig/cron"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/labels"
 
@@ -31,6 +34,7 @@ type MetricsServer struct {
 	redisRequestHistogram   *prometheus.HistogramVec
 	registry                *prometheus.Registry
 	hostname                string
+	cron                    *cron.Cron
 }
 
 const (
@@ -172,6 +176,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 		redisRequestCounter:     redisRequestCounter,
 		redisRequestHistogram:   redisRequestHistogram,
 		hostname:                hostname,
+		cron:                    cron.New(),
 	}, nil
 }
 
@@ -232,6 +237,36 @@ func (m *MetricsServer) ObserveRedisRequestDuration(duration time.Duration) {
 // IncReconcile increments the reconcile counter for an application
 func (m *MetricsServer) IncReconcile(app *argoappv1.Application, duration time.Duration) {
 	m.reconcileHistogram.WithLabelValues(app.Namespace, app.Spec.Destination.Server).Observe(duration.Seconds())
+}
+
+// HasExpiration return true if expiration is set
+func (m *MetricsServer) HasExpiration() bool {
+	return len(m.cron.Entries()) > 0
+}
+
+// SetExpiration reset Prometheus metrics based on time duration interval
+func (m *MetricsServer) SetExpiration(cacheExpiration time.Duration) error {
+	if m.HasExpiration() {
+		return errors.New("Expiration is already set")
+	}
+
+	err := m.cron.AddFunc(fmt.Sprintf("@every %s", cacheExpiration), func() {
+		log.Infof("Reset Prometheus metrics based on existing expiration '%v'", cacheExpiration)
+		m.syncCounter.Reset()
+		m.kubectlExecCounter.Reset()
+		m.kubectlExecPendingGauge.Reset()
+		m.k8sRequestCounter.Reset()
+		m.clusterEventsCounter.Reset()
+		m.redisRequestCounter.Reset()
+		m.reconcileHistogram.Reset()
+		m.redisRequestHistogram.Reset()
+	})
+	if err != nil {
+		return err
+	}
+
+	m.cron.Start()
+	return nil
 }
 
 type appCollector struct {
