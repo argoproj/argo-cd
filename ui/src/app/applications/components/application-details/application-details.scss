@@ -20,10 +20,10 @@
         padding: 1em;
         overflow-x: auto;
         overflow-y: auto;
-        margin-top: 100px;
+        margin-top: 115px;
         min-height: calc(100vh - 2 * 50px - 115px);
         @media screen and (max-width: map-get($breakpoints, xlarge)) {
-            margin-top: 150px;
+            margin-top: 165px;
         }
     }
 
