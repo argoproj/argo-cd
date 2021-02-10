@@ -444,48 +444,52 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                             {conditions && <ApplicationConditions conditions={conditions} />}
                                         </SlidingPanel>
                                         <SlidingPanel isShown={!!this.state.revision} isMiddle={true} onClose={() => this.setState({revision: null})}>
-                                            <DataLoader load={() => services.applications.revisionMetadata(application.metadata.name, this.state.revision)}>
-                                                {metadata => (
-                                                    <div className='white-box' style={{marginTop: '1.5em'}}>
-                                                        <div className='white-box__details'>
-                                                            <div className='row white-box__details-row'>
-                                                                <div className='columns small-3'>SHA:</div>
-                                                                <div className='columns small-9'>
-                                                                    <Revision repoUrl={application.spec.source.repoURL} revision={this.state.revision} />
+                                            {this.state.revision && (
+                                                <DataLoader load={() => services.applications.revisionMetadata(application.metadata.name, this.state.revision)}>
+                                                    {metadata => (
+                                                        <div className='white-box' style={{marginTop: '1.5em'}}>
+                                                            <div className='white-box__details'>
+                                                                <div className='row white-box__details-row'>
+                                                                    <div className='columns small-3'>SHA:</div>
+                                                                    <div className='columns small-9'>
+                                                                        <Revision repoUrl={application.spec.source.repoURL} revision={this.state.revision} />
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <div className='white-box__details'>
+                                                                <div className='row white-box__details-row'>
+                                                                    <div className='columns small-3'>Date:</div>
+                                                                    <div className='columns small-9'>
+                                                                        <Timestamp date={metadata.date} />
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <div className='white-box__details'>
+                                                                <div className='row white-box__details-row'>
+                                                                    <div className='columns small-3'>Tags:</div>
+                                                                    <div className='columns small-9'>
+                                                                        {((metadata.tags || []).length > 0 && metadata.tags.join(', ')) || 'No tags'}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <div className='white-box__details'>
+                                                                <div className='row white-box__details-row'>
+                                                                    <div className='columns small-3'>Author:</div>
+                                                                    <div className='columns small-9'>{metadata.author}</div>
+                                                                </div>
+                                                            </div>
+                                                            <div className='white-box__details'>
+                                                                <div className='row white-box__details-row'>
+                                                                    <div className='columns small-3'>Message:</div>
+                                                                    <div className='columns small-9' style={{display: 'flex', alignItems: 'center'}}>
+                                                                        <div className='application-details__commit-message'>{metadata.message}</div>
+                                                                    </div>
                                                                 </div>
                                                             </div>
                                                         </div>
-                                                        <div className='white-box__details'>
-                                                            <div className='row white-box__details-row'>
-                                                                <div className='columns small-3'>Date:</div>
-                                                                <div className='columns small-9'>
-                                                                    <Timestamp date={metadata.date} />
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                        <div className='white-box__details'>
-                                                            <div className='row white-box__details-row'>
-                                                                <div className='columns small-3'>Tags:</div>
-                                                                <div className='columns small-9'>{((metadata.tags || []).length > 0 && metadata.tags.join(', ')) || 'No tags'}</div>
-                                                            </div>
-                                                        </div>
-                                                        <div className='white-box__details'>
-                                                            <div className='row white-box__details-row'>
-                                                                <div className='columns small-3'>Author:</div>
-                                                                <div className='columns small-9'>{metadata.author}</div>
-                                                            </div>
-                                                        </div>
-                                                        <div className='white-box__details'>
-                                                            <div className='row white-box__details-row'>
-                                                                <div className='columns small-3'>Message:</div>
-                                                                <div className='columns small-9' style={{display: 'flex', alignItems: 'center'}}>
-                                                                    <div className='application-details__commit-message'>{metadata.message}</div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </DataLoader>
+                                                    )}
+                                                </DataLoader>
+                                            )}
                                         </SlidingPanel>
                                     </Page>
                                 </div>
