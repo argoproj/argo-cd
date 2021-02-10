@@ -214,8 +214,8 @@ func Version(shortForm bool) (string, error) {
 	}
 	cmd := exec.Command(executable, cmdArgs...)
 	// example version output:
-	// long: "{Version:kustomize/v3.8.1 GitCommit:0b359d0ef0272e6545eda0e99aacd63aef99c4d0 BuildDate:2020-07-16T00:58:46Z GoOs:linux GoArch:amd64}"
-	// short: "{kustomize/v3.8.1  2020-07-16T00:58:46Z  }"
+	// long: "{Version:kustomize/v3.10.0 GitCommit:602ad8aa98e2e17f6c9119e027a09757e63c8bec BuildDate:2021-02-10T01:11:02+00:00 GoOs:darwin GoArch:amd64}"
+	// short: "{kustomize/v3.10.0  2021-02-10T01:11:02+00:00  }"
 	version, err := executil.Run(cmd)
 	if err != nil {
 		return "", fmt.Errorf("could not get kustomize version: %s", err)
