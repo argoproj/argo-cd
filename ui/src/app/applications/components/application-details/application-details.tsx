@@ -316,13 +316,22 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                                         uid: liveState.metadata.uid
                                                                     }))) ||
                                                                 [];
+                                                            let podState: appModels.State;
+                                                            if (selectedNode.kind === 'Pod') {
+                                                                podState = liveState;
+                                                            } else {
+                                                                const childPod = this.findChildPod(selectedNode, tree);
+                                                                if (childPod) {
+                                                                    podState = await services.applications.getResource(application.metadata.name, childPod).catch(() => null);
+                                                                }
+                                                            }
 
-                                                            return {controlledState, liveState, events};
+                                                            return {controlledState, liveState, events, podState};
                                                         }}>
                                                         {data => (
                                                             <Tabs
                                                                 navTransparent={true}
-                                                                tabs={this.getResourceTabs(application, selectedNode, data.liveState, data.events, [
+                                                                tabs={this.getResourceTabs(application, selectedNode, data.liveState, data.podState, data.events, [
                                                                     {
                                                                         title: 'SUMMARY',
                                                                         key: 'summary',
@@ -708,7 +717,42 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
         await AppUtils.deleteApplication(this.props.match.params.name, this.appContext.apis);
     }
 
-    private getResourceTabs(application: appModels.Application, node: appModels.ResourceNode, state: appModels.State, events: appModels.Event[], tabs: Tab[]) {
+    private findChildPod(node: appModels.ResourceNode, tree: appModels.ApplicationTree): appModels.ResourceNode {
+        const key = AppUtils.nodeKey(node);
+
+        const allNodes = tree.nodes.concat(tree.orphanedNodes || []);
+        const nodeByKey = new Map<string, appModels.ResourceNode>();
+        allNodes.forEach(item => nodeByKey.set(AppUtils.nodeKey(item), item));
+
+        const pods = tree.nodes.concat(tree.orphanedNodes || []).filter(item => item.kind === 'Pod');
+        return pods.find(pod => {
+            const items: Array<appModels.ResourceNode> = [pod];
+            while (items.length > 0) {
+                const next = items.pop();
+                const parentKeys = (next.parentRefs || []).map(AppUtils.nodeKey);
+                if (parentKeys.includes(key)) {
+                    return true;
+                }
+                parentKeys.forEach(item => {
+                    const parent = nodeByKey.get(item);
+                    if (parent) {
+                        items.push(parent);
+                    }
+                });
+            }
+
+            return false;
+        });
+    }
+
+    private getResourceTabs(
+        application: appModels.Application,
+        node: appModels.ResourceNode,
+        state: appModels.State,
+        podState: appModels.State,
+        events: appModels.Event[],
+        tabs: Tab[]
+    ) {
         if (state) {
             const numErrors = events.filter(event => event.type !== 'Normal').reduce((total, event) => total + event.count, 0);
             tabs.push({
@@ -722,17 +766,17 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
                 )
             });
         }
-        if (node.kind === 'Pod' && state) {
+        if (podState) {
             const containerGroups = [
                 {
                     offset: 0,
                     title: 'CONTAINERS',
-                    containers: state.spec.containers || []
+                    containers: podState.spec.containers || []
                 },
                 {
-                    offset: (state.spec.containers || []).length,
+                    offset: (podState.spec.containers || []).length,
                     title: 'INIT CONTAINERS',
-                    containers: state.spec.initContainers || []
+                    containers: podState.spec.initContainers || []
                 }
             ];
             tabs = tabs.concat([
@@ -760,10 +804,13 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
                                 </div>
                                 <div className='columns small-9 medium-10'>
                                     <PodsLogsViewer
-                                        podName={state.metadata.name}
-                                        namespace={state.metadata.namespace}
+                                        podName={(state.kind === 'Pod' && state.metadata.name) || ''}
+                                        group={node.group}
+                                        kind={node.kind}
+                                        name={node.name}
+                                        namespace={podState.metadata.namespace}
                                         applicationName={application.metadata.name}
-                                        containerName={AppUtils.getContainerName(state, this.selectedNodeInfo.container)}
+                                        containerName={AppUtils.getContainerName(podState, this.selectedNodeInfo.container)}
                                     />
                                 </div>
                             </div>

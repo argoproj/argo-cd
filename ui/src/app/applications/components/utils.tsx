@@ -762,3 +762,12 @@ export function getContainerName(pod: any, containerIndex: number): string {
     const container = containers[containerIndex];
     return container.name;
 }
+
+export const BASE_COLORS = [
+    '#0DADEA', // blue
+    '#95D58F', // green
+    '#F4C030', // orange
+    '#FF6262', // red
+    '#4B0082', // purple
+    '#964B00' // brown
+];
