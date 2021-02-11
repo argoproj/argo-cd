@@ -22,7 +22,7 @@ func TestRandomPasswordVerificationDelay(t *testing.T) {
 
 	var sleptFor time.Duration
 	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("password", true), "argocd")
-	mgr := newSessionManager(settingsMgr, getProjLister(), NewInMemoryUserStateStorage())
+	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
 	mgr.verificationDelayNoiseEnabled = true
 	mgr.sleep = func(d time.Duration) {
 		sleptFor = d

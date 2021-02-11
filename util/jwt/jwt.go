@@ -79,28 +79,38 @@ func GetID(m jwtgo.MapClaims) (string, error) {
 	return "", fmt.Errorf("jti '%v' is not a string", m["jti"])
 }
 
-// IssuedAt returns the issued at as an int64
-func IssuedAt(m jwtgo.MapClaims) (int64, error) {
-	iatField, ok := m["iat"]
+func numField(m jwtgo.MapClaims, key string) (int64, error) {
+	field, ok := m[key]
 	if !ok {
 		return 0, errors.New("token does not have iat claim")
 	}
-	switch iat := iatField.(type) {
+	switch val := field.(type) {
 	case float64:
-		return int64(iat), nil
+		return int64(val), nil
 	case json.Number:
-		return iat.Int64()
+		return val.Int64()
 	case int64:
-		return iat, nil
+		return val, nil
 	default:
-		return 0, fmt.Errorf("iat '%v' is not a number", iat)
+		return 0, fmt.Errorf("%s '%v' is not a number", key, val)
 	}
+}
+
+// IssuedAt returns the issued at as an int64
+func IssuedAt(m jwtgo.MapClaims) (int64, error) {
+	return numField(m, "iat")
 }
 
 // IssuedAtTime returns the issued at as a time.Time
 func IssuedAtTime(m jwtgo.MapClaims) (time.Time, error) {
 	iat, err := IssuedAt(m)
 	return time.Unix(iat, 0), err
+}
+
+// ExpirationTime returns the expiration as a time.Time
+func ExpirationTime(m jwtgo.MapClaims) (time.Time, error) {
+	exp, err := numField(m, "exp")
+	return time.Unix(exp, 0), err
 }
 
 func Claims(in interface{}) jwtgo.Claims {
