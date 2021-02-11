@@ -9,11 +9,22 @@ import (
 
 func TestCookieMaxLength(t *testing.T) {
 
-	cookie, err := MakeCookieMetadata("foo", "bar")
+	cookies, err := MakeCookieMetadata("foo", "bar")
 	assert.NoError(t, err)
-	assert.Equal(t, "foo=bar", cookie)
+	assert.Equal(t, "foo-0=bar", cookies[0])
 
-	cookie, err = MakeCookieMetadata("foo", strings.Repeat("_", 4093-3))
-	assert.EqualError(t, err, "invalid cookie, at 4094 long it is longer than the max length of 4093")
-	assert.Equal(t, "", cookie)
+	// keys will be of format foo-0, foo-1 ..
+	cookies, err = MakeCookieMetadata("foo", strings.Repeat("_", (maxLength-5)*maxNumber))
+	assert.EqualError(t, err, "invalid cookie value, at 20440 long it is longer than the max length of 20435")
+	assert.Equal(t, 0, len(cookies))
+}
+
+func TestSplitCookie(t *testing.T) {
+	cookieValue := strings.Repeat("_", (maxLength-6)*4)
+	cookies, err := MakeCookieMetadata("foo", cookieValue)
+	assert.NoError(t, err)
+	assert.Equal(t, 4, len(cookies))
+
+	token := JoinCookies("foo", strings.Join(cookies, "; "))
+	assert.Equal(t, cookieValue, token)
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -443,8 +444,8 @@ func Test_getToken(t *testing.T) {
 		assert.Equal(t, token, getToken(metadata.New(map[string]string{"authorization": "Bearer " + token})))
 	})
 	t.Run("Cookie", func(t *testing.T) {
-		assert.Empty(t, getToken(metadata.New(map[string]string{"grpcgateway-cookie": "argocd.token=invalid"})))
-		assert.Equal(t, token, getToken(metadata.New(map[string]string{"grpcgateway-cookie": "argocd.token=" + token})))
+		assert.Empty(t, getToken(metadata.New(map[string]string{"grpcgateway-cookie": "argocd.token-0=invalid"})))
+		assert.Equal(t, token, getToken(metadata.New(map[string]string{"grpcgateway-cookie": "argocd.token-0=" + token})))
 	})
 }
 
@@ -462,7 +463,18 @@ func TestTranslateGrpcCookieHeader(t *testing.T) {
 			Token: "xyz",
 		})
 		assert.NoError(t, err)
-		assert.Equal(t, "argocd.token=xyz; path=/; SameSite=lax; httpOnly; Secure", recorder.Result().Header.Get("Set-Cookie"))
+		assert.Equal(t, "argocd.token-0=xyz; path=/; SameSite=lax; httpOnly; Secure", recorder.Result().Header.Get("Set-Cookie"))
+		assert.Equal(t, 1, len(recorder.Result().Cookies()))
+	})
+
+	t.Run("TokenIsLongerThan4093", func(t *testing.T) {
+		recorder := httptest.NewRecorder()
+		err := argocd.translateGrpcCookieHeader(context.Background(), recorder, &session.SessionResponse{
+			Token: "abc.xyz." + strings.Repeat("x", 4093),
+		})
+		assert.NoError(t, err)
+		assert.Regexp(t, "argocd.token-0=.*; path=/; SameSite=lax; httpOnly; Secure", recorder.Result().Header.Get("Set-Cookie"))
+		assert.Equal(t, 2, len(recorder.Result().Cookies()))
 	})
 
 	t.Run("TokenIsEmpty", func(t *testing.T) {
@@ -471,7 +483,7 @@ func TestTranslateGrpcCookieHeader(t *testing.T) {
 			Token: "",
 		})
 		assert.NoError(t, err)
-		assert.Equal(t, "argocd.token=; path=/; SameSite=lax; httpOnly; Secure", recorder.Result().Header.Get("Set-Cookie"))
+		assert.Equal(t, "", recorder.Result().Header.Get("Set-Cookie"))
 	})
 
 }

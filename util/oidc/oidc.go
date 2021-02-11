@@ -330,13 +330,16 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		cookie, err := httputil.MakeCookieMetadata(common.AuthCookieName, idTokenRAW, flags...)
+		cookies, err := httputil.MakeCookieMetadata(common.AuthCookieName, idTokenRAW, flags...)
 		if err != nil {
 			claimsJSON, _ := json.Marshal(claims)
 			http.Error(w, fmt.Sprintf("claims=%s, err=%v", claimsJSON, err), http.StatusInternalServerError)
 			return
 		}
-		w.Header().Set("Set-Cookie", cookie)
+
+		for _, cookie := range cookies {
+			w.Header().Add("Set-Cookie", cookie)
+		}
 	}
 
 	claimsJSON, _ := json.Marshal(claims)

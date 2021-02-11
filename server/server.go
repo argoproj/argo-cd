@@ -610,11 +610,13 @@ func (a *ArgoCDServer) translateGrpcCookieHeader(ctx context.Context, w http.Res
 				return err
 			}
 		}
-		cookie, err := httputil.MakeCookieMetadata(common.AuthCookieName, token, flags...)
+		cookies, err := httputil.MakeCookieMetadata(common.AuthCookieName, token, flags...)
 		if err != nil {
 			return err
 		}
-		w.Header().Set("Set-Cookie", cookie)
+		for _, cookie := range cookies {
+			w.Header().Add("Set-Cookie", cookie)
+		}
 	}
 	return nil
 }
@@ -938,12 +940,9 @@ func getToken(md metadata.MD) string {
 
 	// check the HTTP cookie
 	for _, t := range md["grpcgateway-cookie"] {
-		header := http.Header{}
-		header.Add("Cookie", t)
-		request := http.Request{Header: header}
-		token, err := request.Cookie(common.AuthCookieName)
-		if err == nil {
-			tokens = append(tokens, token.Value)
+		token := httputil.JoinCookies(common.AuthCookieName, t)
+		if token != "" {
+			tokens = append(tokens, token)
 		}
 	}
 
