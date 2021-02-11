@@ -1,11 +1,9 @@
 package application
 
 import (
-	"bufio"
 	"encoding/json"
 	"errors"
 	"fmt"
-	goio "io"
 	"math"
 	"reflect"
 	"sort"
@@ -52,12 +50,14 @@ import (
 	"github.com/argoproj/argo-cd/util/env"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/helm"
-	"github.com/argoproj/argo-cd/util/io"
+	ioutil "github.com/argoproj/argo-cd/util/io"
 	"github.com/argoproj/argo-cd/util/lua"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/session"
 	"github.com/argoproj/argo-cd/util/settings"
 )
+
+const maxPodLogsToRender = 10
 
 var (
 	watchAPIBufferSize = env.ParseNumFromEnv(argocommon.EnvWatchAPIBufferSize, 1000, 0, math.MaxInt32)
@@ -253,7 +253,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 	if err != nil {
 		return nil, err
 	}
-	defer io.Close(conn)
+	defer ioutil.Close(conn)
 	revision := a.Spec.Source.TargetRevision
 	if q.Revision != "" {
 		revision = q.Revision
@@ -1028,7 +1028,7 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 	if err != nil {
 		return nil, err
 	}
-	defer io.Close(conn)
+	defer ioutil.Close(conn)
 	return repoClient.GetRevisionMetadata(ctx, &apiclient.RepoServerRevisionMetadataRequest{
 		Repo:           repo,
 		Revision:       q.GetRevision(),
@@ -1070,6 +1070,19 @@ func (s *Server) ManagedResources(ctx context.Context, q *application.ResourcesQ
 }
 
 func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.ApplicationService_PodLogsServer) error {
+	if q.PodName != nil {
+		podKind := "Pod"
+		q.Kind = &podKind
+		q.ResourceName = q.PodName
+	}
+
+	var sinceSeconds, tailLines *int64
+	if q.SinceSeconds > 0 {
+		sinceSeconds = &q.SinceSeconds
+	}
+	if q.TailLines > 0 {
+		tailLines = &q.TailLines
+	}
 	var untilTime *metav1.Time
 	if q.GetUntilTime() != "" {
 		if val, err := time.Parse(time.RFC3339Nano, q.GetUntilTime()); err != nil {
@@ -1080,15 +1093,31 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 		}
 	}
 
-	pod, config, _, err := s.getAppResource(ws.Context(), rbacpolicy.ActionGet, &application.ApplicationResourceRequest{
-		Name:         q.Name,
-		Namespace:    q.Namespace,
-		Kind:         kube.PodKind,
-		Group:        "",
-		Version:      "v1",
-		ResourceName: *q.PodName,
-	})
+	literal := ""
+	inverse := false
+	if q.GetFilter() != "" {
+		literal = *q.Filter
+		if literal[0] == '!' {
+			literal = literal[1:]
+			inverse = true
+		}
+	}
 
+	a, err := s.appLister.Get(q.GetName())
+	if err != nil {
+		return err
+	}
+
+	if err := s.enf.EnforceErr(ws.Context().Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)); err != nil {
+		return err
+	}
+
+	tree, err := s.getAppResources(ws.Context(), a)
+	if err != nil {
+		return err
+	}
+
+	config, err := s.getApplicationClusterConfig(ws.Context(), a)
 	if err != nil {
 		return err
 	}
@@ -1098,101 +1127,133 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 		return err
 	}
 
-	var sinceSeconds, tailLines *int64
-	if q.SinceSeconds > 0 {
-		sinceSeconds = &q.SinceSeconds
-	}
-	if q.TailLines > 0 {
-		tailLines = &q.TailLines
+	// from the tree find pods which match query of kind, group, and resource name
+	pods := getSelectedPods(tree.Nodes, q)
+	if len(pods) == 0 {
+		return nil
 	}
 
-	literal := ""
-	inverse := false
-	if q.Filter != nil {
-		literal = *q.Filter
-		if literal[0] == '!' {
-			literal = literal[1:]
-			inverse = true
+	if len(pods) > maxPodLogsToRender {
+		return errors.New("Max pods to view logs are reached. Please provide more granular query.")
+	}
+
+	var streams []chan logEntry
+
+	for _, pod := range pods {
+		stream, err := kubeClientset.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &v1.PodLogOptions{
+			Container:    q.Container,
+			Follow:       q.Follow,
+			Timestamps:   true,
+			SinceSeconds: sinceSeconds,
+			SinceTime:    q.SinceTime,
+			TailLines:    tailLines,
+		}).Stream(ws.Context())
+		if err != nil {
+			return err
 		}
+		podName := pod.Name
+		logStream := make(chan logEntry)
+		defer ioutil.Close(stream)
+
+		streams = append(streams, logStream)
+		go func() {
+			parseLogsStream(podName, stream, logStream)
+			close(logStream)
+		}()
 	}
-	stream, err := kubeClientset.CoreV1().Pods(pod.Namespace).GetLogs(*q.PodName, &v1.PodLogOptions{
-		Container:    q.Container,
-		Follow:       q.Follow,
-		Timestamps:   true,
-		SinceSeconds: sinceSeconds,
-		SinceTime:    q.SinceTime,
-		TailLines:    tailLines,
-	}).Stream(ws.Context())
-	if err != nil {
-		return err
-	}
-	logCtx := log.WithField("application", q.Name)
-	defer io.Close(stream)
-	done := make(chan bool)
-	reachedEOF := false
-	gracefulExit := false
-	go func() {
-		bufReader := bufio.NewReader(stream)
-		for {
-			line, err := bufReader.ReadString('\n')
-			if err != nil {
-				// Error or io.EOF
-				break
+
+	logStream := mergeLogStreams(streams, time.Millisecond*100)
+	sentCount := int64(0)
+	for {
+		select {
+		case entry, ok := <-logStream:
+			if !ok {
+				return ws.Send(&application.LogEntry{Last: true})
 			}
-			line = strings.TrimSpace(line) // Remove trailing line ending
-			parts := strings.Split(line, " ")
-			timeStampStr := parts[0]
-			logTime, err := time.Parse(time.RFC3339Nano, timeStampStr)
-			metaLogTime := metav1.NewTime(logTime)
-			if err == nil {
-				lines := strings.Join(parts[1:], " ")
-				for _, line := range strings.Split(lines, "\r") {
-					if q.Filter != nil {
-						lineContainsFilter := strings.Contains(line, literal)
-						if (inverse && lineContainsFilter) || (!inverse && !lineContainsFilter) {
-							continue
-						}
+			if entry.err != nil {
+				return err
+			} else {
+				if q.Filter != nil {
+					lineContainsFilter := strings.Contains(entry.line, literal)
+					if (inverse && lineContainsFilter) || (!inverse && !lineContainsFilter) {
+						continue
 					}
-					if q.UntilTime != nil && !metaLogTime.Before(untilTime) {
-						_ = ws.Send(&application.LogEntry{Last: true})
-						close(done)
-						return
-					}
-					err = ws.Send(&application.LogEntry{
-						Content:      line,
-						TimeStamp:    metaLogTime,
-						TimeStampStr: timeStampStr,
+				}
+				if untilTime != nil && entry.timeStamp.After(untilTime.Time) {
+					return ws.Send(&application.LogEntry{
+						Last: true,
 					})
-					if err != nil {
-						logCtx.Warnf("Unable to send stream message: %v", err)
+				} else {
+					sentCount++
+					if err := ws.Send(&application.LogEntry{
+						PodName:      entry.podName,
+						Content:      entry.line,
+						TimeStampStr: entry.timeStamp.Format(time.RFC3339Nano),
+						TimeStamp:    metav1.NewTime(entry.timeStamp),
+					}); err != nil {
+						return err
 					}
 				}
 			}
-		}
-		if gracefulExit {
-			logCtx.Info("k8s pod logs reader completed due to closed grpc context")
-		} else if err != nil && err != goio.EOF {
-			logCtx.Warnf("k8s pod logs reader failed with error: %v", err)
-		} else {
-			logCtx.Info("k8s pod logs reader completed with EOF")
-			reachedEOF = true
-		}
-		close(done)
-	}()
-
-	select {
-	case <-ws.Context().Done():
-		logCtx.Info("client pod logs grpc context closed")
-		gracefulExit = true
-	case <-done:
-	}
-
-	if reachedEOF || gracefulExit {
-		if err := ws.Send(&application.LogEntry{Last: true}); err != nil {
-			logCtx.Warnf("Unable to send stream message notifying about last log message: %v", err)
+		case <-ws.Context().Done():
+			log.WithField("application", q.Name).Debug("k8s pod logs reader completed due to closed grpc context")
+			return nil
 		}
 	}
-	return nil
+}
+
+// from all of the treeNodes, get the pod who meets the criteria or whose parents meets the criteria
+func getSelectedPods(treeNodes []appv1.ResourceNode, q *application.ApplicationPodLogsQuery) []appv1.ResourceNode {
+	var pods []appv1.ResourceNode
+	isTheOneMap := make(map[string]bool)
+	for _, treeNode := range treeNodes {
+		if treeNode.Kind == kube.PodKind && treeNode.Group == "" {
+			if isTheSelectedOne(&treeNode, q, treeNodes, isTheOneMap) {
+				pods = append(pods, treeNode)
+			}
+		}
+	}
+	return pods
+}
+
+// check is currentNode is matching with group, kind, and name, or if any of its parents matches
+func isTheSelectedOne(currentNode *appv1.ResourceNode, q *application.ApplicationPodLogsQuery, resourceNodes []appv1.ResourceNode, isTheOneMap map[string]bool) bool {
+	exist, value := isTheOneMap[currentNode.UID]
+	if exist {
+		return value
+	}
+
+	if (q.ResourceName == nil || *q.ResourceName == "" || currentNode.Name == *q.ResourceName) &&
+		(q.Kind == nil || *q.Kind == "" || currentNode.Kind == *q.Kind) &&
+		(q.Group == nil || *q.Group == "" || currentNode.Group == *q.Group) &&
+		(q.Namespace == "" || currentNode.Namespace == q.Namespace) {
+		isTheOneMap[currentNode.UID] = true
+		return true
+	}
+
+	if len(currentNode.ParentRefs) == 0 {
+		isTheOneMap[currentNode.UID] = false
+		return false
+	}
+
+	for _, parentResource := range currentNode.ParentRefs {
+		//look up parentResource from resourceNodes
+		//then check if the parent isTheSelectedOne
+		for _, resourceNode := range resourceNodes {
+			if resourceNode.Namespace == parentResource.Namespace &&
+				resourceNode.Name == parentResource.Name &&
+				resourceNode.Group == parentResource.Group &&
+				resourceNode.Kind == parentResource.Kind {
+				if isTheSelectedOne(&resourceNode, q, resourceNodes, isTheOneMap) {
+					isTheOneMap[currentNode.UID] = true
+					return true
+				}
+			}
+		}
+	}
+
+	isTheOneMap[currentNode.UID] = false
+	return false
 }
 
 // Sync syncs an application to its target state

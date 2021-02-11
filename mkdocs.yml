@@ -9,8 +9,12 @@ theme:
     text: 'Work Sans'
   logo: 'assets/logo.png'
   favicon: 'assets/favicon.png'
-  language: en-custom
+  # language: en-custom
   custom_dir: overrides
+extra_javascript:
+- assets/versions.js
+extra_css:
+- assets/versions.css
 google_analytics:
 - 'UA-105170809-2'
 - 'auto'
@@ -95,6 +99,7 @@ nav:
     - user-guide/app_deletion.md
     - user-guide/best_practices.md
     - user-guide/status-badge.md
+    - user-guide/external-url.md
     - Command Reference: user-guide/commands/argocd.md
   - Developer Guide:
     - developer-guide/index.md

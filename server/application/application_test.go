@@ -681,3 +681,67 @@ func TestSplitStatusPatch(t *testing.T) {
 		assert.Equal(t, statusPatch, string(status))
 	}
 }
+
+func TestLogsGetSelectedPod(t *testing.T) {
+	deployment := appsv1.ResourceRef{Group: "", Version: "v1", Kind: "Deployment", Name: "deployment", UID: "1"}
+	rs := appsv1.ResourceRef{Group: "", Version: "v1", Kind: "ReplicaSet", Name: "rs", UID: "2"}
+	podRS := appsv1.ResourceRef{Group: "", Version: "v1", Kind: "Pod", Name: "podrs", UID: "3"}
+	pod := appsv1.ResourceRef{Group: "", Version: "v1", Kind: "Pod", Name: "pod", UID: "4"}
+	treeNodes := []appsv1.ResourceNode{
+		{ResourceRef: deployment, ParentRefs: nil},
+		{ResourceRef: rs, ParentRefs: []appsv1.ResourceRef{deployment}},
+		{ResourceRef: podRS, ParentRefs: []appsv1.ResourceRef{rs}},
+		{ResourceRef: pod, ParentRefs: nil},
+	}
+	appName := "appName"
+
+	t.Run("GetAllPods", func(t *testing.T) {
+		podQuery := application.ApplicationPodLogsQuery{
+			Name: &appName,
+		}
+		pods := getSelectedPods(treeNodes, &podQuery)
+		assert.Equal(t, 2, len(pods))
+	})
+
+	t.Run("GetRSPods", func(t *testing.T) {
+		group := ""
+		kind := "ReplicaSet"
+		name := "rs"
+		podQuery := application.ApplicationPodLogsQuery{
+			Name:         &appName,
+			Group:        &group,
+			Kind:         &kind,
+			ResourceName: &name,
+		}
+		pods := getSelectedPods(treeNodes, &podQuery)
+		assert.Equal(t, 1, len(pods))
+	})
+
+	t.Run("GetDeploymentPods", func(t *testing.T) {
+		group := ""
+		kind := "Deployment"
+		name := "deployment"
+		podQuery := application.ApplicationPodLogsQuery{
+			Name:         &appName,
+			Group:        &group,
+			Kind:         &kind,
+			ResourceName: &name,
+		}
+		pods := getSelectedPods(treeNodes, &podQuery)
+		assert.Equal(t, 1, len(pods))
+	})
+
+	t.Run("NoMatchingPods", func(t *testing.T) {
+		group := ""
+		kind := "Service"
+		name := "service"
+		podQuery := application.ApplicationPodLogsQuery{
+			Name:         &appName,
+			Group:        &group,
+			Kind:         &kind,
+			ResourceName: &name,
+		}
+		pods := getSelectedPods(treeNodes, &podQuery)
+		assert.Equal(t, 0, len(pods))
+	})
+}

@@ -169,6 +169,7 @@ export class ApplicationsService {
         applicationName: string,
         namespace: string,
         podName: string,
+        resource: {group: string; kind: string; name: string},
         containerName: string,
         tail?: number,
         follow?: boolean,
@@ -178,13 +179,29 @@ export class ApplicationsService {
         if (follow === undefined || follow === null) {
             follow = true;
         }
-        const entries = requests
-            .loadEventSource(
-                `/applications/${applicationName}/pods/${podName}/logs?container=${containerName}&follow=${follow}&namespace=${namespace}${tail ? '&tailLines=' + tail : ''}${
-                    untilTime ? '&untilTime=' + untilTime : ''
-                }${filter ? '&filter=' + filter : ''}`
-            )
-            .map(data => JSON.parse(data).result as models.LogEntry);
+        const search = new URLSearchParams();
+        search.set('container', containerName);
+        search.set('follow', follow.toString());
+        search.set('container', containerName);
+        search.set('namespace', namespace);
+        if (podName) {
+            search.set('podName', podName);
+        } else {
+            search.set('group', resource.group);
+            search.set('kind', resource.kind);
+            search.set('resourceName', resource.name);
+        }
+
+        if (tail) {
+            search.set('tailLines', tail.toString());
+        }
+        if (untilTime) {
+            search.set('untilTime', untilTime);
+        }
+        if (filter) {
+            search.set('filter', filter);
+        }
+        const entries = requests.loadEventSource(`/applications/${applicationName}/logs?${search.toString()}`).map(data => JSON.parse(data).result as models.LogEntry);
         return new Observable(observer => {
             const subscription = entries.subscribe(
                 entry => {

@@ -5,7 +5,13 @@ export const Revision = ({repoUrl, revision, children}: {repoUrl: string; revisi
     revision = revision || '';
     const url = revisionUrl(repoUrl, revision);
     const content = children || (isSHA(revision) ? revision.substr(0, 7) : revision);
-    return url !== null ? <a href={url}>{content}</a> : <span>{content}</span>;
+    return url !== null ? (
+        <a href={url} target='_blank' rel='noopener noreferrer'>
+            {content}
+        </a>
+    ) : (
+        <span>{content}</span>
+    );
 };
 
 export const isSHA = (revision: string) => {

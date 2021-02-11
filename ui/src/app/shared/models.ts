@@ -394,6 +394,7 @@ export interface LogEntry {
     timeStamp: models.Time;
     last: boolean;
     timeStampStr: string;
+    podName: string;
 }
 
 // describes plugin settings
@@ -425,6 +426,8 @@ export interface AuthSettings {
     userLoginsDisabled: boolean;
     kustomizeVersions: string[];
     uiCssURL: string;
+    uiBannerContent: string;
+    uiBannerURL: string;
 }
 
 export interface UserInfo {

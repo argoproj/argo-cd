@@ -23,6 +23,8 @@ import (
 	"github.com/mattn/go-isatty"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -93,6 +95,7 @@ func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 	command.AddCommand(NewApplicationPatchResourceCommand(clientOpts))
 	command.AddCommand(NewApplicationResourceActionsCommand(clientOpts))
 	command.AddCommand(NewApplicationListResourcesCommand(clientOpts))
+	command.AddCommand(NewApplicationLogsCommand(clientOpts))
 	return command
 }
 
@@ -261,6 +264,90 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 	return command
 }
 
+// NewApplicationLogsCommand returns logs of application pods
+func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var (
+		group        string
+		kind         string
+		namespace    string
+		resourceName string
+		follow       bool
+		tail         int64
+		sinceSeconds int64
+		untilTime    string
+		filter       string
+	)
+	var command = &cobra.Command{
+		Use:   "logs APPNAME",
+		Short: "Get logs of application pods",
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) == 0 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			acdClient := argocdclient.NewClientOrDie(clientOpts)
+			conn, appIf := acdClient.NewApplicationClientOrDie()
+			defer argoio.Close(conn)
+			appName := args[0]
+
+			retry := true
+			for retry {
+				retry = false
+				stream, err := appIf.PodLogs(context.Background(), &applicationpkg.ApplicationPodLogsQuery{
+					Name:         &appName,
+					Group:        &group,
+					Namespace:    namespace,
+					Kind:         &kind,
+					ResourceName: &resourceName,
+					Follow:       follow,
+					TailLines:    tail,
+					SinceSeconds: sinceSeconds,
+					UntilTime:    &untilTime,
+					Filter:       &filter,
+				})
+				if err != nil {
+					log.Fatalf("failed to get pod logs: %v", err)
+				}
+				for {
+					msg, err := stream.Recv()
+					if err == io.EOF {
+						return
+					}
+					if err != nil {
+						st, ok := status.FromError(err)
+						if !ok {
+							log.Fatalf("stream read failed: %v", err)
+						}
+						if st.Code() == codes.Unavailable && follow {
+							retry = true
+							sinceSeconds = 1
+							break
+						}
+						log.Fatalf("stream read failed: %v", err)
+					}
+					if !msg.Last {
+						fmt.Println(msg.Content)
+					} else {
+						return
+					}
+				} //Done with receive message
+			} //Done with retry
+		},
+	}
+
+	command.Flags().StringVar(&group, "group", "", "Resource group")
+	command.Flags().StringVar(&kind, "kind", "", "Resource kind")
+	command.Flags().StringVar(&namespace, "namespace", "", "Resource namespace")
+	command.Flags().StringVar(&resourceName, "name", "", "Resource name")
+	command.Flags().BoolVar(&follow, "follow", false, "Specify if the logs should be streamed")
+	command.Flags().Int64Var(&tail, "tail", 0, "The number of lines from the end of the logs to show")
+	command.Flags().Int64Var(&sinceSeconds, "since-seconds", 0, "A relative time in seconds before the current time from which to show logs")
+	command.Flags().StringVar(&untilTime, "until-time", "", "Show logs until this time")
+	command.Flags().StringVar(&filter, "filter", "", "Show logs contain this string")
+
+	return command
+}
+
 func printAppSummaryTable(app *argoappv1.Application, appURL string, windows *argoappv1.SyncWindows) {
 	fmt.Printf(printOpFmtStr, "Name:", app.Name)
 	fmt.Printf(printOpFmtStr, "Project:", app.Spec.GetProject())
@@ -359,8 +446,8 @@ func printAppConditions(w io.Writer, app *argoappv1.Application) {
 	}
 }
 
-// appURL returns the URL of an application
-func appURL(acdClient argocdclient.Client, appName string) string {
+// appURLDefault returns the default URL of an application
+func appURLDefault(acdClient argocdclient.Client, appName string) string {
 	var scheme string
 	opts := acdClient.ClientOptions()
 	server := opts.ServerAddr
@@ -373,6 +460,19 @@ func appURL(acdClient argocdclient.Client, appName string) string {
 		}
 	}
 	return fmt.Sprintf("%s://%s/applications/%s", scheme, server, appName)
+}
+
+// appURL returns the URL of an application
+func appURL(acdClient argocdclient.Client, appName string) string {
+	conn, settingsIf := acdClient.NewSettingsClientOrDie()
+	defer argoio.Close(conn)
+	argoSettings, err := settingsIf.Get(context.Background(), &settingspkg.SettingsQuery{})
+	errors.CheckError(err)
+
+	if argoSettings.URL != "" {
+		return fmt.Sprintf("%s/applications/%s", argoSettings.URL, appName)
+	}
+	return appURLDefault(acdClient, appName)
 }
 
 func truncateString(str string, num int) string {

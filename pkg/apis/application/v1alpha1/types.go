@@ -985,6 +985,20 @@ type ApplicationTree struct {
 	Hosts []HostInfo `json:"hosts,omitempty" protobuf:"bytes,3,rep,name=hosts"`
 }
 
+// Normalize sorts application tree nodes and hosts. The persistent order allows to
+// effectively compare previously cached app tree and allows to unnecessary Redis requests.
+func (t *ApplicationTree) Normalize() {
+	sort.Slice(t.Nodes, func(i, j int) bool {
+		return t.Nodes[i].FullName() < t.Nodes[j].FullName()
+	})
+	sort.Slice(t.OrphanedNodes, func(i, j int) bool {
+		return t.OrphanedNodes[i].FullName() < t.OrphanedNodes[j].FullName()
+	})
+	sort.Slice(t.Hosts, func(i, j int) bool {
+		return t.Hosts[i].Name < t.Hosts[j].Name
+	})
+}
+
 type ApplicationSummary struct {
 	// ExternalURLs holds all external URLs of application child resources.
 	ExternalURLs []string `json:"externalURLs,omitempty" protobuf:"bytes,1,opt,name=externalURLs"`
@@ -1053,6 +1067,11 @@ type ResourceNode struct {
 	CreatedAt       *metav1.Time            `json:"createdAt,omitempty" protobuf:"bytes,8,opt,name=createdAt"`
 }
 
+// FullName returns node full name
+func (n *ResourceNode) FullName() string {
+	return fmt.Sprintf("%s/%s/%s/%s", n.Group, n.Kind, n.Namespace, n.Name)
+}
+
 func (n *ResourceNode) GroupKindVersion() schema.GroupVersionKind {
 	return schema.GroupVersionKind{
 		Group:   n.Group,
@@ -1098,6 +1117,11 @@ type ResourceDiff struct {
 	PredictedLiveState string `json:"predictedLiveState,omitempty" protobuf:"bytes,10,opt,name=predictedLiveState"`
 	ResourceVersion    string `json:"resourceVersion,omitempty" protobuf:"bytes,11,opt,name=resourceVersion"`
 	Modified           bool   `json:"modified,omitempty" protobuf:"bytes,12,opt,name=modified"`
+}
+
+// FullName returns full name of a node that was used for diffing
+func (r *ResourceDiff) FullName() string {
+	return fmt.Sprintf("%s/%s/%s/%s", r.Group, r.Kind, r.Namespace, r.Name)
 }
 
 // ConnectionStatus represents connection status
@@ -2755,8 +2779,11 @@ func (proj *AppProject) NormalizeJWTTokens() bool {
 }
 
 func syncJWTTokenBetweenStatusAndSpec(proj *AppProject) bool {
+	existingRole := map[string]bool{}
 	needSync := false
 	for roleIndex, role := range proj.Spec.Roles {
+		existingRole[role.Name] = true
+
 		tokensInSpec := role.JWTTokens
 		tokensInStatus := []JWTToken{}
 		if proj.Status.JWTTokensByRole == nil {
@@ -2779,8 +2806,16 @@ func syncJWTTokenBetweenStatusAndSpec(proj *AppProject) bool {
 
 		proj.Spec.Roles[roleIndex].JWTTokens = tokens
 		proj.Status.JWTTokensByRole[role.Name] = JWTTokens{Items: tokens}
-
 	}
+	if proj.Status.JWTTokensByRole != nil {
+		for role := range proj.Status.JWTTokensByRole {
+			if !existingRole[role] {
+				delete(proj.Status.JWTTokensByRole, role)
+				needSync = true
+			}
+		}
+	}
+
 	return needSync
 }
 

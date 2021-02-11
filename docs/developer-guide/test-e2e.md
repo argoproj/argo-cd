@@ -1,9 +1,5 @@
 # E2E Tests
 
-!!!warning
-    This documentation is out-of-date. Please bear with us while we work to
-    update the documentation to reflect reality!
-
 The directory contains E2E tests and test applications. The test assume that Argo CD services are installed into `argocd-e2e` namespace or cluster in current context. One throw-away
 namespace `argocd-e2e***` is created prior to tests execute. The throw-away namespace is used as a target namespace for test applications.
 
@@ -15,7 +11,7 @@ Git repository via file url: `file:///tmp/argocd-e2e***`.
 1. Start the e2e version `make start-e2e` 
 1. Run the tests: `make test-e2e`
 
-You can observe the tests by using the UI [http://localhost:8080/applications](http://localhost:8080/applications).
+You can observe the tests by using the UI [http://localhost:4000/applications](http://localhost:4000/applications).
 
 ## Configuration of E2E Tests execution
 

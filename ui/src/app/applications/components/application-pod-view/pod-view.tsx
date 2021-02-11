@@ -303,7 +303,8 @@ export class PodView extends React.Component<PodViewProps> {
                     renderMenu: () => this.props.nodeMenu(rnode)
                 };
             }
-
+        });
+        (tree.nodes || []).forEach((rnode: ResourceTreeNode) => {
             if (rnode.kind !== 'Pod') {
                 return;
             }
