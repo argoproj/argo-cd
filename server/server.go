@@ -952,11 +952,16 @@ func getToken(md metadata.MD) string {
 
 	// check the HTTP cookie
 	for _, t := range md["grpcgateway-cookie"] {
+<<<<<<< HEAD
 		header := http.Header{}
 		header.Add("Cookie", t)
 		request := http.Request{Header: header}
 		token, err := httputil.JoinCookies(common.AuthCookieName, request.Cookies())
 		if token != "" && err == nil {
+=======
+		token := httputil.JoinCookies(common.AuthCookieName, t)
+		if token != "" {
+>>>>>>> efe7ebb3 (fix: support longer cookie)
 			tokens = append(tokens, token)
 		}
 	}
