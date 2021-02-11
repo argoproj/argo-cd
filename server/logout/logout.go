@@ -14,7 +14,10 @@ import (
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	httputil "github.com/argoproj/argo-cd/util/http"
+<<<<<<< HEAD
 	jwtutil "github.com/argoproj/argo-cd/util/jwt"
+=======
+>>>>>>> efe7ebb3 (fix: support longer cookie)
 	"github.com/argoproj/argo-cd/util/session"
 	"github.com/argoproj/argo-cd/util/settings"
 )
