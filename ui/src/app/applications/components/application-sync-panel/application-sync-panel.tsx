@@ -6,7 +6,7 @@ import {Spinner} from '../../../shared/components';
 import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
-import {ApplicationManualSyncFlags, ApplicationSyncOptions} from '../application-sync-options';
+import {ApplicationManualSyncFlags, ApplicationSyncOptions, SyncFlags} from '../application-sync-options';
 import {ComparisonStatusIcon, nodeKey} from '../utils';
 
 export const ApplicationSyncPanel = ({application, selectedResource, hide}: {application: models.Application; selectedResource: string; hide: () => any}) => {
@@ -58,17 +58,20 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                     resources = null;
                                 }
 
-                                if (params.syncFlags.ApplyOnly) {
-                                    syncStrategy.apply = {force: params.syncFlags.Force};
+                                const syncFlags = {...params.syncFlags} as SyncFlags;
+
+                                if (syncFlags.ApplyOnly) {
+                                    syncStrategy.apply = {force: syncFlags.Force || false};
                                 } else {
-                                    syncStrategy.hook = {force: params.syncFlags.Force};
+                                    syncStrategy.hook = {force: syncFlags.Force || false};
                                 }
+
                                 try {
                                     await services.applications.sync(
                                         application.metadata.name,
                                         params.revision,
-                                        params.syncFlags.Prune,
-                                        params.syncFlags.DryRun,
+                                        syncFlags.Prune || false,
+                                        syncFlags.DryRun || false,
                                         syncStrategy,
                                         resources,
                                         params.syncOptions

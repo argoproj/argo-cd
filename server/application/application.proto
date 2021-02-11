@@ -181,6 +181,7 @@ message LogEntry {
 	required k8s.io.apimachinery.pkg.apis.meta.v1.Time timeStamp = 2 [(gogoproto.nullable) = false, deprecated=true];
 	required bool last = 3 [(gogoproto.nullable) = false];
 	required string timeStampStr = 4 [(gogoproto.nullable) = false];
+	required string podName = 5 [(gogoproto.nullable) = false];
 }
 
 message OperationTerminateRequest {
@@ -368,6 +369,11 @@ service ApplicationService {
 
 	// PodLogs returns stream of log entries for the specified pod. Pod
 	rpc PodLogs(ApplicationPodLogsQuery) returns (stream LogEntry) {
-		option (google.api.http).get = "/api/v1/applications/{name}/pods/{podName}/logs";
+		option (google.api.http) = {
+			get: "/api/v1/applications/{name}/pods/{podName}/logs"
+			additional_bindings {
+				get: "/api/v1/applications/{name}/logs"
+			}
+		};
 	}
 }

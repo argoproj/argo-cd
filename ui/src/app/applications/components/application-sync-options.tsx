@@ -7,11 +7,11 @@ export interface ApplicationSyncOptionProps {
     onChanged: (updatedOptions: string[]) => any;
 }
 
-function booleanOption(name: string, label: string, defaultVal: boolean, props: ApplicationSyncOptionProps) {
+function booleanOption(name: string, label: string, defaultVal: boolean, props: ApplicationSyncOptionProps, invert: boolean) {
     const options = [...(props.options || [])];
     const prefix = `${name}=`;
     const index = options.findIndex(item => item.startsWith(prefix));
-    const checked = index < 0 ? defaultVal : options[index].substring(prefix.length) === 'true';
+    const checked = index < 0 ? defaultVal : options[index].substring(prefix.length) === (invert ? 'false' : 'true');
     return (
         <React.Fragment>
             <Checkbox
@@ -19,7 +19,7 @@ function booleanOption(name: string, label: string, defaultVal: boolean, props: 
                 checked={checked}
                 onChange={(val: boolean) => {
                     if (index < 0) {
-                        props.onChanged(options.concat(`${name}=${val}`));
+                        props.onChanged(options.concat(`${name}=${invert ? !val : val}`));
                     } else {
                         options.splice(index, 1);
                         props.onChanged(options);
@@ -38,6 +38,13 @@ enum ManualSyncFlags {
     Force = 'Force'
 }
 
+export interface SyncFlags {
+    Prune: boolean;
+    DryRun: boolean;
+    ApplyOnly: boolean;
+    Force: boolean;
+}
+
 enum SyncOptions {
     Validate = 'Skip Schema Validation',
     CreateNamespace = 'Auto-Create Namespace',
@@ -51,7 +58,7 @@ export const ApplicationSyncOptions = (props: ApplicationSyncOptionProps) => (
     <React.Fragment>
         {Object.keys(SyncOptions).map(opt => (
             <div key={opt} style={optionStyle}>
-                {booleanOption(opt, SyncOptions[opt as keyof typeof SyncOptions], false, props)}
+                {booleanOption(opt, SyncOptions[opt as keyof typeof SyncOptions], false, props, opt === 'Validate')}
             </div>
         ))}
     </React.Fragment>
