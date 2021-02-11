@@ -11,7 +11,7 @@ import {Consumer} from '../../../shared/context';
 import {ApplicationURLs} from '../application-urls';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
-import {ComparisonStatusIcon, getAppOverridesCount, HealthStatusIcon, isAppNode, NodeId, nodeKey} from '../utils';
+import {BASE_COLORS, ComparisonStatusIcon, getAppOverridesCount, HealthStatusIcon, isAppNode, NodeId, nodeKey} from '../utils';
 import {NodeUpdateAnimation} from './node-update-animation';
 
 function treeNodeKey(node: NodeId & {uid?: string}) {
@@ -61,15 +61,6 @@ const NODE_TYPES = {
     externalLoadBalancer: 'external_load_balancer',
     internalTraffic: 'internal_traffic'
 };
-
-const BASE_COLORS = [
-    '#0DADEA', // blue
-    '#95D58F', // green
-    '#F4C030', // orange
-    '#FF6262', // red
-    '#4B0082', // purple
-    '#964B00' // brown
-];
 
 // generate lots of colors with different darkness
 const TRAFFIC_COLORS = [0, 0.25, 0.4, 0.6]
