@@ -136,9 +136,38 @@ export function showDeploy(resource: string, appContext: AppContext) {
     appContext.apis.navigation.goto('.', {deploy: resource});
 }
 
+export function findChildPod(node: appModels.ResourceNode, tree: appModels.ApplicationTree): appModels.ResourceNode {
+    const key = nodeKey(node);
+
+    const allNodes = tree.nodes.concat(tree.orphanedNodes || []);
+    const nodeByKey = new Map<string, appModels.ResourceNode>();
+    allNodes.forEach(item => nodeByKey.set(nodeKey(item), item));
+
+    const pods = tree.nodes.concat(tree.orphanedNodes || []).filter(item => item.kind === 'Pod');
+    return pods.find(pod => {
+        const items: Array<appModels.ResourceNode> = [pod];
+        while (items.length > 0) {
+            const next = items.pop();
+            const parentKeys = (next.parentRefs || []).map(nodeKey);
+            if (parentKeys.includes(key)) {
+                return true;
+            }
+            parentKeys.forEach(item => {
+                const parent = nodeByKey.get(item);
+                if (parent) {
+                    items.push(parent);
+                }
+            });
+        }
+
+        return false;
+    });
+}
+
 export function renderResourceMenu(
     resource: ResourceTreeNode,
     application: appModels.Application,
+    tree: appModels.ApplicationTree,
     appContext: AppContext,
     appChanged: BehaviorSubject<appModels.Application>,
     getApplicationActionMenu: () => any
@@ -208,6 +237,12 @@ export function renderResourceMenu(
                 }
             }
         ];
+        if (findChildPod(resource, tree)) {
+            items.push({
+                title: 'Logs',
+                action: () => appContext.apis.navigation.goto('.', {node: nodeKey(resource), tab: 'logs'})
+            });
+        }
         const resourceActions = services.applications
             .getResourceActions(application.metadata.name, resource)
             .then(actions =>

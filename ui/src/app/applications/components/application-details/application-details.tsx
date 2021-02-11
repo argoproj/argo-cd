@@ -231,7 +231,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                     selectedNodeFullName={this.selectedNodeKey}
                                                     onNodeClick={fullName => this.selectNode(fullName)}
                                                     nodeMenu={node =>
-                                                        AppUtils.renderResourceMenu(node, application, this.appContext, this.appChanged, () =>
+                                                        AppUtils.renderResourceMenu(node, application, tree, this.appContext, this.appChanged, () =>
                                                             this.getApplicationActionMenu(application)
                                                         )
                                                     }
@@ -251,7 +251,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                         app={application}
                                                         onItemClick={fullName => this.selectNode(fullName)}
                                                         nodeMenu={node =>
-                                                            AppUtils.renderResourceMenu(node, application, this.appContext, this.appChanged, () =>
+                                                            AppUtils.renderResourceMenu(node, application, tree, this.appContext, this.appChanged, () =>
                                                                 this.getApplicationActionMenu(application)
                                                             )
                                                         }
@@ -269,8 +269,13 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                                         onNodeClick={fullName => this.selectNode(fullName)}
                                                                         resources={data}
                                                                         nodeMenu={node =>
-                                                                            AppUtils.renderResourceMenu({...node, root: node}, application, this.appContext, this.appChanged, () =>
-                                                                                this.getApplicationActionMenu(application)
+                                                                            AppUtils.renderResourceMenu(
+                                                                                {...node, root: node},
+                                                                                application,
+                                                                                tree,
+                                                                                this.appContext,
+                                                                                this.appChanged,
+                                                                                () => this.getApplicationActionMenu(application)
                                                                             )
                                                                         }
                                                                     />
@@ -320,7 +325,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                             if (selectedNode.kind === 'Pod') {
                                                                 podState = liveState;
                                                             } else {
-                                                                const childPod = this.findChildPod(selectedNode, tree);
+                                                                const childPod = AppUtils.findChildPod(selectedNode, tree);
                                                                 if (childPod) {
                                                                     podState = await services.applications.getResource(application.metadata.name, childPod).catch(() => null);
                                                                 }
@@ -715,34 +720,6 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
 
     private async deleteApplication() {
         await AppUtils.deleteApplication(this.props.match.params.name, this.appContext.apis);
-    }
-
-    private findChildPod(node: appModels.ResourceNode, tree: appModels.ApplicationTree): appModels.ResourceNode {
-        const key = AppUtils.nodeKey(node);
-
-        const allNodes = tree.nodes.concat(tree.orphanedNodes || []);
-        const nodeByKey = new Map<string, appModels.ResourceNode>();
-        allNodes.forEach(item => nodeByKey.set(AppUtils.nodeKey(item), item));
-
-        const pods = tree.nodes.concat(tree.orphanedNodes || []).filter(item => item.kind === 'Pod');
-        return pods.find(pod => {
-            const items: Array<appModels.ResourceNode> = [pod];
-            while (items.length > 0) {
-                const next = items.pop();
-                const parentKeys = (next.parentRefs || []).map(AppUtils.nodeKey);
-                if (parentKeys.includes(key)) {
-                    return true;
-                }
-                parentKeys.forEach(item => {
-                    const parent = nodeByKey.get(item);
-                    if (parent) {
-                        items.push(parent);
-                    }
-                });
-            }
-
-            return false;
-        });
     }
 
     private getResourceTabs(

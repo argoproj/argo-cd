@@ -242,10 +242,12 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                                         }
                                     )}
                                     {!props.podName && (
-                                        <i
-                                            className={classNames('fa pod-logs-viewer__pod-name-toggle', {'fa-chevron-left': viewPodNames, 'fa-chevron-right': !viewPodNames})}
-                                            onClick={() => setViewPodNames(!viewPodNames)}
-                                        />
+                                        <Tooltip content={viewPodNames ? 'Hide pod names' : 'Show pod names'}>
+                                            <i
+                                                className={classNames('fa pod-logs-viewer__pod-name-toggle', {'fa-chevron-left': viewPodNames, 'fa-chevron-right': !viewPodNames})}
+                                                onClick={() => setViewPodNames(!viewPodNames)}
+                                            />
+                                        </Tooltip>
                                     )}
                                     <pre style={{height: '95%'}}>
                                         <div ref={top} style={{height: '1px'}} />
