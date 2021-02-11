@@ -171,7 +171,7 @@ func TestImmutableChange(t *testing.T) {
 			SyncPhase: "Sync",
 			Status:    "SyncFailed",
 			HookPhase: "Failed",
-			Message:   fmt.Sprintf(`Service "my-service" is invalid`),
+			Message:   `Service "my-service" is invalid`,
 		})).
 		// now we can do this will a force
 		Given().
