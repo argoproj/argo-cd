@@ -1,4 +1,4 @@
-import {DropDown} from 'argo-ui';
+import {DropDown, Tooltip} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as dagre from 'dagre';
 import * as React from 'react';
@@ -11,7 +11,7 @@ import {Consumer} from '../../../shared/context';
 import {ApplicationURLs} from '../application-urls';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
-import {ComparisonStatusIcon, getAppOverridesCount, HealthStatusIcon, isAppNode, NodeId, nodeKey} from '../utils';
+import {BASE_COLORS, ComparisonStatusIcon, getAppOverridesCount, HealthStatusIcon, isAppNode, NodeId, nodeKey} from '../utils';
 import {NodeUpdateAnimation} from './node-update-animation';
 
 function treeNodeKey(node: NodeId & {uid?: string}) {
@@ -62,15 +62,6 @@ const NODE_TYPES = {
     internalTraffic: 'internal_traffic'
 };
 
-const BASE_COLORS = [
-    '#0DADEA', // blue
-    '#95D58F', // green
-    '#F4C030', // orange
-    '#FF6262', // red
-    '#4B0082', // purple
-    '#964B00' // brown
-];
-
 // generate lots of colors with different darkness
 const TRAFFIC_COLORS = [0, 0.25, 0.4, 0.6]
     .map(darken =>
@@ -115,8 +106,35 @@ function filterGraph(app: models.Application, filteredIndicatorParent: string, g
     }
 }
 
-function compareNodes(first: ResourceTreeNode, second: ResourceTreeNode) {
-    return `${(first.orphaned && '1') || '0'}/${nodeKey(first)}`.localeCompare(`${(second.orphaned && '1') || '0'}/${nodeKey(second)}`);
+export function compareNodes(first: ResourceTreeNode, second: ResourceTreeNode) {
+    function orphanedToInt(orphaned?: boolean) {
+        return (orphaned && 1) || 0;
+    }
+    function compareRevision(a: string, b: string) {
+        const numberA = Number(a);
+        const numberB = Number(b);
+        if (isNaN(numberA) || isNaN(numberB)) {
+            return a.localeCompare(b);
+        }
+        return Math.sign(numberA - numberB);
+    }
+    function getRevision(a: ResourceTreeNode) {
+        const filtered = a.info.filter(b => b.name === 'Revision' && b)[0];
+        if (filtered == null) {
+            return '';
+        }
+        const value = filtered.value;
+        if (value == null) {
+            return '';
+        }
+        return value.replace(/^Rev:/, '');
+    }
+    return (
+        orphanedToInt(first.orphaned) - orphanedToInt(second.orphaned) ||
+        nodeKey(first).localeCompare(nodeKey(second)) ||
+        compareRevision(getRevision(first), getRevision(second)) ||
+        0
+    );
 }
 
 function appNodeKey(app: models.Application) {
@@ -191,7 +209,7 @@ export const describeNode = (node: ResourceTreeNode) => {
     return lines.join('\n');
 };
 
-function renderResourceNode(props: ApplicationResourceTreeProps, id: string, node: (ResourceTreeNode) & dagre.Node) {
+function renderResourceNode(props: ApplicationResourceTreeProps, id: string, node: ResourceTreeNode & dagre.Node) {
     const fullName = nodeKey(node);
     let comparisonStatus: models.SyncStatusCode = null;
     let healthState: models.HealthStatus = null;
@@ -242,16 +260,32 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                 </span>
             </div>
             <div className='application-resource-tree__node-labels'>
-                {node.createdAt ? (
+                {node.createdAt || rootNode ? (
                     <Moment className='application-resource-tree__node-label' fromNow={true} ago={true}>
-                        {node.createdAt}
+                        {node.createdAt || props.app.metadata.creationTimestamp}
                     </Moment>
                 ) : null}
-                {(node.info || []).map((tag, i) => (
-                    <span className='application-resource-tree__node-label' title={`${tag.name}:${tag.value}`} key={i}>
-                        {tag.value}
-                    </span>
-                ))}
+                {(node.info || [])
+                    .filter(tag => !tag.name.includes('Node'))
+                    .slice(0, 4)
+                    .map((tag, i) => (
+                        <span className='application-resource-tree__node-label' title={`${tag.name}:${tag.value}`} key={i}>
+                            {tag.value}
+                        </span>
+                    ))}
+                {(node.info || []).length > 4 && (
+                    <Tooltip
+                        content={(node.info || []).map(i => (
+                            <div key={i.name}>
+                                {i.name}: {i.value}
+                            </div>
+                        ))}
+                        key={node.uid}>
+                        <span className='application-resource-tree__node-label' title='More'>
+                            More
+                        </span>
+                    </Tooltip>
+                )}
             </div>
             {props.nodeMenu && (
                 <div className='application-resource-tree__node-menu'>
@@ -427,7 +461,9 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             if (treeNodeKey(child) === treeNodeKey(root)) {
                 return;
             }
-            graph.setEdge(treeNodeKey(node), treeNodeKey(child), {colors});
+            if (node.namespace === child.namespace) {
+                graph.setEdge(treeNodeKey(node), treeNodeKey(child), {colors});
+            }
             processNode(child, root, colors);
         });
     }
@@ -483,7 +519,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                         case NODE_TYPES.externalLoadBalancer:
                             return <React.Fragment key={key}>{renderLoadBalancerNode(node as any)}</React.Fragment>;
                         default:
-                            return <React.Fragment key={key}>{renderResourceNode(props, key, node as (ResourceTreeNode) & dagre.Node)}</React.Fragment>;
+                            return <React.Fragment key={key}>{renderResourceNode(props, key, node as ResourceTreeNode & dagre.Node)}</React.Fragment>;
                     }
                 })}
                 {edges.map(edge => (

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
+	"github.com/dgrijalva/jwt-go/v4"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -17,6 +17,7 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apiclient/account"
 	sessionpkg "github.com/argoproj/argo-cd/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/server/session"
+	"github.com/argoproj/argo-cd/test"
 	"github.com/argoproj/argo-cd/util/errors"
 	"github.com/argoproj/argo-cd/util/password"
 	"github.com/argoproj/argo-cd/util/rbac"
@@ -63,7 +64,7 @@ func newTestAccountServerExt(ctx context.Context, enforceFn rbac.ClaimsEnforcerF
 	}
 	kubeclientset := fake.NewSimpleClientset(cm, secret)
 	settingsMgr := settings.NewSettingsManager(ctx, kubeclientset, testNamespace)
-	sessionMgr := sessionutil.NewSessionManager(settingsMgr, "", sessionutil.NewInMemoryUserStateStorage())
+	sessionMgr := sessionutil.NewSessionManager(settingsMgr, test.NewFakeProjLister(), "", sessionutil.NewInMemoryUserStateStorage())
 	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
 	enforcer.SetClaimsEnforcerFunc(enforceFn)
 
@@ -89,7 +90,7 @@ func ssoAdminContext(ctx context.Context, iat time.Time) context.Context {
 	return context.WithValue(ctx, "claims", &jwt.StandardClaims{
 		Subject:  "admin",
 		Issuer:   "https://myargocdhost.com/api/dex",
-		IssuedAt: iat.Unix(),
+		IssuedAt: jwt.At(iat),
 	})
 }
 

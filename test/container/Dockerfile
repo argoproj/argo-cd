@@ -4,10 +4,10 @@ FROM node:12.18.4 as node
 
 FROM golang:1.14.12 as golang
 
-FROM debian:10-slim
+FROM ubuntu:20.10
 
-RUN echo 'deb http://deb.debian.org/debian buster-backports main' >> /etc/apt/sources.list && \
-    apt-get update && apt-get install -y \
+ENV DEBIAN_FRONTEND=noninteractive
+RUN  apt-get update && apt-get install -y \
         ca-certificates \
         curl \
         openssh-server \
@@ -37,10 +37,10 @@ ADD ./hack/installers installers
 
 RUN ./install.sh dep-linux && \
     ./install.sh packr-linux && \
-    ./install.sh kubectl-linux && \
     ./install.sh ksonnet-linux && \
     ./install.sh helm2-linux && \
     ./install.sh helm-linux && \
+    ./install.sh kubectl-linux && \
     ./install.sh kustomize-linux && \
     ./install.sh codegen-tools && \
     ./install.sh codegen-go-tools && \

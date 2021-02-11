@@ -1,12 +1,13 @@
 import {AutocompleteField, DropDownMenu, FormField, FormSelect, HelpIcon, PopupApi} from 'argo-ui';
 import * as React from 'react';
 import {FormApi, Text} from 'react-form';
-import {Cluster, DataLoader, EditablePanel, EditablePanelItem, Expandable, MapInputField, Repo, Revision, RevisionHelpIcon} from '../../../shared/components';
+import {Cluster, DataLoader, EditablePanel, EditablePanelItem, Expandable, MapInputField, NumberField, Repo, Revision, RevisionHelpIcon} from '../../../shared/components';
 import {BadgePanel, Spinner} from '../../../shared/components';
 import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 
+import * as moment from 'moment';
 import {ApplicationSyncOptionsField} from '../application-sync-options';
 import {RevisionFormField} from '../revision-form-field/revision-form-field';
 import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage} from '../utils';
@@ -128,6 +129,13 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.destination.namespace' component={Text} />
         },
         {
+            title: 'CREATED_AT',
+            view: moment
+                .utc(app.metadata.creationTimestamp)
+                .local()
+                .format('MM/DD/YYYY HH:mm:ss')
+        },
+        {
             title: 'REPO URL',
             view: <Repo url={app.spec.source.repoURL} />,
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.repoURL' component={Text} />
@@ -202,10 +210,10 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
             view: app.spec.revisionHistoryLimit,
             edit: (formApi: FormApi) => (
                 <div style={{position: 'relative'}}>
-                    <FormField formApi={formApi} field='spec.revisionHistoryLimit' component={Text} />
+                    <FormField formApi={formApi} field='spec.revisionHistoryLimit' componentProps={{style: {paddingRight: '1em'}, placeholder: '10'}} component={NumberField} />
                     <div style={{position: 'absolute', right: '0', top: '0'}}>
                         <HelpIcon
-                            title='This limits this number of items kept in the apps revision history.
+                            title='This limits the number of items kept in the apps revision history.
     This should only be changed in exceptional circumstances.
     Setting to zero will store no history. This will reduce storage used.
     Increasing will increase the space used to store the history, so we do not recommend increasing it.

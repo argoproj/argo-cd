@@ -2,10 +2,6 @@
 
 Provides set of commands for settings validation and troubleshooting
 
-### Synopsis
-
-Provides set of commands for settings validation and troubleshooting
-
 ```
 argocd-util settings [flags]
 ```

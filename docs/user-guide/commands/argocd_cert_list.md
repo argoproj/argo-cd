@@ -2,10 +2,6 @@
 
 List configured certificates
 
-### Synopsis
-
-List configured certificates
-
 ```
 argocd cert list [flags]
 ```

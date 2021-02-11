@@ -8,7 +8,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/url"
-	"os"
 	"path"
 	"reflect"
 	"strings"
@@ -31,7 +30,9 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/server/settings/oidc"
 	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/password"
+	argorand "github.com/argoproj/argo-cd/util/rand"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
 )
 
@@ -69,6 +70,10 @@ type ArgoCDSettings struct {
 	AnonymousUserEnabled bool `json:"anonymousUserEnabled,omitempty"`
 	// UiCssURL local or remote path to user-defined CSS to customize ArgoCD UI
 	UiCssURL string `json:"uiCssURL,omitempty"`
+	// Content of UI Banner
+	UiBannerContent string `json:"uiBannerContent,omitempty"`
+	// URL for UI Banner
+	UiBannerURL string `json:"uiBannerURL,omitempty"`
 }
 
 type GoogleAnalytics struct {
@@ -246,8 +251,18 @@ const (
 	resourceCompareOptionsKey = "resource.compareoptions"
 	// settingUiCssURLKey designates the key for user-defined CSS URL for UI customization
 	settingUiCssURLKey = "ui.cssurl"
+	// settingUiBannerContentKey designates the key for content of user-defined info banner for UI
+	settingUiBannerContentKey = "ui.bannercontent"
+	// settingUiBannerURLKey designates the key for the link for user-defined info banner for UI
+	settingUiBannerURLKey = "ui.bannerurl"
 	// globalProjectsKey designates the key for global project settings
 	globalProjectsKey = "globalProjects"
+	// initialPasswordSecretName is the name of the secret that will hold the initial admin password
+	initialPasswordSecretName = "argocd-initial-admin-secret"
+	// initialPasswordSecretField is the name of the field in initialPasswordSecretName to store the password
+	initialPasswordSecretField = "password"
+	// initialPasswordLength defines the length of the generated initial password
+	initialPasswordLength = 16
 )
 
 // SettingsManager holds config info for a new manager with which to access Kubernetes ConfigMaps.
@@ -823,10 +838,15 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	settings.StatusBadgeEnabled = argoCDCM.Data[statusBadgeEnabledKey] == "true"
 	settings.AnonymousUserEnabled = argoCDCM.Data[anonymousUserEnabledKey] == "true"
 	settings.UiCssURL = argoCDCM.Data[settingUiCssURLKey]
+	settings.UiBannerContent = argoCDCM.Data[settingUiBannerContentKey]
 	if err := validateExternalURL(argoCDCM.Data[settingURLKey]); err != nil {
 		log.Warnf("Failed to validate URL in configmap: %v", err)
 	}
 	settings.URL = argoCDCM.Data[settingURLKey]
+	if err := validateExternalURL(argoCDCM.Data[settingUiBannerURLKey]); err != nil {
+		log.Warnf("Failed to validate UI banner URL in configmap: %v", err)
+	}
+	settings.UiBannerURL = argoCDCM.Data[settingUiBannerURLKey]
 }
 
 // validateExternalURL ensures the external URL that is set on the configmap is valid
@@ -910,6 +930,16 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 		}
 		if settings.UiCssURL != "" {
 			argoCDCM.Data[settingUiCssURLKey] = settings.UiCssURL
+		}
+		if settings.UiBannerContent != "" {
+			argoCDCM.Data[settingUiBannerContentKey] = settings.UiBannerContent
+		} else {
+			delete(argoCDCM.Data, settingUiBannerContentKey)
+		}
+		if settings.UiBannerURL != "" {
+			argoCDCM.Data[settingUiBannerURLKey] = settings.UiBannerURL
+		} else {
+			delete(argoCDCM.Data, settingUiBannerURLKey)
 		}
 		return nil
 	})
@@ -1150,7 +1180,7 @@ func (a *ArgoCDSettings) DexRedirectURL() (string, error) {
 }
 
 // DexOAuth2ClientSecret calculates an arbitrary, but predictable OAuth2 client secret string derived
-// from the server secret. This is called by the dex startup wrapper (argocd-util rundex), as well
+// from the server secret. This is called by the dex startup wrapper (argocd-dex rundex), as well
 // as the API server, such that they both independently come to the same conclusion of what the
 // OAuth2 shared client secret should be.
 func (a *ArgoCDSettings) DexOAuth2ClientSecret() string {
@@ -1227,11 +1257,13 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 		if adminAccount.Enabled {
 			now := time.Now().UTC()
 			if adminAccount.PasswordHash == "" {
-				defaultPassword, err := os.Hostname()
+				initialPassword := argorand.RandString(initialPasswordLength)
+				hashedPassword, err := password.HashPassword(initialPassword)
 				if err != nil {
 					return err
 				}
-				hashedPassword, err := password.HashPassword(defaultPassword)
+				ku := kube.NewKubeUtil(mgr.clientset, mgr.ctx)
+				err = ku.CreateOrUpdateSecretField(mgr.namespace, initialPasswordSecretName, initialPasswordSecretField, initialPassword)
 				if err != nil {
 					return err
 				}

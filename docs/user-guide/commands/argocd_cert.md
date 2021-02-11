@@ -2,10 +2,6 @@
 
 Manage repository certificates and SSH known hosts entries
 
-### Synopsis
-
-Manage repository certificates and SSH known hosts entries
-
 ```
 argocd cert [flags]
 ```

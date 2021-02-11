@@ -2,10 +2,6 @@
 
 Terminate running operation of an application
 
-### Synopsis
-
-Terminate running operation of an application
-
 ```
 argocd app terminate-op APPNAME [flags]
 ```

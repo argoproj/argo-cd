@@ -9,7 +9,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	k8snode "k8s.io/kubernetes/pkg/util/node"
+	resourcehelper "k8s.io/kubectl/pkg/util/resource"
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -30,6 +30,9 @@ func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 			return
 		case kube.ServiceKind:
 			populateServiceInfo(un, res)
+			return
+		case "Node":
+			populateHostNodeInfo(un, res)
 			return
 		}
 	case "extensions", "networking.k8s.io":
@@ -129,6 +132,9 @@ func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 					}] = true
 				}
 
+				if host == nil || host == "" {
+					continue
+				}
 				stringPort := "http"
 				if tls, ok, err := unstructured.NestedSlice(un.Object, "spec", "tls"); ok && err == nil {
 					for i := range tls {
@@ -302,7 +308,12 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 		}
 	}
 
-	if pod.DeletionTimestamp != nil && pod.Status.Reason == k8snode.NodeUnreachablePodReason {
+	// "NodeLost" = https://github.com/kubernetes/kubernetes/blob/cb8ad64243d48d9a3c26b11b2e0945c098457282/pkg/util/node/node.go#L46
+	// But depending on the k8s.io/kubernetes package just for a constant
+	// is not worth it.
+	// See https://github.com/argoproj/argo-cd/issues/5173
+	// and https://github.com/kubernetes/kubernetes/issues/90358#issuecomment-617859364
+	if pod.DeletionTimestamp != nil && pod.Status.Reason == "NodeLost" {
 		reason = "Unknown"
 	} else if pod.DeletionTimestamp != nil {
 		reason = "Terminating"
@@ -311,6 +322,27 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	if reason != "" {
 		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Status Reason", Value: reason})
 	}
+
+	req, _ := resourcehelper.PodRequestsAndLimits(&pod)
+	res.PodInfo = &PodInfo{NodeName: pod.Spec.NodeName, ResourceRequests: req}
+
+	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Node", Value: pod.Spec.NodeName})
 	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Containers", Value: fmt.Sprintf("%d/%d", readyContainers, totalContainers)})
+	if restarts > 0 {
+		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Restart Count", Value: fmt.Sprintf("%d", restarts)})
+	}
 	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{Labels: un.GetLabels()}
+}
+
+func populateHostNodeInfo(un *unstructured.Unstructured, res *ResourceInfo) {
+	node := v1.Node{}
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &node)
+	if err != nil {
+		return
+	}
+	res.NodeInfo = &NodeInfo{
+		Name:       node.Name,
+		Capacity:   node.Status.Capacity,
+		SystemInfo: node.Status.NodeInfo,
+	}
 }

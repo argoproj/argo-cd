@@ -21,7 +21,7 @@ import (
 
 	"github.com/argoproj/pkg/jwt/zjwt"
 	"github.com/argoproj/pkg/sync"
-	"github.com/dgrijalva/jwt-go"
+	"github.com/dgrijalva/jwt-go/v4"
 	"github.com/go-redis/redis/v8"
 	"github.com/gorilla/handlers"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
@@ -209,8 +209,6 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 	err = initializeDefaultProject(opts)
 	errors.CheckError(err)
 
-	sessionMgr := util_session.NewSessionManager(settingsMgr, opts.DexServerAddr, opts.Cache)
-
 	factory := appinformer.NewFilteredSharedInformerFactory(opts.AppClientset, 0, opts.Namespace, func(options *metav1.ListOptions) {})
 	projInformer := factory.Argoproj().V1alpha1().AppProjects().Informer()
 	projLister := factory.Argoproj().V1alpha1().AppProjects().Lister().AppProjects(opts.Namespace)
@@ -218,6 +216,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 	appInformer := factory.Argoproj().V1alpha1().Applications().Informer()
 	appLister := factory.Argoproj().V1alpha1().Applications().Lister().Applications(opts.Namespace)
 
+	sessionMgr := util_session.NewSessionManager(settingsMgr, projLister, opts.DexServerAddr, opts.Cache)
 	enf := rbac.NewEnforcer(opts.KubeClientset, opts.Namespace, common.ArgoCDRBACConfigMapName, nil)
 	enf.EnableEnforce(!opts.DisableAuth)
 	err = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
@@ -239,6 +238,22 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 		appLister:        appLister,
 		policyEnforcer:   policyEnf,
 	}
+}
+
+const (
+	// catches corrupted informer state; see https://github.com/argoproj/argo-cd/issues/4960 for more information
+	notObjectErrMsg = "object does not implement the Object interfaces"
+)
+
+func (a *ArgoCDServer) healthCheck(r *http.Request) error {
+	if val, ok := r.URL.Query()["full"]; ok && len(val) > 0 && val[0] == "true" {
+		argoDB := db.NewDB(a.Namespace, a.settingsMgr, a.KubeClientset)
+		_, err := argoDB.ListClusters(r.Context())
+		if err != nil && strings.Contains(err.Error(), notObjectErrMsg) {
+			return err
+		}
+	}
+	return nil
 }
 
 // Run runs the API Server
@@ -321,6 +336,7 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
 
 	go a.projInformer.Run(ctx.Done())
 	go a.appInformer.Run(ctx.Done())
+
 	go func() { a.checkServeErr("grpcS", grpcS.Serve(grpcL)) }()
 	go func() { a.checkServeErr("httpS", httpS.Serve(httpL)) }()
 	if a.useTLS() {
@@ -546,7 +562,16 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	accountService := account.NewServer(a.sessionMgr, a.settingsMgr, a.enf)
 	certificateService := certificate.NewServer(a.RepoClientset, db, a.enf)
 	gpgkeyService := gpgkey.NewServer(a.RepoClientset, db, a.enf)
-	versionpkg.RegisterVersionServiceServer(grpcS, &version.Server{})
+	versionpkg.RegisterVersionServiceServer(grpcS, version.NewServer(a, func() (bool, error) {
+		if a.DisableAuth {
+			return true, nil
+		}
+		sett, err := a.settingsMgr.GetSettings()
+		if err != nil {
+			return false, err
+		}
+		return sett.AnonymousUserEnabled, err
+	}))
 	clusterpkg.RegisterClusterServiceServer(grpcS, clusterService)
 	applicationpkg.RegisterApplicationServiceServer(grpcS, applicationService)
 	repositorypkg.RegisterRepositoryServiceServer(grpcS, repoService)
@@ -596,9 +621,7 @@ func withRootPath(handler http.Handler, a *ArgoCDServer) http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("/"+root+"/", http.StripPrefix("/"+root, handler))
 
-	healthz.ServeHealthCheck(mux, func() error {
-		return nil
-	})
+	healthz.ServeHealthCheck(mux, a.healthCheck)
 
 	return mux
 }
@@ -681,9 +704,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 
 	// Swagger UI
 	swagger.ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui", a.RootPath)
-	healthz.ServeHealthCheck(mux, func() error {
-		return nil
-	})
+	healthz.ServeHealthCheck(mux, a.healthCheck)
 
 	// Dex reverse proxy and client app and OAuth2 login/callback
 	a.registerDexHandlers(mux)
@@ -821,6 +842,7 @@ func (server *ArgoCDServer) newStaticAssetsHandler(dir string, baseHRef string) 
 		if server.XFrameOptions != "" {
 			w.Header().Set("X-Frame-Options", server.XFrameOptions)
 		}
+		w.Header().Set("X-XSS-Protection", "1")
 
 		// serve index.html for non file requests to support HTML5 History API
 		if acceptHTML && !fileRequest && (r.Method == "GET" || r.Method == "HEAD") {

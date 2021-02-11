@@ -2,10 +2,6 @@
 
 argocd cluster rotate-auth SERVER
 
-### Synopsis
-
-argocd cluster rotate-auth SERVER
-
 ```
 argocd cluster rotate-auth SERVER [flags]
 ```

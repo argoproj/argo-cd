@@ -161,10 +161,43 @@ export class ApplicationsService {
             .then(() => true);
     }
 
-    public getContainerLogs(applicationName: string, namespace: string, podName: string, containerName: string): Observable<models.LogEntry> {
-        const entries = requests
-            .loadEventSource(`/applications/${applicationName}/pods/${podName}/logs?container=${containerName}&follow=true&namespace=${namespace}`)
-            .map(data => JSON.parse(data).result as models.LogEntry);
+    public getContainerLogs(
+        applicationName: string,
+        namespace: string,
+        podName: string,
+        resource: {group: string; kind: string; name: string},
+        containerName: string,
+        tail?: number,
+        follow?: boolean,
+        untilTime?: string,
+        filter?: string
+    ): Observable<models.LogEntry> {
+        if (follow === undefined || follow === null) {
+            follow = true;
+        }
+        const search = new URLSearchParams();
+        search.set('container', containerName);
+        search.set('follow', follow.toString());
+        search.set('container', containerName);
+        search.set('namespace', namespace);
+        if (podName) {
+            search.set('podName', podName);
+        } else {
+            search.set('group', resource.group);
+            search.set('kind', resource.kind);
+            search.set('resourceName', resource.name);
+        }
+
+        if (tail) {
+            search.set('tailLines', tail.toString());
+        }
+        if (untilTime) {
+            search.set('untilTime', untilTime);
+        }
+        if (filter) {
+            search.set('filter', filter);
+        }
+        const entries = requests.loadEventSource(`/applications/${applicationName}/logs?${search.toString()}`).map(data => JSON.parse(data).result as models.LogEntry);
         return new Observable(observer => {
             const subscription = entries.subscribe(
                 entry => {

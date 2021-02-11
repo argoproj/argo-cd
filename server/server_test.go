@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
+	"github.com/dgrijalva/jwt-go/v4"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/metadata"
@@ -362,13 +362,6 @@ func TestRevokedToken(t *testing.T) {
 	claims := jwt.MapClaims{"sub": defaultSub, "iat": defaultIssuedAt}
 	assert.True(t, s.enf.Enforce(claims, "projects", "get", existingProj.ObjectMeta.Name))
 	assert.True(t, s.enf.Enforce(claims, "applications", "get", defaultTestObject))
-	// Now revoke the token by deleting the token
-	existingProj.Spec.Roles[0].JWTTokens = nil
-	existingProj.Status.JWTTokensByRole = nil
-	_, _ = s.AppClientset.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Update(context.Background(), &existingProj, metav1.UpdateOptions{})
-	time.Sleep(200 * time.Millisecond) // this lets the informer get synced
-	assert.False(t, s.enf.Enforce(claims, "projects", "get", existingProj.ObjectMeta.Name))
-	assert.False(t, s.enf.Enforce(claims, "applications", "get", defaultTestObject))
 }
 
 func TestCertsAreNotGeneratedInInsecureMode(t *testing.T) {

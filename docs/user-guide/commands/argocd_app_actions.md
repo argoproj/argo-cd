@@ -2,10 +2,6 @@
 
 Manage Resource actions
 
-### Synopsis
-
-Manage Resource actions
-
 ```
 argocd app actions [flags]
 ```

@@ -2,10 +2,6 @@
 
 Remove repository credentials
 
-### Synopsis
-
-Remove repository credentials
-
 ```
 argocd repo rm REPO [flags]
 ```

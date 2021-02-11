@@ -31,6 +31,8 @@ message Settings {
     repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ConfigManagementPlugin configManagementPlugins = 12;
     repeated string kustomizeVersions = 13;
     string uiCssURL = 14;
+    string uiBannerContent = 15;
+    string uiBannerURL = 16;
 }
 
 message GoogleAnalyticsConfig {

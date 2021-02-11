@@ -78,14 +78,22 @@ type Cache struct {
 	client CacheClient
 }
 
+func (c *Cache) GetClient() CacheClient {
+	return c.client
+}
+
+func (c *Cache) SetClient(client CacheClient) {
+	c.client = client
+}
+
 func (c *Cache) SetItem(key string, item interface{}, expiration time.Duration, delete bool) error {
-	if item == nil {
-		return fmt.Errorf("cannot set item to nil for key %s", key)
-	}
 	key = fmt.Sprintf("%s|%s", key, common.CacheVersion)
 	if delete {
 		return c.client.Delete(key)
 	} else {
+		if item == nil {
+			return fmt.Errorf("cannot set item to nil for key %s", key)
+		}
 		return c.client.Set(&Item{Object: item, Key: key, Expiration: expiration})
 	}
 }
