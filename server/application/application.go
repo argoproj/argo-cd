@@ -1,17 +1,14 @@
 package application
 
 import (
-	"bufio"
 	"encoding/json"
 	"errors"
 	"fmt"
-	goio "io"
 	"math"
 	"reflect"
 	"sort"
 	"strconv"
 	"strings"
-	gosync "sync"
 	"time"
 
 	"github.com/Masterminds/semver"
@@ -53,7 +50,7 @@ import (
 	"github.com/argoproj/argo-cd/util/env"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/helm"
-	"github.com/argoproj/argo-cd/util/io"
+	ioutil "github.com/argoproj/argo-cd/util/io"
 	"github.com/argoproj/argo-cd/util/lua"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/session"
@@ -232,7 +229,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 	if err != nil {
 		return nil, err
 	}
-	defer io.Close(conn)
+	defer ioutil.Close(conn)
 	revision := a.Spec.Source.TargetRevision
 	if q.Revision != "" {
 		revision = q.Revision
@@ -1007,7 +1004,7 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 	if err != nil {
 		return nil, err
 	}
-	defer io.Close(conn)
+	defer ioutil.Close(conn)
 	return repoClient.GetRevisionMetadata(ctx, &apiclient.RepoServerRevisionMetadataRequest{
 		Repo:           repo,
 		Revision:       q.GetRevision(),
@@ -1055,8 +1052,53 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 		q.ResourceName = q.PodName
 	}
 
-	// get all nodes
-	tree, err := s.ResourceTree(ws.Context(), &application.ResourcesQuery{ApplicationName: q.Name})
+	var sinceSeconds, tailLines *int64
+	if q.SinceSeconds > 0 {
+		sinceSeconds = &q.SinceSeconds
+	}
+	if q.TailLines > 0 {
+		tailLines = &q.TailLines
+	}
+	var untilTime *metav1.Time
+	if q.GetUntilTime() != "" {
+		if val, err := time.Parse(time.RFC3339Nano, q.GetUntilTime()); err != nil {
+			return fmt.Errorf("invalid untilTime parameter value: %v", err)
+		} else {
+			untilTimeVal := metav1.NewTime(val)
+			untilTime = &untilTimeVal
+		}
+	}
+
+	literal := ""
+	inverse := false
+	if q.GetFilter() != "" {
+		literal = *q.Filter
+		if literal[0] == '!' {
+			literal = literal[1:]
+			inverse = true
+		}
+	}
+
+	a, err := s.appLister.Get(q.GetName())
+	if err != nil {
+		return err
+	}
+
+	if err := s.enf.EnforceErr(ws.Context().Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)); err != nil {
+		return err
+	}
+
+	tree, err := s.getAppResources(ws.Context(), a)
+	if err != nil {
+		return err
+	}
+
+	config, err := s.getApplicationClusterConfig(ws.Context(), a)
+	if err != nil {
+		return err
+	}
+
+	kubeClientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		return err
 	}
@@ -1071,66 +1113,69 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 		return errors.New("Max pods to view logs are reached. Please provide more granular query.")
 	}
 
-	var wg gosync.WaitGroup
-	wg.Add(len(pods))
-	errorsCh := make(chan error, len(pods))
-	responseCh := make(chan PodLogsResponse, len(pods))
+	var streams []chan logEntry
 
 	for _, pod := range pods {
-		go func(i appv1.ResourceNode) {
-			data, err := q.Marshal()
-			if err != nil {
-				errorsCh <- err
-				responseCh <- ErrorAccured
-				wg.Done()
-				return
-			}
-
-			var copiedQuery application.ApplicationPodLogsQuery
-			err = copiedQuery.Unmarshal(data)
-			if err != nil {
-				errorsCh <- err
-				responseCh <- ErrorAccured
-				wg.Done()
-				return
-			}
-
-			copiedQuery.Namespace = i.Namespace
-			copiedQuery.PodName = &i.Name
-
-			log.Debug("processing pod logs for ", i.Name)
-			response, err := s.processOnePodLog(&copiedQuery, ws)
-			errorsCh <- err
-			responseCh <- response
-			log.Debug("processing pod logs done ", i.Name)
-			wg.Done()
-
-		}(pod)
-	}
-
-	wg.Wait()
-
-	allDone := true
-	for i := 0; i < len(pods); i++ {
-		err := <-errorsCh
+		stream, err := kubeClientset.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &v1.PodLogOptions{
+			Container:    q.Container,
+			Follow:       q.Follow,
+			Timestamps:   true,
+			SinceSeconds: sinceSeconds,
+			SinceTime:    q.SinceTime,
+			TailLines:    tailLines,
+		}).Stream(ws.Context())
 		if err != nil {
 			return err
 		}
-		//also check if all exist with no errors, then send the last message.
-		response := <-responseCh
-		if response == ErrorAccured {
-			allDone = false
-		}
+		podName := pod.Name
+		logStream := make(chan logEntry)
+		defer ioutil.Close(stream)
+
+		streams = append(streams, logStream)
+		go func() {
+			parseLogsStream(podName, stream, logStream)
+			close(logStream)
+		}()
 	}
 
-	if allDone {
-		if err := ws.Send(&application.LogEntry{Last: true}); err != nil {
-			log.Warnf("Unable to send stream message notifying about last log message: %v", err)
-			return err
+	logStream := mergeLogStreams(streams, time.Millisecond*100)
+	sentCount := int64(0)
+	for {
+		select {
+		case entry, ok := <-logStream:
+			if !ok {
+				return ws.Send(&application.LogEntry{Last: true})
+			}
+			if entry.err != nil {
+				return err
+			} else {
+				if q.Filter != nil {
+					lineContainsFilter := strings.Contains(entry.line, literal)
+					if (inverse && lineContainsFilter) || (!inverse && !lineContainsFilter) {
+						continue
+					}
+				}
+				if untilTime != nil && entry.timeStamp.After(untilTime.Time) {
+					return ws.Send(&application.LogEntry{
+						Last: true,
+					})
+				} else {
+					sentCount++
+					if err := ws.Send(&application.LogEntry{
+						PodName:      entry.podName,
+						Content:      entry.line,
+						TimeStampStr: entry.timeStamp.Format(time.RFC3339Nano),
+						TimeStamp:    metav1.NewTime(entry.timeStamp),
+					}); err != nil {
+						return err
+					}
+				}
+			}
+		case <-ws.Context().Done():
+			log.WithField("application", q.Name).Debug("k8s pod logs reader completed due to closed grpc context")
+			return nil
 		}
 	}
-
-	return nil
 }
 
 // from all of the treeNodes, get the pod who meets the criteria or whose parents meets the criteria
@@ -1185,139 +1230,6 @@ func isTheSelectedOne(currentNode *appv1.ResourceNode, q *application.Applicatio
 
 	isTheOneMap[currentNode.UID] = false
 	return false
-}
-
-type PodLogsResponse int
-
-const (
-	ErrorAccured     = -1
-	ReachedEOF       = 0
-	UntilTimeReached = 1
-	GracefulExit     = 2
-)
-
-func (s *Server) processOnePodLog(q *application.ApplicationPodLogsQuery, ws application.ApplicationService_PodLogsServer) (PodLogsResponse, error) {
-	var response PodLogsResponse
-	response = ErrorAccured
-
-	var untilTime *metav1.Time
-	if q.GetUntilTime() != "" {
-		if val, err := time.Parse(time.RFC3339Nano, q.GetUntilTime()); err != nil {
-			return response, fmt.Errorf("invalid untilTime parameter value: %v", err)
-		} else {
-			untilTimeVal := metav1.NewTime(val)
-			untilTime = &untilTimeVal
-		}
-	}
-
-	pod, config, _, err := s.getAppResource(ws.Context(), rbacpolicy.ActionGet, &application.ApplicationResourceRequest{
-		Name:         q.Name,
-		Namespace:    q.Namespace,
-		Kind:         kube.PodKind,
-		Group:        "",
-		Version:      "v1",
-		ResourceName: *q.PodName,
-	})
-
-	if err != nil {
-		return response, err
-	}
-
-	kubeClientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return response, err
-	}
-
-	var sinceSeconds, tailLines *int64
-	if q.SinceSeconds > 0 {
-		sinceSeconds = &q.SinceSeconds
-	}
-	if q.TailLines > 0 {
-		tailLines = &q.TailLines
-	}
-
-	literal := ""
-	inverse := false
-	if q.GetFilter() != "" {
-		literal = *q.Filter
-		if literal[0] == '!' {
-			literal = literal[1:]
-			inverse = true
-		}
-	}
-	stream, err := kubeClientset.CoreV1().Pods(pod.Namespace).GetLogs(*q.PodName, &v1.PodLogOptions{
-		Container:    q.Container,
-		Follow:       q.Follow,
-		Timestamps:   true,
-		SinceSeconds: sinceSeconds,
-		SinceTime:    q.SinceTime,
-		TailLines:    tailLines,
-	}).Stream(ws.Context())
-	if err != nil {
-		return response, err
-	}
-	logCtx := log.WithField("application", q.Name)
-	defer io.Close(stream)
-	done := make(chan bool)
-	gracefulExit := false
-	go func() {
-		bufReader := bufio.NewReader(stream)
-		for {
-			line, err := bufReader.ReadString('\n')
-			if err != nil {
-				// Error or io.EOF
-				break
-			}
-			line = strings.TrimSpace(line) // Remove trailing line ending
-			parts := strings.Split(line, " ")
-			timeStampStr := parts[0]
-			logTime, err := time.Parse(time.RFC3339Nano, timeStampStr)
-			metaLogTime := metav1.NewTime(logTime)
-			if err == nil {
-				lines := strings.Join(parts[1:], " ")
-				for _, line := range strings.Split(lines, "\r") {
-					if q.Filter != nil {
-						lineContainsFilter := strings.Contains(line, literal)
-						if (inverse && lineContainsFilter) || (!inverse && !lineContainsFilter) {
-							continue
-						}
-					}
-					if q.GetUntilTime() != "" && !metaLogTime.Before(untilTime) {
-						response = UntilTimeReached
-						close(done)
-						return
-					}
-					err = ws.Send(&application.LogEntry{
-						Content:      line,
-						TimeStamp:    metaLogTime,
-						TimeStampStr: timeStampStr,
-					})
-					if err != nil {
-						logCtx.Warnf("Unable to send stream message: %v", err)
-					}
-				}
-			}
-		}
-		if gracefulExit {
-			logCtx.Info("k8s pod logs reader completed due to closed grpc context")
-		} else if err != nil && err != goio.EOF {
-			logCtx.Warnf("k8s pod logs reader failed with error: %v", err)
-		} else {
-			logCtx.Info("k8s pod logs reader completed with EOF")
-			response = ReachedEOF
-		}
-		close(done)
-	}()
-
-	select {
-	case <-ws.Context().Done():
-		logCtx.Info("client pod logs grpc context closed")
-		gracefulExit = true
-		response = GracefulExit
-	case <-done:
-	}
-
-	return response, nil
 }
 
 // Sync syncs an application to its target state
