@@ -6,10 +6,12 @@
     padding: 15px;
     padding-left: 5px;
     color: black;
+
     &--inverted {
         background-color: black;
         color: white;
     }
+
     &__settings {
         display: flex;
         margin-bottom: 1em;
@@ -17,11 +19,13 @@
             margin-right: 5px;
         }
     }
+
     &__filter {
         display: flex;
         margin-left: auto;
         width: 350px;
     }
+
     &__menu {
         display: flex;
         margin-bottom: 1em;
@@ -46,6 +50,7 @@
                 cursor: not-allowed;
             }
         }
+
         &--inverted {
             i {
                 border-color: white;
@@ -56,12 +61,15 @@
             }
         }
     }
+
     &__line {
         padding-left: 0.5ch;
+
         &--selected {
             background-color: red;
             box-shadow: -3px 0 0 0 darkred;
         }
+
         &__menu {
             border-radius: 6px;
             text-align: center;
@@ -76,6 +84,7 @@
                 color: red;
             }
         }
+
         &__number {
             text-align: right;
             min-width: 3ch;
@@ -86,5 +95,38 @@
                 opacity: 1;
             }
         }
+
+        &__pod {
+            padding-left: 5px;
+            padding-right: 5px;
+            span {
+                display: none;
+                text-overflow: ellipsis;
+                overflow: hidden;
+            }
+            width: 3ch;
+            min-width: 3ch;
+        }
+    }
+
+    &--pod-name-visible {
+        .pod-logs-viewer__line__pod {
+            span {
+                display: inherit;
+            }
+            i {
+                display: none;
+            }
+            width: 30ch;
+            min-width: 30ch;
+        }
+    }
+
+    &__pod-name-toggle {
+        cursor: pointer;
+        position: fixed;
+        top: 50%;
+        transform: translateY(2em);
+        z-index: 1;
     }
 }

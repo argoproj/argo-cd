@@ -394,6 +394,7 @@ export interface LogEntry {
     timeStamp: models.Time;
     last: boolean;
     timeStampStr: string;
+    podName: string;
 }
 
 // describes plugin settings

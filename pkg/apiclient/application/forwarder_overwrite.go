@@ -13,6 +13,7 @@ import (
 
 func init() {
 	forward_ApplicationService_PodLogs_0 = http.StreamForwarder
+	forward_ApplicationService_PodLogs_1 = http.StreamForwarder
 	forward_ApplicationService_WatchResourceTree_0 = http.StreamForwarder
 	forward_ApplicationService_Watch_0 = http.NewStreamForwarder(func(message proto.Message) (string, error) {
 		event, ok := message.(*v1alpha1.ApplicationWatchEvent)
