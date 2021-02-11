@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -136,6 +137,31 @@ func ResourceResultIs(result ResourceResult) Expectation {
 		for _, res := range results {
 			if *res == result {
 				return succeeded, fmt.Sprintf("found resource result %v", result)
+			}
+		}
+		return pending, fmt.Sprintf("waiting for resource result %v in %v", result, results)
+	}
+}
+
+func sameResourceResult(res1, res2 ResourceResult) bool {
+	return res1.Kind == res2.Kind &&
+		res1.Group == res2.Group &&
+		res1.Namespace == res2.Namespace &&
+		res1.Name == res2.Name &&
+		res1.SyncPhase == res2.SyncPhase &&
+		res1.Status == res2.Status &&
+		res1.HookPhase == res2.HookPhase
+}
+
+func ResourceResultMatches(result ResourceResult) Expectation {
+	return func(c *Consequences) (state, string) {
+		results := c.app().Status.OperationState.SyncResult.Resources
+		for _, res := range results {
+			if sameResourceResult(*res, result) {
+				re := regexp.MustCompile(result.Message)
+				if re.MatchString(res.Message) {
+					return succeeded, fmt.Sprintf("found resource result %v", result)
+				}
 			}
 		}
 		return pending, fmt.Sprintf("waiting for resource result %v in %v", result, results)

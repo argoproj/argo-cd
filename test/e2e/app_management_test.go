@@ -163,7 +163,7 @@ func TestImmutableChange(t *testing.T) {
 		Expect(OperationPhaseIs(OperationFailed)).
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		Expect(ResourceResultNumbering(1)).
-		Expect(ResourceResultIs(ResourceResult{
+		Expect(ResourceResultMatches(ResourceResult{
 			Kind:      "Service",
 			Version:   "v1",
 			Namespace: DeploymentNamespace(),
@@ -171,7 +171,7 @@ func TestImmutableChange(t *testing.T) {
 			SyncPhase: "Sync",
 			Status:    "SyncFailed",
 			HookPhase: "Failed",
-			Message:   fmt.Sprintf(`Service "my-service" is invalid: spec.clusterIP: Invalid value: "%s": field is immutable`, ip2),
+			Message:   `Service "my-service" is invalid`,
 		})).
 		// now we can do this will a force
 		Given().
