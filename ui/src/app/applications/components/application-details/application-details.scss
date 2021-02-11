@@ -1,5 +1,7 @@
 @import 'node_modules/argo-ui/src/styles/config';
 
+$header: 120px;
+
 .application-details {
     &__status-panel {
         position: fixed;
@@ -33,13 +35,13 @@
     }
     &__orphaned-filter {
         position: fixed;
-        top: 100px + 100px;
+        top: $header + 100px;
         right: 60px;
     }
 
     &__refreshing-label {
         position: fixed;
-        top: 100px + 100px;
+        top: $header + 100px;
         left: 60px;
         background-color: $argo-color-gray-4;
         border: 1px solid $argo-color-gray-5;
