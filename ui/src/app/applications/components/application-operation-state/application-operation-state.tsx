@@ -1,4 +1,4 @@
-import {Duration, NotificationType, Ticker} from 'argo-ui';
+import {Checkbox, DropDown, Duration, NotificationType, Ticker} from 'argo-ui';
 import * as moment from 'moment';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
@@ -84,6 +84,13 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
         }
     }
 
+    const [filters, setFilters] = React.useState([]);
+    const filterOptions = ['Synced', 'OutOfSync', 'Unknown'];
+
+    let filtered = syncResult.resources;
+    if (syncResult.resources && syncResult.resources.length > 0) {
+        filtered = syncResult.resources.filter(r => filters.length === 0 || filters.includes(getStatus(r)));
+    }
     return (
         <div>
             <div className='white-box'>
@@ -98,7 +105,39 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
             </div>
             {syncResult && syncResult.resources && syncResult.resources.length > 0 && (
                 <React.Fragment>
-                    <h4>Result:</h4>
+                    <div style={{display: 'flex'}}>
+                        <label style={{display: 'block', marginBottom: '1em'}}>RESULT</label>
+                        <div style={{marginLeft: 'auto'}}>
+                            <DropDown
+                                isMenu={true}
+                                anchor={() => (
+                                    <div title='Filter'>
+                                        <button className='argo-button argo-button--base'>
+                                            FILTER <i className='argo-icon-filter' aria-hidden='true' />
+                                        </button>
+                                    </div>
+                                )}>
+                                {filterOptions.map(f => (
+                                    <div style={{minWidth: '150px', lineHeight: '2em', padding: '5px'}}>
+                                        <Checkbox
+                                            checked={filters.includes(f)}
+                                            onChange={checked => {
+                                                const selectedValues = [...filters];
+                                                const idx = selectedValues.indexOf(f);
+                                                if (idx > -1 && !checked) {
+                                                    selectedValues.splice(idx, 1);
+                                                } else {
+                                                    selectedValues.push(f);
+                                                }
+                                                setFilters(selectedValues);
+                                            }}
+                                        />
+                                        <label htmlFor={`filter__${f}`}>{f}</label>
+                                    </div>
+                                ))}
+                            </DropDown>
+                        </div>
+                    </div>
                     <div className='argo-table-list'>
                         <div className='argo-table-list__head'>
                             <div className='row'>
@@ -110,33 +149,37 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                                 <div className='columns large-4 small-8'>MESSAGE</div>
                             </div>
                         </div>
-                        {syncResult.resources.map((resource, i) => (
-                            <div className='argo-table-list__row' key={i}>
-                                <div className='row'>
-                                    <div className='columns large-1 show-for-large application-operation-state__icons_container_padding'>
-                                        <div className='application-operation-state__icons_container'>
-                                            {resource.hookType && <i title='Resource lifecycle hook' className='fa fa-anchor' />}
+                        {filtered.length > 0 ? (
+                            filtered.map((resource, i) => (
+                                <div className='argo-table-list__row' key={i}>
+                                    <div className='row'>
+                                        <div className='columns large-1 show-for-large application-operation-state__icons_container_padding'>
+                                            <div className='application-operation-state__icons_container'>
+                                                {resource.hookType && <i title='Resource lifecycle hook' className='fa fa-anchor' />}
+                                            </div>
+                                            <span title={getKind(resource)}>{getKind(resource)}</span>
                                         </div>
-                                        <span title={getKind(resource)}>{getKind(resource)}</span>
-                                    </div>
-                                    <div className='columns large-2 show-for-large' title={resource.namespace}>
-                                        {resource.namespace}
-                                    </div>
-                                    <div className='columns large-2 small-2' title={resource.name}>
-                                        {resource.name}
-                                    </div>
-                                    <div className='columns large-1 small-2' title={getStatus(resource)}>
-                                        <utils.ResourceResultIcon resource={resource} /> {getStatus(resource)}
-                                    </div>
-                                    <div className='columns large-1 show-for-large' title={resource.hookType}>
-                                        {resource.hookType}
-                                    </div>
-                                    <div className='columns large-4 small-8' title={resource.message}>
-                                        <div className='application-operation-state__message'>{resource.message}</div>
+                                        <div className='columns large-2 show-for-large' title={resource.namespace}>
+                                            {resource.namespace}
+                                        </div>
+                                        <div className='columns large-2 small-2' title={resource.name}>
+                                            {resource.name}
+                                        </div>
+                                        <div className='columns large-1 small-2' title={getStatus(resource)}>
+                                            <utils.ResourceResultIcon resource={resource} /> {getStatus(resource)}
+                                        </div>
+                                        <div className='columns large-1 show-for-large' title={resource.hookType}>
+                                            {resource.hookType}
+                                        </div>
+                                        <div className='columns large-4 small-8' title={resource.message}>
+                                            <div className='application-operation-state__message'>{resource.message}</div>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        ))}
+                            ))
+                        ) : (
+                            <div style={{textAlign: 'center', marginTop: '2em', fontSize: '20px'}}>No Sync Results match filter</div>
+                        )}
                     </div>
                 </React.Fragment>
             )}
