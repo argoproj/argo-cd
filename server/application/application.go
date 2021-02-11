@@ -612,26 +612,44 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 		return nil, err
 	}
 
-	patchFinalizer := false
+	if q.Cascade != nil && !*q.Cascade && q.GetPropagationPolicy() != "" {
+		return nil, status.Error(codes.InvalidArgument, "cannot set propagation policy when cascading is disabled")
+	}
+
+	patch := false
 	if q.Cascade == nil || *q.Cascade {
 		if !a.CascadedDeletion() {
 			a.SetCascadedDeletion(true)
-			patchFinalizer = true
+			patch = true
+		}
+		// add propagation policy annotation if absent
+		if q.GetPropagationPolicy() != "" {
+			err := a.SetPropagationPolicy(*q.PropagationPolicy)
+			if err != nil {
+				return nil, status.Error(codes.InvalidArgument, err.Error())
+			}
+			patch = true
 		}
 	} else {
 		if a.CascadedDeletion() {
 			a.SetCascadedDeletion(false)
-			patchFinalizer = true
+			patch = true
+		}
+		// remove propagation policy annotation when cascading is disabled
+		if a.GetPropagationPolicy() != "" {
+			a.RemovePropagationPolicy()
+			patch = true
 		}
 	}
 
-	if patchFinalizer {
+	if patch {
 		// Although the cascaded deletion finalizer is not set when apps are created via API,
 		// they will often be set by the user as part of declarative config. As part of a delete
 		// request, we always calculate the patch to see if we need to set/unset the finalizer.
 		patch, err := json.Marshal(map[string]interface{}{
 			"metadata": map[string]interface{}{
-				"finalizers": a.Finalizers,
+				"finalizers":  a.Finalizers,
+				"annotations": a.Annotations,
 			},
 		})
 		if err != nil {

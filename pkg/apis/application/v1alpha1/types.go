@@ -216,6 +216,8 @@ const (
 	ApplicationSourceTypeKsonnet   ApplicationSourceType = "Ksonnet"
 	ApplicationSourceTypeDirectory ApplicationSourceType = "Directory"
 	ApplicationSourceTypePlugin    ApplicationSourceType = "Plugin"
+	BackgroundPropagationPolicy    string                = "background"
+	ForegroundPropagationPolicy    string                = "foreground"
 )
 
 // RefreshType specifies how to refresh the sources of a given application
@@ -2552,6 +2554,41 @@ func (app *Application) SetCascadedDeletion(prune bool) {
 // Expired returns true if the application needs to be reconciled
 func (status *ApplicationStatus) Expired(statusRefreshTimeout time.Duration) bool {
 	return status.ReconciledAt == nil || status.ReconciledAt.Add(statusRefreshTimeout).Before(time.Now().UTC())
+}
+
+// GetPropagationPolicy returns the value of propagation policy annotation
+func (app *Application) GetPropagationPolicy() string {
+	return app.GetAnnotations()[common.AnnotationPropagationPolicy]
+}
+
+// SetPropagationPolicy sets the propagation policy annotation with the given value
+func (app *Application) SetPropagationPolicy(policy string) error {
+	policy = strings.ToLower(policy)
+	if !isPropagationPolicyValid(policy) {
+		return fmt.Errorf("invalid propagation policy: %s", policy)
+	}
+
+	if app.GetPropagationPolicy() != policy {
+		a := app.GetAnnotations()
+		if a == nil {
+			a = map[string]string{}
+		}
+		a[common.AnnotationPropagationPolicy] = policy
+		app.SetAnnotations(a)
+	}
+	return nil
+}
+
+func isPropagationPolicyValid(policy string) bool {
+	if policy != BackgroundPropagationPolicy && policy != ForegroundPropagationPolicy {
+		return false
+	}
+	return true
+}
+
+// RemovePropagationPolicy removes the propagation policy annotation
+func (app *Application) RemovePropagationPolicy() {
+	delete(app.GetAnnotations(), common.AnnotationPropagationPolicy)
 }
 
 // SetConditions updates the application status conditions for a subset of evaluated types.

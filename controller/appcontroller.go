@@ -33,6 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
@@ -839,6 +840,13 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	config := metrics.AddMetricsTransportWrapper(ctrl.metricsServer, app, cluster.RESTConfig())
 
 	filteredObjs := FilterObjectsForDeletion(objs)
+
+	if app.GetPropagationPolicy() == appv1.BackgroundPropagationPolicy {
+		return ctrl.backgroundDeletion(app, objs, filteredObjs, logCtx, cluster, config)
+	}
+
+	logCtx.Info("Deleting application with foreground propagation policy")
+
 	err = kube.RunAllAsync(len(filteredObjs), func(i int) error {
 		obj := filteredObjs[i]
 		var deleteOption metav1.DeleteOptions
@@ -872,14 +880,8 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	if err != nil {
 		return objs, err
 	}
-	app.SetCascadedDeletion(false)
-	var patch []byte
-	patch, _ = json.Marshal(map[string]interface{}{
-		"metadata": map[string]interface{}{
-			"finalizers": app.Finalizers,
-		},
-	})
-	_, err = ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Patch(context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
+
+	err = ctrl.removeCascadeFinalizer(app)
 	if err != nil {
 		return objs, err
 	}
@@ -887,6 +889,53 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	logCtx.Infof("Successfully deleted %d resources", len(objs))
 	ctrl.projectRefreshQueue.Add(fmt.Sprintf("%s/%s", app.Namespace, app.Spec.GetProject()))
 	return objs, nil
+}
+
+func (ctrl *ApplicationController) backgroundDeletion(app *appv1.Application,
+	objs []*unstructured.Unstructured,
+	filteredObjs []*unstructured.Unstructured,
+	logCtx *log.Entry,
+	cluster *appv1.Cluster,
+	config *rest.Config) ([]*unstructured.Unstructured, error) {
+	logCtx.Info("Deleting application with background propagation policy")
+	err := ctrl.cache.SetAppManagedResources(app.Name, nil)
+	if err != nil {
+		return objs, err
+	}
+	err = ctrl.cache.SetAppResourcesTree(app.Name, nil)
+	if err != nil {
+		return objs, err
+	}
+
+	err = ctrl.removeCascadeFinalizer(app)
+	if err != nil {
+		return objs, err
+	}
+
+	err = kube.RunAllAsync(len(filteredObjs), func(i int) error {
+		obj := filteredObjs[i]
+		return ctrl.kubectl.DeleteResource(context.Background(), config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), false)
+	})
+	if err != nil {
+		return objs, err
+	}
+
+	logCtx.Infof("Successfully deleted %d resources", len(objs))
+	ctrl.projectRefreshQueue.Add(fmt.Sprintf("%s/%s", app.Namespace, app.Spec.GetProject()))
+	return objs, nil
+}
+
+func (ctrl *ApplicationController) removeCascadeFinalizer(app *appv1.Application) error {
+	app.SetCascadedDeletion(false)
+	var patch []byte
+	patch, _ = json.Marshal(map[string]interface{}{
+		"metadata": map[string]interface{}{
+			"finalizers": app.Finalizers,
+		},
+	})
+
+	_, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Patch(context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
+	return err
 }
 
 func (ctrl *ApplicationController) setAppCondition(app *appv1.Application, condition appv1.ApplicationCondition) {

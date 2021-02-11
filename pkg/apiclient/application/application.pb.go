@@ -524,6 +524,7 @@ func (m *ApplicationUpdateRequest) GetValidate() bool {
 type ApplicationDeleteRequest struct {
 	Name                 *string  `protobuf:"bytes,1,req,name=name" json:"name,omitempty"`
 	Cascade              *bool    `protobuf:"varint,2,opt,name=cascade" json:"cascade,omitempty"`
+	PropagationPolicy    *string  `protobuf:"bytes,3,opt,name=propagationPolicy" json:"propagationPolicy,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -574,6 +575,13 @@ func (m *ApplicationDeleteRequest) GetCascade() bool {
 		return *m.Cascade
 	}
 	return false
+}
+
+func (m *ApplicationDeleteRequest) GetPropagationPolicy() string {
+	if m != nil && m.PropagationPolicy != nil {
+		return *m.PropagationPolicy
+	}
+	return ""
 }
 
 type SyncOptions struct {
@@ -3667,6 +3675,13 @@ func (m *ApplicationDeleteRequest) MarshalToSizedBuffer(dAtA []byte) (int, error
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
+	if m.PropagationPolicy != nil {
+		i -= len(*m.PropagationPolicy)
+		copy(dAtA[i:], *m.PropagationPolicy)
+		i = encodeVarintApplication(dAtA, i, uint64(len(*m.PropagationPolicy)))
+		i--
+		dAtA[i] = 0x1a
+	}
 	if m.Cascade != nil {
 		i--
 		if *m.Cascade {
@@ -5054,6 +5069,10 @@ func (m *ApplicationDeleteRequest) Size() (n int) {
 	}
 	if m.Cascade != nil {
 		n += 2
+	}
+	if m.PropagationPolicy != nil {
+		l = len(*m.PropagationPolicy)
+		n += 1 + l + sovApplication(uint64(l))
 	}
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
@@ -6734,6 +6753,39 @@ func (m *ApplicationDeleteRequest) Unmarshal(dAtA []byte) error {
 			}
 			b := bool(v != 0)
 			m.Cascade = &b
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field PropagationPolicy", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApplication
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthApplication
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthApplication
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			s := string(dAtA[iNdEx:postIndex])
+			m.PropagationPolicy = &s
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipApplication(dAtA[iNdEx:])
