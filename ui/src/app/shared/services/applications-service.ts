@@ -147,10 +147,18 @@ export class ApplicationsService {
             });
     }
 
-    public sync(name: string, revision: string, prune: boolean, dryRun: boolean, strategy: models.SyncStrategy, resources: models.SyncOperationResource[]): Promise<boolean> {
+    public sync(
+        name: string,
+        revision: string,
+        prune: boolean,
+        dryRun: boolean,
+        strategy: models.SyncStrategy,
+        resources: models.SyncOperationResource[],
+        syncOptions?: string[]
+    ): Promise<boolean> {
         return requests
             .post(`/applications/${name}/sync`)
-            .send({revision, prune: !!prune, dryRun: !!dryRun, strategy, resources})
+            .send({revision, prune: !!prune, dryRun: !!dryRun, strategy, resources, syncOptions: syncOptions ? {items: syncOptions} : null})
             .then(() => true);
     }
 
