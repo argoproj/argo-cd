@@ -1,0 +1,14 @@
+apiVersion: kubernetes-client.io/v1
+kind: ExternalSecret
+metadata:
+  name: external-secret
+  namespace: external-secret
+spec:
+  backendType: secretsManager
+  data:
+    - key: /external/secret/name
+      name: EXTERNAL_SECRET_NAME
+status:
+  lastSync: "2021-02-06T21:44:40.631Z"
+  observedGeneration: 1
+  status: SUCCESS
