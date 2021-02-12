@@ -5,7 +5,6 @@ import (
 	"hash/fnv"
 	"strings"
 
-	"github.com/argoproj/argo-cd/util/errors"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -17,6 +16,7 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/errors"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/settings"
 )
