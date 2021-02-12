@@ -5,7 +5,7 @@ import {ProgressPopup} from '../../../shared/components';
 import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
-import {ApplicationManualSyncFlags, ApplicationSyncOptions} from '../application-sync-options';
+import {ApplicationManualSyncFlags, ApplicationSyncOptions, SyncFlags} from '../application-sync-options';
 import {ComparisonStatusIcon, HealthStatusIcon, OperationPhaseIcon} from '../utils';
 
 interface Progress {
@@ -35,15 +35,19 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
                         </div>
                     }>
                     <Form
+                        defaultValues={{syncFlags: []}}
                         onSubmit={async (params: any) => {
                             const selectedApps = getSelectedApps(params);
                             if (selectedApps.length === 0) {
                                 ctx.notifications.show({content: `No apps selected`, type: NotificationType.Error});
                                 return;
                             }
-                            const syncStrategy: models.SyncStrategy = params.syncFlags.applyOnly
-                                ? {apply: {force: params.syncFlags.force}}
-                                : {hook: {force: params.syncFlags.force}};
+
+                            const syncFlags = {...params.syncFlags} as SyncFlags;
+
+                            const syncStrategy: models.SyncStrategy =
+                                syncFlags.ApplyOnly || false ? {apply: {force: syncFlags.Force || false}} : {hook: {force: syncFlags.Force || false}};
+
                             setProgress({percentage: 0, title: 'Starting...'});
                             let i = 0;
                             for (const app of selectedApps) {
@@ -51,8 +55,8 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
                                     .sync(
                                         app.metadata.name,
                                         app.spec.source.targetRevision,
-                                        params.syncFlags.prune,
-                                        params.syncFlags.dryRun,
+                                        syncFlags.Prune || false,
+                                        syncFlags.DryRun || false,
                                         syncStrategy,
                                         null,
                                         params.syncOptions
