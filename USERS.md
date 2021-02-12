@@ -81,6 +81,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Qonto](https://qonto.com)
 1. [QuintoAndar](https://quintoandar.com.br)
 1. [Quipper](https://www.quipper.com/)
+1. [Recreation.gov](https://www.recreation.gov/)
 1. [Red Hat](https://www.redhat.com/)
 1. [Riskified](https://www.riskified.com/)
 1. [Robotinfra](https://www.robotinfra.com)
