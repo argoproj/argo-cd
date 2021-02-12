@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/argoproj/argo-cd/util/errors"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
 	log "github.com/sirupsen/logrus"
@@ -72,7 +73,12 @@ func (s *Server) getConnectionState(ctx context.Context, url string, forceRefres
 	}
 	if err != nil {
 		connectionState.Status = appsv1.ConnectionStatusFailed
-		connectionState.Message = fmt.Sprintf("Unable to connect to repository: %v", err)
+		if errors.IsCredentialsConfigurationError(err) {
+			connectionState.Message = "Configuration error - please check the server logs"
+			log.Warnf("could not retrieve repo: %s", err.Error())
+		} else {
+			connectionState.Message = fmt.Sprintf("Unable to connect to repository: %v", err)
+		}
 	}
 	err = s.cache.SetRepoConnectionState(url, &connectionState)
 	if err != nil {

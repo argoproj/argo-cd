@@ -5,6 +5,7 @@ import (
 	"hash/fnv"
 	"strings"
 
+	"github.com/argoproj/argo-cd/util/errors"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -107,7 +108,7 @@ func (db *db) tryGetRepository(ctx context.Context, repoURL string) (*appsv1.Rep
 	if index >= 0 {
 		repo, err = db.credentialsToRepository(repos[index])
 		if err != nil {
-			return repo, err
+			return repo, errors.NewCredentialsConfigurationError(err)
 		}
 	}
 
@@ -144,7 +145,7 @@ func (db *db) listRepositories(ctx context.Context, repoType *string) ([]*appsv1
 		if repoType == nil || *repoType == inRepo.Type {
 			r, err := db.tryGetRepository(ctx, inRepo.URL)
 			if err != nil {
-				if r != nil {
+				if r != nil && errors.IsCredentialsConfigurationError(err) {
 					modifiedTime := metav1.Now()
 					r.ConnectionState = appsv1.ConnectionState{
 						Status:     appsv1.ConnectionStatusFailed,
