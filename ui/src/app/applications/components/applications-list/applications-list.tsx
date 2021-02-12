@@ -80,6 +80,19 @@ function loadApplications(from: number, count: number): Observable<models.Applic
     });
 }
 
+const streamApplications = (): Observable<models.Application[]> => {
+    return services.applications
+        .watch()
+        .map(e => e.application)
+        .scan((apps, app) => {
+            apps.push(app);
+            return apps;
+        }, new Array<models.Application>())
+        .bufferTime(EVENTS_BUFFER_TIMEOUT)
+        .filter(batch => batch.length > 0)
+        .map(batch => batch[batch.length - 1]);
+};
+
 const ViewPref = ({initPref, children}: {initPref: ViewPreferences; children: (pref: AppsListPreferences & {page: number; search: string}) => React.ReactNode}) => (
     <ObservableQuery>
         {q => (
@@ -263,11 +276,12 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                         ]
                                     }
                                 }}>
+                                <DataLoader load={() => streamApplications()}>{apps => apps.map(a => a.metadata.name)}</DataLoader>
                                 <div className='applications-list'>
                                     <ViewPref initPref={viewPrefs}>
                                         {pref => {
                                             const count = viewPrefs.pageSizes['applications-list'] as number;
-                                            const from = count * pref.page;
+                                            const from = count * pref.page || 0;
                                             return (
                                                 <DataLoader
                                                     ref={loaderRef}
@@ -280,9 +294,9 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                     {(appList: models.ApplicationList) => {
                                                         const applications = appList.items;
                                                         const filteredApps = filterApps(applications, pref, pref.search);
-                                                        const paddedApplications = new Array(from).concat(
-                                                            filteredApps.concat(new Array(parseInt(appList.metadata.remainingItemCount, 10)))
-                                                        );
+                                                        const remaining = parseInt(appList.metadata.remainingItemCount, 10);
+                                                        const padding = remaining > 0 ? new Array(remaining) : new Array();
+                                                        const paddedApplications = new Array(from).concat(filteredApps.concat(padding));
                                                         return applications.length === 0 && (pref.labelsFilter || []).length === 0 ? (
                                                             <EmptyState icon='argo-icon-application'>
                                                                 <h4>No applications yet</h4>
