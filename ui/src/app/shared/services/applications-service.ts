@@ -185,9 +185,10 @@ export class ApplicationsService {
         }
         const search = new URLSearchParams();
         search.set('container', containerName);
-        search.set('follow', follow.toString());
-        search.set('container', containerName);
         search.set('namespace', namespace);
+        if (follow) {
+            search.set('follow', follow.toString());
+        }
         if (podName) {
             search.set('podName', podName);
         } else {
@@ -195,7 +196,6 @@ export class ApplicationsService {
             search.set('kind', resource.kind);
             search.set('resourceName', resource.name);
         }
-
         if (tail) {
             search.set('tailLines', tail.toString());
         }
