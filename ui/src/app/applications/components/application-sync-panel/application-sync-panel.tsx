@@ -6,6 +6,7 @@ import {Spinner} from '../../../shared/components';
 import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
+import {ApplicationManualSyncFlags, ApplicationSyncOptions, SyncFlags} from '../application-sync-options';
 import {ComparisonStatusIcon, nodeKey} from '../utils';
 
 export const ApplicationSyncPanel = ({application, selectedResource, hide}: {application: models.Application; selectedResource: string; hide: () => any}) => {
@@ -44,7 +45,8 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                         <Form
                             defaultValues={{
                                 revision: application.spec.source.targetRevision || 'HEAD',
-                                resources: appResources.map((_, i) => i === syncResIndex || syncResIndex === -1)
+                                resources: appResources.map((_, i) => i === syncResIndex || syncResIndex === -1),
+                                syncOptions: application.spec.syncPolicy ? application.spec.syncPolicy.syncOptions : ''
                             }}
                             validateError={values => ({
                                 resources: values.resources.every((item: boolean) => !item) && 'Select at least one resource'
@@ -55,13 +57,25 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                 if (resources.length === appResources.length) {
                                     resources = null;
                                 }
-                                if (params.applyOnly) {
-                                    syncStrategy.apply = {force: params.force};
+
+                                const syncFlags = {...params.syncFlags} as SyncFlags;
+
+                                if (syncFlags.ApplyOnly) {
+                                    syncStrategy.apply = {force: syncFlags.Force || false};
                                 } else {
-                                    syncStrategy.hook = {force: params.force};
+                                    syncStrategy.hook = {force: syncFlags.Force || false};
                                 }
+
                                 try {
-                                    await services.applications.sync(application.metadata.name, params.revision, params.prune, params.dryRun, syncStrategy, resources);
+                                    await services.applications.sync(
+                                        application.metadata.name,
+                                        params.revision,
+                                        syncFlags.Prune || false,
+                                        syncFlags.DryRun || false,
+                                        syncStrategy,
+                                        resources,
+                                        params.syncOptions
+                                    );
                                     hide();
                                 } catch (e) {
                                     ctx.notifications.show({
@@ -83,19 +97,16 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                     </div>
 
                                     <div className='argo-form-row'>
-                                        <div>
-                                            <span>
-                                                <Checkbox id='prune-on-sync-checkbox' field='prune' /> <label htmlFor='prune-on-sync-checkbox'>Prune</label>
-                                            </span>
-                                            <span>
-                                                <Checkbox id='dry-run-checkbox' field='dryRun' /> <label htmlFor='dry-run-checkbox'>Dry Run</label>
-                                            </span>
-                                            <span>
-                                                <Checkbox id='apply-only-checkbox' field='applyOnly' /> <label htmlFor='apply-only-checkbox'>Apply Only</label>
-                                            </span>
-                                            <span>
-                                                <Checkbox id='force-checkbox' field='force' /> <label htmlFor='force-checkbox'>Force</label>
-                                            </span>
+                                        <div style={{marginBottom: '1em'}}>
+                                            <label>Sync Options</label>
+                                            <ApplicationSyncOptions
+                                                options={formApi.values.syncOptions}
+                                                onChanged={opts => {
+                                                    formApi.setTouched('syncOptions', true);
+                                                    formApi.setValue('syncOptions', opts);
+                                                }}
+                                            />
+                                            <FormField formApi={formApi} field='syncFlags' component={ApplicationManualSyncFlags} />
                                         </div>
                                         <label>Synchronize resources:</label>
                                         <div style={{float: 'right'}}>

@@ -3,6 +3,11 @@
 .application-summary {
     &__labels {
         line-height: 28px;
+        display: flex;
+        align-items: center;
+        height: 100%;
+        flex-wrap: wrap;
+        padding-top: 0.5em;
     }
 
     &__label {
@@ -10,9 +15,9 @@
         color: white;
         border-radius: 5px;
         padding: 4px;
-        display: inline-block;
-        margin-right: 2px;
         line-height: 14px;
+        margin: 0.3em 0;
+        margin-right: 2px;
     }
 
     &__sort-icon {
@@ -35,7 +40,7 @@
         top: 1em;
         right: 1em;
     }
-   
+
     .argo-field {
         line-height: 1.15;
     }
