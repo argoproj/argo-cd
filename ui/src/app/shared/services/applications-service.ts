@@ -146,7 +146,9 @@ export class ApplicationsService {
             .retry()
             .map(data => JSON.parse(data).result as models.ApplicationWatchEvent)
             .map(watchEvent => {
-                watchEvent.application = this.parseAppFields(watchEvent.application);
+                if (watchEvent) {
+                    watchEvent.application = this.parseAppFields(watchEvent.application);
+                }
                 return watchEvent;
             });
     }
