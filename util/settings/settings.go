@@ -888,19 +888,19 @@ func updateSettingsFromSecret(settings *ArgoCDSettings, argoCDSecret *apiv1.Secr
 		errs = append(errs, &incompleteSettingsError{message: "server.secretkey is missing"})
 	}
 	if githubWebhookSecret := argoCDSecret.Data[settingsWebhookGitHubSecretKey]; len(githubWebhookSecret) > 0 {
-		settings.WebhookGitHubSecret = strings.TrimSpace(string(githubWebhookSecret))
+		settings.WebhookGitHubSecret = string(githubWebhookSecret)
 	}
 	if gitlabWebhookSecret := argoCDSecret.Data[settingsWebhookGitLabSecretKey]; len(gitlabWebhookSecret) > 0 {
-		settings.WebhookGitLabSecret = strings.TrimSpace(string(gitlabWebhookSecret))
+		settings.WebhookGitLabSecret = string(gitlabWebhookSecret)
 	}
 	if bitbucketWebhookUUID := argoCDSecret.Data[settingsWebhookBitbucketUUIDKey]; len(bitbucketWebhookUUID) > 0 {
-		settings.WebhookBitbucketUUID = strings.TrimSpace(string(bitbucketWebhookUUID))
+		settings.WebhookBitbucketUUID = string(bitbucketWebhookUUID)
 	}
 	if bitbucketserverWebhookSecret := argoCDSecret.Data[settingsWebhookBitbucketServerSecretKey]; len(bitbucketserverWebhookSecret) > 0 {
-		settings.WebhookBitbucketServerSecret = strings.TrimSpace(string(bitbucketserverWebhookSecret))
+		settings.WebhookBitbucketServerSecret = string(bitbucketserverWebhookSecret)
 	}
 	if gogsWebhookSecret := argoCDSecret.Data[settingsWebhookGogsSecretKey]; len(gogsWebhookSecret) > 0 {
-		settings.WebhookGogsSecret = strings.TrimSpace(string(gogsWebhookSecret))
+		settings.WebhookGogsSecret = string(gogsWebhookSecret)
 	}
 
 	serverCert, certOk := argoCDSecret.Data[settingServerCertificate]
@@ -1333,9 +1333,6 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 func ReplaceStringSecret(val string, secretValues map[string]string) string {
 	if val == "" || !strings.HasPrefix(val, "$") {
 		return val
-	}
-	if !strings.HasPrefix(val, "$") {
-		return strings.TrimSpace(val)
 	}
 	secretKey := val[1:]
 	secretVal, ok := secretValues[secretKey]
