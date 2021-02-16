@@ -12,5 +12,6 @@ Checklist:
 * [ ] I've updated documentation as required by this PR.
 * [ ] Optional. My organization is added to USERS.md.
 * [ ] I have signed off all my commits as required by [DCO](https://github.com/argoproj/argoproj/tree/master/community#contributing-to-argo)
+* [ ] I have written unit and/or e2e tests for my change. PRs without these are unlikely to be merged.
 * [ ] My build is green ([troubleshooting builds](https://argo-cd.readthedocs.io/en/latest/developer-guide/ci/)). 
 
