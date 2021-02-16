@@ -16,6 +16,7 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/errors"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/settings"
 )
@@ -85,6 +86,18 @@ func (db *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*apps
 // credentials attached to it, checks if a credential set for the repo's URL is
 // configured and copies them to the returned repository data.
 func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Repository, error) {
+	repository, err := db.tryGetRepository(ctx, repoURL)
+	if err != nil {
+		return nil, err
+	}
+	return repository, nil
+}
+
+// tryGetRepository returns a repository by URL.
+// It provides the same functionality as GetRepository, with the additional behaviour of still returning a repository,
+// even if an error occurred during the resolving of credentials for the repository. Otherwise this function behaves
+// just as one would expect.
+func (db *db) tryGetRepository(ctx context.Context, repoURL string) (*appsv1.Repository, error) {
 	repos, err := db.settingsMgr.GetRepositories()
 	if err != nil {
 		return nil, err
@@ -95,7 +108,7 @@ func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Reposi
 	if index >= 0 {
 		repo, err = db.credentialsToRepository(repos[index])
 		if err != nil {
-			return nil, err
+			return repo, errors.NewCredentialsConfigurationError(err)
 		}
 	}
 
@@ -108,7 +121,7 @@ func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Reposi
 				repo.InheritedCreds = true
 			}
 		} else {
-			return nil, err
+			return repo, err
 		}
 	} else {
 		log.Debugf("%s has credentials", repo.Repo)
@@ -130,9 +143,20 @@ func (db *db) listRepositories(ctx context.Context, repoType *string) ([]*appsv1
 	var repos []*appsv1.Repository
 	for _, inRepo := range inRepos {
 		if repoType == nil || *repoType == inRepo.Type {
-			r, err := db.GetRepository(ctx, inRepo.URL)
+			r, err := db.tryGetRepository(ctx, inRepo.URL)
 			if err != nil {
-				return nil, err
+				if r != nil && errors.IsCredentialsConfigurationError(err) {
+					modifiedTime := metav1.Now()
+					r.ConnectionState = appsv1.ConnectionState{
+						Status:     appsv1.ConnectionStatusFailed,
+						Message:    "Configuration error - please check the server logs",
+						ModifiedAt: &modifiedTime,
+					}
+
+					log.Warnf("could not retrieve repo: %s", err.Error())
+				} else {
+					return nil, err
+				}
 			}
 			repos = append(repos, r)
 		}

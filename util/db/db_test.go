@@ -105,6 +105,79 @@ func TestCreateRepoCredentials(t *testing.T) {
 	assert.Equal(t, "test-password", repo.Password)
 }
 
+func TestGetRepositoryCredentials(t *testing.T) {
+	config := map[string]string{
+		"repositories": `
+- url: https://known/repo
+- url: https://secured/repo
+- url: https://missing/repo
+`,
+		"repository.credentials": `
+- url: https://secured
+  usernameSecret:
+    name: managed-secret
+    key: username
+  passwordSecret:
+    name: managed-secret
+    key: password
+- url: https://missing
+  usernameSecret:
+    name: managed-secret
+    key: username
+  passwordSecret:
+    name: missing-managed-secret
+    key: password
+`}
+	clientset := getClientset(config, newManagedSecret())
+	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
+
+	tests := []struct {
+		name    string
+		repoURL string
+		want    *v1alpha1.RepoCreds
+		wantErr bool
+	}{
+		{
+			name:    "TestUnknownRepo",
+			repoURL: "https://unknown/repo",
+			want:    nil,
+			wantErr: false,
+		},
+		{
+			name:    "TestKnownRepo",
+			repoURL: "https://known/repo",
+			want:    nil,
+			wantErr: false,
+		},
+		{
+			name:    "TestSecuredRepo",
+			repoURL: "https://secured/repo",
+			want:    &v1alpha1.RepoCreds{URL: "https://secured", Username: "test-username", Password: "test-password"},
+			wantErr: false,
+		},
+		{
+			name:    "TestMissingRepo",
+			repoURL: "https://missing/repo",
+			want:    nil,
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := db.GetRepositoryCredentials(context.TODO(), tt.repoURL)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.True(t, errors.IsNotFound(err))
+			} else {
+				assert.NoError(t, err)
+			}
+
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
 func TestCreateExistingRepository(t *testing.T) {
 	clientset := getClientset(map[string]string{
 		"repositories": `- url: https://github.com/argoproj/argocd-example-apps`,
@@ -480,4 +553,71 @@ func TestListHelmRepositories(t *testing.T) {
 	assert.Equal(t, "test-password", repo.Password)
 	assert.Equal(t, "test-cert", repo.TLSClientCertData)
 	assert.Equal(t, "test-key", repo.TLSClientCertKey)
+}
+
+func TestListHelmRepositoriesWithMissingSecret(t *testing.T) {
+	config := map[string]string{
+		"repositories": `
+- url: https://argoproj.github.io/argo-helm
+  name: working
+  type: helm
+  usernameSecret:
+    name: test-secret
+    key: username
+  passwordSecret:
+    name: test-secret
+    key: password
+- url: https://argoproj.github.io/argo-helm-missing
+  name: missing
+  type: helm
+  usernameSecret:
+    name: test-secret-missing
+    key: username
+  passwordSecret:
+    name: test-secret-missing
+    key: password
+- url: https://argoproj.github.io/argo-helm-missing-key
+  name: missing-key
+  type: helm
+  usernameSecret:
+    name: test-secret
+    key: username-missing
+  passwordSecret:
+    name: test-secret
+    key: password-missing
+`}
+	clientset := getClientset(config, &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-secret",
+			Namespace: testNamespace,
+		},
+		Data: map[string][]byte{
+			"username": []byte("test-username"),
+			"password": []byte("test-password"),
+		},
+	})
+	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
+
+	repos, err := db.ListRepositories(context.Background())
+	assert.Nil(t, err)
+	assert.Len(t, repos, 3)
+
+	repo := repos[0]
+	assert.Equal(t, "https://argoproj.github.io/argo-helm", repo.Repo)
+	assert.Equal(t, "helm", repo.Type)
+	assert.Equal(t, "working", repo.Name)
+	assert.Equal(t, "test-username", repo.Username)
+	assert.Equal(t, "test-password", repo.Password)
+	assert.NotNil(t, repo.ConnectionState)
+	assert.Equal(t, "", repo.ConnectionState.Status)
+
+	repo = repos[1]
+	assert.NotNil(t, repo.ConnectionState)
+	assert.Equal(t, v1alpha1.ConnectionStatusFailed, repo.ConnectionState.Status)
+	assert.Equal(t, "Configuration error - please check the server logs", repo.ConnectionState.Message)
+
+	repo = repos[2]
+	assert.NotNil(t, repo.ConnectionState)
+	assert.Equal(t, v1alpha1.ConnectionStatusFailed, repo.ConnectionState.Status)
+	assert.Equal(t, "Configuration error - please check the server logs", repo.ConnectionState.Message)
 }
