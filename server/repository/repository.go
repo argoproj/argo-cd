@@ -20,6 +20,7 @@ import (
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/db"
+	"github.com/argoproj/argo-cd/util/errors"
 	"github.com/argoproj/argo-cd/util/io"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/settings"
@@ -72,7 +73,12 @@ func (s *Server) getConnectionState(ctx context.Context, url string, forceRefres
 	}
 	if err != nil {
 		connectionState.Status = appsv1.ConnectionStatusFailed
-		connectionState.Message = fmt.Sprintf("Unable to connect to repository: %v", err)
+		if errors.IsCredentialsConfigurationError(err) {
+			connectionState.Message = "Configuration error - please check the server logs"
+			log.Warnf("could not retrieve repo: %s", err.Error())
+		} else {
+			connectionState.Message = fmt.Sprintf("Unable to connect to repository: %v", err)
+		}
 	}
 	err = s.cache.SetRepoConnectionState(url, &connectionState)
 	if err != nil {
