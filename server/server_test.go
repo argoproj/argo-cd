@@ -28,11 +28,12 @@ import (
 	"github.com/argoproj/argo-cd/util/rbac"
 )
 
-func fakeServer() *ArgoCDServer {
+func fakeServer() (*ArgoCDServer, func()) {
 	cm := test.NewFakeConfigMap()
 	secret := test.NewFakeSecret()
 	kubeclientset := fake.NewSimpleClientset(cm, secret)
 	appClientSet := apps.NewSimpleClientset()
+	redis, closer := test.NewInMemoryRedis()
 
 	argoCDOpts := ArgoCDServerOpts{
 		Namespace:       test.FakeArgoCDNamespace,
@@ -51,8 +52,9 @@ func fakeServer() *ArgoCDServer {
 			1*time.Minute,
 			1*time.Minute,
 		),
+		RedisClient: redis,
 	}
-	return NewServer(context.Background(), argoCDOpts)
+	return NewServer(context.Background(), argoCDOpts), closer
 }
 
 func TestEnforceProjectToken(t *testing.T) {
@@ -365,7 +367,8 @@ func TestRevokedToken(t *testing.T) {
 }
 
 func TestCertsAreNotGeneratedInInsecureMode(t *testing.T) {
-	s := fakeServer()
+	s, closer := fakeServer()
+	defer closer()
 	assert.True(t, s.Insecure)
 	assert.Nil(t, s.settings.Certificate)
 }
@@ -385,7 +388,7 @@ func TestAuthenticate(t *testing.T) {
 		},
 		{
 			test:             "TestSessionPresent",
-			user:             "admin",
+			user:             "admin:login",
 			anonymousEnabled: false,
 		},
 		{
@@ -411,7 +414,7 @@ func TestAuthenticate(t *testing.T) {
 			argocd := NewServer(context.Background(), argoCDOpts)
 			ctx := context.Background()
 			if testData.user != "" {
-				token, err := argocd.sessionMgr.Create("admin", 0, "")
+				token, err := argocd.sessionMgr.Create(testData.user, 0, "abc")
 				assert.NoError(t, err)
 				ctx = metadata.NewIncomingContext(context.Background(), metadata.Pairs(apiclient.MetaDataTokenKey, token))
 			}

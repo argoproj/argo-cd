@@ -204,7 +204,7 @@ func (s *Server) CreateToken(ctx context.Context, r *account.CreateTokenRequest)
 
 		now := time.Now()
 		var err error
-		tokenString, err = s.sessionMgr.Create(r.Name, r.ExpiresIn, id)
+		tokenString, err = s.sessionMgr.Create(fmt.Sprintf("%s:%s", r.Name, settings.AccountCapabilityApiKey), r.ExpiresIn, id)
 		if err != nil {
 			return err
 		}

@@ -80,6 +80,7 @@ func TestConstructLogoutURL(t *testing.T) {
 		})
 	}
 }
+
 func TestHandlerConstructLogoutURL(t *testing.T) {
 	kubeClientWithOIDCConfig := fake.NewSimpleClientset(
 		&corev1.ConfigMap{
@@ -176,7 +177,7 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 	settingsManagerWithoutOIDCConfig := settings.NewSettingsManager(context.Background(), kubeClientWithoutOIDCConfig, "default")
 	settingsManagerWithOIDCConfigButNoLogoutURL := settings.NewSettingsManager(context.Background(), kubeClientWithOIDCConfigButNoLogoutURL, "default")
 
-	sessionManager := session.NewSessionManager(settingsManagerWithOIDCConfig, test.NewFakeProjLister(), "", session.NewInMemoryUserStateStorage())
+	sessionManager := session.NewSessionManager(settingsManagerWithOIDCConfig, test.NewFakeProjLister(), "", session.NewUserStateStorage(nil))
 
 	oidcHandler := NewHandler(appclientset.NewSimpleClientset(), settingsManagerWithOIDCConfig, sessionManager, "", "default")
 	oidcHandler.verifyToken = func(tokenString string) (jwt.Claims, error) {

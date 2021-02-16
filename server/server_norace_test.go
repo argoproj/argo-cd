@@ -15,9 +15,8 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apiclient"
-	"github.com/argoproj/argo-cd/test"
-
 	applicationpkg "github.com/argoproj/argo-cd/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/test"
 )
 
 func TestUserAgent(t *testing.T) {
@@ -27,7 +26,8 @@ func TestUserAgent(t *testing.T) {
 	// the data race, it APPEARS to be intentional, but in any case it's nothing we are doing in Argo CD
 	// that is causing this issue.
 
-	s := fakeServer()
+	s, closer := fakeServer()
+	defer closer()
 	cancelInformer := test.StartInformer(s.projInformer)
 	defer cancelInformer()
 	port, err := test.GetFreePort()
@@ -102,7 +102,8 @@ func Test_StaticHeaders(t *testing.T) {
 
 	// Test default policy "sameorigin"
 	{
-		s := fakeServer()
+		s, closer := fakeServer()
+		defer closer()
 		cancelInformer := test.StartInformer(s.projInformer)
 		defer cancelInformer()
 		port, err := test.GetFreePort()
@@ -131,7 +132,8 @@ func Test_StaticHeaders(t *testing.T) {
 
 	// Test custom policy
 	{
-		s := fakeServer()
+		s, closer := fakeServer()
+		defer closer()
 		s.XFrameOptions = "deny"
 		cancelInformer := test.StartInformer(s.projInformer)
 		defer cancelInformer()
@@ -161,7 +163,8 @@ func Test_StaticHeaders(t *testing.T) {
 
 	// Test disabled
 	{
-		s := fakeServer()
+		s, closer := fakeServer()
+		defer closer()
 		s.XFrameOptions = ""
 		cancelInformer := test.StartInformer(s.projInformer)
 		defer cancelInformer()

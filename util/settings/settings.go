@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	timeutil "github.com/argoproj/pkg/time"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	apiv1 "k8s.io/api/core/v1"
@@ -68,6 +69,8 @@ type ArgoCDSettings struct {
 	KustomizeBuildOptions string `json:"kustomizeBuildOptions,omitempty"`
 	// Indicates if anonymous user is enabled or not
 	AnonymousUserEnabled bool `json:"anonymousUserEnabled,omitempty"`
+	// Specifies token expiration duration
+	UserSessionDuration time.Duration `json:"userSessionDuration,omitempty"`
 	// UiCssURL local or remote path to user-defined CSS to customize ArgoCD UI
 	UiCssURL string `json:"uiCssURL,omitempty"`
 	// Content of UI Banner
@@ -247,6 +250,8 @@ const (
 	kustomizeVersionKeyPrefix = "kustomize.version"
 	// anonymousUserEnabledKey is the key which enables or disables anonymous user
 	anonymousUserEnabledKey = "users.anonymous.enabled"
+	// anonymousUserEnabledKey is the key which specifies token expiration duration
+	userSessionDurationKey = "users.session.duration"
 	// diffOptions is the key where diff options are configured
 	resourceCompareOptionsKey = "resource.compareoptions"
 	// settingUiCssURLKey designates the key for user-defined CSS URL for UI customization
@@ -847,6 +852,15 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 		log.Warnf("Failed to validate UI banner URL in configmap: %v", err)
 	}
 	settings.UiBannerURL = argoCDCM.Data[settingUiBannerURLKey]
+	if userSessionDurationStr, ok := argoCDCM.Data[userSessionDurationKey]; ok {
+		if val, err := timeutil.ParseDuration(userSessionDurationStr); err != nil {
+			log.Warnf("Failed to parse '%s' key: %v", userSessionDurationKey, err)
+		} else {
+			settings.UserSessionDuration = *val
+		}
+	} else {
+		settings.UserSessionDuration = time.Hour * 24
+	}
 }
 
 // validateExternalURL ensures the external URL that is set on the configmap is valid
