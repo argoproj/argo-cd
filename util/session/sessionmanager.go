@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	oidc "github.com/coreos/go-oidc"
@@ -40,29 +41,6 @@ type SessionManager struct {
 	storage                       UserStateStorage
 	sleep                         func(d time.Duration)
 	verificationDelayNoiseEnabled bool
-}
-
-type inMemoryUserStateStorage struct {
-	attempts map[string]LoginAttempts
-}
-
-func NewInMemoryUserStateStorage() *inMemoryUserStateStorage {
-	return &inMemoryUserStateStorage{attempts: map[string]LoginAttempts{}}
-}
-
-func (storage *inMemoryUserStateStorage) GetLoginAttempts(attempts *map[string]LoginAttempts) error {
-	*attempts = storage.attempts
-	return nil
-}
-
-func (storage *inMemoryUserStateStorage) SetLoginAttempts(attempts map[string]LoginAttempts) error {
-	storage.attempts = attempts
-	return nil
-}
-
-type UserStateStorage interface {
-	GetLoginAttempts(attempts *map[string]LoginAttempts) error
-	SetLoginAttempts(attempts map[string]LoginAttempts) error
 }
 
 // LoginAttempts is a timestamped counter for failed login attempts
@@ -235,6 +213,22 @@ func (mgr *SessionManager) signClaims(claims jwt.Claims) (string, error) {
 	}))
 }
 
+// GetSubjectAccountAndCapability analyzes Argo CD account token subject and extract account name
+// and the capability it was generated for (default capability is API Key).
+func GetSubjectAccountAndCapability(subject string) (string, settings.AccountCapability) {
+	capability := settings.AccountCapabilityApiKey
+	if parts := strings.Split(subject, ":"); len(parts) > 1 {
+		subject = parts[0]
+		switch parts[1] {
+		case string(settings.AccountCapabilityLogin):
+			capability = settings.AccountCapabilityLogin
+		case string(settings.AccountCapabilityApiKey):
+			capability = settings.AccountCapabilityApiKey
+		}
+	}
+	return subject, capability
+}
+
 // Parse tries to parse the provided string and returns the token claims for local login.
 func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, error) {
 	// Parse takes the token string and a function for looking up the key. The latter is especially
@@ -278,6 +272,9 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, error) {
 		return token.Claims, nil
 	}
 
+	subject, capability := GetSubjectAccountAndCapability(subject)
+	claims["sub"] = subject
+
 	account, err := mgr.settingsMgr.GetAccount(subject)
 	if err != nil {
 		return nil, err
@@ -287,17 +284,13 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, error) {
 		return nil, fmt.Errorf("account %s is disabled", subject)
 	}
 
-	var capability settings.AccountCapability
-	if id != "" {
-		capability = settings.AccountCapabilityApiKey
-	} else {
-		capability = settings.AccountCapabilityLogin
-	}
 	if !account.HasCapability(capability) {
 		return nil, fmt.Errorf("account %s does not have '%s' capability", subject, capability)
 	}
 
-	if id != "" && account.TokenIndex(id) == -1 {
+	if id == "" || mgr.storage.IsTokenRevoked(id) {
+		return nil, errors.New("token is revoked, please re-login")
+	} else if capability == settings.AccountCapabilityApiKey && account.TokenIndex(id) == -1 {
 		return nil, fmt.Errorf("account %s does not have token with id %s", subject, id)
 	}
 
@@ -539,6 +532,10 @@ func (mgr *SessionManager) provider() (oidcutil.Provider, error) {
 	}
 	mgr.prov = oidcutil.NewOIDCProvider(settings.IssuerURL(), mgr.client)
 	return mgr.prov, nil
+}
+
+func (mgr *SessionManager) RevokeToken(ctx context.Context, id string, expiringAt time.Duration) error {
+	return mgr.storage.RevokeToken(ctx, id, expiringAt)
 }
 
 func LoggedIn(ctx context.Context) bool {

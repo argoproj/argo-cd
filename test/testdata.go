@@ -3,6 +3,9 @@ package test
 import (
 	"context"
 
+	"github.com/alicebob/miniredis/v2"
+	"github.com/go-redis/redis/v8"
+
 	"github.com/argoproj/gitops-engine/pkg/utils/testing"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -150,4 +153,12 @@ func NewFakeProjLister(objects ...runtime.Object) applister.AppProjectNamespaceL
 	cancel := StartInformer(projInformer)
 	defer cancel()
 	return factory.Argoproj().V1alpha1().AppProjects().Lister().AppProjects(FakeArgoCDNamespace)
+}
+
+func NewInMemoryRedis() (*redis.Client, func()) {
+	mr, err := miniredis.Run()
+	if err != nil {
+		panic(err)
+	}
+	return redis.NewClient(&redis.Options{Addr: mr.Addr()}), mr.Close
 }
