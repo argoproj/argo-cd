@@ -73,8 +73,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			filteredCookies = append(filteredCookies, fmt.Sprintf("%s=%s", cookie.Name, cookie.Value))
 		}
 	}
-	tokenString = httputil.JoinCookies(common.AuthCookieName, strings.Join(filteredCookies, "; "))
-	if tokenString == "" {
+	tokenString, err = httputil.JoinCookies(common.AuthCookieName, filteredCookies)
+	if tokenString == "" || err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		http.Error(w, "Failed to retrieve ArgoCD auth token: "+fmt.Sprintf("%s", err), http.StatusBadRequest)
 		return
