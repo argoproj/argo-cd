@@ -1,7 +1,26 @@
 @import 'node_modules/argo-ui/src/styles/config';
+@import 'node_modules/foundation-sites/scss/util/util';
 
 .help-tip {
     color: $argo-color-gray-4;
+}
+
+@mixin responsive-widths {
+    @include breakpoint(large up) {
+        max-width: 250px;
+    }
+    @include breakpoint(xlarge up) {
+        min-width: 250px;
+        max-width: 300px;
+    }
+    @include breakpoint(xxlarge up) {
+        min-width: 325px;
+        max-width: 350px;
+    }
+    @include breakpoint(xxxlarge up) {
+        min-width: 375px;
+        max-width: 450px;
+    }
 }
 
 .application-status-panel {
@@ -10,7 +29,10 @@
     background-color: white;
     box-shadow: 1px 2px 3px rgba(0, 0, 0, 0.1);
     flex-wrap: nowrap;
+    flex-shrink: 1;
     overflow-x: auto;
+
+    $row-width: 250px;
 
     &__conditions {
         display: flex;
@@ -46,7 +68,7 @@
 
         &__row {
             display: flex;
-            max-width: 300px;
+            max-width: $row-width;
             flex-shrink: 1;
             div:first-child {
                 margin-right: 10px;
@@ -58,6 +80,8 @@
                 overflow: hidden;
                 text-overflow: ellipsis;
             }
+
+            @include responsive-widths();
         }
 
         &:not(:first-child) {
@@ -137,17 +161,20 @@
 
     &__item-name {
         margin: auto 0;
-        max-width: 300px;
+        max-width: $row-width;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
         i {
             position: relative;
             top: -2px;
         }
+        @include responsive-widths();
     }
     &__item-name,
     &__item-value {
         margin-top: auto;
         overflow: hidden;
         text-overflow: ellipsis;
-        white-space: nowrap;
     }
 }
