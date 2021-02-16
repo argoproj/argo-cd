@@ -41,70 +41,47 @@ const APP_FIELDS = [
 
 const APP_WATCH_FIELDS = ['result.type', ...APP_FIELDS.map(field => `result.application.${field}`)];
 
-const loadApplications = (apps: models.Application[]): Observable<models.Application[]> => {
-    const applications = apps;
+interface appList {
+    applications: models.Application[];
+    updated: boolean;
+}
+
+const loadApplications = (): Observable<models.Application[]> => {
     return (
         services.applications
             .watch({}, {fields: APP_WATCH_FIELDS})
             .repeat()
             .retryWhen(errors => errors.delay(WATCH_RETRY_TIMEOUT))
-            // batch events to avoid constant re-rendering and improve UI performance
-            .bufferTime(EVENTS_BUFFER_TIMEOUT)
-            .map(appChanges => {
-                appChanges.forEach(appChange => {
-                    const index = applications.findIndex(item => item.metadata.name === appChange.application.metadata.name);
-                    console.log(appChange.type);
-                    switch (appChange.type) {
-                        case 'DELETED':
-                            if (index > -1) {
-                                applications.splice(index, 1);
-                            }
-                            break;
-                        default:
-                            if (index > -1) {
-                                console.log('EXISTS: ', appChange.application.metadata.name);
-                                applications[index] = appChange.application;
-                            } else {
-                                console.log('DOESNT EXIST: ', appChange.application.metadata.name, applications);
-                                console.log(
-                                    applications.findIndex(item => {
-                                        console.log(item.metadata.name);
-                                        return item.metadata.name === appChange.application.metadata.name;
-                                    })
-                                );
-                                applications.unshift(appChange.application);
-                            }
-                            break;
-                    }
-                });
-                return {applications, updated: appChanges.length > 0};
-            })
+            // show everything that's loaded in the first 50 ms, then only update every second
+            .bufferTime(50, EVENTS_BUFFER_TIMEOUT)
+            .scan(
+                (list, appChanges) => {
+                    console.log('SCAN');
+                    const applications = list.applications;
+                    appChanges.forEach(appChange => {
+                        const index = applications.findIndex(item => item.metadata.name === appChange.application.metadata.name);
+                        switch (appChange.type) {
+                            case 'DELETED':
+                                if (index > -1) {
+                                    applications.splice(index, 1);
+                                }
+                                break;
+                            default:
+                                if (index > -1) {
+                                    applications[index] = appChange.application;
+                                } else {
+                                    applications.unshift(appChange.application);
+                                }
+                                break;
+                        }
+                    });
+                    return {applications, updated: appChanges.length > 0};
+                },
+                {applications: [], updated: false} as appList
+            )
             .filter(item => item.updated)
             .map(item => item.applications)
     );
-};
-
-const initApplications = (): Observable<models.Application[]> => {
-    const events = services.applications.watch({}, {fields: APP_WATCH_FIELDS});
-    const eventList = new Observable<models.ApplicationWatchEvent>(observer => {
-        const subscription = events.subscribe(
-            event => {
-                if (event.type === 'MODIFIED') {
-                    observer.complete();
-                    subscription.unsubscribe();
-                } else {
-                    observer.next(event);
-                }
-            },
-            err => observer.error(err),
-            () => observer.complete()
-        );
-        return () => subscription.unsubscribe();
-    });
-    return eventList.scan((acc, e) => {
-        acc.push(e.application);
-        return acc;
-    }, new Array<models.Application>());
 };
 
 const ViewPref = ({initPref, children}: {initPref: ViewPreferences; children: (pref: AppsListPreferences & {page: number; search: string}) => React.ReactNode}) => (
@@ -297,11 +274,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                 <DataLoader
                                                     ref={loaderRef}
                                                     load={() => {
-                                                        const init = initApplications();
-                                                        return init.timeoutWith(
-                                                            250,
-                                                            Observable.from(init.flatMap(apps => AppUtils.handlePageVisibility(() => loadApplications(apps))))
-                                                        );
+                                                        return loadApplications();
                                                     }}
                                                     loadingRenderer={() => (
                                                         <div className='argo-container'>
