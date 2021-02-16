@@ -15,6 +15,8 @@ data:
 
   # Enables anonymous user access. The anonymous users get default role permissions specified argocd-rbac-cm.yaml.
   users.anonymous.enabled: "true"
+  # Specifies token expiration duration
+  users.session.duration: "24h"
 
   # Enables google analytics tracking is specified
   ga.trackingid: "UA-12345-1"

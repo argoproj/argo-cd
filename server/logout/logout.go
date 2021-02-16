@@ -1,19 +1,21 @@
 package logout
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/dgrijalva/jwt-go/v4"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
+	jwtutil "github.com/argoproj/argo-cd/util/jwt"
 	"github.com/argoproj/argo-cd/util/session"
 	"github.com/argoproj/argo-cd/util/settings"
-
-	jwtutil "github.com/argoproj/argo-cd/util/jwt"
 )
 
 //NewHandler creates handler serving to do api/logout endpoint
@@ -24,6 +26,7 @@ func NewHandler(appClientset versioned.Interface, settingsMrg *settings.Settings
 		settingsMgr:  settingsMrg,
 		rootPath:     rootPath,
 		verifyToken:  sessionMgr.VerifyToken,
+		revokeToken:  sessionMgr.RevokeToken,
 	}
 }
 
@@ -33,6 +36,7 @@ type Handler struct {
 	settingsMgr  *settings.SettingsManager
 	rootPath     string
 	verifyToken  func(tokenString string) (jwt.Claims, error)
+	revokeToken  func(ctx context.Context, id string, expiringAt time.Duration) error
 }
 
 var (
@@ -86,6 +90,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	issuer := jwtutil.StringField(mapClaims, "iss")
+	id := jwtutil.StringField(mapClaims, "jti")
+	if exp, err := jwtutil.ExpirationTime(mapClaims); err == nil && id != "" {
+		if err := h.revokeToken(context.Background(), id, time.Until(exp)); err != nil {
+			log.Warnf("failed to invalidate token '%s': %v", id, err)
+		}
+	}
 
 	if argoCDSettings.OIDCConfig() == nil || argoCDSettings.OIDCConfig().LogoutURL == "" || issuer == session.SessionManagerClaimsIssuer {
 		http.Redirect(w, r, logoutRedirectURL, http.StatusSeeOther)
