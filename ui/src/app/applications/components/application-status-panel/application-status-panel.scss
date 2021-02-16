@@ -1,22 +1,23 @@
 @import 'node_modules/argo-ui/src/styles/config';
+@import 'node_modules/foundation-sites/scss/util/util';
 
 .help-tip {
     color: $argo-color-gray-4;
 }
 
 @mixin responsive-widths {
-    @media screen and (min-width: map-get($breakpoints, large)) {
+    @include breakpoint(large up) {
         max-width: 250px;
     }
-    @media screen and (min-width: map-get($breakpoints, xlarge)) {
+    @include breakpoint(xlarge up) {
         min-width: 250px;
         max-width: 300px;
     }
-    @media screen and (min-width: map-get($breakpoints, xxlarge)) {
+    @include breakpoint(xxlarge up) {
         min-width: 325px;
         max-width: 350px;
     }
-    @media screen and (min-width: map-get($breakpoints, xxxlarge)) {
+    @include breakpoint(xxxlarge up) {
         min-width: 375px;
         max-width: 450px;
     }
