@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"fmt"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
@@ -109,7 +110,11 @@ func (db *db) unmarshalFromSecretsStr(secrets map[*string]*v1.SecretKeySelector,
 			if err != nil {
 				return err
 			}
-			*dst = string(secret.Data[src.Key])
+			if secretValue, ok := secret.Data[src.Key]; ok {
+				*dst = string(secretValue)
+			} else {
+				return fmt.Errorf("secret \"%s\" did not contain key \"%s\"", src.Name, src.Key)
+			}
 		}
 	}
 	return nil

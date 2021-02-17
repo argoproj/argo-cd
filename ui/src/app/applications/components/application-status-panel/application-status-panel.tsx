@@ -73,7 +73,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                     &nbsp;
                     {application.status.health.status}
                 </div>
-                <div className='application-status-panel__item-name'>{application.status.health.message}</div>
+                {application.status.health.message && <div className='application-status-panel__item-name'>{application.status.health.message}</div>}
             </div>
             <div className='application-status-panel__item'>
                 <React.Fragment>
@@ -102,7 +102,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                     <React.Fragment>
                         {sectionHeader(
                             {
-                                title: 'LAST SYNC STATUS',
+                                title: 'LAST SYNC RESULT',
                                 helpContent:
                                     'Whether or not your last app sync was successful. It has been ' +
                                     daysSinceLastSynchronized +

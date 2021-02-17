@@ -3,7 +3,8 @@
 .application-conditions {
     &__condition {
         border-left: 5px solid $argo-color-gray-4;
-
+        line-height: 1.8em;
+        padding: 10px 0;
         &--error {
             border-left-color: $argo-failed-color-dark;
         }
