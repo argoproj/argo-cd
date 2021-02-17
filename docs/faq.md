@@ -32,7 +32,7 @@ As workaround Argo CD allows providing [health check](operator-manual/health.md)
 ## I forgot the admin password, how do I reset it?
 
 For Argo CD v1.8 and earlier, the initial password is set to the name of the server pod, as per [the getting started guide](getting_started.md).
-For Argo CD v1.9 and later, the initial password is available from a secret named `argocd-initial-admin-password`.
+For Argo CD v1.9 and later, the initial password is available from a secret named `argocd-initial-admin-secret`.
 
 To change the password, edit the `argocd-secret` secret and update the `admin.password` field with a new bcrypt hash. You
 can use a site like [https://www.browserling.com/tools/bcrypt](https://www.browserling.com/tools/bcrypt) to generate a new hash. For example:
