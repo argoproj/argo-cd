@@ -1951,7 +1951,7 @@ If set to 0 then limit is disabled. Default: 50.</p>
 </li>
 </ul>
 <h2 id="dex">Dex<a class="headerlink" href="#dex" title="Permanent link">&para;</a></h2>
-<p>Argo CD embeds and bundles <a href="https://github.com/coreos/dex">Dex</a> as part of its installation, for the
+<p>Argo CD embeds and bundles <a href="https://github.com/dexidp/dex">Dex</a> as part of its installation, for the
 purpose of delegating authentication to an external identity provider. Multiple types of identity
 providers are supported (OIDC, SAML, LDAP, GitHub, etc...). SSO configuration of Argo CD requires
 editing the <code>argocd-cm</code> ConfigMap with
@@ -1973,7 +1973,7 @@ inputted into the Argo CD configmap.</p>
 <ul>
 <li>In the <code>url</code> key, input the base URL of Argo CD. In this example, it is <code>https://argocd.example.com</code></li>
 <li>In the <code>dex.config</code> key, add the <code>github</code> connector to the <code>connectors</code> sub field. See Dex's
-  <a href="https://github.com/coreos/dex/blob/master/Documentation/connectors/github.md">GitHub connector</a>
+  <a href="https://github.com/dexidp/website/blob/main/content/docs/connectors/github.md">GitHub connector</a>
   documentation for explanation of the fields. A minimal config should populate the clientID,
   clientSecret generated in Step 1.</li>
 <li>You will very likely want to restrict logins to one or more GitHub organization. In the
