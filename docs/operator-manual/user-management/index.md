@@ -122,7 +122,7 @@ There are two ways that SSO can be configured:
 
 ## Dex
 
-Argo CD embeds and bundles [Dex](https://github.com/coreos/dex) as part of its installation, for the
+Argo CD embeds and bundles [Dex](https://github.com/dexidp/dex) as part of its installation, for the
 purpose of delegating authentication to an external identity provider. Multiple types of identity
 providers are supported (OIDC, SAML, LDAP, GitHub, etc...). SSO configuration of Argo CD requires
 editing the `argocd-cm` ConfigMap with
@@ -153,7 +153,7 @@ kubectl edit configmap argocd-cm -n argocd
 
 * In the `url` key, input the base URL of Argo CD. In this example, it is `https://argocd.example.com`
 * In the `dex.config` key, add the `github` connector to the `connectors` sub field. See Dex's
-  [GitHub connector](https://github.com/coreos/dex/blob/master/Documentation/connectors/github.md)
+  [GitHub connector](https://github.com/dexidp/website/blob/main/content/docs/connectors/github.md)
   documentation for explanation of the fields. A minimal config should populate the clientID,
   clientSecret generated in Step 1.
 * You will very likely want to restrict logins to one or more GitHub organization. In the
