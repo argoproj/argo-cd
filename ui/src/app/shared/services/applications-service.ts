@@ -8,8 +8,6 @@ interface QueryOptions {
     fields: string[];
     exclude?: boolean;
     selector?: string;
-    from?: string;
-    count?: string;
 }
 
 function optionsToSearch(options?: QueryOptions) {
@@ -20,13 +18,11 @@ function optionsToSearch(options?: QueryOptions) {
 }
 
 export class ApplicationsService {
-    public list(projects: string[], options?: QueryOptions, from?: number, count?: number): Promise<models.ApplicationList> {
+    public list(projects: string[], options?: QueryOptions): Promise<models.ApplicationList> {
         return requests
             .get('/applications')
-            .query({project: projects, from: `${from || 0}`, count: `${count || 0}`, ...optionsToSearch(options)})
-            .then(res => {
-                return res.body as models.ApplicationList;
-            })
+            .query({project: projects, ...optionsToSearch(options)})
+            .then(res => res.body as models.ApplicationList)
             .then(list => {
                 list.items = (list.items || []).map(app => this.parseAppFields(app));
                 return list;
@@ -146,17 +142,23 @@ export class ApplicationsService {
             .retry()
             .map(data => JSON.parse(data).result as models.ApplicationWatchEvent)
             .map(watchEvent => {
-                if (watchEvent) {
-                    watchEvent.application = this.parseAppFields(watchEvent.application);
-                }
+                watchEvent.application = this.parseAppFields(watchEvent.application);
                 return watchEvent;
             });
     }
 
-    public sync(name: string, revision: string, prune: boolean, dryRun: boolean, strategy: models.SyncStrategy, resources: models.SyncOperationResource[]): Promise<boolean> {
+    public sync(
+        name: string,
+        revision: string,
+        prune: boolean,
+        dryRun: boolean,
+        strategy: models.SyncStrategy,
+        resources: models.SyncOperationResource[],
+        syncOptions?: string[]
+    ): Promise<boolean> {
         return requests
             .post(`/applications/${name}/sync`)
-            .send({revision, prune: !!prune, dryRun: !!dryRun, strategy, resources})
+            .send({revision, prune: !!prune, dryRun: !!dryRun, strategy, resources, syncOptions: syncOptions ? {items: syncOptions} : null})
             .then(() => true);
     }
 
@@ -183,9 +185,10 @@ export class ApplicationsService {
         }
         const search = new URLSearchParams();
         search.set('container', containerName);
-        search.set('follow', follow.toString());
-        search.set('container', containerName);
         search.set('namespace', namespace);
+        if (follow) {
+            search.set('follow', follow.toString());
+        }
         if (podName) {
             search.set('podName', podName);
         } else {
@@ -193,7 +196,6 @@ export class ApplicationsService {
             search.set('kind', resource.kind);
             search.set('resourceName', resource.name);
         }
-
         if (tail) {
             search.set('tailLines', tail.toString());
         }

@@ -29,7 +29,6 @@ const APP_FIELDS = [
     'metadata.labels',
     'metadata.creationTimestamp',
     'metadata.deletionTimestamp',
-    'metadata.resourceVersion',
     'spec',
     'operation.sync',
     'status.sync.status',
@@ -41,47 +40,33 @@ const APP_FIELDS = [
 
 const APP_WATCH_FIELDS = ['result.type', ...APP_FIELDS.map(field => `result.application.${field}`)];
 
-interface appList {
-    applications: models.Application[];
-    updated: boolean;
-}
+const loadApplications = (apps?: models.Application[]): Observable<models.Application[]> => {
+    const appStream = services.applications
+        .watch({}, {fields: APP_WATCH_FIELDS})
+        .repeat()
+        .retryWhen(errors => errors.delay(WATCH_RETRY_TIMEOUT))
+        .scan((applications, appChange) => {
+            const index = applications.findIndex(item => item.metadata.name === appChange.application.metadata.name);
+            switch (appChange.type) {
+                case 'DELETED':
+                    if (index > -1) {
+                        applications.splice(index, 1);
+                    }
+                    break;
+                default:
+                    if (index > -1) {
+                        applications[index] = appChange.application;
+                    } else {
+                        applications.unshift(appChange.application);
+                    }
+                    break;
+            }
+            return applications;
+        }, apps || []);
 
-const loadApplications = (): Observable<models.Application[]> => {
-    return (
-        services.applications
-            .watch({}, {fields: APP_WATCH_FIELDS})
-            .repeat()
-            .retryWhen(errors => errors.delay(WATCH_RETRY_TIMEOUT))
-            // show everything that's loaded in the first 50 ms, then only update every second
-            .bufferTime(50, EVENTS_BUFFER_TIMEOUT)
-            .scan(
-                (list, appChanges) => {
-                    console.log('SCAN');
-                    const applications = list.applications;
-                    appChanges.forEach(appChange => {
-                        const index = applications.findIndex(item => item.metadata.name === appChange.application.metadata.name);
-                        switch (appChange.type) {
-                            case 'DELETED':
-                                if (index > -1) {
-                                    applications.splice(index, 1);
-                                }
-                                break;
-                            default:
-                                if (index > -1) {
-                                    applications[index] = appChange.application;
-                                } else {
-                                    applications.unshift(appChange.application);
-                                }
-                                break;
-                        }
-                    });
-                    return {applications, updated: appChanges.length > 0};
-                },
-                {applications: [], updated: false} as appList
-            )
-            .filter(item => item.updated)
-            .map(item => item.applications)
-    );
+    // for first half second, stream applications live for responsiveness
+    // then buffer events to improve performance
+    return Observable.merge(appStream.takeUntil(Observable.interval(500)), appStream.bufferTime(EVENTS_BUFFER_TIMEOUT).flatMap(a => a));
 };
 
 const ViewPref = ({initPref, children}: {initPref: ViewPreferences; children: (pref: AppsListPreferences & {page: number; search: string}) => React.ReactNode}) => (
@@ -211,6 +196,8 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
         });
     }
 
+    const [apps, setApps] = React.useState([]);
+
     return (
         <ClusterCtx.Provider value={clusters}>
             <Consumer>
@@ -273,9 +260,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                             return (
                                                 <DataLoader
                                                     ref={loaderRef}
-                                                    load={() => {
-                                                        return loadApplications();
-                                                    }}
+                                                    load={() => AppUtils.handlePageVisibility(() => loadApplications(apps))}
                                                     loadingRenderer={() => (
                                                         <div className='argo-container'>
                                                             <MockupList height={100} marginTop={30} />
@@ -283,6 +268,9 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                     )}>
                                                     {applications => {
                                                         applications = applications || [];
+                                                        if (applications.length < 1) {
+                                                            setApps(applications);
+                                                        }
                                                         const filteredApps = filterApps(applications, pref, pref.search);
                                                         return applications.length === 0 && (pref.labelsFilter || []).length === 0 ? (
                                                             <EmptyState icon='argo-icon-application'>

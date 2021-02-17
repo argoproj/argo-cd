@@ -12,7 +12,7 @@ interface ItemsList<T> {
      * Servers may infer this from the endpoint the client submits requests to.
      */
     kind?: string;
-    metadata: models.ListMeta & {remainingItemCount: string};
+    metadata: models.ListMeta;
 }
 
 export interface ApplicationList extends ItemsList<Application> {}

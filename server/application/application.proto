@@ -26,10 +26,6 @@ message ApplicationQuery {
 	optional string resourceVersion = 4 [(gogoproto.nullable) = false];
 	// the selector to to restrict returned list to applications only with matched labels
 	optional string selector = 5 [(gogoproto.nullable) = false];
-	// if requesting a list of applications, the number in the list to start from
-	optional string from = 6;
-	// the maximum amount of applications to return
-	optional string count = 7;
 }
 
 message NodeQuery {
@@ -76,6 +72,10 @@ message ApplicationDeleteRequest {
 	optional bool cascade = 2;
 }
 
+message SyncOptions {
+	repeated string items = 1;
+}
+
 // ApplicationSyncRequest is a request to apply the config state to live state
 message ApplicationSyncRequest {
 	required string name = 1;
@@ -87,6 +87,7 @@ message ApplicationSyncRequest {
 	repeated string manifests = 8;
 	repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Info infos = 9;
 	optional github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.RetryStrategy retryStrategy = 10;
+	optional SyncOptions syncOptions = 11;
 }
 
 // ApplicationUpdateSpecRequest is a request to update application spec

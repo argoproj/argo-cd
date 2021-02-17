@@ -150,33 +150,9 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*ap
 	sort.Slice(newItems, func(i, j int) bool {
 		return newItems[i].Name < newItems[j].Name
 	})
-
-	from := 0
-	to := len(newItems)
-	originalLength := to
-
-	if q.From != nil {
-		val, err := strconv.Atoi(*q.From)
-		if err == nil && val < to && val > 0 {
-			from = val
-		}
-	}
-
-	if q.Count != nil {
-		val, err := strconv.Atoi(*q.Count)
-		tmp := val + from
-		if err == nil && tmp > from && tmp < to {
-			to = tmp
-		}
-	}
-
-	newItems = newItems[from:to]
-	remaining := int64(originalLength - to)
-
 	appList := appv1.ApplicationList{
 		ListMeta: metav1.ListMeta{
-			ResourceVersion:    s.appInformer.LastSyncResourceVersion(),
-			RemainingItemCount: &remaining,
+			ResourceVersion: s.appInformer.LastSyncResourceVersion(),
 		},
 		Items: newItems,
 	}
@@ -687,7 +663,6 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 	// sendIfPermitted is a helper to send the application to the client's streaming channel if the
 	// caller has RBAC privileges permissions to view it
 	sendIfPermitted := func(a appv1.Application, eventType watch.EventType) {
-		// time.Sleep(200 * time.Millisecond)
 		if appVersion, err := strconv.Atoi(a.ResourceVersion); err == nil && appVersion < minVersion {
 			return
 		}
@@ -1309,6 +1284,9 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 	}
 	if syncReq.RetryStrategy != nil {
 		retry = syncReq.RetryStrategy
+	}
+	if syncReq.SyncOptions != nil {
+		syncOptions = syncReq.SyncOptions.Items
 	}
 
 	// We cannot use local manifests if we're only allowed to sync to signed commits
