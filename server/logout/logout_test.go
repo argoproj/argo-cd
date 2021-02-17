@@ -202,11 +202,11 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 	}
 
 	oidcTokenHeader := make(map[string][]string)
-	oidcTokenHeader["Cookie"] = []string{"argocd.token-0=" + oidcToken}
+	oidcTokenHeader["Cookie"] = []string{"argocd.token=" + oidcToken}
 	nonOidcTokenHeader := make(map[string][]string)
-	nonOidcTokenHeader["Cookie"] = []string{"argocd.token-0=" + nonOidcToken}
+	nonOidcTokenHeader["Cookie"] = []string{"argocd.token=" + nonOidcToken}
 	invalidHeader := make(map[string][]string)
-	invalidHeader["Cookie"] = []string{"argocd.token-0=" + invalidToken}
+	invalidHeader["Cookie"] = []string{"argocd.token=" + invalidToken}
 
 	oidcRequest, err := http.NewRequest("GET", "http://localhost:4000/api/logout", nil)
 	assert.NoError(t, err)

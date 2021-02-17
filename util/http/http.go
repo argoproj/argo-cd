@@ -13,18 +13,18 @@ import (
 
 // max number of chunks a cookie can be broken into. To be compatible with
 // widest range of browsers, we shouldn't create more than 30 cookies per domain
-const maxNumber = 5
-const maxLength = 4093
+const maxCookieNumber = 5
+const maxCookieLength = 4093
 
 // MakeCookieMetadata generates a string representing a Web cookie.  Yum!
 func MakeCookieMetadata(key, value string, flags ...string) ([]string, error) {
 	attributes := strings.Join(flags, "; ")
 
-	// cookie: name=value; attributes and key: key-(i) e.g. argocd.token-0
-	maxValueLength := maxValueLength(key, attributes)
+	// cookie: name=value; attributes and key: key-(i) e.g. argocd.token-1
+	maxValueLength := maxCookieValueLength(key, attributes)
 	numberOfCookies := int(math.Ceil(float64(len(value)) / float64(maxValueLength)))
-	if numberOfCookies > maxNumber {
-		return nil, fmt.Errorf("invalid cookie value, at %d long it is longer than the max length of %d", len(value), maxValueLength*maxNumber)
+	if numberOfCookies > maxCookieNumber {
+		return nil, fmt.Errorf("invalid cookie value, at %d long it is longer than the max length of %d", len(value), maxValueLength*maxCookieNumber)
 	}
 
 	return splitCookie(key, value, attributes), nil
@@ -36,11 +36,10 @@ func MakeCookieMetadata(key, value string, flags ...string) ([]string, error) {
 func splitCookie(key, value, attributes string) []string {
 	var cookies []string
 	valueLength := len(value)
-
-	numberOfChunks := int(math.Ceil(float64(valueLength) / float64(maxValueLength(key, attributes))))
-
 	// cookie: name=value; attributes and key: key-(i) e.g. argocd.token-1
-	maxValueLength := maxValueLength(key, attributes)
+	maxValueLength := maxCookieValueLength(key, attributes)
+	numberOfChunks := int(math.Ceil(float64(valueLength) / float64(maxValueLength)))
+
 	var end int
 	for i, j := 0, 0; i < valueLength; i, j = i+maxValueLength, j+1 {
 		end = i + maxValueLength
@@ -67,19 +66,13 @@ func splitCookie(key, value, attributes string) []string {
 // JoinCookies combines chunks of cookie based on key as prefix. It returns cookie
 // value as string. cookieString is of format key1=value1; key2=value2; key3=value3
 // first chunk will be of format argocd.token=<numberOfChunks>:token; attributes
-func JoinCookies(key string, cookieList []string) (string, error) {
+func JoinCookies(key string, cookieList []*http.Cookie) (string, error) {
 	cookies := make(map[string]string)
 	for _, cookie := range cookieList {
-		cookie = strings.TrimSpace(cookie)
-		if !strings.HasPrefix(cookie, key) {
+		if !strings.HasPrefix(cookie.Name, key) {
 			continue
 		}
-
-		parts := strings.Split(cookie, "=")
-		if len(parts) < 2 {
-			continue
-		}
-		cookies[parts[0]] = parts[1]
+		cookies[cookie.Name] = cookie.Value
 	}
 
 	var sb strings.Builder
@@ -111,11 +104,11 @@ func JoinCookies(key string, cookieList []string) (string, error) {
 	return sb.String(), nil
 }
 
-func maxValueLength(key, attributes string) int {
+func maxCookieValueLength(key, attributes string) int {
 	if len(attributes) > 0 {
-		return maxLength - (len(key) + 3) - (len(attributes) + 2)
+		return maxCookieLength - (len(key) + 3) - (len(attributes) + 2)
 	}
-	return maxLength - (len(key) + 3)
+	return maxCookieLength - (len(key) + 3)
 }
 
 // DebugTransport is a HTTP Client Transport to enable debugging
