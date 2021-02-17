@@ -97,12 +97,12 @@ argocd account update-password
 > Argo CD v1.9 and later
 
 The initial password for the `admin` account is auto-generated and stored as
-clear text in the field `password` in a secret named `argocd-initial-admin-password`
+clear text in the field `password` in a secret named `argocd-initial-admin-secret`
 in your Argo CD installation namespace. You can simply retrieve this password
 using `kubectl`:
 
 ```bash
-kubectl -n argocd get secret argocd-initial-admin-password -o jsonpath="{.data.password}" | base64 -d
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
 ```
 
 For better readability, e.g. if you want to copy & paste the generated password,
@@ -122,7 +122,7 @@ argocd account update-password
 ```
 
 !!! note
-    You should delete the `argocd-initial-admin-password` from the Argo CD
+    You should delete the `argocd-initial-admin-secret` from the Argo CD
     namespace once you changed the password. The secret serves no other
     purpose than to store the initially generated password in clear and can
     safely be deleted at any time. It will be re-created on demand by Argo CD
