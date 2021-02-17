@@ -1794,7 +1794,7 @@ include the fix <a href="https://github.com/kubernetes/kubernetes/pull/67570">ku
 <p>As workaround Argo CD allows providing <a href="../operator-manual/health/">health check</a> customization which overrides default behavior.</p>
 <h2 id="i-forgot-the-admin-password-how-do-i-reset-it">I forgot the admin password, how do I reset it?<a class="headerlink" href="#i-forgot-the-admin-password-how-do-i-reset-it" title="Permanent link">&para;</a></h2>
 <p>For Argo CD v1.8 and earlier, the initial password is set to the name of the server pod, as per <a href="../getting_started/">the getting started guide</a>.
-For Argo CD v1.9 and later, the initial password is available from a secret named <code>argocd-initial-admin-password</code>.</p>
+For Argo CD v1.9 and later, the initial password is available from a secret named <code>argocd-initial-admin-secret</code>.</p>
 <p>To change the password, edit the <code>argocd-secret</code> secret and update the <code>admin.password</code> field with a new bcrypt hash. You
 can use a site like <a href="https://www.browserling.com/tools/bcrypt">https://www.browserling.com/tools/bcrypt</a> to generate a new hash. For example:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1"># bcrypt(password)=$2a$10$rRyBsGSHK6.uc8fntPwVIuLVHgsAhAX7TcdrqW/RADU0uh7CaChLa</span>

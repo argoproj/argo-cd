@@ -1880,10 +1880,10 @@ pod name when you first install Argo CD, or reset the password by following <a h
 <p>Argo CD v1.9 and later</p>
 </blockquote>
 <p>The initial password for the <code>admin</code> account is auto-generated and stored as
-clear text in the field <code>password</code> in a secret named <code>argocd-initial-admin-password</code>
+clear text in the field <code>password</code> in a secret named <code>argocd-initial-admin-secret</code>
 in your Argo CD installation namespace. You can simply retrieve this password
 using <code>kubectl</code>:</p>
-<div class="codehilite"><pre><span></span><code>kubectl -n argocd get secret argocd-initial-admin-password -o <span class="nv">jsonpath</span><span class="o">=</span><span class="s2">&quot;{.data.password}&quot;</span> <span class="p">|</span> base64 -d
+<div class="codehilite"><pre><span></span><code>kubectl -n argocd get secret argocd-initial-admin-secret -o <span class="nv">jsonpath</span><span class="o">=</span><span class="s2">&quot;{.data.password}&quot;</span> <span class="p">|</span> base64 -d
 </code></pre></div>
 
 <p>For better readability, e.g. if you want to copy &amp; paste the generated password,
@@ -1899,7 +1899,7 @@ the output.</p>
 
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>You should delete the <code>argocd-initial-admin-password</code> from the Argo CD
+<p>You should delete the <code>argocd-initial-admin-secret</code> from the Argo CD
 namespace once you changed the password. The secret serves no other
 purpose than to store the initially generated password in clear and can
 safely be deleted at any time. It will be re-created on demand by Argo CD
