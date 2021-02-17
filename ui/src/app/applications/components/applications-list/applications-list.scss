@@ -79,6 +79,7 @@
         margin: 33px 0;
         background-color: white;
         transition: max-height 0.25s cubic-bezier(0, 1, 0, 1);
+        cursor: pointer;
 
         ul {
             margin: 0;
@@ -117,6 +118,7 @@
         &__filters-container {
             max-height: 100%;
             transition: max-height 0.5s ease-in-out;
+            cursor: default;
         }
 
         &__filters-title {
