@@ -1536,6 +1536,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#why-are-resources-of-type-sealedsecret-stuck-in-the-progressing-state" class="md-nav__link">
+    Why are resources of type SealedSecret stuck in the Progressing state?
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1748,6 +1755,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#why-are-resources-of-type-sealedsecret-stuck-in-the-progressing-state" class="md-nav__link">
+    Why are resources of type SealedSecret stuck in the Progressing state?
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1767,36 +1781,45 @@
                 
                 <h1 id="faq">FAQ<a class="headerlink" href="#faq" title="Permanent link">&para;</a></h1>
 <h2 id="ive-deletedcorrupted-my-repo-and-cant-delete-my-app">I've deleted/corrupted my repo and can't delete my app.<a class="headerlink" href="#ive-deletedcorrupted-my-repo-and-cant-delete-my-app" title="Permanent link">&para;</a></h2>
-<p>Argo CD can't delete an app if it cannot generate manifests. You need to either: </p>
+<p>Argo CD can't delete an app if it cannot generate manifests. You need to either:</p>
 <ol>
 <li>Reinstate/fix your repo.</li>
 <li>Delete the app using <code>--cascade=false</code> and then manually deleting the resources.</li>
 </ol>
 <h2 id="why-is-my-application-still-outofsync-immediately-after-a-successful-sync">Why is my application still <code>OutOfSync</code> immediately after a successful Sync?<a class="headerlink" href="#why-is-my-application-still-outofsync-immediately-after-a-successful-sync" title="Permanent link">&para;</a></h2>
-<p>See <a href="../user-guide/diffing/">Diffing</a> documentation for reasons resources can be OutOfSync, and ways to configure
-Argo CD to ignore fields when differences are expected.</p>
+<p>See <a href="../user-guide/diffing/">Diffing</a> documentation for reasons resources can be OutOfSync, and ways to configure Argo CD
+to ignore fields when differences are expected.</p>
 <h2 id="why-is-my-application-stuck-in-progressing-state">Why is my application stuck in <code>Progressing</code> state?<a class="headerlink" href="#why-is-my-application-stuck-in-progressing-state" title="Permanent link">&para;</a></h2>
-<p>Argo CD provides health for several standard Kubernetes types. The <code>Ingress</code> and <code>StatefulSet</code> types have known issues which might cause health check
-to return <code>Progressing</code> state instead of <code>Healthy</code>.</p>
+<p>Argo CD provides health for several standard Kubernetes types. The <code>Ingress</code> and <code>StatefulSet</code> types have known issues
+which might cause health check to return <code>Progressing</code> state instead of <code>Healthy</code>.</p>
 <ul>
 <li>
-<p><code>Ingress</code> is considered healthy if <code>status.loadBalancer.ingress</code> list is non-empty, with at least one value for <code>hostname</code> or <code>IP</code>. Some ingress controllers
- (<a href="https://github.com/heptio/contour/issues/403">contour</a>, <a href="https://github.com/argoproj/argo-cd/issues/968#issuecomment-451082913">traefik</a>) don't update
- <code>status.loadBalancer.ingress</code> field which causes <code>Ingress</code> to stuck in <code>Progressing</code> state forever.</p>
+<p><code>Ingress</code> is considered healthy if <code>status.loadBalancer.ingress</code> list is non-empty, with at least one value
+  for <code>hostname</code> or <code>IP</code>. Some ingress controllers
+  (<a href="https://github.com/heptio/contour/issues/403">contour</a>
+  , <a href="https://github.com/argoproj/argo-cd/issues/968#issuecomment-451082913">traefik</a>) don't update
+  <code>status.loadBalancer.ingress</code> field which causes <code>Ingress</code> to stuck in <code>Progressing</code> state forever.</p>
 </li>
 <li>
-<p><code>StatefulSet</code> is considered healthy if value of <code>status.updatedReplicas</code> field matches to <code>spec.replicas</code> field. Due to Kubernetes bug
-<a href="https://github.com/kubernetes/kubernetes/issues/68573">kubernetes/kubernetes#68573</a> the <code>status.updatedReplicas</code> is not populated. So unless you run Kubernetes version which
-include the fix <a href="https://github.com/kubernetes/kubernetes/pull/67570">kubernetes/kubernetes#67570</a> <code>StatefulSet</code> might stay in <code>Progressing</code> state.</p>
+<p><code>StatefulSet</code> is considered healthy if value of <code>status.updatedReplicas</code> field matches to <code>spec.replicas</code> field. Due
+  to Kubernetes bug
+  <a href="https://github.com/kubernetes/kubernetes/issues/68573">kubernetes/kubernetes#68573</a> the <code>status.updatedReplicas</code> is
+  not populated. So unless you run Kubernetes version which include the
+  fix <a href="https://github.com/kubernetes/kubernetes/pull/67570">kubernetes/kubernetes#67570</a> <code>StatefulSet</code> might stay
+  in <code>Progressing</code> state.</p>
 </li>
-<li>Your <code>StatefulSet</code> or <code>DaemonSet</code> is using <code>OnDelete</code> instead of <code>RollingUpdate</code> strategy. See <a href="https://github.com/argoproj/argo-cd/issues/1881">#1881</a>.</li>
+<li>Your <code>StatefulSet</code> or <code>DaemonSet</code> is using <code>OnDelete</code> instead of <code>RollingUpdate</code> strategy.
+  See <a href="https://github.com/argoproj/argo-cd/issues/1881">#1881</a>.</li>
 </ul>
-<p>As workaround Argo CD allows providing <a href="../operator-manual/health/">health check</a> customization which overrides default behavior.</p>
+<p>As workaround Argo CD allows providing <a href="../operator-manual/health/">health check</a> customization which overrides default
+behavior.</p>
 <h2 id="i-forgot-the-admin-password-how-do-i-reset-it">I forgot the admin password, how do I reset it?<a class="headerlink" href="#i-forgot-the-admin-password-how-do-i-reset-it" title="Permanent link">&para;</a></h2>
-<p>For Argo CD v1.8 and earlier, the initial password is set to the name of the server pod, as per <a href="../getting_started/">the getting started guide</a>.
-For Argo CD v1.9 and later, the initial password is available from a secret named <code>argocd-initial-admin-secret</code>.</p>
-<p>To change the password, edit the <code>argocd-secret</code> secret and update the <code>admin.password</code> field with a new bcrypt hash. You
-can use a site like <a href="https://www.browserling.com/tools/bcrypt">https://www.browserling.com/tools/bcrypt</a> to generate a new hash. For example:</p>
+<p>For Argo CD v1.8 and earlier, the initial password is set to the name of the server pod, as
+per <a href="../getting_started/">the getting started guide</a>. For Argo CD v1.9 and later, the initial password is available from
+a secret named <code>argocd-initial-admin-secret</code>.</p>
+<p>To change the password, edit the <code>argocd-secret</code> secret and update the <code>admin.password</code> field with a new bcrypt hash.
+You can use a site like <a href="https://www.browserling.com/tools/bcrypt">https://www.browserling.com/tools/bcrypt</a> to generate
+a new hash. For example:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1"># bcrypt(password)=$2a$10$rRyBsGSHK6.uc8fntPwVIuLVHgsAhAX7TcdrqW/RADU0uh7CaChLa</span>
 kubectl -n argocd patch secret argocd-secret <span class="se">\</span>
   -p <span class="s1">&#39;{&quot;stringData&quot;: {</span>
@@ -1805,14 +1828,18 @@ kubectl -n argocd patch secret argocd-secret <span class="se">\</span>
 <span class="s1">  }}&#39;</span>
 </code></pre></div>
 
-<p>Another option is to delete both the <code>admin.password</code> and <code>admin.passwordMtime</code> keys and restart argocd-server. This will generate
-a new password as per <a href="../getting_started/">the getting started guide</a>, so either to the name of the pod (Argo CD 1.8 and earlier)
+<p>Another option is to delete both the <code>admin.password</code> and <code>admin.passwordMtime</code> keys and restart argocd-server. This
+will generate a new password as per <a href="../getting_started/">the getting started guide</a>, so either to the name of the pod (
+Argo CD 1.8 and earlier)
 or a randomly generated password stored in a secret (Argo CD 1.9 and later).</p>
 <h2 id="how-to-disable-admin-user">How to disable admin user?<a class="headerlink" href="#how-to-disable-admin-user" title="Permanent link">&para;</a></h2>
-<p>Add <code>admin.enabled: "false"</code> to the <code>argocd-cm</code> ConfigMap (see <a href="../operator-manual/user-management/">user management</a>).</p>
+<p>Add <code>admin.enabled: "false"</code> to the <code>argocd-cm</code> ConfigMap (
+see <a href="../operator-manual/user-management/">user management</a>).</p>
 <h2 id="argo-cd-cannot-deploy-helm-chart-based-applications-without-internet-access-how-can-i-solve-it">Argo CD cannot deploy Helm Chart based applications without internet access, how can I solve it?<a class="headerlink" href="#argo-cd-cannot-deploy-helm-chart-based-applications-without-internet-access-how-can-i-solve-it" title="Permanent link">&para;</a></h2>
-<p>Argo CD might fail to generate Helm chart manifests if the chart has dependencies located in external repositories. To solve the problem you need to make sure that <code>requirements.yaml</code>
-uses only internally available Helm repositories. Even if the chart uses only dependencies from internal repos Helm might decide to refresh <code>stable</code> repo. As workaround override
+<p>Argo CD might fail to generate Helm chart manifests if the chart has dependencies located in external repositories. To
+solve the problem you need to make sure that <code>requirements.yaml</code>
+uses only internally available Helm repositories. Even if the chart uses only dependencies from internal repos Helm
+might decide to refresh <code>stable</code> repo. As workaround override
 <code>stable</code> repo URL in <code>argocd-cm</code> config map:</p>
 <div class="codehilite"><pre><span></span><code><span class="nt">data</span><span class="p">:</span>
   <span class="c1"># v1.2 or earlier use `helm.repositories`</span>
@@ -1827,8 +1854,9 @@ uses only internally available Helm repositories. Even if the chart uses only de
 </code></pre></div>
 
 <h2 id="ive-configured-cluster-secret-but-it-does-not-show-up-in-cliui-how-do-i-fix-it">I've configured <a href="../operator-manual/declarative-setup/#clusters">cluster secret</a> but it does not show up in CLI/UI, how do I fix it?<a class="headerlink" href="#ive-configured-cluster-secret-but-it-does-not-show-up-in-cliui-how-do-i-fix-it" title="Permanent link">&para;</a></h2>
-<p>Check if cluster secret has <code>argocd.argoproj.io/secret-type: cluster</code> label. If secret has the label but the cluster is still not visible then make sure it might be a
-permission issue. Try to list clusters using <code>admin</code> user (e.g. <code>argocd login --username admin &amp;&amp; argocd cluster list</code>).</p>
+<p>Check if cluster secret has <code>argocd.argoproj.io/secret-type: cluster</code> label. If secret has the label but the cluster is
+still not visible then make sure it might be a permission issue. Try to list clusters using <code>admin</code> user (
+e.g. <code>argocd login --username admin &amp;&amp; argocd cluster list</code>).</p>
 <h2 id="argo-cd-is-unable-to-connect-to-my-cluster-how-do-i-troubleshoot-it">Argo CD is unable to connect to my cluster, how do I troubleshoot it?<a class="headerlink" href="#argo-cd-is-unable-to-connect-to-my-cluster-how-do-i-troubleshoot-it" title="Permanent link">&para;</a></h2>
 <p>Use the following steps to reconstruct configured cluster config and connect to your cluster manually using kubectl:</p>
 <div class="codehilite"><pre><span></span><code>kubectl <span class="nb">exec</span> -it &lt;argocd-pod-name&gt; bash <span class="c1"># ssh into any argocd server pod</span>
@@ -1841,31 +1869,34 @@ argocd-util kubeconfig https://&lt;cluster-url&gt; /tmp/config --namespace argoc
 <p>To terminate the sync, click on the "synchronisation" then "terminate":</p>
 <p><img alt="Synchronization" src="../assets/synchronization-button.png" /> <img alt="Terminate" src="../assets/terminate-button.png" /></p>
 <h2 id="why-is-my-app-out-of-sync-even-after-syncing">Why Is My App Out Of Sync Even After Syncing?<a class="headerlink" href="#why-is-my-app-out-of-sync-even-after-syncing" title="Permanent link">&para;</a></h2>
-<p>Is some cases, the tool you use may conflict with Argo CD by adding the <code>app.kubernetes.io/instance</code> label. E.g. using Kustomize common labels feature.</p>
-<p>Argo CD automatically sets the <code>app.kubernetes.io/instance</code> label and uses it to determine which resources form the app. If the tool does this too, this causes confusion. You can change this label by setting the <code>application.instanceLabelKey</code> value in the <code>argocd-cm</code>.  We recommend that you use <code>argocd.argoproj.io/instance</code>. </p>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>When you make this change your applications will become out of sync and will need re-syncing.</p>
-</div>
+<p>Is some cases, the tool you use may conflict with Argo CD by adding the <code>app.kubernetes.io/instance</code> label. E.g. using
+Kustomize common labels feature.</p>
+<p>Argo CD automatically sets the <code>app.kubernetes.io/instance</code> label and uses it to determine which resources form the app.
+If the tool does this too, this causes confusion. You can change this label by setting
+the <code>application.instanceLabelKey</code> value in the <code>argocd-cm</code>. We recommend that you use <code>argocd.argoproj.io/instance</code>.</p>
+<p>!!! note When you make this change your applications will become out of sync and will need re-syncing.</p>
 <p>See <a href="https://github.com/argoproj/argo-cd/issues/1482">#1482</a>.</p>
 <h2 id="why-are-my-resource-limits-out-of-sync">Why Are My Resource Limits Out Of Sync?<a class="headerlink" href="#why-are-my-resource-limits-out-of-sync" title="Permanent link">&para;</a></h2>
-<p>Kubernetes has normalized your resource limits when they are applied, and then Argo CD has then compared the version in your generated manifests to the normalized one is Kubernetes - they won't match. </p>
-<p>E.g. </p>
+<p>Kubernetes has normalized your resource limits when they are applied, and then Argo CD has then compared the version in
+your generated manifests to the normalized one is Kubernetes - they won't match.</p>
+<p>E.g.</p>
 <ul>
 <li><code>'1000m'</code> normalized to <code>'1'</code></li>
 <li><code>'0.1'</code> normalized to <code>'100m'</code></li>
 <li><code>'3072Mi'</code> normalized to <code>'3Gi'</code></li>
 <li><code>3072</code> normalized to <code>'3072'</code> (quotes added)</li>
 </ul>
-<p>To fix this use diffing customizations <a href="../user-guide/diffing/#known-kubernetes-types-in-crds-resource-limits-volume-mounts-etc">settings</a>.</p>
+<p>To fix this use diffing
+customizations <a href="../user-guide/diffing/#known-kubernetes-types-in-crds-resource-limits-volume-mounts-etc">settings</a>.</p>
 <h2 id="how-do-i-fix-invalid-cookie-longer-than-max-length-4093">How Do I Fix "invalid cookie, longer than max length 4093"?<a class="headerlink" href="#how-do-i-fix-invalid-cookie-longer-than-max-length-4093" title="Permanent link">&para;</a></h2>
-<p>Argo CD uses a JWT as the auth token. You likely are part of many groups and have gone over the 4KB limit which is set for cookies.
-You can get the list of groups by opening "developer tools -&gt; network"</p>
+<p>Argo CD uses a JWT as the auth token. You likely are part of many groups and have gone over the 4KB limit which is set
+for cookies. You can get the list of groups by opening "developer tools -&gt; network"</p>
 <ul>
 <li>Click log in</li>
 <li>Find the call to <code>&lt;argocd_instance&gt;/auth/callback?code=&lt;random_string&gt;</code></li>
 </ul>
-<p>Decode the token at <a href="https://jwt.io/">https://jwt.io/</a>. That will provide the list of teams that you can remove yourself from.</p>
+<p>Decode the token at <a href="https://jwt.io/">https://jwt.io/</a>. That will provide the list of teams that you can remove yourself
+from.</p>
 <p>See <a href="https://github.com/argoproj/argo-cd/issues/2165">#2165</a>.</p>
 <h2 id="why-am-i-getting-rpc-error-code-unavailable-desc-transport-is-closing-when-using-the-cli">Why Am I Getting <code>rpc error: code = Unavailable desc = transport is closing</code> When Using The CLI?<a class="headerlink" href="#why-am-i-getting-rpc-error-code-unavailable-desc-transport-is-closing-when-using-the-cli" title="Permanent link">&para;</a></h2>
 <p>Maybe you're behind a proxy that does not support HTTP 2? Try the <code>--grpc-web</code> flag:</p>
@@ -1884,6 +1915,23 @@ You can get the list of groups by opening "developer tools -&gt; network"</p>
 <h2 id="i-have-configured-dex-via-dexconfig-in-argocd-cm-it-still-says-dex-is-unconfigured-why">I have configured Dex via <code>dex.config</code> in <code>argocd-cm</code>, it still says Dex is unconfigured. Why?<a class="headerlink" href="#i-have-configured-dex-via-dexconfig-in-argocd-cm-it-still-says-dex-is-unconfigured-why" title="Permanent link">&para;</a></h2>
 <p>Most likely you forgot to set the <code>url</code> in <code>argocd-cm</code> to point to your ArgoCD as well. See also
 <a href="/operator-manual/user-management/#2-configure-argo-cd-for-sso">the docs</a>.</p>
+<h2 id="why-are-resources-of-type-sealedsecret-stuck-in-the-progressing-state">Why are resources of type <code>SealedSecret</code> stuck in the <code>Progressing</code> state?<a class="headerlink" href="#why-are-resources-of-type-sealedsecret-stuck-in-the-progressing-state" title="Permanent link">&para;</a></h2>
+<p>The controller of the <code>SealedSecret</code> resource may expose the status condition on resource it provisioned. Since
+version <code>v1.9.0</code> ArgoCD picks up that status condition to derive a health status for the <code>SealedSecret</code>.</p>
+<p>Versions before <code>v0.15.0</code> of the <code>SealedSecret</code> controller are affected by an issue regarding this status
+conditions updates, which is why this feature is disabled by default in these versions. Status condition updates may be
+enabled by starting the <code>SealedSecret</code> controller with the <code>--update-status</code> command line parameter or by setting
+the <code>SEALED_SECRETS_UPDATE_STATUS</code> environment variable.</p>
+<p>To disable ArgoCD from checking the status condition on <code>SealedSecret</code> resources, add the following resource
+customization in your <code>argocd-cm</code> ConfigMap:</p>
+<div class="codehilite"><pre><span></span><code><span class="nt">resource.customizations</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+  <span class="no">bitnami.com/SealedSecret:</span>
+    <span class="no">health.lua: |</span>
+      <span class="no">hs = {}</span>
+      <span class="no">hs.status = &quot;Healthy&quot;</span>
+      <span class="no">hs.message = &quot;Controller doesn&#39;t report resource status&quot;</span>
+      <span class="no">return hs</span>
+</code></pre></div>
                 
               
               
