@@ -2515,13 +2515,13 @@ func (proj AppProject) IsGroupKindPermitted(gk schema.GroupKind, namespaced bool
 	res := metav1.GroupKind{Group: gk.Group, Kind: gk.Kind}
 
 	if namespaced {
-		isWhiteListed = len(proj.Spec.NamespaceResourceWhitelist) == 0 || isResourceInList(res, proj.Spec.NamespaceResourceWhitelist)
-		isBlackListed = isResourceInList(res, proj.Spec.NamespaceResourceBlacklist)
+		isWhiteListed = len(proj.Spec.NamespaceResourceWhitelist) != 0 && isResourceInList(res, proj.Spec.NamespaceResourceWhitelist)
+		isBlackListed = len(proj.Spec.NamespaceResourceBlacklist) != 0 && isResourceInList(res, proj.Spec.NamespaceResourceBlacklist)
 		return isWhiteListed && !isBlackListed
 	}
 
-	isWhiteListed = len(proj.Spec.ClusterResourceWhitelist) == 0 || isResourceInList(res, proj.Spec.ClusterResourceWhitelist)
-	isBlackListed = isResourceInList(res, proj.Spec.ClusterResourceBlacklist)
+	isWhiteListed = len(proj.Spec.ClusterResourceWhitelist) != 0 && isResourceInList(res, proj.Spec.ClusterResourceWhitelist)
+	isBlackListed = len(proj.Spec.ClusterResourceBlacklist) != 0 && isResourceInList(res, proj.Spec.ClusterResourceBlacklist)
 	return isWhiteListed && !isBlackListed
 }
 

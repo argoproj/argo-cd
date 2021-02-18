@@ -130,15 +130,19 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 func TestAppProject_IsGroupKindPermitted(t *testing.T) {
 	proj := AppProject{
 		Spec: AppProjectSpec{
+			ClusterResourceWhitelist:   []metav1.GroupKind{{Group: "*", Kind: "*"}},
+			ClusterResourceBlacklist:   []metav1.GroupKind{},
 			NamespaceResourceWhitelist: []metav1.GroupKind{},
 			NamespaceResourceBlacklist: []metav1.GroupKind{{Group: "apps", Kind: "Deployment"}},
 		},
 	}
-	assert.True(t, proj.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "ReplicaSet"}, true))
+	assert.False(t, proj.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "ReplicaSet"}, true))
 	assert.False(t, proj.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "Deployment"}, true))
 
 	proj2 := AppProject{
 		Spec: AppProjectSpec{
+			ClusterResourceWhitelist:   []metav1.GroupKind{{Group: "*", Kind: "*"}},
+			ClusterResourceBlacklist:   []metav1.GroupKind{},
 			NamespaceResourceWhitelist: []metav1.GroupKind{{Group: "apps", Kind: "ReplicaSet"}},
 			NamespaceResourceBlacklist: []metav1.GroupKind{{Group: "apps", Kind: "Deployment"}},
 		},
@@ -148,19 +152,35 @@ func TestAppProject_IsGroupKindPermitted(t *testing.T) {
 
 	proj3 := AppProject{
 		Spec: AppProjectSpec{
-			ClusterResourceBlacklist: []metav1.GroupKind{{Group: "", Kind: "Namespace"}},
+			ClusterResourceWhitelist:   []metav1.GroupKind{{Group: "*", Kind: "*"}},
+			ClusterResourceBlacklist:   []metav1.GroupKind{{Group: "", Kind: "Namespace"}},
+			NamespaceResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
+			NamespaceResourceBlacklist: []metav1.GroupKind{},
 		},
 	}
 	assert.False(t, proj3.IsGroupKindPermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, false))
 
 	proj4 := AppProject{
 		Spec: AppProjectSpec{
-			ClusterResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
-			ClusterResourceBlacklist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
+			ClusterResourceWhitelist:   []metav1.GroupKind{{Group: "*", Kind: "*"}},
+			ClusterResourceBlacklist:   []metav1.GroupKind{{Group: "*", Kind: "*"}},
+			NamespaceResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
+			NamespaceResourceBlacklist: []metav1.GroupKind{},
 		},
 	}
 	assert.False(t, proj4.IsGroupKindPermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, false))
 	assert.True(t, proj4.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "Action"}, true))
+
+	proj5 := AppProject{
+		Spec: AppProjectSpec{
+			ClusterResourceWhitelist:   []metav1.GroupKind{},
+			ClusterResourceBlacklist:   []metav1.GroupKind{},
+			NamespaceResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
+			NamespaceResourceBlacklist: []metav1.GroupKind{},
+		},
+	}
+	assert.False(t, proj5.IsGroupKindPermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, false))
+	assert.True(t, proj5.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "Action"}, true))
 }
 
 func TestAppProject_GetRoleByName(t *testing.T) {

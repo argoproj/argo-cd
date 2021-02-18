@@ -1001,9 +1001,11 @@ func TestRevisionHistoryLimit(t *testing.T) {
 func TestOrphanedResource(t *testing.T) {
 	Given(t).
 		ProjectSpec(AppProjectSpec{
-			SourceRepos:       []string{"*"},
-			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
-			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.BoolPtr(true)},
+			SourceRepos:                []string{"*"},
+			Destinations:               []ApplicationDestination{{Namespace: "*", Server: "*"}},
+			ClusterResourceWhitelist:   []metav1.GroupKind{{Group: "*", Kind: "*"}},
+			NamespaceResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
+			OrphanedResources:          &OrphanedResourcesMonitorSettings{Warn: pointer.BoolPtr(true)},
 		}).
 		Path(guestbookPath).
 		When().
@@ -1030,9 +1032,11 @@ func TestOrphanedResource(t *testing.T) {
 		}).
 		Given().
 		ProjectSpec(AppProjectSpec{
-			SourceRepos:       []string{"*"},
-			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
-			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.BoolPtr(true), Ignore: []OrphanedResourceKey{{Group: "Test", Kind: "ConfigMap"}}},
+			SourceRepos:                []string{"*"},
+			Destinations:               []ApplicationDestination{{Namespace: "*", Server: "*"}},
+			ClusterResourceWhitelist:   []metav1.GroupKind{{Group: "*", Kind: "*"}},
+			NamespaceResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
+			OrphanedResources:          &OrphanedResourcesMonitorSettings{Warn: pointer.BoolPtr(true), Ignore: []OrphanedResourceKey{{Group: "Test", Kind: "ConfigMap"}}},
 		}).
 		When().
 		Refresh(RefreshTypeNormal).
@@ -1045,9 +1049,11 @@ func TestOrphanedResource(t *testing.T) {
 		}).
 		Given().
 		ProjectSpec(AppProjectSpec{
-			SourceRepos:       []string{"*"},
-			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
-			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.BoolPtr(true), Ignore: []OrphanedResourceKey{{Kind: "ConfigMap"}}},
+			SourceRepos:                []string{"*"},
+			Destinations:               []ApplicationDestination{{Namespace: "*", Server: "*"}},
+			ClusterResourceWhitelist:   []metav1.GroupKind{{Group: "*", Kind: "*"}},
+			NamespaceResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
+			OrphanedResources:          &OrphanedResourcesMonitorSettings{Warn: pointer.BoolPtr(true), Ignore: []OrphanedResourceKey{{Kind: "ConfigMap"}}},
 		}).
 		When().
 		Refresh(RefreshTypeNormal).
@@ -1061,9 +1067,11 @@ func TestOrphanedResource(t *testing.T) {
 		}).
 		Given().
 		ProjectSpec(AppProjectSpec{
-			SourceRepos:       []string{"*"},
-			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
-			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.BoolPtr(true), Ignore: []OrphanedResourceKey{{Kind: "ConfigMap", Name: "orphaned-configmap"}}},
+			SourceRepos:                []string{"*"},
+			Destinations:               []ApplicationDestination{{Namespace: "*", Server: "*"}},
+			ClusterResourceWhitelist:   []metav1.GroupKind{{Group: "*", Kind: "*"}},
+			NamespaceResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
+			OrphanedResources:          &OrphanedResourcesMonitorSettings{Warn: pointer.BoolPtr(true), Ignore: []OrphanedResourceKey{{Kind: "ConfigMap", Name: "orphaned-configmap"}}},
 		}).
 		When().
 		Refresh(RefreshTypeNormal).
@@ -1077,9 +1085,11 @@ func TestOrphanedResource(t *testing.T) {
 		}).
 		Given().
 		ProjectSpec(AppProjectSpec{
-			SourceRepos:       []string{"*"},
-			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
-			OrphanedResources: nil,
+			SourceRepos:                []string{"*"},
+			Destinations:               []ApplicationDestination{{Namespace: "*", Server: "*"}},
+			ClusterResourceWhitelist:   []metav1.GroupKind{{Group: "*", Kind: "*"}},
+			NamespaceResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
+			OrphanedResources:          nil,
 		}).
 		When().
 		Refresh(RefreshTypeNormal).
@@ -1138,8 +1148,10 @@ func TestNotPermittedResources(t *testing.T) {
 	}
 
 	ctx.ProjectSpec(AppProjectSpec{
-		SourceRepos:  []string{"*"},
-		Destinations: []ApplicationDestination{{Namespace: DeploymentNamespace(), Server: "*"}},
+		SourceRepos:                []string{"*"},
+		Destinations:               []ApplicationDestination{{Namespace: DeploymentNamespace(), Server: "*"}},
+		ClusterResourceWhitelist:   []metav1.GroupKind{{Group: "*", Kind: "*"}},
+		NamespaceResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
 		NamespaceResourceBlacklist: []metav1.GroupKind{
 			{Group: "", Kind: "Service"},
 		}}).
@@ -1271,9 +1283,11 @@ func TestCreateAppWithNoNameSpaceWhenRequired2(t *testing.T) {
 func TestListResource(t *testing.T) {
 	Given(t).
 		ProjectSpec(AppProjectSpec{
-			SourceRepos:       []string{"*"},
-			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
-			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.BoolPtr(true)},
+			SourceRepos:                []string{"*"},
+			Destinations:               []ApplicationDestination{{Namespace: "*", Server: "*"}},
+			ClusterResourceWhitelist:   []metav1.GroupKind{{Group: "*", Kind: "*"}},
+			NamespaceResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
+			OrphanedResources:          &OrphanedResourcesMonitorSettings{Warn: pointer.BoolPtr(true)},
 		}).
 		Path(guestbookPath).
 		When().
@@ -1313,9 +1327,11 @@ func TestListResource(t *testing.T) {
 		}).
 		Given().
 		ProjectSpec(AppProjectSpec{
-			SourceRepos:       []string{"*"},
-			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
-			OrphanedResources: nil,
+			SourceRepos:                []string{"*"},
+			Destinations:               []ApplicationDestination{{Namespace: "*", Server: "*"}},
+			ClusterResourceWhitelist:   []metav1.GroupKind{{Group: "*", Kind: "*"}},
+			NamespaceResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
+			OrphanedResources:          nil,
 		}).
 		When().
 		Refresh(RefreshTypeNormal).

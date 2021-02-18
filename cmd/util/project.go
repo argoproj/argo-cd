@@ -128,11 +128,13 @@ func ConstructAppProj(fileURL string, args []string, opts ProjectOpts, c *cobra.
 			},
 			ObjectMeta: v1.ObjectMeta{Name: projName},
 			Spec: v1alpha1.AppProjectSpec{
-				Description:       opts.Description,
-				Destinations:      opts.GetDestinations(),
-				SourceRepos:       opts.Sources,
-				SignatureKeys:     opts.GetSignatureKeys(),
-				OrphanedResources: GetOrphanedResourcesSettings(c, opts),
+				Description:                opts.Description,
+				Destinations:               opts.GetDestinations(),
+				SourceRepos:                opts.Sources,
+				SignatureKeys:              opts.GetSignatureKeys(),
+				OrphanedResources:          GetOrphanedResourcesSettings(c, opts),
+				ClusterResourceWhitelist:   []v1.GroupKind{{Group: "*", Kind: "*"}},
+				NamespaceResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
 			},
 		}
 	}
