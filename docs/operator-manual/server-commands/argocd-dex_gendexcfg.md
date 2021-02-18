@@ -32,5 +32,5 @@ argocd-dex gendexcfg [flags]
 
 ### SEE ALSO
 
-* [argocd-dex](argocd-dex.md)	 - argocd-util tools used by Argo CD
+* [argocd-dex](argocd-dex.md)	 - argocd-dex tools used by Argo CD
 
