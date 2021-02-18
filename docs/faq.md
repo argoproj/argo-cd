@@ -175,7 +175,7 @@ argocd ... --insecure
 Most likely you forgot to set the `url` in `argocd-cm` to point to your ArgoCD as well. See also
 [the docs](/operator-manual/user-management/#2-configure-argo-cd-for-sso).
 
-## Why re resources of type `SealedSecret` stuck in the `Progressing` state?
+## Why are resources of type `SealedSecret` stuck in the `Progressing` state?
 
 The controller of the `SealedSecret` resource may expose the status condition on resource it provisioned. Since
 version `v1.9.0` ArgoCD picks up that status condition to derive a health status for the `SealedSecret`.
