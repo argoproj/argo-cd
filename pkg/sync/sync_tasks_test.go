@@ -33,7 +33,6 @@ func TestAnySyncTasks(t *testing.T) {
 		return task.name() == "does-not-exist"
 	})
 	assert.False(t, res)
-
 }
 
 func TestAllSyncTasks(t *testing.T) {
@@ -369,37 +368,76 @@ func TestSyncNamespaceAgainstCRD(t *testing.T) {
 }
 
 func TestSyncTasksSort_NamespaceAndObjectInNamespace(t *testing.T) {
-	deployment := &syncTask{
+	hook1 := &syncTask{
 		phase: common.SyncPhasePreSync,
 		targetObj: &unstructured.Unstructured{
 			Object: map[string]interface{}{
 				"kind": "Job",
 				"metadata": map[string]interface{}{
-					"namespace": "myNamespace",
-					"name":      "mySyncHookJob",
+					"namespace": "myNamespace1",
+					"name":      "mySyncHookJob1",
 				},
 			},
 		}}
-	namespace := &syncTask{
+	hook2 := &syncTask{
+		phase: common.SyncPhasePreSync,
+		targetObj: &unstructured.Unstructured{
+			Object: map[string]interface{}{
+				"kind": "Job",
+				"metadata": map[string]interface{}{
+					"namespace": "myNamespace2",
+					"name":      "mySyncHookJob2",
+				},
+			},
+		}}
+	namespace1 := &syncTask{
 		targetObj: &unstructured.Unstructured{
 			Object: map[string]interface{}{
 				"kind": "Namespace",
 				"metadata": map[string]interface{}{
-					"name": "myNamespace",
+					"name": "myNamespace1",
+					"annotations": map[string]string{
+						"argocd.argoproj.io/sync-wave": "1",
+					},
+				},
+			},
+		},
+	}
+	namespace2 := &syncTask{
+		targetObj: &unstructured.Unstructured{
+			Object: map[string]interface{}{
+				"kind": "Namespace",
+				"metadata": map[string]interface{}{
+					"name": "myNamespace2",
+					"annotations": map[string]string{
+						"argocd.argoproj.io/sync-wave": "2",
+					},
 				},
 			},
 		},
 	}
 
-	unsorted := syncTasks{deployment, namespace}
-	sort.Sort(unsorted)
+	unsorted := syncTasks{hook1, hook2, namespace1, namespace2}
+	unsorted.Sort()
 
-	assert.Equal(t, syncTasks{namespace, deployment}, unsorted)
+	assert.Equal(t, syncTasks{namespace1, hook1, namespace2, hook2}, unsorted)
+	assert.Equal(t, 0, namespace1.wave())
+	assert.Equal(t, common.SyncPhase(common.SyncPhasePreSync), namespace1.phase)
+	assert.Equal(t, 0, namespace2.wave())
+	assert.Equal(t, common.SyncPhase(common.SyncPhasePreSync), namespace2.phase)
 }
 
 func TestSyncTasksSort_CRDAndCR(t *testing.T) {
-	crd := &syncTask{
+	cr := &syncTask{
 		phase: common.SyncPhasePreSync,
+		targetObj: &unstructured.Unstructured{
+			Object: map[string]interface{}{
+				"kind":       "Workflow",
+				"apiVersion": "argoproj.io/v1",
+			},
+		},
+	}
+	crd := &syncTask{
 		targetObj: &unstructured.Unstructured{
 			Object: map[string]interface{}{
 				"apiVersion": "apiextensions.k8s.io/v1",
@@ -412,17 +450,9 @@ func TestSyncTasksSort_CRDAndCR(t *testing.T) {
 				},
 			},
 		}}
-	cr := &syncTask{
-		targetObj: &unstructured.Unstructured{
-			Object: map[string]interface{}{
-				"kind":       "Workflow",
-				"apiVersion": "argoproj.io/v1",
-			},
-		},
-	}
 
 	unsorted := syncTasks{cr, crd}
-	sort.Sort(unsorted)
+	unsorted.Sort()
 
 	assert.Equal(t, syncTasks{crd, cr}, unsorted)
 }
