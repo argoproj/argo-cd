@@ -10,6 +10,8 @@ import {ApplicationResourcesDiff} from '../application-resources-diff/applicatio
 import {ApplicationResourceEvents} from '../application-resource-events/application-resource-events';
 import {Context} from '../../../shared/context';
 import {PodsLogsViewer} from '../pod-logs-viewer/pod-logs-viewer';
+import {ApplicationNodeInfo} from '../application-node-info/application-node-info';
+import {NodeInfo, SelectNode} from '../application-details/application-details';
 
 const jsonMergePatch = require('json-merge-patch');
 
@@ -19,86 +21,87 @@ interface ResourceDetailsProps {
     application: Application;
     isAppSelected: boolean;
     tree: ApplicationTree;
-    tabs: (data: any) => Tab[];
 }
 
-const getResourceTabs = (application: Application, node: ResourceNode, state: State, podState: State, events: Event[], tabs: Tab[]) => {
-    if (state) {
-        const numErrors = events.filter(event => event.type !== 'Normal').reduce((total, event) => total + event.count, 0);
-        tabs.push({
-            title: 'EVENTS',
-            badge: (numErrors > 0 && numErrors) || null,
-            key: 'events',
-            content: (
-                <div className='application-resource-events'>
-                    <EventsList events={events} />
-                </div>
-            )
-        });
-    }
-    if (podState) {
-        const containerGroups = [
-            {
-                offset: 0,
-                title: 'CONTAINERS',
-                containers: podState.spec.containers || []
-            },
-            {
-                offset: (podState.spec.containers || []).length,
-                title: 'INIT CONTAINERS',
-                containers: podState.spec.initContainers || []
-            }
-        ];
-        tabs = tabs.concat([
-            {
-                key: 'logs',
-                title: 'LOGS',
-                content: (
-                    <div className='application-details__tab-content-full-height'>
-                        <div className='row'>
-                            <div className='columns small-3 medium-2'>
-                                {containerGroups.map(group => (
-                                    <div key={group.title} style={{marginBottom: '1em'}}>
-                                        {group.containers.length > 0 && <p>{group.title}</p>}
-                                        {group.containers.map((container: any, i: number) => (
-                                            <div
-                                                className='application-details__container'
-                                                key={container.name}
-                                                onClick={() => this.selectNode(this.selectedNodeKey, group.offset + i, 'logs')}>
-                                                {group.offset + i === this.selectedNodeInfo.container && <i className='fa fa-angle-right' />}
-                                                <span title={container.name}>{container.name}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                ))}
-                            </div>
-                            <div className='columns small-9 medium-10'>
-                                <PodsLogsViewer
-                                    podName={(state.kind === 'Pod' && state.metadata.name) || ''}
-                                    group={node.group}
-                                    kind={node.kind}
-                                    name={node.name}
-                                    namespace={podState.metadata.namespace}
-                                    applicationName={application.metadata.name}
-                                    containerName={AppUtils.getContainerName(podState, this.selectedNodeInfo.container)}
-                                />
-                            </div>
-                        </div>
-                    </div>
-                )
-            }
-        ]);
-    }
-    return tabs;
-};
-
 export const ResourceDetails = (props: ResourceDetailsProps) => {
-    const {selectedNode, updateApp, application, isAppSelected, tree, tabs} = {...props};
+    const {selectedNode, updateApp, application, isAppSelected, tree} = {...props};
     const appContext = React.useContext(Context);
     const tab = new URLSearchParams(appContext.history.location.search).get('tab');
+    const selectedNodeInfo = NodeInfo(new URLSearchParams(appContext.history.location.search).get('node'));
+    const selectedNodeKey = selectedNodeInfo.key;
+
+    const getResourceTabs = (application: Application, node: ResourceNode, state: State, podState: State, events: Event[], tabs: Tab[]) => {
+        if (state) {
+            const numErrors = events.filter(event => event.type !== 'Normal').reduce((total, event) => total + event.count, 0);
+            tabs.push({
+                title: 'EVENTS',
+                badge: (numErrors > 0 && numErrors) || null,
+                key: 'events',
+                content: (
+                    <div className='application-resource-events'>
+                        <EventsList events={events} />
+                    </div>
+                )
+            });
+        }
+        if (podState) {
+            const containerGroups = [
+                {
+                    offset: 0,
+                    title: 'CONTAINERS',
+                    containers: podState.spec.containers || []
+                },
+                {
+                    offset: (podState.spec.containers || []).length,
+                    title: 'INIT CONTAINERS',
+                    containers: podState.spec.initContainers || []
+                }
+            ];
+            tabs = tabs.concat([
+                {
+                    key: 'logs',
+                    title: 'LOGS',
+                    content: (
+                        <div className='application-details__tab-content-full-height'>
+                            <div className='row'>
+                                <div className='columns small-3 medium-2'>
+                                    {containerGroups.map(group => (
+                                        <div key={group.title} style={{marginBottom: '1em'}}>
+                                            {group.containers.length > 0 && <p>{group.title}</p>}
+                                            {group.containers.map((container: any, i: number) => (
+                                                <div
+                                                    className='application-details__container'
+                                                    key={container.name}
+                                                    onClick={() => SelectNode(selectedNodeKey, group.offset + i, 'logs', appContext)}>
+                                                    {group.offset + i === selectedNodeInfo.container && <i className='fa fa-angle-right' />}
+                                                    <span title={container.name}>{container.name}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className='columns small-9 medium-10'>
+                                    <PodsLogsViewer
+                                        podName={(state.kind === 'Pod' && state.metadata.name) || ''}
+                                        group={node.group}
+                                        kind={node.kind}
+                                        name={node.name}
+                                        namespace={podState.metadata.namespace}
+                                        applicationName={application.metadata.name}
+                                        containerName={AppUtils.getContainerName(podState, selectedNodeInfo.container)}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    )
+                }
+            ]);
+        }
+        return tabs;
+    };
 
     return (
-        <div style={{width: '100%', height: '100%', backgroundColor: 'white'}}>
+        <div style={{width: '100%', height: '100%'}}>
             {selectedNode && (
                 <DataLoader
                     noLoaderOnInputChange={true}
@@ -140,7 +143,20 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
 
                         return {controlledState, liveState, events, podState};
                     }}>
-                    {data => <Tabs navTransparent={true} tabs={tabs(data)} selectedTabKey={tab} onTabSelected={selected => appContext.navigation.goto('.', {tab: selected})} />}
+                    {data => (
+                        <Tabs
+                            navTransparent={true}
+                            tabs={getResourceTabs(application, selectedNode, data.liveState, data.podState, data.events, [
+                                {
+                                    title: 'SUMMARY',
+                                    key: 'summary',
+                                    content: <ApplicationNodeInfo application={application} live={data.liveState} controlled={data.controlledState} node={selectedNode} />
+                                }
+                            ])}
+                            selectedTabKey={tab}
+                            onTabSelected={selected => appContext.navigation.goto('.', {tab: selected})}
+                        />
+                    )}
                 </DataLoader>
             )}
             {isAppSelected && (

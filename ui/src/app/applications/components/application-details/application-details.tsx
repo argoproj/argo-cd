@@ -1,24 +1,22 @@
-import {Checkbox as ArgoCheckbox, DropDownMenu, NotificationType, SlidingPanel, Tab, TopBarFilter} from 'argo-ui';
+import {Checkbox as ArgoCheckbox, DropDownMenu, NotificationType, SlidingPanel, TopBarFilter} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import {RouteComponentProps} from 'react-router';
 import {BehaviorSubject, Observable} from 'rxjs';
 
-import {DataLoader, EmptyState, ErrorNotification, EventsList, ObservableQuery, Page, Paginate, Revision, Timestamp} from '../../../shared/components';
-import {AppContext} from '../../../shared/context';
+import {DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Revision, Timestamp} from '../../../shared/components';
+import {AppContext, ContextApis} from '../../../shared/context';
 import * as appModels from '../../../shared/models';
 import {AppDetailsPreferences, AppsDetailsViewType, services} from '../../../shared/services';
 
 import {ApplicationConditions} from '../application-conditions/application-conditions';
 import {ApplicationDeploymentHistory} from '../application-deployment-history/application-deployment-history';
-import {ApplicationNodeInfo} from '../application-node-info/application-node-info';
 import {ApplicationOperationState} from '../application-operation-state/application-operation-state';
 import {PodView} from '../application-pod-view/pod-view';
 import {ApplicationResourceTree, ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
 import {ApplicationStatusPanel} from '../application-status-panel/application-status-panel';
 import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-panel';
-import {PodsLogsViewer} from '../pod-logs-viewer/pod-logs-viewer';
 import {ResourceDetails} from '../resource-details/resource-details';
 import * as AppUtils from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
@@ -38,6 +36,11 @@ export const NodeInfo = (node?: string): {key: string; container: number} => {
         nodeContainer.container = parseInt(parts[4] || '0', 10);
     }
     return nodeContainer;
+};
+
+export const SelectNode = (fullName: string, containerIndex = 0, tab: string = null, appContext: ContextApis) => {
+    const node = fullName ? `${fullName}/${containerIndex}` : null;
+    appContext.navigation.goto('.', {node, tab});
 };
 
 export class ApplicationDetails extends React.Component<RouteComponentProps<{name: string}>, ApplicationDetailsState> {
@@ -65,7 +68,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
     }
 
     private get selectedNodeInfo() {
-        return NodeInfo(new URLSearchParams(this.props.location.search).get('node'));
+        return NodeInfo(new URLSearchParams(this.props.history.location.search).get('node'));
     }
 
     private get selectedNodeKey() {
@@ -289,22 +292,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                         </div>
                                         <SlidingPanel isShown={selectedNode != null || isAppSelected} onClose={() => this.selectNode('')}>
                                             <ResourceDetails
-                                                tabs={data =>
-                                                    this.getResourceTabs(application, selectedNode, data.liveState, data.podState, data.events, [
-                                                        {
-                                                            title: 'SUMMARY',
-                                                            key: 'summary',
-                                                            content: (
-                                                                <ApplicationNodeInfo
-                                                                    application={application}
-                                                                    live={data.liveState}
-                                                                    controlled={data.controlledState}
-                                                                    node={selectedNode}
-                                                                />
-                                                            )
-                                                        }
-                                                    ])
-                                                }
                                                 tree={tree}
                                                 application={application}
                                                 isAppSelected={isAppSelected}
@@ -562,8 +549,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
     }
 
     private selectNode(fullName: string, containerIndex = 0, tab: string = null) {
-        const node = fullName ? `${fullName}/${containerIndex}` : null;
-        this.appContext.apis.navigation.goto('.', {node, tab});
+        SelectNode(fullName, containerIndex, tab, this.appContext.apis);
     }
 
     private async rollbackApplication(revisionHistory: appModels.RevisionHistory, application: appModels.Application) {
@@ -600,82 +586,5 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
 
     private async deleteApplication() {
         await AppUtils.deleteApplication(this.props.match.params.name, this.appContext.apis);
-    }
-
-    private getResourceTabs(
-        application: appModels.Application,
-        node: appModels.ResourceNode,
-        state: appModels.State,
-        podState: appModels.State,
-        events: appModels.Event[],
-        tabs: Tab[]
-    ) {
-        if (state) {
-            const numErrors = events.filter(event => event.type !== 'Normal').reduce((total, event) => total + event.count, 0);
-            tabs.push({
-                title: 'EVENTS',
-                badge: (numErrors > 0 && numErrors) || null,
-                key: 'events',
-                content: (
-                    <div className='application-resource-events'>
-                        <EventsList events={events} />
-                    </div>
-                )
-            });
-        }
-        if (podState) {
-            const containerGroups = [
-                {
-                    offset: 0,
-                    title: 'CONTAINERS',
-                    containers: podState.spec.containers || []
-                },
-                {
-                    offset: (podState.spec.containers || []).length,
-                    title: 'INIT CONTAINERS',
-                    containers: podState.spec.initContainers || []
-                }
-            ];
-            tabs = tabs.concat([
-                {
-                    key: 'logs',
-                    title: 'LOGS',
-                    content: (
-                        <div className='application-details__tab-content-full-height'>
-                            <div className='row'>
-                                <div className='columns small-3 medium-2'>
-                                    {containerGroups.map(group => (
-                                        <div key={group.title} style={{marginBottom: '1em'}}>
-                                            {group.containers.length > 0 && <p>{group.title}</p>}
-                                            {group.containers.map((container: any, i: number) => (
-                                                <div
-                                                    className='application-details__container'
-                                                    key={container.name}
-                                                    onClick={() => this.selectNode(this.selectedNodeKey, group.offset + i, 'logs')}>
-                                                    {group.offset + i === this.selectedNodeInfo.container && <i className='fa fa-angle-right' />}
-                                                    <span title={container.name}>{container.name}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ))}
-                                </div>
-                                <div className='columns small-9 medium-10'>
-                                    <PodsLogsViewer
-                                        podName={(state.kind === 'Pod' && state.metadata.name) || ''}
-                                        group={node.group}
-                                        kind={node.kind}
-                                        name={node.name}
-                                        namespace={podState.metadata.namespace}
-                                        applicationName={application.metadata.name}
-                                        containerName={AppUtils.getContainerName(podState, this.selectedNodeInfo.container)}
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    )
-                }
-            ]);
-        }
-        return tabs;
     }
 }
