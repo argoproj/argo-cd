@@ -11,7 +11,7 @@ argocd app delete APPNAME [flags]
 ```
       --cascade                     Perform a cascaded deletion of all application resources (default true)
   -h, --help                        help for delete
-      --propagation-policy string   Specify propagation policy for deletion of application resources (default "foreground")
+  -p, --propagation-policy string   Specify propagation policy for deletion of application resources (default "foreground")
   -y, --yes                         Turn off prompting to confirm cascaded deletion of application resources
 ```
 

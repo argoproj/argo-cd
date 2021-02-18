@@ -842,7 +842,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	filteredObjs := FilterObjectsForDeletion(objs)
 
 	if app.GetPropagationPolicy() == appv1.BackgroundPropagationPolicy {
-		return ctrl.backgroundDeletion(app, objs, filteredObjs, logCtx, cluster, config)
+		return ctrl.backgroundDeletion(app, objs, filteredObjs, logCtx, config)
 	}
 
 	logCtx.Info("Deleting application with foreground propagation policy")
@@ -895,7 +895,6 @@ func (ctrl *ApplicationController) backgroundDeletion(app *appv1.Application,
 	objs []*unstructured.Unstructured,
 	filteredObjs []*unstructured.Unstructured,
 	logCtx *log.Entry,
-	cluster *appv1.Cluster,
 	config *rest.Config) ([]*unstructured.Unstructured, error) {
 	logCtx.Info("Deleting application with background propagation policy")
 	err := ctrl.cache.SetAppManagedResources(app.Name, nil)

@@ -7,11 +7,12 @@ import (
 
 	"k8s.io/utils/pointer"
 
-	argocommon "github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	argocommon "github.com/argoproj/argo-cd/common"
 )
 
 func TestAppProject_IsSourcePermitted(t *testing.T) {
