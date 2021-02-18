@@ -175,18 +175,18 @@ argocd ... --insecure
 Most likely you forgot to set the `url` in `argocd-cm` to point to your ArgoCD as well. See also
 [the docs](/operator-manual/user-management/#2-configure-argo-cd-for-sso).
 
-## Why is are resources of type `SealedSecret` stuck in the `Progressing` state?
+## Why re resources of type `SealedSecret` stuck in the `Progressing` state?
 
 The controller of the `SealedSecret` resource may expose the status condition on resource it provisioned. Since
 version `v1.9.0` ArgoCD picks up that status condition to derive a health status for the `SealedSecret`.
 
-The versions `v0.12.0` to `v0.15.0` of the `SealedSecret` controller are affected by an issue regarding this status
+Versions before `v0.15.0` of the `SealedSecret` controller are affected by an issue regarding this status
 conditions updates, which is why this feature is disabled by default in these versions. Status condition updates may be
 enabled by starting the `SealedSecret` controller with the `--update-status` command line parameter or by setting
 the `SEALED_SECRETS_UPDATE_STATUS` environment variable.
 
 To disable ArgoCD from checking the status condition on `SealedSecret` resources, add the following resource
-customization in your `argo-cd`:
+customization in your `argocd-cm` ConfigMap:
 
 ```yaml
 resource.customizations: |
