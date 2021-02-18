@@ -1,10 +1,11 @@
-import {ErrorNotification, NotificationType, SlidingPanel} from 'argo-ui';
+import {ErrorNotification, FormField, NotificationType, SlidingPanel} from 'argo-ui';
 import * as React from 'react';
 import {Checkbox, Form, FormApi} from 'react-form';
 import {ProgressPopup} from '../../../shared/components';
 import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
+import {ApplicationManualSyncFlags, ApplicationSyncOptions, SyncFlags} from '../application-sync-options';
 import {ComparisonStatusIcon, HealthStatusIcon, OperationPhaseIcon} from '../utils';
 
 interface Progress {
@@ -34,22 +35,38 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
                         </div>
                     }>
                     <Form
+                        defaultValues={{syncFlags: []}}
                         onSubmit={async (params: any) => {
                             const selectedApps = getSelectedApps(params);
                             if (selectedApps.length === 0) {
                                 ctx.notifications.show({content: `No apps selected`, type: NotificationType.Error});
                                 return;
                             }
-                            const syncStrategy: models.SyncStrategy = params.applyOnly ? {apply: {force: params.force}} : {hook: {force: params.force}};
+
+                            const syncFlags = {...params.syncFlags} as SyncFlags;
+
+                            const syncStrategy: models.SyncStrategy =
+                                syncFlags.ApplyOnly || false ? {apply: {force: syncFlags.Force || false}} : {hook: {force: syncFlags.Force || false}};
+
                             setProgress({percentage: 0, title: 'Starting...'});
                             let i = 0;
                             for (const app of selectedApps) {
-                                await services.applications.sync(app.metadata.name, app.spec.source.targetRevision, params.prune, params.dryRun, syncStrategy, null).catch(e => {
-                                    ctx.notifications.show({
-                                        content: <ErrorNotification title={`Unable to sync ${app.metadata.name}`} e={e} />,
-                                        type: NotificationType.Error
+                                await services.applications
+                                    .sync(
+                                        app.metadata.name,
+                                        app.spec.source.targetRevision,
+                                        syncFlags.Prune || false,
+                                        syncFlags.DryRun || false,
+                                        syncStrategy,
+                                        null,
+                                        params.syncOptions
+                                    )
+                                    .catch(e => {
+                                        ctx.notifications.show({
+                                            content: <ErrorNotification title={`Unable to sync ${app.metadata.name}`} e={e} />,
+                                            type: NotificationType.Error
+                                        });
                                     });
-                                });
                                 i++;
                                 setProgress({
                                     percentage: i / selectedApps.length,
@@ -65,22 +82,15 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
                                     <h4>Sync app(s)</h4>
                                     {progress !== null && <ProgressPopup onClose={() => setProgress(null)} percentage={progress.percentage} title={progress.title} />}
                                     <label>Options:</label>
-                                    <div style={{paddingLeft: '1em'}}>
-                                        <label>
-                                            <Checkbox field='prune' /> Prune
-                                        </label>
-                                        &nbsp;
-                                        <label>
-                                            <Checkbox field='dryRun' /> Dry Run
-                                        </label>
-                                        &nbsp;
-                                        <label>
-                                            <Checkbox field='applyOnly' /> Apply Only
-                                        </label>
-                                        &nbsp;
-                                        <label>
-                                            <Checkbox field='force' /> Force
-                                        </label>
+                                    <div style={{paddingLeft: '1em', marginBottom: '1em'}}>
+                                        <ApplicationSyncOptions
+                                            options={formApi.values.syncOptions}
+                                            onChanged={opts => {
+                                                formApi.setTouched('syncOptions', true);
+                                                formApi.setValue('syncOptions', opts);
+                                            }}
+                                        />
+                                        <FormField formApi={formApi} field='syncFlags' component={ApplicationManualSyncFlags} />
                                     </div>
                                     <label>
                                         Apps (<a onClick={() => apps.forEach((_, i) => formApi.setValue('app/' + i, true))}>all</a>/

@@ -296,6 +296,9 @@ func isKnownOrphanedResourceExclusion(key kube.ResourceKey, proj *appv1.AppProje
 	if key.Group == "" && key.Kind == kube.ServiceAccountKind && key.Name == "default" {
 		return true
 	}
+	if key.Group == "" && key.Kind == "ConfigMap" && key.Name == "kube-root-ca.crt" {
+		return true
+	}
 	list := proj.Spec.OrphanedResources.Ignore
 	for _, item := range list {
 		if item.Kind == "" || glob.Match(item.Kind, key.Kind) {

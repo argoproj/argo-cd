@@ -17,3 +17,4 @@ Not every resource in the Kubernetes cluster is controlled by the end user. Foll
 * Namespaced resources denied in the project. Usually, such resources are managed by cluster administrators and not supposed to be modified by namespace user.
 * `ServiceAccount` with name `default` ( and corresponding auto-generated `ServiceAccountToken` ).
 * `Service` with name `kubernetes` in the `default` namespace.
+* `ConfigMap` with name `kube-root-ca.crt` in all namespaces.

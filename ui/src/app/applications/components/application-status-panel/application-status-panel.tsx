@@ -29,13 +29,15 @@ const sectionLabel = (info: SectionInfo) => (
     </label>
 );
 
-const sectionHeader = (onClick: () => any, info: SectionInfo) => {
+const sectionHeader = (info: SectionInfo, onClick?: () => any) => {
     return (
         <div style={{display: 'flex', alignItems: 'center'}}>
             {sectionLabel(info)}
-            <button className='argo-button argo-button--base-o argo-button--sm application-status-panel__more-button' onClick={onClick}>
-                MORE
-            </button>
+            {onClick && (
+                <button className='argo-button argo-button--base-o argo-button--sm application-status-panel__more-button' onClick={onClick}>
+                    MORE
+                </button>
+            )}
         </div>
     );
 };
@@ -71,14 +73,17 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                     &nbsp;
                     {application.status.health.status}
                 </div>
-                <div className='application-status-panel__item-name'>{application.status.health.message}</div>
+                {application.status.health.message && <div className='application-status-panel__item-name'>{application.status.health.message}</div>}
             </div>
             <div className='application-status-panel__item'>
                 <React.Fragment>
-                    {sectionHeader(() => showMetadataInfo(application.status.sync ? application.status.sync.revision : ''), {
-                        title: 'CURRENT SYNC STATUS',
-                        helpContent: 'Whether or not the version of your app is up to date with your repo. You may wish to sync your app if it is out-of-sync.'
-                    })}
+                    {sectionHeader(
+                        {
+                            title: 'CURRENT SYNC STATUS',
+                            helpContent: 'Whether or not the version of your app is up to date with your repo. You may wish to sync your app if it is out-of-sync.'
+                        },
+                        application.spec.source.chart ? null : () => showMetadataInfo(application.status.sync ? application.status.sync.revision : '')
+                    )}
                     <div className='application-status-panel__item-value'>
                         <div>
                             <ComparisonStatusIcon status={application.status.sync.status} label={true} />
@@ -95,13 +100,16 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
             {appOperationState && (
                 <div className='application-status-panel__item'>
                     <React.Fragment>
-                        {sectionHeader(() => showMetadataInfo(appOperationState.syncResult ? appOperationState.syncResult.revision : ''), {
-                            title: 'LAST SYNC STATUS',
-                            helpContent:
-                                'Whether or not your last app sync was successful. It has been ' +
-                                daysSinceLastSynchronized +
-                                ' days since last sync. Click for the status of that sync.'
-                        })}
+                        {sectionHeader(
+                            {
+                                title: 'LAST SYNC RESULT',
+                                helpContent:
+                                    'Whether or not your last app sync was successful. It has been ' +
+                                    daysSinceLastSynchronized +
+                                    ' days since last sync. Click for the status of that sync.'
+                            },
+                            application.spec.source.chart ? null : () => showMetadataInfo(appOperationState.syncResult ? appOperationState.syncResult.revision : '')
+                        )}
                         <div className={`application-status-panel__item-value application-status-panel__item-value--${appOperationState.phase}`}>
                             <a onClick={() => showOperation && showOperation()}>
                                 <OperationState app={application} />{' '}

@@ -112,6 +112,7 @@ nav:
     - developer-guide/ci.md
     - developer-guide/releasing.md
     - developer-guide/site.md
+    - developer-guide/static-code-analysis.md
     - developer-guide/faq.md
   - faq.md
   - security_considerations.md
