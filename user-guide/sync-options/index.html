@@ -1656,9 +1656,6 @@ which creates CRDs in response to user defined <code>ConstraintTemplates</code>.
 
 <p>The dry run will still be executed if the CRD is already present in the cluster.</p>
 <h2 id="selective-sync">Selective Sync<a class="headerlink" href="#selective-sync" title="Permanent link">&para;</a></h2>
-<blockquote>
-<p>v1.8</p>
-</blockquote>
 <p>Currently when syncing using auto sync ArgoCD applies every object in the application. 
 For applications containing thousands of objects this takes quite a long time and puts undue pressure on the api server.
 Turning on selective sync option which will sync only out-of-sync resources. </p>
