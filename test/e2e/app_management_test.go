@@ -1514,3 +1514,30 @@ definitions:
 			assert.Equal(t, "update-status", text)
 		})
 }
+
+func TestAppWaitOperationInProgress(t *testing.T) {
+	Given(t).
+		And(func() {
+			SetResourceOverrides(map[string]ResourceOverride{
+				"batch/Job": {
+					HealthLua: `return { status = 'Running' }`,
+				},
+				"apps/Deployment": {
+					HealthLua: `return { status = 'Suspended' }`,
+				},
+			})
+		}).
+		Async(true).
+		Path("hook-and-deployment").
+		When().
+		Create().
+		Sync().
+		Then().
+		// stuck in running state
+		Expect(OperationPhaseIs(OperationRunning)).
+		When().
+		And(func() {
+			_, err := RunCli("app", "wait", Name(), "--suspended")
+			errors.CheckError(err)
+		})
+}
