@@ -406,6 +406,13 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#github-app-repositories" class="md-nav__link">
+    GitHub App repositories
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1727,6 +1734,13 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#github-app-repositories" class="md-nav__link">
+    GitHub App repositories
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1993,7 +2007,7 @@ adapt your repository URL to be suffixed with <code>.git</code>.</p>
 <ol>
 <li>Create secret which contains repository credentials. Consider using <a href="https://github.com/bitnami-labs/sealed-secrets">bitnami-labs/sealed-secrets</a> to store encrypted secret
 definition as a Kubernetes manifest.</li>
-<li>Register repository in the <code>argocd-cm</code> config map. Each repository must have <code>url</code> field and, depending on whether you connect using HTTPS or SSH, <code>usernameSecret</code> and <code>passwordSecret</code> (for HTTPS) or <code>sshPrivateKeySecret</code> (for SSH).</li>
+<li>Register repository in the <code>argocd-cm</code> config map. Each repository must have <code>url</code> field and, depending on whether you connect using HTTPS, SSH, or GitHub App, <code>usernameSecret</code> and <code>passwordSecret</code> (for HTTPS), <code>sshPrivateKeySecret</code> (for SSH), <code>githubAppPrivateKeySecret</code> (for GitHub App).</li>
 </ol>
 <p>Example for HTTPS:</p>
 <div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
@@ -2032,6 +2046,36 @@ definition as a Kubernetes manifest.</li>
         <span class="no">key: sshPrivateKey</span>
 </code></pre></div>
 
+<blockquote>
+<p>v1.9 or later</p>
+</blockquote>
+<p>Example for GitHub App:</p>
+<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
+  <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
+  <span class="nt">labels</span><span class="p">:</span>
+    <span class="nt">app.kubernetes.io/name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
+    <span class="nt">app.kubernetes.io/part-of</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
+<span class="nt">data</span><span class="p">:</span>
+  <span class="nt">repositories</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+    <span class="no">- url: https://github.com/argoproj/my-private-repository</span>
+      <span class="no">githubAppID: 1</span>
+      <span class="no">githubAppInstallationID: 2</span>
+      <span class="no">githubAppPrivateKeySecret:</span>
+        <span class="no">name: my-secret</span>
+        <span class="no">key: githubAppPrivateKey</span>
+
+    <span class="no">- url: https://ghe.example.com/argoproj/my-private-repository</span>
+      <span class="no">githubAppID: 1</span>
+      <span class="no">githubAppInstallationID: 2</span>
+      <span class="no">githubAppEnterpriseBaseUrl: https://ghe.example.com/api/v3</span>
+      <span class="no">githubAppPrivateKeySecret:</span>
+        <span class="no">name: my-secret</span>
+        <span class="no">key: githubAppPrivateKey</span>
+</code></pre></div>
+
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
 <p>The Kubernetes documentation has <a href="https://kubernetes.io/docs/concepts/configuration/secret/#use-case-pod-with-ssh-keys">instructions for creating a secret containing a private key</a>.</p>
@@ -2065,6 +2109,19 @@ definition as a Kubernetes manifest.</li>
       <span class="no">sshPrivateKeySecret:</span>
         <span class="no">name: my-secret</span>
         <span class="no">key: sshPrivateKey</span>
+    <span class="no">- url: https://github.com/argoproj</span>
+      <span class="no">githubAppID: 1</span>
+      <span class="no">githubAppInstallationID: 2</span>
+      <span class="no">githubAppPrivateKeySecret:</span>
+        <span class="no">name: my-secret</span>
+        <span class="no">key: githubAppPrivateKey</span>
+    <span class="no">- url: https://ghe.example.com/argoproj</span>
+      <span class="no">githubAppID: 1</span>
+      <span class="no">githubAppInstallationID: 2</span>
+      <span class="no">githubAppEnterpriseBaseUrl: https://ghe.example.com/api/v3</span>
+      <span class="no">githubAppPrivateKeySecret:</span>
+        <span class="no">name: my-secret</span>
+        <span class="no">key: githubAppPrivateKey</span>
 </code></pre></div>
 
 <p>Argo CD will only use the credentials if you omit <code>usernameSecret</code>, <code>passwordSecret</code>, and <code>sshPrivateKeySecret</code> fields (<code>insecureIgnoreHostKey</code> is ignored) or if your repository is not listed in <code>repositories</code>.</p>
@@ -2167,6 +2224,14 @@ definition as a Kubernetes manifest.</li>
 <ul>
 <li><code>usernameSecret</code> and <code>passwordSecret</code> refer to secrets where username and/or password are stored for accessing the repositories</li>
 <li><code>tlsClientCertData</code> and <code>tlsClientCertKey</code> refer to secrets where a TLS client certificate (<code>tlsClientCertData</code>) and the corresponding private key <code>tlsClientCertKey</code> are stored for accessing the repositories</li>
+</ul>
+<h4 id="github-app-repositories">GitHub App repositories<a class="headerlink" href="#github-app-repositories" title="Permanent link">&para;</a></h4>
+<ul>
+<li><code>githubAppPrivateKeySecret</code> refers to the secret where the GitHub App private key is stored for accessing the repositories</li>
+<li><code>githubAppID</code> refers to the GitHub Application ID for the application you created.</li>
+<li><code>githubAppInstallationID</code> refers to the Installation ID of the GitHub app you created and installed.</li>
+<li><code>githubAppEnterpriseBaseUrl</code> refers to the base api URL for GitHub Enterprise (e.g. <code>https://ghe.example.com/api/v3</code>)</li>
+<li><code>tlsClientCertData</code> and <code>tlsClientCertKey</code> refer to secrets where a TLS client certificate (<code>tlsClientCertData</code>) and the corresponding private key <code>tlsClientCertKey</code> are stored for accessing GitHub Enterprise if custom certificates are used.</li>
 </ul>
 <h3 id="repositories-using-self-signed-tls-certificates-or-are-signed-by-custom-ca">Repositories using self-signed TLS certificates (or are signed by custom CA)<a class="headerlink" href="#repositories-using-self-signed-tls-certificates-or-are-signed-by-custom-ca" title="Permanent link">&para;</a></h3>
 <blockquote>

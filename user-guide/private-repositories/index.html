@@ -1051,6 +1051,13 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#github-app-credential" class="md-nav__link">
+    GitHub App Credential
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1718,6 +1725,13 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#github-app-credential" class="md-nav__link">
+    GitHub App Credential
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1940,6 +1954,40 @@ adapt your repository URL to be suffixed with <code>.git</code>.</p>
 <div class="codehilite"><pre><span></span><code><span class="n">argocd</span><span class="w"> </span><span class="n">repo</span><span class="w"> </span><span class="k">add</span><span class="w"> </span><span class="n">git</span><span class="nv">@github</span><span class="p">.</span><span class="nl">com</span><span class="p">:</span><span class="n">argoproj</span><span class="o">/</span><span class="n">argocd</span><span class="o">-</span><span class="n">example</span><span class="o">-</span><span class="n">apps</span><span class="p">.</span><span class="n">git</span><span class="w"> </span><span class="c1">--ssh-private-key-path ~/.ssh/id_rsa</span>
 </code></pre></div>
 
+<h3 id="github-app-credential">GitHub App Credential<a class="headerlink" href="#github-app-credential" title="Permanent link">&para;</a></h3>
+<p>Private repositories that are hosted on GitHub.com or GitHub Enterprise can be accessed using credentials from a GitHub Application. Consult the <a href="https://docs.github.com/en/developers/apps/about-apps#about-github-apps">GitHub documentation</a> on how to create an application.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Ensure your application has at least <code>Read-only</code> permissions to the <code>Contents</code> of the repository. This is the minimum requirement.</p>
+</div>
+<blockquote>
+<p>previous to v1.9</p>
+</blockquote>
+<p>GitHub App credentials are not supported.</p>
+<blockquote>
+<p>v1.9 or later</p>
+</blockquote>
+<p>You can configure access to your Git repository hosted by GitHub.com or GitHub Enterprise using the GitHub App method by either using the CLI or the UI.</p>
+<p>Using the CLI:</p>
+<div class="codehilite"><pre><span></span><code><span class="n">argocd</span> <span class="n">repo</span> <span class="k">add</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="p">.</span><span class="n">com</span><span class="o">/</span><span class="n">argoproj</span><span class="o">/</span><span class="n">argocd</span><span class="o">-</span><span class="n">example</span><span class="o">-</span><span class="n">apps</span><span class="p">.</span><span class="n">git</span> <span class="c1">--github-app-id 1 --github-app-installation-id 2 --github-app-private-key-path test.private-key.pem</span>
+</code></pre></div>
+
+<p>Using the UI:</p>
+<ol>
+<li>Navigate to <code>Settings/Repositories</code></li>
+</ol>
+<p><img alt="connect repo overview" src="../../assets/repo-add-overview.png" /></p>
+<ol>
+<li>Click <code>Connect Repo using GitHub App</code> button, enter the URL, App Id, Installation Id, and the app's private key.</li>
+</ol>
+<p><img alt="connect repo" src="../../assets/repo-add-github-app.png" /></p>
+<ol>
+<li>Click <code>Connect</code> to test the connection and have the repository added</li>
+</ol>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>When pasting GitHub App private key in the UI, make sure there are no unintended line breaks or additional characters in the text area</p>
+</div>
 <h2 id="credential-templates">Credential templates<a class="headerlink" href="#credential-templates" title="Permanent link">&para;</a></h2>
 <blockquote>
 <p>previous to v1.4</p>
