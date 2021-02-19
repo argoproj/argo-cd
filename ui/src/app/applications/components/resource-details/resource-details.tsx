@@ -17,6 +17,7 @@ import './new-tabs.scss';
 import './resource-details.scss';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
+import {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
 const jsonMergePatch = require('json-merge-patch');
 
 interface ResourceDetailsProps {
@@ -123,7 +124,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                         namespace={podState.metadata.namespace}
                                         applicationName={application.metadata.name}
                                         containerName={AppUtils.getContainerName(podState, selectedNodeInfo.container)}
-                                        page={{number: page, untilTimes: untilTimes}}
+                                        page={{number: page, untilTimes}}
                                         setPage={pageData => appContext.navigation.goto('.', {page: pageData.number, untilTimes: pageData.untilTimes.join(',')})}
                                     />
                                 </div>
@@ -192,9 +193,9 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                         <span style={{marginRight: '5px'}}>
                                             <AppUtils.ComparisonStatusIcon status={data.controlledState.summary.status} resource={data.controlledState.summary} />
                                         </span>
-                                        {data.controlledState.summary.health !== undefined && <AppUtils.HealthStatusIcon state={data.controlledState.summary.health} />}
                                     </React.Fragment>
                                 )}
+                                {(selectedNode as ResourceTreeNode).health && <AppUtils.HealthStatusIcon state={(selectedNode as ResourceTreeNode).health} />}
                                 <button
                                     onClick={() => appContext.navigation.goto('.', {deploy: AppUtils.nodeKey(selectedNode)})}
                                     style={{marginLeft: 'auto', marginRight: '5px'}}
