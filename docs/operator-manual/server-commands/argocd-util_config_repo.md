@@ -36,19 +36,23 @@ argocd-util config repo REPOURL [flags]
 ### Options
 
 ```
-      --enable-lfs                          enable git-lfs (Large File Support) on this repository
-      --enable-oci                          enable helm-oci (Helm OCI-Based Repository)
-  -h, --help                                help for repo
-      --insecure-ignore-host-key            disables SSH strict host key checking (deprecated, use --insecure-skip-server-verification instead)
-      --insecure-skip-server-verification   disables server certificate and host key checks
-      --name string                         name of the repository, mandatory for repositories of type helm
-  -o, --output string                       Output format. One of: json|yaml (default "yaml")
-      --password string                     password to the repository
-      --ssh-private-key-path string         path to the private ssh key (e.g. ~/.ssh/id_rsa)
-      --tls-client-cert-key-path string     path to the TLS client cert's key path (must be PEM format)
-      --tls-client-cert-path string         path to the TLS client cert (must be PEM format)
-      --type string                         type of the repository, "git" or "helm" (default "git")
-      --username string                     username to the repository
+      --enable-lfs                              enable git-lfs (Large File Support) on this repository
+      --enable-oci                              enable helm-oci (Helm OCI-Based Repository)
+      --github-app-enterprise-base-url string   base url to use when using GitHub Enterprise (e.g. https://ghe.example.com/api/v3
+      --github-app-id int                       id of the GitHub Application
+      --github-app-installation-id int          installation id of the GitHub Application
+      --github-app-private-key-path string      private key of the GitHub Application
+  -h, --help                                    help for repo
+      --insecure-ignore-host-key                disables SSH strict host key checking (deprecated, use --insecure-skip-server-verification instead)
+      --insecure-skip-server-verification       disables server certificate and host key checks
+      --name string                             name of the repository, mandatory for repositories of type helm
+  -o, --output string                           Output format. One of: json|yaml (default "yaml")
+      --password string                         password to the repository
+      --ssh-private-key-path string             path to the private ssh key (e.g. ~/.ssh/id_rsa)
+      --tls-client-cert-key-path string         path to the TLS client cert's key path (must be PEM format)
+      --tls-client-cert-path string             path to the TLS client cert (must be PEM format)
+      --type string                             type of the repository, "git" or "helm" (default "git")
+      --username string                         username to the repository
 ```
 
 ### SEE ALSO

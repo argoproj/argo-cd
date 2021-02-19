@@ -737,6 +737,18 @@ message RepoCreds {
 
   // TLS client cert key for authenticating at the repo server
   optional string tlsClientCertKey = 6;
+
+  // Github App Private Key PEM data
+  optional string githubAppPrivateKey = 7;
+
+  // Github App ID of the app used to access the repo
+  optional int64 githubAppID = 8;
+
+  // Github App Installation ID of the installed GitHub App
+  optional int64 githubAppInstallationID = 9;
+
+  // Github App Enterprise base url if empty will default to https://api.github.com
+  optional string githubAppEnterpriseBaseUrl = 10;
 }
 
 // RepositoryList is a collection of Repositories.
@@ -791,6 +803,18 @@ message Repository {
 
   // Whether helm-oci support should be enabled for this repo
   optional bool enableOCI = 14;
+
+  // Github App Private Key PEM data
+  optional string githubAppPrivateKey = 15;
+
+  // Github App ID of the app used to access the repo
+  optional int64 githubAppID = 16;
+
+  // Github App Installation ID of the installed GitHub App
+  optional int64 githubAppInstallationID = 17;
+
+  // Github App Enterprise base url if empty will default to https://api.github.com
+  optional string githubAppEnterpriseBaseUrl = 18;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate

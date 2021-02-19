@@ -131,16 +131,16 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds) *http.Client 
 		var err error
 		cert := tls.Certificate{}
 
-		// If we aren't called with HTTPSCreds, then we just return an empty cert
-		httpsCreds, ok := creds.(HTTPSCreds)
+		// If we aren't called with GenericHTTPSCreds, then we just return an empty cert
+		httpsCreds, ok := creds.(GenericHTTPSCreds)
 		if !ok {
 			return &cert, nil
 		}
 
 		// If the creds contain client certificate data, we return a TLS.Certificate
 		// populated with the cert and its key.
-		if httpsCreds.clientCertData != "" && httpsCreds.clientCertKey != "" {
-			cert, err = tls.X509KeyPair([]byte(httpsCreds.clientCertData), []byte(httpsCreds.clientCertKey))
+		if httpsCreds.HasClientCert() {
+			cert, err = tls.X509KeyPair([]byte(httpsCreds.GetClientCertData()), []byte(httpsCreds.GetClientCertKey()))
 			if err != nil {
 				log.Errorf("Could not load Client Certificate: %v", err)
 				return &cert, nil
@@ -217,6 +217,13 @@ func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
 		return auth, nil
 	case HTTPSCreds:
 		auth := githttp.BasicAuth{Username: creds.username, Password: creds.password}
+		return &auth, nil
+	case GitHubAppCreds:
+		token, err := creds.getAccessToken()
+		if err != nil {
+			return nil, err
+		}
+		auth := githttp.BasicAuth{Username: "x-access-token", Password: token}
 		return &auth, nil
 	}
 	return nil, nil

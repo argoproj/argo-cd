@@ -62,7 +62,13 @@ API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application
 API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,JWTToken,IssuedAt
 API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,KustomizeOptions,BinaryPath
 API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,KustomizeOptions,BuildOptions
+API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,RepoCreds,GitHubAppEnterpriseBaseURL
+API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,RepoCreds,GithubAppId
+API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,RepoCreds,GithubAppInstallationId
 API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,Repository,EnableLFS
+API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,Repository,GitHubAppEnterpriseBaseURL
+API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,Repository,GithubAppId
+API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,Repository,GithubAppInstallationId
 API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ResourceActionDefinition,ActionLua
 API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ResourceActions,ActionDiscoveryLua
 API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ResourceOverride,Actions

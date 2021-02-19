@@ -2686,6 +2686,34 @@ func schema_pkg_apis_application_v1alpha1_RepoCreds(ref common.ReferenceCallback
 							Format:      "",
 						},
 					},
+					"githubAppPrivateKey": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Github App Private Key PEM data",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"githubAppID": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Github App ID of the app used to access the repo",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"githubAppInstallationID": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Github App Installation ID of the installed GitHub App",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"githubAppEnterpriseBaseUrl": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Github App Enterprise base url if empty will default to https://api.github.com",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"url"},
 			},
@@ -2831,6 +2859,34 @@ func schema_pkg_apis_application_v1alpha1_Repository(ref common.ReferenceCallbac
 						SchemaProps: spec.SchemaProps{
 							Description: "Whether helm-oci support should be enabled for this repo",
 							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"githubAppPrivateKey": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Github App Private Key PEM data",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"githubAppID": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Github App ID of the app used to access the repo",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"githubAppInstallationID": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Github App Installation ID of the installed GitHub App",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"githubAppEnterpriseBaseUrl": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Github App Enterprise base url if empty will default to https://api.github.com",
+							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
