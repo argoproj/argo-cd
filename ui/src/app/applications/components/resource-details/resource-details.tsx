@@ -1,23 +1,23 @@
-import {Application, ApplicationTree, AppSourceType, Event, RepoAppDetails, ResourceNode, State} from '../../../shared/models';
-import * as React from 'react';
-import {services} from '../../../shared/services';
-import * as AppUtils from '../utils';
 import {DataLoader, Tab, Tabs} from 'argo-ui';
-import {ApplicationSummary} from '../application-summary/application-summary';
-import {ApplicationParameters} from '../application-parameters/application-parameters';
+import * as React from 'react';
 import {EventsList, YamlEditor} from '../../../shared/components';
-import {ApplicationResourcesDiff} from '../application-resources-diff/application-resources-diff';
-import {ApplicationResourceEvents} from '../application-resource-events/application-resource-events';
 import {Context} from '../../../shared/context';
-import {PodsLogsViewer} from '../pod-logs-viewer/pod-logs-viewer';
-import {ApplicationNodeInfo} from '../application-node-info/application-node-info';
+import {Application, ApplicationTree, AppSourceType, Event, RepoAppDetails, ResourceNode, State} from '../../../shared/models';
+import {services} from '../../../shared/services';
 import {NodeInfo, SelectNode} from '../application-details/application-details';
-
-import './new-tabs.scss';
-import './resource-details.scss';
+import {ApplicationNodeInfo} from '../application-node-info/application-node-info';
+import {ApplicationParameters} from '../application-parameters/application-parameters';
+import {ApplicationResourceEvents} from '../application-resource-events/application-resource-events';
+import {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
+import {ApplicationResourcesDiff} from '../application-resources-diff/application-resources-diff';
+import {ApplicationSummary} from '../application-summary/application-summary';
+import {PodsLogsViewer} from '../pod-logs-viewer/pod-logs-viewer';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
-import {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
+import * as AppUtils from '../utils';
+import './new-tabs.scss';
+import './resource-details.scss';
+
 const jsonMergePatch = require('json-merge-patch');
 
 interface ResourceDetailsProps {
