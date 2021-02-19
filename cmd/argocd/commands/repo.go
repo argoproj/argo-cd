@@ -46,10 +46,10 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 
 	// For better readability and easier formatting
 	var repoAddExamples = `  # Add a Git repository via SSH using a private key for authentication, ignoring the server's host key:
-	argocd repo add git@git.example.com:repos/repo --insecure-ignore-host-key --ssh-private-key-path ~/id_rsa
+  argocd repo add git@git.example.com:repos/repo --insecure-ignore-host-key --ssh-private-key-path ~/id_rsa
 
-	# Add a Git repository via SSH on a non-default port - need to use ssh:// style URLs here
-	argocd repo add ssh://git@git.example.com:2222/repos/repo --ssh-private-key-path ~/id_rsa
+  # Add a Git repository via SSH on a non-default port - need to use ssh:// style URLs here
+  argocd repo add ssh://git@git.example.com:2222/repos/repo --ssh-private-key-path ~/id_rsa
 
   # Add a private Git repository via HTTPS using username/password and TLS client certificates:
   argocd repo add https://git.example.com/repos/repo --username git --password secret --tls-client-cert-path ~/mycert.crt --tls-client-cert-key-path ~/mycert.key
@@ -65,6 +65,12 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 
   # Add a private Helm OCI-based repository named 'stable' via HTTPS
   argocd repo add helm-oci-registry.cn-zhangjiakou.cr.aliyuncs.com --type helm --name stable --enable-oci --username test --password test
+
+  # Add a private Git repository on GitHub.com via GitHub App
+  argocd repo add https://git.example.com/repos/repo --github-app-id 1 --github-app-installation-id 2 --github-app-private-key-path test.private-key.pem
+
+  # Add a private Git repository on GitHub Enterprise via GitHub App
+  argocd repo add https://ghe.example.com/repos/repo --github-app-id 1 --github-app-installation-id 2 --github-app-private-key-path test.private-key.pem --github-app-enterprise-base-url https://ghe.example.com/api/v3
 `
 
 	var command = &cobra.Command{
@@ -116,6 +122,18 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				}
 			}
 
+			// Specifying github-app-private-key-path is only valid for HTTPS repositories
+			if repoOpts.GithubAppPrivateKeyPath != "" {
+				if git.IsHTTPSURL(repoOpts.Repo.Repo) {
+					githubAppPrivateKey, err := ioutil.ReadFile(repoOpts.GithubAppPrivateKeyPath)
+					errors.CheckError(err)
+					repoOpts.Repo.GithubAppPrivateKey = string(githubAppPrivateKey)
+				} else {
+					err := fmt.Errorf("--github-app-private-key-path is only supported for HTTPS repositories")
+					errors.CheckError(err)
+				}
+			}
+
 			// Set repository connection properties only when creating repository, not
 			// when creating repository credentials.
 			// InsecureIgnoreHostKey is deprecated and only here for backwards compat
@@ -123,6 +141,9 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			repoOpts.Repo.Insecure = repoOpts.InsecureSkipServerVerification
 			repoOpts.Repo.EnableLFS = repoOpts.EnableLfs
 			repoOpts.Repo.EnableOCI = repoOpts.EnableOci
+			repoOpts.Repo.GithubAppId = repoOpts.GithubAppId
+			repoOpts.Repo.GithubAppInstallationId = repoOpts.GithubAppInstallationId
+			repoOpts.Repo.GitHubAppEnterpriseBaseURL = repoOpts.GitHubAppEnterpriseBaseURL
 
 			if repoOpts.Repo.Type == "helm" && repoOpts.Repo.Name == "" {
 				errors.CheckError(fmt.Errorf("Must specify --name for repos of type 'helm'"))
@@ -145,16 +166,20 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			// are high that we do not have the given URL pointing to a valid Git
 			// repo anyway.
 			repoAccessReq := repositorypkg.RepoAccessQuery{
-				Repo:              repoOpts.Repo.Repo,
-				Type:              repoOpts.Repo.Type,
-				Name:              repoOpts.Repo.Name,
-				Username:          repoOpts.Repo.Username,
-				Password:          repoOpts.Repo.Password,
-				SshPrivateKey:     repoOpts.Repo.SSHPrivateKey,
-				TlsClientCertData: repoOpts.Repo.TLSClientCertData,
-				TlsClientCertKey:  repoOpts.Repo.TLSClientCertKey,
-				Insecure:          repoOpts.Repo.IsInsecure(),
-				EnableOci:         repoOpts.Repo.EnableOCI,
+				Repo:                       repoOpts.Repo.Repo,
+				Type:                       repoOpts.Repo.Type,
+				Name:                       repoOpts.Repo.Name,
+				Username:                   repoOpts.Repo.Username,
+				Password:                   repoOpts.Repo.Password,
+				SshPrivateKey:              repoOpts.Repo.SSHPrivateKey,
+				TlsClientCertData:          repoOpts.Repo.TLSClientCertData,
+				TlsClientCertKey:           repoOpts.Repo.TLSClientCertKey,
+				Insecure:                   repoOpts.Repo.IsInsecure(),
+				EnableOci:                  repoOpts.Repo.EnableOCI,
+				GithubAppPrivateKey:        repoOpts.Repo.GithubAppPrivateKey,
+				GithubAppID:                repoOpts.Repo.GithubAppId,
+				GithubAppInstallationID:    repoOpts.Repo.GithubAppInstallationId,
+				GithubAppEnterpriseBaseUrl: repoOpts.Repo.GitHubAppEnterpriseBaseURL,
 			}
 			_, err := repoIf.ValidateAccess(context.Background(), &repoAccessReq)
 			errors.CheckError(err)

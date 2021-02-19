@@ -77,6 +77,8 @@ const (
 	RevisionHistoryLimit = 10
 	// ChangePasswordSSOTokenMaxAge is the max token age for password change operation
 	ChangePasswordSSOTokenMaxAge = time.Minute * 5
+	// GithubAppCredsExpirationDuration is the default time used to cache the GitHub app credentials
+	GithubAppCredsExpirationDuration = time.Minute * 60
 )
 
 // Dex related constants
@@ -184,6 +186,8 @@ const (
 	EnvControllerShard = "ARGOCD_CONTROLLER_SHARD"
 	// EnvEnableGRPCTimeHistogramEnv enables gRPC metrics collection
 	EnvEnableGRPCTimeHistogramEnv = "ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM"
+	// EnvGithubAppCredsExpirationDuration controls the caching of Github app credentials. This value is in minutes (default: 60)
+	EnvGithubAppCredsExpirationDuration = "ARGOCD_GITHUB_APP_CREDS_EXPIRATION_DURATION"
 )
 
 const (
