@@ -1,0 +1,20 @@
+@import 'node_modules/argo-ui/src/styles/config';
+
+.new-tabs {
+    &__menu {
+        display: flex;
+        margin-bottom: 2em;
+        border-bottom: 1px solid $argo-color-gray-3;
+        &__item {
+            font-size: 14px;
+            color: $argo-color-gray-7;
+            font-weight: 500;
+            padding: 10px 25px;
+            &--selected {
+                color: $argo-color-gray-8;
+                font-weight: 600;
+                border-bottom: 2px solid $argo-color-teal-6;
+            }
+        }
+    }
+}

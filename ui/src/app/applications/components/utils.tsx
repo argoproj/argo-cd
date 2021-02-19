@@ -164,6 +164,52 @@ export function findChildPod(node: appModels.ResourceNode, tree: appModels.Appli
     });
 }
 
+export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, application: appModels.Application, appChanged?: BehaviorSubject<appModels.Application>) => {
+    const isManaged = !!resource.status;
+    return ctx.popup.prompt(
+        'Delete resource',
+        api => (
+            <div>
+                <p>
+                    Are you sure you want to delete {resource.kind} '{resource.name}'?
+                </p>
+                {isManaged ? (
+                    <div className='argo-form-row'>
+                        <FormField label={`Please type '${resource.name}' to confirm the deletion of the resource`} formApi={api} field='resourceName' component={Text} />
+                    </div>
+                ) : (
+                    ''
+                )}
+                <div className='argo-form-row'>
+                    <Checkbox id='force-delete-checkbox' field='force' /> <label htmlFor='force-delete-checkbox'>Force delete</label>
+                </div>
+            </div>
+        ),
+        {
+            validate: vals =>
+                isManaged && {
+                    resourceName: vals.resourceName !== resource.name && 'Enter the resource name to confirm the deletion'
+                },
+            submit: async (vals, _, close) => {
+                try {
+                    await services.applications.deleteResource(application.metadata.name, resource, !!vals.force);
+                    if (appChanged) {
+                        appChanged.next(await services.applications.get(application.metadata.name));
+                    }
+                    close();
+                } catch (e) {
+                    ctx.notifications.show({
+                        content: <ErrorNotification title='Unable to delete resource' e={e} />,
+                        type: NotificationType.Error
+                    });
+                }
+            }
+        },
+        {name: 'argo-icon-warning', color: 'warning'},
+        'yellow'
+    );
+};
+
 export function renderResourceMenu(
     resource: ResourceTreeNode,
     application: appModels.Application,
@@ -177,7 +223,6 @@ export function renderResourceMenu(
         menuItems = Observable.from([getApplicationActionMenu()]);
     } else {
         const isRoot = resource.root && nodeKey(resource.root) === nodeKey(resource);
-        const isManaged = !!resource.status;
         const items: MenuItem[] = [
             ...((isRoot && [
                 {
@@ -189,51 +234,7 @@ export function renderResourceMenu(
             {
                 title: 'Delete',
                 action: async () => {
-                    appContext.apis.popup.prompt(
-                        'Delete resource',
-                        api => (
-                            <div>
-                                <p>
-                                    Are you sure you want to delete {resource.kind} '{resource.name}'?
-                                </p>
-                                {isManaged ? (
-                                    <div className='argo-form-row'>
-                                        <FormField
-                                            label={`Please type '${resource.name}' to confirm the deletion of the resource`}
-                                            formApi={api}
-                                            field='resourceName'
-                                            component={Text}
-                                        />
-                                    </div>
-                                ) : (
-                                    ''
-                                )}
-                                <div className='argo-form-row'>
-                                    <Checkbox id='force-delete-checkbox' field='force' /> <label htmlFor='force-delete-checkbox'>Force delete</label>
-                                </div>
-                            </div>
-                        ),
-                        {
-                            validate: vals =>
-                                isManaged && {
-                                    resourceName: vals.resourceName !== resource.name && 'Enter the resource name to confirm the deletion'
-                                },
-                            submit: async (vals, _, close) => {
-                                try {
-                                    await services.applications.deleteResource(application.metadata.name, resource, !!vals.force);
-                                    appChanged.next(await services.applications.get(application.metadata.name));
-                                    close();
-                                } catch (e) {
-                                    appContext.apis.notifications.show({
-                                        content: <ErrorNotification title='Unable to delete resource' e={e} />,
-                                        type: NotificationType.Error
-                                    });
-                                }
-                            }
-                        },
-                        {name: 'argo-icon-warning', color: 'warning'},
-                        'yellow'
-                    );
+                    return deletePopup(appContext.apis, resource, application, appChanged);
                 }
             }
         ];

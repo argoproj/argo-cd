@@ -13,6 +13,10 @@ import {PodsLogsViewer} from '../pod-logs-viewer/pod-logs-viewer';
 import {ApplicationNodeInfo} from '../application-node-info/application-node-info';
 import {NodeInfo, SelectNode} from '../application-details/application-details';
 
+import './new-tabs.scss';
+import './resource-details.scss';
+import {ResourceIcon} from '../resource-icon';
+import {ResourceLabel} from '../resource-label';
 const jsonMergePatch = require('json-merge-patch');
 
 interface ResourceDetailsProps {
@@ -23,6 +27,31 @@ interface ResourceDetailsProps {
     tree: ApplicationTree;
 }
 
+export const NewTabs = (props: {tabs: Tab[]; selectedTabKey?: string; onTabSelected?: (tabKey: string) => any}) => {
+    const {tabs, selectedTabKey, onTabSelected} = {...props};
+    const [selected, setSelected] = React.useState(selectedTabKey);
+    const selectedTab = tabs.find(tab => (!selected && tabs.length > 0 ? tabs[0].key : selected) === tab.key) || tabs[0];
+
+    const menuItem = (tab: Tab) => (
+        <a
+            className={`new-tabs__menu__item ${selectedTab.key === tab.key ? 'new-tabs__menu__item--selected' : ''}`}
+            onClick={() => {
+                setSelected(tab.key);
+                onTabSelected(tab.key);
+            }}>
+            {tab.icon && <i className={tab.icon} style={{marginRight: '5px'}} />}
+            {tab.title}
+        </a>
+    );
+
+    return (
+        <div className='new-tabs'>
+            <div className='new-tabs__menu'>{tabs.map(tab => menuItem(tab))}</div>
+            {selectedTab && selectedTab.content}
+        </div>
+    );
+};
+
 export const ResourceDetails = (props: ResourceDetailsProps) => {
     const {selectedNode, updateApp, application, isAppSelected, tree} = {...props};
     const appContext = React.useContext(Context);
@@ -30,11 +59,12 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
     const selectedNodeInfo = NodeInfo(new URLSearchParams(appContext.history.location.search).get('node'));
     const selectedNodeKey = selectedNodeInfo.key;
 
-    const getResourceTabs = (application: Application, node: ResourceNode, state: State, podState: State, events: Event[], tabs: Tab[]) => {
+    const getResourceTabs = (node: ResourceNode, state: State, podState: State, events: Event[], tabs: Tab[]) => {
         if (state) {
             const numErrors = events.filter(event => event.type !== 'Normal').reduce((total, event) => total + event.count, 0);
             tabs.push({
                 title: 'EVENTS',
+                icon: 'fa fa-calendar-alt',
                 badge: (numErrors > 0 && numErrors) || null,
                 key: 'events',
                 content: (
@@ -60,6 +90,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
             tabs = tabs.concat([
                 {
                     key: 'logs',
+                    icon: 'fa fa-align-left',
                     title: 'LOGS',
                     content: (
                         <div className='application-details__tab-content-full-height'>
@@ -144,18 +175,44 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         return {controlledState, liveState, events, podState};
                     }}>
                     {data => (
-                        <Tabs
-                            navTransparent={true}
-                            tabs={getResourceTabs(application, selectedNode, data.liveState, data.podState, data.events, [
-                                {
-                                    title: 'SUMMARY',
-                                    key: 'summary',
-                                    content: <ApplicationNodeInfo application={application} live={data.liveState} controlled={data.controlledState} node={selectedNode} />
-                                }
-                            ])}
-                            selectedTabKey={tab}
-                            onTabSelected={selected => appContext.navigation.goto('.', {tab: selected})}
-                        />
+                        <React.Fragment>
+                            <div className='resource-details__header'>
+                                <div style={{display: 'flex', flexDirection: 'column', marginRight: '15px', alignItems: 'center', fontSize: '12px'}}>
+                                    <ResourceIcon kind={selectedNode.kind} />
+                                    {ResourceLabel({kind: selectedNode.kind})}
+                                </div>
+                                <h1>{selectedNode.name}</h1>
+                                {data.controlledState && (
+                                    <React.Fragment>
+                                        <span style={{marginRight: '5px'}}>
+                                            <AppUtils.ComparisonStatusIcon status={data.controlledState.summary.status} resource={data.controlledState.summary} />
+                                        </span>
+                                        {data.controlledState.summary.health !== undefined && <AppUtils.HealthStatusIcon state={data.controlledState.summary.health} />}
+                                    </React.Fragment>
+                                )}
+                                <button
+                                    onClick={() => appContext.navigation.goto('.', {deploy: AppUtils.nodeKey(selectedNode)})}
+                                    style={{marginLeft: 'auto', marginRight: '5px'}}
+                                    className='argo-button argo-button--base'>
+                                    <i className='fa fa-sync-alt' /> SYNC
+                                </button>
+                                <button onClick={() => AppUtils.deletePopup(appContext, selectedNode, application)} className='argo-button argo-button--base'>
+                                    <i className='fa fa-trash' /> DELETE
+                                </button>
+                            </div>
+                            <NewTabs
+                                tabs={getResourceTabs(application, selectedNode, data.liveState, data.podState, data.events, [
+                                    {
+                                        title: 'SUMMARY',
+                                        icon: 'fa fa-file-alt',
+                                        key: 'summary',
+                                        content: <ApplicationNodeInfo application={application} live={data.liveState} controlled={data.controlledState} node={selectedNode} />
+                                    }
+                                ])}
+                                selectedTabKey={tab}
+                                onTabSelected={selected => appContext.navigation.goto('.', {tab: selected})}
+                            />
+                        </React.Fragment>
                     )}
                 </DataLoader>
             )}
