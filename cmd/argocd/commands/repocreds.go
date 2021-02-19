@@ -39,11 +39,12 @@ func NewRepoCredsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 // NewRepoCredsAddCommand returns a new instance of an `argocd repocreds add` command
 func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		repo                 appsv1.RepoCreds
-		upsert               bool
-		sshPrivateKeyPath    string
-		tlsClientCertPath    string
-		tlsClientCertKeyPath string
+		repo                    appsv1.RepoCreds
+		upsert                  bool
+		sshPrivateKeyPath       string
+		tlsClientCertPath       string
+		tlsClientCertKeyPath    string
+		githubAppPrivateKeyPath string
 	)
 
 	// For better readability and easier formatting
@@ -52,6 +53,12 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 
   # Add credentials with SSH private key authentication to use for all repositories under ssh://git@git.example.com/repos
   argocd repocreds add ssh://git@git.example.com/repos/ --ssh-private-key-path ~/.ssh/id_rsa
+
+  # Add credentials with GitHub App authentication to use for all repositories under https://github.com/repos
+  argocd repocreds add https://github.com/repos/ --github-app-id 1 --github-app-installation-id 2 --github-app-private-key-path test.private-key.pem
+
+  # Add credentials with GitHub App authentication to use for all repositories under https://ghe.example.com/repos
+  argocd repocreds add https://ghe.example.com/repos/ --github-app-id 1 --github-app-installation-id 2 --github-app-private-key-path test.private-key.pem --github-app-enterprise-base-url https://ghe.example.com/api/v3
 `
 
 	var command = &cobra.Command{
@@ -103,6 +110,18 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 				}
 			}
 
+			// Specifying github-app-private-key-path is only valid for HTTPS repositories
+			if githubAppPrivateKeyPath != "" {
+				if git.IsHTTPSURL(repo.URL) {
+					githubAppPrivateKey, err := ioutil.ReadFile(githubAppPrivateKeyPath)
+					errors.CheckError(err)
+					repo.GithubAppPrivateKey = string(githubAppPrivateKey)
+				} else {
+					err := fmt.Errorf("--github-app-private-key-path is only supported for HTTPS repositories")
+					errors.CheckError(err)
+				}
+			}
+
 			conn, repoIf := argocdclient.NewClientOrDie(clientOpts).NewRepoCredsClientOrDie()
 			defer io.Close(conn)
 
@@ -127,6 +146,10 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 	command.Flags().StringVar(&sshPrivateKeyPath, "ssh-private-key-path", "", "path to the private ssh key (e.g. ~/.ssh/id_rsa)")
 	command.Flags().StringVar(&tlsClientCertPath, "tls-client-cert-path", "", "path to the TLS client cert (must be PEM format)")
 	command.Flags().StringVar(&tlsClientCertKeyPath, "tls-client-cert-key-path", "", "path to the TLS client cert's key path (must be PEM format)")
+	command.Flags().Int64Var(&repo.GithubAppId, "github-app-id", 0, "id of the GitHub Application")
+	command.Flags().Int64Var(&repo.GithubAppInstallationId, "github-app-installation-id", 0, "installation id of the GitHub Application")
+	command.Flags().StringVar(&githubAppPrivateKeyPath, "github-app-private-key-path", "", "private key of the GitHub Application")
+	command.Flags().StringVar(&repo.GitHubAppEnterpriseBaseURL, "github-app-enterprise-base-url", "", "base url to use when using GitHub Enterprise (e.g. https://ghe.example.com/api/v3")
 	command.Flags().BoolVar(&upsert, "upsert", false, "Override an existing repository with the same name even if the spec differs")
 	return command
 }

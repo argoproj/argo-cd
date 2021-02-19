@@ -15,18 +15,28 @@ argocd repocreds add REPOURL [flags]
   # Add credentials with SSH private key authentication to use for all repositories under ssh://git@git.example.com/repos
   argocd repocreds add ssh://git@git.example.com/repos/ --ssh-private-key-path ~/.ssh/id_rsa
 
+  # Add credentials with GitHub App authentication to use for all repositories under https://github.com/repos
+  argocd repocreds add https://github.com/repos/ --github-app-id 1 --github-app-installation-id 2 --github-app-private-key-path test.private-key.pem
+
+  # Add credentials with GitHub App authentication to use for all repositories under https://ghe.example.com/repos
+  argocd repocreds add https://ghe.example.com/repos/ --github-app-id 1 --github-app-installation-id 2 --github-app-private-key-path test.private-key.pem --github-app-enterprise-base-url https://ghe.example.com/api/v3
+
 ```
 
 ### Options
 
 ```
-  -h, --help                              help for add
-      --password string                   password to the repository
-      --ssh-private-key-path string       path to the private ssh key (e.g. ~/.ssh/id_rsa)
-      --tls-client-cert-key-path string   path to the TLS client cert's key path (must be PEM format)
-      --tls-client-cert-path string       path to the TLS client cert (must be PEM format)
-      --upsert                            Override an existing repository with the same name even if the spec differs
-      --username string                   username to the repository
+      --github-app-enterprise-base-url string   base url to use when using GitHub Enterprise (e.g. https://ghe.example.com/api/v3
+      --github-app-id int                       id of the GitHub Application
+      --github-app-installation-id int          installation id of the GitHub Application
+      --github-app-private-key-path string      private key of the GitHub Application
+  -h, --help                                    help for add
+      --password string                         password to the repository
+      --ssh-private-key-path string             path to the private ssh key (e.g. ~/.ssh/id_rsa)
+      --tls-client-cert-key-path string         path to the TLS client cert's key path (must be PEM format)
+      --tls-client-cert-path string             path to the TLS client cert (must be PEM format)
+      --upsert                                  Override an existing repository with the same name even if the spec differs
+      --username string                         username to the repository
 ```
 
 ### Options inherited from parent commands

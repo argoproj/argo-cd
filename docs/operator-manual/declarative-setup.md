@@ -156,7 +156,7 @@ Repository credentials are stored in secret. Use following steps to configure a 
 
 1. Create secret which contains repository credentials. Consider using [bitnami-labs/sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) to store encrypted secret
 definition as a Kubernetes manifest.
-2. Register repository in the `argocd-cm` config map. Each repository must have `url` field and, depending on whether you connect using HTTPS or SSH, `usernameSecret` and `passwordSecret` (for HTTPS) or `sshPrivateKeySecret` (for SSH).
+2. Register repository in the `argocd-cm` config map. Each repository must have `url` field and, depending on whether you connect using HTTPS, SSH, or GitHub App, `usernameSecret` and `passwordSecret` (for HTTPS), `sshPrivateKeySecret` (for SSH), `githubAppPrivateKeySecret` (for GitHub App).
 
 Example for HTTPS:
 
@@ -199,6 +199,37 @@ data:
         key: sshPrivateKey
 ```
 
+> v1.9 or later
+
+Example for GitHub App:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  repositories: |
+    - url: https://github.com/argoproj/my-private-repository
+      githubAppID: 1
+      githubAppInstallationID: 2
+      githubAppPrivateKeySecret:
+        name: my-secret
+        key: githubAppPrivateKey
+
+    - url: https://ghe.example.com/argoproj/my-private-repository
+      githubAppID: 1
+      githubAppInstallationID: 2
+      githubAppEnterpriseBaseUrl: https://ghe.example.com/api/v3
+      githubAppPrivateKeySecret:
+        name: my-secret
+        key: githubAppPrivateKey
+```
+
 !!! tip
     The Kubernetes documentation has [instructions for creating a secret containing a private key](https://kubernetes.io/docs/concepts/configuration/secret/#use-case-pod-with-ssh-keys).
 
@@ -233,6 +264,19 @@ data:
       sshPrivateKeySecret:
         name: my-secret
         key: sshPrivateKey
+    - url: https://github.com/argoproj
+      githubAppID: 1
+      githubAppInstallationID: 2
+      githubAppPrivateKeySecret:
+        name: my-secret
+        key: githubAppPrivateKey
+    - url: https://ghe.example.com/argoproj
+      githubAppID: 1
+      githubAppInstallationID: 2
+      githubAppEnterpriseBaseUrl: https://ghe.example.com/api/v3
+      githubAppPrivateKeySecret:
+        name: my-secret
+        key: githubAppPrivateKey
 ```
 
 Argo CD will only use the credentials if you omit `usernameSecret`, `passwordSecret`, and `sshPrivateKeySecret` fields (`insecureIgnoreHostKey` is ignored) or if your repository is not listed in `repositories`.
@@ -341,6 +385,13 @@ The following keys are valid to refer to credential secrets:
 * `usernameSecret` and `passwordSecret` refer to secrets where username and/or password are stored for accessing the repositories
 * `tlsClientCertData` and `tlsClientCertKey` refer to secrets where a TLS client certificate (`tlsClientCertData`) and the corresponding private key `tlsClientCertKey` are stored for accessing the repositories
 
+#### GitHub App repositories
+
+* `githubAppPrivateKeySecret` refers to the secret where the GitHub App private key is stored for accessing the repositories
+* `githubAppID` refers to the GitHub Application ID for the application you created.
+* `githubAppInstallationID` refers to the Installation ID of the GitHub app you created and installed.
+* `githubAppEnterpriseBaseUrl` refers to the base api URL for GitHub Enterprise (e.g. `https://ghe.example.com/api/v3`)
+* `tlsClientCertData` and `tlsClientCertKey` refer to secrets where a TLS client certificate (`tlsClientCertData`) and the corresponding private key `tlsClientCertKey` are stored for accessing GitHub Enterprise if custom certificates are used.
 
 ### Repositories using self-signed TLS certificates (or are signed by custom CA)
 
