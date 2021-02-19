@@ -21,6 +21,8 @@ export interface PodLogsProps {
     group?: string;
     kind?: string;
     name?: string;
+    page: {number: number; untilTimes: string[]};
+    setPage: (pageData: {number: number; untilTimes: string[]}) => void;
 }
 
 export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => {
@@ -33,7 +35,8 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
     const [selectedLine, setSelectedLine] = useState(-1);
     const bottom = React.useRef<HTMLInputElement>(null);
     const top = React.useRef<HTMLInputElement>(null);
-    const [page, setPage] = useState<{number: number; untilTimes: string[]}>({number: 0, untilTimes: []});
+    const page = props.page;
+    const setPage = props.setPage;
     const [viewPodNames, setViewPodNames] = useState(false);
 
     interface FilterData {
