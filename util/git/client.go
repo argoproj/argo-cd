@@ -139,7 +139,7 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds) *http.Client 
 
 		// If the creds contain client certificate data, we return a TLS.Certificate
 		// populated with the cert and its key.
-		if httpsCreds.GetClientCertData() != "" && httpsCreds.GetClientCertKey() != "" {
+		if httpsCreds.HasClientCert() {
 			cert, err = tls.X509KeyPair([]byte(httpsCreds.GetClientCertData()), []byte(httpsCreds.GetClientCertKey()))
 			if err != nil {
 				log.Errorf("Could not load Client Certificate: %v", err)

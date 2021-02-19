@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -16,14 +17,25 @@ import (
 	"github.com/bradleyfalzon/ghinstallation"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/argoproj/argo-cd/common"
+
 	certutil "github.com/argoproj/argo-cd/util/cert"
 )
 
 // In memory cache for storing github APP api token credentials
-var githubAppTokenCache *gocache.Cache
+var (
+	githubAppTokenCache *gocache.Cache
+)
 
 func init() {
-	githubAppTokenCache = gocache.New(60*time.Minute, 1*time.Minute)
+	githubAppCredsExp := common.GithubAppCredsExpirationDuration
+	if exp := os.Getenv(common.EnvGithubAppCredsExpirationDuration); exp != "" {
+		if qps, err := strconv.Atoi(exp); err != nil {
+			githubAppCredsExp = time.Duration(qps) * time.Minute
+		}
+	}
+
+	githubAppTokenCache = gocache.New(githubAppCredsExp, 1*time.Minute)
 }
 
 type Creds interface {
@@ -46,7 +58,7 @@ func (c NopCreds) Environ() (io.Closer, []string, error) {
 }
 
 type GenericHTTPSCreds interface {
-	IsSecure() bool
+	HasClientCert() bool
 	GetClientCertData() string
 	GetClientCertKey() string
 	Environ() (io.Closer, []string, error)
@@ -91,7 +103,7 @@ func (c HTTPSCreds) Environ() (io.Closer, []string, error) {
 	// In case the repo is configured for using a TLS client cert, we need to make
 	// sure git client will use it. The certificate's key must not be password
 	// protected.
-	if c.clientCertData != "" && c.clientCertKey != "" {
+	if c.HasClientCert() {
 		var certFile, keyFile *os.File
 
 		// We need to actually create two temp files, one for storing cert data and
@@ -136,8 +148,8 @@ func (c HTTPSCreds) Environ() (io.Closer, []string, error) {
 	return httpCloser, env, nil
 }
 
-func (c HTTPSCreds) IsSecure() bool {
-	return c.insecure
+func (g HTTPSCreds) HasClientCert() bool {
+	return g.clientCertData != "" && g.clientCertKey != ""
 }
 
 func (c HTTPSCreds) GetClientCertData() string {
@@ -247,7 +259,7 @@ func (g GitHubAppCreds) Environ() (io.Closer, []string, error) {
 	// In case the repo is configured for using a TLS client cert, we need to make
 	// sure git client will use it. The certificate's key must not be password
 	// protected.
-	if g.clientCertData != "" && g.clientCertKey != "" {
+	if g.HasClientCert() {
 		var certFile, keyFile *os.File
 
 		// We need to actually create two temp files, one for storing cert data and
@@ -340,8 +352,8 @@ func (g GitHubAppCreds) getAccessToken() (string, error) {
 	return itr.Token(ctx)
 }
 
-func (g GitHubAppCreds) IsSecure() bool {
-	return g.insecure
+func (g GitHubAppCreds) HasClientCert() bool {
+	return g.clientCertData != "" && g.clientCertKey != ""
 }
 
 func (g GitHubAppCreds) GetClientCertData() string {
