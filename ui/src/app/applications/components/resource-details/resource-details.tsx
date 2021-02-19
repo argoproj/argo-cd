@@ -59,6 +59,9 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
     const selectedNodeInfo = NodeInfo(new URLSearchParams(appContext.history.location.search).get('node'));
     const selectedNodeKey = selectedNodeInfo.key;
 
+    const page = parseInt(new URLSearchParams(appContext.history.location.search).get('page'), 10) || 0;
+    const untilTimes = (new URLSearchParams(appContext.history.location.search).get('untilTimes') || '').split(',') || [];
+
     const getResourceTabs = (node: ResourceNode, state: State, podState: State, events: Event[], tabs: Tab[]) => {
         if (state) {
             const numErrors = events.filter(event => event.type !== 'Normal').reduce((total, event) => total + event.count, 0);
@@ -120,6 +123,8 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                         namespace={podState.metadata.namespace}
                                         applicationName={application.metadata.name}
                                         containerName={AppUtils.getContainerName(podState, selectedNodeInfo.container)}
+                                        page={{number: page, untilTimes: untilTimes}}
+                                        setPage={pageData => appContext.navigation.goto('.', {page: pageData.number, untilTimes: pageData.untilTimes.join(',')})}
                                     />
                                 </div>
                             </div>
@@ -201,7 +206,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                 </button>
                             </div>
                             <NewTabs
-                                tabs={getResourceTabs(application, selectedNode, data.liveState, data.podState, data.events, [
+                                tabs={getResourceTabs(selectedNode, data.liveState, data.podState, data.events, [
                                     {
                                         title: 'SUMMARY',
                                         icon: 'fa fa-file-alt',
