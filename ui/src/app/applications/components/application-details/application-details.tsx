@@ -67,6 +67,14 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         return parseInt(new URLSearchParams(this.props.history.location.search).get('rollback'), 10);
     }
 
+    private get page(): number {
+        return parseInt(new URLSearchParams(this.props.history.location.search).get('page'), 10) || 0;
+    }
+
+    private get untilTimes(): string[] {
+        return (new URLSearchParams(this.props.history.location.search).get('untilTimes') || '').split(',') || [];
+    }
+
     private get selectedNodeInfo() {
         return NodeInfo(new URLSearchParams(this.props.history.location.search).get('node'));
     }
