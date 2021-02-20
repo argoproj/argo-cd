@@ -546,3 +546,24 @@ func TestInitializeDefaultProject_ProjectAlreadyInitialized(t *testing.T) {
 
 	assert.Equal(t, proj.Spec, existingDefaultProject.Spec)
 }
+
+func TestFileExists(t *testing.T) {
+	t.Run("File exists and path is within dir", func(t *testing.T) {
+		exists := fileExists(".", "server.go")
+		assert.True(t, exists)
+		exists = fileExists(".", "account/account.go")
+		assert.True(t, exists)
+	})
+	t.Run("File does not exist", func(t *testing.T) {
+		exists := fileExists(".", "notexist.go")
+		assert.False(t, exists)
+	})
+	t.Run("Dir does not exist", func(t *testing.T) {
+		exists := fileExists("/notexisting", "server.go")
+		assert.False(t, exists)
+	})
+	t.Run("File outside of dir", func(t *testing.T) {
+		exists := fileExists(".", "../reposerver/server.go")
+		assert.False(t, exists)
+	})
+}
