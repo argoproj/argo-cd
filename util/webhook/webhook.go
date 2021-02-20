@@ -2,6 +2,8 @@ package webhook
 
 import (
 	"context"
+	"fmt"
+	"html"
 	"net/http"
 	"net/url"
 	"path/filepath"
@@ -342,11 +344,17 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 		payload, err = a.bitbucketserver.Parse(r, bitbucketserver.RepositoryReferenceChangedEvent)
 	default:
 		log.Debug("Ignoring unknown webhook event")
+		http.Error(w, "Unknown webhook event", http.StatusBadRequest)
 		return
 	}
 
 	if err != nil {
 		log.Infof("Webhook processing failed: %s", err)
+		status := http.StatusBadRequest
+		if r.Method != "POST" {
+			status = http.StatusMethodNotAllowed
+		}
+		http.Error(w, fmt.Sprintf("Webhook processing failed: %s", html.EscapeString(err.Error())), status)
 		return
 	}
 
