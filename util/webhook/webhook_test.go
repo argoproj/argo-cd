@@ -117,6 +117,46 @@ func TestGitLabPushEvent(t *testing.T) {
 	hook.Reset()
 }
 
+func TestInvalidMethod(t *testing.T) {
+	hook := test.NewGlobal()
+	h := NewMockHandler()
+	req := httptest.NewRequest("GET", "/api/webhook", nil)
+	req.Header.Set("X-GitHub-Event", "push")
+	w := httptest.NewRecorder()
+	h.Handler(w, req)
+	assert.Equal(t, w.Code, http.StatusMethodNotAllowed)
+	expectedLogResult := "Webhook processing failed: invalid HTTP Method"
+	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	assert.Equal(t, expectedLogResult+"\n", w.Body.String())
+	hook.Reset()
+}
+
+func TestInvalidEvent(t *testing.T) {
+	hook := test.NewGlobal()
+	h := NewMockHandler()
+	req := httptest.NewRequest("POST", "/api/webhook", nil)
+	req.Header.Set("X-GitHub-Event", "push")
+	w := httptest.NewRecorder()
+	h.Handler(w, req)
+	assert.Equal(t, w.Code, http.StatusBadRequest)
+	expectedLogResult := "Webhook processing failed: error parsing payload"
+	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	assert.Equal(t, expectedLogResult+"\n", w.Body.String())
+	hook.Reset()
+}
+
+func TestUnknownEvent(t *testing.T) {
+	hook := test.NewGlobal()
+	h := NewMockHandler()
+	req := httptest.NewRequest("POST", "/api/webhook", nil)
+	req.Header.Set("X-Unknown-Event", "push")
+	w := httptest.NewRecorder()
+	h.Handler(w, req)
+	assert.Equal(t, w.Code, http.StatusBadRequest)
+	assert.Equal(t, "Unknown webhook event\n", w.Body.String())
+	hook.Reset()
+}
+
 func getApp(annotation string, sourcePath string) *v1alpha1.Application {
 	return &v1alpha1.Application{
 		ObjectMeta: metav1.ObjectMeta{
