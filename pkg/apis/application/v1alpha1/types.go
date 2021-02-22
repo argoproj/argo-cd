@@ -1372,6 +1372,14 @@ type RepoCreds struct {
 	TLSClientCertData string `json:"tlsClientCertData,omitempty" protobuf:"bytes,5,opt,name=tlsClientCertData"`
 	// TLS client cert key for authenticating at the repo server
 	TLSClientCertKey string `json:"tlsClientCertKey,omitempty" protobuf:"bytes,6,opt,name=tlsClientCertKey"`
+	// Github App Private Key PEM data
+	GithubAppPrivateKey string `json:"githubAppPrivateKey,omitempty" protobuf:"bytes,7,opt,name=githubAppPrivateKey"`
+	// Github App ID of the app used to access the repo
+	GithubAppId int64 `json:"githubAppID,omitempty" protobuf:"bytes,8,opt,name=githubAppID"`
+	// Github App Installation ID of the installed GitHub App
+	GithubAppInstallationId int64 `json:"githubAppInstallationID,omitempty" protobuf:"bytes,9,opt,name=githubAppInstallationID"`
+	// Github App Enterprise base url if empty will default to https://api.github.com
+	GitHubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty" protobuf:"bytes,10,opt,name=githubAppEnterpriseBaseUrl"`
 }
 
 // Repository is a repository holding application configurations
@@ -1406,6 +1414,14 @@ type Repository struct {
 	InheritedCreds bool `json:"inheritedCreds,omitempty" protobuf:"bytes,13,opt,name=inheritedCreds"`
 	// Whether helm-oci support should be enabled for this repo
 	EnableOCI bool `json:"enableOCI,omitempty" protobuf:"bytes,14,opt,name=enableOCI"`
+	// Github App Private Key PEM data
+	GithubAppPrivateKey string `json:"githubAppPrivateKey,omitempty" protobuf:"bytes,15,opt,name=githubAppPrivateKey"`
+	// Github App ID of the app used to access the repo
+	GithubAppId int64 `json:"githubAppID,omitempty" protobuf:"bytes,16,opt,name=githubAppID"`
+	// Github App Installation ID of the installed GitHub App
+	GithubAppInstallationId int64 `json:"githubAppInstallationID,omitempty" protobuf:"bytes,17,opt,name=githubAppInstallationID"`
+	// Github App Enterprise base url if empty will default to https://api.github.com
+	GitHubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty" protobuf:"bytes,18,opt,name=githubAppEnterpriseBaseUrl"`
 }
 
 // IsInsecure returns true if receiver has been configured to skip server verification
@@ -1420,7 +1436,7 @@ func (repo *Repository) IsLFSEnabled() bool {
 
 // HasCredentials returns true when the receiver has been configured any credentials
 func (m *Repository) HasCredentials() bool {
-	return m.Username != "" || m.Password != "" || m.SSHPrivateKey != "" || m.TLSClientCertData != ""
+	return m.Username != "" || m.Password != "" || m.SSHPrivateKey != "" || m.TLSClientCertData != "" || m.GithubAppPrivateKey != ""
 }
 
 func (repo *Repository) CopyCredentialsFromRepo(source *Repository) {
@@ -1439,6 +1455,18 @@ func (repo *Repository) CopyCredentialsFromRepo(source *Repository) {
 		}
 		if repo.TLSClientCertKey == "" {
 			repo.TLSClientCertKey = source.TLSClientCertKey
+		}
+		if repo.GithubAppPrivateKey == "" {
+			repo.GithubAppPrivateKey = source.GithubAppPrivateKey
+		}
+		if repo.GithubAppId == 0 {
+			repo.GithubAppId = source.GithubAppId
+		}
+		if repo.GithubAppInstallationId == 0 {
+			repo.GithubAppInstallationId = source.GithubAppInstallationId
+		}
+		if repo.GitHubAppEnterpriseBaseURL == "" {
+			repo.GitHubAppEnterpriseBaseURL = source.GitHubAppEnterpriseBaseURL
 		}
 	}
 }
@@ -1461,6 +1489,18 @@ func (repo *Repository) CopyCredentialsFrom(source *RepoCreds) {
 		if repo.TLSClientCertKey == "" {
 			repo.TLSClientCertKey = source.TLSClientCertKey
 		}
+		if repo.GithubAppPrivateKey == "" {
+			repo.GithubAppPrivateKey = source.GithubAppPrivateKey
+		}
+		if repo.GithubAppId == 0 {
+			repo.GithubAppId = source.GithubAppId
+		}
+		if repo.GithubAppInstallationId == 0 {
+			repo.GithubAppInstallationId = source.GithubAppInstallationId
+		}
+		if repo.GitHubAppEnterpriseBaseURL == "" {
+			repo.GitHubAppEnterpriseBaseURL = source.GitHubAppEnterpriseBaseURL
+		}
 	}
 }
 
@@ -1473,6 +1513,9 @@ func (repo *Repository) GetGitCreds() git.Creds {
 	}
 	if repo.SSHPrivateKey != "" {
 		return git.NewSSHCreds(repo.SSHPrivateKey, getCAPath(repo.Repo), repo.IsInsecure())
+	}
+	if repo.GithubAppPrivateKey != "" && repo.GithubAppId != 0 && repo.GithubAppInstallationId != 0 {
+		return git.NewGitHubAppCreds(repo.GithubAppId, repo.GithubAppInstallationId, repo.GithubAppPrivateKey, repo.GitHubAppEnterpriseBaseURL, repo.Repo, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure())
 	}
 	return git.NopCreds{}
 }

@@ -7,9 +7,10 @@ require (
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
 	github.com/alicebob/miniredis v2.5.0+incompatible
 	github.com/alicebob/miniredis/v2 v2.14.2
-	github.com/argoproj/gitops-engine v0.2.1-0.20210129183711-c5b7114c501f
+	github.com/argoproj/gitops-engine v0.2.1-0.20210218233004-354817a103ee
 	github.com/argoproj/pkg v0.2.0
 	github.com/bombsimon/logrusr v1.0.0
+	github.com/bradleyfalzon/ghinstallation v1.1.1
 	github.com/casbin/casbin v1.9.1
 	github.com/chai2010/gettext-go v0.0.0-20170215093142-bf70f2a70fb1 // indirect
 	github.com/coreos/go-oidc v2.1.0+incompatible
