@@ -1410,7 +1410,7 @@ running Dex (e.g. Okta, OneLogin, Auth0, Microsoft, etc...)
 The optional, [Dex IDP OIDC provider](https://github.com/dexidp/dex) is still bundled as part of the
 default installation, in order to provide a seamless out-of-box experience, enabling Argo CD to
 integrate with non-OIDC providers, and to benefit from Dex's full range of
-[connectors](https://github.com/dexidp/dex/tree/master/Documentation/connectors).
+[connectors](https://dexidp.io/docs/connectors/).
 
 #### OIDC group bindings to Project Roles
 OIDC group claims from an OAuth2 provider can now be bound to a Argo CD project roles. Previously,
