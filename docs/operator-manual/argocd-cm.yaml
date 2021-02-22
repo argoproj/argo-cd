@@ -224,7 +224,11 @@ data:
   # Build options/parameters to use with `kustomize build` (optional)
   kustomize.buildOptions: --load_restrictor none
 
-  # Additional Kustomize versions and corresponding binary paths
+  # Per-version build options and binary paths
+  kustomize.path.v3.9.1: /custom-tools/kustomize_3_9
+  kustomize.buildOptions.v3.9.1: --enable_kyaml true
+
+  # Additional Kustomize versions and corresponding binary paths (deprecated)
   kustomize.version.v3.5.1: /custom-tools/kustomize_3_5_1
   kustomize.version.v3.5.4: /custom-tools/kustomize_3_5_4
 
