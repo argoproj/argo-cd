@@ -116,4 +116,5 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Walkbase](https://www.walkbase.com/)
 1. [WeMo Scooter](https://www.wemoscooter.com/)
 1. [Whitehat Berlin](https://whitehat.berlin) by Guido Maria Serra +Fenaroli
-1. [Yieldlab](https://www.yieldlab.de/)
+2. [WSpot](https://www.wspot.com.br/)
+3. [Yieldlab](https://www.yieldlab.de/)
