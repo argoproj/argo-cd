@@ -8,8 +8,8 @@ metadata:
   name: argocd-server
 spec:
   selector:
-   matchLabels:
-    app.kubernetes.io/name: argocd-server
+    matchLabels:
+      app.kubernetes.io/name: argocd-server
   template:
     metadata:
       labels:
