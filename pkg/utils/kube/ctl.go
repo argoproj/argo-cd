@@ -39,7 +39,7 @@ type OnKubectlRunFunc func(command string) (CleanupFunc, error)
 type Kubectl interface {
 	ApplyResource(ctx context.Context, config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRunStrategy cmdutil.DryRunStrategy, force, validate bool) (string, error)
 	ConvertToVersion(obj *unstructured.Unstructured, group, version string) (*unstructured.Unstructured, error)
-	DeleteResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, forceDelete bool) error
+	DeleteResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, deleteOptions metav1.DeleteOptions) error
 	GetResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error)
 	PatchResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, patchType types.PatchType, patchBytes []byte, subresources ...string) (*unstructured.Unstructured, error)
 	GetAPIResources(config *rest.Config, resourceFilter ResourceFilter) ([]APIResourceInfo, error)
@@ -187,7 +187,7 @@ func (k *KubectlCmd) PatchResource(ctx context.Context, config *rest.Config, gvk
 }
 
 // DeleteResource deletes resource
-func (k *KubectlCmd) DeleteResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, forceDelete bool) error {
+func (k *KubectlCmd) DeleteResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, deleteOptions metav1.DeleteOptions) error {
 	span := k.Tracer.StartSpan("DeleteResource")
 	span.SetBaggageItem("kind", gvk.Kind)
 	span.SetBaggageItem("name", name)
@@ -206,14 +206,11 @@ func (k *KubectlCmd) DeleteResource(ctx context.Context, config *rest.Config, gv
 	}
 	resource := gvk.GroupVersion().WithResource(apiResource.Name)
 	resourceIf := ToResourceInterface(dynamicIf, apiResource, resource, namespace)
-	propagationPolicy := metav1.DeletePropagationForeground
-	deleteOptions := metav1.DeleteOptions{PropagationPolicy: &propagationPolicy}
-	if forceDelete {
-		propagationPolicy = metav1.DeletePropagationBackground
-		zeroGracePeriod := int64(0)
-		deleteOptions.GracePeriodSeconds = &zeroGracePeriod
-	}
 
+	if deleteOptions.PropagationPolicy == nil {
+		propagationPolicy := metav1.DeletePropagationForeground
+		deleteOptions = metav1.DeleteOptions{PropagationPolicy: &propagationPolicy}
+	}
 	return resourceIf.Delete(ctx, name, deleteOptions)
 }
 

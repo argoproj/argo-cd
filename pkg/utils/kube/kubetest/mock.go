@@ -61,7 +61,7 @@ func (k *MockKubectlCmd) PatchResource(ctx context.Context, config *rest.Config,
 	return nil, nil
 }
 
-func (k *MockKubectlCmd) DeleteResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, forceDelete bool) error {
+func (k *MockKubectlCmd) DeleteResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, deleteOptions metav1.DeleteOptions) error {
 	command, ok := k.Commands[name]
 	if !ok {
 		return nil
