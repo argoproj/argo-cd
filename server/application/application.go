@@ -943,15 +943,19 @@ func (s *Server) DeleteResource(ctx context.Context, q *application.ApplicationR
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionDelete, appRBACName(*a)); err != nil {
 		return nil, err
 	}
-	var force bool
-	if q.Force != nil {
-		force = *q.Force
+	var deleteOption metav1.DeleteOptions
+	if *q.Cascade {
+		propagationPolicy := metav1.DeletePropagationOrphan
+		deleteOption = metav1.DeleteOptions{PropagationPolicy: &propagationPolicy}
+	} else if *q.Force {
+		propagationPolicy := metav1.DeletePropagationBackground
+		zeroGracePeriod := int64(0)
+		deleteOption = metav1.DeleteOptions{PropagationPolicy: &propagationPolicy, GracePeriodSeconds: &zeroGracePeriod}
+	} else {
+		propagationPolicy := metav1.DeletePropagationForeground
+		deleteOption = metav1.DeleteOptions{PropagationPolicy: &propagationPolicy}
 	}
-	var cascade bool
-	if q.Cascade != nil {
-		cascade = *q.Cascade
-	}
-	err = s.kubectl.DeleteResource(ctx, config, res.GroupKindVersion(), res.Name, res.Namespace, force, cascade)
+	err = s.kubectl.DeleteResource(ctx, config, res.GroupKindVersion(), res.Name, res.Namespace, deleteOption)
 	if err != nil {
 		return nil, err
 	}
