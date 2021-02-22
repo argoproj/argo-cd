@@ -643,9 +643,9 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 	}
 
 	if patch {
-		// Although the cascaded deletion finalizer is not set when apps are created via API,
-		// they will often be set by the user as part of declarative config. As part of a delete
-		// request, we always calculate the patch to see if we need to set/unset the finalizer.
+		// Although the cascaded deletion finalizer/propagation policy annotation is not set when apps are created via
+		// API, they will often be set by the user as part of declarative config. As part of a delete
+		// request, we always calculate the patch to see if we need to set/unset the finalizer/annotation.
 		patch, err := json.Marshal(map[string]interface{}{
 			"metadata": map[string]interface{}{
 				"finalizers":  a.Finalizers,
