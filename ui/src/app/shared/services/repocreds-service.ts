@@ -35,6 +35,29 @@ export class RepoCredsService {
             .then(res => res.body as models.RepoCreds);
     }
 
+    public createGitHubApp({
+        url,
+        githubAppPrivateKey,
+        githubAppId,
+        githubAppInstallationId,
+        githubAppEnterpriseBaseURL,
+        tlsClientCertData,
+        tlsClientCertKey
+    }: {
+        url: string;
+        githubAppPrivateKey: string;
+        githubAppId: bigint;
+        githubAppInstallationId: bigint;
+        githubAppEnterpriseBaseURL: string;
+        tlsClientCertData: string;
+        tlsClientCertKey: string;
+    }): Promise<models.RepoCreds> {
+        return requests
+            .post('/repocreds')
+            .send({url, githubAppPrivateKey, githubAppId, githubAppInstallationId, githubAppEnterpriseBaseURL, tlsClientCertData, tlsClientCertKey})
+            .then(res => res.body as models.RepoCreds);
+    }
+
     public delete(url: string): Promise<models.RepoCreds> {
         return requests
             .delete(`/repocreds/${encodeURIComponent(url)}`)
