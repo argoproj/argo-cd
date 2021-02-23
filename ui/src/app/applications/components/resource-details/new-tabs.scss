@@ -5,10 +5,23 @@
         display: flex;
         margin-bottom: 2em;
         border-bottom: 1px solid $argo-color-gray-3;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        flex-shrink: 0;
+        flex-grow: 1;
+        &__badge {
+            background-color: $argo-color-gray-7;
+            color: $argo-color-gray-3;
+            font-weight: 600;
+            border-radius: 15px;
+            margin-left: 10px;
+            padding: 0 7px;
+        }
         &__item {
             font-size: 14px;
             color: $argo-color-gray-7;
             font-weight: 500;
+            flex-shrink: 0;
             padding: 10px 25px;
             &--selected {
                 color: $argo-color-gray-8;

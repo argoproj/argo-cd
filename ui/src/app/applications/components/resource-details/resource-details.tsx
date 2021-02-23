@@ -32,7 +32,6 @@ export const NewTabs = (props: {tabs: Tab[]; selectedTabKey?: string; onTabSelec
     const {tabs, selectedTabKey, onTabSelected} = {...props};
     const [selected, setSelected] = React.useState(selectedTabKey);
     const selectedTab = tabs.find(tab => (!selected && tabs.length > 0 ? tabs[0].key : selected) === tab.key) || tabs[0];
-
     const menuItem = (tab: Tab) => (
         <a
             className={`new-tabs__menu__item ${selectedTab.key === tab.key ? 'new-tabs__menu__item--selected' : ''}`}
@@ -42,6 +41,7 @@ export const NewTabs = (props: {tabs: Tab[]; selectedTabKey?: string; onTabSelec
             }}>
             {tab.icon && <i className={tab.icon} style={{marginRight: '5px'}} />}
             {tab.title}
+            {tab.badge && <span className='new-tabs__menu__badge'>{tab.badge}</span>}
         </a>
     );
 
