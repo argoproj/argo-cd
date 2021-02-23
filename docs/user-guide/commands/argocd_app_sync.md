@@ -39,9 +39,9 @@ argocd app sync [APPNAME... | -l selector] [flags]
       --local-repo-root string                Path to the repository root. Used together with --local allows setting the repository root (default "/")
       --prune                                 Allow deleting unexpected resources
       --resource stringArray                  Sync only specific resources as GROUP:KIND:NAME. Fields may be blank. This option may be specified repeatedly
-      --retry-backoff-duration duration       Retry backoff base duration. Default unit is seconds, but could also be a duration (e.g. 2m, 1h) (default "5s")
+      --retry-backoff-duration duration       Retry backoff base duration. Input needs to be a duration (e.g. 2m, 1h) (default 5s)
       --retry-backoff-factor int              Factor multiplies the base duration after each failed retry (default 2)
-      --retry-backoff-max-duration duration   Max retry backoff duration. Default unit is seconds, but could also be a duration (e.g. 2m, 1h) (default "180s")
+      --retry-backoff-max-duration duration   Max retry backoff duration. Input needs to be a duration (e.g. 2m, 1h) (default 3m0s)
       --retry-limit int                       Max number of allowed sync retries
       --revision string                       Sync to a specific revision. Preserves parameter overrides
   -l, --selector string                       Sync apps that match this label
