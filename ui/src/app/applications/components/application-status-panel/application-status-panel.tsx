@@ -56,7 +56,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
         new Map<string, number>()
     );
     const appOperationState = getAppOperationState(application);
-    if (application.metadata.deletionTimestamp) {
+    if (application.metadata.deletionTimestamp && !appOperationState) {
         showOperation = null;
     }
 
