@@ -143,7 +143,7 @@
         white-space: nowrap;
         i {
             cursor: pointer;
-            color:  $argo-color-gray-4;
+            color: $argo-color-gray-4;
             margin-right: 1em;
             &::before {
                 font-size: 1.5em;
@@ -185,27 +185,39 @@
     }
 
     &__search {
+        border: 1px solid $argo-color-gray-4;
+        background-color: white;
+        border-radius: 5px;
         position: relative;
-        i.fa-search {
-            position: absolute;
-            bottom: 0.6em;
-            left: -1.5em;
-            cursor: pointer;
-            &:hover {
-                color: $argo-color-gray-6;
-            }    
+        padding: 0 10px;
+        display: flex;
+        align-items: center;
+        i {
+            font-size: 12px;
         }
-        i.fa-times {
-            cursor: pointer;
-            position: absolute;
-            color: $argo-color-gray-5;
-            bottom: 0.6em;
-            right: 0;
-            z-index: 1;
+        .keyboard-hint {
+            border: 1px solid $argo-color-gray-5;
+            color: $argo-color-gray-6;
+            border-radius: 3px;
+            padding: 0 7px;
+            font-size: 12px;
+            font-weight: 600;
+            flex-shrink: 0;
+            text-align: center;
         }
         .select {
             width: 100%;
             border-radius: $border-radius;
+        }
+        &:focus-within {
+            border: 1px solid $argo-color-teal-5;
+        }
+        .argo-field {
+            border: none;
+            font-weight: 500;
+            &::placeholder {
+                color: $argo-color-gray-5;
+            }
         }
     }
 

@@ -156,6 +156,79 @@ function tryJsonParse(input: string) {
     }
 }
 
+export enum Key {
+    SPACE = 47
+}
+
+export const HandleKeyPress = (e: KeyboardEvent, key: Key, action: () => void) => {
+    if (e.keyCode === key) {
+        action();
+        e.preventDefault();
+    }
+};
+
+const SearchBar = (props: {content: string; appInput: string; ctx: ContextApis; apps: models.Application[]}) => {
+    const {appInput, content, ctx, apps} = {...props};
+
+    const searchBar = React.useRef<HTMLDivElement>(null);
+
+    React.useEffect(() => {
+        const spacePress = (e: KeyboardEvent) =>
+            HandleKeyPress(e, Key.SPACE, () => {
+                if (searchBar.current && !appInput) {
+                    searchBar.current.querySelector('input').focus();
+                }
+            });
+        document.addEventListener('keypress', spacePress);
+        return () => {
+            document.removeEventListener('keypress', spacePress);
+        };
+    });
+
+    return (
+        <Autocomplete
+            filterSuggestions={true}
+            renderInput={inputProps => (
+                <div className='applications-list__search' ref={searchBar}>
+                    <i
+                        className='fa fa-search'
+                        style={{marginRight: '9px', cursor: 'pointer'}}
+                        onClick={() => {
+                            if (searchBar.current) {
+                                searchBar.current.querySelector('input').focus();
+                            }
+                        }}
+                    />
+                    <input
+                        {...inputProps}
+                        onFocus={e => {
+                            e.target.select();
+                            if (inputProps.onFocus) {
+                                inputProps.onFocus(e);
+                            }
+                        }}
+                        className='argo-field'
+                        placeholder='Search applications'
+                    />
+                    <div className='keyboard-hint'>/</div>
+                    {content && <i className='fa fa-times' onClick={() => ctx.navigation.goto('.', {search: null}, {replace: true})} style={{cursor: 'pointer'}} />}
+                </div>
+            )}
+            renderItem={item => (
+                <React.Fragment>
+                    <i className='icon argo-icon-application' /> {item.label}
+                </React.Fragment>
+            )}
+            onSelect={val => {
+                ctx.navigation.goto(`./${val}`);
+            }}
+            onChange={e => ctx.navigation.goto('.', {search: e.target.value}, {replace: true})}
+            value={content || ''}
+            items={apps.map(app => app.metadata.name)}
+        />
+    );
+};
+
 export const ApplicationsList = (props: RouteComponentProps<{}>) => {
     const query = new URLSearchParams(props.location.search);
     const appInput = tryJsonParse(query.get('new'));
@@ -163,20 +236,6 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
     const [createApi, setCreateApi] = React.useState(null);
     const clusters = React.useMemo(() => services.clusters.list(), []);
     const [isAppCreatePending, setAppCreatePending] = React.useState(false);
-    const searchBar = React.useRef<HTMLDivElement>(null);
-
-    React.useEffect(() => {
-        const handleKeyPress = (e: KeyboardEvent) => {
-            if (e.keyCode === 47 && searchBar.current && !appInput) {
-                searchBar.current.querySelector('input').focus();
-                e.preventDefault();
-            }
-        };
-        document.addEventListener('keypress', handleKeyPress);
-        return () => {
-            document.removeEventListener('keypress', handleKeyPress);
-        };
-    });
 
     const loaderRef = React.useRef<DataLoader>();
     function refreshApp(appName: string) {
@@ -286,50 +345,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                             ) : (
                                                 <div className='row'>
                                                     <div className='columns small-12 xxlarge-2'>
-                                                        <Query>
-                                                            {q => (
-                                                                <div className='applications-list__search' ref={searchBar}>
-                                                                    <i
-                                                                        className='fa fa-search'
-                                                                        onClick={() => {
-                                                                            if (searchBar.current) {
-                                                                                searchBar.current.querySelector('input').focus();
-                                                                            }
-                                                                        }}
-                                                                    />
-                                                                    {q.get('search') && (
-                                                                        <i className='fa fa-times' onClick={() => ctx.navigation.goto('.', {search: null}, {replace: true})} />
-                                                                    )}
-                                                                    <Autocomplete
-                                                                        filterSuggestions={true}
-                                                                        renderInput={inputProps => (
-                                                                            <input
-                                                                                {...inputProps}
-                                                                                onFocus={e => {
-                                                                                    e.target.select();
-                                                                                    if (inputProps.onFocus) {
-                                                                                        inputProps.onFocus(e);
-                                                                                    }
-                                                                                }}
-                                                                                className='argo-field'
-                                                                                placeholder='Search applications...'
-                                                                            />
-                                                                        )}
-                                                                        renderItem={item => (
-                                                                            <React.Fragment>
-                                                                                <i className='icon argo-icon-application' /> {item.label}
-                                                                            </React.Fragment>
-                                                                        )}
-                                                                        onSelect={val => {
-                                                                            ctx.navigation.goto(`./${val}`);
-                                                                        }}
-                                                                        onChange={e => ctx.navigation.goto('.', {search: e.target.value}, {replace: true})}
-                                                                        value={q.get('search') || ''}
-                                                                        items={applications.map(app => app.metadata.name)}
-                                                                    />
-                                                                </div>
-                                                            )}
-                                                        </Query>
+                                                        <Query>{q => <SearchBar content={q.get('search')} apps={applications} ctx={ctx} appInput={appInput} />}</Query>
                                                         <DataLoader load={() => services.clusters.list()}>
                                                             {clusterList => {
                                                                 return (
