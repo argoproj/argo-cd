@@ -1239,8 +1239,8 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		force                   bool
 		async                   bool
 		retryLimit              int64
-		retryBackoffDuration    string
-		retryBackoffMaxDuration string
+		retryBackoffDuration    time.Duration
+		retryBackoffMaxDuration time.Duration
 		retryBackoffFactor      int64
 		local                   string
 		localRepoRoot           string
@@ -1370,8 +1370,8 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					syncReq.RetryStrategy = &argoappv1.RetryStrategy{
 						Limit: retryLimit,
 						Backoff: &argoappv1.Backoff{
-							Duration:    retryBackoffDuration,
-							MaxDuration: retryBackoffMaxDuration,
+							Duration:    retryBackoffDuration.String(),
+							MaxDuration: retryBackoffMaxDuration.String(),
 							Factor:      pointer.Int64Ptr(retryBackoffFactor),
 						},
 					}
@@ -1407,8 +1407,8 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringArrayVar(&labels, "label", []string{}, "Sync only specific resources with a label. This option may be specified repeatedly.")
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
 	command.Flags().Int64Var(&retryLimit, "retry-limit", 0, "Max number of allowed sync retries")
-	command.Flags().StringVar(&retryBackoffDuration, "retry-backoff-duration", fmt.Sprintf("%ds", common.DefaultSyncRetryDuration/time.Second), "Retry backoff base duration. Default unit is seconds, but could also be a duration (e.g. 2m, 1h)")
-	command.Flags().StringVar(&retryBackoffMaxDuration, "retry-backoff-max-duration", fmt.Sprintf("%ds", common.DefaultSyncRetryMaxDuration/time.Second), "Max retry backoff duration. Default unit is seconds, but could also be a duration (e.g. 2m, 1h)")
+	command.Flags().DurationVar(&retryBackoffDuration, "retry-backoff-duration", common.DefaultSyncRetryDuration, "Retry backoff base duration. Input needs to be a duration (e.g. 2m, 1h)")
+	command.Flags().DurationVar(&retryBackoffMaxDuration, "retry-backoff-max-duration", common.DefaultSyncRetryMaxDuration, "Max retry backoff duration. Input needs to be a duration (e.g. 2m, 1h)")
 	command.Flags().Int64Var(&retryBackoffFactor, "retry-backoff-factor", common.DefaultSyncRetryFactor, "Factor multiplies the base duration after each failed retry")
 	command.Flags().StringVar(&strategy, "strategy", "", "Sync strategy (one of: apply|hook)")
 	command.Flags().BoolVar(&force, "force", false, "Use a force apply")
