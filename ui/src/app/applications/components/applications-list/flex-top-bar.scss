@@ -2,8 +2,12 @@
 
 .flex-top-bar {
     position: fixed;
-    width: 100%;
+    left: 60px;
+    right: 0;
     z-index: 5;
+    padding: 0 15px;
+    align-items: center;
+    flex-wrap: wrap;
     &__actions {
         display: flex;
         align-items: center;
@@ -20,9 +24,14 @@
         display: flex;
         flex-grow: 1;
         align-items: center;
-        flex-basis: 100%;
-        @include breakpoint(medium up) {
-            flex-basis: auto;
+        @include breakpoint(medium down) {
+            flex-wrap: wrap;
+        }
+    }
+    &__padder {
+        height: 50px;
+        @include breakpoint(medium down) {
+            height: 100px;
         }
     }
 }

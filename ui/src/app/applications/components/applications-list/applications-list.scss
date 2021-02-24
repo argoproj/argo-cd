@@ -184,6 +184,15 @@
         margin-left: -30px !important;
     }
 
+    &__search-wrapper {
+        margin-left: 15px;
+        @include breakpoint(medium down) {
+            flex-basis: 100%;
+            margin-left: 0;
+        }
+        line-height: normal;
+    }
+
     &__search {
         border: 1px solid $argo-color-gray-4;
         background-color: $argo-color-gray-2;
@@ -193,10 +202,6 @@
         height: 33px;
         display: flex;
         align-items: center;
-        flex-grow: 0;
-        flex-shrink: 0;
-        width: 100%;
-        flex-basis: 100%;
         transition: width 200ms;
         @include breakpoint(large up) {
             flex-shrink: 1;

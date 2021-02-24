@@ -213,10 +213,17 @@ const SearchBar = (props: {content: string; appInput: string; ctx: ContextApis; 
                         placeholder='Search applications...'
                     />
                     <div className='keyboard-hint'>/</div>
-                    {content && <i className='fa fa-times' onClick={() => ctx.navigation.goto('.', {search: null}, {replace: true})} style={{cursor: 'pointer'}} />}
+                    {content && (
+                        <i
+                            className='fa fa-times'
+                            style={{marginLeft: '5px'}}
+                            onClick={() => ctx.navigation.goto('.', {search: null}, {replace: true})}
+                            style={{cursor: 'pointer'}}
+                        />
+                    )}
                 </div>
             )}
-            wrapperProps={{style: {display: 'block'}}}
+            wrapperProps={{className: 'applications-list__search-wrapper'}}
             renderItem={item => (
                 <React.Fragment>
                     <i className='icon argo-icon-application' /> {item.label}
@@ -237,7 +244,7 @@ const FlexTopBar = (props: {toolbar: Toolbar | Observable<Toolbar>}) => {
     const loadToolbar = AddAuthToToolbar(props.toolbar, ctx);
     return (
         <React.Fragment>
-            <div className='top-bar row flex-top-bar' key='tool-bar' style={{padding: '0 15px', alignItems: 'center', flexWrap: 'wrap'}}>
+            <div className='top-bar row flex-top-bar' key='tool-bar'>
                 <DataLoader load={() => loadToolbar}>
                     {toolbar => (
                         <React.Fragment>
@@ -264,7 +271,7 @@ const FlexTopBar = (props: {toolbar: Toolbar | Observable<Toolbar>}) => {
                     )}
                 </DataLoader>
             </div>
-            <div style={{height: '50px'}} />
+            <div className='flex-top-bar__padder' />
         </React.Fragment>
     );
 };
@@ -323,9 +330,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                         toolbar={services.viewPreferences.getPreferences().map(pref => ({
                                             tools: (
                                                 <React.Fragment key='app-list-tools'>
-                                                    <div style={{lineHeight: 'normal', marginLeft: '15px'}}>
-                                                        <Query>{q => <SearchBar content={q.get('search')} apps={applications} ctx={ctx} appInput={appInput} />}</Query>
-                                                    </div>
+                                                    <Query>{q => <SearchBar content={q.get('search')} apps={applications} ctx={ctx} appInput={appInput} />}</Query>
                                                     <div className='applications-list__view-type' style={{marginLeft: 'auto'}}>
                                                         <i
                                                             className={classNames('fa fa-th', {selected: pref.appList.view === 'tiles'})}
