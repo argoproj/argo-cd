@@ -1,0 +1,11 @@
+.page-wrapper {
+    .page {
+        $single-toolbar-height: 50px;
+        &--has-toolbar {
+            padding-top: $single-toolbar-height;
+        }
+        &__top-bar {
+            height: $single-toolbar-height;
+        }
+    }
+}

@@ -1,0 +1,28 @@
+@import 'node_modules/foundation-sites/scss/util/util';
+
+.flex-top-bar {
+    position: fixed;
+    width: 100%;
+    z-index: 5;
+    &__actions {
+        display: flex;
+        align-items: center;
+        height: 50px;
+        @include breakpoint(medium down) {
+            flex-basis: 100%;
+            justify-content: center;
+        }
+        button {
+            display: block;
+        }
+    }
+    &__tools {
+        display: flex;
+        flex-grow: 1;
+        align-items: center;
+        flex-basis: 100%;
+        @include breakpoint(medium up) {
+            flex-basis: auto;
+        }
+    }
+}
