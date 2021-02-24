@@ -214,48 +214,4 @@
         top: 1em;
         right: 1em;
     }
-
-    @media screen and (max-width: map-get($breakpoints, xlarge)) {
-        .page__content-wrapper {
-            min-height: calc(100vh - 3 * 50px);
-        }
-        .top-bar.row {
-            display: block;
-            .top-bar__left-side,
-            .top-bar__right-side {
-                width: 100%;
-                max-width: 100%;
-                flex: auto;
-            }
-            .top-bar__left-side {
-                .argo-button {
-                    i {
-                        @media screen and (max-width: map-get($breakpoints, large)) {
-                            margin: 0 auto !important;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    @media screen and (max-width: map-get($breakpoints, large)) {
-        .top-bar.row {
-            .top-bar__left-side {
-                > div {
-                    display: flex;
-                    justify-content: center;
-                    height: 50px;
-                    align-items: center;
-                    .argo-button {
-                        height: 34px;
-                    }
-                }
-            }
-            .top-bar__right-side {
-                display: flex;
-                justify-content: center;
-            }
-        }
-    }
 }
