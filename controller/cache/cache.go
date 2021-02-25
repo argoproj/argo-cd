@@ -312,7 +312,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		c.metricsServer.IncClusterEventsCount(cluster.Server, gvk.Group, gvk.Kind)
 	})
 
-	c.clusters[cluster.Server] = clusterCache
+	c.clusters[server] = clusterCache
 
 	return clusterCache, nil
 }
