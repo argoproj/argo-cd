@@ -1,6 +1,11 @@
+@import 'node_modules/argo-ui/src/styles/config';
+
 .applications-tiles {
     .argo-table-list__row {
         padding-top: 0;
         padding-bottom: 0;
+    }
+    &__selected {
+        border: 1px solid $argo-color-teal-5;
     }
 }

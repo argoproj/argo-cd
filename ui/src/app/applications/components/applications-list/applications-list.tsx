@@ -7,6 +7,7 @@ import {Observable} from 'rxjs';
 
 import {AddAuthToToolbar, ClusterCtx, DataLoader, EmptyState, ObservableQuery, Page, Paginate, Query, Spinner} from '../../../shared/components';
 import {Consumer, Context, ContextApis} from '../../../shared/context';
+import {Key, useKeyPress} from '../../../shared/keybinding';
 import * as models from '../../../shared/models';
 import {AppsListPreferences, AppsListViewType, services} from '../../../shared/services';
 import {ApplicationCreatePanel} from '../application-create-panel/application-create-panel';
@@ -157,31 +158,12 @@ function tryJsonParse(input: string) {
     }
 }
 
-export enum Key {
-    SPACE = 47
-}
-
-export const useKeyPress = (key: Key, action: () => void) => {
-    React.useEffect(() => {
-        const handlePress = (e: KeyboardEvent) => {
-            if (e.keyCode === key) {
-                action();
-                e.preventDefault();
-            }
-        };
-        document.addEventListener('keypress', handlePress);
-        return () => {
-            document.removeEventListener('keypress', handlePress);
-        };
-    });
-};
-
 const SearchBar = (props: {content: string; appInput: string; ctx: ContextApis; apps: models.Application[]}) => {
     const {appInput, content, ctx, apps} = {...props};
 
     const searchBar = React.useRef<HTMLDivElement>(null);
 
-    useKeyPress(Key.SPACE, () => {
+    useKeyPress(Key.SLASH, () => {
         if (searchBar.current && !appInput) {
             searchBar.current.querySelector('input').focus();
         }
