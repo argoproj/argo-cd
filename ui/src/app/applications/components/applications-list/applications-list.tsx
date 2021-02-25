@@ -161,11 +161,19 @@ export enum Key {
     SPACE = 47
 }
 
-export const HandleKeyPress = (e: KeyboardEvent, key: Key, action: () => void) => {
-    if (e.keyCode === key) {
-        action();
-        e.preventDefault();
-    }
+export const useKeyPress = (key: Key, action: () => void) => {
+    React.useEffect(() => {
+        const handlePress = (e: KeyboardEvent) => {
+            if (e.keyCode === key) {
+                action();
+                e.preventDefault();
+            }
+        };
+        document.addEventListener('keypress', handlePress);
+        return () => {
+            document.removeEventListener('keypress', handlePress);
+        };
+    });
 };
 
 const SearchBar = (props: {content: string; appInput: string; ctx: ContextApis; apps: models.Application[]}) => {
@@ -173,17 +181,10 @@ const SearchBar = (props: {content: string; appInput: string; ctx: ContextApis; 
 
     const searchBar = React.useRef<HTMLDivElement>(null);
 
-    React.useEffect(() => {
-        const spacePress = (e: KeyboardEvent) =>
-            HandleKeyPress(e, Key.SPACE, () => {
-                if (searchBar.current && !appInput) {
-                    searchBar.current.querySelector('input').focus();
-                }
-            });
-        document.addEventListener('keypress', spacePress);
-        return () => {
-            document.removeEventListener('keypress', spacePress);
-        };
+    useKeyPress(Key.SPACE, () => {
+        if (searchBar.current && !appInput) {
+            searchBar.current.querySelector('input').focus();
+        }
     });
 
     return (
@@ -214,12 +215,7 @@ const SearchBar = (props: {content: string; appInput: string; ctx: ContextApis; 
                     />
                     <div className='keyboard-hint'>/</div>
                     {content && (
-                        <i
-                            className='fa fa-times'
-                            style={{marginLeft: '5px'}}
-                            onClick={() => ctx.navigation.goto('.', {search: null}, {replace: true})}
-                            style={{cursor: 'pointer'}}
-                        />
+                        <i className='fa fa-times' onClick={() => ctx.navigation.goto('.', {search: null}, {replace: true})} style={{cursor: 'pointer', marginLeft: '5px'}} />
                     )}
                 </div>
             )}
