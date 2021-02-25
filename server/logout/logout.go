@@ -66,53 +66,19 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	logoutRedirectURL := strings.TrimRight(strings.TrimLeft(argoCDSettings.URL, "/"), "/") + strings.TrimRight(strings.TrimLeft(h.rootPath, "/"), "/")
 
 	cookies := r.Cookies()
-<<<<<<< HEAD
-<<<<<<< HEAD
 	tokenString, err = httputil.JoinCookies(common.AuthCookieName, cookies)
 	if tokenString == "" || err != nil {
-=======
-=======
->>>>>>> efe7ebb3 (fix: support longer cookie)
-	// filter cookies with prefix common.AuthCookieName
-	var filteredCookies []string
-	for _, cookie := range cookies {
-		if strings.HasPrefix(cookie.Name, common.AuthCookieName) {
-			filteredCookies = append(filteredCookies, fmt.Sprintf("%s=%s", cookie.Name, cookie.Value))
-		}
-	}
-	tokenString = httputil.JoinCookies(common.AuthCookieName, strings.Join(filteredCookies, "; "))
-	if tokenString == "" {
-<<<<<<< HEAD
->>>>>>> efe7ebb3 (fix: support longer cookie)
-=======
->>>>>>> efe7ebb3 (fix: support longer cookie)
 		w.WriteHeader(http.StatusBadRequest)
 		http.Error(w, "Failed to retrieve ArgoCD auth token: "+fmt.Sprintf("%s", err), http.StatusBadRequest)
 		return
 	}
 
-<<<<<<< HEAD
-<<<<<<< HEAD
 	for _, cookie := range cookies {
 		if !strings.HasPrefix(cookie.Name, common.AuthCookieName) {
 			continue
 		}
 		argocdCookie := http.Cookie{
 			Name:  cookie.Name,
-=======
-=======
->>>>>>> efe7ebb3 (fix: support longer cookie)
-	for _, cookie := range filteredCookies {
-		pair := strings.Split(cookie, "=")
-		if len(pair) == 0 {
-			continue
-		}
-		argocdCookie := http.Cookie{
-			Name:  pair[0],
-<<<<<<< HEAD
->>>>>>> efe7ebb3 (fix: support longer cookie)
-=======
->>>>>>> efe7ebb3 (fix: support longer cookie)
 			Value: "",
 		}
 		argocdCookie.Path = fmt.Sprintf("/%s", strings.TrimRight(strings.TrimLeft(h.rootPath, "/"), "/"))
