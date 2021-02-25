@@ -252,9 +252,7 @@ var defaultProj = argoappv1.AppProject{
 		Namespace: test.FakeArgoCDNamespace,
 	},
 	Spec: argoappv1.AppProjectSpec{
-		ClusterResourceWhitelist:   []metav1.GroupKind{{Group: "*", Kind: "*"}},
-		NamespaceResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
-		SourceRepos:                []string{"*"},
+		SourceRepos: []string{"*"},
 		Destinations: []argoappv1.ApplicationDestination{
 			{
 				Server:    "*",

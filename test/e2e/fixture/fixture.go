@@ -326,22 +326,20 @@ func EnsureCleanState(t *testing.T) {
 	})
 
 	SetProjectSpec("default", v1alpha1.AppProjectSpec{
-		OrphanedResources:          nil,
-		SourceRepos:                []string{"*"},
-		Destinations:               []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
-		ClusterResourceWhitelist:   []v1.GroupKind{{Group: "*", Kind: "*"}},
-		NamespaceResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
+		OrphanedResources:        nil,
+		SourceRepos:              []string{"*"},
+		Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
+		ClusterResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
 	})
 
 	// Create separate project for testing gpg signature verification
 	FailOnErr(RunCli("proj", "create", "gpg"))
 	SetProjectSpec("gpg", v1alpha1.AppProjectSpec{
-		OrphanedResources:          nil,
-		SourceRepos:                []string{"*"},
-		Destinations:               []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
-		ClusterResourceWhitelist:   []v1.GroupKind{{Group: "*", Kind: "*"}},
-		NamespaceResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
-		SignatureKeys:              []v1alpha1.SignatureKey{{KeyID: GpgGoodKeyID}},
+		OrphanedResources:        nil,
+		SourceRepos:              []string{"*"},
+		Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
+		ClusterResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
+		SignatureKeys:            []v1alpha1.SignatureKey{{KeyID: GpgGoodKeyID}},
 	})
 
 	// remove tmp dir

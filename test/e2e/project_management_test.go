@@ -450,16 +450,16 @@ func createAndConfigGlobalProject() error {
 		return err
 	}
 
-	projGlobal.Spec.NamespaceResourceWhitelist = []metav1.GroupKind{
-		{Group: "apps", Kind: "Deployment"},
-	}
-
 	projGlobal.Spec.NamespaceResourceBlacklist = []metav1.GroupKind{
 		{Group: "", Kind: "Service"},
 	}
 
+	projGlobal.Spec.NamespaceResourceWhitelist = []metav1.GroupKind{
+		{Group: "", Kind: "Deployment"},
+	}
+
 	projGlobal.Spec.ClusterResourceWhitelist = []metav1.GroupKind{
-		{Group: "batch", Kind: "Job"},
+		{Group: "", Kind: "Job"},
 	}
 
 	projGlobal.Spec.ClusterResourceBlacklist = []metav1.GroupKind{
@@ -527,6 +527,7 @@ func TestGetVirtualProjectNoMatch(t *testing.T) {
 	//app trying to sync a resource which is black listed by global project
 	_, err = fixture.RunCli("app", "sync", fixture.Name(), "--resource", ":Service:guestbook-ui", "--timeout", fmt.Sprintf("%v", 10))
 	assert.NoError(t, err)
+
 }
 
 func TestGetVirtualProjectMatch(t *testing.T) {
@@ -563,7 +564,6 @@ func TestGetVirtualProjectMatch(t *testing.T) {
 
 	//app trying to sync a resource which is black listed by global project
 	_, err = fixture.RunCli("app", "sync", fixture.Name(), "--resource", ":Service:guestbook-ui", "--timeout", fmt.Sprintf("%v", 10))
-	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Blocked by sync window")
 
 }
