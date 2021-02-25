@@ -845,7 +845,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		return ctrl.backgroundDeletion(app, objs, filteredObjs, logCtx, config)
 	}
 
-	logCtx.Infof("Deleting application '%s' with foreground propagation policy", app.Name)
+	logCtx.Info("Deleting application with foreground propagation policy")
 
 	err = kube.RunAllAsync(len(filteredObjs), func(i int) error {
 		obj := filteredObjs[i]
@@ -886,7 +886,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		return objs, err
 	}
 
-	logCtx.Infof("Successfully deleted %d resources for application '%s'", len(objs), app.Name)
+	logCtx.Infof("Successfully deleted %d resources", len(objs))
 	ctrl.projectRefreshQueue.Add(fmt.Sprintf("%s/%s", app.Namespace, app.Spec.GetProject()))
 	return objs, nil
 }
@@ -896,7 +896,7 @@ func (ctrl *ApplicationController) backgroundDeletion(app *appv1.Application,
 	filteredObjs []*unstructured.Unstructured,
 	logCtx *log.Entry,
 	config *rest.Config) ([]*unstructured.Unstructured, error) {
-	logCtx.Infof("Deleting application '%s' with background propagation policy", app.Name)
+	logCtx.Info("Deleting application with background propagation policy")
 	err := ctrl.cache.SetAppManagedResources(app.Name, nil)
 	if err != nil {
 		return objs, err
@@ -919,7 +919,7 @@ func (ctrl *ApplicationController) backgroundDeletion(app *appv1.Application,
 		return objs, err
 	}
 
-	logCtx.Infof("Successfully deleted %d resources for application '%s'", len(objs), app.Name)
+	logCtx.Infof("Successfully deleted %d resources", len(objs))
 	ctrl.projectRefreshQueue.Add(fmt.Sprintf("%s/%s", app.Namespace, app.Spec.GetProject()))
 	return objs, nil
 }

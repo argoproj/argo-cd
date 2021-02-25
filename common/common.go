@@ -131,7 +131,7 @@ const (
 	// AnnotationPropagationPolicy is an annotation that indicates the propagation policy for appication deletion.
 	// By default, resources will be deleted in the foreground followed by application deletion.
 	// Accepted values: background/foreground
-	AnnotationPropagationPolicy = "propagation-policy.argocd.argoproj.io"
+	AnnotationPropagationPolicy = "argocd.argoproj.io/deletion-propagation-policy"
 
 	// AnnotationKeyManifestGeneratePaths is an annotation that contains a list of semicolon-separated paths in the
 	// manifests repository that affects the manifest generation. Paths might be either relative or absolute. The

@@ -2580,10 +2580,14 @@ func (app *Application) SetPropagationPolicy(policy string) error {
 }
 
 func isPropagationPolicyValid(policy string) bool {
-	if policy != BackgroundPropagationPolicy && policy != ForegroundPropagationPolicy {
+	switch policy {
+	case BackgroundPropagationPolicy:
+		return true
+	case ForegroundPropagationPolicy:
+		return true
+	default:
 		return false
 	}
-	return true
 }
 
 // RemovePropagationPolicy removes the propagation policy annotation
