@@ -1987,6 +1987,7 @@ func TestSyncPolicy_IsZero(t *testing.T) {
 	assert.True(t, (&SyncPolicy{}).IsZero())
 	assert.False(t, (&SyncPolicy{Automated: &SyncPolicyAutomated{}}).IsZero())
 	assert.False(t, (&SyncPolicy{SyncOptions: SyncOptions{""}}).IsZero())
+	assert.False(t, (&SyncPolicy{Retry: &RetryStrategy{}}).IsZero())
 }
 
 func TestSyncOptions_HasOption(t *testing.T) {
