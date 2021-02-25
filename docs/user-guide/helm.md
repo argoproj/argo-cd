@@ -178,12 +178,12 @@ After that you have to use your custom image for ArgoCD installation.
 
 ## Helm Version
 
-ArgoCD normally detects which version of Helm to use by looking at the `apiVersion` in Chart.yaml.
+ArgoCD normally takes HelmV3 as the default version of Helm.
 
 If needed, it is possible to specifically set the Helm version to template with by setting the `helm-version` flag on the cli (either v2 or v3):
 
 ```bash
-argocd app set helm-guestbook --helm-version v2
+argocd app set helm-guestbook --helm-version v3
 ```
 
 Or using declarative syntax:
@@ -192,5 +192,5 @@ Or using declarative syntax:
 spec:
   source:
     helm:
-      version: v2
+      version: v3
 ```
