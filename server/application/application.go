@@ -1147,7 +1147,7 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 				return ws.Send(&application.LogEntry{Last: true})
 			}
 			if entry.err != nil {
-				return err
+				return entry.err
 			} else {
 				if q.Filter != nil {
 					lineContainsFilter := strings.Contains(entry.line, literal)
