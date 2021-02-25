@@ -158,15 +158,28 @@ function tryJsonParse(input: string) {
     }
 }
 
-const SearchBar = (props: {content: string; appInput: string; ctx: ContextApis; apps: models.Application[]}) => {
-    const {appInput, content, ctx, apps} = {...props};
+const SearchBar = (props: {content: string; ctx: ContextApis; apps: models.Application[]}) => {
+    const {content, ctx, apps} = {...props};
 
     const searchBar = React.useRef<HTMLDivElement>(null);
+
+    const query = new URLSearchParams(window.location.search);
+    const appInput = tryJsonParse(query.get('new'));
 
     useKeyPress(Key.SLASH, () => {
         if (searchBar.current && !appInput) {
             searchBar.current.querySelector('input').focus();
+            return true;
         }
+        return false;
+    });
+
+    useKeyPress(Key.ESCAPE, () => {
+        if (searchBar.current && !appInput) {
+            searchBar.current.querySelector('input').blur();
+            return true;
+        }
+        return false;
     });
 
     return (
@@ -261,7 +274,6 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
     const [createApi, setCreateApi] = React.useState(null);
     const clusters = React.useMemo(() => services.clusters.list(), []);
     const [isAppCreatePending, setAppCreatePending] = React.useState(false);
-
     const loaderRef = React.useRef<DataLoader>();
     function refreshApp(appName: string) {
         // app refreshing might be done too quickly so that UI might miss it due to event batching
@@ -308,7 +320,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                         toolbar={services.viewPreferences.getPreferences().map(pref => ({
                                             tools: (
                                                 <React.Fragment key='app-list-tools'>
-                                                    <Query>{q => <SearchBar content={q.get('search')} apps={applications} ctx={ctx} appInput={appInput} />}</Query>
+                                                    <Query>{q => <SearchBar content={q.get('search')} apps={applications} ctx={ctx} />}</Query>
                                                     <div className='applications-list__view-type' style={{marginLeft: 'auto'}}>
                                                         <i
                                                             className={classNames('fa fa-th', {selected: pref.appList.view === 'tiles'})}

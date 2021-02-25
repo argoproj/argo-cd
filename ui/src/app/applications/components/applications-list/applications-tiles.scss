@@ -6,6 +6,6 @@
         padding-bottom: 0;
     }
     &__selected {
-        border: 1px solid $argo-color-teal-5;
+        box-shadow: 0 0 0 1px $argo-color-teal-5;
     }
 }

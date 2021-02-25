@@ -2,6 +2,7 @@ import * as React from 'react';
 
 export enum Key {
     ENTER = 13,
+    ESCAPE = 27,
     LEFT = 37,
     UP = 38,
     RIGHT = 39,
@@ -9,14 +10,15 @@ export enum Key {
     SLASH = 191
 }
 
-export const useKeyPress = (key: Key | Key[], action: () => void) => {
+export const useKeyPress = (key: Key | Key[], action: () => boolean) => {
     React.useEffect(() => {
         const handlePress = (e: KeyboardEvent) => {
             const keys = Array.isArray(key) ? key : [key];
             for (const k of keys) {
                 if (e.keyCode === k) {
-                    action();
-                    e.preventDefault();
+                    if (action()) {
+                        e.preventDefault();
+                    }
                 }
             }
         };

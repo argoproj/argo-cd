@@ -20,34 +20,81 @@ export interface ApplicationTilesProps {
     deleteApplication: (appName: string) => any;
 }
 
+const useItemsPerContainer = (itemRef: any, containerRef: any): number => {
+    const [itemsPer, setItemsPer] = React.useState(0);
+
+    React.useEffect(() => {
+        const handleResize = () => {
+            let timeoutId: any;
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => {
+                timeoutId = null;
+                const itemWidth = itemRef.current ? itemRef.current.offsetWidth : -1;
+                const containerWidth = containerRef.current ? containerRef.current.offsetWidth : -1;
+                const curItemsPer = containerWidth > 0 && itemWidth > 0 ? Math.floor(containerWidth / itemWidth) : 1;
+                if (curItemsPer !== itemsPer) {
+                    setItemsPer(curItemsPer);
+                }
+            }, 1000);
+        };
+        window.addEventListener('resize', handleResize);
+        handleResize();
+        return () => {
+            window.removeEventListener('resize', handleResize);
+        };
+    }, []);
+
+    return itemsPer || 1;
+};
+
 export const ApplicationTiles = ({applications, syncApplication, refreshApplication, deleteApplication}: ApplicationTilesProps) => {
     const [selectedApp, setSelectedApp] = React.useState(-1);
     const ctxh = React.useContext(Context);
+    const appRef = {ref: React.useRef(null), set: false};
+    const appContainerRef = React.useRef(null);
+    const appsPerRow = useItemsPerContainer(appRef.ref, appContainerRef);
 
-    useKeyPress(Key.DOWN, () => {
-        setSelectedApp(selectedApp + 1);
-    });
+    const isInBounds = (pos: number): boolean => pos < applications.length && pos > -1;
+
+    const nav = (val: number): boolean => {
+        const newPos = selectedApp + val;
+        return isInBounds(newPos) ? setSelectedApp(newPos) === null : false;
+    };
+
+    useKeyPress(Key.RIGHT, () => nav(1));
+    useKeyPress(Key.LEFT, () => nav(-1));
+    useKeyPress(Key.DOWN, () => nav(appsPerRow));
+    useKeyPress(Key.UP, () => nav(-1 * appsPerRow));
 
     useKeyPress(Key.ENTER, () => {
         if (selectedApp > -1) {
             ctxh.navigation.goto(`/applications/${applications[selectedApp].metadata.name}`);
+            return true;
         }
+        return false;
+    });
+
+    useKeyPress(Key.ESCAPE, () => {
+        if (selectedApp > -1) {
+            setSelectedApp(-1);
+            return true;
+        }
+        return false;
     });
 
     return (
         <Consumer>
             {ctx => (
-                <div className='applications-tiles argo-table-list argo-table-list--clickable row small-up-1 medium-up-2 large-up-3 xxxlarge-up-4'>
+                <div className='applications-tiles argo-table-list argo-table-list--clickable row small-up-1 medium-up-2 large-up-3 xxxlarge-up-4' ref={appContainerRef}>
                     {applications.map((app, i) => (
                         <div key={app.metadata.name} className='column column-block'>
                             <div
-                                className={`argo-table-list__row
-                    applications-list__entry applications-list__entry--comparison-${app.status.sync.status}
-                    applications-list__entry--health-${app.status.health.status}`}>
-                                <div
-                                    className={`row ${selectedApp === i ? 'applications-tiles__selected' : ''}`}
-                                    onClick={e => ctx.navigation.goto(`/applications/${app.metadata.name}`, {}, {event: e})}>
-                                    <div className={'columns small-12 applications-list__info qe-applications-list-' + app.metadata.name}>
+                                ref={appRef.set ? null : appRef.ref}
+                                className={`argo-table-list__row applications-list__entry applications-list__entry--comparison-${
+                                    app.status.sync.status
+                                } applications-list__entry--health-${app.status.health.status} ${selectedApp === i ? 'applications-tiles__selected' : ''}`}>
+                                <div className='row' onClick={e => ctx.navigation.goto(`/applications/${app.metadata.name}`, {}, {event: e})}>
+                                    <div className={`columns small-12 applications-list__info qe-applications-list-${app.metadata.name}`}>
                                         <div className='applications-list__external-link'>
                                             <ApplicationURLs urls={app.status.summary.externalURLs} />
                                         </div>
