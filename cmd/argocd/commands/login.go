@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"html"
 	"net/http"
 	"os"
 	"strconv"
@@ -192,7 +193,7 @@ func oauth2Login(ctx context.Context, port int, oidcSettings *settingspkg.OIDCCo
 	var refreshToken string
 
 	handleErr := func(w http.ResponseWriter, errMsg string) {
-		http.Error(w, errMsg, http.StatusBadRequest)
+		http.Error(w, html.EscapeString(errMsg), http.StatusBadRequest)
 		completionChan <- errMsg
 	}
 
@@ -207,7 +208,7 @@ func oauth2Login(ctx context.Context, port int, oidcSettings *settingspkg.OIDCCo
 		log.Debugf("Callback: %s", r.URL)
 
 		if formErr := r.FormValue("error"); formErr != "" {
-			handleErr(w, formErr+": "+r.FormValue("error_description"))
+			handleErr(w, fmt.Sprintf("%s: %s", formErr, r.FormValue("error_description")))
 			return
 		}
 
