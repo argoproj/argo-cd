@@ -5,7 +5,7 @@ kind: Kustomization
 images:
 - name: argoproj/argocd
   newName: argoproj/argocd
-  newTag: v1.8.5
+  newTag: v1.8.6
 resources:
 - ./application-controller
 - ./dex
