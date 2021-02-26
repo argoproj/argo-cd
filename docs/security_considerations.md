@@ -14,6 +14,7 @@ no fix yet.
 |Date|CVE|Title|Risk|Affected version(s)|Fix version|
 |----|---|-----|----|-------------------|-----------|
 |2020-06-16|[CVE-2020-1747](https://nvd.nist.gov/vuln/detail/CVE-2020-1747)|PyYAML library susceptible to arbitrary code execution|High|all|v1.5.8|
+|2020-06-16|[CVE-2020-14343](https://nvd.nist.gov/vuln/detail/CVE-2020-14343)|PyYAML library susceptible to arbitrary code execution|High|all|v1.5.8|
 |2020-04-14|[CVE-2020-5260](https://nvd.nist.gov/vuln/detail/CVE-2020-5260)|Possible Git credential leak|High|all|v1.4.3,v1.5.2|
 |2020-04-08|[CVE-2020-11576](https://nvd.nist.gov/vuln/detail/CVE-2020-11576)|User Enumeration|Medium|v1.5.0|v1.5.1|
 |2020-04-08|[CVE-2020-8826](https://nvd.nist.gov/vuln/detail/CVE-2020-8826)|Session-fixation|High|all|n/a|
@@ -27,7 +28,7 @@ A recent security audit (thanks a lot to [Matt Hamilton](https://github.com/Erin
 has revealed several limitations in Argo CD which could compromise security.
 Most of the issues are related to the built-in user management implementation.
 
-### CVE-2020-1747 - PyYAML library susceptible to arbitrary code execution
+### CVE-2020-1747, CVE-2020-14343 - PyYAML library susceptible to arbitrary code execution
 
 **Summary:**
 
@@ -38,7 +39,7 @@ Most of the issues are related to the built-in user management implementation.
 **Details:**
 
 PyYAML library susceptible to arbitrary code execution when it processes untrusted YAML files.
-We do not believe ArgoCD is affected by this vulnerability, because the impact of CVE-2020-1747 is limited to usage of awscli.
+We do not believe ArgoCD is affected by this vulnerability, because the impact of CVE-2020-1747 and CVE-2020-14343 is limited to usage of awscli.
 The `awscli` only used for AWS IAM authentication, and the endpoint is the AWS API.
 
 ### CVE-2020-5260 - Possible Git credential leak
