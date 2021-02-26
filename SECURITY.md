@@ -41,7 +41,7 @@ prefer to stay anonymous, of course).
 
 Please report vulnerabilities by e-mail to all of the following people:
 
+* jfischer@redhat.com
 * Jesse_Suen@intuit.com
 * Alexander_Matyushentsev@intuit.com
 * Edward_Lee@intuit.com
-* jfischer@redhat.com
