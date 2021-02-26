@@ -358,7 +358,7 @@ export const HealthStatusIcon = ({state}: {state: appModels.HealthStatus}) => {
     }
     let title: string = state.status;
     if (state.message) {
-        title = `${state.status}: ${state.message};`;
+        title = `${state.status}: ${state.message}`;
     }
     return <i qe-id='utils-health-status-title' title={title} className={'fa ' + icon} style={{color}} />;
 };
@@ -382,7 +382,7 @@ export const PodHealthIcon = ({state}: {state: appModels.HealthStatus}) => {
     }
     let title: string = state.status;
     if (state.message) {
-        title = `${state.status}: ${state.message};`;
+        title = `${state.status}: ${state.message}`;
     }
     return <i qe-id='utils-health-status-title' title={title} className={'fa ' + icon} />;
 };
@@ -463,7 +463,7 @@ export const ResourceResultIcon = ({resource}: {resource: appModels.ResourceResu
         }
         let title: string = resource.message;
         if (resource.message) {
-            title = `${resource.hookPhase}: ${resource.message};`;
+            title = `${resource.hookPhase}: ${resource.message}`;
         }
         return <i title={title} className={className} style={{color}} />;
     }
