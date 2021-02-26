@@ -19,6 +19,7 @@ import (
 	"github.com/argoproj/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	networkingv1beta "k8s.io/api/networking/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -424,6 +425,15 @@ func TestAppWithSecrets(t *testing.T) {
 
 			diffOutput := FailOnErr(RunCli("app", "diff", app.Name)).(string)
 			assert.Empty(t, diffOutput)
+
+			// make sure resource update error does not print secret details
+			_, err = RunCli("app", "patch-resource", "test-app-with-secrets", "--resource-name", "test-secret",
+				"--kind", "Secret", "--patch", `{"op": "add", "path": "/data", "value": "hello"}'`,
+				"--patch-type", "application/json-patch+json")
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), fmt.Sprintf("failed to patch Secret %s/test-secret", DeploymentNamespace()))
+			assert.NotContains(t, err.Error(), "username")
+			assert.NotContains(t, err.Error(), "password")
 
 			// patch secret and make sure app is out of sync and diff detects the change
 			FailOnErr(KubeClientset.CoreV1().Secrets(DeploymentNamespace()).Patch(context.Background(),
