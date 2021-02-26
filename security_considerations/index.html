@@ -10,7 +10,7 @@
       
       
       <link rel="shortcut icon" href="../assets/favicon.png">
-      <meta name="generator" content="mkdocs-1.1.2, mkdocs-material-7.0.2">
+      <meta name="generator" content="mkdocs-1.1.2, mkdocs-material-7.0.3">
     
     
       
@@ -1459,8 +1459,8 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#cve-2020-1747-pyyaml-library-susceptible-to-arbitrary-code-execution" class="md-nav__link">
-    CVE-2020-1747 - PyYAML library susceptible to arbitrary code execution
+  <a href="#cve-2020-1747-cve-2020-14343-pyyaml-library-susceptible-to-arbitrary-code-execution" class="md-nav__link">
+    CVE-2020-1747, CVE-2020-14343 - PyYAML library susceptible to arbitrary code execution
   </a>
   
 </li>
@@ -1627,8 +1627,8 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#cve-2020-1747-pyyaml-library-susceptible-to-arbitrary-code-execution" class="md-nav__link">
-    CVE-2020-1747 - PyYAML library susceptible to arbitrary code execution
+  <a href="#cve-2020-1747-cve-2020-14343-pyyaml-library-susceptible-to-arbitrary-code-execution" class="md-nav__link">
+    CVE-2020-1747, CVE-2020-14343 - PyYAML library susceptible to arbitrary code execution
   </a>
   
 </li>
@@ -1734,6 +1734,14 @@ no fix yet.</p>
 <td>v1.5.8</td>
 </tr>
 <tr>
+<td>2020-06-16</td>
+<td><a href="https://nvd.nist.gov/vuln/detail/CVE-2020-14343">CVE-2020-14343</a></td>
+<td>PyYAML library susceptible to arbitrary code execution</td>
+<td>High</td>
+<td>all</td>
+<td>v1.5.8</td>
+</tr>
+<tr>
 <td>2020-04-14</td>
 <td><a href="https://nvd.nist.gov/vuln/detail/CVE-2020-5260">CVE-2020-5260</a></td>
 <td>Possible Git credential leak</td>
@@ -1787,7 +1795,7 @@ no fix yet.</p>
 <p>A recent security audit (thanks a lot to <a href="https://github.com/Eriner">Matt Hamilton</a> of <a href="https://soluble.ai">https://soluble.ai</a> )
 has revealed several limitations in Argo CD which could compromise security.
 Most of the issues are related to the built-in user management implementation.</p>
-<h3 id="cve-2020-1747-pyyaml-library-susceptible-to-arbitrary-code-execution">CVE-2020-1747 - PyYAML library susceptible to arbitrary code execution<a class="headerlink" href="#cve-2020-1747-pyyaml-library-susceptible-to-arbitrary-code-execution" title="Permanent link">&para;</a></h3>
+<h3 id="cve-2020-1747-cve-2020-14343-pyyaml-library-susceptible-to-arbitrary-code-execution">CVE-2020-1747, CVE-2020-14343 - PyYAML library susceptible to arbitrary code execution<a class="headerlink" href="#cve-2020-1747-cve-2020-14343-pyyaml-library-susceptible-to-arbitrary-code-execution" title="Permanent link">&para;</a></h3>
 <p><strong>Summary:</strong></p>
 <table>
 <thead>
@@ -1809,7 +1817,7 @@ Most of the issues are related to the built-in user management implementation.</
 </table>
 <p><strong>Details:</strong></p>
 <p>PyYAML library susceptible to arbitrary code execution when it processes untrusted YAML files.
-We do not believe ArgoCD is affected by this vulnerability, because the impact of CVE-2020-1747 is limited to usage of awscli.
+We do not believe ArgoCD is affected by this vulnerability, because the impact of CVE-2020-1747 and CVE-2020-14343 is limited to usage of awscli.
 The <code>awscli</code> only used for AWS IAM authentication, and the endpoint is the AWS API.</p>
 <h3 id="cve-2020-5260-possible-git-credential-leak">CVE-2020-5260 - Possible Git credential leak<a class="headerlink" href="#cve-2020-5260-possible-git-credential-leak" title="Permanent link">&para;</a></h3>
 <p><strong>Summary:</strong></p>
@@ -2055,10 +2063,10 @@ fix to mitigate the found security vulnerability.</p>
     <div class="md-dialog" data-md-component="dialog">
       <div class="md-dialog__inner md-typeset"></div>
     </div>
-    <script id="__config" type="application/json">{"base": "..", "features": [], "translations": {"clipboard.copy": "Copy to clipboard", "clipboard.copied": "Copied to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.placeholder": "Type to start searching", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.term.missing": "Missing"}, "search": "../assets/javascripts/workers/search.f5903571.min.js", "version": null}</script>
+    <script id="__config" type="application/json">{"base": "..", "features": [], "translations": {"clipboard.copy": "Copy to clipboard", "clipboard.copied": "Copied to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.placeholder": "Type to start searching", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.term.missing": "Missing"}, "search": "../assets/javascripts/workers/search.fb4a9340.min.js", "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.3981fc68.min.js"></script>
+      <script src="../assets/javascripts/bundle.ca5457b8.min.js"></script>
       
         <script src="../assets/versions.js"></script>
       
