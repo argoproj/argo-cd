@@ -1,5 +1,11 @@
 # Security Considerations
 
+!!!warning "Deprecation notice"
+    This page is now deprecated and serves as an archive only. For up-to-date
+    information, please have a look at our
+    [security policy](https://github.com/argoproj/argo-cd/security/policy) and
+    [published security advisories](https://github.com/argoproj/argo-cd/security/advisories).
+
 As a deployment tool, Argo CD needs to have production access which makes security a very important topic.
 The Argoproj team takes security very seriously and continuously working on improving it. Learn more about security
 related features in [Security](./operator-manual/security.md) section.
@@ -171,12 +177,6 @@ Upgrade to ArgoCD v1.5.0 or higher. No workaround available
 
 ## Reporting Vulnerabilities
 
-If you find a security related bug in ArgoCD, we kindly ask you for responsible
-disclosure and for giving us appropriate time to react, analyze and develop a
-fix to mitigate the found security vulnerability.
-
-Please report security vulnerabilities by e-mailing:
-
-* [Jesse_Suen@intuit.com](mailto:Jesse_Suen@intuit.com)
-* [Alexander_Matyushentsev@intuit.com](mailto:Alexander_Matyushentsev@intuit.com)
-* [Edward_Lee@intuit.com](mailto:Edward_Lee@intuit.com)
+Please have a look at our
+[security policy](https://github.com/argoproj/argo-cd/security/policy)
+for more details on how to report security vulnerabilities for Argo CD.
