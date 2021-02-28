@@ -445,8 +445,8 @@ func TestManifestGenErrorCacheFileContentsChange(t *testing.T) {
 		}
 
 		if step == 2 {
-			assert.True(t, err == nil, "error ret val was non-nil on step 3")
-			assert.True(t, res != nil, "GenerateManifest ret val was nil on step 3")
+			assert.NoError(t, err, "error ret val was non-nil on step 3")
+			assert.NotNil(t, res, "GenerateManifest ret val was nil on step 3")
 		}
 	}
 }
@@ -1192,7 +1192,7 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 	t.Run("Broken app-specific overrides", func(t *testing.T) {
 		service := newService(".")
 		runWithTempTestdata(t, "multi", func(t *testing.T, path string) {
-			details, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
+			_, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
 				Repo: &argoappv1.Repository{},
 				Source: &argoappv1.ApplicationSource{
 					Path: path,
@@ -1200,7 +1200,6 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 				AppName: "broken",
 			})
 			assert.Error(t, err)
-			assert.Nil(t, details)
 		})
 	})
 }
