@@ -10,7 +10,7 @@ The *Sync Status* represents the current state of reconciliation between the
 
 * `OUT OF SYNC` - Argo CD has determined a deviation between the desired state
   and the actual state. When an *Application* transitions to this state, the
-  [Automated Sync Policy](../syncing.md)
+  [Automated Sync Policy](../../syncing/policy.md)
   (if enabled) will trigger a sync for the *Application*.
 
 * `UNKNOWN` - Argo CD currently cannot determine the desired state from the
@@ -29,7 +29,7 @@ SYNC`.
 
 The diffing behaviour can be changed to ignore such expected deviations, so that
 they won't affect the *Sync Status*. You can read more about this in the
-[Diffing Customization documentation](../../advanced/diffing.md)
+[Diffing Customization documentation](../../syncing/diffing.md)
 
 ## Application Health
 

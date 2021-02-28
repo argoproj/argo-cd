@@ -15,7 +15,7 @@ The `.spec.source.repoURL` field defines the repository where the resource
 manifests are stored. It must be an URL that points to either a Git or a Helm
 repository. For more details about supported URLs, authentication, etc. please
 read the
-[repositories documentation](../repositories.md).
+[repositories documentation](../repositories/).
 
 ### Manifests from a Git repository
 
@@ -23,7 +23,7 @@ If you source manifests from a Git repository, you can use all the generators
 that are supported by Argo CD to render the manifests before they are being
 reconciled into your cluster. For list of available generator tools, please
 have a look at the
-[tools documentation](../tools.md)
+[tools documentation](../../tools/)
 
 #### Path within repository
 
@@ -39,7 +39,7 @@ The corresponding parameter for `argocd app create` to specify the path is
 
 The `.spec.source.targetRevision` defines the Git target revision to track.
 This can take various formats, please refer to the
-[Tracking strategies documentation](../tracking.md)
+[Tracking strategies documentation](../../syncing/tracking.md)
 for more information.
 
 The corresponding parameter for `argocd app create` to specify the target
@@ -61,7 +61,7 @@ Also, `.spec.source.targetRevision` specifies the version of the Helm chart to
 use instead of a Git revision.
 
 For more information, refer to the
-[Helm tooling documentation](../tools/helm.md).
+[Helm tooling documentation](../../tools/helm.md).
 
 ## Source specific configuration
 
@@ -70,9 +70,9 @@ additional configuration can or must be given. These can be simple options to
 recursively consider all of the manifests found in directories below
 `.spec.source.path`, a directive to use a pinned version of a given tool or more
 complex settings, like
-[parameter overrides](../tools.md)
+[parameter overrides](../../tools/)
 
 Please refer to the
-[tool specific documenation](../tools.md)
+[tool specific documenation](../../tools/)
 for more information about the possible configuration options for each of the
 supported tools.

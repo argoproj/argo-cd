@@ -3,7 +3,7 @@
 !!! tip "Want to upgrade?"
     If you're looking to upgrade an existing Argo CD installation to a newer
     version, please have a look at the
-    [upgrade documentation](/operations/upgrading.md).
+    [upgrade documentation](../../operations/upgrading/).
 
 ## Requirements
 

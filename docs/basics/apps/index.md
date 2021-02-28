@@ -18,14 +18,14 @@ Each *Application* must be configured to have at least
 * a unique
   [Name](#application-name),
 * a relationship to a
-  [Project](../projects.md),
+  [Project](../projects/),
 * a [Source](source.md)
   to define the source of the *Application's* resources and
 * a [Destination](destination.md)
   to define the target of the *Application's* resources.
 
 Optionally, each *Application* can also have a
-[Sync Policy](../syncing.md)
+[Sync Policy](../../syncing/policy.md)
 that controls how it will be synced to its destination.
 
 The relationship between a *Source* and an *Application* is always 1:n. That
@@ -39,7 +39,7 @@ exactly one *Destination*, but your *Destination* can contain multiple
 multiple clusters, or multiple times on the same cluster.
 
 Along with its configuration, each *Application* also has a
-[state](state.md)
+[sync state](../../syncing/states.md)
 that represents its current reconciliation status, and a
 [history](history.md)
 which contains recordings of previous states and reconciliation results.
@@ -60,7 +60,7 @@ destinations. For example, if you have an *Application* you want to name
 ## Parent project
 
 Each *Application* must belong to a parent
-[project](../projects.md)
+[project](../projects/)
 that specifies certain rules and additional configuration for *Applications*
 that belong to it. The project is specified using the `.spec.project` field,
 which must contain the *name* of the project to associate the application to.
@@ -78,7 +78,7 @@ Specifying a *Sync Policy* for an *Application* is *optional*. If no policy is
 configured, the default policy will be used.
 
 You can read more about *Sync Policies* in the
-[Sync Policy documentation](../syncing.md).
+[Sync Policy documentation](../../syncing/policy.md).
 
 ## Implementation details
 

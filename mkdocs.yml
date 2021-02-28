@@ -32,12 +32,13 @@ nav:
     - First steps: getting_started/first_steps.md
   - Basics:
     - Applications: 
-      - Overview: basics/apps/overview.md
+      - Overview: basics/apps/index.md
       - Source: basics/apps/source.md
       - Destination: basics/apps/destination.md
       - State: basics/apps/state.md
       - Managing Applications: basics/apps/manage.md
     - Clusters:
+      - Overview: basics/clusters/index.md
       - Internal: basics/clusters/internal.md
       - External clusters: basics/clusters/external.md
       - Managing clusters: basics/clusters/manage.md
@@ -47,27 +48,30 @@ nav:
       - Managing Repositories: basics/repos/manage.md 
       - Repos: basics/repositories.md
     - Projects: 
-      - Overview: basics/projects/overview.md
+      - Overview: basics/projects/index.md
       - Settings: basics/projects/settings.md
       - Roles: basics/projects/roles.md
-    - Tools: 
-      - Overview: basics/tools.md
-      - Helm: basics/tools/helm.md
-      - Kustomize: basics/tools/kustomize.md
-      - JSonnet: basics/tools/jsonnet.md
-      - Third-party tools: basics/tools/custom.md
-    - Syncing:
-      - Sync & Sync policies: basics/syncing.md
-      - Tracking strategies: basics/tracking.md
-    - Access control: basics/rbac.md
-  - Advanced topics:
-    - Application Health Customization: advanced/health.md
-    - Diffing Customization: advanced/diffing.md
-    - Git Webhooks: advanced/git_webhooks.md
-    - GnuPG commit verification: advanced/gnupg.md
-    - Resource Hooks: advanced/hooks.md
-    - Sync Phases & Sync Waves: advanced/sync_waves.md
-    - Sync Windows: advanced/sync_windows.md
+  - Syncing:
+    - Overview: syncing/index.md
+    - Sync states: syncing/states.md
+    - Sync policy: syncing/policy.md
+    - Sync options: syncing/options.md
+    - Sync waves: syncing/waves.md
+    - Sync windows: syncing/windows.md
+    - Tracking strategies: syncing/tracking.md
+    - Application health: syncing/health.md
+    - Diffing behavior: syncing/diffing.md
+    - GnuPG commit verification: syncing/gnupg.md
+    - Git refresh webhooks: syncing/git_webhooks.md
+    - Resource Hooks: syncing/hooks.md
+  - Tools:
+    - Overview: tools/index.md
+    - Helm: tools/helm.md
+    - Kustomize: tools/kustomize.md
+    - JSonnet: tools/jsonnet.md
+    - Third-party tools: tools/plugins.md
+  - Access control & RBAC:
+    - Overview: rbac/index.md
   - Operations & Maintenance:
     - Architectural Overview: operations/index.md
     - Backup & Restore: operations/backup_restore.md
@@ -82,7 +86,16 @@ nav:
     - Local users: operations/users.md
     - Security: operations/security.md
     - Single Sign On (SSO): operations/sso/overview.md
-    - Upgrading: operations/upgrading.md
+    - Upgrading:
+      - Upgrading Argo CD: operations/upgrading/index.md
+      - Upgrade guides:
+        - 1.7 to 1.8: operations/upgrading/1_7-1_8.md
+        - 1.6 to 1.7: operations/upgrading/1_6-1_7.md
+        - 1.5 to 1.6: operations/upgrading/1_5-1_6.md
+        - 1.4 to 1.5: operations/upgrading/1_4-1_5.md
+        - 1.3 to 1.4: operations/upgrading/1_3-1_4.md
+        - 1.2 to 1.3: operations/upgrading/1_2-1_3.md
+        - 1.1 to 1.2: operations/upgrading/1_1-1_2.md
   - Troubleshooting:
     - Performance: troubleshooting/performance.md
     - Common Issues: troubleshooting/common-issues.md
