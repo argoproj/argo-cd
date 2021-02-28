@@ -1162,7 +1162,7 @@ func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath strin
 		return err
 	}
 
-	if err := loadFileInto(filepath.Join(appPath, "values.yaml"), &res.Helm.Values); err != nil {
+	if err := loadFileIntoIfExists(filepath.Join(appPath, "values.yaml"), &res.Helm.Values); err != nil {
 		return err
 	}
 	params, err := h.GetParameters(valueFiles)
@@ -1184,7 +1184,7 @@ func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath strin
 	return nil
 }
 
-func loadFileInto(path string, destination *string) error {
+func loadFileIntoIfExists(path string, destination *string) error {
 	info, err := os.Stat(path)
 
 	if err == nil && !info.IsDir() {
@@ -1195,7 +1195,7 @@ func loadFileInto(path string, destination *string) error {
 		}
 	}
 
-	return err
+	return nil
 }
 
 func findHelmValueFilesInPath(path string) ([]string, error) {

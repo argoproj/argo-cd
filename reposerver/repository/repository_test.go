@@ -928,6 +928,24 @@ func TestGetAppDetailsHelm(t *testing.T) {
 	assert.EqualValues(t, []string{"values-production.yaml", "values.yaml"}, res.Helm.ValueFiles)
 }
 
+func TestGetAppDetailsHelm_WithNoValuesFile(t *testing.T) {
+	service := newService("../..")
+
+	res, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
+		Repo: &argoappv1.Repository{},
+		Source: &argoappv1.ApplicationSource{
+			Path: "./util/helm/testdata/api-versions",
+		},
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, res.Helm)
+
+	assert.Equal(t, "Helm", res.Type)
+	assert.Empty(t, res.Helm.ValueFiles)
+	assert.Equal(t, "", res.Helm.Values)
+}
+
 func TestGetAppDetailsKustomize(t *testing.T) {
 	service := newService("../..")
 
