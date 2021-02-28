@@ -10,7 +10,7 @@ theme:
   logo: 'assets/logo.png'
   favicon: 'assets/favicon.png'
   language: en-custom
-  custom_dir: docs/overrides
+  custom_dir: overrides
 extra_javascript:
 - assets/versions.js
 extra_css:
