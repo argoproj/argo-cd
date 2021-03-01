@@ -1144,14 +1144,12 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 
 	logStream := mergeLogStreams(streams, time.Millisecond*100)
 	sentCount := int64(0)
-	for {
-		select {
-		case entry, ok := <-logStream:
-			if !ok {
-				return ws.Send(&application.LogEntry{Last: true})
-			}
+	done := make(chan error)
+	go func() {
+		for entry := range logStream {
 			if entry.err != nil {
-				return entry.err
+				done <- entry.err
+				return
 			} else {
 				if q.Filter != nil {
 					lineContainsFilter := strings.Contains(entry.line, literal)
@@ -1160,9 +1158,10 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 					}
 				}
 				if untilTime != nil && entry.timeStamp.After(untilTime.Time) {
-					return ws.Send(&application.LogEntry{
+					done <- ws.Send(&application.LogEntry{
 						Last: true,
 					})
+					return
 				} else {
 					sentCount++
 					if err := ws.Send(&application.LogEntry{
@@ -1171,14 +1170,21 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 						TimeStampStr: entry.timeStamp.Format(time.RFC3339Nano),
 						TimeStamp:    metav1.NewTime(entry.timeStamp),
 					}); err != nil {
-						return err
+						done <- err
+						break
 					}
 				}
 			}
-		case <-ws.Context().Done():
-			log.WithField("application", q.Name).Debug("k8s pod logs reader completed due to closed grpc context")
-			return nil
 		}
+		done <- ws.Send(&application.LogEntry{Last: true})
+	}()
+
+	select {
+	case err := <-done:
+		return err
+	case <-ws.Context().Done():
+		log.WithField("application", q.Name).Debug("k8s pod logs reader completed due to closed grpc context")
+		return nil
 	}
 }
 

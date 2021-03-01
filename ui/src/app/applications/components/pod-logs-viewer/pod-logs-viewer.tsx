@@ -190,7 +190,7 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                                 .filter(batch => batch.length > 0)
                                 .map(batch => batch[batch.length - 1]);
                             if (prefs.appDetails.followLogs) {
-                                logsSource = logsSource.repeat().retryWhen(errors => errors.delay(500));
+                                logsSource = logsSource.retryWhen(errors => errors.delay(500));
                             }
                             return logsSource;
                         }}>
