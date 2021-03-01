@@ -7,11 +7,13 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application"
@@ -62,6 +64,10 @@ type AppOptions struct {
 	Validate                   bool
 	directoryExclude           string
 	directoryInclude           string
+	retryLimit                 int64
+	retryBackoffDuration       time.Duration
+	retryBackoffMaxDuration    time.Duration
+	retryBackoffFactor         int64
 }
 
 func AddAppFlags(command *cobra.Command, opts *AppOptions) {
@@ -105,6 +111,10 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringArrayVar(&opts.kustomizeCommonAnnotations, "kustomize-common-annotation", []string{}, "Set common labels in Kustomize")
 	command.Flags().StringVar(&opts.directoryExclude, "directory-exclude", "", "Set glob expression used to exclude files from application source path")
 	command.Flags().StringVar(&opts.directoryInclude, "directory-include", "", "Set glob expression used to include files from application source path")
+	command.Flags().Int64Var(&opts.retryLimit, "retry-limit", 0, "Max number of allowed sync retries")
+	command.Flags().DurationVar(&opts.retryBackoffDuration, "retry-backoff-duration", common.DefaultSyncRetryDuration, "Retry backoff base duration. Input needs to be a duration (e.g. 2m, 1h)")
+	command.Flags().DurationVar(&opts.retryBackoffMaxDuration, "retry-backoff-max-duration", common.DefaultSyncRetryMaxDuration, "Max retry backoff duration. Input needs to be a duration (e.g. 2m, 1h)")
+	command.Flags().Int64Var(&opts.retryBackoffFactor, "retry-backoff-factor", common.DefaultSyncRetryFactor, "Factor multiplies the base duration after each failed retry")
 }
 
 func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, appOpts *AppOptions) int {
@@ -237,6 +247,28 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			}
 			if spec.SyncPolicy.IsZero() {
 				spec.SyncPolicy = nil
+			}
+		case "retry-limit":
+			if appOpts.retryLimit > 0 {
+				if spec.SyncPolicy == nil {
+					spec.SyncPolicy = &argoappv1.SyncPolicy{}
+				}
+				spec.SyncPolicy.Retry = &argoappv1.RetryStrategy{
+					Limit: appOpts.retryLimit,
+					Backoff: &argoappv1.Backoff{
+						Duration:    appOpts.retryBackoffDuration.String(),
+						MaxDuration: appOpts.retryBackoffMaxDuration.String(),
+						Factor:      pointer.Int64Ptr(appOpts.retryBackoffFactor),
+					},
+				}
+			} else if appOpts.retryLimit == 0 {
+				if spec.SyncPolicy.IsZero() {
+					spec.SyncPolicy = nil
+				} else {
+					spec.SyncPolicy.Retry = nil
+				}
+			} else {
+				log.Fatalf("Invalid retry-limit [%d]", appOpts.retryLimit)
 			}
 		}
 	})
