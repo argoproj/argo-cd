@@ -178,7 +178,7 @@ After that you have to use your custom image for ArgoCD installation.
 
 ## Helm Version
 
-ArgoCD normally takes HelmV3 as the default version of Helm.
+Argo CD will assume that the Helm chart is v3 (even if the apiVersion field in the chart is Helm v2), unless v2 is explicitly specified within the Argo CD Application (see below).
 
 If needed, it is possible to specifically set the Helm version to template with by setting the `helm-version` flag on the cli (either v2 or v3):
 

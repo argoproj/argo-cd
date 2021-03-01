@@ -27,11 +27,11 @@ func NewCmd(workDir string, version string) (*Cmd, error) {
 	switch version {
 	case "v2":
 		return NewCmdWithVersion(workDir, HelmV2, false)
+	// If v3 is specified (or by default, if no value is specified) then use v3
 	case "", "v3":
 		return NewCmdWithVersion(workDir, HelmV3, false)
 	}
 	return nil, fmt.Errorf("helm chart version '%s' is not supported", version)
-
 }
 
 func NewCmdWithVersion(workDir string, version HelmVer, isHelmOci bool) (*Cmd, error) {
