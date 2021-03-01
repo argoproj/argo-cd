@@ -650,7 +650,7 @@ type SyncPolicy struct {
 }
 
 func (p *SyncPolicy) IsZero() bool {
-	return p == nil || (p.Automated == nil && len(p.SyncOptions) == 0)
+	return p == nil || (p.Automated == nil && len(p.SyncOptions) == 0 && p.Retry == nil)
 }
 
 type RetryStrategy struct {
