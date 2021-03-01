@@ -1,12 +1,12 @@
-import {Autocomplete, ErrorNotification, MockupList, NotificationType, SlidingPanel} from 'argo-ui';
+import {Autocomplete, ErrorNotification, MockupList, NotificationType, SlidingPanel, Toolbar} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as minimatch from 'minimatch';
 import * as React from 'react';
 import {RouteComponentProps} from 'react-router';
 import {Observable} from 'rxjs';
 
-import {ClusterCtx, DataLoader, EmptyState, ObservableQuery, Page, Paginate, Query, Spinner} from '../../../shared/components';
-import {Consumer, ContextApis} from '../../../shared/context';
+import {AddAuthToToolbar, ClusterCtx, DataLoader, EmptyState, ObservableQuery, Page, Paginate, Query, Spinner} from '../../../shared/components';
+import {Consumer, Context, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {AppsListPreferences, AppsListViewType, services} from '../../../shared/services';
 import {ApplicationCreatePanel} from '../application-create-panel/application-create-panel';
@@ -156,6 +156,40 @@ function tryJsonParse(input: string) {
     }
 }
 
+const FlexTopBar = (props: {toolbar: Toolbar | Observable<Toolbar>}) => {
+    const ctx = React.useContext(Context);
+    const loadToolbar = AddAuthToToolbar(props.toolbar, ctx);
+    return (
+        <div className='top-bar row' key='tool-bar' style={{padding: '0 15px', alignItems: 'center'}}>
+            <DataLoader load={() => loadToolbar}>
+                {toolbar => (
+                    <React.Fragment>
+                        <div>
+                            {toolbar.actionMenu && (
+                                <div>
+                                    {toolbar.actionMenu.items.map((item, i) => (
+                                        <button
+                                            disabled={!!item.disabled}
+                                            qe-id={item.qeId}
+                                            className='argo-button argo-button--base'
+                                            onClick={() => item.action()}
+                                            style={{marginRight: 2}}
+                                            key={i}>
+                                            {item.iconClassName && <i className={item.iconClassName} style={{marginLeft: '-5px', marginRight: '5px'}} />}
+                                            {item.title}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                        <div style={{marginLeft: 'auto'}}>{toolbar.tools}</div>
+                    </React.Fragment>
+                )}
+            </DataLoader>
+        </div>
+    );
+};
+
 export const ApplicationsList = (props: RouteComponentProps<{}>) => {
     const query = new URLSearchParams(props.location.search);
     const appInput = tryJsonParse(query.get('new'));
@@ -209,56 +243,56 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
         <ClusterCtx.Provider value={clusters}>
             <Consumer>
                 {ctx => (
-                    <Page
-                        title='Applications'
-                        toolbar={services.viewPreferences.getPreferences().map(pref => ({
-                            breadcrumbs: [{title: 'Applications', path: '/applications'}],
-                            tools: (
-                                <React.Fragment key='app-list-tools'>
-                                    <span className='applications-list__view-type'>
-                                        <i
-                                            className={classNames('fa fa-th', {selected: pref.appList.view === 'tiles'})}
-                                            title='Tiles'
-                                            onClick={() => {
-                                                ctx.navigation.goto('.', {view: 'tiles'});
-                                                services.viewPreferences.updatePreferences({appList: {...pref.appList, view: 'tiles'}});
-                                            }}
-                                        />
-                                        <i
-                                            className={classNames('fa fa-th-list', {selected: pref.appList.view === 'list'})}
-                                            title='List'
-                                            onClick={() => {
-                                                ctx.navigation.goto('.', {view: 'list'});
-                                                services.viewPreferences.updatePreferences({appList: {...pref.appList, view: 'list'}});
-                                            }}
-                                        />
-                                        <i
-                                            className={classNames('fa fa-chart-pie', {selected: pref.appList.view === 'summary'})}
-                                            title='Summary'
-                                            onClick={() => {
-                                                ctx.navigation.goto('.', {view: 'summary'});
-                                                services.viewPreferences.updatePreferences({appList: {...pref.appList, view: 'summary'}});
-                                            }}
-                                        />
-                                    </span>
-                                </React.Fragment>
-                            ),
-                            actionMenu: {
-                                items: [
-                                    {
-                                        title: 'New App',
-                                        iconClassName: 'fa fa-plus',
-                                        qeId: 'applications-list-button-new-app',
-                                        action: () => ctx.navigation.goto('.', {new: '{}'})
-                                    },
-                                    {
-                                        title: 'Sync Apps',
-                                        iconClassName: 'fa fa-sync',
-                                        action: () => ctx.navigation.goto('.', {syncApps: true})
-                                    }
-                                ]
-                            }
-                        }))}>
+                    <Page title='Applications' toolbar={{breadcrumbs: [{title: 'Applications', path: '/applications'}]}} hideAuth={true}>
+                        <FlexTopBar
+                            toolbar={services.viewPreferences.getPreferences().map(pref => ({
+                                tools: (
+                                    <React.Fragment key='app-list-tools'>
+                                        <span className='applications-list__view-type'>
+                                            <i
+                                                className={classNames('fa fa-th', {selected: pref.appList.view === 'tiles'})}
+                                                title='Tiles'
+                                                onClick={() => {
+                                                    ctx.navigation.goto('.', {view: 'tiles'});
+                                                    services.viewPreferences.updatePreferences({appList: {...pref.appList, view: 'tiles'}});
+                                                }}
+                                            />
+                                            <i
+                                                className={classNames('fa fa-th-list', {selected: pref.appList.view === 'list'})}
+                                                title='List'
+                                                onClick={() => {
+                                                    ctx.navigation.goto('.', {view: 'list'});
+                                                    services.viewPreferences.updatePreferences({appList: {...pref.appList, view: 'list'}});
+                                                }}
+                                            />
+                                            <i
+                                                className={classNames('fa fa-chart-pie', {selected: pref.appList.view === 'summary'})}
+                                                title='Summary'
+                                                onClick={() => {
+                                                    ctx.navigation.goto('.', {view: 'summary'});
+                                                    services.viewPreferences.updatePreferences({appList: {...pref.appList, view: 'summary'}});
+                                                }}
+                                            />
+                                        </span>
+                                    </React.Fragment>
+                                ),
+                                actionMenu: {
+                                    items: [
+                                        {
+                                            title: 'New App',
+                                            iconClassName: 'fa fa-plus',
+                                            qeId: 'applications-list-button-new-app',
+                                            action: () => ctx.navigation.goto('.', {new: '{}'})
+                                        },
+                                        {
+                                            title: 'Sync Apps',
+                                            iconClassName: 'fa fa-sync',
+                                            action: () => ctx.navigation.goto('.', {syncApps: true})
+                                        }
+                                    ]
+                                }
+                            }))}
+                        />
                         <div className='applications-list'>
                             <ViewPref>
                                 {pref => (
