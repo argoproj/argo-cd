@@ -6,7 +6,7 @@
     &__title {
         font-weight: bolder;
         font-size: 15px;
-        color: $argo-color-gray-6;
+        color: $argo-color-gray-7;
         padding-top: 0.25em;
         padding-bottom: 0.5em;
         margin-left: 1em;
@@ -143,7 +143,7 @@
         white-space: nowrap;
         i {
             cursor: pointer;
-            color:  $argo-color-gray-4;
+            color: $argo-color-gray-4;
             margin-right: 1em;
             &::before {
                 font-size: 1.5em;
@@ -193,7 +193,7 @@
             cursor: pointer;
             &:hover {
                 color: $argo-color-gray-6;
-            }    
+            }
         }
         i.fa-times {
             cursor: pointer;
