@@ -211,6 +211,7 @@ export class ApplicationsService {
             const subscription = entries.subscribe(
                 entry => {
                     if (entry.last) {
+                        first = true;
                         observer.complete();
                         subscription.unsubscribe();
                     } else {
