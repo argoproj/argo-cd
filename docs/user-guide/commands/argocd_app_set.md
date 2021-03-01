@@ -42,6 +42,10 @@ argocd app set APPNAME [flags]
       --project string                            Application project name
       --release-name string                       Helm release-name
       --repo string                               Repository URL, ignored if a file is set
+      --retry-backoff-duration duration           Retry backoff base duration. Input needs to be a duration (e.g. 2m, 1h) (default 5s)
+      --retry-backoff-factor int                  Factor multiplies the base duration after each failed retry (default 2)
+      --retry-backoff-max-duration duration       Max retry backoff duration. Input needs to be a duration (e.g. 2m, 1h) (default 3m0s)
+      --retry-limit int                           Max number of allowed sync retries
       --revision string                           The tracking source branch, tag, commit or Helm chart version the application will sync to
       --revision-history-limit int                How many items to keep in revision history (default 10)
       --self-heal                                 Set self healing when sync is automated
