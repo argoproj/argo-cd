@@ -30,7 +30,7 @@ data:
 
   # A dex connector configuration (optional). See SSO configuration documentation:
   # https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/sso
-  # https://github.com/dexidp/dex/tree/master/Documentation/connectors
+  # https://dexidp.io/docs/connectors/
   dex.config: |
     connectors:
       # GitHub example
