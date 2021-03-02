@@ -29,6 +29,7 @@ jobs:
         run: |
           sudo apt-get install -y net-tools
           sudo netstat -tulpen
+          ps auxwww
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Setup Golang
