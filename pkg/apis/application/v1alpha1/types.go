@@ -59,19 +59,20 @@ type Application struct {
 
 // ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision.
 type ApplicationSpec struct {
-	// Source is a reference to the location ksonnet application definition
+	// Source is a reference to the location of the application's manifests or chart
 	Source ApplicationSource `json:"source" protobuf:"bytes,1,opt,name=source"`
-	// Destination overrides the kubernetes server and namespace defined in the environment ksonnet app.yaml
+	// Destination is a reference to the target Kubernetes server and namespace
 	Destination ApplicationDestination `json:"destination" protobuf:"bytes,2,name=destination"`
-	// Project is a application project name. Empty name means that application belongs to 'default' project.
+	// Project is a reference to the project this application belongs to.
+	// The empty string means that application belongs to the 'default' project.
 	Project string `json:"project" protobuf:"bytes,3,name=project"`
-	// SyncPolicy controls when a sync will be performed
+	// SyncPolicy controls when and how a sync will be performed
 	SyncPolicy *SyncPolicy `json:"syncPolicy,omitempty" protobuf:"bytes,4,name=syncPolicy"`
-	// IgnoreDifferences controls resources fields which should be ignored during comparison
+	// IgnoreDifferences is a list of resources and their fields which should be ignored during comparison
 	IgnoreDifferences []ResourceIgnoreDifferences `json:"ignoreDifferences,omitempty" protobuf:"bytes,5,name=ignoreDifferences"`
-	// Infos contains a list of useful information (URLs, email addresses, and plain text) that relates to the application
+	// Info contains a list of information (URLs, email addresses, and plain text) that relates to the application
 	Info []Info `json:"info,omitempty" protobuf:"bytes,6,name=info"`
-	// This limits this number of items kept in the apps revision history.
+	// RevisionHistoryLimit limits the number of items kept in the application's revision history, which is used for informational purposes as well as for rollbacks to previous versions.
 	// This should only be changed in exceptional circumstances.
 	// Setting to zero will store no history. This will reduce storage used.
 	// Increasing will increase the space used to store the history, so we do not recommend increasing it.
@@ -88,10 +89,11 @@ type ResourceIgnoreDifferences struct {
 	JSONPointers []string `json:"jsonPointers" protobuf:"bytes,5,opt,name=jsonPointers"`
 }
 
+// EnvEntry represents an entry in the application's environment
 type EnvEntry struct {
-	// the name, usually uppercase
+	// Name is the name of the variable, usually expressed in uppercase
 	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
-	// the value
+	// Value is the value of the variable
 	Value string `json:"value" protobuf:"bytes,2,opt,name=value"`
 }
 
@@ -137,14 +139,15 @@ func (e Env) Envsubst(s string) string {
 	})
 }
 
-// ApplicationSource contains information about github repository, path within repository and target application environment.
+// ApplicationSource contains all required information about the source of an application
 type ApplicationSource struct {
-	// RepoURL is the repository URL of the application manifests
+	// RepoURL is the URL to the repository (Git or Helm) that contains the application manifests
 	RepoURL string `json:"repoURL" protobuf:"bytes,1,opt,name=repoURL"`
-	// Path is a directory path within the Git repository
+	// Path is a directory path within the Git repository, and is only valid for applications sourced from Git.
 	Path string `json:"path,omitempty" protobuf:"bytes,2,opt,name=path"`
-	// TargetRevision defines the commit, tag, or branch in which to sync the application to.
-	// If omitted, will sync to HEAD
+	// TargetRevision defines the revision of the source to sync the application to.
+	// In case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.
+	// In case of Helm, this is a semver tag for the Chart's version.
 	TargetRevision string `json:"targetRevision,omitempty" protobuf:"bytes,4,opt,name=targetRevision"`
 	// Helm holds helm specific options
 	Helm *ApplicationSourceHelm `json:"helm,omitempty" protobuf:"bytes,7,opt,name=helm"`
@@ -156,7 +159,7 @@ type ApplicationSource struct {
 	Directory *ApplicationSourceDirectory `json:"directory,omitempty" protobuf:"bytes,10,opt,name=directory"`
 	// ConfigManagementPlugin holds config management plugin specific options
 	Plugin *ApplicationSourcePlugin `json:"plugin,omitempty" protobuf:"bytes,11,opt,name=plugin"`
-	// Chart is a Helm chart name
+	// Chart is a Helm chart name, and must be specified for applications sourced from a Helm repo.
 	Chart string `json:"chart,omitempty" protobuf:"bytes,12,opt,name=chart"`
 }
 
@@ -217,15 +220,15 @@ const (
 type ApplicationSourceHelm struct {
 	// ValuesFiles is a list of Helm value files to use when generating a template
 	ValueFiles []string `json:"valueFiles,omitempty" protobuf:"bytes,1,opt,name=valueFiles"`
-	// Parameters are parameters to the helm template
+	// Parameters is a list of Helm parameters which are passed to the helm template command upon manifest generation
 	Parameters []HelmParameter `json:"parameters,omitempty" protobuf:"bytes,2,opt,name=parameters"`
-	// The Helm release name. If omitted it will use the application name
+	// ReleaseName is the Helm release name to use. If omitted it will use the application name
 	ReleaseName string `json:"releaseName,omitempty" protobuf:"bytes,3,opt,name=releaseName"`
-	// Values is Helm values, typically defined as a block
+	// Values specifies Helm values to be passed to helm template, typically defined as a block
 	Values string `json:"values,omitempty" protobuf:"bytes,4,opt,name=values"`
 	// FileParameters are file parameters to the helm template
 	FileParameters []HelmFileParameter `json:"fileParameters,omitempty" protobuf:"bytes,5,opt,name=fileParameters"`
-	// Version is the Helm version to use for templating with
+	// Version is the Helm version to use for templating (either "2" or "3")
 	Version string `json:"version,omitempty" protobuf:"bytes,6,opt,name=version"`
 }
 
@@ -342,13 +345,13 @@ type ApplicationSourceKustomize struct {
 	NamePrefix string `json:"namePrefix,omitempty" protobuf:"bytes,1,opt,name=namePrefix"`
 	// NameSuffix is a suffix appended to resources for kustomize apps
 	NameSuffix string `json:"nameSuffix,omitempty" protobuf:"bytes,2,opt,name=nameSuffix"`
-	// Images are kustomize image overrides
+	// Images is a list of kustomize image override specifications
 	Images KustomizeImages `json:"images,omitempty" protobuf:"bytes,3,opt,name=images"`
-	// CommonLabels adds additional kustomize commonLabels
+	// CommonLabels is a list of additional labels to add to rendered manifests
 	CommonLabels map[string]string `json:"commonLabels,omitempty" protobuf:"bytes,4,opt,name=commonLabels"`
-	// Version contains optional Kustomize version
+	// Version controls which version of Kustomize to use for rendering manifests
 	Version string `json:"version,omitempty" protobuf:"bytes,5,opt,name=version"`
-	// CommonAnnotations adds additional kustomize commonAnnotations
+	// CommonAnnotations is a list of additional annotations to add to rendered manifests
 	CommonAnnotations map[string]string `json:"commonAnnotations,omitempty" protobuf:"bytes,6,opt,name=commonAnnotations"`
 }
 
