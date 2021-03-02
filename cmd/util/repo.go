@@ -17,6 +17,10 @@ type RepoOptions struct {
 	TlsClientCertKeyPath           string
 	EnableLfs                      bool
 	EnableOci                      bool
+	GithubAppId                    int64
+	GithubAppInstallationId        int64
+	GithubAppPrivateKeyPath        string
+	GitHubAppEnterpriseBaseURL     string
 }
 
 func AddRepoFlags(command *cobra.Command, opts *RepoOptions) {
@@ -31,4 +35,8 @@ func AddRepoFlags(command *cobra.Command, opts *RepoOptions) {
 	command.Flags().BoolVar(&opts.InsecureSkipServerVerification, "insecure-skip-server-verification", false, "disables server certificate and host key checks")
 	command.Flags().BoolVar(&opts.EnableLfs, "enable-lfs", false, "enable git-lfs (Large File Support) on this repository")
 	command.Flags().BoolVar(&opts.EnableOci, "enable-oci", false, "enable helm-oci (Helm OCI-Based Repository)")
+	command.Flags().Int64Var(&opts.GithubAppId, "github-app-id", 0, "id of the GitHub Application")
+	command.Flags().Int64Var(&opts.GithubAppInstallationId, "github-app-installation-id", 0, "installation id of the GitHub Application")
+	command.Flags().StringVar(&opts.GithubAppPrivateKeyPath, "github-app-private-key-path", "", "private key of the GitHub Application")
+	command.Flags().StringVar(&opts.GitHubAppEnterpriseBaseURL, "github-app-enterprise-base-url", "", "base url to use when using GitHub Enterprise (e.g. https://ghe.example.com/api/v3")
 }

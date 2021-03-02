@@ -1,24 +1,32 @@
 @import 'node_modules/argo-ui/src/styles/config';
 
+$header: 120px;
+
 .application-details {
     &__status-panel {
         position: fixed;
         left: 60px;
         right: 0;
         z-index: 2;
+        @media screen and (max-width: map-get($breakpoints, xlarge)) {
+            top: 150px;
+        }
     }
 
     .argo-dropdown__content.is-menu {
         max-height: 500px;
     }
-  
+
     &__tree {
         position: relative;
         padding: 1em;
         overflow-x: auto;
         overflow-y: auto;
-        margin-top: 100px;
+        margin-top: 115px;
         min-height: calc(100vh - 2 * 50px - 115px);
+        @media screen and (max-width: map-get($breakpoints, xlarge)) {
+            margin-top: 165px;
+        }
     }
 
     &__warning {
@@ -27,13 +35,13 @@
     }
     &__orphaned-filter {
         position: fixed;
-        top: 100px + 100px;
+        top: $header + 100px;
         right: 60px;
     }
 
     &__refreshing-label {
         position: fixed;
-        top: 100px + 100px;
+        top: $header + 100px;
         left: 60px;
         background-color: $argo-color-gray-4;
         border: 1px solid $argo-color-gray-5;
@@ -44,11 +52,12 @@
 
     &__tab-content-full-height {
         height: calc(100vh - 2 * 76px);
-        div.row, div.columns {
+        div.row,
+        div.columns {
             height: 100%;
         }
     }
-    
+
     &__container {
         position: relative;
         text-transform: uppercase;
@@ -93,7 +102,7 @@
         white-space: nowrap;
         i {
             cursor: pointer;
-            color:  $argo-color-gray-4;
+            color: $argo-color-gray-4;
             margin: 0 0.5em;
             &::before {
                 font-size: 1.5em;
@@ -130,6 +139,50 @@
         .columns.small-1.xxxlarge-1 {
             width: 60px;
             text-align: center;
+        }
+    }
+
+    @media screen and (max-width: map-get($breakpoints, xlarge)) {
+        .page__content-wrapper {
+            min-height: calc(100vh - 3 * 50px);
+        }
+        .top-bar.row {
+            display: block;
+            .top-bar__left-side,
+            .top-bar__right-side {
+                width: 100%;
+                max-width: 100%;
+                flex: auto;
+            }
+            .top-bar__left-side {
+                .argo-button {
+                    i {
+                        @media screen and (max-width: map-get($breakpoints, large)) {
+                            margin: 0 auto !important;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @media screen and (max-width: map-get($breakpoints, large)) {
+        .top-bar.row {
+            .top-bar__left-side {
+                > div {
+                    display: flex;
+                    justify-content: center;
+                    height: 50px;
+                    align-items: center;
+                    .argo-button {
+                        height: 34px;
+                    }
+                }
+            }
+            .top-bar__right-side {
+                display: flex;
+                justify-content: center;
+            }
         }
     }
 

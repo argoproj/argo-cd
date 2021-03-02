@@ -125,6 +125,7 @@ func NewApplicationController(
 	appResyncPeriod time.Duration,
 	selfHealTimeout time.Duration,
 	metricsPort int,
+	metricsCacheExpiration time.Duration,
 	kubectlParallelismLimit int64,
 	clusterFilter func(cluster *appv1.Cluster) bool,
 ) (*ApplicationController, error) {
@@ -181,6 +182,12 @@ func NewApplicationController(
 	})
 	if err != nil {
 		return nil, err
+	}
+	if metricsCacheExpiration.Seconds() != 0 {
+		err = ctrl.metricsServer.SetExpiration(metricsCacheExpiration)
+		if err != nil {
+			return nil, err
+		}
 	}
 	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, kubectl, ctrl.metricsServer, ctrl.handleObjectUpdated, clusterFilter)
 	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.settingsMgr, stateCache, projInformer, ctrl.metricsServer, argoCache, ctrl.statusRefreshTimeout)
@@ -287,6 +294,9 @@ func isKnownOrphanedResourceExclusion(key kube.ResourceKey, proj *appv1.AppProje
 		return true
 	}
 	if key.Group == "" && key.Kind == kube.ServiceAccountKind && key.Name == "default" {
+		return true
+	}
+	if key.Group == "" && key.Kind == "ConfigMap" && key.Name == "kube-root-ca.crt" {
 		return true
 	}
 	list := proj.Spec.OrphanedResources.Ignore

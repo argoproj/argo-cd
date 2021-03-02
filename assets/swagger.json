@@ -652,6 +652,117 @@
         }
       }
     },
+    "/api/v1/applications/{name}/logs": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "PodLogs returns stream of log entries for the specified pod. Pod",
+        "operationId": "ApplicationService_PodLogs2",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "podName",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "container",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "format": "int64",
+            "name": "sinceSeconds",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "format": "int64",
+            "description": "Represents seconds of UTC time since Unix epoch\n1970-01-01T00:00:00Z. Must be from 0001-01-01T00:00:00Z to\n9999-12-31T23:59:59Z inclusive.",
+            "name": "sinceTime.seconds",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "format": "int32",
+            "description": "Non-negative fractions of a second at nanosecond resolution. Negative\nsecond values with fractions must still have non-negative nanos values\nthat count forward in time. Must be from 0 to 999,999,999\ninclusive. This field may be limited in precision depending on context.",
+            "name": "sinceTime.nanos",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "format": "int64",
+            "name": "tailLines",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "name": "follow",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "untilTime",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "filter",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "kind",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "group",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "resourceName",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.(streaming responses)",
+            "schema": {
+              "type": "object",
+              "title": "Stream result of applicationLogEntry",
+              "properties": {
+                "error": {
+                  "$ref": "#/definitions/runtimeStreamError"
+                },
+                "result": {
+                  "$ref": "#/definitions/applicationLogEntry"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applications/{name}/manifests": {
       "get": {
         "tags": [
@@ -788,6 +899,21 @@
           {
             "type": "string",
             "name": "filter",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "kind",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "group",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "resourceName",
             "in": "query"
           }
         ],
@@ -2683,6 +2809,32 @@
             "description": "Whether helm-oci support should be enabled for this repo.",
             "name": "enableOci",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Github App Private Key PEM data.",
+            "name": "githubAppPrivateKey",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "format": "int64",
+            "description": "Github App ID of the app used to access the repo.",
+            "name": "githubAppID",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "format": "int64",
+            "description": "Github App Installation ID of the installed GitHub App.",
+            "name": "githubAppInstallationID",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Github App Enterprise base url if empty will default to https://api.github.com.",
+            "name": "githubAppEnterpriseBaseUrl",
+            "in": "query"
           }
         ],
         "responses": {
@@ -3184,6 +3336,9 @@
         },
         "strategy": {
           "$ref": "#/definitions/v1alpha1SyncStrategy"
+        },
+        "syncOptions": {
+          "$ref": "#/definitions/applicationSyncOptions"
         }
       }
     },
@@ -3233,6 +3388,9 @@
         "last": {
           "type": "boolean"
         },
+        "podName": {
+          "type": "string"
+        },
         "timeStamp": {
           "$ref": "#/definitions/v1Time"
         },
@@ -3262,6 +3420,17 @@
           "type": "array",
           "items": {
             "$ref": "#/definitions/v1alpha1ResourceAction"
+          }
+        }
+      }
+    },
+    "applicationSyncOptions": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "string"
           }
         }
       }
@@ -3415,6 +3584,12 @@
         },
         "statusBadgeEnabled": {
           "type": "boolean"
+        },
+        "uiBannerContent": {
+          "type": "string"
+        },
+        "uiBannerURL": {
+          "type": "string"
         },
         "uiCssURL": {
           "type": "string"
@@ -5463,6 +5638,24 @@
       "type": "object",
       "title": "RepoCreds holds a repository credentials definition",
       "properties": {
+        "githubAppEnterpriseBaseUrl": {
+          "type": "string",
+          "title": "Github App Enterprise base url if empty will default to https://api.github.com"
+        },
+        "githubAppID": {
+          "type": "string",
+          "format": "int64",
+          "title": "Github App ID of the app used to access the repo"
+        },
+        "githubAppInstallationID": {
+          "type": "string",
+          "format": "int64",
+          "title": "Github App Installation ID of the installed GitHub App"
+        },
+        "githubAppPrivateKey": {
+          "type": "string",
+          "title": "Github App Private Key PEM data"
+        },
         "password": {
           "type": "string",
           "title": "Password for authenticating at the repo server"
@@ -5518,6 +5711,24 @@
         "enableOCI": {
           "type": "boolean",
           "title": "Whether helm-oci support should be enabled for this repo"
+        },
+        "githubAppEnterpriseBaseUrl": {
+          "type": "string",
+          "title": "Github App Enterprise base url if empty will default to https://api.github.com"
+        },
+        "githubAppID": {
+          "type": "string",
+          "format": "int64",
+          "title": "Github App ID of the app used to access the repo"
+        },
+        "githubAppInstallationID": {
+          "type": "string",
+          "format": "int64",
+          "title": "Github App Installation ID of the installed GitHub App"
+        },
+        "githubAppPrivateKey": {
+          "type": "string",
+          "title": "Github App Private Key PEM data"
         },
         "inheritedCreds": {
           "type": "boolean",

@@ -207,6 +207,36 @@ patchesJson6902:
     name: argocd-redis-ha-haproxy
   path: overlays/deployment-labels.yaml
 
+# remove pod template nodeSelector
+- target:
+    group: apps
+    version: v1
+    kind: Deployment
+    name: argocd-redis-ha-haproxy
+  path: overlays/deployment-nodeSelector.yaml
+
+# remove pod template tolerations
+- target:
+    group: apps
+    version: v1
+    kind: Deployment
+    name: argocd-redis-ha-haproxy
+  path: overlays/deployment-tolerations.yaml
+
+# remove pod template resources
+- target:
+    group: apps
+    version: v1
+    kind: Deployment
+    name: argocd-redis-ha-haproxy
+  path: overlays/deployment-resources.yaml
+- target:
+    group: apps
+    version: v1
+    kind: StatefulSet
+    name: argocd-redis-ha-server
+  path: overlays/statefulset-resources.yaml
+
 # update service selectors to match
 - target:
     version: v1

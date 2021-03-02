@@ -11,7 +11,7 @@ a Git webhook for GitHub, but the same process should be applicable to other pro
 
 In your Git provider, navigate to the settings page where webhooks can be configured. The payload
 URL configured in the Git provider should use the `/api/webhook` endpoint of your Argo CD instance
-(e.g. [https://argocd.example.com/api/webhook]). If you wish to use a shared secret, input an
+(e.g. `https://argocd.example.com/api/webhook`). If you wish to use a shared secret, input an
 arbitrary value in the secret. This value will be used when configuring the webhook in the next step.
 
 ![Add Webhook](../assets/webhook-config.png "Add Webhook")

@@ -650,7 +650,7 @@ type SyncPolicy struct {
 }
 
 func (p *SyncPolicy) IsZero() bool {
-	return p == nil || (p.Automated == nil && len(p.SyncOptions) == 0)
+	return p == nil || (p.Automated == nil && len(p.SyncOptions) == 0 && p.Retry == nil)
 }
 
 type RetryStrategy struct {
@@ -985,6 +985,20 @@ type ApplicationTree struct {
 	Hosts []HostInfo `json:"hosts,omitempty" protobuf:"bytes,3,rep,name=hosts"`
 }
 
+// Normalize sorts application tree nodes and hosts. The persistent order allows to
+// effectively compare previously cached app tree and allows to unnecessary Redis requests.
+func (t *ApplicationTree) Normalize() {
+	sort.Slice(t.Nodes, func(i, j int) bool {
+		return t.Nodes[i].FullName() < t.Nodes[j].FullName()
+	})
+	sort.Slice(t.OrphanedNodes, func(i, j int) bool {
+		return t.OrphanedNodes[i].FullName() < t.OrphanedNodes[j].FullName()
+	})
+	sort.Slice(t.Hosts, func(i, j int) bool {
+		return t.Hosts[i].Name < t.Hosts[j].Name
+	})
+}
+
 type ApplicationSummary struct {
 	// ExternalURLs holds all external URLs of application child resources.
 	ExternalURLs []string `json:"externalURLs,omitempty" protobuf:"bytes,1,opt,name=externalURLs"`
@@ -1053,6 +1067,11 @@ type ResourceNode struct {
 	CreatedAt       *metav1.Time            `json:"createdAt,omitempty" protobuf:"bytes,8,opt,name=createdAt"`
 }
 
+// FullName returns node full name
+func (n *ResourceNode) FullName() string {
+	return fmt.Sprintf("%s/%s/%s/%s", n.Group, n.Kind, n.Namespace, n.Name)
+}
+
 func (n *ResourceNode) GroupKindVersion() schema.GroupVersionKind {
 	return schema.GroupVersionKind{
 		Group:   n.Group,
@@ -1098,6 +1117,11 @@ type ResourceDiff struct {
 	PredictedLiveState string `json:"predictedLiveState,omitempty" protobuf:"bytes,10,opt,name=predictedLiveState"`
 	ResourceVersion    string `json:"resourceVersion,omitempty" protobuf:"bytes,11,opt,name=resourceVersion"`
 	Modified           bool   `json:"modified,omitempty" protobuf:"bytes,12,opt,name=modified"`
+}
+
+// FullName returns full name of a node that was used for diffing
+func (r *ResourceDiff) FullName() string {
+	return fmt.Sprintf("%s/%s/%s/%s", r.Group, r.Kind, r.Namespace, r.Name)
 }
 
 // ConnectionStatus represents connection status
@@ -1348,6 +1372,14 @@ type RepoCreds struct {
 	TLSClientCertData string `json:"tlsClientCertData,omitempty" protobuf:"bytes,5,opt,name=tlsClientCertData"`
 	// TLS client cert key for authenticating at the repo server
 	TLSClientCertKey string `json:"tlsClientCertKey,omitempty" protobuf:"bytes,6,opt,name=tlsClientCertKey"`
+	// Github App Private Key PEM data
+	GithubAppPrivateKey string `json:"githubAppPrivateKey,omitempty" protobuf:"bytes,7,opt,name=githubAppPrivateKey"`
+	// Github App ID of the app used to access the repo
+	GithubAppId int64 `json:"githubAppID,omitempty" protobuf:"bytes,8,opt,name=githubAppID"`
+	// Github App Installation ID of the installed GitHub App
+	GithubAppInstallationId int64 `json:"githubAppInstallationID,omitempty" protobuf:"bytes,9,opt,name=githubAppInstallationID"`
+	// Github App Enterprise base url if empty will default to https://api.github.com
+	GitHubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty" protobuf:"bytes,10,opt,name=githubAppEnterpriseBaseUrl"`
 }
 
 // Repository is a repository holding application configurations
@@ -1382,6 +1414,14 @@ type Repository struct {
 	InheritedCreds bool `json:"inheritedCreds,omitempty" protobuf:"bytes,13,opt,name=inheritedCreds"`
 	// Whether helm-oci support should be enabled for this repo
 	EnableOCI bool `json:"enableOCI,omitempty" protobuf:"bytes,14,opt,name=enableOCI"`
+	// Github App Private Key PEM data
+	GithubAppPrivateKey string `json:"githubAppPrivateKey,omitempty" protobuf:"bytes,15,opt,name=githubAppPrivateKey"`
+	// Github App ID of the app used to access the repo
+	GithubAppId int64 `json:"githubAppID,omitempty" protobuf:"bytes,16,opt,name=githubAppID"`
+	// Github App Installation ID of the installed GitHub App
+	GithubAppInstallationId int64 `json:"githubAppInstallationID,omitempty" protobuf:"bytes,17,opt,name=githubAppInstallationID"`
+	// Github App Enterprise base url if empty will default to https://api.github.com
+	GitHubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty" protobuf:"bytes,18,opt,name=githubAppEnterpriseBaseUrl"`
 }
 
 // IsInsecure returns true if receiver has been configured to skip server verification
@@ -1396,7 +1436,7 @@ func (repo *Repository) IsLFSEnabled() bool {
 
 // HasCredentials returns true when the receiver has been configured any credentials
 func (m *Repository) HasCredentials() bool {
-	return m.Username != "" || m.Password != "" || m.SSHPrivateKey != "" || m.TLSClientCertData != ""
+	return m.Username != "" || m.Password != "" || m.SSHPrivateKey != "" || m.TLSClientCertData != "" || m.GithubAppPrivateKey != ""
 }
 
 func (repo *Repository) CopyCredentialsFromRepo(source *Repository) {
@@ -1415,6 +1455,18 @@ func (repo *Repository) CopyCredentialsFromRepo(source *Repository) {
 		}
 		if repo.TLSClientCertKey == "" {
 			repo.TLSClientCertKey = source.TLSClientCertKey
+		}
+		if repo.GithubAppPrivateKey == "" {
+			repo.GithubAppPrivateKey = source.GithubAppPrivateKey
+		}
+		if repo.GithubAppId == 0 {
+			repo.GithubAppId = source.GithubAppId
+		}
+		if repo.GithubAppInstallationId == 0 {
+			repo.GithubAppInstallationId = source.GithubAppInstallationId
+		}
+		if repo.GitHubAppEnterpriseBaseURL == "" {
+			repo.GitHubAppEnterpriseBaseURL = source.GitHubAppEnterpriseBaseURL
 		}
 	}
 }
@@ -1437,6 +1489,18 @@ func (repo *Repository) CopyCredentialsFrom(source *RepoCreds) {
 		if repo.TLSClientCertKey == "" {
 			repo.TLSClientCertKey = source.TLSClientCertKey
 		}
+		if repo.GithubAppPrivateKey == "" {
+			repo.GithubAppPrivateKey = source.GithubAppPrivateKey
+		}
+		if repo.GithubAppId == 0 {
+			repo.GithubAppId = source.GithubAppId
+		}
+		if repo.GithubAppInstallationId == 0 {
+			repo.GithubAppInstallationId = source.GithubAppInstallationId
+		}
+		if repo.GitHubAppEnterpriseBaseURL == "" {
+			repo.GitHubAppEnterpriseBaseURL = source.GitHubAppEnterpriseBaseURL
+		}
 	}
 }
 
@@ -1449,6 +1513,9 @@ func (repo *Repository) GetGitCreds() git.Creds {
 	}
 	if repo.SSHPrivateKey != "" {
 		return git.NewSSHCreds(repo.SSHPrivateKey, getCAPath(repo.Repo), repo.IsInsecure())
+	}
+	if repo.GithubAppPrivateKey != "" && repo.GithubAppId != 0 && repo.GithubAppInstallationId != 0 {
+		return git.NewGitHubAppCreds(repo.GithubAppId, repo.GithubAppInstallationId, repo.GithubAppPrivateKey, repo.GitHubAppEnterpriseBaseURL, repo.Repo, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure())
 	}
 	return git.NopCreds{}
 }
@@ -2491,13 +2558,19 @@ func (proj AppProject) IsGroupKindPermitted(gk schema.GroupKind, namespaced bool
 	res := metav1.GroupKind{Group: gk.Group, Kind: gk.Kind}
 
 	if namespaced {
-		isWhiteListed = len(proj.Spec.NamespaceResourceWhitelist) == 0 || isResourceInList(res, proj.Spec.NamespaceResourceWhitelist)
-		isBlackListed = isResourceInList(res, proj.Spec.NamespaceResourceBlacklist)
+		namespaceWhitelist := proj.Spec.NamespaceResourceWhitelist
+		namespaceBlacklist := proj.Spec.NamespaceResourceBlacklist
+
+		isWhiteListed = namespaceWhitelist == nil || len(namespaceWhitelist) != 0 && isResourceInList(res, namespaceWhitelist)
+		isBlackListed = len(namespaceBlacklist) != 0 && isResourceInList(res, namespaceBlacklist)
 		return isWhiteListed && !isBlackListed
 	}
 
-	isWhiteListed = len(proj.Spec.ClusterResourceWhitelist) == 0 || isResourceInList(res, proj.Spec.ClusterResourceWhitelist)
-	isBlackListed = isResourceInList(res, proj.Spec.ClusterResourceBlacklist)
+	clusterWhitelist := proj.Spec.ClusterResourceWhitelist
+	clusterBlacklist := proj.Spec.ClusterResourceBlacklist
+
+	isWhiteListed = len(clusterWhitelist) != 0 && isResourceInList(res, clusterWhitelist)
+	isBlackListed = len(clusterBlacklist) != 0 && isResourceInList(res, clusterBlacklist)
 	return isWhiteListed && !isBlackListed
 }
 
@@ -2755,8 +2828,11 @@ func (proj *AppProject) NormalizeJWTTokens() bool {
 }
 
 func syncJWTTokenBetweenStatusAndSpec(proj *AppProject) bool {
+	existingRole := map[string]bool{}
 	needSync := false
 	for roleIndex, role := range proj.Spec.Roles {
+		existingRole[role.Name] = true
+
 		tokensInSpec := role.JWTTokens
 		tokensInStatus := []JWTToken{}
 		if proj.Status.JWTTokensByRole == nil {
@@ -2779,8 +2855,16 @@ func syncJWTTokenBetweenStatusAndSpec(proj *AppProject) bool {
 
 		proj.Spec.Roles[roleIndex].JWTTokens = tokens
 		proj.Status.JWTTokensByRole[role.Name] = JWTTokens{Items: tokens}
-
 	}
+	if proj.Status.JWTTokensByRole != nil {
+		for role := range proj.Status.JWTTokensByRole {
+			if !existingRole[role] {
+				delete(proj.Status.JWTTokensByRole, role)
+				needSync = true
+			}
+		}
+	}
+
 	return needSync
 }
 

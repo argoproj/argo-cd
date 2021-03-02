@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	timeutil "github.com/argoproj/pkg/time"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	apiv1 "k8s.io/api/core/v1"
@@ -68,8 +69,14 @@ type ArgoCDSettings struct {
 	KustomizeBuildOptions string `json:"kustomizeBuildOptions,omitempty"`
 	// Indicates if anonymous user is enabled or not
 	AnonymousUserEnabled bool `json:"anonymousUserEnabled,omitempty"`
+	// Specifies token expiration duration
+	UserSessionDuration time.Duration `json:"userSessionDuration,omitempty"`
 	// UiCssURL local or remote path to user-defined CSS to customize ArgoCD UI
 	UiCssURL string `json:"uiCssURL,omitempty"`
+	// Content of UI Banner
+	UiBannerContent string `json:"uiBannerContent,omitempty"`
+	// URL for UI Banner
+	UiBannerURL string `json:"uiBannerURL,omitempty"`
 }
 
 type GoogleAnalytics struct {
@@ -170,6 +177,14 @@ type Repository struct {
 	TLSClientCertKeySecret *apiv1.SecretKeySelector `json:"tlsClientCertKeySecret,omitempty"`
 	// Whether the repo is helm-oci enabled. Git only.
 	EnableOci bool `json:"enableOci,omitempty"`
+	// Github App Private Key PEM data
+	GithubAppPrivateKeySecret *apiv1.SecretKeySelector `json:"githubAppPrivateKeySecret,omitempty"`
+	// Github App ID of the app used to access the repo
+	GithubAppId int64 `json:"githubAppID,omitempty"`
+	// Github App Installation ID of the installed GitHub App
+	GithubAppInstallationId int64 `json:"githubAppInstallationID,omitempty"`
+	// Github App Enterprise base url if empty will default to https://api.github.com
+	GithubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty"`
 }
 
 // Credential template for accessing repositories
@@ -186,6 +201,14 @@ type RepositoryCredentials struct {
 	TLSClientCertDataSecret *apiv1.SecretKeySelector `json:"tlsClientCertDataSecret,omitempty"`
 	// Name of the secret storing the TLS client cert's key data
 	TLSClientCertKeySecret *apiv1.SecretKeySelector `json:"tlsClientCertKeySecret,omitempty"`
+	// Github App Private Key PEM data
+	GithubAppPrivateKeySecret *apiv1.SecretKeySelector `json:"githubAppPrivateKeySecret,omitempty"`
+	// Github App ID of the app used to access the repo
+	GithubAppId int64 `json:"githubAppID,omitempty"`
+	// Github App Installation ID of the installed GitHub App
+	GithubAppInstallationId int64 `json:"githubAppInstallationID,omitempty"`
+	// Github App Enterprise base url if empty will default to https://api.github.com
+	GithubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty"`
 }
 
 const (
@@ -243,10 +266,16 @@ const (
 	kustomizeVersionKeyPrefix = "kustomize.version"
 	// anonymousUserEnabledKey is the key which enables or disables anonymous user
 	anonymousUserEnabledKey = "users.anonymous.enabled"
+	// anonymousUserEnabledKey is the key which specifies token expiration duration
+	userSessionDurationKey = "users.session.duration"
 	// diffOptions is the key where diff options are configured
 	resourceCompareOptionsKey = "resource.compareoptions"
 	// settingUiCssURLKey designates the key for user-defined CSS URL for UI customization
 	settingUiCssURLKey = "ui.cssurl"
+	// settingUiBannerContentKey designates the key for content of user-defined info banner for UI
+	settingUiBannerContentKey = "ui.bannercontent"
+	// settingUiBannerURLKey designates the key for the link for user-defined info banner for UI
+	settingUiBannerURLKey = "ui.bannerurl"
 	// globalProjectsKey designates the key for global project settings
 	globalProjectsKey = "globalProjects"
 	// initialPasswordSecretName is the name of the secret that will hold the initial admin password
@@ -830,10 +859,24 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	settings.StatusBadgeEnabled = argoCDCM.Data[statusBadgeEnabledKey] == "true"
 	settings.AnonymousUserEnabled = argoCDCM.Data[anonymousUserEnabledKey] == "true"
 	settings.UiCssURL = argoCDCM.Data[settingUiCssURLKey]
+	settings.UiBannerContent = argoCDCM.Data[settingUiBannerContentKey]
 	if err := validateExternalURL(argoCDCM.Data[settingURLKey]); err != nil {
 		log.Warnf("Failed to validate URL in configmap: %v", err)
 	}
 	settings.URL = argoCDCM.Data[settingURLKey]
+	if err := validateExternalURL(argoCDCM.Data[settingUiBannerURLKey]); err != nil {
+		log.Warnf("Failed to validate UI banner URL in configmap: %v", err)
+	}
+	settings.UiBannerURL = argoCDCM.Data[settingUiBannerURLKey]
+	if userSessionDurationStr, ok := argoCDCM.Data[userSessionDurationKey]; ok {
+		if val, err := timeutil.ParseDuration(userSessionDurationStr); err != nil {
+			log.Warnf("Failed to parse '%s' key: %v", userSessionDurationKey, err)
+		} else {
+			settings.UserSessionDuration = *val
+		}
+	} else {
+		settings.UserSessionDuration = time.Hour * 24
+	}
 }
 
 // validateExternalURL ensures the external URL that is set on the configmap is valid
@@ -917,6 +960,16 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 		}
 		if settings.UiCssURL != "" {
 			argoCDCM.Data[settingUiCssURLKey] = settings.UiCssURL
+		}
+		if settings.UiBannerContent != "" {
+			argoCDCM.Data[settingUiBannerContentKey] = settings.UiBannerContent
+		} else {
+			delete(argoCDCM.Data, settingUiBannerContentKey)
+		}
+		if settings.UiBannerURL != "" {
+			argoCDCM.Data[settingUiBannerURLKey] = settings.UiBannerURL
+		} else {
+			delete(argoCDCM.Data, settingUiBannerURLKey)
 		}
 		return nil
 	})

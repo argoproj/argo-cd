@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	oidc "github.com/coreos/go-oidc"
@@ -19,6 +20,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/util/cache/appstate"
 	"github.com/argoproj/argo-cd/util/dex"
@@ -33,34 +35,12 @@ import (
 // SessionManager generates and validates JWT tokens for login sessions.
 type SessionManager struct {
 	settingsMgr                   *settings.SettingsManager
+	projectsLister                v1alpha1.AppProjectNamespaceLister
 	client                        *http.Client
 	prov                          oidcutil.Provider
 	storage                       UserStateStorage
 	sleep                         func(d time.Duration)
 	verificationDelayNoiseEnabled bool
-}
-
-type inMemoryUserStateStorage struct {
-	attempts map[string]LoginAttempts
-}
-
-func NewInMemoryUserStateStorage() *inMemoryUserStateStorage {
-	return &inMemoryUserStateStorage{attempts: map[string]LoginAttempts{}}
-}
-
-func (storage *inMemoryUserStateStorage) GetLoginAttempts(attempts *map[string]LoginAttempts) error {
-	*attempts = storage.attempts
-	return nil
-}
-
-func (storage *inMemoryUserStateStorage) SetLoginAttempts(attempts map[string]LoginAttempts) error {
-	storage.attempts = attempts
-	return nil
-}
-
-type UserStateStorage interface {
-	GetLoginAttempts(attempts *map[string]LoginAttempts) error
-	SetLoginAttempts(attempts map[string]LoginAttempts) error
 }
 
 // LoginAttempts is a timestamped counter for failed login attempts
@@ -129,11 +109,12 @@ func getLoginFailureWindow() time.Duration {
 }
 
 // NewSessionManager creates a new session manager from Argo CD settings
-func NewSessionManager(settingsMgr *settings.SettingsManager, dexServerAddr string, storage UserStateStorage) *SessionManager {
+func NewSessionManager(settingsMgr *settings.SettingsManager, projectsLister v1alpha1.AppProjectNamespaceLister, dexServerAddr string, storage UserStateStorage) *SessionManager {
 	s := SessionManager{
 		settingsMgr:                   settingsMgr,
 		storage:                       storage,
 		sleep:                         time.Sleep,
+		projectsLister:                projectsLister,
 		verificationDelayNoiseEnabled: true,
 	}
 	settings, err := settingsMgr.GetSettings()
@@ -232,6 +213,22 @@ func (mgr *SessionManager) signClaims(claims jwt.Claims) (string, error) {
 	}))
 }
 
+// GetSubjectAccountAndCapability analyzes Argo CD account token subject and extract account name
+// and the capability it was generated for (default capability is API Key).
+func GetSubjectAccountAndCapability(subject string) (string, settings.AccountCapability) {
+	capability := settings.AccountCapabilityApiKey
+	if parts := strings.Split(subject, ":"); len(parts) > 1 {
+		subject = parts[0]
+		switch parts[1] {
+		case string(settings.AccountCapabilityLogin):
+			capability = settings.AccountCapabilityLogin
+		case string(settings.AccountCapabilityApiKey):
+			capability = settings.AccountCapabilityApiKey
+		}
+	}
+	return subject, capability
+}
+
 // Parse tries to parse the provided string and returns the token claims for local login.
 func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, error) {
 	// Parse takes the token string and a function for looking up the key. The latter is especially
@@ -239,7 +236,7 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, error) {
 	// head of the token to identify which key to use, but the parsed token (head and claims) is provided
 	// to the callback, providing flexibility.
 	var claims jwt.MapClaims
-	settings, err := mgr.settingsMgr.GetSettings()
+	argoCDSettings, err := mgr.settingsMgr.GetSettings()
 	if err != nil {
 		return nil, err
 	}
@@ -248,30 +245,55 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
 		}
-		return settings.ServerSignature, nil
+		return argoCDSettings.ServerSignature, nil
 	})
 	if err != nil {
 		return nil, err
-	}
-
-	subject := jwtutil.StringField(claims, "sub")
-	if rbacpolicy.IsProjectSubject(subject) {
-		return token.Claims, nil
-	}
-
-	account, err := mgr.settingsMgr.GetAccount(subject)
-	if err != nil {
-		return nil, err
-	}
-
-	if id := jwtutil.StringField(claims, "jti"); id != "" && account.TokenIndex(id) == -1 {
-		return nil, fmt.Errorf("account %s does not have token with id %s", subject, id)
 	}
 
 	issuedAt, err := jwtutil.IssuedAtTime(claims)
 	if err != nil {
 		return nil, err
 	}
+
+	subject := jwtutil.StringField(claims, "sub")
+	id := jwtutil.StringField(claims, "jti")
+
+	if projName, role, ok := rbacpolicy.GetProjectRoleFromSubject(subject); ok {
+		proj, err := mgr.projectsLister.Get(projName)
+		if err != nil {
+			return nil, err
+		}
+		_, _, err = proj.GetJWTToken(role, issuedAt.Unix(), id)
+		if err != nil {
+			return nil, err
+		}
+
+		return token.Claims, nil
+	}
+
+	subject, capability := GetSubjectAccountAndCapability(subject)
+	claims["sub"] = subject
+
+	account, err := mgr.settingsMgr.GetAccount(subject)
+	if err != nil {
+		return nil, err
+	}
+
+	if !account.Enabled {
+		return nil, fmt.Errorf("account %s is disabled", subject)
+	}
+
+	if !account.HasCapability(capability) {
+		return nil, fmt.Errorf("account %s does not have '%s' capability", subject, capability)
+	}
+
+	if id == "" || mgr.storage.IsTokenRevoked(id) {
+		return nil, errors.New("token is revoked, please re-login")
+	} else if capability == settings.AccountCapabilityApiKey && account.TokenIndex(id) == -1 {
+		return nil, fmt.Errorf("account %s does not have token with id %s", subject, id)
+	}
+
 	if account.PasswordMtime != nil && issuedAt.Before(*account.PasswordMtime) {
 		return nil, fmt.Errorf("Account password has changed since token issued")
 	}
@@ -461,7 +483,7 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 // We choose how to verify based on the issuer.
 func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, error) {
 	parser := &jwt.Parser{
-		ValidationHelper: jwt.NewValidationHelper(jwt.WithoutClaimsValidation()),
+		ValidationHelper: jwt.NewValidationHelper(jwt.WithoutClaimsValidation(), jwt.WithoutAudienceValidation()),
 	}
 	var claims jwt.StandardClaims
 	_, _, err := parser.ParseUnverified(tokenString, &claims)
@@ -510,6 +532,10 @@ func (mgr *SessionManager) provider() (oidcutil.Provider, error) {
 	}
 	mgr.prov = oidcutil.NewOIDCProvider(settings.IssuerURL(), mgr.client)
 	return mgr.prov, nil
+}
+
+func (mgr *SessionManager) RevokeToken(ctx context.Context, id string, expiringAt time.Duration) error {
+	return mgr.storage.RevokeToken(ctx, id, expiringAt)
 }
 
 func LoggedIn(ctx context.Context) bool {

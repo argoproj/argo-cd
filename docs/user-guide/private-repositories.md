@@ -116,6 +116,42 @@ The Argo CD UI don't support configuring SSH credentials. The SSH credentials ca
 argocd repo add git@github.com:argoproj/argocd-example-apps.git --ssh-private-key-path ~/.ssh/id_rsa
 ```
 
+### GitHub App Credential
+
+Private repositories that are hosted on GitHub.com or GitHub Enterprise can be accessed using credentials from a GitHub Application. Consult the [GitHub documentation](https://docs.github.com/en/developers/apps/about-apps#about-github-apps) on how to create an application.
+
+!!!note
+    Ensure your application has at least `Read-only` permissions to the `Contents` of the repository. This is the minimum requirement.
+
+> previous to v1.9
+
+GitHub App credentials are not supported.
+
+> v1.9 or later
+
+You can configure access to your Git repository hosted by GitHub.com or GitHub Enterprise using the GitHub App method by either using the CLI or the UI.
+
+Using the CLI:
+
+```
+argocd repo add https://github.com/argoproj/argocd-example-apps.git --github-app-id 1 --github-app-installation-id 2 --github-app-private-key-path test.private-key.pem
+```
+
+Using the UI:
+
+1. Navigate to `Settings/Repositories`
+
+   ![connect repo overview](../assets/repo-add-overview.png)
+
+1. Click `Connect Repo using GitHub App` button, enter the URL, App Id, Installation Id, and the app's private key.
+
+   ![connect repo](../assets/repo-add-github-app.png)
+
+1. Click `Connect` to test the connection and have the repository added
+
+!!!note
+    When pasting GitHub App private key in the UI, make sure there are no unintended line breaks or additional characters in the text area
+
 ## Credential templates
 
 > previous to v1.4

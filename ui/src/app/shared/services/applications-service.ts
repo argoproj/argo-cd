@@ -147,10 +147,18 @@ export class ApplicationsService {
             });
     }
 
-    public sync(name: string, revision: string, prune: boolean, dryRun: boolean, strategy: models.SyncStrategy, resources: models.SyncOperationResource[]): Promise<boolean> {
+    public sync(
+        name: string,
+        revision: string,
+        prune: boolean,
+        dryRun: boolean,
+        strategy: models.SyncStrategy,
+        resources: models.SyncOperationResource[],
+        syncOptions?: string[]
+    ): Promise<boolean> {
         return requests
             .post(`/applications/${name}/sync`)
-            .send({revision, prune: !!prune, dryRun: !!dryRun, strategy, resources})
+            .send({revision, prune: !!prune, dryRun: !!dryRun, strategy, resources, syncOptions: syncOptions ? {items: syncOptions} : null})
             .then(() => true);
     }
 
@@ -165,6 +173,7 @@ export class ApplicationsService {
         applicationName: string,
         namespace: string,
         podName: string,
+        resource: {group: string; kind: string; name: string},
         containerName: string,
         tail?: number,
         follow?: boolean,
@@ -174,25 +183,50 @@ export class ApplicationsService {
         if (follow === undefined || follow === null) {
             follow = true;
         }
-        const entries = requests
-            .loadEventSource(
-                `/applications/${applicationName}/pods/${podName}/logs?container=${containerName}&follow=${follow}&namespace=${namespace}${tail ? '&tailLines=' + tail : ''}${
-                    untilTime ? '&untilTime=' + untilTime : ''
-                }${filter ? '&filter=' + filter : ''}`
-            )
-            .map(data => JSON.parse(data).result as models.LogEntry);
+        const search = new URLSearchParams();
+        search.set('container', containerName);
+        search.set('namespace', namespace);
+        if (follow) {
+            search.set('follow', follow.toString());
+        }
+        if (podName) {
+            search.set('podName', podName);
+        } else {
+            search.set('group', resource.group);
+            search.set('kind', resource.kind);
+            search.set('resourceName', resource.name);
+        }
+        if (tail) {
+            search.set('tailLines', tail.toString());
+        }
+        if (untilTime) {
+            search.set('untilTime', untilTime);
+        }
+        if (filter) {
+            search.set('filter', filter);
+        }
+        const entries = requests.loadEventSource(`/applications/${applicationName}/logs?${search.toString()}`).map(data => JSON.parse(data).result as models.LogEntry);
+        let first = true;
         return new Observable(observer => {
             const subscription = entries.subscribe(
                 entry => {
                     if (entry.last) {
+                        first = true;
                         observer.complete();
                         subscription.unsubscribe();
                     } else {
-                        observer.next(entry);
+                        observer.next({...entry, first});
+                        first = false;
                     }
                 },
-                err => observer.error(err),
-                () => observer.complete()
+                err => {
+                    first = true;
+                    observer.error(err);
+                },
+                () => {
+                    first = true;
+                    observer.complete();
+                }
             );
             return () => subscription.unsubscribe();
         });

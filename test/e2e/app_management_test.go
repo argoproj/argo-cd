@@ -19,6 +19,7 @@ import (
 	"github.com/argoproj/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	networkingv1beta "k8s.io/api/networking/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -163,7 +164,7 @@ func TestImmutableChange(t *testing.T) {
 		Expect(OperationPhaseIs(OperationFailed)).
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		Expect(ResourceResultNumbering(1)).
-		Expect(ResourceResultIs(ResourceResult{
+		Expect(ResourceResultMatches(ResourceResult{
 			Kind:      "Service",
 			Version:   "v1",
 			Namespace: DeploymentNamespace(),
@@ -171,7 +172,7 @@ func TestImmutableChange(t *testing.T) {
 			SyncPhase: "Sync",
 			Status:    "SyncFailed",
 			HookPhase: "Failed",
-			Message:   fmt.Sprintf(`Service "my-service" is invalid: spec.clusterIP: Invalid value: "%s": field is immutable`, ip2),
+			Message:   `Service "my-service" is invalid`,
 		})).
 		// now we can do this will a force
 		Given().
@@ -424,6 +425,15 @@ func TestAppWithSecrets(t *testing.T) {
 
 			diffOutput := FailOnErr(RunCli("app", "diff", app.Name)).(string)
 			assert.Empty(t, diffOutput)
+
+			// make sure resource update error does not print secret details
+			_, err = RunCli("app", "patch-resource", "test-app-with-secrets", "--resource-name", "test-secret",
+				"--kind", "Secret", "--patch", `{"op": "add", "path": "/data", "value": "hello"}'`,
+				"--patch-type", "application/json-patch+json")
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), fmt.Sprintf("failed to patch Secret %s/test-secret", DeploymentNamespace()))
+			assert.NotContains(t, err.Error(), "username")
+			assert.NotContains(t, err.Error(), "password")
 
 			// patch secret and make sure app is out of sync and diff detects the change
 			FailOnErr(KubeClientset.CoreV1().Secrets(DeploymentNamespace()).Patch(context.Background(),
@@ -1515,5 +1525,57 @@ definitions:
 			assert.NoError(t, err)
 			text = FailOnErr(Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "nonstatussubresources", "non-status-subresource", "-o", "jsonpath={.status.bar}")).(string)
 			assert.Equal(t, "update-status", text)
+		})
+}
+
+func TestAppLogs(t *testing.T) {
+	Given(t).
+		Path("guestbook-logs").
+		When().
+		Create().
+		Sync().
+		Then().
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		And(func(app *Application) {
+			out, err := RunCli("app", "logs", app.Name, "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
+			assert.NoError(t, err)
+			assert.Contains(t, out, "Hi")
+		}).
+		And(func(app *Application) {
+			out, err := RunCli("app", "logs", app.Name, "--kind", "Pod")
+			assert.NoError(t, err)
+			assert.Contains(t, out, "Hi")
+		}).
+		And(func(app *Application) {
+			out, err := RunCli("app", "logs", app.Name, "--kind", "Service")
+			assert.NoError(t, err)
+			assert.NotContains(t, out, "Hi")
+		})
+}
+
+func TestAppWaitOperationInProgress(t *testing.T) {
+	Given(t).
+		And(func() {
+			SetResourceOverrides(map[string]ResourceOverride{
+				"batch/Job": {
+					HealthLua: `return { status = 'Running' }`,
+				},
+				"apps/Deployment": {
+					HealthLua: `return { status = 'Suspended' }`,
+				},
+			})
+		}).
+		Async(true).
+		Path("hook-and-deployment").
+		When().
+		Create().
+		Sync().
+		Then().
+		// stuck in running state
+		Expect(OperationPhaseIs(OperationRunning)).
+		When().
+		And(func() {
+			_, err := RunCli("app", "wait", Name(), "--suspended")
+			errors.CheckError(err)
 		})
 }

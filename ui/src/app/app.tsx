@@ -4,7 +4,6 @@ import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import {Helmet} from 'react-helmet';
 import {Redirect, Route, RouteComponentProps, Router, Switch} from 'react-router';
-
 import applications from './applications';
 import help from './help';
 import login from './login';
@@ -14,6 +13,7 @@ import {Provider} from './shared/context';
 import {services} from './shared/services';
 import requests from './shared/services/requests';
 import {hashCode} from './shared/utils';
+import {Banner} from './ui-banner/ui-banner';
 import userInfo from './user-info';
 
 services.viewPreferences.init();
@@ -199,7 +199,9 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
                                                                 )}
                                                             </DataLoader>
                                                         )}>
-                                                        <route.component {...routeProps} />
+                                                        <Banner>
+                                                            <route.component {...routeProps} />
+                                                        </Banner>
                                                     </Layout>
                                                 )
                                             }

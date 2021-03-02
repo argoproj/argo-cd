@@ -169,8 +169,8 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                             <h4>Create SSH known host entries</h4>
 
                             <p>
-                                Paste SSH known hosts data in the text area below, one entry per line. You can use output from e.g. <code>ssh-keyscan</code> or the contents of an{' '}
-                                <code>ssh_known_hosts</code> file in a verbatim way. Lines starting with <code>#</code> will be treated as comments and be ignored.
+                                Paste SSH known hosts data in the text area below, one entry per line. You can use output from <code>ssh-keyscan</code> or the contents on an{' '}
+                                <code>ssh_known_hosts</code> file verbatim. Lines starting with <code>#</code> will be treated as comments and ignored.
                             </p>
                             <p>
                                 <strong>Make sure there are no linebreaks in the keys.</strong>

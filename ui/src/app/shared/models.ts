@@ -392,8 +392,11 @@ export interface AppProjectStatus {
 export interface LogEntry {
     content: string;
     timeStamp: models.Time;
+    // first field is inferred on the fly and indicats first log line received from backend
+    first?: boolean;
     last: boolean;
     timeStampStr: string;
+    podName: string;
 }
 
 // describes plugin settings
@@ -425,6 +428,8 @@ export interface AuthSettings {
     userLoginsDisabled: boolean;
     kustomizeVersions: string[];
     uiCssURL: string;
+    uiBannerContent: string;
+    uiBannerURL: string;
 }
 
 export interface UserInfo {
