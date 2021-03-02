@@ -16,6 +16,40 @@ interface Props {
     operationState: models.OperationState;
 }
 
+const Filter = (props: {filters: string[]; setFilters: (f: string[]) => void; options: string[]; title: string; style?: React.CSSProperties}) => {
+    const {filters, setFilters, options, title, style} = props;
+    return (
+        <DropDown
+            isMenu={true}
+            anchor={() => (
+                <div title='Filter' style={style}>
+                    <button className='argo-button argo-button--base'>
+                        {title} <i className='argo-icon-filter' aria-hidden='true' />
+                    </button>
+                </div>
+            )}>
+            {options.map(f => (
+                <div style={{minWidth: '150px', lineHeight: '2em', padding: '5px'}}>
+                    <Checkbox
+                        checked={filters.includes(f)}
+                        onChange={checked => {
+                            const selectedValues = [...filters];
+                            const idx = selectedValues.indexOf(f);
+                            if (idx > -1 && !checked) {
+                                selectedValues.splice(idx, 1);
+                            } else {
+                                selectedValues.push(f);
+                            }
+                            setFilters(selectedValues);
+                        }}
+                    />
+                    <label htmlFor={`filter__${f}`}>{f}</label>
+                </div>
+            ))}
+        </DropDown>
+    );
+};
+
 export const ApplicationOperationState: React.StatelessComponent<Props> = ({application, operationState}, ctx: AppContext) => {
     const operationAttributes = [
         {title: 'OPERATION', value: utils.getOperationType(application)},
@@ -83,13 +117,18 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
             });
         }
     }
-
     const [filters, setFilters] = React.useState([]);
-    const filterOptions = ['Synced', 'OutOfSync', 'Unknown'];
 
-    let filtered = syncResult.resources;
-    if (syncResult.resources && syncResult.resources.length > 0) {
-        filtered = syncResult.resources.filter(r => filters.length === 0 || filters.includes(getStatus(r)));
+    const Statuses = Object.keys(models.ResultCodes);
+    const OperationPhases = Object.keys(models.OperationPhases);
+    // const syncPhases = ['PreSync', 'Sync', 'PostSync', 'SyncFail'];
+    // const hookPhases = ['Running', 'Terminating', 'Failed', 'Error', 'Succeeded'];
+
+    let filtered: models.ResourceResult[] = [];
+    if (syncResult) {
+        if (syncResult.resources && syncResult.resources.length > 0) {
+            filtered = syncResult.resources.filter(r => filters.length === 0 || filters.includes(getStatus(r)));
+        }
     }
     return (
         <div>
@@ -108,34 +147,8 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                     <div style={{display: 'flex'}}>
                         <label style={{display: 'block', marginBottom: '1em'}}>RESULT</label>
                         <div style={{marginLeft: 'auto'}}>
-                            <DropDown
-                                isMenu={true}
-                                anchor={() => (
-                                    <div title='Filter'>
-                                        <button className='argo-button argo-button--base'>
-                                            FILTER <i className='argo-icon-filter' aria-hidden='true' />
-                                        </button>
-                                    </div>
-                                )}>
-                                {filterOptions.map(f => (
-                                    <div style={{minWidth: '150px', lineHeight: '2em', padding: '5px'}}>
-                                        <Checkbox
-                                            checked={filters.includes(f)}
-                                            onChange={checked => {
-                                                const selectedValues = [...filters];
-                                                const idx = selectedValues.indexOf(f);
-                                                if (idx > -1 && !checked) {
-                                                    selectedValues.splice(idx, 1);
-                                                } else {
-                                                    selectedValues.push(f);
-                                                }
-                                                setFilters(selectedValues);
-                                            }}
-                                        />
-                                        <label htmlFor={`filter__${f}`}>{f}</label>
-                                    </div>
-                                ))}
-                            </DropDown>
+                            <Filter options={Statuses} filters={filters} setFilters={setFilters} title='STATUS' style={{marginRight: '5px'}} />
+                            <Filter options={OperationPhases} filters={filters} setFilters={setFilters} title='HOOK' />
                         </div>
                     </div>
                     <div className='argo-table-list'>
