@@ -23,7 +23,6 @@ type Cmd struct {
 }
 
 func NewCmd(workDir string, version string) (*Cmd, error) {
-
 	switch version {
 	case "v2":
 		return NewCmdWithVersion(workDir, HelmV2, false)

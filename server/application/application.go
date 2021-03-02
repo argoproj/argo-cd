@@ -927,6 +927,7 @@ func (s *Server) PatchResource(ctx context.Context, q *application.ApplicationRe
 
 // DeleteResource deletes a specified resource
 func (s *Server) DeleteResource(ctx context.Context, q *application.ApplicationResourceDeleteRequest) (*application.ApplicationResponse, error) {
+	log.Infof("Reached DeleteResource")
 	resourceRequest := &application.ApplicationResourceRequest{
 		Name:         q.Name,
 		Namespace:    q.Namespace,
@@ -945,17 +946,22 @@ func (s *Server) DeleteResource(ctx context.Context, q *application.ApplicationR
 	}
 	var deleteOption metav1.DeleteOptions
 	if *q.Cascade {
+		log.Infof("Delete Options %s", &deleteOption)
 		propagationPolicy := metav1.DeletePropagationOrphan
 		deleteOption = metav1.DeleteOptions{PropagationPolicy: &propagationPolicy}
 	} else if *q.Force {
+		log.Infof("Delete Options %s", &deleteOption)
 		propagationPolicy := metav1.DeletePropagationBackground
 		zeroGracePeriod := int64(0)
 		deleteOption = metav1.DeleteOptions{PropagationPolicy: &propagationPolicy, GracePeriodSeconds: &zeroGracePeriod}
 	} else {
+		log.Infof("Delete Options %s", &deleteOption)
 		propagationPolicy := metav1.DeletePropagationForeground
 		deleteOption = metav1.DeleteOptions{PropagationPolicy: &propagationPolicy}
 	}
+	log.Infof("Delete Options %s", &deleteOption)
 	err = s.kubectl.DeleteResource(ctx, config, res.GroupKindVersion(), res.Name, res.Namespace, deleteOption)
+	log.Infof("app.go err %s", err)
 	if err != nil {
 		return nil, err
 	}
