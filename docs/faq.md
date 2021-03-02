@@ -2,40 +2,48 @@
 
 ## I've deleted/corrupted my repo and can't delete my app.
 
-Argo CD can't delete an app if it cannot generate manifests. You need to either: 
+Argo CD can't delete an app if it cannot generate manifests. You need to either:
 
 1. Reinstate/fix your repo.
 1. Delete the app using `--cascade=false` and then manually deleting the resources.
 
 ## Why is my application still `OutOfSync` immediately after a successful Sync?
 
-See [Diffing](user-guide/diffing.md) documentation for reasons resources can be OutOfSync, and ways to configure
-Argo CD to ignore fields when differences are expected.
-
+See [Diffing](user-guide/diffing.md) documentation for reasons resources can be OutOfSync, and ways to configure Argo CD
+to ignore fields when differences are expected.
 
 ## Why is my application stuck in `Progressing` state?
 
-Argo CD provides health for several standard Kubernetes types. The `Ingress` and `StatefulSet` types have known issues which might cause health check
-to return `Progressing` state instead of `Healthy`.
+Argo CD provides health for several standard Kubernetes types. The `Ingress` and `StatefulSet` types have known issues
+which might cause health check to return `Progressing` state instead of `Healthy`.
 
-* `Ingress` is considered healthy if `status.loadBalancer.ingress` list is non-empty, with at least one value for `hostname` or `IP`. Some ingress controllers
- ([contour](https://github.com/heptio/contour/issues/403), [traefik](https://github.com/argoproj/argo-cd/issues/968#issuecomment-451082913)) don't update
- `status.loadBalancer.ingress` field which causes `Ingress` to stuck in `Progressing` state forever.
+* `Ingress` is considered healthy if `status.loadBalancer.ingress` list is non-empty, with at least one value
+  for `hostname` or `IP`. Some ingress controllers
+  ([contour](https://github.com/heptio/contour/issues/403)
+  , [traefik](https://github.com/argoproj/argo-cd/issues/968#issuecomment-451082913)) don't update
+  `status.loadBalancer.ingress` field which causes `Ingress` to stuck in `Progressing` state forever.
 
-* `StatefulSet` is considered healthy if value of `status.updatedReplicas` field matches to `spec.replicas` field. Due to Kubernetes bug
-[kubernetes/kubernetes#68573](https://github.com/kubernetes/kubernetes/issues/68573) the `status.updatedReplicas` is not populated. So unless you run Kubernetes version which
-include the fix [kubernetes/kubernetes#67570](https://github.com/kubernetes/kubernetes/pull/67570) `StatefulSet` might stay in `Progressing` state.
-* Your `StatefulSet` or `DaemonSet` is using `OnDelete` instead of `RollingUpdate` strategy. See [#1881](https://github.com/argoproj/argo-cd/issues/1881).
+* `StatefulSet` is considered healthy if value of `status.updatedReplicas` field matches to `spec.replicas` field. Due
+  to Kubernetes bug
+  [kubernetes/kubernetes#68573](https://github.com/kubernetes/kubernetes/issues/68573) the `status.updatedReplicas` is
+  not populated. So unless you run Kubernetes version which include the
+  fix [kubernetes/kubernetes#67570](https://github.com/kubernetes/kubernetes/pull/67570) `StatefulSet` might stay
+  in `Progressing` state.
+* Your `StatefulSet` or `DaemonSet` is using `OnDelete` instead of `RollingUpdate` strategy.
+  See [#1881](https://github.com/argoproj/argo-cd/issues/1881).
 
-As workaround Argo CD allows providing [health check](operator-manual/health.md) customization which overrides default behavior.
+As workaround Argo CD allows providing [health check](operator-manual/health.md) customization which overrides default
+behavior.
 
 ## I forgot the admin password, how do I reset it?
 
-For Argo CD v1.8 and earlier, the initial password is set to the name of the server pod, as per [the getting started guide](getting_started.md).
-For Argo CD v1.9 and later, the initial password is available from a secret named `argocd-initial-admin-password`.
+For Argo CD v1.8 and earlier, the initial password is set to the name of the server pod, as
+per [the getting started guide](getting_started.md). For Argo CD v1.9 and later, the initial password is available from
+a secret named `argocd-initial-admin-secret`.
 
-To change the password, edit the `argocd-secret` secret and update the `admin.password` field with a new bcrypt hash. You
-can use a site like [https://www.browserling.com/tools/bcrypt](https://www.browserling.com/tools/bcrypt) to generate a new hash. For example:
+To change the password, edit the `argocd-secret` secret and update the `admin.password` field with a new bcrypt hash.
+You can use a site like [https://www.browserling.com/tools/bcrypt](https://www.browserling.com/tools/bcrypt) to generate
+a new hash. For example:
 
 ```bash
 # bcrypt(password)=$2a$10$rRyBsGSHK6.uc8fntPwVIuLVHgsAhAX7TcdrqW/RADU0uh7CaChLa
@@ -46,18 +54,22 @@ kubectl -n argocd patch secret argocd-secret \
   }}'
 ```
 
-Another option is to delete both the `admin.password` and `admin.passwordMtime` keys and restart argocd-server. This will generate
-a new password as per [the getting started guide](getting_started.md), so either to the name of the pod (Argo CD 1.8 and earlier)
+Another option is to delete both the `admin.password` and `admin.passwordMtime` keys and restart argocd-server. This
+will generate a new password as per [the getting started guide](getting_started.md), so either to the name of the pod (
+Argo CD 1.8 and earlier)
 or a randomly generated password stored in a secret (Argo CD 1.9 and later).
 
 ## How to disable admin user?
 
-Add `admin.enabled: "false"` to the `argocd-cm` ConfigMap (see [user management](operator-manual/user-management/index.md)).
+Add `admin.enabled: "false"` to the `argocd-cm` ConfigMap (
+see [user management](operator-manual/user-management/index.md)).
 
 ## Argo CD cannot deploy Helm Chart based applications without internet access, how can I solve it?
 
-Argo CD might fail to generate Helm chart manifests if the chart has dependencies located in external repositories. To solve the problem you need to make sure that `requirements.yaml`
-uses only internally available Helm repositories. Even if the chart uses only dependencies from internal repos Helm might decide to refresh `stable` repo. As workaround override
+Argo CD might fail to generate Helm chart manifests if the chart has dependencies located in external repositories. To
+solve the problem you need to make sure that `requirements.yaml`
+uses only internally available Helm repositories. Even if the chart uses only dependencies from internal repos Helm
+might decide to refresh `stable` repo. As workaround override
 `stable` repo URL in `argocd-cm` config map:
 
 ```yaml
@@ -75,8 +87,9 @@ data:
 
 ## I've configured [cluster secret](./operator-manual/declarative-setup.md#clusters) but it does not show up in CLI/UI, how do I fix it?
 
-Check if cluster secret has `argocd.argoproj.io/secret-type: cluster` label. If secret has the label but the cluster is still not visible then make sure it might be a
-permission issue. Try to list clusters using `admin` user (e.g. `argocd login --username admin && argocd cluster list`).
+Check if cluster secret has `argocd.argoproj.io/secret-type: cluster` label. If secret has the label but the cluster is
+still not visible then make sure it might be a permission issue. Try to list clusters using `admin` user (
+e.g. `argocd login --username admin && argocd cluster list`).
 
 ## Argo CD is unable to connect to my cluster, how do I troubleshoot it?
 
@@ -98,37 +111,42 @@ To terminate the sync, click on the "synchronisation" then "terminate":
 
 ## Why Is My App Out Of Sync Even After Syncing?
 
-Is some cases, the tool you use may conflict with Argo CD by adding the `app.kubernetes.io/instance` label. E.g. using Kustomize common labels feature.
+Is some cases, the tool you use may conflict with Argo CD by adding the `app.kubernetes.io/instance` label. E.g. using
+Kustomize common labels feature.
 
-Argo CD automatically sets the `app.kubernetes.io/instance` label and uses it to determine which resources form the app. If the tool does this too, this causes confusion. You can change this label by setting the `application.instanceLabelKey` value in the `argocd-cm`.  We recommend that you use `argocd.argoproj.io/instance`. 
+Argo CD automatically sets the `app.kubernetes.io/instance` label and uses it to determine which resources form the app.
+If the tool does this too, this causes confusion. You can change this label by setting
+the `application.instanceLabelKey` value in the `argocd-cm`. We recommend that you use `argocd.argoproj.io/instance`.
 
-!!! note 
-    When you make this change your applications will become out of sync and will need re-syncing.
+!!! note When you make this change your applications will become out of sync and will need re-syncing.
 
 See [#1482](https://github.com/argoproj/argo-cd/issues/1482).
 
 ## Why Are My Resource Limits Out Of Sync?
 
-Kubernetes has normalized your resource limits when they are applied, and then Argo CD has then compared the version in your generated manifests to the normalized one is Kubernetes - they won't match. 
+Kubernetes has normalized your resource limits when they are applied, and then Argo CD has then compared the version in
+your generated manifests to the normalized one is Kubernetes - they won't match.
 
-E.g. 
+E.g.
 
 * `'1000m'` normalized to `'1'`
 * `'0.1'` normalized to `'100m'`
 * `'3072Mi'` normalized to `'3Gi'`
 * `3072` normalized to `'3072'` (quotes added)
 
-To fix this use diffing customizations [settings](./user-guide/diffing.md#known-kubernetes-types-in-crds-resource-limits-volume-mounts-etc).
+To fix this use diffing
+customizations [settings](./user-guide/diffing.md#known-kubernetes-types-in-crds-resource-limits-volume-mounts-etc).
 
 ## How Do I Fix "invalid cookie, longer than max length 4093"?
 
-Argo CD uses a JWT as the auth token. You likely are part of many groups and have gone over the 4KB limit which is set for cookies.
-You can get the list of groups by opening "developer tools -> network"
+Argo CD uses a JWT as the auth token. You likely are part of many groups and have gone over the 4KB limit which is set
+for cookies. You can get the list of groups by opening "developer tools -> network"
 
 * Click log in
 * Find the call to `<argocd_instance>/auth/callback?code=<random_string>`
 
-Decode the token at [https://jwt.io/](https://jwt.io/). That will provide the list of teams that you can remove yourself from.
+Decode the token at [https://jwt.io/](https://jwt.io/). That will provide the list of teams that you can remove yourself
+from.
 
 See [#2165](https://github.com/argoproj/argo-cd/issues/2165).
 
@@ -156,3 +174,26 @@ argocd ... --insecure
 
 Most likely you forgot to set the `url` in `argocd-cm` to point to your ArgoCD as well. See also
 [the docs](/operator-manual/user-management/#2-configure-argo-cd-for-sso).
+
+## Why are resources of type `SealedSecret` stuck in the `Progressing` state?
+
+The controller of the `SealedSecret` resource may expose the status condition on resource it provisioned. Since
+version `v1.9.0` ArgoCD picks up that status condition to derive a health status for the `SealedSecret`.
+
+Versions before `v0.15.0` of the `SealedSecret` controller are affected by an issue regarding this status
+conditions updates, which is why this feature is disabled by default in these versions. Status condition updates may be
+enabled by starting the `SealedSecret` controller with the `--update-status` command line parameter or by setting
+the `SEALED_SECRETS_UPDATE_STATUS` environment variable.
+
+To disable ArgoCD from checking the status condition on `SealedSecret` resources, add the following resource
+customization in your `argocd-cm` ConfigMap:
+
+```yaml
+resource.customizations: |
+  bitnami.com/SealedSecret:
+    health.lua: |
+      hs = {}
+      hs.status = "Healthy"
+      hs.message = "Controller doesn't report resource status"
+      return hs
+```

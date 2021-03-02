@@ -157,7 +157,8 @@ type ArgoCDServer struct {
 	appLister      applisters.ApplicationNamespaceLister
 
 	// stopCh is the channel which when closed, will shutdown the Argo CD server
-	stopCh chan struct{}
+	stopCh           chan struct{}
+	userStateStorage util_session.UserStateStorage
 }
 
 type ArgoCDServerOpts struct {
@@ -216,7 +217,8 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 	appInformer := factory.Argoproj().V1alpha1().Applications().Informer()
 	appLister := factory.Argoproj().V1alpha1().Applications().Lister().Applications(opts.Namespace)
 
-	sessionMgr := util_session.NewSessionManager(settingsMgr, projLister, opts.DexServerAddr, opts.Cache)
+	userStateStorage := util_session.NewUserStateStorage(opts.RedisClient)
+	sessionMgr := util_session.NewSessionManager(settingsMgr, projLister, opts.DexServerAddr, userStateStorage)
 	enf := rbac.NewEnforcer(opts.KubeClientset, opts.Namespace, common.ArgoCDRBACConfigMapName, nil)
 	enf.EnableEnforce(!opts.DisableAuth)
 	err = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
@@ -237,6 +239,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 		appInformer:      appInformer,
 		appLister:        appLister,
 		policyEnforcer:   policyEnf,
+		userStateStorage: userStateStorage,
 	}
 }
 
@@ -261,6 +264,8 @@ func (a *ArgoCDServer) healthCheck(r *http.Request) error {
 // k8s.io/ go-to-protobuf uses protoc-gen-gogo, which comes from gogo/protobuf (a fork of
 // golang/protobuf).
 func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
+	a.userStateStorage.Init(ctx)
+
 	grpcS := a.newGRPCServer()
 	grpcWebS := grpcweb.WrapServer(grpcS)
 	var httpS *http.Server
@@ -541,7 +546,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	if maxConcurrentLoginRequestsCount > 0 {
 		loginRateLimiter = session.NewLoginRateLimiter(maxConcurrentLoginRequestsCount)
 	}
-	sessionService := session.NewServer(a.sessionMgr, a, a.policyEnforcer, loginRateLimiter)
+	sessionService := session.NewServer(a.sessionMgr, a.settingsMgr, a, a.policyEnforcer, loginRateLimiter)
 	projectLock := sync.NewKeyLock()
 	applicationService := application.NewServer(
 		a.Namespace,
@@ -605,11 +610,13 @@ func (a *ArgoCDServer) translateGrpcCookieHeader(ctx context.Context, w http.Res
 				return err
 			}
 		}
-		cookie, err := httputil.MakeCookieMetadata(common.AuthCookieName, token, flags...)
+		cookies, err := httputil.MakeCookieMetadata(common.AuthCookieName, token, flags...)
 		if err != nil {
 			return err
 		}
-		w.Header().Set("Set-Cookie", cookie)
+		for _, cookie := range cookies {
+			w.Header().Add("Set-Cookie", cookie)
+		}
 	}
 	return nil
 }
@@ -936,9 +943,9 @@ func getToken(md metadata.MD) string {
 		header := http.Header{}
 		header.Add("Cookie", t)
 		request := http.Request{Header: header}
-		token, err := request.Cookie(common.AuthCookieName)
-		if err == nil {
-			tokens = append(tokens, token.Value)
+		token, err := httputil.JoinCookies(common.AuthCookieName, request.Cookies())
+		if token != "" && err == nil {
+			tokens = append(tokens, token)
 		}
 	}
 

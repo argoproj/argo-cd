@@ -21,6 +21,8 @@ export interface PodLogsProps {
     group?: string;
     kind?: string;
     name?: string;
+    page: {number: number; untilTimes: string[]};
+    setPage: (pageData: {number: number; untilTimes: string[]}) => void;
 }
 
 export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => {
@@ -33,7 +35,8 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
     const [selectedLine, setSelectedLine] = useState(-1);
     const bottom = React.useRef<HTMLInputElement>(null);
     const top = React.useRef<HTMLInputElement>(null);
-    const [page, setPage] = useState<{number: number; untilTimes: string[]}>({number: 0, untilTimes: []});
+    const page = props.page;
+    const setPage = props.setPage;
     const [viewPodNames, setViewPodNames] = useState(false);
 
     interface FilterData {
@@ -157,32 +160,39 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                         )}
                         input={props.containerName}
                         load={() => {
-                            return (
-                                services.applications
-                                    .getContainerLogs(
-                                        props.applicationName,
-                                        props.namespace,
-                                        props.podName,
-                                        {group: props.group, kind: props.kind, name: props.name},
-                                        props.containerName,
-                                        maxLines * (page.number + 1),
-                                        prefs.appDetails.followLogs && page.number === 0,
-                                        page.untilTimes[page.untilTimes.length - 1],
-                                        filterQuery()
-                                    )
-                                    // show only current page lines
-                                    .scan((lines, logEntry) => {
+                            let logsSource = services.applications
+                                .getContainerLogs(
+                                    props.applicationName,
+                                    props.namespace,
+                                    props.podName,
+                                    {group: props.group, kind: props.kind, name: props.name},
+                                    props.containerName,
+                                    maxLines * (page.number + 1),
+                                    prefs.appDetails.followLogs && page.number === 0,
+                                    page.untilTimes[page.untilTimes.length - 1],
+                                    filterQuery()
+                                )
+                                // show only current page lines
+                                .scan((lines, logEntry) => {
+                                    // first equal true means retry attempt so we should clear accumulated log entries
+                                    if (logEntry.first) {
+                                        lines = [logEntry];
+                                    } else {
                                         lines.push(logEntry);
-                                        if (lines.length > maxLines) {
-                                            lines.splice(0, lines.length - maxLines);
-                                        }
-                                        return lines;
-                                    }, new Array<models.LogEntry>())
-                                    // accumulate log changes and render only once every 100ms to reduce CPU usage
-                                    .bufferTime(100)
-                                    .filter(batch => batch.length > 0)
-                                    .map(batch => batch[batch.length - 1])
-                            );
+                                    }
+                                    if (lines.length > maxLines) {
+                                        lines.splice(0, lines.length - maxLines);
+                                    }
+                                    return lines;
+                                }, new Array<models.LogEntry>())
+                                // accumulate log changes and render only once every 100ms to reduce CPU usage
+                                .bufferTime(100)
+                                .filter(batch => batch.length > 0)
+                                .map(batch => batch[batch.length - 1]);
+                            if (prefs.appDetails.followLogs) {
+                                logsSource = logsSource.retryWhen(errors => errors.delay(500));
+                            }
+                            return logsSource;
                         }}>
                         {logs => {
                             logs = logs || [];

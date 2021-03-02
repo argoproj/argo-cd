@@ -147,10 +147,18 @@ export class ApplicationsService {
             });
     }
 
-    public sync(name: string, revision: string, prune: boolean, dryRun: boolean, strategy: models.SyncStrategy, resources: models.SyncOperationResource[]): Promise<boolean> {
+    public sync(
+        name: string,
+        revision: string,
+        prune: boolean,
+        dryRun: boolean,
+        strategy: models.SyncStrategy,
+        resources: models.SyncOperationResource[],
+        syncOptions?: string[]
+    ): Promise<boolean> {
         return requests
             .post(`/applications/${name}/sync`)
-            .send({revision, prune: !!prune, dryRun: !!dryRun, strategy, resources})
+            .send({revision, prune: !!prune, dryRun: !!dryRun, strategy, resources, syncOptions: syncOptions ? {items: syncOptions} : null})
             .then(() => true);
     }
 
@@ -177,9 +185,10 @@ export class ApplicationsService {
         }
         const search = new URLSearchParams();
         search.set('container', containerName);
-        search.set('follow', follow.toString());
-        search.set('container', containerName);
         search.set('namespace', namespace);
+        if (follow) {
+            search.set('follow', follow.toString());
+        }
         if (podName) {
             search.set('podName', podName);
         } else {
@@ -187,7 +196,6 @@ export class ApplicationsService {
             search.set('kind', resource.kind);
             search.set('resourceName', resource.name);
         }
-
         if (tail) {
             search.set('tailLines', tail.toString());
         }
@@ -198,18 +206,27 @@ export class ApplicationsService {
             search.set('filter', filter);
         }
         const entries = requests.loadEventSource(`/applications/${applicationName}/logs?${search.toString()}`).map(data => JSON.parse(data).result as models.LogEntry);
+        let first = true;
         return new Observable(observer => {
             const subscription = entries.subscribe(
                 entry => {
                     if (entry.last) {
+                        first = true;
                         observer.complete();
                         subscription.unsubscribe();
                     } else {
-                        observer.next(entry);
+                        observer.next({...entry, first});
+                        first = false;
                     }
                 },
-                err => observer.error(err),
-                () => observer.complete()
+                err => {
+                    first = true;
+                    observer.error(err);
+                },
+                () => {
+                    first = true;
+                    observer.complete();
+                }
             );
             return () => subscription.unsubscribe();
         });

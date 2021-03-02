@@ -905,6 +905,10 @@ func (s *Server) PatchResource(ctx context.Context, q *application.ApplicationRe
 
 	manifest, err := s.kubectl.PatchResource(ctx, config, res.GroupKindVersion(), res.Name, res.Namespace, types.PatchType(q.PatchType), []byte(q.Patch))
 	if err != nil {
+		// don't expose real error for secrets since it might contain secret data
+		if res.Kind == kube.SecretKind && res.Group == "" {
+			return nil, fmt.Errorf("failed to patch Secret %s/%s", res.Namespace, res.Name)
+		}
 		return nil, err
 	}
 	manifest, err = replaceSecretValues(manifest)
@@ -1140,14 +1144,12 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 
 	logStream := mergeLogStreams(streams, time.Millisecond*100)
 	sentCount := int64(0)
-	for {
-		select {
-		case entry, ok := <-logStream:
-			if !ok {
-				return ws.Send(&application.LogEntry{Last: true})
-			}
+	done := make(chan error)
+	go func() {
+		for entry := range logStream {
 			if entry.err != nil {
-				return err
+				done <- entry.err
+				return
 			} else {
 				if q.Filter != nil {
 					lineContainsFilter := strings.Contains(entry.line, literal)
@@ -1156,9 +1158,10 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 					}
 				}
 				if untilTime != nil && entry.timeStamp.After(untilTime.Time) {
-					return ws.Send(&application.LogEntry{
+					done <- ws.Send(&application.LogEntry{
 						Last: true,
 					})
+					return
 				} else {
 					sentCount++
 					if err := ws.Send(&application.LogEntry{
@@ -1167,14 +1170,21 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 						TimeStampStr: entry.timeStamp.Format(time.RFC3339Nano),
 						TimeStamp:    metav1.NewTime(entry.timeStamp),
 					}); err != nil {
-						return err
+						done <- err
+						break
 					}
 				}
 			}
-		case <-ws.Context().Done():
-			log.WithField("application", q.Name).Debug("k8s pod logs reader completed due to closed grpc context")
-			return nil
 		}
+		done <- ws.Send(&application.LogEntry{Last: true})
+	}()
+
+	select {
+	case err := <-done:
+		return err
+	case <-ws.Context().Done():
+		log.WithField("application", q.Name).Debug("k8s pod logs reader completed due to closed grpc context")
+		return nil
 	}
 }
 
@@ -1284,6 +1294,9 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 	}
 	if syncReq.RetryStrategy != nil {
 		retry = syncReq.RetryStrategy
+	}
+	if syncReq.SyncOptions != nil {
+		syncOptions = syncReq.SyncOptions.Items
 	}
 
 	// We cannot use local manifests if we're only allowed to sync to signed commits

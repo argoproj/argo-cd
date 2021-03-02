@@ -262,7 +262,7 @@ exports[`ResourceResultIcon.Hook.Running 1`] = `
       "color": "#0DADEA",
     }
   }
-  title="Running: my-message;"
+  title="Running: my-message"
 />
 `;
 

@@ -358,7 +358,7 @@ export const HealthStatusIcon = ({state}: {state: appModels.HealthStatus}) => {
     }
     let title: string = state.status;
     if (state.message) {
-        title = `${state.status}: ${state.message};`;
+        title = `${state.status}: ${state.message}`;
     }
     return <i qe-id='utils-health-status-title' title={title} className={'fa ' + icon} style={{color}} />;
 };
@@ -382,7 +382,7 @@ export const PodHealthIcon = ({state}: {state: appModels.HealthStatus}) => {
     }
     let title: string = state.status;
     if (state.message) {
-        title = `${state.status}: ${state.message};`;
+        title = `${state.status}: ${state.message}`;
     }
     return <i qe-id='utils-health-status-title' title={title} className={'fa ' + icon} />;
 };
@@ -463,7 +463,7 @@ export const ResourceResultIcon = ({resource}: {resource: appModels.ResourceResu
         }
         let title: string = resource.message;
         if (resource.message) {
-            title = `${resource.hookPhase}: ${resource.message};`;
+            title = `${resource.hookPhase}: ${resource.message}`;
         }
         return <i title={title} className={className} style={{color}} />;
     }
@@ -471,12 +471,7 @@ export const ResourceResultIcon = ({resource}: {resource: appModels.ResourceResu
 };
 
 export const getAppOperationState = (app: appModels.Application): appModels.OperationState => {
-    if (app.metadata.deletionTimestamp) {
-        return {
-            phase: appModels.OperationPhases.Running,
-            startedAt: app.metadata.deletionTimestamp
-        } as appModels.OperationState;
-    } else if (app.operation) {
+    if (app.operation) {
         return {
             phase: appModels.OperationPhases.Running,
             message: (app.status && app.status.operationState && app.status.operationState.message) || 'waiting to start',
@@ -485,18 +480,23 @@ export const getAppOperationState = (app: appModels.Application): appModels.Oper
                 sync: {}
             }
         } as appModels.OperationState;
+    } else if (app.metadata.deletionTimestamp) {
+        return {
+            phase: appModels.OperationPhases.Running,
+            startedAt: app.metadata.deletionTimestamp
+        } as appModels.OperationState;
     } else {
         return app.status.operationState;
     }
 };
 
 export function getOperationType(application: appModels.Application) {
-    if (application.metadata.deletionTimestamp) {
-        return 'Delete';
-    }
-    const operation = application.operation || (application.status.operationState && application.status.operationState.operation);
+    const operation = application.operation || (application.status && application.status.operationState && application.status.operationState.operation);
     if (operation && operation.sync) {
         return 'Sync';
+    }
+    if (application.metadata.deletionTimestamp) {
+        return 'Delete';
     }
     return 'Unknown';
 }

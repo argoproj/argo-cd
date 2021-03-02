@@ -134,7 +134,7 @@ func TestAppProject_IsGroupKindPermitted(t *testing.T) {
 			NamespaceResourceBlacklist: []metav1.GroupKind{{Group: "apps", Kind: "Deployment"}},
 		},
 	}
-	assert.True(t, proj.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "ReplicaSet"}, true))
+	assert.False(t, proj.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "ReplicaSet"}, true))
 	assert.False(t, proj.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "Deployment"}, true))
 
 	proj2 := AppProject{
@@ -161,6 +161,21 @@ func TestAppProject_IsGroupKindPermitted(t *testing.T) {
 	}
 	assert.False(t, proj4.IsGroupKindPermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, false))
 	assert.True(t, proj4.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "Action"}, true))
+
+	proj5 := AppProject{
+		Spec: AppProjectSpec{
+			ClusterResourceWhitelist:   []metav1.GroupKind{},
+			NamespaceResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
+		},
+	}
+	assert.False(t, proj5.IsGroupKindPermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, false))
+	assert.True(t, proj5.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "Action"}, true))
+
+	proj6 := AppProject{
+		Spec: AppProjectSpec{},
+	}
+	assert.False(t, proj6.IsGroupKindPermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, false))
+	assert.True(t, proj6.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "Action"}, true))
 }
 
 func TestAppProject_GetRoleByName(t *testing.T) {
@@ -1987,6 +2002,7 @@ func TestSyncPolicy_IsZero(t *testing.T) {
 	assert.True(t, (&SyncPolicy{}).IsZero())
 	assert.False(t, (&SyncPolicy{Automated: &SyncPolicyAutomated{}}).IsZero())
 	assert.False(t, (&SyncPolicy{SyncOptions: SyncOptions{""}}).IsZero())
+	assert.False(t, (&SyncPolicy{Retry: &RetryStrategy{}}).IsZero())
 }
 
 func TestSyncOptions_HasOption(t *testing.T) {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -28,11 +29,12 @@ import (
 	"github.com/argoproj/argo-cd/util/rbac"
 )
 
-func fakeServer() *ArgoCDServer {
+func fakeServer() (*ArgoCDServer, func()) {
 	cm := test.NewFakeConfigMap()
 	secret := test.NewFakeSecret()
 	kubeclientset := fake.NewSimpleClientset(cm, secret)
 	appClientSet := apps.NewSimpleClientset()
+	redis, closer := test.NewInMemoryRedis()
 
 	argoCDOpts := ArgoCDServerOpts{
 		Namespace:       test.FakeArgoCDNamespace,
@@ -51,8 +53,9 @@ func fakeServer() *ArgoCDServer {
 			1*time.Minute,
 			1*time.Minute,
 		),
+		RedisClient: redis,
 	}
-	return NewServer(context.Background(), argoCDOpts)
+	return NewServer(context.Background(), argoCDOpts), closer
 }
 
 func TestEnforceProjectToken(t *testing.T) {
@@ -365,7 +368,8 @@ func TestRevokedToken(t *testing.T) {
 }
 
 func TestCertsAreNotGeneratedInInsecureMode(t *testing.T) {
-	s := fakeServer()
+	s, closer := fakeServer()
+	defer closer()
 	assert.True(t, s.Insecure)
 	assert.Nil(t, s.settings.Certificate)
 }
@@ -385,7 +389,7 @@ func TestAuthenticate(t *testing.T) {
 		},
 		{
 			test:             "TestSessionPresent",
-			user:             "admin",
+			user:             "admin:login",
 			anonymousEnabled: false,
 		},
 		{
@@ -411,7 +415,7 @@ func TestAuthenticate(t *testing.T) {
 			argocd := NewServer(context.Background(), argoCDOpts)
 			ctx := context.Background()
 			if testData.user != "" {
-				token, err := argocd.sessionMgr.Create("admin", 0, "")
+				token, err := argocd.sessionMgr.Create(testData.user, 0, "abc")
 				assert.NoError(t, err)
 				ctx = metadata.NewIncomingContext(context.Background(), metadata.Pairs(apiclient.MetaDataTokenKey, token))
 			}
@@ -460,6 +464,17 @@ func TestTranslateGrpcCookieHeader(t *testing.T) {
 		})
 		assert.NoError(t, err)
 		assert.Equal(t, "argocd.token=xyz; path=/; SameSite=lax; httpOnly; Secure", recorder.Result().Header.Get("Set-Cookie"))
+		assert.Equal(t, 1, len(recorder.Result().Cookies()))
+	})
+
+	t.Run("TokenIsLongerThan4093", func(t *testing.T) {
+		recorder := httptest.NewRecorder()
+		err := argocd.translateGrpcCookieHeader(context.Background(), recorder, &session.SessionResponse{
+			Token: "abc.xyz." + strings.Repeat("x", 4093),
+		})
+		assert.NoError(t, err)
+		assert.Regexp(t, "argocd.token=.*; path=/; SameSite=lax; httpOnly; Secure", recorder.Result().Header.Get("Set-Cookie"))
+		assert.Equal(t, 2, len(recorder.Result().Cookies()))
 	})
 
 	t.Run("TokenIsEmpty", func(t *testing.T) {
@@ -468,7 +483,7 @@ func TestTranslateGrpcCookieHeader(t *testing.T) {
 			Token: "",
 		})
 		assert.NoError(t, err)
-		assert.Equal(t, "argocd.token=; path=/; SameSite=lax; httpOnly; Secure", recorder.Result().Header.Get("Set-Cookie"))
+		assert.Equal(t, "", recorder.Result().Header.Get("Set-Cookie"))
 	})
 
 }
