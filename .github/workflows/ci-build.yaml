@@ -355,6 +355,9 @@ jobs:
         uses: actions/setup-go@v1
         with:
           go-version: '1.14.12'
+      - name: GH actions workaround - Kill XSP4 process
+        run: |
+          sudo pkill mono || true
       - name: Install K3S
         env:
           INSTALL_K3S_VERSION: ${{ matrix.k3s-version }}+k3s1
