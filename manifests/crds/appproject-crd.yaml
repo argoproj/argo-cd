@@ -65,16 +65,16 @@ spec:
             destinations:
               description: Destinations contains list of destinations available for deployment
               items:
-                description: ApplicationDestination contains deployment destination information
+                description: ApplicationDestination holds information about the application's destination
                 properties:
                   name:
-                    description: Name of the destination cluster which can be used instead of server (url) field
+                    description: Name is an alternate way of specifying the target cluster by its symbolic name
                     type: string
                   namespace:
-                    description: Namespace overrides the environment namespace value in the ksonnet app.yaml
+                    description: Namespace specifies the target namespace for the application's resources. The namespace will only be set for namespace-scoped resources that have not set a value for .metadata.namespace
                     type: string
                   server:
-                    description: Server overrides the environment server value in the ksonnet app.yaml
+                    description: Server specifies the URL of the target cluster and must be set to the Kubernetes control plane API
                     type: string
                 type: object
               type: array
@@ -110,7 +110,9 @@ spec:
               description: OrphanedResources specifies if controller should monitor orphaned resources of apps in this project
               properties:
                 ignore:
+                  description: Ignore contains a list of resources that are to be excluded from orphaned resources monitoring
                   items:
+                    description: OrphanedResourceKey is a reference to a resource to be ignored from
                     properties:
                       group:
                         type: string
@@ -167,7 +169,7 @@ spec:
                 type: object
               type: array
             signatureKeys:
-              description: List of PGP key IDs that commits to be synced to must be signed with
+              description: SignatureKeys contains a list of PGP key IDs that commits in Git must be signed with in order to be allowed for sync
               items:
                 description: SignatureKey is the specification of a key required to verify commit signatures with
                 properties:

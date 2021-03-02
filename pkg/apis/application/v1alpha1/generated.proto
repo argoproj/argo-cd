@@ -77,15 +77,16 @@ message AppProjectSpec {
   // NamespaceResourceWhitelist contains list of whitelisted namespace level resources
   repeated k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind namespaceResourceWhitelist = 9;
 
-  // List of PGP key IDs that commits to be synced to must be signed with
+  // SignatureKeys contains a list of PGP key IDs that commits in Git must be signed with in order to be allowed for sync
   repeated SignatureKey signatureKeys = 10;
 
   // ClusterResourceBlacklist contains list of blacklisted cluster level resources
   repeated k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind clusterResourceBlacklist = 11;
 }
 
-// AppProjectStatus contains information about appproj
+// AppProjectStatus contains status information for AppProject CRs
 message AppProjectStatus {
+  // JWTTokensByRole contains a list of JWT tokens issued for a given role
   map<string, JWTTokens> jwtTokensByRole = 1;
 }
 
@@ -107,7 +108,7 @@ message Application {
   optional Operation operation = 4;
 }
 
-// ApplicationCondition contains details about current application condition
+// ApplicationCondition contains details about an application condition, which is usally an error or warning
 message ApplicationCondition {
   // Type is an application condition type
   optional string type = 1;
@@ -115,19 +116,20 @@ message ApplicationCondition {
   // Message contains human-readable message indicating details about condition
   optional string message = 2;
 
-  // LastTransitionTime is the time the condition was first observed.
+  // LastTransitionTime is the time the condition was last observed
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 3;
 }
 
-// ApplicationDestination contains deployment destination information
+// ApplicationDestination holds information about the application's destination
 message ApplicationDestination {
-  // Server overrides the environment server value in the ksonnet app.yaml
+  // Server specifies the URL of the target cluster and must be set to the Kubernetes control plane API
   optional string server = 1;
 
-  // Namespace overrides the environment namespace value in the ksonnet app.yaml
+  // Namespace specifies the target namespace for the application's resources.
+  // The namespace will only be set for namespace-scoped resources that have not set a value for .metadata.namespace
   optional string namespace = 2;
 
-  // Name of the destination cluster which can be used instead of server (url) field
+  // Name is an alternate way of specifying the target cluster by its symbolic name
   optional string name = 3;
 }
 
@@ -139,16 +141,17 @@ message ApplicationList {
   repeated Application items = 2;
 }
 
-// ApplicationSource contains information about github repository, path within repository and target application environment.
+// ApplicationSource contains all required information about the source of an application
 message ApplicationSource {
-  // RepoURL is the repository URL of the application manifests
+  // RepoURL is the URL to the repository (Git or Helm) that contains the application manifests
   optional string repoURL = 1;
 
-  // Path is a directory path within the Git repository
+  // Path is a directory path within the Git repository, and is only valid for applications sourced from Git.
   optional string path = 2;
 
-  // TargetRevision defines the commit, tag, or branch in which to sync the application to.
-  // If omitted, will sync to HEAD
+  // TargetRevision defines the revision of the source to sync the application to.
+  // In case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.
+  // In case of Helm, this is a semver tag for the Chart's version.
   optional string targetRevision = 4;
 
   // Helm holds helm specific options
@@ -166,17 +169,22 @@ message ApplicationSource {
   // ConfigManagementPlugin holds config management plugin specific options
   optional ApplicationSourcePlugin plugin = 11;
 
-  // Chart is a Helm chart name
+  // Chart is a Helm chart name, and must be specified for applications sourced from a Helm repo.
   optional string chart = 12;
 }
 
+// ApplicationSourceDirectory holds options for applications of type plain YAML or Jsonnet
 message ApplicationSourceDirectory {
+  // Recurse specifies whether to scan a directory recursively for manifests
   optional bool recurse = 1;
 
+  // Jsonnet holds options specific to Jsonnet
   optional ApplicationSourceJsonnet jsonnet = 2;
 
+  // Exclude contains a glob pattern to match paths against that should be explicitly excluded from being used during manifest generation
   optional string exclude = 3;
 
+  // Include contains a glob pattern to match paths against that should be explicitly included during manifest generation
   optional string include = 4;
 }
 
@@ -185,23 +193,23 @@ message ApplicationSourceHelm {
   // ValuesFiles is a list of Helm value files to use when generating a template
   repeated string valueFiles = 1;
 
-  // Parameters are parameters to the helm template
+  // Parameters is a list of Helm parameters which are passed to the helm template command upon manifest generation
   repeated HelmParameter parameters = 2;
 
-  // The Helm release name. If omitted it will use the application name
+  // ReleaseName is the Helm release name to use. If omitted it will use the application name
   optional string releaseName = 3;
 
-  // Values is Helm values, typically defined as a block
+  // Values specifies Helm values to be passed to helm template, typically defined as a block
   optional string values = 4;
 
   // FileParameters are file parameters to the helm template
   repeated HelmFileParameter fileParameters = 5;
 
-  // Version is the Helm version to use for templating with
+  // Version is the Helm version to use for templating (either "2" or "3")
   optional string version = 6;
 }
 
-// ApplicationSourceJsonnet holds jsonnet specific options
+// ApplicationSourceJsonnet holds options specific to applications of type Jsonnet
 message ApplicationSourceJsonnet {
   // ExtVars is a list of Jsonnet External Variables
   repeated JsonnetVar extVars = 1;
@@ -222,28 +230,28 @@ message ApplicationSourceKsonnet {
   repeated KsonnetParameter parameters = 2;
 }
 
-// ApplicationSourceKustomize holds kustomize specific options
+// ApplicationSourceKustomize holds options specific to an Application source specific to Kustomize
 message ApplicationSourceKustomize {
-  // NamePrefix is a prefix appended to resources for kustomize apps
+  // NamePrefix is a prefix appended to resources for Kustomize apps
   optional string namePrefix = 1;
 
-  // NameSuffix is a suffix appended to resources for kustomize apps
+  // NameSuffix is a suffix appended to resources for Kustomize apps
   optional string nameSuffix = 2;
 
-  // Images are kustomize image overrides
+  // Images is a list of Kustomize image override specifications
   repeated string images = 3;
 
-  // CommonLabels adds additional kustomize commonLabels
+  // CommonLabels is a list of additional labels to add to rendered manifests
   map<string, string> commonLabels = 4;
 
-  // Version contains optional Kustomize version
+  // Version controls which version of Kustomize to use for rendering manifests
   optional string version = 5;
 
-  // CommonAnnotations adds additional kustomize commonAnnotations
+  // CommonAnnotations is a list of additional annotations to add to rendered manifests
   map<string, string> commonAnnotations = 6;
 }
 
-// ApplicationSourcePlugin holds config management plugin specific options
+// ApplicationSourcePlugin holds options specific to config management plugins
 message ApplicationSourcePlugin {
   optional string name = 1;
 
@@ -252,25 +260,26 @@ message ApplicationSourcePlugin {
 
 // ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision.
 message ApplicationSpec {
-  // Source is a reference to the location ksonnet application definition
+  // Source is a reference to the location of the application's manifests or chart
   optional ApplicationSource source = 1;
 
-  // Destination overrides the kubernetes server and namespace defined in the environment ksonnet app.yaml
+  // Destination is a reference to the target Kubernetes server and namespace
   optional ApplicationDestination destination = 2;
 
-  // Project is a application project name. Empty name means that application belongs to 'default' project.
+  // Project is a reference to the project this application belongs to.
+  // The empty string means that application belongs to the 'default' project.
   optional string project = 3;
 
-  // SyncPolicy controls when a sync will be performed
+  // SyncPolicy controls when and how a sync will be performed
   optional SyncPolicy syncPolicy = 4;
 
-  // IgnoreDifferences controls resources fields which should be ignored during comparison
+  // IgnoreDifferences is a list of resources and their fields which should be ignored during comparison
   repeated ResourceIgnoreDifferences ignoreDifferences = 5;
 
-  // Infos contains a list of useful information (URLs, email addresses, and plain text) that relates to the application
+  // Info contains a list of information (URLs, email addresses, and plain text) that relates to the application
   repeated Info info = 6;
 
-  // This limits this number of items kept in the apps revision history.
+  // RevisionHistoryLimit limits the number of items kept in the application's revision history, which is used for informational purposes as well as for rollbacks to previous versions.
   // This should only be changed in exceptional circumstances.
   // Setting to zero will store no history. This will reduce storage used.
   // Increasing will increase the space used to store the history, so we do not recommend increasing it.
@@ -278,32 +287,41 @@ message ApplicationSpec {
   optional int64 revisionHistoryLimit = 7;
 }
 
-// ApplicationStatus contains information about application sync, health status
+// ApplicationStatus contains status information for the application
 message ApplicationStatus {
+  // Resources is a list of Kubernetes resources managed by this application
   repeated ResourceStatus resources = 1;
 
+  // Sync contains information about the application's current sync status
   optional SyncStatus sync = 2;
 
+  // Health contains information about the application's current health status
   optional HealthStatus health = 3;
 
+  // History contains information about the application's sync history
   repeated RevisionHistory history = 4;
 
+  // Conditions is a list of currently observed application conditions
   repeated ApplicationCondition conditions = 5;
 
   // ReconciledAt indicates when the application state was reconciled using the latest git version
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time reconciledAt = 6;
 
+  // OperationState contains information about any ongoing operations, such as a sync
   optional OperationState operationState = 7;
 
   // ObservedAt indicates when the application state was updated without querying latest git state
   // Deprecated: controller no longer updates ObservedAt field
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time observedAt = 8;
 
+  // SourceType specifies the type of this application
   optional string sourceType = 9;
 
+  // Summary contains a list of URLs and container images used by this application
   optional ApplicationSummary summary = 10;
 }
 
+// ApplicationSummary contains information about URLs and container images used by an application
 message ApplicationSummary {
   // ExternalURLs holds all external URLs of application child resources.
   repeated string externalURLs = 1;
@@ -313,6 +331,7 @@ message ApplicationSummary {
 }
 
 // ApplicationTree holds nodes which belongs to the application
+// TODO: describe purpose of this type
 message ApplicationTree {
   // Nodes contains list of nodes which either directly managed by the application and children of directly managed nodes.
   repeated ResourceNode nodes = 1;
@@ -336,7 +355,7 @@ message ApplicationWatchEvent {
   optional Application application = 2;
 }
 
-// Backoff is a backoff strategy to use within retryStrategy
+// Backoff is the backoff strategy to use on subsequent retries for failing syncs
 message Backoff {
   // Duration is the amount to back off. Default unit is seconds, but could also be a duration (e.g. "2m", "1h")
   optional string duration = 1;
@@ -367,19 +386,20 @@ message Cluster {
   // The server version
   optional string serverVersion = 5;
 
-  // Holds list of namespaces which are accessible in that cluster. Cluster level resources would be ignored if namespace list is not empty.
+  // Holds list of namespaces which are accessible in that cluster. Cluster level resources will be ignored if namespace list is not empty.
   repeated string namespaces = 6;
 
   // RefreshRequestedAt holds time when cluster cache refresh has been requested
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time refreshRequestedAt = 7;
 
-  // Holds information about cluster cache
+  // Info holds information about cluster cache and state
   optional ClusterInfo info = 8;
 
   // Shard contains optional shard number. Calculated on the fly by the application controller if not specified.
   optional int64 shard = 9;
 }
 
+// ClusterCacheInfo contains information about the cluster cache
 message ClusterCacheInfo {
   // ResourcesCount holds number of observed Kubernetes resources
   optional int64 resourcesCount = 1;
@@ -414,13 +434,18 @@ message ClusterConfig {
   optional ExecProviderConfig execProviderConfig = 6;
 }
 
+// ClusterInfo contains information about the cluster
 message ClusterInfo {
+  // ConnectionState contains information about the connection to the cluster
   optional ConnectionState connectionState = 1;
 
+  // ServerVersion contains information about the Kubernetes version of the cluster
   optional string serverVersion = 2;
 
+  // CacheInfo contains information about the cluster cache
   optional ClusterCacheInfo cacheInfo = 3;
 
+  // ApplicationsCount is the number of applications managed by Argo CD on the cluster
   optional int64 applicationsCount = 4;
 }
 
@@ -440,8 +465,10 @@ message Command {
 
 // ComparedTo contains application source and target which was used for resources comparison
 message ComparedTo {
+  // Source is a reference to the application's source used for comparison
   optional ApplicationSource source = 1;
 
+  // Destination is a reference to the application's destination used for comparison
   optional ApplicationDestination destination = 2;
 }
 
@@ -463,20 +490,24 @@ message ConfigManagementPlugin {
   optional Command generate = 3;
 }
 
-// ConnectionState contains information about remote resource connection state
+// ConnectionState contains information about remote resource connection state, currently used for clusters and repositories
 message ConnectionState {
+  // Status contains the current status indicator for the connection
   optional string status = 1;
 
+  // Message contains human readable information about the connection status
   optional string message = 2;
 
+  // ModifiedAt contains the timestamp when this connection status has been determined
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time attemptedAt = 3;
 }
 
+// EnvEntry represents an entry in the application's environment
 message EnvEntry {
-  // the name, usually uppercase
+  // Name is the name of the variable, usually expressed in uppercase
   optional string name = 1;
 
-  // the value
+  // Value is the value of the variable
   optional string value = 2;
 }
 
@@ -501,22 +532,22 @@ message ExecProviderConfig {
 
 // GnuPGPublicKey is a representation of a GnuPG public key
 message GnuPGPublicKey {
-  // KeyID in hexadecimal string format
+  // KeyID specifies the key ID, in hexadecimal string format
   optional string keyID = 1;
 
-  // Fingerprint of the key
+  // Fingerprint is the fingerprint of the key
   optional string fingerprint = 2;
 
-  // Owner identification
+  // Owner holds the owner identification, e.g. a name and e-mail address
   optional string owner = 3;
 
-  // Trust level
+  // Trust holds the level of trust assigned to this key
   optional string trust = 4;
 
-  // Key sub type (e.g. rsa4096)
+  // SubType holds the key's sub type (e.g. rsa4096)
   optional string subType = 5;
 
-  // Key data
+  // KeyData holds the raw key data, in base64 encoded format
   optional string keyData = 6;
 }
 
@@ -527,27 +558,30 @@ message GnuPGPublicKeyList {
   repeated GnuPGPublicKey items = 2;
 }
 
+// HealthStatus contains information about the currently observed health state of an application or resource
 message HealthStatus {
+  // Status holds the status code of the application or resource
   optional string status = 1;
 
+  // Message is a human-readable informational message describing the health status
   optional string message = 2;
 }
 
-// HelmFileParameter is a file parameter to a helm template
+// HelmFileParameter is a file parameter that's passed to helm template during manifest generation
 message HelmFileParameter {
-  // Name is the name of the helm parameter
+  // Name is the name of the Helm parameter
   optional string name = 1;
 
-  // Path is the path value for the helm parameter
+  // Path is the path to the file containing the values for the Helm parameter
   optional string path = 2;
 }
 
-// HelmParameter is a parameter to a helm template
+// HelmParameter is a parameter that's passed to helm template during manifest generation
 message HelmParameter {
-  // Name is the name of the helm parameter
+  // Name is the name of the Helm parameter
   optional string name = 1;
 
-  // Value is the value for the helm parameter
+  // Value is the value for the Helm parameter
   optional string value = 2;
 
   // ForceString determines whether to tell Helm to interpret booleans and numbers as strings
@@ -555,6 +589,8 @@ message HelmParameter {
 }
 
 // HostInfo holds host name and resources metrics
+// TODO: describe purpose of this type
+// TODO: describe members of this type
 message HostInfo {
   optional string name = 1;
 
@@ -563,6 +599,7 @@ message HostInfo {
   optional k8s.io.api.core.v1.NodeSystemInfo systemInfo = 3;
 }
 
+// TODO: describe this type
 message HostResourceInfo {
   optional string resourceName = 1;
 
@@ -579,7 +616,7 @@ message Info {
   optional string value = 2;
 }
 
-// InfoItem contains human readable information about object
+// InfoItem contains arbitrary, human readable information about an application
 message InfoItem {
   // Name is a human readable title for this piece of information.
   optional string name = 1;
@@ -597,11 +634,12 @@ message JWTToken {
   optional string id = 3;
 }
 
+// JWTTokens represents a list of JWT tokens
 message JWTTokens {
   repeated JWTToken items = 1;
 }
 
-// JsonnetVar is a jsonnet variable
+// JsonnetVar represents a variable to be passed to jsonnet during manifest generation
 message JsonnetVar {
   optional string name = 1;
 
@@ -610,7 +648,9 @@ message JsonnetVar {
   optional bool code = 3;
 }
 
-// KnownTypeField contains mapping between CRD field and known Kubernetes type
+// KnownTypeField contains mapping between CRD field and known Kubernetes type.
+// This is mainly used for unit conversion in unknown resources (e.g. 0.1 == 100mi)
+// TODO: Describe the members of this type
 message KnownTypeField {
   optional string field = 1;
 
@@ -635,28 +675,31 @@ message KustomizeOptions {
   optional string binaryPath = 2;
 }
 
-// Operation contains requested operation parameters.
+// Operation contains information about a requested or running operation
 message Operation {
+  // Sync contains parameters for the operation
   optional SyncOperation sync = 1;
 
+  // InitiatedBy contains information about who initiated the operations
   optional OperationInitiator initiatedBy = 2;
 
+  // Info is a list of informational items for this operation
   repeated Info info = 3;
 
-  // Retry controls failed sync retry behavior
+  // Retry controls the strategy to apply if a sync fails
   optional RetryStrategy retry = 4;
 }
 
-// OperationInitiator holds information about the operation initiator
+// OperationInitiator contains information about the initiator of an operation
 message OperationInitiator {
-  // Name of a user who started operation.
+  // Username contains the name of a user who started operation
   optional string username = 1;
 
   // Automated is set to true if operation was initiated automatically by the application controller.
   optional bool automated = 2;
 }
 
-// OperationState contains information about state of currently performing operation on application.
+// OperationState contains information about state of a running operation
 message OperationState {
   // Operation is the original requested operation
   optional Operation operation = 1;
@@ -664,7 +707,7 @@ message OperationState {
   // Phase is the current phase of the operation
   optional string phase = 2;
 
-  // Message hold any pertinent messages when attempting to perform operation (typically errors).
+  // Message holds any pertinent messages when attempting to perform operation (typically errors).
   optional string message = 3;
 
   // SyncResult is the result of a Sync operation
@@ -680,6 +723,7 @@ message OperationState {
   optional int64 retryCount = 8;
 }
 
+// OrphanedResourceKey is a reference to a resource to be ignored from
 message OrphanedResourceKey {
   optional string group = 1;
 
@@ -693,9 +737,11 @@ message OrphanedResourcesMonitorSettings {
   // Warn indicates if warning condition should be created for apps which have orphaned resources
   optional bool warn = 1;
 
+  // Ignore contains a list of resources that are to be excluded from orphaned resources monitoring
   repeated OrphanedResourceKey ignore = 2;
 }
 
+// TODO: describe this type
 message OverrideIgnoreDiff {
   repeated string jSONPointers = 1;
 }
@@ -718,7 +764,7 @@ message ProjectRole {
   repeated string groups = 5;
 }
 
-// RepoCreds holds a repository credentials definition
+// RepoCreds holds the definition for repository credentials
 message RepoCreds {
   // URL is the URL that this credentials matches to
   optional string url = 1;
@@ -729,25 +775,25 @@ message RepoCreds {
   // Password for authenticating at the repo server
   optional string password = 3;
 
-  // SSH private key data for authenticating at the repo server (only Git repos)
+  // SSHPrivateKey contains the private key data for authenticating at the repo server using SSH (only Git repos)
   optional string sshPrivateKey = 4;
 
-  // TLS client cert data for authenticating at the repo server
+  // TLSClientCertData specifies the TLS client cert data for authenticating at the repo server
   optional string tlsClientCertData = 5;
 
-  // TLS client cert key for authenticating at the repo server
+  // TLSClientCertKey specifies the TLS client cert key for authenticating at the repo server
   optional string tlsClientCertKey = 6;
 
-  // Github App Private Key PEM data
+  // GithubAppPrivateKey specifies the private key PEM data for authentication via GitHub app
   optional string githubAppPrivateKey = 7;
 
-  // Github App ID of the app used to access the repo
+  // GithubAppId specifies the Github App ID of the app used to access the repo for GitHub app authentication
   optional int64 githubAppID = 8;
 
-  // Github App Installation ID of the installed GitHub App
+  // GithubAppInstallationId specifies the ID of the installed GitHub App for GitHub app authentication
   optional int64 githubAppInstallationID = 9;
 
-  // Github App Enterprise base url if empty will default to https://api.github.com
+  // GithubAppEnterpriseBaseURL specifies the GitHub API URL for GitHub app authentication. If empty will default to https://api.github.com
   optional string githubAppEnterpriseBaseUrl = 10;
 }
 
@@ -760,78 +806,77 @@ message RepoCredsList {
 
 // Repository is a repository holding application configurations
 message Repository {
-  // URL of the repo
+  // Repo contains the URL to the remote repository
   optional string repo = 1;
 
-  // Username for authenticating at the repo server
+  // Username contains the user name used for authenticating at the remote repository
   optional string username = 2;
 
-  // Password for authenticating at the repo server
+  // Password contains the password or PAT used for authenticating at the remote repository
   optional string password = 3;
 
-  // SSH private key data for authenticating at the repo server
-  // only for Git repos
+  // SSHPrivateKey contains the PEM data for authenticating at the repo server. Only used with Git repos.
   optional string sshPrivateKey = 4;
 
-  // Current state of repository server connecting
+  // ConnectionState contains information about the current state of connection to the repository server
   optional ConnectionState connectionState = 5;
 
   // InsecureIgnoreHostKey should not be used anymore, Insecure is favoured
-  // only for Git repos
+  // Used only for Git repos
   optional bool insecureIgnoreHostKey = 6;
 
-  // Whether the repo is insecure
+  // Insecure specifies whether the connection to the repository ignores any errors when verifying TLS certificates or SSH host keys
   optional bool insecure = 7;
 
-  // Whether git-lfs support should be enabled for this repo
+  // EnableLFS specifies whether git-lfs support should be enabled for this repo. Only valid for Git repositories.
   optional bool enableLfs = 8;
 
-  // TLS client cert data for authenticating at the repo server
+  // TLSClientCertData contains a certificate in PEM format for authenticating at the repo server
   optional string tlsClientCertData = 9;
 
-  // TLS client cert key for authenticating at the repo server
+  // TLSClientCertKey contains a private key in PEM format for authenticating at the repo server
   optional string tlsClientCertKey = 10;
 
-  // type of the repo, maybe "git or "helm, "git" is assumed if empty or absent
+  // Type specifies the type of the repo. Can be either "git" or "helm. "git" is assumed if empty or absent.
   optional string type = 11;
 
-  // only for Helm repos
+  // Name specifies a name to be used for this repo. Only used with Helm repos
   optional string name = 12;
 
   // Whether credentials were inherited from a credential set
   optional bool inheritedCreds = 13;
 
-  // Whether helm-oci support should be enabled for this repo
+  // EnableOCI specifies whether helm-oci support should be enabled for this repo
   optional bool enableOCI = 14;
 
   // Github App Private Key PEM data
   optional string githubAppPrivateKey = 15;
 
-  // Github App ID of the app used to access the repo
+  // GithubAppId specifies the ID of the GitHub app used to access the repo
   optional int64 githubAppID = 16;
 
-  // Github App Installation ID of the installed GitHub App
+  // GithubAppInstallationId specifies the installation ID of the GitHub App used to access the repo
   optional int64 githubAppInstallationID = 17;
 
-  // Github App Enterprise base url if empty will default to https://api.github.com
+  // GithubAppEnterpriseBaseURL specifies the base URL of GitHub Enterprise installation. If empty will default to https://api.github.com
   optional string githubAppEnterpriseBaseUrl = 18;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate
 message RepositoryCertificate {
-  // Name of the server the certificate is intended for
+  // ServerName specifies the DNS name of the server this certificate is intended for
   optional string serverName = 1;
 
-  // Type of certificate - currently "https" or "ssh"
+  // CertType specifies the type of the certificate - currently one of "https" or "ssh"
   optional string certType = 2;
 
-  // The sub type of the cert, i.e. "ssh-rsa"
+  // CertSubType specifies the sub type of the cert, i.e. "ssh-rsa"
   optional string certSubType = 3;
 
-  // Actual certificate data, protocol dependent
+  // CertData contains the actual certificate data, dependent on the certificate type
   optional bytes certData = 4;
 
-  // Additional certificate info (e.g. SSH fingerprint, X509 CommonName)
+  // CertInfo will hold additional certificate info, depdendent on the certificate type (e.g. SSH fingerprint, X509 CommonName)
   optional string certInfo = 5;
 }
 
@@ -850,6 +895,8 @@ message RepositoryList {
   repeated Repository items = 2;
 }
 
+// TODO: describe this type
+// TODO: describe members of this type
 message ResourceAction {
   optional string name = 1;
 
@@ -858,12 +905,16 @@ message ResourceAction {
   optional bool disabled = 3;
 }
 
+// TODO: describe this type
+// TODO: describe members of this type
 message ResourceActionDefinition {
   optional string name = 1;
 
   optional string actionLua = 2;
 }
 
+// TODO: describe this type
+// TODO: describe members of this type
 message ResourceActionParam {
   optional string name = 1;
 
@@ -874,6 +925,8 @@ message ResourceActionParam {
   optional string default = 4;
 }
 
+// TODO: describe this type
+// TODO: describe members of this type
 message ResourceActions {
   optional string actionDiscoveryLua = 1;
 
@@ -881,6 +934,7 @@ message ResourceActions {
 }
 
 // ResourceDiff holds the diff of a live and target resource object
+// TODO: describe members of this type
 message ResourceDiff {
   optional string group = 1;
 
@@ -927,6 +981,7 @@ message ResourceIgnoreDifferences {
 }
 
 // ResourceNetworkingInfo holds networking resource related information
+// TODO: describe members of this type
 message ResourceNetworkingInfo {
   map<string, string> targetLabels = 1;
 
@@ -941,6 +996,7 @@ message ResourceNetworkingInfo {
 }
 
 // ResourceNode contains information about live resource and its children
+// TODO: describe members of this type
 message ResourceNode {
   optional ResourceRef resourceRef = 1;
 
@@ -960,6 +1016,7 @@ message ResourceNode {
 }
 
 // ResourceOverride holds configuration to customize resource diffing and health assessment
+// TODO: describe the members of this type
 message ResourceOverride {
   optional string healthLua = 1;
 
@@ -970,7 +1027,7 @@ message ResourceOverride {
   repeated KnownTypeField knownTypeFields = 4;
 }
 
-// ResourceRef includes fields which unique identify resource
+// ResourceRef includes fields which uniquely identify a resource
 message ResourceRef {
   optional string group = 1;
 
@@ -987,34 +1044,40 @@ message ResourceRef {
 
 // ResourceResult holds the operation result details of a specific resource
 message ResourceResult {
+  // Group specifies the API group of the resource
   optional string group = 1;
 
+  // Version specifies the API version of the resource
   optional string version = 2;
 
+  // Kind specifies the API kind of the resource
   optional string kind = 3;
 
+  // Namespace specifies the target namespace of the resource
   optional string namespace = 4;
 
+  // Name specifies the name of the resource
   optional string name = 5;
 
-  // the final result of the sync, this is be empty if the resources is yet to be applied/pruned and is always zero-value for hooks
+  // Status holds the final result of the sync. Will be empty if the resources is yet to be applied/pruned and is always zero-value for hooks
   optional string status = 6;
 
-  // message for the last sync OR operation
+  // Message contains an informational or error message for the last sync OR operation
   optional string message = 7;
 
-  // the type of the hook, empty for non-hook resources
+  // HookType specifies the type of the hook. Empty for non-hook resources
   optional string hookType = 8;
 
-  // the state of any operation associated with this resource OR hook
-  // note: can contain values for non-hook resources
+  // HookPhase contains the state of any operation associated with this resource OR hook
+  // This can also contain values for non-hook resources.
   optional string hookPhase = 9;
 
-  // indicates the particular phase of the sync that this is for
+  // SyncPhase indicates the particular phase of the sync that this result was acquired in
   optional string syncPhase = 10;
 }
 
 // ResourceStatus holds the current sync and health status of a resource
+// TODO: describe members of this type
 message ResourceStatus {
   optional string group = 1;
 
@@ -1035,52 +1098,52 @@ message ResourceStatus {
   optional bool requiresPruning = 9;
 }
 
+// RetryStrategy contains information about the strategy to apply when a sync failed
 message RetryStrategy {
-  // Limit is the maximum number of attempts when retrying a container
+  // Limit is the maximum number of attempts for retrying a failed sync. If set to 0, no retries will be performed.
   optional int64 limit = 1;
 
-  // Backoff is a backoff strategy
+  // Backoff controls how to backoff on subsequent retries of failed syncs
   optional Backoff backoff = 2;
 }
 
-// RevisionHistory contains information relevant to an application deployment
+// RevisionHistory contains history information about a previous sync
 message RevisionHistory {
-  // Revision holds the revision of the sync
+  // Revision holds the revision the sync was performed against
   optional string revision = 2;
 
-  // DeployedAt holds the time the deployment completed
+  // DeployedAt holds the time the sync operation completed
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time deployedAt = 4;
 
   // ID is an auto incrementing identifier of the RevisionHistory
   optional int64 id = 5;
 
+  // Source is a reference to the application source used for the sync operation
   optional ApplicationSource source = 6;
 
-  // DeployStartedAt holds the time the deployment started
+  // DeployStartedAt holds the time the sync operation started
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time deployStartedAt = 7;
 }
 
-// data about a specific revision within a repo
+// RevisionMetadata contains metadata for a specific revision in a Git repository
 message RevisionMetadata {
   // who authored this revision,
   // typically their name and email, e.g. "John Doe <john_doe@my-company.com>",
   // but might not match this example
   optional string author = 1;
 
-  // when the revision was authored
+  // Date specifies when the revision was authored
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time date = 2;
 
-  // tags on the revision,
-  // note - tags can move from one revision to another
+  // Tags specifies any tags currently attached to the revision
+  // Floating tags can move from one revision to another
   repeated string tags = 3;
 
-  // the message associated with the revision,
-  // probably the commit message,
-  // this is truncated to the first newline or 64 characters (which ever comes first)
+  // Message contains the message associated with the revision, most likely the commit message.
+  // The message is truncated to the first newline or 64 characters (which ever comes first)
   optional string message = 4;
 
-  // If revision was signed with GPG, and signature verification is enabled,
-  // this contains a hint on the signer
+  // SignatureInfo contains a hint on the signer if the revision was signed with GPG, and signature verification is enabled.
   optional string signatureInfo = 5;
 }
 
@@ -1090,26 +1153,26 @@ message SignatureKey {
   optional string keyID = 1;
 }
 
-// SyncOperation contains sync operation details.
+// SyncOperation contains details about a sync operation.
 message SyncOperation {
-  // Revision is the revision in which to sync the application to.
+  // Revision is the revision (Git) or chart version (Helm) which to sync the application to
   // If omitted, will use the revision specified in app spec.
   optional string revision = 1;
 
-  // Prune deletes resources that are no longer tracked in git
+  // Prune specifies to delete resources from the cluster that are no longer tracked in git
   optional bool prune = 2;
 
-  // DryRun will perform a `kubectl apply --dry-run` without actually performing the sync
+  // DryRun specifies to perform a `kubectl apply --dry-run` without actually performing the sync
   optional bool dryRun = 3;
 
   // SyncStrategy describes how to perform the sync
   optional SyncStrategy syncStrategy = 4;
 
-  // Resources describes which resources to sync
+  // Resources describes which resources shall be part of the sync
   repeated SyncOperationResource resources = 6;
 
   // Source overrides the source definition set in the application.
-  // This is typically set in a Rollback operation and nil during a Sync operation
+  // This is typically set in a Rollback operation and is nil during a Sync operation
   optional ApplicationSource source = 7;
 
   // Manifests is an optional field that overrides sync source with a local directory for development
@@ -1132,10 +1195,10 @@ message SyncOperationResource {
 
 // SyncOperationResult represent result of sync operation
 message SyncOperationResult {
-  // Resources holds the sync result of each individual resource
+  // Resources contains a list of sync result items for each individual resource in a sync operation
   repeated ResourceResult resources = 1;
 
-  // Revision holds the revision of the sync
+  // Revision holds the revision this sync operation was performed to
   optional string revision = 2;
 
   // Source records the application source information of the sync, used for comparing auto-sync
@@ -1156,22 +1219,25 @@ message SyncPolicy {
 
 // SyncPolicyAutomated controls the behavior of an automated sync
 message SyncPolicyAutomated {
-  // Prune will prune resources automatically as part of automated sync (default: false)
+  // Prune specifies whether to delete resources from the cluster that are not found in the sources anymore as part of automated sync (default: false)
   optional bool prune = 1;
 
-  // SelfHeal enables auto-syncing if  (default: false)
+  // SelfHeal specifes whether to revert resources back to their desired state upon modification in the cluster (default: false)
   optional bool selfHeal = 2;
 
   // AllowEmpty allows apps have zero live resources (default: false)
   optional bool allowEmpty = 3;
 }
 
-// SyncStatus is a comparison result of application spec and deployed application.
+// SyncStatus contains information about the currently observed live and desired states of an application
 message SyncStatus {
+  // Status is the sync state of the comparison
   optional string status = 1;
 
+  // ComparedTo contains information about what has been compared
   optional ComparedTo comparedTo = 2;
 
+  // Revision contains information about the revision the comparison has been performed to
   optional string revision = 3;
 }
 
@@ -1226,7 +1292,7 @@ message SyncWindow {
 
 // TLSClientConfig contains settings to enable transport layer security
 message TLSClientConfig {
-  // Server should be accessed without verifying the TLS certificate. For testing only.
+  // Insecure specifies that the server should be accessed without verifying the TLS certificate. For testing only.
   optional bool insecure = 1;
 
   // ServerName is passed to the server for SNI and is used in the client to check server
