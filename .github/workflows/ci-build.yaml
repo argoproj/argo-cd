@@ -27,6 +27,7 @@ jobs:
     steps:
       - name: Print port listeners
         run: |
+          sudo apt-get install -y net-tools
           sudo netstat -tulpen
       - name: Checkout code
         uses: actions/checkout@v2
