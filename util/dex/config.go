@@ -132,7 +132,7 @@ func replaceListSecrets(obj []interface{}, secretValues map[string]string) []int
 
 // needsRedirectURI returns whether or not the given connector type needs a redirectURI
 // Update this list as necessary, as new connectors are added
-// https://github.com/dexidp/dex/tree/master/Documentation/connectors
+// https://dexidp.io/docs/connectors/
 func needsRedirectURI(connectorType string) bool {
 	switch connectorType {
 	case "oidc", "saml", "microsoft", "linkedin", "gitlab", "github", "bitbucket-cloud", "openshift":
