@@ -9,7 +9,7 @@ import {Cluster} from '../../../shared/components';
 import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';
 import {OperationState} from '../utils';
-import {Key, useKeyPress} from '../../../shared/keybinding';
+import {Key, useKeyPress, useNav} from '../../../shared/keybinding';
 
 require('./applications-tiles.scss');
 
@@ -48,23 +48,17 @@ const useItemsPerContainer = (itemRef: any, containerRef: any): number => {
 };
 
 export const ApplicationTiles = ({applications, syncApplication, refreshApplication, deleteApplication}: ApplicationTilesProps) => {
-    const [selectedApp, setSelectedApp] = React.useState(-1);
+    const [selectedApp, navApp, reset] = useNav(applications.length);
+
     const ctxh = React.useContext(Context);
     const appRef = {ref: React.useRef(null), set: false};
     const appContainerRef = React.useRef(null);
     const appsPerRow = useItemsPerContainer(appRef.ref, appContainerRef);
 
-    const isInBounds = (pos: number): boolean => pos < applications.length && pos > -1;
-
-    const nav = (val: number): boolean => {
-        const newPos = selectedApp + val;
-        return isInBounds(newPos) ? setSelectedApp(newPos) === null : false;
-    };
-
-    useKeyPress(Key.RIGHT, () => nav(1));
-    useKeyPress(Key.LEFT, () => nav(-1));
-    useKeyPress(Key.DOWN, () => nav(appsPerRow));
-    useKeyPress(Key.UP, () => nav(-1 * appsPerRow));
+    useKeyPress(Key.RIGHT, () => navApp(1));
+    useKeyPress(Key.LEFT, () => navApp(-1));
+    useKeyPress(Key.DOWN, () => navApp(appsPerRow));
+    useKeyPress(Key.UP, () => navApp(-1 * appsPerRow));
 
     useKeyPress(Key.ENTER, () => {
         if (selectedApp > -1) {
@@ -75,11 +69,8 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
     });
 
     useKeyPress(Key.ESCAPE, () => {
-        if (selectedApp > -1) {
-            setSelectedApp(-1);
-            return true;
-        }
-        return false;
+        reset();
+        return selectedApp > -1 ? true : false;
     });
 
     return (
