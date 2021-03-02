@@ -7,7 +7,7 @@ import {Observable} from 'rxjs';
 
 import {AddAuthToToolbar, ClusterCtx, DataLoader, EmptyState, ObservableQuery, Page, Paginate, Query, Spinner} from '../../../shared/components';
 import {Consumer, Context, ContextApis} from '../../../shared/context';
-import {Key, useKeyPress} from '../../../shared/keybinding';
+import {Key, useKeyListener} from '../../../shared/keybinding';
 import * as models from '../../../shared/models';
 import {AppsListPreferences, AppsListViewType, services} from '../../../shared/services';
 import {ApplicationCreatePanel} from '../application-create-panel/application-create-panel';
@@ -166,17 +166,22 @@ const SearchBar = (props: {content: string; ctx: ContextApis; apps: models.Appli
     const query = new URLSearchParams(window.location.search);
     const appInput = tryJsonParse(query.get('new'));
 
+    const useKeyPress = useKeyListener();
+    const [isFocused, setFocus] = React.useState(false);
+
     useKeyPress(Key.SLASH, () => {
         if (searchBar.current && !appInput) {
             searchBar.current.querySelector('input').focus();
+            setFocus(true);
             return true;
         }
         return false;
     });
 
     useKeyPress(Key.ESCAPE, () => {
-        if (searchBar.current && !appInput) {
+        if (searchBar.current && !appInput && isFocused) {
             searchBar.current.querySelector('input').blur();
+            setFocus(false);
             return true;
         }
         return false;

@@ -10,6 +10,35 @@ export enum Key {
     SLASH = 191
 }
 
+export enum NumKey {
+    ZERO = 48,
+    ONE = 49,
+    TWO = 50,
+    THREE = 51,
+    FOUR = 52,
+    FIVE = 53,
+    SIX = 54,
+    SEVEN = 55,
+    EIGHT = 56,
+    NINE = 57
+}
+
+export enum NumPadKey {
+    ZERO = 96,
+    ONE = 97,
+    TWO = 98,
+    THREE = 99,
+    FOUR = 100,
+    FIVE = 101,
+    SIX = 102,
+    SEVEN = 103,
+    EIGHT = 104,
+    NINE = 105
+}
+
+export type AnyNumKey = NumKey | NumPadKey;
+export type AnyKeys = AnyNumKey | Key | (AnyNumKey | Key)[];
+
 // useNav adds simple stateful navigation to your component
 // Returns:
 //   - pos: indicates current position
@@ -35,21 +64,42 @@ export const useNav = (upperBound: number, init?: number): [number, (n: number) 
     return [pos, nav, reset];
 };
 
-export const useKeyPress = (key: Key | Key[], action: () => boolean) => {
-    React.useEffect(() => {
-        const handlePress = (e: KeyboardEvent) => {
-            const keys = Array.isArray(key) ? key : [key];
-            for (const k of keys) {
-                if (e.keyCode === k) {
-                    if (action()) {
-                        e.preventDefault();
-                    }
-                }
+export type KeyAction = (keyCode?: number) => boolean;
+export type KeyMap = {[key: number]: KeyAction};
+
+export const useKeyListener = (): ((keys: AnyKeys, action: KeyAction) => void) => {
+    const keyMap = {} as KeyMap;
+    const handlePress = (e: KeyboardEvent) => {
+        const action = keyMap[e.keyCode];
+        if (action) {
+            const prevent = action(e.keyCode);
+            if (prevent) {
+                e.preventDefault();
             }
-        };
+        }
+    };
+    React.useEffect(() => {
         document.addEventListener('keydown', handlePress);
         return () => {
             document.removeEventListener('keydown', handlePress);
         };
-    });
+    }, [keyMap]);
+    return (keys, a) => {
+        if (Array.isArray(keys)) {
+            for (const key of keys) {
+                keyMap[key as number] = a;
+            }
+        } else {
+            keyMap[keys as number] = a;
+        }
+    };
+};
+
+export const NumKeyToNumber = (key: AnyNumKey): number => {
+    if (key > 47 && key < 58) {
+        return key - 48;
+    } else if (key > 95 && key < 106) {
+        return key - 96;
+    }
+    return -1;
 };

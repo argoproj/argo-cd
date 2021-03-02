@@ -3,7 +3,7 @@ import * as classNames from 'classnames';
 import * as React from 'react';
 import {Cluster} from '../../../shared/components';
 import {Consumer, Context} from '../../../shared/context';
-import {Key, useKeyPress, useNav} from '../../../shared/keybinding';
+import {Key, NumKey, NumKeyToNumber, NumPadKey, useKeyListener, useNav} from '../../../shared/keybinding';
 import * as models from '../../../shared/models';
 import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';
@@ -53,6 +53,8 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
     const appContainerRef = React.useRef(null);
     const appsPerRow = useItemsPerContainer(appRef.ref, appContainerRef);
 
+    const useKeyPress = useKeyListener();
+
     useKeyPress(Key.RIGHT, () => navApp(1));
     useKeyPress(Key.LEFT, () => navApp(-1));
     useKeyPress(Key.DOWN, () => navApp(appsPerRow));
@@ -67,8 +69,20 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
     });
 
     useKeyPress(Key.ESCAPE, () => {
+        if (selectedApp > -1) {
+            reset();
+            return true;
+        }
+        return false;
+    });
+
+    useKeyPress(Object.values(NumKey) as NumKey[], n => {
         reset();
-        return selectedApp > -1 ? true : false;
+        return navApp(NumKeyToNumber(n));
+    });
+    useKeyPress(Object.values(NumPadKey) as NumPadKey[], n => {
+        reset();
+        return navApp(NumKeyToNumber(n));
     });
 
     return (
