@@ -92,7 +92,7 @@ argocd account update-password
 !!! note
     The initial password is set in a kubernetes secret, named `argocd-secret`, during ArgoCD's initial start up. This means if you edit
     the deployment in any way which causes a new pod to be deployed, such as disabling TLS on the Argo CD API server. Take note of the initial
-    pod name when you first install Argo CD, or reset the password by following [these instructions](../../faq/#i-forgot-the-admin-password-how-do-i-reset-it)
+    pod name when you first install Argo CD, or reset the password by following [these instructions](../faq/#i-forgot-the-admin-password-how-do-i-reset-it)
 
 > Argo CD v1.9 and later
 
