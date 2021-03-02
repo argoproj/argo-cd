@@ -1,15 +1,13 @@
 import {Tooltip} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
-
-import {Consumer, Context} from '../../../shared/context';
-import * as models from '../../../shared/models';
-
 import {Cluster} from '../../../shared/components';
+import {Consumer, Context} from '../../../shared/context';
+import {Key, useKeyPress, useNav} from '../../../shared/keybinding';
+import * as models from '../../../shared/models';
 import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';
 import {OperationState} from '../utils';
-import {Key, useKeyPress, useNav} from '../../../shared/keybinding';
 
 require('./applications-tiles.scss');
 

@@ -10,6 +10,15 @@ export enum Key {
     SLASH = 191
 }
 
+// useNav adds simple stateful navigation to your component
+// Returns:
+//   - pos: indicates current position
+//   - nav: fxn that accepts an integer that represents number to increment/decrement pos
+//   - reset: fxn that sets current position to -1
+// Accepts:
+//   - upperBound: maximum value that pos can grow to
+//   - init: optional initial value for pos
+
 export const useNav = (upperBound: number, init?: number): [number, (n: number) => boolean, () => void] => {
     const [pos, setPos] = React.useState(init || -1);
     const isInBounds = (p: number): boolean => p < upperBound && p > -1;

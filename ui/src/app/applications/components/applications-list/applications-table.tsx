@@ -2,7 +2,7 @@ import {DropDownMenu} from 'argo-ui';
 import * as React from 'react';
 import {Cluster} from '../../../shared/components';
 import {Consumer} from '../../../shared/context';
-import {useKeyPress, Key, useNav} from '../../../shared/keybinding';
+import {Key, useKeyPress, useNav} from '../../../shared/keybinding';
 import * as models from '../../../shared/models';
 import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';
