@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -825,8 +826,18 @@ func indexFilePath(srcPath string, baseHRef string) (string, error) {
 	return filePath, nil
 }
 
-func fileExists(filename string) bool {
-	info, err := os.Stat(filename)
+func fileExists(dir, filename string) bool {
+	// We make sure that the resulting path is within the directory we intend to
+	// serve content from. path.Join() will normalize the path.
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		return false
+	}
+	fp := path.Join(abs, filename)
+	if !strings.HasPrefix(fp, abs) {
+		return false
+	}
+	info, err := os.Stat(fp)
 	if os.IsNotExist(err) {
 		return false
 	}
@@ -843,7 +854,8 @@ func (server *ArgoCDServer) newStaticAssetsHandler(dir string, baseHRef string) 
 				break
 			}
 		}
-		fileRequest := r.URL.Path != "/index.html" && fileExists(path.Join(dir, r.URL.Path))
+
+		fileRequest := r.URL.Path != "/index.html" && fileExists(dir, r.URL.Path)
 
 		// Set X-Frame-Options according to configuration
 		if server.XFrameOptions != "" {
