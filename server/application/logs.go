@@ -24,6 +24,10 @@ func parseLogsStream(podName string, stream io.ReadCloser, ch chan logEntry) {
 		line, err := bufReader.ReadString('\n')
 		if err == io.EOF {
 			eof = true
+			// stop if we reached end of stream and the next line is empty
+			if line == "" {
+				break
+			}
 		} else if err != nil && err != io.EOF {
 			ch <- logEntry{err: err}
 			break
