@@ -355,20 +355,15 @@ func TestManipulateApplicationResources(t *testing.T) {
 			assert.NoError(t, err)
 			defer io.Close(closer)
 
-			log.Infof("Before DeleteCall %s", client)
-			appPkg := &applicationpkg.ApplicationResourceDeleteRequest{
+			_, err = client.DeleteResource(context.Background(), &applicationpkg.ApplicationResourceDeleteRequest{
 				Name:         &app.Name,
 				Group:        deployment.GroupVersionKind().Group,
 				Kind:         deployment.GroupVersionKind().Kind,
 				Version:      deployment.GroupVersionKind().Version,
 				Namespace:    deployment.GetNamespace(),
 				ResourceName: deployment.GetName(),
-			}
-			log.Infof("ApplicationPKG %s", appPkg)
-			_, err = client.DeleteResource(context.Background(), appPkg)
-			log.Infof("Custom PRE ASSERT ERROR %s", err)
+			})
 			assert.NoError(t, err)
-			log.Infof("Custom POST ASSERT ERROR %s", err)
 		}).
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync))
 }

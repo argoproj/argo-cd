@@ -291,7 +291,7 @@ export class ApplicationsService {
             .then(res => JSON.parse(res.manifest) as models.State);
     }
 
-    public deleteResource(applicationName: string, resource: models.ResourceNode, force: boolean, cascade: boolean): Promise<any> {
+    public deleteResource(applicationName: string, resource: models.ResourceNode, force: boolean, orphan: boolean): Promise<any> {
         return requests
             .delete(`/applications/${applicationName}/resource`)
             .query({
@@ -302,7 +302,7 @@ export class ApplicationsService {
                 kind: resource.kind,
                 group: resource.group,
                 force,
-                cascade
+                orphan
             })
             .send()
             .then(() => true);
