@@ -1242,17 +1242,17 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 	if gpg.IsGPGEnabled() && q.CheckSignature {
 		cs, err := gitClient.VerifyCommitSignature(q.Revision)
 		if err != nil {
-			log.Debugf("Could not verify commit signature: %v", err)
+			log.Errorf("error verifying signature of commit '%s' in repo '%s': %v", q.Revision, q.Repo.Repo, err)
 			return nil, err
 		}
 
 		if cs != "" {
-			vr, err := gpg.ParseGitCommitVerification(cs)
-			if err != nil {
-				log.Debugf("Could not parse commit verification: %v", err)
-				return nil, err
+			vr := gpg.ParseGitCommitVerification(cs)
+			if vr.Result == gpg.VerifyResultUnknown {
+				signatureInfo = fmt.Sprintf("UNKNOWN signature: %s", vr.Message)
+			} else {
+				signatureInfo = fmt.Sprintf("%s signature from %s key %s", vr.Result, vr.Cipher, gpg.KeyID(vr.KeyID))
 			}
-			signatureInfo = fmt.Sprintf("%s signature from %s key %s", vr.Result, vr.Cipher, gpg.KeyID(vr.KeyID))
 		} else {
 			signatureInfo = "Revision is not signed."
 		}
