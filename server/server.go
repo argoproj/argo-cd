@@ -916,6 +916,9 @@ func (a *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, error
 		// nolint:staticcheck
 		ctx = context.WithValue(ctx, "claims", claims)
 		if newToken != "" {
+			// Session tokens that are expiring soon should be regenerated if user stays active.
+			// The renewed token is stored in outgoing ServerMetadata. Metadata is available to grpc-gateway
+			// response forwarder that will translate it into Set-Cookie header.
 			if err := grpc.SendHeader(ctx, metadata.New(map[string]string{renewTokenKey: newToken})); err != nil {
 				log.Warnf("Failed to set %s header", renewTokenKey)
 			}
