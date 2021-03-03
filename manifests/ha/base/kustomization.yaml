@@ -18,4 +18,4 @@ bases:
 images:
 - name: argoproj/argocd
   newName: argoproj/argocd
-  newTag: v1.7.13
+  newTag: v1.7.14
