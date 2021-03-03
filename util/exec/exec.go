@@ -30,13 +30,15 @@ func Run(cmd *exec.Cmd) (string, error) {
 }
 
 func RunWithRedactor(cmd *exec.Cmd, redactor func(text string) string) (string, error) {
+	opts := argoexec.CmdOpts{Timeout: timeout}
 	span := tracing.StartSpan(fmt.Sprintf("exec %v", cmd.Args[0]))
 	span.SetBaggageItem("dir", fmt.Sprintf("%v", cmd.Dir))
-	span.SetBaggageItem("args", fmt.Sprintf("%v", cmd.Args))
-	defer span.Finish()
-	opts := argoexec.CmdOpts{Timeout: timeout}
 	if redactor != nil {
+		span.SetBaggageItem("args", redactor(fmt.Sprintf("%v", cmd.Args)))
 		opts.Redactor = redactor
+	} else {
+		span.SetBaggageItem("args", fmt.Sprintf("%v", cmd.Args))
 	}
+	defer span.Finish()
 	return argoexec.RunCommandExt(cmd, opts)
 }
