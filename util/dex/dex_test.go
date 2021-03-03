@@ -55,7 +55,7 @@ connectors:
   name: GitHub
   config:
     clientID: aabbccddeeff00112233
-    clientSecret: abcdefghijklmnopqrst
+    clientSecret: abcdefghijklmnopqrst\n\r
     orgs:
     - name: your-github-org
 staticClients:
@@ -63,7 +63,7 @@ staticClients:
   name: Argo Workflow
   redirectURIs:
   - https://argo/oauth2/callback
-  secret: abcdefghijklmnopqrst
+  secret:  $dex.acme.clientSecret  
 `
 var badDexConfig = `
 connectors:
@@ -87,6 +87,11 @@ connectors:
 var goodSecrets = map[string]string{
 	"dex.github.clientSecret": "foobar",
 	"dex.acme.clientSecret":   "barfoo",
+}
+
+var goodSecretswithCRLF = map[string]string{
+	"dex.github.clientSecret": "foobar\n\r",
+	"dex.acme.clientSecret":   "barfoo\n\r",
 }
 
 func Test_GenerateDexConfig(t *testing.T) {
@@ -184,6 +189,32 @@ func Test_GenerateDexConfig(t *testing.T) {
 		}
 	})
 
+	t.Run("Secret dereference with extra white space", func(t *testing.T) {
+		s := settings.ArgoCDSettings{
+			URL:       "http://localhost",
+			DexConfig: goodDexConfig,
+			Secrets:   goodSecretswithCRLF,
+		}
+		config, err := GenerateDexConfigYAML(&s)
+		assert.NoError(t, err)
+		assert.NotNil(t, config)
+		var dexCfg map[string]interface{}
+		err = yaml.Unmarshal(config, &dexCfg)
+		if err != nil {
+			panic(err.Error())
+		}
+		connectors, ok := dexCfg["connectors"].([]interface{})
+		assert.True(t, ok)
+		for i, connectorsIf := range connectors {
+			config := connectorsIf.(map[string]interface{})["config"].(map[string]interface{})
+			if i == 0 {
+				assert.Equal(t, "foobar", config["clientSecret"])
+			} else if i == 1 {
+				assert.Equal(t, "barfoo", config["clientSecret"])
+			}
+		}
+	})
+
 	t.Run("Redirect config", func(t *testing.T) {
 		types := []string{"oidc", "saml", "microsoft", "linkedin", "gitlab", "github", "bitbucket-cloud"}
 		for _, c := range types {
@@ -196,6 +227,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 		s := settings.ArgoCDSettings{
 			URL:       "http://localhost",
 			DexConfig: customStaticClientDexConfig,
+			Secrets:   goodSecretswithCRLF,
 		}
 		config, err := GenerateDexConfigYAML(&s)
 		assert.NoError(t, err)
@@ -212,6 +244,27 @@ func Test_GenerateDexConfig(t *testing.T) {
 		customClient := clients[2].(map[string]interface{})
 		assert.Equal(t, "argo-workflow", customClient["id"].(string))
 		assert.Equal(t, 1, len(customClient["redirectURIs"].([]interface{})))
+	})
+	t.Run("Custom static clients secret dereference with trailing CRLF", func(t *testing.T) {
+		s := settings.ArgoCDSettings{
+			URL:       "http://localhost",
+			DexConfig: customStaticClientDexConfig,
+			Secrets:   goodSecretswithCRLF,
+		}
+		config, err := GenerateDexConfigYAML(&s)
+		assert.NoError(t, err)
+		assert.NotNil(t, config)
+		var dexCfg map[string]interface{}
+		err = yaml.Unmarshal(config, &dexCfg)
+		if err != nil {
+			panic(err.Error())
+		}
+		clients, ok := dexCfg["staticClients"].([]interface{})
+		assert.True(t, ok)
+		assert.Equal(t, 3, len(clients))
+
+		customClient := clients[2].(map[string]interface{})
+		assert.Equal(t, "barfoo", customClient["secret"])
 	})
 }
 
