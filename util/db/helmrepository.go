@@ -34,11 +34,11 @@ func (db *db) getHelmRepo(repoURL string, helmRepositories []settings.HelmRepoCr
 		Type: "helm",
 		Name: repoInfo.Name,
 	}
-	err := db.unmarshalFromSecretsStr(map[*string]*v1.SecretKeySelector{
-		&repo.Username:          repoInfo.UsernameSecret,
-		&repo.Password:          repoInfo.PasswordSecret,
-		&repo.TLSClientCertData: repoInfo.CertSecret,
-		&repo.TLSClientCertKey:  repoInfo.KeySecret,
+	err := db.unmarshalFromSecretsStr(map[*SecretMaperValidation]*v1.SecretKeySelector{
+		&SecretMaperValidation{Dest: &repo.Username, Transform: StripCRLFCharacter}:          repoInfo.UsernameSecret,
+		&SecretMaperValidation{Dest: &repo.Password, Transform: StripCRLFCharacter}:          repoInfo.PasswordSecret,
+		&SecretMaperValidation{Dest: &repo.TLSClientCertData, Transform: StripCRLFCharacter}: repoInfo.CertSecret,
+		&SecretMaperValidation{Dest: &repo.TLSClientCertKey, Transform: StripCRLFCharacter}:  repoInfo.KeySecret,
 	}, make(map[string]*v1.Secret))
 	return repo, err
 }
