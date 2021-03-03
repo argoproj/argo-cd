@@ -202,7 +202,7 @@ func (s *Service) runRepoOperation(
 	var err error
 	revision = textutils.FirstNonEmpty(revision, source.TargetRevision)
 	if source.IsHelm() {
-		helmClient, revision, err = s.newHelmClientResolveRevision(repo, revision, source.Chart)
+		helmClient, revision, err = s.newHelmClientResolveRevision(repo, revision, source.Chart, settings.noCache)
 		if err != nil {
 			return nil, err
 		}
@@ -1299,7 +1299,7 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 	return gitClient, commitSHA, nil
 }
 
-func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revision string, chart string) (helm.Client, string, error) {
+func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revision string, chart string, noCache bool) (helm.Client, string, error) {
 	helmClient := s.newHelmClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI || helm.IsHelmOciChart(chart))
 	if helm.IsVersion(revision) {
 		return helmClient, revision, nil
@@ -1311,7 +1311,7 @@ func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revisi
 	if err != nil {
 		return nil, "", fmt.Errorf("invalid revision '%s': %v", revision, err)
 	}
-	index, err := helmClient.GetIndex()
+	index, err := helmClient.GetIndex(noCache)
 	if err != nil {
 		return nil, "", err
 	}
@@ -1360,7 +1360,7 @@ func checkoutRevision(gitClient git.Client, revision string) error {
 }
 
 func (s *Service) GetHelmCharts(ctx context.Context, q *apiclient.HelmChartsRequest) (*apiclient.HelmChartsResponse, error) {
-	index, err := s.newHelmClient(q.Repo.Repo, q.Repo.GetHelmCreds(), q.Repo.EnableOCI).GetIndex()
+	index, err := s.newHelmClient(q.Repo.Repo, q.Repo.GetHelmCreds(), q.Repo.EnableOCI).GetIndex(true)
 	if err != nil {
 		return nil, err
 	}
