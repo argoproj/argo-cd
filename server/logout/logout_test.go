@@ -180,25 +180,25 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 	sessionManager := session.NewSessionManager(settingsManagerWithOIDCConfig, test.NewFakeProjLister(), "", session.NewUserStateStorage(nil))
 
 	oidcHandler := NewHandler(appclientset.NewSimpleClientset(), settingsManagerWithOIDCConfig, sessionManager, "", "default")
-	oidcHandler.verifyToken = func(tokenString string) (jwt.Claims, error) {
+	oidcHandler.verifyToken = func(tokenString string) (jwt.Claims, string, error) {
 		if !validJWTPattern.MatchString(tokenString) {
-			return nil, errors.New("invalid jwt")
+			return nil, "", errors.New("invalid jwt")
 		}
-		return &jwt.StandardClaims{Issuer: "okta"}, nil
+		return &jwt.StandardClaims{Issuer: "okta"}, "", nil
 	}
 	nonoidcHandler := NewHandler(appclientset.NewSimpleClientset(), settingsManagerWithoutOIDCConfig, sessionManager, "", "default")
-	nonoidcHandler.verifyToken = func(tokenString string) (jwt.Claims, error) {
+	nonoidcHandler.verifyToken = func(tokenString string) (jwt.Claims, string, error) {
 		if !validJWTPattern.MatchString(tokenString) {
-			return nil, errors.New("invalid jwt")
+			return nil, "", errors.New("invalid jwt")
 		}
-		return &jwt.StandardClaims{Issuer: session.SessionManagerClaimsIssuer}, nil
+		return &jwt.StandardClaims{Issuer: session.SessionManagerClaimsIssuer}, "", nil
 	}
 	oidcHandlerWithoutLogoutURL := NewHandler(appclientset.NewSimpleClientset(), settingsManagerWithOIDCConfigButNoLogoutURL, sessionManager, "", "default")
-	oidcHandlerWithoutLogoutURL.verifyToken = func(tokenString string) (jwt.Claims, error) {
+	oidcHandlerWithoutLogoutURL.verifyToken = func(tokenString string) (jwt.Claims, string, error) {
 		if !validJWTPattern.MatchString(tokenString) {
-			return nil, errors.New("invalid jwt")
+			return nil, "", errors.New("invalid jwt")
 		}
-		return &jwt.StandardClaims{Issuer: "okta"}, nil
+		return &jwt.StandardClaims{Issuer: "okta"}, "", nil
 	}
 
 	oidcTokenHeader := make(map[string][]string)

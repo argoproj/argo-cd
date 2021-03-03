@@ -15,6 +15,7 @@ import (
 
 	oidc "github.com/coreos/go-oidc"
 	"github.com/dgrijalva/jwt-go/v4"
+	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -56,11 +57,12 @@ const (
 	SessionManagerClaimsIssuer = "argocd"
 
 	// invalidLoginError, for security purposes, doesn't say whether the username or password was invalid.  This does not mitigate the potential for timing attacks to determine which is which.
-	invalidLoginError         = "Invalid username or password"
-	blankPasswordError        = "Blank passwords are not allowed"
-	accountDisabled           = "Account %s is disabled"
-	usernameTooLongError      = "Username is too long (%d bytes max)"
-	userDoesNotHaveCapability = "Account %s does not have %s capability"
+	invalidLoginError           = "Invalid username or password"
+	blankPasswordError          = "Blank passwords are not allowed"
+	accountDisabled             = "Account %s is disabled"
+	usernameTooLongError        = "Username is too long (%d bytes max)"
+	userDoesNotHaveCapability   = "Account %s does not have %s capability"
+	autoRegenerateTokenDuration = time.Minute * 5
 )
 
 const (
@@ -230,7 +232,7 @@ func GetSubjectAccountAndCapability(subject string) (string, settings.AccountCap
 }
 
 // Parse tries to parse the provided string and returns the token claims for local login.
-func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, error) {
+func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error) {
 	// Parse takes the token string and a function for looking up the key. The latter is especially
 	// useful if you use multiple keys for your application.  The standard is to use 'kid' in the
 	// head of the token to identify which key to use, but the parsed token (head and claims) is provided
@@ -238,7 +240,7 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, error) {
 	var claims jwt.MapClaims
 	argoCDSettings, err := mgr.settingsMgr.GetSettings()
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	token, err := jwt.ParseWithClaims(tokenString, &claims, func(token *jwt.Token) (interface{}, error) {
 		// Don't forget to validate the alg is what you expect:
@@ -248,12 +250,12 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, error) {
 		return argoCDSettings.ServerSignature, nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	issuedAt, err := jwtutil.IssuedAtTime(claims)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	subject := jwtutil.StringField(claims, "sub")
@@ -262,14 +264,14 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, error) {
 	if projName, role, ok := rbacpolicy.GetProjectRoleFromSubject(subject); ok {
 		proj, err := mgr.projectsLister.Get(projName)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		_, _, err = proj.GetJWTToken(role, issuedAt.Unix(), id)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 
-		return token.Claims, nil
+		return token.Claims, "", nil
 	}
 
 	subject, capability := GetSubjectAccountAndCapability(subject)
@@ -277,27 +279,41 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, error) {
 
 	account, err := mgr.settingsMgr.GetAccount(subject)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	if !account.Enabled {
-		return nil, fmt.Errorf("account %s is disabled", subject)
+		return nil, "", fmt.Errorf("account %s is disabled", subject)
 	}
 
 	if !account.HasCapability(capability) {
-		return nil, fmt.Errorf("account %s does not have '%s' capability", subject, capability)
+		return nil, "", fmt.Errorf("account %s does not have '%s' capability", subject, capability)
 	}
 
 	if id == "" || mgr.storage.IsTokenRevoked(id) {
-		return nil, errors.New("token is revoked, please re-login")
+		return nil, "", errors.New("token is revoked, please re-login")
 	} else if capability == settings.AccountCapabilityApiKey && account.TokenIndex(id) == -1 {
-		return nil, fmt.Errorf("account %s does not have token with id %s", subject, id)
+		return nil, "", fmt.Errorf("account %s does not have token with id %s", subject, id)
 	}
 
 	if account.PasswordMtime != nil && issuedAt.Before(*account.PasswordMtime) {
-		return nil, fmt.Errorf("Account password has changed since token issued")
+		return nil, "", fmt.Errorf("Account password has changed since token issued")
 	}
-	return token.Claims, nil
+
+	newToken := ""
+	if exp, err := jwtutil.ExpirationTime(claims); err == nil {
+		tokenExpDuration := exp.Sub(issuedAt)
+		remainingDuration := time.Until(exp)
+
+		if remainingDuration < autoRegenerateTokenDuration && capability == settings.AccountCapabilityLogin {
+			if uniqueId, err := uuid.NewRandom(); err == nil {
+				if val, err := mgr.Create(fmt.Sprintf("%s:%s", subject, settings.AccountCapabilityLogin), int64(tokenExpDuration.Seconds()), uniqueId.String()); err == nil {
+					newToken = val
+				}
+			}
+		}
+	}
+	return token.Claims, newToken, nil
 }
 
 // GetLoginFailures retrieves the login failure information from the cache
@@ -481,14 +497,14 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 
 // VerifyToken verifies if a token is correct. Tokens can be issued either from us or by an IDP.
 // We choose how to verify based on the issuer.
-func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, error) {
+func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, error) {
 	parser := &jwt.Parser{
 		ValidationHelper: jwt.NewValidationHelper(jwt.WithoutClaimsValidation(), jwt.WithoutAudienceValidation()),
 	}
 	var claims jwt.StandardClaims
 	_, _, err := parser.ParseUnverified(tokenString, &claims)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	switch claims.Issuer {
 	case SessionManagerClaimsIssuer:
@@ -498,7 +514,7 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, error) {
 		// IDP signed token
 		prov, err := mgr.provider()
 		if err != nil {
-			return claims, err
+			return claims, "", err
 		}
 
 		// Token must be verified for at least one audience
@@ -511,11 +527,11 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, error) {
 			}
 		}
 		if err != nil {
-			return claims, err
+			return claims, "", err
 		}
 		var claims jwt.MapClaims
 		err = idToken.Claims(&claims)
-		return claims, err
+		return claims, "", err
 	}
 }
 

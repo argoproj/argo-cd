@@ -347,7 +347,7 @@ func TestProjectServer(t *testing.T) {
 		projectServer := NewServer("default", fake.NewSimpleClientset(), clientset, enforcer, sync.NewKeyLock(), sessionMgr, policyEnf, projInformer, settingsMgr)
 		tokenResponse, err := projectServer.CreateToken(context.Background(), &project.ProjectTokenCreateRequest{Project: projectWithRole.Name, Role: tokenName, ExpiresIn: 100})
 		assert.NoError(t, err)
-		claims, err := sessionMgr.Parse(tokenResponse.Token)
+		claims, _, err := sessionMgr.Parse(tokenResponse.Token)
 		assert.NoError(t, err)
 
 		mapClaims, err := jwtutil.MapClaims(claims)
@@ -367,7 +367,7 @@ func TestProjectServer(t *testing.T) {
 		projectServer := NewServer("default", fake.NewSimpleClientset(), clientset, enforcer, sync.NewKeyLock(), sessionMgr, policyEnf, projInformer, settingsMgr)
 		tokenResponse, err := projectServer.CreateToken(context.Background(), &project.ProjectTokenCreateRequest{Project: projectWithRole.Name, Role: tokenName, ExpiresIn: 1, Id: id})
 		assert.NoError(t, err)
-		claims, err := sessionMgr.Parse(tokenResponse.Token)
+		claims, _, err := sessionMgr.Parse(tokenResponse.Token)
 		assert.NoError(t, err)
 
 		mapClaims, err := jwtutil.MapClaims(claims)
@@ -388,7 +388,7 @@ func TestProjectServer(t *testing.T) {
 		tokenResponse, err := projectServer.CreateToken(context.Background(), &project.ProjectTokenCreateRequest{Project: projectWithRole.Name, Role: tokenName, ExpiresIn: 1, Id: id})
 
 		assert.NoError(t, err)
-		claims, err := sessionMgr.Parse(tokenResponse.Token)
+		claims, _, err := sessionMgr.Parse(tokenResponse.Token)
 		assert.NoError(t, err)
 
 		mapClaims, err := jwtutil.MapClaims(claims)
